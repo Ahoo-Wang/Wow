@@ -11,9 +11,9 @@
  * limitations under the License.
  */
 
-import { DomainEventStream } from './domainEventStream';
 import { QueryServiceApi } from '../queryServiceApi';
+import { MaterializedSnapshot } from './snapshot';
 
-export interface EventStreamQueryApi extends Omit<QueryServiceApi<DomainEventStream>, 'single'> {
+export interface SnapshotApi<S> extends QueryServiceApi<MaterializedSnapshot<S>> {
 
 }

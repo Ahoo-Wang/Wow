@@ -11,9 +11,19 @@
  * limitations under the License.
  */
 
-import { DomainEventStream } from './domainEventStream';
-import { QueryServiceApi } from '../queryServiceApi';
+import { ListQuery, PagedList, PagedQuery, SingleQuery } from './queryable';
+import { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
+import { Condition } from './condition';
 
-export interface EventStreamQueryApi extends Omit<QueryServiceApi<DomainEventStream>, 'single'> {
+export interface QueryServiceApi<R> {
 
+  single(singleQuery: SingleQuery): Promise<Partial<R>>;
+
+  list(listQuery: ListQuery): Promise<Partial<R>[]>;
+
+  listStream(listQuery: ListQuery): Promise<ReadableStream<JsonServerSentEvent<Partial<R>>>>;
+
+  paged(pagedQuery: PagedQuery): Promise<PagedList<Partial<R>>>;
+
+  count(condition: Condition): Promise<number>;
 }
