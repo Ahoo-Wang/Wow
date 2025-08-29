@@ -23,6 +23,47 @@ import { CommandHttpRequest } from './commandHttpRequest';
  * synchronously or as a stream of events. It uses the fetcher-decorator
  * library to handle HTTP communication with appropriate headers and
  * result extraction.
+ *
+ * @example
+ * ```typescript
+ * // Create a fetcher instance with base configuration
+ * const wowFetcher = new Fetcher({
+ *   baseURL: 'http://localhost:8080/',
+ * });
+ *
+ * // Add EventStreamInterceptor to handle Server-Sent Events
+ * wowFetcher.interceptors.response.use(new EventStreamInterceptor());
+ *
+ * // Create CommandHttpClient instance
+ * const commandHttpClient = new CommandHttpClient(wowFetcher);
+ *
+ * // Define a command
+ * const command: CommandHttpRequest = {
+ *   path: 'owner/{ownerId}/cart/add_cart_item',
+ *   method: HttpMethod.POST,
+ *   headers: {
+ *     [CommandHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT,
+ *   },
+ *   urlParams: {
+ *     path: {
+ *       ownerId: 'ownerId',
+ *     },
+ *   },
+ *   body: {
+ *     productId: 'productId',
+ *     quantity: 1,
+ *   },
+ * };
+ *
+ * // Send command and wait for result
+ * const commandResult = await commandHttpClient.send(command);
+ *
+ * // Send command and receive result as stream
+ * const commandResultStream = await commandHttpClient.sendAndWaitStream(command);
+ * for await (const commandResultEvent of commandResultStream) {
+ *   console.log('Received:', commandResultEvent.data);
+ * }
+ * ```
  */
 @api()
 export class CommandHttpClient {
@@ -37,8 +78,35 @@ export class CommandHttpClient {
   /**
    * Sends a command and waits for the result.
    *
+   * This method sends a command to the Wow framework and waits for the processing
+   * to complete before returning the result. The command is sent as an HTTP request
+   * with the specified path, method, headers, and body.
+   *
    * @param commandHttpRequest - The command HTTP request to send
    * @returns A promise that resolves to the command result
+   *
+   * @example
+   * ```typescript
+   * const command: CommandHttpRequest = {
+   *   path: 'owner/{ownerId}/cart/add_cart_item',
+   *   method: HttpMethod.POST,
+   *   headers: {
+   *     [CommandHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT,
+   *   },
+   *   urlParams: {
+   *     path: {
+   *       ownerId: 'ownerId',
+   *     },
+   *   },
+   *   body: {
+   *     productId: 'productId',
+   *     quantity: 1,
+   *   },
+   * };
+   *
+   * const result = await commandHttpClient.send(command);
+   * console.log('Command result:', result);
+   * ```
    */
   @endpoint()
   send(@request() commandHttpRequest: CommandHttpRequest): Promise<CommandResult> {
@@ -50,10 +118,36 @@ export class CommandHttpClient {
    *
    * This method sets the Accept header to text/event-stream to receive
    * Server-Sent Events, and uses a JSON event stream result extractor
-   * to parse the response.
+   * to parse the response. It's useful for long-running commands where
+   * you want to receive progress updates or multiple results.
    *
    * @param commandHttpRequest - The command HTTP request to send
    * @returns A promise that resolves to a stream of command results
+   *
+   * @example
+   * ```typescript
+   * const command: CommandHttpRequest = {
+   *   path: 'owner/{ownerId}/cart/add_cart_item',
+   *   method: HttpMethod.POST,
+   *   headers: {
+   *     [CommandHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT,
+   *   },
+   *   urlParams: {
+   *     path: {
+   *       ownerId: 'ownerId',
+   *     },
+   *   },
+   *   body: {
+   *     productId: 'productId',
+   *     quantity: 1,
+   *   },
+   * };
+   *
+   * const stream = await commandHttpClient.sendAndWaitStream(command);
+   * for await (const event of stream) {
+   *   console.log('Command result event:', event.data);
+   * }
+   * ```
    */
   @endpoint(undefined, undefined, {
     headers: {

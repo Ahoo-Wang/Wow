@@ -53,7 +53,7 @@ const request = {
     [CommandHeaders.AGGREGATE_ID]: 'aggregate-456',
     [CommandHeaders.REQUEST_ID]: 'request-789',
   },
-  body: JSON.stringify(command),
+  body: command
 };
 ```
 
@@ -92,34 +92,123 @@ const commandRequest: CommandRequest = {
   stream: false,
 };
 ```
-
 #### CommandResult
 
 Interface representing the result of command execution:
 
 ```typescript
 import { CommandResult, CommandStage } from '@ahoo-wang/fetcher-wow';
-
-const commandResult: CommandResult = {
-  id: 'result-123',
-  commandId: 'cmd-456',
-  requestId: 'req-789',
-  stage: CommandStage.PROCESSED,
-  contextName: 'user-context',
-  aggregateName: 'User',
-  aggregateId: 'user-456',
-  aggregateVersion: 1,
-  errorCode: 'Ok',
-  errorMsg: '',
-  function: {
-    functionKind: 'COMMAND',
-    contextName: 'user-context',
-    processorName: 'UserProcessor',
-    name: 'CreateUser',
-  },
-  signalTime: Date.now(),
-};
 ```
+
+#### CommandHttpClient
+
+HTTP client for sending commands to the Wow framework. This client provides methods to send commands and receive results
+either synchronously or as a stream of events.
+
+##### Usage
+
+First, create a fetcher instance with base configuration and add the EventStreamInterceptor:
+
+```typescript
+import { Fetcher } from '@ahoo-wang/fetcher';
+import { EventStreamInterceptor } from '@ahoo-wang/fetcher-eventstream';
+
+const wowFetcher = new Fetcher({
+  baseURL: 'http://localhost:8080/',
+});
+
+// Add EventStreamInterceptor to handle Server-Sent Events
+wowFetcher.interceptors.response.use(new EventStreamInterceptor());
+```
+
+Then create a CommandHttpClient instance:
+
+```typescript
+import { CommandHttpClient } from '@ahoo-wang/fetcher-wow';
+
+const commandHttpClient = new CommandHttpClient(wowFetcher);
+```
+
+##### Sending a Command
+
+To send a command and wait for the result:
+
+```typescript
+import { CommandHeaders, CommandStage, HttpMethod } from '@ahoo-wang/fetcher-wow';
+
+const command = {
+  path: 'owner/{ownerId}/cart/add_cart_item',
+  method: HttpMethod.POST,
+  headers: {
+    [CommandHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT,
+  },
+  urlParams: {
+    path: {
+      ownerId: 'ownerId',
+    },
+  },
+  body: {
+    productId: 'productId',
+    quantity: 1,
+  },
+};
+
+const result = await commandHttpClient.send(command);
+console.log('Command result:', result);
+```
+
+##### Sending a Command and Receiving Stream Results
+
+For long-running commands, you can receive results as a stream of events:
+
+```typescript
+const commandResultStream = await commandHttpClient.sendAndWaitStream(command);
+for await (const commandResultEvent of commandResultStream) {
+  console.log('Received:', commandResultEvent.data);
+}
+```
+
+##### API
+
+**Constructor**
+
+```typescript
+new CommandHttpClient(fetcher
+:
+Fetcher
+)
+```
+
+Creates a new CommandHttpClient instance.
+
+- `fetcher` - The Fetcher instance to use for HTTP requests
+
+**send**
+
+```typescript
+send(commandHttpRequest
+:
+CommandHttpRequest
+):
+Promise<CommandResult>
+```
+
+Sends a command and waits for the result. This method sends a command to the Wow framework and waits for the processing
+to complete before returning the result.
+
+**sendAndWaitStream**
+
+```typescript
+sendAndWaitStream(commandHttpRequest
+:
+CommandHttpRequest
+):
+Promise<CommandResultEventStream>
+```
+
+Sends a command and returns a stream of results as events. This method sets the Accept header to text/event-stream to
+receive Server-Sent Events, and uses a JSON event stream result extractor to parse the response. It's useful for
+long-running commands where you want to receive progress updates or multiple results.
 
 #### CommandResultEventStream
 
