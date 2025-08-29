@@ -12,10 +12,10 @@
     "coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@ahoo-wang/fetcher": "^1.0.0",
-    "@ahoo-wang/fetcher-decorator": "^1.0.0",
-    "@ahoo-wang/fetcher-eventstream": "^1.0.0",
-    "@ahoo-wang/fetcher-wow": "^1.0.0",
+    "@ahoo-wang/fetcher": "^1.0.2",
+    "@ahoo-wang/fetcher-decorator": "^1.0.2",
+    "@ahoo-wang/fetcher-eventstream": "^1.0.2",
+    "@ahoo-wang/fetcher-wow": "^1.0.2",
     "@ant-design/icons": "^6.0.0",
     "@ant-design/v5-patch-for-react-19": "^1.0.3",
     "@tailwindcss/vite": "^4.1.12",
@@ -30,7 +30,7 @@
   "devDependencies": {
     "@eslint/js": "^9.34.0",
     "@types/react": "^19.1.12",
-    "@types/react-dom": "^19.1.8",
+    "@types/react-dom": "^19.1.9",
     "@vitejs/plugin-react": "^4.7.0",
     "@vitest/coverage-v8": "3.2.4",
     "eslint": "^9.34.0",
