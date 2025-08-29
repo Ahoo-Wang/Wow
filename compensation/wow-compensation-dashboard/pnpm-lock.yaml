@@ -37,7 +37,7 @@ importers:
         version: 0.52.2
       ng-zorro-antd:
         specifier: ^20.0.0
-        version: 20.1.2(78468eaeba5b48d7d6a68a5b9972df20)
+        version: 20.2.0(78468eaeba5b48d7d6a68a5b9972df20)
       rxjs:
         specifier: ~7.8.0
         version: 7.8.2
@@ -274,8 +274,8 @@ packages:
       vitest:
         optional: true
 
-  '@angular/cdk@20.1.5':
-    resolution: {integrity: sha512-uJezXaVPAbumxTCv5JA7oIuWCgPlz9/Fj6dJl6bxcRD7DfMyHGq3dtoLhthuU/uk+OfK0FlTklR92Yss5frFUw==}
+  '@angular/cdk@20.2.1':
+    resolution: {integrity: sha512-yEPh5hr9LZW4ey/HxtaGdSBDIkNzziLo0Dr1RP8JcxhOQ2Bzv2PZ+g8jC6aPGD7NPV8FtDf0FhTEzQr+m+gBXQ==}
     peerDependencies:
       '@angular/common': ^20.0.0 || ^21.0.0
       '@angular/core': ^20.0.0 || ^21.0.0
@@ -3446,8 +3446,8 @@ packages:
   neo-async@2.6.2:
     resolution: {integrity: sha512-Yd3UES5mWCSqR+qNT93S3UoYUkqAZ9lLg8a7g9rimsWmYGK8cVToA4/sF3RrshdyV3sAGMXVUmpMYOw+dLpOuw==}
 
-  ng-zorro-antd@20.1.2:
-    resolution: {integrity: sha512-Z3hg28enyGPOZtjFMZb8PIzRAek9Mu1hj4OfrYQDiRBM68GhPjsnowQ1OCBNLxS0/enXwD8u7GCzSC0g1qkKNQ==}
+  ng-zorro-antd@20.2.0:
+    resolution: {integrity: sha512-zBDKp0dB6Fp684auZEyvDdkZAfd494/ZDisCh3x8/iHkhII5V+1DaC6wxNhCUcw3N8emA/iAoG1RTigk4nojTQ==}
     peerDependencies:
       '@angular/animations': ^20.0.0
       '@angular/common': ^20.0.0
@@ -4821,7 +4821,7 @@ snapshots:
       - tsx
       - yaml
 
-  '@angular/cdk@20.1.5(@angular/common@20.2.2(@angular/core@20.2.2(@angular/compiler@20.2.2)(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2))(@angular/core@20.2.2(@angular/compiler@20.2.2)(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2)':
+  '@angular/cdk@20.2.1(@angular/common@20.2.2(@angular/core@20.2.2(@angular/compiler@20.2.2)(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2))(@angular/core@20.2.2(@angular/compiler@20.2.2)(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2)':
     dependencies:
       '@angular/common': 20.2.2(@angular/core@20.2.2(@angular/compiler@20.2.2)(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2)
       '@angular/core': 20.2.2(@angular/compiler@20.2.2)(rxjs@7.8.2)(zone.js@0.15.1)
@@ -8147,10 +8147,10 @@ snapshots:
 
   neo-async@2.6.2: {}
 
-  ng-zorro-antd@20.1.2(78468eaeba5b48d7d6a68a5b9972df20):
+  ng-zorro-antd@20.2.0(78468eaeba5b48d7d6a68a5b9972df20):
     dependencies:
       '@angular/animations': 20.2.2(@angular/common@20.2.2(@angular/core@20.2.2(@angular/compiler@20.2.2)(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2))(@angular/core@20.2.2(@angular/compiler@20.2.2)(rxjs@7.8.2)(zone.js@0.15.1))
-      '@angular/cdk': 20.1.5(@angular/common@20.2.2(@angular/core@20.2.2(@angular/compiler@20.2.2)(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2))(@angular/core@20.2.2(@angular/compiler@20.2.2)(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2)
+      '@angular/cdk': 20.2.1(@angular/common@20.2.2(@angular/core@20.2.2(@angular/compiler@20.2.2)(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2))(@angular/core@20.2.2(@angular/compiler@20.2.2)(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2)
       '@angular/common': 20.2.2(@angular/core@20.2.2(@angular/compiler@20.2.2)(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2)
       '@angular/core': 20.2.2(@angular/compiler@20.2.2)(rxjs@7.8.2)(zone.js@0.15.1)
       '@angular/forms': 20.2.2(@angular/common@20.2.2(@angular/core@20.2.2(@angular/compiler@20.2.2)(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2))(@angular/core@20.2.2(@angular/compiler@20.2.2)(rxjs@7.8.2)(zone.js@0.15.1))(@angular/platform-browser@20.2.2(@angular/animations@20.2.2(@angular/common@20.2.2(@angular/core@20.2.2(@angular/compiler@20.2.2)(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2))(@angular/core@20.2.2(@angular/compiler@20.2.2)(rxjs@7.8.2)(zone.js@0.15.1)))(@angular/common@20.2.2(@angular/core@20.2.2(@angular/compiler@20.2.2)(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2))(@angular/core@20.2.2(@angular/compiler@20.2.2)(rxjs@7.8.2)(zone.js@0.15.1)))(rxjs@7.8.2)
