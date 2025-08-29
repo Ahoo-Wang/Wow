@@ -11,9 +11,13 @@
  * limitations under the License.
  */
 
-export * from './commandHeaders';
-export * from './commandHttpClient';
-export * from './commandHttpRequest';
-export * from './commandRequest';
-export * from './commandResult';
-export * from './types';
+import { configDefaults, defineConfig, mergeConfig } from 'vitest/config';
+import viteConfig from './vite.config';
+
+export default mergeConfig(viteConfig, defineConfig({
+  test: {
+    coverage: {
+      exclude: [...configDefaults.exclude, 'src/command/commandHttpClient.ts'],
+    },
+  },
+}));

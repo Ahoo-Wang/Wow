@@ -46,7 +46,8 @@
     "@ahoo-wang/fetcher": "workspace:*",
     "@ahoo-wang/fetcher-cosec": "workspace:*",
     "@ahoo-wang/fetcher-decorator": "workspace:*",
-    "@ahoo-wang/fetcher-eventstream": "workspace:*"
+    "@ahoo-wang/fetcher-eventstream": "workspace:*",
+    "@ahoo-wang/fetcher-wow": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^24.3.0",

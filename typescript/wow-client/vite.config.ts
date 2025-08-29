@@ -23,10 +23,13 @@ export default defineConfig({
       fileName: format => `index.${format}.js`,
     },
     rollupOptions: {
-      external: ['@ahoo-wang/fetcher', '@ahoo-wang/fetcher-eventstream'],
+      external: ['@ahoo-wang/fetcher',
+        '@ahoo-wang/fetcher-decorator',
+        '@ahoo-wang/fetcher-eventstream'],
       output: {
         globals: {
           '@ahoo-wang/fetcher': 'Fetcher',
+          '@ahoo-wang/fetcher-decorator': 'FetcherDecorator',
           '@ahoo-wang/fetcher-eventstream': 'FetcherEventStream',
         },
       },
