@@ -17,7 +17,8 @@ import { EventStreamInterceptor } from '@ahoo-wang/fetcher-eventstream';
 import {
   CommandHeaders,
   CommandHttpClient,
-  CommandHttpRequest, CommandResult,
+  CommandHttpRequest,
+  CommandResult,
   CommandStage,
   ErrorCodes,
 } from '@ahoo-wang/fetcher-wow';
@@ -74,7 +75,8 @@ describe('CommandHttpClient Integration Test', () => {
   });
 
   it('should send command and wait stream', async () => {
-    const commandResultStream = await commandHttpClient.sendAndWaitStream(command);
+    const commandResultStream =
+      await commandHttpClient.sendAndWaitStream(command);
     expect(commandResultStream).toBeDefined();
     for await (const commandResultEvent of commandResultStream) {
       console.info(`Received : ${JSON.stringify(commandResultEvent)}`);

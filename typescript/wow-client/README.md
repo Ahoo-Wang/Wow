@@ -53,7 +53,7 @@ const request = {
     [CommandHeaders.AGGREGATE_ID]: 'aggregate-456',
     [CommandHeaders.REQUEST_ID]: 'request-789',
   },
-  body: command
+  body: command,
 };
 ```
 
@@ -92,6 +92,7 @@ const commandRequest: CommandRequest = {
   stream: false,
 };
 ```
+
 #### CommandResult
 
 Interface representing the result of command execution:
@@ -134,7 +135,11 @@ const commandHttpClient = new CommandHttpClient(wowFetcher);
 To send a command and wait for the result:
 
 ```typescript
-import { CommandHeaders, CommandStage, HttpMethod } from '@ahoo-wang/fetcher-wow';
+import {
+  CommandHeaders,
+  CommandStage,
+  HttpMethod,
+} from '@ahoo-wang/fetcher-wow';
 
 const command = {
   path: 'owner/{ownerId}/cart/add_cart_item',
@@ -270,7 +275,7 @@ const dateConditions = [
   thisWeek('updatedAt'),
   lastMonth('createdDate'),
 ];
-````
+```
 
 #### Operators
 

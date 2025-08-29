@@ -131,7 +131,7 @@ import { JsonServerSentEventStream } from '@ahoo-wang/fetcher-eventstream';
 
 // CommandResultEventStream 是 CommandResult 的 JsonServerSentEventStream
 type CommandResultEventStream = JsonServerSentEventStream<CommandResult>;
-````
+```
 
 ### 查询模块
 
@@ -181,7 +181,7 @@ const dateConditions = [
   thisWeek('updatedAt'),
   lastMonth('createdDate'),
 ];
-````
+```
 
 #### 操作符
 

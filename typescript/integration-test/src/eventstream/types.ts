@@ -121,7 +121,6 @@ export interface Choice {
   [property: string]: any;
 }
 
-
 export interface Usage {
   completion_tokens: number;
   prompt_tokens: number;

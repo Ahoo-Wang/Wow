@@ -37,7 +37,10 @@ export const DEFAULT_PAGINATION: Pagination = {
  * @param size - The page size. Defaults to DEFAULT_PAGINATION.size (10)
  * @returns A Pagination object with the specified index and size
  */
-export function pagination(index: number = DEFAULT_PAGINATION.index, size: number = DEFAULT_PAGINATION.size): Pagination {
+export function pagination(
+  index: number = DEFAULT_PAGINATION.index,
+  size: number = DEFAULT_PAGINATION.size,
+): Pagination {
   return {
     index,
     size,

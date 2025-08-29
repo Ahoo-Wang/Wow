@@ -232,8 +232,7 @@ export class LlmRequestInterceptor implements RequestInterceptor {
   readonly name: string = 'LlmRequestInterceptor';
   readonly order: number = REQUEST_BODY_INTERCEPTOR_ORDER - 1;
 
-  constructor(private llmOptions: LlmOptions) {
-  }
+  constructor(private llmOptions: LlmOptions) {}
 
   intercept(exchange: FetchExchange): void {
     const chatRequest = exchange.request.body as ChatRequest;

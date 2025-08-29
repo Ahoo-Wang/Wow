@@ -14,7 +14,8 @@
 import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
 import {
   LlmClient,
-  createLlmFetcher, llmFetcherName,
+  createLlmFetcher,
+  llmFetcherName,
 } from '../../src/eventstream/llmClient';
 import { fetcherRegistrar } from '@ahoo-wang/fetcher';
 

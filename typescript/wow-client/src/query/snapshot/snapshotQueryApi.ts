@@ -15,6 +15,6 @@ import { QueryApi } from '../queryApi';
 import { MaterializedSnapshot } from './snapshot';
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface SnapshotQueryApi<S> extends QueryApi<MaterializedSnapshot<S>> {
-
+export interface SnapshotQueryApi<S>
+  extends QueryApi<MaterializedSnapshot<S>> {
 }

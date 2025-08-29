@@ -16,12 +16,13 @@ import { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 import { Condition } from './condition';
 
 export interface QueryApi<R> {
-
   single(singleQuery: SingleQuery): Promise<Partial<R>>;
 
   list(listQuery: ListQuery): Promise<Partial<R>[]>;
 
-  listStream(listQuery: ListQuery): Promise<ReadableStream<JsonServerSentEvent<Partial<R>>>>;
+  listStream(
+    listQuery: ListQuery,
+  ): Promise<ReadableStream<JsonServerSentEvent<Partial<R>>>>;
 
   paged(pagedQuery: PagedQuery): Promise<PagedList<Partial<R>>>;
 

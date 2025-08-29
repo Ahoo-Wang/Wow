@@ -15,6 +15,6 @@ import { DomainEventStream } from './domainEventStream';
 import { QueryApi } from '../queryApi';
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface EventStreamQueryApi extends Omit<QueryApi<DomainEventStream>, 'single'> {
-
+export interface EventStreamQueryApi
+  extends Omit<QueryApi<DomainEventStream>, 'single'> {
 }
