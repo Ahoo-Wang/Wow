@@ -13,7 +13,10 @@
 
 export * from './condition';
 export * from './operator';
+export * from './pagination';
+export * from './projection';
 export * from './queryable';
+export * from './queryApi';
+export * from './sort';
 export * from './event';
 export * from './snapshot';
-export * from './queryApi';

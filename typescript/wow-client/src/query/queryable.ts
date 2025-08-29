@@ -12,59 +12,9 @@
  */
 
 import { ConditionCapable } from './condition';
-
-export enum SortDirection {
-  ASC = 'ASC',
-  DESC = 'DESC',
-}
-
-/**
- * Interface for sort criteria.
- */
-export interface Sort {
-  field: string;
-  direction: SortDirection;
-}
-
-/**
- * Interface for objects that support sorting.
- */
-export interface SortCapable {
-  sort?: Sort[];
-}
-
-/**
- * Interface for pagination information.
- *
- * Page number, starting from 1
- * Page size
- */
-export interface Pagination {
-  index: number;
-  size: number;
-}
-
-export const DEFAULT_PAGINATION: Pagination = {
-  index: 1,
-  size: 10,
-};
-
-/**
- * Interface for field projection.
- */
-export interface Projection {
-  include?: string[];
-  exclude?: string[];
-}
-
-export const DEFAULT_PROJECTION: Projection = {};
-
-/**
- * Interface for objects that support field projection.
- */
-export interface ProjectionCapable {
-  projection?: Projection;
-}
+import { SortCapable } from './sort';
+import { Pagination } from './pagination';
+import { ProjectionCapable } from './projection';
 
 /**
  * Interface for queryable objects that support conditions, projection, and sorting.
@@ -72,13 +22,15 @@ export interface ProjectionCapable {
 export interface Queryable
   extends ConditionCapable,
     ProjectionCapable,
-    SortCapable {}
+    SortCapable {
+}
 
 /**
  * Interface for single query objects.
  */
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface SingleQuery extends Queryable {}
+export interface SingleQuery extends Queryable {
+}
 
 /**
  * Interface for list query objects.

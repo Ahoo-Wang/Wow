@@ -12,26 +12,26 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { Identifier, Version } from '../../src';
+import { sort, sortDesc, SortDirection } from '../../src';
 
-describe('Common Types', () => {
-  describe('Identifier', () => {
-    it('should have an id property', () => {
-      const identifier: Identifier = {
-        id: 'test-id',
-      };
+describe('sort', () => {
+  it('should create a sort object with ascending direction', () => {
+    const field = 'testField';
+    const result = sort(field);
 
-      expect(identifier.id).toBe('test-id');
+    expect(result).toEqual({
+      field,
+      direction: SortDirection.ASC,
     });
   });
 
-  describe('Version', () => {
-    it('should have a version property', () => {
-      const version: Version = {
-        version: 1,
-      };
+  it('should create a sort object with descending direction', () => {
+    const field = 'testField';
+    const result = sortDesc(field);
 
-      expect(version.version).toBe(1);
+    expect(result).toEqual({
+      field,
+      direction: SortDirection.DESC,
     });
   });
 });

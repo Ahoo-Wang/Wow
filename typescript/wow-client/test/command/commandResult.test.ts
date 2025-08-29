@@ -12,8 +12,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { CommandResult, CommandStage } from '../../src/command';
-import { FunctionKind } from '../../src/types';
+import { CommandResult, CommandStage } from '../../src';
+import { FunctionKind } from '../../src';
 
 describe('CommandResult', () => {
   it('should create a command result with minimal properties', () => {
