@@ -1,6 +1,6 @@
 {
   "name": "@ahoo-wang/fetcher-integration-test",
-  "version": "1.0.3",
+  "version": "1.0.5",
   "private": true,
   "description": "Integration Test Fetcher",
   "keywords": [
