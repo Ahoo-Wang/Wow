@@ -1,16 +1,44 @@
+management:
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  endpoints:
+    web:
+      exposure:
+        include:
+          - health
+          - cosid
+          - cosidGenerator
+          - cosidStringGenerator
+
+springdoc:
+  show-actuator: true
+  api-docs:
+    version: openapi-3-1
+
 spring:
   application:
     name: example-service
   autoconfigure:
     exclude:
       - org.springframework.boot.autoconfigure.mongo.MongoReactiveAutoConfiguration
-      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
-      - org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration
+      - org.springframework.boot.autoconfigure.elasticsearch.ElasticsearchClientAutoConfiguration
+      - org.springframework.boot.autoconfigure.elasticsearch.ElasticsearchRestClientAutoConfiguration
+      - org.springframework.boot.autoconfigure.elasticsearch.ReactiveElasticsearchClientAutoConfiguration
+  data:
+    mongodb:
+      uri: mongodb://root:root@localhost:27017/wow_example_db?authSource=admin&maxIdleTimeMS=60000
 
+#  r2dbc:
+#    url: r2dbc:pool:mariadb://root:root@localhost:3306/wow_db?initialSize=8&maxSize=8&acquireRetry=3&maxLifeTime=PT30M
 logging:
   level:
-    me.ahoo.wow: info
-
+    #    root: debug
+    me.ahoo.wow: debug
+#springdoc:
+#  remove-broken-reference-definitions: false
 cosid:
   machine:
     enabled: true
@@ -20,15 +48,25 @@ cosid:
         machine-id: 1
   generator:
     enabled: true
+#  snowflake:
+#    enabled: true
+#    provider:
+#      order:
+#        converter:
+#          type: radix
 wow:
   command:
     bus:
       type: in_memory
+  #      local-first:
+  #        enabled: false
   event:
     bus:
       type: in_memory
   kafka:
     enabled: false
+    bootstrap-servers: 'PLAINTEXT://localhost:61546'
+
   eventsourcing:
     store:
       storage: in_memory
@@ -37,3 +75,45 @@ wow:
     state:
       bus:
         type: in_memory
+#  r2dbc:
+#    datasource:
+#      type: sharding
+#      sharding:
+#        databases:
+#          event_stream_0:
+#            url: r2dbc:pool:mariadb://root:root@localhost:3306/event_stream_0?initialSize=8&maxSize=8&acquireRetry=3&maxLifeTime=PT30M
+#          event_stream_1:
+#            url: r2dbc:pool:mariadb://root:root@localhost:3306/event_stream_1?initialSize=8&maxSize=8&acquireRetry=3&maxLifeTime=PT30M
+#          snapshot_0:
+#            url: r2dbc:pool:mariadb://root:root@localhost:3306/snapshot_0?initialSize=8&maxSize=8&acquireRetry=3&maxLifeTime=PT30M
+#          snapshot_1:
+#            url: r2dbc:pool:mariadb://root:root@localhost:3306/snapshot_1?initialSize=8&maxSize=8&acquireRetry=3&maxLifeTime=PT30M
+#        event-stream:
+#          order:
+#            database-algorithm: event_stream_db
+#            table-algorithm: order_event_stream_table
+#        snapshot:
+#          order:
+#            database-algorithm: snapshot_db
+#            table-algorithm: order_snapshot_table
+#        algorithms:
+#          event_stream_db:
+#            type: mod
+#            mod:
+#              logic-name-prefix: event_stream_
+#              divisor: 2
+#          snapshot_db:
+#            type: mod
+#            mod:
+#              logic-name-prefix: snapshot_
+#              divisor: 2
+#          order_event_stream_table:
+#            type: mod
+#            mod:
+#              logic-name-prefix: order_event_stream_
+#              divisor: 4
+#          order_snapshot_table:
+#            type: mod
+#            mod:
+#              logic-name-prefix: order_snapshot_
+#              divisor: 4
