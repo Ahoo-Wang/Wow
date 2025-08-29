@@ -131,16 +131,6 @@ import { JsonServerSentEventStream } from '@ahoo-wang/fetcher-eventstream';
 
 // CommandResultEventStream 是 CommandResult 的 JsonServerSentEventStream
 type CommandResultEventStream = JsonServerSentEventStream<CommandResult>;
-```
-
-while (true) {
-const { done, value } = await reader.read();
-if (done) break;
-
-const commandResult: CommandResult = value.data;
-console.log('命令结果:', commandResult);
-}
-
 ````
 
 ### 查询模块
@@ -358,81 +348,6 @@ const functionInfo: FunctionInfo = {
 ```
 
 ## 🛠️ 高级用法
-
-### 完整命令流程示例
-
-```typescript
-import {
-  CommandRequest,
-  CommandHeaders,
-  CommandResult,
-  CommandStage,
-} from '@ahoo-wang/fetcher-wow';
-import { fetchEventStream } from '@ahoo-wang/fetcher-eventstream';
-
-// 1. 创建命令请求
-const commandRequest: CommandRequest = {
-  path: '/commands/user/CreateUser',
-  method: 'POST',
-  headers: {
-    [CommandHeaders.TENANT_ID]: 'tenant-123',
-    [CommandHeaders.REQUEST_ID]: 'req-' + Date.now(),
-  },
-  body: {
-    name: 'John Doe',
-    email: 'john@example.com',
-  },
-  timeout: 10000,
-  localFirst: true,
-};
-
-// 2. 执行命令并等待结果
-async function executeCommand(request: CommandRequest): Promise<CommandResult> {
-  // 实现依赖于您的 HTTP 客户端
-  // 这只是一个示例结构
-  const response = await fetch('/api' + request.path, {
-    method: request.method,
-    headers: request.headers,
-    body: JSON.stringify(request.body),
-  });
-
-  return response.json();
-}
-
-// 3. 实时流式处理命令结果
-async function streamCommandResults() {
-  const eventStream = fetchEventStream('/commands/stream');
-  const commandResultStream = eventStream as CommandResultEventStream;
-
-  const reader = commandResultStream.getReader();
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      const result: CommandResult = value.data;
-
-      // 处理不同阶段
-      switch (result.stage) {
-        case CommandStage.SENT:
-          console.log('命令已发送到总线');
-          break;
-        case CommandStage.PROCESSED:
-          console.log('命令已被聚合根处理');
-          break;
-        case CommandStage.SNAPSHOT:
-          console.log('已生成快照');
-          break;
-        case CommandStage.PROJECTED:
-          console.log('事件已投影到读模型');
-          break;
-      }
-    }
-  } finally {
-    reader.releaseLock();
-  }
-}
-```
 
 ### 复杂查询构建
 

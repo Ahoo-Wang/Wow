@@ -133,8 +133,6 @@ import { JsonServerSentEventStream } from '@ahoo-wang/fetcher-eventstream';
 type CommandResultEventStream = JsonServerSentEventStream<CommandResult>;
 ```
 
-````
-
 ### Query Module
 
 #### Condition Builder
@@ -350,81 +348,6 @@ const functionInfo: FunctionInfo = {
 ```
 
 ## 🛠️ Advanced Usage
-
-### Complete Command Flow Example
-
-```typescript
-import {
-  CommandRequest,
-  CommandHeaders,
-  CommandResult,
-  CommandStage,
-} from '@ahoo-wang/fetcher-wow';
-import { fetchEventStream } from '@ahoo-wang/fetcher-eventstream';
-
-// 1. Create command request
-const commandRequest: CommandRequest = {
-  path: '/commands/user/CreateUser',
-  method: 'POST',
-  headers: {
-    [CommandHeaders.TENANT_ID]: 'tenant-123',
-    [CommandHeaders.REQUEST_ID]: 'req-' + Date.now(),
-  },
-  body: {
-    name: 'John Doe',
-    email: 'john@example.com',
-  },
-  timeout: 10000,
-  localFirst: true,
-};
-
-// 2. Execute command and wait for result
-async function executeCommand(request: CommandRequest): Promise<CommandResult> {
-  // Implementation depends on your HTTP client
-  // This is just an example structure
-  const response = await fetch('/api' + request.path, {
-    method: request.method,
-    headers: request.headers,
-    body: JSON.stringify(request.body),
-  });
-
-  return response.json();
-}
-
-// 3. Stream command results in real-time
-async function streamCommandResults() {
-  const eventStream = fetchEventStream('/commands/stream');
-  const commandResultStream = eventStream as CommandResultEventStream;
-
-  const reader = commandResultStream.getReader();
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      const result: CommandResult = value.data;
-
-      // Handle different stages
-      switch (result.stage) {
-        case CommandStage.SENT:
-          console.log('Command sent to bus');
-          break;
-        case CommandStage.PROCESSED:
-          console.log('Command processed by aggregate');
-          break;
-        case CommandStage.SNAPSHOT:
-          console.log('Snapshot generated');
-          break;
-        case CommandStage.PROJECTED:
-          console.log('Events projected to read model');
-          break;
-      }
-    }
-  } finally {
-    reader.releaseLock();
-  }
-}
-```
 
 ### Complex Query Building
 
