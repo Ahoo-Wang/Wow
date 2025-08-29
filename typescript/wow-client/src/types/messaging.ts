@@ -11,9 +11,6 @@
  * limitations under the License.
  */
 
-export * from './common';
-export * from './error';
-export * from './function';
-export * from './messaging';
-export * from './modeling';
-export * from './naming';
+export interface BodyCapable<T> {
+  body: T;
+}

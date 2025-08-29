@@ -12,6 +12,7 @@
  */
 
 export * from './condition';
+export * from './domainEventStream';
 export * from './operator';
 export * from './queryable';
 export * from './snapshot';
