@@ -18,3 +18,17 @@ import { QueryApi } from '../queryApi';
 export interface EventStreamQueryApi
   extends Omit<QueryApi<DomainEventStream>, 'single'> {
 }
+
+/**
+ * Provides endpoint paths for event stream query operations.
+ *
+ * This class contains static readonly properties that define the endpoint paths used for various event stream query operations.
+ * These paths are used when making API calls to retrieve event stream data in different formats such as counts, lists, and paged results.
+ * The paths are constructed based on a base resource name and extended with specific operation identifiers.
+ */
+export class EventStreamQueryEndpointPaths {
+  static readonly EVENT_STREAM_RESOURCE_NAME = 'event';
+  static readonly COUNT = `${EventStreamQueryEndpointPaths.EVENT_STREAM_RESOURCE_NAME}/count`;
+  static readonly LIST = `${EventStreamQueryEndpointPaths.EVENT_STREAM_RESOURCE_NAME}/list`;
+  static readonly PAGED = `${EventStreamQueryEndpointPaths.EVENT_STREAM_RESOURCE_NAME}/paged`;
+}
