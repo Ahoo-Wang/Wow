@@ -29,7 +29,7 @@ export interface Sort {
  * @param field - The field to sort by
  * @returns A Sort object with the specified field and ascending direction
  */
-export function sort(field: string): Sort {
+export function asc(field: string): Sort {
   return {
     field,
     direction: SortDirection.ASC,
@@ -41,7 +41,7 @@ export function sort(field: string): Sort {
  * @param field - The field to sort by
  * @returns A Sort object with the specified field and descending direction
  */
-export function sortDesc(field: string): Sort {
+export function desc(field: string): Sort {
   return {
     field,
     direction: SortDirection.DESC,

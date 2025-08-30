@@ -12,12 +12,12 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { sort, sortDesc, SortDirection } from '../../src';
+import { asc, desc, SortDirection } from '../../src';
 
 describe('sort', () => {
   it('should create a sort object with ascending direction', () => {
     const field = 'testField';
-    const result = sort(field);
+    const result = asc(field);
 
     expect(result).toEqual({
       field,
@@ -27,7 +27,7 @@ describe('sort', () => {
 
   it('should create a sort object with descending direction', () => {
     const field = 'testField';
-    const result = sortDesc(field);
+    const result = desc(field);
 
     expect(result).toEqual({
       field,
