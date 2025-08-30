@@ -14,8 +14,8 @@
 import { describe, expect, it } from 'vitest';
 
 describe('Index', () => {
-  it('should compile without errors', () => {
-    // This test ensures that the main index can be imported without compilation errors
-    expect(true).toBe(true);
+  it('should export modules', async () => {
+    const mod = await import('../src/index');
+    expect(mod).toBeDefined();
   });
 });

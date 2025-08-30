@@ -85,13 +85,14 @@ export interface SmallMaterializedSnapshot<S>
  */
 export class SnapshotMetadataFields {
   static readonly VERSION = 'version';
-  /**
-   * The aggregate ID of the snapshot.
-   */
-  static readonly FIRST_OPERATOR = 'firstOperator';
-  static readonly OPERATOR = 'operator';
+  static readonly TENANT_ID = 'tenantId';
+  static readonly OWNER_ID = 'ownerId';
+  static readonly EVENT_ID = 'eventId';
   static readonly FIRST_EVENT_TIME = 'firstEventTime';
   static readonly EVENT_TIME = 'eventTime';
+  static readonly FIRST_OPERATOR = 'firstOperator';
+  static readonly OPERATOR = 'operator';
   static readonly SNAPSHOT_TIME = 'snapshotTime';
+  static readonly DELETED = 'deleted';
   static readonly STATE = 'state';
 }

@@ -58,6 +58,37 @@ export interface DomainEventStream
   headers: DomainEventStreamHeaders;
 }
 
+/**
+ * Provides field names for domain event stream metadata.
+ *
+ * This class contains static readonly properties that define the field names used in domain event stream metadata.
+ * These field names are used to access and manipulate domain event stream data in a consistent manner.
+ * The fields include headers, identifiers, command information, versioning, body content, and creation time.
+ */
+export class DomainEventStreamMetadataFields {
+  static readonly HEADERS = 'headers';
+  static readonly COMMAND_OPERATOR = `${DomainEventStreamMetadataFields.HEADERS}.command_operator`;
+  static readonly AGGREGATE_ID = 'aggregateId';
+  static readonly TENANT_ID = 'tenantId';
+  static readonly OWNER_ID = 'ownerId';
+  static readonly COMMAND_ID = 'commandId';
+  static readonly REQUEST_ID = 'requestId';
+  static readonly VERSION = 'version';
+  static readonly BODY = 'body';
+  static readonly BODY_ID = `${DomainEventStreamMetadataFields.BODY}.id`;
+  static readonly BODY_NAME = `${DomainEventStreamMetadataFields.BODY}.name`;
+  static readonly BODY_TYPE = `${DomainEventStreamMetadataFields.BODY}.bodyType`;
+  static readonly BODY_REVISION = `${DomainEventStreamMetadataFields.BODY}.revision`;
+  static readonly BODY_BODY = `${DomainEventStreamMetadataFields.BODY}.body`;
+  static readonly CREATE_TIME = 'createTime';
+}
+
+/**
+ * Represents a readable stream of domain event streams.
+ *
+ * This type defines a ReadableStream that emits JsonServerSentEvent objects containing DomainEventStream data.
+ * It is used for streaming domain events in a server-sent event format.
+ */
 export type ReadableDomainEventStream = ReadableStream<
   JsonServerSentEvent<DomainEventStream>
 >;
