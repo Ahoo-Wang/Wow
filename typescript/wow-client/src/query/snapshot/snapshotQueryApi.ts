@@ -23,3 +23,21 @@ export interface SnapshotQueryApi<S> extends QueryApi<MaterializedSnapshot<S>> {
   pagedState(pagedQuery: PagedQuery): Promise<PagedList<Partial<S>>>;
 
 }
+
+/**
+ * Provides endpoint paths for snapshot query operations.
+ *
+ * This class contains static readonly properties that define the endpoint paths used for various snapshot query operations.
+ * These paths are used when making API calls to retrieve snapshot data in different formats such as counts, lists, paged results, and single items.
+ * The paths are constructed based on a base resource name and extended with specific operation identifiers.
+ */
+export class SnapshotQueryEndpointPaths {
+  static readonly SNAPSHOT_RESOURCE_NAME = 'snapshot';
+  static readonly COUNT = `${SnapshotQueryEndpointPaths.SNAPSHOT_RESOURCE_NAME}/count`;
+  static readonly LIST = `${SnapshotQueryEndpointPaths.SNAPSHOT_RESOURCE_NAME}/list`;
+  static readonly LIST_STATE = `${SnapshotQueryEndpointPaths.LIST}/state`;
+  static readonly PAGED = `${SnapshotQueryEndpointPaths.SNAPSHOT_RESOURCE_NAME}/paged`;
+  static readonly PAGED_STATE = `${SnapshotQueryEndpointPaths.PAGED}/state`;
+  static readonly SINGLE = `${SnapshotQueryEndpointPaths.SNAPSHOT_RESOURCE_NAME}/single`;
+  static readonly SINGLE_STATE = `${SnapshotQueryEndpointPaths.SINGLE}/state`;
+}
