@@ -18,21 +18,21 @@ import { Operator } from './operator';
  *
  * Defines standard option keys used in query conditions for special handling.
  */
-export enum ConditionOptionKey {
+export class ConditionOptionKey {
   /**
    * Ignore case option key for string comparisons
    */
-  IGNORE_CASE_OPTION_KEY = 'ignoreCase',
+  static readonly IGNORE_CASE_OPTION_KEY = 'ignoreCase';
 
   /**
    * Time zone ID option key for date operations
    */
-  ZONE_ID_OPTION_KEY = 'zoneId',
+  static readonly ZONE_ID_OPTION_KEY = 'zoneId';
 
   /**
    * Date pattern option key for date formatting
    */
-  DATE_PATTERN_OPTION_KEY = 'datePattern',
+  static readonly DATE_PATTERN_OPTION_KEY = 'datePattern';
 }
 
 /**

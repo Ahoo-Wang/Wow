@@ -41,7 +41,8 @@ export interface MaterializedSnapshot<S>
     FirstEventTimeCapable,
     EventTimeCapable,
     SnapshotTimeCapable,
-    DeletedCapable {}
+    DeletedCapable {
+}
 
 /**
  * Interface for materialized snapshots with medium capabilities.
@@ -61,7 +62,8 @@ export interface MaterializedSnapshot<S>
     FirstOperatorCapable,
     OperatorCapable,
     FirstEventTimeCapable,
-    EventTimeCapable {}
+    EventTimeCapable {
+}
 
 /**
  * Interface for simplified materialized snapshots with generic state.
@@ -72,4 +74,24 @@ export interface SmallMaterializedSnapshot<S>
   extends StateCapable<S>,
     NamedAggregate,
     Version,
-    FirstEventTimeCapable {}
+    FirstEventTimeCapable {
+}
+
+/**
+ * Provides field names for snapshot metadata.
+ *
+ * This class contains static readonly properties that define the field names used in snapshot metadata.
+ * These field names are used to access and manipulate snapshot data in a consistent manner.
+ */
+export class SnapshotMetadataFields {
+  static readonly VERSION = 'version';
+  /**
+   * The aggregate ID of the snapshot.
+   */
+  static readonly FIRST_OPERATOR = 'firstOperator';
+  static readonly OPERATOR = 'operator';
+  static readonly FIRST_EVENT_TIME = 'firstEventTime';
+  static readonly EVENT_TIME = 'eventTime';
+  static readonly SNAPSHOT_TIME = 'snapshotTime';
+  static readonly STATE = 'state';
+}

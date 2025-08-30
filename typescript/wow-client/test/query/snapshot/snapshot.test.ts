@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { MaterializedSnapshot, SmallMaterializedSnapshot } from '../../src';
+import { MaterializedSnapshot, SmallMaterializedSnapshot, SnapshotMetadataFields } from '../../../src';
 
 interface TestState {
   name: string;
@@ -73,5 +73,17 @@ describe('SmallMaterializedSnapshot', () => {
     expect(smallSnapshot.version).toBe(1);
     expect(smallSnapshot.state.name).toBe('test');
     expect(smallSnapshot.state.value).toBe(42);
+  });
+});
+
+describe('SnapshotMetadataFields', () => {
+  it('should have correct field values', () => {
+    expect(SnapshotMetadataFields.VERSION).toBe('version');
+    expect(SnapshotMetadataFields.FIRST_OPERATOR).toBe('firstOperator');
+    expect(SnapshotMetadataFields.OPERATOR).toBe('operator');
+    expect(SnapshotMetadataFields.FIRST_EVENT_TIME).toBe('firstEventTime');
+    expect(SnapshotMetadataFields.EVENT_TIME).toBe('eventTime');
+    expect(SnapshotMetadataFields.SNAPSHOT_TIME).toBe('snapshotTime');
+    expect(SnapshotMetadataFields.STATE).toBe('state');
   });
 });
