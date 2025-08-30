@@ -13,8 +13,13 @@
 
 import { QueryApi } from '../queryApi';
 import { MaterializedSnapshot } from './snapshot';
+import { ListQuery, PagedList, PagedQuery, SingleQuery } from '../queryable';
 
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface SnapshotQueryApi<S>
-  extends QueryApi<MaterializedSnapshot<S>> {
+export interface SnapshotQueryApi<S> extends QueryApi<MaterializedSnapshot<S>> {
+  singleState(singleQuery: SingleQuery): Promise<Partial<S>>;
+
+  listState(listQuery: ListQuery): Promise<Partial<S>[]>;
+
+  pagedState(pagedQuery: PagedQuery): Promise<PagedList<Partial<S>>>;
+
 }
