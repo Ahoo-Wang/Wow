@@ -8,16 +8,23 @@
 [![npm bundle size](https://img.shields.io/bundlephobia/minzip/%40ahoo-wang%2Ffetcher-wow)](https://www.npmjs.com/package/@ahoo-wang/fetcher-wow)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/Ahoo-Wang/fetcher)
 
-Provides TypeScript types and utilities for working with the [Wow](https://github.com/Ahoo-Wang/Wow) CQRS/DDD framework.
+Support for [Wow](https://github.com/Ahoo-Wang/Wow) framework in Fetcher. Provides TypeScript types and utilities for
+working with the Wow CQRS/DDD framework.
 
 ## 🌟 Features
 
-- **📦 Comprehensive Type Definitions**: Full TypeScript support for Wow framework entities
-- **🔧 Command Utilities**: Helpers for working with Wow commands and command results
-- **🔍 Query DSL**: Rich query condition builders with operator support
-- **📡 Event Stream Support**: Integration with Server-Sent Events for real-time command results
-- **🔄 CQRS Pattern**: Support for Command Query Responsibility Segregation patterns
-- **🧱 DDD Building Blocks**: Domain-driven design types for aggregates, events, and more
+- **🔄 CQRS Pattern Implementation**: First-class support for Command Query Responsibility Segregation architectural
+  pattern
+- **🧱 DDD Primitives**: Essential Domain-Driven Design building blocks including aggregates, events, and value objects
+- **📦 Complete TypeScript Support**: Full type definitions for all Wow framework entities including commands, events,
+  and queries
+- **📡 Real-time Event Streaming**: Built-in support for Server-Sent Events to receive real-time command results and data
+  updates
+- **🚀 Command Client**: High-level client for sending commands to Wow services with both synchronous and streaming
+  responses
+- **🔍 Powerful Query DSL**: Rich query condition builder with comprehensive operator support for complex querying
+- **🔍 Query Clients**: Specialized clients for querying snapshot and event stream data with comprehensive query
+  operations
 
 ## 🚀 Quick Start
 
@@ -38,61 +45,6 @@ yarn add @ahoo-wang/fetcher-wow
 
 ### Command Module
 
-#### CommandHeaders
-
-Constants for standard HTTP headers used in Wow command processing:
-
-```typescript
-import { CommandHeaders } from '@ahoo-wang/fetcher-wow';
-
-// Example usage
-const request = {
-  method: 'POST',
-  headers: {
-    [CommandHeaders.TENANT_ID]: 'tenant-123',
-    [CommandHeaders.AGGREGATE_ID]: 'aggregate-456',
-    [CommandHeaders.REQUEST_ID]: 'request-789',
-  },
-  body: command,
-};
-```
-
-Key headers include:
-
-- `TENANT_ID` - Tenant identifier
-- `OWNER_ID` - Owner identifier
-- `AGGREGATE_ID` - Aggregate root identifier
-- `AGGREGATE_VERSION` - Expected aggregate version
-- `REQUEST_ID` - Request tracking ID
-- `WAIT_*` - Various wait condition headers
-- `LOCAL_FIRST` - Local processing preference
-- And many more...
-
-#### CommandRequest
-
-Interface for command requests with full configuration options:
-
-```typescript
-import { CommandRequest, CommandHeaders } from '@ahoo-wang/fetcher-wow';
-
-const commandRequest: CommandRequest = {
-  path: '/commands/CreateUser',
-  method: 'POST',
-  headers: {
-    [CommandHeaders.TENANT_ID]: 'tenant-123',
-  },
-  body: {
-    name: 'John Doe',
-    email: 'john@example.com',
-  },
-  timeout: 5000,
-  aggregateId: 'user-456',
-  requestId: 'req-789',
-  localFirst: true,
-  stream: false,
-};
-```
-
 #### CommandResult
 
 Interface representing the result of command execution:
@@ -101,70 +53,49 @@ Interface representing the result of command execution:
 import { CommandResult, CommandStage } from '@ahoo-wang/fetcher-wow';
 ```
 
-#### CommandHttpClient
+#### CommandClient
 
-HTTP client for sending commands to the Wow framework. This client provides methods to send commands and receive results
+HTTP client for sending commands to the Wow framework. The client provides methods to send commands and receive results
 either synchronously or as a stream of events.
-
-##### Usage
-
-First, create a fetcher instance with base configuration:
 
 ```typescript
 import { Fetcher, URL_RESOLVE_INTERCEPTOR_ORDER } from '@ahoo-wang/fetcher';
 import '@ahoo-wang/fetcher-eventstream';
+import { CommandClient, CommandRequest, HttpMethod, CommandHttpHeaders, CommandStage } from '@ahoo-wang/fetcher-wow';
+import { idGenerator } from '@ahoo-wang/fetcher-cosec';
 
+// Create a fetcher instance
 const wowFetcher = new Fetcher({
   baseURL: 'http://localhost:8080/',
 });
 
-// Optional: Add interceptor to handle URL parameters
+// Add interceptor to handle URL parameters
+const ownerId = idGenerator.generateId();
 wowFetcher.interceptors.request.use({
-  name: 'UrlParamsInterceptor',
+  name: 'AppendOwnerId',
   order: URL_RESOLVE_INTERCEPTOR_ORDER - 1,
   intercept(exchange) {
-    // Add custom URL parameters if needed
     exchange.request.urlParams = {
       path: {
         ...exchange.request.urlParams?.path,
+        ownerId,
       },
       query: exchange.request.urlParams?.query,
     };
   },
 });
-```
 
-Then create a CommandHttpClient instance with ClientOptions:
-
-```typescript
-import { CommandHttpClient } from '@ahoo-wang/fetcher-wow';
-
-const commandHttpClient = new CommandHttpClient({
+// Create the command client
+const commandClient = new CommandClient({
   fetcher: wowFetcher,
   basePath: 'owner/{ownerId}/cart'
 });
-```
 
-##### Sending a Command
-
-To send a command and wait for the result:
-
-```typescript
-import {
-  CommandHeaders,
-  CommandStage,
-  HttpMethod,
-} from '@ahoo-wang/fetcher-wow';
-
-const command = {
+// Define a command request
+const command: CommandRequest = {
   method: HttpMethod.POST,
   headers: {
-    [CommandHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT,
-  },
-  urlParams: {
-    path: {
-      ownerId: 'ownerId',
-    },
+    [CommandHttpHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT,
   },
   body: {
     productId: 'productId',
@@ -172,82 +103,22 @@ const command = {
   },
 };
 
-const result = await commandHttpClient.send('add_cart_item', command);
-console.log('Command result:', result);
-```
+// Send command and wait for result
+const commandResult = await commandClient.send('add_cart_item', command);
 
-##### Sending a Command and Receiving Stream Results
-
-For long-running commands, you can receive results as a stream of events:
-
-```typescript
-const commandResultStream = await commandHttpClient.sendAndWaitStream('add_cart_item', command);
+// Send command and receive results as a stream of events
+const commandResultStream = await commandClient.sendAndWaitStream('add_cart_item', command);
 for await (const commandResultEvent of commandResultStream) {
-  console.log('Received:', commandResultEvent.data);
+  console.log('Received command result:', commandResultEvent.data);
 }
 ```
 
-##### API
+##### Methods
 
-**Constructor**
-
-```typescript
-new CommandHttpClient(options
-:
-ClientOptions
-)
-```
-
-Creates a new CommandHttpClient instance.
-
-- `options` - The ClientOptions containing the Fetcher instance and base path
-
-**send**
-
-```typescript
-send(
-  path
-:
-string,
-  commandHttpRequest
-:
-CommandHttpRequest
-):
-Promise<CommandResult>
-```
-
-Sends a command and waits for the result. This method sends a command to the Wow framework and waits for the processing
-to complete before returning the result.
-
-**sendAndWaitStream**
-
-```typescript
-sendAndWaitStream(
-  path
-:
-string,
-  commandHttpRequest
-:
-CommandHttpRequest
-):
-Promise<CommandResultEventStream>
-```
-
-Sends a command and returns a stream of results as events. This method sets the Accept header to text/event-stream to
-receive Server-Sent Events, and uses a JSON event stream result extractor to parse the response. It's useful for
-long-running commands where you want to receive progress updates or multiple results.
-
-#### CommandResultEventStream
-
-Type alias for a readable stream of CommandResult events:
-
-```typescript
-import { CommandResult } from '@ahoo-wang/fetcher-wow';
-import { JsonServerSentEventStream } from '@ahoo-wang/fetcher-eventstream';
-
-// CommandResultEventStream is a JsonServerSentEventStream of CommandResult
-type CommandResultEventStream = JsonServerSentEventStream<CommandResult>;
-```
+- `send(path: string, commandRequest: CommandRequest): Promise<CommandResult>` - Sends a command and waits for the
+  result.
+- `sendAndWaitStream(path: string, commandRequest: CommandRequest): Promise<CommandResultEventStream>` - Sends a command
+  and returns a stream of results as Server-Sent Events.
 
 ### Query Module
 
@@ -299,245 +170,261 @@ const dateConditions = [
 ];
 ```
 
-#### Operators
+#### SnapshotQueryClient
 
-Full operator enumeration for query building:
-
-```typescript
-import { Operator } from '@ahoo-wang/fetcher-wow';
-
-// Logical operators
-(Operator.AND, Operator.OR, Operator.NOR);
-
-// Comparison operators
-(Operator.EQ,
-  Operator.NE,
-  Operator.GT,
-  Operator.LT,
-  Operator.GTE,
-  Operator.LTE);
-
-// Membership operators
-(Operator.IN, Operator.NOT_IN, Operator.ALL_IN, Operator.BETWEEN);
-
-// String operators
-(Operator.CONTAINS, Operator.STARTS_WITH, Operator.ENDS_WITH);
-
-// Existence operators
-(Operator.NULL, Operator.NOT_NULL, Operator.EXISTS);
-
-// Boolean operators
-(Operator.TRUE, Operator.FALSE);
-
-// Date operators
-(Operator.TODAY,
-  Operator.BEFORE_TODAY,
-  Operator.TOMORROW,
-  Operator.THIS_WEEK,
-  Operator.NEXT_WEEK,
-  Operator.LAST_WEEK,
-  Operator.THIS_MONTH,
-  Operator.LAST_MONTH,
-  Operator.RECENT_DAYS,
-  Operator.EARLIER_DAYS);
-
-// Special operators
-(Operator.ID,
-  Operator.IDS,
-  Operator.AGGREGATE_ID,
-  Operator.AGGREGATE_IDS,
-  Operator.TENANT_ID,
-  Operator.OWNER_ID,
-  Operator.DELETED,
-  Operator.ALL,
-  Operator.ELEM_MATCH,
-  Operator.RAW);
-```
-
-#### Queryable Interface
-
-Interfaces for building queries with sorting, pagination, and projection:
+Client for querying materialized snapshots:
 
 ```typescript
+import { Fetcher, URL_RESOLVE_INTERCEPTOR_ORDER } from '@ahoo-wang/fetcher';
+import '@ahoo-wang/fetcher-eventstream';
 import {
-  Queryable,
-  SortDirection,
-  DEFAULT_PAGINATION,
+  SnapshotQueryClient,
+  all,
+  ListQuery,
+  PagedQuery,
+  SingleQuery
 } from '@ahoo-wang/fetcher-wow';
+import { idGenerator } from '@ahoo-wang/fetcher-cosec';
 
-const query: Queryable = {
-  condition: eq('status', 'active'),
-  sort: [
-    { field: 'createdAt', direction: SortDirection.DESC },
-    { field: 'name', direction: SortDirection.ASC },
-  ],
-  projection: {
-    include: ['id', 'name', 'email', 'status'],
-    exclude: ['password', 'internalNotes'],
-  },
-};
+interface CartItem {
+  productId: string;
+  quantity: number;
+}
 
-const pagedQuery = {
-  ...query,
-  pagination: {
-    index: 2,
-    size: 20,
-  },
-};
-```
-
-### Types Module
-
-#### Core Types
-
-Essential types for domain modeling:
-
-```typescript
-import {
-  Identifier,
-  Version,
-  TenantId,
-  OwnerId,
-  NamedAggregate,
-  AggregateId,
-  StateCapable,
-} from '@ahoo-wang/fetcher-wow';
-
-interface User
-  extends Identifier,
-    Version,
-    TenantId,
-    OwnerId,
-    NamedAggregate,
-    StateCapable<UserState> {
+interface CartState {
   id: string;
-  version: number;
-  tenantId: string;
-  ownerId: string;
-  contextName: string;
-  aggregateName: string;
-  state: UserState;
+  items: CartItem[];
 }
 
-interface UserState {
-  name: string;
-  email: string;
-  status: 'active' | 'inactive';
-  createdAt: number;
+// Create a fetcher instance
+const wowFetcher = new Fetcher({
+  baseURL: 'http://localhost:8080/',
+});
+
+// Add interceptor to handle URL parameters
+const ownerId = idGenerator.generateId();
+wowFetcher.interceptors.request.use({
+  name: 'AppendOwnerId',
+  order: URL_RESOLVE_INTERCEPTOR_ORDER - 1,
+  intercept(exchange) {
+    exchange.request.urlParams = {
+      path: {
+        ...exchange.request.urlParams?.path,
+        ownerId,
+      },
+      query: exchange.request.urlParams?.query,
+    };
+  },
+});
+
+// Create the snapshot query client
+const snapshotQueryClient = new SnapshotQueryClient<CartState>({
+  fetcher: wowFetcher,
+  basePath: 'owner/{ownerId}/cart'
+});
+
+// Count snapshots
+const count = await snapshotQueryClient.count(all());
+
+// List snapshots
+const listQuery: ListQuery = {
+  condition: all(),
+};
+const list = await snapshotQueryClient.list(listQuery);
+
+// List snapshots as stream
+const listStream = await snapshotQueryClient.listStream(listQuery);
+for await (const event of listStream) {
+  const snapshot = event.data;
+  console.log('Received snapshot:', snapshot);
 }
+
+// List snapshot states
+const stateList = await snapshotQueryClient.listState(listQuery);
+
+// List snapshot states as stream
+const stateStream = await snapshotQueryClient.listStateStream(listQuery);
+for await (const event of stateStream) {
+  const state = event.data;
+  console.log('Received state:', state);
+}
+
+// Paged snapshots
+const pagedQuery: PagedQuery = {
+  condition: all(),
+};
+const paged = await snapshotQueryClient.paged(pagedQuery);
+
+// Paged snapshot states
+const pagedState = await snapshotQueryClient.pagedState(pagedQuery);
+
+// Single snapshot
+const singleQuery: SingleQuery = {
+  condition: all(),
+};
+const single = await snapshotQueryClient.single(singleQuery);
+
+// Single snapshot state
+const singleState = await snapshotQueryClient.singleState(singleQuery);
 ```
 
-#### Error Handling
+#### EventStreamQueryClient
 
-Standard error types and codes:
+Client for querying domain event streams:
 
 ```typescript
-import { ErrorInfo, ErrorCodes, RecoverableType } from '@ahoo-wang/fetcher-wow';
+import { Fetcher, URL_RESOLVE_INTERCEPTOR_ORDER } from '@ahoo-wang/fetcher';
+import '@ahoo-wang/fetcher-eventstream';
+import {
+  EventStreamQueryClient,
+  all,
+  ListQuery,
+  PagedQuery
+} from '@ahoo-wang/fetcher-wow';
+import { idGenerator } from '@ahoo-wang/fetcher-cosec';
 
-const errorInfo: ErrorInfo = {
-  errorCode: ErrorCodes.NOT_FOUND,
-  errorMsg: 'User not found',
-  bindingErrors: [],
+// Create a fetcher instance
+const wowFetcher = new Fetcher({
+  baseURL: 'http://localhost:8080/',
+});
+
+// Add interceptor to handle URL parameters
+const ownerId = idGenerator.generateId();
+wowFetcher.interceptors.request.use({
+  name: 'AppendOwnerId',
+  order: URL_RESOLVE_INTERCEPTOR_ORDER - 1,
+  intercept(exchange) {
+    exchange.request.urlParams = {
+      path: {
+        ...exchange.request.urlParams?.path,
+        ownerId,
+      },
+      query: exchange.request.urlParams?.query,
+    };
+  },
+});
+
+// Create the event stream query client
+const eventStreamQueryClient = new EventStreamQueryClient({
+  fetcher: wowFetcher,
+  basePath: 'owner/{ownerId}/cart'
+});
+
+// Count event streams
+const count = await eventStreamQueryClient.count(all());
+
+// List event streams
+const listQuery: ListQuery = {
+  condition: all(),
 };
+const list = await eventStreamQueryClient.list(listQuery);
 
-// Check error types
-if (ErrorCodes.isSucceeded(errorInfo.errorCode)) {
-  console.log('Operation successful');
-} else {
-  console.error('Operation failed:', errorInfo.errorMsg);
+// List event streams as stream
+const listStream = await eventStreamQueryClient.listStream(listQuery);
+for await (const event of listStream) {
+  const domainEventStream = event.data;
+  console.log('Received event stream:', domainEventStream);
 }
-```
 
-#### Function Types
-
-Function information for event and command handlers:
-
-```typescript
-import { FunctionInfo, FunctionKind } from '@ahoo-wang/fetcher-wow';
-
-const functionInfo: FunctionInfo = {
-  functionKind: FunctionKind.COMMAND,
-  contextName: 'user-context',
-  processorName: 'UserProcessor',
-  name: 'CreateUser',
+// Paged event streams
+const pagedQuery: PagedQuery = {
+  condition: all(),
 };
+const paged = await eventStreamQueryClient.paged(pagedQuery);
 ```
 
 ## 🛠️ Advanced Usage
 
-### Complex Query Building
+### Complete Example with Command and Query Flow
 
 ```typescript
+import { Fetcher, URL_RESOLVE_INTERCEPTOR_ORDER } from '@ahoo-wang/fetcher';
+import '@ahoo-wang/fetcher-eventstream';
 import {
-  and,
-  or,
-  eq,
-  ne,
-  gt,
-  lt,
-  contains,
-  isIn,
-  notIn,
-  between,
-  startsWith,
-  endsWith,
-  elemMatch,
-  isNull,
-  notNull,
-  exists,
-  today,
-  thisWeek,
-  recentDays,
+  CommandClient,
+  CommandRequest,
+  CommandHttpHeaders,
+  CommandStage,
+  HttpMethod,
+  SnapshotQueryClient,
+  all,
+  ListQuery
 } from '@ahoo-wang/fetcher-wow';
+import { idGenerator } from '@ahoo-wang/fetcher-cosec';
 
-// Build a complex query for user search
-const userSearchQuery = {
-  condition: and(
-    eq('tenantId', 'tenant-123'),
-    ne('status', 'deleted'),
-    or(
-      // Search by name or email
-      contains('name', 'john'),
-      contains('email', 'john'),
-    ),
-    // Age and score filters
-    gt('age', 18),
-    between('score', 50, 100),
+interface CartItem {
+  productId: string;
+  quantity: number;
+}
 
-    // Department filters
-    isIn('departments', 'engineering', 'marketing'),
-    notIn('blockedDepartments', 'hr', 'finance'),
+interface CartState {
+  id: string;
+  items: CartItem[];
+}
 
-    // String pattern matching
-    startsWith('employeeId', 'EMP-'),
-    endsWith('domain', '.com'),
+// Create a fetcher instance
+const wowFetcher = new Fetcher({
+  baseURL: 'http://localhost:8080/',
+});
 
-    // Array matching
-    elemMatch('roles', eq('name', 'admin')),
-
-    // Date filters
-    recentDays('lastLogin', 30),
-    thisWeek('createdAt'),
-
-    // Existence checks
-    exists('phoneNumber'),
-    notNull('address'),
-  ),
-
-  sort: [
-    { field: 'score', direction: 'DESC' },
-    { field: 'lastLogin', direction: 'DESC' },
-  ],
-
-  projection: {
-    include: ['id', 'name', 'email', 'score', 'lastLogin', 'departments'],
+// Add interceptor to handle URL parameters
+const ownerId = idGenerator.generateId();
+wowFetcher.interceptors.request.use({
+  name: 'AppendOwnerId',
+  order: URL_RESOLVE_INTERCEPTOR_ORDER - 1,
+  intercept(exchange) {
+    exchange.request.urlParams = {
+      path: {
+        ...exchange.request.urlParams?.path,
+        ownerId,
+      },
+      query: exchange.request.urlParams?.query,
+    };
   },
+});
 
-  pagination: {
-    index: 1,
-    size: 50,
+// Create clients
+const commandClient = new CommandClient({
+  fetcher: wowFetcher,
+  basePath: 'owner/{ownerId}/cart'
+});
+
+const snapshotQueryClient = new SnapshotQueryClient<CartState>({
+  fetcher: wowFetcher,
+  basePath: 'owner/{ownerId}/cart'
+});
+
+// 1. Send command to add item to cart
+const addItemCommand: CommandRequest = {
+  method: HttpMethod.POST,
+  headers: {
+    [CommandHttpHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT,
+  },
+  body: {
+    productId: 'product-123',
+    quantity: 2,
   },
 };
+
+const commandResult = await commandClient.send('add_cart_item', addItemCommand);
+console.log('Command executed:', commandResult);
+
+// 2. Query the updated cart
+const listQuery: ListQuery = {
+  condition: all(),
+};
+const carts = await snapshotQueryClient.list(listQuery);
+
+for (const cart of carts) {
+  console.log('Cart:', cart.state);
+}
+
+// 3. Stream cart updates
+const listStream = await snapshotQueryClient.listStream(listQuery);
+for await (const event of listStream) {
+  const cart = event.data;
+  console.log('Cart updated:', cart.state);
+}
 ```
 
 ## 🧪 Testing
