@@ -83,7 +83,7 @@ describe('DomainEventStream', () => {
       requestId: 'request-id-1',
       version: 1,
       body: events,
-      headers: {
+      header: {
         remote_ip: '127.0.0.1',
       },
     };
@@ -99,15 +99,15 @@ describe('DomainEventStream', () => {
     expect(stream.requestId).toBe('request-id-1');
     expect(stream.version).toBe(1);
     expect(stream.body).toHaveLength(2);
-    expect(stream.headers.remote_ip).toBe('127.0.0.1');
+    expect(stream.header.remote_ip).toBe('127.0.0.1');
   });
 });
 
 describe('DomainEventStreamMetadataFields', () => {
   it('should have correct field values', () => {
-    expect(DomainEventStreamMetadataFields.HEADERS).toBe('headers');
+    expect(DomainEventStreamMetadataFields.HEADER).toBe('header');
     expect(DomainEventStreamMetadataFields.COMMAND_OPERATOR).toBe(
-      'headers.command_operator',
+      'header.command_operator',
     );
     expect(DomainEventStreamMetadataFields.AGGREGATE_ID).toBe('aggregateId');
     expect(DomainEventStreamMetadataFields.TENANT_ID).toBe('tenantId');

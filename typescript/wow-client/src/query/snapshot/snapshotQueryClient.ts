@@ -16,61 +16,24 @@ import { Condition } from '../condition';
 import { ListQuery, PagedList, PagedQuery, SingleQuery } from '../queryable';
 import { MaterializedSnapshot } from './snapshot';
 import { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
-import { combineURLs, ContentTypeValues, Fetcher, HttpMethod } from '@ahoo-wang/fetcher';
-import { ResultExtractor, ResultExtractors } from '@ahoo-wang/fetcher-decorator';
+import { ContentTypeValues } from '@ahoo-wang/fetcher';
+import { ResultExtractors } from '@ahoo-wang/fetcher-decorator';
 import '@ahoo-wang/fetcher-eventstream';
-
-/**
- * Configuration options for the SnapshotQueryClient.
- */
-export interface SnapshotQueryOptions {
-  /**
-   * The fetcher instance used to make HTTP requests.
-   */
-  fetcher: Fetcher;
-  /**
-   * The base URL path for all snapshot query endpoints.
-   */
-  basePath: string;
-}
+import { ClientOptions } from '../../types';
+import { QueryClient } from '../queryApi';
 
 /**
  * A client for querying snapshot data through HTTP endpoints.
  * Provides methods for various query operations such as counting, listing, paging, and retrieving single snapshots.
  * @template S The type of the snapshot state
  */
-export class SnapshotQueryClient<S> implements SnapshotQueryApi<S> {
+export class SnapshotQueryClient<S> extends QueryClient implements SnapshotQueryApi<S> {
   /**
    * Creates a new SnapshotQueryClient instance.
    * @param options - The configuration options for the client
    */
-  constructor(private options: SnapshotQueryOptions) {
-  }
-
-  /**
-   * Performs a generic query operation by sending a request to the specified path.
-   * @template R The return type of the query
-   * @param path - The endpoint path to query
-   * @param query - The query parameters to send
-   * @param accept - The content type to accept from the server
-   * @param extractor - Function to extract the result from the response, defaults to JSON extractor
-   * @returns A promise that resolves to the query result
-   */
-  private async query<R>(path: string,
-                         query: Condition | ListQuery | PagedQuery | SingleQuery,
-                         accept: string = ContentTypeValues.APPLICATION_JSON,
-                         extractor: ResultExtractor = ResultExtractors.Json): Promise<R> {
-    const url = combineURLs(this.options.basePath, path);
-    const request = {
-      url: url,
-      method: HttpMethod.POST,
-      headers: {
-        Accept: accept,
-      },
-      body: query,
-    };
-    const exchange = await this.options.fetcher.request(request);
-    return extractor(exchange);
+  constructor(options: ClientOptions) {
+    super(options);
   }
 
   /**

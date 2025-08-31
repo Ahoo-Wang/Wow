@@ -101,7 +101,7 @@ function expectSnapshotToBeDefined(snapshot: Partial<MaterializedSnapshot<CartSt
   expectCartState(snapshot.state);
 }
 
-describe('CommandHttpClient Integration Test', () => {
+describe('SnapshotQueryClient Integration Test', () => {
 
   it('should count', async () => {
     const count = await cartQueryClient.count(all());

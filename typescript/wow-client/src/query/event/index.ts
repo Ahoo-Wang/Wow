@@ -13,3 +13,4 @@
 
 export * from './domainEventStream';
 export * from './eventStreamQueryApi';
+export * from './eventStreamQueryClient';

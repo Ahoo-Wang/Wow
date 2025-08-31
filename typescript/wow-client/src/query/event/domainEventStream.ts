@@ -34,7 +34,7 @@ export interface DomainEvent<BODY>
   revision: string;
 }
 
-export interface DomainEventStreamHeaders {
+export interface DomainEventStreamHeader {
   command_operator?: string;
   command_wait_endpoint?: string;
   command_wait_stage?: CommandStage;
@@ -55,7 +55,7 @@ export interface DomainEventStream
     RequestId,
     Version,
     BodyCapable<DomainEvent<any>[]> {
-  headers: DomainEventStreamHeaders;
+  header: DomainEventStreamHeader;
 }
 
 /**
@@ -66,8 +66,8 @@ export interface DomainEventStream
  * The fields include headers, identifiers, command information, versioning, body content, and creation time.
  */
 export class DomainEventStreamMetadataFields {
-  static readonly HEADERS = 'headers';
-  static readonly COMMAND_OPERATOR = `${DomainEventStreamMetadataFields.HEADERS}.command_operator`;
+  static readonly HEADER = 'header';
+  static readonly COMMAND_OPERATOR = `${DomainEventStreamMetadataFields.HEADER}.command_operator`;
   static readonly AGGREGATE_ID = 'aggregateId';
   static readonly TENANT_ID = 'tenantId';
   static readonly OWNER_ID = 'ownerId';

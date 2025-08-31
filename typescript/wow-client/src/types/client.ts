@@ -11,10 +11,19 @@
  * limitations under the License.
  */
 
-export * from './client';
-export * from './common';
-export * from './error';
-export * from './function';
-export * from './messaging';
-export * from './modeling';
-export * from './naming';
+
+import { Fetcher } from '@ahoo-wang/fetcher';
+
+/**
+ * Configuration options for the Client.
+ */
+export interface ClientOptions {
+  /**
+   * The fetcher instance used to make HTTP requests.
+   */
+  fetcher: Fetcher;
+  /**
+   * The base URL path for all endpoints.
+   */
+  basePath: string;
+}
