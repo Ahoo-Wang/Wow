@@ -14,11 +14,14 @@
 import { QueryApi } from '../queryApi';
 import { MaterializedSnapshot } from './snapshot';
 import { ListQuery, PagedList, PagedQuery, SingleQuery } from '../queryable';
+import { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 
 export interface SnapshotQueryApi<S> extends QueryApi<MaterializedSnapshot<S>> {
   singleState(singleQuery: SingleQuery): Promise<Partial<S>>;
 
   listState(listQuery: ListQuery): Promise<Partial<S>[]>;
+
+  listStateStream(listQuery: ListQuery): Promise<ReadableStream<JsonServerSentEvent<Partial<S>>>>;
 
   pagedState(pagedQuery: PagedQuery): Promise<PagedList<Partial<S>>>;
 }

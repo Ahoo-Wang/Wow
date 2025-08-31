@@ -14,6 +14,7 @@
 import { RequestHeaders, UrlParams } from '@ahoo-wang/fetcher';
 import { CommandHeaders } from './commandHeaders';
 import { ParameterRequest } from '@ahoo-wang/fetcher-decorator';
+import { PathParams } from '../types/endpoints';
 
 /**
  * Command HTTP Headers Interface
@@ -141,16 +142,8 @@ export interface CommandHttpHeaders extends RequestHeaders {
   [CommandHeaders.COMMAND_TYPE]: string;
 }
 
-export interface CommandPathParams {
-  tenantId?: string;
-  ownerId?: string;
-  id?: string;
-
-  [key: string]: string | undefined;
-}
-
 export interface CommandUrlParams extends Omit<UrlParams, 'path' | 'query'> {
-  path?: CommandPathParams;
+  path?: PathParams;
 }
 
 /**
