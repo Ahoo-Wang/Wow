@@ -11,14 +11,21 @@
  * limitations under the License.
  */
 
-import type {
-  BindingError,
-  ErrorInfo,
-  RecoverableType,
-} from "../../client/types/error.ts";
-import type { AggregateId } from "../../client/types/modeling.ts";
-import type { FunctionInfo } from "../../client/types/function.ts";
-import type { Identifier, Version } from "../../client/types/common.ts";
+import { NamedFetcher } from "@ahoo-wang/fetcher";
+
+import {
+  type AggregateId,
+  type BindingError,
+  type ClientOptions,
+  type ErrorInfo,
+  EventStreamQueryClient,
+  type FunctionInfo,
+  type Identifier,
+  type RecoverableType,
+  SnapshotQueryClient,
+  type Version,
+} from "@ahoo-wang/fetcher-wow";
+import "@ahoo-wang/fetcher-eventstream";
 
 /**
  * compensation.ExecutionFailedState
@@ -71,3 +78,17 @@ export interface RetryState {
  * compensation.execution_failed.ExecutionFailedStatus
  */
 export type ExecutionFailedStatus = "FAILED" | "PREPARED" | "SUCCEEDED";
+
+export const COMPENSATION_FETCHER_NAME = "compensation";
+const compensationFetcher = new NamedFetcher(COMPENSATION_FETCHER_NAME, {
+  baseURL: "http://compensation-service.dev.svc.cluster.local/",
+});
+const executionFailedClientOptions: ClientOptions = {
+  fetcher: compensationFetcher,
+  basePath: "execution_failed",
+};
+export const executionFailedSnapshotQueryClient =
+  new SnapshotQueryClient<ExecutionFailedState>(executionFailedClientOptions);
+export const executionFailedEventQueryClient = new EventStreamQueryClient(
+  executionFailedClientOptions,
+);

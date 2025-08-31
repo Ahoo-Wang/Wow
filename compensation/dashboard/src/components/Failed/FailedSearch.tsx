@@ -21,7 +21,7 @@ interface FailedSearchProps {
 
 export function FailedSearch({ category }: FailedSearchProps) {
   const onFinish: (values: any) => void = (values) => {
-    console.log("Success:", values);
+    console.log("Success:", category, values);
   };
   return (
     <Form layout="vertical" onFinish={onFinish}>

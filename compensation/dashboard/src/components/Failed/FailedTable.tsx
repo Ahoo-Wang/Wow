@@ -12,15 +12,15 @@
  */
 
 import type { FailedCategory } from "./FailedCategory.tsx";
-import type { ExecutionFailedState } from "./ExecutionFailedState.ts";
 import { Table, Tag, Typography } from "antd";
 import type { TableColumnsType } from "antd";
 import { PagedList } from "./mock.ts";
 import { useEffect } from "react";
-import {
-  stateExecutionFailedService,
-} from "../../services/ExecutionFailedService.ts";
 import { all, eq } from "@ahoo-wang/fetcher-wow";
+import {
+  executionFailedSnapshotQueryClient,
+  type ExecutionFailedState,
+} from "../../services/executionFailedQueryClient.ts";
 const { Paragraph } = Typography;
 
 interface FailedTableProps {
@@ -191,7 +191,7 @@ const columns: TableColumnsType<ExecutionFailedState> = [
 export function FailedTable({ category }: FailedTableProps) {
   async function fetchData() {
     eq("field", "value");
-    const eventStream = await stateExecutionFailedService.listSnapshot({
+    const eventStream = await executionFailedSnapshotQueryClient.listStateStream({
       condition: all(),
       limit: 2,
     });
