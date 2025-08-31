@@ -11,84 +11,18 @@
  * limitations under the License.
  */
 
-import { NamedFetcher } from "@ahoo-wang/fetcher";
+
 
 import {
-  type AggregateId,
-  type BindingError,
-  type ClientOptions,
-  type ErrorInfo,
   EventStreamQueryClient,
-  type FunctionInfo,
-  type Identifier,
-  type RecoverableType,
   SnapshotQueryClient,
-  type Version,
 } from "@ahoo-wang/fetcher-wow";
-import "@ahoo-wang/fetcher-eventstream";
+import type { ExecutionFailedState } from "./executionFailedState";
+import { executionFailedClientOptions } from "./compensationFetcher";
 
-/**
- * compensation.ExecutionFailedState
- */
-export interface ExecutionFailedState extends Identifier {
-  error?: ErrorDetails;
-  eventId?: EventId;
-  executeAt?: number;
-  function?: FunctionInfo;
-  isBelowRetryThreshold?: boolean;
-  isRetryable?: boolean;
-  recoverable?: RecoverableType;
-  retrySpec?: RetrySpec;
-  retryState?: RetryState;
-  status?: ExecutionFailedStatus;
-}
-
-/**
- * compensation.execution_failed.ErrorDetails
- */
-export interface ErrorDetails extends ErrorInfo {
-  bindingErrors?: BindingError[];
-  stackTrace: string;
-}
-
-export interface EventId extends Identifier, Version {
-  aggregateId: AggregateId;
-}
-
-/**
- * compensation.execution_failed.RetrySpec
- */
-export interface RetrySpec {
-  executionTimeout: number;
-  maxRetries: number;
-  minBackoff: number;
-}
-
-/**
- * compensation.execution_failed.RetryState
- */
-export interface RetryState {
-  nextRetryAt: number;
-  retries: number;
-  retryAt: number;
-  timeoutAt: number;
-}
-
-/**
- * compensation.execution_failed.ExecutionFailedStatus
- */
-export type ExecutionFailedStatus = "FAILED" | "PREPARED" | "SUCCEEDED";
-
-export const COMPENSATION_FETCHER_NAME = "compensation";
-const compensationFetcher = new NamedFetcher(COMPENSATION_FETCHER_NAME, {
-  baseURL: "http://compensation-service.dev.svc.cluster.local/",
-});
-const executionFailedClientOptions: ClientOptions = {
-  fetcher: compensationFetcher,
-  basePath: "execution_failed",
-};
 export const executionFailedSnapshotQueryClient =
   new SnapshotQueryClient<ExecutionFailedState>(executionFailedClientOptions);
+
 export const executionFailedEventQueryClient = new EventStreamQueryClient(
   executionFailedClientOptions,
 );

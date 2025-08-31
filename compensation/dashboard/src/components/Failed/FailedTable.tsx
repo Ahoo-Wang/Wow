@@ -11,20 +11,19 @@
  * limitations under the License.
  */
 
-import type { FailedCategory } from "./FailedCategory.tsx";
+import type { FindCategory } from "./FindCategory.ts";
 import { Table, Tag, Typography } from "antd";
 import type { TableColumnsType } from "antd";
-import { PagedList } from "./mock.ts";
-import { useEffect } from "react";
-import { all, eq } from "@ahoo-wang/fetcher-wow";
+import { useEffect, useState } from "react";
+import { all, type PagedList } from "@ahoo-wang/fetcher-wow";
 import {
   executionFailedSnapshotQueryClient,
   type ExecutionFailedState,
-} from "../../services/executionFailedQueryClient.ts";
+} from "../../services";
 const { Paragraph } = Typography;
 
 interface FailedTableProps {
-  category: FailedCategory;
+  category: FindCategory;
 }
 
 const columns: TableColumnsType<ExecutionFailedState> = [
@@ -187,18 +186,16 @@ const columns: TableColumnsType<ExecutionFailedState> = [
     ],
   },
 ];
-
 export function FailedTable({ category }: FailedTableProps) {
+  const [state, setState] = useState<PagedList<ExecutionFailedState>>({
+    total: 0,
+    list: [],
+  });
   async function fetchData() {
-    eq("field", "value");
-    const eventStream = await executionFailedSnapshotQueryClient.listStateStream({
+    const pagedList = (await executionFailedSnapshotQueryClient.pagedState({
       condition: all(),
-      limit: 2,
-    });
-
-    for await (const event of eventStream) {
-      console.log("Received event:", event);
-    }
+    })) as PagedList<ExecutionFailedState>;
+    setState(pagedList);
   }
 
   useEffect(() => {
@@ -209,7 +206,7 @@ export function FailedTable({ category }: FailedTableProps) {
     <Table<ExecutionFailedState>
       rowKey="id"
       columns={columns}
-      dataSource={PagedList.list}
+      dataSource={state.list}
       bordered
       scroll={{ x: 1500 }}
     ></Table>

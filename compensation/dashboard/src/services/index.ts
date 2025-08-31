@@ -11,19 +11,6 @@
  * limitations under the License.
  */
 
-import { FailedSearch } from "./FailedSearch";
-import { FailedTable } from "./FailedTable";
-import type { FindCategory } from "./FindCategory.ts";
-
-interface FailedViewProps {
-  category: FindCategory;
-}
-
-export default function FailedView({ category }: FailedViewProps) {
-  return (
-    <>
-      <FailedSearch category={category}></FailedSearch>
-      <FailedTable category={category}></FailedTable>
-    </>
-  );
-}
+export * from "./compensationFetcher";
+export * from "./executionFailedQueryClient";
+export * from "./executionFailedState";

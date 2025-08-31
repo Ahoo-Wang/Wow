@@ -12,11 +12,11 @@
  */
 
 import { ClearOutlined, SearchOutlined } from "@ant-design/icons";
-import type { FailedCategory } from "./FailedCategory.tsx";
+import type { FindCategory } from "./FindCategory.ts";
 import { Button, Col, Form, Input, Row, Space } from "antd";
 
 interface FailedSearchProps {
-  category: FailedCategory;
+  category: FindCategory;
 }
 
 export function FailedSearch({ category }: FailedSearchProps) {

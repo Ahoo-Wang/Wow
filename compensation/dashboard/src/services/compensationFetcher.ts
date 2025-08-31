@@ -11,10 +11,14 @@
  * limitations under the License.
  */
 
-export type FailedCategory =
-  | "ToRetry"
-  | "Executing"
-  | "NextRetry"
-  | "NonRetryable"
-  | "Succeeded"
-  | "Unrecoverable";
+import { NamedFetcher } from "@ahoo-wang/fetcher";
+import type { ClientOptions } from "@ahoo-wang/fetcher-wow";
+
+export const COMPENSATION_FETCHER_NAME = "compensation";
+export const compensationFetcher = new NamedFetcher(COMPENSATION_FETCHER_NAME, {
+  baseURL: import.meta.env.VITE_API_BASE_URL,
+});
+export const executionFailedClientOptions: ClientOptions = {
+  fetcher: compensationFetcher,
+  basePath: "execution_failed",
+};
