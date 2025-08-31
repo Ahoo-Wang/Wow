@@ -17,14 +17,13 @@ import {
   Fetcher,
   FetchExchange,
   HttpMethod,
-  HttpStatusValidationError,
   URL_RESOLVE_INTERCEPTOR_ORDER,
 } from '@ahoo-wang/fetcher';
 import '@ahoo-wang/fetcher-eventstream';
 import {
   all,
   CommandHeaders,
-  CommandHttpClient, CommandHttpRequest, CommandResult, CommandStage, ErrorCodes, id, Identifier, ListQuery,
+  CommandHttpClient, CommandHttpRequest, CommandStage, ErrorCodes, id, Identifier, ListQuery,
   MaterializedSnapshot, PagedQuery, SingleQuery,
   SnapshotQueryClient,
 } from '@ahoo-wang/fetcher-wow';
