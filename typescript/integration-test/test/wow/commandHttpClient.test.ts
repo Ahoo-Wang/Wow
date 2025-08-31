@@ -13,7 +13,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { Fetcher, HttpMethod } from '@ahoo-wang/fetcher';
-import { EventStreamInterceptor } from '@ahoo-wang/fetcher-eventstream';
+import '@ahoo-wang/fetcher-eventstream';
 import {
   CommandHeaders,
   CommandHttpClient,
@@ -27,7 +27,6 @@ const wowFetcher = new Fetcher({
   baseURL: 'http://localhost:8080/',
 });
 
-wowFetcher.interceptors.response.use(new EventStreamInterceptor());
 const commandHttpClient = new CommandHttpClient(wowFetcher);
 
 function expectCommandResultToBeDefined(commandResult: CommandResult) {

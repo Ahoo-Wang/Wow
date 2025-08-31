@@ -26,11 +26,9 @@ import {
   post,
   ResultExtractors,
 } from '@ahoo-wang/fetcher-decorator';
-import {
-  EventStreamInterceptor,
-  JsonServerSentEventStream,
-} from '@ahoo-wang/fetcher-eventstream';
+import '@ahoo-wang/fetcher-eventstream';
 import { ChatRequest, ChatResponse } from './types';
+import { JsonServerSentEventStream } from '@ahoo-wang/fetcher-eventstream';
 
 export const llmFetcherName = 'llm';
 
@@ -63,7 +61,6 @@ export function createLlmFetcher(options: LlmOptions): NamedFetcher {
     },
   });
   llmFetcher.interceptors.request.use(new LlmRequestInterceptor(options));
-  llmFetcher.interceptors.response.use(new EventStreamInterceptor());
   return llmFetcher;
 }
 
