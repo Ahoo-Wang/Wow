@@ -23,6 +23,8 @@ describe('SnapshotQueryEndpointPaths', () => {
     expect(SnapshotQueryEndpointPaths.PAGED).toBe('snapshot/paged');
     expect(SnapshotQueryEndpointPaths.PAGED_STATE).toBe('snapshot/paged/state');
     expect(SnapshotQueryEndpointPaths.SINGLE).toBe('snapshot/single');
-    expect(SnapshotQueryEndpointPaths.SINGLE_STATE).toBe('snapshot/single/state');
+    expect(SnapshotQueryEndpointPaths.SINGLE_STATE).toBe(
+      'snapshot/single/state',
+    );
   });
 });

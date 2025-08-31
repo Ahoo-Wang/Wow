@@ -106,7 +106,9 @@ describe('DomainEventStream', () => {
 describe('DomainEventStreamMetadataFields', () => {
   it('should have correct field values', () => {
     expect(DomainEventStreamMetadataFields.HEADERS).toBe('headers');
-    expect(DomainEventStreamMetadataFields.COMMAND_OPERATOR).toBe('headers.command_operator');
+    expect(DomainEventStreamMetadataFields.COMMAND_OPERATOR).toBe(
+      'headers.command_operator',
+    );
     expect(DomainEventStreamMetadataFields.AGGREGATE_ID).toBe('aggregateId');
     expect(DomainEventStreamMetadataFields.TENANT_ID).toBe('tenantId');
     expect(DomainEventStreamMetadataFields.OWNER_ID).toBe('ownerId');

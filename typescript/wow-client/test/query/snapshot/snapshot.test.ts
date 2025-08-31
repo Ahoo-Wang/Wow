@@ -12,7 +12,11 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { MaterializedSnapshot, SmallMaterializedSnapshot, SnapshotMetadataFields } from '../../../src';
+import {
+  MaterializedSnapshot,
+  SmallMaterializedSnapshot,
+  SnapshotMetadataFields,
+} from '../../../src';
 
 interface TestState {
   name: string;

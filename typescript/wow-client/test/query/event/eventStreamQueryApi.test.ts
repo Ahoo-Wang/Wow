@@ -16,7 +16,9 @@ import { EventStreamQueryEndpointPaths } from '../../../src';
 
 describe('EventStreamQueryEndpointPaths', () => {
   it('should have correct endpoint path values', () => {
-    expect(EventStreamQueryEndpointPaths.EVENT_STREAM_RESOURCE_NAME).toBe('event');
+    expect(EventStreamQueryEndpointPaths.EVENT_STREAM_RESOURCE_NAME).toBe(
+      'event',
+    );
     expect(EventStreamQueryEndpointPaths.COUNT).toBe('event/count');
     expect(EventStreamQueryEndpointPaths.LIST).toBe('event/list');
     expect(EventStreamQueryEndpointPaths.PAGED).toBe('event/paged');

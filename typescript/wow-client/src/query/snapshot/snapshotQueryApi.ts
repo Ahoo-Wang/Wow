@@ -21,7 +21,6 @@ export interface SnapshotQueryApi<S> extends QueryApi<MaterializedSnapshot<S>> {
   listState(listQuery: ListQuery): Promise<Partial<S>[]>;
 
   pagedState(pagedQuery: PagedQuery): Promise<PagedList<Partial<S>>>;
-
 }
 
 /**
