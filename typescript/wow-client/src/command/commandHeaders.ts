@@ -21,13 +21,12 @@
  * ```typescript
  * // Using header constants in a request
  * const request = {
- *   method: 'POST',
  *   headers: {
  *     [CommandHeaders.TENANT_ID]: 'tenant-123',
  *     [CommandHeaders.AGGREGATE_ID]: 'aggregate-456',
  *     [CommandHeaders.REQUEST_ID]: 'request-789'
  *   },
- *   body: JSON.stringify(command)
+ *   body: command
  * };
  * ```
  */

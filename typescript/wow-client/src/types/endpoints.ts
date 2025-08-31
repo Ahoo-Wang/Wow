@@ -11,10 +11,31 @@
  * limitations under the License.
  */
 
+/**
+ * Interface for path parameters used in URL construction.
+ * Defines common path parameters and allows for additional custom parameters.
+ * This interface is used to provide path variables for URL templating.
+ */
 export interface PathParams {
+  /**
+   * Tenant identifier parameter.
+   * Used in multi-tenant applications to identify the tenant context.
+   */
   tenantId?: string;
+  /**
+   * Owner identifier parameter.
+   * Used to identify the owner or user context for the resource.
+   */
   ownerId?: string;
+  /**
+   * Generic identifier parameter.
+   * Used as a general purpose ID for resources when tenantId or ownerId are not appropriate.
+   */
   id?: string;
 
+  /**
+   * Index signature for additional custom path parameters.
+   * Allows for any additional string key-value pairs to be included as path parameters.
+   */
   [key: string]: string | undefined;
 }

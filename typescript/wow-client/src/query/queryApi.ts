@@ -18,21 +18,67 @@ import { ClientOptions } from '../types';
 import { combineURLs, ContentTypeValues, HttpMethod } from '@ahoo-wang/fetcher';
 import { ResultExtractor, ResultExtractors } from '@ahoo-wang/fetcher-decorator';
 
+/**
+ * Interface for generic query API operations.
+ * Provides methods for querying resources in different ways including single item retrieval,
+ * list retrieval, streaming lists, paged retrieval, and counting.
+ *
+ * @see {@link EventStreamQueryApi}
+ * @see {@link SnapshotQueryApi}
+ * @template R - The type of resource being queried
+ */
 export interface QueryApi<R> {
+  /**
+   * Retrieves a single resource based on the provided query parameters.
+   * @param singleQuery - The query parameters for retrieving a single resource
+   * @returns A promise that resolves to a partial resource
+   */
   single(singleQuery: SingleQuery): Promise<Partial<R>>;
 
+  /**
+   * Retrieves a list of resources based on the provided query parameters.
+   * @param listQuery - The query parameters for listing resources
+   * @returns A promise that resolves to an array of partial resources
+   */
   list(listQuery: ListQuery): Promise<Partial<R>[]>;
 
+  /**
+   * Retrieves a stream of resources based on the provided query parameters.
+   * @param listQuery - The query parameters for listing resources
+   * @returns A promise that resolves to a readable stream of JSON server-sent events containing partial resources
+   */
   listStream(
     listQuery: ListQuery,
   ): Promise<ReadableStream<JsonServerSentEvent<Partial<R>>>>;
 
+  /**
+   * Retrieves a paged list of resources based on the provided query parameters.
+   * @param pagedQuery - The query parameters for paging resources
+   * @returns A promise that resolves to a paged list of partial resources
+   */
   paged(pagedQuery: PagedQuery): Promise<PagedList<Partial<R>>>;
 
+  /**
+   * Counts the number of resources that match the given condition.
+   * @param condition - The condition to filter resources
+   * @returns A promise that resolves to the count of matching resources
+   */
   count(condition: Condition): Promise<number>;
 }
 
+/**
+ * Base client for performing query operations.
+ * Provides a generic query method that handles the common logic for sending requests
+ * and processing responses for different types of queries.
+ *
+ * @see {@link EventStreamQueryClient}
+ * @see {@link SnapshotQueryClient}
+ */
 export class QueryClient {
+  /**
+   * Creates a new QueryClient instance.
+   * @param options - The client configuration options including fetcher and base path
+   */
   constructor(protected readonly options: ClientOptions) {
   }
 
@@ -41,7 +87,7 @@ export class QueryClient {
    * @template R The return type of the query
    * @param path - The endpoint path to query
    * @param query - The query parameters to send
-   * @param accept - The content type to accept from the server
+   * @param accept - The content type to accept from the server, defaults to application/json
    * @param extractor - Function to extract the result from the response, defaults to JSON extractor
    * @returns A promise that resolves to the query result
    */

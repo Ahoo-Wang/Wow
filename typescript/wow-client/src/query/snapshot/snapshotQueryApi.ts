@@ -16,13 +16,39 @@ import { MaterializedSnapshot } from './snapshot';
 import { ListQuery, PagedList, PagedQuery, SingleQuery } from '../queryable';
 import { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 
+/**
+ * Interface for snapshot query API operations.
+ * Extends the base QueryApi interface for MaterializedSnapshot and adds methods
+ * for querying snapshot states directly without the full MaterializedSnapshot wrapper.
+ * @template S - The type of the snapshot state
+ */
 export interface SnapshotQueryApi<S> extends QueryApi<MaterializedSnapshot<S>> {
+  /**
+   * Retrieves a single snapshot state based on the provided query parameters.
+   * @param singleQuery - The query parameters for retrieving a single snapshot state
+   * @returns A promise that resolves to a partial snapshot state
+   */
   singleState(singleQuery: SingleQuery): Promise<Partial<S>>;
 
+  /**
+   * Retrieves a list of snapshot states based on the provided query parameters.
+   * @param listQuery - The query parameters for listing snapshot states
+   * @returns A promise that resolves to an array of partial snapshot states
+   */
   listState(listQuery: ListQuery): Promise<Partial<S>[]>;
 
+  /**
+   * Retrieves a stream of snapshot states based on the provided query parameters.
+   * @param listQuery - The query parameters for listing snapshot states
+   * @returns A promise that resolves to a readable stream of JSON server-sent events containing partial snapshot states
+   */
   listStateStream(listQuery: ListQuery): Promise<ReadableStream<JsonServerSentEvent<Partial<S>>>>;
 
+  /**
+   * Retrieves a paged list of snapshot states based on the provided query parameters.
+   * @param pagedQuery - The query parameters for paging snapshot states
+   * @returns A promise that resolves to a paged list of partial snapshot states
+   */
   pagedState(pagedQuery: PagedQuery): Promise<PagedList<Partial<S>>>;
 }
 

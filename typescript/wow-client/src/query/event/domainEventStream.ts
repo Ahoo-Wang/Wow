@@ -24,28 +24,71 @@ import { BodyCapable } from '../../types';
 import { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 
 /**
- * A list of domain events for the domain event stream
+ * Represents a domain event with a specific body type.
+ * Extends Identifier, Named, and BodyCapable interfaces to provide identification,
+ * naming, and body capabilities for the domain event.
+ * @template BODY - The type of the event content for this domain event
  */
 export interface DomainEvent<BODY>
   extends Identifier,
     Named,
     BodyCapable<BODY> {
+  /**
+   * The type of the event content.
+   */
   bodyType: string;
+  /**
+   * The revision of the domain event.
+   */
   revision: string;
 }
 
+/**
+ * Represents the header information for a domain event stream.
+ * Contains metadata about the event stream such as command information,
+ * network details, and tracing information.
+ */
 export interface DomainEventStreamHeader {
+  /**
+   * The operator that executed the command.
+   */
   command_operator?: string;
+  /**
+   * The endpoint to wait for command completion.
+   */
   command_wait_endpoint?: string;
+  /**
+   * The stage to wait for in command execution.
+   */
   command_wait_stage?: CommandStage;
+
   local_first?: string;
+  /**
+   * The IP address of the remote client.
+   */
   remote_ip: string;
+  /**
+   * The user agent of the client.
+   */
   user_agent?: string;
+  /**
+   * The trace identifier for distributed tracing.
+   */
   trace_id?: string;
 
+  /**
+   * Index signature for additional custom header properties.
+   * Allows for any additional string key-value pairs to be included as header properties.
+   */
   [key: string]: string | undefined;
 }
 
+/**
+ * Represents a stream of domain events.
+ * Combines multiple interfaces to provide a complete domain event stream,
+ * including identification, aggregation, ownership, command information,
+ * versioning, and the actual event data.
+ */
 export interface DomainEventStream
   extends Identifier,
     AggregateId,
@@ -55,6 +98,9 @@ export interface DomainEventStream
     RequestId,
     Version,
     BodyCapable<DomainEvent<any>[]> {
+  /**
+   * The header information for the domain event stream.
+   */
   header: DomainEventStreamHeader;
 }
 

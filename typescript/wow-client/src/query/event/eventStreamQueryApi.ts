@@ -14,6 +14,12 @@
 import { DomainEventStream } from './domainEventStream';
 import { QueryApi } from '../queryApi';
 
+/**
+ * Interface for event stream query API operations.
+ * Extends the base QueryApi interface but omits the 'single' method,
+ * as event stream queries typically work with collections of events rather than single events.
+ * @template DomainEventStream - The type of domain event stream this API works with
+ */
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface EventStreamQueryApi
   extends Omit<QueryApi<DomainEventStream>, 'single'> {

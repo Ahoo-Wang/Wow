@@ -11,6 +11,10 @@
  * limitations under the License.
  */
 
+/**
+ * Enumeration of sort directions.
+ * ASC for ascending order, DESC for descending order.
+ */
 export enum SortDirection {
   ASC = 'ASC',
   DESC = 'DESC',
