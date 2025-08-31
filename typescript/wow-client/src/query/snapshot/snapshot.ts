@@ -12,6 +12,7 @@
  */
 
 import {
+  AggregateId,
   DeletedCapable,
   EventIdCapable,
   EventTimeCapable,
@@ -31,7 +32,7 @@ import {
  */
 export interface MaterializedSnapshot<S>
   extends StateCapable<S>,
-    NamedAggregate,
+    AggregateId,
     TenantId,
     OwnerId,
     Version,

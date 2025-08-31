@@ -16,28 +16,56 @@ import { Condition } from '../condition';
 import { ListQuery, PagedList, PagedQuery, SingleQuery } from '../queryable';
 import { MaterializedSnapshot } from './snapshot';
 import { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
-import { combineURLs, Fetcher, HttpMethod } from '@ahoo-wang/fetcher';
-import { PathParams } from '../../types/endpoints';
+import { combineURLs, ContentTypeValues, Fetcher, HttpMethod } from '@ahoo-wang/fetcher';
 import { ResultExtractor, ResultExtractors } from '@ahoo-wang/fetcher-decorator';
 import '@ahoo-wang/fetcher-eventstream';
 
+/**
+ * Configuration options for the SnapshotQueryClient.
+ */
 export interface SnapshotQueryOptions {
-  basePath: string;
-  pathParams: Omit<PathParams, 'id'>;
+  /**
+   * The fetcher instance used to make HTTP requests.
+   */
   fetcher: Fetcher;
+  /**
+   * The base URL path for all snapshot query endpoints.
+   */
+  basePath: string;
 }
 
+/**
+ * A client for querying snapshot data through HTTP endpoints.
+ * Provides methods for various query operations such as counting, listing, paging, and retrieving single snapshots.
+ * @template S The type of the snapshot state
+ */
 export class SnapshotQueryClient<S> implements SnapshotQueryApi<S> {
+  /**
+   * Creates a new SnapshotQueryClient instance.
+   * @param options - The configuration options for the client
+   */
   constructor(private options: SnapshotQueryOptions) {
   }
 
-  private async query<R>(path: string, query: Condition | ListQuery | PagedQuery | SingleQuery, extractor: ResultExtractor = ResultExtractors.Json): Promise<R> {
+  /**
+   * Performs a generic query operation by sending a request to the specified path.
+   * @template R The return type of the query
+   * @param path - The endpoint path to query
+   * @param query - The query parameters to send
+   * @param accept - The content type to accept from the server
+   * @param extractor - Function to extract the result from the response, defaults to JSON extractor
+   * @returns A promise that resolves to the query result
+   */
+  private async query<R>(path: string,
+                         query: Condition | ListQuery | PagedQuery | SingleQuery,
+                         accept: string = ContentTypeValues.APPLICATION_JSON,
+                         extractor: ResultExtractor = ResultExtractors.Json): Promise<R> {
     const url = combineURLs(this.options.basePath, path);
     const request = {
       url: url,
       method: HttpMethod.POST,
-      urlParams: {
-        path: this.options.pathParams,
+      headers: {
+        Accept: accept,
       },
       body: query,
     };
@@ -45,41 +73,85 @@ export class SnapshotQueryClient<S> implements SnapshotQueryApi<S> {
     return extractor(exchange);
   }
 
+  /**
+   * Counts the number of snapshots that match the given condition.
+   * @param condition - The condition to match snapshots against
+   * @returns A promise that resolves to the count of matching snapshots
+   */
   async count(condition: Condition): Promise<number> {
     return this.query(SnapshotQueryEndpointPaths.COUNT, condition);
   }
 
+  /**
+   * Retrieves a list of materialized snapshots based on the provided query parameters.
+   * @param listQuery - The query parameters for listing snapshots
+   * @returns A promise that resolves to an array of partial materialized snapshots
+   */
   list(listQuery: ListQuery): Promise<Partial<MaterializedSnapshot<S>>[]> {
     return this.query(SnapshotQueryEndpointPaths.LIST, listQuery);
   }
 
+  /**
+   * Retrieves a stream of materialized snapshots based on the provided query parameters.
+   * @param listQuery - The query parameters for listing snapshots
+   * @returns A promise that resolves to a readable stream of JSON server-sent events containing partial materialized snapshots
+   */
   listStream(listQuery: ListQuery): Promise<ReadableStream<JsonServerSentEvent<Partial<MaterializedSnapshot<S>>>>> {
-    return this.query(SnapshotQueryEndpointPaths.LIST_STATE, listQuery, ResultExtractors.JsonEventStream);
+    return this.query(SnapshotQueryEndpointPaths.LIST, listQuery, ContentTypeValues.TEXT_EVENT_STREAM, ResultExtractors.JsonEventStream);
   }
 
+  /**
+   * Retrieves a list of snapshot states based on the provided query parameters.
+   * @param listQuery - The query parameters for listing snapshot states
+   * @returns A promise that resolves to an array of partial snapshot states
+   */
   listState(listQuery: ListQuery): Promise<Partial<S>[]> {
     return this.query(SnapshotQueryEndpointPaths.LIST_STATE, listQuery);
   }
 
+  /**
+   * Retrieves a stream of snapshot states based on the provided query parameters.
+   * @param listQuery - The query parameters for listing snapshot states
+   * @returns A promise that resolves to a readable stream of JSON server-sent events containing partial snapshot states
+   */
   listStateStream(listQuery: ListQuery): Promise<ReadableStream<JsonServerSentEvent<Partial<S>>>> {
-    return this.query(SnapshotQueryEndpointPaths.LIST_STATE, listQuery, ResultExtractors.JsonEventStream);
+    return this.query(SnapshotQueryEndpointPaths.LIST_STATE, listQuery, ContentTypeValues.TEXT_EVENT_STREAM, ResultExtractors.JsonEventStream);
   }
 
+  /**
+   * Retrieves a paged list of materialized snapshots based on the provided query parameters.
+   * @param pagedQuery - The query parameters for paging snapshots
+   * @returns A promise that resolves to a paged list of partial materialized snapshots
+   */
   paged(pagedQuery: PagedQuery): Promise<PagedList<Partial<MaterializedSnapshot<S>>>> {
     return this.query(SnapshotQueryEndpointPaths.PAGED, pagedQuery);
   }
 
+  /**
+   * Retrieves a paged list of snapshot states based on the provided query parameters.
+   * @param pagedQuery - The query parameters for paging snapshot states
+   * @returns A promise that resolves to a paged list of partial snapshot states
+   */
   pagedState(pagedQuery: PagedQuery): Promise<PagedList<Partial<S>>> {
     return this.query(SnapshotQueryEndpointPaths.PAGED_STATE, pagedQuery);
   }
 
+  /**
+   * Retrieves a single materialized snapshot based on the provided query parameters.
+   * @param singleQuery - The query parameters for retrieving a single snapshot
+   * @returns A promise that resolves to a partial materialized snapshot
+   */
   single(singleQuery: SingleQuery): Promise<Partial<MaterializedSnapshot<S>>> {
     return this.query(SnapshotQueryEndpointPaths.SINGLE, singleQuery);
   }
 
+  /**
+   * Retrieves a single snapshot state based on the provided query parameters.
+   * @param singleQuery - The query parameters for retrieving a single snapshot state
+   * @returns A promise that resolves to a partial snapshot state
+   */
   singleState(singleQuery: SingleQuery): Promise<Partial<S>> {
-    return this.query(SnapshotQueryEndpointPaths.LIST_STATE, singleQuery);
+    return this.query(SnapshotQueryEndpointPaths.SINGLE_STATE, singleQuery);
   }
-
 
 }

@@ -13,3 +13,4 @@
 
 export * from './snapshot';
 export * from './snapshotQueryApi';
+export * from './snapshotQueryClient';
