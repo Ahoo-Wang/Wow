@@ -21,7 +21,7 @@ import {
 } from '@ahoo-wang/fetcher';
 import '@ahoo-wang/fetcher-eventstream';
 import {
-  all,
+  all, ClientOptions,
   CommandHeaders,
   CommandHttpClient, CommandHttpRequest, CommandStage, ErrorCodes, id, Identifier, ListQuery,
   MaterializedSnapshot, PagedQuery, SingleQuery,
@@ -55,15 +55,17 @@ wowFetcher.interceptors.request.use({
     };
   },
 });
-
-const commandHttpClient = new CommandHttpClient(wowFetcher);
 const aggregateBasePath = 'owner/{ownerId}/cart';
+const cartClientOptions: ClientOptions = {
+  fetcher: wowFetcher,
+  basePath: aggregateBasePath,
+};
+const commandHttpClient = new CommandHttpClient(cartClientOptions);
 const cartQueryClient = new SnapshotQueryClient<CartState>({
   fetcher: wowFetcher,
   basePath: aggregateBasePath,
 });
 const command: CommandHttpRequest = {
-  path: `${aggregateBasePath}/add_cart_item`,
   method: HttpMethod.POST,
   headers: {
     [CommandHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT,
@@ -73,7 +75,7 @@ const command: CommandHttpRequest = {
     quantity: 1,
   },
 };
-const commandResult = await commandHttpClient.send(command);
+const commandResult = await commandHttpClient.send('add_cart_item', command);
 expect(commandResult.errorCode).toBe(ErrorCodes.SUCCEEDED);
 
 function expectCartState(cartState: Partial<CartState> | undefined) {

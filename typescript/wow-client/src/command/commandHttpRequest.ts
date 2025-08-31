@@ -11,9 +11,8 @@
  * limitations under the License.
  */
 
-import { RequestHeaders, UrlParams } from '@ahoo-wang/fetcher';
+import { FetchRequestInit, RequestHeaders, UrlParams } from '@ahoo-wang/fetcher';
 import { CommandHeaders } from './commandHeaders';
-import { ParameterRequest } from '@ahoo-wang/fetcher-decorator';
 import { PathParams } from '../types/endpoints';
 
 /**
@@ -152,11 +151,7 @@ export interface CommandUrlParams extends Omit<UrlParams, 'path' | 'query'> {
  * Extends RequestHeaders to provide type-safe access to command-related HTTP headers.
  * This interface includes only the essential command headers commonly used in HTTP requests.
  */
-export interface CommandHttpRequest extends ParameterRequest {
-  /**
-   * Path for the command endpoint (relative to class base path).
-   */
-  path: string;
+export interface CommandHttpRequest extends FetchRequestInit {
   urlParams?: CommandUrlParams;
   headers?: CommandHttpHeaders;
   /**

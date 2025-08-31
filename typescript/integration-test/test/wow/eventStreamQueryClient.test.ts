@@ -12,15 +12,14 @@
  */
 
 
-import { ExchangeError, Fetcher, FetchExchange, HttpMethod, URL_RESOLVE_INTERCEPTOR_ORDER } from '@ahoo-wang/fetcher';
+import { Fetcher, FetchExchange, HttpMethod, URL_RESOLVE_INTERCEPTOR_ORDER } from '@ahoo-wang/fetcher';
 import { idGenerator } from '@ahoo-wang/fetcher-cosec';
 import {
   all,
   CommandHeaders,
   CommandHttpClient,
   CommandHttpRequest,
-  CommandStage, ErrorCodes, id, ListQuery, PagedQuery, SingleQuery,
-  EventStreamQueryClient, MaterializedSnapshot, DomainEventStream,
+  CommandStage, ErrorCodes, ListQuery, PagedQuery, EventStreamQueryClient, DomainEventStream, ClientOptions,
 } from '@ahoo-wang/fetcher-wow';
 import { describe, expect, it } from 'vitest';
 
@@ -41,15 +40,18 @@ wowFetcher.interceptors.request.use({
     };
   },
 });
-
-const commandHttpClient = new CommandHttpClient(wowFetcher);
 const aggregateBasePath = 'owner/{ownerId}/cart';
+const cartClientOptions: ClientOptions = {
+  fetcher: wowFetcher,
+  basePath: aggregateBasePath,
+};
+
+const commandHttpClient = new CommandHttpClient(cartClientOptions);
 const cartQueryClient = new EventStreamQueryClient({
   fetcher: wowFetcher,
   basePath: aggregateBasePath,
 });
 const command: CommandHttpRequest = {
-  path: `${aggregateBasePath}/add_cart_item`,
   method: HttpMethod.POST,
   headers: {
     [CommandHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT,
@@ -59,9 +61,8 @@ const command: CommandHttpRequest = {
     quantity: 1,
   },
 };
-const commandResult = await commandHttpClient.send(command);
+const commandResult = await commandHttpClient.send('add_cart_item', command);
 expect(commandResult.errorCode).toBe(ErrorCodes.SUCCEEDED);
-
 
 function expectDomainEventStreamToBeDefined(domainEventStream: Partial<DomainEventStream>) {
   expect(domainEventStream.contextName).toBeDefined();
