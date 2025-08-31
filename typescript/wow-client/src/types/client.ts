@@ -11,7 +11,6 @@
  * limitations under the License.
  */
 
-
 import { Fetcher } from '@ahoo-wang/fetcher';
 
 /**

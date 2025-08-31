@@ -54,7 +54,13 @@ import { CommandResult, CommandStage } from '@ahoo-wang/fetcher-wow';
 ```typescript
 import { Fetcher, URL_RESOLVE_INTERCEPTOR_ORDER } from '@ahoo-wang/fetcher';
 import '@ahoo-wang/fetcher-eventstream';
-import { CommandClient, CommandRequest, HttpMethod, CommandHttpHeaders, CommandStage } from '@ahoo-wang/fetcher-wow';
+import {
+  CommandClient,
+  CommandRequest,
+  HttpMethod,
+  CommandHttpHeaders,
+  CommandStage,
+} from '@ahoo-wang/fetcher-wow';
 import { idGenerator } from '@ahoo-wang/fetcher-cosec';
 
 // 创建 fetcher 实例
@@ -81,7 +87,7 @@ wowFetcher.interceptors.request.use({
 // 创建命令客户端
 const commandClient = new CommandClient({
   fetcher: wowFetcher,
-  basePath: 'owner/{ownerId}/cart'
+  basePath: 'owner/{ownerId}/cart',
 });
 
 // 定义命令请求
@@ -100,7 +106,10 @@ const command: CommandRequest = {
 const commandResult = await commandClient.send('add_cart_item', command);
 
 // 发送命令并接收流式结果
-const commandResultStream = await commandClient.sendAndWaitStream('add_cart_item', command);
+const commandResultStream = await commandClient.sendAndWaitStream(
+  'add_cart_item',
+  command,
+);
 for await (const commandResultEvent of commandResultStream) {
   console.log('收到命令结果:', commandResultEvent.data);
 }
@@ -174,7 +183,7 @@ import {
   all,
   ListQuery,
   PagedQuery,
-  SingleQuery
+  SingleQuery,
 } from '@ahoo-wang/fetcher-wow';
 import { idGenerator } from '@ahoo-wang/fetcher-cosec';
 
@@ -212,7 +221,7 @@ wowFetcher.interceptors.request.use({
 // 创建快照查询客户端
 const snapshotQueryClient = new SnapshotQueryClient<CartState>({
   fetcher: wowFetcher,
-  basePath: 'owner/{ownerId}/cart'
+  basePath: 'owner/{ownerId}/cart',
 });
 
 // 统计快照数量
@@ -271,7 +280,7 @@ import {
   EventStreamQueryClient,
   all,
   ListQuery,
-  PagedQuery
+  PagedQuery,
 } from '@ahoo-wang/fetcher-wow';
 import { idGenerator } from '@ahoo-wang/fetcher-cosec';
 
@@ -299,7 +308,7 @@ wowFetcher.interceptors.request.use({
 // 创建事件流查询客户端
 const eventStreamQueryClient = new EventStreamQueryClient({
   fetcher: wowFetcher,
-  basePath: 'owner/{ownerId}/cart'
+  basePath: 'owner/{ownerId}/cart',
 });
 
 // 统计事件流数量
@@ -340,7 +349,7 @@ import {
   HttpMethod,
   SnapshotQueryClient,
   all,
-  ListQuery
+  ListQuery,
 } from '@ahoo-wang/fetcher-wow';
 import { idGenerator } from '@ahoo-wang/fetcher-cosec';
 
@@ -378,12 +387,12 @@ wowFetcher.interceptors.request.use({
 // 创建客户端
 const commandClient = new CommandClient({
   fetcher: wowFetcher,
-  basePath: 'owner/{ownerId}/cart'
+  basePath: 'owner/{ownerId}/cart',
 });
 
 const snapshotQueryClient = new SnapshotQueryClient<CartState>({
   fetcher: wowFetcher,
-  basePath: 'owner/{ownerId}/cart'
+  basePath: 'owner/{ownerId}/cart',
 });
 
 // 1. 发送命令添加商品到购物车

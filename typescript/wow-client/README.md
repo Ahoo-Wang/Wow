@@ -61,7 +61,13 @@ either synchronously or as a stream of events.
 ```typescript
 import { Fetcher, URL_RESOLVE_INTERCEPTOR_ORDER } from '@ahoo-wang/fetcher';
 import '@ahoo-wang/fetcher-eventstream';
-import { CommandClient, CommandRequest, HttpMethod, CommandHttpHeaders, CommandStage } from '@ahoo-wang/fetcher-wow';
+import {
+  CommandClient,
+  CommandRequest,
+  HttpMethod,
+  CommandHttpHeaders,
+  CommandStage,
+} from '@ahoo-wang/fetcher-wow';
 import { idGenerator } from '@ahoo-wang/fetcher-cosec';
 
 // Create a fetcher instance
@@ -88,7 +94,7 @@ wowFetcher.interceptors.request.use({
 // Create the command client
 const commandClient = new CommandClient({
   fetcher: wowFetcher,
-  basePath: 'owner/{ownerId}/cart'
+  basePath: 'owner/{ownerId}/cart',
 });
 
 // Define a command request
@@ -107,7 +113,10 @@ const command: CommandRequest = {
 const commandResult = await commandClient.send('add_cart_item', command);
 
 // Send command and receive results as a stream of events
-const commandResultStream = await commandClient.sendAndWaitStream('add_cart_item', command);
+const commandResultStream = await commandClient.sendAndWaitStream(
+  'add_cart_item',
+  command,
+);
 for await (const commandResultEvent of commandResultStream) {
   console.log('Received command result:', commandResultEvent.data);
 }
@@ -182,7 +191,7 @@ import {
   all,
   ListQuery,
   PagedQuery,
-  SingleQuery
+  SingleQuery,
 } from '@ahoo-wang/fetcher-wow';
 import { idGenerator } from '@ahoo-wang/fetcher-cosec';
 
@@ -220,7 +229,7 @@ wowFetcher.interceptors.request.use({
 // Create the snapshot query client
 const snapshotQueryClient = new SnapshotQueryClient<CartState>({
   fetcher: wowFetcher,
-  basePath: 'owner/{ownerId}/cart'
+  basePath: 'owner/{ownerId}/cart',
 });
 
 // Count snapshots
@@ -279,7 +288,7 @@ import {
   EventStreamQueryClient,
   all,
   ListQuery,
-  PagedQuery
+  PagedQuery,
 } from '@ahoo-wang/fetcher-wow';
 import { idGenerator } from '@ahoo-wang/fetcher-cosec';
 
@@ -307,7 +316,7 @@ wowFetcher.interceptors.request.use({
 // Create the event stream query client
 const eventStreamQueryClient = new EventStreamQueryClient({
   fetcher: wowFetcher,
-  basePath: 'owner/{ownerId}/cart'
+  basePath: 'owner/{ownerId}/cart',
 });
 
 // Count event streams
@@ -348,7 +357,7 @@ import {
   HttpMethod,
   SnapshotQueryClient,
   all,
-  ListQuery
+  ListQuery,
 } from '@ahoo-wang/fetcher-wow';
 import { idGenerator } from '@ahoo-wang/fetcher-cosec';
 
@@ -386,12 +395,12 @@ wowFetcher.interceptors.request.use({
 // Create clients
 const commandClient = new CommandClient({
   fetcher: wowFetcher,
-  basePath: 'owner/{ownerId}/cart'
+  basePath: 'owner/{ownerId}/cart',
 });
 
 const snapshotQueryClient = new SnapshotQueryClient<CartState>({
   fetcher: wowFetcher,
-  basePath: 'owner/{ownerId}/cart'
+  basePath: 'owner/{ownerId}/cart',
 });
 
 // 1. Send command to add item to cart

@@ -97,8 +97,11 @@ export class CommandClient {
    * @param extractor - Function to extract the result from the response, defaults to JSON extractor
    * @returns A promise that resolves to the extracted result of type R
    */
-  protected async sendCommand<R>(path: string, commandHttpRequest: CommandRequest,
-                                 extractor: ResultExtractor = ResultExtractors.Json): Promise<R> {
+  protected async sendCommand<R>(
+    path: string,
+    commandHttpRequest: CommandRequest,
+    extractor: ResultExtractor = ResultExtractors.Json,
+  ): Promise<R> {
     const url = combineURLs(this.options.basePath, path);
     const request = {
       ...commandHttpRequest,
@@ -110,7 +113,7 @@ export class CommandClient {
 
   /**
    * Sends a command to the specified path and waits for a response.
-   * 
+   *
    * @param path - The endpoint path to send the command to
    * @param commandHttpRequest - The command HTTP request containing headers, method, and body
    * @returns A promise that resolves to a CommandResult
@@ -147,7 +150,7 @@ export class CommandClient {
   /**
    * Sends a command to the specified path and waits for a streaming response.
    * Sets the Accept header to text/event-stream to indicate that the response should be streamed.
-   * 
+   *
    * @param path - The endpoint path to send the command to
    * @param commandHttpRequest - The command HTTP request containing headers, method, and body
    * @returns A promise that resolves to a CommandResultEventStream for handling streaming responses
@@ -184,6 +187,10 @@ export class CommandClient {
       ...commandHttpRequest.headers,
       Accept: ContentTypeValues.TEXT_EVENT_STREAM,
     };
-    return this.sendCommand(path, commandHttpRequest, ResultExtractors.JsonEventStream);
+    return this.sendCommand(
+      path,
+      commandHttpRequest,
+      ResultExtractors.JsonEventStream,
+    );
   }
 }

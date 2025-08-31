@@ -12,7 +12,12 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { Fetcher, FetchExchange, HttpMethod, URL_RESOLVE_INTERCEPTOR_ORDER } from '@ahoo-wang/fetcher';
+import {
+  Fetcher,
+  FetchExchange,
+  HttpMethod,
+  URL_RESOLVE_INTERCEPTOR_ORDER,
+} from '@ahoo-wang/fetcher';
 import '@ahoo-wang/fetcher-eventstream';
 import {
   ClientOptions,
@@ -48,7 +53,6 @@ const cartClientOptions: ClientOptions = {
   basePath: aggregateBasePath,
 };
 
-
 const commandHttpClient = new CommandClient(cartClientOptions);
 
 function expectCommandResultToBeDefined(commandResult: CommandResult) {
@@ -82,7 +86,10 @@ describe('CommandHttpClient Integration Test', () => {
   };
 
   it('should send command', async () => {
-    const commandResult = await commandHttpClient.send('add_cart_item', command);
+    const commandResult = await commandHttpClient.send(
+      'add_cart_item',
+      command,
+    );
     expectCommandResultToBeDefined(commandResult);
     expect(commandResult.aggregateId).toBe(ownerId);
     expect(commandResult.errorCode).toBe(ErrorCodes.SUCCEEDED);
@@ -90,8 +97,10 @@ describe('CommandHttpClient Integration Test', () => {
   });
 
   it('should send command and wait stream', async () => {
-    const commandResultStream =
-      await commandHttpClient.sendAndWaitStream('add_cart_item', command);
+    const commandResultStream = await commandHttpClient.sendAndWaitStream(
+      'add_cart_item',
+      command,
+    );
     expect(commandResultStream).toBeDefined();
     for await (const commandResultEvent of commandResultStream) {
       console.info(`Received : ${JSON.stringify(commandResultEvent)}`);

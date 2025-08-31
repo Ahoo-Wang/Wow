@@ -11,7 +11,10 @@
  * limitations under the License.
  */
 
-import { SnapshotQueryApi, SnapshotQueryEndpointPaths } from './snapshotQueryApi';
+import {
+  SnapshotQueryApi,
+  SnapshotQueryEndpointPaths,
+} from './snapshotQueryApi';
 import { Condition } from '../condition';
 import { ListQuery, PagedList, PagedQuery, SingleQuery } from '../queryable';
 import { MaterializedSnapshot } from './snapshot';
@@ -27,7 +30,9 @@ import { QueryClient } from '../queryApi';
  * Provides methods for various query operations such as counting, listing, paging, and retrieving single snapshots.
  * @template S The type of the snapshot state
  */
-export class SnapshotQueryClient<S> extends QueryClient implements SnapshotQueryApi<S> {
+export class SnapshotQueryClient<S>
+  extends QueryClient
+  implements SnapshotQueryApi<S> {
   /**
    * Creates a new SnapshotQueryClient instance.
    * @param options - The configuration options for the client
@@ -59,8 +64,17 @@ export class SnapshotQueryClient<S> extends QueryClient implements SnapshotQuery
    * @param listQuery - The query parameters for listing snapshots
    * @returns A promise that resolves to a readable stream of JSON server-sent events containing partial materialized snapshots
    */
-  listStream(listQuery: ListQuery): Promise<ReadableStream<JsonServerSentEvent<Partial<MaterializedSnapshot<S>>>>> {
-    return this.query(SnapshotQueryEndpointPaths.LIST, listQuery, ContentTypeValues.TEXT_EVENT_STREAM, ResultExtractors.JsonEventStream);
+  listStream(
+    listQuery: ListQuery,
+  ): Promise<
+    ReadableStream<JsonServerSentEvent<Partial<MaterializedSnapshot<S>>>>
+  > {
+    return this.query(
+      SnapshotQueryEndpointPaths.LIST,
+      listQuery,
+      ContentTypeValues.TEXT_EVENT_STREAM,
+      ResultExtractors.JsonEventStream,
+    );
   }
 
   /**
@@ -77,8 +91,15 @@ export class SnapshotQueryClient<S> extends QueryClient implements SnapshotQuery
    * @param listQuery - The query parameters for listing snapshot states
    * @returns A promise that resolves to a readable stream of JSON server-sent events containing partial snapshot states
    */
-  listStateStream(listQuery: ListQuery): Promise<ReadableStream<JsonServerSentEvent<Partial<S>>>> {
-    return this.query(SnapshotQueryEndpointPaths.LIST_STATE, listQuery, ContentTypeValues.TEXT_EVENT_STREAM, ResultExtractors.JsonEventStream);
+  listStateStream(
+    listQuery: ListQuery,
+  ): Promise<ReadableStream<JsonServerSentEvent<Partial<S>>>> {
+    return this.query(
+      SnapshotQueryEndpointPaths.LIST_STATE,
+      listQuery,
+      ContentTypeValues.TEXT_EVENT_STREAM,
+      ResultExtractors.JsonEventStream,
+    );
   }
 
   /**
@@ -86,7 +107,9 @@ export class SnapshotQueryClient<S> extends QueryClient implements SnapshotQuery
    * @param pagedQuery - The query parameters for paging snapshots
    * @returns A promise that resolves to a paged list of partial materialized snapshots
    */
-  paged(pagedQuery: PagedQuery): Promise<PagedList<Partial<MaterializedSnapshot<S>>>> {
+  paged(
+    pagedQuery: PagedQuery,
+  ): Promise<PagedList<Partial<MaterializedSnapshot<S>>>> {
     return this.query(SnapshotQueryEndpointPaths.PAGED, pagedQuery);
   }
 
@@ -116,5 +139,4 @@ export class SnapshotQueryClient<S> extends QueryClient implements SnapshotQuery
   singleState(singleQuery: SingleQuery): Promise<Partial<S>> {
     return this.query(SnapshotQueryEndpointPaths.SINGLE_STATE, singleQuery);
   }
-
 }

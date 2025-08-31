@@ -11,7 +11,11 @@
  * limitations under the License.
  */
 
-import { FetchRequestInit, RequestHeaders, UrlParams } from '@ahoo-wang/fetcher';
+import {
+  FetchRequestInit,
+  RequestHeaders,
+  UrlParams,
+} from '@ahoo-wang/fetcher';
 import { CommandHttpHeaders } from './commandHttpHeaders';
 import { PathParams } from '../types/endpoints';
 

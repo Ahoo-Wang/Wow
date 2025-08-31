@@ -21,10 +21,19 @@ import {
 } from '@ahoo-wang/fetcher';
 import '@ahoo-wang/fetcher-eventstream';
 import {
-  all, ClientOptions,
+  all,
+  ClientOptions,
   CommandHttpHeaders,
-  CommandClient, CommandRequest, CommandStage, ErrorCodes, id, Identifier, ListQuery,
-  MaterializedSnapshot, PagedQuery, SingleQuery,
+  CommandClient,
+  CommandRequest,
+  CommandStage,
+  ErrorCodes,
+  id,
+  Identifier,
+  ListQuery,
+  MaterializedSnapshot,
+  PagedQuery,
+  SingleQuery,
   SnapshotQueryClient,
 } from '@ahoo-wang/fetcher-wow';
 import { idGenerator } from '@ahoo-wang/fetcher-cosec';
@@ -83,7 +92,9 @@ function expectCartState(cartState: Partial<CartState> | undefined) {
   expect(cartState?.items).toBeDefined();
 }
 
-function expectSnapshotToBeDefined(snapshot: Partial<MaterializedSnapshot<CartState>>) {
+function expectSnapshotToBeDefined(
+  snapshot: Partial<MaterializedSnapshot<CartState>>,
+) {
   expect(snapshot.tenantId).toBeDefined();
   expect(snapshot.aggregateId).toBeDefined();
   expect(snapshot.contextName).toBeDefined();
@@ -104,7 +115,6 @@ function expectSnapshotToBeDefined(snapshot: Partial<MaterializedSnapshot<CartSt
 }
 
 describe('SnapshotQueryClient Integration Test', () => {
-
   it('should count', async () => {
     const count = await cartQueryClient.count(all());
     expect(count).greaterThanOrEqual(1);
@@ -185,7 +195,9 @@ describe('SnapshotQueryClient Integration Test', () => {
     const singleQuery: SingleQuery = {
       condition: id(idGenerator.generateId()),
     };
-    await expect(cartQueryClient.single(singleQuery)).rejects.toThrow(ExchangeError);
+    await expect(cartQueryClient.single(singleQuery)).rejects.toThrow(
+      ExchangeError,
+    );
   });
 
   it('should single state', async () => {

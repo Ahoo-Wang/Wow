@@ -11,15 +11,25 @@
  * limitations under the License.
  */
 
-
-import { Fetcher, FetchExchange, HttpMethod, URL_RESOLVE_INTERCEPTOR_ORDER } from '@ahoo-wang/fetcher';
+import {
+  Fetcher,
+  FetchExchange,
+  HttpMethod,
+  URL_RESOLVE_INTERCEPTOR_ORDER,
+} from '@ahoo-wang/fetcher';
 import { idGenerator } from '@ahoo-wang/fetcher-cosec';
 import {
   all,
   CommandHttpHeaders,
   CommandClient,
   CommandRequest,
-  CommandStage, ErrorCodes, ListQuery, PagedQuery, EventStreamQueryClient, DomainEventStream, ClientOptions,
+  CommandStage,
+  ErrorCodes,
+  ListQuery,
+  PagedQuery,
+  EventStreamQueryClient,
+  DomainEventStream,
+  ClientOptions,
 } from '@ahoo-wang/fetcher-wow';
 import { describe, expect, it } from 'vitest';
 
@@ -64,7 +74,9 @@ const command: CommandRequest = {
 const commandResult = await commandHttpClient.send('add_cart_item', command);
 expect(commandResult.errorCode).toBe(ErrorCodes.SUCCEEDED);
 
-function expectDomainEventStreamToBeDefined(domainEventStream: Partial<DomainEventStream>) {
+function expectDomainEventStreamToBeDefined(
+  domainEventStream: Partial<DomainEventStream>,
+) {
   expect(domainEventStream.contextName).toBeDefined();
   expect(domainEventStream.aggregateName).toBeDefined();
   expect(domainEventStream.header).toBeDefined();
@@ -87,7 +99,6 @@ function expectDomainEventStreamToBeDefined(domainEventStream: Partial<DomainEve
 }
 
 describe('EventStreamQueryClient Integration Test', () => {
-
   it('should count', async () => {
     const count = await cartQueryClient.count(all());
     expect(count).greaterThanOrEqual(1);
@@ -114,7 +125,6 @@ describe('EventStreamQueryClient Integration Test', () => {
     }
   });
 
-
   it('should paged', async () => {
     const pagedQuery: PagedQuery = {
       condition: all(),
@@ -126,5 +136,4 @@ describe('EventStreamQueryClient Integration Test', () => {
       expectDomainEventStreamToBeDefined(domainEventStream);
     }
   });
-
 });

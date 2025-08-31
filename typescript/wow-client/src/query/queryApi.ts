@@ -16,7 +16,10 @@ import { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 import { Condition } from './condition';
 import { ClientOptions } from '../types';
 import { combineURLs, ContentTypeValues, HttpMethod } from '@ahoo-wang/fetcher';
-import { ResultExtractor, ResultExtractors } from '@ahoo-wang/fetcher-decorator';
+import {
+  ResultExtractor,
+  ResultExtractors,
+} from '@ahoo-wang/fetcher-decorator';
 
 /**
  * Interface for generic query API operations.
@@ -91,10 +94,12 @@ export class QueryClient {
    * @param extractor - Function to extract the result from the response, defaults to JSON extractor
    * @returns A promise that resolves to the query result
    */
-  protected async query<R>(path: string,
-                           query: Condition | ListQuery | PagedQuery | SingleQuery,
-                           accept: string = ContentTypeValues.APPLICATION_JSON,
-                           extractor: ResultExtractor = ResultExtractors.Json): Promise<R> {
+  protected async query<R>(
+    path: string,
+    query: Condition | ListQuery | PagedQuery | SingleQuery,
+    accept: string = ContentTypeValues.APPLICATION_JSON,
+    extractor: ResultExtractor = ResultExtractors.Json,
+  ): Promise<R> {
     const url = combineURLs(this.options.basePath, path);
     const request = {
       url: url,

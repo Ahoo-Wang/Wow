@@ -42,7 +42,9 @@ export interface SnapshotQueryApi<S> extends QueryApi<MaterializedSnapshot<S>> {
    * @param listQuery - The query parameters for listing snapshot states
    * @returns A promise that resolves to a readable stream of JSON server-sent events containing partial snapshot states
    */
-  listStateStream(listQuery: ListQuery): Promise<ReadableStream<JsonServerSentEvent<Partial<S>>>>;
+  listStateStream(
+    listQuery: ListQuery,
+  ): Promise<ReadableStream<JsonServerSentEvent<Partial<S>>>>;
 
   /**
    * Retrieves a paged list of snapshot states based on the provided query parameters.
