@@ -14,6 +14,5 @@
 export * from './commandHeaders';
 export * from './commandHttpClient';
 export * from './commandHttpRequest';
-export * from './commandRequest';
 export * from './commandResult';
 export * from './types';
