@@ -22,8 +22,8 @@ import {
 import '@ahoo-wang/fetcher-eventstream';
 import {
   all, ClientOptions,
-  CommandHeaders,
-  CommandHttpClient, CommandHttpRequest, CommandStage, ErrorCodes, id, Identifier, ListQuery,
+  CommandHttpHeaders,
+  CommandClient, CommandRequest, CommandStage, ErrorCodes, id, Identifier, ListQuery,
   MaterializedSnapshot, PagedQuery, SingleQuery,
   SnapshotQueryClient,
 } from '@ahoo-wang/fetcher-wow';
@@ -60,15 +60,15 @@ const cartClientOptions: ClientOptions = {
   fetcher: wowFetcher,
   basePath: aggregateBasePath,
 };
-const commandHttpClient = new CommandHttpClient(cartClientOptions);
+const commandHttpClient = new CommandClient(cartClientOptions);
 const cartQueryClient = new SnapshotQueryClient<CartState>({
   fetcher: wowFetcher,
   basePath: aggregateBasePath,
 });
-const command: CommandHttpRequest = {
+const command: CommandRequest = {
   method: HttpMethod.POST,
   headers: {
-    [CommandHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT,
+    [CommandHttpHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT,
   },
   body: {
     productId: 'productId',

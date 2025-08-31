@@ -21,8 +21,8 @@ export default mergeConfig(
       coverage: {
         exclude: [
           ...configDefaults.exclude,
-          // use integration-test, see integration-test/test/wow/commandHttpClient.test.ts
-          'src/command/commandHttpClient.ts',
+          // use integration-test, see integration-test/test/wow/commandClient.test.ts
+          'src/command/commandClient.ts',
           // use integration-test
           'src/query/queryApi.ts',
           // use integration-test, see integration-test/test/wow/snapshotQueryClient.test.ts

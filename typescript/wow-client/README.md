@@ -108,26 +108,41 @@ either synchronously or as a stream of events.
 
 ##### Usage
 
-First, create a fetcher instance with base configuration and add the EventStreamInterceptor:
+First, create a fetcher instance with base configuration:
 
 ```typescript
-import { Fetcher } from '@ahoo-wang/fetcher';
-import { EventStreamInterceptor } from '@ahoo-wang/fetcher-eventstream';
+import { Fetcher, URL_RESOLVE_INTERCEPTOR_ORDER } from '@ahoo-wang/fetcher';
+import '@ahoo-wang/fetcher-eventstream';
 
 const wowFetcher = new Fetcher({
   baseURL: 'http://localhost:8080/',
 });
 
-// Add EventStreamInterceptor to handle Server-Sent Events
-wowFetcher.interceptors.response.use(new EventStreamInterceptor());
+// Optional: Add interceptor to handle URL parameters
+wowFetcher.interceptors.request.use({
+  name: 'UrlParamsInterceptor',
+  order: URL_RESOLVE_INTERCEPTOR_ORDER - 1,
+  intercept(exchange) {
+    // Add custom URL parameters if needed
+    exchange.request.urlParams = {
+      path: {
+        ...exchange.request.urlParams?.path,
+      },
+      query: exchange.request.urlParams?.query,
+    };
+  },
+});
 ```
 
-Then create a CommandHttpClient instance:
+Then create a CommandHttpClient instance with ClientOptions:
 
 ```typescript
 import { CommandHttpClient } from '@ahoo-wang/fetcher-wow';
 
-const commandHttpClient = new CommandHttpClient(wowFetcher);
+const commandHttpClient = new CommandHttpClient({
+  fetcher: wowFetcher,
+  basePath: 'owner/{ownerId}/cart'
+});
 ```
 
 ##### Sending a Command
@@ -142,7 +157,6 @@ import {
 } from '@ahoo-wang/fetcher-wow';
 
 const command = {
-  path: 'owner/{ownerId}/cart/add_cart_item',
   method: HttpMethod.POST,
   headers: {
     [CommandHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT,
@@ -158,7 +172,7 @@ const command = {
   },
 };
 
-const result = await commandHttpClient.send(command);
+const result = await commandHttpClient.send('add_cart_item', command);
 console.log('Command result:', result);
 ```
 
@@ -167,7 +181,7 @@ console.log('Command result:', result);
 For long-running commands, you can receive results as a stream of events:
 
 ```typescript
-const commandResultStream = await commandHttpClient.sendAndWaitStream(command);
+const commandResultStream = await commandHttpClient.sendAndWaitStream('add_cart_item', command);
 for await (const commandResultEvent of commandResultStream) {
   console.log('Received:', commandResultEvent.data);
 }
@@ -178,20 +192,24 @@ for await (const commandResultEvent of commandResultStream) {
 **Constructor**
 
 ```typescript
-new CommandHttpClient(fetcher
+new CommandHttpClient(options
 :
-Fetcher
+ClientOptions
 )
 ```
 
 Creates a new CommandHttpClient instance.
 
-- `fetcher` - The Fetcher instance to use for HTTP requests
+- `options` - The ClientOptions containing the Fetcher instance and base path
 
 **send**
 
 ```typescript
-send(commandHttpRequest
+send(
+  path
+:
+string,
+  commandHttpRequest
 :
 CommandHttpRequest
 ):
@@ -204,7 +222,11 @@ to complete before returning the result.
 **sendAndWaitStream**
 
 ```typescript
-sendAndWaitStream(commandHttpRequest
+sendAndWaitStream(
+  path
+:
+string,
+  commandHttpRequest
 :
 CommandHttpRequest
 ):

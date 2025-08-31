@@ -17,18 +17,73 @@ import {
   ResultExtractor,
   ResultExtractors,
 } from '@ahoo-wang/fetcher-decorator';
-import { CommandHttpRequest } from './commandHttpRequest';
+import { CommandRequest } from './commandRequest';
 import { ClientOptions } from '../types';
 
 /**
  * HTTP client for sending commands to a remote service.
  * Provides methods for sending commands and handling command results,
  * including support for streaming responses.
+ *
+ * @example
+ * ```typescript
+ * // Create a fetcher instance
+ * const wowFetcher = new Fetcher({
+ *   baseURL: 'http://localhost:8080/',
+ * });
+ *
+ * // Add interceptor to handle URL parameters if needed
+ * wowFetcher.interceptors.request.use({
+ *   name: 'UrlParamsInterceptor',
+ *   order: URL_RESOLVE_INTERCEPTOR_ORDER - 1,
+ *   intercept(exchange) {
+ *     exchange.request.urlParams = {
+ *       path: {
+ *         ...exchange.request.urlParams?.path,
+ *       },
+ *       query: exchange.request.urlParams?.query,
+ *     };
+ *   },
+ * });
+ *
+ * // Create CommandClient instance
+ * const CommandClient = new CommandClient({
+ *   fetcher: wowFetcher,
+ *   basePath: 'owner/{ownerId}/cart'
+ * });
+ *
+ * // Send a command
+ * const command = {
+ *   method: HttpMethod.POST,
+ *   headers: {
+ *     [CommandHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT,
+ *   },
+ *   urlParams: {
+ *     path: {
+ *       ownerId: 'ownerId',
+ *     },
+ *   },
+ *   body: {
+ *     productId: 'productId',
+ *     quantity: 1,
+ *   },
+ * };
+ *
+ * const result = await CommandClient.send('add_cart_item', command);
+ * ```
  */
-export class CommandHttpClient {
+export class CommandClient {
   /**
-   * Creates a new CommandHttpClient instance.
+   * Creates a new CommandClient instance.
    * @param options - The client configuration options including the fetcher and base path
+   *
+   * @example
+   * ```typescript
+   * const CommandClient = new CommandClient({
+   *   fetcher: wowFetcher,
+   *   basePath: 'owner/{ownerId}/cart'
+   * });
+   * ```
    */
   constructor(protected readonly options: ClientOptions) {
   }
@@ -42,7 +97,7 @@ export class CommandHttpClient {
    * @param extractor - Function to extract the result from the response, defaults to JSON extractor
    * @returns A promise that resolves to the extracted result of type R
    */
-  protected async sendCommand<R>(path: string, commandHttpRequest: CommandHttpRequest,
+  protected async sendCommand<R>(path: string, commandHttpRequest: CommandRequest,
                                  extractor: ResultExtractor = ResultExtractors.Json): Promise<R> {
     const url = combineURLs(this.options.basePath, path);
     const request = {
@@ -55,13 +110,36 @@ export class CommandHttpClient {
 
   /**
    * Sends a command to the specified path and waits for a response.
+   * 
    * @param path - The endpoint path to send the command to
    * @param commandHttpRequest - The command HTTP request containing headers, method, and body
    * @returns A promise that resolves to a CommandResult
+   *
+   * @example
+   * ```typescript
+   * const command = {
+   *   method: HttpMethod.POST,
+   *   headers: {
+   *     [CommandHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT,
+   *   },
+   *   urlParams: {
+   *     path: {
+   *       ownerId: 'ownerId',
+   *     },
+   *   },
+   *   body: {
+   *     productId: 'productId',
+   *     quantity: 1,
+   *   },
+   * };
+   *
+   * const result = await CommandClient.send('add_cart_item', command);
+   * console.log('Command result:', result);
+   * ```
    */
   send(
     path: string,
-    commandHttpRequest: CommandHttpRequest,
+    commandHttpRequest: CommandRequest,
   ): Promise<CommandResult> {
     return this.sendCommand(path, commandHttpRequest);
   }
@@ -69,13 +147,38 @@ export class CommandHttpClient {
   /**
    * Sends a command to the specified path and waits for a streaming response.
    * Sets the Accept header to text/event-stream to indicate that the response should be streamed.
+   * 
    * @param path - The endpoint path to send the command to
    * @param commandHttpRequest - The command HTTP request containing headers, method, and body
    * @returns A promise that resolves to a CommandResultEventStream for handling streaming responses
+   *
+   * @example
+   * ```typescript
+   * const command = {
+   *   method: HttpMethod.POST,
+   *   headers: {
+   *     [CommandHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT,
+   *   },
+   *   urlParams: {
+   *     path: {
+   *       ownerId: 'ownerId',
+   *     },
+   *   },
+   *   body: {
+   *     productId: 'productId',
+   *     quantity: 1,
+   *   },
+   * };
+   *
+   * const commandResultStream = await CommandClient.sendAndWaitStream('add_cart_item', command);
+   * for await (const commandResultEvent of commandResultStream) {
+   *   console.log('Received:', commandResultEvent.data);
+   * }
+   * ```
    */
   async sendAndWaitStream(
     path: string,
-    commandHttpRequest: CommandHttpRequest,
+    commandHttpRequest: CommandRequest,
   ): Promise<CommandResultEventStream> {
     commandHttpRequest.headers = {
       ...commandHttpRequest.headers,

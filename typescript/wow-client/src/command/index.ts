@@ -11,8 +11,8 @@
  * limitations under the License.
  */
 
-export * from './commandHeaders';
-export * from './commandHttpClient';
-export * from './commandHttpRequest';
+export * from './commandHttpHeaders';
+export * from './commandClient';
+export * from './commandRequest';
 export * from './commandResult';
 export * from './types';

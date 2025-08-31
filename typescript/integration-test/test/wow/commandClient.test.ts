@@ -16,9 +16,9 @@ import { Fetcher, FetchExchange, HttpMethod, URL_RESOLVE_INTERCEPTOR_ORDER } fro
 import '@ahoo-wang/fetcher-eventstream';
 import {
   ClientOptions,
-  CommandHeaders,
-  CommandHttpClient,
-  CommandHttpRequest,
+  CommandHttpHeaders,
+  CommandClient,
+  CommandRequest,
   CommandResult,
   CommandStage,
   ErrorCodes,
@@ -49,7 +49,7 @@ const cartClientOptions: ClientOptions = {
 };
 
 
-const commandHttpClient = new CommandHttpClient(cartClientOptions);
+const commandHttpClient = new CommandClient(cartClientOptions);
 
 function expectCommandResultToBeDefined(commandResult: CommandResult) {
   expect(commandResult.id).toBeDefined();
@@ -70,10 +70,10 @@ function expectCommandResultToBeDefined(commandResult: CommandResult) {
 }
 
 describe('CommandHttpClient Integration Test', () => {
-  const command: CommandHttpRequest = {
+  const command: CommandRequest = {
     method: HttpMethod.POST,
     headers: {
-      [CommandHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT,
+      [CommandHttpHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT,
     },
     body: {
       productId: 'productId',

@@ -16,9 +16,9 @@ import { Fetcher, FetchExchange, HttpMethod, URL_RESOLVE_INTERCEPTOR_ORDER } fro
 import { idGenerator } from '@ahoo-wang/fetcher-cosec';
 import {
   all,
-  CommandHeaders,
-  CommandHttpClient,
-  CommandHttpRequest,
+  CommandHttpHeaders,
+  CommandClient,
+  CommandRequest,
   CommandStage, ErrorCodes, ListQuery, PagedQuery, EventStreamQueryClient, DomainEventStream, ClientOptions,
 } from '@ahoo-wang/fetcher-wow';
 import { describe, expect, it } from 'vitest';
@@ -46,15 +46,15 @@ const cartClientOptions: ClientOptions = {
   basePath: aggregateBasePath,
 };
 
-const commandHttpClient = new CommandHttpClient(cartClientOptions);
+const commandHttpClient = new CommandClient(cartClientOptions);
 const cartQueryClient = new EventStreamQueryClient({
   fetcher: wowFetcher,
   basePath: aggregateBasePath,
 });
-const command: CommandHttpRequest = {
+const command: CommandRequest = {
   method: HttpMethod.POST,
   headers: {
-    [CommandHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT,
+    [CommandHttpHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT,
   },
   body: {
     productId: 'productId',

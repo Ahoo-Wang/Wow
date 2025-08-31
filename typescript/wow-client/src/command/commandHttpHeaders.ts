@@ -22,15 +22,15 @@
  * // Using header constants in a request
  * const request = {
  *   headers: {
- *     [CommandHeaders.TENANT_ID]: 'tenant-123',
- *     [CommandHeaders.AGGREGATE_ID]: 'aggregate-456',
- *     [CommandHeaders.REQUEST_ID]: 'request-789'
+ *     [CommandHttpHeaders.TENANT_ID]: 'tenant-123',
+ *     [CommandHttpHeaders.AGGREGATE_ID]: 'aggregate-456',
+ *     [CommandHttpHeaders.REQUEST_ID]: 'request-789'
  *   },
  *   body: command
  * };
  * ```
  */
-export class CommandHeaders {
+export class CommandHttpHeaders {
   /**
    * Prefix for all command-related headers
    */
@@ -40,127 +40,127 @@ export class CommandHeaders {
    * Tenant identifier header
    * Used to identify the tenant context for the command
    */
-  static readonly TENANT_ID = `${CommandHeaders.COMMAND_HEADERS_PREFIX}Tenant-Id`;
+  static readonly TENANT_ID = `${CommandHttpHeaders.COMMAND_HEADERS_PREFIX}Tenant-Id`;
 
   /**
    * Owner identifier header
    * Used to identify the owner context for the command
    */
-  static readonly OWNER_ID = `${CommandHeaders.COMMAND_HEADERS_PREFIX}Owner-Id`;
+  static readonly OWNER_ID = `${CommandHttpHeaders.COMMAND_HEADERS_PREFIX}Owner-Id`;
 
   /**
    * Aggregate identifier header
    * Used to identify the aggregate root for the command
    */
-  static readonly AGGREGATE_ID = `${CommandHeaders.COMMAND_HEADERS_PREFIX}Aggregate-Id`;
+  static readonly AGGREGATE_ID = `${CommandHttpHeaders.COMMAND_HEADERS_PREFIX}Aggregate-Id`;
 
   /**
    * Aggregate version header
    * Used to specify the expected version of the aggregate root
    */
-  static readonly AGGREGATE_VERSION = `${CommandHeaders.COMMAND_HEADERS_PREFIX}Aggregate-Version`;
+  static readonly AGGREGATE_VERSION = `${CommandHttpHeaders.COMMAND_HEADERS_PREFIX}Aggregate-Version`;
 
   /**
    * Wait prefix for wait-related headers
    */
-  static readonly WAIT_PREFIX = `${CommandHeaders.COMMAND_HEADERS_PREFIX}Wait-`;
+  static readonly WAIT_PREFIX = `${CommandHttpHeaders.COMMAND_HEADERS_PREFIX}Wait-`;
 
   /**
    * Wait timeout header
    * Specifies the maximum time to wait for command processing
    */
-  static readonly WAIT_TIME_OUT = `${CommandHeaders.WAIT_PREFIX}Timeout`;
+  static readonly WAIT_TIME_OUT = `${CommandHttpHeaders.WAIT_PREFIX}Timeout`;
 
   // region Wait Stage
   /**
    * Wait stage header
    * Specifies the processing stage to wait for
    */
-  static readonly WAIT_STAGE = `${CommandHeaders.WAIT_PREFIX}Stage`;
+  static readonly WAIT_STAGE = `${CommandHttpHeaders.WAIT_PREFIX}Stage`;
 
   /**
    * Wait context header
    * Specifies the bounded context to wait for
    */
-  static readonly WAIT_CONTEXT = `${CommandHeaders.WAIT_PREFIX}Context`;
+  static readonly WAIT_CONTEXT = `${CommandHttpHeaders.WAIT_PREFIX}Context`;
 
   /**
    * Wait processor header
    * Specifies the processor to wait for
    */
-  static readonly WAIT_PROCESSOR = `${CommandHeaders.WAIT_PREFIX}Processor`;
+  static readonly WAIT_PROCESSOR = `${CommandHttpHeaders.WAIT_PREFIX}Processor`;
 
   /**
    * Wait function header
    * Specifies the function to wait for
    */
-  static readonly WAIT_FUNCTION = `${CommandHeaders.WAIT_PREFIX}Function`;
+  static readonly WAIT_FUNCTION = `${CommandHttpHeaders.WAIT_PREFIX}Function`;
   // endregion
 
   // region Wait Chain Tail
   /**
    * Wait tail prefix for wait chain tail-related headers
    */
-  static readonly WAIT_TAIL_PREFIX = `${CommandHeaders.WAIT_PREFIX}Tail-`;
+  static readonly WAIT_TAIL_PREFIX = `${CommandHttpHeaders.WAIT_PREFIX}Tail-`;
 
   /**
    * Wait tail stage header
    * Specifies the tail processing stage to wait for
    */
-  static readonly WAIT_TAIL_STAGE = `${CommandHeaders.WAIT_TAIL_PREFIX}Stage`;
+  static readonly WAIT_TAIL_STAGE = `${CommandHttpHeaders.WAIT_TAIL_PREFIX}Stage`;
 
   /**
    * Wait tail context header
    * Specifies the tail bounded context to wait for
    */
-  static readonly WAIT_TAIL_CONTEXT = `${CommandHeaders.WAIT_TAIL_PREFIX}Context`;
+  static readonly WAIT_TAIL_CONTEXT = `${CommandHttpHeaders.WAIT_TAIL_PREFIX}Context`;
 
   /**
    * Wait tail processor header
    * Specifies the tail processor to wait for
    */
-  static readonly WAIT_TAIL_PROCESSOR = `${CommandHeaders.WAIT_TAIL_PREFIX}Processor`;
+  static readonly WAIT_TAIL_PROCESSOR = `${CommandHttpHeaders.WAIT_TAIL_PREFIX}Processor`;
 
   /**
    * Wait tail function header
    * Specifies the tail function to wait for
    */
-  static readonly WAIT_TAIL_FUNCTION = `${CommandHeaders.WAIT_TAIL_PREFIX}Function`;
+  static readonly WAIT_TAIL_FUNCTION = `${CommandHttpHeaders.WAIT_TAIL_PREFIX}Function`;
   // endregion
 
   /**
    * Request identifier header
    * Used to track the request ID for correlation
    */
-  static readonly REQUEST_ID = `${CommandHeaders.COMMAND_HEADERS_PREFIX}Request-Id`;
+  static readonly REQUEST_ID = `${CommandHttpHeaders.COMMAND_HEADERS_PREFIX}Request-Id`;
 
   /**
    * Local first header
    * Indicates whether to prefer local processing
    */
-  static readonly LOCAL_FIRST = `${CommandHeaders.COMMAND_HEADERS_PREFIX}Local-First`;
+  static readonly LOCAL_FIRST = `${CommandHttpHeaders.COMMAND_HEADERS_PREFIX}Local-First`;
 
   /**
    * Command aggregate context header
    * Specifies the bounded context of the aggregate
    */
-  static readonly COMMAND_AGGREGATE_CONTEXT = `${CommandHeaders.COMMAND_HEADERS_PREFIX}Aggregate-Context`;
+  static readonly COMMAND_AGGREGATE_CONTEXT = `${CommandHttpHeaders.COMMAND_HEADERS_PREFIX}Aggregate-Context`;
 
   /**
    * Command aggregate name header
    * Specifies the name of the aggregate
    */
-  static readonly COMMAND_AGGREGATE_NAME = `${CommandHeaders.COMMAND_HEADERS_PREFIX}Aggregate-Name`;
+  static readonly COMMAND_AGGREGATE_NAME = `${CommandHttpHeaders.COMMAND_HEADERS_PREFIX}Aggregate-Name`;
 
   /**
    * Command type header
    * Specifies the type of the command
    */
-  static readonly COMMAND_TYPE = `${CommandHeaders.COMMAND_HEADERS_PREFIX}Type`;
+  static readonly COMMAND_TYPE = `${CommandHttpHeaders.COMMAND_HEADERS_PREFIX}Type`;
 
   /**
    * Command header prefix for custom headers
    * Used to prefix custom command headers
    */
-  static readonly COMMAND_HEADER_X_PREFIX = `${CommandHeaders.COMMAND_HEADERS_PREFIX}Header-`;
+  static readonly COMMAND_HEADER_X_PREFIX = `${CommandHttpHeaders.COMMAND_HEADERS_PREFIX}Header-`;
 }
