@@ -73,8 +73,13 @@ function expectCommandResultToBeDefined(commandResult: CommandResult) {
   expect(commandResult.signalTime).toBeDefined();
 }
 
+interface AddCartItem {
+  productId: string;
+  quantity: number;
+}
+
 describe('CommandHttpClient Integration Test', () => {
-  const command: CommandRequest = {
+  const command: CommandRequest<AddCartItem> = {
     method: HttpMethod.POST,
     headers: {
       [CommandHttpHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT,

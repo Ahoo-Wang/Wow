@@ -155,11 +155,11 @@ export interface CommandUrlParams extends Omit<UrlParams, 'path' | 'query'> {
  * Extends RequestHeaders to provide type-safe access to command-related HTTP headers.
  * This interface includes only the essential command headers commonly used in HTTP requests.
  */
-export interface CommandRequest extends FetchRequestInit {
+export interface CommandRequest<C extends object = object> extends FetchRequestInit {
   urlParams?: CommandUrlParams;
   headers?: CommandRequestHeaders;
   /**
    * The body of the command request.
    */
-  body: any;
+  body: C;
 }
