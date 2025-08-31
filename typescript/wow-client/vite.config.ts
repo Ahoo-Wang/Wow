@@ -25,14 +25,14 @@ export default defineConfig({
     rollupOptions: {
       external: [
         '@ahoo-wang/fetcher',
-        '@ahoo-wang/fetcher-decorator',
         '@ahoo-wang/fetcher-eventstream',
+        '@ahoo-wang/fetcher-decorator',
       ],
       output: {
         globals: {
           '@ahoo-wang/fetcher': 'Fetcher',
-          '@ahoo-wang/fetcher-decorator': 'FetcherDecorator',
           '@ahoo-wang/fetcher-eventstream': 'FetcherEventStream',
+          '@ahoo-wang/fetcher-decorator': 'FetcherDecorator',
         },
       },
     },

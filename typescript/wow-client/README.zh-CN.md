@@ -12,12 +12,13 @@
 
 ## 🌟 特性
 
-- **📦 全面的类型定义**：为 Wow 框架实体提供完整的 TypeScript 支持
-- **🔧 命令工具**：用于处理 Wow 命令和命令结果的辅助工具
-- **🔍 查询 DSL**：丰富的查询条件构建器，支持多种操作符
-- **📡 事件流支持**：与服务器发送事件集成，实现实时命令结果
-- **🔄 CQRS 模式**：支持命令查询责任分离模式
-- **🧱 DDD 构建块**：用于聚合、事件等的领域驱动设计类型
+- **📦 完整的 TypeScript 支持**：为所有 Wow 框架实体提供完整的类型定义，包括命令、事件和查询
+- **🚀 命令客户端**：用于向 Wow 服务发送命令的高级客户端，支持同步和流式响应
+- **🔍 强大的查询 DSL**：丰富的查询条件构建器，支持全面的操作符用于复杂查询
+- **📡 实时事件流**：内置对服务器发送事件的支持，用于接收实时命令结果和数据更新
+- **🔄 CQRS 模式实现**：对命令查询责任分离架构模式的一流支持
+- **🧱 DDD 基础构件**：基本的领域驱动设计构建块，包括聚合、事件和值对象
+- **🔍 查询客户端**：专门用于查询快照和事件流数据的客户端，支持全面的查询操作
 
 ## 🚀 快速开始
 
@@ -38,100 +39,78 @@ yarn add @ahoo-wang/fetcher-wow
 
 ### 命令模块
 
-#### CommandHeaders
-
-Wow 命令处理中使用的标准 HTTP 头部常量：
-
-```typescript
-import { CommandHeaders } from '@ahoo-wang/fetcher-wow';
-
-// 使用示例
-const request = {
-  method: 'POST',
-  headers: {
-    [CommandHeaders.TENANT_ID]: 'tenant-123',
-    [CommandHeaders.AGGREGATE_ID]: 'aggregate-456',
-    [CommandHeaders.REQUEST_ID]: 'request-789',
-  },
-  body: JSON.stringify(command),
-};
-```
-
-关键头部包括：
-
-- `TENANT_ID` - 租户标识符
-- `OWNER_ID` - 所有者标识符
-- `AGGREGATE_ID` - 聚合根标识符
-- `AGGREGATE_VERSION` - 预期聚合版本
-- `REQUEST_ID` - 请求跟踪 ID
-- `WAIT_*` - 各种等待条件头部
-- `LOCAL_FIRST` - 本地处理偏好
-- 以及更多...
-
-#### CommandRequest
-
-具有完整配置选项的命令请求接口：
-
-```typescript
-import { CommandRequest, CommandHeaders } from '@ahoo-wang/fetcher-wow';
-
-const commandRequest: CommandRequest = {
-  path: '/commands/CreateUser',
-  method: 'POST',
-  headers: {
-    [CommandHeaders.TENANT_ID]: 'tenant-123',
-  },
-  body: {
-    name: 'John Doe',
-    email: 'john@example.com',
-  },
-  timeout: 5000,
-  aggregateId: 'user-456',
-  requestId: 'req-789',
-  localFirst: true,
-  stream: false,
-};
-```
-
 #### CommandResult
 
 表示命令执行结果的接口：
 
 ```typescript
 import { CommandResult, CommandStage } from '@ahoo-wang/fetcher-wow';
-
-const commandResult: CommandResult = {
-  id: 'result-123',
-  commandId: 'cmd-456',
-  requestId: 'req-789',
-  stage: CommandStage.PROCESSED,
-  contextName: 'user-context',
-  aggregateName: 'User',
-  aggregateId: 'user-456',
-  aggregateVersion: 1,
-  errorCode: 'Ok',
-  errorMsg: '',
-  function: {
-    functionKind: 'COMMAND',
-    contextName: 'user-context',
-    processorName: 'UserProcessor',
-    name: 'CreateUser',
-  },
-  signalTime: Date.now(),
-};
 ```
 
-#### CommandResultEventStream
+#### CommandClient
 
-命令结果事件流的类型别名：
+用于向 Wow 框架发送命令的 HTTP 客户端。该客户端提供了同步或流式接收命令结果的方法。
 
 ```typescript
-import { CommandResult } from '@ahoo-wang/fetcher-wow';
-import { JsonServerSentEventStream } from '@ahoo-wang/fetcher-eventstream';
+import { Fetcher, URL_RESOLVE_INTERCEPTOR_ORDER } from '@ahoo-wang/fetcher';
+import '@ahoo-wang/fetcher-eventstream';
+import { CommandClient, CommandRequest, HttpMethod, CommandHttpHeaders, CommandStage } from '@ahoo-wang/fetcher-wow';
+import { idGenerator } from '@ahoo-wang/fetcher-cosec';
 
-// CommandResultEventStream 是 CommandResult 的 JsonServerSentEventStream
-type CommandResultEventStream = JsonServerSentEventStream<CommandResult>;
+// 创建 fetcher 实例
+const wowFetcher = new Fetcher({
+  baseURL: 'http://localhost:8080/',
+});
+
+// 添加拦截器处理 URL 参数
+const ownerId = idGenerator.generateId();
+wowFetcher.interceptors.request.use({
+  name: 'AppendOwnerId',
+  order: URL_RESOLVE_INTERCEPTOR_ORDER - 1,
+  intercept(exchange) {
+    exchange.request.urlParams = {
+      path: {
+        ...exchange.request.urlParams?.path,
+        ownerId,
+      },
+      query: exchange.request.urlParams?.query,
+    };
+  },
+});
+
+// 创建命令客户端
+const commandClient = new CommandClient({
+  fetcher: wowFetcher,
+  basePath: 'owner/{ownerId}/cart'
+});
+
+// 定义命令请求
+const command: CommandRequest = {
+  method: HttpMethod.POST,
+  headers: {
+    [CommandHttpHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT,
+  },
+  body: {
+    productId: 'productId',
+    quantity: 1,
+  },
+};
+
+// 发送命令并等待结果
+const commandResult = await commandClient.send('add_cart_item', command);
+
+// 发送命令并接收流式结果
+const commandResultStream = await commandClient.sendAndWaitStream('add_cart_item', command);
+for await (const commandResultEvent of commandResultStream) {
+  console.log('收到命令结果:', commandResultEvent.data);
+}
 ```
+
+##### 方法
+
+- `send(path: string, commandRequest: CommandRequest): Promise<CommandResult>` - 发送命令并等待结果。
+- `sendAndWaitStream(path: string, commandRequest: CommandRequest): Promise<CommandResultEventStream>` -
+  发送命令并以服务器发送事件的形式返回结果流。
 
 ### 查询模块
 
@@ -183,245 +162,261 @@ const dateConditions = [
 ];
 ```
 
-#### 操作符
+#### SnapshotQueryClient
 
-用于查询构建的完整操作符枚举：
-
-```typescript
-import { Operator } from '@ahoo-wang/fetcher-wow';
-
-// 逻辑操作符
-(Operator.AND, Operator.OR, Operator.NOR);
-
-// 比较操作符
-(Operator.EQ,
-  Operator.NE,
-  Operator.GT,
-  Operator.LT,
-  Operator.GTE,
-  Operator.LTE);
-
-// 成员操作符
-(Operator.IN, Operator.NOT_IN, Operator.ALL_IN, Operator.BETWEEN);
-
-// 字符串操作符
-(Operator.CONTAINS, Operator.STARTS_WITH, Operator.ENDS_WITH);
-
-// 存在性操作符
-(Operator.NULL, Operator.NOT_NULL, Operator.EXISTS);
-
-// 布尔操作符
-(Operator.TRUE, Operator.FALSE);
-
-// 日期操作符
-(Operator.TODAY,
-  Operator.BEFORE_TODAY,
-  Operator.TOMORROW,
-  Operator.THIS_WEEK,
-  Operator.NEXT_WEEK,
-  Operator.LAST_WEEK,
-  Operator.THIS_MONTH,
-  Operator.LAST_MONTH,
-  Operator.RECENT_DAYS,
-  Operator.EARLIER_DAYS);
-
-// 特殊操作符
-(Operator.ID,
-  Operator.IDS,
-  Operator.AGGREGATE_ID,
-  Operator.AGGREGATE_IDS,
-  Operator.TENANT_ID,
-  Operator.OWNER_ID,
-  Operator.DELETED,
-  Operator.ALL,
-  Operator.ELEM_MATCH,
-  Operator.RAW);
-```
-
-#### 可查询接口
-
-用于构建带排序、分页和投影的查询的接口：
+用于查询物化快照的客户端：
 
 ```typescript
+import { Fetcher, URL_RESOLVE_INTERCEPTOR_ORDER } from '@ahoo-wang/fetcher';
+import '@ahoo-wang/fetcher-eventstream';
 import {
-  Queryable,
-  SortDirection,
-  DEFAULT_PAGINATION,
+  SnapshotQueryClient,
+  all,
+  ListQuery,
+  PagedQuery,
+  SingleQuery
 } from '@ahoo-wang/fetcher-wow';
+import { idGenerator } from '@ahoo-wang/fetcher-cosec';
 
-const query: Queryable = {
-  condition: eq('status', 'active'),
-  sort: [
-    { field: 'createdAt', direction: SortDirection.DESC },
-    { field: 'name', direction: SortDirection.ASC },
-  ],
-  projection: {
-    include: ['id', 'name', 'email', 'status'],
-    exclude: ['password', 'internalNotes'],
-  },
-};
+interface CartItem {
+  productId: string;
+  quantity: number;
+}
 
-const pagedQuery = {
-  ...query,
-  pagination: {
-    index: 2,
-    size: 20,
-  },
-};
-```
-
-### 类型模块
-
-#### 核心类型
-
-领域建模的基本类型：
-
-```typescript
-import {
-  Identifier,
-  Version,
-  TenantId,
-  OwnerId,
-  NamedAggregate,
-  AggregateId,
-  StateCapable,
-} from '@ahoo-wang/fetcher-wow';
-
-interface User
-  extends Identifier,
-    Version,
-    TenantId,
-    OwnerId,
-    NamedAggregate,
-    StateCapable<UserState> {
+interface CartState {
   id: string;
-  version: number;
-  tenantId: string;
-  ownerId: string;
-  contextName: string;
-  aggregateName: string;
-  state: UserState;
+  items: CartItem[];
 }
 
-interface UserState {
-  name: string;
-  email: string;
-  status: 'active' | 'inactive';
-  createdAt: number;
+// 创建 fetcher 实例
+const wowFetcher = new Fetcher({
+  baseURL: 'http://localhost:8080/',
+});
+
+// 添加拦截器处理 URL 参数
+const ownerId = idGenerator.generateId();
+wowFetcher.interceptors.request.use({
+  name: 'AppendOwnerId',
+  order: URL_RESOLVE_INTERCEPTOR_ORDER - 1,
+  intercept(exchange) {
+    exchange.request.urlParams = {
+      path: {
+        ...exchange.request.urlParams?.path,
+        ownerId,
+      },
+      query: exchange.request.urlParams?.query,
+    };
+  },
+});
+
+// 创建快照查询客户端
+const snapshotQueryClient = new SnapshotQueryClient<CartState>({
+  fetcher: wowFetcher,
+  basePath: 'owner/{ownerId}/cart'
+});
+
+// 统计快照数量
+const count = await snapshotQueryClient.count(all());
+
+// 列出快照
+const listQuery: ListQuery = {
+  condition: all(),
+};
+const list = await snapshotQueryClient.list(listQuery);
+
+// 以流的形式列出快照
+const listStream = await snapshotQueryClient.listStream(listQuery);
+for await (const event of listStream) {
+  const snapshot = event.data;
+  console.log('收到快照:', snapshot);
 }
+
+// 列出快照状态
+const stateList = await snapshotQueryClient.listState(listQuery);
+
+// 以流的形式列出快照状态
+const stateStream = await snapshotQueryClient.listStateStream(listQuery);
+for await (const event of stateStream) {
+  const state = event.data;
+  console.log('收到状态:', state);
+}
+
+// 分页查询快照
+const pagedQuery: PagedQuery = {
+  condition: all(),
+};
+const paged = await snapshotQueryClient.paged(pagedQuery);
+
+// 分页查询快照状态
+const pagedState = await snapshotQueryClient.pagedState(pagedQuery);
+
+// 查询单个快照
+const singleQuery: SingleQuery = {
+  condition: all(),
+};
+const single = await snapshotQueryClient.single(singleQuery);
+
+// 查询单个快照状态
+const singleState = await snapshotQueryClient.singleState(singleQuery);
 ```
 
-#### 错误处理
+#### EventStreamQueryClient
 
-标准错误类型和代码：
+用于查询领域事件流的客户端：
 
 ```typescript
-import { ErrorInfo, ErrorCodes, RecoverableType } from '@ahoo-wang/fetcher-wow';
+import { Fetcher, URL_RESOLVE_INTERCEPTOR_ORDER } from '@ahoo-wang/fetcher';
+import '@ahoo-wang/fetcher-eventstream';
+import {
+  EventStreamQueryClient,
+  all,
+  ListQuery,
+  PagedQuery
+} from '@ahoo-wang/fetcher-wow';
+import { idGenerator } from '@ahoo-wang/fetcher-cosec';
 
-const errorInfo: ErrorInfo = {
-  errorCode: ErrorCodes.NOT_FOUND,
-  errorMsg: '用户未找到',
-  bindingErrors: [],
+// 创建 fetcher 实例
+const wowFetcher = new Fetcher({
+  baseURL: 'http://localhost:8080/',
+});
+
+// 添加拦截器处理 URL 参数
+const ownerId = idGenerator.generateId();
+wowFetcher.interceptors.request.use({
+  name: 'AppendOwnerId',
+  order: URL_RESOLVE_INTERCEPTOR_ORDER - 1,
+  intercept(exchange) {
+    exchange.request.urlParams = {
+      path: {
+        ...exchange.request.urlParams?.path,
+        ownerId,
+      },
+      query: exchange.request.urlParams?.query,
+    };
+  },
+});
+
+// 创建事件流查询客户端
+const eventStreamQueryClient = new EventStreamQueryClient({
+  fetcher: wowFetcher,
+  basePath: 'owner/{ownerId}/cart'
+});
+
+// 统计事件流数量
+const count = await eventStreamQueryClient.count(all());
+
+// 列出事件流
+const listQuery: ListQuery = {
+  condition: all(),
 };
+const list = await eventStreamQueryClient.list(listQuery);
 
-// 检查错误类型
-if (ErrorCodes.isSucceeded(errorInfo.errorCode)) {
-  console.log('操作成功');
-} else {
-  console.error('操作失败:', errorInfo.errorMsg);
+// 以流的形式列出事件流
+const listStream = await eventStreamQueryClient.listStream(listQuery);
+for await (const event of listStream) {
+  const domainEventStream = event.data;
+  console.log('收到事件流:', domainEventStream);
 }
-```
 
-#### 函数类型
-
-事件和命令处理程序的函数信息：
-
-```typescript
-import { FunctionInfo, FunctionKind } from '@ahoo-wang/fetcher-wow';
-
-const functionInfo: FunctionInfo = {
-  functionKind: FunctionKind.COMMAND,
-  contextName: 'user-context',
-  processorName: 'UserProcessor',
-  name: 'CreateUser',
+// 分页查询事件流
+const pagedQuery: PagedQuery = {
+  condition: all(),
 };
+const paged = await eventStreamQueryClient.paged(pagedQuery);
 ```
 
 ## 🛠️ 高级用法
 
-### 复杂查询构建
+### 完整的命令和查询流程示例
 
 ```typescript
+import { Fetcher, URL_RESOLVE_INTERCEPTOR_ORDER } from '@ahoo-wang/fetcher';
+import '@ahoo-wang/fetcher-eventstream';
 import {
-  and,
-  or,
-  eq,
-  ne,
-  gt,
-  lt,
-  contains,
-  isIn,
-  notIn,
-  between,
-  startsWith,
-  endsWith,
-  elemMatch,
-  isNull,
-  notNull,
-  exists,
-  today,
-  thisWeek,
-  recentDays,
+  CommandClient,
+  CommandRequest,
+  CommandHttpHeaders,
+  CommandStage,
+  HttpMethod,
+  SnapshotQueryClient,
+  all,
+  ListQuery
 } from '@ahoo-wang/fetcher-wow';
+import { idGenerator } from '@ahoo-wang/fetcher-cosec';
 
-// 构建用户搜索的复杂查询
-const userSearchQuery = {
-  condition: and(
-    eq('tenantId', 'tenant-123'),
-    ne('status', 'deleted'),
-    or(
-      // 按姓名或邮箱搜索
-      contains('name', 'john'),
-      contains('email', 'john'),
-    ),
-    // 年龄和分数过滤
-    gt('age', 18),
-    between('score', 50, 100),
+interface CartItem {
+  productId: string;
+  quantity: number;
+}
 
-    // 部门过滤
-    isIn('departments', 'engineering', 'marketing'),
-    notIn('blockedDepartments', 'hr', 'finance'),
+interface CartState {
+  id: string;
+  items: CartItem[];
+}
 
-    // 字符串模式匹配
-    startsWith('employeeId', 'EMP-'),
-    endsWith('domain', '.com'),
+// 创建 fetcher 实例
+const wowFetcher = new Fetcher({
+  baseURL: 'http://localhost:8080/',
+});
 
-    // 数组匹配
-    elemMatch('roles', eq('name', 'admin')),
-
-    // 日期过滤
-    recentDays('lastLogin', 30),
-    thisWeek('createdAt'),
-
-    // 存在性检查
-    exists('phoneNumber'),
-    notNull('address'),
-  ),
-
-  sort: [
-    { field: 'score', direction: 'DESC' },
-    { field: 'lastLogin', direction: 'DESC' },
-  ],
-
-  projection: {
-    include: ['id', 'name', 'email', 'score', 'lastLogin', 'departments'],
+// 添加拦截器处理 URL 参数
+const ownerId = idGenerator.generateId();
+wowFetcher.interceptors.request.use({
+  name: 'AppendOwnerId',
+  order: URL_RESOLVE_INTERCEPTOR_ORDER - 1,
+  intercept(exchange) {
+    exchange.request.urlParams = {
+      path: {
+        ...exchange.request.urlParams?.path,
+        ownerId,
+      },
+      query: exchange.request.urlParams?.query,
+    };
   },
+});
 
-  pagination: {
-    index: 1,
-    size: 50,
+// 创建客户端
+const commandClient = new CommandClient({
+  fetcher: wowFetcher,
+  basePath: 'owner/{ownerId}/cart'
+});
+
+const snapshotQueryClient = new SnapshotQueryClient<CartState>({
+  fetcher: wowFetcher,
+  basePath: 'owner/{ownerId}/cart'
+});
+
+// 1. 发送命令添加商品到购物车
+const addItemCommand: CommandRequest = {
+  method: HttpMethod.POST,
+  headers: {
+    [CommandHttpHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT,
+  },
+  body: {
+    productId: 'product-123',
+    quantity: 2,
   },
 };
+
+const commandResult = await commandClient.send('add_cart_item', addItemCommand);
+console.log('命令执行完成:', commandResult);
+
+// 2. 查询更新后的购物车
+const listQuery: ListQuery = {
+  condition: all(),
+};
+const carts = await snapshotQueryClient.list(listQuery);
+
+for (const cart of carts) {
+  console.log('购物车:', cart.state);
+}
+
+// 3. 流式监听购物车更新
+const listStream = await snapshotQueryClient.listStream(listQuery);
+for await (const event of listStream) {
+  const cart = event.data;
+  console.log('购物车更新:', cart.state);
+}
 ```
 
 ## 🧪 测试
