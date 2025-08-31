@@ -13,6 +13,7 @@
 
 import { describe, it, expect } from 'vitest';
 import {
+  ExchangeError,
   Fetcher,
   FetchExchange,
   HttpMethod,
@@ -183,9 +184,7 @@ describe('CommandHttpClient Integration Test', () => {
     const singleQuery: SingleQuery = {
       condition: id(idGenerator.generateId()),
     };
-    expect(async () => {
-      await cartQueryClient.single(singleQuery);
-    }).toThrow(HttpStatusValidationError);
+    await expect(cartQueryClient.single(singleQuery)).rejects.toThrow(ExchangeError);
   });
 
   it('should single state', async () => {
