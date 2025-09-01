@@ -24,7 +24,12 @@ working with the Wow CQRS/DDD framework.
   responses
 - **🔍 Powerful Query DSL**: Rich query condition builder with comprehensive operator support for complex querying
 - **🔍 Query Clients**: Specialized clients for querying snapshot and event stream data with comprehensive query
-  operations
+  operations:
+    - Counting resources
+    - Listing resources
+    - Streaming resources as Server-Sent Events
+    - Paging resources
+    - Retrieving single resources
 
 ## 🚀 Quick Start
 
@@ -59,46 +64,65 @@ HTTP client for sending commands to the Wow framework. The client provides metho
 either synchronously or as a stream of events.
 
 ```typescript
-import { Fetcher, URL_RESOLVE_INTERCEPTOR_ORDER } from '@ahoo-wang/fetcher';
+import { Fetcher, FetchExchange, RequestInterceptor, URL_RESOLVE_INTERCEPTOR_ORDER } from '@ahoo-wang/fetcher';
 import '@ahoo-wang/fetcher-eventstream';
 import {
   CommandClient,
   CommandRequest,
   HttpMethod,
   CommandHttpHeaders,
-  CommandStage,
+  CommandStage
 } from '@ahoo-wang/fetcher-wow';
 import { idGenerator } from '@ahoo-wang/fetcher-cosec';
 
-// Create a fetcher instance
-const wowFetcher = new Fetcher({
+// Create a fetcher instance with base configuration
+const exampleFetcher = new Fetcher({
   baseURL: 'http://localhost:8080/',
 });
 
-// Add interceptor to handle URL parameters
-const ownerId = idGenerator.generateId();
-wowFetcher.interceptors.request.use({
-  name: 'AppendOwnerId',
-  order: URL_RESOLVE_INTERCEPTOR_ORDER - 1,
-  intercept(exchange) {
+// Define current user ID
+const currentUserId = idGenerator.generateId();
+
+// Create an interceptor to handle URL parameters
+class AppendOwnerId implements RequestInterceptor {
+  readonly name: string = 'AppendOwnerId';
+  readonly order: number = URL_RESOLVE_INTERCEPTOR_ORDER - 1;
+
+  intercept(exchange: FetchExchange) {
     exchange.request.urlParams = {
       path: {
         ...exchange.request.urlParams?.path,
-        ownerId,
+        ownerId: currentUserId,
       },
       query: exchange.request.urlParams?.query,
     };
-  },
-});
+  }
+}
+
+// Register the interceptor
+exampleFetcher.interceptors.request.use(new AppendOwnerId());
 
 // Create the command client
-const commandClient = new CommandClient({
-  fetcher: wowFetcher,
+const cartCommandClient = new CommandClient({
+  fetcher: exampleFetcher,
   basePath: 'owner/{ownerId}/cart',
 });
 
-// Define a command request
-const command: CommandRequest = {
+// Define command endpoints
+class CartCommandEndpoints {
+  static readonly addCartItem = 'add_cart_item';
+}
+
+// Define command interfaces
+interface AddCartItem {
+  productId: string;
+  quantity: number;
+}
+
+type AddCartItemCommand = CommandRequest<AddCartItem>
+
+// Create a command request
+const addCartItemCommand: AddCartItemCommand = {
   method: HttpMethod.POST,
   headers: {
     [CommandHttpHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT,
@@ -110,12 +134,15 @@ const command: CommandRequest = {
 };
 
 // Send command and wait for result
-const commandResult = await commandClient.send('add_cart_item', command);
+const commandResult = await cartCommandClient.send(
+  CartCommandEndpoints.addCartItem,
+  addCartItemCommand,
+);
 
 // Send command and receive results as a stream of events
-const commandResultStream = await commandClient.sendAndWaitStream(
-  'add_cart_item',
-  command,
+const commandResultStream = await cartCommandClient.sendAndWaitStream(
+  CartCommandEndpoints.addCartItem,
+  addCartItemCommand,
 );
 for await (const commandResultEvent of commandResultStream) {
   console.log('Received command result:', commandResultEvent.data);
@@ -181,10 +208,10 @@ const dateConditions = [
 
 #### SnapshotQueryClient
 
-Client for querying materialized snapshots:
+Client for querying materialized snapshots with comprehensive query operations:
 
 ```typescript
-import { Fetcher, URL_RESOLVE_INTERCEPTOR_ORDER } from '@ahoo-wang/fetcher';
+import { Fetcher, FetchExchange, RequestInterceptor, URL_RESOLVE_INTERCEPTOR_ORDER } from '@ahoo-wang/fetcher';
 import '@ahoo-wang/fetcher-eventstream';
 import {
   SnapshotQueryClient,
@@ -200,59 +227,64 @@ interface CartItem {
   quantity: number;
 }
 
-interface CartState {
-  id: string;
+interface CartState extends Identifier {
   items: CartItem[];
 }
 
-// Create a fetcher instance
-const wowFetcher = new Fetcher({
+// Create a fetcher instance with base configuration
+const exampleFetcher = new Fetcher({
   baseURL: 'http://localhost:8080/',
 });
 
-// Add interceptor to handle URL parameters
-const ownerId = idGenerator.generateId();
-wowFetcher.interceptors.request.use({
-  name: 'AppendOwnerId',
-  order: URL_RESOLVE_INTERCEPTOR_ORDER - 1,
-  intercept(exchange) {
+// Define current user ID
+const currentUserId = idGenerator.generateId();
+
+// Create an interceptor to handle URL parameters
+class AppendOwnerId implements RequestInterceptor {
+  readonly name: string = 'AppendOwnerId';
+  readonly order: number = URL_RESOLVE_INTERCEPTOR_ORDER - 1;
+
+  intercept(exchange: FetchExchange) {
     exchange.request.urlParams = {
       path: {
         ...exchange.request.urlParams?.path,
-        ownerId,
+        ownerId: currentUserId,
       },
       query: exchange.request.urlParams?.query,
     };
-  },
-});
+  }
+}
+
+// Register the interceptor
+exampleFetcher.interceptors.request.use(new AppendOwnerId());
 
 // Create the snapshot query client
-const snapshotQueryClient = new SnapshotQueryClient<CartState>({
-  fetcher: wowFetcher,
+const cartSnapshotQueryClient = new SnapshotQueryClient<CartState>({
+  fetcher: exampleFetcher,
   basePath: 'owner/{ownerId}/cart',
 });
 
 // Count snapshots
-const count = await snapshotQueryClient.count(all());
+const count = await cartSnapshotQueryClient.count(all());
 
 // List snapshots
 const listQuery: ListQuery = {
   condition: all(),
 };
-const list = await snapshotQueryClient.list(listQuery);
+const list = await cartSnapshotQueryClient.list(listQuery);
 
 // List snapshots as stream
-const listStream = await snapshotQueryClient.listStream(listQuery);
+const listStream = await cartSnapshotQueryClient.listStream(listQuery);
 for await (const event of listStream) {
   const snapshot = event.data;
   console.log('Received snapshot:', snapshot);
 }
 
 // List snapshot states
-const stateList = await snapshotQueryClient.listState(listQuery);
+const stateList = await cartSnapshotQueryClient.listState(listQuery);
 
 // List snapshot states as stream
-const stateStream = await snapshotQueryClient.listStateStream(listQuery);
+const stateStream = await cartSnapshotQueryClient.listStateStream(listQuery);
 for await (const event of stateStream) {
   const state = event.data;
   console.log('Received state:', state);
@@ -262,27 +294,44 @@ for await (const event of stateStream) {
 const pagedQuery: PagedQuery = {
   condition: all(),
 };
-const paged = await snapshotQueryClient.paged(pagedQuery);
+const paged = await cartSnapshotQueryClient.paged(pagedQuery);
 
 // Paged snapshot states
-const pagedState = await snapshotQueryClient.pagedState(pagedQuery);
+const pagedState = await cartSnapshotQueryClient.pagedState(pagedQuery);
 
 // Single snapshot
 const singleQuery: SingleQuery = {
   condition: all(),
 };
-const single = await snapshotQueryClient.single(singleQuery);
+const single = await cartSnapshotQueryClient.single(singleQuery);
 
 // Single snapshot state
-const singleState = await snapshotQueryClient.singleState(singleQuery);
+const singleState = await cartSnapshotQueryClient.singleState(singleQuery);
 ```
+
+##### Methods
+
+- `count(condition: Condition): Promise<number>` - Counts the number of snapshots that match the given condition.
+- `list(listQuery: ListQuery): Promise<Partial<MaterializedSnapshot<S>>[]>` - Retrieves a list of materialized
+  snapshots.
+- `listStream(listQuery: ListQuery): Promise<ReadableStream<JsonServerSentEvent<Partial<MaterializedSnapshot<S>>>>>` -
+  Retrieves a stream of materialized snapshots as Server-Sent Events.
+- `listState(listQuery: ListQuery): Promise<Partial<S>[]>` - Retrieves a list of snapshot states.
+- `listStateStream(listQuery: ListQuery): Promise<ReadableStream<JsonServerSentEvent<Partial<S>>>>` - Retrieves a stream
+  of snapshot states as Server-Sent Events.
+- `paged(pagedQuery: PagedQuery): Promise<PagedList<Partial<MaterializedSnapshot<S>>>>` - Retrieves a paged list of
+  materialized snapshots.
+- `pagedState(pagedQuery: PagedQuery): Promise<PagedList<Partial<S>>>` - Retrieves a paged list of snapshot states.
+- `single(singleQuery: SingleQuery): Promise<Partial<MaterializedSnapshot<S>>>` - Retrieves a single materialized
+  snapshot.
+- `singleState(singleQuery: SingleQuery): Promise<Partial<S>>` - Retrieves a single snapshot state.
 
 #### EventStreamQueryClient
 
-Client for querying domain event streams:
+Client for querying domain event streams with comprehensive query operations:
 
 ```typescript
-import { Fetcher, URL_RESOLVE_INTERCEPTOR_ORDER } from '@ahoo-wang/fetcher';
+import { Fetcher, FetchExchange, RequestInterceptor, URL_RESOLVE_INTERCEPTOR_ORDER } from '@ahoo-wang/fetcher';
 import '@ahoo-wang/fetcher-eventstream';
 import {
   EventStreamQueryClient,
@@ -292,44 +341,50 @@ import {
 } from '@ahoo-wang/fetcher-wow';
 import { idGenerator } from '@ahoo-wang/fetcher-cosec';
 
-// Create a fetcher instance
-const wowFetcher = new Fetcher({
+// Create a fetcher instance with base configuration
+const exampleFetcher = new Fetcher({
   baseURL: 'http://localhost:8080/',
 });
 
-// Add interceptor to handle URL parameters
-const ownerId = idGenerator.generateId();
-wowFetcher.interceptors.request.use({
-  name: 'AppendOwnerId',
-  order: URL_RESOLVE_INTERCEPTOR_ORDER - 1,
-  intercept(exchange) {
+// Define current user ID
+const currentUserId = idGenerator.generateId();
+
+// Create an interceptor to handle URL parameters
+class AppendOwnerId implements RequestInterceptor {
+  readonly name: string = 'AppendOwnerId';
+  readonly order: number = URL_RESOLVE_INTERCEPTOR_ORDER - 1;
+
+  intercept(exchange: FetchExchange) {
     exchange.request.urlParams = {
       path: {
         ...exchange.request.urlParams?.path,
-        ownerId,
+        ownerId: currentUserId,
       },
       query: exchange.request.urlParams?.query,
     };
-  },
-});
+  }
+}
+
+// Register the interceptor
+exampleFetcher.interceptors.request.use(new AppendOwnerId());
 
 // Create the event stream query client
-const eventStreamQueryClient = new EventStreamQueryClient({
-  fetcher: wowFetcher,
+const cartEventStreamQueryClient = new EventStreamQueryClient({
+  fetcher: exampleFetcher,
   basePath: 'owner/{ownerId}/cart',
 });
 
 // Count event streams
-const count = await eventStreamQueryClient.count(all());
+const count = await cartEventStreamQueryClient.count(all());
 
 // List event streams
 const listQuery: ListQuery = {
   condition: all(),
 };
-const list = await eventStreamQueryClient.list(listQuery);
+const list = await cartEventStreamQueryClient.list(listQuery);
 
 // List event streams as stream
-const listStream = await eventStreamQueryClient.listStream(listQuery);
+const listStream = await cartEventStreamQueryClient.listStream(listQuery);
 for await (const event of listStream) {
   const domainEventStream = event.data;
   console.log('Received event stream:', domainEventStream);
@@ -339,15 +394,25 @@ for await (const event of listStream) {
 const pagedQuery: PagedQuery = {
   condition: all(),
 };
-const paged = await eventStreamQueryClient.paged(pagedQuery);
+const paged = await cartEventStreamQueryClient.paged(pagedQuery);
 ```
+
+##### Methods
+
+- `count(condition: Condition): Promise<number>` - Counts the number of domain event streams that match the given
+  condition.
+- `list(listQuery: ListQuery): Promise<Partial<DomainEventStream>[]>` - Retrieves a list of domain event streams.
+- `listStream(listQuery: ListQuery): Promise<ReadableStream<JsonServerSentEvent<Partial<DomainEventStream>>>>` -
+  Retrieves a stream of domain event streams as Server-Sent Events.
+- `paged(pagedQuery: PagedQuery): Promise<PagedList<Partial<DomainEventStream>>>` - Retrieves a paged list of domain
+  event streams.
 
 ## 🛠️ Advanced Usage
 
 ### Complete Example with Command and Query Flow
 
 ```typescript
-import { Fetcher, URL_RESOLVE_INTERCEPTOR_ORDER } from '@ahoo-wang/fetcher';
+import { Fetcher, FetchExchange, RequestInterceptor, URL_RESOLVE_INTERCEPTOR_ORDER } from '@ahoo-wang/fetcher';
 import '@ahoo-wang/fetcher-eventstream';
 import {
   CommandClient,
@@ -372,39 +437,58 @@ interface CartState {
 }
 
 // Create a fetcher instance
-const wowFetcher = new Fetcher({
+const exampleFetcher = new Fetcher({
   baseURL: 'http://localhost:8080/',
 });
 
-// Add interceptor to handle URL parameters
-const ownerId = idGenerator.generateId();
-wowFetcher.interceptors.request.use({
-  name: 'AppendOwnerId',
-  order: URL_RESOLVE_INTERCEPTOR_ORDER - 1,
-  intercept(exchange) {
+// Define current user ID
+const currentUserId = idGenerator.generateId();
+
+// Create an interceptor to handle URL parameters
+class AppendOwnerId implements RequestInterceptor {
+  readonly name: string = 'AppendOwnerId';
+  readonly order: number = URL_RESOLVE_INTERCEPTOR_ORDER - 1;
+
+  intercept(exchange: FetchExchange) {
     exchange.request.urlParams = {
       path: {
         ...exchange.request.urlParams?.path,
-        ownerId,
+        ownerId: currentUserId,
       },
       query: exchange.request.urlParams?.query,
     };
-  },
-});
+  }
+}
+
+// Register the interceptor
+exampleFetcher.interceptors.request.use(new AppendOwnerId());
 
 // Create clients
-const commandClient = new CommandClient({
-  fetcher: wowFetcher,
+const cartCommandClient = new CommandClient({
+  fetcher: exampleFetcher,
   basePath: 'owner/{ownerId}/cart',
 });
 
-const snapshotQueryClient = new SnapshotQueryClient<CartState>({
-  fetcher: wowFetcher,
+const cartSnapshotQueryClient = new SnapshotQueryClient<CartState>({
+  fetcher: exampleFetcher,
   basePath: 'owner/{ownerId}/cart',
 });
+
+// Define command endpoints
+class CartCommandEndpoints {
+  static readonly addCartItem = 'add_cart_item';
+}
+
+// Define command interfaces
+interface AddCartItem {
+  productId: string;
+  quantity: number;
+}
+
+type AddCartItemCommand = CommandRequest<AddCartItem>
 
 // 1. Send command to add item to cart
-const addItemCommand: CommandRequest = {
+const addItemCommand: AddCartItemCommand = {
   method: HttpMethod.POST,
   headers: {
     [CommandHttpHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT,
@@ -415,21 +499,24 @@ const addItemCommand: CommandRequest = {
   },
 };
 
-const commandResult = await commandClient.send('add_cart_item', addItemCommand);
+const commandResult = await cartCommandClient.send(
+  CartCommandEndpoints.addCartItem,
+  addItemCommand
+);
 console.log('Command executed:', commandResult);
 
 // 2. Query the updated cart
 const listQuery: ListQuery = {
   condition: all(),
 };
-const carts = await snapshotQueryClient.list(listQuery);
+const carts = await cartSnapshotQueryClient.list(listQuery);
 
 for (const cart of carts) {
   console.log('Cart:', cart.state);
 }
 
 // 3. Stream cart updates
-const listStream = await snapshotQueryClient.listStream(listQuery);
+const listStream = await cartSnapshotQueryClient.listStream(listQuery);
 for await (const event of listStream) {
   const cart = event.data;
   console.log('Cart updated:', cart.state);
