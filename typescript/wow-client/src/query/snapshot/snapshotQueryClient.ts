@@ -28,6 +28,75 @@ import { QueryClient } from '../queryApi';
 /**
  * A client for querying snapshot data through HTTP endpoints.
  * Provides methods for various query operations such as counting, listing, paging, and retrieving single snapshots.
+ *
+ * @example
+ * ```typescript
+ * // Define the state interface
+ * interface CartItem {
+ *   productId: string;
+ *   quantity: number;
+ * }
+ *
+ * interface CartState {
+ *   items: CartItem[];
+ * }
+ *
+ * // Create client options configuration
+ * const clientOptions: ClientOptions = {
+ *   fetcher: new Fetcher({ baseURL: 'http://localhost:8080/' }),
+ *   basePath: 'owner/{ownerId}/cart'
+ * };
+ *
+ * // Create a snapshot query client instance
+ * const snapshotQueryClient = new SnapshotQueryClient<CartState>(clientOptions);
+ *
+ * // Count snapshots
+ * const count = await snapshotQueryClient.count(all());
+ *
+ * // List snapshots
+ * const listQuery: ListQuery = {
+ *   condition: all()
+ * };
+ * const list = await snapshotQueryClient.list(listQuery);
+ *
+ * // List snapshots as stream
+ * const listStream = await snapshotQueryClient.listStream(listQuery);
+ * for await (const event of listStream) {
+ *   const snapshot = event.data;
+ *   console.log('Received:', snapshot);
+ * }
+ *
+ * // List snapshot states
+ * const stateList = await snapshotQueryClient.listState(listQuery);
+ *
+ * // List snapshot states as stream
+ * const stateListStream = await snapshotQueryClient.listStateStream(listQuery);
+ * for await (const event of stateListStream) {
+ *   const state = event.data;
+ *   console.log('Received state:', state);
+ * }
+ *
+ * // Paged snapshots
+ * const pagedQuery: PagedQuery = {
+ *   condition: all(),
+ *   limit: 10,
+ *   offset: 0
+ * };
+ * const paged = await snapshotQueryClient.paged(pagedQuery);
+ *
+ * // Paged snapshot states
+ * const pagedState = await snapshotQueryClient.pagedState(pagedQuery);
+ *
+ * // Single snapshot
+ * const singleQuery: SingleQuery = {
+ *   condition: all()
+ * };
+ * const single = await snapshotQueryClient.single(singleQuery);
+ *
+ * // Single snapshot state
+ * const singleState = await snapshotQueryClient.singleState(singleQuery);
+ * ```
+ * 
  * @template S The type of the snapshot state
  */
 export class SnapshotQueryClient<S>
@@ -43,8 +112,15 @@ export class SnapshotQueryClient<S>
 
   /**
    * Counts the number of snapshots that match the given condition.
+   * 
    * @param condition - The condition to match snapshots against
    * @returns A promise that resolves to the count of matching snapshots
+   *
+   * @example
+   * ```typescript
+   * const count = await snapshotQueryClient.count(all());
+   * console.log('Total snapshots:', count);
+   * ```
    */
   async count(condition: Condition): Promise<number> {
     return this.query(SnapshotQueryEndpointPaths.COUNT, condition);
@@ -52,8 +128,20 @@ export class SnapshotQueryClient<S>
 
   /**
    * Retrieves a list of materialized snapshots based on the provided query parameters.
+   * 
    * @param listQuery - The query parameters for listing snapshots
    * @returns A promise that resolves to an array of partial materialized snapshots
+   *
+   * @example
+   * ```typescript
+   * const listQuery: ListQuery = {
+   *   condition: all()
+   * };
+   * const list = await snapshotQueryClient.list(listQuery);
+   * for (const snapshot of list) {
+   *   console.log('Snapshot:', snapshot);
+   * }
+   * ```
    */
   list(listQuery: ListQuery): Promise<Partial<MaterializedSnapshot<S>>[]> {
     return this.query(SnapshotQueryEndpointPaths.LIST, listQuery);
@@ -61,8 +149,21 @@ export class SnapshotQueryClient<S>
 
   /**
    * Retrieves a stream of materialized snapshots based on the provided query parameters.
+   * 
    * @param listQuery - The query parameters for listing snapshots
    * @returns A promise that resolves to a readable stream of JSON server-sent events containing partial materialized snapshots
+   *
+   * @example
+   * ```typescript
+   * const listQuery: ListQuery = {
+   *   condition: all()
+   * };
+   * const listStream = await snapshotQueryClient.listStream(listQuery);
+   * for await (const event of listStream) {
+   *   const snapshot = event.data;
+   *   console.log('Received snapshot:', snapshot);
+   * }
+   * ```
    */
   listStream(
     listQuery: ListQuery,
@@ -79,8 +180,20 @@ export class SnapshotQueryClient<S>
 
   /**
    * Retrieves a list of snapshot states based on the provided query parameters.
+   * 
    * @param listQuery - The query parameters for listing snapshot states
    * @returns A promise that resolves to an array of partial snapshot states
+   *
+   * @example
+   * ```typescript
+   * const listQuery: ListQuery = {
+   *   condition: all()
+   * };
+   * const list = await snapshotQueryClient.listState(listQuery);
+   * for (const state of list) {
+   *   console.log('State:', state);
+   * }
+   * ```
    */
   listState(listQuery: ListQuery): Promise<Partial<S>[]> {
     return this.query(SnapshotQueryEndpointPaths.LIST_STATE, listQuery);
@@ -88,8 +201,21 @@ export class SnapshotQueryClient<S>
 
   /**
    * Retrieves a stream of snapshot states based on the provided query parameters.
+   * 
    * @param listQuery - The query parameters for listing snapshot states
    * @returns A promise that resolves to a readable stream of JSON server-sent events containing partial snapshot states
+   *
+   * @example
+   * ```typescript
+   * const listQuery: ListQuery = {
+   *   condition: all()
+   * };
+   * const listStream = await snapshotQueryClient.listStateStream(listQuery);
+   * for await (const event of listStream) {
+   *   const state = event.data;
+   *   console.log('Received state:', state);
+   * }
+   * ```
    */
   listStateStream(
     listQuery: ListQuery,
@@ -104,8 +230,23 @@ export class SnapshotQueryClient<S>
 
   /**
    * Retrieves a paged list of materialized snapshots based on the provided query parameters.
+   * 
    * @param pagedQuery - The query parameters for paging snapshots
    * @returns A promise that resolves to a paged list of partial materialized snapshots
+   *
+   * @example
+   * ```typescript
+   * const pagedQuery: PagedQuery = {
+   *   condition: all(),
+   *   limit: 10,
+   *   offset: 0
+   * };
+   * const paged = await snapshotQueryClient.paged(pagedQuery);
+   * console.log('Total:', paged.total);
+   * for (const snapshot of paged.list) {
+   *   console.log('Snapshot:', snapshot);
+   * }
+   * ```
    */
   paged(
     pagedQuery: PagedQuery,
@@ -115,8 +256,22 @@ export class SnapshotQueryClient<S>
 
   /**
    * Retrieves a paged list of snapshot states based on the provided query parameters.
+   * 
    * @param pagedQuery - The query parameters for paging snapshot states
    * @returns A promise that resolves to a paged list of partial snapshot states
+   *
+   * @example
+   * ```typescript
+   * const pagedQuery: PagedQuery = {
+   *   condition: all(),
+   *   limit: 10,
+   *   offset: 0
+   * };
+   * const pagedState = await snapshotQueryClient.pagedState(pagedQuery);
+   * for (const state of pagedState.list) {
+   *   console.log('State:', state);
+   * }
+   * ```
    */
   pagedState(pagedQuery: PagedQuery): Promise<PagedList<Partial<S>>> {
     return this.query(SnapshotQueryEndpointPaths.PAGED_STATE, pagedQuery);
@@ -124,8 +279,18 @@ export class SnapshotQueryClient<S>
 
   /**
    * Retrieves a single materialized snapshot based on the provided query parameters.
+   * 
    * @param singleQuery - The query parameters for retrieving a single snapshot
    * @returns A promise that resolves to a partial materialized snapshot
+   *
+   * @example
+   * ```typescript
+   * const singleQuery: SingleQuery = {
+   *   condition: all()
+   * };
+   * const single = await snapshotQueryClient.single(singleQuery);
+   * console.log('Snapshot:', single);
+   * ```
    */
   single(singleQuery: SingleQuery): Promise<Partial<MaterializedSnapshot<S>>> {
     return this.query(SnapshotQueryEndpointPaths.SINGLE, singleQuery);
@@ -133,8 +298,18 @@ export class SnapshotQueryClient<S>
 
   /**
    * Retrieves a single snapshot state based on the provided query parameters.
+   * 
    * @param singleQuery - The query parameters for retrieving a single snapshot state
    * @returns A promise that resolves to a partial snapshot state
+   *
+   * @example
+   * ```typescript
+   * const singleQuery: SingleQuery = {
+   *   condition: all()
+   * };
+   * const singleState = await snapshotQueryClient.singleState(singleQuery);
+   * console.log('State:', singleState);
+   * ```
    */
   singleState(singleQuery: SingleQuery): Promise<Partial<S>> {
     return this.query(SnapshotQueryEndpointPaths.SINGLE_STATE, singleQuery);

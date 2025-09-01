@@ -29,6 +29,40 @@ import { ResultExtractors } from '@ahoo-wang/fetcher-decorator';
  * Extends QueryClient and implements EventStreamQueryApi to provide methods
  * for querying domain event streams with different query patterns.
  * This client supports counting, listing, streaming, and paging operations on event streams.
+ *
+ * @example
+ * ```typescript
+ * // Create client options configuration
+ * const clientOptions: ClientOptions = {
+ *   fetcher: new Fetcher({ baseURL: 'http://localhost:8080/' }),
+ *   basePath: 'owner/{ownerId}/cart'
+ * };
+ *
+ * // Create an event stream query client instance
+ * const eventStreamQueryClient = new EventStreamQueryClient(clientOptions);
+ *
+ * // Count event streams
+ * const count = await eventStreamQueryClient.count(all());
+ *
+ * // List event streams
+ * const listQuery: ListQuery = {
+ *   condition: all()
+ * };
+ * const list = await eventStreamQueryClient.list(listQuery);
+ *
+ * // List event streams as stream
+ * const listStream = await eventStreamQueryClient.listStream(listQuery);
+ * for await (const event of listStream) {
+ *   const domainEventStream = event.data;
+ *   console.log('Received:', domainEventStream);
+ * }
+ *
+ * // Paged event streams
+ * const pagedQuery: PagedQuery = {
+ *   condition: all()
+ * };
+ * const paged = await eventStreamQueryClient.paged(pagedQuery);
+ * ```
  */
 export class EventStreamQueryClient
   extends QueryClient
@@ -43,8 +77,15 @@ export class EventStreamQueryClient
 
   /**
    * Counts the number of domain event streams that match the given condition.
+   * 
    * @param condition - The condition to filter event streams
    * @returns A promise that resolves to the count of matching event streams
+   *
+   * @example
+   * ```typescript
+   * const count = await eventStreamQueryClient.count(all());
+   * console.log('Total event streams:', count);
+   * ```
    */
   count(condition: Condition): Promise<number> {
     return this.query(EventStreamQueryEndpointPaths.COUNT, condition);
@@ -52,8 +93,20 @@ export class EventStreamQueryClient
 
   /**
    * Retrieves a list of domain event streams based on the provided query parameters.
+   * 
    * @param listQuery - The query parameters for listing event streams
    * @returns A promise that resolves to an array of partial domain event streams
+   *
+   * @example
+   * ```typescript
+   * const listQuery: ListQuery = {
+   *   condition: all()
+   * };
+   * const list = await eventStreamQueryClient.list(listQuery);
+   * for (const domainEventStream of list) {
+   *   console.log('Event stream:', domainEventStream);
+   * }
+   * ```
    */
   list(listQuery: ListQuery): Promise<Partial<DomainEventStream>[]> {
     return this.query(EventStreamQueryEndpointPaths.LIST, listQuery);
@@ -62,8 +115,21 @@ export class EventStreamQueryClient
   /**
    * Retrieves a stream of domain event streams based on the provided query parameters.
    * Sets the Accept header to text/event-stream to indicate that the response should be streamed.
+   * 
    * @param listQuery - The query parameters for listing event streams
    * @returns A promise that resolves to a readable stream of JSON server-sent events containing partial domain event streams
+   *
+   * @example
+   * ```typescript
+   * const listQuery: ListQuery = {
+   *   condition: all()
+   * };
+   * const listStream = await eventStreamQueryClient.listStream(listQuery);
+   * for await (const event of listStream) {
+   *   const domainEventStream = event.data;
+   *   console.log('Received event stream:', domainEventStream);
+   * }
+   * ```
    */
   listStream(
     listQuery: ListQuery,
@@ -78,8 +144,23 @@ export class EventStreamQueryClient
 
   /**
    * Retrieves a paged list of domain event streams based on the provided query parameters.
+   * 
    * @param pagedQuery - The query parameters for paging event streams
    * @returns A promise that resolves to a paged list of partial domain event streams
+   *
+   * @example
+   * ```typescript
+   * const pagedQuery: PagedQuery = {
+   *   condition: all(),
+   *   limit: 10,
+   *   offset: 0
+   * };
+   * const paged = await eventStreamQueryClient.paged(pagedQuery);
+   * console.log('Total:', paged.total);
+   * for (const domainEventStream of paged.list) {
+   *   console.log('Event stream:', domainEventStream);
+   * }
+   * ```
    */
   paged(
     pagedQuery: PagedQuery,

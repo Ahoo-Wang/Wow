@@ -11,80 +11,61 @@
  * limitations under the License.
  */
 
-import { combineURLs, ContentTypeValues } from '@ahoo-wang/fetcher';
-import { CommandResult, CommandResultEventStream } from './commandResult';
-import {
-  ResultExtractor,
-  ResultExtractors,
-} from '@ahoo-wang/fetcher-decorator';
-import { CommandRequest } from './commandRequest';
 import { ClientOptions } from '../types';
+import { CommandRequest } from './commandRequest';
+import { CommandResult } from './commandResult';
+import { ResultExtractor, ResultExtractors } from '@ahoo-wang/fetcher-decorator';
+import { combineURLs, ContentTypeValues } from '@ahoo-wang/fetcher';
 
 /**
- * HTTP client for sending commands to a remote service.
- * Provides methods for sending commands and handling command results,
- * including support for streaming responses.
+ * CommandResultEventStream represents a stream of command execution results.
+ * It is a ReadableStream of JsonServerSentEvent containing CommandResult data.
+ */
+export type CommandResultEventStream = ReadableStream<any>;
+
+/**
+ * Command Client for sending commands to the server.
  *
+ * The CommandClient is responsible for sending commands to the server and handling the responses.
+ * It provides methods for both regular command execution and streaming command results.
+ * 
  * @example
  * ```typescript
- * // Create a fetcher instance
- * const wowFetcher = new Fetcher({
- *   baseURL: 'http://localhost:8080/',
- * });
- *
- * // Add interceptor to handle URL parameters if needed
- * wowFetcher.interceptors.request.use({
- *   name: 'UrlParamsInterceptor',
- *   order: URL_RESOLVE_INTERCEPTOR_ORDER - 1,
- *   intercept(exchange) {
- *     exchange.request.urlParams = {
- *       path: {
- *         ...exchange.request.urlParams?.path,
- *       },
- *       query: exchange.request.urlParams?.query,
- *     };
- *   },
- * });
- *
- * // Create CommandClient instance
- * const CommandClient = new CommandClient({
- *   fetcher: wowFetcher,
+ * // Create a client options configuration
+ * const clientOptions: ClientOptions = {
+ *   fetcher: new Fetcher({ baseURL: 'http://localhost:8080/' }),
  *   basePath: 'owner/{ownerId}/cart'
- * });
+ * };
  *
- * // Send a command
- * const command = {
+ * // Create a command client instance
+ * const commandClient = new CommandClient(clientOptions);
+ *
+ * // Define command endpoint
+ * const addCartItem = 'add_cart_item';
+ *
+ * // Create a command request
+ * const addCartItemCommand: CommandRequest<AddCartItem> = {
  *   method: HttpMethod.POST,
  *   headers: {
- *     [CommandHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT,
- *   },
- *   urlParams: {
- *     path: {
- *       ownerId: 'ownerId',
- *     },
+ *     [CommandHttpHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT,
  *   },
  *   body: {
  *     productId: 'productId',
  *     quantity: 1,
- *   },
+ *   }
  * };
  *
- * const result = await CommandClient.send('add_cart_item', command);
+ * // Send command and get result
+ * const commandResult = await commandClient.send(addCartItem, addCartItemCommand);
+ *
+ * // Send command and get result as stream
+ * const commandResultStream = await commandClient.sendAndWaitStream(addCartItem, addCartItemCommand);
+ * for await (const commandResultEvent of commandResultStream) {
+ *   console.log('Received:', commandResultEvent.data);
+ * }
  * ```
  */
 export class CommandClient {
-  /**
-   * Creates a new CommandClient instance.
-   * @param options - The client configuration options including the fetcher and base path
-   *
-   * @example
-   * ```typescript
-   * const CommandClient = new CommandClient({
-   *   fetcher: wowFetcher,
-   *   basePath: 'owner/{ownerId}/cart'
-   * });
-   * ```
-   */
   constructor(protected readonly options: ClientOptions) {
   }
 
@@ -112,32 +93,21 @@ export class CommandClient {
   }
 
   /**
-   * Sends a command to the specified path and waits for a response.
-   *
+   * Send a command to the server and wait for the result.
+   * 
    * @param path - The endpoint path to send the command to
-   * @param commandHttpRequest - The command HTTP request containing headers, method, and body
-   * @returns A promise that resolves to a CommandResult
-   *
+   * @param commandHttpRequest - The command request to send
+   * @returns A promise that resolves to the command execution result
+   * 
    * @example
    * ```typescript
-   * const command = {
+   * const commandResult = await commandClient.send('add_cart_item', {
    *   method: HttpMethod.POST,
-   *   headers: {
-   *     [CommandHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT,
-   *   },
-   *   urlParams: {
-   *     path: {
-   *       ownerId: 'ownerId',
-   *     },
-   *   },
    *   body: {
-   *     productId: 'productId',
-   *     quantity: 1,
-   *   },
-   * };
-   *
-   * const result = await CommandClient.send('add_cart_item', command);
-   * console.log('Command result:', result);
+   *     productId: 'product-1',
+   *     quantity: 2
+   *   }
+   * });
    * ```
    */
   send(
@@ -148,34 +118,28 @@ export class CommandClient {
   }
 
   /**
-   * Sends a command to the specified path and waits for a streaming response.
-   * Sets the Accept header to text/event-stream to indicate that the response should be streamed.
-   *
+   * Send a command to the server and wait for the result as a stream.
+   * This is useful for long-running commands that produce multiple events.
+   * 
    * @param path - The endpoint path to send the command to
-   * @param commandHttpRequest - The command HTTP request containing headers, method, and body
-   * @returns A promise that resolves to a CommandResultEventStream for handling streaming responses
-   *
+   * @param commandHttpRequest - The command request to send
+   * @returns A promise that resolves to a stream of command execution results
+   * 
    * @example
    * ```typescript
-   * const command = {
+   * const commandResultStream = await commandClient.sendAndWaitStream('add_cart_item', {
    *   method: HttpMethod.POST,
    *   headers: {
-   *     [CommandHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT,
-   *   },
-   *   urlParams: {
-   *     path: {
-   *       ownerId: 'ownerId',
-   *     },
+   *     Accept: ContentTypeValues.TEXT_EVENT_STREAM
    *   },
    *   body: {
-   *     productId: 'productId',
-   *     quantity: 1,
-   *   },
-   * };
-   *
-   * const commandResultStream = await CommandClient.sendAndWaitStream('add_cart_item', command);
+   *     productId: 'product-1',
+   *     quantity: 2
+   *   }
+   * });
+   * 
    * for await (const commandResultEvent of commandResultStream) {
-   *   console.log('Received:', commandResultEvent.data);
+   *   console.log('Received event:', commandResultEvent.data);
    * }
    * ```
    */
