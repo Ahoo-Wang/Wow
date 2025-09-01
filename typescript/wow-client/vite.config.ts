@@ -13,7 +13,6 @@
 
 import { defineConfig } from 'vite';
 import dts from 'unplugin-dts/vite';
-import analyzer from 'vite-bundle-analyzer';
 
 export default defineConfig({
   build: {
@@ -43,6 +42,5 @@ export default defineConfig({
       outDirs: 'dist',
       tsconfigPath: './tsconfig.json',
     }),
-    analyzer(),
   ],
 });
