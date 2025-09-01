@@ -13,15 +13,9 @@
 
 import { ClientOptions } from '../types';
 import { CommandRequest } from './commandRequest';
-import { CommandResult } from './commandResult';
+import { CommandResult, CommandResultEventStream } from './commandResult';
 import { ResultExtractor, ResultExtractors } from '@ahoo-wang/fetcher-decorator';
 import { combineURLs, ContentTypeValues } from '@ahoo-wang/fetcher';
-
-/**
- * CommandResultEventStream represents a stream of command execution results.
- * It is a ReadableStream of JsonServerSentEvent containing CommandResult data.
- */
-export type CommandResultEventStream = ReadableStream<any>;
 
 /**
  * Command Client for sending commands to the server.

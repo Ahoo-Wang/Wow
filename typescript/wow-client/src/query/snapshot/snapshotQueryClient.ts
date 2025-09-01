@@ -96,7 +96,7 @@ import { QueryClient } from '../queryApi';
  * // Single snapshot state
  * const singleState = await snapshotQueryClient.singleState(singleQuery);
  * ```
- * 
+ *
  * @template S The type of the snapshot state
  */
 export class SnapshotQueryClient<S>
@@ -112,7 +112,7 @@ export class SnapshotQueryClient<S>
 
   /**
    * Counts the number of snapshots that match the given condition.
-   * 
+   *
    * @param condition - The condition to match snapshots against
    * @returns A promise that resolves to the count of matching snapshots
    *
@@ -128,7 +128,7 @@ export class SnapshotQueryClient<S>
 
   /**
    * Retrieves a list of materialized snapshots based on the provided query parameters.
-   * 
+   *
    * @param listQuery - The query parameters for listing snapshots
    * @returns A promise that resolves to an array of partial materialized snapshots
    *
@@ -143,13 +143,13 @@ export class SnapshotQueryClient<S>
    * }
    * ```
    */
-  list(listQuery: ListQuery): Promise<Partial<MaterializedSnapshot<S>>[]> {
+  list<T extends Partial<MaterializedSnapshot<S>> = Partial<MaterializedSnapshot<S>>>(listQuery: ListQuery): Promise<T[]> {
     return this.query(SnapshotQueryEndpointPaths.LIST, listQuery);
   }
 
   /**
    * Retrieves a stream of materialized snapshots based on the provided query parameters.
-   * 
+   *
    * @param listQuery - The query parameters for listing snapshots
    * @returns A promise that resolves to a readable stream of JSON server-sent events containing partial materialized snapshots
    *
@@ -165,10 +165,10 @@ export class SnapshotQueryClient<S>
    * }
    * ```
    */
-  listStream(
+  listStream<T extends Partial<MaterializedSnapshot<S>> = Partial<MaterializedSnapshot<S>>>(
     listQuery: ListQuery,
   ): Promise<
-    ReadableStream<JsonServerSentEvent<Partial<MaterializedSnapshot<S>>>>
+    ReadableStream<JsonServerSentEvent<T>>
   > {
     return this.query(
       SnapshotQueryEndpointPaths.LIST,
@@ -180,7 +180,7 @@ export class SnapshotQueryClient<S>
 
   /**
    * Retrieves a list of snapshot states based on the provided query parameters.
-   * 
+   *
    * @param listQuery - The query parameters for listing snapshot states
    * @returns A promise that resolves to an array of partial snapshot states
    *
@@ -195,13 +195,13 @@ export class SnapshotQueryClient<S>
    * }
    * ```
    */
-  listState(listQuery: ListQuery): Promise<Partial<S>[]> {
+  listState<T extends Partial<S> = Partial<S>>(listQuery: ListQuery): Promise<T[]> {
     return this.query(SnapshotQueryEndpointPaths.LIST_STATE, listQuery);
   }
 
   /**
    * Retrieves a stream of snapshot states based on the provided query parameters.
-   * 
+   *
    * @param listQuery - The query parameters for listing snapshot states
    * @returns A promise that resolves to a readable stream of JSON server-sent events containing partial snapshot states
    *
@@ -217,9 +217,9 @@ export class SnapshotQueryClient<S>
    * }
    * ```
    */
-  listStateStream(
+  listStateStream<T extends Partial<S> = Partial<S>>(
     listQuery: ListQuery,
-  ): Promise<ReadableStream<JsonServerSentEvent<Partial<S>>>> {
+  ): Promise<ReadableStream<JsonServerSentEvent<T>>> {
     return this.query(
       SnapshotQueryEndpointPaths.LIST_STATE,
       listQuery,
@@ -230,7 +230,7 @@ export class SnapshotQueryClient<S>
 
   /**
    * Retrieves a paged list of materialized snapshots based on the provided query parameters.
-   * 
+   *
    * @param pagedQuery - The query parameters for paging snapshots
    * @returns A promise that resolves to a paged list of partial materialized snapshots
    *
@@ -248,15 +248,15 @@ export class SnapshotQueryClient<S>
    * }
    * ```
    */
-  paged(
+  paged<T extends Partial<MaterializedSnapshot<S>> = Partial<MaterializedSnapshot<S>>>(
     pagedQuery: PagedQuery,
-  ): Promise<PagedList<Partial<MaterializedSnapshot<S>>>> {
+  ): Promise<PagedList<T>> {
     return this.query(SnapshotQueryEndpointPaths.PAGED, pagedQuery);
   }
 
   /**
    * Retrieves a paged list of snapshot states based on the provided query parameters.
-   * 
+   *
    * @param pagedQuery - The query parameters for paging snapshot states
    * @returns A promise that resolves to a paged list of partial snapshot states
    *
@@ -273,13 +273,13 @@ export class SnapshotQueryClient<S>
    * }
    * ```
    */
-  pagedState(pagedQuery: PagedQuery): Promise<PagedList<Partial<S>>> {
+  pagedState<T extends Partial<S> = Partial<S>>(pagedQuery: PagedQuery): Promise<PagedList<T>> {
     return this.query(SnapshotQueryEndpointPaths.PAGED_STATE, pagedQuery);
   }
 
   /**
    * Retrieves a single materialized snapshot based on the provided query parameters.
-   * 
+   *
    * @param singleQuery - The query parameters for retrieving a single snapshot
    * @returns A promise that resolves to a partial materialized snapshot
    *
@@ -292,13 +292,13 @@ export class SnapshotQueryClient<S>
    * console.log('Snapshot:', single);
    * ```
    */
-  single(singleQuery: SingleQuery): Promise<Partial<MaterializedSnapshot<S>>> {
+  single<T extends Partial<MaterializedSnapshot<S>> = Partial<MaterializedSnapshot<S>>>(singleQuery: SingleQuery): Promise<T> {
     return this.query(SnapshotQueryEndpointPaths.SINGLE, singleQuery);
   }
 
   /**
    * Retrieves a single snapshot state based on the provided query parameters.
-   * 
+   *
    * @param singleQuery - The query parameters for retrieving a single snapshot state
    * @returns A promise that resolves to a partial snapshot state
    *
@@ -311,7 +311,7 @@ export class SnapshotQueryClient<S>
    * console.log('State:', singleState);
    * ```
    */
-  singleState(singleQuery: SingleQuery): Promise<Partial<S>> {
+  singleState<T extends Partial<S> = Partial<S>>(singleQuery: SingleQuery): Promise<T> {
     return this.query(SnapshotQueryEndpointPaths.SINGLE_STATE, singleQuery);
   }
 }

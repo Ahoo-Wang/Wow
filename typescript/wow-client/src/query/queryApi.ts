@@ -36,30 +36,30 @@ export interface QueryApi<R> {
    * @param singleQuery - The query parameters for retrieving a single resource
    * @returns A promise that resolves to a partial resource
    */
-  single(singleQuery: SingleQuery): Promise<Partial<R>>;
+  single<T extends Partial<R> = Partial<R>>(singleQuery: SingleQuery): Promise<T>;
 
   /**
    * Retrieves a list of resources based on the provided query parameters.
    * @param listQuery - The query parameters for listing resources
    * @returns A promise that resolves to an array of partial resources
    */
-  list(listQuery: ListQuery): Promise<Partial<R>[]>;
+  list<T extends Partial<R> = Partial<R>>(listQuery: ListQuery): Promise<T[]>;
 
   /**
    * Retrieves a stream of resources based on the provided query parameters.
    * @param listQuery - The query parameters for listing resources
    * @returns A promise that resolves to a readable stream of JSON server-sent events containing partial resources
    */
-  listStream(
+  listStream<T extends Partial<R> = Partial<R>>(
     listQuery: ListQuery,
-  ): Promise<ReadableStream<JsonServerSentEvent<Partial<R>>>>;
+  ): Promise<ReadableStream<JsonServerSentEvent<T>>>;
 
   /**
    * Retrieves a paged list of resources based on the provided query parameters.
    * @param pagedQuery - The query parameters for paging resources
    * @returns A promise that resolves to a paged list of partial resources
    */
-  paged(pagedQuery: PagedQuery): Promise<PagedList<Partial<R>>>;
+  paged<T extends Partial<R> = Partial<R>>(pagedQuery: PagedQuery): Promise<PagedList<T>>;
 
   /**
    * Counts the number of resources that match the given condition.

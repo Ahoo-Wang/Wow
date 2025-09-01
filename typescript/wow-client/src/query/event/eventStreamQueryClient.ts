@@ -77,7 +77,7 @@ export class EventStreamQueryClient
 
   /**
    * Counts the number of domain event streams that match the given condition.
-   * 
+   *
    * @param condition - The condition to filter event streams
    * @returns A promise that resolves to the count of matching event streams
    *
@@ -93,7 +93,7 @@ export class EventStreamQueryClient
 
   /**
    * Retrieves a list of domain event streams based on the provided query parameters.
-   * 
+   *
    * @param listQuery - The query parameters for listing event streams
    * @returns A promise that resolves to an array of partial domain event streams
    *
@@ -108,14 +108,14 @@ export class EventStreamQueryClient
    * }
    * ```
    */
-  list(listQuery: ListQuery): Promise<Partial<DomainEventStream>[]> {
+  list<T extends Partial<DomainEventStream> = Partial<DomainEventStream>>(listQuery: ListQuery): Promise<T[]> {
     return this.query(EventStreamQueryEndpointPaths.LIST, listQuery);
   }
 
   /**
    * Retrieves a stream of domain event streams based on the provided query parameters.
    * Sets the Accept header to text/event-stream to indicate that the response should be streamed.
-   * 
+   *
    * @param listQuery - The query parameters for listing event streams
    * @returns A promise that resolves to a readable stream of JSON server-sent events containing partial domain event streams
    *
@@ -131,9 +131,9 @@ export class EventStreamQueryClient
    * }
    * ```
    */
-  listStream(
+  listStream<T extends Partial<DomainEventStream> = Partial<DomainEventStream>>(
     listQuery: ListQuery,
-  ): Promise<ReadableStream<JsonServerSentEvent<Partial<DomainEventStream>>>> {
+  ): Promise<ReadableStream<JsonServerSentEvent<T>>> {
     return this.query(
       EventStreamQueryEndpointPaths.LIST,
       listQuery,
@@ -144,7 +144,7 @@ export class EventStreamQueryClient
 
   /**
    * Retrieves a paged list of domain event streams based on the provided query parameters.
-   * 
+   *
    * @param pagedQuery - The query parameters for paging event streams
    * @returns A promise that resolves to a paged list of partial domain event streams
    *
@@ -162,9 +162,9 @@ export class EventStreamQueryClient
    * }
    * ```
    */
-  paged(
+  paged<T extends Partial<DomainEventStream> = Partial<DomainEventStream>>(
     pagedQuery: PagedQuery,
-  ): Promise<PagedList<Partial<DomainEventStream>>> {
+  ): Promise<PagedList<T>> {
     return this.query(EventStreamQueryEndpointPaths.PAGED, pagedQuery);
   }
 }
