@@ -13,17 +13,68 @@
 
 import { FailedSearch } from "./FailedSearch";
 import { FailedTable } from "./FailedTable";
-import type { FindCategory } from "./FindCategory.ts";
+import { type FindCategory, RetryConditions } from "./FindCategory.ts";
+import {
+  all,
+  and,
+  type Condition,
+  type PagedList,
+  type PagedQuery,
+} from "@ahoo-wang/fetcher-wow";
+import {
+  executionFailedSnapshotQueryClient,
+  type ExecutionFailedState,
+} from "../../services";
+import { useEffect, useState } from "react";
+import type { Pagination } from "@ahoo-wang/fetcher-wow";
 
 interface FailedViewProps {
   category: FindCategory;
 }
 
 export default function FailedView({ category }: FailedViewProps) {
+  const [searchCondition, setSearchCondition] = useState<Condition>(all());
+  const [pagination, setPagination] = useState<Pagination>(() => {
+    return {
+      index: 1,
+      size: 10,
+    };
+  });
+  const [pagedList, setPagedList] = useState<PagedList<ExecutionFailedState>>({
+    total: 0,
+    list: [],
+  });
+  const onSearch = (searchCondition: Condition) => {
+    setSearchCondition(searchCondition);
+  };
+  const onPaginationChange = (page: number, pageSize: number) => {
+    setPagination({
+      index: page,
+      size: pageSize,
+    });
+  };
+  const search = () => {
+    const pagedQuery: PagedQuery = {
+      condition: and(
+        RetryConditions.categoryToCondition(category),
+        searchCondition,
+      ),
+      pagination: pagination,
+    };
+    executionFailedSnapshotQueryClient
+      .pagedState<ExecutionFailedState>(pagedQuery)
+      .then((it) => {
+        setPagedList(it);
+      });
+  };
+  useEffect(search, [category, searchCondition, pagination]);
   return (
     <>
-      <FailedSearch category={category}></FailedSearch>
-      <FailedTable category={category}></FailedTable>
+      <FailedSearch onSearch={onSearch}></FailedSearch>
+      <FailedTable
+        pagedList={pagedList}
+        onPaginationChange={onPaginationChange}
+      ></FailedTable>
     </>
   );
 }

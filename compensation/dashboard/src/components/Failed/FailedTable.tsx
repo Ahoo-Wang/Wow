@@ -11,19 +11,15 @@
  * limitations under the License.
  */
 
-import type { FindCategory } from "./FindCategory.ts";
 import { Table, Tag, Typography } from "antd";
 import type { TableColumnsType } from "antd";
-import { useEffect, useState } from "react";
-import { all, type PagedList } from "@ahoo-wang/fetcher-wow";
-import {
-  executionFailedSnapshotQueryClient,
-  type ExecutionFailedState,
-} from "../../services";
+import { type PagedList } from "@ahoo-wang/fetcher-wow";
+import type { ExecutionFailedState } from "../../services";
 const { Paragraph } = Typography;
 
 interface FailedTableProps {
-  category: FindCategory;
+  onPaginationChange?: (page: number, pageSize: number) => void;
+  pagedList: PagedList<ExecutionFailedState>;
 }
 
 const columns: TableColumnsType<ExecutionFailedState> = [
@@ -186,27 +182,19 @@ const columns: TableColumnsType<ExecutionFailedState> = [
     ],
   },
 ];
-export function FailedTable({ category }: FailedTableProps) {
-  const [state, setState] = useState<PagedList<ExecutionFailedState>>({
-    total: 0,
-    list: [],
-  });
-  async function fetchData() {
-    const pagedList = (await executionFailedSnapshotQueryClient.pagedState({
-      condition: all(),
-    })) as PagedList<ExecutionFailedState>;
-    setState(pagedList);
-  }
-
-  useEffect(() => {
-    fetchData();
-  }, [category]);
-
+export function FailedTable({
+  onPaginationChange,
+  pagedList,
+}: FailedTableProps) {
   return (
     <Table<ExecutionFailedState>
       rowKey="id"
       columns={columns}
-      dataSource={state.list}
+      dataSource={pagedList.list}
+      pagination={{
+        total: pagedList.total,
+        onChange: onPaginationChange,
+      }}
       bordered
       scroll={{ x: 1500 }}
     ></Table>

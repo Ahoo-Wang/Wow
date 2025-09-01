@@ -12,52 +12,77 @@
  */
 
 import { ClearOutlined, SearchOutlined } from "@ant-design/icons";
-import type { FindCategory } from "./FindCategory.ts";
-import { Button, Col, Form, Input, Row, Space } from "antd";
+import { Button, Col, Form, type FormProps, Input, Row, Space } from "antd";
+import { and, type Condition, eq } from "@ahoo-wang/fetcher-wow";
 
 interface FailedSearchProps {
-  category: FindCategory;
+  onSearch?: (condition: Condition) => void;
 }
 
-export function FailedSearch({ category }: FailedSearchProps) {
-  const onFinish: (values: any) => void = (values) => {
-    console.log("Success:", category, values);
+export function FailedSearch({ onSearch }: FailedSearchProps) {
+  const onFinish: FormProps["onFinish"] = (values) => {
+    console.log(values)
+    const conditions: Condition[] = [];
+    Object.keys(values).forEach((key) => {
+      const value = values[key];
+      if (value) {
+        conditions.push(eq(key, value));
+      }
+    });
+    if (onSearch) {
+      onSearch(and(...conditions));
+    }
   };
   return (
     <Form layout="vertical" onFinish={onFinish}>
       <Row gutter={24}>
         <Col span={6}>
-          <Form.Item name="id" label="Id">
+          <Form.Item name="_id" label="Id">
             <Input placeholder="Id" />
           </Form.Item>
         </Col>
         <Col span={6}>
-          <Form.Item name="eventId" label="EventId">
+          <Form.Item name="state.eventId.id" label="EventId">
             <Input placeholder="EventId" />
           </Form.Item>
         </Col>
         <Col span={6}>
-          <Form.Item name="aggregateId" label="AggregateId">
+          <Form.Item
+            name="state.eventId.aggregateId.aggregateId"
+            label="AggregateId"
+          >
             <Input placeholder="AggregateId" />
           </Form.Item>
         </Col>
         <Col span={6}>
-          <Form.Item name="aggregateContext" label="AggregateContext">
+          <Form.Item
+            name="state.eventId.aggregateId.contextName"
+            label="AggregateContext"
+          >
             <Input placeholder="AggregateContext" />
           </Form.Item>
         </Col>
         <Col span={6}>
-          <Form.Item name="aggregateName" label="AggregateName">
+          <Form.Item
+            name="state.eventId.aggregateId.aggregateName"
+            label="AggregateName"
+          >
             <Input placeholder="AggregateName" />
           </Form.Item>
         </Col>
         <Col span={6}>
-          <Form.Item name="processorContext" label="ProcessorContext">
+          <Form.Item
+            name="state.function.contextName"
+            label="ProcessorContext"
+          >
             <Input placeholder="ProcessorContext" />
           </Form.Item>
         </Col>
         <Col span={6}>
-          <Form.Item name="processorName" label="ProcessorName">
+          <Form.Item
+            name="state.function.processorName"
+            label="ProcessorName"
+          >
             <Input placeholder="ProcessorName" />
           </Form.Item>
         </Col>
