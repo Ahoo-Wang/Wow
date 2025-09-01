@@ -37,7 +37,7 @@ importers:
         version: 0.52.2
       ng-zorro-antd:
         specifier: ^20.0.0
-        version: 20.2.0(c8f7b9fb191af58200691689a365fc43)
+        version: 20.2.1(c8f7b9fb191af58200691689a365fc43)
       rxjs:
         specifier: ~7.8.0
         version: 7.8.2
@@ -3446,8 +3446,8 @@ packages:
   neo-async@2.6.2:
     resolution: {integrity: sha512-Yd3UES5mWCSqR+qNT93S3UoYUkqAZ9lLg8a7g9rimsWmYGK8cVToA4/sF3RrshdyV3sAGMXVUmpMYOw+dLpOuw==}
 
-  ng-zorro-antd@20.2.0:
-    resolution: {integrity: sha512-zBDKp0dB6Fp684auZEyvDdkZAfd494/ZDisCh3x8/iHkhII5V+1DaC6wxNhCUcw3N8emA/iAoG1RTigk4nojTQ==}
+  ng-zorro-antd@20.2.1:
+    resolution: {integrity: sha512-DYZNO5xT8+PDcLtfuYA9zFqZHfGWBwo4gA/PXFwdxYkqWhcCUWUZxIxMIY5Xe9SDVwNROWmiUJGal9/m80nCqQ==}
     peerDependencies:
       '@angular/animations': ^20.0.0
       '@angular/common': ^20.0.0
@@ -8147,7 +8147,7 @@ snapshots:
 
   neo-async@2.6.2: {}
 
-  ng-zorro-antd@20.2.0(c8f7b9fb191af58200691689a365fc43):
+  ng-zorro-antd@20.2.1(c8f7b9fb191af58200691689a365fc43):
     dependencies:
       '@angular/animations': 20.2.3(@angular/common@20.2.3(@angular/core@20.2.3(@angular/compiler@20.2.3)(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2))(@angular/core@20.2.3(@angular/compiler@20.2.3)(rxjs@7.8.2)(zone.js@0.15.1))
       '@angular/cdk': 20.2.1(@angular/common@20.2.3(@angular/core@20.2.3(@angular/compiler@20.2.3)(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2))(@angular/core@20.2.3(@angular/compiler@20.2.3)(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2)
