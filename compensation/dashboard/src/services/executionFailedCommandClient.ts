@@ -21,7 +21,6 @@ import {
 } from "@ahoo-wang/fetcher-wow";
 import {
   compensationFetcher,
-  executionFailedClientOptions,
 } from "./compensationFetcher";
 import { HttpMethod } from "@ahoo-wang/fetcher";
 
@@ -30,7 +29,7 @@ export const executionFailedCommandClientOptions: ClientOptions = {
   basePath: "execution_failed/{id}",
 };
 export const executionFailedCommandClient = new CommandClient(
-  executionFailedClientOptions,
+  executionFailedCommandClientOptions,
 );
 
 export interface ApplyRetrySpec {
