@@ -14,67 +14,33 @@
 import { describe, it, expect } from 'vitest';
 import {
   ExchangeError,
-  Fetcher,
-  FetchExchange,
   HttpMethod,
-  URL_RESOLVE_INTERCEPTOR_ORDER,
+
 } from '@ahoo-wang/fetcher';
 import '@ahoo-wang/fetcher-eventstream';
 import {
   all,
-  ClientOptions,
   CommandHttpHeaders,
-  CommandClient,
-  CommandRequest,
   CommandStage,
   ErrorCodes,
   id,
-  Identifier,
   ListQuery,
   MaterializedSnapshot,
   PagedQuery,
   SingleQuery,
-  SnapshotQueryClient,
 } from '@ahoo-wang/fetcher-wow';
 import { idGenerator } from '@ahoo-wang/fetcher-cosec';
+import {
+  AddCartItemCommand,
+  cartCommandClient,
+  CartCommandEndpoints,
+  cartSnapshotQueryClient,
+  currentUserId,
+} from '../../../src/wow';
+import { CartState } from '../../../src/wow';
 
-interface CartItem {
-  productId: string;
-  quantity: number;
-}
 
-interface CartState extends Identifier {
-  items: CartItem[];
-}
-
-const wowFetcher = new Fetcher({
-  baseURL: 'http://localhost:8080/',
-});
-const ownerId = idGenerator.generateId();
-wowFetcher.interceptors.request.use({
-  name: 'AppendOwnerId',
-  order: URL_RESOLVE_INTERCEPTOR_ORDER - 1,
-  intercept(exchange: FetchExchange) {
-    exchange.request.urlParams = {
-      path: {
-        ...exchange.request.urlParams?.path,
-        ownerId,
-      },
-      query: exchange.request.urlParams?.query,
-    };
-  },
-});
-const aggregateBasePath = 'owner/{ownerId}/cart';
-const cartClientOptions: ClientOptions = {
-  fetcher: wowFetcher,
-  basePath: aggregateBasePath,
-};
-const commandHttpClient = new CommandClient(cartClientOptions);
-const cartQueryClient = new SnapshotQueryClient<CartState>({
-  fetcher: wowFetcher,
-  basePath: aggregateBasePath,
-});
-const command: CommandRequest = {
+const command: AddCartItemCommand = {
   method: HttpMethod.POST,
   headers: {
     [CommandHttpHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT,
@@ -84,7 +50,7 @@ const command: CommandRequest = {
     quantity: 1,
   },
 };
-const commandResult = await commandHttpClient.send('add_cart_item', command);
+const commandResult = await cartCommandClient.send(CartCommandEndpoints.addCartItem, command);
 expect(commandResult.errorCode).toBe(ErrorCodes.SUCCEEDED);
 
 function expectCartState(cartState: Partial<CartState> | undefined) {
@@ -110,13 +76,13 @@ function expectSnapshotToBeDefined(
   expect(snapshot.state).toBeDefined();
   expect(snapshot.version).toBeDefined();
   expect(snapshot.operator).toBeDefined();
-  expect(snapshot.ownerId).toBe(ownerId);
+  expect(snapshot.ownerId).toBe(currentUserId);
   expectCartState(snapshot.state);
 }
 
-describe('SnapshotQueryClient Integration Test', () => {
+describe('cartSnapshotQueryClient Integration Test', () => {
   it('should count', async () => {
-    const count = await cartQueryClient.count(all());
+    const count = await cartSnapshotQueryClient.count(all());
     expect(count).greaterThanOrEqual(1);
   });
 
@@ -124,7 +90,7 @@ describe('SnapshotQueryClient Integration Test', () => {
     const listQuery: ListQuery = {
       condition: all(),
     };
-    const list = await cartQueryClient.list(listQuery);
+    const list = await cartSnapshotQueryClient.list(listQuery);
     for (const snapshot of list) {
       expectSnapshotToBeDefined(snapshot);
     }
@@ -134,7 +100,7 @@ describe('SnapshotQueryClient Integration Test', () => {
     const listQuery: ListQuery = {
       condition: all(),
     };
-    const listStream = await cartQueryClient.listStream(listQuery);
+    const listStream = await cartSnapshotQueryClient.listStream(listQuery);
     for await (const event of listStream) {
       const snapshot = event.data;
       expectSnapshotToBeDefined(snapshot);
@@ -144,7 +110,7 @@ describe('SnapshotQueryClient Integration Test', () => {
     const listQuery: ListQuery = {
       condition: all(),
     };
-    const list = await cartQueryClient.listState(listQuery);
+    const list = await cartSnapshotQueryClient.listState(listQuery);
     for (const state of list) {
       expectCartState(state);
     }
@@ -154,7 +120,7 @@ describe('SnapshotQueryClient Integration Test', () => {
     const listQuery: ListQuery = {
       condition: all(),
     };
-    const listStream = await cartQueryClient.listStateStream(listQuery);
+    const listStream = await cartSnapshotQueryClient.listStateStream(listQuery);
     for await (const event of listStream) {
       const state = event.data;
       expectCartState(state);
@@ -165,7 +131,7 @@ describe('SnapshotQueryClient Integration Test', () => {
     const pagedQuery: PagedQuery = {
       condition: all(),
     };
-    const paged = await cartQueryClient.paged(pagedQuery);
+    const paged = await cartSnapshotQueryClient.paged(pagedQuery);
     expect(paged.total).greaterThanOrEqual(1);
     expect(paged.list.length).greaterThanOrEqual(1);
     for (const snapshot of paged.list) {
@@ -177,7 +143,7 @@ describe('SnapshotQueryClient Integration Test', () => {
     const pagedQuery: PagedQuery = {
       condition: all(),
     };
-    const pagedState = await cartQueryClient.pagedState(pagedQuery);
+    const pagedState = await cartSnapshotQueryClient.pagedState(pagedQuery);
     for await (const cartState of pagedState.list) {
       expectCartState(cartState);
     }
@@ -187,7 +153,7 @@ describe('SnapshotQueryClient Integration Test', () => {
     const singleQuery: SingleQuery = {
       condition: all(),
     };
-    const single = await cartQueryClient.single(singleQuery);
+    const single = await cartSnapshotQueryClient.single(singleQuery);
     expectSnapshotToBeDefined(single);
   });
 
@@ -195,7 +161,7 @@ describe('SnapshotQueryClient Integration Test', () => {
     const singleQuery: SingleQuery = {
       condition: id(idGenerator.generateId()),
     };
-    await expect(cartQueryClient.single(singleQuery)).rejects.toThrow(
+    await expect(cartSnapshotQueryClient.single(singleQuery)).rejects.toThrow(
       ExchangeError,
     );
   });
@@ -204,7 +170,7 @@ describe('SnapshotQueryClient Integration Test', () => {
     const singleQuery: SingleQuery = {
       condition: all(),
     };
-    const singleState = await cartQueryClient.singleState(singleQuery);
+    const singleState = await cartSnapshotQueryClient.singleState(singleQuery);
     expectCartState(singleState);
   });
 });

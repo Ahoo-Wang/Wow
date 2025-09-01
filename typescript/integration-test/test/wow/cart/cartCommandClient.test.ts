@@ -13,47 +13,16 @@
 
 import { describe, it, expect } from 'vitest';
 import {
-  Fetcher,
-  FetchExchange,
   HttpMethod,
-  URL_RESOLVE_INTERCEPTOR_ORDER,
 } from '@ahoo-wang/fetcher';
 import '@ahoo-wang/fetcher-eventstream';
 import {
-  ClientOptions,
   CommandHttpHeaders,
-  CommandClient,
-  CommandRequest,
   CommandResult,
   CommandStage,
   ErrorCodes,
 } from '@ahoo-wang/fetcher-wow';
-import { idGenerator } from '@ahoo-wang/fetcher-cosec';
-
-const wowFetcher = new Fetcher({
-  baseURL: 'http://localhost:8080/',
-});
-const ownerId = idGenerator.generateId();
-wowFetcher.interceptors.request.use({
-  name: 'AppendOwnerId',
-  order: URL_RESOLVE_INTERCEPTOR_ORDER - 1,
-  intercept(exchange: FetchExchange) {
-    exchange.request.urlParams = {
-      path: {
-        ...exchange.request.urlParams?.path,
-        ownerId,
-      },
-      query: exchange.request.urlParams?.query,
-    };
-  },
-});
-const aggregateBasePath = 'owner/{ownerId}/cart';
-const cartClientOptions: ClientOptions = {
-  fetcher: wowFetcher,
-  basePath: aggregateBasePath,
-};
-
-const commandHttpClient = new CommandClient(cartClientOptions);
+import { AddCartItemCommand, cartCommandClient, CartCommandEndpoints, currentUserId } from '../../../src/wow';
 
 function expectCommandResultToBeDefined(commandResult: CommandResult) {
   expect(commandResult.id).toBeDefined();
@@ -73,13 +42,8 @@ function expectCommandResultToBeDefined(commandResult: CommandResult) {
   expect(commandResult.signalTime).toBeDefined();
 }
 
-interface AddCartItem {
-  productId: string;
-  quantity: number;
-}
-
-describe('CommandHttpClient Integration Test', () => {
-  const command: CommandRequest<AddCartItem> = {
+describe('cartCommandClient Integration Test', () => {
+  const addCartItemCommand: AddCartItemCommand = {
     method: HttpMethod.POST,
     headers: {
       [CommandHttpHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT,
@@ -91,20 +55,20 @@ describe('CommandHttpClient Integration Test', () => {
   };
 
   it('should send command', async () => {
-    const commandResult = await commandHttpClient.send(
-      'add_cart_item',
-      command,
+    const commandResult = await cartCommandClient.send(
+      CartCommandEndpoints.addCartItem,
+      addCartItemCommand,
     );
     expectCommandResultToBeDefined(commandResult);
-    expect(commandResult.aggregateId).toBe(ownerId);
+    expect(commandResult.aggregateId).toBe(currentUserId);
     expect(commandResult.errorCode).toBe(ErrorCodes.SUCCEEDED);
     expect(commandResult.stage).toBe(CommandStage.SNAPSHOT);
   });
 
   it('should send command and wait stream', async () => {
-    const commandResultStream = await commandHttpClient.sendAndWaitStream(
-      'add_cart_item',
-      command,
+    const commandResultStream = await cartCommandClient.sendAndWaitStream(
+      CartCommandEndpoints.addCartItem,
+      addCartItemCommand,
     );
     expect(commandResultStream).toBeDefined();
     for await (const commandResultEvent of commandResultStream) {
