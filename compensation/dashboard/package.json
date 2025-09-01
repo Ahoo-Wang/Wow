@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest",
-    "coverage": "vitest run --coverage"
+    "coverage": "vitest run --coverage",
+    "analyze": "npx vite-bundle-analyzer -p auto"
   },
   "dependencies": {
     "@ahoo-wang/fetcher": "^1.2.3",
@@ -41,6 +42,7 @@
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.41.0",
     "vite": "^7.1.3",
+    "vite-bundle-analyzer": "^1.2.3",
     "vitest": "^3.2.4",
     "vitest-browser-react": "^1.0.1"
   }
