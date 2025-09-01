@@ -18,7 +18,12 @@
 - **📡 实时事件流**：内置对服务器发送事件的支持，用于接收实时命令结果和数据更新
 - **🔄 CQRS 模式实现**：对命令查询责任分离架构模式的一流支持
 - **🧱 DDD 基础构件**：基本的领域驱动设计构建块，包括聚合、事件和值对象
-- **🔍 查询客户端**：专门用于查询快照和事件流数据的客户端，支持全面的查询操作
+- **🔍 查询客户端**：专门用于查询快照和事件流数据的客户端，支持全面的查询操作：
+    - 资源计数
+    - 资源列表查询
+    - 以服务器发送事件形式流式传输资源
+    - 资源分页
+    - 单个资源检索
 
 ## 🚀 快速开始
 
@@ -52,46 +57,65 @@ import { CommandResult, CommandStage } from '@ahoo-wang/fetcher-wow';
 用于向 Wow 框架发送命令的 HTTP 客户端。该客户端提供了同步或流式接收命令结果的方法。
 
 ```typescript
-import { Fetcher, URL_RESOLVE_INTERCEPTOR_ORDER } from '@ahoo-wang/fetcher';
+import { Fetcher, FetchExchange, RequestInterceptor, URL_RESOLVE_INTERCEPTOR_ORDER } from '@ahoo-wang/fetcher';
 import '@ahoo-wang/fetcher-eventstream';
 import {
   CommandClient,
   CommandRequest,
   HttpMethod,
   CommandHttpHeaders,
-  CommandStage,
+  CommandStage
 } from '@ahoo-wang/fetcher-wow';
 import { idGenerator } from '@ahoo-wang/fetcher-cosec';
 
-// 创建 fetcher 实例
-const wowFetcher = new Fetcher({
+// 使用基础配置创建 fetcher 实例
+const exampleFetcher = new Fetcher({
   baseURL: 'http://localhost:8080/',
 });
 
-// 添加拦截器处理 URL 参数
-const ownerId = idGenerator.generateId();
-wowFetcher.interceptors.request.use({
-  name: 'AppendOwnerId',
-  order: URL_RESOLVE_INTERCEPTOR_ORDER - 1,
-  intercept(exchange) {
+// 定义当前用户 ID
+const currentUserId = idGenerator.generateId();
+
+// 创建处理 URL 参数的拦截器
+class AppendOwnerId implements RequestInterceptor {
+  readonly name: string = 'AppendOwnerId';
+  readonly order: number = URL_RESOLVE_INTERCEPTOR_ORDER - 1;
+
+  intercept(exchange: FetchExchange) {
     exchange.request.urlParams = {
       path: {
         ...exchange.request.urlParams?.path,
-        ownerId,
+        ownerId: currentUserId,
       },
       query: exchange.request.urlParams?.query,
     };
-  },
-});
+  }
+}
+
+// 注册拦截器
+exampleFetcher.interceptors.request.use(new AppendOwnerId());
 
 // 创建命令客户端
-const commandClient = new CommandClient({
-  fetcher: wowFetcher,
+const cartCommandClient = new CommandClient({
+  fetcher: exampleFetcher,
   basePath: 'owner/{ownerId}/cart',
 });
 
-// 定义命令请求
-const command: CommandRequest = {
+// 定义命令端点
+class CartCommandEndpoints {
+  static readonly addCartItem = 'add_cart_item';
+}
+
+// 定义命令接口
+interface AddCartItem {
+  productId: string;
+  quantity: number;
+}
+
+type AddCartItemCommand = CommandRequest<AddCartItem>
+
+// 创建命令请求
+const addCartItemCommand: AddCartItemCommand = {
   method: HttpMethod.POST,
   headers: {
     [CommandHttpHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT,
@@ -103,12 +127,15 @@ const command: CommandRequest = {
 };
 
 // 发送命令并等待结果
-const commandResult = await commandClient.send('add_cart_item', command);
+const commandResult = await cartCommandClient.send(
+  CartCommandEndpoints.addCartItem,
+  addCartItemCommand,
+);
 
 // 发送命令并接收流式结果
-const commandResultStream = await commandClient.sendAndWaitStream(
-  'add_cart_item',
-  command,
+const commandResultStream = await cartCommandClient.sendAndWaitStream(
+  CartCommandEndpoints.addCartItem,
+  addCartItemCommand,
 );
 for await (const commandResultEvent of commandResultStream) {
   console.log('收到命令结果:', commandResultEvent.data);
@@ -173,10 +200,10 @@ const dateConditions = [
 
 #### SnapshotQueryClient
 
-用于查询物化快照的客户端：
+用于查询物化快照的客户端，支持全面的查询操作：
 
 ```typescript
-import { Fetcher, URL_RESOLVE_INTERCEPTOR_ORDER } from '@ahoo-wang/fetcher';
+import { Fetcher, FetchExchange, RequestInterceptor, URL_RESOLVE_INTERCEPTOR_ORDER } from '@ahoo-wang/fetcher';
 import '@ahoo-wang/fetcher-eventstream';
 import {
   SnapshotQueryClient,
@@ -192,59 +219,64 @@ interface CartItem {
   quantity: number;
 }
 
-interface CartState {
-  id: string;
+interface CartState extends Identifier {
   items: CartItem[];
 }
 
-// 创建 fetcher 实例
-const wowFetcher = new Fetcher({
+// 使用基础配置创建 fetcher 实例
+const exampleFetcher = new Fetcher({
   baseURL: 'http://localhost:8080/',
 });
 
-// 添加拦截器处理 URL 参数
-const ownerId = idGenerator.generateId();
-wowFetcher.interceptors.request.use({
-  name: 'AppendOwnerId',
-  order: URL_RESOLVE_INTERCEPTOR_ORDER - 1,
-  intercept(exchange) {
+// 定义当前用户 ID
+const currentUserId = idGenerator.generateId();
+
+// 创建处理 URL 参数的拦截器
+class AppendOwnerId implements RequestInterceptor {
+  readonly name: string = 'AppendOwnerId';
+  readonly order: number = URL_RESOLVE_INTERCEPTOR_ORDER - 1;
+
+  intercept(exchange: FetchExchange) {
     exchange.request.urlParams = {
       path: {
         ...exchange.request.urlParams?.path,
-        ownerId,
+        ownerId: currentUserId,
       },
       query: exchange.request.urlParams?.query,
     };
-  },
-});
+  }
+}
+
+// 注册拦截器
+exampleFetcher.interceptors.request.use(new AppendOwnerId());
 
 // 创建快照查询客户端
-const snapshotQueryClient = new SnapshotQueryClient<CartState>({
-  fetcher: wowFetcher,
+const cartSnapshotQueryClient = new SnapshotQueryClient<CartState>({
+  fetcher: exampleFetcher,
   basePath: 'owner/{ownerId}/cart',
 });
 
 // 统计快照数量
-const count = await snapshotQueryClient.count(all());
+const count = await cartSnapshotQueryClient.count(all());
 
 // 列出快照
 const listQuery: ListQuery = {
   condition: all(),
 };
-const list = await snapshotQueryClient.list(listQuery);
+const list = await cartSnapshotQueryClient.list(listQuery);
 
 // 以流的形式列出快照
-const listStream = await snapshotQueryClient.listStream(listQuery);
+const listStream = await cartSnapshotQueryClient.listStream(listQuery);
 for await (const event of listStream) {
   const snapshot = event.data;
   console.log('收到快照:', snapshot);
 }
 
 // 列出快照状态
-const stateList = await snapshotQueryClient.listState(listQuery);
+const stateList = await cartSnapshotQueryClient.listState(listQuery);
 
 // 以流的形式列出快照状态
-const stateStream = await snapshotQueryClient.listStateStream(listQuery);
+const stateStream = await cartSnapshotQueryClient.listStateStream(listQuery);
 for await (const event of stateStream) {
   const state = event.data;
   console.log('收到状态:', state);
@@ -254,27 +286,41 @@ for await (const event of stateStream) {
 const pagedQuery: PagedQuery = {
   condition: all(),
 };
-const paged = await snapshotQueryClient.paged(pagedQuery);
+const paged = await cartSnapshotQueryClient.paged(pagedQuery);
 
 // 分页查询快照状态
-const pagedState = await snapshotQueryClient.pagedState(pagedQuery);
+const pagedState = await cartSnapshotQueryClient.pagedState(pagedQuery);
 
 // 查询单个快照
 const singleQuery: SingleQuery = {
   condition: all(),
 };
-const single = await snapshotQueryClient.single(singleQuery);
+const single = await cartSnapshotQueryClient.single(singleQuery);
 
 // 查询单个快照状态
-const singleState = await snapshotQueryClient.singleState(singleQuery);
+const singleState = await cartSnapshotQueryClient.singleState(singleQuery);
 ```
+
+##### 方法
+
+- `count(condition: Condition): Promise<number>` - 统计匹配给定条件的快照数量。
+- `list(listQuery: ListQuery): Promise<Partial<MaterializedSnapshot<S>>[]>` - 检索物化快照列表。
+- `listStream(listQuery: ListQuery): Promise<ReadableStream<JsonServerSentEvent<Partial<MaterializedSnapshot<S>>>>>` -
+  以服务器发送事件的形式检索物化快照流。
+- `listState(listQuery: ListQuery): Promise<Partial<S>[]>` - 检索快照状态列表。
+- `listStateStream(listQuery: ListQuery): Promise<ReadableStream<JsonServerSentEvent<Partial<S>>>>` -
+  以服务器发送事件的形式检索快照状态流。
+- `paged(pagedQuery: PagedQuery): Promise<PagedList<Partial<MaterializedSnapshot<S>>>>` - 检索物化快照的分页列表。
+- `pagedState(pagedQuery: PagedQuery): Promise<PagedList<Partial<S>>>` - 检索快照状态的分页列表。
+- `single(singleQuery: SingleQuery): Promise<Partial<MaterializedSnapshot<S>>>` - 检索单个物化快照。
+- `singleState(singleQuery: SingleQuery): Promise<Partial<S>>` - 检索单个快照状态。
 
 #### EventStreamQueryClient
 
-用于查询领域事件流的客户端：
+用于查询领域事件流的客户端，支持全面的查询操作：
 
 ```typescript
-import { Fetcher, URL_RESOLVE_INTERCEPTOR_ORDER } from '@ahoo-wang/fetcher';
+import { Fetcher, FetchExchange, RequestInterceptor, URL_RESOLVE_INTERCEPTOR_ORDER } from '@ahoo-wang/fetcher';
 import '@ahoo-wang/fetcher-eventstream';
 import {
   EventStreamQueryClient,
@@ -284,44 +330,50 @@ import {
 } from '@ahoo-wang/fetcher-wow';
 import { idGenerator } from '@ahoo-wang/fetcher-cosec';
 
-// 创建 fetcher 实例
-const wowFetcher = new Fetcher({
+// 使用基础配置创建 fetcher 实例
+const exampleFetcher = new Fetcher({
   baseURL: 'http://localhost:8080/',
 });
 
-// 添加拦截器处理 URL 参数
-const ownerId = idGenerator.generateId();
-wowFetcher.interceptors.request.use({
-  name: 'AppendOwnerId',
-  order: URL_RESOLVE_INTERCEPTOR_ORDER - 1,
-  intercept(exchange) {
+// 定义当前用户 ID
+const currentUserId = idGenerator.generateId();
+
+// 创建处理 URL 参数的拦截器
+class AppendOwnerId implements RequestInterceptor {
+  readonly name: string = 'AppendOwnerId';
+  readonly order: number = URL_RESOLVE_INTERCEPTOR_ORDER - 1;
+
+  intercept(exchange: FetchExchange) {
     exchange.request.urlParams = {
       path: {
         ...exchange.request.urlParams?.path,
-        ownerId,
+        ownerId: currentUserId,
       },
       query: exchange.request.urlParams?.query,
     };
-  },
-});
+  }
+}
+
+// 注册拦截器
+exampleFetcher.interceptors.request.use(new AppendOwnerId());
 
 // 创建事件流查询客户端
-const eventStreamQueryClient = new EventStreamQueryClient({
-  fetcher: wowFetcher,
+const cartEventStreamQueryClient = new EventStreamQueryClient({
+  fetcher: exampleFetcher,
   basePath: 'owner/{ownerId}/cart',
 });
 
 // 统计事件流数量
-const count = await eventStreamQueryClient.count(all());
+const count = await cartEventStreamQueryClient.count(all());
 
 // 列出事件流
 const listQuery: ListQuery = {
   condition: all(),
 };
-const list = await eventStreamQueryClient.list(listQuery);
+const list = await cartEventStreamQueryClient.list(listQuery);
 
 // 以流的形式列出事件流
-const listStream = await eventStreamQueryClient.listStream(listQuery);
+const listStream = await cartEventStreamQueryClient.listStream(listQuery);
 for await (const event of listStream) {
   const domainEventStream = event.data;
   console.log('收到事件流:', domainEventStream);
@@ -331,15 +383,23 @@ for await (const event of listStream) {
 const pagedQuery: PagedQuery = {
   condition: all(),
 };
-const paged = await eventStreamQueryClient.paged(pagedQuery);
+const paged = await cartEventStreamQueryClient.paged(pagedQuery);
 ```
+
+##### 方法
+
+- `count(condition: Condition): Promise<number>` - 统计匹配给定条件的领域事件流数量。
+- `list(listQuery: ListQuery): Promise<Partial<DomainEventStream>[]>` - 检索领域事件流列表。
+- `listStream(listQuery: ListQuery): Promise<ReadableStream<JsonServerSentEvent<Partial<DomainEventStream>>>>` -
+  以服务器发送事件的形式检索领域事件流。
+- `paged(pagedQuery: PagedQuery): Promise<PagedList<Partial<DomainEventStream>>>` - 检索领域事件流的分页列表。
 
 ## 🛠️ 高级用法
 
 ### 完整的命令和查询流程示例
 
 ```typescript
-import { Fetcher, URL_RESOLVE_INTERCEPTOR_ORDER } from '@ahoo-wang/fetcher';
+import { Fetcher, FetchExchange, RequestInterceptor, URL_RESOLVE_INTERCEPTOR_ORDER } from '@ahoo-wang/fetcher';
 import '@ahoo-wang/fetcher-eventstream';
 import {
   CommandClient,
@@ -364,39 +424,58 @@ interface CartState {
 }
 
 // 创建 fetcher 实例
-const wowFetcher = new Fetcher({
+const exampleFetcher = new Fetcher({
   baseURL: 'http://localhost:8080/',
 });
 
-// 添加拦截器处理 URL 参数
-const ownerId = idGenerator.generateId();
-wowFetcher.interceptors.request.use({
-  name: 'AppendOwnerId',
-  order: URL_RESOLVE_INTERCEPTOR_ORDER - 1,
-  intercept(exchange) {
+// 定义当前用户 ID
+const currentUserId = idGenerator.generateId();
+
+// 创建处理 URL 参数的拦截器
+class AppendOwnerId implements RequestInterceptor {
+  readonly name: string = 'AppendOwnerId';
+  readonly order: number = URL_RESOLVE_INTERCEPTOR_ORDER - 1;
+
+  intercept(exchange: FetchExchange) {
     exchange.request.urlParams = {
       path: {
         ...exchange.request.urlParams?.path,
-        ownerId,
+        ownerId: currentUserId,
       },
       query: exchange.request.urlParams?.query,
     };
-  },
-});
+  }
+}
+
+// 注册拦截器
+exampleFetcher.interceptors.request.use(new AppendOwnerId());
 
 // 创建客户端
-const commandClient = new CommandClient({
-  fetcher: wowFetcher,
+const cartCommandClient = new CommandClient({
+  fetcher: exampleFetcher,
   basePath: 'owner/{ownerId}/cart',
 });
 
-const snapshotQueryClient = new SnapshotQueryClient<CartState>({
-  fetcher: wowFetcher,
+const cartSnapshotQueryClient = new SnapshotQueryClient<CartState>({
+  fetcher: exampleFetcher,
   basePath: 'owner/{ownerId}/cart',
 });
+
+// 定义命令端点
+class CartCommandEndpoints {
+  static readonly addCartItem = 'add_cart_item';
+}
+
+// 定义命令接口
+interface AddCartItem {
+  productId: string;
+  quantity: number;
+}
+
+type AddCartItemCommand = CommandRequest<AddCartItem>
 
 // 1. 发送命令添加商品到购物车
-const addItemCommand: CommandRequest = {
+const addItemCommand: AddCartItemCommand = {
   method: HttpMethod.POST,
   headers: {
     [CommandHttpHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT,
@@ -407,21 +486,24 @@ const addItemCommand: CommandRequest = {
   },
 };
 
-const commandResult = await commandClient.send('add_cart_item', addItemCommand);
+const commandResult = await cartCommandClient.send(
+  CartCommandEndpoints.addCartItem,
+  addItemCommand
+);
 console.log('命令执行完成:', commandResult);
 
 // 2. 查询更新后的购物车
 const listQuery: ListQuery = {
   condition: all(),
 };
-const carts = await snapshotQueryClient.list(listQuery);
+const carts = await cartSnapshotQueryClient.list(listQuery);
 
 for (const cart of carts) {
   console.log('购物车:', cart.state);
 }
 
 // 3. 流式监听购物车更新
-const listStream = await snapshotQueryClient.listStream(listQuery);
+const listStream = await cartSnapshotQueryClient.listStream(listQuery);
 for await (const event of listStream) {
   const cart = event.data;
   console.log('购物车更新:', cart.state);
