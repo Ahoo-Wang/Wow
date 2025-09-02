@@ -11,12 +11,16 @@
  * limitations under the License.
  */
 
-import { Table, Tag, Typography,Statistic } from "antd";
+import { Table, Tag, Typography, Statistic, Drawer } from "antd";
 import type { TableColumnsType } from "antd";
 import { type PagedList } from "@ahoo-wang/fetcher-wow";
 import type { ExecutionFailedState } from "../../services";
+import { FailedDetails } from "./FailedDetails";
+import { useState } from "react";
+
 const { Text } = Typography;
-const {Timer}=Statistic;
+const { Timer } = Statistic;
+
 interface FailedTableProps {
   onPaginationChange?: (page: number, pageSize: number) => void;
   pagedList: PagedList<ExecutionFailedState>;
@@ -29,7 +33,11 @@ const columns: TableColumnsType<ExecutionFailedState> = [
     key: "id",
     width: 100,
     fixed: "left",
-    render: (id) => <Text ellipsis={true} copyable>{id}</Text>,
+    render: (id) => (
+      <Text ellipsis={true} copyable>
+        {id}
+      </Text>
+    ),
   },
   {
     title: "Function",
@@ -71,11 +79,7 @@ const columns: TableColumnsType<ExecutionFailedState> = [
         title: "Kind",
         dataIndex: "function",
         key: "function.functionKind",
-        render: (func) => (
-          <Text>
-            {func?.functionKind}
-          </Text>
-        ),
+        render: (func) => <Text>{func?.functionKind}</Text>,
         width: 100,
       },
     ],
@@ -87,18 +91,18 @@ const columns: TableColumnsType<ExecutionFailedState> = [
         title: "Event ID",
         dataIndex: "eventId",
         key: "eventId.id",
-        render: (eventId) => <Text ellipsis={true} copyable>{eventId?.id}</Text>,
+        render: (eventId) => (
+          <Text ellipsis={true} copyable>
+            {eventId?.id}
+          </Text>
+        ),
         width: 120,
       },
       {
         title: "Version",
         dataIndex: "eventId",
         key: "eventId.version",
-        render: (eventId) => (
-          <Text>
-            {eventId?.version}
-          </Text>
-        ),
+        render: (eventId) => <Text>{eventId?.version}</Text>,
         width: 80,
       },
       {
@@ -106,7 +110,9 @@ const columns: TableColumnsType<ExecutionFailedState> = [
         dataIndex: "eventId",
         key: "eventId.aggregateId.aggregateId",
         render: (eventId) => (
-          <Text ellipsis={true} copyable>{eventId?.aggregateId.aggregateId}</Text>
+          <Text ellipsis={true} copyable>
+            {eventId?.aggregateId.aggregateId}
+          </Text>
         ),
         width: 140,
       },
@@ -114,7 +120,7 @@ const columns: TableColumnsType<ExecutionFailedState> = [
         title: "Context",
         dataIndex: "eventId",
         key: "eventId.aggregateId.contextName",
-        render: (eventId) => (<Text>{eventId?.aggregateId.contextName}</Text>),
+        render: (eventId) => <Text>{eventId?.aggregateId.contextName}</Text>,
         width: 120,
       },
       {
@@ -184,7 +190,7 @@ const columns: TableColumnsType<ExecutionFailedState> = [
         title: "Next Retry",
         dataIndex: "retryState",
         key: "retryState.nextRetryAt",
-        render: (retryState) =>(
+        render: (retryState) => (
           <Timer
             type="countdown"
             value={retryState?.nextRetryAt}
@@ -201,17 +207,48 @@ export function FailedTable({
   onPaginationChange,
   pagedList,
 }: FailedTableProps) {
+  const [selectedRecord, setSelectedRecord] = useState<ExecutionFailedState | null>(null);
+  const [drawerVisible, setDrawerVisible] = useState(false);
+
+  const showDrawer = (record: ExecutionFailedState) => {
+    setSelectedRecord(record);
+    setDrawerVisible(true);
+  };
+
+  const closeDrawer = () => {
+    setDrawerVisible(false);
+    setSelectedRecord(null);
+  };
+
   return (
-    <Table<ExecutionFailedState>
-      rowKey="id"
-      columns={columns}
-      dataSource={pagedList.list}
-      pagination={{
-        total: pagedList.total,
-        onChange: onPaginationChange,
-      }}
-      bordered
-      scroll={{ x: 1500 }}
-    ></Table>
+    <>
+      <Table<ExecutionFailedState>
+        rowKey="id"
+        onRow={(record) => {
+          return {
+            onClick: (_event) => {
+              showDrawer(record);
+            },
+          };
+        }}
+        columns={columns}
+        dataSource={pagedList.list}
+        pagination={{
+          total: pagedList.total,
+          onChange: onPaginationChange,
+        }}
+        bordered
+        scroll={{ x: 1500 }}
+      ></Table>
+      <Drawer
+        title="Failed Event Details"
+        width={'60vw'}
+        onClose={closeDrawer}
+        open={drawerVisible}
+        bodyStyle={{ paddingBottom: 80 }}
+      >
+        {selectedRecord && <FailedDetails state={selectedRecord} />}
+      </Drawer>
+    </>
   );
 }
