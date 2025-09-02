@@ -157,6 +157,31 @@ describe('Condition', () => {
         });
       });
 
+      it('should create AND condition with one argument and return that argument', () => {
+        const condition: Condition = {
+          field: 'name',
+          operator: Operator.EQ,
+          value: 'test',
+        };
+        const result = and(condition);
+        expect(result).toBe(condition);
+      });
+
+      it('should optimize nested AND conditions', () => {
+        const condition1: Condition = eq('name', 'test');
+        const condition2: Condition = gt('age', 18);
+        const condition3: Condition = active();
+        const condition4: Condition = startsWith('address', 'ShangHai');
+        const nestedAnd1 = and(condition1, condition2);
+        const nestedAnd2 = and(condition3, condition4);
+        const result = and(nestedAnd1, nestedAnd2);
+
+        expect(result).toEqual({
+          operator: Operator.AND,
+          children: [condition1, condition2, condition3, condition4],
+        });
+      });
+
       it('should create OR condition', () => {
         const condition1: Condition = {
           field: 'name',

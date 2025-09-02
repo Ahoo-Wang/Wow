@@ -166,15 +166,33 @@ export enum DeletionState {
 /**
  * Creates an AND condition with the specified conditions.
  *
- * @param conditions - Conditions to combine with AND
- * @returns A condition with AND operator
+ * This function combines multiple conditions using the logical AND operator.
+ * It provides optimizations such as returning the condition directly when
+ * only one is provided, and flattening nested AND conditions.
+ *
+ * @param conditions - Conditions to combine with AND. If empty, returns an ALL condition.
+ *                   If exactly one, returns that condition directly.
+ *                   If multiple, combines them into an AND condition with flattening optimization.
+ * @returns A condition with AND operator or an optimized condition based on the input
  */
 export function and(...conditions: Condition[]): Condition {
   if (conditions.length === 0) {
     return all();
   }
-  return { operator: Operator.AND, children: conditions };
+  if (conditions.length === 1) {
+    return conditions[0];
+  }
+  const andChildren: Condition[] = [];
+  conditions.forEach((condition) => {
+    if (condition.operator === Operator.AND && condition.children) {
+      andChildren.push(...condition.children);
+    } else {
+      andChildren.push(condition);
+    }
+  });
+  return { operator: Operator.AND, children: andChildren };
 }
+
 
 /**
  * Creates an OR condition with the specified conditions.
