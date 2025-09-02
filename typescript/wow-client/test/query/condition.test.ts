@@ -150,6 +150,13 @@ describe('Condition', () => {
         });
       });
 
+      it('should create AND condition with no arguments and return ALL condition', () => {
+        const result = and();
+        expect(result).toEqual({
+          operator: Operator.ALL,
+        });
+      });
+
       it('should create OR condition', () => {
         const condition1: Condition = {
           field: 'name',
@@ -169,6 +176,13 @@ describe('Condition', () => {
         });
       });
 
+      it('should create OR condition with no arguments and return ALL condition', () => {
+        const result = or();
+        expect(result).toEqual({
+          operator: Operator.ALL,
+        });
+      });
+
       it('should create NOR condition', () => {
         const condition1: Condition = {
           field: 'name',
@@ -185,6 +199,13 @@ describe('Condition', () => {
         expect(result).toEqual({
           operator: Operator.NOR,
           children: [condition1, condition2],
+        });
+      });
+
+      it('should create NOR condition with no arguments and return ALL condition', () => {
+        const result = nor();
+        expect(result).toEqual({
+          operator: Operator.ALL,
         });
       });
     });

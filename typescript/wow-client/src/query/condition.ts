@@ -170,6 +170,9 @@ export enum DeletionState {
  * @returns A condition with AND operator
  */
 export function and(...conditions: Condition[]): Condition {
+  if (conditions.length === 0) {
+    return all();
+  }
   return { operator: Operator.AND, children: conditions };
 }
 
@@ -180,6 +183,9 @@ export function and(...conditions: Condition[]): Condition {
  * @returns A condition with OR operator
  */
 export function or(...conditions: Condition[]): Condition {
+  if (conditions.length === 0) {
+    return all();
+  }
   return { operator: Operator.OR, children: conditions };
 }
 
@@ -190,6 +196,9 @@ export function or(...conditions: Condition[]): Condition {
  * @returns A condition with NOR operator
  */
 export function nor(...conditions: Condition[]): Condition {
+  if (conditions.length === 0) {
+    return all();
+  }
   return { operator: Operator.NOR, children: conditions };
 }
 
