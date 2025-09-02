@@ -29,7 +29,7 @@ describe('projection', () => {
 
   it('should create projection object with include fields', () => {
     const includeFields = ['field1', 'field2'];
-    const result = projection(includeFields);
+    const result = projection({ include: includeFields });
     expect(result).toEqual({
       include: includeFields,
       exclude: undefined,
@@ -38,7 +38,7 @@ describe('projection', () => {
 
   it('should create projection object with exclude fields', () => {
     const excludeFields = ['field1', 'field2'];
-    const result = projection(undefined, excludeFields);
+    const result = projection({ exclude: excludeFields });
     expect(result).toEqual({
       include: undefined,
       exclude: excludeFields,
@@ -48,7 +48,7 @@ describe('projection', () => {
   it('should create projection object with both include and exclude fields', () => {
     const includeFields = ['field1', 'field2'];
     const excludeFields = ['field3', 'field4'];
-    const result = projection(includeFields, excludeFields);
+    const result = projection({ include: includeFields, exclude: excludeFields });
     expect(result).toEqual({
       include: includeFields,
       exclude: excludeFields,

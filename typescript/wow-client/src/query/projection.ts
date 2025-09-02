@@ -26,12 +26,18 @@ export interface Projection {
 export const DEFAULT_PROJECTION: Projection = {};
 
 /**
- * Creates a projection object with optional include and exclude field arrays.
- * @param include - Array of field names to include in the projection. If provided, only these fields will be included.
- * @param exclude - Array of field names to exclude from the projection. If provided, these fields will be excluded.
- * @returns A Projection object with the specified include and exclude arrays
+ * Creates a Projection object with the provided parameters.
+ *
+ * This function is a factory for creating Projection objects, which represent
+ * field projection specifications for queries. It allows specifying which fields
+ * to include or exclude in query results.
+ *
+ * @param options - The projection options. Defaults to DEFAULT_PROJECTION.
+ * @param options.include - Array of field names to include in the projection. Optional.
+ * @param options.exclude - Array of field names to exclude from the projection. Optional.
+ * @returns A Projection object with the specified parameters
  */
-export function projection(include?: string[], exclude?: string[]): Projection {
+export function projection({ include, exclude }: Projection = DEFAULT_PROJECTION): Projection {
   return {
     include,
     exclude,
