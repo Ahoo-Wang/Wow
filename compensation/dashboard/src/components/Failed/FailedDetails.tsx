@@ -5,6 +5,7 @@ import { FullscreenOutlined, FullscreenExitOutlined } from "@ant-design/icons";
 import type { ExecutionFailedState } from "../../services";
 import { Editor } from "@monaco-editor/react";
 import { useState } from "react";
+import { ErrorDetails } from "./ErrorDetails.tsx";
 const { Timer } = Statistic;
 function formatIsoDateTime(timeAt: number | undefined): string {
   if (!timeAt) {
@@ -13,18 +14,13 @@ function formatIsoDateTime(timeAt: number | undefined): string {
   return new Date(timeAt).toLocaleString();
 }
 
-const { Title, Text } = Typography;
+const {  Text } = Typography;
 
 export interface FailedDetailsProps {
   state: ExecutionFailedState;
 }
 
 export function FailedDetails({ state }: FailedDetailsProps) {
-  const [isFullscreen, setIsFullscreen] = useState(false);
-
-  const toggleFullscreen = () => {
-    setIsFullscreen(!isFullscreen);
-  };
 
   // 基本信息
   const basicItems: DescriptionsProps["items"] = [
@@ -166,22 +162,6 @@ export function FailedDetails({ state }: FailedDetailsProps) {
     },
   ];
 
-  // 错误信息
-  const errorItems: DescriptionsProps["items"] = [
-    {
-      key: "errorCode",
-      label: "Error Code",
-      children: <Text code>{state.error.errorCode}</Text>,
-      span: 1,
-    },
-    {
-      key: "errorMsg",
-      label: "Error Message",
-      children: state.error.errorMsg,
-      span: 1,
-    },
-  ];
-
   // 重试信息
   const retryItems: DescriptionsProps["items"] = [
     {
@@ -238,77 +218,8 @@ export function FailedDetails({ state }: FailedDetailsProps) {
       <Descriptions bordered column={2} items={eventIdItems} size="small" />
 
       <Descriptions bordered column={2} items={functionItems} size="small" />
-
-      <Descriptions bordered column={1} items={errorItems} size="small" />
-
       <Descriptions bordered column={2} items={retryItems} size="small" />
-
-      {state.error?.stackTrace && (
-        <div
-          style={{
-            flex: 1,
-            display: "flex",
-            flexDirection: "column",
-            minHeight: 0,
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: "8px",
-            }}
-          >
-            <Title level={5} style={{ marginTop: 0, marginBottom: 0 }}>
-              Stack Trace
-            </Title>
-            <Button
-              icon={
-                isFullscreen ? (
-                  <FullscreenExitOutlined />
-                ) : (
-                  <FullscreenOutlined />
-                )
-              }
-              onClick={toggleFullscreen}
-              size="small"
-            />
-          </div>
-          <div
-            style={{
-              flex: 1,
-              border: "1px solid #d9d9d9",
-              borderRadius: "4px",
-              overflow: "hidden",
-              position: isFullscreen ? "fixed" : "static",
-              top: isFullscreen ? 0 : "auto",
-              left: isFullscreen ? 0 : "auto",
-              right: isFullscreen ? 0 : "auto",
-              bottom: isFullscreen ? 0 : "auto",
-              zIndex: isFullscreen ? 1000 : "auto",
-              backgroundColor: isFullscreen ? "#fff" : "transparent",
-            }}
-          >
-            <Editor
-              height={isFullscreen ? "100vh" : "100%"}
-              defaultLanguage="java" // 使用java语言类型更适合展示Java堆栈跟踪
-              defaultValue={state.error.stackTrace}
-              options={{
-                readOnly: true,
-                minimap: { enabled: false },
-                scrollBeyondLastLine: false,
-                automaticLayout: true,
-                fontSize: 12,
-                lineNumbers: "on", // 显示行号
-                folding: true, // 启用代码折叠
-                wordWrap: "on", // 自动换行
-                theme: "vs-dark", // 使用深色主题，提高可读性
-              }}
-            />
-          </div>
-        </div>
-      )}
+      <ErrorDetails error={state.error}></ErrorDetails>
     </div>
   );
 }
