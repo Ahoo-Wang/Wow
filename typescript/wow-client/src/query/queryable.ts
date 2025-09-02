@@ -44,7 +44,7 @@ export interface SingleQuery extends Queryable {
  * @param sort - The sort criteria. Optional.
  * @returns A SingleQuery object with the specified parameters
  */
-export function singleQuery({ condition = all(), projection, sort }: Partial<SingleQuery>): SingleQuery {
+export function singleQuery({ condition = all(), projection, sort }: Partial<SingleQuery> = {}): SingleQuery {
   return {
     condition,
     projection,
@@ -81,7 +81,7 @@ export function listQuery({
                             projection,
                             sort,
                             limit = DEFAULT_PAGINATION.size,
-                          }: Partial<ListQuery>): ListQuery {
+                          }: Partial<ListQuery> = {}): ListQuery {
   return {
     condition,
     projection,
@@ -95,6 +95,35 @@ export function listQuery({
  */
 export interface PagedQuery extends Queryable {
   pagination?: Pagination;
+}
+
+/**
+ * Creates a PagedQuery object with the provided parameters.
+ *
+ * This function is a factory for creating PagedQuery objects, which represent
+ * queries that return a paged list of results. It provides default values for optional
+ * properties while allowing customization of condition, projection, sort criteria,
+ * and pagination.
+ *
+ * @param condition - The query condition. Defaults to an 'all' condition that matches everything.
+ * @param projection - The field projection specification. Optional.
+ * @param sort - The sort criteria. Optional.
+ * @param pagination - The pagination specification. Optional.
+ *
+ * @returns A PagedQuery object with the specified parameters
+ */
+export function pagedQuery({
+                             condition = all(),
+                             projection,
+                             sort,
+                             pagination = DEFAULT_PAGINATION,
+                           }: Partial<PagedQuery> = {}): PagedQuery {
+  return {
+    condition,
+    projection,
+    sort,
+    pagination,
+  };
 }
 
 /**

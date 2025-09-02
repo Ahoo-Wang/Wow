@@ -12,15 +12,15 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { all, asc, eq, FieldSort } from '../../src';
-import { singleQuery, listQuery } from '../../src';
+import { all, asc, eq, FieldSort, projection } from '../../src';
+import { singleQuery, listQuery, pagedQuery } from '../../src';
 import { Projection } from '../../src';
 import { DEFAULT_PAGINATION } from '../../src';
 
 describe('queryable', () => {
   describe('singleQuery', () => {
     it('should create a SingleQuery with default condition when no parameters are provided', () => {
-      const result = singleQuery({} as any);
+      const result = singleQuery();
 
       expect(result).toEqual({
         condition: all(),
@@ -58,14 +58,14 @@ describe('queryable', () => {
 
     it('should create a SingleQuery with all provided parameters', () => {
       const condition = eq('name', 'test');
-      const projection: Projection = { include: ['field1', 'field2'] };
+      const queryProjection: Projection = projection({ include: ['field1', 'field2'] });
       const sort: FieldSort[] = [asc('name')];
 
-      const result = singleQuery({ condition, projection, sort });
+      const result = singleQuery({ condition, projection: queryProjection, sort });
 
       expect(result).toEqual({
         condition,
-        projection,
+        projection: queryProjection,
         sort,
       });
     });
@@ -73,7 +73,7 @@ describe('queryable', () => {
 
   describe('listQuery', () => {
     it('should create a ListQuery with default values when no parameters are provided', () => {
-      const result = listQuery({} as any);
+      const result = listQuery();
 
       expect(result).toEqual({
         condition: all(),
@@ -136,6 +136,75 @@ describe('queryable', () => {
         projection,
         sort,
         limit,
+      });
+    });
+  });
+
+  describe('pagedQuery', () => {
+    it('should create a PagedQuery with default values when no parameters are provided', () => {
+      const result = pagedQuery();
+
+      expect(result).toEqual({
+        condition: all(),
+        pagination: DEFAULT_PAGINATION,
+      });
+    });
+
+    it('should create a PagedQuery with provided condition', () => {
+      const condition = eq('name', 'test');
+      const result = pagedQuery({ condition });
+
+      expect(result).toEqual({
+        condition,
+        pagination: DEFAULT_PAGINATION,
+      });
+    });
+
+    it('should create a PagedQuery with provided projection', () => {
+      const projection: Projection = { include: ['field1', 'field2'] };
+      const result = pagedQuery({ projection });
+
+      expect(result).toEqual({
+        condition: all(),
+        projection,
+        pagination: DEFAULT_PAGINATION,
+      });
+    });
+
+    it('should create a PagedQuery with provided sort', () => {
+      const sort: FieldSort[] = [asc('name')];
+      const result = pagedQuery({ sort });
+
+      expect(result).toEqual({
+        condition: all(),
+        sort,
+        pagination: DEFAULT_PAGINATION,
+      });
+    });
+
+    it('should create a PagedQuery with provided pagination', () => {
+      const pagination = { index: 2, size: 20 };
+      const result = pagedQuery({ pagination });
+
+      expect(result).toEqual({
+        condition: all(),
+        pagination,
+      });
+    });
+
+    it('should create a PagedQuery with all provided parameters', () => {
+      const condition = eq('name', 'test');
+      const projection: Projection = { include: ['field1', 'field2'] };
+      const sort: FieldSort[] = [asc('name')];
+      const pagination = { index: 2, size: 20 };
+
+      const result = pagedQuery({ condition, projection, sort, pagination });
+
+      expect(result).toEqual({
+        condition,
+        projection,
+        sort,
+        pagination,
       });
     });
   });
