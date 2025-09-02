@@ -184,6 +184,9 @@ export function and(...conditions: Condition[]): Condition {
   }
   const andChildren: Condition[] = [];
   conditions.forEach(condition => {
+    if (condition.operator === Operator.ALL) {
+      return;
+    }
     if (condition.operator === Operator.AND && condition.children) {
       andChildren.push(...condition.children);
     } else {

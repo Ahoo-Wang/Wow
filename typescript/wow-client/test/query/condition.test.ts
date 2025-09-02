@@ -174,7 +174,7 @@ describe('Condition', () => {
         const condition4: Condition = startsWith('address', 'ShangHai');
         const nestedAnd1 = and(condition1, condition2);
         const nestedAnd2 = and(condition3, condition4);
-        const result = and(nestedAnd1, nestedAnd2);
+        const result = and(nestedAnd1, nestedAnd2, all());
 
         expect(result).toEqual({
           operator: Operator.AND,
