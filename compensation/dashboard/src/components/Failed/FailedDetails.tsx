@@ -1,10 +1,7 @@
-import { Descriptions, Typography, Tag, Button, Statistic } from "antd";
+import { Descriptions, Typography, Tag, Statistic } from "antd";
 import type { DescriptionsProps } from "antd";
-import { FullscreenOutlined, FullscreenExitOutlined } from "@ant-design/icons";
 
 import type { ExecutionFailedState } from "../../services";
-import { Editor } from "@monaco-editor/react";
-import { useState } from "react";
 import { ErrorDetails } from "./ErrorDetails.tsx";
 const { Timer } = Statistic;
 function formatIsoDateTime(timeAt: number | undefined): string {
@@ -32,7 +29,7 @@ export function FailedDetails({ state }: FailedDetailsProps) {
           {state.id}
         </Text>
       ),
-      span: 2,
+      span: 1,
     },
     {
       key: "status",
@@ -89,6 +86,18 @@ export function FailedDetails({ state }: FailedDetailsProps) {
   // EventId 信息
   const eventIdItems: DescriptionsProps["items"] = [
     {
+      key: "contextName",
+      label: "Context Name",
+      children: state.eventId.aggregateId.contextName,
+      span: 1,
+    },
+    {
+      key: "aggregateName",
+      label: "Aggregate Name",
+      children: state.eventId.aggregateId.aggregateName,
+      span: 1,
+    },
+    {
       key: "eventId",
       label: "Event ID",
       children: (
@@ -96,13 +105,27 @@ export function FailedDetails({ state }: FailedDetailsProps) {
           {state.eventId.id}
         </Text>
       ),
-      span: 2,
+      span: 1,
     },
     {
       key: "eventVersion",
       label: "Event Version",
-      children: state.eventId.version.toString(),
-      span: 2,
+      children: (
+        <Text code copyable>
+          {state.eventId.version}
+        </Text>
+      ),
+      span: 1,
+    },
+    {
+      key: "tenantId",
+      label: "Tenant ID",
+      children: (
+        <Text code copyable>
+          {state.eventId.aggregateId.tenantId}
+        </Text>
+      ),
+      span: 1,
     },
     {
       key: "aggregateId",
@@ -112,26 +135,10 @@ export function FailedDetails({ state }: FailedDetailsProps) {
           {state.eventId.aggregateId.aggregateId}
         </Text>
       ),
-      span: 2,
-    },
-    {
-      key: "aggregateName",
-      label: "Aggregate Name",
-      children: state.eventId.aggregateId.aggregateName,
       span: 1,
     },
-    {
-      key: "contextName",
-      label: "Context Name",
-      children: state.eventId.aggregateId.contextName,
-      span: 1,
-    },
-    {
-      key: "tenantId",
-      label: "Tenant ID",
-      children: state.eventId.aggregateId.tenantId,
-      span: 2,
-    },
+
+
   ];
 
   // 函数信息
@@ -179,6 +186,7 @@ export function FailedDetails({ state }: FailedDetailsProps) {
             type="countdown"
             value={state.retryState.nextRetryAt}
             format="HH:mm:ss"
+          valueStyle={{ fontSize: "14px" }}
           />
         </div>
       ),
@@ -213,12 +221,12 @@ export function FailedDetails({ state }: FailedDetailsProps) {
         height: "100%",
       }}
     >
-      <Descriptions bordered column={2} items={basicItems} size="small" />
+      <Descriptions bordered column={3} items={basicItems} size="small" />
 
-      <Descriptions bordered column={2} items={eventIdItems} size="small" />
+      <Descriptions bordered column={3} items={eventIdItems} size="small" />
 
       <Descriptions bordered column={2} items={functionItems} size="small" />
-      <Descriptions bordered column={2} items={retryItems} size="small" />
+      <Descriptions bordered column={3} items={retryItems} size="small" />
       <ErrorDetails error={state.error}></ErrorDetails>
     </div>
   );
