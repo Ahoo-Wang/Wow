@@ -82,13 +82,8 @@ class AppendOwnerId implements RequestInterceptor {
   readonly order: number = URL_RESOLVE_INTERCEPTOR_ORDER - 1;
 
   intercept(exchange: FetchExchange) {
-    exchange.request.urlParams = {
-      path: {
-        ...exchange.request.urlParams?.path,
-        ownerId: currentUserId,
-      },
-      query: exchange.request.urlParams?.query,
-    };
+    const urlParams = exchange.ensureRequestUrlParams();
+    urlParams.path['ownerId'] = currentUserId;
   }
 }
 
@@ -237,13 +232,8 @@ class AppendOwnerId implements RequestInterceptor {
   readonly order: number = URL_RESOLVE_INTERCEPTOR_ORDER - 1;
 
   intercept(exchange: FetchExchange) {
-    exchange.request.urlParams = {
-      path: {
-        ...exchange.request.urlParams?.path,
-        ownerId: currentUserId,
-      },
-      query: exchange.request.urlParams?.query,
-    };
+    const urlParams = exchange.ensureRequestUrlParams();
+    urlParams.path['ownerId'] = currentUserId;
   }
 }
 
@@ -344,13 +334,8 @@ class AppendOwnerId implements RequestInterceptor {
   readonly order: number = URL_RESOLVE_INTERCEPTOR_ORDER - 1;
 
   intercept(exchange: FetchExchange) {
-    exchange.request.urlParams = {
-      path: {
-        ...exchange.request.urlParams?.path,
-        ownerId: currentUserId,
-      },
-      query: exchange.request.urlParams?.query,
-    };
+    const urlParams = exchange.ensureRequestUrlParams();
+    urlParams.path['ownerId'] = currentUserId;
   }
 }
 
@@ -437,13 +422,8 @@ class AppendOwnerId implements RequestInterceptor {
   readonly order: number = URL_RESOLVE_INTERCEPTOR_ORDER - 1;
 
   intercept(exchange: FetchExchange) {
-    exchange.request.urlParams = {
-      path: {
-        ...exchange.request.urlParams?.path,
-        ownerId: currentUserId,
-      },
-      query: exchange.request.urlParams?.query,
-    };
+    const urlParams = exchange.ensureRequestUrlParams();
+    urlParams.path['ownerId'] = currentUserId;
   }
 }
 
