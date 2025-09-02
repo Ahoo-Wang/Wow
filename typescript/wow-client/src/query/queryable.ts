@@ -13,7 +13,7 @@
 
 import { all, type ConditionCapable } from './condition';
 import { type  SortCapable } from './sort';
-import { type  Pagination } from './pagination';
+import { DEFAULT_PAGINATION, type  Pagination } from './pagination';
 import { type  ProjectionCapable } from './projection';
 
 /**
@@ -60,6 +60,34 @@ export function singleQuery({ condition = all(), projection, sort }: Partial<Sin
  */
 export interface ListQuery extends Queryable {
   limit?: number;
+}
+
+/**
+ * Creates a ListQuery object with the provided parameters.
+ *
+ * This function is a factory for creating ListQuery objects, which represent
+ * queries that return a list of results. It provides default values for optional
+ * properties while allowing customization of condition, projection, sort criteria,
+ * and result limit.
+ *
+ * @param condition - The query condition. Defaults to an 'all' condition that matches everything.
+ * @param projection - The field projection specification. Optional.
+ * @param sort - The sort criteria. Optional.
+ * @param limit - The maximum number of results to return. Defaults to DEFAULT_PAGINATION.size.
+ * @returns A ListQuery object with the specified parameters
+ */
+export function listQuery({
+                            condition = all(),
+                            projection,
+                            sort,
+                            limit = DEFAULT_PAGINATION.size,
+                          }: Partial<ListQuery>): ListQuery {
+  return {
+    condition,
+    projection,
+    sort,
+    limit,
+  };
 }
 
 /**
