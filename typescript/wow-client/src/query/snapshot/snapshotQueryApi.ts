@@ -11,10 +11,15 @@
  * limitations under the License.
  */
 
-import { QueryApi } from '../queryApi';
-import { MaterializedSnapshot } from './snapshot';
-import { ListQuery, PagedList, PagedQuery, SingleQuery } from '../queryable';
-import { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
+import type { QueryApi } from '../queryApi';
+import type { MaterializedSnapshot } from './snapshot';
+import type {
+  ListQuery,
+  PagedList,
+  PagedQuery,
+  SingleQuery,
+} from '../queryable';
+import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 
 /**
  * Interface for snapshot query API operations.
@@ -28,14 +33,18 @@ export interface SnapshotQueryApi<S> extends QueryApi<MaterializedSnapshot<S>> {
    * @param singleQuery - The query parameters for retrieving a single snapshot state
    * @returns A promise that resolves to a partial snapshot state
    */
-  singleState<T extends Partial<S> = Partial<S>>(singleQuery: SingleQuery): Promise<T>;
+  singleState<T extends Partial<S> = Partial<S>>(
+    singleQuery: SingleQuery,
+  ): Promise<T>;
 
   /**
    * Retrieves a list of snapshot states based on the provided query parameters.
    * @param listQuery - The query parameters for listing snapshot states
    * @returns A promise that resolves to an array of partial snapshot states
    */
-  listState<T extends Partial<S> = Partial<S>>(listQuery: ListQuery): Promise<T[]>;
+  listState<T extends Partial<S> = Partial<S>>(
+    listQuery: ListQuery,
+  ): Promise<T[]>;
 
   /**
    * Retrieves a stream of snapshot states based on the provided query parameters.
@@ -51,7 +60,9 @@ export interface SnapshotQueryApi<S> extends QueryApi<MaterializedSnapshot<S>> {
    * @param pagedQuery - The query parameters for paging snapshot states
    * @returns A promise that resolves to a paged list of partial snapshot states
    */
-  pagedState<T extends Partial<S> = Partial<S>>(pagedQuery: PagedQuery): Promise<PagedList<T>>;
+  pagedState<T extends Partial<S> = Partial<S>>(
+    pagedQuery: PagedQuery,
+  ): Promise<PagedList<T>>;
 }
 
 /**

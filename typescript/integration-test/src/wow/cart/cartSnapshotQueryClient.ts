@@ -23,4 +23,6 @@ export interface CartState extends Identifier {
   items: CartItem[];
 }
 
-export const cartSnapshotQueryClient = new SnapshotQueryClient<CartState>(cartClientOptions);
+export const cartSnapshotQueryClient = new SnapshotQueryClient<CartState>(
+  cartClientOptions,
+);

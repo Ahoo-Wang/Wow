@@ -14,4 +14,6 @@
 import { EventStreamQueryClient } from '@ahoo-wang/fetcher-wow';
 import { cartClientOptions } from './cartClientOptions';
 
-export const cartEventStreamQueryClient = new EventStreamQueryClient(cartClientOptions);
+export const cartEventStreamQueryClient = new EventStreamQueryClient(
+  cartClientOptions,
+);

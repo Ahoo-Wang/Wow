@@ -12,15 +12,15 @@
  */
 
 import {
-  EventStreamQueryApi,
+  type EventStreamQueryApi,
   EventStreamQueryEndpointPaths,
 } from './eventStreamQueryApi';
-import { Condition } from '../condition';
-import { ListQuery, PagedList, PagedQuery } from '../queryable';
-import { DomainEventStream } from './domainEventStream';
-import { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
+import type { Condition } from '../condition';
+import type { ListQuery, PagedList, PagedQuery } from '../queryable';
+import type { DomainEventStream } from './domainEventStream';
+import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 import { QueryClient } from '../queryApi';
-import { ClientOptions } from '../../types';
+import type { ClientOptions } from '../../types';
 import { ContentTypeValues } from '@ahoo-wang/fetcher';
 import { ResultExtractors } from '@ahoo-wang/fetcher-decorator';
 
@@ -108,7 +108,9 @@ export class EventStreamQueryClient
    * }
    * ```
    */
-  list<T extends Partial<DomainEventStream> = Partial<DomainEventStream>>(listQuery: ListQuery): Promise<T[]> {
+  list<T extends Partial<DomainEventStream> = Partial<DomainEventStream>>(
+    listQuery: ListQuery,
+  ): Promise<T[]> {
     return this.query(EventStreamQueryEndpointPaths.LIST, listQuery);
   }
 

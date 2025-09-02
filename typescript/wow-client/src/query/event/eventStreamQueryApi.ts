@@ -11,8 +11,8 @@
  * limitations under the License.
  */
 
-import { DomainEventStream } from './domainEventStream';
-import { QueryApi } from '../queryApi';
+import type { DomainEventStream } from './domainEventStream';
+import type { QueryApi } from '../queryApi';
 
 /**
  * Interface for event stream query API operations.

@@ -11,13 +11,18 @@
  * limitations under the License.
  */
 
-import { ListQuery, PagedList, PagedQuery, SingleQuery } from './queryable';
-import { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
-import { Condition } from './condition';
-import { ClientOptions } from '../types';
+import type {
+  ListQuery,
+  PagedList,
+  PagedQuery,
+  SingleQuery,
+} from './queryable';
+import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
+import type { Condition } from './condition';
+import type { ClientOptions } from '../types';
 import { combineURLs, ContentTypeValues, HttpMethod } from '@ahoo-wang/fetcher';
 import {
-  ResultExtractor,
+  type ResultExtractor,
   ResultExtractors,
 } from '@ahoo-wang/fetcher-decorator';
 
@@ -36,7 +41,9 @@ export interface QueryApi<R> {
    * @param singleQuery - The query parameters for retrieving a single resource
    * @returns A promise that resolves to a partial resource
    */
-  single<T extends Partial<R> = Partial<R>>(singleQuery: SingleQuery): Promise<T>;
+  single<T extends Partial<R> = Partial<R>>(
+    singleQuery: SingleQuery,
+  ): Promise<T>;
 
   /**
    * Retrieves a list of resources based on the provided query parameters.
@@ -59,7 +66,9 @@ export interface QueryApi<R> {
    * @param pagedQuery - The query parameters for paging resources
    * @returns A promise that resolves to a paged list of partial resources
    */
-  paged<T extends Partial<R> = Partial<R>>(pagedQuery: PagedQuery): Promise<PagedList<T>>;
+  paged<T extends Partial<R> = Partial<R>>(
+    pagedQuery: PagedQuery,
+  ): Promise<PagedList<T>>;
 
   /**
    * Counts the number of resources that match the given condition.

@@ -12,9 +12,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import {
-  HttpMethod,
-} from '@ahoo-wang/fetcher';
+import { HttpMethod } from '@ahoo-wang/fetcher';
 import '@ahoo-wang/fetcher-eventstream';
 import {
   CommandHttpHeaders,
@@ -22,7 +20,12 @@ import {
   CommandStage,
   ErrorCodes,
 } from '@ahoo-wang/fetcher-wow';
-import { AddCartItemCommand, cartCommandClient, CartCommandEndpoints, currentUserId } from '../../../src/wow';
+import {
+  AddCartItemCommand,
+  cartCommandClient,
+  CartCommandEndpoints,
+  currentUserId,
+} from '../../../src/wow';
 
 function expectCommandResultToBeDefined(commandResult: CommandResult) {
   expect(commandResult.id).toBeDefined();

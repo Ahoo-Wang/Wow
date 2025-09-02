@@ -11,10 +11,10 @@
  * limitations under the License.
  */
 
-import {
-  type  FetchRequestInit,
-  type  RequestHeaders,
-  type  UrlParams,
+import type {
+  FetchRequestInit,
+  RequestHeaders,
+  UrlParams,
 } from '@ahoo-wang/fetcher';
 import { CommandHttpHeaders } from './commandHttpHeaders';
 import { type PathParams } from '../types/endpoints';
@@ -155,7 +155,8 @@ export interface CommandUrlParams extends Omit<UrlParams, 'path' | 'query'> {
  * Extends RequestHeaders to provide type-safe access to command-related HTTP headers.
  * This interface includes only the essential command headers commonly used in HTTP requests.
  */
-export interface CommandRequest<C extends object = object> extends FetchRequestInit {
+export interface CommandRequest<C extends object = object>
+  extends FetchRequestInit {
   urlParams?: CommandUrlParams;
   headers?: CommandRequestHeaders;
   /**

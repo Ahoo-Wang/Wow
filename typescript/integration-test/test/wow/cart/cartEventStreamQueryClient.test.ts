@@ -11,10 +11,7 @@
  * limitations under the License.
  */
 
-import {
-  HttpMethod,
-
-} from '@ahoo-wang/fetcher';
+import { HttpMethod } from '@ahoo-wang/fetcher';
 import {
   all,
   CommandHttpHeaders,
@@ -42,7 +39,10 @@ const command: AddCartItemCommand = {
     quantity: 1,
   },
 };
-const commandResult = await cartCommandClient.send(CartCommandEndpoints.addCartItem, command);
+const commandResult = await cartCommandClient.send(
+  CartCommandEndpoints.addCartItem,
+  command,
+);
 expect(commandResult.errorCode).toBe(ErrorCodes.SUCCEEDED);
 
 function expectDomainEventStreamToBeDefined(

@@ -12,11 +12,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import {
-  ExchangeError,
-  HttpMethod,
-
-} from '@ahoo-wang/fetcher';
+import { ExchangeError, HttpMethod } from '@ahoo-wang/fetcher';
 import '@ahoo-wang/fetcher-eventstream';
 import {
   all,
@@ -39,7 +35,6 @@ import {
 } from '../../../src/wow';
 import { CartState } from '../../../src/wow';
 
-
 const command: AddCartItemCommand = {
   method: HttpMethod.POST,
   headers: {
@@ -50,7 +45,10 @@ const command: AddCartItemCommand = {
     quantity: 1,
   },
 };
-const commandResult = await cartCommandClient.send(CartCommandEndpoints.addCartItem, command);
+const commandResult = await cartCommandClient.send(
+  CartCommandEndpoints.addCartItem,
+  command,
+);
 expect(commandResult.errorCode).toBe(ErrorCodes.SUCCEEDED);
 
 function expectCartState(cartState: Partial<CartState> | undefined) {

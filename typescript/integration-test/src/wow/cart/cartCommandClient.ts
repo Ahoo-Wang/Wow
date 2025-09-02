@@ -23,6 +23,6 @@ export interface AddCartItem {
   quantity: number;
 }
 
-export type AddCartItemCommand = CommandRequest<AddCartItem>
+export type AddCartItemCommand = CommandRequest<AddCartItem>;
 
 export const cartCommandClient = new CommandClient(cartClientOptions);

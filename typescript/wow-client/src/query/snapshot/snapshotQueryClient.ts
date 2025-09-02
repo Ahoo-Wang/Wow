@@ -12,17 +12,22 @@
  */
 
 import {
-  SnapshotQueryApi,
+  type SnapshotQueryApi,
   SnapshotQueryEndpointPaths,
 } from './snapshotQueryApi';
-import { Condition } from '../condition';
-import { ListQuery, PagedList, PagedQuery, SingleQuery } from '../queryable';
-import { MaterializedSnapshot } from './snapshot';
-import { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
+import type { Condition } from '../condition';
+import type {
+  ListQuery,
+  PagedList,
+  PagedQuery,
+  SingleQuery,
+} from '../queryable';
+import type { MaterializedSnapshot } from './snapshot';
+import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 import { ContentTypeValues } from '@ahoo-wang/fetcher';
 import { ResultExtractors } from '@ahoo-wang/fetcher-decorator';
 import '@ahoo-wang/fetcher-eventstream';
-import { ClientOptions } from '../../types';
+import type { ClientOptions } from '../../types';
 import { QueryClient } from '../queryApi';
 
 /**
@@ -143,7 +148,11 @@ export class SnapshotQueryClient<S>
    * }
    * ```
    */
-  list<T extends Partial<MaterializedSnapshot<S>> = Partial<MaterializedSnapshot<S>>>(listQuery: ListQuery): Promise<T[]> {
+  list<
+    T extends Partial<MaterializedSnapshot<S>> = Partial<
+      MaterializedSnapshot<S>
+    >,
+  >(listQuery: ListQuery): Promise<T[]> {
     return this.query(SnapshotQueryEndpointPaths.LIST, listQuery);
   }
 
@@ -165,11 +174,11 @@ export class SnapshotQueryClient<S>
    * }
    * ```
    */
-  listStream<T extends Partial<MaterializedSnapshot<S>> = Partial<MaterializedSnapshot<S>>>(
-    listQuery: ListQuery,
-  ): Promise<
-    ReadableStream<JsonServerSentEvent<T>>
-  > {
+  listStream<
+    T extends Partial<MaterializedSnapshot<S>> = Partial<
+      MaterializedSnapshot<S>
+    >,
+  >(listQuery: ListQuery): Promise<ReadableStream<JsonServerSentEvent<T>>> {
     return this.query(
       SnapshotQueryEndpointPaths.LIST,
       listQuery,
@@ -195,7 +204,9 @@ export class SnapshotQueryClient<S>
    * }
    * ```
    */
-  listState<T extends Partial<S> = Partial<S>>(listQuery: ListQuery): Promise<T[]> {
+  listState<T extends Partial<S> = Partial<S>>(
+    listQuery: ListQuery,
+  ): Promise<T[]> {
     return this.query(SnapshotQueryEndpointPaths.LIST_STATE, listQuery);
   }
 
@@ -248,9 +259,11 @@ export class SnapshotQueryClient<S>
    * }
    * ```
    */
-  paged<T extends Partial<MaterializedSnapshot<S>> = Partial<MaterializedSnapshot<S>>>(
-    pagedQuery: PagedQuery,
-  ): Promise<PagedList<T>> {
+  paged<
+    T extends Partial<MaterializedSnapshot<S>> = Partial<
+      MaterializedSnapshot<S>
+    >,
+  >(pagedQuery: PagedQuery): Promise<PagedList<T>> {
     return this.query(SnapshotQueryEndpointPaths.PAGED, pagedQuery);
   }
 
@@ -273,7 +286,9 @@ export class SnapshotQueryClient<S>
    * }
    * ```
    */
-  pagedState<T extends Partial<S> = Partial<S>>(pagedQuery: PagedQuery): Promise<PagedList<T>> {
+  pagedState<T extends Partial<S> = Partial<S>>(
+    pagedQuery: PagedQuery,
+  ): Promise<PagedList<T>> {
     return this.query(SnapshotQueryEndpointPaths.PAGED_STATE, pagedQuery);
   }
 
@@ -292,7 +307,11 @@ export class SnapshotQueryClient<S>
    * console.log('Snapshot:', single);
    * ```
    */
-  single<T extends Partial<MaterializedSnapshot<S>> = Partial<MaterializedSnapshot<S>>>(singleQuery: SingleQuery): Promise<T> {
+  single<
+    T extends Partial<MaterializedSnapshot<S>> = Partial<
+      MaterializedSnapshot<S>
+    >,
+  >(singleQuery: SingleQuery): Promise<T> {
     return this.query(SnapshotQueryEndpointPaths.SINGLE, singleQuery);
   }
 
@@ -311,7 +330,9 @@ export class SnapshotQueryClient<S>
    * console.log('State:', singleState);
    * ```
    */
-  singleState<T extends Partial<S> = Partial<S>>(singleQuery: SingleQuery): Promise<T> {
+  singleState<T extends Partial<S> = Partial<S>>(
+    singleQuery: SingleQuery,
+  ): Promise<T> {
     return this.query(SnapshotQueryEndpointPaths.SINGLE_STATE, singleQuery);
   }
 }

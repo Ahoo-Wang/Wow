@@ -19,9 +19,9 @@ import type {
   OwnerId,
   Version,
 } from '../../types';
-import { CommandId, CommandStage, RequestId } from '../../command';
-import { BodyCapable } from '../../types';
-import { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
+import type { CommandId, CommandStage, RequestId } from '../../command';
+import type { BodyCapable } from '../../types';
+import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 
 /**
  * Represents a domain event with a specific body type.
