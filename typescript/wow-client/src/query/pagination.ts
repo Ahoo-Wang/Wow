@@ -32,14 +32,19 @@ export const DEFAULT_PAGINATION: Pagination = {
 };
 
 /**
- * Creates a pagination object with the specified index and size.
- * @param index - The page index, starting from 1. Defaults to DEFAULT_PAGINATION.index (1)
- * @param size - The page size. Defaults to DEFAULT_PAGINATION.size (10)
- * @returns A Pagination object with the specified index and size
+ * Creates a Pagination object with the provided parameters.
+ *
+ * This function is a factory for creating Pagination objects, which represent
+ * pagination information including page index and page size. It provides default
+ * values for optional properties while allowing customization of index and size.
+ *
+ * @param options - The pagination options. Optional.
+ * @param options.index - The page index, starting from 1. Defaults to DEFAULT_PAGINATION.index.
+ * @param options.size - The page size. Defaults to DEFAULT_PAGINATION.size.
+ * @returns A Pagination object with the specified parameters
  */
 export function pagination(
-  index: number = DEFAULT_PAGINATION.index,
-  size: number = DEFAULT_PAGINATION.size,
+  { index = DEFAULT_PAGINATION.index, size = DEFAULT_PAGINATION.size }: Partial<Pagination> = DEFAULT_PAGINATION,
 ): Pagination {
   return {
     index,

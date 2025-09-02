@@ -27,13 +27,13 @@ describe('pagination', () => {
   });
 
   it('should create pagination object with custom index', () => {
-    const result = pagination(2);
+    const result = pagination({ index: 2 });
     expect(result.index).toBe(2);
     expect(result.size).toBe(10);
   });
 
   it('should create pagination object with custom index and size', () => {
-    const result = pagination(3, 20);
+    const result = pagination({ index: 3, size: 20 });
     expect(result.index).toBe(3);
     expect(result.size).toBe(20);
   });
