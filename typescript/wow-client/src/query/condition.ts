@@ -183,7 +183,7 @@ export function and(...conditions: Condition[]): Condition {
     return conditions[0];
   }
   const andChildren: Condition[] = [];
-  conditions.forEach((condition) => {
+  conditions.forEach(condition => {
     if (condition.operator === Operator.AND && condition.children) {
       andChildren.push(...condition.children);
     } else {
@@ -192,7 +192,6 @@ export function and(...conditions: Condition[]): Condition {
   });
   return { operator: Operator.AND, children: andChildren };
 }
-
 
 /**
  * Creates an OR condition with the specified conditions.

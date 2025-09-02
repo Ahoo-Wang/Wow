@@ -11,10 +11,16 @@
  * limitations under the License.
  */
 
-import { type  ClientOptions } from '../types';
-import { type  CommandRequest } from './commandRequest';
-import { type  CommandResult, type  CommandResultEventStream } from './commandResult';
-import { type  ResultExtractor, ResultExtractors } from '@ahoo-wang/fetcher-decorator';
+import { type ClientOptions } from '../types';
+import { type CommandRequest } from './commandRequest';
+import {
+  type CommandResult,
+  type CommandResultEventStream,
+} from './commandResult';
+import {
+  type ResultExtractor,
+  ResultExtractors,
+} from '@ahoo-wang/fetcher-decorator';
 import { combineURLs, ContentTypeValues } from '@ahoo-wang/fetcher';
 
 /**

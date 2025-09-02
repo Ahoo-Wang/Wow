@@ -57,14 +57,19 @@ import { CommandResult, CommandStage } from '@ahoo-wang/fetcher-wow';
 用于向 Wow 框架发送命令的 HTTP 客户端。该客户端提供了同步或流式接收命令结果的方法。
 
 ```typescript
-import { Fetcher, FetchExchange, RequestInterceptor, URL_RESOLVE_INTERCEPTOR_ORDER } from '@ahoo-wang/fetcher';
+import {
+  Fetcher,
+  FetchExchange,
+  RequestInterceptor,
+  URL_RESOLVE_INTERCEPTOR_ORDER,
+} from '@ahoo-wang/fetcher';
 import '@ahoo-wang/fetcher-eventstream';
 import {
   CommandClient,
   CommandRequest,
   HttpMethod,
   CommandHttpHeaders,
-  CommandStage
+  CommandStage,
 } from '@ahoo-wang/fetcher-wow';
 import { idGenerator } from '@ahoo-wang/fetcher-cosec';
 
@@ -107,7 +112,7 @@ interface AddCartItem {
   quantity: number;
 }
 
-type AddCartItemCommand = CommandRequest<AddCartItem>
+type AddCartItemCommand = CommandRequest<AddCartItem>;
 
 // 创建命令请求
 const addCartItemCommand: AddCartItemCommand = {
@@ -198,7 +203,12 @@ const dateConditions = [
 用于查询物化快照的客户端，支持全面的查询操作：
 
 ```typescript
-import { Fetcher, FetchExchange, RequestInterceptor, URL_RESOLVE_INTERCEPTOR_ORDER } from '@ahoo-wang/fetcher';
+import {
+  Fetcher,
+  FetchExchange,
+  RequestInterceptor,
+  URL_RESOLVE_INTERCEPTOR_ORDER,
+} from '@ahoo-wang/fetcher';
 import '@ahoo-wang/fetcher-eventstream';
 import {
   SnapshotQueryClient,
@@ -310,7 +320,12 @@ const singleState = await cartSnapshotQueryClient.singleState(singleQuery);
 用于查询领域事件流的客户端，支持全面的查询操作：
 
 ```typescript
-import { Fetcher, FetchExchange, RequestInterceptor, URL_RESOLVE_INTERCEPTOR_ORDER } from '@ahoo-wang/fetcher';
+import {
+  Fetcher,
+  FetchExchange,
+  RequestInterceptor,
+  URL_RESOLVE_INTERCEPTOR_ORDER,
+} from '@ahoo-wang/fetcher';
 import '@ahoo-wang/fetcher-eventstream';
 import {
   EventStreamQueryClient,
@@ -384,7 +399,12 @@ const paged = await cartEventStreamQueryClient.paged(pagedQuery);
 ### 完整的命令和查询流程示例
 
 ```typescript
-import { Fetcher, FetchExchange, RequestInterceptor, URL_RESOLVE_INTERCEPTOR_ORDER } from '@ahoo-wang/fetcher';
+import {
+  Fetcher,
+  FetchExchange,
+  RequestInterceptor,
+  URL_RESOLVE_INTERCEPTOR_ORDER,
+} from '@ahoo-wang/fetcher';
 import '@ahoo-wang/fetcher-eventstream';
 import {
   CommandClient,
@@ -452,7 +472,7 @@ interface AddCartItem {
   quantity: number;
 }
 
-type AddCartItemCommand = CommandRequest<AddCartItem>
+type AddCartItemCommand = CommandRequest<AddCartItem>;
 
 // 1. 发送命令添加商品到购物车
 const addItemCommand: AddCartItemCommand = {
@@ -468,7 +488,7 @@ const addItemCommand: AddCartItemCommand = {
 
 const commandResult = await cartCommandClient.send(
   CartCommandEndpoints.addCartItem,
-  addItemCommand
+  addItemCommand,
 );
 console.log('命令执行完成:', commandResult);
 

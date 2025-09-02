@@ -12,9 +12,9 @@
  */
 
 import { all, type ConditionCapable } from './condition';
-import { type  SortCapable } from './sort';
-import { DEFAULT_PAGINATION, type  Pagination } from './pagination';
-import { type  ProjectionCapable } from './projection';
+import { type SortCapable } from './sort';
+import { DEFAULT_PAGINATION, type Pagination } from './pagination';
+import { type ProjectionCapable } from './projection';
 
 /**
  * Interface for queryable objects that support conditions, projection, and sorting.
@@ -44,14 +44,17 @@ export interface SingleQuery extends Queryable {
  * @param sort - The sort criteria. Optional.
  * @returns A SingleQuery object with the specified parameters
  */
-export function singleQuery({ condition = all(), projection, sort }: Partial<SingleQuery> = {}): SingleQuery {
+export function singleQuery({
+                              condition = all(),
+                              projection,
+                              sort,
+                            }: Partial<SingleQuery> = {}): SingleQuery {
   return {
     condition,
     projection,
     sort,
   };
 }
-
 
 /**
  * Interface for list query objects.

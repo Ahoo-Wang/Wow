@@ -58,10 +58,16 @@ describe('queryable', () => {
 
     it('should create a SingleQuery with all provided parameters', () => {
       const condition = eq('name', 'test');
-      const queryProjection: Projection = projection({ include: ['field1', 'field2'] });
+      const queryProjection: Projection = projection({
+        include: ['field1', 'field2'],
+      });
       const sort: FieldSort[] = [asc('name')];
 
-      const result = singleQuery({ condition, projection: queryProjection, sort });
+      const result = singleQuery({
+        condition,
+        projection: queryProjection,
+        sort,
+      });
 
       expect(result).toEqual({
         condition,

@@ -64,14 +64,19 @@ HTTP client for sending commands to the Wow framework. The client provides metho
 either synchronously or as a stream of events.
 
 ```typescript
-import { Fetcher, FetchExchange, RequestInterceptor, URL_RESOLVE_INTERCEPTOR_ORDER } from '@ahoo-wang/fetcher';
+import {
+  Fetcher,
+  FetchExchange,
+  RequestInterceptor,
+  URL_RESOLVE_INTERCEPTOR_ORDER,
+} from '@ahoo-wang/fetcher';
 import '@ahoo-wang/fetcher-eventstream';
 import {
   CommandClient,
   CommandRequest,
   HttpMethod,
   CommandHttpHeaders,
-  CommandStage
+  CommandStage,
 } from '@ahoo-wang/fetcher-wow';
 import { idGenerator } from '@ahoo-wang/fetcher-cosec';
 
@@ -114,7 +119,7 @@ interface AddCartItem {
   quantity: number;
 }
 
-type AddCartItemCommand = CommandRequest<AddCartItem>
+type AddCartItemCommand = CommandRequest<AddCartItem>;
 
 // Create a command request
 const addCartItemCommand: AddCartItemCommand = {
@@ -206,7 +211,12 @@ const dateConditions = [
 Client for querying materialized snapshots with comprehensive query operations:
 
 ```typescript
-import { Fetcher, FetchExchange, RequestInterceptor, URL_RESOLVE_INTERCEPTOR_ORDER } from '@ahoo-wang/fetcher';
+import {
+  Fetcher,
+  FetchExchange,
+  RequestInterceptor,
+  URL_RESOLVE_INTERCEPTOR_ORDER,
+} from '@ahoo-wang/fetcher';
 import '@ahoo-wang/fetcher-eventstream';
 import {
   SnapshotQueryClient,
@@ -321,7 +331,12 @@ const singleState = await cartSnapshotQueryClient.singleState(singleQuery);
 Client for querying domain event streams with comprehensive query operations:
 
 ```typescript
-import { Fetcher, FetchExchange, RequestInterceptor, URL_RESOLVE_INTERCEPTOR_ORDER } from '@ahoo-wang/fetcher';
+import {
+  Fetcher,
+  FetchExchange,
+  RequestInterceptor,
+  URL_RESOLVE_INTERCEPTOR_ORDER,
+} from '@ahoo-wang/fetcher';
 import '@ahoo-wang/fetcher-eventstream';
 import {
   EventStreamQueryClient,
@@ -397,7 +412,12 @@ const paged = await cartEventStreamQueryClient.paged(pagedQuery);
 ### Complete Example with Command and Query Flow
 
 ```typescript
-import { Fetcher, FetchExchange, RequestInterceptor, URL_RESOLVE_INTERCEPTOR_ORDER } from '@ahoo-wang/fetcher';
+import {
+  Fetcher,
+  FetchExchange,
+  RequestInterceptor,
+  URL_RESOLVE_INTERCEPTOR_ORDER,
+} from '@ahoo-wang/fetcher';
 import '@ahoo-wang/fetcher-eventstream';
 import {
   CommandClient,
@@ -465,7 +485,7 @@ interface AddCartItem {
   quantity: number;
 }
 
-type AddCartItemCommand = CommandRequest<AddCartItem>
+type AddCartItemCommand = CommandRequest<AddCartItem>;
 
 // 1. Send command to add item to cart
 const addItemCommand: AddCartItemCommand = {
@@ -481,7 +501,7 @@ const addItemCommand: AddCartItemCommand = {
 
 const commandResult = await cartCommandClient.send(
   CartCommandEndpoints.addCartItem,
-  addItemCommand
+  addItemCommand,
 );
 console.log('Command executed:', commandResult);
 

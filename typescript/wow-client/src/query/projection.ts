@@ -37,7 +37,10 @@ export const DEFAULT_PROJECTION: Projection = {};
  * @param options.exclude - Array of field names to exclude from the projection. Optional.
  * @returns A Projection object with the specified parameters
  */
-export function projection({ include, exclude }: Projection = DEFAULT_PROJECTION): Projection {
+export function projection({
+                             include,
+                             exclude,
+                           }: Projection = DEFAULT_PROJECTION): Projection {
   return {
     include,
     exclude,
