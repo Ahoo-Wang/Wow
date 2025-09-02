@@ -19,7 +19,7 @@ export function ErrorDetails({ error }: ErrorDetailsProps) {
     {
       key: "errorMsg",
       label: "Error Message",
-      children: <Text>{error.errorMsg}</Text>,
+      children: <Text code>{error.errorMsg}</Text>,
       span: 1,
     },
   ];

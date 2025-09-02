@@ -19,7 +19,8 @@ import {
   and,
   type Condition,
   type PagedList,
-  type PagedQuery,
+  pagedQuery,
+  pagination,
 } from "@ahoo-wang/fetcher-wow";
 import {
   executionFailedSnapshotQueryClient,
@@ -34,11 +35,8 @@ interface FailedViewProps {
 
 export default function FailedView({ category }: FailedViewProps) {
   const [searchCondition, setSearchCondition] = useState<Condition>(all());
-  const [pagination, setPagination] = useState<Pagination>(() => {
-    return {
-      index: 1,
-      size: 10,
-    };
+  const [searchPagination, setSearchPagination] = useState<Pagination>(() => {
+    return pagination();
   });
   const [pagedList, setPagedList] = useState<PagedList<ExecutionFailedState>>({
     total: 0,
@@ -48,26 +46,26 @@ export default function FailedView({ category }: FailedViewProps) {
     setSearchCondition(searchCondition);
   };
   const onPaginationChange = (page: number, pageSize: number) => {
-    setPagination({
+    setSearchPagination({
       index: page,
       size: pageSize,
     });
   };
   const search = () => {
-    const pagedQuery: PagedQuery = {
+    const query = pagedQuery({
       condition: and(
         RetryConditions.categoryToCondition(category),
         searchCondition,
       ),
-      pagination: pagination,
-    };
+      pagination: searchPagination,
+    });
     executionFailedSnapshotQueryClient
-      .pagedState<ExecutionFailedState>(pagedQuery)
+      .pagedState<ExecutionFailedState>(query)
       .then((it) => {
         setPagedList(it);
       });
   };
-  useEffect(search, [category, searchCondition, pagination]);
+  useEffect(search, [category, searchCondition, searchPagination]);
   return (
     <>
       <FailedSearch onSearch={onSearch}></FailedSearch>

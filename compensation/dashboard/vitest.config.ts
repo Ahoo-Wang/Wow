@@ -18,8 +18,10 @@ export default mergeConfig(
   viteConfig,
   defineConfig({
     test: {
-      reporters:[ "json", "html"]
+      reporters: ["verbose"],
+      environment: 'jsdom',
+      setupFiles: ['./src/setupTests.ts'],
+      globals: true,
     },
   }),
 );
-

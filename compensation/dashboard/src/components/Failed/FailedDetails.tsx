@@ -1,4 +1,4 @@
-import { Descriptions, Typography, Tag, Statistic } from "antd";
+import { Descriptions, Typography, Tag, Statistic, Flex } from "antd";
 import type { DescriptionsProps } from "antd";
 
 import type { ExecutionFailedState } from "../../services";
@@ -18,7 +18,6 @@ export interface FailedDetailsProps {
 }
 
 export function FailedDetails({ state }: FailedDetailsProps) {
-
   // 基本信息
   const basicItems: DescriptionsProps["items"] = [
     {
@@ -213,21 +212,12 @@ export function FailedDetails({ state }: FailedDetailsProps) {
   ];
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: "16px",
-        height: "100%",
-      }}
-    >
+    <Flex gap="small" vertical>
       <Descriptions bordered column={3} items={basicItems} size="small" />
-
       <Descriptions bordered column={3} items={eventIdItems} size="small" />
-
       <Descriptions bordered column={2} items={functionItems} size="small" />
       <Descriptions bordered column={3} items={retryItems} size="small" />
       <ErrorDetails error={state.error}></ErrorDetails>
-    </div>
+    </Flex>
   );
 }

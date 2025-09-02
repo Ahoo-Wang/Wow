@@ -21,7 +21,6 @@ interface FailedSearchProps {
 
 export function FailedSearch({ onSearch }: FailedSearchProps) {
   const onFinish: FormProps["onFinish"] = (values) => {
-    console.log(values)
     const conditions: Condition[] = [];
     Object.keys(values).forEach((key) => {
       const value = values[key];
