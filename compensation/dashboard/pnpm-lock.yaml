@@ -9,29 +9,29 @@ importers:
   .:
     dependencies:
       '@ahoo-wang/fetcher':
-        specifier: ^1.2.6
-        version: 1.2.6
+        specifier: ^1.2.8
+        version: 1.2.8
       '@ahoo-wang/fetcher-decorator':
-        specifier: ^1.2.6
-        version: 1.2.6
+        specifier: ^1.2.8
+        version: 1.2.8
       '@ahoo-wang/fetcher-eventstream':
-        specifier: ^1.2.6
-        version: 1.2.6
+        specifier: ^1.2.8
+        version: 1.2.8
       '@ahoo-wang/fetcher-wow':
-        specifier: ^1.2.6
-        version: 1.2.6
+        specifier: ^1.2.8
+        version: 1.2.8
       '@ant-design/icons':
         specifier: ^6.0.0
         version: 6.0.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       '@ant-design/v5-patch-for-react-19':
         specifier: ^1.0.3
-        version: 1.0.3(antd@5.27.1(react-dom@19.1.1(react@19.1.1))(react@19.1.1))(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
+        version: 1.0.3(antd@5.27.2(react-dom@19.1.1(react@19.1.1))(react@19.1.1))(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       '@monaco-editor/react':
         specifier: 4.7.0-rc.0
         version: 4.7.0-rc.0(monaco-editor@0.52.2)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       antd:
-        specifier: ^5.27.1
-        version: 5.27.1(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
+        specifier: ^5.27.2
+        version: 5.27.2(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       react:
         specifier: ^19.1.1
         version: 19.1.1
@@ -105,17 +105,17 @@ importers:
 
 packages:
 
-  '@ahoo-wang/fetcher-decorator@1.2.6':
-    resolution: {integrity: sha512-as2+EfwWwGdQYKbbzTUL0L/1IANJmW2di0PD+acZR/vm/Rpr6lj+Uffqd7yeqNPVjLt4oucju84zFkAL3L0CkQ==}
+  '@ahoo-wang/fetcher-decorator@1.2.8':
+    resolution: {integrity: sha512-iveMELtutBMM4Y/phiqKcJkzGnFEFp58/4f4YG9pwQPaj8joYORgSDk3GOGWemc+2Jvk3zMTSQu8tjQWH79eTg==}
 
-  '@ahoo-wang/fetcher-eventstream@1.2.6':
-    resolution: {integrity: sha512-FcTKGZ5ltNFa2WxMnQvnKWqOv2GOEbQNO6+mYEY7hu3TNb/DMLhFJP+/OkkDCJGkd6bEHVuj908pWW1ngyJvVg==}
+  '@ahoo-wang/fetcher-eventstream@1.2.8':
+    resolution: {integrity: sha512-9kcpVqWvFgdpLo75pCOGHUGQVmO585ySZgWTnyYdyhb7DFv/iHpFZmsvhQ4ovVW+shPglTNqDeHtuBt26JfbuQ==}
 
-  '@ahoo-wang/fetcher-wow@1.2.6':
-    resolution: {integrity: sha512-rqutWryEogipktX1oq0eYpjzEb1Q8IFztxBi6uvi7q3ATB3o91gEv6YAgXBQxziTJ12R4o+WqyjTkIm/0NwKIw==}
+  '@ahoo-wang/fetcher-wow@1.2.8':
+    resolution: {integrity: sha512-GIrDculKu5am69ftdTRT4zx3xywfhUMOAnPKGI/haAWKwILCpE2FXOMuiJvf5+KI/aeU7oe7n1qIXdntvmZaFQ==}
 
-  '@ahoo-wang/fetcher@1.2.6':
-    resolution: {integrity: sha512-AWVJYp2G/Mfhzb7SvvGUabjSQBWZD3rhZ5fwrYQjsqfNTruIUfSb0lfRN+Z2YdaQxuzhgCe1w0V12Vbv14qnsA==}
+  '@ahoo-wang/fetcher@1.2.8':
+    resolution: {integrity: sha512-9MybPOiV/KfQEY/1GBbgXICqghQ+2pX1uA8Fenf8NUjx1FjuVq82SUkI05VcYdKhJOwh0m2jHTc3CfIzJg7zwA==}
 
   '@ampproject/remapping@2.3.0':
     resolution: {integrity: sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw==}
@@ -1005,8 +1005,8 @@ packages:
     resolution: {integrity: sha512-bN798gFfQX+viw3R7yrGWRqnrN2oRkEkUjjl4JNn4E8GxxbjtG3FbrEIIY3l8/hrwUwIeCZvi4QuOTP4MErVug==}
     engines: {node: '>=12'}
 
-  antd@5.27.1:
-    resolution: {integrity: sha512-jGMSdBN7hAMvPV27B4RhzZfL6n6yu8yDbo7oXrlJasaOqB7bSDPcjdEy1kXy3JPsny/Qazb1ykzRI4EfcByAPQ==}
+  antd@5.27.2:
+    resolution: {integrity: sha512-9pYRUTrumIEuulRwZijhcnL6ScBZ1X6Y3iJa67VyNhEZAiXtENA7AtggsnqdVclQIm0WL4ky76qUdWrVhDWF3g==}
     peerDependencies:
       react: '>=16.9.0'
       react-dom: '>=16.9.0'
@@ -2228,23 +2228,23 @@ packages:
 
 snapshots:
 
-  '@ahoo-wang/fetcher-decorator@1.2.6':
+  '@ahoo-wang/fetcher-decorator@1.2.8':
     dependencies:
-      '@ahoo-wang/fetcher': 1.2.6
-      '@ahoo-wang/fetcher-eventstream': 1.2.6
+      '@ahoo-wang/fetcher': 1.2.8
+      '@ahoo-wang/fetcher-eventstream': 1.2.8
       reflect-metadata: 0.2.2
 
-  '@ahoo-wang/fetcher-eventstream@1.2.6':
+  '@ahoo-wang/fetcher-eventstream@1.2.8':
     dependencies:
-      '@ahoo-wang/fetcher': 1.2.6
+      '@ahoo-wang/fetcher': 1.2.8
 
-  '@ahoo-wang/fetcher-wow@1.2.6':
+  '@ahoo-wang/fetcher-wow@1.2.8':
     dependencies:
-      '@ahoo-wang/fetcher': 1.2.6
-      '@ahoo-wang/fetcher-decorator': 1.2.6
-      '@ahoo-wang/fetcher-eventstream': 1.2.6
+      '@ahoo-wang/fetcher': 1.2.8
+      '@ahoo-wang/fetcher-decorator': 1.2.8
+      '@ahoo-wang/fetcher-eventstream': 1.2.8
 
-  '@ahoo-wang/fetcher@1.2.6': {}
+  '@ahoo-wang/fetcher@1.2.8': {}
 
   '@ampproject/remapping@2.3.0':
     dependencies:
@@ -2315,9 +2315,9 @@ snapshots:
       resize-observer-polyfill: 1.5.1
       throttle-debounce: 5.0.2
 
-  '@ant-design/v5-patch-for-react-19@1.0.3(antd@5.27.1(react-dom@19.1.1(react@19.1.1))(react@19.1.1))(react-dom@19.1.1(react@19.1.1))(react@19.1.1)':
+  '@ant-design/v5-patch-for-react-19@1.0.3(antd@5.27.2(react-dom@19.1.1(react@19.1.1))(react@19.1.1))(react-dom@19.1.1(react@19.1.1))(react@19.1.1)':
     dependencies:
-      antd: 5.27.1(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
+      antd: 5.27.2(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       react: 19.1.1
       react-dom: 19.1.1(react@19.1.1)
 
@@ -3127,7 +3127,7 @@ snapshots:
 
   ansi-styles@6.2.1: {}
 
-  antd@5.27.1(react-dom@19.1.1(react@19.1.1))(react@19.1.1):
+  antd@5.27.2(react-dom@19.1.1(react@19.1.1))(react@19.1.1):
     dependencies:
       '@ant-design/colors': 7.2.1
       '@ant-design/cssinjs': 1.24.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
