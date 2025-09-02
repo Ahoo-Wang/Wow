@@ -37,32 +37,32 @@ export const NavItems: NavItem[] = [
   {
     label: "To Retry",
     path: NavItemPaths.ToRetry,
-    component: <FailedView category={FindCategory.ToRetry}></FailedView>,
+    component: <FailedView key={FindCategory.ToRetry} category={FindCategory.ToRetry}></FailedView>,
   },
   {
     label: "Executing",
     path: NavItemPaths.Executing,
-    component: <FailedView category={FindCategory.Executing}></FailedView>,
+    component: <FailedView key={FindCategory.Executing} category={FindCategory.Executing}></FailedView>,
   },
   {
     label: "NextRetry",
     path: NavItemPaths.NextRetry,
-    component: <FailedView category={FindCategory.NextRetry}></FailedView>,
+    component: <FailedView key={FindCategory.NextRetry} category={FindCategory.NextRetry}></FailedView>,
   },
   {
     label: "NonRetryable",
     path: NavItemPaths.NonRetryable,
-    component: <FailedView category={FindCategory.NonRetryable}></FailedView>,
+    component: <FailedView  key={FindCategory.NonRetryable} category={FindCategory.NonRetryable}></FailedView>,
   },
   {
     label: "Succeeded",
     path: NavItemPaths.Succeeded,
-    component: <FailedView category={FindCategory.Succeeded}></FailedView>,
+    component: <FailedView key={FindCategory.Succeeded} category={FindCategory.Succeeded}></FailedView>,
   },
   {
     label: "Unrecoverable",
     path: NavItemPaths.Unrecoverable,
-    component: <FailedView category={FindCategory.Unrecoverable}></FailedView>,
+    component: <FailedView key={FindCategory.Unrecoverable} category={FindCategory.Unrecoverable}></FailedView>,
   },
 ];
 

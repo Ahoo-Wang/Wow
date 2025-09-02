@@ -11,12 +11,12 @@
  * limitations under the License.
  */
 
-import { Table, Tag, Typography } from "antd";
+import { Table, Tag, Typography,Statistic } from "antd";
 import type { TableColumnsType } from "antd";
 import { type PagedList } from "@ahoo-wang/fetcher-wow";
 import type { ExecutionFailedState } from "../../services";
-const { Paragraph } = Typography;
-
+const { Text } = Typography;
+const {Timer}=Statistic;
 interface FailedTableProps {
   onPaginationChange?: (page: number, pageSize: number) => void;
   pagedList: PagedList<ExecutionFailedState>;
@@ -27,9 +27,9 @@ const columns: TableColumnsType<ExecutionFailedState> = [
     title: "ID",
     dataIndex: "id",
     key: "id",
-    width: 180,
+    width: 100,
     fixed: "left",
-    render: (id) => <Paragraph copyable>{id}</Paragraph>,
+    render: (id) => <Text ellipsis={true} copyable>{id}</Text>,
   },
   {
     title: "Function",
@@ -38,7 +38,11 @@ const columns: TableColumnsType<ExecutionFailedState> = [
         title: "Context",
         dataIndex: "function",
         key: "function.contextName",
-        render: (func) => func?.contextName,
+        render: (func) => (
+          <Text copyable ellipsis={{ tooltip: func?.contextName }}>
+            {func?.contextName}
+          </Text>
+        ),
         width: 120,
       },
       {
@@ -46,9 +50,9 @@ const columns: TableColumnsType<ExecutionFailedState> = [
         dataIndex: "function",
         key: "function.processorName",
         render: (func) => (
-          <Paragraph copyable ellipsis={{ tooltip: func?.processorName }}>
+          <Text copyable ellipsis={{ tooltip: func?.processorName }}>
             {func?.processorName}
-          </Paragraph>
+          </Text>
         ),
         width: 120,
       },
@@ -57,9 +61,9 @@ const columns: TableColumnsType<ExecutionFailedState> = [
         dataIndex: "function",
         key: "function.name",
         render: (func) => (
-          <Paragraph copyable ellipsis={{ tooltip: func?.name }}>
+          <Text copyable ellipsis={{ tooltip: func?.name }}>
             {func?.name}
-          </Paragraph>
+          </Text>
         ),
         width: 150,
       },
@@ -67,7 +71,11 @@ const columns: TableColumnsType<ExecutionFailedState> = [
         title: "Kind",
         dataIndex: "function",
         key: "function.functionKind",
-        render: (func) => func?.functionKind,
+        render: (func) => (
+          <Text>
+            {func?.functionKind}
+          </Text>
+        ),
         width: 100,
       },
     ],
@@ -79,14 +87,18 @@ const columns: TableColumnsType<ExecutionFailedState> = [
         title: "Event ID",
         dataIndex: "eventId",
         key: "eventId.id",
-        render: (eventId) => <Paragraph copyable>{eventId?.id}</Paragraph>,
-        width: 180,
+        render: (eventId) => <Text ellipsis={true} copyable>{eventId?.id}</Text>,
+        width: 120,
       },
       {
         title: "Version",
         dataIndex: "eventId",
         key: "eventId.version",
-        render: (eventId) => eventId?.version,
+        render: (eventId) => (
+          <Text>
+            {eventId?.version}
+          </Text>
+        ),
         width: 80,
       },
       {
@@ -94,22 +106,22 @@ const columns: TableColumnsType<ExecutionFailedState> = [
         dataIndex: "eventId",
         key: "eventId.aggregateId.aggregateId",
         render: (eventId) => (
-          <Paragraph copyable>{eventId?.aggregateId.aggregateId}</Paragraph>
+          <Text ellipsis={true} copyable>{eventId?.aggregateId.aggregateId}</Text>
         ),
-        width: 180,
+        width: 140,
       },
       {
         title: "Context",
         dataIndex: "eventId",
         key: "eventId.aggregateId.contextName",
-        render: (eventId) => eventId?.aggregateId.contextName,
+        render: (eventId) => (<Text>{eventId?.aggregateId.contextName}</Text>),
         width: 120,
       },
       {
         title: "Aggregate",
         dataIndex: "eventId",
         key: "eventId.aggregateId.aggregateName",
-        render: (eventId) => eventId?.aggregateId.aggregateName,
+        render: (eventId) => <Text>{eventId?.aggregateId.aggregateName}</Text>,
         width: 120,
       },
     ],
@@ -146,7 +158,6 @@ const columns: TableColumnsType<ExecutionFailedState> = [
         title: "Max Retries",
         dataIndex: ["retrySpec", "maxRetries"],
         key: "retrySpec.maxRetries",
-        // render: (retrySpec) => retrySpec?.maxRetries,
         width: 100,
       },
       {
@@ -166,17 +177,21 @@ const columns: TableColumnsType<ExecutionFailedState> = [
         key: "executeAt",
         render: (executeAt) =>
           executeAt && new Date(executeAt).toLocaleString(),
-        width: 180,
+        width: 125,
         fixed: "right",
       },
       {
         title: "Next Retry",
         dataIndex: "retryState",
         key: "retryState.nextRetryAt",
-        render: (retryState) =>
-          retryState?.nextRetryAt &&
-          new Date(retryState.nextRetryAt).toLocaleString(),
-        width: 180,
+        render: (retryState) =>(
+          <Timer
+            type="countdown"
+            value={retryState?.nextRetryAt}
+            valueStyle={{ fontSize: "14px" }}
+          />
+        ),
+        width: 120,
         fixed: "right",
       },
     ],
