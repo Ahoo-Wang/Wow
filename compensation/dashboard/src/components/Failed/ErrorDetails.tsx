@@ -32,7 +32,7 @@ export function ErrorDetails({ error }: ErrorDetailsProps) {
         size="small"
       >
         <Editor
-          height="80vh"
+          height="90vh"
           defaultLanguage="java"
           defaultValue={error.stackTrace}
           theme="vs-dark"
