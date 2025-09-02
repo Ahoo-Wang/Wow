@@ -19,7 +19,7 @@ import type {
   Identifier,
   NamedBoundedContext,
 } from '../types';
-import {
+import type {
   CommandId,
   CommandResultCapable,
   CommandStageCapable,
@@ -28,7 +28,7 @@ import {
   SignalTimeCapable,
   WaitCommandIdCapable,
 } from './types';
-import { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
+import { type JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 
 /**
  * Command execution result interface

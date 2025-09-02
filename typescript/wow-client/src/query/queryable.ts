@@ -11,10 +11,10 @@
  * limitations under the License.
  */
 
-import { ConditionCapable } from './condition';
-import { SortCapable } from './sort';
-import { Pagination } from './pagination';
-import { ProjectionCapable } from './projection';
+import { all, type ConditionCapable } from './condition';
+import { type  SortCapable } from './sort';
+import { type  Pagination } from './pagination';
+import { type  ProjectionCapable } from './projection';
 
 /**
  * Interface for queryable objects that support conditions, projection, and sorting.
@@ -31,6 +31,27 @@ export interface Queryable
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface SingleQuery extends Queryable {
 }
+
+/**
+ * Creates a SingleQuery object with the provided parameters.
+ *
+ * This function is a factory for creating SingleQuery objects, which represent
+ * queries that return a single result. It provides default values for optional
+ * properties while allowing customization of condition, projection, and sort criteria.
+ *
+ * @param condition - The query condition. Defaults to an 'all' condition that matches everything.
+ * @param projection - The field projection specification. Optional.
+ * @param sort - The sort criteria. Optional.
+ * @returns A SingleQuery object with the specified parameters
+ */
+export function singleQuery({ condition = all(), projection, sort }: Partial<SingleQuery>): SingleQuery {
+  return {
+    condition,
+    projection,
+    sort,
+  };
+}
+
 
 /**
  * Interface for list query objects.

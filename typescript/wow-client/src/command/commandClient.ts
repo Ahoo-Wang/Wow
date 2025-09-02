@@ -11,10 +11,10 @@
  * limitations under the License.
  */
 
-import { ClientOptions } from '../types';
-import { CommandRequest } from './commandRequest';
-import { CommandResult, CommandResultEventStream } from './commandResult';
-import { ResultExtractor, ResultExtractors } from '@ahoo-wang/fetcher-decorator';
+import { type  ClientOptions } from '../types';
+import { type  CommandRequest } from './commandRequest';
+import { type  CommandResult, type  CommandResultEventStream } from './commandResult';
+import { type  ResultExtractor, ResultExtractors } from '@ahoo-wang/fetcher-decorator';
 import { combineURLs, ContentTypeValues } from '@ahoo-wang/fetcher';
 
 /**
@@ -22,7 +22,7 @@ import { combineURLs, ContentTypeValues } from '@ahoo-wang/fetcher';
  *
  * The CommandClient is responsible for sending commands to the server and handling the responses.
  * It provides methods for both regular command execution and streaming command results.
- * 
+ *
  * @example
  * ```typescript
  * // Create a client options configuration
@@ -88,11 +88,11 @@ export class CommandClient {
 
   /**
    * Send a command to the server and wait for the result.
-   * 
+   *
    * @param path - The endpoint path to send the command to
    * @param commandHttpRequest - The command request to send
    * @returns A promise that resolves to the command execution result
-   * 
+   *
    * @example
    * ```typescript
    * const commandResult = await commandClient.send('add_cart_item', {
@@ -114,11 +114,11 @@ export class CommandClient {
   /**
    * Send a command to the server and wait for the result as a stream.
    * This is useful for long-running commands that produce multiple events.
-   * 
+   *
    * @param path - The endpoint path to send the command to
    * @param commandHttpRequest - The command request to send
    * @returns A promise that resolves to a stream of command execution results
-   * 
+   *
    * @example
    * ```typescript
    * const commandResultStream = await commandClient.sendAndWaitStream('add_cart_item', {
@@ -131,7 +131,7 @@ export class CommandClient {
    *     quantity: 2
    *   }
    * });
-   * 
+   *
    * for await (const commandResultEvent of commandResultStream) {
    *   console.log('Received event:', commandResultEvent.data);
    * }

@@ -12,12 +12,12 @@
  */
 
 import {
-  FetchRequestInit,
-  RequestHeaders,
-  UrlParams,
+  type  FetchRequestInit,
+  type  RequestHeaders,
+  type  UrlParams,
 } from '@ahoo-wang/fetcher';
 import { CommandHttpHeaders } from './commandHttpHeaders';
-import { PathParams } from '../types/endpoints';
+import { type PathParams } from '../types/endpoints';
 
 /**
  * Command Request Headers Interface
