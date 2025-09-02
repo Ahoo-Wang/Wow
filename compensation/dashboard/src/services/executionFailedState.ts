@@ -26,16 +26,16 @@ import {
  * compensation.ExecutionFailedState
  */
 export interface ExecutionFailedState extends Identifier {
-  error?: ErrorDetails;
-  eventId?: EventId;
-  executeAt?: number;
-  function?: FunctionInfo;
-  isBelowRetryThreshold?: boolean;
-  isRetryable?: boolean;
-  recoverable?: RecoverableType;
-  retrySpec?: RetrySpec;
-  retryState?: RetryState;
-  status?: ExecutionFailedStatus;
+  error: ErrorDetails;
+  eventId: EventId;
+  executeAt: number;
+  function: FunctionInfo;
+  isBelowRetryThreshold: boolean;
+  isRetryable: boolean;
+  recoverable: RecoverableType;
+  retrySpec: RetrySpec;
+  retryState: RetryState;
+  status: ExecutionFailedStatus;
 }
 
 /**

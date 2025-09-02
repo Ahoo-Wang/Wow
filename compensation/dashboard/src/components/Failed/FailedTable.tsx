@@ -13,7 +13,7 @@
 
 import { Table, Tag, Typography, Statistic, Drawer } from "antd";
 import type { TableColumnsType } from "antd";
-import { type PagedList } from "@ahoo-wang/fetcher-wow";
+import type { PagedList } from "@ahoo-wang/fetcher-wow";
 import type { ExecutionFailedState } from "../../services";
 import { FailedDetails } from "./FailedDetails";
 import { useState } from "react";
@@ -47,8 +47,8 @@ const columns: TableColumnsType<ExecutionFailedState> = [
         dataIndex: "function",
         key: "function.contextName",
         render: (func) => (
-          <Text copyable ellipsis={{ tooltip: func?.contextName }}>
-            {func?.contextName}
+          <Text copyable ellipsis={{ tooltip: func.contextName }}>
+            {func.contextName}
           </Text>
         ),
         width: 120,
@@ -58,8 +58,8 @@ const columns: TableColumnsType<ExecutionFailedState> = [
         dataIndex: "function",
         key: "function.processorName",
         render: (func) => (
-          <Text copyable ellipsis={{ tooltip: func?.processorName }}>
-            {func?.processorName}
+          <Text copyable ellipsis={{ tooltip: func.processorName }}>
+            {func.processorName}
           </Text>
         ),
         width: 120,
@@ -69,8 +69,8 @@ const columns: TableColumnsType<ExecutionFailedState> = [
         dataIndex: "function",
         key: "function.name",
         render: (func) => (
-          <Text copyable ellipsis={{ tooltip: func?.name }}>
-            {func?.name}
+          <Text copyable ellipsis={{ tooltip: func.name }}>
+            {func.name}
           </Text>
         ),
         width: 150,
@@ -79,7 +79,7 @@ const columns: TableColumnsType<ExecutionFailedState> = [
         title: "Kind",
         dataIndex: "function",
         key: "function.functionKind",
-        render: (func) => <Text>{func?.functionKind}</Text>,
+        render: (func) => <Text>{func.functionKind}</Text>,
         width: 100,
       },
     ],
@@ -93,7 +93,7 @@ const columns: TableColumnsType<ExecutionFailedState> = [
         key: "eventId.id",
         render: (eventId) => (
           <Text ellipsis={true} copyable>
-            {eventId?.id}
+            {eventId.id}
           </Text>
         ),
         width: 120,
@@ -102,7 +102,7 @@ const columns: TableColumnsType<ExecutionFailedState> = [
         title: "Version",
         dataIndex: "eventId",
         key: "eventId.version",
-        render: (eventId) => <Text>{eventId?.version}</Text>,
+        render: (eventId) => <Text>{eventId.version}</Text>,
         width: 80,
       },
       {
@@ -111,7 +111,7 @@ const columns: TableColumnsType<ExecutionFailedState> = [
         key: "eventId.aggregateId.aggregateId",
         render: (eventId) => (
           <Text ellipsis={true} copyable>
-            {eventId?.aggregateId.aggregateId}
+            {eventId.aggregateId.aggregateId}
           </Text>
         ),
         width: 140,
@@ -120,14 +120,14 @@ const columns: TableColumnsType<ExecutionFailedState> = [
         title: "Context",
         dataIndex: "eventId",
         key: "eventId.aggregateId.contextName",
-        render: (eventId) => <Text>{eventId?.aggregateId.contextName}</Text>,
+        render: (eventId) => <Text>{eventId.aggregateId.contextName}</Text>,
         width: 120,
       },
       {
         title: "Aggregate",
         dataIndex: "eventId",
         key: "eventId.aggregateId.aggregateName",
-        render: (eventId) => <Text>{eventId?.aggregateId.aggregateName}</Text>,
+        render: (eventId) => <Text>{eventId.aggregateId.aggregateName}</Text>,
         width: 120,
       },
     ],
@@ -157,7 +157,7 @@ const columns: TableColumnsType<ExecutionFailedState> = [
         title: "Retries",
         dataIndex: "retryState",
         key: "retryState.retries",
-        render: (retryState) => retryState?.retries,
+        render: (retryState) => retryState.retries,
         width: 80,
       },
       {
@@ -193,7 +193,7 @@ const columns: TableColumnsType<ExecutionFailedState> = [
         render: (retryState) => (
           <Timer
             type="countdown"
-            value={retryState?.nextRetryAt}
+            value={retryState.nextRetryAt}
             valueStyle={{ fontSize: "14px" }}
           />
         ),
@@ -241,11 +241,10 @@ export function FailedTable({
         scroll={{ x: 1500 }}
       ></Table>
       <Drawer
-        title="Failed Event Details"
-        width={'60vw'}
+        title="Execution Failed Details"
+        width={'80vw'}
         onClose={closeDrawer}
         open={drawerVisible}
-        bodyStyle={{ paddingBottom: 80 }}
       >
         {selectedRecord && <FailedDetails state={selectedRecord} />}
       </Drawer>

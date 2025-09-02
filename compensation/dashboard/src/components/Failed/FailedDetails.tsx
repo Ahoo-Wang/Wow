@@ -1,9 +1,11 @@
-import { Descriptions, Typography, Tag } from "antd";
+import { Descriptions, Typography, Tag, Button, Statistic } from "antd";
 import type { DescriptionsProps } from "antd";
+import { FullscreenOutlined, FullscreenExitOutlined } from "@ant-design/icons";
 
 import type { ExecutionFailedState } from "../../services";
 import { Editor } from "@monaco-editor/react";
-
+import { useState } from "react";
+const { Timer } = Statistic;
 function formatIsoDateTime(timeAt: number | undefined): string {
   if (!timeAt) {
     return "-";
@@ -18,18 +20,22 @@ export interface FailedDetailsProps {
 }
 
 export function FailedDetails({ state }: FailedDetailsProps) {
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const toggleFullscreen = () => {
+    setIsFullscreen(!isFullscreen);
+  };
+
   // 基本信息
   const basicItems: DescriptionsProps["items"] = [
     {
       key: "id",
       label: "ID",
-      children: <Text code copyable>{state.id}</Text>,
-      span: 2,
-    },
-    {
-      key: "eventId",
-      label: "Event ID",
-      children: <Text code copyable>{state.eventId?.id || "-"}</Text>,
+      children: (
+        <Text code copyable>
+          {state.id}
+        </Text>
+      ),
       span: 2,
     },
     {
@@ -38,7 +44,9 @@ export function FailedDetails({ state }: FailedDetailsProps) {
       children: (
         <>
           {state.status === "FAILED" && <Tag color="error">Failed</Tag>}
-          {state.status === "PREPARED" && <Tag color="processing">Prepared</Tag>}
+          {state.status === "PREPARED" && (
+            <Tag color="processing">Prepared</Tag>
+          )}
           {state.status === "SUCCEEDED" && <Tag color="success">Succeeded</Tag>}
           {!state.status && "-"}
         </>
@@ -56,9 +64,15 @@ export function FailedDetails({ state }: FailedDetailsProps) {
       label: "Recoverable",
       children: (
         <>
-          {state.recoverable === "RECOVERABLE" && <Tag color="success">Recoverable</Tag>}
-          {state.recoverable === "UNRECOVERABLE" && <Tag color="error">Unrecoverable</Tag>}
-          {state.recoverable === "UNKNOWN" && <Tag color="warning">Unknown</Tag>}
+          {state.recoverable === "RECOVERABLE" && (
+            <Tag color="success">Recoverable</Tag>
+          )}
+          {state.recoverable === "UNRECOVERABLE" && (
+            <Tag color="error">Unrecoverable</Tag>
+          )}
+          {state.recoverable === "UNKNOWN" && (
+            <Tag color="warning">Unknown</Tag>
+          )}
           {!state.recoverable && "-"}
         </>
       ),
@@ -67,8 +81,60 @@ export function FailedDetails({ state }: FailedDetailsProps) {
     {
       key: "isRetryable",
       label: "Is Retryable",
-      children: state.isRetryable ? <Tag color="success">Yes</Tag> : <Tag color="error">No</Tag>,
+      children: state.isRetryable ? (
+        <Tag color="success">Yes</Tag>
+      ) : (
+        <Tag color="error">No</Tag>
+      ),
       span: 1,
+    },
+  ];
+
+  // EventId 信息
+  const eventIdItems: DescriptionsProps["items"] = [
+    {
+      key: "eventId",
+      label: "Event ID",
+      children: (
+        <Text code copyable>
+          {state.eventId.id}
+        </Text>
+      ),
+      span: 2,
+    },
+    {
+      key: "eventVersion",
+      label: "Event Version",
+      children: state.eventId.version.toString(),
+      span: 2,
+    },
+    {
+      key: "aggregateId",
+      label: "Aggregate ID",
+      children: (
+        <Text code copyable>
+          {state.eventId.aggregateId.aggregateId}
+        </Text>
+      ),
+      span: 2,
+    },
+    {
+      key: "aggregateName",
+      label: "Aggregate Name",
+      children: state.eventId.aggregateId.aggregateName,
+      span: 1,
+    },
+    {
+      key: "contextName",
+      label: "Context Name",
+      children: state.eventId.aggregateId.contextName,
+      span: 1,
+    },
+    {
+      key: "tenantId",
+      label: "Tenant ID",
+      children: state.eventId.aggregateId.tenantId,
+      span: 2,
     },
   ];
 
@@ -77,25 +143,25 @@ export function FailedDetails({ state }: FailedDetailsProps) {
     {
       key: "contextName",
       label: "Context Name",
-      children: state.function?.contextName || "-",
+      children: state.function.contextName,
       span: 1,
     },
     {
       key: "processorName",
       label: "Processor Name",
-      children: state.function?.processorName || "-",
+      children: state.function.processorName,
       span: 1,
     },
     {
       key: "functionName",
       label: "Function Name",
-      children: state.function?.name || "-",
+      children: state.function.name,
       span: 1,
     },
     {
       key: "functionKind",
       label: "Function Kind",
-      children: state.function?.functionKind || "-",
+      children: state.function.functionKind,
       span: 1,
     },
   ];
@@ -105,13 +171,13 @@ export function FailedDetails({ state }: FailedDetailsProps) {
     {
       key: "errorCode",
       label: "Error Code",
-      children: <Text code>{state.error?.errorCode || "-"}</Text>,
+      children: <Text code>{state.error.errorCode}</Text>,
       span: 1,
     },
     {
       key: "errorMsg",
       label: "Error Message",
-      children: state.error?.errorMsg || "-",
+      children: state.error.errorMsg,
       span: 1,
     },
   ];
@@ -121,79 +187,123 @@ export function FailedDetails({ state }: FailedDetailsProps) {
     {
       key: "retries",
       label: "Retries",
-      children: state.retryState?.retries?.toString() || "-",
+      children: state.retryState.retries.toString(),
       span: 1,
     },
     {
       key: "nextRetryAt",
       label: "Next Retry At",
-      children: formatIsoDateTime(state.retryState?.nextRetryAt),
-      span: 1,
+      children: (
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <Timer
+            type="countdown"
+            value={state.retryState.nextRetryAt}
+            format="HH:mm:ss"
+          />
+        </div>
+      ),
+      span: 2,
     },
     {
       key: "maxRetries",
       label: "Max Retries",
-      children: state.retrySpec?.maxRetries?.toString() || "-",
+      children: state.retrySpec.maxRetries.toString(),
       span: 1,
     },
     {
       key: "minBackoff",
       label: "Min Backoff (ms)",
-      children: state.retrySpec?.minBackoff?.toString() || "-",
+      children: state.retrySpec.minBackoff.toString(),
       span: 1,
     },
     {
       key: "executionTimeout",
       label: "Execution Timeout (ms)",
-      children: state.retrySpec?.executionTimeout?.toString() || "-",
+      children: state.retrySpec.executionTimeout.toString(),
       span: 1,
     },
   ];
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-      <Descriptions
-        bordered
-        column={2}
-        items={basicItems}
-        size="small"
-      />
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: "16px",
+        height: "100%",
+      }}
+    >
+      <Descriptions bordered column={2} items={basicItems} size="small" />
 
-      <Descriptions
-        bordered
-        column={2}
-        items={functionItems}
-        size="small"
-      />
+      <Descriptions bordered column={2} items={eventIdItems} size="small" />
 
-      <Descriptions
-        bordered
-        column={1}
-        items={errorItems}
-        size="small"
-      />
+      <Descriptions bordered column={2} items={functionItems} size="small" />
 
-      <Descriptions
-        bordered
-        column={2}
-        items={retryItems}
-        size="small"
-      />
+      <Descriptions bordered column={1} items={errorItems} size="small" />
+
+      <Descriptions bordered column={2} items={retryItems} size="small" />
 
       {state.error?.stackTrace && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-          <Title level={5} style={{ marginTop: 0, marginBottom: "8px" }}>Stack Trace</Title>
-          <div style={{ flex: 1, border: "1px solid #d9d9d9", borderRadius: "4px", overflow: "hidden" }}>
-            <Editor 
-              height="100%"
-              defaultLanguage="plaintext"
-              defaultValue={state.error?.stackTrace}
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            minHeight: 0,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "8px",
+            }}
+          >
+            <Title level={5} style={{ marginTop: 0, marginBottom: 0 }}>
+              Stack Trace
+            </Title>
+            <Button
+              icon={
+                isFullscreen ? (
+                  <FullscreenExitOutlined />
+                ) : (
+                  <FullscreenOutlined />
+                )
+              }
+              onClick={toggleFullscreen}
+              size="small"
+            />
+          </div>
+          <div
+            style={{
+              flex: 1,
+              border: "1px solid #d9d9d9",
+              borderRadius: "4px",
+              overflow: "hidden",
+              position: isFullscreen ? "fixed" : "static",
+              top: isFullscreen ? 0 : "auto",
+              left: isFullscreen ? 0 : "auto",
+              right: isFullscreen ? 0 : "auto",
+              bottom: isFullscreen ? 0 : "auto",
+              zIndex: isFullscreen ? 1000 : "auto",
+              backgroundColor: isFullscreen ? "#fff" : "transparent",
+            }}
+          >
+            <Editor
+              height={isFullscreen ? "100vh" : "100%"}
+              defaultLanguage="java" // 使用java语言类型更适合展示Java堆栈跟踪
+              defaultValue={state.error.stackTrace}
               options={{
                 readOnly: true,
                 minimap: { enabled: false },
                 scrollBeyondLastLine: false,
                 automaticLayout: true,
                 fontSize: 12,
+                lineNumbers: "on", // 显示行号
+                folding: true, // 启用代码折叠
+                wordWrap: "on", // 自动换行
+                theme: "vs-dark", // 使用深色主题，提高可读性
               }}
             />
           </div>
