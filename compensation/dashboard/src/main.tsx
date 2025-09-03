@@ -5,9 +5,12 @@ import "antd/dist/reset.css";
 import "./index.css";
 import { RouterProvider } from "react-router";
 import { AppRouter } from "./routes/Routes.tsx";
+import { App } from "antd";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <RouterProvider router={AppRouter}/>
+    <App>
+      <RouterProvider router={AppRouter} />
+    </App>
   </StrictMode>,
 );

@@ -11,10 +11,10 @@
  * limitations under the License.
  */
 
-import { Table, Tag, Typography, Statistic, Drawer } from "antd";
+import { Table, Tag, Typography, Statistic, Drawer, Button } from "antd";
 import type { TableColumnsType } from "antd";
 import type { PagedList } from "@ahoo-wang/fetcher-wow";
-import type { ExecutionFailedState } from "../../services";
+import type { EventId, ExecutionFailedState } from "../../services";
 import { FailedDetails } from "./FailedDetails";
 import { useState } from "react";
 
@@ -88,35 +88,6 @@ const columns: TableColumnsType<ExecutionFailedState> = [
     title: "Event Info",
     children: [
       {
-        title: "Event ID",
-        dataIndex: "eventId",
-        key: "eventId.id",
-        render: (eventId) => (
-          <Text ellipsis={true} copyable>
-            {eventId.id}
-          </Text>
-        ),
-        width: 120,
-      },
-      {
-        title: "Version",
-        dataIndex: "eventId",
-        key: "eventId.version",
-        render: (eventId) => <Text>{eventId.version}</Text>,
-        width: 80,
-      },
-      {
-        title: "Aggregate ID",
-        dataIndex: "eventId",
-        key: "eventId.aggregateId.aggregateId",
-        render: (eventId) => (
-          <Text ellipsis={true} copyable>
-            {eventId.aggregateId.aggregateId}
-          </Text>
-        ),
-        width: 140,
-      },
-      {
         title: "Context",
         dataIndex: "eventId",
         key: "eventId.aggregateId.contextName",
@@ -129,6 +100,38 @@ const columns: TableColumnsType<ExecutionFailedState> = [
         key: "eventId.aggregateId.aggregateName",
         render: (eventId) => <Text>{eventId.aggregateId.aggregateName}</Text>,
         width: 120,
+      },
+      {
+        title: "Aggregate ID",
+        dataIndex: "eventId",
+        key: "eventId.aggregateId.aggregateId",
+        render: (eventId: EventId) => (
+          <Text
+            ellipsis={{ tooltip: eventId.aggregateId.aggregateId }}
+            copyable
+          >
+            {eventId.aggregateId.aggregateId}
+          </Text>
+        ),
+        width: 140,
+      },
+      {
+        title: "Event ID",
+        dataIndex: "eventId",
+        key: "eventId.id",
+        render: (eventId) => (
+          <Text ellipsis={{ tooltip: eventId.id }} copyable>
+            {eventId.id}
+          </Text>
+        ),
+        width: 120,
+      },
+      {
+        title: "Version",
+        dataIndex: "eventId",
+        key: "eventId.version",
+        render: (eventId) => <Text>{eventId.version}</Text>,
+        width: 80,
       },
     ],
   },
@@ -156,15 +159,15 @@ const columns: TableColumnsType<ExecutionFailedState> = [
       {
         title: "Retries",
         dataIndex: "retryState",
-        key: "retryState.retries",
-        render: (retryState) => retryState.retries,
+        key: "retryState",
+        render: (retryState) => {
+          return (
+            <Text>
+              {retryState.retries}({retryState.maxRetries})
+            </Text>
+          );
+        },
         width: 80,
-      },
-      {
-        title: "Max Retries",
-        dataIndex: ["retrySpec", "maxRetries"],
-        key: "retrySpec.maxRetries",
-        width: 100,
       },
       {
         title: "Recoverable",
@@ -198,16 +201,27 @@ const columns: TableColumnsType<ExecutionFailedState> = [
           />
         ),
         width: 120,
-        fixed: "right",
       },
     ],
+  },
+  {
+    title: "Actions",
+    key: "actions",
+    fixed: "right",
+    width: 100,
+    render: (_state: ExecutionFailedState) => (
+      <>
+        <Button type={"primary"}>Retry</Button>
+      </>
+    ),
   },
 ];
 export function FailedTable({
   onPaginationChange,
   pagedList,
 }: FailedTableProps) {
-  const [selectedRecord, setSelectedRecord] = useState<ExecutionFailedState | null>(null);
+  const [selectedRecord, setSelectedRecord] =
+    useState<ExecutionFailedState | null>(null);
   const [drawerVisible, setDrawerVisible] = useState(false);
 
   const showDrawer = (record: ExecutionFailedState) => {
@@ -223,6 +237,7 @@ export function FailedTable({
   return (
     <>
       <Table<ExecutionFailedState>
+        size="small"
         rowKey="id"
         onRow={(record) => {
           return {
@@ -242,7 +257,7 @@ export function FailedTable({
       ></Table>
       <Drawer
         title="Execution Failed Details"
-        width={'80vw'}
+        width={"80vw"}
         onClose={closeDrawer}
         open={drawerVisible}
       >

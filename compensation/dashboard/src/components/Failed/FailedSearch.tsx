@@ -14,79 +14,79 @@
 import { ClearOutlined, SearchOutlined } from "@ant-design/icons";
 import { Button, Col, Form, type FormProps, Input, Row, Space } from "antd";
 import { and, type Condition, eq } from "@ahoo-wang/fetcher-wow";
+import { useCallback } from "react";
 
 interface FailedSearchProps {
   onSearch?: (condition: Condition) => void;
 }
 
 export function FailedSearch({ onSearch }: FailedSearchProps) {
-  const onFinish: FormProps["onFinish"] = (values) => {
-    const conditions: Condition[] = [];
-    Object.keys(values).forEach((key) => {
-      const value = values[key];
-      if (value) {
-        conditions.push(eq(key, value));
+  const [form] = Form.useForm();
+  const onFinish: FormProps["onFinish"] = useCallback(
+    (values: any) => {
+      try {
+        const conditions: Condition[] = [];
+        Object.keys(values).forEach((key) => {
+          const value = values[key];
+          if (value) {
+            conditions.push(eq(key, value));
+          }
+        });
+        if (onSearch) {
+          onSearch(and(...conditions));
+        }
+      } catch (error) {
+        console.error("Search error:", error);
       }
-    });
-    if (onSearch) {
-      onSearch(and(...conditions));
-    }
-  };
+    },
+    [onSearch],
+  );
   return (
-    <Form layout="vertical" onFinish={onFinish}>
+    <Form form={form} layout="vertical" onFinish={onFinish}>
       <Row gutter={24}>
         <Col span={6}>
-          <Form.Item name="_id" label="Id">
-            <Input placeholder="Id" />
+          <Form.Item name="_id">
+            <Input addonBefore="Id" placeholder="Id" />
           </Form.Item>
         </Col>
         <Col span={6}>
-          <Form.Item name="state.eventId.id" label="EventId">
-            <Input placeholder="EventId" />
+          <Form.Item name="state.eventId.id">
+            <Input addonBefore="EventId" placeholder="EventId" />
           </Form.Item>
         </Col>
         <Col span={6}>
-          <Form.Item
-            name="state.eventId.aggregateId.aggregateId"
-            label="AggregateId"
-          >
-            <Input placeholder="AggregateId" />
+          <Form.Item name="state.eventId.aggregateId.aggregateId">
+            <Input addonBefore="AggregateId" placeholder="AggregateId" />
           </Form.Item>
         </Col>
         <Col span={6}>
-          <Form.Item
-            name="state.eventId.aggregateId.contextName"
-            label="AggregateContext"
-          >
-            <Input placeholder="AggregateContext" />
+          <Form.Item name="state.eventId.aggregateId.contextName">
+            <Input
+              addonBefore="AggregateContext"
+              placeholder="AggregateContext"
+            />
           </Form.Item>
         </Col>
         <Col span={6}>
-          <Form.Item
-            name="state.eventId.aggregateId.aggregateName"
-            label="AggregateName"
-          >
-            <Input placeholder="AggregateName" />
+          <Form.Item name="state.eventId.aggregateId.aggregateName">
+            <Input addonBefore="AggregateName" placeholder="AggregateName" />
           </Form.Item>
         </Col>
         <Col span={6}>
-          <Form.Item
-            name="state.function.contextName"
-            label="ProcessorContext"
-          >
-            <Input placeholder="ProcessorContext" />
+          <Form.Item name="state.function.contextName">
+            <Input
+              addonBefore="ProcessorContext"
+              placeholder="ProcessorContext"
+            />
           </Form.Item>
         </Col>
         <Col span={6}>
-          <Form.Item
-            name="state.function.processorName"
-            label="ProcessorName"
-          >
-            <Input placeholder="ProcessorName" />
+          <Form.Item name="state.function.processorName">
+            <Input addonBefore="ProcessorName" placeholder="ProcessorName" />
           </Form.Item>
         </Col>
         <Col span={6}>
-          <Form.Item label="Actions">
+          <Form.Item>
             <Space>
               <Button
                 type="primary"
