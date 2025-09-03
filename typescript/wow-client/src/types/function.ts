@@ -11,6 +11,8 @@
  * limitations under the License.
  */
 
+import type { Named, NamedBoundedContext } from './naming';
+
 /**
  * Function kind enum
  *
@@ -46,11 +48,9 @@ export enum FunctionKind {
 /**
  * Interface for function information.
  */
-export interface FunctionInfo {
+export interface FunctionInfo extends NamedBoundedContext, Named {
   functionKind: FunctionKind;
-  contextName: string;
   processorName: string;
-  name: string;
 }
 
 /**

@@ -129,8 +129,6 @@ export interface SnapshotTimeCapable {
   snapshotTime: number;
 }
 
-export const DEFAULT_TENANT_ID = '(0)';
-
 /**
  * Interface for objects that have a tenant ID.
  */
