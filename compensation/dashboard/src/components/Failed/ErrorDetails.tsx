@@ -30,6 +30,7 @@ export function ErrorDetails({ error }: ErrorDetailsProps) {
       <Card 
         title="Stack Trace" 
         size="small"
+        styles={{body: {padding: "0px"}}}
       >
         <Editor
           height="90vh"

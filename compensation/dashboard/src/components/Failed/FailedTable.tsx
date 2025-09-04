@@ -11,10 +11,13 @@
  * limitations under the License.
  */
 
-import { Table, Tag, Typography, Statistic, Drawer, Button } from "antd";
+import { Table, Typography, Statistic, Drawer, Button } from "antd";
 import type { TableColumnsType } from "antd";
 import type { PagedList } from "@ahoo-wang/fetcher-wow";
-import type { EventId, ExecutionFailedState } from "../../services";
+import type {
+  EventId,
+  ExecutionFailedState,
+} from "../../services";
 import { FailedDetails } from "./FailedDetails";
 import { useState } from "react";
 
@@ -80,7 +83,7 @@ const columns: TableColumnsType<ExecutionFailedState> = [
         dataIndex: "function",
         key: "function.functionKind",
         render: (func) => <Text>{func.functionKind}</Text>,
-        width: 100,
+        width: 80,
       },
     ],
   },
@@ -136,46 +139,23 @@ const columns: TableColumnsType<ExecutionFailedState> = [
     ],
   },
   {
-    title: "Retry Info",
-    children: [
-      {
-        title: "Status",
-        dataIndex: "status",
-        key: "status",
-        render: (status) => {
-          switch (status) {
-            case "FAILED":
-              return <Tag color="error">Failed</Tag>;
-            case "PREPARED":
-              return <Tag color="processing">Prepared</Tag>;
-            case "SUCCEEDED":
-              return <Tag color="success">Succeeded</Tag>;
-            default:
-              return <Tag>{status}</Tag>;
-          }
-        },
-        width: 100,
-      },
-      {
-        title: "Retries",
-        dataIndex: "retryState",
-        key: "retryState",
-        render: (retryState) => {
-          return (
-            <Text>
-              {retryState.retries}({retryState.maxRetries})
-            </Text>
-          );
-        },
-        width: 80,
-      },
-      {
-        title: "Recoverable",
-        dataIndex: "recoverable",
-        key: "recoverable",
-        width: 120,
-      },
-    ],
+    title: "Retries",
+    key: "retries",
+    render: (state: ExecutionFailedState) => {
+      return (
+        <Text>
+          {state.retryState.retries}({state.retrySpec.maxRetries})
+        </Text>
+      );
+    },
+    width: 80,
+    responsive: ['lg'],
+  },
+  {
+    title: "Recoverable",
+    dataIndex: "recoverable",
+    key: "recoverable",
+    width: 120,
   },
   {
     title: "Time",
@@ -184,20 +164,29 @@ const columns: TableColumnsType<ExecutionFailedState> = [
         title: "Execute At",
         dataIndex: "executeAt",
         key: "executeAt",
+        fixed: "right",
         render: (executeAt) =>
           executeAt && new Date(executeAt).toLocaleString(),
         width: 125,
+      },
+      {
+        title: "Retry At",
+        dataIndex: ["retryState", "retryAt"],
+        key: "retryAt",
         fixed: "right",
+        render: (retryAt) => new Date(retryAt).toLocaleString(),
+        width: 125,
       },
       {
         title: "Next Retry",
         dataIndex: "retryState",
         key: "retryState.nextRetryAt",
+        fixed: "right",
         render: (retryState) => (
           <Timer
             type="countdown"
             value={retryState.nextRetryAt}
-            valueStyle={{ fontSize: "14px" }}
+            valueStyle={{ fontSize: "14px",color: "red" }}
           />
         ),
         width: 120,
@@ -211,7 +200,7 @@ const columns: TableColumnsType<ExecutionFailedState> = [
     width: 100,
     render: (_state: ExecutionFailedState) => (
       <>
-        <Button type={"primary"}>Retry</Button>
+        <Button type={"primary"}>Details</Button>
       </>
     ),
   },

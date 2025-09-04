@@ -1,8 +1,14 @@
-import { Descriptions, Typography, Tag, Statistic, Flex } from "antd";
+import { Descriptions, Typography, Tag, Statistic, Flex, Skeleton } from "antd";
 import type { DescriptionsProps } from "antd";
 
-import type { ExecutionFailedState } from "../../services";
+import {
+  executionFailedSnapshotQueryClient,
+  type ExecutionFailedState,
+} from "../../services";
 import { ErrorDetails } from "./ErrorDetails.tsx";
+import { useEffect, useState } from "react";
+import { aggregateId, singleQuery } from "@ahoo-wang/fetcher-wow";
+import useSWR from "swr";
 const { Timer } = Statistic;
 function formatIsoDateTime(timeAt: number | undefined): string {
   if (!timeAt) {
@@ -11,7 +17,7 @@ function formatIsoDateTime(timeAt: number | undefined): string {
   return new Date(timeAt).toLocaleString();
 }
 
-const {  Text } = Typography;
+const { Text } = Typography;
 
 export interface FailedDetailsProps {
   state: ExecutionFailedState;
@@ -136,8 +142,6 @@ export function FailedDetails({ state }: FailedDetailsProps) {
       ),
       span: 1,
     },
-
-
   ];
 
   // 函数信息
@@ -173,29 +177,31 @@ export function FailedDetails({ state }: FailedDetailsProps) {
     {
       key: "retries",
       label: "Retries",
-      children: state.retryState.retries.toString(),
+      children: (
+        <Text>
+          {state.retryState.retries}({state.retrySpec.maxRetries})
+        </Text>
+      ),
+      span: 1,
+    },
+    {
+      key: "retryAt",
+      label: "Retry At",
+      children: new Date(state.retryState.retryAt).toLocaleString(),
       span: 1,
     },
     {
       key: "nextRetryAt",
       label: "Next Retry At",
       children: (
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <Timer
-            type="countdown"
-            value={state.retryState.nextRetryAt}
-            format="HH:mm:ss"
+        <Timer
+          type="countdown"
+          value={state.retryState.nextRetryAt}
+          format="HH:mm:ss"
           valueStyle={{ fontSize: "14px" }}
-          />
-        </div>
+        />
       ),
       span: 2,
-    },
-    {
-      key: "maxRetries",
-      label: "Max Retries",
-      children: state.retrySpec.maxRetries.toString(),
-      span: 1,
     },
     {
       key: "minBackoff",
@@ -220,4 +226,31 @@ export function FailedDetails({ state }: FailedDetailsProps) {
       <ErrorDetails error={state.error}></ErrorDetails>
     </Flex>
   );
+}
+export interface FetchingFailedDetailsProps {
+  id: string;
+}
+export function FetchingFailedDetails({ id }: FetchingFailedDetailsProps) {
+  const { data, error, isLoading } = useSWR(id, () =>
+    executionFailedSnapshotQueryClient.singleState<ExecutionFailedState>(
+      singleQuery({ condition: aggregateId(id) }),
+    ),
+  );
+  if (error) {
+    return (
+      <Flex justify="center" align="center" style={{ minHeight: 100 }}>
+        <Text type="danger">Failed to load data: {error.message}</Text>
+      </Flex>
+    );
+  }
+  if (isLoading) {
+    return (
+      <Flex gap="small" vertical>
+        <Skeleton active />
+        <Skeleton active />
+        <Skeleton active />
+      </Flex>
+    );
+  }
+  return <FailedDetails state={data!} />;
 }

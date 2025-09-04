@@ -18,9 +18,11 @@ import {
   all,
   and,
   type Condition,
+  desc,
   type PagedList,
   pagedQuery,
   pagination,
+  SnapshotMetadataFields,
 } from "@ahoo-wang/fetcher-wow";
 import {
   executionFailedSnapshotQueryClient,
@@ -28,6 +30,7 @@ import {
 } from "../../services";
 import { useEffect, useState } from "react";
 import type { Pagination } from "@ahoo-wang/fetcher-wow";
+import { useQueryParams } from "../../utils/useQuery.ts";
 
 interface FailedViewProps {
   category: FindCategory;
@@ -58,6 +61,7 @@ export default function FailedView({ category }: FailedViewProps) {
         searchCondition,
       ),
       pagination: searchPagination,
+      sort: [desc(SnapshotMetadataFields.FIRST_EVENT_TIME)],
     });
     executionFailedSnapshotQueryClient
       .pagedState<ExecutionFailedState>(query)
@@ -66,6 +70,8 @@ export default function FailedView({ category }: FailedViewProps) {
       });
   };
   useEffect(search, [category, searchCondition, searchPagination]);
+  const id = useQueryParams("id");
+
   return (
     <>
       <FailedSearch onSearch={onSearch}></FailedSearch>
