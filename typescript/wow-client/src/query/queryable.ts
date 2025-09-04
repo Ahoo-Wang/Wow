@@ -136,3 +136,29 @@ export interface PagedList<T> {
   total: number;
   list: T[];
 }
+
+export const EMPTY_PAGED_LIST: PagedList<any> = {
+  total: 0,
+  list: [],
+};
+
+/**
+ * Creates a PagedList object with the provided parameters.
+ *
+ * This function is a factory for creating PagedList objects, which represent
+ * a page of results with total count information. It provides default values
+ * for optional properties while allowing customization of total count and list data.
+ *
+ * @param total - The total number of items. Defaults to 0.
+ * @param list - The array of items in the current page. Defaults to an empty array.
+ * @returns A PagedList object with the specified parameters
+ */
+export function pagedList<T>({ total, list = [] }: Partial<PagedList<T>> = EMPTY_PAGED_LIST): PagedList<T> {
+  if (total === undefined) {
+    total = list.length;
+  }
+  return {
+    total,
+    list,
+  };
+}

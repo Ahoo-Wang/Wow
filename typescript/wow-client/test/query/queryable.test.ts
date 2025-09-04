@@ -13,7 +13,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { all, asc, eq, FieldSort, projection } from '../../src';
-import { singleQuery, listQuery, pagedQuery } from '../../src';
+import { singleQuery, listQuery, pagedQuery, pagedList } from '../../src';
 import { Projection } from '../../src';
 import { DEFAULT_PAGINATION } from '../../src';
 
@@ -211,6 +211,55 @@ describe('queryable', () => {
         projection,
         sort,
         pagination,
+      });
+    });
+  });
+
+  describe('pagedList', () => {
+    it('should create a PagedList with default values when no parameters are provided', () => {
+      const result = pagedList();
+
+      expect(result).toEqual({
+        total: 0,
+        list: [],
+      });
+    });
+
+    it('should create a PagedList with provided total', () => {
+      const result = pagedList({ total: 10 });
+
+      expect(result).toEqual({
+        total: 10,
+        list: [],
+      });
+    });
+
+    it('should create a PagedList with provided list', () => {
+      const list = [{ id: 1, name: 'test' }];
+      const result = pagedList({ list });
+
+      expect(result).toEqual({
+        total: 1,
+        list,
+      });
+    });
+
+    it('should create a PagedList with provided total and list', () => {
+      const list = [{ id: 1, name: 'test' }];
+      const result = pagedList({ total: 10, list });
+
+      expect(result).toEqual({
+        total: 10,
+        list,
+      });
+    });
+
+    it('should create a PagedList with empty parameters object', () => {
+      const result = pagedList({});
+
+      expect(result).toEqual({
+        total: 0,
+        list: [],
       });
     });
   });
