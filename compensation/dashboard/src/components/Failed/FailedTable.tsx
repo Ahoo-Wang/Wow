@@ -18,7 +18,7 @@ import type {
   EventId,
   ExecutionFailedState,
 } from "../../services";
-import { FailedDetails } from "./FailedDetails";
+import { FailedDetails } from "./details/FailedDetails.tsx";
 import { useState } from "react";
 
 const { Text } = Typography;

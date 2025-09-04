@@ -1,20 +1,26 @@
-import { Descriptions, Typography, Tag, Statistic, Flex, Skeleton } from "antd";
-import type { DescriptionsProps } from "antd";
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
-import {
-  executionFailedSnapshotQueryClient,
-  type ExecutionFailedState,
-} from "../../services";
+import type { DescriptionsProps } from "antd";
+import { Descriptions, Flex, Statistic, Tag, Typography } from "antd";
+
+import { type ExecutionFailedState } from "../../../services";
 import { ErrorDetails } from "./ErrorDetails.tsx";
-import { useEffect, useState } from "react";
-import { aggregateId, singleQuery } from "@ahoo-wang/fetcher-wow";
-import useSWR from "swr";
+import dayjs from "dayjs";
+
 const { Timer } = Statistic;
 function formatIsoDateTime(timeAt: number | undefined): string {
-  if (!timeAt) {
-    return "-";
-  }
-  return new Date(timeAt).toLocaleString();
+  return dayjs(timeAt).format();
 }
 
 const { Text } = Typography;
@@ -87,7 +93,33 @@ export function FailedDetails({ state }: FailedDetailsProps) {
       span: 1,
     },
   ];
-
+  // 函数信息
+  const functionItems: DescriptionsProps["items"] = [
+    {
+      key: "contextName",
+      label: "Context Name",
+      children: state.function.contextName,
+      span: 1,
+    },
+    {
+      key: "processorName",
+      label: "Processor Name",
+      children: state.function.processorName,
+      span: 1,
+    },
+    {
+      key: "functionName",
+      label: "Function Name",
+      children: state.function.name,
+      span: 1,
+    },
+    {
+      key: "functionKind",
+      label: "Function Kind",
+      children: state.function.functionKind,
+      span: 1,
+    },
+  ];
   // EventId 信息
   const eventIdItems: DescriptionsProps["items"] = [
     {
@@ -143,35 +175,6 @@ export function FailedDetails({ state }: FailedDetailsProps) {
       span: 1,
     },
   ];
-
-  // 函数信息
-  const functionItems: DescriptionsProps["items"] = [
-    {
-      key: "contextName",
-      label: "Context Name",
-      children: state.function.contextName,
-      span: 1,
-    },
-    {
-      key: "processorName",
-      label: "Processor Name",
-      children: state.function.processorName,
-      span: 1,
-    },
-    {
-      key: "functionName",
-      label: "Function Name",
-      children: state.function.name,
-      span: 1,
-    },
-    {
-      key: "functionKind",
-      label: "Function Kind",
-      children: state.function.functionKind,
-      span: 1,
-    },
-  ];
-
   // 重试信息
   const retryItems: DescriptionsProps["items"] = [
     {
@@ -187,7 +190,7 @@ export function FailedDetails({ state }: FailedDetailsProps) {
     {
       key: "retryAt",
       label: "Retry At",
-      children: new Date(state.retryState.retryAt).toLocaleString(),
+      children: formatIsoDateTime(state.retryState.retryAt),
       span: 1,
     },
     {
@@ -219,38 +222,11 @@ export function FailedDetails({ state }: FailedDetailsProps) {
 
   return (
     <Flex gap="small" vertical>
-      <Descriptions bordered column={3} items={basicItems} size="small" />
+      <Descriptions bordered column={6} items={basicItems} size="small" />
+      <Descriptions bordered column={4} items={functionItems} size="small" />
       <Descriptions bordered column={3} items={eventIdItems} size="small" />
-      <Descriptions bordered column={2} items={functionItems} size="small" />
-      <Descriptions bordered column={3} items={retryItems} size="small" />
+      <Descriptions bordered column={6} items={retryItems} size="small" />
       <ErrorDetails error={state.error}></ErrorDetails>
     </Flex>
   );
-}
-export interface FetchingFailedDetailsProps {
-  id: string;
-}
-export function FetchingFailedDetails({ id }: FetchingFailedDetailsProps) {
-  const { data, error, isLoading } = useSWR(id, () =>
-    executionFailedSnapshotQueryClient.singleState<ExecutionFailedState>(
-      singleQuery({ condition: aggregateId(id) }),
-    ),
-  );
-  if (error) {
-    return (
-      <Flex justify="center" align="center" style={{ minHeight: 100 }}>
-        <Text type="danger">Failed to load data: {error.message}</Text>
-      </Flex>
-    );
-  }
-  if (isLoading) {
-    return (
-      <Flex gap="small" vertical>
-        <Skeleton active />
-        <Skeleton active />
-        <Skeleton active />
-      </Flex>
-    );
-  }
-  return <FailedDetails state={data!} />;
 }

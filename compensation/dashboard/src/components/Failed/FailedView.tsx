@@ -19,6 +19,7 @@ import {
   and,
   type Condition,
   desc,
+  pagedList,
   type PagedList,
   pagedQuery,
   pagination,
@@ -30,7 +31,6 @@ import {
 } from "../../services";
 import { useEffect, useState } from "react";
 import type { Pagination } from "@ahoo-wang/fetcher-wow";
-import { useQueryParams } from "../../utils/useQuery.ts";
 
 interface FailedViewProps {
   category: FindCategory;
@@ -41,10 +41,8 @@ export default function FailedView({ category }: FailedViewProps) {
   const [searchPagination, setSearchPagination] = useState<Pagination>(() => {
     return pagination();
   });
-  const [pagedList, setPagedList] = useState<PagedList<ExecutionFailedState>>({
-    total: 0,
-    list: [],
-  });
+  const [pagedResult, setPagedResult] =
+    useState<PagedList<ExecutionFailedState>>(pagedList());
   const onSearch = (searchCondition: Condition) => {
     setSearchCondition(searchCondition);
   };
@@ -66,17 +64,16 @@ export default function FailedView({ category }: FailedViewProps) {
     executionFailedSnapshotQueryClient
       .pagedState<ExecutionFailedState>(query)
       .then((it) => {
-        setPagedList(it);
+        setPagedResult(it);
       });
   };
   useEffect(search, [category, searchCondition, searchPagination]);
-  const id = useQueryParams("id");
 
   return (
     <>
       <FailedSearch onSearch={onSearch}></FailedSearch>
       <FailedTable
-        pagedList={pagedList}
+        pagedList={pagedResult}
         onPaginationChange={onPaginationChange}
       ></FailedTable>
     </>
