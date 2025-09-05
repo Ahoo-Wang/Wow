@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { App, Button, Form, Input, Modal, Select, Space } from "antd";
+import { App, Button, Form, Input, Modal, Space } from "antd";
 import type { FunctionInfo } from "@ahoo-wang/fetcher-wow";
 import { executionFailedCommandService } from "../../services/executionFailedCommandClient.ts";
 import { useState } from "react";
