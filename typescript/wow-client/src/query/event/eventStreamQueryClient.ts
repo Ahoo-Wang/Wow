@@ -18,7 +18,10 @@ import {
 import type { Condition } from '../condition';
 import type { ListQuery, PagedList, PagedQuery } from '../queryable';
 import type { DomainEventStream } from './domainEventStream';
-import { JsonEventStreamResultExtractor, JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
+import {
+  JsonEventStreamResultExtractor,
+  JsonServerSentEvent,
+} from '@ahoo-wang/fetcher-eventstream';
 import { QueryClient } from '../queryApi';
 import type { ClientOptions } from '../../types';
 import { ContentTypeValues } from '@ahoo-wang/fetcher';

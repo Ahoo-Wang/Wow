@@ -153,7 +153,10 @@ export const EMPTY_PAGED_LIST: PagedList<any> = {
  * @param list - The array of items in the current page. Defaults to an empty array.
  * @returns A PagedList object with the specified parameters
  */
-export function pagedList<T>({ total, list = [] }: Partial<PagedList<T>> = EMPTY_PAGED_LIST): PagedList<T> {
+export function pagedList<T>({
+                               total,
+                               list = [],
+                             }: Partial<PagedList<T>> = EMPTY_PAGED_LIST): PagedList<T> {
   if (total === undefined) {
     total = list.length;
   }

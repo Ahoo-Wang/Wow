@@ -17,7 +17,12 @@ import {
   type CommandResult,
   type CommandResultEventStream,
 } from './commandResult';
-import { combineURLs, ContentTypeValues, ResultExtractor, ResultExtractors } from '@ahoo-wang/fetcher';
+import {
+  combineURLs,
+  ContentTypeValues,
+  ResultExtractor,
+  ResultExtractors,
+} from '@ahoo-wang/fetcher';
 import { JsonEventStreamResultExtractor } from '@ahoo-wang/fetcher-eventstream';
 
 /**

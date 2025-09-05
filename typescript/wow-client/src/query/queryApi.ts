@@ -20,7 +20,13 @@ import type {
 import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 import type { Condition } from './condition';
 import type { ClientOptions } from '../types';
-import { combineURLs, ContentTypeValues, HttpMethod, ResultExtractor, ResultExtractors } from '@ahoo-wang/fetcher';
+import {
+  combineURLs,
+  ContentTypeValues,
+  HttpMethod,
+  ResultExtractor,
+  ResultExtractors,
+} from '@ahoo-wang/fetcher';
 
 /**
  * Interface for generic query API operations.

@@ -23,7 +23,10 @@ import type {
   SingleQuery,
 } from '../queryable';
 import type { MaterializedSnapshot } from './snapshot';
-import { JsonEventStreamResultExtractor, JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
+import {
+  JsonEventStreamResultExtractor,
+  JsonServerSentEvent,
+} from '@ahoo-wang/fetcher-eventstream';
 import { ContentTypeValues } from '@ahoo-wang/fetcher';
 import '@ahoo-wang/fetcher-eventstream';
 import type { ClientOptions } from '../../types';
