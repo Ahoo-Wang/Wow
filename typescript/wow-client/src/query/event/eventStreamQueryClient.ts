@@ -18,11 +18,10 @@ import {
 import type { Condition } from '../condition';
 import type { ListQuery, PagedList, PagedQuery } from '../queryable';
 import type { DomainEventStream } from './domainEventStream';
-import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
+import { JsonEventStreamResultExtractor, JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 import { QueryClient } from '../queryApi';
 import type { ClientOptions } from '../../types';
 import { ContentTypeValues } from '@ahoo-wang/fetcher';
-import { ResultExtractors } from '@ahoo-wang/fetcher-decorator';
 
 /**
  * Client for querying event streams through HTTP endpoints.
@@ -140,7 +139,7 @@ export class EventStreamQueryClient
       EventStreamQueryEndpointPaths.LIST,
       listQuery,
       ContentTypeValues.TEXT_EVENT_STREAM,
-      ResultExtractors.JsonEventStream,
+      JsonEventStreamResultExtractor,
     );
   }
 

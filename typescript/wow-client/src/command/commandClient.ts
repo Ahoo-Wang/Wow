@@ -17,8 +17,8 @@ import {
   type CommandResult,
   type CommandResultEventStream,
 } from './commandResult';
-import { combineURLs, ContentTypeValues, ResultExtractor } from '@ahoo-wang/fetcher';
-import { ResultExtractors } from '@ahoo-wang/fetcher-decorator';
+import { combineURLs, ContentTypeValues, ResultExtractor, ResultExtractors } from '@ahoo-wang/fetcher';
+import { JsonEventStreamResultExtractor } from '@ahoo-wang/fetcher-eventstream';
 
 /**
  * Command Client for sending commands to the server.
@@ -151,7 +151,7 @@ export class CommandClient {
     return this.sendCommand(
       path,
       commandHttpRequest,
-      ResultExtractors.JsonEventStream,
+      JsonEventStreamResultExtractor,
     );
   }
 }

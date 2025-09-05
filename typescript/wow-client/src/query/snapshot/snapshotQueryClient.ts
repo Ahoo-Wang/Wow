@@ -23,9 +23,8 @@ import type {
   SingleQuery,
 } from '../queryable';
 import type { MaterializedSnapshot } from './snapshot';
-import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
+import { JsonEventStreamResultExtractor, JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 import { ContentTypeValues } from '@ahoo-wang/fetcher';
-import { ResultExtractors } from '@ahoo-wang/fetcher-decorator';
 import '@ahoo-wang/fetcher-eventstream';
 import type { ClientOptions } from '../../types';
 import { QueryClient } from '../queryApi';
@@ -183,7 +182,7 @@ export class SnapshotQueryClient<S>
       SnapshotQueryEndpointPaths.LIST,
       listQuery,
       ContentTypeValues.TEXT_EVENT_STREAM,
-      ResultExtractors.JsonEventStream,
+      JsonEventStreamResultExtractor,
     );
   }
 
@@ -235,7 +234,7 @@ export class SnapshotQueryClient<S>
       SnapshotQueryEndpointPaths.LIST_STATE,
       listQuery,
       ContentTypeValues.TEXT_EVENT_STREAM,
-      ResultExtractors.JsonEventStream,
+      JsonEventStreamResultExtractor,
     );
   }
 
