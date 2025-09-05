@@ -17,11 +17,8 @@ import {
   type CommandResult,
   type CommandResultEventStream,
 } from './commandResult';
-import {
-  type ResultExtractor,
-  ResultExtractors,
-} from '@ahoo-wang/fetcher-decorator';
-import { combineURLs, ContentTypeValues } from '@ahoo-wang/fetcher';
+import { combineURLs, ContentTypeValues, ResultExtractor } from '@ahoo-wang/fetcher';
+import { ResultExtractors } from '@ahoo-wang/fetcher-decorator';
 
 /**
  * Command Client for sending commands to the server.
@@ -81,7 +78,7 @@ export class CommandClient {
   protected async sendCommand<R>(
     path: string,
     commandHttpRequest: CommandRequest,
-    extractor: ResultExtractor = ResultExtractors.Json,
+    extractor: ResultExtractor<any> = ResultExtractors.Json,
   ): Promise<R> {
     const url = combineURLs(this.options.basePath, path);
     const request = {
