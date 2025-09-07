@@ -73,7 +73,7 @@ export function ApplyRetrySpec({ id, retrySpec }: ApplyRetrySpecProps) {
         <InputNumber min={0} style={{ width: "100%" }} />
       </Form.Item>
       <Form.Item>
-        <Button type={"primary"} htmlType={"submit"}>
+        <Button type={"primary"} htmlType={"submit"} block>
           Submit
         </Button>
       </Form.Item>

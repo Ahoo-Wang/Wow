@@ -28,16 +28,20 @@ interface FailedTableProps {
   pagedList: PagedList<ExecutionFailedState>;
 }
 
-const getDataColumns = (openDrawer: (drawerProps: { title: string; width?: string; content: React.ReactNode }) => void): TableColumnsType<ExecutionFailedState> => [
+const getDataColumns = (
+  openDrawer: (drawerProps: {
+    title: string;
+    width?: string;
+    content: React.ReactNode;
+  }) => void,
+): TableColumnsType<ExecutionFailedState> => [
   {
     title: "ID",
     key: "id",
     dataIndex: "id",
     width: 100,
     fixed: "left",
-    render: (id:string) => (
-      <Text copyable>{id}</Text>
-    ),
+    render: (id: string) => <Text copyable>{id}</Text>,
   },
   {
     title: "Function",
@@ -163,11 +167,15 @@ const getDataColumns = (openDrawer: (drawerProps: { title: string; width?: strin
           return (
             <Text>
               {state.retryState.retries}({state.retrySpec.maxRetries})
-              <EditTwoTone
+              <Button
+                type="dashed"
+                shape="circle"
+                size="small"
+                icon={<EditTwoTone />}
                 onClick={() =>
                   openDrawer({
                     title: "Apply Retry Spec",
-                    width: '300px',
+                    width: "300px",
                     content: (
                       <ApplyRetrySpec
                         id={state.id}
@@ -176,7 +184,7 @@ const getDataColumns = (openDrawer: (drawerProps: { title: string; width?: strin
                     ),
                   })
                 }
-              />
+              ></Button>
             </Text>
           );
         },
@@ -247,9 +255,9 @@ export function FailedTable({
   pagedList,
 }: FailedTableProps) {
   const { openDrawer } = useGlobalDrawer();
-  
+
   const dataColumns = getDataColumns(openDrawer);
-  
+
   return (
     <>
       <Table<ExecutionFailedState>
