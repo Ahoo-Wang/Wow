@@ -15,9 +15,10 @@ import { Table, Tag, Typography, Statistic, Button } from "antd";
 import type { TableColumnsType } from "antd";
 import type { PagedList } from "@ahoo-wang/fetcher-wow";
 import type { EventId, ExecutionFailedState } from "../../services";
-import { ApplyRetrySpec } from "./ApplyRetrySpec.tsx";
 import { useGlobalDrawer } from "../GlobalDrawer/GlobalDrawer.tsx";
 import { FailedDetails } from "./details/FailedDetails.tsx";
+import { EditTwoTone } from "@ant-design/icons";
+import { ApplyRetrySpec } from "./ApplyRetrySpec.tsx";
 
 const { Text } = Typography;
 const { Timer } = Statistic;
@@ -27,14 +28,15 @@ interface FailedTableProps {
   pagedList: PagedList<ExecutionFailedState>;
 }
 
-const columns: TableColumnsType<ExecutionFailedState> = [
+const getDataColumns = (openDrawer: (drawerProps: { title: string; width?: string; content: React.ReactNode }) => void): TableColumnsType<ExecutionFailedState> => [
   {
     title: "ID",
     key: "id",
+    dataIndex: "id",
     width: 100,
     fixed: "left",
-    render: (state:ExecutionFailedState) => (
-      <ApplyRetrySpec id={state.id} retrySpec={state.retrySpec}></ApplyRetrySpec>
+    render: (id:string) => (
+      <Text copyable>{id}</Text>
     ),
   },
   {
@@ -156,12 +158,25 @@ const columns: TableColumnsType<ExecutionFailedState> = [
       },
       {
         title: "Retries",
-        dataIndex: "retryState",
         key: "retryState",
-        render: (retryState) => {
+        render: (state: ExecutionFailedState) => {
           return (
             <Text>
-              {retryState.retries}({retryState.maxRetries})
+              {state.retryState.retries}({state.retrySpec.maxRetries})
+              <EditTwoTone
+                onClick={() =>
+                  openDrawer({
+                    title: "Apply Retry Spec",
+                    width: '300px',
+                    content: (
+                      <ApplyRetrySpec
+                        id={state.id}
+                        retrySpec={state.retrySpec}
+                      />
+                    ),
+                  })
+                }
+              />
             </Text>
           );
         },
@@ -207,41 +222,40 @@ const columns: TableColumnsType<ExecutionFailedState> = [
     key: "actions",
     fixed: "right",
     width: 100,
-    render: (_state: ExecutionFailedState) => (
-      <>
-        <Button type={"primary"}>Retry</Button>
-      </>
-    ),
+    render: (state: ExecutionFailedState) => {
+      return (
+        <>
+          <Button
+            type={"primary"}
+            onClick={() =>
+              openDrawer({
+                title: "Execution Failed Details",
+                content: <FailedDetails state={state} />,
+              })
+            }
+          >
+            Details
+          </Button>
+        </>
+      );
+    },
   },
 ];
+
 export function FailedTable({
   onPaginationChange,
   pagedList,
 }: FailedTableProps) {
   const { openDrawer } = useGlobalDrawer();
-
-
-
-  const showDrawer = (record: ExecutionFailedState) => {
-    openDrawer({
-      title: "Execution Failed Details",
-      content: <FailedDetails state={record} />,
-    });
-  };
-
+  
+  const dataColumns = getDataColumns(openDrawer);
+  
   return (
     <>
       <Table<ExecutionFailedState>
         size="small"
         rowKey="id"
-        onRow={(record) => {
-          return {
-            onClick: (_event) => {
-              showDrawer(record);
-            },
-          };
-        }}
-        columns={columns}
+        columns={dataColumns}
         dataSource={pagedList.list}
         pagination={{
           total: pagedList.total,

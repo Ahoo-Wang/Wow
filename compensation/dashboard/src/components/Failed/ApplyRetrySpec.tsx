@@ -11,10 +11,10 @@
  * limitations under the License.
  */
 
-import { Button, Form, InputNumber, Modal, Space, App } from "antd";
+import { Button, Form, InputNumber, App } from "antd";
 import type { RetrySpec } from "../../services";
-import { useState } from "react";
 import { executionFailedCommandService } from "../../services/executionFailedCommandClient.ts";
+import { useGlobalDrawer } from "../GlobalDrawer/GlobalDrawer.tsx";
 
 export interface ApplyRetrySpecProps {
   id: string;
@@ -24,86 +24,59 @@ export interface ApplyRetrySpecProps {
 export function ApplyRetrySpec({ id, retrySpec }: ApplyRetrySpecProps) {
   const [form] = Form.useForm();
   const { notification } = App.useApp();
-  const [loading, setLoading] = useState(false);
-  const [open, setOpen] = useState(false);
+  const { closeDrawer } = useGlobalDrawer();
 
-  const showModal = () => {
-    setOpen(true);
-    form.setFieldsValue({
-      maxRetries: retrySpec.maxRetries,
-      minBackoff: retrySpec.minBackoff,
-      executionTimeout: retrySpec.executionTimeout,
-    });
-  };
+  form.setFieldsValue({
+    maxRetries: retrySpec.maxRetries,
+    minBackoff: retrySpec.minBackoff,
+    executionTimeout: retrySpec.executionTimeout,
+  });
 
   const handleOk = () => {
     form.validateFields().then((values) => {
-      setLoading(true);
       executionFailedCommandService
         .applyRetrySpec(id, values)
         .then(() => {
           notification.info({ message: "应用重试规范成功" });
+          closeDrawer();
         })
         .catch((error) => {
           notification.error({
             message: "应用重试规范失败",
             description: error.message,
           });
-        })
-        .finally(() => {
-          setLoading(false);
         });
     });
   };
 
-  const handleCancel = () => {
-    setOpen(false);
-  };
-
   return (
-    <>
-      <Button type="primary" onClick={showModal}>
-        应用重试规范
-      </Button>
-      <Modal
-        title="应用重试规范"
-        open={open}
-        onOk={handleOk}
-        confirmLoading={loading}
-        onCancel={handleCancel}
-        footer={
-          <Space>
-            <Button onClick={handleCancel}>取消</Button>
-            <Button type="primary" onClick={handleOk} loading={loading}>
-              确定
-            </Button>
-          </Space>
-        }
+    <Form form={form} layout="vertical" onFinish={handleOk}>
+      <Form.Item
+        name="maxRetries"
+        label="最大重试次数"
+        rules={[{ required: true, message: "请输入最大重试次数" }]}
       >
-        <Form form={form} layout="vertical">
-          <Form.Item
-            name="maxRetries"
-            label="最大重试次数"
-            rules={[{ required: true, message: "请输入最大重试次数" }]}
-          >
-            <InputNumber min={0} style={{ width: "100%" }} />
-          </Form.Item>
-          <Form.Item
-            name="minBackoff"
-            label="最小退避时间(毫秒)"
-            rules={[{ required: true, message: "请输入最小退避时间" }]}
-          >
-            <InputNumber min={0} style={{ width: "100%" }} />
-          </Form.Item>
-          <Form.Item
-            name="executionTimeout"
-            label="执行超时时间(毫秒)"
-            rules={[{ required: true, message: "请输入执行超时时间" }]}
-          >
-            <InputNumber min={0} style={{ width: "100%" }} />
-          </Form.Item>
-        </Form>
-      </Modal>
-    </>
+        <InputNumber min={0} style={{ width: "100%" }} />
+      </Form.Item>
+      <Form.Item
+        name="minBackoff"
+        label="最小退避时间(毫秒)"
+        rules={[{ required: true, message: "请输入最小退避时间" }]}
+      >
+        <InputNumber min={0} style={{ width: "100%" }} />
+      </Form.Item>
+      <Form.Item
+        name="executionTimeout"
+        label="执行超时时间(毫秒)"
+        rules={[{ required: true, message: "请输入执行超时时间" }]}
+      >
+        <InputNumber min={0} style={{ width: "100%" }} />
+      </Form.Item>
+      <Form.Item>
+        <Button type={"primary"} htmlType={"submit"}>
+          Submit
+        </Button>
+      </Form.Item>
+    </Form>
   );
 }
