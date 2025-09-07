@@ -9,29 +9,29 @@ importers:
   .:
     dependencies:
       '@ahoo-wang/fetcher':
-        specifier: ^1.5.0
-        version: 1.5.0
+        specifier: ^1.5.1
+        version: 1.5.1
       '@ahoo-wang/fetcher-decorator':
-        specifier: ^1.5.0
-        version: 1.5.0
+        specifier: ^1.5.1
+        version: 1.5.1
       '@ahoo-wang/fetcher-eventstream':
-        specifier: ^1.5.0
-        version: 1.5.0
+        specifier: ^1.5.1
+        version: 1.5.1
       '@ahoo-wang/fetcher-wow':
-        specifier: ^1.5.0
-        version: 1.5.0
+        specifier: ^1.5.1
+        version: 1.5.1
       '@ant-design/icons':
         specifier: ^6.0.1
         version: 6.0.1(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       '@ant-design/v5-patch-for-react-19':
         specifier: ^1.0.3
-        version: 1.0.3(antd@5.27.2(react-dom@19.1.1(react@19.1.1))(react@19.1.1))(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
+        version: 1.0.3(antd@5.27.3(react-dom@19.1.1(react@19.1.1))(react@19.1.1))(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       '@monaco-editor/react':
         specifier: 4.7.0-rc.0
         version: 4.7.0-rc.0(monaco-editor@0.52.2)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       antd:
-        specifier: ^5.27.2
-        version: 5.27.2(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
+        specifier: ^5.27.3
+        version: 5.27.3(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       dayjs:
         specifier: ^1.11.18
         version: 1.11.18
@@ -120,17 +120,17 @@ packages:
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
-  '@ahoo-wang/fetcher-decorator@1.5.0':
-    resolution: {integrity: sha512-Xs/hJsPcGhwDilncu/a4c3J8kMHtN6DRFScFkrCKhUN4EiBmXzuSafIjPuZwEBf0Gmffg8LprSzfT9JNqeexcQ==}
+  '@ahoo-wang/fetcher-decorator@1.5.1':
+    resolution: {integrity: sha512-QfzBNt6LVPt+nIVk++gnsbeV0lA651CB8fYHEfAn2LQ12EBDCc2iZ3e7/k9PT7oK40+TY5tkOoIx1EfeghwZIQ==}
 
-  '@ahoo-wang/fetcher-eventstream@1.5.0':
-    resolution: {integrity: sha512-UTgxIouTE0p3LVlWB1RQDzY5Fr2yzQkV69mOypQWKwBkw8A93weA6BzFJSiUX1YvHZxy1mgJYGByLtNMQdTPJg==}
+  '@ahoo-wang/fetcher-eventstream@1.5.1':
+    resolution: {integrity: sha512-sdNreXKkuF352oeXwSqgy6wusBex2khveBTdc8lW1PQzwR3NuSBtYTjapd0D0SirLRNthJaUbwF4JHPKvpK+GA==}
 
-  '@ahoo-wang/fetcher-wow@1.5.0':
-    resolution: {integrity: sha512-RPNzfB6Xjso0UGuuUHRQ2EcCtdhcXt5XnJQGpLv9bDbqMFN/G3zoWxvQW3CnLOilYLIRGAmA79khk2tpR/gIWQ==}
+  '@ahoo-wang/fetcher-wow@1.5.1':
+    resolution: {integrity: sha512-4I9QvA1h3R5GCUteHcVUw6UwnWvDbnrXR4lhk2bfyWTIx0Gj1p/h/HfCrZuzhyeRBpAB7r7KjbiYHsbewdbM1Q==}
 
-  '@ahoo-wang/fetcher@1.5.0':
-    resolution: {integrity: sha512-uSL4DSfky/zzO0CYH5amX/F3sd4vbsp/Fp/2DPRVNq9ka+JBZLrS5iJdReeMKspcROE/pIN/jn7utXIeoGzXhg==}
+  '@ahoo-wang/fetcher@1.5.1':
+    resolution: {integrity: sha512-+2TdG9KaYtq7Dmx6OcZbOYhmwNJ7LyDZmLt83kl2gSlnarJ1z320AOEiAgcJRZpz35pfRc5orzv2b4qjNHLc8Q==}
 
   '@ampproject/remapping@2.3.0':
     resolution: {integrity: sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw==}
@@ -1070,8 +1070,8 @@ packages:
     resolution: {integrity: sha512-bN798gFfQX+viw3R7yrGWRqnrN2oRkEkUjjl4JNn4E8GxxbjtG3FbrEIIY3l8/hrwUwIeCZvi4QuOTP4MErVug==}
     engines: {node: '>=12'}
 
-  antd@5.27.2:
-    resolution: {integrity: sha512-9pYRUTrumIEuulRwZijhcnL6ScBZ1X6Y3iJa67VyNhEZAiXtENA7AtggsnqdVclQIm0WL4ky76qUdWrVhDWF3g==}
+  antd@5.27.3:
+    resolution: {integrity: sha512-Jewp1ek1iyqoAyjWyPgzc2kioZ+7S3jh39a+tld/j4ucnuf/cBk4omfyIdhLz49pVNsaEcRp5LtJOSQPFwPgpA==}
     peerDependencies:
       react: '>=16.9.0'
       react-dom: '>=16.9.0'
@@ -1119,8 +1119,8 @@ packages:
     resolution: {integrity: sha512-P8BjAsXvZS+VIDUI11hHCQEv74YT67YUi5JJFNWIqL235sBmjX4+qx9Muvls5ivyNENctx46xQLQ3aTuE7ssaQ==}
     engines: {node: '>=6'}
 
-  caniuse-lite@1.0.30001739:
-    resolution: {integrity: sha512-y+j60d6ulelrNSwpPyrHdl+9mJnQzHBr08xm48Qno0nSk4h3Qojh+ziv2qE6rXf4k3tadF4o1J/1tAbVm1NtnA==}
+  caniuse-lite@1.0.30001741:
+    resolution: {integrity: sha512-QGUGitqsc8ARjLdgAfxETDhRbJ0REsP6O3I96TAth/mVjh2cYzN2u+3AzPP3aVSm2FehEItaJw1xd+IGBXWeSw==}
 
   chai@5.3.3:
     resolution: {integrity: sha512-4zNhdJD/iOjSH0A05ea+Ke6MU5mmpQcbQsSOkgdaUMJ9zTlDTD/GYlwohmIE2u0gaxHYiVHEn1Fw9mZ/ktJWgw==}
@@ -1935,8 +1935,8 @@ packages:
       react: '>=16.9.0'
       react-dom: '>=16.9.0'
 
-  rc-table@7.51.1:
-    resolution: {integrity: sha512-5iq15mTHhvC42TlBLRCoCBLoCmGlbRZAlyF21FonFnS/DIC8DeRqnmdyVREwt2CFbPceM0zSNdEeVfiGaqYsKw==}
+  rc-table@7.52.6:
+    resolution: {integrity: sha512-FxcbhNEFhvg+2bV8KB2Z0RMZj5HFCtiUZU2XuAMwB6Fk3ry2RHtXQmKHpSekG8F480HoSpSmjQoq5/sjLUe6oA==}
     engines: {node: '>=8.x'}
     peerDependencies:
       react: '>=16.9.0'
@@ -2425,22 +2425,22 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@ahoo-wang/fetcher-decorator@1.5.0':
+  '@ahoo-wang/fetcher-decorator@1.5.1':
     dependencies:
-      '@ahoo-wang/fetcher': 1.5.0
-      '@ahoo-wang/fetcher-eventstream': 1.5.0
+      '@ahoo-wang/fetcher': 1.5.1
+      '@ahoo-wang/fetcher-eventstream': 1.5.1
       reflect-metadata: 0.2.2
 
-  '@ahoo-wang/fetcher-eventstream@1.5.0':
+  '@ahoo-wang/fetcher-eventstream@1.5.1':
     dependencies:
-      '@ahoo-wang/fetcher': 1.5.0
+      '@ahoo-wang/fetcher': 1.5.1
 
-  '@ahoo-wang/fetcher-wow@1.5.0':
+  '@ahoo-wang/fetcher-wow@1.5.1':
     dependencies:
-      '@ahoo-wang/fetcher': 1.5.0
-      '@ahoo-wang/fetcher-eventstream': 1.5.0
+      '@ahoo-wang/fetcher': 1.5.1
+      '@ahoo-wang/fetcher-eventstream': 1.5.1
 
-  '@ahoo-wang/fetcher@1.5.0': {}
+  '@ahoo-wang/fetcher@1.5.1': {}
 
   '@ampproject/remapping@2.3.0':
     dependencies:
@@ -2511,9 +2511,9 @@ snapshots:
       resize-observer-polyfill: 1.5.1
       throttle-debounce: 5.0.2
 
-  '@ant-design/v5-patch-for-react-19@1.0.3(antd@5.27.2(react-dom@19.1.1(react@19.1.1))(react@19.1.1))(react-dom@19.1.1(react@19.1.1))(react@19.1.1)':
+  '@ant-design/v5-patch-for-react-19@1.0.3(antd@5.27.3(react-dom@19.1.1(react@19.1.1))(react@19.1.1))(react-dom@19.1.1(react@19.1.1))(react@19.1.1)':
     dependencies:
-      antd: 5.27.2(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
+      antd: 5.27.3(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       react: 19.1.1
       react-dom: 19.1.1(react@19.1.1)
 
@@ -3370,7 +3370,7 @@ snapshots:
 
   ansi-styles@6.2.1: {}
 
-  antd@5.27.2(react-dom@19.1.1(react@19.1.1))(react@19.1.1):
+  antd@5.27.3(react-dom@19.1.1(react@19.1.1))(react@19.1.1):
     dependencies:
       '@ant-design/colors': 7.2.1
       '@ant-design/cssinjs': 1.24.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
@@ -3411,7 +3411,7 @@ snapshots:
       rc-slider: 11.1.8(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       rc-steps: 6.0.1(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       rc-switch: 4.1.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
-      rc-table: 7.51.1(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
+      rc-table: 7.52.6(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       rc-tabs: 15.7.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       rc-textarea: 1.10.2(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       rc-tooltip: 6.4.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
@@ -3461,7 +3461,7 @@ snapshots:
 
   browserslist@4.25.4:
     dependencies:
-      caniuse-lite: 1.0.30001739
+      caniuse-lite: 1.0.30001741
       electron-to-chromium: 1.5.214
       node-releases: 2.0.19
       update-browserslist-db: 1.1.3(browserslist@4.25.4)
@@ -3470,7 +3470,7 @@ snapshots:
 
   callsites@3.1.0: {}
 
-  caniuse-lite@1.0.30001739: {}
+  caniuse-lite@1.0.30001741: {}
 
   chai@5.3.3:
     dependencies:
@@ -4316,7 +4316,7 @@ snapshots:
       react: 19.1.1
       react-dom: 19.1.1(react@19.1.1)
 
-  rc-table@7.51.1(react-dom@19.1.1(react@19.1.1))(react@19.1.1):
+  rc-table@7.52.6(react-dom@19.1.1(react@19.1.1))(react@19.1.1):
     dependencies:
       '@babel/runtime': 7.28.3
       '@rc-component/context': 1.4.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1)

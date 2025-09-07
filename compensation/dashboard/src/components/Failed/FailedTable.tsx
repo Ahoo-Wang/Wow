@@ -11,15 +11,13 @@
  * limitations under the License.
  */
 
-import { Table, Typography, Statistic, Drawer, Button } from "antd";
+import { Table, Tag, Typography, Statistic, Button } from "antd";
 import type { TableColumnsType } from "antd";
 import type { PagedList } from "@ahoo-wang/fetcher-wow";
-import type {
-  EventId,
-  ExecutionFailedState,
-} from "../../services";
+import type { EventId, ExecutionFailedState } from "../../services";
+import { ApplyRetrySpec } from "./ApplyRetrySpec.tsx";
+import { useGlobalDrawer } from "../GlobalDrawer/GlobalDrawer.tsx";
 import { FailedDetails } from "./details/FailedDetails.tsx";
-import { useState } from "react";
 
 const { Text } = Typography;
 const { Timer } = Statistic;
@@ -32,14 +30,11 @@ interface FailedTableProps {
 const columns: TableColumnsType<ExecutionFailedState> = [
   {
     title: "ID",
-    dataIndex: "id",
     key: "id",
     width: 100,
     fixed: "left",
-    render: (id) => (
-      <Text ellipsis={true} copyable>
-        {id}
-      </Text>
+    render: (state:ExecutionFailedState) => (
+      <ApplyRetrySpec id={state.id} retrySpec={state.retrySpec}></ApplyRetrySpec>
     ),
   },
   {
@@ -83,7 +78,7 @@ const columns: TableColumnsType<ExecutionFailedState> = [
         dataIndex: "function",
         key: "function.functionKind",
         render: (func) => <Text>{func.functionKind}</Text>,
-        width: 80,
+        width: 100,
       },
     ],
   },
@@ -139,23 +134,46 @@ const columns: TableColumnsType<ExecutionFailedState> = [
     ],
   },
   {
-    title: "Retries",
-    key: "retries",
-    render: (state: ExecutionFailedState) => {
-      return (
-        <Text>
-          {state.retryState.retries}({state.retrySpec.maxRetries})
-        </Text>
-      );
-    },
-    width: 80,
-    responsive: ['lg'],
-  },
-  {
-    title: "Recoverable",
-    dataIndex: "recoverable",
-    key: "recoverable",
-    width: 120,
+    title: "Retry Info",
+    children: [
+      {
+        title: "Status",
+        dataIndex: "status",
+        key: "status",
+        render: (status) => {
+          switch (status) {
+            case "FAILED":
+              return <Tag color="error">Failed</Tag>;
+            case "PREPARED":
+              return <Tag color="processing">Prepared</Tag>;
+            case "SUCCEEDED":
+              return <Tag color="success">Succeeded</Tag>;
+            default:
+              return <Tag>{status}</Tag>;
+          }
+        },
+        width: 100,
+      },
+      {
+        title: "Retries",
+        dataIndex: "retryState",
+        key: "retryState",
+        render: (retryState) => {
+          return (
+            <Text>
+              {retryState.retries}({retryState.maxRetries})
+            </Text>
+          );
+        },
+        width: 80,
+      },
+      {
+        title: "Recoverable",
+        dataIndex: "recoverable",
+        key: "recoverable",
+        width: 120,
+      },
+    ],
   },
   {
     title: "Time",
@@ -164,29 +182,20 @@ const columns: TableColumnsType<ExecutionFailedState> = [
         title: "Execute At",
         dataIndex: "executeAt",
         key: "executeAt",
-        fixed: "right",
         render: (executeAt) =>
           executeAt && new Date(executeAt).toLocaleString(),
         width: 125,
-      },
-      {
-        title: "Retry At",
-        dataIndex: ["retryState", "retryAt"],
-        key: "retryAt",
         fixed: "right",
-        render: (retryAt) => new Date(retryAt).toLocaleString(),
-        width: 125,
       },
       {
         title: "Next Retry",
         dataIndex: "retryState",
         key: "retryState.nextRetryAt",
-        fixed: "right",
         render: (retryState) => (
           <Timer
             type="countdown"
             value={retryState.nextRetryAt}
-            valueStyle={{ fontSize: "14px",color: "red" }}
+            valueStyle={{ fontSize: "14px" }}
           />
         ),
         width: 120,
@@ -200,7 +209,7 @@ const columns: TableColumnsType<ExecutionFailedState> = [
     width: 100,
     render: (_state: ExecutionFailedState) => (
       <>
-        <Button type={"primary"}>Details</Button>
+        <Button type={"primary"}>Retry</Button>
       </>
     ),
   },
@@ -209,18 +218,15 @@ export function FailedTable({
   onPaginationChange,
   pagedList,
 }: FailedTableProps) {
-  const [selectedRecord, setSelectedRecord] =
-    useState<ExecutionFailedState | null>(null);
-  const [drawerVisible, setDrawerVisible] = useState(false);
+  const { openDrawer } = useGlobalDrawer();
+
+
 
   const showDrawer = (record: ExecutionFailedState) => {
-    setSelectedRecord(record);
-    setDrawerVisible(true);
-  };
-
-  const closeDrawer = () => {
-    setDrawerVisible(false);
-    setSelectedRecord(null);
+    openDrawer({
+      title: "Execution Failed Details",
+      content: <FailedDetails state={record} />,
+    });
   };
 
   return (
@@ -244,14 +250,6 @@ export function FailedTable({
         bordered
         scroll={{ x: 1500 }}
       ></Table>
-      <Drawer
-        title="Execution Failed Details"
-        width={"80vw"}
-        onClose={closeDrawer}
-        open={drawerVisible}
-      >
-        {selectedRecord && <FailedDetails state={selectedRecord} />}
-      </Drawer>
     </>
   );
 }

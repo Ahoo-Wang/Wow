@@ -23,8 +23,10 @@ export interface ErrorDetailsProps {
 export function ErrorDetails({ error }: ErrorDetailsProps) {
   const errorTitle = (
     <>
-      Error Details :
-      <Text code>{error.errorCode}</Text>
+      <Text>Error Details </Text>
+      <Text code copyable>
+        {error.errorCode}
+      </Text>
     </>
   );
   return (
