@@ -172,6 +172,7 @@ const getDataColumns = (
                 shape="circle"
                 size="small"
                 icon={<EditTwoTone />}
+                aria-label="Edit retry specification"
                 onClick={() =>
                   openDrawer({
                     title: "Apply Retry Spec",

@@ -37,12 +37,12 @@ export function ApplyRetrySpec({ id, retrySpec }: ApplyRetrySpecProps) {
       executionFailedCommandService
         .applyRetrySpec(id, values)
         .then(() => {
-          notification.info({ message: "应用重试规范成功" });
+          notification.info({ message: "Apply Retry Spec Successfully" });
           closeDrawer();
         })
         .catch((error) => {
           notification.error({
-            message: "应用重试规范失败",
+            message: "Failed to Apply Retry Spec",
             description: error.message,
           });
         });
@@ -53,22 +53,22 @@ export function ApplyRetrySpec({ id, retrySpec }: ApplyRetrySpecProps) {
     <Form form={form} layout="vertical" onFinish={handleOk}>
       <Form.Item
         name="maxRetries"
-        label="最大重试次数"
-        rules={[{ required: true, message: "请输入最大重试次数" }]}
+        label="Max Retries"
+        rules={[{ required: true, message: "Please enter max retries" }]}
       >
         <InputNumber min={0} style={{ width: "100%" }} />
       </Form.Item>
       <Form.Item
         name="minBackoff"
-        label="最小退避时间(毫秒)"
-        rules={[{ required: true, message: "请输入最小退避时间" }]}
+        label="Min Backoff (milliseconds)"
+        rules={[{ required: true, message: "Please enter min backoff" }]}
       >
         <InputNumber min={0} style={{ width: "100%" }} />
       </Form.Item>
       <Form.Item
         name="executionTimeout"
-        label="执行超时时间(毫秒)"
-        rules={[{ required: true, message: "请输入执行超时时间" }]}
+        label="Execution Timeout (milliseconds)"
+        rules={[{ required: true, message: "Please enter execution timeout" }]}
       >
         <InputNumber min={0} style={{ width: "100%" }} />
       </Form.Item>
