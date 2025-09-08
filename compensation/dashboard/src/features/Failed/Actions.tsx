@@ -15,7 +15,7 @@ import type { StateCapable } from "@ahoo-wang/fetcher-wow";
 import type { ExecutionFailedState } from "../../services";
 import { App, Dropdown } from "antd";
 import { FailedDetails } from "./details/FailedDetails.tsx";
-import { useGlobalDrawer } from "../../components/GlobalDrawer/GlobalDrawer.tsx";
+import { useGlobalDrawer } from "../../components/GlobalDrawer";
 import type { ItemType } from "antd/es/menu/interface";
 import { executionFailedCommandService } from "../../services/executionFailedCommandClient.ts";
 
@@ -77,7 +77,7 @@ export function Actions({ state, onChanged }: ActionsProps) {
         onClick={() =>
           openDrawer({
             title: "Execution Failed Details",
-            content: <FailedDetails state={state} />,
+            children: <FailedDetails state={state} />,
           })
         }
         menu={{
