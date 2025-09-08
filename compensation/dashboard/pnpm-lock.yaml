@@ -13,7 +13,7 @@ importers:
         version: 1.5.1
       '@ahoo-wang/fetcher-decorator':
         specifier: ^1.5.1
-        version: 1.5.1
+        version: 1.5.6
       '@ahoo-wang/fetcher-eventstream':
         specifier: ^1.5.1
         version: 1.5.1
@@ -120,17 +120,23 @@ packages:
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
-  '@ahoo-wang/fetcher-decorator@1.5.1':
-    resolution: {integrity: sha512-QfzBNt6LVPt+nIVk++gnsbeV0lA651CB8fYHEfAn2LQ12EBDCc2iZ3e7/k9PT7oK40+TY5tkOoIx1EfeghwZIQ==}
+  '@ahoo-wang/fetcher-decorator@1.5.6':
+    resolution: {integrity: sha512-Cu4qXh7xkPfBfxt4KbXqm17waztGmFdrZBtOev78J6CL3qufnWbS3lY2reUC+n/eE/Ce4q2A5pdk+dbn86msAA==}
 
   '@ahoo-wang/fetcher-eventstream@1.5.1':
     resolution: {integrity: sha512-sdNreXKkuF352oeXwSqgy6wusBex2khveBTdc8lW1PQzwR3NuSBtYTjapd0D0SirLRNthJaUbwF4JHPKvpK+GA==}
+
+  '@ahoo-wang/fetcher-eventstream@1.5.6':
+    resolution: {integrity: sha512-knIm1otkDQ2i0zzomGUifxNX6ii//hYZXuN3No5tD0l6QKjsgO35a8LBQj6SfYEAsIGCbMJD8tvRv1K21VYGow==}
 
   '@ahoo-wang/fetcher-wow@1.5.1':
     resolution: {integrity: sha512-4I9QvA1h3R5GCUteHcVUw6UwnWvDbnrXR4lhk2bfyWTIx0Gj1p/h/HfCrZuzhyeRBpAB7r7KjbiYHsbewdbM1Q==}
 
   '@ahoo-wang/fetcher@1.5.1':
     resolution: {integrity: sha512-+2TdG9KaYtq7Dmx6OcZbOYhmwNJ7LyDZmLt83kl2gSlnarJ1z320AOEiAgcJRZpz35pfRc5orzv2b4qjNHLc8Q==}
+
+  '@ahoo-wang/fetcher@1.5.6':
+    resolution: {integrity: sha512-EYV6+2Rf2+OQ7hBc2GHGUIaXuLs9Unv9m5JkCxT03Dfqo3P6eCFk+FXpjwepIdDQ2h71IbI5sNarHZzG57qk3g==}
 
   '@ampproject/remapping@2.3.0':
     resolution: {integrity: sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw==}
@@ -2425,15 +2431,19 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@ahoo-wang/fetcher-decorator@1.5.1':
+  '@ahoo-wang/fetcher-decorator@1.5.6':
     dependencies:
-      '@ahoo-wang/fetcher': 1.5.1
-      '@ahoo-wang/fetcher-eventstream': 1.5.1
+      '@ahoo-wang/fetcher': 1.5.6
+      '@ahoo-wang/fetcher-eventstream': 1.5.6
       reflect-metadata: 0.2.2
 
   '@ahoo-wang/fetcher-eventstream@1.5.1':
     dependencies:
       '@ahoo-wang/fetcher': 1.5.1
+
+  '@ahoo-wang/fetcher-eventstream@1.5.6':
+    dependencies:
+      '@ahoo-wang/fetcher': 1.5.6
 
   '@ahoo-wang/fetcher-wow@1.5.1':
     dependencies:
@@ -2441,6 +2451,8 @@ snapshots:
       '@ahoo-wang/fetcher-eventstream': 1.5.1
 
   '@ahoo-wang/fetcher@1.5.1': {}
+
+  '@ahoo-wang/fetcher@1.5.6': {}
 
   '@ampproject/remapping@2.3.0':
     dependencies:
