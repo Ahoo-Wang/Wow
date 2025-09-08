@@ -16,14 +16,16 @@ import {
   executionFailedSnapshotQueryClient,
   type ExecutionFailedState,
 } from "../../../services";
-import { aggregateId, singleQuery } from "@ahoo-wang/fetcher-wow";
+import {
+  aggregateId,
+  type Identifier,
+  singleQuery,
+} from "@ahoo-wang/fetcher-wow";
 import { Flex, Skeleton, Typography } from "antd";
 const { Text } = Typography;
 import { FailedDetails } from "./FailedDetails.tsx";
 
-export interface FetchingFailedDetailsProps {
-  id: string;
-}
+export interface FetchingFailedDetailsProps extends Identifier {}
 
 export function FetchingFailedDetails({ id }: FetchingFailedDetailsProps) {
   const { data, error, isLoading } = useSWR(id, () =>
