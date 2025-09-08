@@ -19,7 +19,7 @@
     "@ahoo-wang/fetcher-wow": "^1.5.1",
     "@ant-design/icons": "^6.0.1",
     "@ant-design/v5-patch-for-react-19": "^1.0.3",
-    "@monaco-editor/react": "4.7.0-rc.0",
+    "@monaco-editor/react": "4.7.0",
     "antd": "^5.27.3",
     "dayjs": "^1.11.18",
     "react": "^19.1.1",
