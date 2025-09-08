@@ -150,6 +150,25 @@ describe('Condition', () => {
         });
       });
 
+      it('should create AND condition with undefined and null condition', () => {
+        const condition1: Condition = {
+          field: 'name',
+          operator: Operator.EQ,
+          value: 'test',
+        };
+        const condition2: Condition = {
+          field: 'age',
+          operator: Operator.GT,
+          value: 18,
+        };
+        const result = and(condition1, undefined, condition2, null);
+
+        expect(result).toEqual({
+          operator: Operator.AND,
+          children: [condition1, condition2],
+        });
+      });
+
       it('should create AND condition with no arguments and return ALL condition', () => {
         const result = and();
         expect(result).toEqual({
