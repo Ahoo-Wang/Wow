@@ -22,8 +22,7 @@ import { Operator } from './operator';
 export function isValidateCondition(
   condition: Condition | undefined | null,
 ): condition is Condition {
-  const typeDetect = (param: unknown) => Object.prototype.toString.call(param);
-  if (typeDetect(condition) === '[object Object]') {
+  if (condition) {
     return true;
   }
   return false;
