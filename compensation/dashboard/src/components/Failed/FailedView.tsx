@@ -31,12 +31,27 @@ import {
 } from "../../services";
 import { useEffect, useState } from "react";
 import type { Pagination } from "@ahoo-wang/fetcher-wow";
+import { useQueryParams } from "../../utils/useQuery.ts";
+import { useGlobalDrawer } from "../GlobalDrawer/GlobalDrawer.tsx";
+import { FetchingFailedDetails } from "./details/FetchingFailedDetails.tsx";
 
 interface FailedViewProps {
   category: FindCategory;
 }
 
 export default function FailedView({ category }: FailedViewProps) {
+  const { openDrawer } = useGlobalDrawer();
+  const queryIdParams = useQueryParams("id");
+
+  useEffect(() => {
+    if (!queryIdParams) {
+      return;
+    }
+    openDrawer({
+      title: "Execution Failed Details",
+      content: <FetchingFailedDetails id={queryIdParams as string} />,
+    });
+  }, [queryIdParams]);
   const [searchCondition, setSearchCondition] = useState<Condition>(all());
   const [searchPagination, setSearchPagination] = useState<Pagination>(() => {
     return pagination();
