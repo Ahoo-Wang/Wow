@@ -11,15 +11,15 @@
  * limitations under the License.
  */
 
-import { App, Button, Form, Input, Modal, Space } from "antd";
-import type { FunctionInfo } from "@ahoo-wang/fetcher-wow";
+import { App, Button, Form, Input, Select } from "antd";
+import { type FunctionInfo, type Identifier } from "@ahoo-wang/fetcher-wow";
 import { executionFailedCommandService } from "../../services/executionFailedCommandClient.ts";
-import { useState } from "react";
+import type { OnChangedCapable } from "./Actions.tsx";
+import { useGlobalDrawer } from "../GlobalDrawer/GlobalDrawer.tsx";
 
-export interface ChangeFunctionProps {
+export interface ChangeFunctionProps extends OnChangedCapable {
   id: string;
   functionInfo: FunctionInfo;
-  onChanged?: () => void;
 }
 
 export function ChangeFunction({
@@ -28,85 +28,80 @@ export function ChangeFunction({
   onChanged,
 }: ChangeFunctionProps) {
   const { notification } = App.useApp();
-  const [form] = Form.useForm<FunctionInfo>();
-  const [loading, setLoading] = useState(false);
-  const [open, setOpen] = useState(false);
-
-  const showModal = () => {
-    setOpen(true);
-    form.setFieldsValue(functionInfo);
-  };
-
+  const [form] = Form.useForm<FunctionInfo & Identifier>();
+  const { closeDrawer } = useGlobalDrawer();
+  form.setFieldsValue({
+    id: id,
+    contextName: functionInfo.contextName,
+    processorName: functionInfo.processorName,
+    name: functionInfo.name,
+    functionKind: functionInfo.functionKind,
+  });
   const handleOk = () => {
     form.validateFields().then((values) => {
-      setLoading(true);
       executionFailedCommandService
         .changeFunction(id, values)
         .then(() => {
-          notification.success({ message: "更改处理函数成功" });
-          if (onChanged) {
-            onChanged();
-          }
-          setOpen(false);
+          onChanged?.();
+          notification.success({ message: "Change Function Success" });
+          closeDrawer();
         })
         .catch((error) => {
           notification.error({
-            message: "更改处理函数失败",
+            message: "Change Function Failed",
             description: error.message,
           });
-        })
-        .finally(() => {
-          setLoading(false);
         });
     });
   };
-
-  const handleCancel = () => {
-    setOpen(false);
-  };
-
+  const functionKindOptions = [
+    {
+      value: "EVENT",
+    },
+    {
+      value: "STATE_EVENT",
+    },
+  ];
   return (
     <>
-      <Button onClick={showModal}>更改处理函数</Button>
-      <Modal
-        title="更改处理函数"
-        open={open}
-        onOk={handleOk}
-        confirmLoading={loading}
-        onCancel={handleCancel}
-        footer={
-          <Space>
-            <Button onClick={handleCancel}>取消</Button>
-            <Button type="primary" onClick={handleOk} loading={loading}>
-              确定
-            </Button>
-          </Space>
-        }
-      >
-        <Form form={form} layout="vertical">
-          <Form.Item
-            name="contextName"
-            label="上下文名称"
-            rules={[{ required: true, message: "请输入上下文名称" }]}
-          >
-            <Input />
-          </Form.Item>
-          <Form.Item
-            name="processorName"
-            label="处理器名称"
-            rules={[{ required: true, message: "请输入处理器名称" }]}
-          >
-            <Input />
-          </Form.Item>
-          <Form.Item
-            name="name"
-            label="函数名称"
-            rules={[{ required: true, message: "请输入函数名称" }]}
-          >
-            <Input />
-          </Form.Item>
-        </Form>
-      </Modal>
+      <Form form={form} layout="vertical" onFinish={handleOk}>
+        <Form.Item name="id" label="Id">
+          <Input readOnly disabled />
+        </Form.Item>
+        <Form.Item
+          name="contextName"
+          label="Context Name"
+          rules={[{ required: true, message: "Please enter context name" }]}
+        >
+          <Input />
+        </Form.Item>
+        <Form.Item
+          name="processorName"
+          label="Processor Name"
+          rules={[{ required: true, message: "Please enter processor name" }]}
+        >
+          <Input />
+        </Form.Item>
+        <Form.Item
+          name="name"
+          label="Function Name"
+          rules={[{ required: true, message: "Please enter function name" }]}
+        >
+          <Input />
+        </Form.Item>
+        <Form.Item
+          name="functionKind"
+          label="Function Kind"
+          rules={[{ required: true, message: "Please select function kind" }]}
+        >
+          <Select options={functionKindOptions}></Select>
+        </Form.Item>
+        <Form.Item>
+          <Button type={"primary"} htmlType={"submit"} block>
+            Submit
+          </Button>
+        </Form.Item>
+      </Form>
     </>
   );
 }

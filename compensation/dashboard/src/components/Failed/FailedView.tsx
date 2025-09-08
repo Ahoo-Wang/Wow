@@ -75,6 +75,7 @@ export default function FailedView({ category }: FailedViewProps) {
       <FailedTable
         pagedList={pagedResult}
         onPaginationChange={onPaginationChange}
+        onChanged={search}
       ></FailedTable>
     </>
   );

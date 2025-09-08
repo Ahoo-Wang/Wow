@@ -11,22 +11,28 @@
  * limitations under the License.
  */
 
-import { Button, Form, InputNumber, App } from "antd";
+import { Button, Form, InputNumber, App, Input } from "antd";
 import type { RetrySpec } from "../../services";
 import { executionFailedCommandService } from "../../services/executionFailedCommandClient.ts";
 import { useGlobalDrawer } from "../GlobalDrawer/GlobalDrawer.tsx";
+import type { OnChangedCapable } from "./Actions.tsx";
 
-export interface ApplyRetrySpecProps {
+export interface ApplyRetrySpecProps extends OnChangedCapable {
   id: string;
   retrySpec: RetrySpec;
 }
 
-export function ApplyRetrySpec({ id, retrySpec }: ApplyRetrySpecProps) {
+export function ApplyRetrySpec({
+  id,
+  retrySpec,
+  onChanged,
+}: ApplyRetrySpecProps) {
   const [form] = Form.useForm();
   const { notification } = App.useApp();
   const { closeDrawer } = useGlobalDrawer();
 
   form.setFieldsValue({
+    id: id,
     maxRetries: retrySpec.maxRetries,
     minBackoff: retrySpec.minBackoff,
     executionTimeout: retrySpec.executionTimeout,
@@ -38,6 +44,7 @@ export function ApplyRetrySpec({ id, retrySpec }: ApplyRetrySpecProps) {
         .applyRetrySpec(id, values)
         .then(() => {
           notification.info({ message: "Apply Retry Spec Successfully" });
+          onChanged?.()
           closeDrawer();
         })
         .catch((error) => {
@@ -50,7 +57,10 @@ export function ApplyRetrySpec({ id, retrySpec }: ApplyRetrySpecProps) {
   };
 
   return (
-    <Form form={form} layout="vertical" onFinish={handleOk}>
+    <Form form={form} layout="vertical" onFinish={handleOk} size="middle">
+      <Form.Item name="id" label="Id">
+        <Input readOnly disabled />
+      </Form.Item>
       <Form.Item
         name="maxRetries"
         label="Max Retries"
