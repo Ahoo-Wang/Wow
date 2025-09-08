@@ -14,8 +14,8 @@
 import * as React from "react";
 import { createBrowserRouter, Navigate } from "react-router";
 import App from "../features/App/App.tsx";
-import FailedView from "../components/Failed/FailedView.tsx";
-import { FindCategory } from "../components/Failed/FindCategory.ts";
+import FailedView from "../features/Failed/FailedView.tsx";
+import { FindCategory } from "../features/Failed/FindCategory.ts";
 
 export const NavItemPaths = {
   ToRetry: "/to-retry",
