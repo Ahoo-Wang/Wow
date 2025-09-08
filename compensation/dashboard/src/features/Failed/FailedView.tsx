@@ -32,7 +32,7 @@ import {
 import { useEffect, useState } from "react";
 import type { Pagination } from "@ahoo-wang/fetcher-wow";
 import { useQueryParams } from "../../utils/useQuery.ts";
-import { useGlobalDrawer } from "../../components/GlobalDrawer/GlobalDrawer.tsx";
+import { useGlobalDrawer } from "../../components/GlobalDrawer";
 import { FetchingFailedDetails } from "./details/FetchingFailedDetails.tsx";
 
 interface FailedViewProps {
@@ -49,7 +49,7 @@ export default function FailedView({ category }: FailedViewProps) {
     }
     openDrawer({
       title: "Execution Failed Details",
-      content: <FetchingFailedDetails id={queryIdParams as string} />,
+      children: <FetchingFailedDetails id={queryIdParams as string} />,
     });
   }, [queryIdParams]);
   const [searchCondition, setSearchCondition] = useState<Condition>(all());

@@ -15,7 +15,7 @@ import { Table, Tag, Typography, Statistic, Button } from "antd";
 import type { TableColumnsType } from "antd";
 import { type PagedList } from "@ahoo-wang/fetcher-wow";
 import type { EventId, ExecutionFailedState } from "../../services";
-import { useGlobalDrawer } from "../../components/GlobalDrawer/GlobalDrawer.tsx";
+import { useGlobalDrawer } from "../../components/GlobalDrawer";
 import { EditTwoTone } from "@ant-design/icons";
 import { ApplyRetrySpec } from "./ApplyRetrySpec.tsx";
 import { useMemo } from "react";
@@ -99,7 +99,7 @@ export function FailedTable({
                       openDrawer({
                         title: "Change Function",
                         width: "500px",
-                        content: (
+                        children: (
                           <ChangeFunction
                             id={state.id}
                             functionInfo={state.function}
@@ -207,7 +207,7 @@ export function FailedTable({
                       openDrawer({
                         title: "Apply Retry Spec",
                         width: "300px",
-                        content: (
+                        children: (
                           <ApplyRetrySpec
                             id={state.id}
                             retrySpec={state.retrySpec}

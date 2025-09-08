@@ -11,37 +11,23 @@
  * limitations under the License.
  */
 
-import type { DrawerProps } from "antd/es/drawer";
 import { Drawer } from "antd";
-import { createContext, useContext, useState, type ReactNode } from "react";
-
-interface GlobalDrawerContextProps {
-  openDrawer: (config: DrawerConfig) => void;
-  closeDrawer: () => void;
-  updateDrawer: (config: Partial<DrawerConfig>) => void;
-}
-
-interface DrawerConfig extends DrawerProps {
-  content?: ReactNode;
-}
-
-const GlobalDrawerContext = createContext<GlobalDrawerContextProps | null>(
-  null,
-);
+import { useState, type ReactNode } from "react";
+import { GlobalDrawerContext } from "./useGlobalDrawer";
+import type { DrawerProps } from "antd/es/drawer";
 
 interface GlobalDrawerProviderProps {
   children: ReactNode;
 }
 
 export function GlobalDrawerProvider({ children }: GlobalDrawerProviderProps) {
-  const [drawerConfig, setDrawerConfig] = useState<DrawerConfig>({
+  const [drawerProps, setDrawerProps] = useState<DrawerProps>({
     open: false,
     width: "80vw",
-    content: null,
   });
 
-  const openDrawer = (config: DrawerConfig) => {
-    setDrawerConfig({
+  const openDrawer = (config: DrawerProps) => {
+    setDrawerProps({
       width: "80vw",
       ...config,
       open: true,
@@ -49,14 +35,14 @@ export function GlobalDrawerProvider({ children }: GlobalDrawerProviderProps) {
   };
 
   const closeDrawer = () => {
-    setDrawerConfig((prev) => ({
+    setDrawerProps((prev) => ({
       ...prev,
       open: false,
     }));
   };
 
-  const updateDrawer = (config: Partial<DrawerConfig>) => {
-    setDrawerConfig((prev) => ({
+  const updateDrawer = (config: Partial<DrawerProps>) => {
+    setDrawerProps((prev) => ({
       ...prev,
       ...config,
     }));
@@ -71,19 +57,9 @@ export function GlobalDrawerProvider({ children }: GlobalDrawerProviderProps) {
       }}
     >
       {children}
-      <Drawer {...drawerConfig} onClose={closeDrawer}>
-        {drawerConfig.content}
+      <Drawer {...drawerProps} onClose={closeDrawer}>
+
       </Drawer>
     </GlobalDrawerContext.Provider>
   );
-}
-
-export function useGlobalDrawer() {
-  const context = useContext(GlobalDrawerContext);
-  if (!context) {
-    throw new Error(
-      "useGlobalDrawer must be used within a GlobalDrawerProvider",
-    );
-  }
-  return context;
 }
