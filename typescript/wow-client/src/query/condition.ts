@@ -22,10 +22,7 @@ import { Operator } from './operator';
 export function isValidateCondition(
   condition: Condition | undefined | null,
 ): condition is Condition {
-  if (condition) {
-    return true;
-  }
-  return false;
+  return !!condition;
 }
 /**
  * Condition option keys enumeration
