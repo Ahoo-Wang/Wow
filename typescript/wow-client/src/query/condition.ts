@@ -221,11 +221,16 @@ export function and(
  * @param conditions - Conditions to combine with OR
  * @returns A condition with OR operator
  */
-export function or(...conditions: Condition[]): Condition {
-  if (conditions.length === 0) {
+export function or(
+  ...conditions: Array<Condition | undefined | null>
+): Condition {
+  const validateConditions = conditions?.filter(condition =>
+    isValidateCondition(condition),
+  );
+  if (validateConditions.length === 0) {
     return all();
   }
-  return { operator: Operator.OR, children: conditions };
+  return { operator: Operator.OR, children: validateConditions };
 }
 
 /**
