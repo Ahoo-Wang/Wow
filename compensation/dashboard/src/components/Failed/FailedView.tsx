@@ -43,6 +43,10 @@ export default function FailedView({ category }: FailedViewProps) {
   });
   const [pagedResult, setPagedResult] =
     useState<PagedList<ExecutionFailedState>>(pagedList());
+  const [refreshCount, setRefreshCount] = useState(0);
+  const refresh = () => {
+    setRefreshCount((count) => count + 1);
+  };
   const onSearch = (searchCondition: Condition) => {
     setSearchCondition(searchCondition);
   };
@@ -67,7 +71,12 @@ export default function FailedView({ category }: FailedViewProps) {
         setPagedResult(it);
       });
   };
-  useEffect(search, [category, searchCondition, searchPagination]);
+  useEffect(search, [
+    category,
+    searchCondition,
+    searchPagination,
+    refreshCount,
+  ]);
 
   return (
     <>
@@ -75,7 +84,7 @@ export default function FailedView({ category }: FailedViewProps) {
       <FailedTable
         pagedList={pagedResult}
         onPaginationChange={onPaginationChange}
-        onChanged={search}
+        onChanged={refresh}
       ></FailedTable>
     </>
   );
