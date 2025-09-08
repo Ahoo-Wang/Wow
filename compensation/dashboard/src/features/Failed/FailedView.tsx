@@ -11,8 +11,8 @@
  * limitations under the License.
  */
 
-import { FailedSearch } from "./FailedSearch";
-import { FailedTable } from "./FailedTable";
+import { FailedSearch } from "./FailedSearch.tsx";
+import { FailedTable } from "./FailedTable.tsx";
 import { type FindCategory, RetryConditions } from "./FindCategory.ts";
 import {
   all,
@@ -32,7 +32,7 @@ import {
 import { useEffect, useState } from "react";
 import type { Pagination } from "@ahoo-wang/fetcher-wow";
 import { useQueryParams } from "../../utils/useQuery.ts";
-import { useGlobalDrawer } from "../GlobalDrawer/GlobalDrawer.tsx";
+import { useGlobalDrawer } from "../../components/GlobalDrawer/GlobalDrawer.tsx";
 import { FetchingFailedDetails } from "./details/FetchingFailedDetails.tsx";
 
 interface FailedViewProps {

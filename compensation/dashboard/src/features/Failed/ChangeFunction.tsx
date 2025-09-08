@@ -15,7 +15,7 @@ import { App, Button, Form, Input, Select } from "antd";
 import { type FunctionInfo, type Identifier } from "@ahoo-wang/fetcher-wow";
 import { executionFailedCommandService } from "../../services/executionFailedCommandClient.ts";
 import type { OnChangedCapable } from "./Actions.tsx";
-import { useGlobalDrawer } from "../GlobalDrawer/GlobalDrawer.tsx";
+import { useGlobalDrawer } from "../../components/GlobalDrawer/GlobalDrawer.tsx";
 
 export interface ChangeFunctionProps extends OnChangedCapable {
   id: string;

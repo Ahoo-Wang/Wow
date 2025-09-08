@@ -15,7 +15,7 @@ import { Table, Tag, Typography, Statistic, Button } from "antd";
 import type { TableColumnsType } from "antd";
 import { type PagedList } from "@ahoo-wang/fetcher-wow";
 import type { EventId, ExecutionFailedState } from "../../services";
-import { useGlobalDrawer } from "../GlobalDrawer/GlobalDrawer.tsx";
+import { useGlobalDrawer } from "../../components/GlobalDrawer/GlobalDrawer.tsx";
 import { EditTwoTone } from "@ant-design/icons";
 import { ApplyRetrySpec } from "./ApplyRetrySpec.tsx";
 import { useMemo } from "react";

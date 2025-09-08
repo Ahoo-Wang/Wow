@@ -15,7 +15,7 @@ import type { StateCapable } from "@ahoo-wang/fetcher-wow";
 import type { ExecutionFailedState } from "../../services";
 import { App, Dropdown } from "antd";
 import { FailedDetails } from "./details/FailedDetails.tsx";
-import { useGlobalDrawer } from "../GlobalDrawer/GlobalDrawer.tsx";
+import { useGlobalDrawer } from "../../components/GlobalDrawer/GlobalDrawer.tsx";
 import type { ItemType } from "antd/es/menu/interface";
 import { executionFailedCommandService } from "../../services/executionFailedCommandClient.ts";
 
