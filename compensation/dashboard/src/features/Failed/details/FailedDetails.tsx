@@ -16,12 +16,9 @@ import { Descriptions, Flex, Statistic, Tag, Typography } from "antd";
 
 import { type ExecutionFailedState } from "../../../services";
 import { ErrorDetails } from "./ErrorDetails.tsx";
-import dayjs from "dayjs";
+import { formatDate } from "../../../utils/dates.ts";
 
 const { Timer } = Statistic;
-function formatIsoDateTime(timeAt: number | undefined): string {
-  return dayjs(timeAt).format();
-}
 
 const { Text } = Typography;
 
@@ -60,7 +57,7 @@ export function FailedDetails({ state }: FailedDetailsProps) {
     {
       key: "executeAt",
       label: "Execute At",
-      children: formatIsoDateTime(state.executeAt),
+      children: formatDate(state.executeAt),
       span: 1,
     },
     {
@@ -190,7 +187,7 @@ export function FailedDetails({ state }: FailedDetailsProps) {
     {
       key: "retryAt",
       label: "Retry At",
-      children: formatIsoDateTime(state.retryState.retryAt),
+      children: formatDate(state.retryState.retryAt),
       span: 1,
     },
     {

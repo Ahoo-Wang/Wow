@@ -57,9 +57,7 @@ export function GlobalDrawerProvider({ children }: GlobalDrawerProviderProps) {
       }}
     >
       {children}
-      <Drawer {...drawerProps} onClose={closeDrawer}>
-
-      </Drawer>
+      <Drawer {...drawerProps} onClose={closeDrawer} />
     </GlobalDrawerContext.Provider>
   );
 }
