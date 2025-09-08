@@ -18,6 +18,11 @@ springdoc:
   api-docs:
     version: openapi-3-1
 
+#SPRING_AUTOCONFIGURE_EXCLUDE=org.springframework.boot.autoconfigure.elasticsearch.ElasticsearchClientAutoConfiguration,org.springframework.boot.autoconfigure.elasticsearch.ElasticsearchRestClientAutoConfiguration,org.springframework.boot.autoconfigure.elasticsearch.ReactiveElasticsearchClientAutoConfiguration
+#SPRING_DATA_MONGODB_URI=mongodb://root:root@localhost:27017/wow_example_db?authSource=admin&maxIdleTimeMS=60000
+#WOW_EVENTSOURCING_STORE_STORAGE=mongo
+#WOW_EVENTSOURCING_SNAPSHOT_STORAGE=mongo
+
 spring:
   application:
     name: example-service

@@ -1,0 +1,18 @@
+.logo {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  background: rgba(255, 255, 255, 0.04);
+  margin-right: 48px;
+}
+
+.logo img {
+  height: 48px;
+  width: auto;
+  transition: all 0.3s ease;
+}
+
+.logo:hover img {
+  transform: scale(1.1);
+}

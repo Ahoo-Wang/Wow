@@ -20,7 +20,7 @@ spring:
     name: compensation-service
   web:
     resources:
-      static-locations: file:./browser/
+      static-locations: file:./ui/
   jackson:
     serialization:
       write-durations-as-timestamps: true
