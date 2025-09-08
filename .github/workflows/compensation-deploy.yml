@@ -54,15 +54,15 @@ jobs:
         with:
           node-version: 22
           cache: 'pnpm'
-          cache-dependency-path: compensation/wow-compensation-dashboard/pnpm-lock.yaml
+          cache-dependency-path: compensation/dashboard/pnpm-lock.yaml
 
       - name: Install Packages
-        working-directory: compensation/wow-compensation-dashboard
-        run: pnpm install && pnpm install -g @angular/cli
+        working-directory: compensation/dashboard
+        run: pnpm install
 
       - name: Build Dashboard-UI
-        working-directory: compensation/wow-compensation-dashboard
-        run: ng build
+        working-directory: compensation/dashboard
+        run: pnpm build
 
       - name: Set up JDK 17
         uses: actions/setup-java@v5

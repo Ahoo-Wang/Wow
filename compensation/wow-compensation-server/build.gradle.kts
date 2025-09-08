@@ -34,7 +34,7 @@ tasks.jar.configure {
 distributions {
     main {
         contents {
-            val dashboardDistPath = "${rootDir.absolutePath}/compensation/wow-compensation-dashboard/dist"
+            val dashboardDistPath = "${rootDir.absolutePath}/compensation/dashboard/dist"
             from(dashboardDistPath).include("**")
         }
     }
