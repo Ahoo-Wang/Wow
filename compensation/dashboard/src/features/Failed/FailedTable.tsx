@@ -22,6 +22,7 @@ import { useMemo } from "react";
 import { ChangeFunction } from "./ChangeFunction.tsx";
 import { MarkRecoverable } from "./MarkRecoverable.tsx";
 import { Actions, type OnChangedCapable } from "./Actions.tsx";
+import { formatDate } from "../../utils/dates.ts";
 
 const { Text } = Typography;
 const { Timer } = Statistic;
@@ -245,8 +246,7 @@ export function FailedTable({
             title: "Execute At",
             dataIndex: "executeAt",
             key: "executeAt",
-            render: (executeAt) =>
-              executeAt && new Date(executeAt).toLocaleString(),
+            render: (executeAt) => formatDate(executeAt),
             width: 125,
             fixed: "right",
           },
@@ -275,7 +275,7 @@ export function FailedTable({
         },
       },
     ];
-  }, [openDrawer]);
+  }, [openDrawer, onChanged]);
 
   return (
     <>
