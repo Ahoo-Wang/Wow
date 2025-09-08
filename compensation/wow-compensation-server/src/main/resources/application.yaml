@@ -24,7 +24,7 @@ spring:
     name: compensation-service
   web:
     resources:
-      static-locations: file:./compensation/wow-compensation-dashboard/dist/browser/
+      static-locations: file:./compensation/dashboard/dist/
   jackson:
     serialization:
       write-durations-as-timestamps: true

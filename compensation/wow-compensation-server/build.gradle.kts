@@ -34,8 +34,9 @@ tasks.jar.configure {
 distributions {
     main {
         contents {
-            val dashboardDistPath = "${rootDir.absolutePath}/compensation/dashboard/dist"
-            from(dashboardDistPath).include("**")
+            from("${rootDir.absolutePath}/compensation/dashboard/dist") {
+                into("ui")
+            }
         }
     }
 }
