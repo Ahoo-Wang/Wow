@@ -78,20 +78,23 @@ export class CommandClient {
    * @param path - The endpoint path to send the command to
    * @param commandHttpRequest - The command HTTP request containing headers, method, and body
    * @param extractor - Function to extract the result from the response, defaults to JSON extractor
+   * @param attributes - Optional shared attributes that can be accessed by interceptors
+   *                     throughout the request lifecycle. These attributes allow passing
+   *                     custom data between different interceptors.
    * @returns A promise that resolves to the extracted result of type R
    */
   protected async sendCommand<R>(
     path: string,
     commandHttpRequest: CommandRequest,
     extractor: ResultExtractor<any> = ResultExtractors.Json,
+    attributes?: Record<string, any>,
   ): Promise<R> {
     const url = combineURLs(this.options.basePath, path);
     const request = {
       ...commandHttpRequest,
       url: url,
     };
-    const exchange = await this.options.fetcher.request(request);
-    return extractor(exchange);
+    return await this.options.fetcher.request(request, extractor, attributes);
   }
 
   /**
@@ -99,6 +102,9 @@ export class CommandClient {
    *
    * @param path - The endpoint path to send the command to
    * @param commandHttpRequest - The command request to send
+   * @param attributes - Optional shared attributes that can be accessed by interceptors
+   *                     throughout the request lifecycle. These attributes allow passing
+   *                     custom data between different interceptors.
    * @returns A promise that resolves to the command execution result
    *
    * @example
@@ -115,8 +121,9 @@ export class CommandClient {
   send(
     path: string,
     commandHttpRequest: CommandRequest,
+    attributes?: Record<string, any>,
   ): Promise<CommandResult> {
-    return this.sendCommand(path, commandHttpRequest);
+    return this.sendCommand(path, commandHttpRequest, ResultExtractors.Json, attributes);
   }
 
   /**
@@ -125,6 +132,9 @@ export class CommandClient {
    *
    * @param path - The endpoint path to send the command to
    * @param commandHttpRequest - The command request to send
+   * @param attributes - Optional shared attributes that can be accessed by interceptors
+   *                     throughout the request lifecycle. These attributes allow passing
+   *                     custom data between different interceptors.
    * @returns A promise that resolves to a stream of command execution results
    *
    * @example
@@ -148,6 +158,7 @@ export class CommandClient {
   async sendAndWaitStream(
     path: string,
     commandHttpRequest: CommandRequest,
+    attributes?: Record<string, any>,
   ): Promise<CommandResultEventStream> {
     commandHttpRequest.headers = {
       ...commandHttpRequest.headers,
@@ -157,6 +168,7 @@ export class CommandClient {
       path,
       commandHttpRequest,
       JsonEventStreamResultExtractor,
+      attributes,
     );
   }
 }

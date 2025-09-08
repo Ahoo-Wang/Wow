@@ -121,6 +121,9 @@ export class SnapshotQueryClient<S>
    * Counts the number of snapshots that match the given condition.
    *
    * @param condition - The condition to match snapshots against
+   * @param attributes - Optional shared attributes that can be accessed by interceptors
+   *                     throughout the request lifecycle. These attributes allow passing
+   *                     custom data between different interceptors.
    * @returns A promise that resolves to the count of matching snapshots
    *
    * @example
@@ -129,14 +132,17 @@ export class SnapshotQueryClient<S>
    * console.log('Total snapshots:', count);
    * ```
    */
-  async count(condition: Condition): Promise<number> {
-    return this.query(SnapshotQueryEndpointPaths.COUNT, condition);
+  async count(condition: Condition, attributes?: Record<string, any>): Promise<number> {
+    return this.query(SnapshotQueryEndpointPaths.COUNT, condition, attributes);
   }
 
   /**
    * Retrieves a list of materialized snapshots based on the provided query parameters.
    *
    * @param listQuery - The query parameters for listing snapshots
+   * @param attributes - Optional shared attributes that can be accessed by interceptors
+   *                     throughout the request lifecycle. These attributes allow passing
+   *                     custom data between different interceptors.
    * @returns A promise that resolves to an array of partial materialized snapshots
    *
    * @example
@@ -154,14 +160,17 @@ export class SnapshotQueryClient<S>
     T extends Partial<MaterializedSnapshot<S>> = Partial<
       MaterializedSnapshot<S>
     >,
-  >(listQuery: ListQuery): Promise<T[]> {
-    return this.query(SnapshotQueryEndpointPaths.LIST, listQuery);
+  >(listQuery: ListQuery, attributes?: Record<string, any>): Promise<T[]> {
+    return this.query(SnapshotQueryEndpointPaths.LIST, listQuery, attributes);
   }
 
   /**
    * Retrieves a stream of materialized snapshots based on the provided query parameters.
    *
    * @param listQuery - The query parameters for listing snapshots
+   * @param attributes - Optional shared attributes that can be accessed by interceptors
+   *                     throughout the request lifecycle. These attributes allow passing
+   *                     custom data between different interceptors.
    * @returns A promise that resolves to a readable stream of JSON server-sent events containing partial materialized snapshots
    *
    * @example
@@ -180,10 +189,11 @@ export class SnapshotQueryClient<S>
     T extends Partial<MaterializedSnapshot<S>> = Partial<
       MaterializedSnapshot<S>
     >,
-  >(listQuery: ListQuery): Promise<ReadableStream<JsonServerSentEvent<T>>> {
+  >(listQuery: ListQuery, attributes?: Record<string, any>): Promise<ReadableStream<JsonServerSentEvent<T>>> {
     return this.query(
       SnapshotQueryEndpointPaths.LIST,
       listQuery,
+      attributes,
       ContentTypeValues.TEXT_EVENT_STREAM,
       JsonEventStreamResultExtractor,
     );
@@ -193,6 +203,9 @@ export class SnapshotQueryClient<S>
    * Retrieves a list of snapshot states based on the provided query parameters.
    *
    * @param listQuery - The query parameters for listing snapshot states
+   * @param attributes - Optional shared attributes that can be accessed by interceptors
+   *                     throughout the request lifecycle. These attributes allow passing
+   *                     custom data between different interceptors.
    * @returns A promise that resolves to an array of partial snapshot states
    *
    * @example
@@ -207,15 +220,18 @@ export class SnapshotQueryClient<S>
    * ```
    */
   listState<T extends Partial<S> = Partial<S>>(
-    listQuery: ListQuery,
+    listQuery: ListQuery, attributes?: Record<string, any>,
   ): Promise<T[]> {
-    return this.query(SnapshotQueryEndpointPaths.LIST_STATE, listQuery);
+    return this.query(SnapshotQueryEndpointPaths.LIST_STATE, listQuery, attributes);
   }
 
   /**
    * Retrieves a stream of snapshot states based on the provided query parameters.
    *
    * @param listQuery - The query parameters for listing snapshot states
+   * @param attributes - Optional shared attributes that can be accessed by interceptors
+   *                     throughout the request lifecycle. These attributes allow passing
+   *                     custom data between different interceptors.
    * @returns A promise that resolves to a readable stream of JSON server-sent events containing partial snapshot states
    *
    * @example
@@ -231,11 +247,12 @@ export class SnapshotQueryClient<S>
    * ```
    */
   listStateStream<T extends Partial<S> = Partial<S>>(
-    listQuery: ListQuery,
+    listQuery: ListQuery, attributes?: Record<string, any>,
   ): Promise<ReadableStream<JsonServerSentEvent<T>>> {
     return this.query(
       SnapshotQueryEndpointPaths.LIST_STATE,
       listQuery,
+      attributes,
       ContentTypeValues.TEXT_EVENT_STREAM,
       JsonEventStreamResultExtractor,
     );
@@ -245,6 +262,9 @@ export class SnapshotQueryClient<S>
    * Retrieves a paged list of materialized snapshots based on the provided query parameters.
    *
    * @param pagedQuery - The query parameters for paging snapshots
+   * @param attributes - Optional shared attributes that can be accessed by interceptors
+   *                     throughout the request lifecycle. These attributes allow passing
+   *                     custom data between different interceptors.
    * @returns A promise that resolves to a paged list of partial materialized snapshots
    *
    * @example
@@ -265,14 +285,17 @@ export class SnapshotQueryClient<S>
     T extends Partial<MaterializedSnapshot<S>> = Partial<
       MaterializedSnapshot<S>
     >,
-  >(pagedQuery: PagedQuery): Promise<PagedList<T>> {
-    return this.query(SnapshotQueryEndpointPaths.PAGED, pagedQuery);
+  >(pagedQuery: PagedQuery, attributes?: Record<string, any>): Promise<PagedList<T>> {
+    return this.query(SnapshotQueryEndpointPaths.PAGED, pagedQuery, attributes);
   }
 
   /**
    * Retrieves a paged list of snapshot states based on the provided query parameters.
    *
    * @param pagedQuery - The query parameters for paging snapshot states
+   * @param attributes - Optional shared attributes that can be accessed by interceptors
+   *                     throughout the request lifecycle. These attributes allow passing
+   *                     custom data between different interceptors.
    * @returns A promise that resolves to a paged list of partial snapshot states
    *
    * @example
@@ -289,15 +312,18 @@ export class SnapshotQueryClient<S>
    * ```
    */
   pagedState<T extends Partial<S> = Partial<S>>(
-    pagedQuery: PagedQuery,
+    pagedQuery: PagedQuery, attributes?: Record<string, any>,
   ): Promise<PagedList<T>> {
-    return this.query(SnapshotQueryEndpointPaths.PAGED_STATE, pagedQuery);
+    return this.query(SnapshotQueryEndpointPaths.PAGED_STATE, pagedQuery, attributes);
   }
 
   /**
    * Retrieves a single materialized snapshot based on the provided query parameters.
    *
    * @param singleQuery - The query parameters for retrieving a single snapshot
+   * @param attributes - Optional shared attributes that can be accessed by interceptors
+   *                     throughout the request lifecycle. These attributes allow passing
+   *                     custom data between different interceptors.
    * @returns A promise that resolves to a partial materialized snapshot
    *
    * @example
@@ -313,14 +339,17 @@ export class SnapshotQueryClient<S>
     T extends Partial<MaterializedSnapshot<S>> = Partial<
       MaterializedSnapshot<S>
     >,
-  >(singleQuery: SingleQuery): Promise<T> {
-    return this.query(SnapshotQueryEndpointPaths.SINGLE, singleQuery);
+  >(singleQuery: SingleQuery, attributes?: Record<string, any>): Promise<T> {
+    return this.query(SnapshotQueryEndpointPaths.SINGLE, singleQuery, attributes);
   }
 
   /**
    * Retrieves a single snapshot state based on the provided query parameters.
    *
    * @param singleQuery - The query parameters for retrieving a single snapshot state
+   * @param attributes - Optional shared attributes that can be accessed by interceptors
+   *                     throughout the request lifecycle. These attributes allow passing
+   *                     custom data between different interceptors.
    * @returns A promise that resolves to a partial snapshot state
    *
    * @example
@@ -333,8 +362,8 @@ export class SnapshotQueryClient<S>
    * ```
    */
   singleState<T extends Partial<S> = Partial<S>>(
-    singleQuery: SingleQuery,
+    singleQuery: SingleQuery, attributes?: Record<string, any>,
   ): Promise<T> {
-    return this.query(SnapshotQueryEndpointPaths.SINGLE_STATE, singleQuery);
+    return this.query(SnapshotQueryEndpointPaths.SINGLE_STATE, singleQuery, attributes);
   }
 }

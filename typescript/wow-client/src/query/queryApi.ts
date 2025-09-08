@@ -41,43 +41,63 @@ export interface QueryApi<R> {
   /**
    * Retrieves a single resource based on the provided query parameters.
    * @param singleQuery - The query parameters for retrieving a single resource
+   * @param attributes - Optional shared attributes that can be accessed by interceptors
+   *                     throughout the request lifecycle. These attributes allow passing
+   *                     custom data between different interceptors.
    * @returns A promise that resolves to a partial resource
    */
   single<T extends Partial<R> = Partial<R>>(
     singleQuery: SingleQuery,
+    attributes?: Record<string, any>,
   ): Promise<T>;
 
   /**
    * Retrieves a list of resources based on the provided query parameters.
    * @param listQuery - The query parameters for listing resources
+   * @param attributes - Optional shared attributes that can be accessed by interceptors
+   *                     throughout the request lifecycle. These attributes allow passing
+   *                     custom data between different interceptors.
    * @returns A promise that resolves to an array of partial resources
    */
-  list<T extends Partial<R> = Partial<R>>(listQuery: ListQuery): Promise<T[]>;
+  list<T extends Partial<R> = Partial<R>>(listQuery: ListQuery,
+                                          attributes?: Record<string, any>): Promise<T[]>;
 
   /**
    * Retrieves a stream of resources based on the provided query parameters.
    * @param listQuery - The query parameters for listing resources
+   * @param attributes - Optional shared attributes that can be accessed by interceptors
+   *                     throughout the request lifecycle. These attributes allow passing
+   *                     custom data between different interceptors.
    * @returns A promise that resolves to a readable stream of JSON server-sent events containing partial resources
    */
   listStream<T extends Partial<R> = Partial<R>>(
     listQuery: ListQuery,
+    attributes?: Record<string, any>,
   ): Promise<ReadableStream<JsonServerSentEvent<T>>>;
 
   /**
    * Retrieves a paged list of resources based on the provided query parameters.
    * @param pagedQuery - The query parameters for paging resources
+   * @param attributes - Optional shared attributes that can be accessed by interceptors
+   *                     throughout the request lifecycle. These attributes allow passing
+   *                     custom data between different interceptors.
    * @returns A promise that resolves to a paged list of partial resources
    */
   paged<T extends Partial<R> = Partial<R>>(
     pagedQuery: PagedQuery,
+    attributes?: Record<string, any>,
   ): Promise<PagedList<T>>;
 
   /**
    * Counts the number of resources that match the given condition.
    * @param condition - The condition to filter resources
+   * @param attributes - Optional shared attributes that can be accessed by interceptors
+   *                     throughout the request lifecycle. These attributes allow passing
+   *                     custom data between different interceptors.
    * @returns A promise that resolves to the count of matching resources
    */
-  count(condition: Condition): Promise<number>;
+  count(condition: Condition,
+        attributes?: Record<string, any>): Promise<number>;
 }
 
 /**
@@ -103,11 +123,15 @@ export class QueryClient {
    * @param query - The query parameters to send
    * @param accept - The content type to accept from the server, defaults to application/json
    * @param extractor - Function to extract the result from the response, defaults to JSON extractor
+   * @param attributes - Optional shared attributes that can be accessed by interceptors
+   *                     throughout the request lifecycle. These attributes allow passing
+   *                     custom data between different interceptors.
    * @returns A promise that resolves to the query result
    */
   protected async query<R>(
     path: string,
     query: Condition | ListQuery | PagedQuery | SingleQuery,
+    attributes?: Record<string, any>,
     accept: string = ContentTypeValues.APPLICATION_JSON,
     extractor: ResultExtractor<any> = ResultExtractors.Json,
   ): Promise<R> {
@@ -120,7 +144,6 @@ export class QueryClient {
       },
       body: query,
     };
-    const exchange = await this.options.fetcher.request(request);
-    return extractor(exchange);
+    return await this.options.fetcher.request(request, extractor, attributes);
   }
 }

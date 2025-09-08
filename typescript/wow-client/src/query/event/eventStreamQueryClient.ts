@@ -81,6 +81,9 @@ export class EventStreamQueryClient
    * Counts the number of domain event streams that match the given condition.
    *
    * @param condition - The condition to filter event streams
+   * @param attributes - Optional shared attributes that can be accessed by interceptors
+   *                     throughout the request lifecycle. These attributes allow passing
+   *                     custom data between different interceptors.
    * @returns A promise that resolves to the count of matching event streams
    *
    * @example
@@ -89,14 +92,17 @@ export class EventStreamQueryClient
    * console.log('Total event streams:', count);
    * ```
    */
-  count(condition: Condition): Promise<number> {
-    return this.query(EventStreamQueryEndpointPaths.COUNT, condition);
+  count(condition: Condition, attributes?: Record<string, any>): Promise<number> {
+    return this.query(EventStreamQueryEndpointPaths.COUNT, condition, attributes);
   }
 
   /**
    * Retrieves a list of domain event streams based on the provided query parameters.
    *
    * @param listQuery - The query parameters for listing event streams
+   * @param attributes - Optional shared attributes that can be accessed by interceptors
+   *                     throughout the request lifecycle. These attributes allow passing
+   *                     custom data between different interceptors.
    * @returns A promise that resolves to an array of partial domain event streams
    *
    * @example
@@ -111,9 +117,9 @@ export class EventStreamQueryClient
    * ```
    */
   list<T extends Partial<DomainEventStream> = Partial<DomainEventStream>>(
-    listQuery: ListQuery,
+    listQuery: ListQuery, attributes?: Record<string, any>,
   ): Promise<T[]> {
-    return this.query(EventStreamQueryEndpointPaths.LIST, listQuery);
+    return this.query(EventStreamQueryEndpointPaths.LIST, listQuery, attributes);
   }
 
   /**
@@ -121,6 +127,9 @@ export class EventStreamQueryClient
    * Sets the Accept header to text/event-stream to indicate that the response should be streamed.
    *
    * @param listQuery - The query parameters for listing event streams
+   * @param attributes - Optional shared attributes that can be accessed by interceptors
+   *                     throughout the request lifecycle. These attributes allow passing
+   *                     custom data between different interceptors.
    * @returns A promise that resolves to a readable stream of JSON server-sent events containing partial domain event streams
    *
    * @example
@@ -136,11 +145,12 @@ export class EventStreamQueryClient
    * ```
    */
   listStream<T extends Partial<DomainEventStream> = Partial<DomainEventStream>>(
-    listQuery: ListQuery,
+    listQuery: ListQuery, attributes?: Record<string, any>,
   ): Promise<ReadableStream<JsonServerSentEvent<T>>> {
     return this.query(
       EventStreamQueryEndpointPaths.LIST,
       listQuery,
+      attributes,
       ContentTypeValues.TEXT_EVENT_STREAM,
       JsonEventStreamResultExtractor,
     );
@@ -150,6 +160,9 @@ export class EventStreamQueryClient
    * Retrieves a paged list of domain event streams based on the provided query parameters.
    *
    * @param pagedQuery - The query parameters for paging event streams
+   * @param attributes - Optional shared attributes that can be accessed by interceptors
+   *                     throughout the request lifecycle. These attributes allow passing
+   *                     custom data between different interceptors.
    * @returns A promise that resolves to a paged list of partial domain event streams
    *
    * @example
@@ -167,8 +180,8 @@ export class EventStreamQueryClient
    * ```
    */
   paged<T extends Partial<DomainEventStream> = Partial<DomainEventStream>>(
-    pagedQuery: PagedQuery,
+    pagedQuery: PagedQuery, attributes?: Record<string, any>,
   ): Promise<PagedList<T>> {
-    return this.query(EventStreamQueryEndpointPaths.PAGED, pagedQuery);
+    return this.query(EventStreamQueryEndpointPaths.PAGED, pagedQuery, attributes);
   }
 }

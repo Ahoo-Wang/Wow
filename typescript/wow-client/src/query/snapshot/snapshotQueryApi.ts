@@ -31,37 +31,53 @@ export interface SnapshotQueryApi<S> extends QueryApi<MaterializedSnapshot<S>> {
   /**
    * Retrieves a single snapshot state based on the provided query parameters.
    * @param singleQuery - The query parameters for retrieving a single snapshot state
+   * @param attributes - Optional shared attributes that can be accessed by interceptors
+   *                     throughout the request lifecycle. These attributes allow passing
+   *                     custom data between different interceptors.
    * @returns A promise that resolves to a partial snapshot state
    */
   singleState<T extends Partial<S> = Partial<S>>(
     singleQuery: SingleQuery,
+    attributes?: Record<string, any>,
   ): Promise<T>;
 
   /**
    * Retrieves a list of snapshot states based on the provided query parameters.
    * @param listQuery - The query parameters for listing snapshot states
+   * @param attributes - Optional shared attributes that can be accessed by interceptors
+   *                     throughout the request lifecycle. These attributes allow passing
+   *                     custom data between different interceptors.
    * @returns A promise that resolves to an array of partial snapshot states
    */
   listState<T extends Partial<S> = Partial<S>>(
     listQuery: ListQuery,
+    attributes?: Record<string, any>,
   ): Promise<T[]>;
 
   /**
    * Retrieves a stream of snapshot states based on the provided query parameters.
    * @param listQuery - The query parameters for listing snapshot states
+   * @param attributes - Optional shared attributes that can be accessed by interceptors
+   *                     throughout the request lifecycle. These attributes allow passing
+   *                     custom data between different interceptors.
    * @returns A promise that resolves to a readable stream of JSON server-sent events containing partial snapshot states
    */
   listStateStream<T extends Partial<S> = Partial<S>>(
     listQuery: ListQuery,
+    attributes?: Record<string, any>,
   ): Promise<ReadableStream<JsonServerSentEvent<T>>>;
 
   /**
    * Retrieves a paged list of snapshot states based on the provided query parameters.
    * @param pagedQuery - The query parameters for paging snapshot states
+   * @param attributes - Optional shared attributes that can be accessed by interceptors
+   *                     throughout the request lifecycle. These attributes allow passing
+   *                     custom data between different interceptors.
    * @returns A promise that resolves to a paged list of partial snapshot states
    */
   pagedState<T extends Partial<S> = Partial<S>>(
     pagedQuery: PagedQuery,
+    attributes?: Record<string, any>,
   ): Promise<PagedList<T>>;
 }
 
