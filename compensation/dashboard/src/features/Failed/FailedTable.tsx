@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { Table, Tag, Typography, Statistic, Button } from "antd";
+import { Table, Tag, Typography, Statistic, Button, Tooltip } from "antd";
 import type { TableColumnsType } from "antd";
 import { type PagedList } from "@ahoo-wang/fetcher-wow";
 import type { EventId, ExecutionFailedState } from "../../services";
@@ -22,7 +22,11 @@ import { useMemo } from "react";
 import { ChangeFunction } from "./ChangeFunction.tsx";
 import { MarkRecoverable } from "./MarkRecoverable.tsx";
 import { Actions, type OnChangedCapable } from "./Actions.tsx";
+import relativeTime from "dayjs/plugin/relativeTime";
+import dayjs from "dayjs";
 import { formatDate } from "../../utils/dates.ts";
+
+dayjs.extend(relativeTime);
 
 const { Text } = Typography;
 const { Timer } = Statistic;
@@ -46,7 +50,12 @@ export function FailedTable({
         dataIndex: "id",
         width: 100,
         fixed: "left",
-        render: (id: string) => <Text copyable>{id}</Text>,
+        align: "center",
+        render: (id: string) => (
+          <Text copyable ellipsis={{ tooltip: id }}>
+            {id}
+          </Text>
+        ),
       },
       {
         title: "Function",
@@ -55,6 +64,7 @@ export function FailedTable({
             title: "Context",
             dataIndex: "function",
             key: "function.contextName",
+            align: "center",
             render: (func) => (
               <Text copyable ellipsis={{ tooltip: func.contextName }}>
                 {func.contextName}
@@ -66,6 +76,7 @@ export function FailedTable({
             title: "Processor",
             dataIndex: "function",
             key: "function.processorName",
+            align: "center",
             render: (func) => (
               <Text copyable ellipsis={{ tooltip: func.processorName }}>
                 {func.processorName}
@@ -77,6 +88,7 @@ export function FailedTable({
             title: "Name",
             dataIndex: "function",
             key: "function.name",
+            align: "center",
             render: (func) => (
               <Text copyable ellipsis={{ tooltip: func.name }}>
                 {func.name}
@@ -87,6 +99,7 @@ export function FailedTable({
           {
             title: "Kind",
             key: "function.functionKind",
+            align: "center",
             render: (state: ExecutionFailedState) => {
               return (
                 <Text>
@@ -124,6 +137,7 @@ export function FailedTable({
             title: "Context",
             dataIndex: "eventId",
             key: "eventId.aggregateId.contextName",
+            align: "center",
             render: (eventId) => <Text>{eventId.aggregateId.contextName}</Text>,
             width: 120,
           },
@@ -131,6 +145,7 @@ export function FailedTable({
             title: "Aggregate",
             dataIndex: "eventId",
             key: "eventId.aggregateId.aggregateName",
+            align: "center",
             render: (eventId) => (
               <Text>{eventId.aggregateId.aggregateName}</Text>
             ),
@@ -140,6 +155,7 @@ export function FailedTable({
             title: "Aggregate ID",
             dataIndex: "eventId",
             key: "eventId.aggregateId.aggregateId",
+            align: "center",
             render: (eventId: EventId) => (
               <Text
                 ellipsis={{ tooltip: eventId.aggregateId.aggregateId }}
@@ -154,6 +170,7 @@ export function FailedTable({
             title: "Event ID",
             dataIndex: "eventId",
             key: "eventId.id",
+            align: "center",
             render: (eventId) => (
               <Text ellipsis={{ tooltip: eventId.id }} copyable>
                 {eventId.id}
@@ -165,6 +182,7 @@ export function FailedTable({
             title: "Version",
             dataIndex: "eventId",
             key: "eventId.version",
+            align: "center",
             render: (eventId) => <Text>{eventId.version}</Text>,
             width: 80,
           },
@@ -177,6 +195,7 @@ export function FailedTable({
             title: "Status",
             dataIndex: "status",
             key: "status",
+            align: "center",
             render: (status) => {
               switch (status) {
                 case "FAILED":
@@ -194,6 +213,7 @@ export function FailedTable({
           {
             title: "Retries",
             key: "retryState",
+            align: "center",
             render: (state: ExecutionFailedState) => {
               return (
                 <Text>
@@ -226,7 +246,8 @@ export function FailedTable({
           {
             title: "Recoverable",
             key: "recoverable",
-            width: 120,
+            width: 126,
+            align: "center",
             render: (state: ExecutionFailedState) => {
               return (
                 <MarkRecoverable
@@ -246,14 +267,22 @@ export function FailedTable({
             title: "Execute At",
             dataIndex: "executeAt",
             key: "executeAt",
-            render: (executeAt) => formatDate(executeAt),
-            width: 125,
+            align: "center",
+            render: (executeAt) => {
+              return (
+                <Tooltip title={formatDate(executeAt)}>
+                  <Text>{dayjs(executeAt).fromNow()}</Text>
+                </Tooltip>
+              );
+            },
+            width: 120,
             fixed: "right",
           },
           {
             title: "Next Retry",
             dataIndex: "retryState",
             key: "retryState.nextRetryAt",
+            align: "center",
             render: (retryState) => (
               <Timer
                 type="countdown"
@@ -261,7 +290,7 @@ export function FailedTable({
                 valueStyle={{ fontSize: "14px" }}
               />
             ),
-            width: 120,
+            width: 100,
           },
         ],
       },
@@ -270,6 +299,7 @@ export function FailedTable({
         key: "actions",
         fixed: "right",
         width: 100,
+        align: "center",
         render: (state: ExecutionFailedState) => {
           return <Actions state={state} onChanged={onChanged}></Actions>;
         },

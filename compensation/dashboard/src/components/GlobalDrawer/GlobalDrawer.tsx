@@ -37,6 +37,7 @@ export function GlobalDrawerProvider({ children }: GlobalDrawerProviderProps) {
   const closeDrawer = () => {
     setDrawerProps((prev) => ({
       ...prev,
+      children: null,
       open: false,
     }));
   };
