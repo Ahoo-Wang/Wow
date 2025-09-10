@@ -13,6 +13,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { typicodeFetcher } from '../../src';
+import { HttpMethod, ResultExtractors } from '@ahoo-wang/fetcher';
 
 describe('typicodeFetcher Integration Test', () => {
   it('should fetch posts from typicode API', async () => {
@@ -27,6 +28,16 @@ describe('typicodeFetcher Integration Test', () => {
     expect(post).toHaveProperty('userId');
     expect(post).toHaveProperty('title');
     expect(post).toHaveProperty('body');
+  });
+
+  it('get Twice', async () => {
+    const awaitPosts = typicodeFetcher.request({
+      method: HttpMethod.GET,
+      url: '/posts',
+    }, ResultExtractors.Json);
+    const posts = await awaitPosts;
+    const _posts = await awaitPosts;
+    expect(posts).toBe(_posts);
   });
 
   it('should fetch a single post by ID', async () => {
