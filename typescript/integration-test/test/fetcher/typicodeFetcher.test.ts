@@ -34,7 +34,7 @@ describe('typicodeFetcher Integration Test', () => {
     const awaitPosts = typicodeFetcher.request({
       method: HttpMethod.GET,
       url: '/posts',
-    }, ResultExtractors.Json);
+    }, { resultExtractor: ResultExtractors.Json });
     const posts = await awaitPosts;
     const _posts = await awaitPosts;
     expect(posts).toBe(_posts);
