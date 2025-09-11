@@ -24,7 +24,6 @@ import {
   combineURLs,
   ContentTypeValues,
   HttpMethod, mergeRequestOptions, RequestOptions,
-  ResultExtractor,
   ResultExtractors,
 } from '@ahoo-wang/fetcher';
 

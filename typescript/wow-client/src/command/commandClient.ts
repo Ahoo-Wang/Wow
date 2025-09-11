@@ -20,7 +20,6 @@ import {
 import {
   combineURLs,
   ContentTypeValues, mergeRequestOptions, RequestOptions,
-  ResultExtractors,
 } from '@ahoo-wang/fetcher';
 import { JsonEventStreamResultExtractor } from '@ahoo-wang/fetcher-eventstream';
 import { JSON_EVENT_STREAM_QUERY_REQUEST_OPTIONS, JSON_QUERY_REQUEST_OPTIONS } from '../query';
