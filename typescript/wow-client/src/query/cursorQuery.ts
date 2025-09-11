@@ -12,7 +12,7 @@
  */
 
 import { FieldSort, SortDirection } from './sort';
-import { Queryable } from './queryable';
+import { Queryable, SingleQuery } from './queryable';
 import { and, Condition, gt, lt } from './condition';
 import { PartialBy } from '@ahoo-wang/fetcher';
 
@@ -22,7 +22,7 @@ import { PartialBy } from '@ahoo-wang/fetcher';
  * Cursor-based pagination allows for efficient pagination through large datasets
  * by using a cursor (typically an ID or timestamp) to track the current position.
  */
-export interface CursorQueryOptions<Q = Queryable> {
+export interface CursorQueryOptions<Q extends Queryable = Queryable> {
   /**
    * The field to use for cursor comparison and sorting.
    */
