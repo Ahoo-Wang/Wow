@@ -17,16 +17,24 @@ import type {
   PagedQuery,
   SingleQuery,
 } from './queryable';
-import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
+import { JsonEventStreamResultExtractor, JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 import type { Condition } from './condition';
 import type { ClientOptions } from '../types';
 import {
   combineURLs,
   ContentTypeValues,
-  HttpMethod,
+  HttpMethod, mergeRequestOptions, RequestOptions,
   ResultExtractor,
   ResultExtractors,
 } from '@ahoo-wang/fetcher';
+
+export const JSON_QUERY_REQUEST_OPTIONS: RequestOptions = {
+  resultExtractor: ResultExtractors.Json,
+};
+
+export const JSON_EVENT_STREAM_QUERY_REQUEST_OPTIONS: RequestOptions = {
+  resultExtractor: JsonEventStreamResultExtractor,
+};
 
 /**
  * Interface for generic query API operations.
@@ -122,18 +130,19 @@ export class QueryClient {
    * @param path - The endpoint path to query
    * @param query - The query parameters to send
    * @param accept - The content type to accept from the server, defaults to application/json
-   * @param extractor - Function to extract the result from the response, defaults to JSON extractor
-   * @param attributes - Optional shared attributes that can be accessed by interceptors
-   *                     throughout the request lifecycle. These attributes allow passing
-   *                     custom data between different interceptors.
+   * @param options - Request options including result extractor and attributes
+   * @param options.resultExtractor - Function to extract the desired result from the exchange.
+   *                                  Defaults to JsonResultExtractor which returns the entire exchange object.
+   * @param options.attributes - Optional shared attributes that can be accessed by interceptors
+   *                             throughout the request lifecycle. These attributes allow passing
+   *                             custom data between different interceptors.
    * @returns A promise that resolves to the query result
    */
   protected async query<R>(
     path: string,
     query: Condition | ListQuery | PagedQuery | SingleQuery,
-    attributes?: Record<string, any>,
+    options?: RequestOptions,
     accept: string = ContentTypeValues.APPLICATION_JSON,
-    extractor: ResultExtractor<any> = ResultExtractors.Json,
   ): Promise<R> {
     const url = combineURLs(this.options.basePath, path);
     const request = {
@@ -144,6 +153,6 @@ export class QueryClient {
       },
       body: query,
     };
-    return await this.options.fetcher.request(request, extractor, attributes);
+    return await this.options.fetcher.request(request, mergeRequestOptions(JSON_QUERY_REQUEST_OPTIONS, options));
   }
 }

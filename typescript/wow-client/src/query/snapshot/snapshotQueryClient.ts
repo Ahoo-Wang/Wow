@@ -27,10 +27,10 @@ import {
   JsonEventStreamResultExtractor,
   JsonServerSentEvent,
 } from '@ahoo-wang/fetcher-eventstream';
-import { ContentTypeValues } from '@ahoo-wang/fetcher';
+import { ContentTypeValues, mergeRequestOptions } from '@ahoo-wang/fetcher';
 import '@ahoo-wang/fetcher-eventstream';
 import type { ClientOptions } from '../../types';
-import { QueryClient } from '../queryApi';
+import { JSON_EVENT_STREAM_QUERY_REQUEST_OPTIONS, QueryClient } from '../queryApi';
 
 /**
  * A client for querying snapshot data through HTTP endpoints.
@@ -133,7 +133,7 @@ export class SnapshotQueryClient<S>
    * ```
    */
   async count(condition: Condition, attributes?: Record<string, any>): Promise<number> {
-    return this.query(SnapshotQueryEndpointPaths.COUNT, condition, attributes);
+    return this.query(SnapshotQueryEndpointPaths.COUNT, condition, { attributes });
   }
 
   /**
@@ -161,7 +161,7 @@ export class SnapshotQueryClient<S>
       MaterializedSnapshot<S>
     >,
   >(listQuery: ListQuery, attributes?: Record<string, any>): Promise<T[]> {
-    return this.query(SnapshotQueryEndpointPaths.LIST, listQuery, attributes);
+    return this.query(SnapshotQueryEndpointPaths.LIST, listQuery, { attributes });
   }
 
   /**
@@ -193,9 +193,11 @@ export class SnapshotQueryClient<S>
     return this.query(
       SnapshotQueryEndpointPaths.LIST,
       listQuery,
-      attributes,
+      mergeRequestOptions(JSON_EVENT_STREAM_QUERY_REQUEST_OPTIONS, {
+        resultExtractor: JsonEventStreamResultExtractor,
+        attributes,
+      }),
       ContentTypeValues.TEXT_EVENT_STREAM,
-      JsonEventStreamResultExtractor,
     );
   }
 
@@ -222,7 +224,7 @@ export class SnapshotQueryClient<S>
   listState<T extends Partial<S> = Partial<S>>(
     listQuery: ListQuery, attributes?: Record<string, any>,
   ): Promise<T[]> {
-    return this.query(SnapshotQueryEndpointPaths.LIST_STATE, listQuery, attributes);
+    return this.query(SnapshotQueryEndpointPaths.LIST_STATE, listQuery, { attributes });
   }
 
   /**
@@ -252,9 +254,11 @@ export class SnapshotQueryClient<S>
     return this.query(
       SnapshotQueryEndpointPaths.LIST_STATE,
       listQuery,
-      attributes,
+      mergeRequestOptions(JSON_EVENT_STREAM_QUERY_REQUEST_OPTIONS, {
+        resultExtractor: JsonEventStreamResultExtractor,
+        attributes,
+      }),
       ContentTypeValues.TEXT_EVENT_STREAM,
-      JsonEventStreamResultExtractor,
     );
   }
 
@@ -286,7 +290,7 @@ export class SnapshotQueryClient<S>
       MaterializedSnapshot<S>
     >,
   >(pagedQuery: PagedQuery, attributes?: Record<string, any>): Promise<PagedList<T>> {
-    return this.query(SnapshotQueryEndpointPaths.PAGED, pagedQuery, attributes);
+    return this.query(SnapshotQueryEndpointPaths.PAGED, pagedQuery, { attributes });
   }
 
   /**
@@ -314,7 +318,7 @@ export class SnapshotQueryClient<S>
   pagedState<T extends Partial<S> = Partial<S>>(
     pagedQuery: PagedQuery, attributes?: Record<string, any>,
   ): Promise<PagedList<T>> {
-    return this.query(SnapshotQueryEndpointPaths.PAGED_STATE, pagedQuery, attributes);
+    return this.query(SnapshotQueryEndpointPaths.PAGED_STATE, pagedQuery, { attributes });
   }
 
   /**
@@ -340,7 +344,7 @@ export class SnapshotQueryClient<S>
       MaterializedSnapshot<S>
     >,
   >(singleQuery: SingleQuery, attributes?: Record<string, any>): Promise<T> {
-    return this.query(SnapshotQueryEndpointPaths.SINGLE, singleQuery, attributes);
+    return this.query(SnapshotQueryEndpointPaths.SINGLE, singleQuery, { attributes });
   }
 
   /**
@@ -364,6 +368,6 @@ export class SnapshotQueryClient<S>
   singleState<T extends Partial<S> = Partial<S>>(
     singleQuery: SingleQuery, attributes?: Record<string, any>,
   ): Promise<T> {
-    return this.query(SnapshotQueryEndpointPaths.SINGLE_STATE, singleQuery, attributes);
+    return this.query(SnapshotQueryEndpointPaths.SINGLE_STATE, singleQuery, { attributes });
   }
 }

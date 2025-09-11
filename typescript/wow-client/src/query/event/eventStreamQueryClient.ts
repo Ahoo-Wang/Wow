@@ -22,9 +22,9 @@ import {
   JsonEventStreamResultExtractor,
   JsonServerSentEvent,
 } from '@ahoo-wang/fetcher-eventstream';
-import { QueryClient } from '../queryApi';
+import { JSON_EVENT_STREAM_QUERY_REQUEST_OPTIONS, QueryClient } from '../queryApi';
 import type { ClientOptions } from '../../types';
-import { ContentTypeValues } from '@ahoo-wang/fetcher';
+import { ContentTypeValues, mergeRequestOptions } from '@ahoo-wang/fetcher';
 
 /**
  * Client for querying event streams through HTTP endpoints.
@@ -93,7 +93,7 @@ export class EventStreamQueryClient
    * ```
    */
   count(condition: Condition, attributes?: Record<string, any>): Promise<number> {
-    return this.query(EventStreamQueryEndpointPaths.COUNT, condition, attributes);
+    return this.query(EventStreamQueryEndpointPaths.COUNT, condition, { attributes });
   }
 
   /**
@@ -119,7 +119,7 @@ export class EventStreamQueryClient
   list<T extends Partial<DomainEventStream> = Partial<DomainEventStream>>(
     listQuery: ListQuery, attributes?: Record<string, any>,
   ): Promise<T[]> {
-    return this.query(EventStreamQueryEndpointPaths.LIST, listQuery, attributes);
+    return this.query(EventStreamQueryEndpointPaths.LIST, listQuery, { attributes });
   }
 
   /**
@@ -150,9 +150,11 @@ export class EventStreamQueryClient
     return this.query(
       EventStreamQueryEndpointPaths.LIST,
       listQuery,
-      attributes,
+      mergeRequestOptions(JSON_EVENT_STREAM_QUERY_REQUEST_OPTIONS, {
+        resultExtractor: JsonEventStreamResultExtractor,
+        attributes,
+      }),
       ContentTypeValues.TEXT_EVENT_STREAM,
-      JsonEventStreamResultExtractor,
     );
   }
 
@@ -182,6 +184,6 @@ export class EventStreamQueryClient
   paged<T extends Partial<DomainEventStream> = Partial<DomainEventStream>>(
     pagedQuery: PagedQuery, attributes?: Record<string, any>,
   ): Promise<PagedList<T>> {
-    return this.query(EventStreamQueryEndpointPaths.PAGED, pagedQuery, attributes);
+    return this.query(EventStreamQueryEndpointPaths.PAGED, pagedQuery, { attributes });
   }
 }
