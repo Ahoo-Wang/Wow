@@ -11,13 +11,25 @@
  * limitations under the License.
  */
 
-export * from './condition';
-export * from './operator';
-export * from './pagination';
-export * from './projection';
-export * from './queryable';
-export * from './queryApi';
-export * from './sort';
-export * from './event';
-export * from './snapshot';
-export * from './cursorQuery';
+import { SortDirection } from './sort';
+import { Queryable } from './queryable';
+import { gt, lt } from './condition';
+
+export interface CursorQueryOptions {
+  field: string;
+  cursor: string;
+  direction: SortDirection;
+}
+
+export function cursorQuery(options: CursorQueryOptions): Queryable {
+  return {
+    condition: options.direction === SortDirection.ASC ? gt(options.field, options.cursor) : lt(options.field, options.cursor),
+    sort: [
+      {
+        field: options.field,
+        direction: options.direction,
+      },
+    ],
+  };
+}
+
