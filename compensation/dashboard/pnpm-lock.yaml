@@ -13,7 +13,7 @@ importers:
         version: 1.6.3
       '@ahoo-wang/fetcher-decorator':
         specifier: ^1.6.3
-        version: 1.6.3
+        version: 1.6.8
       '@ahoo-wang/fetcher-eventstream':
         specifier: ^1.6.3
         version: 1.6.8
@@ -120,8 +120,8 @@ packages:
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
-  '@ahoo-wang/fetcher-decorator@1.6.3':
-    resolution: {integrity: sha512-ogV44h5R5aHibxz7AqFBytzRposiFd1w4tI26GJNztispPb8p9Gojqrfx6+CZ/7C7ZTg+E0jKtkBBmKAgsW8CQ==}
+  '@ahoo-wang/fetcher-decorator@1.6.8':
+    resolution: {integrity: sha512-aXaCRl23tOFNhwfzXm/AROgbCtk3piuPMKmOus6U/aLsujQtHzB2bFKc6+MxT+M0mLe/nP0nvzvAvVFlhbID9A==}
 
   '@ahoo-wang/fetcher-eventstream@1.6.3':
     resolution: {integrity: sha512-sd5OeVoiLrNCZXoQbIrK2Vl5VWzc8YzjCVra/bbmIhax1N/RcF6q1gpIfAQgq+0sgRN7sdeLk0KpL3WV0En6/w==}
@@ -2431,10 +2431,10 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@ahoo-wang/fetcher-decorator@1.6.3':
+  '@ahoo-wang/fetcher-decorator@1.6.8':
     dependencies:
-      '@ahoo-wang/fetcher': 1.6.3
-      '@ahoo-wang/fetcher-eventstream': 1.6.3
+      '@ahoo-wang/fetcher': 1.6.8
+      '@ahoo-wang/fetcher-eventstream': 1.6.8
       reflect-metadata: 0.2.2
 
   '@ahoo-wang/fetcher-eventstream@1.6.3':
