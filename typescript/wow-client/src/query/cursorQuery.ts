@@ -13,7 +13,7 @@
 
 import { FieldSort, SortDirection } from './sort';
 import { Queryable } from './queryable';
-import { Condition, gt, lt } from './condition';
+import { and, Condition, gt, lt } from './condition';
 import { PartialBy } from '@ahoo-wang/fetcher';
 
 /**
@@ -22,7 +22,7 @@ import { PartialBy } from '@ahoo-wang/fetcher';
  * Cursor-based pagination allows for efficient pagination through large datasets
  * by using a cursor (typically an ID or timestamp) to track the current position.
  */
-export interface CursorQueryOptions {
+export interface CursorQueryOptions<Q = Queryable> {
   /**
    * The field to use for cursor comparison and sorting.
    */
@@ -37,6 +37,11 @@ export interface CursorQueryOptions {
    * The sort direction (ASC or DESC).
    */
   direction: SortDirection;
+
+  /**
+   * The base query to which cursor conditions and sorting will be applied.
+   */
+  query: Q;
 }
 
 export const CURSOR_ID_START = '~';
@@ -56,7 +61,7 @@ export function cursorCondition({
                                   field,
                                   cursorId = CURSOR_ID_START,
                                   direction,
-                                }: CursorQueryOptions): Condition {
+                                }: Omit<CursorQueryOptions, 'query'>): Condition {
   if (direction === SortDirection.ASC) {
     return gt(field, cursorId);
   } else {
@@ -72,25 +77,24 @@ export function cursorCondition({
  * @param options - The cursor query options including field, cursorId, and sort direction
  * @returns A FieldSort object representing the sort configuration
  */
-export function cursorSort({ field, direction }: CursorQueryOptions): FieldSort {
+export function cursorSort({ field, direction }: Omit<CursorQueryOptions, 'query'>): FieldSort {
   return { field, direction };
 }
 
 /**
- * Creates a cursor-based query object.
+ * Creates a cursor-based query by applying cursor conditions and sorting to a base query.
  *
- * This function generates a query that can be used for efficient pagination
- * by using a cursor field and direction to determine both the query condition
- * and sort order.
+ * This function combines cursor-based conditions with an existing query's conditions
+ * using a logical AND operation, and applies cursor-based sorting as the primary sort criteria.
  *
- * @param options - The cursor query options including field, cursor value, and sort direction
- * @returns A Queryable object with appropriate condition and sort settings for cursor-based pagination
+ * @param options - The cursor query options including field, cursorId, direction, and base query
+ * @returns The modified query object with cursor-based conditions and sorting applied
  */
-export function cursorQuery(options: CursorQueryOptions): Queryable {
-  return {
-    condition: cursorCondition(options),
-    sort: [
-      cursorSort(options),
-    ],
-  };
+export function cursorQuery<Q extends Queryable>(options: CursorQueryOptions<Q>): Q {
+  const query = options.query;
+  query.condition = and(cursorCondition(options), query.condition);
+  query.sort = [
+    cursorSort(options),
+  ];
+  return query;
 }
