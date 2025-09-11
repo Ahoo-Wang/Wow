@@ -12,9 +12,8 @@
  */
 
 import { FieldSort, SortDirection } from './sort';
-import { Queryable, SingleQuery } from './queryable';
+import { Queryable } from './queryable';
 import { and, Condition, gt, lt } from './condition';
-import { PartialBy } from '@ahoo-wang/fetcher';
 
 /**
  * Options for cursor-based queries.
