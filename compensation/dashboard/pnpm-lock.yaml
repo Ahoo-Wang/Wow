@@ -16,7 +16,7 @@ importers:
         version: 1.6.3
       '@ahoo-wang/fetcher-eventstream':
         specifier: ^1.6.3
-        version: 1.6.3
+        version: 1.6.8
       '@ahoo-wang/fetcher-wow':
         specifier: ^1.6.3
         version: 1.6.3
@@ -126,11 +126,17 @@ packages:
   '@ahoo-wang/fetcher-eventstream@1.6.3':
     resolution: {integrity: sha512-sd5OeVoiLrNCZXoQbIrK2Vl5VWzc8YzjCVra/bbmIhax1N/RcF6q1gpIfAQgq+0sgRN7sdeLk0KpL3WV0En6/w==}
 
+  '@ahoo-wang/fetcher-eventstream@1.6.8':
+    resolution: {integrity: sha512-O8fVPZ3z81GF7TFiQDZ1Np4EqvSjnYPI7423OV+FCwUYA1/K1nZ0FaeUCkTjm0/82H1hQiDdgNQggTVtfV2VbQ==}
+
   '@ahoo-wang/fetcher-wow@1.6.3':
     resolution: {integrity: sha512-AgFdEU3MLXBcqIFzORSA9yd8i6ghF4X8FelYf1kHh3KFmoF9Ip1xhTuWIcciMS54KhE0epaIsbk06vEtgpYGzQ==}
 
   '@ahoo-wang/fetcher@1.6.3':
     resolution: {integrity: sha512-gv9ggjGqbKWcBgnjpGqaXLyeUlkf6Q1ohlTMfpZeZiQlK2cOnmU8bac2vJjwTsKvHYklwewLfWzsJs5cuzp+jQ==}
+
+  '@ahoo-wang/fetcher@1.6.8':
+    resolution: {integrity: sha512-y7DIVPu6/4mr5Dz8XyzVASY3rCvVGVNsFGjVjFJixXuL5shvf9gAtMmtzxosByUpimDUkCuU1QCK0xdnRPhrPg==}
 
   '@ampproject/remapping@2.3.0':
     resolution: {integrity: sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw==}
@@ -2435,12 +2441,18 @@ snapshots:
     dependencies:
       '@ahoo-wang/fetcher': 1.6.3
 
+  '@ahoo-wang/fetcher-eventstream@1.6.8':
+    dependencies:
+      '@ahoo-wang/fetcher': 1.6.8
+
   '@ahoo-wang/fetcher-wow@1.6.3':
     dependencies:
       '@ahoo-wang/fetcher': 1.6.3
       '@ahoo-wang/fetcher-eventstream': 1.6.3
 
   '@ahoo-wang/fetcher@1.6.3': {}
+
+  '@ahoo-wang/fetcher@1.6.8': {}
 
   '@ampproject/remapping@2.3.0':
     dependencies:
