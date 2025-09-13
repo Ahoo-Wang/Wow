@@ -10,7 +10,7 @@ importers:
     dependencies:
       '@ahoo-wang/fetcher':
         specifier: ^1.6.3
-        version: 1.6.8
+        version: 1.6.9
       '@ahoo-wang/fetcher-decorator':
         specifier: ^1.6.3
         version: 1.6.8
