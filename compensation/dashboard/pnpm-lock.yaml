@@ -11,6 +11,9 @@ importers:
       '@ahoo-wang/fetcher':
         specifier: ^1.8.3
         version: 1.8.3
+      '@ahoo-wang/fetcher-cosec':
+        specifier: ^1.8.3
+        version: 1.8.3
       '@ahoo-wang/fetcher-decorator':
         specifier: ^1.8.3
         version: 1.8.3
@@ -120,11 +123,17 @@ packages:
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
+  '@ahoo-wang/fetcher-cosec@1.8.3':
+    resolution: {integrity: sha512-ReC99voe8Uj4JthXSErOHqV3prBf0H9HfSUdga2O2AJHQCC4tpz5srFzJYLZJSuOXdQzU51MMfj6neVOLC1KoA==}
+
   '@ahoo-wang/fetcher-decorator@1.8.3':
     resolution: {integrity: sha512-eQGNmKb+xzZqRaHILksLcScfR8BsAFPTGHNQ3Qi0Bk68xCCOIoMKeCaC5eBot41bL1VsXJbxEdYBnvtXUBSpyg==}
 
   '@ahoo-wang/fetcher-eventstream@1.8.3':
     resolution: {integrity: sha512-Ics0CVcVaZ8joman60yaMaqMwhA70MRz4hcxacGC11KopwBYY9fY9BfHWByGc0Yje2LcujhiLbYkHRFcZXHS6g==}
+
+  '@ahoo-wang/fetcher-storage@1.8.3':
+    resolution: {integrity: sha512-CdG47YNu70nx+X4/KaQxwzKwoMvPyI+7Tq34ubgjMg8GWx5yX1O7NBTp22J0yIZr7xXIdrYrLJxRWZrdaFQUUQ==}
 
   '@ahoo-wang/fetcher-wow@1.8.3':
     resolution: {integrity: sha512-x3qKRObic5asn0zZXzTl9g7BkyrVkSAsEoKTM36IDH7CmVxknhqAIJTPpfkUp7K0xA/cez58SaqpHoQXvR63bw==}
@@ -1710,6 +1719,11 @@ packages:
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
     hasBin: true
 
+  nanoid@5.1.5:
+    resolution: {integrity: sha512-Ir/+ZpE9fDsNH0hQ3C68uyThDXzYcim2EqcZ8zn8Chtt1iylPT9xXJB0kPCnqzgcEGikO9RxSrh63MsmVCU7Fw==}
+    engines: {node: ^18 || >=20}
+    hasBin: true
+
   natural-compare@1.4.0:
     resolution: {integrity: sha512-OWND8ei3VtNC9h7V60qff3SVobHr996CTwgxubgyQYEpg290h9J0buyECNNJexkFm5sOajh5G116RYA1c8ZMSw==}
 
@@ -2456,6 +2470,12 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
+  '@ahoo-wang/fetcher-cosec@1.8.3':
+    dependencies:
+      '@ahoo-wang/fetcher': 1.8.3
+      '@ahoo-wang/fetcher-storage': 1.8.3
+      nanoid: 5.1.5
+
   '@ahoo-wang/fetcher-decorator@1.8.3':
     dependencies:
       '@ahoo-wang/fetcher': 1.8.3
@@ -2465,6 +2485,8 @@ snapshots:
   '@ahoo-wang/fetcher-eventstream@1.8.3':
     dependencies:
       '@ahoo-wang/fetcher': 1.8.3
+
+  '@ahoo-wang/fetcher-storage@1.8.3': {}
 
   '@ahoo-wang/fetcher-wow@1.8.3':
     dependencies:
@@ -4074,6 +4096,8 @@ snapshots:
   ms@2.1.3: {}
 
   nanoid@3.3.11: {}
+
+  nanoid@5.1.5: {}
 
   natural-compare@1.4.0: {}
 

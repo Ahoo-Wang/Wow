@@ -11,16 +11,19 @@
  * limitations under the License.
  */
 
-import { NamedFetcher } from "@ahoo-wang/fetcher";
-import type { ClientOptions } from "@ahoo-wang/fetcher-wow";
-import { cosecRequestInterceptor } from "./cosec.ts";
+import {
+  CoSecRequestInterceptor,
+  type CoSecRequestOptions,
+  DeviceIdStorage,
+} from "@ahoo-wang/fetcher-cosec";
 
-export const COMPENSATION_FETCHER_NAME = "compensation";
-export const compensationFetcher = new NamedFetcher(COMPENSATION_FETCHER_NAME, {
-  baseURL: import.meta.env.VITE_API_BASE_URL,
-});
-compensationFetcher.interceptors.request.use(cosecRequestInterceptor);
-export const executionFailedClientOptions: ClientOptions = {
-  fetcher: compensationFetcher,
-  basePath: "execution_failed",
+export const deviceIdStorage = new DeviceIdStorage();
+
+const cosecRequestOptions: CoSecRequestOptions = {
+  appId: "compensation-dashboard",
+  deviceIdStorage: deviceIdStorage,
 };
+
+export const cosecRequestInterceptor = new CoSecRequestInterceptor(
+  cosecRequestOptions,
+);
