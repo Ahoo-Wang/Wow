@@ -19,7 +19,7 @@ importers:
         version: 1.6.9
       '@ahoo-wang/fetcher-wow':
         specifier: ^1.6.3
-        version: 1.6.8
+        version: 1.6.9
       '@ant-design/icons':
         specifier: ^6.0.1
         version: 6.0.2(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
@@ -123,17 +123,11 @@ packages:
   '@ahoo-wang/fetcher-decorator@1.6.9':
     resolution: {integrity: sha512-1lwQwK/U6qevb4efUn7wlL+MFpQ8Jhel10WbnpjcfdcHht40RqnVSGKqFqyvkEoLFLu/uIJulUz3OCeAXs1HlA==}
 
-  '@ahoo-wang/fetcher-eventstream@1.6.8':
-    resolution: {integrity: sha512-O8fVPZ3z81GF7TFiQDZ1Np4EqvSjnYPI7423OV+FCwUYA1/K1nZ0FaeUCkTjm0/82H1hQiDdgNQggTVtfV2VbQ==}
-
   '@ahoo-wang/fetcher-eventstream@1.6.9':
     resolution: {integrity: sha512-kMdfZUn5RGABbIpTaEqMAusRw94y2IG931BubagfRAoAl989zOgFnMLpAFybhRwn62ndlaipOXVJ9mAwE6ZtoA==}
 
-  '@ahoo-wang/fetcher-wow@1.6.8':
-    resolution: {integrity: sha512-QIfPSozlBbJIQ6aUOHhfo/xhzGPJF2eplWqZdPCbDl4F1yhdCYv9icBUW994/BlXmDvOJktU7aNZGbGZjXB6Pg==}
-
-  '@ahoo-wang/fetcher@1.6.8':
-    resolution: {integrity: sha512-y7DIVPu6/4mr5Dz8XyzVASY3rCvVGVNsFGjVjFJixXuL5shvf9gAtMmtzxosByUpimDUkCuU1QCK0xdnRPhrPg==}
+  '@ahoo-wang/fetcher-wow@1.6.9':
+    resolution: {integrity: sha512-WTi/xST+ZpjqgPKNO8xe+7/XGNa/SYWgZKyHSpDL58Aw5zrneOhEYqDs6CPrLK5mIM3nCN/7s6jWI7qW4wp+Sg==}
 
   '@ahoo-wang/fetcher@1.6.9':
     resolution: {integrity: sha512-e6d/JyH4AnDlKao9evqkhs8pCnzrqlyh/HEUYqsW8FG27VJTmNLhXQSb69IwxiQFvhvW5lb1wfubOoPpnHGq3Q==}
@@ -2437,20 +2431,14 @@ snapshots:
       '@ahoo-wang/fetcher-eventstream': 1.6.9
       reflect-metadata: 0.2.2
 
-  '@ahoo-wang/fetcher-eventstream@1.6.8':
-    dependencies:
-      '@ahoo-wang/fetcher': 1.6.8
-
   '@ahoo-wang/fetcher-eventstream@1.6.9':
     dependencies:
       '@ahoo-wang/fetcher': 1.6.9
 
-  '@ahoo-wang/fetcher-wow@1.6.8':
+  '@ahoo-wang/fetcher-wow@1.6.9':
     dependencies:
-      '@ahoo-wang/fetcher': 1.6.8
-      '@ahoo-wang/fetcher-eventstream': 1.6.8
-
-  '@ahoo-wang/fetcher@1.6.8': {}
+      '@ahoo-wang/fetcher': 1.6.9
+      '@ahoo-wang/fetcher-eventstream': 1.6.9
 
   '@ahoo-wang/fetcher@1.6.9': {}
 
