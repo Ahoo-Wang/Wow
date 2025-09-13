@@ -16,9 +16,9 @@ import {
   CoSecOptions,
   CoSecRequestInterceptor,
   AuthorizationResponseInterceptor,
-  JwtTokenManager,
+  DeviceIdStorage, JwtTokenManager,
   TokenRefresher,
-  ResourceAttributionRequestInterceptor, deviceIdStorage, tokenStorage,
+  TokenStorage, ResourceAttributionRequestInterceptor,
 } from '@ahoo-wang/fetcher-cosec';
 import { AuthorizationRequestInterceptor } from '@ahoo-wang/fetcher-cosec';
 
@@ -30,8 +30,8 @@ export class MockTokenRefresher implements TokenRefresher {
 
 const cosecOptions: CoSecOptions = {
   appId: 'appId',
-  deviceIdStorage: deviceIdStorage,
-  tokenManager: new JwtTokenManager(tokenStorage, new MockTokenRefresher()),
+  deviceIdStorage: new DeviceIdStorage(),
+  tokenManager: new JwtTokenManager(new TokenStorage(), new MockTokenRefresher()),
 };
 
 export const cosecRequestInterceptor = new CoSecRequestInterceptor(
