@@ -29,7 +29,7 @@ import {
   executionFailedSnapshotQueryClient,
   type ExecutionFailedState,
 } from "../../services";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { Pagination } from "@ahoo-wang/fetcher-wow";
 import { useQueryParams } from "../../utils/useQuery.ts";
 import { useGlobalDrawer } from "../../components/GlobalDrawer";
@@ -59,39 +59,39 @@ export default function FailedView({ category }: FailedViewProps) {
   const [pagedResult, setPagedResult] =
     useState<PagedList<ExecutionFailedState>>(pagedList());
   const [refreshCount, setRefreshCount] = useState(0);
-  const refresh = () => {
+  const refresh = useCallback(() => {
     setRefreshCount((count) => count + 1);
-  };
-  const onSearch = (searchCondition: Condition) => {
+  }, []);
+  const onSearch = useCallback((searchCondition: Condition) => {
     setSearchCondition(searchCondition);
-  };
-  const onPaginationChange = (page: number, pageSize: number) => {
+  }, []);
+  const onPaginationChange = useCallback((page: number, pageSize: number) => {
     setSearchPagination({
       index: page,
       size: pageSize,
     });
-  };
-  const search = () => {
-    const query = pagedQuery({
-      condition: and(
-        RetryConditions.categoryToCondition(category),
-        searchCondition,
-      ),
-      pagination: searchPagination,
-      sort: [desc(SnapshotMetadataFields.FIRST_EVENT_TIME)],
-    });
-    executionFailedSnapshotQueryClient
-      .pagedState<ExecutionFailedState>(query)
-      .then((it) => {
-        setPagedResult(it);
+  }, []);
+  const search = useCallback(
+    (searchCondition: Condition, searchPagination: Pagination) => {
+      const query = pagedQuery({
+        condition: and(
+          RetryConditions.categoryToCondition(category),
+          searchCondition,
+        ),
+        pagination: searchPagination,
+        sort: [desc(SnapshotMetadataFields.FIRST_EVENT_TIME)],
       });
-  };
-  useEffect(search, [
-    category,
-    searchCondition,
-    searchPagination,
-    refreshCount,
-  ]);
+      executionFailedSnapshotQueryClient
+        .pagedState<ExecutionFailedState>(query)
+        .then((it) => {
+          setPagedResult(it);
+        });
+    },
+    [category],
+  );
+  useEffect(() => {
+    search(searchCondition, searchPagination);
+  }, [category, searchCondition, searchPagination, refreshCount]);
 
   return (
     <>
