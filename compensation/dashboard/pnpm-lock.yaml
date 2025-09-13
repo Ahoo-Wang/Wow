@@ -16,7 +16,7 @@ importers:
         version: 1.8.2
       '@ahoo-wang/fetcher-eventstream':
         specifier: ^1.6.3
-        version: 1.6.9
+        version: 1.8.2
       '@ahoo-wang/fetcher-wow':
         specifier: ^1.6.3
         version: 1.6.9
