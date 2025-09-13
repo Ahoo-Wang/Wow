@@ -12,11 +12,16 @@
  */
 
 import { NamedFetcher } from '@ahoo-wang/fetcher';
-import { cosecRequestInterceptor, cosecResponseInterceptor } from '../cosec';
+import {
+  authorizationRequestInterceptor, cosecRequestInterceptor, authorizationResponseInterceptor,
+  cosecResourceAttributionInterceptor,
+} from '../cosec';
 
 export const typicodeFetcher = new NamedFetcher('typicode', {
   baseURL: 'https://jsonplaceholder.typicode.com',
 });
 
 typicodeFetcher.interceptors.request.use(cosecRequestInterceptor);
-typicodeFetcher.interceptors.response.use(cosecResponseInterceptor);
+typicodeFetcher.interceptors.request.use(authorizationRequestInterceptor);
+typicodeFetcher.interceptors.response.use(authorizationResponseInterceptor);
+typicodeFetcher.interceptors.response.use(cosecResourceAttributionInterceptor);
