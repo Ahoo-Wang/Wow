@@ -6,7 +6,7 @@ import "./index.css";
 import { RouterProvider } from "react-router";
 import { AppRouter } from "./routes/Routes.tsx";
 import { App } from "antd";
-import { GlobalDrawerProvider } from "./components/GlobalDrawer/GlobalDrawer.tsx";
+import { GlobalDrawerProvider } from "./components/GlobalDrawer";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
