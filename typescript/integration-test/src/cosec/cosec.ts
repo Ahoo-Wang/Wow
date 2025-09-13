@@ -15,7 +15,7 @@ import {
   CompositeToken,
   CoSecOptions,
   CoSecRequestInterceptor,
-  CoSecResponseInterceptor,
+  AuthorizationResponseInterceptor,
   DeviceIdStorage, JwtTokenManager,
   TokenRefresher,
   TokenStorage,
@@ -36,6 +36,6 @@ const cosecOptions: CoSecOptions = {
 export const cosecRequestInterceptor = new CoSecRequestInterceptor(
   cosecOptions,
 );
-export const cosecResponseInterceptor = new CoSecResponseInterceptor(
+export const cosecResponseInterceptor = new AuthorizationResponseInterceptor(
   cosecOptions,
 );
