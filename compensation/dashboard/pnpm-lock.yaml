@@ -10,7 +10,7 @@ importers:
     dependencies:
       '@ahoo-wang/fetcher':
         specifier: ^1.8.3
-        version: 1.8.3
+        version: 1.8.5
       '@ahoo-wang/fetcher-cosec':
         specifier: ^1.8.3
         version: 1.8.5
