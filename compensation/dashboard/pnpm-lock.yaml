@@ -19,7 +19,7 @@ importers:
         version: 1.8.3
       '@ahoo-wang/fetcher-eventstream':
         specifier: ^1.8.3
-        version: 1.8.3
+        version: 1.8.5
       '@ahoo-wang/fetcher-wow':
         specifier: ^1.8.3
         version: 1.8.3
@@ -131,6 +131,9 @@ packages:
 
   '@ahoo-wang/fetcher-eventstream@1.8.3':
     resolution: {integrity: sha512-Ics0CVcVaZ8joman60yaMaqMwhA70MRz4hcxacGC11KopwBYY9fY9BfHWByGc0Yje2LcujhiLbYkHRFcZXHS6g==}
+
+  '@ahoo-wang/fetcher-eventstream@1.8.5':
+    resolution: {integrity: sha512-G6y3xx91G70DbbQYoQBG8P4H1+24yPLQFBA2RajOHG54LXlzMx1f5nvQTRXQuzNM3eNOq4wqywskHIAz/bSSyw==}
 
   '@ahoo-wang/fetcher-storage@1.8.5':
     resolution: {integrity: sha512-0X5cSPc2Rz58s+nbco0GLPGH6AmhJSx9ZsnQ1kMNTdY4vq3nhBmjA284efw79a1u+q9tMWtsdmlrQggAQgzeEA==}
@@ -2488,6 +2491,10 @@ snapshots:
   '@ahoo-wang/fetcher-eventstream@1.8.3':
     dependencies:
       '@ahoo-wang/fetcher': 1.8.3
+
+  '@ahoo-wang/fetcher-eventstream@1.8.5':
+    dependencies:
+      '@ahoo-wang/fetcher': 1.8.5
 
   '@ahoo-wang/fetcher-storage@1.8.5': {}
 
