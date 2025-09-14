@@ -13,7 +13,7 @@ importers:
         version: 1.8.6
       '@ahoo-wang/fetcher-cosec':
         specifier: ^1.8.3
-        version: 1.8.5
+        version: 1.8.6
       '@ahoo-wang/fetcher-decorator':
         specifier: ^1.8.3
         version: 1.8.5
@@ -123,8 +123,8 @@ packages:
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
-  '@ahoo-wang/fetcher-cosec@1.8.5':
-    resolution: {integrity: sha512-6k+L8uLPW2ZERytph9+xeDkPf/rwHpXVCW3vl9Va/zIGYOKRcsTlVwqOMgoFnrOA2nNNo6JTJeMYZ122XYf4aA==}
+  '@ahoo-wang/fetcher-cosec@1.8.6':
+    resolution: {integrity: sha512-tHJHnE5iPi4anPQEZ8da6OAT36q09qA5RYBs0NXWbWs0bvTLHRHlRZPmdixC9++dXdFUM0wOTO9xnaGZhWgpfQ==}
 
   '@ahoo-wang/fetcher-decorator@1.8.5':
     resolution: {integrity: sha512-VABNtB4XDkEjwM9So/xSyU7S1jR+04O9O4o1AoR1Gxi2gVjiyZY98H0+fayZ2gPyEIhYZTXY/axORe/tRwZ1pg==}
@@ -132,8 +132,8 @@ packages:
   '@ahoo-wang/fetcher-eventstream@1.8.5':
     resolution: {integrity: sha512-G6y3xx91G70DbbQYoQBG8P4H1+24yPLQFBA2RajOHG54LXlzMx1f5nvQTRXQuzNM3eNOq4wqywskHIAz/bSSyw==}
 
-  '@ahoo-wang/fetcher-storage@1.8.5':
-    resolution: {integrity: sha512-0X5cSPc2Rz58s+nbco0GLPGH6AmhJSx9ZsnQ1kMNTdY4vq3nhBmjA284efw79a1u+q9tMWtsdmlrQggAQgzeEA==}
+  '@ahoo-wang/fetcher-storage@1.8.6':
+    resolution: {integrity: sha512-wSVogfj+bAl2tDvF8iwSf8rMTfZd/2PC5v2Qp+muKEYRM8UcyI6f//w/IbBGh8Fs31MEpVVp0x9HwoYZ22tJ+w==}
 
   '@ahoo-wang/fetcher-wow@1.8.5':
     resolution: {integrity: sha512-Fi/wmOei7DdxanWDC2H7j8i6qSJUmaL91gEq9BmBLpF/drZmUOysvilgAJ8t7H26uaNdRtvIPKADPO3FGzhggA==}
@@ -2473,10 +2473,10 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@ahoo-wang/fetcher-cosec@1.8.5':
+  '@ahoo-wang/fetcher-cosec@1.8.6':
     dependencies:
-      '@ahoo-wang/fetcher': 1.8.5
-      '@ahoo-wang/fetcher-storage': 1.8.5
+      '@ahoo-wang/fetcher': 1.8.6
+      '@ahoo-wang/fetcher-storage': 1.8.6
       nanoid: 5.1.5
 
   '@ahoo-wang/fetcher-decorator@1.8.5':
@@ -2489,7 +2489,7 @@ snapshots:
     dependencies:
       '@ahoo-wang/fetcher': 1.8.5
 
-  '@ahoo-wang/fetcher-storage@1.8.5': {}
+  '@ahoo-wang/fetcher-storage@1.8.6': {}
 
   '@ahoo-wang/fetcher-wow@1.8.5':
     dependencies:
