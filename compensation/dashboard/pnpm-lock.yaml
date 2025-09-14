@@ -22,7 +22,7 @@ importers:
         version: 1.8.6
       '@ahoo-wang/fetcher-wow':
         specifier: ^1.8.3
-        version: 1.8.5
+        version: 1.8.6
       '@ant-design/icons':
         specifier: ^6.0.2
         version: 6.0.2(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
@@ -129,20 +129,14 @@ packages:
   '@ahoo-wang/fetcher-decorator@1.8.6':
     resolution: {integrity: sha512-fkPEDSUtQ/Qv69fgeEbBpW2rJxLNOd8txWqflsQdD/17DgEw6C445W3knfYkqL7xzChsaSeIfdeVHo/xHJ8+2g==}
 
-  '@ahoo-wang/fetcher-eventstream@1.8.5':
-    resolution: {integrity: sha512-G6y3xx91G70DbbQYoQBG8P4H1+24yPLQFBA2RajOHG54LXlzMx1f5nvQTRXQuzNM3eNOq4wqywskHIAz/bSSyw==}
-
   '@ahoo-wang/fetcher-eventstream@1.8.6':
     resolution: {integrity: sha512-GPSZVeldZFrXGn6Yc0RtnBbTjB450+nV8JZmuRvvc5Pm2whMrNjCd0tAvHJ8SscANQSo+fMsvPt3o+7lJ+o7OQ==}
 
   '@ahoo-wang/fetcher-storage@1.8.6':
     resolution: {integrity: sha512-wSVogfj+bAl2tDvF8iwSf8rMTfZd/2PC5v2Qp+muKEYRM8UcyI6f//w/IbBGh8Fs31MEpVVp0x9HwoYZ22tJ+w==}
 
-  '@ahoo-wang/fetcher-wow@1.8.5':
-    resolution: {integrity: sha512-Fi/wmOei7DdxanWDC2H7j8i6qSJUmaL91gEq9BmBLpF/drZmUOysvilgAJ8t7H26uaNdRtvIPKADPO3FGzhggA==}
-
-  '@ahoo-wang/fetcher@1.8.5':
-    resolution: {integrity: sha512-vvOc9FtZ9vuHSoLz7ZWlRBNPWZv7YlIJSOm8R1SofzwDqJGQjxXNUTHfFYHTcYdiCwg31YzW+8/BXjdCfRfPmg==}
+  '@ahoo-wang/fetcher-wow@1.8.6':
+    resolution: {integrity: sha512-ttPQ7JMSchsP5CRsAVLGxSA5D4vxsG1Bdiw37NxaZuqZFqoQu8rS/mMufBeNmMxZv/3EZCfbh/XiAwdQaty/rQ==}
 
   '@ahoo-wang/fetcher@1.8.6':
     resolution: {integrity: sha512-6VNie9mGduJyvHqCbMtXD0reBQ73thvyrbs9lsbkdEs5NFBTvWEXzgVcANVvQh3qfN1QthcE6E3FMblX/Fz3aQ==}
@@ -2488,22 +2482,16 @@ snapshots:
       '@ahoo-wang/fetcher-eventstream': 1.8.6
       reflect-metadata: 0.2.2
 
-  '@ahoo-wang/fetcher-eventstream@1.8.5':
-    dependencies:
-      '@ahoo-wang/fetcher': 1.8.5
-
   '@ahoo-wang/fetcher-eventstream@1.8.6':
     dependencies:
       '@ahoo-wang/fetcher': 1.8.6
 
   '@ahoo-wang/fetcher-storage@1.8.6': {}
 
-  '@ahoo-wang/fetcher-wow@1.8.5':
+  '@ahoo-wang/fetcher-wow@1.8.6':
     dependencies:
-      '@ahoo-wang/fetcher': 1.8.5
-      '@ahoo-wang/fetcher-eventstream': 1.8.5
-
-  '@ahoo-wang/fetcher@1.8.5': {}
+      '@ahoo-wang/fetcher': 1.8.6
+      '@ahoo-wang/fetcher-eventstream': 1.8.6
 
   '@ahoo-wang/fetcher@1.8.6': {}
 
