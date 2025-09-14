@@ -22,7 +22,7 @@ importers:
         version: 1.8.5
       '@ahoo-wang/fetcher-wow':
         specifier: ^1.8.3
-        version: 1.8.3
+        version: 1.8.5
       '@ant-design/icons':
         specifier: ^6.0.2
         version: 6.0.2(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
@@ -138,8 +138,8 @@ packages:
   '@ahoo-wang/fetcher-storage@1.8.5':
     resolution: {integrity: sha512-0X5cSPc2Rz58s+nbco0GLPGH6AmhJSx9ZsnQ1kMNTdY4vq3nhBmjA284efw79a1u+q9tMWtsdmlrQggAQgzeEA==}
 
-  '@ahoo-wang/fetcher-wow@1.8.3':
-    resolution: {integrity: sha512-x3qKRObic5asn0zZXzTl9g7BkyrVkSAsEoKTM36IDH7CmVxknhqAIJTPpfkUp7K0xA/cez58SaqpHoQXvR63bw==}
+  '@ahoo-wang/fetcher-wow@1.8.5':
+    resolution: {integrity: sha512-Fi/wmOei7DdxanWDC2H7j8i6qSJUmaL91gEq9BmBLpF/drZmUOysvilgAJ8t7H26uaNdRtvIPKADPO3FGzhggA==}
 
   '@ahoo-wang/fetcher@1.8.3':
     resolution: {integrity: sha512-IXKrMlp1OoinCfPxYrVykt9GqM+3UlaIYYJgn25yOn6dfaVLXlMFq8ICFcuKW2NDTVOVaUsbWkul/HkIlqfIfA==}
@@ -2498,10 +2498,10 @@ snapshots:
 
   '@ahoo-wang/fetcher-storage@1.8.5': {}
 
-  '@ahoo-wang/fetcher-wow@1.8.3':
+  '@ahoo-wang/fetcher-wow@1.8.5':
     dependencies:
-      '@ahoo-wang/fetcher': 1.8.3
-      '@ahoo-wang/fetcher-eventstream': 1.8.3
+      '@ahoo-wang/fetcher': 1.8.5
+      '@ahoo-wang/fetcher-eventstream': 1.8.5
 
   '@ahoo-wang/fetcher@1.8.3': {}
 
