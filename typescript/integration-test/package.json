@@ -51,9 +51,16 @@
   },
   "devDependencies": {
     "@types/node": "^24.3.0",
-    "typescript": "^5.9.2",
-    "unplugin-dts": "1.0.0-beta.6",
-    "vite": "^7.1.3",
-    "vitest": "^3.0.5"
+    "vite": "catalog:",
+    "vite-bundle-analyzer": "catalog:",
+    "unplugin-dts": "catalog:",
+    "typescript": "catalog:",
+    "eslint": "catalog:",
+    "@eslint/js": "catalog:",
+    "typescript-eslint": "catalog:",
+    "vitest": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
+    "globals": "catalog:",
+    "prettier": "catalog:"
   }
 }
