@@ -51,16 +51,17 @@
   },
   "devDependencies": {
     "@types/node": "^24.3.0",
+    "@eslint/js": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
+    "@vitest/ui": "catalog:",
+    "eslint": "catalog:",
+    "globals": "catalog:",
+    "prettier": "catalog:",
+    "typescript": "catalog:",
+    "typescript-eslint": "catalog:",
+    "unplugin-dts": "catalog:",
     "vite": "catalog:",
     "vite-bundle-analyzer": "catalog:",
-    "unplugin-dts": "catalog:",
-    "typescript": "catalog:",
-    "eslint": "catalog:",
-    "@eslint/js": "catalog:",
-    "typescript-eslint": "catalog:",
-    "vitest": "catalog:",
-    "@vitest/coverage-v8": "catalog:",
-    "globals": "catalog:",
-    "prettier": "catalog:"
+    "vitest": "catalog:"
   }
 }
