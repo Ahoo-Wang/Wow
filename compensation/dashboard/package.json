@@ -13,11 +13,11 @@
     "analyze": "npx vite-bundle-analyzer -p auto"
   },
   "dependencies": {
-    "@ahoo-wang/fetcher": "^1.8.3",
-    "@ahoo-wang/fetcher-cosec": "^1.8.3",
-    "@ahoo-wang/fetcher-decorator": "^1.8.3",
-    "@ahoo-wang/fetcher-eventstream": "^1.8.3",
-    "@ahoo-wang/fetcher-wow": "^1.8.3",
+    "@ahoo-wang/fetcher": "^1.8.9",
+    "@ahoo-wang/fetcher-cosec": "^1.8.9",
+    "@ahoo-wang/fetcher-decorator": "^1.8.9",
+    "@ahoo-wang/fetcher-eventstream": "^1.8.9",
+    "@ahoo-wang/fetcher-wow": "^1.8.9",
     "@ant-design/icons": "^6.0.2",
     "@ant-design/v5-patch-for-react-19": "^1.0.3",
     "@monaco-editor/react": "4.7.0",
