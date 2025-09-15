@@ -90,12 +90,7 @@ export class CommandClient {
     options?: RequestOptions,
   ): Promise<R> {
     const url = combineURLs(this.options.basePath, path);
-    const request = {
-      ...commandHttpRequest,
-      url: url,
-    };
-
-    return await this.options.fetcher.request(request, mergeRequestOptions(JSON_QUERY_REQUEST_OPTIONS, options));
+    return await this.options.fetcher.fetch(url, commandHttpRequest, mergeRequestOptions(JSON_QUERY_REQUEST_OPTIONS, options));
   }
 
   /**

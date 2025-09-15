@@ -84,10 +84,12 @@ export function cursorSort({ field, direction = SortDirection.DESC }: Omit<Curso
 export function cursorQuery(options: CursorQuery): ListQuery {
   const query = options.query;
   // Combine the cursor condition with the existing query condition
-  query.condition = and(cursorCondition(options), query.condition);
+  const mergedCondition = and(cursorCondition(options), query.condition);
   // Apply cursor-based sorting
-  query.sort = [
-    cursorSort(options),
-  ];
-  return query;
+  const mergedSort = cursorSort(options);
+  return {
+    ...query,
+    condition: mergedCondition,
+    sort: [mergedSort],
+  };
 }
