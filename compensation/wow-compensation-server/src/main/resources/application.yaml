@@ -1,3 +1,7 @@
+server:
+  compression:
+    enabled: true
+
 management:
   endpoint:
     health:
@@ -25,6 +29,7 @@ spring:
   web:
     resources:
       static-locations: file:./compensation/dashboard/dist/
+
   jackson:
     serialization:
       write-durations-as-timestamps: true
@@ -58,5 +63,4 @@ wow:
 #  eventsourcing:
 #    snapshot:
 #      storage: elasticsearch
-
 
