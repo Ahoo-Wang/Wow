@@ -11,11 +11,7 @@
  * limitations under the License.
  */
 
-export * from './client';
-export * from './common';
-export * from './error';
-export * from './function';
-export * from './messaging';
-export * from './modeling';
-export * from './naming';
-export * from './bi';
+export enum MessageHeaderSqlType {
+  MAP = 'MAP',
+  STRING = 'STRING'
+}
