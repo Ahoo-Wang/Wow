@@ -78,6 +78,7 @@ object CommandAggregateRootResolver {
 
         return Aggregate(
             type = aggregateRootMetadata.type,
+            scopes = setOf(this.packageName.asString()),
             tenantId = tenantId,
             commands = (commands + mountCommands).let {
                 linkedSetOf<String>().apply {
