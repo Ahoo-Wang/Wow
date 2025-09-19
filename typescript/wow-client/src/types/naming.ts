@@ -24,3 +24,14 @@ export interface NamedBoundedContext {
 export interface Named {
   name: string;
 }
+
+/**
+ * Interface for entities that have a description.
+ *
+ * This interface defines a contract for objects that can provide a descriptive text.
+ * It is commonly used in conjunction with other naming interfaces to provide additional
+ * context or information about an entity.
+ */
+export interface DescriptionCapable {
+  description: string;
+}
