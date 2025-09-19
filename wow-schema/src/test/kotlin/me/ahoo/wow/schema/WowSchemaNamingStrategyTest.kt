@@ -56,7 +56,7 @@ class WowSchemaNamingStrategyTest {
                             OrderState::class.java
                         )
                     ),
-                    "example.WowExampleOrderStateMaterializedSnapshotPagedList"
+                    "example.order.WowExampleOrderStateMaterializedSnapshotPagedList"
                 ),
                 Arguments.of(
                     typeContext.resolve(
@@ -66,7 +66,7 @@ class WowSchemaNamingStrategyTest {
                             CartState::class.java
                         )
                     ),
-                    "example.CartStateMaterializedSnapshotPagedList"
+                    "example.cart.CartStateMaterializedSnapshotPagedList"
                 ),
                 Arguments.of(
                     typeContext.resolve(
@@ -107,7 +107,7 @@ class WowSchemaNamingStrategyTest {
                         AggregatedFields::class.java,
                         Order::class.java
                     ),
-                    "example.OrderAggregatedFields"
+                    "example.order.OrderAggregatedFields"
                 )
             )
         }
