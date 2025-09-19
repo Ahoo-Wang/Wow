@@ -13,7 +13,9 @@
 
 import { NamedFetcher } from '@ahoo-wang/fetcher';
 import {
-  authorizationRequestInterceptor, cosecRequestInterceptor, authorizationResponseInterceptor,
+  authorizationRequestInterceptor,
+  cosecRequestInterceptor,
+  authorizationResponseInterceptor,
   cosecResourceAttributionInterceptor,
 } from '../cosec';
 

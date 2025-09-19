@@ -12,7 +12,8 @@
  */
 
 import type {
-  AggregateId, AggregateIdCapable,
+  AggregateId,
+  AggregateIdCapable,
   AggregateNameCapable,
   ErrorInfo,
   FunctionInfoCapable,
@@ -48,15 +49,16 @@ import { type JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
  * - CommandResultCapable: Contains the actual command execution result
  * - FunctionInfoCapable: Provides information about the function that processed the command
  */
-export interface WaitSignal extends Identifier,
-  WaitCommandIdCapable,
-  CommandId,
-  AggregateIdCapable,
-  NullableAggregateVersionCapable,
-  ErrorInfo,
-  SignalTimeCapable,
-  CommandResultCapable,
-  FunctionInfoCapable {
+export interface WaitSignal
+  extends Identifier,
+    WaitCommandIdCapable,
+    CommandId,
+    AggregateIdCapable,
+    NullableAggregateVersionCapable,
+    ErrorInfo,
+    SignalTimeCapable,
+    CommandResultCapable,
+    FunctionInfoCapable {
 }
 
 /**

@@ -22,7 +22,10 @@ import {
   JsonEventStreamResultExtractor,
   JsonServerSentEvent,
 } from '@ahoo-wang/fetcher-eventstream';
-import { JSON_EVENT_STREAM_QUERY_REQUEST_OPTIONS, QueryClient } from '../queryApi';
+import {
+  JSON_EVENT_STREAM_QUERY_REQUEST_OPTIONS,
+  QueryClient,
+} from '../queryApi';
 import type { ClientOptions } from '../../types';
 import { ContentTypeValues, mergeRequestOptions } from '@ahoo-wang/fetcher';
 
@@ -92,8 +95,13 @@ export class EventStreamQueryClient
    * console.log('Total event streams:', count);
    * ```
    */
-  count(condition: Condition, attributes?: Record<string, any>): Promise<number> {
-    return this.query(EventStreamQueryEndpointPaths.COUNT, condition, { attributes });
+  count(
+    condition: Condition,
+    attributes?: Record<string, any>,
+  ): Promise<number> {
+    return this.query(EventStreamQueryEndpointPaths.COUNT, condition, {
+      attributes,
+    });
   }
 
   /**
@@ -117,9 +125,12 @@ export class EventStreamQueryClient
    * ```
    */
   list<T extends Partial<DomainEventStream> = Partial<DomainEventStream>>(
-    listQuery: ListQuery, attributes?: Record<string, any>,
+    listQuery: ListQuery,
+    attributes?: Record<string, any>,
   ): Promise<T[]> {
-    return this.query(EventStreamQueryEndpointPaths.LIST, listQuery, { attributes });
+    return this.query(EventStreamQueryEndpointPaths.LIST, listQuery, {
+      attributes,
+    });
   }
 
   /**
@@ -145,7 +156,8 @@ export class EventStreamQueryClient
    * ```
    */
   listStream<T extends Partial<DomainEventStream> = Partial<DomainEventStream>>(
-    listQuery: ListQuery, attributes?: Record<string, any>,
+    listQuery: ListQuery,
+    attributes?: Record<string, any>,
   ): Promise<ReadableStream<JsonServerSentEvent<T>>> {
     return this.query(
       EventStreamQueryEndpointPaths.LIST,
@@ -182,8 +194,11 @@ export class EventStreamQueryClient
    * ```
    */
   paged<T extends Partial<DomainEventStream> = Partial<DomainEventStream>>(
-    pagedQuery: PagedQuery, attributes?: Record<string, any>,
+    pagedQuery: PagedQuery,
+    attributes?: Record<string, any>,
   ): Promise<PagedList<T>> {
-    return this.query(EventStreamQueryEndpointPaths.PAGED, pagedQuery, { attributes });
+    return this.query(EventStreamQueryEndpointPaths.PAGED, pagedQuery, {
+      attributes,
+    });
   }
 }

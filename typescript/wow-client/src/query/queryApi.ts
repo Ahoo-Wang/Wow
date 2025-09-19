@@ -17,13 +17,18 @@ import type {
   PagedQuery,
   SingleQuery,
 } from './queryable';
-import { JsonEventStreamResultExtractor, JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
+import {
+  JsonEventStreamResultExtractor,
+  JsonServerSentEvent,
+} from '@ahoo-wang/fetcher-eventstream';
 import type { Condition } from './condition';
 import type { ClientOptions } from '../types';
 import {
   combineURLs,
   ContentTypeValues,
-  HttpMethod, mergeRequestOptions, RequestOptions,
+  HttpMethod,
+  mergeRequestOptions,
+  RequestOptions,
   ResultExtractors,
 } from '@ahoo-wang/fetcher';
 
@@ -66,8 +71,10 @@ export interface QueryApi<R> {
    *                     custom data between different interceptors.
    * @returns A promise that resolves to an array of partial resources
    */
-  list<T extends Partial<R> = Partial<R>>(listQuery: ListQuery,
-                                          attributes?: Record<string, any>): Promise<T[]>;
+  list<T extends Partial<R> = Partial<R>>(
+    listQuery: ListQuery,
+    attributes?: Record<string, any>,
+  ): Promise<T[]>;
 
   /**
    * Retrieves a stream of resources based on the provided query parameters.
@@ -103,8 +110,10 @@ export interface QueryApi<R> {
    *                     custom data between different interceptors.
    * @returns A promise that resolves to the count of matching resources
    */
-  count(condition: Condition,
-        attributes?: Record<string, any>): Promise<number>;
+  count(
+    condition: Condition,
+    attributes?: Record<string, any>,
+  ): Promise<number>;
 }
 
 /**
@@ -152,6 +161,9 @@ export class QueryClient {
       },
       body: query,
     };
-    return await this.options.fetcher.request(request, mergeRequestOptions(JSON_QUERY_REQUEST_OPTIONS, options));
+    return await this.options.fetcher.request(
+      request,
+      mergeRequestOptions(JSON_QUERY_REQUEST_OPTIONS, options),
+    );
   }
 }

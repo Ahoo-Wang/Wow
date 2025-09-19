@@ -120,7 +120,6 @@ export interface NullableAggregateVersionCapable {
   aggregateVersion?: number;
 }
 
-
 /**
  * Represents a target for compensation operations.
  *
@@ -128,8 +127,9 @@ export interface NullableAggregateVersionCapable {
  * the structure for objects that can be targeted for compensation operations. Compensation
  * targets typically represent entities that can have operations reversed or corrected.
  */
-export interface CompensationTarget extends PartialBy<Identifier, 'id'>, FunctionInfoCapable {
-
+export interface CompensationTarget
+  extends PartialBy<Identifier, 'id'>,
+    FunctionInfoCapable {
 }
 
 /**

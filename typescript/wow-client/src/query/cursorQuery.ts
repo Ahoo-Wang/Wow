@@ -66,7 +66,10 @@ export function cursorCondition({
  * @param params.direction - Sort direction (defaults to SortDirection.DESC)
  * @returns FieldSort configuration for cursor-based pagination
  */
-export function cursorSort({ field, direction = SortDirection.DESC }: Omit<CursorQuery, 'query'>): FieldSort {
+export function cursorSort({
+                             field,
+                             direction = SortDirection.DESC,
+                           }: Omit<CursorQuery, 'query'>): FieldSort {
   return { field, direction };
 }
 

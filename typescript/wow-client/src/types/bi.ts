@@ -13,5 +13,5 @@
 
 export enum MessageHeaderSqlType {
   MAP = 'MAP',
-  STRING = 'STRING'
+  STRING = 'STRING',
 }

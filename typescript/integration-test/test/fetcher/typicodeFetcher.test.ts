@@ -31,10 +31,13 @@ describe('typicodeFetcher Integration Test', () => {
   });
 
   it('get Twice', async () => {
-    const awaitPosts = typicodeFetcher.request({
-      method: HttpMethod.GET,
-      url: '/posts',
-    }, { resultExtractor: ResultExtractors.Json });
+    const awaitPosts = typicodeFetcher.request(
+      {
+        method: HttpMethod.GET,
+        url: '/posts',
+      },
+      { resultExtractor: ResultExtractors.Json },
+    );
     const posts = await awaitPosts;
     const _posts = await awaitPosts;
     expect(posts).toBe(_posts);

@@ -19,10 +19,15 @@ import {
 } from './commandResult';
 import {
   combineURLs,
-  ContentTypeValues, mergeRequestOptions, RequestOptions,
+  ContentTypeValues,
+  mergeRequestOptions,
+  RequestOptions,
 } from '@ahoo-wang/fetcher';
 import { JsonEventStreamResultExtractor } from '@ahoo-wang/fetcher-eventstream';
-import { JSON_EVENT_STREAM_QUERY_REQUEST_OPTIONS, JSON_QUERY_REQUEST_OPTIONS } from '../query';
+import {
+  JSON_EVENT_STREAM_QUERY_REQUEST_OPTIONS,
+  JSON_QUERY_REQUEST_OPTIONS,
+} from '../query';
 
 /**
  * Command Client for sending commands to the server.
@@ -90,7 +95,11 @@ export class CommandClient {
     options?: RequestOptions,
   ): Promise<R> {
     const url = combineURLs(this.options.basePath, path);
-    return await this.options.fetcher.fetch(url, commandHttpRequest, mergeRequestOptions(JSON_QUERY_REQUEST_OPTIONS, options));
+    return await this.options.fetcher.fetch(
+      url,
+      commandHttpRequest,
+      mergeRequestOptions(JSON_QUERY_REQUEST_OPTIONS, options),
+    );
   }
 
   /**
