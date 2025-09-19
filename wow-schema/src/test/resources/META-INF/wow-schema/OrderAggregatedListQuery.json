@@ -4,14 +4,14 @@
     "StringObjectMap" : {
       "type" : "object"
     },
-    "example.OrderAggregatedCondition" : {
+    "example.order.OrderAggregatedCondition" : {
       "type" : "object",
       "properties" : {
         "children" : {
           "default" : "[]",
           "type" : "array",
           "items" : {
-            "$ref" : "#/$defs/example.OrderAggregatedCondition"
+            "$ref" : "#/$defs/example.order.OrderAggregatedCondition"
           }
         },
         "field" : {
@@ -61,7 +61,7 @@
   "type" : "object",
   "properties" : {
     "condition" : {
-      "$ref" : "#/$defs/example.OrderAggregatedCondition"
+      "$ref" : "#/$defs/example.order.OrderAggregatedCondition"
     },
     "limit" : {
       "type" : "integer",
