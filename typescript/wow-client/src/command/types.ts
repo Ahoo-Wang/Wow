@@ -11,6 +11,9 @@
  * limitations under the License.
  */
 
+import { FunctionInfoCapable, Identifier } from '../types';
+import { PartialBy } from '@ahoo-wang/fetcher';
+
 /**
  * Command identifier interface
  *
@@ -112,4 +115,38 @@ export interface NullableAggregateVersionCapable {
    * The aggregate version of the aggregate.
    */
   aggregateVersion?: number;
+}
+
+
+/**
+ * Represents a target for compensation operations.
+ *
+ * This interface extends Identifier (with optional id) and FunctionInfoCapable to define
+ * the structure for objects that can be targeted for compensation operations. Compensation
+ * targets typically represent entities that can have operations reversed or corrected.
+ */
+export interface CompensationTarget extends PartialBy<Identifier, 'id'>, FunctionInfoCapable {
+
+}
+
+/**
+ * Represents a command to delete an aggregate.
+ *
+ * This interface defines the structure for commands that request the deletion of an aggregate.
+ * It is typically used in conjunction with other command interfaces to provide a complete
+ * command processing workflow.
+ */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface DeleteAggregate {
+}
+
+/**
+ * Represents a command to recover an aggregate.
+ *
+ * This interface defines the structure for commands that request the recovery of an aggregate,
+ * typically used in scenarios where an aggregate needs to be restored to a previous state
+ * or recovered from an error condition.
+ */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface RecoverAggregate {
 }
