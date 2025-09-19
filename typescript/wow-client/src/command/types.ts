@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { FunctionInfoCapable, Identifier } from '../types';
+import { ErrorInfo, FunctionInfoCapable, Identifier } from '../types';
 import { PartialBy } from '@ahoo-wang/fetcher';
 
 /**
@@ -149,4 +149,23 @@ export interface DeleteAggregate {
  */
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface RecoverAggregate {
+}
+
+/**
+ * Represents the result of a batch operation, containing information about
+ * the pagination and error status of the operation.
+ *
+ * Extends ErrorInfo to include error details if the batch operation failed.
+ */
+export interface BatchResult extends ErrorInfo {
+  /**
+   * The cursor or identifier for the next item after the current batch.
+   * Used for pagination to continue fetching the next batch of items.
+   */
+  after: string;
+
+  /**
+   * The number of items in the current batch.
+   */
+  size: number;
 }
