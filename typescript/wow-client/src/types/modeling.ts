@@ -98,6 +98,23 @@ export interface AggregateId extends TenantId, NamedAggregate {
 }
 
 /**
+ * Interface that provides the capability to contain an aggregate identifier.
+ *
+ * This interface is implemented by objects that need to reference an aggregate instance
+ * through its unique identifier, which includes tenant, context, aggregate name and the
+ * actual aggregate ID.
+ */
+export interface AggregateIdCapable {
+  /**
+   * The unique identifier of the aggregate instance.
+   *
+   * Contains information about the tenant, bounded context, aggregate name and the
+   * actual aggregate ID string.
+   */
+  aggregateId: AggregateId;
+}
+
+/**
  * Interface for objects that track the last operator.
  */
 export interface OperatorCapable {

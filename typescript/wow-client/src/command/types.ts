@@ -112,7 +112,10 @@ export interface SignalTimeCapable {
  */
 export interface NullableAggregateVersionCapable {
   /**
-   * The aggregate version of the aggregate.
+   * Aggregate root version number
+   * - When command processing succeeds, this is the version number after the aggregate root has completed command processing
+   * - When command validation fails at the command gateway, this is null
+   * - When command execution fails in the command handler, this is the current version number of the aggregate root
    */
   aggregateVersion?: number;
 }

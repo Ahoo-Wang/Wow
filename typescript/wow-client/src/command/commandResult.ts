@@ -12,7 +12,7 @@
  */
 
 import type {
-  AggregateId,
+  AggregateId, AggregateIdCapable,
   AggregateNameCapable,
   ErrorInfo,
   FunctionInfoCapable,
@@ -29,6 +29,35 @@ import type {
   WaitCommandIdCapable,
 } from './types';
 import { type JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
+
+/**
+ * Represents a signal that waits for command execution completion.
+ *
+ * This interface combines multiple capabilities to provide comprehensive information
+ * about a command that is being waited upon, including identification, timing,
+ * execution results, and error information.
+ *
+ * It extends several interfaces to aggregate different aspects of command execution:
+ * - Identifier: Provides unique identification
+ * - WaitCommandIdCapable: Contains the ID of the command being waited for
+ * - CommandId: Contains the command ID
+ * - AggregateIdCapable: Provides the aggregate ID associated with the command
+ * - NullableAggregateVersionCapable: Contains optional aggregate version for concurrency control
+ * - ErrorInfo: Contains error information if command execution failed
+ * - SignalTimeCapable: Provides timestamp information
+ * - CommandResultCapable: Contains the actual command execution result
+ * - FunctionInfoCapable: Provides information about the function that processed the command
+ */
+export interface WaitSignal extends Identifier,
+  WaitCommandIdCapable,
+  CommandId,
+  AggregateIdCapable,
+  NullableAggregateVersionCapable,
+  ErrorInfo,
+  SignalTimeCapable,
+  CommandResultCapable,
+  FunctionInfoCapable {
+}
 
 /**
  * Command execution result interface
@@ -55,13 +84,6 @@ export interface CommandResult
     CommandResultCapable,
     SignalTimeCapable,
     NullableAggregateVersionCapable {
-  /**
-   * Aggregate root version number
-   * - When command processing succeeds, this is the version number after the aggregate root has completed command processing
-   * - When command validation fails at the command gateway, this is null
-   * - When command execution fails in the command handler, this is the current version number of the aggregate root
-   */
-  aggregateVersion?: number;
 }
 
 /**
