@@ -24,6 +24,7 @@ export function isValidateCondition(
 ): condition is Condition {
   return !!condition;
 }
+
 /**
  * Condition option keys enumeration
  *
@@ -118,11 +119,11 @@ export function dateOptions(
  *
  * When `operator` is `AND` or `OR` or `NOR`, `children` cannot be empty.
  */
-export interface Condition {
+export interface Condition<FIELDS extends string = string> {
   /**
    * Field name for the condition
    */
-  field?: string;
+  field?: FIELDS;
 
   /**
    * Operator for the condition
