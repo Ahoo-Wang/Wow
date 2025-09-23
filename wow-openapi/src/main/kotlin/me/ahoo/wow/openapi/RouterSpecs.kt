@@ -21,6 +21,7 @@ import io.swagger.v3.oas.models.info.Info
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.modeling.getContextAliasPrefix
+import me.ahoo.wow.openapi.OpenAPIExtensions.withExtensions
 import me.ahoo.wow.openapi.aggregate.AggregateRouteSpecFactoryProvider
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.context.OpenAPIComponentContextCapable
@@ -82,6 +83,7 @@ class RouterSpecs(
 
     private fun OpenAPI.ensureInfo() {
         val info = this.info ?: Info()
+        info.withExtensions(currentContext)
         if (info.title.isNullOrBlank() || info.title == DEFAULT_OPENAPI_INFO_TITLE) {
             info.title = currentContext.contextName
         }
@@ -91,7 +93,6 @@ class RouterSpecs(
         if (info.description.isNullOrBlank()) {
             info.description = description()
         }
-
         this.info = info
     }
 
