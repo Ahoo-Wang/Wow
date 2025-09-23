@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "ignoreCase": {
+      "type": "boolean",
+      "description": "Whether to ignore case in string comparisons"
+    },
+    "datePattern": {
+      "type": "string",
+      "description": "Date pattern for date formatting"
+    },
+    "zoneId": {
+      "type": "string",
+      "description": "Time zone ID for date operations"
+    }
+  },
+  "additionalProperties": true,
+  "required": [
+  ]
+}

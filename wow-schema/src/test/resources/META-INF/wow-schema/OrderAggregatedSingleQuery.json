@@ -1,9 +1,6 @@
 {
   "$schema" : "https://json-schema.org/draft/2020-12/schema",
   "$defs" : {
-    "StringObjectMap" : {
-      "type" : "object"
-    },
     "example.order.OrderAggregatedCondition" : {
       "type" : "object",
       "properties" : {
@@ -23,7 +20,7 @@
           "default" : "ALL"
         },
         "options" : {
-          "$ref" : "#/$defs/StringObjectMap",
+          "$ref" : "#/$defs/wow.api.query.ConditionOptions",
           "default" : "{}"
         },
         "value" : { }
@@ -47,11 +44,31 @@
           "default" : "ALL"
         },
         "options" : {
-          "$ref" : "#/$defs/StringObjectMap",
+          "$ref" : "#/$defs/wow.api.query.ConditionOptions",
           "default" : "{}"
         },
         "value" : { }
       }
+    },
+    "wow.api.query.ConditionOptions" : {
+      "$schema" : "https://json-schema.org/draft/2020-12/schema",
+      "type" : "object",
+      "properties" : {
+        "ignoreCase" : {
+          "type" : "boolean",
+          "description" : "Whether to ignore case in string comparisons"
+        },
+        "datePattern" : {
+          "type" : "string",
+          "description" : "Date pattern for date formatting"
+        },
+        "zoneId" : {
+          "type" : "string",
+          "description" : "Time zone ID for date operations"
+        }
+      },
+      "additionalProperties" : true,
+      "required" : [ ]
     },
     "wow.api.query.Operator" : {
       "type" : "string",

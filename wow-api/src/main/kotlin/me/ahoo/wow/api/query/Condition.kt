@@ -18,6 +18,7 @@ import io.swagger.v3.oas.annotations.media.Schema
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
+interface ConditionOptions
 interface ICondition<C : ICondition<C>> {
 
     @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
@@ -36,7 +37,7 @@ interface ICondition<C : ICondition<C>> {
     @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
     val children: List<C>
 
-    @get:Schema(defaultValue = "{}")
+    @get:Schema(defaultValue = "{}", implementation = ConditionOptions::class)
     @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
     val options: Map<String, Any>
 }

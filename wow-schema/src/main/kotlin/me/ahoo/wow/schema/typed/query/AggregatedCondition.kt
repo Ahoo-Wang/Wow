@@ -16,6 +16,7 @@ package me.ahoo.wow.schema.typed.query
 import com.fasterxml.jackson.annotation.JsonInclude
 import io.swagger.v3.oas.annotations.media.Schema
 import me.ahoo.wow.api.query.Condition.Companion.EMPTY_VALUE
+import me.ahoo.wow.api.query.ConditionOptions
 import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.schema.typed.AggregatedFields
 
@@ -29,7 +30,11 @@ interface IAggregatedCondition<CommandAggregateType : Any> {
     @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
     val value: Any
 
-    @get:Schema(defaultValue = "{}")
+    @get:Schema(
+        defaultValue = "{}",
+        requiredMode = Schema.RequiredMode.NOT_REQUIRED,
+        implementation = ConditionOptions::class
+    )
     @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
     val options: Map<String, Any>
 }
@@ -41,5 +46,5 @@ data class AggregatedCondition<CommandAggregateType : Any>(
     @get:Schema(defaultValue = "[]")
     @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
     val children: List<AggregatedCondition<CommandAggregateType>> = emptyList(),
-    override val options: Map<String, Any> = emptyMap()
+    override val options: Map<String, Any> = emptyMap(),
 ) : IAggregatedCondition<CommandAggregateType>
