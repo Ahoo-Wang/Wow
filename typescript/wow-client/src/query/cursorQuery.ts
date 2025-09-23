@@ -20,9 +20,9 @@ import { and, Condition, gt, lt } from './condition';
  * This interface defines the structure for implementing cursor-based pagination,
  * which is an efficient way to paginate through large datasets.
  */
-export interface CursorQuery {
+export interface CursorQuery<FIELDS extends string = string> {
   /** Field name used for cursor-based sorting and filtering */
-  field: string;
+  field: FIELDS;
   /**
    * Cursor ID marking the starting point (exclusive)
    * Uses CURSOR_ID_START constant for initial query
@@ -45,11 +45,11 @@ export const CURSOR_ID_START = '~';
  * @param params.direction - Sort direction which determines the comparison operator (defaults to SortDirection.DESC)
  * @returns Condition object for filtering records based on cursor position
  */
-export function cursorCondition({
-                                  field,
-                                  cursorId = CURSOR_ID_START,
-                                  direction = SortDirection.DESC,
-                                }: Omit<CursorQuery, 'query'>): Condition {
+export function cursorCondition<FIELDS extends string = string>({
+                                                                  field,
+                                                                  cursorId = CURSOR_ID_START,
+                                                                  direction = SortDirection.DESC,
+                                                                }: Omit<CursorQuery<FIELDS>, 'query'>): Condition<FIELDS> {
   // When sorting in ascending order, we want records greater than the cursor
   if (direction === SortDirection.ASC) {
     return gt(field, cursorId);
@@ -66,10 +66,10 @@ export function cursorCondition({
  * @param params.direction - Sort direction (defaults to SortDirection.DESC)
  * @returns FieldSort configuration for cursor-based pagination
  */
-export function cursorSort({
-                             field,
-                             direction = SortDirection.DESC,
-                           }: Omit<CursorQuery, 'query'>): FieldSort {
+export function cursorSort<FIELDS extends string = string>({
+                                                             field,
+                                                             direction = SortDirection.DESC,
+                                                           }: Omit<CursorQuery<FIELDS>, 'query'>): FieldSort<FIELDS> {
   return { field, direction };
 }
 
@@ -84,7 +84,7 @@ export function cursorSort({
  * @param options.query - Base query object to be enhanced with cursor-based parameters
  * @returns Enhanced query with cursor-based filtering and sorting
  */
-export function cursorQuery(options: CursorQuery): ListQuery {
+export function cursorQuery<FIELDS extends string = string>(options: CursorQuery<FIELDS>): ListQuery {
   const query = options.query;
   // Combine the cursor condition with the existing query condition
   const mergedCondition = and(cursorCondition(options), query.condition);

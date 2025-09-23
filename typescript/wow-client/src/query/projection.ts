@@ -14,9 +14,9 @@
 /**
  * Interface for field projection.
  */
-export interface Projection {
-  include?: string[];
-  exclude?: string[];
+export interface Projection<FIELDS extends string = string> {
+  include?: FIELDS[];
+  exclude?: FIELDS[];
 }
 
 /**
@@ -24,6 +24,10 @@ export interface Projection {
  * Empty projection object includes all fields.
  */
 export const DEFAULT_PROJECTION: Projection = {};
+
+export function defaultProjection<FIELDS extends string = string>(): Projection<FIELDS> {
+  return DEFAULT_PROJECTION as Projection<FIELDS>;
+}
 
 /**
  * Creates a Projection object with the provided parameters.
@@ -37,10 +41,10 @@ export const DEFAULT_PROJECTION: Projection = {};
  * @param options.exclude - Array of field names to exclude from the projection. Optional.
  * @returns A Projection object with the specified parameters
  */
-export function projection({
-                             include,
-                             exclude,
-                           }: Projection = DEFAULT_PROJECTION): Projection {
+export function projection<FIELDS extends string = string>({
+                                                             include,
+                                                             exclude,
+                                                           }: Projection<FIELDS> = defaultProjection()): Projection<FIELDS> {
   return {
     include,
     exclude,
@@ -50,6 +54,6 @@ export function projection({
 /**
  * Interface for objects that support field projection.
  */
-export interface ProjectionCapable {
-  projection?: Projection;
+export interface ProjectionCapable<FIELDS extends string = string> {
+  projection?: Projection<FIELDS>;
 }

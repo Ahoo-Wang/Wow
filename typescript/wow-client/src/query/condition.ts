@@ -138,7 +138,7 @@ export interface Condition<FIELDS extends string = string> {
   /**
    * Child conditions for logical operators (AND, OR, NOR)
    */
-  children?: Condition[];
+  children?: Condition<FIELDS>[];
 
   /**
    * Additional options for the condition
@@ -149,8 +149,8 @@ export interface Condition<FIELDS extends string = string> {
 /**
  * Interface for objects that have a condition.
  */
-export interface ConditionCapable {
-  condition: Condition;
+export interface ConditionCapable<FIELDS extends string = string> {
+  condition: Condition<FIELDS>;
 }
 
 /**
@@ -187,16 +187,16 @@ export enum DeletionState {
  *                   If multiple, combines them into an AND condition with flattening optimization.
  * @returns A condition with AND operator or an optimized condition based on the input
  */
-export function and(
-  ...conditions: Array<Condition | undefined | null>
-): Condition {
+export function and<FIELDS extends string = string>(
+  ...conditions: Array<Condition<FIELDS> | undefined | null>
+): Condition<FIELDS> {
   if (conditions.length === 0) {
     return all();
   }
   if (conditions.length === 1) {
     return isValidateCondition(conditions[0]) ? conditions[0] : all();
   }
-  const andChildren: Condition[] = [];
+  const andChildren: Condition<FIELDS>[] = [];
   conditions.forEach(condition => {
     if (
       condition?.operator === Operator.ALL ||
@@ -219,9 +219,9 @@ export function and(
  * @param conditions - Conditions to combine with OR
  * @returns A condition with OR operator
  */
-export function or(
-  ...conditions: Array<Condition | undefined | null>
-): Condition {
+export function or<FIELDS extends string = string>(
+  ...conditions: Array<Condition<FIELDS> | undefined | null>
+): Condition<FIELDS> {
   const validateConditions = conditions?.filter(condition =>
     isValidateCondition(condition),
   );
@@ -237,7 +237,7 @@ export function or(
  * @param conditions - Conditions to combine with NOR
  * @returns A condition with NOR operator
  */
-export function nor(...conditions: Condition[]): Condition {
+export function nor<FIELDS extends string = string>(...conditions: Condition<FIELDS>[]): Condition<FIELDS> {
   if (conditions.length === 0) {
     return all();
   }
@@ -250,7 +250,7 @@ export function nor(...conditions: Condition[]): Condition {
  * @param value - The ID value to match
  * @returns A condition with ID operator
  */
-export function id(value: string): Condition {
+export function id<FIELDS extends string = string>(value: string): Condition<FIELDS> {
   return { operator: Operator.ID, value: value };
 }
 
@@ -260,7 +260,7 @@ export function id(value: string): Condition {
  * @param value - The ID values to match
  * @returns A condition with IDS operator
  */
-export function ids(value: string[]): Condition {
+export function ids<FIELDS extends string = string>(value: string[]): Condition<FIELDS> {
   return { operator: Operator.IDS, value: value };
 }
 
@@ -270,7 +270,7 @@ export function ids(value: string[]): Condition {
  * @param value - The aggregate ID value to match
  * @returns A condition with AGGREGATE_ID operator
  */
-export function aggregateId(value: string): Condition {
+export function aggregateId<FIELDS extends string = string>(value: string): Condition<FIELDS> {
   return { operator: Operator.AGGREGATE_ID, value: value };
 }
 
@@ -280,7 +280,7 @@ export function aggregateId(value: string): Condition {
  * @param value - The aggregate ID values to match
  * @returns A condition with AGGREGATE_IDS operator
  */
-export function aggregateIds(...value: string[]): Condition {
+export function aggregateIds<FIELDS extends string = string>(...value: string[]): Condition<FIELDS> {
   return { operator: Operator.AGGREGATE_IDS, value: value };
 }
 
@@ -290,7 +290,7 @@ export function aggregateIds(...value: string[]): Condition {
  * @param value - The tenant ID value to match
  * @returns A condition with TENANT_ID operator
  */
-export function tenantId(value: string): Condition {
+export function tenantId<FIELDS extends string = string>(value: string): Condition<FIELDS> {
   return { operator: Operator.TENANT_ID, value: value };
 }
 
@@ -300,7 +300,7 @@ export function tenantId(value: string): Condition {
  * @param value - The owner ID value to match
  * @returns A condition with OWNER_ID operator
  */
-export function ownerId(value: string): Condition {
+export function ownerId<FIELDS extends string = string>(value: string): Condition<FIELDS> {
   return { operator: Operator.OWNER_ID, value: value };
 }
 
@@ -310,7 +310,7 @@ export function ownerId(value: string): Condition {
  * @param value - The deletion state value to match
  * @returns A condition with DELETED operator
  */
-export function deleted(value: DeletionState): Condition {
+export function deleted<FIELDS extends string = string>(value: DeletionState): Condition<FIELDS> {
   return { operator: Operator.DELETED, value: value };
 }
 
@@ -319,7 +319,7 @@ export function deleted(value: DeletionState): Condition {
  *
  * @returns A condition with DELETED operator set to ACTIVE
  */
-export function active(): Condition {
+export function active<FIELDS extends string = string>(): Condition<FIELDS> {
   return deleted(DeletionState.ACTIVE);
 }
 
@@ -328,7 +328,7 @@ export function active(): Condition {
  *
  * @returns A condition with ALL operator
  */
-export function all(): Condition {
+export function all<FIELDS extends string = string>(): Condition<FIELDS> {
   return {
     operator: Operator.ALL,
   };
@@ -341,7 +341,7 @@ export function all(): Condition {
  * @param value - The value to compare against
  * @returns A condition with EQ operator
  */
-export function eq(field: string, value: any): Condition {
+export function eq<FIELDS extends string = string>(field: FIELDS, value: any): Condition<FIELDS> {
   return { field, operator: Operator.EQ, value };
 }
 
@@ -352,7 +352,7 @@ export function eq(field: string, value: any): Condition {
  * @param value - The value to compare against
  * @returns A condition with NE operator
  */
-export function ne(field: string, value: any): Condition {
+export function ne<FIELDS extends string = string>(field: FIELDS, value: any): Condition<FIELDS> {
   return { field, operator: Operator.NE, value };
 }
 
@@ -363,7 +363,7 @@ export function ne(field: string, value: any): Condition {
  * @param value - The value to compare against
  * @returns A condition with GT operator
  */
-export function gt(field: string, value: any): Condition {
+export function gt<FIELDS extends string = string>(field: FIELDS, value: any): Condition<FIELDS> {
   return { field, operator: Operator.GT, value };
 }
 
@@ -374,7 +374,7 @@ export function gt(field: string, value: any): Condition {
  * @param value - The value to compare against
  * @returns A condition with LT operator
  */
-export function lt(field: string, value: any): Condition {
+export function lt<FIELDS extends string = string>(field: FIELDS, value: any): Condition<FIELDS> {
   return { field, operator: Operator.LT, value };
 }
 
@@ -385,7 +385,7 @@ export function lt(field: string, value: any): Condition {
  * @param value - The value to compare against
  * @returns A condition with GTE operator
  */
-export function gte(field: string, value: any): Condition {
+export function gte<FIELDS extends string = string>(field: FIELDS, value: any): Condition<FIELDS> {
   return { field, operator: Operator.GTE, value };
 }
 
@@ -396,7 +396,7 @@ export function gte(field: string, value: any): Condition {
  * @param value - The value to compare against
  * @returns A condition with LTE operator
  */
-export function lte(field: string, value: any): Condition {
+export function lte<FIELDS extends string = string>(field: FIELDS, value: any): Condition<FIELDS> {
   return { field, operator: Operator.LTE, value };
 }
 
@@ -408,11 +408,11 @@ export function lte(field: string, value: any): Condition {
  * @param ignoreCase - Whether to ignore case in the search
  * @returns A condition with CONTAINS operator
  */
-export function contains(
-  field: string,
+export function contains<FIELDS extends string = string>(
+  field: FIELDS,
   value: any,
   ignoreCase?: boolean,
-): Condition {
+): Condition<FIELDS> {
   const options: Record<string, any> | undefined =
     ignoreCaseOptions(ignoreCase);
   return { field, operator: Operator.CONTAINS, value, options };
@@ -425,7 +425,7 @@ export function contains(
  * @param value - The values to compare against
  * @returns A condition with IN operator
  */
-export function isIn(field: string, ...value: any[]): Condition {
+export function isIn<FIELDS extends string = string>(field: FIELDS, ...value: any[]): Condition<FIELDS> {
   return { field, operator: Operator.IN, value };
 }
 
@@ -436,7 +436,7 @@ export function isIn(field: string, ...value: any[]): Condition {
  * @param value - The values to compare against
  * @returns A condition with NOT_IN operator
  */
-export function notIn(field: string, ...value: any[]): Condition {
+export function notIn<FIELDS extends string = string>(field: FIELDS, ...value: any[]): Condition<FIELDS> {
   return { field, operator: Operator.NOT_IN, value };
 }
 
@@ -448,7 +448,7 @@ export function notIn(field: string, ...value: any[]): Condition {
  * @param end - The end value of the range
  * @returns A condition with BETWEEN operator
  */
-export function between(field: string, start: any, end: any): Condition {
+export function between<FIELDS extends string = string>(field: FIELDS, start: any, end: any): Condition<FIELDS> {
   return { field, operator: Operator.BETWEEN, value: [start, end] };
 }
 
@@ -459,7 +459,7 @@ export function between(field: string, start: any, end: any): Condition {
  * @param value - The values to compare against
  * @returns A condition with ALL_IN operator
  */
-export function allIn(field: string, ...value: any[]): Condition {
+export function allIn<FIELDS extends string = string>(field: FIELDS, ...value: any[]): Condition<FIELDS> {
   return { field, operator: Operator.ALL_IN, value };
 }
 
@@ -471,11 +471,11 @@ export function allIn(field: string, ...value: any[]): Condition {
  * @param ignoreCase - Whether to ignore case in the comparison
  * @returns A condition with STARTS_WITH operator
  */
-export function startsWith(
-  field: string,
+export function startsWith<FIELDS extends string = string>(
+  field: FIELDS,
   value: any,
   ignoreCase?: boolean,
-): Condition {
+): Condition<FIELDS> {
   const options: Record<string, any> | undefined =
     ignoreCaseOptions(ignoreCase);
   return { field, operator: Operator.STARTS_WITH, value, options };
@@ -489,11 +489,11 @@ export function startsWith(
  * @param ignoreCase - Whether to ignore case in the comparison
  * @returns A condition with ENDS_WITH operator
  */
-export function endsWith(
-  field: string,
+export function endsWith<FIELDS extends string = string>(
+  field: FIELDS,
   value: any,
   ignoreCase?: boolean,
-): Condition {
+): Condition<FIELDS> {
   const options: Record<string, any> | undefined =
     ignoreCaseOptions(ignoreCase);
   return { field, operator: Operator.ENDS_WITH, value, options };
@@ -506,7 +506,7 @@ export function endsWith(
  * @param value - The condition to match elements against
  * @returns A condition with ELEM_MATCH operator
  */
-export function elemMatch(field: string, value: Condition): Condition {
+export function elemMatch<FIELDS extends string = string>(field: FIELDS, value: Condition<FIELDS>): Condition<FIELDS> {
   return { field, operator: Operator.ELEM_MATCH, children: [value] };
 }
 
@@ -516,7 +516,7 @@ export function elemMatch(field: string, value: Condition): Condition {
  * @param field - The field name to check
  * @returns A condition with NULL operator
  */
-export function isNull(field: string): Condition {
+export function isNull<FIELDS extends string = string>(field: FIELDS): Condition<FIELDS> {
   return { field, operator: Operator.NULL };
 }
 
@@ -526,7 +526,7 @@ export function isNull(field: string): Condition {
  * @param field - The field name to check
  * @returns A condition with NOT_NULL operator
  */
-export function notNull(field: string): Condition {
+export function notNull<FIELDS extends string = string>(field: FIELDS): Condition<FIELDS> {
   return { field, operator: Operator.NOT_NULL };
 }
 
@@ -536,7 +536,7 @@ export function notNull(field: string): Condition {
  * @param field - The field name to check
  * @returns A condition with TRUE operator
  */
-export function isTrue(field: string): Condition {
+export function isTrue<FIELDS extends string = string>(field: FIELDS): Condition<FIELDS> {
   return { field, operator: Operator.TRUE };
 }
 
@@ -546,7 +546,7 @@ export function isTrue(field: string): Condition {
  * @param field - The field name to check
  * @returns A condition with FALSE operator
  */
-export function isFalse(field: string): Condition {
+export function isFalse<FIELDS extends string = string>(field: FIELDS): Condition<FIELDS> {
   return { field, operator: Operator.FALSE };
 }
 
@@ -557,7 +557,7 @@ export function isFalse(field: string): Condition {
  * @param exists - Whether the field should exist (default: true)
  * @returns A condition with EXISTS operator
  */
-export function exists(field: string, exists: boolean = true): Condition {
+export function exists<FIELDS extends string = string>(field: FIELDS, exists: boolean = true): Condition<FIELDS> {
   return { field, operator: Operator.EXISTS, value: exists };
 }
 
@@ -569,11 +569,11 @@ export function exists(field: string, exists: boolean = true): Condition {
  * @param zoneId - The time zone ID to use
  * @returns A condition with TODAY operator
  */
-export function today(
-  field: string,
+export function today<FIELDS extends string = string>(
+  field: FIELDS,
   datePattern?: string,
   zoneId?: string,
-): Condition {
+): Condition<FIELDS> {
   const options = dateOptions(datePattern, zoneId);
   return { field, operator: Operator.TODAY, options };
 }
@@ -587,12 +587,12 @@ export function today(
  * @param zoneId - The time zone ID to use
  * @returns A condition with BEFORE_TODAY operator
  */
-export function beforeToday(
-  field: string,
+export function beforeToday<FIELDS extends string = string>(
+  field: FIELDS,
   time: any,
   datePattern?: string,
   zoneId?: string,
-): Condition {
+): Condition<FIELDS> {
   const options = dateOptions(datePattern, zoneId);
   return { field, operator: Operator.BEFORE_TODAY, value: time, options };
 }
@@ -605,11 +605,11 @@ export function beforeToday(
  * @param zoneId - The time zone ID to use
  * @returns A condition with TOMORROW operator
  */
-export function tomorrow(
-  field: string,
+export function tomorrow<FIELDS extends string = string>(
+  field: FIELDS,
   datePattern?: string,
   zoneId?: string,
-): Condition {
+): Condition<FIELDS> {
   const options = dateOptions(datePattern, zoneId);
   return { field, operator: Operator.TOMORROW, options };
 }
@@ -622,11 +622,11 @@ export function tomorrow(
  * @param zoneId - The time zone ID to use
  * @returns A condition with THIS_WEEK operator
  */
-export function thisWeek(
-  field: string,
+export function thisWeek<FIELDS extends string = string>(
+  field: FIELDS,
   datePattern?: string,
   zoneId?: string,
-): Condition {
+): Condition<FIELDS> {
   const options = dateOptions(datePattern, zoneId);
   return { field, operator: Operator.THIS_WEEK, options };
 }
@@ -639,11 +639,11 @@ export function thisWeek(
  * @param zoneId - The time zone ID to use
  * @returns A condition with NEXT_WEEK operator
  */
-export function nextWeek(
-  field: string,
+export function nextWeek<FIELDS extends string = string>(
+  field: FIELDS,
   datePattern?: string,
   zoneId?: string,
-): Condition {
+): Condition<FIELDS> {
   const options = dateOptions(datePattern, zoneId);
   return { field, operator: Operator.NEXT_WEEK, options };
 }
@@ -656,11 +656,11 @@ export function nextWeek(
  * @param zoneId - The time zone ID to use
  * @returns A condition with LAST_WEEK operator
  */
-export function lastWeek(
-  field: string,
+export function lastWeek<FIELDS extends string = string>(
+  field: FIELDS,
   datePattern?: string,
   zoneId?: string,
-): Condition {
+): Condition<FIELDS> {
   const options = dateOptions(datePattern, zoneId);
   return { field, operator: Operator.LAST_WEEK, options };
 }
@@ -673,11 +673,11 @@ export function lastWeek(
  * @param zoneId - The time zone ID to use
  * @returns A condition with THIS_MONTH operator
  */
-export function thisMonth(
-  field: string,
+export function thisMonth<FIELDS extends string = string>(
+  field: FIELDS,
   datePattern?: string,
   zoneId?: string,
-): Condition {
+): Condition<FIELDS> {
   const options = dateOptions(datePattern, zoneId);
   return { field, operator: Operator.THIS_MONTH, options };
 }
@@ -690,11 +690,11 @@ export function thisMonth(
  * @param zoneId - The time zone ID to use
  * @returns A condition with LAST_MONTH operator
  */
-export function lastMonth(
-  field: string,
+export function lastMonth<FIELDS extends string = string>(
+  field: FIELDS,
   datePattern?: string,
   zoneId?: string,
-): Condition {
+): Condition<FIELDS> {
   const options = dateOptions(datePattern, zoneId);
   return { field, operator: Operator.LAST_MONTH, options };
 }
@@ -708,12 +708,12 @@ export function lastMonth(
  * @param zoneId - The time zone ID to use
  * @returns A condition with RECENT_DAYS operator
  */
-export function recentDays(
-  field: string,
+export function recentDays<FIELDS extends string = string>(
+  field: FIELDS,
   days: number,
   datePattern?: string,
   zoneId?: string,
-): Condition {
+): Condition<FIELDS> {
   const options = dateOptions(datePattern, zoneId);
   return { field, operator: Operator.RECENT_DAYS, value: days, options };
 }
@@ -727,12 +727,12 @@ export function recentDays(
  * @param zoneId - The time zone ID to use
  * @returns A condition with EARLIER_DAYS operator
  */
-export function earlierDays(
-  field: string,
+export function earlierDays<FIELDS extends string = string>(
+  field: FIELDS,
   days: number,
   datePattern?: string,
   zoneId?: string,
-): Condition {
+): Condition<FIELDS> {
   const options = dateOptions(datePattern, zoneId);
   return { field, operator: Operator.EARLIER_DAYS, value: days, options };
 }
@@ -743,6 +743,6 @@ export function earlierDays(
  * @param raw - The raw condition value
  * @returns A condition with RAW operator
  */
-export function raw(raw: any): Condition {
+export function raw<FIELDS extends string = string>(raw: any): Condition<FIELDS> {
   return { operator: Operator.RAW, value: raw };
 }

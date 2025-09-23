@@ -23,8 +23,8 @@ export enum SortDirection {
 /**
  * Interface for sort criteria.
  */
-export interface FieldSort {
-  field: string;
+export interface FieldSort<FIELDS extends string = string> {
+  field: FIELDS;
   direction: SortDirection;
 }
 
@@ -33,7 +33,7 @@ export interface FieldSort {
  * @param field - The field to sort by
  * @returns A Sort object with the specified field and ascending direction
  */
-export function asc(field: string): FieldSort {
+export function asc<FIELDS extends string = string>(field: FIELDS): FieldSort<FIELDS> {
   return {
     field,
     direction: SortDirection.ASC,
@@ -45,7 +45,7 @@ export function asc(field: string): FieldSort {
  * @param field - The field to sort by
  * @returns A Sort object with the specified field and descending direction
  */
-export function desc(field: string): FieldSort {
+export function desc<FIELDS extends string = string>(field: FIELDS): FieldSort<FIELDS> {
   return {
     field,
     direction: SortDirection.DESC,
@@ -55,6 +55,6 @@ export function desc(field: string): FieldSort {
 /**
  * Interface for objects that support sorting.
  */
-export interface SortCapable {
-  sort?: FieldSort[];
+export interface SortCapable<FIELDS extends string = string> {
+  sort?: FieldSort<FIELDS>[];
 }
