@@ -53,7 +53,7 @@ export interface MaterializedSnapshot<S>
  * Each snapshot corresponds to a specific version of the state within a tenant and owner context,
  * and records information such as event IDs and operation times to support tracing and auditing.
  */
-export interface MaterializedSnapshot<S>
+export interface MediumMaterializedSnapshot<S>
   extends StateCapable<S>,
     NamedAggregate,
     TenantId,

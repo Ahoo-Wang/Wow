@@ -13,10 +13,10 @@
 
 import type {
   AggregateId,
-  CreateTimeCapable,
+  CreateTimeCapable, DeletedCapable, FirstEventTimeCapable, FirstOperatorCapable,
   Identifier,
   Named,
-  OwnerId,
+  OwnerId, StateCapable,
   Version,
 } from '../../types';
 import type { CommandId, CommandStage, RequestId } from '../../command';
@@ -102,6 +102,10 @@ export interface DomainEventStream<DomainEventBody = any>
    * The header information for the domain event stream.
    */
   header: DomainEventStreamHeader;
+}
+
+export interface StateEvent<DomainEventBody = any, S = any> extends DomainEventStream<DomainEventBody>, StateCapable<S>, FirstOperatorCapable, FirstEventTimeCapable, DeletedCapable {
+
 }
 
 /**
