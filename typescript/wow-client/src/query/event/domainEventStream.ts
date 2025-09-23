@@ -89,7 +89,7 @@ export interface DomainEventStreamHeader {
  * including identification, aggregation, ownership, command information,
  * versioning, and the actual event data.
  */
-export interface DomainEventStream
+export interface DomainEventStream<DomainEventBody = any>
   extends Identifier,
     AggregateId,
     OwnerId,
@@ -97,7 +97,7 @@ export interface DomainEventStream
     CreateTimeCapable,
     RequestId,
     Version,
-    BodyCapable<DomainEvent<any>[]> {
+    BodyCapable<DomainEvent<DomainEventBody>[]> {
   /**
    * The header information for the domain event stream.
    */
