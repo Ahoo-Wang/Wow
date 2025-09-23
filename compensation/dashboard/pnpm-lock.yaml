@@ -22,7 +22,7 @@ importers:
         version: 1.9.5
       '@ahoo-wang/fetcher-wow':
         specifier: ^1.9.5
-        version: 1.9.5
+        version: 1.9.8
       '@ant-design/icons':
         specifier: ^6.0.2
         version: 6.0.2(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
@@ -132,14 +132,20 @@ packages:
   '@ahoo-wang/fetcher-eventstream@1.9.5':
     resolution: {integrity: sha512-//M01Yc1FFV5mjJpjFX4VPPh6z6dOMe/mZC9CUoHYBPtS8Pdod4HYQk50fEV4R58o2zJbA/PJNEMSCB0ig8WfA==}
 
+  '@ahoo-wang/fetcher-eventstream@1.9.8':
+    resolution: {integrity: sha512-kALmLEqWDS9hlsRG/CZEIVTEw7rORZotLscZ6WA4BCip3wFwQz2XsygxRlSFgUo7FMETmVjyJuMBYMf3Z3KJzg==}
+
   '@ahoo-wang/fetcher-storage@1.9.5':
     resolution: {integrity: sha512-oYbFYoCs+SpvzWJ0ZQYa6dpwJyUE27hGc66mK803BJhbZ+chK6MStRAiNZJ6nSevPqscPCkHaeOn/+qaOlzwwA==}
 
-  '@ahoo-wang/fetcher-wow@1.9.5':
-    resolution: {integrity: sha512-aH8ujovrpIQE5Brovvn2EUVCGs8bUTkeK8TUPTBtqrEfVPRN73a30jdrbLMmsZeNZyJ9ECC8In689+QjRuRDHg==}
+  '@ahoo-wang/fetcher-wow@1.9.8':
+    resolution: {integrity: sha512-QiA/oYsWpUCJf6WA2ggBoEHSDcEMiyUZgGyJQXqLtXeCWIfuLkaN4rvgZtcjJoQ+dO0fvhw+auGTyN5ICJ4Ohw==}
 
   '@ahoo-wang/fetcher@1.9.5':
     resolution: {integrity: sha512-K1kvaTKDcTrbl0lLeKGC9D/yErX+QDrLug6ANaQsz/cNP0s8zpAw9ULhJZwhPXPwzibwArrEqxOq1mFQp3o5ZA==}
+
+  '@ahoo-wang/fetcher@1.9.8':
+    resolution: {integrity: sha512-+T/gXbcRU94+Ju2lvB1VBjdsk3itTSbux03MAGXjwPEbIPPwomeuU2voeNHZE8uLLGGowMqrmpUwYJHyCcYXxA==}
 
   '@ampproject/remapping@2.3.0':
     resolution: {integrity: sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw==}
@@ -2486,14 +2492,20 @@ snapshots:
     dependencies:
       '@ahoo-wang/fetcher': 1.9.5
 
+  '@ahoo-wang/fetcher-eventstream@1.9.8':
+    dependencies:
+      '@ahoo-wang/fetcher': 1.9.8
+
   '@ahoo-wang/fetcher-storage@1.9.5': {}
 
-  '@ahoo-wang/fetcher-wow@1.9.5':
+  '@ahoo-wang/fetcher-wow@1.9.8':
     dependencies:
-      '@ahoo-wang/fetcher': 1.9.5
-      '@ahoo-wang/fetcher-eventstream': 1.9.5
+      '@ahoo-wang/fetcher': 1.9.8
+      '@ahoo-wang/fetcher-eventstream': 1.9.8
 
   '@ahoo-wang/fetcher@1.9.5': {}
+
+  '@ahoo-wang/fetcher@1.9.8': {}
 
   '@ampproject/remapping@2.3.0':
     dependencies:
