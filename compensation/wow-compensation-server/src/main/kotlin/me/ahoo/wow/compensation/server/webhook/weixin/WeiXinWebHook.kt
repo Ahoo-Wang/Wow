@@ -33,6 +33,7 @@ import me.ahoo.wow.compensation.server.webhook.weixin.client.WeiXinSendMessage.C
 import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
 import reactor.core.publisher.Mono
 
+@ConditionalOnWeiXinWebHookEnabled
 @EventProcessor
 class WeiXinWebHook(
     private val compensationProperties: CompensationProperties,
