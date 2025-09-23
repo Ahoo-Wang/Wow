@@ -87,7 +87,8 @@ class SchemaGeneratorBuilder {
         Option.EXTRA_OPEN_API_FORMAT_VALUES,
         Option.PLAIN_DEFINITION_KEYS,
         Option.SIMPLIFIED_ENUMS,
-        Option.MAP_VALUES_AS_ADDITIONAL_PROPERTIES
+        Option.MAP_VALUES_AS_ADDITIONAL_PROPERTIES,
+        Option.INLINE_NULLABLE_SCHEMAS
     )
         private set
     var customizer: Consumer<SchemaGeneratorConfigBuilder>? = Consumer {
