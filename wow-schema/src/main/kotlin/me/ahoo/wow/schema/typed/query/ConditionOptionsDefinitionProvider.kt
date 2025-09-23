@@ -13,22 +13,10 @@
 
 package me.ahoo.wow.schema.typed.query
 
-import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.query.Operator
-import me.ahoo.wow.example.domain.order.Order
-import me.ahoo.wow.schema.typed.AggregatedFields
-import org.junit.jupiter.api.Test
+import me.ahoo.wow.api.query.ConditionOptions
+import me.ahoo.wow.schema.typed.TypedCustomDefinitionProvider
 
-class AggregatedConditionTest {
-
-    @Test
-    fun ctor() {
-        val condition = AggregatedCondition(
-            field = object : AggregatedFields<Order> {},
-            operator = Operator.EQ,
-            value = "test",
-            children = emptyList(),
-        )
-        condition.assert().isNotNull()
-    }
+object ConditionOptionsDefinitionProvider : TypedCustomDefinitionProvider() {
+    override val type: Class<*>
+        get() = ConditionOptions::class.java
 }

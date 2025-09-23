@@ -29,6 +29,7 @@ import me.ahoo.wow.schema.typed.StateEventDefinitionProvider
 import me.ahoo.wow.schema.typed.query.AggregatedListQueryDefinitionProvider
 import me.ahoo.wow.schema.typed.query.AggregatedPagedQueryDefinitionProvider
 import me.ahoo.wow.schema.typed.query.AggregatedSingleQueryDefinitionProvider
+import me.ahoo.wow.schema.typed.query.ConditionOptionsDefinitionProvider
 import me.ahoo.wow.schema.web.ServerSentEventCustomDefinitionProvider
 
 class WowModule(
@@ -54,6 +55,7 @@ class WowModule(
         generalConfigPart.withCustomDefinitionProvider(SnapshotDefinitionProvider)
         generalConfigPart.withCustomDefinitionProvider(StateEventDefinitionProvider)
         generalConfigPart.withCustomDefinitionProvider(ServerSentEventCustomDefinitionProvider)
+        generalConfigPart.withCustomDefinitionProvider(ConditionOptionsDefinitionProvider)
     }
 
     private fun ignoreCommandRouteVariable(configPart: SchemaGeneratorConfigPart<FieldScope>) {
