@@ -109,9 +109,9 @@ import {
  *
  * @template S The type of the snapshot state
  */
-export class SnapshotQueryClient<S>
-  extends QueryClient
-  implements SnapshotQueryApi<S> {
+export class SnapshotQueryClient<S, FIELDS extends string = string>
+  extends QueryClient<FIELDS>
+  implements SnapshotQueryApi<S, FIELDS> {
   /**
    * Creates a new SnapshotQueryClient instance.
    * @param options - The configuration options for the client
@@ -136,7 +136,7 @@ export class SnapshotQueryClient<S>
    * ```
    */
   async count(
-    condition: Condition,
+    condition: Condition<FIELDS>,
     attributes?: Record<string, any>,
   ): Promise<number> {
     return this.query(SnapshotQueryEndpointPaths.COUNT, condition, {
@@ -168,7 +168,7 @@ export class SnapshotQueryClient<S>
     T extends Partial<MaterializedSnapshot<S>> = Partial<
       MaterializedSnapshot<S>
     >,
-  >(listQuery: ListQuery, attributes?: Record<string, any>): Promise<T[]> {
+  >(listQuery: ListQuery<FIELDS>, attributes?: Record<string, any>): Promise<T[]> {
     return this.query(SnapshotQueryEndpointPaths.LIST, listQuery, {
       attributes,
     });
@@ -200,7 +200,7 @@ export class SnapshotQueryClient<S>
       MaterializedSnapshot<S>
     >,
   >(
-    listQuery: ListQuery,
+    listQuery: ListQuery<FIELDS>,
     attributes?: Record<string, any>,
   ): Promise<ReadableStream<JsonServerSentEvent<T>>> {
     return this.query(
@@ -235,7 +235,7 @@ export class SnapshotQueryClient<S>
    * ```
    */
   listState<T extends Partial<S> = Partial<S>>(
-    listQuery: ListQuery,
+    listQuery: ListQuery<FIELDS>,
     attributes?: Record<string, any>,
   ): Promise<T[]> {
     return this.query(SnapshotQueryEndpointPaths.LIST_STATE, listQuery, {
@@ -265,7 +265,7 @@ export class SnapshotQueryClient<S>
    * ```
    */
   listStateStream<T extends Partial<S> = Partial<S>>(
-    listQuery: ListQuery,
+    listQuery: ListQuery<FIELDS>,
     attributes?: Record<string, any>,
   ): Promise<ReadableStream<JsonServerSentEvent<T>>> {
     return this.query(
@@ -307,7 +307,7 @@ export class SnapshotQueryClient<S>
       MaterializedSnapshot<S>
     >,
   >(
-    pagedQuery: PagedQuery,
+    pagedQuery: PagedQuery<FIELDS>,
     attributes?: Record<string, any>,
   ): Promise<PagedList<T>> {
     return this.query(SnapshotQueryEndpointPaths.PAGED, pagedQuery, {
@@ -338,7 +338,7 @@ export class SnapshotQueryClient<S>
    * ```
    */
   pagedState<T extends Partial<S> = Partial<S>>(
-    pagedQuery: PagedQuery,
+    pagedQuery: PagedQuery<FIELDS>,
     attributes?: Record<string, any>,
   ): Promise<PagedList<T>> {
     return this.query(SnapshotQueryEndpointPaths.PAGED_STATE, pagedQuery, {
@@ -368,7 +368,7 @@ export class SnapshotQueryClient<S>
     T extends Partial<MaterializedSnapshot<S>> = Partial<
       MaterializedSnapshot<S>
     >,
-  >(singleQuery: SingleQuery, attributes?: Record<string, any>): Promise<T> {
+  >(singleQuery: SingleQuery<FIELDS>, attributes?: Record<string, any>): Promise<T> {
     return this.query(SnapshotQueryEndpointPaths.SINGLE, singleQuery, {
       attributes,
     });
@@ -393,7 +393,7 @@ export class SnapshotQueryClient<S>
    * ```
    */
   singleState<T extends Partial<S> = Partial<S>>(
-    singleQuery: SingleQuery,
+    singleQuery: SingleQuery<FIELDS>,
     attributes?: Record<string, any>,
   ): Promise<T> {
     return this.query(SnapshotQueryEndpointPaths.SINGLE_STATE, singleQuery, {

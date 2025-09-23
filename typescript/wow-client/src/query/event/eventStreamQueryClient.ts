@@ -69,9 +69,9 @@ import { ContentTypeValues, mergeRequestOptions } from '@ahoo-wang/fetcher';
  * const paged = await eventStreamQueryClient.paged(pagedQuery);
  * ```
  */
-export class EventStreamQueryClient
-  extends QueryClient
-  implements EventStreamQueryApi {
+export class EventStreamQueryClient<FIELDS extends string = string>
+  extends QueryClient<FIELDS>
+  implements EventStreamQueryApi<FIELDS> {
   /**
    * Creates a new EventStreamQueryClient instance.
    * @param options - The client configuration options including fetcher and base path
@@ -96,7 +96,7 @@ export class EventStreamQueryClient
    * ```
    */
   count(
-    condition: Condition,
+    condition: Condition<FIELDS>,
     attributes?: Record<string, any>,
   ): Promise<number> {
     return this.query(EventStreamQueryEndpointPaths.COUNT, condition, {
@@ -125,7 +125,7 @@ export class EventStreamQueryClient
    * ```
    */
   list<T extends Partial<DomainEventStream> = Partial<DomainEventStream>>(
-    listQuery: ListQuery,
+    listQuery: ListQuery<FIELDS>,
     attributes?: Record<string, any>,
   ): Promise<T[]> {
     return this.query(EventStreamQueryEndpointPaths.LIST, listQuery, {
@@ -156,7 +156,7 @@ export class EventStreamQueryClient
    * ```
    */
   listStream<T extends Partial<DomainEventStream> = Partial<DomainEventStream>>(
-    listQuery: ListQuery,
+    listQuery: ListQuery<FIELDS>,
     attributes?: Record<string, any>,
   ): Promise<ReadableStream<JsonServerSentEvent<T>>> {
     return this.query(
@@ -194,7 +194,7 @@ export class EventStreamQueryClient
    * ```
    */
   paged<T extends Partial<DomainEventStream> = Partial<DomainEventStream>>(
-    pagedQuery: PagedQuery,
+    pagedQuery: PagedQuery<FIELDS>,
     attributes?: Record<string, any>,
   ): Promise<PagedList<T>> {
     return this.query(EventStreamQueryEndpointPaths.PAGED, pagedQuery, {

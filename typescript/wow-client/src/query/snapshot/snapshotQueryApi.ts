@@ -27,7 +27,7 @@ import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
  * for querying snapshot states directly without the full MaterializedSnapshot wrapper.
  * @template S - The type of the snapshot state
  */
-export interface SnapshotQueryApi<S> extends QueryApi<MaterializedSnapshot<S>> {
+export interface SnapshotQueryApi<S, FIELDS extends string = string> extends QueryApi<MaterializedSnapshot<S>, FIELDS> {
   /**
    * Retrieves a single snapshot state based on the provided query parameters.
    * @param singleQuery - The query parameters for retrieving a single snapshot state
@@ -37,7 +37,7 @@ export interface SnapshotQueryApi<S> extends QueryApi<MaterializedSnapshot<S>> {
    * @returns A promise that resolves to a partial snapshot state
    */
   singleState<T extends Partial<S> = Partial<S>>(
-    singleQuery: SingleQuery,
+    singleQuery: SingleQuery<FIELDS>,
     attributes?: Record<string, any>,
   ): Promise<T>;
 
@@ -50,7 +50,7 @@ export interface SnapshotQueryApi<S> extends QueryApi<MaterializedSnapshot<S>> {
    * @returns A promise that resolves to an array of partial snapshot states
    */
   listState<T extends Partial<S> = Partial<S>>(
-    listQuery: ListQuery,
+    listQuery: ListQuery<FIELDS>,
     attributes?: Record<string, any>,
   ): Promise<T[]>;
 
@@ -63,7 +63,7 @@ export interface SnapshotQueryApi<S> extends QueryApi<MaterializedSnapshot<S>> {
    * @returns A promise that resolves to a readable stream of JSON server-sent events containing partial snapshot states
    */
   listStateStream<T extends Partial<S> = Partial<S>>(
-    listQuery: ListQuery,
+    listQuery: ListQuery<FIELDS>,
     attributes?: Record<string, any>,
   ): Promise<ReadableStream<JsonServerSentEvent<T>>>;
 
@@ -76,7 +76,7 @@ export interface SnapshotQueryApi<S> extends QueryApi<MaterializedSnapshot<S>> {
    * @returns A promise that resolves to a paged list of partial snapshot states
    */
   pagedState<T extends Partial<S> = Partial<S>>(
-    pagedQuery: PagedQuery,
+    pagedQuery: PagedQuery<FIELDS>,
     attributes?: Record<string, any>,
   ): Promise<PagedList<T>>;
 }

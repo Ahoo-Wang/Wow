@@ -49,7 +49,7 @@ export const JSON_EVENT_STREAM_QUERY_REQUEST_OPTIONS: RequestOptions = {
  * @see {@link SnapshotQueryApi}
  * @template R - The type of resource being queried
  */
-export interface QueryApi<R> {
+export interface QueryApi<R, FIELDS extends string = string> {
   /**
    * Retrieves a single resource based on the provided query parameters.
    * @param singleQuery - The query parameters for retrieving a single resource
@@ -59,7 +59,7 @@ export interface QueryApi<R> {
    * @returns A promise that resolves to a partial resource
    */
   single<T extends Partial<R> = Partial<R>>(
-    singleQuery: SingleQuery,
+    singleQuery: SingleQuery<FIELDS>,
     attributes?: Record<string, any>,
   ): Promise<T>;
 
@@ -72,7 +72,7 @@ export interface QueryApi<R> {
    * @returns A promise that resolves to an array of partial resources
    */
   list<T extends Partial<R> = Partial<R>>(
-    listQuery: ListQuery,
+    listQuery: ListQuery<FIELDS>,
     attributes?: Record<string, any>,
   ): Promise<T[]>;
 
@@ -85,7 +85,7 @@ export interface QueryApi<R> {
    * @returns A promise that resolves to a readable stream of JSON server-sent events containing partial resources
    */
   listStream<T extends Partial<R> = Partial<R>>(
-    listQuery: ListQuery,
+    listQuery: ListQuery<FIELDS>,
     attributes?: Record<string, any>,
   ): Promise<ReadableStream<JsonServerSentEvent<T>>>;
 
@@ -98,7 +98,7 @@ export interface QueryApi<R> {
    * @returns A promise that resolves to a paged list of partial resources
    */
   paged<T extends Partial<R> = Partial<R>>(
-    pagedQuery: PagedQuery,
+    pagedQuery: PagedQuery<FIELDS>,
     attributes?: Record<string, any>,
   ): Promise<PagedList<T>>;
 
@@ -111,7 +111,7 @@ export interface QueryApi<R> {
    * @returns A promise that resolves to the count of matching resources
    */
   count(
-    condition: Condition,
+    condition: Condition<FIELDS>,
     attributes?: Record<string, any>,
   ): Promise<number>;
 }
@@ -124,7 +124,7 @@ export interface QueryApi<R> {
  * @see {@link EventStreamQueryClient}
  * @see {@link SnapshotQueryClient}
  */
-export class QueryClient {
+export class QueryClient<FIELDS extends string = string> {
   /**
    * Creates a new QueryClient instance.
    * @param options - The client configuration options including fetcher and base path
@@ -148,7 +148,7 @@ export class QueryClient {
    */
   protected async query<R>(
     path: string,
-    query: Condition | ListQuery | PagedQuery | SingleQuery,
+    query: Condition<FIELDS> | ListQuery<FIELDS> | PagedQuery<FIELDS> | SingleQuery<FIELDS>,
     options?: RequestOptions,
     accept: string = ContentTypeValues.APPLICATION_JSON,
   ): Promise<R> {
