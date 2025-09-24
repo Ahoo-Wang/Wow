@@ -12,8 +12,7 @@
  */
 
 import type {
-  FetchRequestInit,
-  RequestHeaders,
+  RequestHeaders, RequiredBy,
   UrlParams,
 } from '@ahoo-wang/fetcher';
 import { CommandHeaders } from './commandHeaders';
@@ -151,13 +150,13 @@ export interface CommandUrlParams extends Omit<UrlParams, 'path' | 'query'> {
 }
 
 /**
- * Command HTTP Request Interface
+ * Command Request Interface
  *
  * Extends RequestHeaders to provide type-safe access to command-related HTTP headers.
  * This interface includes only the essential command headers commonly used in HTTP requests.
  */
 export interface CommandRequest<C extends object = object>
-  extends ParameterRequest {
+  extends RequiredBy<ParameterRequest, 'path'> {
   urlParams?: CommandUrlParams;
   headers?: CommandRequestHeaders;
   /**
