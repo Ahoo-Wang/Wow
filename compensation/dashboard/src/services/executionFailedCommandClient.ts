@@ -50,8 +50,7 @@ export class ExecutionFailedCommandClient extends CommandClient {
       method: HttpMethod.PUT,
       urlParams: {
         path: { id },
-      },
-      body: {},
+      }
     };
     return this.send(commandRequest);
   }
@@ -63,7 +62,6 @@ export class ExecutionFailedCommandClient extends CommandClient {
       urlParams: {
         path: { id },
       },
-      body: {},
     };
     return this.send(commandRequest);
   }
