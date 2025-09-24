@@ -162,5 +162,5 @@ export interface CommandRequest<C extends object = object>
   /**
    * The body of the command request.
    */
-  body: C;
+  body?: C;
 }
