@@ -18,20 +18,9 @@ import type {
   SingleQuery,
 } from './queryable';
 import {
-  JsonEventStreamResultExtractor,
   JsonServerSentEvent,
 } from '@ahoo-wang/fetcher-eventstream';
 import type { Condition } from './condition';
-import type { ClientOptions } from '../types';
-import {
-  combineURLs,
-  ContentTypeValues,
-  HttpMethod,
-  mergeRequestOptions,
-  RequestOptions,
-  ResultExtractors,
-} from '@ahoo-wang/fetcher';
-import { attribute } from '@ahoo-wang/fetcher-decorator';
 
 /**
  * Interface for generic query API operations.

@@ -14,7 +14,7 @@
 import { HttpMethod } from '@ahoo-wang/fetcher';
 import {
   all,
-  CommandHttpHeaders,
+  CommandHeaders,
   CommandStage,
   ErrorCodes,
   ListQuery,
@@ -32,7 +32,7 @@ import {
 const command: AddCartItemCommand = {
   method: HttpMethod.POST,
   headers: {
-    [CommandHttpHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT,
+    [CommandHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT,
   },
   body: {
     productId: 'productId',

@@ -12,7 +12,7 @@
  */
 
 export * from './commandClient';
-export * from './commandHttpHeaders';
+export * from './commandHeaders';
 export * from './commandRequest';
 export * from './commandResult';
 export * from './types';

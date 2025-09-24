@@ -16,7 +16,7 @@ import { ExchangeError, HttpMethod } from '@ahoo-wang/fetcher';
 import '@ahoo-wang/fetcher-eventstream';
 import {
   all,
-  CommandHttpHeaders,
+  CommandHeaders,
   CommandStage,
   ErrorCodes,
   id,
@@ -38,7 +38,7 @@ import { CartState } from '../../../src/wow';
 const command: AddCartItemCommand = {
   method: HttpMethod.POST,
   headers: {
-    [CommandHttpHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT,
+    [CommandHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT,
   },
   body: {
     productId: 'productId',

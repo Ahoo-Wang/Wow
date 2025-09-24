@@ -15,7 +15,7 @@ import { describe, it, expect } from 'vitest';
 import { HttpMethod } from '@ahoo-wang/fetcher';
 import '@ahoo-wang/fetcher-eventstream';
 import {
-  CommandHttpHeaders,
+  CommandHeaders,
   CommandResult,
   CommandStage,
   ErrorCodes,
@@ -49,7 +49,7 @@ describe('cartCommandClient Integration Test', () => {
   const addCartItemCommand: AddCartItemCommand = {
     method: HttpMethod.POST,
     headers: {
-      [CommandHttpHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT,
+      [CommandHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT,
     },
     body: {
       productId: 'productId',
