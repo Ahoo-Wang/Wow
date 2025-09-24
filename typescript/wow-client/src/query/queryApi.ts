@@ -40,7 +40,7 @@ export interface QueryApi<R, FIELDS extends string = string> {
    *                     custom data between different interceptors.
    * @returns A promise that resolves to a partial resource
    */
-  single<T extends Partial<R> = Partial<R>>(
+  single<T extends Partial<R> = R>(
     singleQuery: SingleQuery<FIELDS>,
     attributes?: Record<string, any>,
   ): Promise<T>;
@@ -53,7 +53,7 @@ export interface QueryApi<R, FIELDS extends string = string> {
    *                     custom data between different interceptors.
    * @returns A promise that resolves to an array of partial resources
    */
-  list<T extends Partial<R> = Partial<R>>(
+  list<T extends Partial<R> = R>(
     listQuery: ListQuery<FIELDS>,
     attributes?: Record<string, any>,
   ): Promise<T[]>;
@@ -66,7 +66,7 @@ export interface QueryApi<R, FIELDS extends string = string> {
    *                     custom data between different interceptors.
    * @returns A promise that resolves to a readable stream of JSON server-sent events containing partial resources
    */
-  listStream<T extends Partial<R> = Partial<R>>(
+  listStream<T extends Partial<R> = R>(
     listQuery: ListQuery<FIELDS>,
     attributes?: Record<string, any>,
   ): Promise<ReadableStream<JsonServerSentEvent<T>>>;
@@ -79,7 +79,7 @@ export interface QueryApi<R, FIELDS extends string = string> {
    *                     custom data between different interceptors.
    * @returns A promise that resolves to a paged list of partial resources
    */
-  paged<T extends Partial<R> = Partial<R>>(
+  paged<T extends Partial<R> = R>(
     pagedQuery: PagedQuery<FIELDS>,
     attributes?: Record<string, any>,
   ): Promise<PagedList<T>>;

@@ -21,8 +21,8 @@ import type { QueryApi } from '../queryApi';
  * @template DomainEventStream - The type of domain event stream this API works with
  */
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface EventStreamQueryApi<FIELDS extends string = string>
-  extends Omit<QueryApi<DomainEventStream, FIELDS>, 'single'> {
+export interface EventStreamQueryApi<DomainEventBody = any, FIELDS extends string = string>
+  extends Omit<QueryApi<DomainEventStream<DomainEventBody>, FIELDS>, 'single'> {
 }
 
 /**
