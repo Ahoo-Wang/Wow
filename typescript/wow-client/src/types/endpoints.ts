@@ -16,7 +16,7 @@
  * Defines common path parameters and allows for additional custom parameters.
  * This interface is used to provide path variables for URL templating.
  */
-export interface PathParams {
+export interface UrlPathParams {
   /**
    * Tenant identifier parameter.
    * Used in multi-tenant applications to identify the tenant context.

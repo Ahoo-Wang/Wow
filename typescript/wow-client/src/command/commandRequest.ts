@@ -17,7 +17,7 @@ import type {
   UrlParams,
 } from '@ahoo-wang/fetcher';
 import { CommandHttpHeaders } from './commandHttpHeaders';
-import { type PathParams } from '../types/endpoints';
+import { type UrlPathParams } from '../types/endpoints';
 
 /**
  * Command Request Headers Interface
@@ -146,7 +146,7 @@ export interface CommandRequestHeaders extends RequestHeaders {
 }
 
 export interface CommandUrlParams extends Omit<UrlParams, 'path' | 'query'> {
-  path?: PathParams;
+  path?: UrlPathParams;
 }
 
 /**
