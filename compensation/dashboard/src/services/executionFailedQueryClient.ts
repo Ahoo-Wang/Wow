@@ -11,17 +11,18 @@
  * limitations under the License.
  */
 
-
-
 import {
   EventStreamQueryClient,
   SnapshotQueryClient,
 } from "@ahoo-wang/fetcher-wow";
-import type { ExecutionFailedState } from "./executionFailedState";
+import {
+  type ExecutionFailedState,
+} from "./executionFailedState";
 import { executionFailedClientOptions } from "./compensationFetcher";
 
-export const executionFailedSnapshotQueryClient =
-  new SnapshotQueryClient<ExecutionFailedState>(executionFailedClientOptions);
+export const executionFailedSnapshotQueryClient = new SnapshotQueryClient<
+  ExecutionFailedState
+>(executionFailedClientOptions);
 
 export const executionFailedEventQueryClient = new EventStreamQueryClient(
   executionFailedClientOptions,

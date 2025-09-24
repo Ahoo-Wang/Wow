@@ -11,15 +11,14 @@
  * limitations under the License.
  */
 
-import {
-  type AggregateId,
-  type BindingError,
-  type ErrorInfo,
-  type FunctionInfo,
-  type Identifier,
-  type RecoverableType,
-  SnapshotMetadataFields,
-  type Version,
+import type {
+  AggregateId,
+  BindingError,
+  ErrorInfo,
+  FunctionInfo,
+  Identifier,
+  RecoverableType,
+  Version,
 } from "@ahoo-wang/fetcher-wow";
 
 /**
@@ -69,13 +68,13 @@ export interface RetryState {
   timeoutAt: number;
 }
 
-export class ExecutionFailedFields {
-  static readonly STATUS = `${SnapshotMetadataFields.STATE}.status`;
-  static readonly RECOVERABLE = `${SnapshotMetadataFields.STATE}.recoverable`;
-  static readonly IS_RETRYABLE = `${SnapshotMetadataFields.STATE}.isRetryable`;
-  static readonly IS_BELOW_RETRY_THRESHOLD = `${SnapshotMetadataFields.STATE}.isBelowRetryThreshold`;
-  static readonly NEXT_RETRY_AT = `${SnapshotMetadataFields.STATE}.retryState.nextRetryAt`;
-  static readonly TIMEOUT_AT = `${SnapshotMetadataFields.STATE}.retryState.timeoutAt`;
+export enum ExecutionFailedFields {
+  STATUS = `state.status`,
+  RECOVERABLE = `state.recoverable`,
+  IS_RETRYABLE = `state.isRetryable`,
+  IS_BELOW_RETRY_THRESHOLD = `state.isBelowRetryThreshold`,
+  NEXT_RETRY_AT = `state.retryState.nextRetryAt`,
+  TIMEOUT_AT = `state.retryState.timeoutAt`,
 }
 
 /**

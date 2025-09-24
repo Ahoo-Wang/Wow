@@ -17,7 +17,7 @@ import { App, Dropdown } from "antd";
 import { FailedDetails } from "./details/FailedDetails.tsx";
 import { useGlobalDrawer } from "../../components/GlobalDrawer";
 import type { ItemType } from "antd/es/menu/interface";
-import { executionFailedCommandService } from "../../services/executionFailedCommandClient.ts";
+import { executionFailedCommandClient } from "../../services/executionFailedCommandClient.ts";
 
 export interface OnChangedCapable {
   onChanged?: () => void;
@@ -36,7 +36,7 @@ export function Actions({ state, onChanged }: ActionsProps) {
       key: "prepare",
       label: "Prepare",
       onClick: () => {
-        executionFailedCommandService
+        executionFailedCommandClient
           .prepare(state.id)
           .then(() => {
             notification.success({ message: "Prepare Success" });
@@ -54,7 +54,7 @@ export function Actions({ state, onChanged }: ActionsProps) {
       key: "forcePrepare",
       label: "Force Prepare",
       onClick: () => {
-        executionFailedCommandService
+        executionFailedCommandClient
           .forcePrepare(state.id)
           .then(() => {
             notification.success({ message: "Force Prepare Success" });

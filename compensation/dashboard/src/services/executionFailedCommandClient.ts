@@ -12,25 +12,20 @@
  */
 
 import {
-  type ClientOptions,
   CommandClient,
   type CommandRequest,
   type CommandResult,
   type FunctionInfo,
   type RecoverableType,
 } from "@ahoo-wang/fetcher-wow";
-import {
-  compensationFetcher,
-} from "./compensationFetcher";
+import { compensationFetcher } from "./compensationFetcher";
+import type { ApiMetadata } from "@ahoo-wang/fetcher-decorator";
 import { HttpMethod } from "@ahoo-wang/fetcher";
 
-export const executionFailedCommandClientOptions: ClientOptions = {
+export const executionFailedCommandClientOptions: ApiMetadata = {
   fetcher: compensationFetcher,
   basePath: "execution_failed/{id}",
 };
-export const executionFailedCommandClient = new CommandClient(
-  executionFailedCommandClientOptions,
-);
 
 export interface ApplyRetrySpec {
   maxRetries: number;
@@ -44,51 +39,81 @@ export interface MarkRecoverable {
 
 export interface ChangeFunction extends FunctionInfo {}
 
-export class ExecutionFailedCommandService {
-  private sendCommand(
-    path: string,
-    id: string,
-    commandBody: any = {},
-    method: HttpMethod = HttpMethod.PUT,
-  ): Promise<CommandResult> {
+export class ExecutionFailedCommandClient extends CommandClient {
+  constructor(apiMetadata?: ApiMetadata) {
+    super(apiMetadata);
+  }
+
+  prepare(id: string): Promise<CommandResult> {
     const commandRequest: CommandRequest = {
-      method: method,
+      path: "prepare_compensation",
+      method: HttpMethod.PUT,
       urlParams: {
         path: { id },
       },
-      body: commandBody,
+      body: {},
     };
-    return executionFailedCommandClient.send(path, commandRequest);
-  }
-  prepare(id: string): Promise<CommandResult> {
-    return this.sendCommand("prepare_compensation", id);
+    return this.send(commandRequest);
   }
 
   forcePrepare(id: string): Promise<CommandResult> {
-    return this.sendCommand("force_prepare_compensation", id);
+    const commandRequest: CommandRequest = {
+      path: "force_prepare_compensation",
+      method: HttpMethod.PUT,
+      urlParams: {
+        path: { id },
+      },
+      body: {},
+    };
+    return this.send(commandRequest);
   }
 
   applyRetrySpec(
     id: string,
     appRetrySpec: ApplyRetrySpec,
   ): Promise<CommandResult> {
-    return this.sendCommand("apply_retry_spec", id, appRetrySpec);
+    const commandRequest: CommandRequest<ApplyRetrySpec> = {
+      path: "apply_retry_spec",
+      method: HttpMethod.PUT,
+      urlParams: {
+        path: { id },
+      },
+      body: appRetrySpec,
+    };
+    return this.send(commandRequest);
   }
 
   markRecoverable(
     id: string,
     markRecoverable: MarkRecoverable,
   ): Promise<CommandResult> {
-    return this.sendCommand("mark_recoverable", id, markRecoverable);
+    const commandRequest: CommandRequest<MarkRecoverable> = {
+      path: "mark_recoverable",
+      method: HttpMethod.PUT,
+      urlParams: {
+        path: { id },
+      },
+      body: markRecoverable,
+    };
+    return this.send(commandRequest);
   }
 
   changeFunction(
     id: string,
     changeFunction: ChangeFunction,
   ): Promise<CommandResult> {
-    return this.sendCommand("change_function", id, changeFunction);
+    const commandRequest: CommandRequest<ChangeFunction> = {
+      path: "change_function",
+      method: HttpMethod.PUT,
+      urlParams: {
+        path: { id },
+      },
+      body: changeFunction,
+    };
+    return this.send(commandRequest);
   }
 }
 
-export const executionFailedCommandService =
-  new ExecutionFailedCommandService();
+export const executionFailedCommandClient = new ExecutionFailedCommandClient(
+  executionFailedCommandClientOptions,
+);
