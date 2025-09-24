@@ -45,6 +45,6 @@ class CommandBodyExtractor<C : Any>(private val commandRouteMetadata: CommandRou
 
 internal fun Mono<ObjectNode>.switchEmptyObjectNodeIfEmpty(): Mono<ObjectNode> {
     return switchIfEmpty {
-        ObjectNode(JsonSerializer.nodeFactory, mutableMapOf()).toMono()
+        ObjectNode(JsonSerializer.nodeFactory).toMono()
     }
 }
