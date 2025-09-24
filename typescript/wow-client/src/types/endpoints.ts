@@ -39,3 +39,24 @@ export interface UrlPathParams {
    */
   [key: string]: string | undefined;
 }
+
+/**
+ * Enumeration of resource attribution path specifications.
+ * Defines standard path patterns for accessing resources with different attribution scopes.
+ * These paths are used to construct URLs that include tenant and/or owner identifiers.
+ *
+ * @example
+ * ```typescript
+ * // Using TENANT path spec
+ * const path = ResourceAttributionPathSpec.TENANT; // 'tenant/{tenantId}'
+ *
+ * // Using TENANT_OWNER path spec
+ * const path = ResourceAttributionPathSpec.TENANT_OWNER; // 'tenant/{tenantId}/owner/{ownerId}'
+ * ```
+ */
+export enum ResourceAttributionPathSpec {
+  DEFAULT = '',
+  TENANT = 'tenant/{tenantId}',
+  OWNER = 'owner/{ownerId}',
+  TENANT_OWNER = 'tenant/{tenantId}/owner/{ownerId}',
+}
