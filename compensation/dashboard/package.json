@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@ahoo-wang/fetcher": "^1.9.8",
-    "@ahoo-wang/fetcher-cosec": "^1.9.8",
+    "@ahoo-wang/fetcher-cosec": "^2.0.0",
     "@ahoo-wang/fetcher-decorator": "^1.9.8",
     "@ahoo-wang/fetcher-eventstream": "^1.9.8",
     "@ahoo-wang/fetcher-wow": "^1.9.8",
