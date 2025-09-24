@@ -13,7 +13,7 @@
 
 import { Button, Form, InputNumber, App, Input } from "antd";
 import type { RetrySpec } from "../../services";
-import { executionFailedCommandService } from "../../services/executionFailedCommandClient.ts";
+import { executionFailedCommandClient } from "../../services/executionFailedCommandClient.ts";
 import { useGlobalDrawer } from "../../components/GlobalDrawer";
 import type { OnChangedCapable } from "./Actions.tsx";
 
@@ -40,7 +40,7 @@ export function ApplyRetrySpec({
 
   const handleOk = () => {
     form.validateFields().then((values) => {
-      executionFailedCommandService
+      executionFailedCommandClient
         .applyRetrySpec(id, values)
         .then(() => {
           notification.info({ message: "Apply Retry Spec Successfully" });

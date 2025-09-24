@@ -12,7 +12,7 @@
  */
 
 import { NamedFetcher } from "@ahoo-wang/fetcher";
-import type { ClientOptions } from "@ahoo-wang/fetcher-wow";
+import { type ApiMetadata } from "@ahoo-wang/fetcher-decorator";
 import { cosecRequestInterceptor } from "./cosec.ts";
 
 export const COMPENSATION_FETCHER_NAME = "compensation";
@@ -20,7 +20,7 @@ export const compensationFetcher = new NamedFetcher(COMPENSATION_FETCHER_NAME, {
   baseURL: import.meta.env.VITE_API_BASE_URL,
 });
 compensationFetcher.interceptors.request.use(cosecRequestInterceptor);
-export const executionFailedClientOptions: ClientOptions = {
+export const executionFailedClientOptions: ApiMetadata = {
   fetcher: compensationFetcher,
   basePath: "execution_failed",
 };

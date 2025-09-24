@@ -77,6 +77,7 @@ export default function FailedView({ category }: FailedViewProps) {
         condition: and(
           RetryConditions.categoryToCondition(category),
           searchCondition,
+
         ),
         pagination: searchPagination,
         sort: [desc(SnapshotMetadataFields.FIRST_EVENT_TIME)],

@@ -13,7 +13,7 @@
 
 import { App, Button, Form, Input, Select } from "antd";
 import { type FunctionInfo, type Identifier } from "@ahoo-wang/fetcher-wow";
-import { executionFailedCommandService } from "../../services/executionFailedCommandClient.ts";
+import { executionFailedCommandClient } from "../../services/executionFailedCommandClient.ts";
 import type { OnChangedCapable } from "./Actions.tsx";
 import { useGlobalDrawer } from "../../components/GlobalDrawer";
 
@@ -39,7 +39,7 @@ export function ChangeFunction({
   });
   const handleOk = () => {
     form.validateFields().then((values) => {
-      executionFailedCommandService
+      executionFailedCommandClient
         .changeFunction(id, values)
         .then(() => {
           onChanged?.();

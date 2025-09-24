@@ -14,7 +14,7 @@
 import { App, Select } from "antd";
 import { type Identifier, RecoverableType } from "@ahoo-wang/fetcher-wow";
 import {
-  executionFailedCommandService,
+  executionFailedCommandClient,
   type MarkRecoverable,
 } from "../../services/executionFailedCommandClient.ts";
 import type { OnChangedCapable } from "./Actions.tsx";
@@ -35,7 +35,7 @@ export function MarkRecoverable({
   );
   const change = async (recoverable: RecoverableType) => {
     try {
-      await executionFailedCommandService.markRecoverable(id, {
+      await executionFailedCommandClient.markRecoverable(id, {
         recoverable,
       });
       notification.success({
