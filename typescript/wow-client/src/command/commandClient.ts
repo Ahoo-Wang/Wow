@@ -74,7 +74,7 @@ import {
  * ```
  */
 @api()
-export class CommandClient implements ApiMetadataCapable {
+export class CommandClient<C extends object = object> implements ApiMetadataCapable {
   constructor(public readonly apiMetadata?: ApiMetadata) {
   }
 
@@ -99,7 +99,7 @@ export class CommandClient implements ApiMetadataCapable {
    * ```
    */
   @endpoint()
-  send<C extends object = object>(
+  send(
     @request() commandRequest: CommandRequest<C>,
     @attribute() attributes?: Record<string, any>,
   ): Promise<CommandResult> {
@@ -138,7 +138,7 @@ export class CommandClient implements ApiMetadataCapable {
     headers: { Accept: ContentTypeValues.TEXT_EVENT_STREAM },
     resultExtractor: JsonEventStreamResultExtractor,
   })
-  sendAndWaitStream<C extends object = object>(
+  sendAndWaitStream(
     @request() commandRequest: CommandRequest<C>,
     @attribute() attributes?: Record<string, any>,
   ): Promise<CommandResultEventStream> {
