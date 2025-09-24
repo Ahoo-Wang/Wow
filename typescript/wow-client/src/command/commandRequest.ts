@@ -156,7 +156,7 @@ export interface CommandUrlParams extends Omit<UrlParams, 'path' | 'query'> {
  * This interface includes only the essential command headers commonly used in HTTP requests.
  */
 export interface CommandRequest<C extends object = object>
-  extends RequiredBy<ParameterRequest, 'path'> {
+  extends ParameterRequest {
   urlParams?: CommandUrlParams;
   headers?: CommandRequestHeaders;
   /**
