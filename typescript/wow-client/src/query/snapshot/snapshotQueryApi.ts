@@ -36,7 +36,7 @@ export interface SnapshotQueryApi<S, FIELDS extends string = string> extends Que
    *                     custom data between different interceptors.
    * @returns A promise that resolves to a partial snapshot state
    */
-  singleState<T extends Partial<S> = Partial<S>>(
+  singleState<T extends Partial<S> = S>(
     singleQuery: SingleQuery<FIELDS>,
     attributes?: Record<string, any>,
   ): Promise<T>;
@@ -49,7 +49,7 @@ export interface SnapshotQueryApi<S, FIELDS extends string = string> extends Que
    *                     custom data between different interceptors.
    * @returns A promise that resolves to an array of partial snapshot states
    */
-  listState<T extends Partial<S> = Partial<S>>(
+  listState<T extends Partial<S> = S>(
     listQuery: ListQuery<FIELDS>,
     attributes?: Record<string, any>,
   ): Promise<T[]>;
@@ -62,7 +62,7 @@ export interface SnapshotQueryApi<S, FIELDS extends string = string> extends Que
    *                     custom data between different interceptors.
    * @returns A promise that resolves to a readable stream of JSON server-sent events containing partial snapshot states
    */
-  listStateStream<T extends Partial<S> = Partial<S>>(
+  listStateStream<T extends Partial<S> = S>(
     listQuery: ListQuery<FIELDS>,
     attributes?: Record<string, any>,
   ): Promise<ReadableStream<JsonServerSentEvent<T>>>;
@@ -75,7 +75,7 @@ export interface SnapshotQueryApi<S, FIELDS extends string = string> extends Que
    *                     custom data between different interceptors.
    * @returns A promise that resolves to a paged list of partial snapshot states
    */
-  pagedState<T extends Partial<S> = Partial<S>>(
+  pagedState<T extends Partial<S> = S>(
     pagedQuery: PagedQuery<FIELDS>,
     attributes?: Record<string, any>,
   ): Promise<PagedList<T>>;
