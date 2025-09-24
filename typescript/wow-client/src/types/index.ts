@@ -11,7 +11,6 @@
  * limitations under the License.
  */
 
-export * from './client';
 export * from './common';
 export * from './error';
 export * from './function';

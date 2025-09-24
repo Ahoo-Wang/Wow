@@ -31,14 +31,7 @@ import {
   RequestOptions,
   ResultExtractors,
 } from '@ahoo-wang/fetcher';
-
-export const JSON_QUERY_REQUEST_OPTIONS: RequestOptions = {
-  resultExtractor: ResultExtractors.Json,
-};
-
-export const JSON_EVENT_STREAM_QUERY_REQUEST_OPTIONS: RequestOptions = {
-  resultExtractor: JsonEventStreamResultExtractor,
-};
+import { attribute } from '@ahoo-wang/fetcher-decorator';
 
 /**
  * Interface for generic query API operations.
@@ -114,56 +107,4 @@ export interface QueryApi<R, FIELDS extends string = string> {
     condition: Condition<FIELDS>,
     attributes?: Record<string, any>,
   ): Promise<number>;
-}
-
-/**
- * Base client for performing query operations.
- * Provides a generic query method that handles the common logic for sending requests
- * and processing responses for different types of queries.
- *
- * @see {@link EventStreamQueryClient}
- * @see {@link SnapshotQueryClient}
- */
-export class QueryClient<FIELDS extends string = string> {
-  /**
-   * Creates a new QueryClient instance.
-   * @param options - The client configuration options including fetcher and base path
-   */
-  constructor(protected readonly options: ClientOptions) {
-  }
-
-  /**
-   * Performs a generic query operation by sending a request to the specified path.
-   * @template R The return type of the query
-   * @param path - The endpoint path to query
-   * @param query - The query parameters to send
-   * @param accept - The content type to accept from the server, defaults to application/json
-   * @param options - Request options including result extractor and attributes
-   * @param options.resultExtractor - Function to extract the desired result from the exchange.
-   *                                  Defaults to JsonResultExtractor which returns the entire exchange object.
-   * @param options.attributes - Optional shared attributes that can be accessed by interceptors
-   *                             throughout the request lifecycle. These attributes allow passing
-   *                             custom data between different interceptors.
-   * @returns A promise that resolves to the query result
-   */
-  protected async query<R>(
-    path: string,
-    query: Condition<FIELDS> | ListQuery<FIELDS> | PagedQuery<FIELDS> | SingleQuery<FIELDS>,
-    options?: RequestOptions,
-    accept: string = ContentTypeValues.APPLICATION_JSON,
-  ): Promise<R> {
-    const url = combineURLs(this.options.basePath, path);
-    const request = {
-      url: url,
-      method: HttpMethod.POST,
-      headers: {
-        Accept: accept,
-      },
-      body: query,
-    };
-    return await this.options.fetcher.request(
-      request,
-      mergeRequestOptions(JSON_QUERY_REQUEST_OPTIONS, options),
-    );
-  }
 }

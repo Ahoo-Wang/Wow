@@ -28,6 +28,7 @@ import {
   JSON_EVENT_STREAM_QUERY_REQUEST_OPTIONS,
   JSON_QUERY_REQUEST_OPTIONS,
 } from '../query';
+import { api, ApiMetadata, ApiMetadataCapable } from '@ahoo-wang/fetcher-decorator';
 
 /**
  * Command Client for sending commands to the server.
@@ -71,8 +72,9 @@ import {
  * }
  * ```
  */
-export class CommandClient {
-  constructor(protected readonly options: ClientOptions) {
+@api()
+export class CommandClient implements ApiMetadataCapable {
+  constructor(public readonly apiMetadata?: ApiMetadata) {
   }
 
   /**
