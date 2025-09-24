@@ -30,6 +30,7 @@ import {
 } from '../../../src/wow';
 
 const command: AddCartItemCommand = {
+  path: CartCommandEndpoints.addCartItem,
   method: HttpMethod.POST,
   headers: {
     [CommandHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT,
@@ -40,7 +41,6 @@ const command: AddCartItemCommand = {
   },
 };
 const commandResult = await cartCommandClient.send(
-  CartCommandEndpoints.addCartItem,
   command,
 );
 expect(commandResult.errorCode).toBe(ErrorCodes.SUCCEEDED);

@@ -11,11 +11,11 @@
  * limitations under the License.
  */
 
-import { ClientOptions } from '@ahoo-wang/fetcher-wow';
 import { exampleFetcher } from '../exampleFetcher';
+import { ApiMetadata } from '@ahoo-wang/fetcher-decorator';
 
 const aggregateBasePath = 'owner/{ownerId}/cart';
-export const cartClientOptions: ClientOptions = {
+export const cartClientOptions: ApiMetadata = {
   fetcher: exampleFetcher,
   basePath: aggregateBasePath,
 };

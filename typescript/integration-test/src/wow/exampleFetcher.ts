@@ -35,4 +35,14 @@ class AppendOwnerId implements RequestInterceptor {
   }
 }
 
+class RequestLogger implements RequestInterceptor {
+  readonly name: string = 'RequestLogger';
+  readonly order: number = Number.MAX_SAFE_INTEGER;
+
+  intercept(exchange: FetchExchange) {
+    console.log('exchange: ', exchange);
+  }
+}
+
 exampleFetcher.interceptors.request.use(new AppendOwnerId());
+exampleFetcher.interceptors.request.use(new RequestLogger());

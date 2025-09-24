@@ -47,6 +47,7 @@ function expectCommandResultToBeDefined(commandResult: CommandResult) {
 
 describe('cartCommandClient Integration Test', () => {
   const addCartItemCommand: AddCartItemCommand = {
+    path: CartCommandEndpoints.addCartItem,
     method: HttpMethod.POST,
     headers: {
       [CommandHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT,
@@ -59,7 +60,6 @@ describe('cartCommandClient Integration Test', () => {
 
   it('should send command', async () => {
     const commandResult = await cartCommandClient.send(
-      CartCommandEndpoints.addCartItem,
       addCartItemCommand,
     );
     expectCommandResultToBeDefined(commandResult);
@@ -70,7 +70,6 @@ describe('cartCommandClient Integration Test', () => {
 
   it('should send command and wait stream', async () => {
     const commandResultStream = await cartCommandClient.sendAndWaitStream(
-      CartCommandEndpoints.addCartItem,
       addCartItemCommand,
     );
     expect(commandResultStream).toBeDefined();
