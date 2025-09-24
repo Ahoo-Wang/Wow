@@ -12,7 +12,7 @@
  */
 
 import type {
-  RequestHeaders, RequiredBy,
+  RequestHeaders,
   UrlParams,
 } from '@ahoo-wang/fetcher';
 import { CommandHeaders } from './commandHeaders';
