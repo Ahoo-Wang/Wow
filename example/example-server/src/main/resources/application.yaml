@@ -12,6 +12,7 @@ management:
           - cosid
           - cosidGenerator
           - cosidStringGenerator
+          - threaddump
 
 springdoc:
   show-actuator: true
