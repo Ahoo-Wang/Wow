@@ -21,7 +21,7 @@ import {
   TypeAliasDeclaration,
 } from 'ts-morph';
 import { ModelInfo, resolveModelInfo } from '@/model/naming.ts';
-import { isEnum } from '@/utils/schemas.ts';
+import { isEnum, resolvePrimitiveType } from '@/utils/schemas.ts';
 import { GenerateContext } from '@/types.ts';
 import { AggregateDefinition } from '@/aggregate';
 import { IMPORT_WOW_PATH, WOW_TYPE_MAPPING } from '@/model/wowTypeMapping.ts';
@@ -308,14 +308,8 @@ export class ModelGenerator implements GenerateContext {
       return 'Record<string, any>';
     }
 
-    if (Array.isArray(schema.type)) {
-      return schema.type
-        .map((t: string) => this.getPrimitiveType(t))
-        .join(' | ');
-    }
-
     if (schema.type) {
-      return this.getPrimitiveType(schema.type);
+      return resolvePrimitiveType(schema.type);
     }
 
     // Handle nullable
@@ -354,35 +348,5 @@ export class ModelGenerator implements GenerateContext {
     }
     addImportModelInfo(modelInfo, sourceFile, this.outputDir, refModelInfo);
     return refModelInfo.name;
-  }
-
-  /**
-   * Maps OpenAPI primitive types to TypeScript types.
-   *
-   * @param type - The OpenAPI primitive type
-   * @returns The corresponding TypeScript type
-   *
-   * @remarks
-   * This method handles the following mappings:
-   * - string -> string
-   * - number/integer -> number
-   * - boolean -> boolean
-   * - null -> null
-   * - All others -> any
-   */
-  private getPrimitiveType(type: string): string {
-    switch (type) {
-      case 'string':
-        return 'string';
-      case 'number':
-      case 'integer':
-        return 'number';
-      case 'boolean':
-        return 'boolean';
-      case 'null':
-        return 'null';
-      default:
-        return 'any';
-    }
   }
 }

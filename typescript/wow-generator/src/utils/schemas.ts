@@ -25,3 +25,22 @@ export function isPrimitive(type: SchemaType | SchemaType[]): boolean {
 export function isEnum(schema: Schema): schema is Schema & { enum: any[] } {
   return Array.isArray(schema.enum);
 }
+
+export function resolvePrimitiveType(type: SchemaType | SchemaType[]): string {
+  if (Array.isArray(type)) {
+    return type.map(it => resolvePrimitiveType(it)).join(' | ');
+  }
+  switch (type) {
+    case 'string':
+      return 'string';
+    case 'number':
+    case 'integer':
+      return 'number';
+    case 'boolean':
+      return 'boolean';
+    case 'null':
+      return 'null';
+    default:
+      return 'any';
+  }
+}
