@@ -45,7 +45,7 @@ object EventComponent {
             return response(COMPENSATION_TARGET_KEY) {
                 withErrorCodeHeader(this@compensationTargetResponse)
                 description("Number of event streams compensated")
-                content(Https.MediaType.TEXT_PLAIN, schema = IntegerSchema())
+                content(Https.MediaType.APPLICATION_JSON, schema = IntegerSchema())
             }
         }
     }
