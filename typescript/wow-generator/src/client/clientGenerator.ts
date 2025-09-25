@@ -112,5 +112,35 @@ export class ClientGenerator implements GenerateContext {
         },
       ],
     });
+    aggregate.commands.forEach((command) => {
+      commandClient.addMethod({
+        name: command.name,
+        parameters: [
+          {
+            name: 'commandRequest',
+            type: `CommandRequest<${command.name}>`,
+            decorators: [{
+              name: 'request',
+              arguments: [],
+            }],
+          },
+          {
+            name: 'attributes',
+            type: 'Record<string, any>',
+            decorators: [{
+              name: 'attribute',
+              arguments: [],
+            }],
+          },
+        ],
+        returnType: 'Promise<CommandResult>',
+        decorators: [{
+          name: command.method,
+          arguments: [
+            `'${command.path}'`,
+          ],
+        }],
+      });
+    });
   }
 }
