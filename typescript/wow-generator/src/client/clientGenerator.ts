@@ -12,9 +12,9 @@
  */
 
 import { GenerateContext } from '@/types.ts';
-import { Project, Scope, SourceFile } from 'ts-morph';
+import { ClassDeclaration, Project, Scope, SourceFile } from 'ts-morph';
 import { OpenAPI } from '@ahoo-wang/fetcher-openapi';
-import { AggregateDefinition, TagAliasAggregate } from '@/aggregate';
+import { AggregateDefinition, CommandDefinition, TagAliasAggregate } from '@/aggregate';
 import { IMPORT_WOW_PATH, pascalCase, resolveModelInfo } from '@/model';
 import { addImport, addImportRefModel, getOrCreateSourceFile } from '@/utils/sourceFiles.ts';
 
@@ -113,34 +113,53 @@ export class ClientGenerator implements GenerateContext {
       ],
     });
     aggregate.commands.forEach((command) => {
-      commandClient.addMethod({
-        name: command.name,
-        parameters: [
-          {
-            name: 'commandRequest',
-            type: `CommandRequest<${command.name}>`,
-            decorators: [{
-              name: 'request',
-              arguments: [],
-            }],
-          },
-          {
-            name: 'attributes',
-            type: 'Record<string, any>',
-            decorators: [{
-              name: 'attribute',
-              arguments: [],
-            }],
-          },
-        ],
-        returnType: 'Promise<CommandResult>',
+      this.processCommandMethod(commandClientFile, commandClient, command);
+    });
+  }
+
+  processCommandMethod(sourceFile: SourceFile, client: ClassDeclaration, definition: CommandDefinition) {
+    const commandModelInfo = resolveModelInfo(definition.schema.key);
+    addImportRefModel(sourceFile, this.outputDir, commandModelInfo);
+    const pathParameters = definition.pathParameters.map((parameter) => {
+      return {
+        name: parameter.name,
+        type: 'string',
         decorators: [{
-          name: command.method,
+          name: 'path',
           arguments: [
-            `'${command.path}'`,
+            parameter.name,
           ],
         }],
-      });
+      };
+    });
+    client.addMethod({
+      name: definition.name,
+      decorators: [{
+        name: definition.method,
+        arguments: [
+          `'${definition.path}'`,
+        ],
+      }],
+      parameters: [
+        ...pathParameters,
+        {
+          name: 'commandRequest',
+          type: `CommandRequest<${definition.name}>`,
+          decorators: [{
+            name: 'request',
+            arguments: [],
+          }],
+        },
+        {
+          name: 'attributes',
+          type: 'Record<string, any>',
+          decorators: [{
+            name: 'attribute',
+            arguments: [],
+          }],
+        },
+      ],
+      returnType: 'Promise<CommandResult>',
     });
   }
 }
