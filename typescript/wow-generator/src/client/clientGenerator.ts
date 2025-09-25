@@ -14,7 +14,7 @@
 import { GenerateContext } from '@/types.ts';
 import { Project, SourceFile } from 'ts-morph';
 import { OpenAPI } from '@ahoo-wang/fetcher-openapi';
-import { AggregateDefinition } from '@/aggregate';
+import { AggregateDefinition, TagAliasAggregate } from '@/aggregate';
 import { IMPORT_WOW_PATH, pascalCase, resolveModelInfo } from '@/model';
 import { addImport, addImportRefModel, getOrCreateSourceFile } from '@/utils/sourceFiles.ts';
 
@@ -42,16 +42,24 @@ export class ClientGenerator implements GenerateContext {
     this.processCommandClient(aggregate);
   }
 
+  createClientFilePath(aggregate: TagAliasAggregate, fileName: string): SourceFile {
+    const filePath = `${aggregate.contextAlias}/${aggregate.aggregateName}/${fileName}.ts`;
+    return getOrCreateSourceFile(this.project, this.outputDir, filePath);
+  }
+
+  getClientName(aggregate: TagAliasAggregate, suffix: string): string {
+    return `${pascalCase(aggregate.aggregateName)}${suffix}`;
+  }
+
   processQueryClient(aggregate: AggregateDefinition) {
-    let filePath = `${aggregate.aggregate.contextAlias}/${aggregate.aggregate.aggregateName}/queryClient.ts`;
-    const queryClientFile = getOrCreateSourceFile(this.project, this.outputDir, filePath);
+    const queryClientFile = this.createClientFilePath(aggregate.aggregate, 'queryClient');
     this.processSnapshotQueryClient(queryClientFile, aggregate);
     this.processEventStreamQueryClient(queryClientFile, aggregate);
   }
 
   processSnapshotQueryClient(sourceFile: SourceFile, aggregate: AggregateDefinition) {
     addImport(sourceFile, IMPORT_WOW_PATH, ['SnapshotQueryClient']);
-    const snapshotQueryClientName = `${pascalCase(aggregate.aggregate.aggregateName)}SnapshotQueryClient`;
+    const snapshotQueryClientName = this.getClientName(aggregate.aggregate, 'SnapshotQueryClient');
     const stateModelInfo = resolveModelInfo(aggregate.state.key);
     const fieldsModelInfo = resolveModelInfo(aggregate.fields.key);
     addImportRefModel(sourceFile, this.outputDir, stateModelInfo);
@@ -65,7 +73,7 @@ export class ClientGenerator implements GenerateContext {
 
   processEventStreamQueryClient(sourceFile: SourceFile, aggregate: AggregateDefinition) {
     addImport(sourceFile, IMPORT_WOW_PATH, ['EventStreamQueryClient']);
-    const snapshotQueryClientName = `${pascalCase(aggregate.aggregate.aggregateName)}EventQueryClient`;
+    const snapshotQueryClientName = this.getClientName(aggregate.aggregate, 'EventQueryClient');
     const stateModelInfo = resolveModelInfo(aggregate.state.key);
     addImportRefModel(sourceFile, this.outputDir, stateModelInfo);
     sourceFile.addClass({
@@ -75,7 +83,22 @@ export class ClientGenerator implements GenerateContext {
     });
   }
 
-  processCommandClient(_aggregate: AggregateDefinition) {
-
+  processCommandClient(aggregate: AggregateDefinition) {
+    const commandClientFile = this.createClientFilePath(aggregate.aggregate, 'commandClient');
+    commandClientFile.addImportDeclaration({
+      moduleSpecifier: IMPORT_WOW_PATH,
+      namedImports: ['CommandRequest', 'CommandResult', 'CommandResultEventStream', 'DeleteAggregate', 'RecoverAggregate'],
+      isTypeOnly: true,
+    });
+    addImport(commandClientFile, '@ahoo-wang/fetcher-decorator',
+      ['type ApiMetadata', 'api', 'post', 'put', 'del', 'request', 'attribute', 'path']);
+    const commandClientName = this.getClientName(aggregate.aggregate, 'CommandClient');
+    commandClientFile.addClass({
+      name: commandClientName,
+      isExported: true,
+      decorators: [{
+        name: 'api',
+      }],
+    });
   }
 }
