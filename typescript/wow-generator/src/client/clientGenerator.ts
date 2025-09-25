@@ -12,7 +12,7 @@
  */
 
 import { GenerateContext } from '@/types.ts';
-import { Project, SourceFile } from 'ts-morph';
+import { Project, Scope, SourceFile } from 'ts-morph';
 import { OpenAPI } from '@ahoo-wang/fetcher-openapi';
 import { AggregateDefinition, TagAliasAggregate } from '@/aggregate';
 import { IMPORT_WOW_PATH, pascalCase, resolveModelInfo } from '@/model';
@@ -93,12 +93,24 @@ export class ClientGenerator implements GenerateContext {
     addImport(commandClientFile, '@ahoo-wang/fetcher-decorator',
       ['type ApiMetadata', 'api', 'post', 'put', 'del', 'request', 'attribute', 'path']);
     const commandClientName = this.getClientName(aggregate.aggregate, 'CommandClient');
-    commandClientFile.addClass({
+    const commandClient = commandClientFile.addClass({
       name: commandClientName,
       isExported: true,
       decorators: [{
         name: 'api',
+        arguments: [],
       }],
+      implements: ['ApiMetadataCapable'],
+    });
+    commandClient.addConstructor({
+      parameters: [
+        {
+          name: 'apiMetadata',
+          type: 'ApiMetadata',
+          scope: Scope.Public,
+          isReadonly: true,
+        },
+      ],
     });
   }
 }
