@@ -11,31 +11,20 @@
  * limitations under the License.
  */
 
-/**
- * Interface for named bounded contexts.
- */
-export interface NamedBoundedContext {
-  contextName: string;
-}
+import { Reference, Schema, Response } from '@ahoo-wang/fetcher-openapi';
+import { ContentTypeValues } from '@ahoo-wang/fetcher';
+import { isReference } from '@/utils/references.ts';
 
-export interface AliasBoundedContext {
-  contextAlias: string;
-}
+export function extractOkResponseJsonSchema(okResponse?: Response | Reference): Schema | Reference | undefined {
+  if (!okResponse) {
+    return;
+  }
+  if (isReference(okResponse)) {
+    return undefined;
+  }
 
-/**
- * Interface for named entities.
- */
-export interface Named {
-  name: string;
-}
-
-/**
- * Interface for entities that have a description.
- *
- * This interface defines a contract for objects that can provide a descriptive text.
- * It is commonly used in conjunction with other naming interfaces to provide additional
- * context or information about an entity.
- */
-export interface DescriptionCapable {
-  description: string;
+  if (!okResponse.content) {
+    return undefined;
+  }
+  return okResponse.content[ContentTypeValues.APPLICATION_JSON].schema;
 }

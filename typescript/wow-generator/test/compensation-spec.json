@@ -1,0 +1,4945 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Wow Compensation Service",
+    "description": "A Modern Reactive CQRS Architecture Microservice development framework based on DDD and EventSourcing.",
+    "contact": {
+      "name": "Ahoo Wang",
+      "url": "https://github.com/Ahoo-Wang/Wow"
+    },
+    "license": {
+      "name": "Apache 2.0",
+      "url": "https://github.com/Ahoo-Wang/Wow/blob/main/LICENSE"
+    },
+    "version": "6.1.9",
+    "x-wow-version": "6.1.9",
+    "x-wow-context-name": "compensation-service",
+    "x-wow-context-alias": "compensation"
+  },
+  "servers": [
+    {
+      "url": "http://compensation-service.dev.svc.cluster.local",
+      "description": "Generated server url"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Actuator",
+      "description": "Monitor and interact",
+      "externalDocs": {
+        "description": "Spring Boot Actuator Web API Documentation",
+        "url": "https://docs.spring.io/spring-boot/docs/current/actuator-api/html/"
+      }
+    },
+    {
+      "name": "wow",
+      "description": "Wow framework internal interface"
+    },
+    {
+      "name": "compensation.execution_failed"
+    }
+  ],
+  "paths": {
+    "/actuator/health/{path}": {
+      "get": {
+        "tags": [
+          "Actuator"
+        ],
+        "summary": "Actuator web endpoint 'health-path'",
+        "operationId": "health",
+        "parameters": [
+          {
+            "name": "path",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/vnd.spring-boot.actuator.v3+json": {
+                "schema": {
+                  "type": "object"
+                }
+              },
+              "application/vnd.spring-boot.actuator.v2+json": {
+                "schema": {
+                  "type": "object"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/actuator/health": {
+      "get": {
+        "tags": [
+          "Actuator"
+        ],
+        "summary": "Actuator web endpoint 'health'",
+        "operationId": "health_1",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/vnd.spring-boot.actuator.v3+json": {
+                "schema": {
+                  "type": "object"
+                }
+              },
+              "application/vnd.spring-boot.actuator.v2+json": {
+                "schema": {
+                  "type": "object"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/actuator/cosidStringGenerator/{name}": {
+      "get": {
+        "tags": [
+          "Actuator"
+        ],
+        "summary": "Actuator web endpoint 'cosidStringGenerator-name'",
+        "operationId": "generateAsString",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/vnd.spring-boot.actuator.v3+json": {
+                "schema": {
+                  "type": "object"
+                }
+              },
+              "application/vnd.spring-boot.actuator.v2+json": {
+                "schema": {
+                  "type": "object"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/actuator/cosidStringGenerator": {
+      "get": {
+        "tags": [
+          "Actuator"
+        ],
+        "summary": "Actuator web endpoint 'cosidStringGenerator'",
+        "operationId": "shareGenerateAsString",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/vnd.spring-boot.actuator.v3+json": {
+                "schema": {
+                  "type": "object"
+                }
+              },
+              "application/vnd.spring-boot.actuator.v2+json": {
+                "schema": {
+                  "type": "object"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/actuator/cosidGenerator/{name}": {
+      "get": {
+        "tags": [
+          "Actuator"
+        ],
+        "summary": "Actuator web endpoint 'cosidGenerator-name'",
+        "operationId": "generate",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/vnd.spring-boot.actuator.v3+json": {
+                "schema": {
+                  "type": "object"
+                }
+              },
+              "application/vnd.spring-boot.actuator.v2+json": {
+                "schema": {
+                  "type": "object"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/actuator/cosidGenerator": {
+      "get": {
+        "tags": [
+          "Actuator"
+        ],
+        "summary": "Actuator web endpoint 'cosidGenerator'",
+        "operationId": "shareGenerate",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/vnd.spring-boot.actuator.v3+json": {
+                "schema": {
+                  "type": "object"
+                }
+              },
+              "application/vnd.spring-boot.actuator.v2+json": {
+                "schema": {
+                  "type": "object"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/actuator/cosid/{name}": {
+      "get": {
+        "tags": [
+          "Actuator"
+        ],
+        "summary": "Actuator web endpoint 'cosid-name'",
+        "operationId": "getStat",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/vnd.spring-boot.actuator.v3+json": {
+                "schema": {
+                  "type": "object"
+                }
+              },
+              "application/vnd.spring-boot.actuator.v2+json": {
+                "schema": {
+                  "type": "object"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Actuator"
+        ],
+        "summary": "Actuator web endpoint 'cosid-name'",
+        "operationId": "remove",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/actuator/cosid": {
+      "get": {
+        "tags": [
+          "Actuator"
+        ],
+        "summary": "Actuator web endpoint 'cosid'",
+        "operationId": "stat",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/vnd.spring-boot.actuator.v3+json": {
+                "schema": {
+                  "type": "object"
+                }
+              },
+              "application/vnd.spring-boot.actuator.v2+json": {
+                "schema": {
+                  "type": "object"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/actuator": {
+      "get": {
+        "tags": [
+          "Actuator"
+        ],
+        "summary": "Actuator root web endpoint",
+        "operationId": "links",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/vnd.spring-boot.actuator.v3+json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "$ref": "#/components/schemas/compensation.StringLinkMap"
+                  }
+                }
+              },
+              "application/vnd.spring-boot.actuator.v2+json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "$ref": "#/components/schemas/compensation.StringLinkMap"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "$ref": "#/components/schemas/compensation.StringLinkMap"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/wow/command/wait": {
+      "summary": "The receiving endpoint of the wait signal",
+      "description": "",
+      "post": {
+        "tags": [
+          "wow"
+        ],
+        "summary": "The receiving endpoint of the wait signal",
+        "description": "",
+        "operationId": "wow.command.wait",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/wow.command.SimpleWaitSignal"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Ok",
+            "content": {}
+          }
+        }
+      }
+    },
+    "/wow/command/send": {
+      "summary": "Unified Sending Endpoint For Command Messages",
+      "description": "",
+      "post": {
+        "tags": [
+          "wow"
+        ],
+        "summary": "Unified Sending Endpoint For Command Messages",
+        "description": "",
+        "operationId": "wow.command.send",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/wow.Command-Type"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Stage"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Context"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Processor"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Function"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Timout"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Stage"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Context"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Processor"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Function"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Aggregate-Id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Aggregate-Version"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Request-Id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Local-First"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Accept"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Tenant-Id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Owner-Id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Aggregate-Context"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Aggregate-Name"
+          }
+        ],
+        "requestBody": {
+          "description": "Command Message Body",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/wow.CommandOk"
+          },
+          "400": {
+            "$ref": "#/components/responses/wow.CommandBadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/wow.CommandNotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/wow.CommandVersionConflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/wow.CommandTooManyRequests"
+          },
+          "408": {
+            "$ref": "#/components/responses/wow.CommandRequestTimeout"
+          },
+          "410": {
+            "$ref": "#/components/responses/wow.CommandIllegalAccessDeletedAggregate"
+          }
+        }
+      }
+    },
+    "/wow/metadata": {
+      "summary": "Get Wow Metadata",
+      "description": "",
+      "get": {
+        "tags": [
+          "wow"
+        ],
+        "summary": "Get Wow Metadata",
+        "description": "",
+        "operationId": "wow.metadata.get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The Wow Metadata.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/wow.configuration.WowMetadata"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/wow/id/global": {
+      "summary": "Generate Global ID",
+      "description": "",
+      "get": {
+        "tags": [
+          "wow"
+        ],
+        "summary": "Generate Global ID",
+        "description": "",
+        "operationId": "wow.global_id.generate",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The generated global ID",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/wow/bi/script": {
+      "summary": "Generate BI Sync Script",
+      "description": "",
+      "get": {
+        "tags": [
+          "wow"
+        ],
+        "summary": "Generate BI Sync Script",
+        "description": "",
+        "operationId": "wow.bi_script.generate",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/wow.Wow-BI-Header-Sql-Type"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The generated BI synchronization script.",
+            "content": {
+              "application/sql": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/execution_failed/create_execution_failed": {
+      "summary": "create_execution_failed",
+      "description": "",
+      "post": {
+        "tags": [
+          "compensation.execution_failed"
+        ],
+        "summary": "create_execution_failed",
+        "description": "",
+        "operationId": "compensation.execution_failed.create_execution_failed",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Stage"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Context"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Processor"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Function"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Timout"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Stage"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Context"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Processor"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Function"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Aggregate-Id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Aggregate-Version"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Request-Id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Local-First"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Accept"
+          }
+        ],
+        "requestBody": {
+          "description": "create_execution_failed",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/compensation.execution_failed.CreateExecutionFailed"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/wow.CommandOk"
+          },
+          "400": {
+            "$ref": "#/components/responses/wow.CommandBadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/wow.CommandNotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/wow.CommandVersionConflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/wow.CommandTooManyRequests"
+          },
+          "408": {
+            "$ref": "#/components/responses/wow.CommandRequestTimeout"
+          },
+          "410": {
+            "$ref": "#/components/responses/wow.CommandIllegalAccessDeletedAggregate"
+          }
+        }
+      }
+    },
+    "/execution_failed/{id}/prepare_compensation": {
+      "summary": "prepare_compensation",
+      "description": "",
+      "put": {
+        "tags": [
+          "compensation.execution_failed"
+        ],
+        "summary": "prepare_compensation",
+        "description": "",
+        "operationId": "compensation.execution_failed.prepare_compensation",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/wow.id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Stage"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Context"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Processor"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Function"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Timout"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Stage"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Context"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Processor"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Function"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Aggregate-Id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Aggregate-Version"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Request-Id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Local-First"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Accept"
+          }
+        ],
+        "requestBody": {
+          "description": "prepare_compensation",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/compensation.execution_failed.PrepareCompensation"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/wow.CommandOk"
+          },
+          "400": {
+            "$ref": "#/components/responses/wow.CommandBadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/wow.CommandNotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/wow.CommandVersionConflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/wow.CommandTooManyRequests"
+          },
+          "408": {
+            "$ref": "#/components/responses/wow.CommandRequestTimeout"
+          },
+          "410": {
+            "$ref": "#/components/responses/wow.CommandIllegalAccessDeletedAggregate"
+          }
+        }
+      }
+    },
+    "/execution_failed/{id}/force_prepare_compensation": {
+      "summary": "force_prepare_compensation",
+      "description": "",
+      "put": {
+        "tags": [
+          "compensation.execution_failed"
+        ],
+        "summary": "force_prepare_compensation",
+        "description": "",
+        "operationId": "compensation.execution_failed.force_prepare_compensation",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/wow.id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Stage"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Context"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Processor"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Function"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Timout"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Stage"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Context"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Processor"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Function"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Aggregate-Id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Aggregate-Version"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Request-Id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Local-First"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Accept"
+          }
+        ],
+        "requestBody": {
+          "description": "force_prepare_compensation",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/compensation.execution_failed.ForcePrepareCompensation"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/wow.CommandOk"
+          },
+          "400": {
+            "$ref": "#/components/responses/wow.CommandBadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/wow.CommandNotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/wow.CommandVersionConflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/wow.CommandTooManyRequests"
+          },
+          "408": {
+            "$ref": "#/components/responses/wow.CommandRequestTimeout"
+          },
+          "410": {
+            "$ref": "#/components/responses/wow.CommandIllegalAccessDeletedAggregate"
+          }
+        }
+      }
+    },
+    "/execution_failed/{id}/apply_execution_success": {
+      "summary": "apply_execution_success",
+      "description": "",
+      "put": {
+        "tags": [
+          "compensation.execution_failed"
+        ],
+        "summary": "apply_execution_success",
+        "description": "",
+        "operationId": "compensation.execution_failed.apply_execution_success",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/wow.id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Stage"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Context"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Processor"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Function"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Timout"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Stage"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Context"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Processor"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Function"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Aggregate-Id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Aggregate-Version"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Request-Id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Local-First"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Accept"
+          }
+        ],
+        "requestBody": {
+          "description": "apply_execution_success",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/compensation.execution_failed.ApplyExecutionSuccess"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/wow.CommandOk"
+          },
+          "400": {
+            "$ref": "#/components/responses/wow.CommandBadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/wow.CommandNotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/wow.CommandVersionConflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/wow.CommandTooManyRequests"
+          },
+          "408": {
+            "$ref": "#/components/responses/wow.CommandRequestTimeout"
+          },
+          "410": {
+            "$ref": "#/components/responses/wow.CommandIllegalAccessDeletedAggregate"
+          }
+        }
+      }
+    },
+    "/execution_failed/{id}/apply_execution_failed": {
+      "summary": "apply_execution_failed",
+      "description": "",
+      "put": {
+        "tags": [
+          "compensation.execution_failed"
+        ],
+        "summary": "apply_execution_failed",
+        "description": "",
+        "operationId": "compensation.execution_failed.apply_execution_failed",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/wow.id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Stage"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Context"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Processor"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Function"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Timout"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Stage"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Context"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Processor"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Function"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Aggregate-Id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Aggregate-Version"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Request-Id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Local-First"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Accept"
+          }
+        ],
+        "requestBody": {
+          "description": "apply_execution_failed",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/compensation.execution_failed.ApplyExecutionFailed"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/wow.CommandOk"
+          },
+          "400": {
+            "$ref": "#/components/responses/wow.CommandBadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/wow.CommandNotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/wow.CommandVersionConflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/wow.CommandTooManyRequests"
+          },
+          "408": {
+            "$ref": "#/components/responses/wow.CommandRequestTimeout"
+          },
+          "410": {
+            "$ref": "#/components/responses/wow.CommandIllegalAccessDeletedAggregate"
+          }
+        }
+      }
+    },
+    "/execution_failed/{id}/apply_retry_spec": {
+      "summary": "apply_retry_spec",
+      "description": "",
+      "put": {
+        "tags": [
+          "compensation.execution_failed"
+        ],
+        "summary": "apply_retry_spec",
+        "description": "",
+        "operationId": "compensation.execution_failed.apply_retry_spec",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/wow.id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Stage"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Context"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Processor"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Function"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Timout"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Stage"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Context"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Processor"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Function"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Aggregate-Id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Aggregate-Version"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Request-Id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Local-First"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Accept"
+          }
+        ],
+        "requestBody": {
+          "description": "apply_retry_spec",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/compensation.execution_failed.ApplyRetrySpec"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/wow.CommandOk"
+          },
+          "400": {
+            "$ref": "#/components/responses/wow.CommandBadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/wow.CommandNotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/wow.CommandVersionConflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/wow.CommandTooManyRequests"
+          },
+          "408": {
+            "$ref": "#/components/responses/wow.CommandRequestTimeout"
+          },
+          "410": {
+            "$ref": "#/components/responses/wow.CommandIllegalAccessDeletedAggregate"
+          }
+        }
+      }
+    },
+    "/execution_failed/{id}/change_function": {
+      "summary": "change_function",
+      "description": "",
+      "put": {
+        "tags": [
+          "compensation.execution_failed"
+        ],
+        "summary": "change_function",
+        "description": "",
+        "operationId": "compensation.execution_failed.change_function",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/wow.id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Stage"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Context"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Processor"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Function"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Timout"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Stage"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Context"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Processor"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Function"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Aggregate-Id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Aggregate-Version"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Request-Id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Local-First"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Accept"
+          }
+        ],
+        "requestBody": {
+          "description": "change_function",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/compensation.execution_failed.ChangeFunction"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/wow.CommandOk"
+          },
+          "400": {
+            "$ref": "#/components/responses/wow.CommandBadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/wow.CommandNotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/wow.CommandVersionConflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/wow.CommandTooManyRequests"
+          },
+          "408": {
+            "$ref": "#/components/responses/wow.CommandRequestTimeout"
+          },
+          "410": {
+            "$ref": "#/components/responses/wow.CommandIllegalAccessDeletedAggregate"
+          }
+        }
+      }
+    },
+    "/execution_failed/{id}/mark_recoverable": {
+      "summary": "mark_recoverable",
+      "description": "",
+      "put": {
+        "tags": [
+          "compensation.execution_failed"
+        ],
+        "summary": "mark_recoverable",
+        "description": "",
+        "operationId": "compensation.execution_failed.mark_recoverable",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/wow.id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Stage"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Context"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Processor"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Function"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Timout"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Stage"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Context"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Processor"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Function"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Aggregate-Id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Aggregate-Version"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Request-Id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Local-First"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Accept"
+          }
+        ],
+        "requestBody": {
+          "description": "mark_recoverable",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/compensation.execution_failed.MarkRecoverable"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/wow.CommandOk"
+          },
+          "400": {
+            "$ref": "#/components/responses/wow.CommandBadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/wow.CommandNotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/wow.CommandVersionConflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/wow.CommandTooManyRequests"
+          },
+          "408": {
+            "$ref": "#/components/responses/wow.CommandRequestTimeout"
+          },
+          "410": {
+            "$ref": "#/components/responses/wow.CommandIllegalAccessDeletedAggregate"
+          }
+        }
+      }
+    },
+    "/execution_failed/{id}": {
+      "summary": "Delete aggregate",
+      "description": "",
+      "delete": {
+        "tags": [
+          "compensation.execution_failed"
+        ],
+        "summary": "Delete aggregate",
+        "description": "",
+        "operationId": "compensation.execution_failed.default_delete_aggregate",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/wow.id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Stage"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Context"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Processor"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Function"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Timout"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Stage"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Context"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Processor"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Function"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Aggregate-Id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Aggregate-Version"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Request-Id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Local-First"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Accept"
+          }
+        ],
+        "requestBody": {
+          "description": "Delete aggregate",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/wow.api.command.DefaultDeleteAggregate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/wow.CommandOk"
+          },
+          "400": {
+            "$ref": "#/components/responses/wow.CommandBadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/wow.CommandNotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/wow.CommandVersionConflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/wow.CommandTooManyRequests"
+          },
+          "408": {
+            "$ref": "#/components/responses/wow.CommandRequestTimeout"
+          },
+          "410": {
+            "$ref": "#/components/responses/wow.CommandIllegalAccessDeletedAggregate"
+          }
+        }
+      }
+    },
+    "/execution_failed/{id}/recover": {
+      "summary": "Recover deleted aggregate",
+      "description": "",
+      "put": {
+        "tags": [
+          "compensation.execution_failed"
+        ],
+        "summary": "Recover deleted aggregate",
+        "description": "",
+        "operationId": "compensation.execution_failed.default_recover_aggregate",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/wow.id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Stage"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Context"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Processor"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Function"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Timout"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Stage"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Context"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Processor"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Function"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Aggregate-Id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Aggregate-Version"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Request-Id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Local-First"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Accept"
+          }
+        ],
+        "requestBody": {
+          "description": "Recover deleted aggregate",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/wow.api.command.DefaultRecoverAggregate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/wow.CommandOk"
+          },
+          "400": {
+            "$ref": "#/components/responses/wow.CommandBadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/wow.CommandNotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/wow.CommandVersionConflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/wow.CommandTooManyRequests"
+          },
+          "408": {
+            "$ref": "#/components/responses/wow.CommandRequestTimeout"
+          },
+          "410": {
+            "$ref": "#/components/responses/wow.CommandIllegalAccessDeletedAggregate"
+          }
+        }
+      }
+    },
+    "/execution_failed/{id}/state/tracing": {
+      "summary": "Get Aggregate Tracing",
+      "description": "",
+      "get": {
+        "tags": [
+          "compensation.execution_failed"
+        ],
+        "summary": "Get Aggregate Tracing",
+        "description": "",
+        "operationId": "compensation.execution_failed.aggregate_tracing.get",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/wow.id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Get Aggregate Tracing",
+            "headers": {
+              "Wow-Error-Code": {
+                "$ref": "#/components/headers/wow.Wow-Error-Code"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/compensation.execution_failed.ExecutionFailedStateStateEvent"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/execution_failed/{id}/state": {
+      "summary": "Load State Aggregate",
+      "description": "",
+      "get": {
+        "tags": [
+          "compensation.execution_failed"
+        ],
+        "summary": "Load State Aggregate",
+        "description": "",
+        "operationId": "compensation.execution_failed.aggregate.load",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/wow.id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Load State Aggregate",
+            "headers": {
+              "Wow-Error-Code": {
+                "$ref": "#/components/headers/wow.Wow-Error-Code"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/compensation.execution_failed.ExecutionFailedState"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/wow.BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/wow.NotFound"
+          }
+        }
+      }
+    },
+    "/execution_failed/{id}/state/{version}": {
+      "summary": "Load Versioned State Aggregate",
+      "description": "",
+      "get": {
+        "tags": [
+          "compensation.execution_failed"
+        ],
+        "summary": "Load Versioned State Aggregate",
+        "description": "",
+        "operationId": "compensation.execution_failed.versioned_aggregate.load",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/wow.id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.version"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Load Versioned State Aggregate",
+            "headers": {
+              "Wow-Error-Code": {
+                "$ref": "#/components/headers/wow.Wow-Error-Code"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/compensation.execution_failed.ExecutionFailedState"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/wow.BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/wow.NotFound"
+          }
+        }
+      }
+    },
+    "/execution_failed/{id}/state/time/{createTime}": {
+      "summary": "Load Time Based State Aggregate",
+      "description": "",
+      "get": {
+        "tags": [
+          "compensation.execution_failed"
+        ],
+        "summary": "Load Time Based State Aggregate",
+        "description": "",
+        "operationId": "compensation.execution_failed.time_based_aggregate.load",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/wow.id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.createTime"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Load Time Based State Aggregate",
+            "headers": {
+              "Wow-Error-Code": {
+                "$ref": "#/components/headers/wow.Wow-Error-Code"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/compensation.execution_failed.ExecutionFailedState"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/wow.BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/wow.NotFound"
+          }
+        }
+      }
+    },
+    "/execution_failed/{id}/snapshot": {
+      "summary": "Get Snapshot",
+      "description": "",
+      "get": {
+        "tags": [
+          "compensation.execution_failed"
+        ],
+        "summary": "Get Snapshot",
+        "description": "",
+        "operationId": "compensation.execution_failed.snapshot.load",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/wow.id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "headers": {
+              "Wow-Error-Code": {
+                "$ref": "#/components/headers/wow.Wow-Error-Code"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/compensation.execution_failed.ExecutionFailedStateSnapshot"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/wow.NotFound"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "compensation.execution_failed"
+        ],
+        "summary": "Regenerate Aggregate Snapshot",
+        "description": "",
+        "operationId": "compensation.execution_failed.snapshot.regenerate",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/wow.id"
+          }
+        ],
+        "responses": {
+          "200": {},
+          "404": {
+            "$ref": "#/components/responses/wow.NotFound"
+          }
+        }
+      }
+    },
+    "/execution_failed/snapshot/{afterId}/{limit}": {
+      "summary": "Batch Regenerate Aggregate Snapshot",
+      "description": "",
+      "put": {
+        "tags": [
+          "compensation.execution_failed"
+        ],
+        "summary": "Batch Regenerate Aggregate Snapshot",
+        "description": "",
+        "operationId": "compensation.execution_failed.snapshot.batch_regenerate",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/wow.afterId"
+          },
+          {
+            "$ref": "#/components/parameters/wow.limit"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/wow.BatchResult"
+          },
+          "408": {
+            "$ref": "#/components/responses/wow.RequestTimeout"
+          }
+        }
+      }
+    },
+    "/execution_failed/snapshot/count": {
+      "summary": "Count Snapshot",
+      "description": "",
+      "post": {
+        "tags": [
+          "compensation.execution_failed"
+        ],
+        "summary": "Count Snapshot",
+        "description": "",
+        "operationId": "compensation.execution_failed.snapshot.count",
+        "parameters": [],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/compensation.execution_failed.CountQuery"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/wow.CountQuery"
+          },
+          "408": {
+            "$ref": "#/components/responses/wow.RequestTimeout"
+          },
+          "429": {
+            "$ref": "#/components/responses/wow.TooManyRequests"
+          }
+        }
+      }
+    },
+    "/execution_failed/snapshot/list": {
+      "summary": "List Query Snapshot",
+      "description": "",
+      "post": {
+        "tags": [
+          "compensation.execution_failed"
+        ],
+        "summary": "List Query Snapshot",
+        "description": "",
+        "operationId": "compensation.execution_failed.snapshot.list_query",
+        "parameters": [],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/compensation.execution_failed.ListQuery"
+        },
+        "responses": {
+          "200": {
+            "headers": {
+              "Wow-Error-Code": {
+                "$ref": "#/components/headers/wow.Wow-Error-Code"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/compensation.execution_failed.ExecutionFailedStateMaterializedSnapshot"
+                  }
+                }
+              },
+              "text/event-stream": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/compensation.execution_failed.ExecutionFailedStateMaterializedSnapshotServerSentEventNonNullData"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/execution_failed/snapshot/list/state": {
+      "summary": "List Query Snapshot State",
+      "description": "",
+      "post": {
+        "tags": [
+          "compensation.execution_failed"
+        ],
+        "summary": "List Query Snapshot State",
+        "description": "",
+        "operationId": "compensation.execution_failed.snapshot_state.list_query",
+        "parameters": [],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/compensation.execution_failed.ListQuery"
+        },
+        "responses": {
+          "200": {
+            "headers": {
+              "Wow-Error-Code": {
+                "$ref": "#/components/headers/wow.Wow-Error-Code"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/compensation.execution_failed.ExecutionFailedState"
+                  }
+                }
+              },
+              "text/event-stream": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/compensation.execution_failed.ExecutionFailedStateServerSentEventNonNullData"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/execution_failed/snapshot/paged": {
+      "summary": "Paged Query Snapshot",
+      "description": "",
+      "post": {
+        "tags": [
+          "compensation.execution_failed"
+        ],
+        "summary": "Paged Query Snapshot",
+        "description": "",
+        "operationId": "compensation.execution_failed.snapshot.paged_query",
+        "parameters": [],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/compensation.execution_failed.PagedQuery"
+        },
+        "responses": {
+          "200": {
+            "headers": {
+              "Wow-Error-Code": {
+                "$ref": "#/components/headers/wow.Wow-Error-Code"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/compensation.execution_failed.ExecutionFailedStateMaterializedSnapshotPagedList"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/execution_failed/snapshot/paged/state": {
+      "summary": "Paged Query Snapshot State",
+      "description": "",
+      "post": {
+        "tags": [
+          "compensation.execution_failed"
+        ],
+        "summary": "Paged Query Snapshot State",
+        "description": "",
+        "operationId": "compensation.execution_failed.snapshot_state.paged_query",
+        "parameters": [],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/compensation.execution_failed.PagedQuery"
+        },
+        "responses": {
+          "200": {
+            "headers": {
+              "Wow-Error-Code": {
+                "$ref": "#/components/headers/wow.Wow-Error-Code"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/compensation.execution_failed.ExecutionFailedStatePagedList"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/execution_failed/snapshot/single": {
+      "summary": "Single Snapshot",
+      "description": "",
+      "post": {
+        "tags": [
+          "compensation.execution_failed"
+        ],
+        "summary": "Single Snapshot",
+        "description": "",
+        "operationId": "compensation.execution_failed.snapshot.single",
+        "parameters": [],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/compensation.execution_failed.SingleQuery"
+        },
+        "responses": {
+          "200": {
+            "headers": {
+              "Wow-Error-Code": {
+                "$ref": "#/components/headers/wow.Wow-Error-Code"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/compensation.execution_failed.ExecutionFailedStateMaterializedSnapshot"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/wow.NotFound"
+          }
+        }
+      }
+    },
+    "/execution_failed/snapshot/single/state": {
+      "summary": "Single Snapshot State",
+      "description": "",
+      "post": {
+        "tags": [
+          "compensation.execution_failed"
+        ],
+        "summary": "Single Snapshot State",
+        "description": "",
+        "operationId": "compensation.execution_failed.snapshot_state.single",
+        "parameters": [],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/compensation.execution_failed.SingleQuery"
+        },
+        "responses": {
+          "200": {
+            "headers": {
+              "Wow-Error-Code": {
+                "$ref": "#/components/headers/wow.Wow-Error-Code"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/compensation.execution_failed.ExecutionFailedState"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/wow.NotFound"
+          }
+        }
+      }
+    },
+    "/execution_failed/{id}/event/{headVersion}/{tailVersion}": {
+      "summary": "Load Event Stream",
+      "description": "",
+      "get": {
+        "tags": [
+          "compensation.execution_failed"
+        ],
+        "summary": "Load Event Stream",
+        "description": "",
+        "operationId": "compensation.execution_failed.event_stream.load",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/wow.id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.headVersion"
+          },
+          {
+            "$ref": "#/components/parameters/wow.tailVersion"
+          }
+        ],
+        "responses": {
+          "200": {
+            "headers": {
+              "Wow-Error-Code": {
+                "$ref": "#/components/headers/wow.Wow-Error-Code"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/compensation.execution_failed.ExecutionFailedAggregatedDomainEventStream"
+                  }
+                }
+              },
+              "text/event-stream": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/compensation.execution_failed.ExecutionFailedAggregatedDomainEventStreamServerSentEventNonNullData"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/execution_failed/event/list": {
+      "summary": "List Query Event Stream",
+      "description": "",
+      "post": {
+        "tags": [
+          "compensation.execution_failed"
+        ],
+        "summary": "List Query Event Stream",
+        "description": "",
+        "operationId": "compensation.execution_failed.event.list_query",
+        "parameters": [],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/wow.ListQuery"
+        },
+        "responses": {
+          "200": {
+            "headers": {
+              "Wow-Error-Code": {
+                "$ref": "#/components/headers/wow.Wow-Error-Code"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/compensation.execution_failed.ExecutionFailedAggregatedDomainEventStream"
+                  }
+                }
+              },
+              "text/event-stream": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/compensation.execution_failed.ExecutionFailedAggregatedDomainEventStreamServerSentEventNonNullData"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/execution_failed/event/paged": {
+      "summary": "Paged Query Event Stream",
+      "description": "",
+      "post": {
+        "tags": [
+          "compensation.execution_failed"
+        ],
+        "summary": "Paged Query Event Stream",
+        "description": "",
+        "operationId": "compensation.execution_failed.event.paged_query",
+        "parameters": [],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/wow.PagedQuery"
+        },
+        "responses": {
+          "200": {
+            "headers": {
+              "Wow-Error-Code": {
+                "$ref": "#/components/headers/wow.Wow-Error-Code"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/compensation.execution_failed.ExecutionFailedAggregatedDomainEventStreamPagedList"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/execution_failed/event/count": {
+      "summary": "Count Event Stream",
+      "description": "",
+      "post": {
+        "tags": [
+          "compensation.execution_failed"
+        ],
+        "summary": "Count Event Stream",
+        "description": "",
+        "operationId": "compensation.execution_failed.event.count",
+        "parameters": [],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/wow.CountQuery"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/wow.CountQuery"
+          }
+        }
+      }
+    },
+    "/execution_failed/{id}/{version}/compensate": {
+      "summary": "Event Compensate",
+      "description": "",
+      "put": {
+        "tags": [
+          "compensation.execution_failed"
+        ],
+        "summary": "Event Compensate",
+        "description": "",
+        "operationId": "compensation.execution_failed.compensate",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/wow.id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.version"
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/wow.CompensationTarget"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/wow.CompensationTarget"
+          },
+          "400": {
+            "$ref": "#/components/responses/wow.BadRequest"
+          }
+        }
+      }
+    },
+    "/execution_failed/state/{afterId}/{limit}": {
+      "summary": "Resend State Event",
+      "description": "",
+      "post": {
+        "tags": [
+          "compensation.execution_failed"
+        ],
+        "summary": "Resend State Event",
+        "description": "",
+        "operationId": "compensation.execution_failed.state_event.resend",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/wow.afterId"
+          },
+          {
+            "$ref": "#/components/parameters/wow.limit"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/wow.BatchResult"
+          },
+          "408": {
+            "$ref": "#/components/responses/wow.RequestTimeout"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "compensation.ApiVersion": {
+        "type": "string",
+        "enum": [
+          "V2",
+          "V3"
+        ]
+      },
+      "compensation.Link": {
+        "type": "object",
+        "properties": {
+          "href": {
+            "type": "string"
+          },
+          "templated": {
+            "type": "boolean"
+          }
+        }
+      },
+      "compensation.SecurityContext": {
+        "type": "object"
+      },
+      "compensation.StringLinkMap": {
+        "type": "object",
+        "additionalProperties": {
+          "$ref": "#/components/schemas/compensation.Link"
+        }
+      },
+      "compensation.StringObjectMap": {
+        "type": "object"
+      },
+      "compensation.WebServerNamespace": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string"
+          }
+        }
+      },
+      "compensation.execution_failed.ApplyExecutionFailed": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/compensation.execution_failed.ErrorDetails"
+          },
+          "executeAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "recoverable": {
+            "$ref": "#/components/schemas/wow.api.RecoverableType"
+          }
+        },
+        "required": [
+          "error",
+          "executeAt"
+        ]
+      },
+      "compensation.execution_failed.ApplyExecutionSuccess": {
+        "type": "object",
+        "properties": {
+          "executeAt": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "executeAt"
+        ]
+      },
+      "compensation.execution_failed.ApplyRetrySpec": {
+        "type": "object",
+        "properties": {
+          "executionTimeout": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxRetries": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "minBackoff": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "executionTimeout",
+          "maxRetries",
+          "minBackoff"
+        ]
+      },
+      "compensation.execution_failed.ChangeFunction": {
+        "type": "object",
+        "properties": {
+          "contextName": {
+            "type": "string"
+          },
+          "functionKind": {
+            "$ref": "#/components/schemas/wow.api.messaging.FunctionKind"
+          },
+          "name": {
+            "type": "string"
+          },
+          "processorName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "contextName",
+          "functionKind",
+          "name",
+          "processorName"
+        ]
+      },
+      "compensation.execution_failed.CompensationPrepared": {
+        "type": "object",
+        "properties": {
+          "eventId": {
+            "$ref": "#/components/schemas/compensation.execution_failed.EventId"
+          },
+          "function": {
+            "$ref": "#/components/schemas/wow.api.messaging.FunctionInfoData"
+          },
+          "retryState": {
+            "$ref": "#/components/schemas/compensation.execution_failed.RetryState"
+          }
+        },
+        "required": [
+          "eventId",
+          "function",
+          "retryState"
+        ]
+      },
+      "compensation.execution_failed.CreateExecutionFailed": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/compensation.execution_failed.ErrorDetails"
+          },
+          "eventId": {
+            "$ref": "#/components/schemas/compensation.execution_failed.EventId"
+          },
+          "executeAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "function": {
+            "$ref": "#/components/schemas/wow.api.messaging.FunctionInfoData"
+          },
+          "recoverable": {
+            "$ref": "#/components/schemas/wow.api.RecoverableType"
+          },
+          "retrySpec": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/compensation.execution_failed.RetrySpec"
+              }
+            ]
+          }
+        },
+        "required": [
+          "error",
+          "eventId",
+          "executeAt",
+          "function"
+        ]
+      },
+      "compensation.execution_failed.ErrorDetails": {
+        "type": "object",
+        "properties": {
+          "bindingErrors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/wow.api.BindingError"
+            }
+          },
+          "errorCode": {
+            "type": "string"
+          },
+          "errorMsg": {
+            "type": "string"
+          },
+          "stackTrace": {
+            "type": "string"
+          },
+          "succeeded": {
+            "type": "boolean",
+            "readOnly": true
+          }
+        },
+        "required": [
+          "errorCode",
+          "errorMsg",
+          "stackTrace"
+        ]
+      },
+      "compensation.execution_failed.EventId": {
+        "type": "object",
+        "properties": {
+          "aggregateId": {
+            "$ref": "#/components/schemas/wow.api.modeling.AggregateId"
+          },
+          "id": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "aggregateId",
+          "id",
+          "version"
+        ]
+      },
+      "compensation.execution_failed.ExecutionFailedAggregatedCondition": {
+        "type": "object",
+        "properties": {
+          "children": {
+            "type": "array",
+            "default": "[]",
+            "items": {
+              "$ref": "#/components/schemas/compensation.execution_failed.ExecutionFailedAggregatedCondition"
+            }
+          },
+          "field": {
+            "$ref": "#/components/schemas/compensation.execution_failed.ExecutionFailedAggregatedFields"
+          },
+          "operator": {
+            "$ref": "#/components/schemas/wow.api.query.Operator",
+            "default": "ALL"
+          },
+          "options": {
+            "$ref": "#/components/schemas/wow.api.query.ConditionOptions",
+            "default": "{}"
+          },
+          "value": {}
+        }
+      },
+      "compensation.execution_failed.ExecutionFailedAggregatedDomainEventStream": {
+        "type": "object",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The ID of the domain event stream.",
+            "minLength": 1
+          },
+          "contextName": {
+            "type": "string",
+            "description": "The name of the context to which the domain event stream belongs",
+            "minLength": 1
+          },
+          "aggregateName": {
+            "type": "string",
+            "description": "The name of the aggregate to which the domain event stream belongs",
+            "minLength": 1
+          },
+          "header": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "message header",
+            "properties": {
+              "user_agent": {
+                "type": "string",
+                "description": "user agent"
+              },
+              "remote_ip": {
+                "type": "string",
+                "description": "remote ip"
+              },
+              "trace_id": {
+                "type": "string",
+                "description": "trace id"
+              },
+              "command_operator": {
+                "type": "string",
+                "description": "command operator"
+              },
+              "local_first": {
+                "type": "boolean",
+                "description": "local first"
+              },
+              "command_wait_endpoint": {
+                "type": "string",
+                "format": "url",
+                "description": "command wait endpoint"
+              },
+              "command_wait_stage": {
+                "type": "string",
+                "default": "PROCESSED",
+                "enum": [
+                  "SENT",
+                  "PROCESSED",
+                  "SNAPSHOT",
+                  "PROJECTED",
+                  "EVENT_HANDLED",
+                  "SAGA_HANDLED"
+                ]
+              }
+            }
+          },
+          "tenantId": {
+            "type": "string",
+            "description": "The tenant id of the aggregate",
+            "minLength": 1
+          },
+          "aggregateId": {
+            "type": "string",
+            "description": "The id of the aggregate",
+            "minLength": 1
+          },
+          "ownerId": {
+            "type": "string",
+            "default": "",
+            "description": "The owner ID of the aggregate resource"
+          },
+          "commandId": {
+            "type": "string",
+            "description": "The ID of the command message.",
+            "minLength": 1
+          },
+          "requestId": {
+            "type": "string",
+            "description": "The request ID of the command message, which is used to check the idempotency of the command message",
+            "minLength": 1
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32",
+            "description": "The version of the domain event stream"
+          },
+          "body": {
+            "type": "array",
+            "description": "A list of domain events for the domain event stream",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "description": "The body of the domain event",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "The ID of the domain event.",
+                      "minLength": 1
+                    },
+                    "name": {
+                      "type": "string",
+                      "const": "compensation_prepared",
+                      "description": "The name of the domain event",
+                      "minLength": 1
+                    },
+                    "revision": {
+                      "type": "string",
+                      "default": "0.0.1",
+                      "description": "The revision number of the domain event"
+                    },
+                    "bodyType": {
+                      "type": "string",
+                      "const": "me.ahoo.wow.compensation.api.CompensationPrepared",
+                      "description": "The fully qualified name of the domain event body"
+                    },
+                    "body": {
+                      "$ref": "#/components/schemas/compensation.execution_failed.CompensationPrepared"
+                    }
+                  },
+                  "required": [
+                    "body",
+                    "bodyType",
+                    "id",
+                    "name",
+                    "revision"
+                  ],
+                  "title": "compensation_prepared"
+                },
+                {
+                  "type": "object",
+                  "description": "The body of the domain event",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "The ID of the domain event.",
+                      "minLength": 1
+                    },
+                    "name": {
+                      "type": "string",
+                      "const": "execution_failed_applied",
+                      "description": "The name of the domain event",
+                      "minLength": 1
+                    },
+                    "revision": {
+                      "type": "string",
+                      "default": "0.0.1",
+                      "description": "The revision number of the domain event"
+                    },
+                    "bodyType": {
+                      "type": "string",
+                      "const": "me.ahoo.wow.compensation.api.ExecutionFailedApplied",
+                      "description": "The fully qualified name of the domain event body"
+                    },
+                    "body": {
+                      "$ref": "#/components/schemas/compensation.execution_failed.ExecutionFailedApplied"
+                    }
+                  },
+                  "required": [
+                    "body",
+                    "bodyType",
+                    "id",
+                    "name",
+                    "revision"
+                  ],
+                  "title": "execution_failed_applied"
+                },
+                {
+                  "type": "object",
+                  "description": "The body of the domain event",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "The ID of the domain event.",
+                      "minLength": 1
+                    },
+                    "name": {
+                      "type": "string",
+                      "const": "execution_failed_created",
+                      "description": "The name of the domain event",
+                      "minLength": 1
+                    },
+                    "revision": {
+                      "type": "string",
+                      "default": "0.0.1",
+                      "description": "The revision number of the domain event"
+                    },
+                    "bodyType": {
+                      "type": "string",
+                      "const": "me.ahoo.wow.compensation.api.ExecutionFailedCreated",
+                      "description": "The fully qualified name of the domain event body"
+                    },
+                    "body": {
+                      "$ref": "#/components/schemas/compensation.execution_failed.ExecutionFailedCreated"
+                    }
+                  },
+                  "required": [
+                    "body",
+                    "bodyType",
+                    "id",
+                    "name",
+                    "revision"
+                  ],
+                  "title": "execution_failed_created"
+                },
+                {
+                  "type": "object",
+                  "description": "The body of the domain event",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "The ID of the domain event.",
+                      "minLength": 1
+                    },
+                    "name": {
+                      "type": "string",
+                      "const": "execution_success_applied",
+                      "description": "The name of the domain event",
+                      "minLength": 1
+                    },
+                    "revision": {
+                      "type": "string",
+                      "default": "0.0.1",
+                      "description": "The revision number of the domain event"
+                    },
+                    "bodyType": {
+                      "type": "string",
+                      "const": "me.ahoo.wow.compensation.api.ExecutionSuccessApplied",
+                      "description": "The fully qualified name of the domain event body"
+                    },
+                    "body": {
+                      "$ref": "#/components/schemas/compensation.execution_failed.ExecutionSuccessApplied"
+                    }
+                  },
+                  "required": [
+                    "body",
+                    "bodyType",
+                    "id",
+                    "name",
+                    "revision"
+                  ],
+                  "title": "execution_success_applied"
+                },
+                {
+                  "type": "object",
+                  "description": "The body of the domain event",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "The ID of the domain event.",
+                      "minLength": 1
+                    },
+                    "name": {
+                      "type": "string",
+                      "const": "function_changed",
+                      "description": "The name of the domain event",
+                      "minLength": 1
+                    },
+                    "revision": {
+                      "type": "string",
+                      "default": "0.0.1",
+                      "description": "The revision number of the domain event"
+                    },
+                    "bodyType": {
+                      "type": "string",
+                      "const": "me.ahoo.wow.compensation.api.FunctionChanged",
+                      "description": "The fully qualified name of the domain event body"
+                    },
+                    "body": {
+                      "$ref": "#/components/schemas/compensation.execution_failed.FunctionChanged"
+                    }
+                  },
+                  "required": [
+                    "body",
+                    "bodyType",
+                    "id",
+                    "name",
+                    "revision"
+                  ],
+                  "title": "function_changed"
+                },
+                {
+                  "type": "object",
+                  "description": "The body of the domain event",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "The ID of the domain event.",
+                      "minLength": 1
+                    },
+                    "name": {
+                      "type": "string",
+                      "const": "recoverable_marked",
+                      "description": "The name of the domain event",
+                      "minLength": 1
+                    },
+                    "revision": {
+                      "type": "string",
+                      "default": "0.0.1",
+                      "description": "The revision number of the domain event"
+                    },
+                    "bodyType": {
+                      "type": "string",
+                      "const": "me.ahoo.wow.compensation.api.RecoverableMarked",
+                      "description": "The fully qualified name of the domain event body"
+                    },
+                    "body": {
+                      "$ref": "#/components/schemas/compensation.execution_failed.RecoverableMarked"
+                    }
+                  },
+                  "required": [
+                    "body",
+                    "bodyType",
+                    "id",
+                    "name",
+                    "revision"
+                  ],
+                  "title": "recoverable_marked"
+                },
+                {
+                  "type": "object",
+                  "description": "The body of the domain event",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "The ID of the domain event.",
+                      "minLength": 1
+                    },
+                    "name": {
+                      "type": "string",
+                      "const": "retry_spec_applied",
+                      "description": "The name of the domain event",
+                      "minLength": 1
+                    },
+                    "revision": {
+                      "type": "string",
+                      "default": "0.0.1",
+                      "description": "The revision number of the domain event"
+                    },
+                    "bodyType": {
+                      "type": "string",
+                      "const": "me.ahoo.wow.compensation.api.RetrySpecApplied",
+                      "description": "The fully qualified name of the domain event body"
+                    },
+                    "body": {
+                      "$ref": "#/components/schemas/compensation.execution_failed.RetrySpecApplied"
+                    }
+                  },
+                  "required": [
+                    "body",
+                    "bodyType",
+                    "id",
+                    "name",
+                    "revision"
+                  ],
+                  "title": "retry_spec_applied"
+                }
+              ]
+            },
+            "minItems": 1
+          },
+          "createTime": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The time when the domain event stream was created"
+          }
+        },
+        "required": [
+          "aggregateId",
+          "aggregateName",
+          "body",
+          "contextName",
+          "createTime",
+          "id",
+          "ownerId",
+          "tenantId",
+          "version"
+        ]
+      },
+      "compensation.execution_failed.ExecutionFailedAggregatedDomainEventStreamPagedList": {
+        "type": "object",
+        "properties": {
+          "list": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/compensation.execution_failed.ExecutionFailedAggregatedDomainEventStream"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "list",
+          "total"
+        ]
+      },
+      "compensation.execution_failed.ExecutionFailedAggregatedDomainEventStreamServerSentEventNonNullData": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/compensation.execution_failed.ExecutionFailedAggregatedDomainEventStream"
+          },
+          "event": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "retry": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "compensation.execution_failed.ExecutionFailedAggregatedFields": {
+        "type": "string",
+        "enum": [
+          "",
+          "aggregateId",
+          "tenantId",
+          "ownerId",
+          "version",
+          "eventId",
+          "firstOperator",
+          "operator",
+          "firstEventTime",
+          "eventTime",
+          "deleted",
+          "state",
+          "state.error",
+          "state.error.bindingErrors",
+          "state.error.bindingErrors.msg",
+          "state.error.bindingErrors.name",
+          "state.error.errorCode",
+          "state.error.errorMsg",
+          "state.error.stackTrace",
+          "state.error.succeeded",
+          "state.eventId",
+          "state.eventId.aggregateId",
+          "state.eventId.aggregateId.namedAggregate",
+          "state.eventId.aggregateId.namedAggregate.aggregateName",
+          "state.eventId.aggregateId.namedAggregate.contextName",
+          "state.eventId.aggregateId.id",
+          "state.eventId.aggregateId.tenantId",
+          "state.eventId.id",
+          "state.eventId.version",
+          "state.executeAt",
+          "state.function",
+          "state.function.contextName",
+          "state.function.functionKind",
+          "state.function.name",
+          "state.function.processorName",
+          "state.id",
+          "state.recoverable",
+          "state.retrySpec",
+          "state.retrySpec.executionTimeout",
+          "state.retrySpec.maxRetries",
+          "state.retrySpec.minBackoff",
+          "state.retryState",
+          "state.retryState.nextRetryAt",
+          "state.retryState.retries",
+          "state.retryState.retryAt",
+          "state.retryState.timeoutAt",
+          "state.status",
+          "state.isBelowRetryThreshold",
+          "state.isRetryable"
+        ]
+      },
+      "compensation.execution_failed.ExecutionFailedAggregatedListQuery": {
+        "type": "object",
+        "properties": {
+          "condition": {
+            "$ref": "#/components/schemas/compensation.execution_failed.ExecutionFailedAggregatedCondition"
+          },
+          "limit": {
+            "type": "integer",
+            "format": "int32",
+            "default": "10"
+          },
+          "projection": {
+            "$ref": "#/components/schemas/wow.api.query.Projection"
+          },
+          "sort": {
+            "type": "array",
+            "default": "[]",
+            "items": {
+              "$ref": "#/components/schemas/wow.api.query.Sort"
+            }
+          }
+        },
+        "required": [
+          "condition"
+        ]
+      },
+      "compensation.execution_failed.ExecutionFailedAggregatedPagedQuery": {
+        "type": "object",
+        "properties": {
+          "condition": {
+            "$ref": "#/components/schemas/compensation.execution_failed.ExecutionFailedAggregatedCondition"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/wow.api.query.Pagination"
+          },
+          "projection": {
+            "$ref": "#/components/schemas/wow.api.query.Projection"
+          },
+          "sort": {
+            "type": "array",
+            "default": "[]",
+            "items": {
+              "$ref": "#/components/schemas/wow.api.query.Sort"
+            }
+          }
+        },
+        "required": [
+          "condition"
+        ]
+      },
+      "compensation.execution_failed.ExecutionFailedAggregatedSingleQuery": {
+        "type": "object",
+        "properties": {
+          "condition": {
+            "$ref": "#/components/schemas/compensation.execution_failed.ExecutionFailedAggregatedCondition"
+          },
+          "projection": {
+            "$ref": "#/components/schemas/wow.api.query.Projection"
+          },
+          "sort": {
+            "type": "array",
+            "default": "[]",
+            "items": {
+              "$ref": "#/components/schemas/wow.api.query.Sort"
+            }
+          }
+        },
+        "required": [
+          "condition"
+        ]
+      },
+      "compensation.execution_failed.ExecutionFailedApplied": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/compensation.execution_failed.ErrorDetails"
+          },
+          "executeAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "recoverable": {
+            "$ref": "#/components/schemas/wow.api.RecoverableType"
+          }
+        },
+        "required": [
+          "error",
+          "executeAt"
+        ]
+      },
+      "compensation.execution_failed.ExecutionFailedCreated": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/compensation.execution_failed.ErrorDetails"
+          },
+          "eventId": {
+            "$ref": "#/components/schemas/compensation.execution_failed.EventId"
+          },
+          "executeAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "function": {
+            "$ref": "#/components/schemas/wow.api.messaging.FunctionInfoData"
+          },
+          "recoverable": {
+            "$ref": "#/components/schemas/wow.api.RecoverableType"
+          },
+          "retrySpec": {
+            "$ref": "#/components/schemas/compensation.execution_failed.RetrySpec"
+          },
+          "retryState": {
+            "$ref": "#/components/schemas/compensation.execution_failed.RetryState"
+          }
+        },
+        "required": [
+          "error",
+          "eventId",
+          "executeAt",
+          "function",
+          "retrySpec",
+          "retryState"
+        ]
+      },
+      "compensation.execution_failed.ExecutionFailedState": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/compensation.execution_failed.ErrorDetails",
+            "readOnly": true
+          },
+          "eventId": {
+            "$ref": "#/components/schemas/compensation.execution_failed.EventId",
+            "readOnly": true
+          },
+          "executeAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "function": {
+            "$ref": "#/components/schemas/wow.api.messaging.FunctionInfoData",
+            "readOnly": true
+          },
+          "id": {
+            "type": "string"
+          },
+          "recoverable": {
+            "$ref": "#/components/schemas/wow.api.RecoverableType"
+          },
+          "retrySpec": {
+            "$ref": "#/components/schemas/compensation.execution_failed.RetrySpec",
+            "readOnly": true
+          },
+          "retryState": {
+            "$ref": "#/components/schemas/compensation.execution_failed.RetryState",
+            "readOnly": true
+          },
+          "status": {
+            "$ref": "#/components/schemas/compensation.execution_failed.ExecutionFailedStatus"
+          },
+          "isBelowRetryThreshold": {
+            "type": "boolean",
+            "readOnly": true
+          },
+          "isRetryable": {
+            "type": "boolean",
+            "readOnly": true
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "compensation.execution_failed.ExecutionFailedStateMaterializedSnapshot": {
+        "type": "object",
+        "properties": {
+          "aggregateId": {
+            "type": "string"
+          },
+          "aggregateName": {
+            "type": "string"
+          },
+          "contextName": {
+            "type": "string"
+          },
+          "deleted": {
+            "type": "boolean",
+            "description": "Whether the aggregate is deleted."
+          },
+          "eventId": {
+            "type": "string",
+            "description": "The event id of the aggregate."
+          },
+          "eventTime": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The last event time of the aggregate, represented as a Unix timestamp in milliseconds."
+          },
+          "firstEventTime": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The first event time of the aggregate, represented as a Unix timestamp in milliseconds."
+          },
+          "firstOperator": {
+            "type": "string",
+            "description": "The first operator of the aggregate."
+          },
+          "operator": {
+            "type": "string",
+            "description": "The last operator of the aggregate."
+          },
+          "ownerId": {
+            "type": "string"
+          },
+          "snapshotTime": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The snapshot time of the aggregate, represented as a Unix timestamp in milliseconds."
+          },
+          "state": {
+            "$ref": "#/components/schemas/compensation.execution_failed.ExecutionFailedState",
+            "description": "The state of the aggregate."
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "aggregateId",
+          "aggregateName",
+          "contextName",
+          "deleted",
+          "eventId",
+          "eventTime",
+          "firstEventTime",
+          "firstOperator",
+          "operator",
+          "snapshotTime",
+          "state",
+          "tenantId",
+          "version"
+        ]
+      },
+      "compensation.execution_failed.ExecutionFailedStateMaterializedSnapshotPagedList": {
+        "type": "object",
+        "properties": {
+          "list": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/compensation.execution_failed.ExecutionFailedStateMaterializedSnapshot"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "list",
+          "total"
+        ]
+      },
+      "compensation.execution_failed.ExecutionFailedStateMaterializedSnapshotServerSentEventNonNullData": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/compensation.execution_failed.ExecutionFailedStateMaterializedSnapshot"
+          },
+          "event": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "retry": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "compensation.execution_failed.ExecutionFailedStatePagedList": {
+        "type": "object",
+        "properties": {
+          "list": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/compensation.execution_failed.ExecutionFailedState"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "list",
+          "total"
+        ]
+      },
+      "compensation.execution_failed.ExecutionFailedStateServerSentEventNonNullData": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/compensation.execution_failed.ExecutionFailedState"
+          },
+          "event": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "retry": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "compensation.execution_failed.ExecutionFailedStateSnapshot": {
+        "type": "object",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "contextName": {
+            "type": "string",
+            "description": "The name of the context to which the snapshot belongs",
+            "minLength": 1
+          },
+          "aggregateName": {
+            "type": "string",
+            "description": "The name of the aggregate to which the snapshot belongs",
+            "minLength": 1
+          },
+          "tenantId": {
+            "type": "string",
+            "description": "The tenant id of the aggregate",
+            "minLength": 1
+          },
+          "aggregateId": {
+            "type": "string",
+            "description": "The id of the aggregate",
+            "minLength": 1
+          },
+          "ownerId": {
+            "type": "string",
+            "default": "",
+            "description": "The owner ID of the aggregate resource"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32",
+            "description": "The version of the snapshot"
+          },
+          "eventId": {
+            "type": "string",
+            "description": "The ID of the domain event stream.",
+            "minLength": 1
+          },
+          "firstOperator": {
+            "type": "string",
+            "description": "The first person who operates the aggregate is the creator"
+          },
+          "operator": {
+            "type": "string",
+            "description": "The last person who operates the aggregate"
+          },
+          "firstEventTime": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The first event time of the aggregate, which is the time it was created"
+          },
+          "state": {
+            "type": "object",
+            "description": "The state data of the aggregate",
+            "properties": {
+              "error": {
+                "$ref": "#/components/schemas/compensation.execution_failed.ErrorDetails",
+                "readOnly": true
+              },
+              "eventId": {
+                "$ref": "#/components/schemas/compensation.execution_failed.EventId",
+                "readOnly": true
+              },
+              "executeAt": {
+                "type": "integer",
+                "format": "int64"
+              },
+              "function": {
+                "$ref": "#/components/schemas/wow.api.messaging.FunctionInfoData",
+                "readOnly": true
+              },
+              "id": {
+                "type": "string"
+              },
+              "recoverable": {
+                "$ref": "#/components/schemas/wow.api.RecoverableType"
+              },
+              "retrySpec": {
+                "$ref": "#/components/schemas/compensation.execution_failed.RetrySpec",
+                "readOnly": true
+              },
+              "retryState": {
+                "$ref": "#/components/schemas/compensation.execution_failed.RetryState",
+                "readOnly": true
+              },
+              "status": {
+                "$ref": "#/components/schemas/compensation.execution_failed.ExecutionFailedStatus"
+              }
+            },
+            "required": [
+              "id"
+            ]
+          },
+          "deleted": {
+            "type": "boolean",
+            "description": "Whether the aggregate has been deleted"
+          },
+          "snapshotTime": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The snapshot time of the aggregate"
+          }
+        },
+        "required": [
+          "aggregateId",
+          "aggregateName",
+          "contextName",
+          "deleted",
+          "eventId",
+          "firstEventTime",
+          "firstOperator",
+          "operator",
+          "ownerId",
+          "snapshotTime",
+          "state",
+          "tenantId",
+          "version"
+        ]
+      },
+      "compensation.execution_failed.ExecutionFailedStateStateEvent": {
+        "type": "object",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The ID of the domain event stream.",
+            "minLength": 1
+          },
+          "contextName": {
+            "type": "string",
+            "description": "The name of the context to which the domain event stream belongs",
+            "minLength": 1
+          },
+          "aggregateName": {
+            "type": "string",
+            "description": "The name of the aggregate to which the domain event stream belongs",
+            "minLength": 1
+          },
+          "header": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "message header",
+            "properties": {
+              "user_agent": {
+                "type": "string",
+                "description": "user agent"
+              },
+              "remote_ip": {
+                "type": "string",
+                "description": "remote ip"
+              },
+              "trace_id": {
+                "type": "string",
+                "description": "trace id"
+              },
+              "command_operator": {
+                "type": "string",
+                "description": "command operator"
+              },
+              "local_first": {
+                "type": "boolean",
+                "description": "local first"
+              },
+              "command_wait_endpoint": {
+                "type": "string",
+                "format": "url",
+                "description": "command wait endpoint"
+              },
+              "command_wait_stage": {
+                "type": "string",
+                "default": "PROCESSED",
+                "enum": [
+                  "SENT",
+                  "PROCESSED",
+                  "SNAPSHOT",
+                  "PROJECTED",
+                  "EVENT_HANDLED",
+                  "SAGA_HANDLED"
+                ]
+              }
+            }
+          },
+          "tenantId": {
+            "type": "string",
+            "description": "The tenant id of the aggregate",
+            "minLength": 1
+          },
+          "aggregateId": {
+            "type": "string",
+            "description": "The id of the aggregate",
+            "minLength": 1
+          },
+          "ownerId": {
+            "type": "string",
+            "default": "",
+            "description": "The owner ID of the aggregate resource"
+          },
+          "commandId": {
+            "type": "string",
+            "description": "The ID of the command message.",
+            "minLength": 1
+          },
+          "requestId": {
+            "type": "string",
+            "description": "The request ID of the command message, which is used to check the idempotency of the command message",
+            "minLength": 1
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32",
+            "description": "The version of the domain event stream"
+          },
+          "body": {
+            "type": "array",
+            "description": "A list of domain events for the domain event stream",
+            "items": {
+              "type": "object",
+              "description": "The body of the domain event",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "The ID of the domain event.",
+                  "minLength": 1
+                },
+                "name": {
+                  "type": "string",
+                  "description": "The name of the domain event",
+                  "minLength": 1
+                },
+                "revision": {
+                  "type": "string",
+                  "description": "The revision number of the domain event"
+                },
+                "bodyType": {
+                  "type": "string",
+                  "description": "The fully qualified name of the domain event body"
+                },
+                "body": {
+                  "type": "object",
+                  "description": "The message body of the domain event"
+                }
+              },
+              "required": [
+                "body",
+                "bodyType",
+                "id",
+                "name",
+                "revision"
+              ]
+            },
+            "minItems": 1
+          },
+          "createTime": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The time when the domain event stream was created"
+          },
+          "firstOperator": {
+            "type": "string",
+            "description": "The first person who operates the aggregate is the creator"
+          },
+          "firstEventTime": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The first event time of the aggregate, which is the time it was created"
+          },
+          "state": {
+            "type": "object",
+            "description": "The state data of the aggregate",
+            "properties": {
+              "error": {
+                "$ref": "#/components/schemas/compensation.execution_failed.ErrorDetails",
+                "readOnly": true
+              },
+              "eventId": {
+                "$ref": "#/components/schemas/compensation.execution_failed.EventId",
+                "readOnly": true
+              },
+              "executeAt": {
+                "type": "integer",
+                "format": "int64"
+              },
+              "function": {
+                "$ref": "#/components/schemas/wow.api.messaging.FunctionInfoData",
+                "readOnly": true
+              },
+              "id": {
+                "type": "string"
+              },
+              "recoverable": {
+                "$ref": "#/components/schemas/wow.api.RecoverableType"
+              },
+              "retrySpec": {
+                "$ref": "#/components/schemas/compensation.execution_failed.RetrySpec",
+                "readOnly": true
+              },
+              "retryState": {
+                "$ref": "#/components/schemas/compensation.execution_failed.RetryState",
+                "readOnly": true
+              },
+              "status": {
+                "$ref": "#/components/schemas/compensation.execution_failed.ExecutionFailedStatus"
+              }
+            },
+            "required": [
+              "id"
+            ]
+          },
+          "deleted": {
+            "type": "boolean",
+            "description": "Whether the aggregate has been deleted"
+          }
+        },
+        "required": [
+          "aggregateId",
+          "aggregateName",
+          "body",
+          "contextName",
+          "createTime",
+          "deleted",
+          "firstEventTime",
+          "firstOperator",
+          "id",
+          "ownerId",
+          "state",
+          "tenantId",
+          "version"
+        ]
+      },
+      "compensation.execution_failed.ExecutionFailedStatus": {
+        "type": "string",
+        "enum": [
+          "FAILED",
+          "PREPARED",
+          "SUCCEEDED"
+        ]
+      },
+      "compensation.execution_failed.ExecutionSuccessApplied": {
+        "type": "object",
+        "properties": {
+          "executeAt": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "executeAt"
+        ]
+      },
+      "compensation.execution_failed.ForcePrepareCompensation": {
+        "type": "object"
+      },
+      "compensation.execution_failed.FunctionChanged": {
+        "type": "object",
+        "properties": {
+          "contextName": {
+            "type": "string"
+          },
+          "functionKind": {
+            "$ref": "#/components/schemas/wow.api.messaging.FunctionKind"
+          },
+          "name": {
+            "type": "string"
+          },
+          "processorName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "contextName",
+          "functionKind",
+          "name",
+          "processorName"
+        ]
+      },
+      "compensation.execution_failed.MarkRecoverable": {
+        "type": "object",
+        "properties": {
+          "recoverable": {
+            "$ref": "#/components/schemas/wow.api.RecoverableType"
+          }
+        },
+        "required": [
+          "recoverable"
+        ]
+      },
+      "compensation.execution_failed.PrepareCompensation": {
+        "type": "object"
+      },
+      "compensation.execution_failed.RecoverableMarked": {
+        "type": "object",
+        "properties": {
+          "recoverable": {
+            "$ref": "#/components/schemas/wow.api.RecoverableType"
+          }
+        },
+        "required": [
+          "recoverable"
+        ]
+      },
+      "compensation.execution_failed.RetrySpec": {
+        "type": "object",
+        "properties": {
+          "executionTimeout": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxRetries": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "minBackoff": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "executionTimeout",
+          "maxRetries",
+          "minBackoff"
+        ]
+      },
+      "compensation.execution_failed.RetrySpecApplied": {
+        "type": "object",
+        "properties": {
+          "executionTimeout": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxRetries": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "minBackoff": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "executionTimeout",
+          "maxRetries",
+          "minBackoff"
+        ]
+      },
+      "compensation.execution_failed.RetryState": {
+        "type": "object",
+        "properties": {
+          "nextRetryAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "retries": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "retryAt": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "timeoutAt": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "nextRetryAt",
+          "retries",
+          "retryAt",
+          "timeoutAt"
+        ]
+      },
+      "wow.MessageHeaderSqlType": {
+        "type": "string",
+        "enum": [
+          "MAP",
+          "STRING"
+        ]
+      },
+      "wow.api.BindingError": {
+        "type": "object",
+        "properties": {
+          "msg": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "msg",
+          "name"
+        ]
+      },
+      "wow.api.DefaultErrorInfo": {
+        "type": "object",
+        "properties": {
+          "bindingErrors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/wow.api.BindingError"
+            }
+          },
+          "errorCode": {
+            "type": "string"
+          },
+          "errorMsg": {
+            "type": "string"
+          },
+          "succeeded": {
+            "type": "boolean",
+            "readOnly": true
+          }
+        },
+        "required": [
+          "errorCode"
+        ]
+      },
+      "wow.api.RecoverableType": {
+        "type": "string",
+        "enum": [
+          "RECOVERABLE",
+          "UNRECOVERABLE",
+          "UNKNOWN"
+        ]
+      },
+      "wow.api.command.DefaultDeleteAggregate": {
+        "type": "object"
+      },
+      "wow.api.command.DefaultRecoverAggregate": {
+        "type": "object"
+      },
+      "wow.api.messaging.FunctionInfoData": {
+        "type": "object",
+        "properties": {
+          "contextName": {
+            "type": "string"
+          },
+          "functionKind": {
+            "$ref": "#/components/schemas/wow.api.messaging.FunctionKind"
+          },
+          "name": {
+            "type": "string"
+          },
+          "processorName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "contextName",
+          "functionKind",
+          "name",
+          "processorName"
+        ]
+      },
+      "wow.api.messaging.FunctionKind": {
+        "type": "string",
+        "enum": [
+          "COMMAND",
+          "SOURCING",
+          "EVENT",
+          "STATE_EVENT",
+          "ERROR"
+        ]
+      },
+      "wow.api.modeling.AggregateId": {
+        "type": "object",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "properties": {
+          "contextName": {
+            "type": "string",
+            "description": "aggregate context name",
+            "minLength": 1
+          },
+          "aggregateName": {
+            "type": "string",
+            "description": "aggregate name",
+            "minLength": 1
+          },
+          "tenantId": {
+            "type": "string",
+            "default": "(0)",
+            "description": "aggregate tenant id",
+            "minLength": 1
+          },
+          "aggregateId": {
+            "type": "string",
+            "description": "aggregate id",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "aggregateId",
+          "aggregateName",
+          "contextName",
+          "tenantId"
+        ]
+      },
+      "wow.api.query.Condition": {
+        "type": "object",
+        "properties": {
+          "children": {
+            "type": "array",
+            "default": "[]",
+            "items": {
+              "$ref": "#/components/schemas/wow.api.query.Condition"
+            }
+          },
+          "field": {
+            "type": "string"
+          },
+          "operator": {
+            "$ref": "#/components/schemas/wow.api.query.Operator",
+            "default": "ALL"
+          },
+          "options": {
+            "$ref": "#/components/schemas/wow.api.query.ConditionOptions",
+            "default": "{}"
+          },
+          "value": {}
+        }
+      },
+      "wow.api.query.ConditionOptions": {
+        "type": "object",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": true,
+        "properties": {
+          "ignoreCase": {
+            "type": "boolean",
+            "description": "Whether to ignore case in string comparisons"
+          },
+          "datePattern": {
+            "type": "string",
+            "description": "Date pattern for date formatting"
+          },
+          "zoneId": {
+            "type": "string",
+            "description": "Time zone ID for date operations"
+          }
+        }
+      },
+      "wow.api.query.ListQuery": {
+        "type": "object",
+        "properties": {
+          "condition": {
+            "$ref": "#/components/schemas/wow.api.query.Condition"
+          },
+          "limit": {
+            "type": "integer",
+            "format": "int32",
+            "default": "10"
+          },
+          "projection": {
+            "$ref": "#/components/schemas/wow.api.query.Projection"
+          },
+          "sort": {
+            "type": "array",
+            "default": "[]",
+            "items": {
+              "$ref": "#/components/schemas/wow.api.query.Sort"
+            }
+          }
+        },
+        "required": [
+          "condition"
+        ]
+      },
+      "wow.api.query.Operator": {
+        "type": "string",
+        "enum": [
+          "AND",
+          "OR",
+          "NOR",
+          "ID",
+          "IDS",
+          "AGGREGATE_ID",
+          "AGGREGATE_IDS",
+          "TENANT_ID",
+          "OWNER_ID",
+          "DELETED",
+          "ALL",
+          "EQ",
+          "NE",
+          "GT",
+          "LT",
+          "GTE",
+          "LTE",
+          "CONTAINS",
+          "IN",
+          "NOT_IN",
+          "BETWEEN",
+          "ALL_IN",
+          "STARTS_WITH",
+          "ENDS_WITH",
+          "ELEM_MATCH",
+          "NULL",
+          "NOT_NULL",
+          "TRUE",
+          "FALSE",
+          "EXISTS",
+          "TODAY",
+          "BEFORE_TODAY",
+          "TOMORROW",
+          "THIS_WEEK",
+          "NEXT_WEEK",
+          "LAST_WEEK",
+          "THIS_MONTH",
+          "LAST_MONTH",
+          "RECENT_DAYS",
+          "EARLIER_DAYS",
+          "RAW"
+        ]
+      },
+      "wow.api.query.PagedQuery": {
+        "type": "object",
+        "properties": {
+          "condition": {
+            "$ref": "#/components/schemas/wow.api.query.Condition"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/wow.api.query.Pagination"
+          },
+          "projection": {
+            "$ref": "#/components/schemas/wow.api.query.Projection"
+          },
+          "sort": {
+            "type": "array",
+            "default": "[]",
+            "items": {
+              "$ref": "#/components/schemas/wow.api.query.Sort"
+            }
+          }
+        },
+        "required": [
+          "condition"
+        ]
+      },
+      "wow.api.query.Pagination": {
+        "type": "object",
+        "properties": {
+          "index": {
+            "type": "integer",
+            "format": "int32",
+            "default": "1"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int32",
+            "default": "10"
+          }
+        },
+        "required": [
+          "index",
+          "size"
+        ]
+      },
+      "wow.api.query.Projection": {
+        "type": "object",
+        "properties": {
+          "exclude": {
+            "type": "array",
+            "default": "[]",
+            "items": {
+              "type": "string"
+            }
+          },
+          "include": {
+            "type": "array",
+            "default": "[]",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "wow.api.query.Sort": {
+        "type": "object",
+        "properties": {
+          "direction": {
+            "$ref": "#/components/schemas/wow.api.query.Sort.Direction"
+          },
+          "field": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "direction",
+          "field"
+        ]
+      },
+      "wow.api.query.Sort.Direction": {
+        "type": "string",
+        "enum": [
+          "ASC",
+          "DESC"
+        ]
+      },
+      "wow.command.CommandResult": {
+        "type": "object",
+        "properties": {
+          "aggregateId": {
+            "type": "string"
+          },
+          "aggregateName": {
+            "type": "string"
+          },
+          "aggregateVersion": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "bindingErrors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/wow.api.BindingError"
+            }
+          },
+          "commandId": {
+            "type": "string"
+          },
+          "contextName": {
+            "type": "string"
+          },
+          "errorCode": {
+            "type": "string"
+          },
+          "errorMsg": {
+            "type": "string"
+          },
+          "function": {
+            "$ref": "#/components/schemas/wow.api.messaging.FunctionInfoData"
+          },
+          "id": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "result": {
+            "$ref": "#/components/schemas/compensation.StringObjectMap"
+          },
+          "signalTime": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "stage": {
+            "$ref": "#/components/schemas/wow.command.CommandStage"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "waitCommandId": {
+            "type": "string"
+          },
+          "succeeded": {
+            "type": "boolean",
+            "readOnly": true
+          }
+        },
+        "required": [
+          "aggregateId",
+          "aggregateName",
+          "commandId",
+          "contextName",
+          "function",
+          "id",
+          "requestId",
+          "stage",
+          "tenantId",
+          "waitCommandId"
+        ]
+      },
+      "wow.command.CommandStage": {
+        "type": "string",
+        "enum": [
+          "SENT",
+          "PROCESSED",
+          "SNAPSHOT",
+          "PROJECTED",
+          "EVENT_HANDLED",
+          "SAGA_HANDLED"
+        ]
+      },
+      "wow.command.SimpleWaitSignal": {
+        "type": "object",
+        "properties": {
+          "aggregateId": {
+            "$ref": "#/components/schemas/wow.api.modeling.AggregateId"
+          },
+          "aggregateVersion": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "bindingErrors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/wow.api.BindingError"
+            }
+          },
+          "commandId": {
+            "type": "string"
+          },
+          "commands": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "errorCode": {
+            "type": "string"
+          },
+          "errorMsg": {
+            "type": "string"
+          },
+          "function": {
+            "$ref": "#/components/schemas/wow.api.messaging.FunctionInfoData"
+          },
+          "id": {
+            "type": "string"
+          },
+          "result": {
+            "$ref": "#/components/schemas/compensation.StringObjectMap"
+          },
+          "signalTime": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "stage": {
+            "$ref": "#/components/schemas/wow.command.CommandStage"
+          },
+          "waitCommandId": {
+            "type": "string"
+          },
+          "succeeded": {
+            "type": "boolean",
+            "readOnly": true
+          }
+        },
+        "required": [
+          "aggregateId",
+          "commandId",
+          "function",
+          "id",
+          "stage",
+          "waitCommandId"
+        ]
+      },
+      "wow.configuration.Aggregate": {
+        "type": "object",
+        "properties": {
+          "commands": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "tenantId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "wow.configuration.BoundedContext": {
+        "type": "object",
+        "properties": {
+          "aggregates": {
+            "$ref": "#/components/schemas/wow.configuration.StringAggregateMap"
+          },
+          "alias": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "wow.configuration.StringAggregateMap": {
+        "type": "object",
+        "additionalProperties": {
+          "$ref": "#/components/schemas/wow.configuration.Aggregate"
+        }
+      },
+      "wow.configuration.StringBoundedContextMap": {
+        "type": "object",
+        "additionalProperties": {
+          "$ref": "#/components/schemas/wow.configuration.BoundedContext"
+        }
+      },
+      "wow.configuration.WowMetadata": {
+        "type": "object",
+        "properties": {
+          "contexts": {
+            "$ref": "#/components/schemas/wow.configuration.StringBoundedContextMap"
+          }
+        }
+      },
+      "wow.messaging.CompensationTarget": {
+        "type": "object",
+        "properties": {
+          "function": {
+            "$ref": "#/components/schemas/wow.api.messaging.FunctionInfoData"
+          },
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "function"
+        ]
+      },
+      "wow.openapi.BatchResult": {
+        "type": "object",
+        "properties": {
+          "afterId": {
+            "type": "string"
+          },
+          "errorCode": {
+            "type": "string"
+          },
+          "errorMsg": {
+            "type": "string"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "bindingErrors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/wow.api.BindingError"
+            },
+            "readOnly": true
+          },
+          "succeeded": {
+            "type": "boolean",
+            "readOnly": true
+          }
+        },
+        "required": [
+          "afterId",
+          "size"
+        ]
+      }
+    },
+    "responses": {
+      "wow.CommandOk": {
+        "description": "",
+        "headers": {
+          "Wow-Error-Code": {
+            "$ref": "#/components/headers/wow.Wow-Error-Code"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/wow.command.CommandResult"
+            }
+          },
+          "text/event-stream": {
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/wow.command.CommandResult"
+                },
+                {
+                  "type": "string",
+                  "description": "This value is returned when the task fails to be executed",
+                  "title": "error"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "wow.CommandBadRequest": {
+        "description": "Command Bad Request",
+        "headers": {
+          "Wow-Error-Code": {
+            "$ref": "#/components/headers/wow.Wow-Error-Code"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/wow.command.CommandResult"
+            }
+          }
+        }
+      },
+      "wow.CommandNotFound": {
+        "description": "Aggregate Not Found",
+        "headers": {
+          "Wow-Error-Code": {
+            "$ref": "#/components/headers/wow.Wow-Error-Code"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/wow.command.CommandResult"
+            }
+          }
+        }
+      },
+      "wow.CommandVersionConflict": {
+        "description": "Command Version Conflict",
+        "headers": {
+          "Wow-Error-Code": {
+            "$ref": "#/components/headers/wow.Wow-Error-Code"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/wow.command.CommandResult"
+            }
+          }
+        }
+      },
+      "wow.CommandTooManyRequests": {
+        "description": "Command Too Many Requests",
+        "headers": {
+          "Wow-Error-Code": {
+            "$ref": "#/components/headers/wow.Wow-Error-Code"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/wow.command.CommandResult"
+            }
+          }
+        }
+      },
+      "wow.CommandRequestTimeout": {
+        "description": "Command Request Timeout",
+        "headers": {
+          "Wow-Error-Code": {
+            "$ref": "#/components/headers/wow.Wow-Error-Code"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/wow.command.CommandResult"
+            }
+          }
+        }
+      },
+      "wow.CommandIllegalAccessDeletedAggregate": {
+        "description": "Illegal Access Deleted Aggregate",
+        "headers": {
+          "Wow-Error-Code": {
+            "$ref": "#/components/headers/wow.Wow-Error-Code"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/wow.command.CommandResult"
+            }
+          }
+        }
+      },
+      "wow.BadRequest": {
+        "description": "Bad Request",
+        "headers": {
+          "Wow-Error-Code": {
+            "$ref": "#/components/headers/wow.Wow-Error-Code"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/wow.api.DefaultErrorInfo"
+            }
+          }
+        }
+      },
+      "wow.NotFound": {
+        "description": "Not Found",
+        "headers": {
+          "Wow-Error-Code": {
+            "$ref": "#/components/headers/wow.Wow-Error-Code"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/wow.api.DefaultErrorInfo"
+            }
+          }
+        }
+      },
+      "wow.CountQuery": {
+        "headers": {
+          "Wow-Error-Code": {
+            "$ref": "#/components/headers/wow.Wow-Error-Code"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        }
+      },
+      "wow.RequestTimeout": {
+        "description": "Request Timeout",
+        "headers": {
+          "Wow-Error-Code": {
+            "$ref": "#/components/headers/wow.Wow-Error-Code"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/wow.api.DefaultErrorInfo"
+            }
+          }
+        }
+      },
+      "wow.TooManyRequests": {
+        "description": "Too Many Requests",
+        "headers": {
+          "Wow-Error-Code": {
+            "$ref": "#/components/headers/wow.Wow-Error-Code"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/wow.api.DefaultErrorInfo"
+            }
+          }
+        }
+      },
+      "wow.CompensationTarget": {
+        "description": "Number of event streams compensated",
+        "headers": {
+          "Wow-Error-Code": {
+            "$ref": "#/components/headers/wow.Wow-Error-Code"
+          }
+        },
+        "content": {
+          "text/plain": {
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        }
+      },
+      "wow.BatchResult": {
+        "description": "Batch Result",
+        "headers": {
+          "Wow-Error-Code": {
+            "$ref": "#/components/headers/wow.Wow-Error-Code"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/wow.openapi.BatchResult"
+            }
+          }
+        }
+      }
+    },
+    "parameters": {
+      "wow.Command-Type": {
+        "name": "Command-Type",
+        "in": "header",
+        "description": "The fully qualified name of the command message body",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "wow.Command-Wait-Stage": {
+        "name": "Command-Wait-Stage",
+        "in": "header",
+        "schema": {
+          "$ref": "#/components/schemas/wow.command.CommandStage"
+        }
+      },
+      "wow.Command-Wait-Context": {
+        "name": "Command-Wait-Context",
+        "in": "header",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "wow.Command-Wait-Processor": {
+        "name": "Command-Wait-Processor",
+        "in": "header",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "wow.Command-Wait-Function": {
+        "name": "Command-Wait-Function",
+        "in": "header",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "wow.Command-Wait-Timout": {
+        "name": "Command-Wait-Timout",
+        "in": "header",
+        "description": "Command timeout period. Milliseconds",
+        "schema": {
+          "type": "integer",
+          "format": "int32"
+        }
+      },
+      "wow.Command-Wait-Tail-Stage": {
+        "name": "Command-Wait-Tail-Stage",
+        "in": "header",
+        "schema": {
+          "$ref": "#/components/schemas/wow.command.CommandStage"
+        }
+      },
+      "wow.Command-Wait-Tail-Context": {
+        "name": "Command-Wait-Tail-Context",
+        "in": "header",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "wow.Command-Wait-Tail-Processor": {
+        "name": "Command-Wait-Tail-Processor",
+        "in": "header",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "wow.Command-Wait-Tail-Function": {
+        "name": "Command-Wait-Tail-Function",
+        "in": "header",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "wow.Command-Aggregate-Id": {
+        "name": "Command-Aggregate-Id",
+        "in": "header",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "wow.Command-Aggregate-Version": {
+        "name": "Command-Aggregate-Version",
+        "in": "header",
+        "description": "The version of the target aggregate, which is used to control version conflicts",
+        "schema": {
+          "type": "integer",
+          "format": "int32"
+        }
+      },
+      "wow.Command-Request-Id": {
+        "name": "Command-Request-Id",
+        "in": "header",
+        "description": "The request ID of the command message, which is used to check the idempotency of the command message",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "wow.Command-Local-First": {
+        "name": "Command-Local-First",
+        "in": "header",
+        "description": "Whether to enable local priority mode, if false, it will be turned off, and the default is true.",
+        "schema": {
+          "type": "boolean"
+        }
+      },
+      "wow.Accept": {
+        "name": "Accept",
+        "in": "header",
+        "schema": {
+          "type": "string",
+          "default": "application/json",
+          "enum": [
+            "application/json",
+            "text/event-stream"
+          ]
+        }
+      },
+      "wow.Command-Tenant-Id": {
+        "name": "Command-Tenant-Id",
+        "in": "header",
+        "description": "The tenant ID of the aggregate",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "wow.Command-Owner-Id": {
+        "name": "Command-Owner-Id",
+        "in": "header",
+        "description": "The owner ID of the aggregate resource",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "wow.Command-Aggregate-Context": {
+        "name": "Command-Aggregate-Context",
+        "in": "header",
+        "description": "The name of the context to which the command message belongs",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "wow.Command-Aggregate-Name": {
+        "name": "Command-Aggregate-Name",
+        "in": "header",
+        "description": "The name of the aggregate to which the command message belongs",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "wow.Wow-BI-Header-Sql-Type": {
+        "name": "Wow-BI-Header-Sql-Type",
+        "in": "header",
+        "description": "The type of BI Message header.",
+        "schema": {
+          "$ref": "#/components/schemas/wow.MessageHeaderSqlType"
+        }
+      },
+      "wow.id": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "description": "aggregate id"
+        }
+      },
+      "wow.version": {
+        "name": "version",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer",
+          "format": "int32",
+          "description": "aggregate version",
+          "example": 2147483646
+        }
+      },
+      "wow.createTime": {
+        "name": "createTime",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer",
+          "format": "int32"
+        }
+      },
+      "wow.afterId": {
+        "name": "afterId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "description": "The ID of the last record in the batch.",
+          "example": "(0)"
+        }
+      },
+      "wow.limit": {
+        "name": "limit",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer",
+          "format": "int32",
+          "description": "The size of batch.",
+          "example": 2147483646
+        }
+      },
+      "wow.headVersion": {
+        "name": "headVersion",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer",
+          "format": "int32",
+          "description": "The head version of the aggregate.",
+          "example": 1
+        }
+      },
+      "wow.tailVersion": {
+        "name": "tailVersion",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer",
+          "format": "int32",
+          "description": "The tail version of the aggregate.",
+          "example": 2147483646
+        }
+      }
+    },
+    "requestBodies": {
+      "compensation.execution_failed.CountQuery": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/compensation.execution_failed.ExecutionFailedAggregatedCondition"
+            }
+          }
+        }
+      },
+      "compensation.execution_failed.ListQuery": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/compensation.execution_failed.ExecutionFailedAggregatedListQuery"
+            }
+          }
+        }
+      },
+      "compensation.execution_failed.PagedQuery": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/compensation.execution_failed.ExecutionFailedAggregatedPagedQuery"
+            }
+          }
+        }
+      },
+      "compensation.execution_failed.SingleQuery": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/compensation.execution_failed.ExecutionFailedAggregatedSingleQuery"
+            }
+          }
+        }
+      },
+      "wow.ListQuery": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/wow.api.query.ListQuery"
+            }
+          }
+        }
+      },
+      "wow.PagedQuery": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/wow.api.query.PagedQuery"
+            }
+          }
+        }
+      },
+      "wow.CountQuery": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/wow.api.query.Condition"
+            }
+          }
+        }
+      },
+      "wow.CompensationTarget": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/wow.messaging.CompensationTarget"
+            }
+          }
+        }
+      }
+    },
+    "headers": {
+      "wow.Wow-Error-Code": {
+        "description": "Error code",
+        "schema": {
+          "type": "string",
+          "example": "Ok"
+        }
+      }
+    }
+  }
+}

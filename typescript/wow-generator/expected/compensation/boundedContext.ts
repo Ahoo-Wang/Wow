@@ -11,31 +11,5 @@
  * limitations under the License.
  */
 
-/**
- * Interface for named bounded contexts.
- */
-export interface NamedBoundedContext {
-  contextName: string;
-}
-
-export interface AliasBoundedContext {
-  contextAlias: string;
-}
-
-/**
- * Interface for named entities.
- */
-export interface Named {
-  name: string;
-}
-
-/**
- * Interface for entities that have a description.
- *
- * This interface defines a contract for objects that can provide a descriptive text.
- * It is commonly used in conjunction with other naming interfaces to provide additional
- * context or information about an entity.
- */
-export interface DescriptionCapable {
-  description: string;
-}
+export const BOUNDED_CONTEXT_NAME = 'compensation-service';
+export const BOUNDED_CONTEXT_ALIAS = 'compensation';

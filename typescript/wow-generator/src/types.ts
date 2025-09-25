@@ -11,31 +11,21 @@
  * limitations under the License.
  */
 
-/**
- * Interface for named bounded contexts.
- */
-export interface NamedBoundedContext {
-  contextName: string;
+import { OpenAPIParser } from '@/parser/openAPIParser.ts';
+import { OpenAPI } from '@ahoo-wang/fetcher-openapi';
+import { Project } from 'ts-morph';
+import { AggregateDefinition } from '@/aggregate';
+
+export interface GeneratorOptions {
+  readonly project: Project;
+  readonly inputPath: string;
+  readonly  outputDir: string;
+  readonly parser?: OpenAPIParser;
 }
 
-export interface AliasBoundedContext {
-  contextAlias: string;
-}
-
-/**
- * Interface for named entities.
- */
-export interface Named {
-  name: string;
-}
-
-/**
- * Interface for entities that have a description.
- *
- * This interface defines a contract for objects that can provide a descriptive text.
- * It is commonly used in conjunction with other naming interfaces to provide additional
- * context or information about an entity.
- */
-export interface DescriptionCapable {
-  description: string;
+export interface GenerateContext {
+  openAPI: OpenAPI;
+  project: Project;
+  outputDir: string;
+  aggregates: Map<string, AggregateDefinition>;
 }

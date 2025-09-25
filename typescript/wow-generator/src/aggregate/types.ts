@@ -11,31 +11,30 @@
  * limitations under the License.
  */
 
-/**
- * Interface for named bounded contexts.
- */
-export interface NamedBoundedContext {
-  contextName: string;
+import { Reference, Schema } from '@ahoo-wang/fetcher-openapi';
+
+export interface EventStreamSchema extends Schema {
+  properties: {
+    body: {
+      items: {
+        anyOf: Array<DomainEventSchema>;
+      }
+    };
+  };
 }
 
-export interface AliasBoundedContext {
-  contextAlias: string;
-}
-
-/**
- * Interface for named entities.
- */
-export interface Named {
-  name: string;
-}
-
-/**
- * Interface for entities that have a description.
- *
- * This interface defines a contract for objects that can provide a descriptive text.
- * It is commonly used in conjunction with other naming interfaces to provide additional
- * context or information about an entity.
- */
-export interface DescriptionCapable {
-  description: string;
+interface DomainEventSchema extends Schema {
+  type: 'object';
+  title: string;
+  properties: {
+    name: {
+      type: 'string';
+      const: string;
+    };
+    bodyType: {
+      type: 'string';
+      const: string;
+    },
+    body: Reference
+  };
 }

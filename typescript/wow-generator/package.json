@@ -1,0 +1,82 @@
+{
+  "name": "@ahoo-wang/fetcher-generator",
+  "version": "1.9.6",
+  "description": "OpenAPI Specification TypeScript code generator for Fetcher - A modern, ultra-lightweight HTTP client for browsers and Node.js. Generates data models, request/response types, and ApiClient from OpenAPI specifications.",
+  "keywords": [
+    "fetch",
+    "http",
+    "client",
+    "openapi",
+    "openapi3",
+    "swagger",
+    "generator",
+    "typescript",
+    "codegen",
+    "api",
+    "rest"
+  ],
+  "author": "Ahoo-Wang",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/Ahoo-Wang/fetcher/tree/master/packages/generator",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Ahoo-Wang/fetcher.git",
+    "directory": "packages/generator"
+  },
+  "bugs": {
+    "url": "https://github.com/Ahoo-Wang/fetcher/issues"
+  },
+  "type": "module",
+  "main": "./dist/index.umd.js",
+  "module": "./dist/index.es.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "fetcher-generator": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.es.js",
+      "require": "./dist/index.umd.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "vite build",
+    "test:ui": "vitest --ui",
+    "test": "vitest run --coverage",
+    "lint": "eslint . --fix",
+    "clean": "rm -rf dist",
+    "analyze": "npx vite-bundle-analyzer -p auto",
+    "generate": "node dist/cli.js generate -i test/compensation-spec.json -o test-output"
+  },
+  "dependencies": {
+    "@ahoo-wang/fetcher": "workspace:*",
+    "@ahoo-wang/fetcher-eventstream": "workspace:*",
+    "@ahoo-wang/fetcher-decorator": "workspace:*",
+    "@ahoo-wang/fetcher-openapi": "workspace:*",
+    "@ahoo-wang/fetcher-wow": "workspace:*",
+    "commander": "^12.1.0",
+    "yaml": "^2.8.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "catalog:",
+    "@types/node": "^22.18.6",
+    "@types/yaml": "^1.9.7",
+    "@vitest/coverage-v8": "catalog:",
+    "@vitest/ui": "catalog:",
+    "eslint": "catalog:",
+    "globals": "catalog:",
+    "prettier": "catalog:",
+    "ts-morph": "^24.0.0",
+    "typescript": "catalog:",
+    "typescript-eslint": "catalog:",
+    "unplugin-dts": "catalog:",
+    "vite": "catalog:",
+    "vite-bundle-analyzer": "catalog:",
+    "vitest": "catalog:"
+  }
+}

@@ -11,31 +11,17 @@
  * limitations under the License.
  */
 
-/**
- * Interface for named bounded contexts.
- */
-export interface NamedBoundedContext {
-  contextName: string;
-}
+import { describe, expect, it } from 'vitest';
+import { openAPIParser } from '@/parser/openAPIParser.ts';
+import { AggregateResolver } from '@/aggregate/aggregateResolver.ts';
 
-export interface AliasBoundedContext {
-  contextAlias: string;
-}
-
-/**
- * Interface for named entities.
- */
-export interface Named {
-  name: string;
-}
-
-/**
- * Interface for entities that have a description.
- *
- * This interface defines a contract for objects that can provide a descriptive text.
- * It is commonly used in conjunction with other naming interfaces to provide additional
- * context or information about an entity.
- */
-export interface DescriptionCapable {
-  description: string;
-}
+// This test ensures that all exports are properly defined
+describe('spec', () => {
+  it('resolve', async () => {
+    const openAPI = openAPIParser.parse('test/compensation-spec.json');
+    expect(openAPI).toBeDefined();
+    const aggregateResolver = new AggregateResolver(openAPI!);
+    const aggregates = aggregateResolver.resolve();
+    expect(aggregates).toMatchSnapshot();
+  });
+});
