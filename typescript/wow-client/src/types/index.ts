@@ -12,6 +12,7 @@
  */
 
 export * from './common';
+export * from './endpoints';
 export * from './error';
 export * from './function';
 export * from './messaging';
