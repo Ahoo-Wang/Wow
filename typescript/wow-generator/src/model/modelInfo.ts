@@ -13,6 +13,7 @@
 
 import { Named } from '@ahoo-wang/fetcher-wow';
 import { pascalCase } from '@/utils';
+import { IMPORT_WOW_PATH, WOW_TYPE_MAPPING } from '@/model/wowTypeMapping.ts';
 
 /**
  * Data Model Info
@@ -42,6 +43,11 @@ export interface ModelInfo extends Named {
 export function resolveModelInfo(schemaKey: string): ModelInfo {
   if (!schemaKey) {
     return { name: '', path: '/' };
+  }
+  const mappedType =
+    WOW_TYPE_MAPPING[schemaKey as keyof typeof WOW_TYPE_MAPPING];
+  if (mappedType) {
+    return { name: mappedType, path: IMPORT_WOW_PATH };
   }
 
   const parts = schemaKey.split('.');

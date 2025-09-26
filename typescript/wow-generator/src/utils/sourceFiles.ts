@@ -99,7 +99,10 @@ export function addImportRefModel(
 ) {
   let fileName = getModelFileName(refModelInfo);
   fileName = combineURLs(outputDir, fileName);
-  const moduleSpecifier = combineURLs(IMPORT_ALIAS, fileName);
+  let moduleSpecifier = fileName;
+  if (!fileName.startsWith(IMPORT_ALIAS)) {
+    moduleSpecifier = combineURLs(IMPORT_ALIAS, fileName);
+  }
   addImport(sourceFile, moduleSpecifier, [refModelInfo.name]);
 }
 

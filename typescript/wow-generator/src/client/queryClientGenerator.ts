@@ -94,7 +94,7 @@ export class QueryClientGenerator extends BaseCodeGenerator {
         name: clientFactoryName,
         initializer: `new QueryClientFactory<${stateModelInfo.name}, ${fieldsModelInfo.name} | string, ${domainEventTypesName}>(${defaultClientOptionsName});`,
       }],
-      isExported: false,
+      isExported: true,
     });
   }
 

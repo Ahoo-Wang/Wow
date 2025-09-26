@@ -22,10 +22,8 @@ import {
 import { ModelInfo, resolveModelInfo } from '@/model/modelInfo.ts';
 import { isEnum, resolvePrimitiveType } from '@/utils/schemas.ts';
 import { GenerateContext } from '@/types.ts';
-import { IMPORT_WOW_PATH, WOW_TYPE_MAPPING } from '@/model/wowTypeMapping.ts';
 import { extractComponentKey, isReference } from '@/utils';
 import {
-  addImport,
   addImportModelInfo, getModelFileName,
   getOrCreateSourceFile,
 } from '@/utils/sourceFiles.ts';
@@ -331,12 +329,6 @@ export class ModelGenerator extends BaseCodeGenerator {
   ): string {
     const schemaKey = extractComponentKey(ref);
     const refModelInfo = resolveModelInfo(schemaKey);
-    const mappedType =
-      WOW_TYPE_MAPPING[schemaKey as keyof typeof WOW_TYPE_MAPPING];
-    if (mappedType) {
-      addImport(sourceFile, IMPORT_WOW_PATH, [mappedType]);
-      return mappedType;
-    }
     addImportModelInfo(modelInfo, sourceFile, this.outputDir, refModelInfo);
     return refModelInfo.name;
   }
