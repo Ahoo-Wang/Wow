@@ -17,7 +17,7 @@ import { AggregateDefinition, TagAliasAggregate } from '@/aggregate';
 import { createClientFilePath, inferPathSpecType } from '@/client/utils.ts';
 import { IMPORT_WOW_PATH, ModelInfo, resolveModelInfo } from '@/model';
 import { addImportRefModel, camelCase } from '@/utils';
-import { BaseCodeGenerator } from '@/BaseCodeGenerator.ts';
+import { BaseCodeGenerator } from '@/baseCodeGenerator.ts';
 
 export class QueryClientGenerator extends BaseCodeGenerator {
   constructor(context: GenerateContext) {

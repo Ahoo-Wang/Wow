@@ -27,7 +27,7 @@ import {
   addImportModelInfo, getModelFileName,
   getOrCreateSourceFile,
 } from '@/utils/sourceFiles.ts';
-import { BaseCodeGenerator } from '@/BaseCodeGenerator.ts';
+import { BaseCodeGenerator } from '@/baseCodeGenerator.ts';
 
 /**
  * Generates TypeScript models from OpenAPI schemas.

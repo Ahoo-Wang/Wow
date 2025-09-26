@@ -33,5 +33,9 @@ export abstract class BaseCodeGenerator implements GenerateContext {
     this.contextAggregates = context.contextAggregates;
   }
 
-  abstract generate(): void
+  /**
+   * Generates code based on the provided context.
+   * Subclasses must implement this method to define their specific generation logic.
+   */
+  abstract generate(): void;
 }

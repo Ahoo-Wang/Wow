@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { BaseCodeGenerator } from '@/BaseCodeGenerator.ts';
+import { BaseCodeGenerator } from '@/baseCodeGenerator.ts';
 import { GenerateContext } from '@/types.ts';
 import { AggregateDefinition, CommandDefinition } from '@/aggregate';
 import { IMPORT_WOW_PATH, resolveModelInfo } from '@/model';

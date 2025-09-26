@@ -22,25 +22,25 @@ import { KeySchema } from '@/utils';
 
 export interface CommandDefinition extends Named {
   /**
-   * command name
+   * The name of the command
    */
   name: string;
   /**
-   * command http method
+   * The HTTP method for the command
    */
   method: HTTPMethod;
   /**
-   * command endpoint path
+   * The endpoint path for the command
    */
   path: string;
   /**
-   * command path parameters
+   * The path parameters for the command
    */
   pathParameters: Parameter[];
   summary?: string;
   description?: string;
   /**
-   * command body schema
+   * The schema for the command body
    */
   schema: KeySchema;
   operation: Operation;
@@ -48,16 +48,16 @@ export interface CommandDefinition extends Named {
 
 export interface EventDefinition extends Named {
   /**
-   * event name
+   * The name of the event
    */
   name: string;
   /**
-   * event title
+   * The title of the event
    */
   title: string;
 
   /**
-   * event body schema
+   * The schema for the event body
    */
   schema: KeySchema;
 }
@@ -73,24 +73,24 @@ export interface AggregateDefinition {
   /** The aggregate metadata with tag and alias information */
   aggregate: TagAliasAggregate;
   /**
-   * State Aggregate Root Schema
+   * The schema for the aggregate root state
    */
   state: KeySchema;
   /**
-   * state aggregate fields for query
+   * The fields schema for aggregate queries
    */
   fields: KeySchema;
   /**
-   * command name -> command definition
+   * Map of command names to command definitions
    */
   commands: Map<string, CommandDefinition>;
   /**
-   * event name -> event schema
+   * Map of event names to event definitions
    */
   events: Map<string, EventDefinition>;
 }
 
 /**
- * context alias -> Set<AggregateDefinition>
+ * Map of context aliases to sets of aggregate definitions
  */
 export type BoundedContextAggregates = Map<string, Set<AggregateDefinition>>;

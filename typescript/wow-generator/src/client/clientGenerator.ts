@@ -12,9 +12,7 @@
  */
 
 import { GenerateContext } from '@/types.ts';
-import {
-  getOrCreateSourceFile,
-} from '@/utils/sourceFiles.ts';
+import { getOrCreateSourceFile } from '@/utils/sourceFiles.ts';
 import { BaseCodeGenerator } from '@/BaseCodeGenerator.ts';
 import { QueryClientGenerator } from '@/client/queryClientGenerator.ts';
 import { CommandClientGenerator } from '@/client/commandClientGenerator.ts';
@@ -24,7 +22,6 @@ import { CommandClientGenerator } from '@/client/commandClientGenerator.ts';
  * Creates query clients and command clients based on aggregate definitions.
  */
 export class ClientGenerator extends BaseCodeGenerator {
-
   private readonly queryClientGenerator: QueryClientGenerator;
   private readonly commandClientGenerator: CommandClientGenerator;
 
@@ -49,10 +46,15 @@ export class ClientGenerator extends BaseCodeGenerator {
     this.commandClientGenerator.generate();
   }
 
+  /**
+   * Processes a bounded context by creating a file with the context alias constant.
+   * @param contextAlias - The alias of the bounded context to process
+   */
   processBoundedContext(contextAlias: string) {
     const filePath = `${contextAlias}/boundedContext.ts`;
     const file = getOrCreateSourceFile(this.project, this.outputDir, filePath);
-    file.addStatements(`export const BOUNDED_CONTEXT_ALIAS = '${contextAlias}';`);
+    file.addStatements(
+      `export const BOUNDED_CONTEXT_ALIAS = '${contextAlias}';`,
+    );
   }
-
 }
