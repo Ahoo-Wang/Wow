@@ -17,7 +17,7 @@ import { ResourceAttributionPathSpec, UrlPathParams } from '../../src/types/endp
 describe('endpoints', () => {
   describe('ResourceAttributionPathSpec', () => {
     it('should define correct path specifications', () => {
-      expect(ResourceAttributionPathSpec.DEFAULT).toBe('');
+      expect(ResourceAttributionPathSpec.NONE).toBe('');
       expect(ResourceAttributionPathSpec.TENANT).toBe('tenant/{tenantId}');
       expect(ResourceAttributionPathSpec.OWNER).toBe('owner/{ownerId}');
       expect(ResourceAttributionPathSpec.TENANT_OWNER).toBe('tenant/{tenantId}/owner/{ownerId}');

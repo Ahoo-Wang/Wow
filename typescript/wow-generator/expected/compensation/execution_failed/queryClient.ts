@@ -29,7 +29,7 @@ import { ResourceAttributionPathSpec } from '@ahoo-wang/fetcher-wow/dist/types/e
 const DEFAULT_CLIENT_OPTIONS: QueryClientOptions = {
   contextAlias: AGGREGATE.contextAlias,
   aggregateName: AGGREGATE.aggregateName,
-  resourceAttribution: ResourceAttributionPathSpec.DEFAULT,
+  resourceAttribution: ResourceAttributionPathSpec.NONE,
 };
 
 export function createExecutionFailedSnapshotQueryClient(options: QueryClientOptions = DEFAULT_CLIENT_OPTIONS): SnapshotQueryClient<ExecutionFailedState, ExecutionFailedAggregatedFields | string> {

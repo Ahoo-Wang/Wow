@@ -55,7 +55,7 @@ export interface UrlPathParams {
  * ```
  */
 export enum ResourceAttributionPathSpec {
-  DEFAULT = '',
+  NONE = '',
   TENANT = 'tenant/{tenantId}',
   OWNER = 'owner/{ownerId}',
   TENANT_OWNER = 'tenant/{tenantId}/owner/{ownerId}',
