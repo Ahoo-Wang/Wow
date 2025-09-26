@@ -15,7 +15,7 @@ import { GenerateContext } from '@/types.ts';
 import { ClassDeclaration, Project, Scope, SourceFile } from 'ts-morph';
 import { OpenAPI } from '@ahoo-wang/fetcher-openapi';
 import {
-  AggregateDefinition,
+  AggregateDefinition, BoundedContextAggregates,
   CommandDefinition,
   TagAliasAggregate,
 } from '@/aggregate';
@@ -35,7 +35,7 @@ export class ClientGenerator implements GenerateContext {
   readonly project: Project;
   readonly openAPI: OpenAPI;
   readonly outputDir: string;
-  readonly aggregates: Map<string, AggregateDefinition>;
+  readonly contextAggregates: BoundedContextAggregates;
 
   /**
    * Creates a new ClientGenerator instance.
@@ -45,25 +45,19 @@ export class ClientGenerator implements GenerateContext {
     this.project = context.project;
     this.openAPI = context.openAPI;
     this.outputDir = context.outputDir;
-    this.aggregates = context.aggregates;
+    this.contextAggregates = context.contextAggregates;
   }
 
   /**
    * Generates client classes for all aggregates.
    */
   generate(): void {
-    this.aggregates.forEach(aggregate => {
-      this.generateAggregate(aggregate);
-    });
-  }
-
-  /**
-   * Generates client classes for a specific aggregate.
-   * @param aggregate - The aggregate definition to generate clients for
-   */
-  generateAggregate(aggregate: AggregateDefinition) {
-    this.processQueryClient(aggregate);
-    this.processCommandClient(aggregate);
+    for (const [contextAlias, aggregates] of this.contextAggregates) {
+      this.generateBoundedContext(contextAlias);
+      aggregates.forEach(aggregateDefinition => {
+        this.generateAggregate(aggregateDefinition);
+      });
+    }
   }
 
   /**
@@ -79,6 +73,22 @@ export class ClientGenerator implements GenerateContext {
     const filePath = `${aggregate.contextAlias}/${aggregate.aggregateName}/${fileName}.ts`;
     return getOrCreateSourceFile(this.project, this.outputDir, filePath);
   }
+
+  generateBoundedContext(contextAlias: string) {
+    const filePath = `${contextAlias}/boundedContext.ts`;
+    const file = getOrCreateSourceFile(this.project, this.outputDir, filePath);
+    file.addStatements(`export const BOUNDED_CONTEXT_ALIAS = '${contextAlias}';`);
+  }
+
+  /**
+   * Generates client classes for a specific aggregate.
+   * @param aggregate - The aggregate definition to generate clients for
+   */
+  generateAggregate(aggregate: AggregateDefinition) {
+    this.processQueryClient(aggregate);
+    this.processCommandClient(aggregate);
+  }
+
 
   /**
    * Generates the client class name for an aggregate.

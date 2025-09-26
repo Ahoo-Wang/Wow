@@ -41,12 +41,12 @@ export class CodeGenerator {
   async generate(): Promise<void> {
     const openAPI = await parseOpenAPI(this.options.inputPath);
     const aggregateResolver = new AggregateResolver(openAPI);
-    const aggregates = aggregateResolver.resolve();
+    const boundedContextAggregates = aggregateResolver.resolve();
     const context: GenerateContext = {
       openAPI: openAPI,
       project: this.project,
       outputDir: this.options.outputDir,
-      aggregates,
+      contextAggregates: boundedContextAggregates,
     };
     const modelGenerator = new ModelGenerator(context);
     modelGenerator.generate();

@@ -89,3 +89,8 @@ export interface AggregateDefinition {
    */
   events: Map<string, EventDefinition>;
 }
+
+/**
+ * context alias -> Set<AggregateDefinition>
+ */
+export type BoundedContextAggregates = Map<string, Set<AggregateDefinition>>;

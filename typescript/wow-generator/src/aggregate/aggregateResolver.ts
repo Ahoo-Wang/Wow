@@ -20,7 +20,7 @@ import {
   Schema,
 } from '@ahoo-wang/fetcher-openapi';
 import {
-  AggregateDefinition,
+  AggregateDefinition, BoundedContextAggregates,
   CommandDefinition,
   EventDefinition,
 } from './aggregate.ts';
@@ -81,16 +81,23 @@ export class AggregateResolver {
 
   /**
    * Returns the resolved aggregate definitions.
-   * @returns Map of aggregate definitions keyed by tag name
+   * @returns Map of aggregate definitions keyed by context alias
    */
-  resolve() {
-    const resolvedAggregates = new Map<string, AggregateDefinition>();
-    for (const [tag, aggregate] of this.aggregates) {
-      if (aggregate.state && aggregate.fields) {
-        resolvedAggregates.set(tag, aggregate as AggregateDefinition);
+  resolve(): BoundedContextAggregates {
+    const resolvedContextAggregates = new Map<string, Set<AggregateDefinition>>();
+    for (const aggregate of this.aggregates.values()) {
+      if (!aggregate.state || !aggregate.fields) {
+        continue;
       }
+      const contextAlias = aggregate.aggregate.contextAlias;
+      let aggregates = resolvedContextAggregates.get(contextAlias);
+      if (!aggregates) {
+        aggregates = new Set<AggregateDefinition>();
+        resolvedContextAggregates.set(contextAlias, aggregates);
+      }
+      aggregates.add(aggregate as AggregateDefinition);
     }
-    return resolvedAggregates;
+    return resolvedContextAggregates;
   }
 
   /**

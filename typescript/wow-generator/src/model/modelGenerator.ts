@@ -23,7 +23,7 @@ import {
 import { ModelInfo, resolveModelInfo } from '@/model/modelInfo.ts';
 import { isEnum, resolvePrimitiveType } from '@/utils/schemas.ts';
 import { GenerateContext } from '@/types.ts';
-import { AggregateDefinition } from '@/aggregate';
+import { BoundedContextAggregates } from '@/aggregate';
 import { IMPORT_WOW_PATH, WOW_TYPE_MAPPING } from '@/model/wowTypeMapping.ts';
 import { extractComponentKey, isReference } from '@/utils';
 import {
@@ -39,19 +39,19 @@ import {
  * @property project - The ts-morph project instance
  * @property openAPI - The OpenAPI specification
  * @property outputDir - The output directory for generated files
- * @property aggregates - Map of aggregate definitions
+ * @property contextAggregates - Map of aggregate definitions
  */
 export class ModelGenerator implements GenerateContext {
   readonly project: Project;
   readonly openAPI: OpenAPI;
   readonly outputDir: string;
-  readonly aggregates: Map<string, AggregateDefinition>;
+  readonly contextAggregates: BoundedContextAggregates;
 
   constructor(context: GenerateContext) {
     this.project = context.project;
     this.openAPI = context.openAPI;
     this.outputDir = context.outputDir;
-    this.aggregates = context.aggregates;
+    this.contextAggregates = context.contextAggregates;
   }
 
   private getOrCreateSourceFile(modelInfo: ModelInfo): SourceFile {

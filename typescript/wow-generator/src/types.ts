@@ -13,7 +13,7 @@
 
 import { OpenAPI } from '@ahoo-wang/fetcher-openapi';
 import { Project } from 'ts-morph';
-import { AggregateDefinition } from '@/aggregate';
+import { BoundedContextAggregates } from '@/aggregate';
 
 /**
  * Configuration options for the code generator.
@@ -37,6 +37,5 @@ export interface GenerateContext {
   project: Project;
   /** Output directory for generated files */
   outputDir: string;
-  /** Map of resolved aggregate definitions */
-  aggregates: Map<string, AggregateDefinition>;
+  contextAggregates: BoundedContextAggregates;
 }
