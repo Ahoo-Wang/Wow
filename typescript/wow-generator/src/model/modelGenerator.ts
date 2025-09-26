@@ -27,7 +27,7 @@ import {
   getModelFileName,
   getOrCreateSourceFile,
   isEnum,
-  isReference, jsDoc, jsDocs,
+  isReference, jsDocs,
   resolvePrimitiveType,
 } from '../utils';
 import { BaseCodeGenerator } from '../baseCodeGenerator';
