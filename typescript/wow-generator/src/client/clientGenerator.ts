@@ -26,6 +26,7 @@ import {
   getOrCreateSourceFile,
 } from '@/utils/sourceFiles.ts';
 import { camelCase, pascalCase } from '@/utils';
+import { inferPathSpecType } from '@/client/utils.ts';
 
 /**
  * Generates TypeScript client classes for aggregates.
@@ -122,7 +123,7 @@ export class ClientGenerator implements GenerateContext {
         initializer: `{
         contextAlias: '${aggregate.aggregate.contextAlias}',
         aggregateName: '${aggregate.aggregate.aggregateName}',
-        resourceAttribution: ResourceAttributionPathSpec.TENANT,
+        resourceAttribution: ${inferPathSpecType(aggregate)},
       }`,
       }],
       isExported: false,
