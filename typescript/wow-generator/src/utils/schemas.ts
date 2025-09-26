@@ -29,7 +29,7 @@ const PRIMITIVE_TYPES: SchemaType[] = [
  */
 export function isPrimitive(type: SchemaType | SchemaType[]): boolean {
   if (Array.isArray(type)) {
-    return false;
+    return true;
   }
   return PRIMITIVE_TYPES.includes(type);
 }

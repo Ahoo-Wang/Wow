@@ -161,6 +161,9 @@ export class ModelGenerator extends BaseCodeGenerator {
       addImportModelInfo(currentModelInfo, sourceFile, this.outputDir, refModelInfo);
       return refModelInfo.name;
     }
+    if (propSchema.const) {
+      return `'${propSchema.const}'`;
+    }
     if (isArray(propSchema)) {
       const itemsType = this.resolvePropertyType(currentModelInfo, sourceFile, propName, propSchema.items!!);
       return `${itemsType}[]`;
@@ -171,7 +174,6 @@ export class ModelGenerator extends BaseCodeGenerator {
     if (isComposition(propSchema)) {
       return this.resolveCompositionType(currentModelInfo, sourceFile, propSchema);
     }
-
     /**
      * handle object
      */
