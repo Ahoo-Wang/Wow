@@ -109,21 +109,21 @@ export function addImportRefModel(
 
 /**
  * Adds an import for a model if it's in a different path.
- * @param modelInfo - The current model information
+ * @param currentModel - The current model information
  * @param sourceFile - The source file to modify
  * @param outputDir - The output directory
- * @param refModelInfo - The referenced model information
+ * @param refModel - The referenced model information
  */
 export function addImportModelInfo(
-  modelInfo: ModelInfo,
+  currentModel: ModelInfo,
   sourceFile: SourceFile,
   outputDir: string,
-  refModelInfo: ModelInfo,
+  refModel: ModelInfo,
 ) {
-  if (modelInfo.path === refModelInfo.path) {
+  if (currentModel.path === refModel.path) {
     return;
   }
-  addImportRefModel(sourceFile, outputDir, refModelInfo);
+  addImportRefModel(sourceFile, outputDir, refModel);
 }
 
 /**

@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { Schema, SchemaType } from '@ahoo-wang/fetcher-openapi';
+import { Reference, Schema, SchemaType } from '@ahoo-wang/fetcher-openapi';
 
 /** List of primitive schema types */
 const PRIMITIVE_TYPES: SchemaType[] = [
@@ -34,13 +34,49 @@ export function isPrimitive(type: SchemaType | SchemaType[]): boolean {
   return PRIMITIVE_TYPES.includes(type);
 }
 
+export function isArray(schema: Schema): schema is Schema & { type: 'array' } {
+  return schema.type === 'array';
+}
+
+export type EnumSchema = Schema & { enum: any[] };
+
 /**
  * Checks if a schema represents an enum.
  * @param schema - The schema to check
  * @returns True if the schema has an enum property, false otherwise
  */
-export function isEnum(schema: Schema): schema is Schema & { enum: any[] } {
+export function isEnum(schema: Schema): schema is EnumSchema {
   return Array.isArray(schema.enum) && schema.enum.length > 0;
+}
+
+export type AnyOfSchema = Schema & { anyOf: any[] };
+
+export function isAnyOf(schema: Schema): schema is AnyOfSchema {
+  return Array.isArray(schema.anyOf) && schema.anyOf.length > 0;
+}
+
+export type OneOfSchema = Schema & { oneOf: any[] };
+
+export function isOneOf(schema: Schema): schema is OneOfSchema {
+  return Array.isArray(schema.oneOf) && schema.oneOf.length > 0;
+}
+
+export type UnionSchema = Schema & ({ anyOf: any[] } | { oneOf: any[] });
+
+export function isUnion(schema: Schema): schema is UnionSchema {
+  return isAnyOf(schema) || isOneOf(schema);
+}
+
+export type AllOfSchema = Schema & { allOf: any[] };
+
+export function isAllOf(schema: Schema): schema is AllOfSchema {
+  return Array.isArray(schema.allOf) && schema.allOf.length > 0;
+}
+
+export type CompositionSchema = AnyOfSchema | OneOfSchema | AllOfSchema;
+
+export function isComposition(schema: Schema): schema is CompositionSchema {
+  return isAnyOf(schema) || isOneOf(schema) || isAllOf(schema);
 }
 
 /**

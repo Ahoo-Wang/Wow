@@ -13,23 +13,21 @@
 
 import { Schema, Reference } from '@ahoo-wang/fetcher-openapi';
 import {
-  EnumDeclaration,
-  InterfaceDeclaration,
   JSDocableNode,
   SourceFile,
-  TypeAliasDeclaration,
+
 } from 'ts-morph';
 import { GenerateContext } from '../types';
 import { ModelInfo, resolveModelInfo } from './modelInfo';
 import {
   addImportModelInfo,
-  addJSDoc,
+  addJSDoc, CompositionSchema,
   extractComponentKey,
   getModelFileName,
-  getOrCreateSourceFile,
-  isEnum,
-  isReference,
-  jsDocs,
+  getOrCreateSourceFile, isArray, isComposition,
+  isEnum, isPrimitive,
+  isReference, isUnion,
+  KeySchema, pascalCase,
   resolvePrimitiveType,
 } from '../utils';
 import { BaseCodeGenerator } from '../baseCodeGenerator';
@@ -75,7 +73,11 @@ export class ModelGenerator extends BaseCodeGenerator {
         return;
       }
       this.logger.progress(`Processing schema: ${schemaKey}`);
-      this.generateKeyedSchema(schemaKey, schema);
+      const keySchema: KeySchema = {
+        key: schemaKey,
+        schema,
+      };
+      this.generateKeyedSchema(keySchema);
     });
     this.logger.success('Model generation completed');
   }
@@ -94,255 +96,109 @@ export class ModelGenerator extends BaseCodeGenerator {
    * 3. Union processing
    * 4. Type alias processing
    */
-  generateKeyedSchema(schemaKey: string, schema: Schema): SourceFile {
-    const modelInfo = resolveModelInfo(schemaKey);
+  generateKeyedSchema({ key, schema }: KeySchema) {
+    const modelInfo = resolveModelInfo(key);
     const sourceFile = this.getOrCreateSourceFile(modelInfo);
     const node = this.process(modelInfo, sourceFile, schema);
-    addJSDoc(node, schema.title, schema.description);
-    return sourceFile;
+    if (node) {
+      addJSDoc(node, schema.title, schema.description);
+    }
   }
 
   private process(
     modelInfo: ModelInfo,
     sourceFile: SourceFile,
     schema: Schema,
-  ) {
-    let declaration: JSDocableNode | undefined = this.processEnum(
-      modelInfo,
-      sourceFile,
-      schema,
-    );
-    if (declaration) {
-      return declaration;
+  ): JSDocableNode | undefined {
+    if (isEnum(schema)) {
+      return sourceFile.addEnum({
+        name: modelInfo.name,
+        isExported: true,
+        members: schema.enum
+          .filter(value => typeof value === 'string' && value.length > 0)
+          .map(value => ({
+            name: value,
+            initializer: `'${value}'`,
+          })),
+      });
     }
-    declaration = this.processObject(modelInfo, sourceFile, schema);
-    if (declaration) {
-      return declaration;
+    if (schema.type === 'object' && schema.properties) {
+      return this.processObject(sourceFile, modelInfo, schema);
     }
-    declaration = this.processUnion(modelInfo, sourceFile, schema);
-    if (declaration) {
-      return declaration;
+
+    if (isComposition(schema)) {
+      let separator = isUnion(schema) ? '|' : '&';
+      return sourceFile.addTypeAlias({
+        name: modelInfo.name,
+        isExported: true,
+        type: this.resolveCompositionType(modelInfo, sourceFile, schema, separator),
+      });
     }
-    return this.processTypeAlias(modelInfo, sourceFile, schema);
   }
 
-  /**
-   * Processes enum schemas and generates TypeScript enums.
-   *
-   * @param modelInfo - The model information
-   * @param sourceFile - The source file to add the enum to
-   * @param schema - The enum schema
-   * @returns true if the schema was processed as an enum, false otherwise
-   *
-   * @remarks
-   * This method filters out non-string enum values and generates
-   * a TypeScript enum with string literal initializers.
-   */
-  processEnum(
-    modelInfo: ModelInfo,
-    sourceFile: SourceFile,
-    schema: Schema,
-  ): EnumDeclaration | undefined {
-    if (!isEnum(schema)) {
-      return undefined;
-    }
-    return sourceFile.addEnum({
+  private processObject(sourceFile: SourceFile, modelInfo: ModelInfo, schema: Schema) {
+    const interfaceDeclaration = sourceFile.addInterface({
       name: modelInfo.name,
       isExported: true,
-      members: schema.enum
-        .filter(value => typeof value === 'string' && value.length > 0)
-        .map(value => ({
-          name: value,
-          initializer: `'${value}'`,
-        })),
     });
+
+    for (const [propName, propSchema] of Object.entries(schema.properties!)) {
+      let propType: string = this.resolvePropertyType(modelInfo, sourceFile, propName, propSchema);
+      const propertySignature = interfaceDeclaration.addProperty({
+        name: propName,
+        type: propType,
+      });
+      if (!isReference(propSchema)) {
+        addJSDoc(propertySignature, propSchema.title, propSchema.description);
+      }
+    }
+    return interfaceDeclaration;
   }
 
-  /**
-   * Processes object schemas and generates TypeScript interfaces.
-   *
-   * @param modelInfo - The model information
-   * @param sourceFile - The source file to add the interface to
-   * @param schema - The object schema
-   * @returns true if the schema was processed as an object, false otherwise
-   *
-   * @remarks
-   * This method handles optional properties by checking the required array
-   * and adds undefined union types for optional properties.
-   */
-  processObject(
-    modelInfo: ModelInfo,
-    sourceFile: SourceFile,
-    schema: Schema,
-  ): InterfaceDeclaration | undefined {
-    if (schema.type !== 'object' || !schema.properties) {
-      return undefined;
+  private resolvePropertyType(currentModelInfo: ModelInfo, sourceFile: SourceFile, propName: string, propSchema: Schema | Reference): string {
+    if (isReference(propSchema)) {
+      const refModelInfo = resolveModelInfo(extractComponentKey(propSchema));
+      addImportModelInfo(currentModelInfo, sourceFile, this.outputDir, refModelInfo);
+      return refModelInfo.name;
     }
-    const properties: Record<string, string> = {};
-    const required = schema.required || [];
-
-    for (const [propName, propSchema] of Object.entries(schema.properties)) {
-      const propType = this.resolveType(modelInfo, sourceFile, propSchema);
-      const isOptional = !required.includes(propName);
-      properties[propName] = isOptional ? `${propType} | undefined` : propType;
+    if (isArray(propSchema)) {
+      const itemsType = this.resolvePropertyType(currentModelInfo, sourceFile, propName, propSchema.items!!);
+      return `${itemsType}[]`;
+    }
+    if (propSchema.type && isPrimitive(propSchema.type)) {
+      return resolvePrimitiveType(propSchema.type!);
+    }
+    if (isComposition(propSchema)) {
+      return this.resolveCompositionType(currentModelInfo, sourceFile, propSchema);
     }
 
-    return sourceFile.addInterface({
-      name: modelInfo.name,
-      isExported: true,
-      properties: Object.entries(properties).map(([name, type]) => ({
-        name,
-        type,
-      })),
+    /**
+     * handle object
+     */
+    if (propSchema.type === 'object' && propSchema.properties) {
+      const propModelInfo: ModelInfo = {
+        path: currentModelInfo.path,
+        name: `${currentModelInfo.name}${pascalCase(propName)}`,
+      };
+      const interfaceDeclaration = this.processObject(sourceFile, propModelInfo, propSchema);
+      addJSDoc(interfaceDeclaration, propSchema.title, propSchema.description);
+      return propModelInfo.name;
+    }
+    return 'any';
+  }
+
+  private resolveCompositionType(currentModelInfo: ModelInfo, sourceFile: SourceFile, schema: CompositionSchema, separator: string = '|'): string {
+    const compositionTypes = schema.anyOf || schema.oneOf || schema.allOf;
+    const types: string[] = [];
+    compositionTypes!.forEach(compositionTypeSchema => {
+      if (isReference(compositionTypeSchema)) {
+        const refModelInfo = resolveModelInfo(extractComponentKey(compositionTypeSchema));
+        addImportModelInfo(currentModelInfo, sourceFile, this.outputDir, refModelInfo);
+        types.push(refModelInfo.name);
+        return;
+      }
+      types.push(resolvePrimitiveType(compositionTypeSchema.type ?? 'string'));
     });
-  }
-
-  /**
-   * Processes union schemas (allOf, anyOf, oneOf) and generates TypeScript type aliases.
-   *
-   * @param modelInfo - The model information
-   * @param sourceFile - The source file to add the type alias to
-   * @param schema - The union schema
-   * @returns true if the schema was processed as a union, false otherwise
-   *
-   * @remarks
-   * This method handles three types of unions:
-   * - allOf: Generates intersection types (&)
-   * - anyOf: Generates union types (|)
-   * - oneOf: Generates union types (|)
-   */
-  processUnion(
-    modelInfo: ModelInfo,
-    sourceFile: SourceFile,
-    schema: Schema,
-  ): TypeAliasDeclaration | undefined {
-    let unionType: string | null = null;
-
-    if (schema.allOf) {
-      unionType = schema.allOf
-        .map(s => this.resolveType(modelInfo, sourceFile, s))
-        .join(' & ');
-    } else if (schema.anyOf) {
-      unionType = schema.anyOf
-        .map(s => this.resolveType(modelInfo, sourceFile, s))
-        .join(' | ');
-    } else if (schema.oneOf) {
-      unionType = schema.oneOf
-        .map(s => this.resolveType(modelInfo, sourceFile, s))
-        .join(' | ');
-    }
-
-    if (!unionType) {
-      return undefined;
-    }
-
-    return sourceFile.addTypeAlias({
-      name: modelInfo.name,
-      type: unionType,
-      isExported: true,
-      docs: jsDocs(schema.title, schema.description),
-    });
-  }
-
-  /**
-   * Processes type alias schemas and generates TypeScript type aliases.
-   *
-   * @param modelInfo - The model information
-   * @param sourceFile - The source file to add the type alias to
-   * @param schema - The schema to process
-   *
-   * @remarks
-   * This method is used as a fallback for schemas that don't match
-   * enum, object, or union patterns. It resolves the type and creates
-   * a simple type alias.
-   */
-  processTypeAlias(
-    modelInfo: ModelInfo,
-    sourceFile: SourceFile,
-    schema: Schema,
-  ): TypeAliasDeclaration {
-    const type = this.resolveType(modelInfo, sourceFile, schema);
-    return sourceFile.addTypeAlias({
-      name: modelInfo.name,
-      type,
-      isExported: true,
-      docs: jsDocs(schema.title, schema.description),
-    });
-  }
-
-  /**
-   * Resolves the TypeScript type for a given schema or reference.
-   * Handles arrays, objects, primitives, and references.
-   *
-   * @param modelInfo - The model information
-   * @param sourceFile - The source file for import management
-   * @param schema - The schema or reference to resolve
-   * @returns The resolved TypeScript type as a string
-   *
-   * @remarks
-   * This method handles various schema types:
-   * - References: Resolves to imported types
-   * - Arrays: Resolves item types and adds array notation
-   * - Objects: Resolves to Record<string, any> for generic objects
-   * - Primitives: Maps to TypeScript primitives
-   * - Nullable: Adds null union type
-   */
-  private resolveType(
-    modelInfo: ModelInfo,
-    sourceFile: SourceFile,
-    schema: Schema | Reference,
-  ): string {
-    if (isReference(schema)) {
-      return this.resolveReference(modelInfo, sourceFile, schema);
-    }
-
-    if (schema.type === 'array') {
-      const itemType = schema.items
-        ? this.resolveType(modelInfo, sourceFile, schema.items)
-        : 'any';
-      return `${itemType}[]`;
-    }
-
-    if (schema.type === 'object' && !schema.properties) {
-      return 'Record<string, any>';
-    }
-
-    let type: string;
-    if (schema.type) {
-      type = resolvePrimitiveType(schema.type);
-    } else {
-      type = 'any';
-    }
-
-    // Handle nullable
-    if (schema.nullable) {
-      type = `${type} | null`;
-    }
-
-    return type;
-  }
-
-  /**
-   * Resolves a reference to another schema.
-   * Handles mapped types and imports.
-   *
-   * @param modelInfo - The current model information
-   * @param sourceFile - The source file for import management
-   * @param ref - The reference to resolve
-   * @returns The resolved type name
-   *
-   * @remarks
-   * This method checks for mapped types first (WOW_TYPE_MAPPING).
-   * If not found, it adds an import for the referenced model.
-   */
-  private resolveReference(
-    modelInfo: ModelInfo,
-    sourceFile: SourceFile,
-    ref: Reference,
-  ): string {
-    const schemaKey = extractComponentKey(ref);
-    const refModelInfo = resolveModelInfo(schemaKey);
-    addImportModelInfo(modelInfo, sourceFile, this.outputDir, refModelInfo);
-    return refModelInfo.name;
+    return types.join(separator);
   }
 }
