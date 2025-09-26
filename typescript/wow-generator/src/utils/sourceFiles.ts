@@ -135,6 +135,11 @@ export function jsDoc(title?: string, description?: string): string | undefined 
   return [title, description].filter(v => v !== undefined && v.length > 0).join('\n');
 }
 
+export function jsDocs(title?: string, description?: string): string[] {
+  const jsdoc = jsDoc(title, description);
+  return jsdoc ? [jsdoc] : [];
+}
+
 /**
  * Adds a JSDoc comment to a node with the provided title and description.
  * @param node - The node to add the JSDoc comment to

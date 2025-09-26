@@ -27,7 +27,7 @@ import {
   getModelFileName,
   getOrCreateSourceFile,
   isEnum,
-  isReference,
+  isReference, jsDoc, jsDocs,
   resolvePrimitiveType,
 } from '../utils';
 import { BaseCodeGenerator } from '../baseCodeGenerator';
@@ -238,6 +238,7 @@ export class ModelGenerator extends BaseCodeGenerator {
       name: modelInfo.name,
       type: unionType,
       isExported: true,
+      docs: jsDocs(schema.title, schema.description),
     });
   }
 
@@ -263,6 +264,7 @@ export class ModelGenerator extends BaseCodeGenerator {
       name: modelInfo.name,
       type,
       isExported: true,
+      docs: jsDocs(schema.title, schema.description),
     });
   }
 
