@@ -132,13 +132,7 @@ export function addImportModelInfo(
  * @returns The formatted JSDoc string or undefined if both title and description are empty
  */
 export function jsDoc(title?: string, description?: string): string | undefined {
-  if (!title && !description) {
-    return undefined;
-  }
-  if (!description) {
-    return title;
-  }
-  return `${title}\n${description}`;
+  return [title, description].filter(v => v !== undefined && v.length > 0).join('\n');
 }
 
 /**
