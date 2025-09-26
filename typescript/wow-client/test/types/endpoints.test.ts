@@ -12,15 +12,15 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { ResourceAttributionPathSpec, UrlPathParams } from '../../src/types/endpoints';
+import { ResourceAttributionPathSpec, UrlPathParams } from '../../src';
 
 describe('endpoints', () => {
   describe('ResourceAttributionPathSpec', () => {
     it('should define correct path specifications', () => {
       expect(ResourceAttributionPathSpec.NONE).toBe('');
-      expect(ResourceAttributionPathSpec.TENANT).toBe('tenant/{tenantId}');
-      expect(ResourceAttributionPathSpec.OWNER).toBe('owner/{ownerId}');
-      expect(ResourceAttributionPathSpec.TENANT_OWNER).toBe('tenant/{tenantId}/owner/{ownerId}');
+      expect(ResourceAttributionPathSpec.TENANT).toBe('/tenant/{tenantId}');
+      expect(ResourceAttributionPathSpec.OWNER).toBe('/owner/{ownerId}');
+      expect(ResourceAttributionPathSpec.TENANT_OWNER).toBe('/tenant/{tenantId}/owner/{ownerId}');
     });
   });
 

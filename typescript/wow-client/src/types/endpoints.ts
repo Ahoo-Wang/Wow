@@ -48,15 +48,15 @@ export interface UrlPathParams {
  * @example
  * ```typescript
  * // Using TENANT path spec
- * const path = ResourceAttributionPathSpec.TENANT; // 'tenant/{tenantId}'
+ * const path = ResourceAttributionPathSpec.TENANT; // '/tenant/{tenantId}'
  *
  * // Using TENANT_OWNER path spec
- * const path = ResourceAttributionPathSpec.TENANT_OWNER; // 'tenant/{tenantId}/owner/{ownerId}'
+ * const path = ResourceAttributionPathSpec.TENANT_OWNER; // '/tenant/{tenantId}/owner/{ownerId}'
  * ```
  */
 export enum ResourceAttributionPathSpec {
   NONE = '',
-  TENANT = 'tenant/{tenantId}',
-  OWNER = 'owner/{ownerId}',
-  TENANT_OWNER = 'tenant/{tenantId}/owner/{ownerId}',
+  TENANT = '/tenant/{tenantId}',
+  OWNER = '/owner/{ownerId}',
+  TENANT_OWNER = '/tenant/{tenantId}/owner/{ownerId}',
 }
