@@ -3,7 +3,6 @@
 import { program } from 'commander';
 import { CodeGenerator } from '@/index.ts';
 import { GeneratorOptions } from '@/types.ts';
-import { openAPIParser } from '@/parser/openAPIParser.ts';
 import { Project } from 'ts-morph';
 
 program
@@ -22,7 +21,6 @@ program
       const generatorOptions: GeneratorOptions = {
         inputPath: options.input,
         outputDir: options.output,
-        parser: openAPIParser,
         project,
       };
       const codeGenerator = new CodeGenerator(generatorOptions);

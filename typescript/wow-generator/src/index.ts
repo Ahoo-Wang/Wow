@@ -15,7 +15,7 @@ import { ModelGenerator } from '@/model';
 import { GenerateContext, GeneratorOptions } from '@/types.ts';
 import { AggregateResolver } from '@/aggregate';
 import { Project } from 'ts-morph';
-import { openAPIParser } from '@/parser/openAPIParser.ts';
+import { parseOpenAPI } from '@/utils/openAPIParser.ts';
 import { ClientGenerator } from '@/client/clientGenerator.ts';
 
 /**
@@ -39,8 +39,7 @@ export class CodeGenerator {
    * and formats the output files.
    */
   async generate(): Promise<void> {
-    const parser = this.options.parser || openAPIParser;
-    const openAPI = parser.parse(this.options.inputPath)!;
+    const openAPI = await parseOpenAPI(this.options.inputPath);
     const aggregateResolver = new AggregateResolver(openAPI);
     const aggregates = aggregateResolver.resolve();
     const context: GenerateContext = {

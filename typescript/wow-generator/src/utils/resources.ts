@@ -11,17 +11,29 @@
  * limitations under the License.
  */
 
-import { describe, expect, it } from 'vitest';
-import { AggregateResolver } from '@/aggregate/aggregateResolver.ts';
-import { parseOpenAPI } from '@/utils';
 
-// This test ensures that all exports are properly defined
-describe('spec', () => {
-  it('resolve', async () => {
-    const openAPI = await parseOpenAPI('test/compensation-spec.json');
-    expect(openAPI).toBeDefined();
-    const aggregateResolver = new AggregateResolver(openAPI!);
-    const aggregates = aggregateResolver.resolve();
-    expect(aggregates).toMatchSnapshot();
+import { readFile } from 'fs';
+
+export function loadResource(path: string): Promise<string> {
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return loadHttpResource(path);
+  }
+  return loadFile(path);
+}
+
+export async function loadHttpResource(url: string): Promise<string> {
+  const response = await fetch(url);
+  return await response.text();
+}
+
+export function loadFile(path: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    readFile(path, 'utf-8', (err, data) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(data);
+      }
+    });
   });
-});
+}

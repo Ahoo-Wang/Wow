@@ -11,7 +11,6 @@
  * limitations under the License.
  */
 
-import { OpenAPIParser } from '@/parser/openAPIParser.ts';
 import { OpenAPI } from '@ahoo-wang/fetcher-openapi';
 import { Project } from 'ts-morph';
 import { AggregateDefinition } from '@/aggregate';
@@ -26,8 +25,6 @@ export interface GeneratorOptions {
   readonly inputPath: string;
   /** Output directory for generated files */
   readonly outputDir: string;
-  /** Optional custom parser for OpenAPI specifications */
-  readonly parser?: OpenAPIParser;
 }
 
 /**

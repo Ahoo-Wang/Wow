@@ -13,8 +13,10 @@
 
 export * from './components';
 export * from './naming';
+export * from './openAPIParser';
 export * from './operations';
 export * from './references';
+export * from './resources';
 export * from './responses';
 export * from './schemas';
 export * from './sourceFiles';
