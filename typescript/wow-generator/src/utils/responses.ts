@@ -15,7 +15,14 @@ import { Reference, Schema, Response } from '@ahoo-wang/fetcher-openapi';
 import { ContentTypeValues } from '@ahoo-wang/fetcher';
 import { isReference } from '@/utils/references.ts';
 
-export function extractOkResponseJsonSchema(okResponse?: Response | Reference): Schema | Reference | undefined {
+/**
+ * Extracts the JSON schema from an OK response.
+ * @param okResponse - The response object or reference
+ * @returns The JSON schema from the response content or undefined if not found
+ */
+export function extractOkResponseJsonSchema(
+  okResponse?: Response | Reference,
+): Schema | Reference | undefined {
   if (!okResponse) {
     return;
   }

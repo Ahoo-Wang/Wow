@@ -11,8 +11,12 @@
  * limitations under the License.
  */
 
-
-import { HTTPMethod, Operation, Parameter, Tag } from '@ahoo-wang/fetcher-openapi';
+import {
+  HTTPMethod,
+  Operation,
+  Parameter,
+  Tag,
+} from '@ahoo-wang/fetcher-openapi';
 import { AliasAggregate, Named } from '@ahoo-wang/fetcher-wow';
 import { KeySchema } from '@/utils';
 
@@ -62,8 +66,11 @@ export interface TagAliasAggregate extends AliasAggregate {
   tag: Tag;
 }
 
-
+/**
+ * Complete definition of an aggregate including its commands, events, and state schemas.
+ */
 export interface AggregateDefinition {
+  /** The aggregate metadata with tag and alias information */
   aggregate: TagAliasAggregate;
   /**
    * State Aggregate Root Schema

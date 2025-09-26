@@ -18,14 +18,26 @@ import { Project } from 'ts-morph';
 import { openAPIParser } from '@/parser/openAPIParser.ts';
 import { ClientGenerator } from '@/client/clientGenerator.ts';
 
+/**
+ * Main code generator class that orchestrates the generation of TypeScript code from OpenAPI specifications.
+ * Handles model generation, client generation, and project formatting.
+ */
 export class CodeGenerator {
-
   private readonly project: Project;
 
+  /**
+   * Creates a new CodeGenerator instance.
+   * @param options - Configuration options for code generation
+   */
   constructor(private readonly options: GeneratorOptions) {
     this.project = options.project;
   }
 
+  /**
+   * Generates TypeScript code from the OpenAPI specification.
+   * Parses the OpenAPI spec, resolves aggregates, generates models and clients,
+   * and formats the output files.
+   */
   async generate(): Promise<void> {
     const parser = this.options.parser || openAPIParser;
     const openAPI = parser.parse(this.options.inputPath)!;

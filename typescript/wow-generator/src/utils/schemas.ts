@@ -13,8 +13,20 @@
 
 import { Schema, SchemaType } from '@ahoo-wang/fetcher-openapi';
 
-const PRIMITIVE_TYPES: SchemaType[] = ['string', 'number', 'integer', 'boolean', 'null'];
+/** List of primitive schema types */
+const PRIMITIVE_TYPES: SchemaType[] = [
+  'string',
+  'number',
+  'integer',
+  'boolean',
+  'null',
+];
 
+/**
+ * Checks if a schema type is primitive.
+ * @param type - The schema type to check
+ * @returns True if the type is primitive, false otherwise
+ */
 export function isPrimitive(type: SchemaType | SchemaType[]): boolean {
   if (Array.isArray(type)) {
     return false;
@@ -22,10 +34,20 @@ export function isPrimitive(type: SchemaType | SchemaType[]): boolean {
   return PRIMITIVE_TYPES.includes(type);
 }
 
+/**
+ * Checks if a schema represents an enum.
+ * @param schema - The schema to check
+ * @returns True if the schema has an enum property, false otherwise
+ */
 export function isEnum(schema: Schema): schema is Schema & { enum: any[] } {
   return Array.isArray(schema.enum);
 }
 
+/**
+ * Resolves a schema type to its TypeScript equivalent.
+ * @param type - The schema type(s) to resolve
+ * @returns The TypeScript type string
+ */
 export function resolvePrimitiveType(type: SchemaType | SchemaType[]): string {
   if (Array.isArray(type)) {
     return type.map(it => resolvePrimitiveType(it)).join(' | ');

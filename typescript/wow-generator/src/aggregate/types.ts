@@ -13,16 +13,22 @@
 
 import { Reference, Schema } from '@ahoo-wang/fetcher-openapi';
 
+/**
+ * Schema definition for event streams containing domain events.
+ */
 export interface EventStreamSchema extends Schema {
   properties: {
     body: {
       items: {
         anyOf: Array<DomainEventSchema>;
-      }
+      };
     };
   };
 }
 
+/**
+ * Schema definition for individual domain events within an event stream.
+ */
 interface DomainEventSchema extends Schema {
   type: 'object';
   title: string;
@@ -34,7 +40,7 @@ interface DomainEventSchema extends Schema {
     bodyType: {
       type: 'string';
       const: string;
-    },
-    body: Reference
+    };
+    body: Reference;
   };
 }

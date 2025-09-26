@@ -16,16 +16,30 @@ import { OpenAPI } from '@ahoo-wang/fetcher-openapi';
 import { Project } from 'ts-morph';
 import { AggregateDefinition } from '@/aggregate';
 
+/**
+ * Configuration options for the code generator.
+ */
 export interface GeneratorOptions {
+  /** The ts-morph project instance to use for code generation */
   readonly project: Project;
+  /** Path to the input OpenAPI specification file */
   readonly inputPath: string;
-  readonly  outputDir: string;
+  /** Output directory for generated files */
+  readonly outputDir: string;
+  /** Optional custom parser for OpenAPI specifications */
   readonly parser?: OpenAPIParser;
 }
 
+/**
+ * Context object containing all necessary data for code generation.
+ */
 export interface GenerateContext {
+  /** The parsed OpenAPI specification */
   openAPI: OpenAPI;
+  /** The ts-morph project instance */
   project: Project;
+  /** Output directory for generated files */
   outputDir: string;
+  /** Map of resolved aggregate definitions */
   aggregates: Map<string, AggregateDefinition>;
 }

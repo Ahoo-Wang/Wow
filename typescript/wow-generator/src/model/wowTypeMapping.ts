@@ -11,8 +11,10 @@
  * limitations under the License.
  */
 
+/** Import path for the WOW framework types */
 export const IMPORT_WOW_PATH = '@ahoo-wang/fetcher-wow';
 
+/** Mapping of OpenAPI schema keys to WOW framework types */
 export const WOW_TYPE_MAPPING = {
   'wow.command.CommandResult': 'CommandResult',
   'wow.MessageHeaderSqlType': 'MessageHeaderSqlType',
