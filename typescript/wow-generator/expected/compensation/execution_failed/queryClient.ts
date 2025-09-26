@@ -12,10 +12,9 @@
  */
 
 import {
-  createEventStreamQueryClient, createSnapshotQueryClient,
-  EventStreamQueryClient,
+  QueryClientFactory,
   QueryClientOptions,
-  SnapshotQueryClient,
+
 } from '@ahoo-wang/fetcher-wow';
 import {
   CompensationPrepared,
@@ -32,15 +31,9 @@ const DEFAULT_CLIENT_OPTIONS: QueryClientOptions = {
   resourceAttribution: ResourceAttributionPathSpec.NONE,
 };
 
-export function createExecutionFailedSnapshotQueryClient(options: QueryClientOptions = DEFAULT_CLIENT_OPTIONS): SnapshotQueryClient<ExecutionFailedState, ExecutionFailedAggregatedFields | string> {
-  return createSnapshotQueryClient(options);
-}
-
 type DomainEventTypes = CompensationPrepared |
   ExecutionFailedApplied | ExecutionFailedCreated | ExecutionSuccessApplied
   | FunctionChanged | RecoverableMarked | RetrySpecApplied
   ;
 
-export function createExecutionFailedEventQueryClient(options: QueryClientOptions = DEFAULT_CLIENT_OPTIONS): EventStreamQueryClient<DomainEventTypes> {
-  return createEventStreamQueryClient(options);
-}
+export const executionFailedQueryClientFactory = new QueryClientFactory<ExecutionFailedState, ExecutionFailedAggregatedFields | string, DomainEventTypes>(DEFAULT_CLIENT_OPTIONS);
