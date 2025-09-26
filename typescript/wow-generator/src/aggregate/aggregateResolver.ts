@@ -27,7 +27,7 @@ import {
 import {
   operationIdToCommandName,
   tagsToAggregates,
-} from '@/aggregate/naming.ts';
+} from '@/aggregate/utils.ts';
 
 import { ContentTypeValues, PartialBy } from '@ahoo-wang/fetcher';
 import {

@@ -49,3 +49,16 @@ export function pascalCase(name: string | string[]): string {
     })
     .join('');
 }
+
+/**
+ * Converts a string or array of strings to camelCase format.
+ *
+ * This function first converts the input to PascalCase and then converts the first character to lowercase.
+ *
+ * @param name - A string or array of strings to convert to camelCase
+ * @returns The camelCase formatted string
+ */
+export function camelCase(name: string | string[]): string {
+  const pascalCaseName = pascalCase(name);
+  return pascalCaseName.charAt(0).toLowerCase() + pascalCaseName.slice(1);
+}
