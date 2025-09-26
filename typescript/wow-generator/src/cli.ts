@@ -11,7 +11,7 @@ import { generateAction } from './utils';
 program
   .name('fetcher-generator')
   .description('OpenAPI Specification TypeScript code generator for Wow')
-  .version('1.0.0');
+  .version('2.1.1');
 
 program
   .command('generate')
