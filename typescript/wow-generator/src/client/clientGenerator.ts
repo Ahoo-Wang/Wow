@@ -12,20 +12,20 @@
  */
 
 import { GenerateContext } from '@/types.ts';
-import { ClassDeclaration, Project, Scope, SourceFile } from 'ts-morph';
+import { ClassDeclaration, Project, Scope, SourceFile, VariableDeclarationKind } from 'ts-morph';
 import { OpenAPI } from '@ahoo-wang/fetcher-openapi';
 import {
   AggregateDefinition, BoundedContextAggregates,
   CommandDefinition,
   TagAliasAggregate,
 } from '@/aggregate';
-import { IMPORT_WOW_PATH, resolveModelInfo } from '@/model';
+import { IMPORT_WOW_PATH, ModelInfo, resolveModelInfo } from '@/model';
 import {
   addImport,
   addImportRefModel,
   getOrCreateSourceFile,
 } from '@/utils/sourceFiles.ts';
-import { pascalCase } from '@/utils';
+import { camelCase, pascalCase } from '@/utils';
 
 /**
  * Generates TypeScript client classes for aggregates.
@@ -109,55 +109,47 @@ export class ClientGenerator implements GenerateContext {
       aggregate.aggregate,
       'queryClient',
     );
-    this.processSnapshotQueryClient(queryClientFile, aggregate);
-    this.processEventStreamQueryClient(queryClientFile, aggregate);
-  }
-
-  /**
-   * Processes and generates snapshot query client for an aggregate.
-   * @param sourceFile - The source file to add the client to
-   * @param aggregate - The aggregate definition
-   */
-  processSnapshotQueryClient(
-    sourceFile: SourceFile,
-    aggregate: AggregateDefinition,
-  ) {
-    addImport(sourceFile, IMPORT_WOW_PATH, ['SnapshotQueryClient']);
-    const snapshotQueryClientName = this.getClientName(
-      aggregate.aggregate,
-      'SnapshotQueryClient',
-    );
+    queryClientFile.addImportDeclaration({
+      moduleSpecifier: IMPORT_WOW_PATH,
+      namedImports: ['QueryClientFactory', 'QueryClientOptions', 'ResourceAttributionPathSpec'],
+    });
+    const defaultClientOptionsName = 'DEFAULT_QUERY_CLIENT_OPTIONS';
+    queryClientFile.addVariableStatement({
+      declarationKind: VariableDeclarationKind.Const,
+      declarations: [{
+        name: defaultClientOptionsName,
+        type: 'QueryClientOptions',
+        initializer: `{
+        contextAlias: '${aggregate.aggregate.contextAlias}',
+        aggregateName: '${aggregate.aggregate.aggregateName}',
+        resourceAttribution: ResourceAttributionPathSpec.TENANT,
+      }`,
+      }],
+      isExported: false,
+    });
+    const eventModelInfos: ModelInfo[] = [];
+    for (const event of aggregate.events.values()) {
+      const eventModelInfo = resolveModelInfo(event.schema.key);
+      addImportRefModel(queryClientFile, this.outputDir, eventModelInfo);
+      eventModelInfos.push(eventModelInfo);
+    }
+    const domainEventTypesName = 'DOMAIN_EVENT_TYPES';
+    queryClientFile.addTypeAlias({
+      name: domainEventTypesName,
+      type: eventModelInfos.map(it => it.name).join(' | '),
+    });
+    const clientFactoryName = `${camelCase(aggregate.aggregate.aggregateName)}QueryClientFactory`;
     const stateModelInfo = resolveModelInfo(aggregate.state.key);
     const fieldsModelInfo = resolveModelInfo(aggregate.fields.key);
-    addImportRefModel(sourceFile, this.outputDir, stateModelInfo);
-    addImportRefModel(sourceFile, this.outputDir, fieldsModelInfo);
-    sourceFile.addClass({
-      name: snapshotQueryClientName,
-      isExported: true,
-      extends: `SnapshotQueryClient<${stateModelInfo.name}, ${fieldsModelInfo.name}>`,
-    });
-  }
-
-  /**
-   * Processes and generates event stream query client for an aggregate.
-   * @param sourceFile - The source file to add the client to
-   * @param aggregate - The aggregate definition
-   */
-  processEventStreamQueryClient(
-    sourceFile: SourceFile,
-    aggregate: AggregateDefinition,
-  ) {
-    addImport(sourceFile, IMPORT_WOW_PATH, ['EventStreamQueryClient']);
-    const snapshotQueryClientName = this.getClientName(
-      aggregate.aggregate,
-      'EventQueryClient',
-    );
-    const stateModelInfo = resolveModelInfo(aggregate.state.key);
-    addImportRefModel(sourceFile, this.outputDir, stateModelInfo);
-    sourceFile.addClass({
-      name: snapshotQueryClientName,
-      isExported: true,
-      extends: `EventStreamQueryClient`,
+    addImportRefModel(queryClientFile, this.outputDir, stateModelInfo);
+    addImportRefModel(queryClientFile, this.outputDir, fieldsModelInfo);
+    queryClientFile.addVariableStatement({
+      declarationKind: VariableDeclarationKind.Const,
+      declarations: [{
+        name: clientFactoryName,
+        initializer: `new QueryClientFactory<${stateModelInfo.name}, ${fieldsModelInfo.name} | string, ${domainEventTypesName}>(${defaultClientOptionsName});`,
+      }],
+      isExported: false,
     });
   }
 

@@ -22,13 +22,12 @@ import {
   ExecutionFailedCreated,
   ExecutionFailedState, ExecutionSuccessApplied, FunctionChanged, RecoverableMarked, RetrySpecApplied,
 } from './types.ts';
-import { AGGREGATE } from './aggregate.ts';
 import { ResourceAttributionPathSpec } from '@ahoo-wang/fetcher-wow/dist/types/endpoints.ts';
 
 const DEFAULT_CLIENT_OPTIONS: QueryClientOptions = {
-  contextAlias: AGGREGATE.contextAlias,
-  aggregateName: AGGREGATE.aggregateName,
-  resourceAttribution: ResourceAttributionPathSpec.NONE,
+  contextAlias: 'compensation',
+  aggregateName: 'execution_failed',
+  resourceAttribution: ResourceAttributionPathSpec.TENANT,
 };
 
 type DomainEventTypes = CompensationPrepared |
