@@ -49,7 +49,7 @@ enum COMMAND_ENDPOINT_PATHS {
 
 @api()
 export class ExecutionFailedCommandClient implements ApiMetadataCapable {
-  constructor(public readonly apiMetadata: ApiMetadata) {
+  constructor(public readonly apiMetadata: ApiMetadata = { basePath: '' }) {
 
   }
 
