@@ -23,23 +23,20 @@ import {
   AggregateDefinition, BoundedContextAggregates,
   CommandDefinition,
   EventDefinition,
-} from './aggregate.ts';
-import {
-  operationIdToCommandName,
-  tagsToAggregates,
-} from '@/aggregate/utils.ts';
+} from './aggregate';
+
 
 import { ContentTypeValues, PartialBy } from '@ahoo-wang/fetcher';
+import { operationIdToCommandName, tagsToAggregates } from './utils';
 import {
-  extractOkResponse,
-  extractOperationOkResponseJsonSchema,
+  extractOkResponse, extractOperationOkResponseJsonSchema,
   extractOperations,
+  extractParameter, extractRequestBody, extractSchema,
   isReference,
   keySchema,
   MethodOperation,
-} from '@/utils';
-import { extractParameter, extractRequestBody, extractSchema } from '@/utils';
-import { EventStreamSchema } from '@/aggregate/types.ts';
+} from '../utils';
+import { EventStreamSchema } from './types';
 
 const CommandOkResponseRef = '#/components/responses/wow.CommandOk';
 const IdParameterRef = '#/components/parameters/wow.id';

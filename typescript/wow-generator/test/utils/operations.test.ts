@@ -16,7 +16,7 @@ import {
   extractOperations,
   extractOkResponse,
   extractOperationOkResponseJsonSchema,
-} from '@/utils/operations.ts';
+} from '../../src/utils';
 import {
   PathItem,
   Operation,

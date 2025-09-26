@@ -19,15 +19,17 @@ import {
   SourceFile,
   TypeAliasDeclaration,
 } from 'ts-morph';
-import { ModelInfo, resolveModelInfo } from '@/model/modelInfo.ts';
-import { isEnum, resolvePrimitiveType } from '@/utils/schemas.ts';
-import { GenerateContext } from '@/types.ts';
-import { extractComponentKey, isReference } from '@/utils';
+import { GenerateContext } from '../types';
+import { ModelInfo, resolveModelInfo } from './modelInfo';
 import {
-  addImportModelInfo, getModelFileName,
-  getOrCreateSourceFile,
-} from '@/utils/sourceFiles.ts';
-import { BaseCodeGenerator } from '@/baseCodeGenerator.ts';
+  addImportModelInfo,
+  extractComponentKey,
+  getModelFileName, getOrCreateSourceFile,
+  isEnum,
+  isReference,
+  resolvePrimitiveType,
+} from '../utils';
+import { BaseCodeGenerator } from '../baseCodeGenerator';
 
 /**
  * Generates TypeScript models from OpenAPI schemas.

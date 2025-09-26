@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { isPrimitive, isEnum, resolvePrimitiveType } from '@/utils/schemas.ts';
+import { isPrimitive, isEnum, resolvePrimitiveType } from '../../src/utils';
 import { SchemaType } from '@ahoo-wang/fetcher-openapi';
 
 describe('schemas', () => {

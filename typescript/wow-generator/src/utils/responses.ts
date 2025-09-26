@@ -13,7 +13,7 @@
 
 import { Reference, Schema, Response } from '@ahoo-wang/fetcher-openapi';
 import { ContentTypeValues } from '@ahoo-wang/fetcher';
-import { isReference } from '@/utils/references.ts';
+import { isReference } from './references';
 
 /**
  * Extracts the JSON schema from an OK response.

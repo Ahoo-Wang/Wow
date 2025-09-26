@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { IMPORT_WOW_PATH, WOW_TYPE_MAPPING } from '@/model/wowTypeMapping.ts';
+import { IMPORT_WOW_PATH, WOW_TYPE_MAPPING } from '../../src/model';
 
 describe('wowTypeMapping', () => {
   describe('IMPORT_WOW_PATH', () => {

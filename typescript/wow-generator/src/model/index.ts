@@ -11,6 +11,6 @@
  * limitations under the License.
  */
 
-export * from './modelGenerator.ts';
-export * from './modelInfo.ts';
-export * from './wowTypeMapping.ts';
+export * from './modelGenerator';
+export * from './modelInfo';
+export * from './wowTypeMapping';

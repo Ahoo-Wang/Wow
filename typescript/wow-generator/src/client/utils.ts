@@ -12,9 +12,9 @@
  */
 
 import { ResourceAttributionPathSpec } from '@ahoo-wang/fetcher-wow';
-import { AggregateDefinition, TagAliasAggregate } from '@/aggregate';
 import { Project, SourceFile } from 'ts-morph';
-import { getOrCreateSourceFile, pascalCase } from '@/utils';
+import { AggregateDefinition, TagAliasAggregate } from '../aggregate';
+import { getOrCreateSourceFile, pascalCase } from '../utils';
 
 export function inferPathSpecType(aggregateDefinition: AggregateDefinition): string {
   let tenantSpecCount = 0;

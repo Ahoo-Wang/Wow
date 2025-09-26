@@ -11,13 +11,14 @@
  * limitations under the License.
  */
 
-import { GenerateContext } from '@/types.ts';
+
 import { SourceFile, VariableDeclarationKind } from 'ts-morph';
-import { AggregateDefinition, TagAliasAggregate } from '@/aggregate';
-import { createClientFilePath, inferPathSpecType } from '@/client/utils.ts';
-import { IMPORT_WOW_PATH, ModelInfo, resolveModelInfo } from '@/model';
-import { addImportRefModel, camelCase } from '@/utils';
-import { BaseCodeGenerator } from '@/baseCodeGenerator.ts';
+import { GenerateContext } from '../types';
+import { BaseCodeGenerator } from '../baseCodeGenerator';
+import { AggregateDefinition, TagAliasAggregate } from '../aggregate';
+import { IMPORT_WOW_PATH, ModelInfo, resolveModelInfo } from '../model';
+import { createClientFilePath, inferPathSpecType } from './utils';
+import { addImportRefModel, camelCase } from '../utils';
 
 /**
  * Generates TypeScript query client classes for aggregates.

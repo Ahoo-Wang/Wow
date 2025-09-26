@@ -19,7 +19,7 @@ import {
   Response,
   Schema,
 } from '@ahoo-wang/fetcher-openapi';
-import { extractOkResponseJsonSchema } from '@/utils/responses.ts';
+import { extractOkResponseJsonSchema } from './responses';
 
 /**
  * Represents an HTTP method and its associated operation.

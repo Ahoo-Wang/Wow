@@ -11,12 +11,9 @@
  * limitations under the License.
  */
 
-import {
-  AggregateDefinition,
-  TagAliasAggregate,
-} from '@/aggregate/aggregate.ts';
 import { Tag } from '@ahoo-wang/fetcher-openapi';
 import { PartialBy } from '@ahoo-wang/fetcher';
+import { AggregateDefinition, TagAliasAggregate } from './aggregate';
 
 /**
  * Checks if a tag name follows the alias aggregate pattern and extracts its components.

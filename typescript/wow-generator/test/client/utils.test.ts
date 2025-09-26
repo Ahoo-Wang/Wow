@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import { inferPathSpecType, getClientName, createClientFilePath } from '../../src/client/utils.ts';
+import { inferPathSpecType, getClientName, createClientFilePath } from '../../src/client/utils';
 import { ResourceAttributionPathSpec } from '@ahoo-wang/fetcher-wow';
 
 // Mock the dependencies

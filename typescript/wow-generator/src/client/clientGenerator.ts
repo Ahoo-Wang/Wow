@@ -11,11 +11,12 @@
  * limitations under the License.
  */
 
-import { GenerateContext } from '@/types.ts';
-import { getOrCreateSourceFile } from '@/utils/sourceFiles.ts';
-import { BaseCodeGenerator } from '@/baseCodeGenerator.ts';
-import { QueryClientGenerator } from '@/client/queryClientGenerator.ts';
-import { CommandClientGenerator } from '@/client/commandClientGenerator.ts';
+
+import { BaseCodeGenerator } from '../baseCodeGenerator';
+import { QueryClientGenerator } from './queryClientGenerator';
+import { CommandClientGenerator } from './commandClientGenerator';
+import { GenerateContext } from '../types';
+import { getOrCreateSourceFile } from '../utils';
 
 /**
  * Generates TypeScript client classes for aggregates.

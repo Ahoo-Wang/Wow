@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import { loadResource, loadHttpResource, loadFile } from '@/utils/resources.ts';
+import { loadResource, loadHttpResource, loadFile } from '../../src/utils';
 import { readFile } from 'fs';
 
 // Mock fs.readFile

@@ -16,9 +16,8 @@ import {
   getModelFileName,
   getOrCreateSourceFile,
   addImport,
-} from '@/utils/sourceFiles.ts';
-
-import { ModelInfo } from '@/model';
+} from '../../src/utils';
+import { ModelInfo } from '../../src/model';
 
 // Mock ts-morph
 vi.mock('ts-morph', () => ({

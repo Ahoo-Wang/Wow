@@ -11,11 +11,8 @@
  * limitations under the License.
  */
 
-import { BaseCodeGenerator } from '@/baseCodeGenerator.ts';
-import { GenerateContext } from '@/types.ts';
-import { AggregateDefinition, CommandDefinition } from '@/aggregate';
-import { IMPORT_WOW_PATH, resolveModelInfo } from '@/model';
-import { addImport, addImportRefModel, camelCase } from '@/utils';
+import { BaseCodeGenerator } from '../baseCodeGenerator';
+import { GenerateContext } from '../types';
 import {
   ClassDeclaration,
   DecoratorStructure,
@@ -25,7 +22,10 @@ import {
   VariableDeclarationKind,
 } from 'ts-morph';
 import { HTTPMethod } from '@ahoo-wang/fetcher-openapi';
-import { createClientFilePath, getClientName } from '@/client/utils.ts';
+import { AggregateDefinition, CommandDefinition } from '../aggregate';
+import { createClientFilePath, getClientName } from './utils';
+import { IMPORT_WOW_PATH, resolveModelInfo } from '../model';
+import { addImport, addImportRefModel, camelCase } from '../utils';
 
 /**
  * Generates TypeScript command client classes for aggregates.

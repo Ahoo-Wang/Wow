@@ -6,9 +6,9 @@
  */
 
 import { program } from 'commander';
-import { CodeGenerator } from '@/index.ts';
-import { GeneratorOptions } from '@/types.ts';
 import { Project } from 'ts-morph';
+import { GeneratorOptions } from './types';
+import { CodeGenerator } from './index';
 
 program
   .name('fetcher-generator')

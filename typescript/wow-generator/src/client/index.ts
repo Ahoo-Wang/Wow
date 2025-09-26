@@ -11,4 +11,4 @@
  * limitations under the License.
  */
 
-export * from './clientGenerator.ts';
+export * from './clientGenerator';

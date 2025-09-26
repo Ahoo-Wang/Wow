@@ -12,8 +12,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { AggregateResolver } from '@/aggregate/aggregateResolver.ts';
-import { parseOpenAPI } from '@/utils';
+import { parseOpenAPI } from '../../src/utils';
+import { AggregateResolver } from '../../src/aggregate';
 
 // Integration test
 describe('AggregateResolver', () => {

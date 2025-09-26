@@ -13,7 +13,7 @@
 
 import { OpenAPI } from '@ahoo-wang/fetcher-openapi';
 import { Project } from 'ts-morph';
-import { BoundedContextAggregates } from '@/aggregate';
+import { BoundedContextAggregates } from './aggregate';
 
 /**
  * Configuration options for the code generator.

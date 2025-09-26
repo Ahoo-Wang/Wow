@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { extractOkResponseJsonSchema } from '@/utils/responses.ts';
+import { extractOkResponseJsonSchema } from '../../src/utils';
 import { Response, Reference, Schema } from '@ahoo-wang/fetcher-openapi';
 import { ContentTypeValues } from '@ahoo-wang/fetcher';
 

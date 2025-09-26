@@ -25,7 +25,7 @@ import {
   COMPONENTS_REQUEST_BODIES_REF,
   COMPONENTS_RESPONSES_REF,
   COMPONENTS_SCHEMAS_REF,
-} from '@/utils/components.ts';
+} from '../../src/utils';
 import {
   Components,
   Reference,

@@ -11,10 +11,12 @@
  * limitations under the License.
  */
 
-import { GenerateContext } from '@/types.ts';
+
 import { Project } from 'ts-morph';
 import { OpenAPI } from '@ahoo-wang/fetcher-openapi';
-import { BoundedContextAggregates } from '@/aggregate';
+import { GenerateContext } from './types';
+import { BoundedContextAggregates } from './aggregate';
+
 
 export abstract class BaseCodeGenerator implements GenerateContext {
   readonly project: Project;

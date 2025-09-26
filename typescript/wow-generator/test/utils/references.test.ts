@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { isReference } from '@/utils/references.ts';
+import { isReference } from '../../src/utils';
 import { Reference } from '@ahoo-wang/fetcher-openapi';
 
 describe('references', () => {

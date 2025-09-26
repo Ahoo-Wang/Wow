@@ -11,12 +11,13 @@
  * limitations under the License.
  */
 
-import { ModelGenerator } from '@/model';
-import { GenerateContext, GeneratorOptions } from '@/types.ts';
-import { AggregateResolver } from '@/aggregate';
 import { Project } from 'ts-morph';
-import { parseOpenAPI } from '@/utils/openAPIParser.ts';
-import { ClientGenerator } from '@/client/clientGenerator.ts';
+import { GenerateContext, GeneratorOptions } from './types';
+import { parseOpenAPI } from './utils';
+import { AggregateResolver } from './aggregate';
+import { ModelGenerator } from './model';
+import { ClientGenerator } from './client';
+
 
 /**
  * Main code generator class that orchestrates the generation of TypeScript code from OpenAPI specifications.

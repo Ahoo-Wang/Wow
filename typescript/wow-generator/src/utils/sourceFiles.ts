@@ -12,8 +12,8 @@
  */
 
 import { Project, SourceFile } from 'ts-morph';
-import { ModelInfo } from '@/model';
 import { combineURLs } from '@ahoo-wang/fetcher';
+import { ModelInfo } from '../model';
 
 /** Default file name for model files */
 const MODEL_FILE_NAME = 'types.ts';

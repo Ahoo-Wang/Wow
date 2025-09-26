@@ -17,7 +17,7 @@ import {
   tagToAggregate,
   tagsToAggregates,
   operationIdToCommandName,
-} from '@/aggregate/utils.ts';
+} from '../../src/aggregate';
 import { Tag } from '@ahoo-wang/fetcher-openapi';
 
 describe('aggregate utils', () => {

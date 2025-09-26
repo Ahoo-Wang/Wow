@@ -12,8 +12,7 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import { resolveModelInfo } from '@/model/modelInfo.ts';
-import { WOW_TYPE_MAPPING } from '@/model/wowTypeMapping.ts';
+import { resolveModelInfo, WOW_TYPE_MAPPING } from '../../src/model';
 
 // Mock the pascalCase function to avoid dependencies on the actual implementation
 vi.mock('@/utils/naming.ts', () => ({

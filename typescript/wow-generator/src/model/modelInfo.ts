@@ -12,8 +12,8 @@
  */
 
 import { Named } from '@ahoo-wang/fetcher-wow';
-import { pascalCase } from '@/utils';
-import { IMPORT_WOW_PATH, WOW_TYPE_MAPPING } from '@/model/wowTypeMapping.ts';
+import { IMPORT_WOW_PATH, WOW_TYPE_MAPPING } from './wowTypeMapping';
+import { pascalCase } from '../utils';
 
 /**
  * Data Model Info

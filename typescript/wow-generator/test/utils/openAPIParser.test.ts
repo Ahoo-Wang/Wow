@@ -12,12 +12,7 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import {
-  parseOpenAPI,
-  inferFileFormat,
-  FileFormat,
-} from '@/utils/openAPIParser.ts';
-import { loadResource } from '@/utils/resources.ts';
+import { FileFormat, inferFileFormat, loadResource, parseOpenAPI } from '../../src/utils';
 
 // Mock the loadResource function
 vi.mock('@/utils/resources.ts', () => ({

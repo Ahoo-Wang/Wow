@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { pascalCase, camelCase } from '@/utils/naming.ts';
+import { pascalCase, camelCase } from '../../src/utils';
 
 describe('naming', () => {
   describe('pascalCase', () => {
