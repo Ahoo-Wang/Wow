@@ -56,7 +56,6 @@ export class CodeGenerator {
       sourceFile.formatText();
       sourceFile.organizeImports();
       sourceFile.fixMissingImports();
-      sourceFile.fixUnusedIdentifiers();
     });
     await this.project.save();
   }

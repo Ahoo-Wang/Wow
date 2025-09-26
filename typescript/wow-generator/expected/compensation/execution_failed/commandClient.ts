@@ -34,7 +34,7 @@ import {
 import { ContentTypeValues } from '@ahoo-wang/fetcher';
 import { JsonEventStreamResultExtractor } from '@ahoo-wang/fetcher-eventstream';
 
-export enum COMMAND_ENDPOINT_PATHS {
+enum COMMAND_ENDPOINT_PATHS {
   CREATE_EXECUTION_FAILED = 'execution_failed/create_execution_failed',
   PREPARE_COMPENSATION = 'execution_failed/{id}/prepare_compensation',
   FORCE_PREPARE_COMPENSATION = 'execution_failed/{id}/force_prepare_compensation',

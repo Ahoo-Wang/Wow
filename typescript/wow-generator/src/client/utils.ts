@@ -12,7 +12,9 @@
  */
 
 import { ResourceAttributionPathSpec } from '@ahoo-wang/fetcher-wow';
-import { AggregateDefinition } from '@/aggregate';
+import { AggregateDefinition, TagAliasAggregate } from '@/aggregate';
+import { Project, SourceFile } from 'ts-morph';
+import { getOrCreateSourceFile, pascalCase } from '@/utils';
 
 export function inferPathSpecType(aggregateDefinition: AggregateDefinition): string {
   let tenantSpecCount = 0;
@@ -31,4 +33,25 @@ export function inferPathSpecType(aggregateDefinition: AggregateDefinition): str
   return tenantSpecCount > ownerSpecCount
     ? 'ResourceAttributionPathSpec.TENANT'
     : 'ResourceAttributionPathSpec.OWNER';
+}
+
+export function createClientFilePath(
+  project: Project,
+  outputDir: string,
+  aggregate: TagAliasAggregate,
+  fileName: string,
+): SourceFile {
+  const filePath = `${aggregate.contextAlias}/${aggregate.aggregateName}/${fileName}.ts`;
+  return getOrCreateSourceFile(project, outputDir, filePath);
+}
+
+
+/**
+ * Generates the client class name for an aggregate.
+ * @param aggregate - The aggregate metadata
+ * @param suffix - The suffix to append to the aggregate name
+ * @returns The generated client class name
+ */
+export function getClientName(aggregate: TagAliasAggregate, suffix: string): string {
+  return `${pascalCase(aggregate.aggregateName)}${suffix}`;
 }

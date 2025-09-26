@@ -11,19 +11,17 @@
  * limitations under the License.
  */
 
-import { OpenAPI, Schema, Reference } from '@ahoo-wang/fetcher-openapi';
+import { Schema, Reference } from '@ahoo-wang/fetcher-openapi';
 import {
   EnumDeclaration,
   InterfaceDeclaration,
   JSDocableNode,
-  Project,
   SourceFile,
   TypeAliasDeclaration,
 } from 'ts-morph';
 import { ModelInfo, resolveModelInfo } from '@/model/modelInfo.ts';
 import { isEnum, resolvePrimitiveType } from '@/utils/schemas.ts';
 import { GenerateContext } from '@/types.ts';
-import { BoundedContextAggregates } from '@/aggregate';
 import { IMPORT_WOW_PATH, WOW_TYPE_MAPPING } from '@/model/wowTypeMapping.ts';
 import { extractComponentKey, isReference } from '@/utils';
 import {
@@ -31,6 +29,7 @@ import {
   addImportModelInfo, getModelFileName,
   getOrCreateSourceFile,
 } from '@/utils/sourceFiles.ts';
+import { BaseCodeGenerator } from '@/BaseCodeGenerator.ts';
 
 /**
  * Generates TypeScript models from OpenAPI schemas.
@@ -41,17 +40,9 @@ import {
  * @property outputDir - The output directory for generated files
  * @property contextAggregates - Map of aggregate definitions
  */
-export class ModelGenerator implements GenerateContext {
-  readonly project: Project;
-  readonly openAPI: OpenAPI;
-  readonly outputDir: string;
-  readonly contextAggregates: BoundedContextAggregates;
-
+export class ModelGenerator extends BaseCodeGenerator {
   constructor(context: GenerateContext) {
-    this.project = context.project;
-    this.openAPI = context.openAPI;
-    this.outputDir = context.outputDir;
-    this.contextAggregates = context.contextAggregates;
+    super(context);
   }
 
   private getOrCreateSourceFile(modelInfo: ModelInfo): SourceFile {
