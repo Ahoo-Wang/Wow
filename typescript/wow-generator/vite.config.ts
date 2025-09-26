@@ -9,6 +9,7 @@ export default defineConfig({
     },
   },
   build: {
+    sourcemap: true,
     lib: {
       entry: {
         index: resolve(__dirname, 'src/index.ts'),
