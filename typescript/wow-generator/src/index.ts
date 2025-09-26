@@ -52,12 +52,12 @@ export class CodeGenerator {
     modelGenerator.generate();
     const clientGenerator = new ClientGenerator(context);
     clientGenerator.generate();
-    // this.project.getSourceFiles().forEach(sourceFile => {
-    //   sourceFile.formatText();
-    //   sourceFile.organizeImports();
-    //   sourceFile.fixMissingImports();
-    //   sourceFile.fixUnusedIdentifiers();
-    // });
+    this.project.getSourceFiles().forEach(sourceFile => {
+      sourceFile.formatText();
+      sourceFile.organizeImports();
+      sourceFile.fixMissingImports();
+      sourceFile.fixUnusedIdentifiers();
+    });
     await this.project.save();
   }
 }
