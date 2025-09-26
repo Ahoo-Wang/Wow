@@ -59,6 +59,7 @@
     "@ahoo-wang/fetcher-decorator": "workspace:*",
     "@ahoo-wang/fetcher-openapi": "workspace:*",
     "@ahoo-wang/fetcher-wow": "workspace:*",
+    "ts-morph": "catalog:",
     "commander": "catalog:",
     "yaml": "catalog:"
   },
@@ -71,7 +72,6 @@
     "eslint": "catalog:",
     "globals": "catalog:",
     "prettier": "catalog:",
-    "ts-morph": "catalog:",
     "typescript": "catalog:",
     "typescript-eslint": "catalog:",
     "unplugin-dts": "catalog:",
