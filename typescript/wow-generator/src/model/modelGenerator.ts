@@ -127,11 +127,10 @@ export class ModelGenerator extends BaseCodeGenerator {
     }
 
     if (isComposition(schema)) {
-      let separator = isUnion(schema) ? '|' : '&';
       return sourceFile.addTypeAlias({
         name: modelInfo.name,
         isExported: true,
-        type: this.resolveCompositionType(modelInfo, sourceFile, schema, separator),
+        type: this.resolvePropertyCompositionType(modelInfo, sourceFile, schema),
       });
     }
   }
@@ -172,7 +171,7 @@ export class ModelGenerator extends BaseCodeGenerator {
       return resolvePrimitiveType(propSchema.type!);
     }
     if (isComposition(propSchema)) {
-      return this.resolveCompositionType(currentModelInfo, sourceFile, propSchema);
+      return this.resolvePropertyCompositionType(currentModelInfo, sourceFile, propSchema);
     }
     /**
      * handle object
@@ -189,7 +188,7 @@ export class ModelGenerator extends BaseCodeGenerator {
     return 'any';
   }
 
-  private resolveCompositionType(currentModelInfo: ModelInfo, sourceFile: SourceFile, schema: CompositionSchema, separator: string = '|'): string {
+  private resolvePropertyCompositionType(currentModelInfo: ModelInfo, sourceFile: SourceFile, schema: CompositionSchema): string {
     const compositionTypes = schema.anyOf || schema.oneOf || schema.allOf;
     const types: string[] = [];
     compositionTypes!.forEach(compositionTypeSchema => {
@@ -201,6 +200,7 @@ export class ModelGenerator extends BaseCodeGenerator {
       }
       types.push(resolvePrimitiveType(compositionTypeSchema.type ?? 'string'));
     });
+    const separator = isUnion(schema) ? '|' : '&';
     return types.join(separator);
   }
 }
