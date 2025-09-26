@@ -51,7 +51,7 @@
     "lint": "eslint . --fix",
     "clean": "rm -rf dist",
     "analyze": "npx vite-bundle-analyzer -p auto",
-    "generate": "node dist/cli.js generate -i http://prajna-service.dev.svc.cluster.local/v3/api-docs -o test-output"
+    "generate": "node dist/cli.js generate -i test/demo-spec.json -o test-output"
   },
   "dependencies": {
     "@ahoo-wang/fetcher": "workspace:*",
