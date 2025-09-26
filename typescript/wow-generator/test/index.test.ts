@@ -13,7 +13,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Project } from 'ts-morph';
-import { CodeGenerator } from '../src/index';
+import { CodeGenerator } from '../src';
 
 // Mock dependencies
 vi.mock('ts-morph', () => ({
