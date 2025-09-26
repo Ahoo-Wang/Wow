@@ -26,9 +26,8 @@ import {
   request,
 } from '@ahoo-wang/fetcher-decorator';
 import {
-  AGGREGATE_NAME,
   ApplyExecutionFailed,
-  ApplyExecutionSuccess, ApplyRetrySpec, ChangeFunction, COMMAND_ENDPOINTS,
+  ApplyExecutionSuccess, ApplyRetrySpec, ChangeFunction,
   CreateExecutionFailed,
   ForcePrepareCompensation, MarkRecoverable,
   PrepareCompensation,
@@ -36,10 +35,22 @@ import {
 import { ContentTypeValues } from '@ahoo-wang/fetcher';
 import { JsonEventStreamResultExtractor } from '@ahoo-wang/fetcher-eventstream';
 
+export enum COMMAND_ENDPOINTS {
+  CREATE_EXECUTION_FAILED = 'execution_failed/create_execution_failed',
+  PREPARE_COMPENSATION = 'execution_failed/{id}/prepare_compensation',
+  FORCE_PREPARE_COMPENSATION = 'execution_failed/{id}/force_prepare_compensation',
+  APPLY_EXECUTION_SUCCESS = 'execution_failed/{id}/apply_execution_success',
+  APPLY_EXECUTION_FAILED = 'execution_failed/{id}/apply_execution_failed',
+  APPLY_RETRY_SPEC = 'execution_failed/{id}/apply_retry_spec',
+  CHANGE_FUNCTION = 'execution_failed/{id}/change_function',
+  MARK_RECOVERABLE = 'execution_failed/{id}/mark_recoverable',
+  DELETE_AGGREGATE = 'execution_failed/{id}',
+  RECOVER_AGGREGATE = 'execution_failed/{id}/recover',
+}
 
 @api()
 export class ExecutionFailedCommandClient implements ApiMetadataCapable {
-  constructor(public readonly apiMetadata: ApiMetadata = { basePath: AGGREGATE_NAME }) {
+  constructor(public readonly apiMetadata: ApiMetadata) {
 
   }
 

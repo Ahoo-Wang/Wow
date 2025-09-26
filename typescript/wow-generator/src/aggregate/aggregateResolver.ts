@@ -84,7 +84,13 @@ export class AggregateResolver {
    * @returns Map of aggregate definitions keyed by tag name
    */
   resolve() {
-    return this.aggregates as Map<string, AggregateDefinition>;
+    const resolvedAggregates = new Map<string, AggregateDefinition>();
+    for (const [tag, aggregate] of this.aggregates) {
+      if (aggregate.state && aggregate.fields) {
+        resolvedAggregates.set(tag, aggregate as AggregateDefinition);
+      }
+    }
+    return resolvedAggregates;
   }
 
   /**

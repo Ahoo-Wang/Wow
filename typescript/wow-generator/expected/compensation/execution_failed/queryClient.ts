@@ -13,20 +13,29 @@
 
 import { EventStreamQueryClient, SnapshotQueryClient } from '@ahoo-wang/fetcher-wow';
 import {
-  ExecutionFailedAggregatedDomainEventTypes, ExecutionFailedAggregatedFields,
-  ExecutionFailedState,
+  CompensationPrepared,
+  ExecutionFailedAggregatedFields, ExecutionFailedApplied,
+  ExecutionFailedCreated,
+  ExecutionFailedState, ExecutionSuccessApplied, FunctionChanged, RecoverableMarked, RetrySpecApplied,
 } from './types.ts';
 import { ApiMetadata } from '@ahoo-wang/fetcher-decorator';
+import { AGGREGATE } from './aggregate.ts';
+import { ResourceAttributionPathSpec } from '@ahoo-wang/fetcher-wow/dist/types/endpoints.ts';
 
-export class ExecutionFailedSnapshotQueryClient extends SnapshotQueryClient<ExecutionFailedState, ExecutionFailedAggregatedFields> {
-  constructor(apiMetadata: ApiMetadata = { basePath: 'execution_failed' }) {
-    super(apiMetadata);
-  }
+export const DEFAULT_BASE_PATH = AGGREGATE.aggregateName;
+export const TENANT_BASE_PATH = `${ResourceAttributionPathSpec.TENANT}/${DEFAULT_BASE_PATH}`;
+export const OWNER_BASE_PATH = `${ResourceAttributionPathSpec.OWNER}/${DEFAULT_BASE_PATH}`;
+export const TENANT_OWNER_BASE_PATH = `${ResourceAttributionPathSpec.TENANT_OWNER}/${DEFAULT_BASE_PATH}`;
+
+export function createExecutionFailedSnapshotQueryClient(apiMetadata: ApiMetadata = { basePath: TENANT_BASE_PATH }): SnapshotQueryClient<ExecutionFailedState, ExecutionFailedAggregatedFields | string> {
+  return new SnapshotQueryClient(apiMetadata);
 }
 
-export class ExecutionFailedEventQueryClient extends EventStreamQueryClient<ExecutionFailedAggregatedDomainEventTypes> {
-  constructor(apiMetadata: ApiMetadata = { basePath: 'execution_failed' }) {
-    super(apiMetadata);
-  }
-}
+export type DomainEventTypes = CompensationPrepared |
+  ExecutionFailedApplied | ExecutionFailedCreated | ExecutionSuccessApplied
+  | FunctionChanged | RecoverableMarked | RetrySpecApplied
+  ;
 
+export function createExecutionFailedEventQueryClient(apiMetadata: ApiMetadata = { basePath: TENANT_BASE_PATH }): EventStreamQueryClient<DomainEventTypes> {
+  return new EventStreamQueryClient(apiMetadata);
+}

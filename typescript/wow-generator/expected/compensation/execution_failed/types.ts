@@ -21,18 +21,6 @@ import {
 } from '@ahoo-wang/fetcher-wow';
 import { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 
-export const AGGREGATE_NAME = 'execution_failed';
-
-export enum COMMAND_ENDPOINTS {
-  CREATE_EXECUTION_FAILED = 'create_execution_failed',
-  PREPARE_COMPENSATION = '{id}/prepare_compensation',
-  FORCE_PREPARE_COMPENSATION = '{id}/force_prepare_compensation',
-  APPLY_EXECUTION_SUCCESS = '{id}/apply_execution_success',
-  APPLY_EXECUTION_FAILED = '{id}/apply_execution_failed',
-  APPLY_RETRY_SPEC = '{id}/apply_retry_spec',
-  CHANGE_FUNCTION = '{id}/change_function',
-}
-
 export interface ApplyExecutionFailed {
   error: ErrorDetails;
   executeAt: number;
