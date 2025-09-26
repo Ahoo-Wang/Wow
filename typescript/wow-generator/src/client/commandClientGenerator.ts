@@ -111,6 +111,7 @@ export class CommandClientGenerator extends BaseCodeGenerator {
       'api',
       'post',
       'put',
+      'patch',
       'del',
       'request',
       'attribute',

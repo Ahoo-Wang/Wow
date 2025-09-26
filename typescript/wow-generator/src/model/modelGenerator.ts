@@ -13,6 +13,7 @@
 
 import { Schema, Reference } from '@ahoo-wang/fetcher-openapi';
 import {
+  InterfaceDeclaration,
   JSDocableNode,
   SourceFile,
 
@@ -122,17 +123,27 @@ export class ModelGenerator extends BaseCodeGenerator {
           })),
       });
     }
+    const interfaceDeclaration = sourceFile.addInterface({
+      name: modelInfo.name,
+      isExported: true,
+    });
     if (schema.type === 'object' && schema.properties) {
-      return this.processObject(sourceFile, modelInfo, schema);
+      return this.processInterface(sourceFile, modelInfo, schema, interfaceDeclaration);
     }
 
     if (isComposition(schema)) {
-      return sourceFile.addTypeAlias({
-        name: modelInfo.name,
-        isExported: true,
-        type: this.resolvePropertyCompositionType(modelInfo, sourceFile, schema),
+      const compositionTypes = schema.anyOf || schema.oneOf || schema.allOf;
+      compositionTypes!.forEach(compositionTypeSchema => {
+        if (isReference(compositionTypeSchema)) {
+          const refModelInfo = resolveModelInfo(extractComponentKey(compositionTypeSchema));
+          addImportModelInfo(modelInfo, sourceFile, this.outputDir, refModelInfo);
+          interfaceDeclaration.addExtends(refModelInfo.name);
+          return;
+        }
+        this.processInterface(sourceFile, modelInfo, compositionTypeSchema, interfaceDeclaration);
       });
     }
+    return interfaceDeclaration;
   }
 
   private processObject(sourceFile: SourceFile, modelInfo: ModelInfo, schema: Schema) {
@@ -140,19 +151,28 @@ export class ModelGenerator extends BaseCodeGenerator {
       name: modelInfo.name,
       isExported: true,
     });
+    return this.processInterface(sourceFile, modelInfo, schema, interfaceDeclaration);
+  }
 
+  private processInterface(sourceFile: SourceFile, modelInfo: ModelInfo, schema: Schema, interfaceDeclaration: InterfaceDeclaration) {
     for (const [propName, propSchema] of Object.entries(schema.properties!)) {
       let propType: string = this.resolvePropertyType(modelInfo, sourceFile, propName, propSchema);
-      const propertySignature = interfaceDeclaration.addProperty({
-        name: propName,
-        type: propType,
-      });
+      let propertySignature = interfaceDeclaration.getProperty(propName);
+      if (propertySignature) {
+        propertySignature.setType(propType);
+      } else {
+        propertySignature = interfaceDeclaration.addProperty({
+          name: propName,
+          type: propType,
+        });
+      }
       if (!isReference(propSchema)) {
         addJSDoc(propertySignature, propSchema.title, propSchema.description);
       }
     }
     return interfaceDeclaration;
   }
+
 
   private resolvePropertyType(currentModelInfo: ModelInfo, sourceFile: SourceFile, propName: string, propSchema: Schema | Reference): string {
     if (isReference(propSchema)) {
@@ -165,7 +185,7 @@ export class ModelGenerator extends BaseCodeGenerator {
     }
     if (isArray(propSchema)) {
       const itemsType = this.resolvePropertyType(currentModelInfo, sourceFile, propName, propSchema.items!!);
-      return `${itemsType}[]`;
+      return `(${itemsType})[]`;
     }
     if (propSchema.type && isPrimitive(propSchema.type)) {
       return resolvePrimitiveType(propSchema.type!);
@@ -190,17 +210,17 @@ export class ModelGenerator extends BaseCodeGenerator {
 
   private resolvePropertyCompositionType(currentModelInfo: ModelInfo, sourceFile: SourceFile, schema: CompositionSchema): string {
     const compositionTypes = schema.anyOf || schema.oneOf || schema.allOf;
-    const types: string[] = [];
+    const types: Set<string> = new Set<string>();
     compositionTypes!.forEach(compositionTypeSchema => {
       if (isReference(compositionTypeSchema)) {
         const refModelInfo = resolveModelInfo(extractComponentKey(compositionTypeSchema));
         addImportModelInfo(currentModelInfo, sourceFile, this.outputDir, refModelInfo);
-        types.push(refModelInfo.name);
+        types.add(refModelInfo.name);
         return;
       }
-      types.push(resolvePrimitiveType(compositionTypeSchema.type ?? 'string'));
+      types.add(resolvePrimitiveType(compositionTypeSchema.type ?? 'string'));
     });
     const separator = isUnion(schema) ? '|' : '&';
-    return types.join(separator);
+    return Array.from(types).join(separator);
   }
 }
