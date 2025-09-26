@@ -47,24 +47,40 @@ export function createQueryApiMetadata(options: QueryClientOptions): ApiMetadata
   return { ...options, basePath };
 }
 
-/**
- * Creates a snapshot query client for querying aggregate snapshots.
- *
- * @param options - The query client options used to configure the snapshot query client
- * @returns A new instance of SnapshotQueryClient
- */
-export function createSnapshotQueryClient<S, FIELDS extends string = string>(options: QueryClientOptions): SnapshotQueryClient<S, FIELDS> {
-  const apiMetadata = createQueryApiMetadata(options);
-  return new SnapshotQueryClient(apiMetadata);
-}
+export class QueryClientFactory<S, FIELDS extends string = string, DomainEventBody = any> {
+  /**
+   * Creates a new QueryClientFactory instance with the specified default options.
+   *
+   * @param defaultOptions - The default options to be used for all query clients created by this factory
+   */
+  constructor(private readonly defaultOptions: QueryClientOptions) {
+  }
 
-/**
- * Creates an event stream query client for querying domain event streams.
- *
- * @param options - The query client options used to configure the event stream query client
- * @returns A new instance of EventStreamQueryClient
- */
-export function createEventStreamQueryClient<DomainEventBody = any, FIELDS extends string = string>(options: QueryClientOptions): EventStreamQueryClient<DomainEventBody, FIELDS> {
-  const apiMetadata = createQueryApiMetadata(options);
-  return new EventStreamQueryClient(apiMetadata);
+  /**
+   * Creates a snapshot query client for querying aggregate snapshots.
+   *
+   * This method merges the provided options with the factory's default options,
+   * then creates API metadata and instantiates a SnapshotQueryClient.
+   *
+   * @param options - The query client options used to configure the snapshot query client
+   * @returns A new instance of SnapshotQueryClient
+   */
+  createSnapshotQueryClient(options: QueryClientOptions): SnapshotQueryClient<S, FIELDS> {
+    const apiMetadata = createQueryApiMetadata({ ...this.defaultOptions, ...options });
+    return new SnapshotQueryClient(apiMetadata);
+  }
+
+  /**
+   * Creates an event stream query client for querying domain event streams.
+   *
+   * This method merges the provided options with the factory's default options,
+   * then creates API metadata and instantiates an EventStreamQueryClient.
+   *
+   * @param options - The query client options used to configure the event stream query client
+   * @returns A new instance of EventStreamQueryClient
+   */
+  createEventStreamQueryClient<FIELDS extends string = string>(options: QueryClientOptions): EventStreamQueryClient<DomainEventBody, FIELDS> {
+    const apiMetadata = createQueryApiMetadata({ ...this.defaultOptions, ...options });
+    return new EventStreamQueryClient(apiMetadata);
+  }
 }
