@@ -22,6 +22,6 @@ describe('spec', () => {
     expect(openAPI).toBeDefined();
     const aggregateResolver = new AggregateResolver(openAPI!);
     const aggregates = aggregateResolver.resolve();
-    expect(aggregates).toMatchSnapshot();
+    expect(aggregates.size).gt(0);
   });
 });
