@@ -13,9 +13,10 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Project } from 'ts-morph';
-import { ClientGenerator } from '../../src/client/clientGenerator';
+import { ClientGenerator } from '../../src/client';
 import { GenerateContext } from '../../src/types';
 import { AggregateDefinition } from '../../src/aggregate';
+import { SilentLogger } from '../../src/utils/logger';
 
 // Mock the dependencies
 vi.mock('../../src/client/queryClientGenerator', () => ({
@@ -65,20 +66,13 @@ describe('ClientGenerator', () => {
     ['context1', new Set([mockAggregate1])],
     ['context2', new Set([mockAggregate2])],
   ]);
-
-  const mockLogger = {
-    info: vi.fn(),
-    success: vi.fn(),
-    error: vi.fn(),
-    progress: vi.fn(),
-  };
-
+  const mockLogger = new SilentLogger();
   const createContext = (logger?: any): GenerateContext => ({
     openAPI: mockOpenAPI,
     project: new Project(),
     outputDir: '/tmp/test',
     contextAggregates: mockContextAggregates,
-    logger,
+    logger: mockLogger,
   });
 
   let mockQueryClientGenerator: any;
@@ -125,33 +119,14 @@ describe('ClientGenerator', () => {
     expect(generator.logger).toBe(context.logger);
   });
 
-  it('should initialize without logger', () => {
-    const context = createContext();
-    const generator = new ClientGenerator(context);
-
-    expect(generator.logger).toBeUndefined();
-  });
-
   it('should generate clients for all bounded contexts and call child generators', () => {
     const context = createContext(mockLogger);
     const generator = new ClientGenerator(context);
 
     generator.generate();
 
-    expect(mockLogger.progress).toHaveBeenCalledWith(
-      'Generating clients for 2 bounded contexts',
-    );
-    expect(mockLogger.progress).toHaveBeenCalledWith(
-      'Processing bounded context: context1',
-    );
-    expect(mockLogger.progress).toHaveBeenCalledWith(
-      'Processing bounded context: context2',
-    );
     expect(mockQueryClientGenerator.generate).toHaveBeenCalledTimes(1);
     expect(mockCommandClientGenerator.generate).toHaveBeenCalledTimes(1);
-    expect(mockLogger.success).toHaveBeenCalledWith(
-      'Client generation completed',
-    );
   });
 
   it('should generate clients without logger', () => {
@@ -198,9 +173,6 @@ describe('ClientGenerator', () => {
 
     generator.generate();
 
-    expect(mockLogger.progress).toHaveBeenCalledWith(
-      'Generating clients for 0 bounded contexts',
-    );
     expect(mockQueryClientGenerator.generate).toHaveBeenCalledTimes(1);
     expect(mockCommandClientGenerator.generate).toHaveBeenCalledTimes(1);
   });

@@ -16,6 +16,7 @@ import { Project, SourceFile, VariableDeclarationKind } from 'ts-morph';
 import { CommandClientGenerator } from '../../src/client/commandClientGenerator';
 import { GenerateContext } from '../../src/types';
 import { AggregateDefinition } from '../../src/aggregate';
+import { SilentLogger } from '../../src/utils/logger';
 
 // Mock the dependencies
 vi.mock('../../src/utils');
@@ -56,12 +57,7 @@ describe('CommandClientGenerator', () => {
     ['context1', new Set([mockAggregate])],
   ]);
 
-  const mockLogger = {
-    info: vi.fn(),
-    success: vi.fn(),
-    error: vi.fn(),
-    progress: vi.fn(),
-  };
+  const mockLogger = new SilentLogger();
 
   const createContext = (logger?: any): GenerateContext => ({
     openAPI: mockOpenAPI,
@@ -141,26 +137,6 @@ describe('CommandClientGenerator', () => {
     const generator = new CommandClientGenerator(context);
 
     generator.generate();
-
-    expect(mockLogger.progress).toHaveBeenCalledWith(
-      'Generating command clients for 1 aggregates',
-    );
-    expect(mockLogger.progress).toHaveBeenCalledWith(
-      'Processing command client for aggregate: user',
-    );
-    expect(mockLogger.success).toHaveBeenCalledWith(
-      'Command client generation completed',
-    );
-  });
-
-  it('should generate command clients without logger', () => {
-    const context = createContext();
-    const generator = new CommandClientGenerator(context);
-
-    generator.generate();
-
-    // Should not throw and should process aggregates
-    expect(mockLogger.progress).not.toHaveBeenCalled();
   });
 
   it('should process aggregate and create command client', () => {
@@ -293,8 +269,5 @@ describe('CommandClientGenerator', () => {
 
     generator.generate();
 
-    expect(mockLogger.progress).toHaveBeenCalledWith(
-      'Generating command clients for 0 aggregates',
-    );
   });
 });

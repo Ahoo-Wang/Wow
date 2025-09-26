@@ -38,18 +38,18 @@ export class QueryClientGenerator extends BaseCodeGenerator {
   generate(): void {
     const totalAggregates = Array.from(this.contextAggregates.values()).flat()
       .length;
-    this.logger?.progress(
+    this.logger.progress(
       `Generating query clients for ${totalAggregates} aggregates`,
     );
     for (const [, aggregates] of this.contextAggregates) {
       aggregates.forEach(aggregateDefinition => {
-        this.logger?.progress(
+        this.logger.progress(
           `Processing query client for aggregate: ${aggregateDefinition.aggregate.aggregateName}`,
         );
         this.processQueryClient(aggregateDefinition);
       });
     }
-    this.logger?.success('Query client generation completed');
+    this.logger.success('Query client generation completed');
   }
 
   /**

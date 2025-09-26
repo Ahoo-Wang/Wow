@@ -39,16 +39,16 @@ export class ClientGenerator extends BaseCodeGenerator {
    * Generates client classes for all aggregates.
    */
   generate(): void {
-    this.logger?.progress(
+    this.logger.progress(
       `Generating clients for ${this.contextAggregates.size} bounded contexts`,
     );
     for (const [contextAlias] of this.contextAggregates) {
-      this.logger?.progress(`Processing bounded context: ${contextAlias}`);
+      this.logger.progress(`Processing bounded context: ${contextAlias}`);
       this.processBoundedContext(contextAlias);
     }
     this.queryClientGenerator.generate();
     this.commandClientGenerator.generate();
-    this.logger?.success('Client generation completed');
+    this.logger.success('Client generation completed');
   }
 
   /**

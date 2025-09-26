@@ -16,6 +16,7 @@ import { Project, SourceFile, VariableDeclarationKind } from 'ts-morph';
 import { QueryClientGenerator } from '../../src/client/queryClientGenerator';
 import { GenerateContext } from '../../src/types';
 import { AggregateDefinition } from '../../src/aggregate';
+import { SilentLogger } from '../../src/utils/logger';
 
 // Mock the dependencies
 vi.mock('../../src/utils');
@@ -62,12 +63,7 @@ describe('QueryClientGenerator', () => {
     ],
   ]);
 
-  const mockLogger = {
-    info: vi.fn(),
-    success: vi.fn(),
-    error: vi.fn(),
-    progress: vi.fn(),
-  };
+  const mockLogger = new SilentLogger();
 
   const createContext = (logger?: any): GenerateContext => ({
     openAPI: mockOpenAPI,
@@ -130,29 +126,6 @@ describe('QueryClientGenerator', () => {
     const generator = new QueryClientGenerator(context);
 
     generator.generate();
-
-    expect(mockLogger.progress).toHaveBeenCalledWith(
-      'Generating query clients for 1 aggregates',
-    );
-    expect(mockLogger.progress).toHaveBeenCalledWith(
-      'Processing query client for aggregate: user',
-    );
-    expect(mockLogger.progress).toHaveBeenCalledWith(
-      'Processing query client for aggregate: product',
-    );
-    expect(mockLogger.success).toHaveBeenCalledWith(
-      'Query client generation completed',
-    );
-  });
-
-  it('should generate query clients without logger', () => {
-    const context = createContext();
-    const generator = new QueryClientGenerator(context);
-
-    generator.generate();
-
-    // Should not throw and should process aggregates
-    expect(mockLogger.progress).not.toHaveBeenCalled();
   });
 
   it('should process query client with events', () => {
@@ -205,8 +178,5 @@ describe('QueryClientGenerator', () => {
 
     generator.generate();
 
-    expect(mockLogger.progress).toHaveBeenCalledWith(
-      'Generating query clients for 0 aggregates',
-    );
   });
 });

@@ -26,7 +26,7 @@ export abstract class BaseCodeGenerator implements GenerateContext {
   /** Map of bounded context aggregates for domain modeling */
   readonly contextAggregates: BoundedContextAggregates;
   /** Optional logger for generation progress and errors */
-  readonly logger?: Logger;
+  readonly logger: Logger;
 
   /**
    * Creates a new ClientGenerator instance.

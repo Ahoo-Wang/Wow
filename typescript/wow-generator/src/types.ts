@@ -26,7 +26,7 @@ export interface GeneratorOptions {
   /** Output directory for generated files */
   readonly outputDir: string;
   /** Optional logger for friendly output */
-  readonly logger?: Logger;
+  readonly logger: Logger;
 }
 
 /**
@@ -58,5 +58,5 @@ export interface GenerateContext {
   outputDir: string;
   contextAggregates: BoundedContextAggregates;
   /** Optional logger for friendly output */
-  logger?: Logger;
+  logger: Logger;
 }

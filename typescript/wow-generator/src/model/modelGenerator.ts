@@ -64,20 +64,20 @@ export class ModelGenerator extends BaseCodeGenerator {
   generate() {
     const schemas = this.openAPI.components?.schemas;
     if (!schemas) {
-      this.logger?.info('No schemas found in OpenAPI specification');
+      this.logger.info('No schemas found in OpenAPI specification');
       return;
     }
-    this.logger?.progress(
+    this.logger.progress(
       `Generating models for ${Object.keys(schemas).length} schemas`,
     );
     Object.entries(schemas).forEach(([schemaKey, schema]) => {
       if (schemaKey.startsWith('wow.')) {
         return;
       }
-      this.logger?.progress(`Processing schema: ${schemaKey}`);
+      this.logger.progress(`Processing schema: ${schemaKey}`);
       this.generateKeyedSchema(schemaKey, schema);
     });
-    this.logger?.success('Model generation completed');
+    this.logger.success('Model generation completed');
   }
 
   /**
