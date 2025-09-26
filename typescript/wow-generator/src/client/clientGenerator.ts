@@ -11,7 +11,6 @@
  * limitations under the License.
  */
 
-
 import { BaseCodeGenerator } from '../baseCodeGenerator';
 import { QueryClientGenerator } from './queryClientGenerator';
 import { CommandClientGenerator } from './commandClientGenerator';
@@ -40,11 +39,16 @@ export class ClientGenerator extends BaseCodeGenerator {
    * Generates client classes for all aggregates.
    */
   generate(): void {
+    this.logger?.progress(
+      `Generating clients for ${this.contextAggregates.size} bounded contexts`,
+    );
     for (const [contextAlias] of this.contextAggregates) {
+      this.logger?.progress(`Processing bounded context: ${contextAlias}`);
       this.processBoundedContext(contextAlias);
     }
     this.queryClientGenerator.generate();
     this.commandClientGenerator.generate();
+    this.logger?.success('Client generation completed');
   }
 
   /**

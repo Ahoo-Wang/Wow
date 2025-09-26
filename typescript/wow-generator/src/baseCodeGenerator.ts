@@ -11,18 +11,17 @@
  * limitations under the License.
  */
 
-
 import { Project } from 'ts-morph';
 import { OpenAPI } from '@ahoo-wang/fetcher-openapi';
-import { GenerateContext } from './types';
+import { GenerateContext, Logger } from './types';
 import { BoundedContextAggregates } from './aggregate';
-
 
 export abstract class BaseCodeGenerator implements GenerateContext {
   readonly project: Project;
   readonly openAPI: OpenAPI;
   readonly outputDir: string;
   readonly contextAggregates: BoundedContextAggregates;
+  readonly logger?: Logger;
 
   /**
    * Creates a new ClientGenerator instance.
@@ -33,6 +32,7 @@ export abstract class BaseCodeGenerator implements GenerateContext {
     this.openAPI = context.openAPI;
     this.outputDir = context.outputDir;
     this.contextAggregates = context.contextAggregates;
+    this.logger = context.logger;
   }
 
   /**

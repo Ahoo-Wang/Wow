@@ -24,7 +24,8 @@ import { ModelInfo, resolveModelInfo } from './modelInfo';
 import {
   addImportModelInfo,
   extractComponentKey,
-  getModelFileName, getOrCreateSourceFile,
+  getModelFileName,
+  getOrCreateSourceFile,
   isEnum,
   isReference,
   resolvePrimitiveType,
@@ -61,14 +62,20 @@ export class ModelGenerator extends BaseCodeGenerator {
   generate() {
     const schemas = this.openAPI.components?.schemas;
     if (!schemas) {
+      this.logger?.info('No schemas found in OpenAPI specification');
       return;
     }
+    this.logger?.progress(
+      `Generating models for ${Object.keys(schemas).length} schemas`,
+    );
     Object.entries(schemas).forEach(([schemaKey, schema]) => {
       if (schemaKey.startsWith('wow.')) {
         return;
       }
+      this.logger?.progress(`Processing schema: ${schemaKey}`);
       this.generateKeyedSchema(schemaKey, schema);
     });
+    this.logger?.success('Model generation completed');
   }
 
   /**
@@ -102,10 +109,16 @@ export class ModelGenerator extends BaseCodeGenerator {
     return sourceFile;
   }
 
-  private process(modelInfo: ModelInfo,
-                  sourceFile: SourceFile,
-                  schema: Schema) {
-    let declaration: JSDocableNode | undefined = this.processEnum(modelInfo, sourceFile, schema);
+  private process(
+    modelInfo: ModelInfo,
+    sourceFile: SourceFile,
+    schema: Schema,
+  ) {
+    let declaration: JSDocableNode | undefined = this.processEnum(
+      modelInfo,
+      sourceFile,
+      schema,
+    );
     if (declaration) {
       return declaration;
     }

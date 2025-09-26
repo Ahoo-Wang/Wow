@@ -18,7 +18,6 @@ import { AggregateResolver } from './aggregate';
 import { ModelGenerator } from './model';
 import { ClientGenerator } from './client';
 
-
 /**
  * Main code generator class that orchestrates the generation of TypeScript code from OpenAPI specifications.
  * Handles model generation, client generation, and project formatting.
@@ -48,6 +47,7 @@ export class CodeGenerator {
       project: this.project,
       outputDir: this.options.outputDir,
       contextAggregates: boundedContextAggregates,
+      logger: this.options.logger,
     };
     const modelGenerator = new ModelGenerator(context);
     modelGenerator.generate();

@@ -25,6 +25,25 @@ export interface GeneratorOptions {
   readonly inputPath: string;
   /** Output directory for generated files */
   readonly outputDir: string;
+  /** Optional logger for friendly output */
+  readonly logger?: Logger;
+}
+
+/**
+ * Logger interface for friendly logging during code generation.
+ */
+export interface Logger {
+  /** Log informational messages */
+  info(message: string): void;
+
+  /** Log success messages */
+  success(message: string): void;
+
+  /** Log error messages */
+  error(message: string): void;
+
+  /** Log progress messages */
+  progress(message: string): void;
 }
 
 /**
@@ -38,4 +57,6 @@ export interface GenerateContext {
   /** Output directory for generated files */
   outputDir: string;
   contextAggregates: BoundedContextAggregates;
+  /** Optional logger for friendly output */
+  logger?: Logger;
 }

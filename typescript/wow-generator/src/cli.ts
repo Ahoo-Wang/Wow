@@ -9,6 +9,7 @@ import { program } from 'commander';
 import { Project } from 'ts-morph';
 import { GeneratorOptions } from './types';
 import { CodeGenerator } from './index';
+import { ConsoleLogger } from './utils/logger';
 
 program
   .name('fetcher-generator')
@@ -21,18 +22,21 @@ program
   .requiredOption('-i, --input <path>', 'Input OpenAPI specification file path')
   .requiredOption('-o, --output <path>', 'Output directory path')
   .action(async options => {
+    const logger = new ConsoleLogger();
     try {
+      logger.info('Starting code generation...');
       const project = new Project();
       const generatorOptions: GeneratorOptions = {
         inputPath: options.input,
         outputDir: options.output,
         project,
+        logger,
       };
       const codeGenerator = new CodeGenerator(generatorOptions);
       await codeGenerator.generate();
-      console.log('Code generation completed successfully!');
+      logger.success('Code generation completed successfully!');
     } catch (error) {
-      console.error('Error during code generation:', error);
+      logger.error(`Error during code generation: ${error}`);
       process.exit(1);
     }
   });
