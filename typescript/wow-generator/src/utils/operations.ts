@@ -52,6 +52,11 @@ export function extractOperations(pathItem: PathItem): MethodOperation[] {
   }>;
 }
 
+/**
+ * Extracts the OK (200) response from an operation.
+ * @param operation - The OpenAPI operation
+ * @returns The 200 response or undefined if not found
+ */
 export function extractOkResponse(
   operation: Operation,
 ): Response | Reference | undefined {

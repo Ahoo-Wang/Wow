@@ -27,16 +27,28 @@ import {
 import { HTTPMethod } from '@ahoo-wang/fetcher-openapi';
 import { createClientFilePath, getClientName } from '@/client/utils.ts';
 
+/**
+ * Generates TypeScript command client classes for aggregates.
+ * Creates command clients that can send commands to aggregates.
+ */
 export class CommandClientGenerator extends BaseCodeGenerator {
   private readonly commandEndpointPathsName = 'COMMAND_ENDPOINT_PATHS';
-  private readonly defaultCommandClientOptionsName = 'DEFAULT_COMMAND_CLIENT_OPTIONS';
+  private readonly defaultCommandClientOptionsName =
+    'DEFAULT_COMMAND_CLIENT_OPTIONS';
 
+  /**
+   * Creates a new CommandClientGenerator instance.
+   * @param context - The generation context containing OpenAPI spec and project details
+   */
   constructor(context: GenerateContext) {
     super(context);
   }
 
+  /**
+   * Generates command client classes for all aggregates.
+   */
   generate(): void {
-    for (const [_, aggregates] of this.contextAggregates) {
+    for (const [, aggregates] of this.contextAggregates) {
       aggregates.forEach(aggregateDefinition => {
         this.processAggregate(aggregateDefinition);
       });
@@ -57,13 +69,15 @@ export class CommandClientGenerator extends BaseCodeGenerator {
     this.processCommandEndpointPaths(commandClientFile, aggregate);
     commandClientFile.addVariableStatement({
       declarationKind: VariableDeclarationKind.Const,
-      declarations: [{
-        name: this.defaultCommandClientOptionsName,
-        type: 'ApiMetadata',
-        initializer: `{
+      declarations: [
+        {
+          name: this.defaultCommandClientOptionsName,
+          type: 'ApiMetadata',
+          initializer: `{
         basePath: '${aggregate.aggregate.contextAlias}'
       }`,
-      }],
+        },
+      ],
       isExported: false,
     });
     commandClientFile.addImportDeclaration({
@@ -79,13 +93,9 @@ export class CommandClientGenerator extends BaseCodeGenerator {
     });
     commandClientFile.addImportDeclaration({
       moduleSpecifier: '@ahoo-wang/fetcher-eventstream',
-      namedImports: [
-        'JsonEventStreamResultExtractor',
-      ],
+      namedImports: ['JsonEventStreamResultExtractor'],
     });
-    addImport(commandClientFile, '@ahoo-wang/fetcher', [
-      'ContentTypeValues',
-    ]);
+    addImport(commandClientFile, '@ahoo-wang/fetcher', ['ContentTypeValues']);
     addImport(commandClientFile, '@ahoo-wang/fetcher-decorator', [
       'type ApiMetadata',
       'type ApiMetadataCapable',
@@ -103,7 +113,10 @@ export class CommandClientGenerator extends BaseCodeGenerator {
     this.processCommandClient(commandClientFile, aggregate, true);
   }
 
-  processCommandEndpointPaths(clientFile: SourceFile, aggregateDefinition: AggregateDefinition) {
+  processCommandEndpointPaths(
+    clientFile: SourceFile,
+    aggregateDefinition: AggregateDefinition,
+  ) {
     const enumDeclaration = clientFile.addEnum({
       name: this.commandEndpointPathsName,
     });
@@ -119,7 +132,11 @@ export class CommandClientGenerator extends BaseCodeGenerator {
     return `${this.commandEndpointPathsName}.${command.name.toUpperCase()}`;
   }
 
-  processCommandClient(clientFile: SourceFile, aggregateDefinition: AggregateDefinition, isStream: boolean = false) {
+  processCommandClient(
+    clientFile: SourceFile,
+    aggregateDefinition: AggregateDefinition,
+    isStream: boolean = false,
+  ) {
     let suffix = 'CommandClient';
     let apiDecorator: OptionalKind<DecoratorStructure> = {
       name: 'api',
@@ -130,10 +147,13 @@ export class CommandClientGenerator extends BaseCodeGenerator {
       suffix = 'Stream' + suffix;
       apiDecorator = {
         name: 'api',
-        arguments: [`''`, `{
+        arguments: [
+          `''`,
+          `{
   headers: { Accept: ContentTypeValues.TEXT_EVENT_STREAM },
   resultExtractor: JsonEventStreamResultExtractor,
-}`],
+}`,
+        ],
       };
       returnType = `Promise<CommandResultEventStream>`;
     }

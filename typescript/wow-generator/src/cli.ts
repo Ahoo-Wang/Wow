@@ -1,13 +1,18 @@
 #!/usr/bin/env node
 
+/**
+ * CLI entry point for the Fetcher OpenAPI code generator.
+ * Sets up the commander program with generate command and handles execution.
+ */
+
 import { program } from 'commander';
 import { CodeGenerator } from '@/index.ts';
 import { GeneratorOptions } from '@/types.ts';
 import { Project } from 'ts-morph';
 
 program
-  .name('fetcher-openapi-generator')
-  .description('OpenAPI Specification TypeScript code generator for Fetcher')
+  .name('fetcher-generator')
+  .description('OpenAPI Specification TypeScript code generator for Wow')
   .version('1.0.0');
 
 program

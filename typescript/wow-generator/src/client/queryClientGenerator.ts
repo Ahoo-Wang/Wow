@@ -19,13 +19,24 @@ import { IMPORT_WOW_PATH, ModelInfo, resolveModelInfo } from '@/model';
 import { addImportRefModel, camelCase } from '@/utils';
 import { BaseCodeGenerator } from '@/baseCodeGenerator.ts';
 
+/**
+ * Generates TypeScript query client classes for aggregates.
+ * Creates query clients that can perform state queries and event streaming.
+ */
 export class QueryClientGenerator extends BaseCodeGenerator {
+  /**
+   * Creates a new QueryClientGenerator instance.
+   * @param context - The generation context containing OpenAPI spec and project details
+   */
   constructor(context: GenerateContext) {
     super(context);
   }
 
+  /**
+   * Generates query client classes for all aggregates.
+   */
   generate(): void {
-    for (const [_, aggregates] of this.contextAggregates) {
+    for (const [, aggregates] of this.contextAggregates) {
       aggregates.forEach(aggregateDefinition => {
         this.processQueryClient(aggregateDefinition);
       });
@@ -42,7 +53,12 @@ export class QueryClientGenerator extends BaseCodeGenerator {
     aggregate: TagAliasAggregate,
     fileName: string,
   ): SourceFile {
-    return createClientFilePath(this.project, this.outputDir, aggregate, fileName);
+    return createClientFilePath(
+      this.project,
+      this.outputDir,
+      aggregate,
+      fileName,
+    );
   }
 
   /**
@@ -56,20 +72,26 @@ export class QueryClientGenerator extends BaseCodeGenerator {
     );
     queryClientFile.addImportDeclaration({
       moduleSpecifier: IMPORT_WOW_PATH,
-      namedImports: ['QueryClientFactory', 'QueryClientOptions', 'ResourceAttributionPathSpec'],
+      namedImports: [
+        'QueryClientFactory',
+        'QueryClientOptions',
+        'ResourceAttributionPathSpec',
+      ],
     });
     const defaultClientOptionsName = 'DEFAULT_QUERY_CLIENT_OPTIONS';
     queryClientFile.addVariableStatement({
       declarationKind: VariableDeclarationKind.Const,
-      declarations: [{
-        name: defaultClientOptionsName,
-        type: 'QueryClientOptions',
-        initializer: `{
+      declarations: [
+        {
+          name: defaultClientOptionsName,
+          type: 'QueryClientOptions',
+          initializer: `{
         contextAlias: '${aggregate.aggregate.contextAlias}',
         aggregateName: '${aggregate.aggregate.aggregateName}',
         resourceAttribution: ${inferPathSpecType(aggregate)},
       }`,
-      }],
+        },
+      ],
       isExported: false,
     });
     const eventModelInfos: ModelInfo[] = [];
@@ -90,12 +112,13 @@ export class QueryClientGenerator extends BaseCodeGenerator {
     addImportRefModel(queryClientFile, this.outputDir, fieldsModelInfo);
     queryClientFile.addVariableStatement({
       declarationKind: VariableDeclarationKind.Const,
-      declarations: [{
-        name: clientFactoryName,
-        initializer: `new QueryClientFactory<${stateModelInfo.name}, ${fieldsModelInfo.name} | string, ${domainEventTypesName}>(${defaultClientOptionsName})`,
-      }],
+      declarations: [
+        {
+          name: clientFactoryName,
+          initializer: `new QueryClientFactory<${stateModelInfo.name}, ${fieldsModelInfo.name} | string, ${domainEventTypesName}>(${defaultClientOptionsName})`,
+        },
+      ],
       isExported: true,
     });
   }
-
 }

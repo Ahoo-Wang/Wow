@@ -13,7 +13,7 @@
 
 import { GenerateContext } from '@/types.ts';
 import { getOrCreateSourceFile } from '@/utils/sourceFiles.ts';
-import { BaseCodeGenerator } from '@/BaseCodeGenerator.ts';
+import { BaseCodeGenerator } from '@/baseCodeGenerator.ts';
 import { QueryClientGenerator } from '@/client/queryClientGenerator.ts';
 import { CommandClientGenerator } from '@/client/commandClientGenerator.ts';
 
@@ -39,7 +39,7 @@ export class ClientGenerator extends BaseCodeGenerator {
    * Generates client classes for all aggregates.
    */
   generate(): void {
-    for (const [contextAlias, _] of this.contextAggregates) {
+    for (const [contextAlias] of this.contextAggregates) {
       this.processBoundedContext(contextAlias);
     }
     this.queryClientGenerator.generate();

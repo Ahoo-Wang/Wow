@@ -57,7 +57,7 @@ export function inferFileFormat(content: string): FileFormat {
   try {
     JSON.parse(trimmedContent);
     return FileFormat.JSON;
-  } catch (e) {
+  } catch {
     // If it's not valid JSON, we'll assume it's YAML if it's not empty
     if (trimmedContent.length > 0) {
       return FileFormat.YAML;
