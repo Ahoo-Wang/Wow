@@ -604,6 +604,7 @@
           "200": {
             "description": "Ok",
             "content": {
+
             }
           }
         }
@@ -792,19 +793,22 @@
         }
       }
     },
-    "/tenant/{tenantId}/sales-order/{id}/pay": {
-      "summary": "pay_order",
+    "/tenant/{tenantId}/owner/{ownerId}/sales-order/{id}/address": {
+      "summary": "修改收货地址",
       "description": "",
-      "post": {
+      "put": {
         "tags": [
           "example.order"
         ],
-        "summary": "pay_order",
+        "summary": "修改收货地址",
         "description": "",
-        "operationId": "example.order.pay_order",
+        "operationId": "example.order.change_address",
         "parameters": [
           {
             "$ref": "#/components/parameters/wow.tenantId"
+          },
+          {
+            "$ref": "#/components/parameters/wow.ownerId"
           },
           {
             "$ref": "#/components/parameters/wow.id"
@@ -853,11 +857,11 @@
           }
         ],
         "requestBody": {
-          "description": "pay_order",
+          "description": "修改收货地址",
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/example.order.PayOrder"
+                "$ref": "#/components/schemas/example.order.ChangeAddress"
               }
             }
           }
@@ -887,22 +891,22 @@
         }
       }
     },
-    "/tenant/{tenantId}/sales-order/{id}/package": {
-      "summary": "发货",
+    "/tenant/{tenantId}/owner/{ownerId}/sales-order": {
+      "summary": "下单",
       "description": "",
       "post": {
         "tags": [
           "example.order"
         ],
-        "summary": "发货",
+        "summary": "下单",
         "description": "",
-        "operationId": "example.order.ship_order",
+        "operationId": "example.order.create_order",
         "parameters": [
           {
             "$ref": "#/components/parameters/wow.tenantId"
           },
           {
-            "$ref": "#/components/parameters/wow.id"
+            "$ref": "#/components/parameters/wow.ownerId"
           },
           {
             "$ref": "#/components/parameters/wow.Command-Wait-Stage"
@@ -948,11 +952,11 @@
           }
         ],
         "requestBody": {
-          "description": "发货",
+          "description": "下单",
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/example.order.ShipOrder"
+                "$ref": "#/components/schemas/example.order.CreateOrder"
               }
             }
           }
@@ -1080,117 +1084,19 @@
         }
       }
     },
-    "/tenant/{tenantId}/owner/{ownerId}/sales-order": {
-      "summary": "下单",
+    "/tenant/{tenantId}/sales-order/{id}/package": {
+      "summary": "发货",
       "description": "",
       "post": {
         "tags": [
           "example.order"
         ],
-        "summary": "下单",
+        "summary": "发货",
         "description": "",
-        "operationId": "example.order.create_order",
+        "operationId": "example.order.ship_order",
         "parameters": [
           {
             "$ref": "#/components/parameters/wow.tenantId"
-          },
-          {
-            "$ref": "#/components/parameters/wow.ownerId"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Wait-Stage"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Wait-Context"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Wait-Processor"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Wait-Function"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Wait-Timout"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Stage"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Context"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Processor"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Function"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Aggregate-Id"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Aggregate-Version"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Request-Id"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Local-First"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Accept"
-          }
-        ],
-        "requestBody": {
-          "description": "下单",
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/example.order.CreateOrder"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "$ref": "#/components/responses/wow.CommandOk"
-          },
-          "400": {
-            "$ref": "#/components/responses/wow.CommandBadRequest"
-          },
-          "404": {
-            "$ref": "#/components/responses/wow.CommandNotFound"
-          },
-          "409": {
-            "$ref": "#/components/responses/wow.CommandVersionConflict"
-          },
-          "429": {
-            "$ref": "#/components/responses/wow.CommandTooManyRequests"
-          },
-          "408": {
-            "$ref": "#/components/responses/wow.CommandRequestTimeout"
-          },
-          "410": {
-            "$ref": "#/components/responses/wow.CommandIllegalAccessDeletedAggregate"
-          }
-        }
-      }
-    },
-    "/tenant/{tenantId}/owner/{ownerId}/sales-order/{id}/address": {
-      "summary": "修改收货地址",
-      "description": "",
-      "put": {
-        "tags": [
-          "example.order"
-        ],
-        "summary": "修改收货地址",
-        "description": "",
-        "operationId": "example.order.change_address",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/wow.tenantId"
-          },
-          {
-            "$ref": "#/components/parameters/wow.ownerId"
           },
           {
             "$ref": "#/components/parameters/wow.id"
@@ -1239,11 +1145,106 @@
           }
         ],
         "requestBody": {
-          "description": "修改收货地址",
+          "description": "发货",
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/example.order.ChangeAddress"
+                "$ref": "#/components/schemas/example.order.ShipOrder"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/wow.CommandOk"
+          },
+          "400": {
+            "$ref": "#/components/responses/wow.CommandBadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/wow.CommandNotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/wow.CommandVersionConflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/wow.CommandTooManyRequests"
+          },
+          "408": {
+            "$ref": "#/components/responses/wow.CommandRequestTimeout"
+          },
+          "410": {
+            "$ref": "#/components/responses/wow.CommandIllegalAccessDeletedAggregate"
+          }
+        }
+      }
+    },
+    "/tenant/{tenantId}/sales-order/{id}/pay": {
+      "summary": "pay_order",
+      "description": "",
+      "post": {
+        "tags": [
+          "example.order"
+        ],
+        "summary": "pay_order",
+        "description": "",
+        "operationId": "example.order.pay_order",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/wow.tenantId"
+          },
+          {
+            "$ref": "#/components/parameters/wow.id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Stage"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Context"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Processor"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Function"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Timout"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Stage"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Context"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Processor"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Function"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Aggregate-Id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Aggregate-Version"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Request-Id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Local-First"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Accept"
+          }
+        ],
+        "requestBody": {
+          "description": "pay_order",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/example.order.PayOrder"
               }
             }
           }
@@ -1715,6 +1716,7 @@
         ],
         "responses": {
           "200": {
+
           },
           "404": {
             "$ref": "#/components/responses/wow.NotFound"
@@ -3439,7 +3441,7 @@
         }
       }
     },
-    "/tenant/{tenantId}/owner/{ownerId}/cart/{id}/{customerId}/{enum}": {
+    "/tenant/{tenantId}/owner/{ownerId}/cart/{id}/{customerId}/{mockEnum}": {
       "summary": "mock_variable_command",
       "description": "",
       "post": {
@@ -3467,19 +3469,19 @@
             }
           },
           {
-            "name": "enum",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/example.cart.MockVariableCommand.MockEnum"
-            }
-          },
-          {
             "name": "id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "mockEnum",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/example.cart.MockVariableCommand.MockEnum"
             }
           },
           {
@@ -3984,6 +3986,7 @@
         ],
         "responses": {
           "200": {
+
           },
           "404": {
             "$ref": "#/components/responses/wow.NotFound"
@@ -5091,6 +5094,7 @@
             "default": "{}"
           },
           "value": {
+
           }
         }
       },
@@ -8142,15 +8146,6 @@
           "example": "(0)"
         }
       },
-      "wow.id": {
-        "name": "id",
-        "in": "path",
-        "required": true,
-        "schema": {
-          "type": "string",
-          "description": "aggregate id"
-        }
-      },
       "wow.ownerId": {
         "name": "ownerId",
         "in": "path",
@@ -8158,6 +8153,15 @@
         "schema": {
           "type": "string",
           "description": "aggregate owner id"
+        }
+      },
+      "wow.id": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "description": "aggregate id"
         }
       },
       "wow.version": {

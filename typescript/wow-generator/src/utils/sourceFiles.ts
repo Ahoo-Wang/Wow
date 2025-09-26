@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { JSDocableNode, Project, SourceFile, ts } from 'ts-morph';
+import { JSDocableNode, Project, SourceFile } from 'ts-morph';
 import { combineURLs } from '@ahoo-wang/fetcher';
 import { ModelInfo } from '../model';
 
@@ -125,6 +125,12 @@ export function addImportModelInfo(
   addImportRefModel(sourceFile, outputDir, refModelInfo);
 }
 
+/**
+ * Generates a JSDoc comment string from a title and description.
+ * @param title - The title for the JSDoc comment
+ * @param description - The description for the JSDoc comment
+ * @returns The formatted JSDoc string or undefined if both title and description are empty
+ */
 export function jsDoc(title?: string, description?: string): string | undefined {
   if (!title && !description) {
     return undefined;
@@ -135,6 +141,12 @@ export function jsDoc(title?: string, description?: string): string | undefined 
   return `${title}\n${description}`;
 }
 
+/**
+ * Adds a JSDoc comment to a node with the provided title and description.
+ * @param node - The node to add the JSDoc comment to
+ * @param title - The title for the JSDoc comment
+ * @param description - The description for the JSDoc comment
+ */
 export function addJSDoc(
   node: JSDocableNode,
   title?: string,
