@@ -22,7 +22,7 @@ import {
 import { GenerateContext } from '../types';
 import { ModelInfo, resolveModelInfo } from './modelInfo';
 import {
-  addImportModelInfo,
+  addImportModelInfo, addJSDoc,
   extractComponentKey,
   getModelFileName,
   getOrCreateSourceFile,
@@ -96,16 +96,7 @@ export class ModelGenerator extends BaseCodeGenerator {
     const modelInfo = resolveModelInfo(schemaKey);
     const sourceFile = this.getOrCreateSourceFile(modelInfo);
     const node = this.process(modelInfo, sourceFile, schema);
-    if (schema.title) {
-      node.addJsDoc({
-        description: schema.title,
-      });
-    }
-    if (schema.description) {
-      node.addJsDoc({
-        description: schema.description,
-      });
-    }
+    addJSDoc(node, schema.title, schema.description);
     return sourceFile;
   }
 

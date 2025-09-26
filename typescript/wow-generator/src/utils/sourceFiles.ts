@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { Project, SourceFile } from 'ts-morph';
+import { JSDocableNode, Project, SourceFile, ts } from 'ts-morph';
 import { combineURLs } from '@ahoo-wang/fetcher';
 import { ModelInfo } from '../model';
 
@@ -123,4 +123,28 @@ export function addImportModelInfo(
     return;
   }
   addImportRefModel(sourceFile, outputDir, refModelInfo);
+}
+
+export function jsDoc(title?: string, description?: string): string | undefined {
+  if (!title && !description) {
+    return undefined;
+  }
+  if (!description) {
+    return title;
+  }
+  return `${title}\n${description}`;
+}
+
+export function addJSDoc(
+  node: JSDocableNode,
+  title?: string,
+  description?: string,
+) {
+  const jsdoc = jsDoc(title, description);
+  if (!jsdoc) {
+    return;
+  }
+  node.addJsDoc({
+    description: jsdoc,
+  });
 }
