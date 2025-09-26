@@ -11,7 +11,10 @@
  * limitations under the License.
  */
 
-import { AggregateDefinition, TagAliasAggregate } from '@/aggregate/aggregate.ts';
+import {
+  AggregateDefinition,
+  TagAliasAggregate,
+} from '@/aggregate/aggregate.ts';
 import { Tag } from '@ahoo-wang/fetcher-openapi';
 import { PartialBy } from '@ahoo-wang/fetcher';
 
@@ -26,7 +29,7 @@ import { PartialBy } from '@ahoo-wang/fetcher';
  */
 export function isAliasAggregate(tagName: string): [string, string] | null {
   const parts = tagName.split('.');
-  if (parts.length != 2) {
+  if (parts.length != 2 || parts[0].length === 0 || parts[1].length === 0) {
     return null;
   }
   return parts as [string, string];
@@ -64,13 +67,19 @@ export function tagToAggregate(tag: Tag): TagAliasAggregate | null {
  * @param tags - Optional array of Tags to process
  * @returns A map of aggregate definitions keyed by tag name
  */
-export function tagsToAggregates(tags?: Tag[]): Map<string, PartialBy<AggregateDefinition, 'state' | 'fields'>> {
-  const tagAliasAggregates = tags?.map(tag => tagToAggregate(tag))
+export function tagsToAggregates(
+  tags?: Tag[],
+): Map<string, PartialBy<AggregateDefinition, 'state' | 'fields'>> {
+  const tagAliasAggregates = tags
+    ?.map(tag => tagToAggregate(tag))
     .filter(tag => tag !== null);
   if (!tagAliasAggregates) {
     return new Map();
   }
-  const aggregates = new Map<string, PartialBy<AggregateDefinition, 'state' | 'fields'>>();
+  const aggregates = new Map<
+    string,
+    PartialBy<AggregateDefinition, 'state' | 'fields'>
+  >();
   tagAliasAggregates.forEach(tagAliasAggregate => {
     aggregates.set(tagAliasAggregate.tag.name, {
       aggregate: tagAliasAggregate,

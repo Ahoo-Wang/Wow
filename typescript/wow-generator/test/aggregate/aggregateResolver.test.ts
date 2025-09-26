@@ -1,5 +1,5 @@
 /*
- * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)).
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -15,13 +15,13 @@ import { describe, expect, it } from 'vitest';
 import { AggregateResolver } from '@/aggregate/aggregateResolver.ts';
 import { parseOpenAPI } from '@/utils';
 
-// This test ensures that all exports are properly defined
-describe('spec', () => {
-  it('resolve', async () => {
+// Integration test
+describe('AggregateResolver', () => {
+  it('should resolve aggregates from OpenAPI spec', async () => {
     const openAPI = await parseOpenAPI('test/compensation-spec.json');
     expect(openAPI).toBeDefined();
     const aggregateResolver = new AggregateResolver(openAPI!);
     const aggregates = aggregateResolver.resolve();
-    expect(aggregates.size).gt(0);
+    expect(aggregates.size).toBeGreaterThan(0);
   });
 });

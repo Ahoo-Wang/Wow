@@ -1,15 +1,24 @@
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig, mergeConfig } from 'vitest/config';
 import { resolve } from 'path';
+import viteConfig from './vite.config';
 
-export default defineConfig({
-  test: {
-    globals: true,
-    environment: 'node',
-    include: ['test/**/*.test.ts'],
-  },
-  resolve: {
-    alias: {
-      '@': resolve(__dirname, 'src'),
+
+export default mergeConfig(
+  viteConfig,
+  defineConfig({
+    resolve: {
+      alias: {
+        '@': resolve(__dirname, 'src'),
+      },
     },
-  },
-});
+    test: {
+      coverage: {
+        exclude: [
+          ...configDefaults.exclude,
+          'expected/**',
+          'test-output/**',
+        ],
+      },
+    },
+  }),
+);
