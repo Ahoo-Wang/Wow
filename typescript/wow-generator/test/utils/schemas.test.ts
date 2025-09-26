@@ -12,8 +12,19 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { isPrimitive, isEnum, resolvePrimitiveType } from '../../src/utils';
-import { SchemaType } from '@ahoo-wang/fetcher-openapi';
+import { Schema } from '@ahoo-wang/fetcher-openapi';
+import {
+  isPrimitive,
+  isArray,
+  isEnum,
+  isAnyOf,
+  isOneOf,
+  isUnion,
+  isAllOf,
+  isComposition,
+  toArrayType,
+  resolvePrimitiveType,
+} from '../../src/utils';
 
 describe('schemas', () => {
   describe('isPrimitive', () => {
@@ -25,30 +36,167 @@ describe('schemas', () => {
       expect(isPrimitive('null')).toBe(true);
     });
 
+    it('should return true for array of types', () => {
+      expect(isPrimitive(['string', 'number'])).toBe(true);
+      expect(isPrimitive(['boolean'])).toBe(true);
+    });
+
     it('should return false for non-primitive types', () => {
       expect(isPrimitive('object')).toBe(false);
       expect(isPrimitive('array')).toBe(false);
     });
+  });
 
-    it('should return false for array of types', () => {
-      expect(isPrimitive(['string', 'number'])).toBe(false);
+  describe('isArray', () => {
+    it('should return true for array schemas', () => {
+      const schema: Schema = { type: 'array' };
+      expect(isArray(schema)).toBe(true);
+    });
+
+    it('should return false for non-array schemas', () => {
+      const schema: Schema = { type: 'object' };
+      expect(isArray(schema)).toBe(false);
+    });
+
+    it('should return false for schemas without type', () => {
+      const schema: Schema = {};
+      expect(isArray(schema)).toBe(false);
     });
   });
 
   describe('isEnum', () => {
-    it('should return true for schema with enum', () => {
-      const schema = { enum: ['a', 'b', 'c'] };
+    it('should return true for schemas with non-empty enum array', () => {
+      const schema: Schema = { enum: ['a', 'b', 'c'] };
       expect(isEnum(schema)).toBe(true);
     });
 
-    it('should return false for schema without enum', () => {
-      const schema = { type: 'string' as SchemaType };
+    it('should return false for schemas with empty enum array', () => {
+      const schema: Schema = { enum: [] };
       expect(isEnum(schema)).toBe(false);
     });
 
-    it('should return false for empty enum', () => {
-      const schema = { enum: [] };
+    it('should return false for schemas without enum property', () => {
+      const schema: Schema = { type: 'string' };
       expect(isEnum(schema)).toBe(false);
+    });
+  });
+
+  describe('isAnyOf', () => {
+    it('should return true for schemas with non-empty anyOf array', () => {
+      const schema: Schema = {
+        anyOf: [{ type: 'string' }, { type: 'number' }],
+      };
+      expect(isAnyOf(schema)).toBe(true);
+    });
+
+    it('should return false for schemas with empty anyOf array', () => {
+      const schema: Schema = { anyOf: [] };
+      expect(isAnyOf(schema)).toBe(false);
+    });
+
+    it('should return false for schemas without anyOf property', () => {
+      const schema: Schema = { type: 'string' };
+      expect(isAnyOf(schema)).toBe(false);
+    });
+  });
+
+  describe('isOneOf', () => {
+    it('should return true for schemas with non-empty oneOf array', () => {
+      const schema: Schema = {
+        oneOf: [{ type: 'string' }, { type: 'number' }],
+      };
+      expect(isOneOf(schema)).toBe(true);
+    });
+
+    it('should return false for schemas with empty oneOf array', () => {
+      const schema: Schema = { oneOf: [] };
+      expect(isOneOf(schema)).toBe(false);
+    });
+
+    it('should return false for schemas without oneOf property', () => {
+      const schema: Schema = { type: 'string' };
+      expect(isOneOf(schema)).toBe(false);
+    });
+  });
+
+  describe('isUnion', () => {
+    it('should return true for anyOf schemas', () => {
+      const schema: Schema = {
+        anyOf: [{ type: 'string' }, { type: 'number' }],
+      };
+      expect(isUnion(schema)).toBe(true);
+    });
+
+    it('should return true for oneOf schemas', () => {
+      const schema: Schema = {
+        oneOf: [{ type: 'string' }, { type: 'number' }],
+      };
+      expect(isOneOf(schema)).toBe(true);
+    });
+
+    it('should return false for non-union schemas', () => {
+      const schema: Schema = { type: 'string' };
+      expect(isUnion(schema)).toBe(false);
+    });
+  });
+
+  describe('isAllOf', () => {
+    it('should return true for schemas with non-empty allOf array', () => {
+      const schema: Schema = {
+        allOf: [{ type: 'object' }, { type: 'object' }],
+      };
+      expect(isAllOf(schema)).toBe(true);
+    });
+
+    it('should return false for schemas with empty allOf array', () => {
+      const schema: Schema = { allOf: [] };
+      expect(isAllOf(schema)).toBe(false);
+    });
+
+    it('should return false for schemas without allOf property', () => {
+      const schema: Schema = { type: 'string' };
+      expect(isAllOf(schema)).toBe(false);
+    });
+  });
+
+  describe('isComposition', () => {
+    it('should return true for anyOf schemas', () => {
+      const schema: Schema = {
+        anyOf: [{ type: 'string' }, { type: 'number' }],
+      };
+      expect(isComposition(schema)).toBe(true);
+    });
+
+    it('should return true for oneOf schemas', () => {
+      const schema: Schema = {
+        oneOf: [{ type: 'string' }, { type: 'number' }],
+      };
+      expect(isComposition(schema)).toBe(true);
+    });
+
+    it('should return true for allOf schemas', () => {
+      const schema: Schema = {
+        allOf: [{ type: 'object' }, { type: 'object' }],
+      };
+      expect(isComposition(schema)).toBe(true);
+    });
+
+    it('should return false for non-composition schemas', () => {
+      const schema: Schema = { type: 'string' };
+      expect(isComposition(schema)).toBe(false);
+    });
+  });
+
+  describe('toArrayType', () => {
+    it('should wrap complex types in parentheses', () => {
+      expect(toArrayType('string | number')).toBe('(string | number)[]');
+      expect(toArrayType('TypeA & TypeB')).toBe('(TypeA & TypeB)[]');
+    });
+
+    it('should not wrap simple types in parentheses', () => {
+      expect(toArrayType('string')).toBe('string[]');
+      expect(toArrayType('number')).toBe('number[]');
+      expect(toArrayType('MyType')).toBe('MyType[]');
     });
   });
 
@@ -61,15 +209,16 @@ describe('schemas', () => {
       expect(resolvePrimitiveType('null')).toBe('null');
     });
 
-    it('should return any for unknown types', () => {
-      expect(resolvePrimitiveType('object' as SchemaType)).toBe('any');
-    });
-
-    it('should resolve array of types', () => {
+    it('should resolve array of types to union', () => {
       expect(resolvePrimitiveType(['string', 'number'])).toBe(
         'string | number',
       );
       expect(resolvePrimitiveType(['boolean', 'null'])).toBe('boolean | null');
+    });
+
+    it('should return any for unknown types', () => {
+      expect(resolvePrimitiveType('object')).toBe('any');
+      expect(resolvePrimitiveType('array')).toBe('any');
     });
   });
 });

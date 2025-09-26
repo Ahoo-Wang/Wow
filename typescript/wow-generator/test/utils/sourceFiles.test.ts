@@ -16,8 +16,16 @@ import {
   getModelFileName,
   getOrCreateSourceFile,
   addImport,
+  jsDoc,
+  jsDocs,
+  addJSDoc,
 } from '../../src/utils';
 import { ModelInfo } from '../../src/model';
+
+// Import the mocked addImport
+const { addImport: mockedAddImport } = await import(
+  '../../src/utils/sourceFiles'
+  );
 
 // Mock ts-morph
 vi.mock('ts-morph', () => ({
@@ -26,8 +34,8 @@ vi.mock('ts-morph', () => ({
 }));
 
 // Mock @/model
-vi.mock('@/model', () => ({
-  ModelInfo: {},
+vi.mock('../../src/model', () => ({
+  IMPORT_WOW_PATH: '@ahoo-wang/fetcher-wow/types.ts',
 }));
 
 const mockProject = {
@@ -149,6 +157,109 @@ describe('sourceFiles', () => {
       addImport(sourceFile, moduleSpecifier, namedImports);
 
       expect(mockDeclaration.addNamedImport).not.toHaveBeenCalled();
+    });
+
+    it('should correctly identify import declarations by module specifier', () => {
+      const sourceFile = mockSourceFile as any;
+      const moduleSpecifier = '@/models';
+
+      const mockDeclaration = {
+        getNamedImports: vi.fn().mockReturnValue([]),
+        addNamedImport: vi.fn(),
+      };
+
+      // Mock to return the declaration when predicate matches
+      sourceFile.getImportDeclaration.mockImplementation((predicate: any) => {
+        // Simulate the actual predicate logic
+        const mockImportDecl = {
+          getModuleSpecifierValue: () => moduleSpecifier,
+        };
+        if (predicate(mockImportDecl)) {
+          return mockDeclaration;
+        }
+        return undefined;
+      });
+
+      addImport(sourceFile, moduleSpecifier, ['User']);
+
+      expect(sourceFile.getImportDeclaration).toHaveBeenCalledWith(
+        expect.any(Function),
+      );
+      expect(mockDeclaration.addNamedImport).toHaveBeenCalledWith('User');
+    });
+  });
+
+  describe('jsDoc', () => {
+    it('should return undefined for empty inputs', () => {
+      expect(jsDoc()).toBeUndefined();
+      expect(jsDoc('')).toBeUndefined();
+      expect(jsDoc('', '')).toBeUndefined();
+      expect(jsDoc(undefined, undefined)).toBeUndefined();
+    });
+
+    it('should return title only', () => {
+      expect(jsDoc('Title')).toBe('Title');
+    });
+
+    it('should return description only', () => {
+      expect(jsDoc(undefined, 'Description')).toBe('Description');
+    });
+
+    it('should join title and description with newline', () => {
+      expect(jsDoc('Title', 'Description')).toBe('Title\nDescription');
+    });
+
+    it('should filter out empty strings', () => {
+      expect(jsDoc('Title', '')).toBe('Title');
+      expect(jsDoc('', 'Description')).toBe('Description');
+    });
+  });
+
+  describe('jsDocs', () => {
+    it('should return empty array for no jsdoc', () => {
+      expect(jsDocs()).toEqual([]);
+      expect(jsDocs('', '')).toEqual([]);
+    });
+
+    it('should return array with jsdoc string', () => {
+      expect(jsDocs('Title')).toEqual(['Title']);
+      expect(jsDocs('Title', 'Description')).toEqual(['Title\nDescription']);
+    });
+  });
+
+  describe('addJSDoc', () => {
+    it('should not add jsdoc if no content', () => {
+      const mockNode = {
+        addJsDoc: vi.fn(),
+      };
+
+      addJSDoc(mockNode as any, '', '');
+
+      expect(mockNode.addJsDoc).not.toHaveBeenCalled();
+    });
+
+    it('should add jsdoc with title and description', () => {
+      const mockNode = {
+        addJsDoc: vi.fn(),
+      };
+
+      addJSDoc(mockNode as any, 'Title', 'Description');
+
+      expect(mockNode.addJsDoc).toHaveBeenCalledWith({
+        description: 'Title\nDescription',
+      });
+    });
+
+    it('should add jsdoc with title only', () => {
+      const mockNode = {
+        addJsDoc: vi.fn(),
+      };
+
+      addJSDoc(mockNode as any, 'Title');
+
+      expect(mockNode.addJsDoc).toHaveBeenCalledWith({
+        description: 'Title',
+      });
     });
   });
 });
