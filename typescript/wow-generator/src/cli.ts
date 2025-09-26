@@ -6,7 +6,7 @@
  */
 
 import { program } from 'commander';
-import { generateAction } from './utils/clis';
+import { generateAction } from './utils';
 
 program
   .name('fetcher-generator')

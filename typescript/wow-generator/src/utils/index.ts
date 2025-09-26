@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+export * from './clis';
 export * from './components';
 export * from './naming';
 export * from './openAPIParser';
