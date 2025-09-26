@@ -11,31 +11,36 @@
  * limitations under the License.
  */
 
-import { EventStreamQueryClient, SnapshotQueryClient } from '@ahoo-wang/fetcher-wow';
+import {
+  createEventStreamQueryClient, createSnapshotQueryClient,
+  EventStreamQueryClient,
+  QueryClientOptions,
+  SnapshotQueryClient,
+} from '@ahoo-wang/fetcher-wow';
 import {
   CompensationPrepared,
   ExecutionFailedAggregatedFields, ExecutionFailedApplied,
   ExecutionFailedCreated,
   ExecutionFailedState, ExecutionSuccessApplied, FunctionChanged, RecoverableMarked, RetrySpecApplied,
 } from './types.ts';
-import { ApiMetadata } from '@ahoo-wang/fetcher-decorator';
 import { AGGREGATE } from './aggregate.ts';
 import { ResourceAttributionPathSpec } from '@ahoo-wang/fetcher-wow/dist/types/endpoints.ts';
 
-export const DEFAULT_BASE_PATH = AGGREGATE.aggregateName;
-export const TENANT_BASE_PATH = `${ResourceAttributionPathSpec.TENANT}/${DEFAULT_BASE_PATH}`;
-export const OWNER_BASE_PATH = `${ResourceAttributionPathSpec.OWNER}/${DEFAULT_BASE_PATH}`;
-export const TENANT_OWNER_BASE_PATH = `${ResourceAttributionPathSpec.TENANT_OWNER}/${DEFAULT_BASE_PATH}`;
+const DEFAULT_CLIENT_OPTIONS: QueryClientOptions = {
+  contextAlias: AGGREGATE.contextAlias,
+  aggregateName: AGGREGATE.aggregateName,
+  resourceAttribution: ResourceAttributionPathSpec.DEFAULT,
+};
 
-export function createExecutionFailedSnapshotQueryClient(apiMetadata: ApiMetadata = { basePath: TENANT_BASE_PATH }): SnapshotQueryClient<ExecutionFailedState, ExecutionFailedAggregatedFields | string> {
-  return new SnapshotQueryClient(apiMetadata);
+export function createExecutionFailedSnapshotQueryClient(options: QueryClientOptions = DEFAULT_CLIENT_OPTIONS): SnapshotQueryClient<ExecutionFailedState, ExecutionFailedAggregatedFields | string> {
+  return createSnapshotQueryClient(options);
 }
 
-export type DomainEventTypes = CompensationPrepared |
+type DomainEventTypes = CompensationPrepared |
   ExecutionFailedApplied | ExecutionFailedCreated | ExecutionSuccessApplied
   | FunctionChanged | RecoverableMarked | RetrySpecApplied
   ;
 
-export function createExecutionFailedEventQueryClient(apiMetadata: ApiMetadata = { basePath: TENANT_BASE_PATH }): EventStreamQueryClient<DomainEventTypes> {
-  return new EventStreamQueryClient(apiMetadata);
+export function createExecutionFailedEventQueryClient(options: QueryClientOptions = DEFAULT_CLIENT_OPTIONS): EventStreamQueryClient<DomainEventTypes> {
+  return createEventStreamQueryClient(options);
 }

@@ -11,5 +11,4 @@
  * limitations under the License.
  */
 
-export const BOUNDED_CONTEXT_NAME = 'compensation-service';
 export const BOUNDED_CONTEXT_ALIAS = 'compensation';
