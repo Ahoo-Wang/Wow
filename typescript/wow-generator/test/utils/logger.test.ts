@@ -22,7 +22,7 @@ describe('ConsoleLogger', () => {
 
     logger.info('Test info message');
 
-    expect(consoleSpy).toHaveBeenCalledWith('ℹ️  Test info message');
+    expect(consoleSpy).toHaveBeenCalledWith('ℹ️  Test info message', []);
     consoleSpy.mockRestore();
   });
 
@@ -33,7 +33,7 @@ describe('ConsoleLogger', () => {
 
     logger.success('Test success message');
 
-    expect(consoleSpy).toHaveBeenCalledWith('✅ Test success message');
+    expect(consoleSpy).toHaveBeenCalledWith('✅ Test success message', []);
     consoleSpy.mockRestore();
   });
 
@@ -44,7 +44,7 @@ describe('ConsoleLogger', () => {
 
     logger.error('Test error message');
 
-    expect(consoleSpy).toHaveBeenCalledWith('❌ Test error message');
+    expect(consoleSpy).toHaveBeenCalledWith('❌ Test error message', []);
     consoleSpy.mockRestore();
   });
 
@@ -55,7 +55,7 @@ describe('ConsoleLogger', () => {
 
     logger.progress('Test progress message');
 
-    expect(consoleSpy).toHaveBeenCalledWith('🔄 Test progress message');
+    expect(consoleSpy).toHaveBeenCalledWith('🔄 Test progress message', []);
     consoleSpy.mockRestore();
   });
 });

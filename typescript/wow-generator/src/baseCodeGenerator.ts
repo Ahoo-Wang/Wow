@@ -17,10 +17,15 @@ import { GenerateContext, Logger } from './types';
 import { BoundedContextAggregates } from './aggregate';
 
 export abstract class BaseCodeGenerator implements GenerateContext {
+  /** The ts-morph project instance used for code generation */
   readonly project: Project;
+  /** The OpenAPI specification object */
   readonly openAPI: OpenAPI;
+  /** The output directory path for generated files */
   readonly outputDir: string;
+  /** Map of bounded context aggregates for domain modeling */
   readonly contextAggregates: BoundedContextAggregates;
+  /** Optional logger for generation progress and errors */
   readonly logger?: Logger;
 
   /**

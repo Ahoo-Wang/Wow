@@ -18,20 +18,20 @@ import { Logger } from '../types';
  * Provides friendly colored output for different log levels.
  */
 export class ConsoleLogger implements Logger {
-  info(message: string): void {
-    console.log(`ℹ️  ${message}`);
+  info(message: string, ...params: any[]): void {
+    console.log(`ℹ️  ${message}`, params);
   }
 
-  success(message: string): void {
-    console.log(`✅ ${message}`);
+  success(message: string, ...params: any[]): void {
+    console.log(`✅ ${message}`, params);
   }
 
-  error(message: string): void {
-    console.error(`❌ ${message}`);
+  error(message: string, ...params: any[]): void {
+    console.error(`❌ ${message}`, params);
   }
 
-  progress(message: string): void {
-    console.log(`🔄 ${message}`);
+  progress(message: string, ...params: any[]): void {
+    console.log(`🔄 ${message}`, params);
   }
 }
 
@@ -40,18 +40,18 @@ export class ConsoleLogger implements Logger {
  */
 export class SilentLogger implements Logger {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  info(_message: string): void {
+  info(_message: string, ...params: any[]): void {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  success(_message: string): void {
+  success(_message: string, ...params: any[]): void {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  error(_message: string): void {
+  error(_message: string, ...params: any[]): void {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  progress(_message: string): void {
+  progress(_message: string, ...params: any[]): void {
   }
 }

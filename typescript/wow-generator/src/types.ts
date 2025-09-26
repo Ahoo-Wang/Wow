@@ -34,16 +34,16 @@ export interface GeneratorOptions {
  */
 export interface Logger {
   /** Log informational messages */
-  info(message: string): void;
+  info(message: string, ...params: any[]): void;
 
   /** Log success messages */
-  success(message: string): void;
+  success(message: string, ...params: any[]): void;
 
   /** Log error messages */
-  error(message: string): void;
+  error(message: string, ...params: any[]): void;
 
   /** Log progress messages */
-  progress(message: string): void;
+  progress(message: string, ...params: any[]): void;
 }
 
 /**
