@@ -19,13 +19,15 @@ import {
   jsDoc,
   jsDocs,
   addJSDoc,
+  addImportRefModel,
+  addImportModelInfo,
 } from '../../src/utils';
 import { ModelInfo } from '../../src/model';
 
 // Import the mocked addImport
 const { addImport: mockedAddImport } = await import(
   '../../src/utils/sourceFiles'
-  );
+);
 
 // Mock ts-morph
 vi.mock('ts-morph', () => ({
@@ -37,6 +39,15 @@ vi.mock('ts-morph', () => ({
 vi.mock('../../src/model', () => ({
   IMPORT_WOW_PATH: '@ahoo-wang/fetcher-wow/types.ts',
 }));
+
+// Mock @ahoo-wang/fetcher
+vi.mock('@ahoo-wang/fetcher', async importOriginal => {
+  const actual = await importOriginal();
+  return {
+    ...(actual as any),
+    combineURLs: vi.fn((...args: string[]) => args.join('/')),
+  };
+});
 
 const mockProject = {
   getSourceFile: vi.fn(),
@@ -260,6 +271,100 @@ describe('sourceFiles', () => {
       expect(mockNode.addJsDoc).toHaveBeenCalledWith({
         description: 'Title',
       });
+    });
+  });
+
+  describe('addImportRefModel', () => {
+    it('should add import for wow path', () => {
+      const sourceFile = mockSourceFile as any;
+      const outputDir = '/output';
+      const refModelInfo: ModelInfo = {
+        name: 'WowType',
+        path: '@ahoo-wang/fetcher-wow/types.ts',
+      };
+
+      addImportRefModel(sourceFile, outputDir, refModelInfo);
+
+      expect(mockedAddImport).toHaveBeenCalledWith(
+        sourceFile,
+        '@ahoo-wang/fetcher-wow/types.ts',
+        ['WowType'],
+      );
+    });
+
+    it('should add import for regular model', () => {
+      const sourceFile = mockSourceFile as any;
+      const outputDir = '/output';
+      const refModelInfo: ModelInfo = {
+        name: 'User',
+        path: 'models',
+      };
+
+      addImportRefModel(sourceFile, outputDir, refModelInfo);
+
+      expect(mockedAddImport).toHaveBeenCalledWith(
+        sourceFile,
+        '@/output/models/types.ts',
+        ['User'],
+      );
+    });
+
+    it('should handle path starting with alias', () => {
+      const sourceFile = mockSourceFile as any;
+      const outputDir = '/output';
+      const refModelInfo: ModelInfo = {
+        name: 'AliasType',
+        path: '@/custom/path',
+      };
+
+      addImportRefModel(sourceFile, outputDir, refModelInfo);
+
+      expect(mockedAddImport).toHaveBeenCalledWith(
+        sourceFile,
+        '@/custom/path/types.ts',
+        ['AliasType'],
+      );
+    });
+  });
+
+  describe('addImportModelInfo', () => {
+    it('should not add import if paths are the same', () => {
+      const currentModel: ModelInfo = {
+        name: 'User',
+        path: 'models',
+      };
+      const sourceFile = mockSourceFile as any;
+      const outputDir = '/output';
+      const refModel: ModelInfo = {
+        name: 'Address',
+        path: 'models',
+      };
+
+      addImportModelInfo(currentModel, sourceFile, outputDir, refModel);
+
+      expect(mockedAddImport).not.toHaveBeenCalled();
+    });
+
+    it('should add import if paths are different', () => {
+      const currentModel: ModelInfo = {
+        name: 'User',
+        path: 'models',
+      };
+      const sourceFile = mockSourceFile as any;
+      const outputDir = '/output';
+      const refModel: ModelInfo = {
+        name: 'Product',
+        path: 'products',
+      };
+
+      addImportModelInfo(currentModel, sourceFile, outputDir, refModel);
+
+      // This should call addImportRefModel, which calls mockedAddImport
+      expect(mockedAddImport).toHaveBeenCalledWith(
+        sourceFile,
+        '@/output/products/types.ts',
+        ['Product'],
+      );
     });
   });
 });
