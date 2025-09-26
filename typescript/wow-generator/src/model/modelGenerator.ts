@@ -29,7 +29,7 @@ import {
   isEnum, isPrimitive,
   isReference, isUnion,
   KeySchema, pascalCase,
-  resolvePrimitiveType,
+  resolvePrimitiveType, toArrayType,
 } from '../utils';
 import { BaseCodeGenerator } from '../baseCodeGenerator';
 
@@ -185,7 +185,7 @@ export class ModelGenerator extends BaseCodeGenerator {
     }
     if (isArray(propSchema)) {
       const itemsType = this.resolvePropertyType(currentModelInfo, sourceFile, propName, propSchema.items!!);
-      return `(${itemsType})[]`;
+      return toArrayType(itemsType);
     }
     if (propSchema.type && isPrimitive(propSchema.type)) {
       return resolvePrimitiveType(propSchema.type!);

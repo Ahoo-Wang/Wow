@@ -34,6 +34,11 @@ export function isPrimitive(type: SchemaType | SchemaType[]): boolean {
   return PRIMITIVE_TYPES.includes(type);
 }
 
+/**
+ * Checks if a schema is an array type.
+ * @param schema - The schema to check
+ * @returns True if the schema is an array type, false otherwise
+ */
 export function isArray(schema: Schema): schema is Schema & { type: 'array' } {
   return schema.type === 'array';
 }
@@ -51,32 +56,70 @@ export function isEnum(schema: Schema): schema is EnumSchema {
 
 export type AnyOfSchema = Schema & { anyOf: any[] };
 
+/**
+ * Checks if a schema is an anyOf composition.
+ * @param schema - The schema to check
+ * @returns True if the schema has a non-empty anyOf property, false otherwise
+ */
 export function isAnyOf(schema: Schema): schema is AnyOfSchema {
   return Array.isArray(schema.anyOf) && schema.anyOf.length > 0;
 }
 
 export type OneOfSchema = Schema & { oneOf: any[] };
 
+/**
+ * Checks if a schema is a oneOf composition.
+ * @param schema - The schema to check
+ * @returns True if the schema has a non-empty oneOf property, false otherwise
+ */
 export function isOneOf(schema: Schema): schema is OneOfSchema {
   return Array.isArray(schema.oneOf) && schema.oneOf.length > 0;
 }
 
 export type UnionSchema = Schema & ({ anyOf: any[] } | { oneOf: any[] });
 
+/**
+ * Checks if a schema is a union (either anyOf or oneOf).
+ * @param schema - The schema to check
+ * @returns True if the schema is either an anyOf or oneOf composition, false otherwise
+ */
 export function isUnion(schema: Schema): schema is UnionSchema {
   return isAnyOf(schema) || isOneOf(schema);
 }
 
 export type AllOfSchema = Schema & { allOf: any[] };
 
+/**
+ * Checks if a schema is an allOf composition.
+ * @param schema - The schema to check
+ * @returns True if the schema has a non-empty allOf property, false otherwise
+ */
 export function isAllOf(schema: Schema): schema is AllOfSchema {
   return Array.isArray(schema.allOf) && schema.allOf.length > 0;
 }
 
 export type CompositionSchema = AnyOfSchema | OneOfSchema | AllOfSchema;
 
+/**
+ * Checks if a schema is a composition (anyOf, oneOf, or allOf).
+ * @param schema - The schema to check
+ * @returns True if the schema is anyOf, oneOf, or allOf composition, false otherwise
+ */
 export function isComposition(schema: Schema): schema is CompositionSchema {
   return isAnyOf(schema) || isOneOf(schema) || isAllOf(schema);
+}
+
+/**
+ * Converts a type string to an array type.
+ * Wraps complex types (containing | or &) in parentheses before adding array notation.
+ * @param type - The type string to convert to an array type
+ * @returns The array type string
+ */
+export function toArrayType(type: string): string {
+  if (type.includes('|') || type.includes('&')) {
+    return `(${type})[]`;
+  }
+  return `${type}[]`;
 }
 
 /**
