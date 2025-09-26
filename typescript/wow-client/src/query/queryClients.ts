@@ -1,0 +1,70 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import { combineURLs, PartialBy } from '@ahoo-wang/fetcher';
+import { ApiMetadata } from '@ahoo-wang/fetcher-decorator';
+import { AggregateNameCapable, AliasBoundedContext } from '../types';
+import { ResourceAttributionPathSpec } from '../types/endpoints';
+import { SnapshotQueryClient } from './snapshot';
+import { EventStreamQueryClient } from './event';
+
+/**
+ * Configuration options for query clients.
+ *
+ * This interface extends ApiMetadata (without basePath), AliasBoundedContext, and AggregateNameCapable
+ * to provide a complete configuration for query clients. It includes optional context alias and
+ * resource attribution path specifications.
+ */
+export interface QueryClientOptions extends PartialBy<ApiMetadata, 'basePath'>, Partial<AliasBoundedContext>, AggregateNameCapable {
+  contextAlias?: string;
+  resourceAttribution?: ResourceAttributionPathSpec;
+}
+
+/**
+ * Creates API metadata for query clients by combining various path components.
+ *
+ * This function constructs a base path by combining the resource attribution path with the aggregate name,
+ * and optionally prepending a context alias if provided.
+ *
+ * @param options - The query client options containing resource attribution, aggregate name, and optional context alias
+ * @returns ApiMetadata object with the constructed base path
+ */
+export function createQueryApiMetadata(options: QueryClientOptions): ApiMetadata {
+  let basePath = combineURLs(options.resourceAttribution ?? '', options.aggregateName);
+  if (options.contextAlias) {
+    basePath = combineURLs(options.contextAlias, basePath);
+  }
+  return { ...options, basePath };
+}
+
+/**
+ * Creates a snapshot query client for querying aggregate snapshots.
+ *
+ * @param options - The query client options used to configure the snapshot query client
+ * @returns A new instance of SnapshotQueryClient
+ */
+export function createSnapshotQueryClient<S, FIELDS extends string = string>(options: QueryClientOptions): SnapshotQueryClient<S, FIELDS> {
+  const apiMetadata = createQueryApiMetadata(options);
+  return new SnapshotQueryClient(apiMetadata);
+}
+
+/**
+ * Creates an event stream query client for querying domain event streams.
+ *
+ * @param options - The query client options used to configure the event stream query client
+ * @returns A new instance of EventStreamQueryClient
+ */
+export function createEventStreamQueryClient<DomainEventBody = any, FIELDS extends string = string>(options: QueryClientOptions): EventStreamQueryClient<DomainEventBody, FIELDS> {
+  const apiMetadata = createQueryApiMetadata(options);
+  return new EventStreamQueryClient(apiMetadata);
+}

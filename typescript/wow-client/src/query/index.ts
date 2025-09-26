@@ -21,3 +21,4 @@ export * from './sort';
 export * from './event';
 export * from './snapshot';
 export * from './cursorQuery';
+export * from './queryClients';
