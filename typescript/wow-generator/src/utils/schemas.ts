@@ -40,7 +40,7 @@ export function isPrimitive(type: SchemaType | SchemaType[]): boolean {
  * @returns True if the schema has an enum property, false otherwise
  */
 export function isEnum(schema: Schema): schema is Schema & { enum: any[] } {
-  return Array.isArray(schema.enum);
+  return Array.isArray(schema.enum) && schema.enum.length > 0;
 }
 
 /**

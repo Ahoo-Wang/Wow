@@ -11,8 +11,23 @@
  * limitations under the License.
  */
 
-import { Reference } from '@ahoo-wang/fetcher-openapi';
+import js from '@eslint/js';
+import globals from 'globals';
+import tseslint from 'typescript-eslint';
 
-export function isReference(schema: any): schema is Reference {
-  return !!(schema && typeof schema === 'object' && '$ref' in schema);
-}
+export default tseslint.config(
+  {
+    ignores: ['**/dist/**', '**/**.test.ts', '**/node_modules/**', '**/expected/**', '**/test-output/**'],
+  },
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [js.configs.recommended, ...tseslint.configs.recommended],
+    languageOptions: {
+      ecmaVersion: 2020,
+      globals: globals.browser,
+    },
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+    },
+  },
+);

@@ -33,5 +33,6 @@ export function extractOkResponseJsonSchema(
   if (!okResponse.content) {
     return undefined;
   }
-  return okResponse.content[ContentTypeValues.APPLICATION_JSON].schema;
+  const jsonContent = okResponse.content[ContentTypeValues.APPLICATION_JSON];
+  return jsonContent?.schema;
 }
