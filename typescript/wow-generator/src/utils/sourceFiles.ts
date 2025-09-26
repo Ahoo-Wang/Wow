@@ -22,16 +22,13 @@ const IMPORT_ALIAS = '@';
 
 /**
  * Generates the file path for a model file.
- * @param outputDir - The output directory
  * @param modelInfo - The model information
  * @returns The full file path for the model
  */
 export function getModelFileName(
-  outputDir: string,
   modelInfo: ModelInfo,
 ): string {
-  const fileName = combineURLs(modelInfo.path, MODEL_FILE_NAME);
-  return combineURLs(outputDir, fileName);
+  return combineURLs(modelInfo.path, MODEL_FILE_NAME);
 }
 
 /**
@@ -100,7 +97,8 @@ export function addImportRefModel(
   outputDir: string,
   refModelInfo: ModelInfo,
 ) {
-  const fileName = getModelFileName(outputDir, refModelInfo);
+  let fileName = getModelFileName(refModelInfo);
+  fileName = combineURLs(outputDir, fileName);
   const moduleSpecifier = combineURLs(IMPORT_ALIAS, fileName);
   addImport(sourceFile, moduleSpecifier, [refModelInfo.name]);
 }

@@ -55,7 +55,7 @@ export class ModelGenerator implements GenerateContext {
   }
 
   private getOrCreateSourceFile(modelInfo: ModelInfo): SourceFile {
-    const fileName = getModelFileName(this.outputDir, modelInfo);
+    const fileName = getModelFileName(modelInfo);
     return getOrCreateSourceFile(this.project, this.outputDir, fileName);
   }
 
