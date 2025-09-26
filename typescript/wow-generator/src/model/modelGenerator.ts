@@ -20,7 +20,7 @@ import {
   SourceFile,
   TypeAliasDeclaration,
 } from 'ts-morph';
-import { ModelInfo, resolveModelInfo } from '@/model/naming.ts';
+import { ModelInfo, resolveModelInfo } from '@/model/modelInfo.ts';
 import { isEnum, resolvePrimitiveType } from '@/utils/schemas.ts';
 import { GenerateContext } from '@/types.ts';
 import { AggregateDefinition } from '@/aggregate';

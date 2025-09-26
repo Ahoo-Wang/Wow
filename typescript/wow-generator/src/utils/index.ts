@@ -12,6 +12,9 @@
  */
 
 export * from './components';
+export * from './naming';
 export * from './operations';
 export * from './references';
 export * from './responses';
+export * from './schemas';
+export * from './sourceFiles';

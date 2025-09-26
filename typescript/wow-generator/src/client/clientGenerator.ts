@@ -19,12 +19,13 @@ import {
   CommandDefinition,
   TagAliasAggregate,
 } from '@/aggregate';
-import { IMPORT_WOW_PATH, pascalCase, resolveModelInfo } from '@/model';
+import { IMPORT_WOW_PATH, resolveModelInfo } from '@/model';
 import {
   addImport,
   addImportRefModel,
   getOrCreateSourceFile,
 } from '@/utils/sourceFiles.ts';
+import { pascalCase } from '@/utils';
 
 /**
  * Generates TypeScript client classes for aggregates.

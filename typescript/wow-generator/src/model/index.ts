@@ -12,5 +12,5 @@
  */
 
 export * from './modelGenerator.ts';
-export * from './naming.ts';
+export * from './modelInfo.ts';
 export * from './wowTypeMapping.ts';
