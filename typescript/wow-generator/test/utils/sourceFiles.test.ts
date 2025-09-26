@@ -16,6 +16,11 @@ import {
   getModelFileName,
   getOrCreateSourceFile,
   addImport,
+  addImportRefModel,
+  addImportModelInfo,
+  jsDoc,
+  jsDocs,
+  addJSDoc,
 } from '../../src/utils';
 import { ModelInfo } from '../../src/model';
 
@@ -39,6 +44,7 @@ const mockSourceFile = {
   getImportDeclaration: vi.fn(),
   addImportDeclaration: vi.fn(),
   addNamedImport: vi.fn(),
+  addJsDoc: vi.fn(),
 };
 
 describe('sourceFiles', () => {
@@ -149,6 +155,178 @@ describe('sourceFiles', () => {
       addImport(sourceFile, moduleSpecifier, namedImports);
 
       expect(mockDeclaration.addNamedImport).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('addImportRefModel', () => {
+    it('should add import for referenced model with alias prefix', () => {
+      const sourceFile = mockSourceFile as any;
+      const outputDir = '/output';
+      const refModelInfo: ModelInfo = {
+        name: 'User',
+        path: 'models/user',
+      };
+
+      const mockDeclaration = {
+        getNamedImports: vi.fn().mockReturnValue([]),
+        addNamedImport: vi.fn(),
+      };
+
+      sourceFile.getImportDeclaration.mockReturnValue(undefined);
+      sourceFile.addImportDeclaration.mockReturnValue(mockDeclaration);
+
+      addImportRefModel(sourceFile, outputDir, refModelInfo);
+
+      expect(sourceFile.addImportDeclaration).toHaveBeenCalledWith({
+        moduleSpecifier: '@/output/models/user/types.ts',
+      });
+      expect(mockDeclaration.addNamedImport).toHaveBeenCalledWith('User');
+    });
+
+    it('should add import for referenced model without alias prefix', () => {
+      const sourceFile = mockSourceFile as any;
+      const outputDir = '/output';
+      const refModelInfo: ModelInfo = {
+        name: 'User',
+        path: '@/models/user',
+      };
+
+      const mockDeclaration = {
+        getNamedImports: vi.fn().mockReturnValue([]),
+        addNamedImport: vi.fn(),
+      };
+
+      // Reset mocks
+      sourceFile.getImportDeclaration.mockClear();
+      sourceFile.addImportDeclaration.mockClear();
+
+      sourceFile.getImportDeclaration.mockReturnValue(undefined);
+      sourceFile.addImportDeclaration.mockReturnValue(mockDeclaration);
+
+      addImportRefModel(sourceFile, outputDir, refModelInfo);
+
+      expect(sourceFile.addImportDeclaration).toHaveBeenCalledWith({
+        moduleSpecifier: '@/models/user/types.ts',
+      });
+      expect(mockDeclaration.addNamedImport).toHaveBeenCalledWith('User');
+    });
+  });
+
+  describe('addImportModelInfo', () => {
+    it('should add import when paths are different', () => {
+      const modelInfo: ModelInfo = {
+        name: 'Order',
+        path: 'models/order',
+      };
+      const sourceFile = mockSourceFile as any;
+      const outputDir = '/output';
+      const refModelInfo: ModelInfo = {
+        name: 'User',
+        path: 'models/user',
+      };
+
+      const mockDeclaration = {
+        getNamedImports: vi.fn().mockReturnValue([]),
+        addNamedImport: vi.fn(),
+      };
+
+      sourceFile.getImportDeclaration.mockReturnValue(undefined);
+      sourceFile.addImportDeclaration.mockReturnValue(mockDeclaration);
+
+      addImportModelInfo(modelInfo, sourceFile, outputDir, refModelInfo);
+
+      expect(sourceFile.addImportDeclaration).toHaveBeenCalledWith({
+        moduleSpecifier: '@/output/models/user/types.ts',
+      });
+      expect(mockDeclaration.addNamedImport).toHaveBeenCalledWith('User');
+    });
+
+    it('should not add import when paths are the same', () => {
+      const modelInfo: ModelInfo = {
+        name: 'User',
+        path: 'models/user',
+      };
+      const sourceFile = mockSourceFile as any;
+      const outputDir = '/output';
+      const refModelInfo: ModelInfo = {
+        name: 'User',
+        path: 'models/user',
+      };
+
+      // Reset the mock call count
+      sourceFile.addImportDeclaration.mockClear();
+
+      addImportModelInfo(modelInfo, sourceFile, outputDir, refModelInfo);
+
+      expect(sourceFile.addImportDeclaration).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('jsDoc', () => {
+    it('should return undefined when both title and description are empty', () => {
+      expect(jsDoc()).toBeUndefined();
+      expect(jsDoc('')).toBeUndefined();
+      expect(jsDoc('', '')).toBeUndefined();
+      expect(jsDoc(undefined, undefined)).toBeUndefined();
+    });
+
+    it('should return title when only title is provided', () => {
+      expect(jsDoc('User model')).toBe('User model');
+    });
+
+    it('should return description when only description is provided', () => {
+      expect(jsDoc(undefined, 'A user model')).toBe('A user model');
+    });
+
+    it('should join title and description with newline', () => {
+      expect(jsDoc('User model', 'A user model')).toBe(
+        'User model\nA user model',
+      );
+    });
+
+    it('should filter out empty strings', () => {
+      expect(jsDoc('User model', '')).toBe('User model');
+      expect(jsDoc('', 'A user model')).toBe('A user model');
+    });
+  });
+
+  describe('jsDocs', () => {
+    it('should return empty array when jsDoc returns undefined', () => {
+      expect(jsDocs()).toEqual([]);
+      expect(jsDocs('', '')).toEqual([]);
+    });
+
+    it('should return array with jsDoc string', () => {
+      expect(jsDocs('User model')).toEqual(['User model']);
+      expect(jsDocs('User model', 'A user model')).toEqual([
+        'User model\nA user model',
+      ]);
+    });
+  });
+
+  describe('addJSDoc', () => {
+    it('should add JSDoc comment when jsDoc returns content', () => {
+      const mockNode = {
+        addJsDoc: vi.fn(),
+      };
+
+      addJSDoc(mockNode as any, 'User model', 'A user model');
+
+      expect(mockNode.addJsDoc).toHaveBeenCalledWith({
+        description: 'User model\nA user model',
+      });
+    });
+
+    it('should not add JSDoc comment when jsDoc returns undefined', () => {
+      const mockNode = {
+        addJsDoc: vi.fn(),
+      };
+
+      addJSDoc(mockNode as any);
+      addJSDoc(mockNode as any, '');
+      addJSDoc(mockNode as any, '', '');
+
+      expect(mockNode.addJsDoc).not.toHaveBeenCalled();
     });
   });
 });

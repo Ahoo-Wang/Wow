@@ -96,7 +96,10 @@ export function addImportRefModel(
   refModelInfo: ModelInfo,
 ) {
   let fileName = getModelFileName(refModelInfo);
-  fileName = combineURLs(outputDir, fileName);
+  // If the path already starts with an alias, don't combine with outputDir
+  if (!refModelInfo.path.startsWith(IMPORT_ALIAS)) {
+    fileName = combineURLs(outputDir, fileName);
+  }
   let moduleSpecifier = fileName;
   if (!fileName.startsWith(IMPORT_ALIAS)) {
     moduleSpecifier = combineURLs(IMPORT_ALIAS, fileName);
@@ -133,9 +136,10 @@ export function jsDoc(
   title?: string,
   description?: string,
 ): string | undefined {
-  return [title, description]
-    .filter(v => v !== undefined && v.length > 0)
-    .join('\n');
+  const filtered = [title, description].filter(
+    v => v !== undefined && v.length > 0,
+  );
+  return filtered.length > 0 ? filtered.join('\n') : undefined;
 }
 
 export function jsDocs(title?: string, description?: string): string[] {
