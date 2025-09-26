@@ -13,7 +13,7 @@
 
 import { JSDocableNode, Project, SourceFile } from 'ts-morph';
 import { combineURLs } from '@ahoo-wang/fetcher';
-import { ModelInfo } from '../model';
+import { IMPORT_WOW_PATH, ModelInfo } from '../model';
 
 /** Default file name for model files */
 const MODEL_FILE_NAME = 'types.ts';
@@ -95,6 +95,10 @@ export function addImportRefModel(
   outputDir: string,
   refModelInfo: ModelInfo,
 ) {
+  if (refModelInfo.path === IMPORT_WOW_PATH) {
+    addImport(sourceFile, refModelInfo.path, [refModelInfo.name]);
+    return;
+  }
   let fileName = getModelFileName(refModelInfo);
   // If the path already starts with an alias, don't combine with outputDir
   if (!refModelInfo.path.startsWith(IMPORT_ALIAS)) {
