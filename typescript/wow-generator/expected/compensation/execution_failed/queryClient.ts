@@ -11,16 +11,17 @@
  * limitations under the License.
  */
 
-import {
-  QueryClientFactory,
-  QueryClientOptions,
-
-} from '@ahoo-wang/fetcher-wow';
+import { QueryClientFactory, QueryClientOptions } from '@ahoo-wang/fetcher-wow';
 import {
   CompensationPrepared,
-  ExecutionFailedAggregatedFields, ExecutionFailedApplied,
+  ExecutionFailedAggregatedFields,
+  ExecutionFailedApplied,
   ExecutionFailedCreated,
-  ExecutionFailedState, ExecutionSuccessApplied, FunctionChanged, RecoverableMarked, RetrySpecApplied,
+  ExecutionFailedState,
+  ExecutionSuccessApplied,
+  FunctionChanged,
+  RecoverableMarked,
+  RetrySpecApplied,
 } from './types.ts';
 import { ResourceAttributionPathSpec } from '@ahoo-wang/fetcher-wow/dist/types/endpoints.ts';
 
@@ -30,9 +31,17 @@ const DEFAULT_CLIENT_OPTIONS: QueryClientOptions = {
   resourceAttribution: ResourceAttributionPathSpec.TENANT,
 };
 
-type DomainEventTypes = CompensationPrepared |
-  ExecutionFailedApplied | ExecutionFailedCreated | ExecutionSuccessApplied
-  | FunctionChanged | RecoverableMarked | RetrySpecApplied
-  ;
+type DomainEventTypes =
+  | CompensationPrepared
+  | ExecutionFailedApplied
+  | ExecutionFailedCreated
+  | ExecutionSuccessApplied
+  | FunctionChanged
+  | RecoverableMarked
+  | RetrySpecApplied;
 
-export const executionFailedQueryClientFactory = new QueryClientFactory<ExecutionFailedState, ExecutionFailedAggregatedFields | string, DomainEventTypes>(DEFAULT_CLIENT_OPTIONS);
+export const executionFailedQueryClientFactory = new QueryClientFactory<
+  ExecutionFailedState,
+  ExecutionFailedAggregatedFields | string,
+  DomainEventTypes
+>(DEFAULT_CLIENT_OPTIONS);

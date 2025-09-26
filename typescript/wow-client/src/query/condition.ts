@@ -237,7 +237,9 @@ export function or<FIELDS extends string = string>(
  * @param conditions - Conditions to combine with NOR
  * @returns A condition with NOR operator
  */
-export function nor<FIELDS extends string = string>(...conditions: Condition<FIELDS>[]): Condition<FIELDS> {
+export function nor<FIELDS extends string = string>(
+  ...conditions: Condition<FIELDS>[]
+): Condition<FIELDS> {
   if (conditions.length === 0) {
     return all();
   }
@@ -250,7 +252,9 @@ export function nor<FIELDS extends string = string>(...conditions: Condition<FIE
  * @param value - The ID value to match
  * @returns A condition with ID operator
  */
-export function id<FIELDS extends string = string>(value: string): Condition<FIELDS> {
+export function id<FIELDS extends string = string>(
+  value: string,
+): Condition<FIELDS> {
   return { operator: Operator.ID, value: value };
 }
 
@@ -260,7 +264,9 @@ export function id<FIELDS extends string = string>(value: string): Condition<FIE
  * @param value - The ID values to match
  * @returns A condition with IDS operator
  */
-export function ids<FIELDS extends string = string>(value: string[]): Condition<FIELDS> {
+export function ids<FIELDS extends string = string>(
+  value: string[],
+): Condition<FIELDS> {
   return { operator: Operator.IDS, value: value };
 }
 
@@ -270,7 +276,9 @@ export function ids<FIELDS extends string = string>(value: string[]): Condition<
  * @param value - The aggregate ID value to match
  * @returns A condition with AGGREGATE_ID operator
  */
-export function aggregateId<FIELDS extends string = string>(value: string): Condition<FIELDS> {
+export function aggregateId<FIELDS extends string = string>(
+  value: string,
+): Condition<FIELDS> {
   return { operator: Operator.AGGREGATE_ID, value: value };
 }
 
@@ -280,7 +288,9 @@ export function aggregateId<FIELDS extends string = string>(value: string): Cond
  * @param value - The aggregate ID values to match
  * @returns A condition with AGGREGATE_IDS operator
  */
-export function aggregateIds<FIELDS extends string = string>(...value: string[]): Condition<FIELDS> {
+export function aggregateIds<FIELDS extends string = string>(
+  ...value: string[]
+): Condition<FIELDS> {
   return { operator: Operator.AGGREGATE_IDS, value: value };
 }
 
@@ -290,7 +300,9 @@ export function aggregateIds<FIELDS extends string = string>(...value: string[])
  * @param value - The tenant ID value to match
  * @returns A condition with TENANT_ID operator
  */
-export function tenantId<FIELDS extends string = string>(value: string): Condition<FIELDS> {
+export function tenantId<FIELDS extends string = string>(
+  value: string,
+): Condition<FIELDS> {
   return { operator: Operator.TENANT_ID, value: value };
 }
 
@@ -300,7 +312,9 @@ export function tenantId<FIELDS extends string = string>(value: string): Conditi
  * @param value - The owner ID value to match
  * @returns A condition with OWNER_ID operator
  */
-export function ownerId<FIELDS extends string = string>(value: string): Condition<FIELDS> {
+export function ownerId<FIELDS extends string = string>(
+  value: string,
+): Condition<FIELDS> {
   return { operator: Operator.OWNER_ID, value: value };
 }
 
@@ -310,7 +324,9 @@ export function ownerId<FIELDS extends string = string>(value: string): Conditio
  * @param value - The deletion state value to match
  * @returns A condition with DELETED operator
  */
-export function deleted<FIELDS extends string = string>(value: DeletionState): Condition<FIELDS> {
+export function deleted<FIELDS extends string = string>(
+  value: DeletionState,
+): Condition<FIELDS> {
   return { operator: Operator.DELETED, value: value };
 }
 
@@ -341,7 +357,10 @@ export function all<FIELDS extends string = string>(): Condition<FIELDS> {
  * @param value - The value to compare against
  * @returns A condition with EQ operator
  */
-export function eq<FIELDS extends string = string>(field: FIELDS, value: any): Condition<FIELDS> {
+export function eq<FIELDS extends string = string>(
+  field: FIELDS,
+  value: any,
+): Condition<FIELDS> {
   return { field, operator: Operator.EQ, value };
 }
 
@@ -352,7 +371,10 @@ export function eq<FIELDS extends string = string>(field: FIELDS, value: any): C
  * @param value - The value to compare against
  * @returns A condition with NE operator
  */
-export function ne<FIELDS extends string = string>(field: FIELDS, value: any): Condition<FIELDS> {
+export function ne<FIELDS extends string = string>(
+  field: FIELDS,
+  value: any,
+): Condition<FIELDS> {
   return { field, operator: Operator.NE, value };
 }
 
@@ -363,7 +385,10 @@ export function ne<FIELDS extends string = string>(field: FIELDS, value: any): C
  * @param value - The value to compare against
  * @returns A condition with GT operator
  */
-export function gt<FIELDS extends string = string>(field: FIELDS, value: any): Condition<FIELDS> {
+export function gt<FIELDS extends string = string>(
+  field: FIELDS,
+  value: any,
+): Condition<FIELDS> {
   return { field, operator: Operator.GT, value };
 }
 
@@ -374,7 +399,10 @@ export function gt<FIELDS extends string = string>(field: FIELDS, value: any): C
  * @param value - The value to compare against
  * @returns A condition with LT operator
  */
-export function lt<FIELDS extends string = string>(field: FIELDS, value: any): Condition<FIELDS> {
+export function lt<FIELDS extends string = string>(
+  field: FIELDS,
+  value: any,
+): Condition<FIELDS> {
   return { field, operator: Operator.LT, value };
 }
 
@@ -385,7 +413,10 @@ export function lt<FIELDS extends string = string>(field: FIELDS, value: any): C
  * @param value - The value to compare against
  * @returns A condition with GTE operator
  */
-export function gte<FIELDS extends string = string>(field: FIELDS, value: any): Condition<FIELDS> {
+export function gte<FIELDS extends string = string>(
+  field: FIELDS,
+  value: any,
+): Condition<FIELDS> {
   return { field, operator: Operator.GTE, value };
 }
 
@@ -396,7 +427,10 @@ export function gte<FIELDS extends string = string>(field: FIELDS, value: any): 
  * @param value - The value to compare against
  * @returns A condition with LTE operator
  */
-export function lte<FIELDS extends string = string>(field: FIELDS, value: any): Condition<FIELDS> {
+export function lte<FIELDS extends string = string>(
+  field: FIELDS,
+  value: any,
+): Condition<FIELDS> {
   return { field, operator: Operator.LTE, value };
 }
 
@@ -425,7 +459,10 @@ export function contains<FIELDS extends string = string>(
  * @param value - The values to compare against
  * @returns A condition with IN operator
  */
-export function isIn<FIELDS extends string = string>(field: FIELDS, ...value: any[]): Condition<FIELDS> {
+export function isIn<FIELDS extends string = string>(
+  field: FIELDS,
+  ...value: any[]
+): Condition<FIELDS> {
   return { field, operator: Operator.IN, value };
 }
 
@@ -436,7 +473,10 @@ export function isIn<FIELDS extends string = string>(field: FIELDS, ...value: an
  * @param value - The values to compare against
  * @returns A condition with NOT_IN operator
  */
-export function notIn<FIELDS extends string = string>(field: FIELDS, ...value: any[]): Condition<FIELDS> {
+export function notIn<FIELDS extends string = string>(
+  field: FIELDS,
+  ...value: any[]
+): Condition<FIELDS> {
   return { field, operator: Operator.NOT_IN, value };
 }
 
@@ -448,7 +488,11 @@ export function notIn<FIELDS extends string = string>(field: FIELDS, ...value: a
  * @param end - The end value of the range
  * @returns A condition with BETWEEN operator
  */
-export function between<FIELDS extends string = string>(field: FIELDS, start: any, end: any): Condition<FIELDS> {
+export function between<FIELDS extends string = string>(
+  field: FIELDS,
+  start: any,
+  end: any,
+): Condition<FIELDS> {
   return { field, operator: Operator.BETWEEN, value: [start, end] };
 }
 
@@ -459,7 +503,10 @@ export function between<FIELDS extends string = string>(field: FIELDS, start: an
  * @param value - The values to compare against
  * @returns A condition with ALL_IN operator
  */
-export function allIn<FIELDS extends string = string>(field: FIELDS, ...value: any[]): Condition<FIELDS> {
+export function allIn<FIELDS extends string = string>(
+  field: FIELDS,
+  ...value: any[]
+): Condition<FIELDS> {
   return { field, operator: Operator.ALL_IN, value };
 }
 
@@ -506,7 +553,10 @@ export function endsWith<FIELDS extends string = string>(
  * @param value - The condition to match elements against
  * @returns A condition with ELEM_MATCH operator
  */
-export function elemMatch<FIELDS extends string = string>(field: FIELDS, value: Condition<FIELDS>): Condition<FIELDS> {
+export function elemMatch<FIELDS extends string = string>(
+  field: FIELDS,
+  value: Condition<FIELDS>,
+): Condition<FIELDS> {
   return { field, operator: Operator.ELEM_MATCH, children: [value] };
 }
 
@@ -516,7 +566,9 @@ export function elemMatch<FIELDS extends string = string>(field: FIELDS, value: 
  * @param field - The field name to check
  * @returns A condition with NULL operator
  */
-export function isNull<FIELDS extends string = string>(field: FIELDS): Condition<FIELDS> {
+export function isNull<FIELDS extends string = string>(
+  field: FIELDS,
+): Condition<FIELDS> {
   return { field, operator: Operator.NULL };
 }
 
@@ -526,7 +578,9 @@ export function isNull<FIELDS extends string = string>(field: FIELDS): Condition
  * @param field - The field name to check
  * @returns A condition with NOT_NULL operator
  */
-export function notNull<FIELDS extends string = string>(field: FIELDS): Condition<FIELDS> {
+export function notNull<FIELDS extends string = string>(
+  field: FIELDS,
+): Condition<FIELDS> {
   return { field, operator: Operator.NOT_NULL };
 }
 
@@ -536,7 +590,9 @@ export function notNull<FIELDS extends string = string>(field: FIELDS): Conditio
  * @param field - The field name to check
  * @returns A condition with TRUE operator
  */
-export function isTrue<FIELDS extends string = string>(field: FIELDS): Condition<FIELDS> {
+export function isTrue<FIELDS extends string = string>(
+  field: FIELDS,
+): Condition<FIELDS> {
   return { field, operator: Operator.TRUE };
 }
 
@@ -546,7 +602,9 @@ export function isTrue<FIELDS extends string = string>(field: FIELDS): Condition
  * @param field - The field name to check
  * @returns A condition with FALSE operator
  */
-export function isFalse<FIELDS extends string = string>(field: FIELDS): Condition<FIELDS> {
+export function isFalse<FIELDS extends string = string>(
+  field: FIELDS,
+): Condition<FIELDS> {
   return { field, operator: Operator.FALSE };
 }
 
@@ -557,7 +615,10 @@ export function isFalse<FIELDS extends string = string>(field: FIELDS): Conditio
  * @param exists - Whether the field should exist (default: true)
  * @returns A condition with EXISTS operator
  */
-export function exists<FIELDS extends string = string>(field: FIELDS, exists: boolean = true): Condition<FIELDS> {
+export function exists<FIELDS extends string = string>(
+  field: FIELDS,
+  exists: boolean = true,
+): Condition<FIELDS> {
   return { field, operator: Operator.EXISTS, value: exists };
 }
 
@@ -743,6 +804,8 @@ export function earlierDays<FIELDS extends string = string>(
  * @param raw - The raw condition value
  * @returns A condition with RAW operator
  */
-export function raw<FIELDS extends string = string>(raw: any): Condition<FIELDS> {
+export function raw<FIELDS extends string = string>(
+  raw: any,
+): Condition<FIELDS> {
   return { operator: Operator.RAW, value: raw };
 }

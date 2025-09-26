@@ -76,4 +76,3 @@ export function resolveModelInfo(schemaKey: string): ModelInfo {
 
   return { name, path };
 }
-

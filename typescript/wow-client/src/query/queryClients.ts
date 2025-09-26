@@ -25,7 +25,10 @@ import { EventStreamQueryClient } from './event';
  * to provide a complete configuration for query clients. It includes optional context alias and
  * resource attribution path specifications.
  */
-export interface QueryClientOptions extends PartialBy<ApiMetadata, 'basePath'>, Partial<AliasBoundedContext>, AggregateNameCapable {
+export interface QueryClientOptions
+  extends PartialBy<ApiMetadata, 'basePath'>,
+    Partial<AliasBoundedContext>,
+    AggregateNameCapable {
   contextAlias?: string;
   resourceAttribution?: ResourceAttributionPathSpec;
 }
@@ -39,15 +42,24 @@ export interface QueryClientOptions extends PartialBy<ApiMetadata, 'basePath'>, 
  * @param options - The query client options containing resource attribution, aggregate name, and optional context alias
  * @returns ApiMetadata object with the constructed base path
  */
-export function createQueryApiMetadata(options: QueryClientOptions): ApiMetadata {
-  let basePath = combineURLs(options.resourceAttribution ?? '', options.aggregateName);
+export function createQueryApiMetadata(
+  options: QueryClientOptions,
+): ApiMetadata {
+  let basePath = combineURLs(
+    options.resourceAttribution ?? '',
+    options.aggregateName,
+  );
   if (options.contextAlias) {
     basePath = combineURLs(options.contextAlias, basePath);
   }
   return { ...options, basePath };
 }
 
-export class QueryClientFactory<S, FIELDS extends string = string, DomainEventBody = any> {
+export class QueryClientFactory<
+  S,
+  FIELDS extends string = string,
+  DomainEventBody = any,
+> {
   /**
    * Creates a new QueryClientFactory instance with the specified default options.
    *
@@ -65,8 +77,13 @@ export class QueryClientFactory<S, FIELDS extends string = string, DomainEventBo
    * @param options - The query client options used to configure the snapshot query client
    * @returns A new instance of SnapshotQueryClient
    */
-  createSnapshotQueryClient(options: QueryClientOptions): SnapshotQueryClient<S, FIELDS> {
-    const apiMetadata = createQueryApiMetadata({ ...this.defaultOptions, ...options });
+  createSnapshotQueryClient(
+    options: QueryClientOptions,
+  ): SnapshotQueryClient<S, FIELDS> {
+    const apiMetadata = createQueryApiMetadata({
+      ...this.defaultOptions,
+      ...options,
+    });
     return new SnapshotQueryClient(apiMetadata);
   }
 
@@ -79,8 +96,13 @@ export class QueryClientFactory<S, FIELDS extends string = string, DomainEventBo
    * @param options - The query client options used to configure the event stream query client
    * @returns A new instance of EventStreamQueryClient
    */
-  createEventStreamQueryClient<FIELDS extends string = string>(options: QueryClientOptions): EventStreamQueryClient<DomainEventBody, FIELDS> {
-    const apiMetadata = createQueryApiMetadata({ ...this.defaultOptions, ...options });
+  createEventStreamQueryClient<FIELDS extends string = string>(
+    options: QueryClientOptions,
+  ): EventStreamQueryClient<DomainEventBody, FIELDS> {
+    const apiMetadata = createQueryApiMetadata({
+      ...this.defaultOptions,
+      ...options,
+    });
     return new EventStreamQueryClient(apiMetadata);
   }
 }

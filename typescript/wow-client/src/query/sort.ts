@@ -33,7 +33,9 @@ export interface FieldSort<FIELDS extends string = string> {
  * @param field - The field to sort by
  * @returns A Sort object with the specified field and ascending direction
  */
-export function asc<FIELDS extends string = string>(field: FIELDS): FieldSort<FIELDS> {
+export function asc<FIELDS extends string = string>(
+  field: FIELDS,
+): FieldSort<FIELDS> {
   return {
     field,
     direction: SortDirection.ASC,
@@ -45,7 +47,9 @@ export function asc<FIELDS extends string = string>(field: FIELDS): FieldSort<FI
  * @param field - The field to sort by
  * @returns A Sort object with the specified field and descending direction
  */
-export function desc<FIELDS extends string = string>(field: FIELDS): FieldSort<FIELDS> {
+export function desc<FIELDS extends string = string>(
+  field: FIELDS,
+): FieldSort<FIELDS> {
   return {
     field,
     direction: SortDirection.DESC,

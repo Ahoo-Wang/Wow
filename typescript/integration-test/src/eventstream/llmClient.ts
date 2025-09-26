@@ -17,7 +17,8 @@ import {
   FetchExchange,
   NamedFetcher,
   REQUEST_BODY_INTERCEPTOR_ORDER,
-  RequestInterceptor, ResultExtractors,
+  RequestInterceptor,
+  ResultExtractors,
 } from '@ahoo-wang/fetcher';
 import {
   api,
@@ -27,7 +28,10 @@ import {
 } from '@ahoo-wang/fetcher-decorator';
 import '@ahoo-wang/fetcher-eventstream';
 import { ChatRequest, ChatResponse } from './types';
-import { JsonEventStreamResultExtractor, JsonServerSentEventStream } from '@ahoo-wang/fetcher-eventstream';
+import {
+  JsonEventStreamResultExtractor,
+  JsonServerSentEventStream,
+} from '@ahoo-wang/fetcher-eventstream';
 
 export const llmFetcherName = 'llm';
 

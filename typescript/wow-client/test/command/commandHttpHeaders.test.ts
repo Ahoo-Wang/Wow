@@ -32,9 +32,7 @@ describe('CommandHttpHeaders', () => {
   });
 
   it('should have correct aggregate version header', () => {
-    expect(CommandHeaders.AGGREGATE_VERSION).toBe(
-      'Command-Aggregate-Version',
-    );
+    expect(CommandHeaders.AGGREGATE_VERSION).toBe('Command-Aggregate-Version');
   });
 
   it('should have correct wait prefix', () => {
@@ -70,9 +68,7 @@ describe('CommandHttpHeaders', () => {
   });
 
   it('should have correct wait tail context header', () => {
-    expect(CommandHeaders.WAIT_TAIL_CONTEXT).toBe(
-      'Command-Wait-Tail-Context',
-    );
+    expect(CommandHeaders.WAIT_TAIL_CONTEXT).toBe('Command-Wait-Tail-Context');
   });
 
   it('should have correct wait tail processor header', () => {

@@ -12,13 +12,17 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import { inferPathSpecType, getClientName, createClientFilePath } from '../../src/client/utils';
+import {
+  inferPathSpecType,
+  getClientName,
+  createClientFilePath,
+} from '../../src/client/utils';
 import { ResourceAttributionPathSpec } from '@ahoo-wang/fetcher-wow';
 
 // Mock the dependencies
 vi.mock('../../src/utils', () => ({
   getOrCreateSourceFile: vi.fn(() => 'mock-source-file'),
-  pascalCase: vi.fn((name) => {
+  pascalCase: vi.fn(name => {
     // Mock implementation that matches the actual pascalCase function behavior
     if (name === '' || (Array.isArray(name) && name.length === 0)) {
       return '';
@@ -50,10 +54,7 @@ describe('client utils', () => {
   describe('inferPathSpecType', () => {
     it('should return NONE when no commands have tenant or owner specs', () => {
       const aggregateDefinition = {
-        commands: [
-          { path: '/api/users' },
-          { path: '/api/products' },
-        ],
+        commands: [{ path: '/api/users' }, { path: '/api/products' }],
       };
 
       const result = inferPathSpecType(aggregateDefinition as any);
@@ -153,7 +154,12 @@ describe('client utils', () => {
       };
       const fileName = 'TestFile';
 
-      const result = createClientFilePath(mockProject as any, outputDir, aggregate as any, fileName);
+      const result = createClientFilePath(
+        mockProject as any,
+        outputDir,
+        aggregate as any,
+        fileName,
+      );
       expect(result).toBe('mock-source-file');
     });
   });

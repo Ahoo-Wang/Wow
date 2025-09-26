@@ -59,9 +59,7 @@ describe('cartCommandClient Integration Test', () => {
   };
 
   it('should send command', async () => {
-    const commandResult = await cartCommandClient.send(
-      addCartItemCommand,
-    );
+    const commandResult = await cartCommandClient.send(addCartItemCommand);
     expectCommandResultToBeDefined(commandResult);
     expect(commandResult.aggregateId).toBe(currentUserId);
     expect(commandResult.errorCode).toBe(ErrorCodes.SUCCEEDED);
@@ -69,9 +67,8 @@ describe('cartCommandClient Integration Test', () => {
   });
 
   it('should send command and wait stream', async () => {
-    const commandResultStream = await cartCommandClient.sendAndWaitStream(
-      addCartItemCommand,
-    );
+    const commandResultStream =
+      await cartCommandClient.sendAndWaitStream(addCartItemCommand);
     expect(commandResultStream).toBeDefined();
     for await (const commandResultEvent of commandResultStream) {
       console.info(`Received : ${JSON.stringify(commandResultEvent)}`);

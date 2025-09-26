@@ -17,9 +17,7 @@ import type {
   PagedQuery,
   SingleQuery,
 } from './queryable';
-import {
-  JsonServerSentEvent,
-} from '@ahoo-wang/fetcher-eventstream';
+import { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 import type { Condition } from './condition';
 
 /**

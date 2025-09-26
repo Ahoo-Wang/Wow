@@ -16,7 +16,7 @@ import { resolveModelInfo, WOW_TYPE_MAPPING } from '../../src/model';
 
 // Mock the pascalCase function to avoid dependencies on the actual implementation
 vi.mock('@/utils/naming.ts', () => ({
-  pascalCase: vi.fn((parts) => {
+  pascalCase: vi.fn(parts => {
     if (Array.isArray(parts)) {
       return parts.join('');
     }

@@ -603,9 +603,7 @@
         "responses": {
           "200": {
             "description": "Ok",
-            "content": {
-
-            }
+            "content": {}
           }
         }
       }
@@ -1715,9 +1713,7 @@
           }
         ],
         "responses": {
-          "200": {
-
-          },
+          "200": {},
           "404": {
             "$ref": "#/components/responses/wow.NotFound"
           }
@@ -3985,9 +3981,7 @@
           }
         ],
         "responses": {
-          "200": {
-
-          },
+          "200": {},
           "404": {
             "$ref": "#/components/responses/wow.NotFound"
           }
@@ -5093,9 +5087,7 @@
             "$ref": "#/components/schemas/wow.api.query.ConditionOptions",
             "default": "{}"
           },
-          "value": {
-
-          }
+          "value": {}
         }
       },
       "example.cart.CartAggregatedDomainEventStream": {
@@ -6134,8 +6126,7 @@
             "$ref": "#/components/schemas/wow.api.query.ConditionOptions",
             "default": "{}"
           },
-          "value": {
-          }
+          "value": {}
         }
       },
       "example.order.OrderAggregatedDomainEventStream": {
@@ -7361,8 +7352,7 @@
             "$ref": "#/components/schemas/wow.api.query.ConditionOptions",
             "default": "{}"
           },
-          "value": {
-          }
+          "value": {}
         }
       },
       "wow.api.query.ConditionOptions": {

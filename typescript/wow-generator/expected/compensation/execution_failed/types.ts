@@ -17,7 +17,14 @@ import {
   FunctionInfo,
   BindingError,
   AggregateId,
-  Condition, DomainEventStream, ListQuery, PagedList, PagedQuery, SingleQuery, MaterializedSnapshot, StateEvent,
+  Condition,
+  DomainEventStream,
+  ListQuery,
+  PagedList,
+  PagedQuery,
+  SingleQuery,
+  MaterializedSnapshot,
+  StateEvent,
 } from '@ahoo-wang/fetcher-wow';
 import { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 
@@ -73,25 +80,29 @@ export interface EventId {
   version: number;
 }
 
-export interface ExecutionFailedAggregatedCondition extends Condition<ExecutionFailedAggregatedFields> {
-
+export interface ExecutionFailedAggregatedCondition
+  extends Condition<ExecutionFailedAggregatedFields> {
 }
 
-export type ExecutionFailedAggregatedDomainEventTypes = CompensationPrepared |
-  ExecutionFailedApplied | ExecutionFailedCreated | ExecutionSuccessApplied
-  | FunctionChanged | RecoverableMarked | RetrySpecApplied
+export type ExecutionFailedAggregatedDomainEventTypes =
+  | CompensationPrepared
+  | ExecutionFailedApplied
+  | ExecutionFailedCreated
+  | ExecutionSuccessApplied
+  | FunctionChanged
+  | RecoverableMarked
+  | RetrySpecApplied;
 
 export interface ExecutionFailedAggregatedDomainEventStream
   extends DomainEventStream<ExecutionFailedAggregatedDomainEventTypes> {
-
 }
 
-export interface ExecutionFailedAggregatedDomainEventStreamPagedList extends PagedList<ExecutionFailedAggregatedDomainEventStream> {
-
+export interface ExecutionFailedAggregatedDomainEventStreamPagedList
+  extends PagedList<ExecutionFailedAggregatedDomainEventStream> {
 }
 
-export interface ExecutionFailedAggregatedDomainEventStreamServerSentEventNonNullData extends JsonServerSentEvent<ExecutionFailedAggregatedDomainEventStream> {
-
+export interface ExecutionFailedAggregatedDomainEventStreamServerSentEventNonNullData
+  extends JsonServerSentEvent<ExecutionFailedAggregatedDomainEventStream> {
 }
 
 export enum ExecutionFailedAggregatedFields {
@@ -143,18 +154,19 @@ export enum ExecutionFailedAggregatedFields {
   STATE_RETRY_STATE_TIMEOUT_AT = 'state.retryState.timeoutAt',
   STATE_STATUS = 'state.status',
   STATE_IS_BELOW_RETRY_THRESHOLD = 'state.isBelowRetryThreshold',
-  STATE_IS_RETRYABLE = 'state.isRetryable'
+  STATE_IS_RETRYABLE = 'state.isRetryable',
 }
 
-export interface ExecutionFailedAggregatedListQuery extends ListQuery<ExecutionFailedAggregatedFields> {
-
+export interface ExecutionFailedAggregatedListQuery
+  extends ListQuery<ExecutionFailedAggregatedFields> {
 }
 
-export interface ExecutionFailedAggregatedPagedQuery extends PagedQuery<ExecutionFailedAggregatedFields> {
-
+export interface ExecutionFailedAggregatedPagedQuery
+  extends PagedQuery<ExecutionFailedAggregatedFields> {
 }
 
-export interface ExecutionFailedAggregatedSingleQuery extends SingleQuery<ExecutionFailedAggregatedFields> {
+export interface ExecutionFailedAggregatedSingleQuery
+  extends SingleQuery<ExecutionFailedAggregatedFields> {
 }
 
 export interface ExecutionFailedApplied {
@@ -187,33 +199,38 @@ export interface ExecutionFailedState {
   isRetryable: boolean;
 }
 
-export interface ExecutionFailedStateMaterializedSnapshot extends MaterializedSnapshot<ExecutionFailedState> {
-
+export interface ExecutionFailedStateMaterializedSnapshot
+  extends MaterializedSnapshot<ExecutionFailedState> {
 }
 
-export interface ExecutionFailedStateMaterializedSnapshotPagedList extends PagedList<ExecutionFailedStateMaterializedSnapshot> {
+export interface ExecutionFailedStateMaterializedSnapshotPagedList
+  extends PagedList<ExecutionFailedStateMaterializedSnapshot> {
 }
 
-export interface ExecutionFailedStateMaterializedSnapshotServerSentEventNonNullData extends JsonServerSentEvent<ExecutionFailedStateMaterializedSnapshot> {
+export interface ExecutionFailedStateMaterializedSnapshotServerSentEventNonNullData
+  extends JsonServerSentEvent<ExecutionFailedStateMaterializedSnapshot> {
 }
 
-export interface ExecutionFailedStatePagedList extends PagedList<ExecutionFailedState> {
+export interface ExecutionFailedStatePagedList
+  extends PagedList<ExecutionFailedState> {
 }
 
-export interface ExecutionFailedStateServerSentEventNonNullData extends JsonServerSentEvent<ExecutionFailedState> {
+export interface ExecutionFailedStateServerSentEventNonNullData
+  extends JsonServerSentEvent<ExecutionFailedState> {
 }
 
-export interface ExecutionFailedStateSnapshot extends MaterializedSnapshot<ExecutionFailedState> {
-
+export interface ExecutionFailedStateSnapshot
+  extends MaterializedSnapshot<ExecutionFailedState> {
 }
 
-export interface ExecutionFailedStateStateEvent extends StateEvent<ExecutionFailedState> {
+export interface ExecutionFailedStateStateEvent
+  extends StateEvent<ExecutionFailedState> {
 }
 
 export enum ExecutionFailedStatus {
   FAILED = 'FAILED',
   PREPARED = 'PREPARED',
-  SUCCEEDED = 'SUCCEEDED'
+  SUCCEEDED = 'SUCCEEDED',
 }
 
 export interface ExecutionSuccessApplied {

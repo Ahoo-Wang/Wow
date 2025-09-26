@@ -91,7 +91,9 @@ export interface NamedAggregate
     AggregateNameCapable {
 }
 
-export interface AliasAggregate extends AliasBoundedContext, AggregateNameCapable {
+export interface AliasAggregate
+  extends AliasBoundedContext,
+    AggregateNameCapable {
 }
 
 /**

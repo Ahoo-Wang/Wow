@@ -16,9 +16,7 @@ import {
   type CommandResult,
   type CommandResultEventStream,
 } from './commandResult';
-import {
-  ContentTypeValues,
-} from '@ahoo-wang/fetcher';
+import { ContentTypeValues } from '@ahoo-wang/fetcher';
 import { JsonEventStreamResultExtractor } from '@ahoo-wang/fetcher-eventstream';
 
 import {
@@ -74,7 +72,8 @@ import {
  * ```
  */
 @api()
-export class CommandClient<C extends object = object> implements ApiMetadataCapable {
+export class CommandClient<C extends object = object>
+  implements ApiMetadataCapable {
   constructor(public readonly apiMetadata?: ApiMetadata) {
   }
 

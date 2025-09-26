@@ -75,7 +75,10 @@ import {
  * ```
  */
 @api()
-export class EventStreamQueryClient<DomainEventBody = any, FIELDS extends string = string>
+export class EventStreamQueryClient<
+  DomainEventBody = any,
+  FIELDS extends string = string,
+>
   implements EventStreamQueryApi<DomainEventBody, FIELDS>, ApiMetadataCapable {
   /**
    * Creates a new EventStreamQueryClient instance.
@@ -127,7 +130,11 @@ export class EventStreamQueryClient<DomainEventBody = any, FIELDS extends string
    * ```
    */
   @post(EventStreamQueryEndpointPaths.LIST)
-  list<T extends Partial<DomainEventStream<DomainEventBody>> = DomainEventStream<DomainEventBody>>(
+  list<
+    T extends Partial<
+      DomainEventStream<DomainEventBody>
+    > = DomainEventStream<DomainEventBody>,
+  >(
     @body() listQuery: ListQuery<FIELDS>,
     @attribute() attributes?: Record<string, any>,
   ): Promise<T[]> {
@@ -160,7 +167,11 @@ export class EventStreamQueryClient<DomainEventBody = any, FIELDS extends string
     headers: { Accept: ContentTypeValues.TEXT_EVENT_STREAM },
     resultExtractor: JsonEventStreamResultExtractor,
   })
-  listStream<T extends Partial<DomainEventStream<DomainEventBody>> = DomainEventStream<DomainEventBody>>(
+  listStream<
+    T extends Partial<
+      DomainEventStream<DomainEventBody>
+    > = DomainEventStream<DomainEventBody>,
+  >(
     @body() listQuery: ListQuery<FIELDS>,
     @attribute() attributes?: Record<string, any>,
   ): Promise<ReadableStream<JsonServerSentEvent<T>>> {
@@ -191,7 +202,11 @@ export class EventStreamQueryClient<DomainEventBody = any, FIELDS extends string
    * ```
    */
   @post(EventStreamQueryEndpointPaths.PAGED)
-  paged<T extends Partial<DomainEventStream<DomainEventBody>> = DomainEventStream<DomainEventBody>>(
+  paged<
+    T extends Partial<
+      DomainEventStream<DomainEventBody>
+    > = DomainEventStream<DomainEventBody>,
+  >(
     @body() pagedQuery: PagedQuery<FIELDS>,
     @attribute() attributes?: Record<string, any>,
   ): Promise<PagedList<T>> {

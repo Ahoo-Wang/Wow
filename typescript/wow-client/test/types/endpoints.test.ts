@@ -20,7 +20,9 @@ describe('endpoints', () => {
       expect(ResourceAttributionPathSpec.NONE).toBe('');
       expect(ResourceAttributionPathSpec.TENANT).toBe('/tenant/{tenantId}');
       expect(ResourceAttributionPathSpec.OWNER).toBe('/owner/{ownerId}');
-      expect(ResourceAttributionPathSpec.TENANT_OWNER).toBe('/tenant/{tenantId}/owner/{ownerId}');
+      expect(ResourceAttributionPathSpec.TENANT_OWNER).toBe(
+        '/tenant/{tenantId}/owner/{ownerId}',
+      );
     });
   });
 

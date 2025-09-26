@@ -2,7 +2,6 @@ import { configDefaults, defineConfig, mergeConfig } from 'vitest/config';
 import { resolve } from 'path';
 import viteConfig from './vite.config';
 
-
 export default mergeConfig(
   viteConfig,
   defineConfig({
@@ -13,11 +12,7 @@ export default mergeConfig(
     },
     test: {
       coverage: {
-        exclude: [
-          ...configDefaults.exclude,
-          'expected/**',
-          'test-output/**',
-        ],
+        exclude: [...configDefaults.exclude, 'expected/**', 'test-output/**'],
       },
     },
   }),

@@ -11,7 +11,6 @@
  * limitations under the License.
  */
 
-
 const NAMING_SEPARATORS = /[-_\s.]+|(?=[A-Z])/;
 
 /**

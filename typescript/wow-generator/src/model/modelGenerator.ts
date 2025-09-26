@@ -22,12 +22,14 @@ import {
 import { GenerateContext } from '../types';
 import { ModelInfo, resolveModelInfo } from './modelInfo';
 import {
-  addImportModelInfo, addJSDoc,
+  addImportModelInfo,
+  addJSDoc,
   extractComponentKey,
   getModelFileName,
   getOrCreateSourceFile,
   isEnum,
-  isReference, jsDocs,
+  isReference,
+  jsDocs,
   resolvePrimitiveType,
 } from '../utils';
 import { BaseCodeGenerator } from '../baseCodeGenerator';

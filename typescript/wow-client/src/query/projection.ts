@@ -25,7 +25,9 @@ export interface Projection<FIELDS extends string = string> {
  */
 export const DEFAULT_PROJECTION: Projection = {};
 
-export function defaultProjection<FIELDS extends string = string>(): Projection<FIELDS> {
+export function defaultProjection<
+  FIELDS extends string = string,
+>(): Projection<FIELDS> {
   return DEFAULT_PROJECTION as Projection<FIELDS>;
 }
 
@@ -41,10 +43,9 @@ export function defaultProjection<FIELDS extends string = string>(): Projection<
  * @param options.exclude - Array of field names to exclude from the projection. Optional.
  * @returns A Projection object with the specified parameters
  */
-export function projection<FIELDS extends string = string>({
-                                                             include,
-                                                             exclude,
-                                                           }: Projection<FIELDS> = defaultProjection()): Projection<FIELDS> {
+export function projection<FIELDS extends string = string>(
+  { include, exclude }: Projection<FIELDS> = defaultProjection(),
+): Projection<FIELDS> {
   return {
     include,
     exclude,

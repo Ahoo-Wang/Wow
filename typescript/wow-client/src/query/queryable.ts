@@ -29,7 +29,8 @@ export interface Queryable<FIELDS extends string = string>
  * Interface for single query objects.
  */
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface SingleQuery<FIELDS extends string = string> extends Queryable<FIELDS> {
+export interface SingleQuery<FIELDS extends string = string>
+  extends Queryable<FIELDS> {
 }
 
 /**
@@ -45,9 +46,9 @@ export interface SingleQuery<FIELDS extends string = string> extends Queryable<F
  * @returns A SingleQuery object with the specified parameters
  */
 export function singleQuery<FIELDS extends string = string>({
-                              condition = all(),
-                              projection,
-                              sort,
+                                                              condition = all(),
+                                                              projection,
+                                                              sort,
                                                             }: Partial<SingleQuery<FIELDS>> = {}): SingleQuery<FIELDS> {
   return {
     condition,
@@ -61,7 +62,8 @@ export function singleQuery<FIELDS extends string = string>({
  *
  * Limit the number of results. Default: DEFAULT_PAGINATION.size
  */
-export interface ListQuery<FIELDS extends string = string> extends Queryable<FIELDS> {
+export interface ListQuery<FIELDS extends string = string>
+  extends Queryable<FIELDS> {
   limit?: number;
 }
 
@@ -80,10 +82,10 @@ export interface ListQuery<FIELDS extends string = string> extends Queryable<FIE
  * @returns A ListQuery object with the specified parameters
  */
 export function listQuery<FIELDS extends string = string>({
-                            condition = all(),
-                            projection,
-                            sort,
-                            limit = DEFAULT_PAGINATION.size,
+                                                            condition = all(),
+                                                            projection,
+                                                            sort,
+                                                            limit = DEFAULT_PAGINATION.size,
                                                           }: Partial<ListQuery<FIELDS>> = {}): ListQuery<FIELDS> {
   return {
     condition,
@@ -96,7 +98,8 @@ export function listQuery<FIELDS extends string = string>({
 /**
  * Interface for paged query objects.
  */
-export interface PagedQuery<FIELDS extends string = string> extends Queryable<FIELDS> {
+export interface PagedQuery<FIELDS extends string = string>
+  extends Queryable<FIELDS> {
   pagination?: Pagination;
 }
 
@@ -116,10 +119,10 @@ export interface PagedQuery<FIELDS extends string = string> extends Queryable<FI
  * @returns A PagedQuery object with the specified parameters
  */
 export function pagedQuery<FIELDS extends string = string>({
-                             condition = all(),
-                             projection,
-                             sort,
-                             pagination = DEFAULT_PAGINATION,
+                                                             condition = all(),
+                                                             projection,
+                                                             sort,
+                                                             pagination = DEFAULT_PAGINATION,
                                                            }: Partial<PagedQuery<FIELDS>> = {}): PagedQuery<FIELDS> {
   return {
     condition,

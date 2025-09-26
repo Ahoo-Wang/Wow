@@ -31,33 +31,61 @@ describe('wowTypeMapping', () => {
     });
 
     it('should have the correct mappings', () => {
-      expect(WOW_TYPE_MAPPING['wow.command.CommandResult']).toBe('CommandResult');
-      expect(WOW_TYPE_MAPPING['wow.MessageHeaderSqlType']).toBe('MessageHeaderSqlType');
+      expect(WOW_TYPE_MAPPING['wow.command.CommandResult']).toBe(
+        'CommandResult',
+      );
+      expect(WOW_TYPE_MAPPING['wow.MessageHeaderSqlType']).toBe(
+        'MessageHeaderSqlType',
+      );
       expect(WOW_TYPE_MAPPING['wow.api.BindingError']).toBe('BindingError');
       expect(WOW_TYPE_MAPPING['wow.api.DefaultErrorInfo']).toBe('ErrorInfo');
-      expect(WOW_TYPE_MAPPING['wow.api.RecoverableType']).toBe('RecoverableType');
-      expect(WOW_TYPE_MAPPING['wow.api.command.DefaultDeleteAggregate']).toBe('DeleteAggregate');
-      expect(WOW_TYPE_MAPPING['wow.api.command.DefaultRecoverAggregate']).toBe('RecoverAggregate');
-      expect(WOW_TYPE_MAPPING['wow.api.messaging.FunctionInfoData']).toBe('FunctionInfo');
-      expect(WOW_TYPE_MAPPING['wow.api.messaging.FunctionKind']).toBe('FunctionKind');
-      expect(WOW_TYPE_MAPPING['wow.api.modeling.AggregateId']).toBe('AggregateId');
+      expect(WOW_TYPE_MAPPING['wow.api.RecoverableType']).toBe(
+        'RecoverableType',
+      );
+      expect(WOW_TYPE_MAPPING['wow.api.command.DefaultDeleteAggregate']).toBe(
+        'DeleteAggregate',
+      );
+      expect(WOW_TYPE_MAPPING['wow.api.command.DefaultRecoverAggregate']).toBe(
+        'RecoverAggregate',
+      );
+      expect(WOW_TYPE_MAPPING['wow.api.messaging.FunctionInfoData']).toBe(
+        'FunctionInfo',
+      );
+      expect(WOW_TYPE_MAPPING['wow.api.messaging.FunctionKind']).toBe(
+        'FunctionKind',
+      );
+      expect(WOW_TYPE_MAPPING['wow.api.modeling.AggregateId']).toBe(
+        'AggregateId',
+      );
       expect(WOW_TYPE_MAPPING['wow.api.query.Condition']).toBe('Condition');
-      expect(WOW_TYPE_MAPPING['wow.api.query.ConditionOptions']).toBe('ConditionOptions');
+      expect(WOW_TYPE_MAPPING['wow.api.query.ConditionOptions']).toBe(
+        'ConditionOptions',
+      );
       expect(WOW_TYPE_MAPPING['wow.api.query.ListQuery']).toBe('ListQuery');
       expect(WOW_TYPE_MAPPING['wow.api.query.Operator']).toBe('Operator');
       expect(WOW_TYPE_MAPPING['wow.api.query.PagedQuery']).toBe('PagedQuery');
       expect(WOW_TYPE_MAPPING['wow.api.query.Pagination']).toBe('Pagination');
       expect(WOW_TYPE_MAPPING['wow.api.query.Projection']).toBe('Projection');
       expect(WOW_TYPE_MAPPING['wow.api.query.Sort']).toBe('FieldSort');
-      expect(WOW_TYPE_MAPPING['wow.api.query.Sort.Direction']).toBe('SortDirection');
+      expect(WOW_TYPE_MAPPING['wow.api.query.Sort.Direction']).toBe(
+        'SortDirection',
+      );
       expect(WOW_TYPE_MAPPING['wow.command.CommandStage']).toBe('CommandStage');
-      expect(WOW_TYPE_MAPPING['wow.command.SimpleWaitSignal']).toBe('WaitSignal');
+      expect(WOW_TYPE_MAPPING['wow.command.SimpleWaitSignal']).toBe(
+        'WaitSignal',
+      );
       expect(WOW_TYPE_MAPPING['wow.configuration.Aggregate']).toBe('Aggregate');
-      expect(WOW_TYPE_MAPPING['wow.configuration.BoundedContext']).toBe('BoundedContext');
-      expect(WOW_TYPE_MAPPING['wow.configuration.WowMetadata']).toBe('WowMetadata');
+      expect(WOW_TYPE_MAPPING['wow.configuration.BoundedContext']).toBe(
+        'BoundedContext',
+      );
+      expect(WOW_TYPE_MAPPING['wow.configuration.WowMetadata']).toBe(
+        'WowMetadata',
+      );
       expect(WOW_TYPE_MAPPING['wow.modeling.DomainEvent']).toBe('DomainEvent');
       expect(WOW_TYPE_MAPPING['wow.openapi.BatchResult']).toBe('BatchResult');
-      expect(WOW_TYPE_MAPPING['wow.messaging.CompensationTarget']).toBe('CompensationTarget');
+      expect(WOW_TYPE_MAPPING['wow.messaging.CompensationTarget']).toBe(
+        'CompensationTarget',
+      );
     });
 
     it('should have the correct number of mappings', () => {

@@ -46,9 +46,7 @@ const command: AddCartItemCommand = {
     quantity: 1,
   },
 };
-const commandResult = await cartCommandClient.send(
-  command,
-);
+const commandResult = await cartCommandClient.send(command);
 expect(commandResult.errorCode).toBe(ErrorCodes.SUCCEEDED);
 
 function expectCartState(cartState: Partial<CartState> | undefined) {

@@ -27,7 +27,8 @@ import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
  * for querying snapshot states directly without the full MaterializedSnapshot wrapper.
  * @template S - The type of the snapshot state
  */
-export interface SnapshotQueryApi<S, FIELDS extends string = string> extends QueryApi<MaterializedSnapshot<S>, FIELDS> {
+export interface SnapshotQueryApi<S, FIELDS extends string = string>
+  extends QueryApi<MaterializedSnapshot<S>, FIELDS> {
   /**
    * Retrieves a single snapshot state based on the provided query parameters.
    * @param singleQuery - The query parameters for retrieving a single snapshot state

@@ -11,7 +11,6 @@
  * limitations under the License.
  */
 
-
 import { readFile } from 'fs';
 
 export function loadResource(path: string): Promise<string> {

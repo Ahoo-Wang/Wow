@@ -25,9 +25,7 @@ const IMPORT_ALIAS = '@';
  * @param modelInfo - The model information
  * @returns The full file path for the model
  */
-export function getModelFileName(
-  modelInfo: ModelInfo,
-): string {
+export function getModelFileName(modelInfo: ModelInfo): string {
   return combineURLs(modelInfo.path, MODEL_FILE_NAME);
 }
 
@@ -131,8 +129,13 @@ export function addImportModelInfo(
  * @param description - The description for the JSDoc comment
  * @returns The formatted JSDoc string or undefined if both title and description are empty
  */
-export function jsDoc(title?: string, description?: string): string | undefined {
-  return [title, description].filter(v => v !== undefined && v.length > 0).join('\n');
+export function jsDoc(
+  title?: string,
+  description?: string,
+): string | undefined {
+  return [title, description]
+    .filter(v => v !== undefined && v.length > 0)
+    .join('\n');
 }
 
 export function jsDocs(title?: string, description?: string): string[] {

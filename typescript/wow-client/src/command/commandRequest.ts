@@ -11,10 +11,7 @@
  * limitations under the License.
  */
 
-import type {
-  RequestHeaders,
-  UrlParams,
-} from '@ahoo-wang/fetcher';
+import type { RequestHeaders, UrlParams } from '@ahoo-wang/fetcher';
 import { CommandHeaders } from './commandHeaders';
 import { type UrlPathParams } from '../types/endpoints';
 import { ParameterRequest } from '@ahoo-wang/fetcher-decorator';

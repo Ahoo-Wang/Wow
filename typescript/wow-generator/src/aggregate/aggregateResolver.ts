@@ -20,18 +20,21 @@ import {
   Schema,
 } from '@ahoo-wang/fetcher-openapi';
 import {
-  AggregateDefinition, BoundedContextAggregates,
+  AggregateDefinition,
+  BoundedContextAggregates,
   CommandDefinition,
   EventDefinition,
 } from './aggregate';
 
-
 import { ContentTypeValues, PartialBy } from '@ahoo-wang/fetcher';
 import { operationIdToCommandName, tagsToAggregates } from './utils';
 import {
-  extractOkResponse, extractOperationOkResponseJsonSchema,
+  extractOkResponse,
+  extractOperationOkResponseJsonSchema,
   extractOperations,
-  extractParameter, extractRequestBody, extractSchema,
+  extractParameter,
+  extractRequestBody,
+  extractSchema,
   isReference,
   keySchema,
   MethodOperation,
@@ -81,7 +84,10 @@ export class AggregateResolver {
    * @returns Map of aggregate definitions keyed by context alias
    */
   resolve(): BoundedContextAggregates {
-    const resolvedContextAggregates = new Map<string, Set<AggregateDefinition>>();
+    const resolvedContextAggregates = new Map<
+      string,
+      Set<AggregateDefinition>
+    >();
     for (const aggregate of this.aggregates.values()) {
       if (!aggregate.state || !aggregate.fields) {
         continue;
