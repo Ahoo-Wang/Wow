@@ -307,16 +307,19 @@ export class ModelGenerator extends BaseCodeGenerator {
       return 'Record<string, any>';
     }
 
+    let type: string;
     if (schema.type) {
-      return resolvePrimitiveType(schema.type);
+      type = resolvePrimitiveType(schema.type);
+    } else {
+      type = 'any';
     }
 
     // Handle nullable
     if (schema.nullable) {
-      return `${this.resolveType(modelInfo, sourceFile, { ...schema, nullable: false })} | null`;
+      type = `${type} | null`;
     }
 
-    return 'any';
+    return type;
   }
 
   /**
