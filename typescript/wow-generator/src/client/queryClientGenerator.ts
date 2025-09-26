@@ -92,7 +92,7 @@ export class QueryClientGenerator extends BaseCodeGenerator {
       declarationKind: VariableDeclarationKind.Const,
       declarations: [{
         name: clientFactoryName,
-        initializer: `new QueryClientFactory<${stateModelInfo.name}, ${fieldsModelInfo.name} | string, ${domainEventTypesName}>(${defaultClientOptionsName});`,
+        initializer: `new QueryClientFactory<${stateModelInfo.name}, ${fieldsModelInfo.name} | string, ${domainEventTypesName}>(${defaultClientOptionsName})`,
       }],
       isExported: true,
     });
