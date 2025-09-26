@@ -8,8 +8,8 @@
 [![npm bundle size](https://img.shields.io/bundlephobia/minzip/%40ahoo-wang%2Ffetcher-generator)](https://www.npmjs.com/package/@ahoo-wang/fetcher-generator)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/Ahoo-Wang/fetcher)
 
-OpenAPI Specification TypeScript code generator for Fetcher. Generates data models, request/response types, and
-ApiClient from OpenAPI specifications, specifically tailored for the WOW (domain-driven design) framework.
+TypeScript code generator from OpenAPI specs for WOW domain-driven design framework. Generates type-safe models, query
+clients, and command clients from OpenAPI specifications.
 
 ## 🌟 Features
 
