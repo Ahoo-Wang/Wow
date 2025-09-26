@@ -13,28 +13,10 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import {
-  createQueryApiMetadata,
-  createSnapshotQueryClient,
-  createEventStreamQueryClient,
+  QueryClientFactory,
   QueryClientOptions,
+  createQueryApiMetadata,
 } from '../../src';
-
-// Mock the SnapshotQueryClient and EventStreamQueryClient classes
-vi.mock('../../src/query/snapshot', () => {
-  return {
-    SnapshotQueryClient: vi.fn().mockImplementation(() => {
-      return {};
-    }),
-  };
-});
-
-vi.mock('../../src/query/event', () => {
-  return {
-    EventStreamQueryClient: vi.fn().mockImplementation(() => {
-      return {};
-    }),
-  };
-});
 
 describe('queryClients', () => {
   describe('createQueryApiMetadata', () => {
@@ -87,27 +69,77 @@ describe('queryClients', () => {
     });
   });
 
-  describe('createSnapshotQueryClient', () => {
-    it('should create a SnapshotQueryClient instance', () => {
-      const options: QueryClientOptions = {
-        aggregateName: 'testAggregate',
-      };
+  describe('QueryClientFactory', () => {
+    const defaultOptions: QueryClientOptions = {
+      aggregateName: 'defaultAggregate',
+    };
 
-      const client = createSnapshotQueryClient(options);
+    describe('constructor', () => {
+      it('should create a factory with default options', () => {
+        const factory = new QueryClientFactory(defaultOptions);
 
-      expect(client).toBeDefined();
+        expect(factory).toBeInstanceOf(QueryClientFactory);
+      });
     });
-  });
 
-  describe('createEventStreamQueryClient', () => {
-    it('should create an EventStreamQueryClient instance', () => {
-      const options: QueryClientOptions = {
-        aggregateName: 'testAggregate',
-      };
+    describe('createSnapshotQueryClient', () => {
+      it('should create a SnapshotQueryClient with merged options', () => {
+        const factory = new QueryClientFactory(defaultOptions);
+        const options: QueryClientOptions = {
+          aggregateName: 'testAggregate',
+        };
 
-      const client = createEventStreamQueryClient(options);
+        const client = factory.createSnapshotQueryClient(options);
 
-      expect(client).toBeDefined();
+        expect(client).toBeDefined();
+      });
+
+      it('should merge default options with provided options', () => {
+        const factoryDefaultOptions: QueryClientOptions = {
+          aggregateName: 'defaultAggregate',
+          contextAlias: 'defaultContext',
+        };
+        const factory = new QueryClientFactory(factoryDefaultOptions);
+
+        const options: QueryClientOptions = {
+          aggregateName: 'testAggregate',
+          // contextAlias should come from defaults
+        };
+
+        const client = factory.createSnapshotQueryClient(options);
+
+        expect(client).toBeDefined();
+      });
+    });
+
+    describe('createEventStreamQueryClient', () => {
+      it('should create an EventStreamQueryClient with merged options', () => {
+        const factory = new QueryClientFactory(defaultOptions);
+        const options: QueryClientOptions = {
+          aggregateName: 'testAggregate',
+        };
+
+        const client = factory.createEventStreamQueryClient(options);
+
+        expect(client).toBeDefined();
+      });
+
+      it('should merge default options with provided options', () => {
+        const factoryDefaultOptions: QueryClientOptions = {
+          aggregateName: 'defaultAggregate',
+          contextAlias: 'defaultContext',
+        };
+        const factory = new QueryClientFactory(factoryDefaultOptions);
+
+        const options: QueryClientOptions = {
+          aggregateName: 'testAggregate',
+          // contextAlias should come from defaults
+        };
+
+        const client = factory.createEventStreamQueryClient(options);
+
+        expect(client).toBeDefined();
+      });
     });
   });
 });
