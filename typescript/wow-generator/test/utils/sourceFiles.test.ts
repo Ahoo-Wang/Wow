@@ -321,7 +321,7 @@ describe('sourceFiles', () => {
       addImportRefModel(sourceFile, outputDir, refModelInfo);
 
       expect(mockSourceFile.addImportDeclaration).toHaveBeenCalledWith({
-        moduleSpecifier: '@/custom/path/types.ts',
+        moduleSpecifier: '@/custom/path',
       });
     });
   });

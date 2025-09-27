@@ -95,19 +95,13 @@ export function addImportRefModel(
   outputDir: string,
   refModelInfo: ModelInfo,
 ) {
-  if (refModelInfo.path === IMPORT_WOW_PATH) {
+  if (refModelInfo.path.startsWith(IMPORT_ALIAS)) {
     addImport(sourceFile, refModelInfo.path, [refModelInfo.name]);
     return;
   }
   let fileName = getModelFileName(refModelInfo);
-  // If the path already starts with an alias, don't combine with outputDir
-  if (!refModelInfo.path.startsWith(IMPORT_ALIAS)) {
-    fileName = combineURLs(outputDir, fileName);
-  }
-  let moduleSpecifier = fileName;
-  if (!fileName.startsWith(IMPORT_ALIAS)) {
-    moduleSpecifier = combineURLs(IMPORT_ALIAS, fileName);
-  }
+  fileName = combineURLs(outputDir, fileName);
+  const moduleSpecifier = combineURLs(IMPORT_ALIAS, fileName);
   addImport(sourceFile, moduleSpecifier, [refModelInfo.name]);
 }
 
