@@ -40,7 +40,7 @@ export function ChangeFunction({
   const handleOk = () => {
     form.validateFields().then((values) => {
       executionFailedCommandClient
-        .changeFunction(id, values)
+        .changeFunction(id, { body: values })
         .then(() => {
           onChanged?.();
           notification.success({ message: "Change Function Success" });

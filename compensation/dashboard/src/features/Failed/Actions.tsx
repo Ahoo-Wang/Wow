@@ -37,7 +37,7 @@ export function Actions({ state, onChanged }: ActionsProps) {
       label: "Prepare",
       onClick: () => {
         executionFailedCommandClient
-          .prepare(state.id)
+          .prepareCompensation(state.id)
           .then(() => {
             notification.success({ message: "Prepare Success" });
             onChanged?.();
@@ -55,7 +55,7 @@ export function Actions({ state, onChanged }: ActionsProps) {
       label: "Force Prepare",
       onClick: () => {
         executionFailedCommandClient
-          .forcePrepare(state.id)
+          .forcePrepareCompensation(state.id)
           .then(() => {
             notification.success({ message: "Force Prepare Success" });
             onChanged?.();

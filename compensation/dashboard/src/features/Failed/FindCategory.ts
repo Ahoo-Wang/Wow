@@ -23,7 +23,7 @@ import {
   RecoverableType,
 } from "@ahoo-wang/fetcher-wow";
 import {
-  ExecutionFailedFields,
+  ExecutionFailedAggregatedFields,
   ExecutionFailedStatus,
 } from "../../services";
 
@@ -40,13 +40,13 @@ export enum FindCategory {
 export class RetryConditions {
   static toRetryCondition(): Condition {
     return and(
-      ne(ExecutionFailedFields.RECOVERABLE, RecoverableType.UNRECOVERABLE),
-      eq(ExecutionFailedFields.IS_RETRYABLE, true),
+      ne(ExecutionFailedAggregatedFields["state.recoverable"], RecoverableType.UNRECOVERABLE),
+      eq(ExecutionFailedAggregatedFields["state.isRetryable"], true),
       or(
-        eq(ExecutionFailedFields.STATUS, ExecutionFailedStatus.FAILED),
+        eq(ExecutionFailedAggregatedFields["state.status"], ExecutionFailedStatus.FAILED),
         and(
-          eq(ExecutionFailedFields.STATUS, ExecutionFailedStatus.PREPARED),
-          lte(ExecutionFailedFields.TIMEOUT_AT, new Date().getTime()),
+          eq(ExecutionFailedAggregatedFields["state.status"], ExecutionFailedStatus.PREPARED),
+          lte(ExecutionFailedAggregatedFields["state.retryState.timeoutAt"], new Date().getTime()),
         ),
       ),
     );
@@ -54,40 +54,40 @@ export class RetryConditions {
 
   static executingCondition(): Condition {
     return and(
-      eq(ExecutionFailedFields.STATUS, ExecutionFailedStatus.PREPARED),
-      gt(ExecutionFailedFields.TIMEOUT_AT, new Date().getTime()),
+      eq(ExecutionFailedAggregatedFields["state.status"], ExecutionFailedStatus.PREPARED),
+      gt(ExecutionFailedAggregatedFields["state.retryState.timeoutAt"], new Date().getTime()),
     );
   }
 
   static nextRetryCondition(): Condition {
     let currentTime = new Date().getTime();
     return and(
-      ne(ExecutionFailedFields.RECOVERABLE, RecoverableType.UNRECOVERABLE),
-      eq(ExecutionFailedFields.IS_RETRYABLE, true),
-      lte(ExecutionFailedFields.NEXT_RETRY_AT, currentTime),
+      ne(ExecutionFailedAggregatedFields["state.recoverable"], RecoverableType.UNRECOVERABLE),
+      eq(ExecutionFailedAggregatedFields["state.isRetryable"], true),
+      lte(ExecutionFailedAggregatedFields["state.retryState.nextRetryAt"], currentTime),
       or(
-        eq(ExecutionFailedFields.STATUS, ExecutionFailedStatus.FAILED),
+        eq(ExecutionFailedAggregatedFields["state.status"], ExecutionFailedStatus.FAILED),
         and(
-          eq(ExecutionFailedFields.STATUS, ExecutionFailedStatus.PREPARED),
-          lte(ExecutionFailedFields.TIMEOUT_AT, currentTime),
+          eq(ExecutionFailedAggregatedFields["state.status"], ExecutionFailedStatus.PREPARED),
+          lte(ExecutionFailedAggregatedFields["state.retryState.timeoutAt"], currentTime),
         ),
       ),
     );
   }
 
   static nonRetryableCondition = and(
-    ne(ExecutionFailedFields.RECOVERABLE, RecoverableType.UNRECOVERABLE),
-    ne(ExecutionFailedFields.STATUS, ExecutionFailedStatus.SUCCEEDED),
-    eq(ExecutionFailedFields.IS_BELOW_RETRY_THRESHOLD, false),
+    ne(ExecutionFailedAggregatedFields["state.recoverable"], RecoverableType.UNRECOVERABLE),
+    ne(ExecutionFailedAggregatedFields["state.status"], ExecutionFailedStatus.SUCCEEDED),
+    eq(ExecutionFailedAggregatedFields["state.isBelowRetryThreshold"], false),
   );
 
   static successCondition = eq(
-    ExecutionFailedFields.STATUS,
+    ExecutionFailedAggregatedFields["state.status"],
     ExecutionFailedStatus.SUCCEEDED,
   );
   static unrecoverableCondition = and(
-    eq(ExecutionFailedFields.RECOVERABLE, RecoverableType.UNRECOVERABLE),
-    ne(ExecutionFailedFields.STATUS, ExecutionFailedStatus.SUCCEEDED),
+    eq(ExecutionFailedAggregatedFields["state.recoverable"], RecoverableType.UNRECOVERABLE),
+    ne(ExecutionFailedAggregatedFields["state.status"], ExecutionFailedStatus.SUCCEEDED),
   );
 
   static categoryToCondition(category: FindCategory): Condition {
