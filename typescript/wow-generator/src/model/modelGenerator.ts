@@ -31,7 +31,7 @@ import {
   KeySchema,
   pascalCase,
   resolvePrimitiveType,
-  toArrayType,
+  toArrayType, upperSnakeCase,
 } from '../utils';
 import { BaseCodeGenerator } from '../baseCodeGenerator';
 
@@ -130,7 +130,7 @@ export class ModelGenerator extends BaseCodeGenerator {
         members: schema.enum
           .filter(value => typeof value === 'string' && value.length > 0)
           .map(value => ({
-            name: value,
+            name: upperSnakeCase(value),
             initializer: `'${value}'`,
           })),
       });
