@@ -1,7 +1,7 @@
 {
   "name": "@ahoo-wang/fetcher-generator",
   "version": "2.2.0",
-  "description": "TypeScript code generator from OpenAPI specs for WOW domain-driven design framework",
+  "description": "TypeScript code generator from OpenAPI specs for Wow domain-driven design framework. ",
   "keywords": [
     "fetch",
     "http",
@@ -42,7 +42,8 @@
   },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "README.zh-CN.md"
   ],
   "scripts": {
     "build": "vite build",

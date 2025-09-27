@@ -6,132 +6,126 @@
 [![License](https://img.shields.io/npm/l/@ahoo-wang/fetcher-generator.svg)](https://github.com/Ahoo-Wang/fetcher/blob/main/LICENSE)
 [![npm downloads](https://img.shields.io/npm/dm/@ahoo-wang/fetcher-generator.svg)](https://www.npmjs.com/package/@ahoo-wang/fetcher-generator)
 [![npm bundle size](https://img.shields.io/bundlephobia/minzip/%40ahoo-wang%2Ffetcher-generator)](https://www.npmjs.com/package/@ahoo-wang/fetcher-generator)
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/Ahoo-Wang/fetcher)
 
-TypeScript code generator from OpenAPI specs for [Wow](https://github.com/Ahoo-Wang/Wow) domain-driven design framework.
-Generates type-safe models, query
-clients, and command clients from OpenAPI specifications.
+从 OpenAPI 规范生成 TypeScript 代码，专为 [Wow](https://github.com/Ahoo-Wang/Wow) 领域驱动设计框架打造。生成类型安全的模型、查询客户端和命令客户端。
 
-**[Wow](https://github.com/Ahoo-Wang/Wow) Framework**: A domain-driven design framework that provides event sourcing,
-CQRS (Command Query Responsibility
-Segregation),
-and aggregate patterns for building scalable distributed systems.
+**[Wow](https://github.com/Ahoo-Wang/Wow) 框架**：一个领域驱动设计框架，提供事件溯源、CQRS（命令查询责任分离）和聚合模式，用于构建可扩展的分布式系统。
 
-## 🌟 Features
+## 🌟 特性
 
-- **🎯 OpenAPI 3.0+ Support**: Full support for OpenAPI 3.0+ specifications (JSON/YAML)
-- **📦 TypeScript Code Generation**: Generates type-safe TypeScript interfaces, enums, and classes
-- **🏗️ Domain-Driven Design**: Specialized for WOW framework with aggregates, commands, queries, and events
-- **🔧 CLI Tool**: Easy-to-use command-line interface for code generation
-- **🎨 Decorator-Based APIs**: Generates decorator-based client classes for clean API interactions
-- **📋 Comprehensive Models**: Handles complex schemas including unions, intersections, enums, and references
-- **🚀 Fetcher Integration**: Seamlessly integrates with the Fetcher ecosystem packages
-- **📊 Progress Logging**: Friendly logging with progress indicators during generation
-- **📁 Auto Index Generation**: Automatically generates index.ts files for clean module organization
-- **🌐 Remote Spec Support**: Load OpenAPI specs directly from HTTP/HTTPS URLs
-- **🎭 Event Streaming**: Generates both regular and event-stream command clients
+- **🎯 OpenAPI 3.0+ 支持**：完整支持 OpenAPI 3.0+ 规范（JSON/YAML）
+- **📦 TypeScript 代码生成**：生成类型安全的 TypeScript 接口、枚举和类
+- **🏗️ 领域驱动设计**：专为 WOW 框架打造，支持聚合、命令、查询和领域事件
+- **🔧 CLI 工具**：易用的命令行界面，用于代码生成
+- **🎨 装饰器式 API**：生成装饰器式的客户端类，实现清晰的 API 交互
+- **📋 全面的模型**：处理复杂的模式，包括联合、交集、枚举和引用
+- **🚀 Fetcher 生态集成**：无缝集成 Fetcher 生态系统包
+- **📊 进度日志**：生成过程中的友好日志记录和进度指示器
+- **📁 自动索引生成**：自动生成 index.ts 文件，实现清晰的模块组织
+- **🌐 远程规范支持**：直接从 HTTP/HTTPS URL 加载 OpenAPI 规范
+- **🎭 事件流**：生成常规和事件流命令客户端
 
-## 🚀 Quick Start
+## 🚀 快速开始
 
-### Installation
+### 安装
 
 ```bash
-# Using npm
+# 使用 npm
 npm install -g @ahoo-wang/fetcher-generator
 
-# Using pnpm
+# 使用 pnpm
 pnpm add -g @ahoo-wang/fetcher-generator
 
-# Using yarn
+# 使用 yarn
 yarn global add @ahoo-wang/fetcher-generator
 ```
 
-### Basic Usage
+### 基本用法
 
 ```bash
-# Generate TypeScript code from OpenAPI spec
+# 从 OpenAPI 规范生成 TypeScript 代码
 fetcher-generator generate -i ./openapi-spec.json -o ./generated
 ```
 
-## 📖 Usage
+## 📖 使用方法
 
-### Command Line Interface
+### 命令行界面
 
 ```bash
 fetcher-generator generate [options]
 ```
 
-#### Options
+#### 选项
 
-- `-i, --input <path>`: Input OpenAPI specification file path or URL (required)
-  - Supports local file paths (e.g., `./api-spec.json`, `/path/to/spec.yaml`)
-  - Supports HTTP/HTTPS URLs (e.g., `https://api.example.com/openapi.json`)
-- `-o, --output <path>`: Output directory path (default: `src/generated`)
-- `-c, --config <file>`: Configuration file path (optional)
-- `-v, --verbose`: Enable verbose logging during generation
-- `--dry-run`: Show what would be generated without writing files (reserved for future use)
-- `-h, --help`: Display help information
-- `-V, --version`: Display version number
+- `-i, --input <path>`：输入 OpenAPI 规范文件路径或 URL（必需）
+    - 支持本地文件路径（例如：`./api-spec.json`、`./api-spec.yaml`）
+    - 支持 HTTP/HTTPS URL（例如：`https://api.example.com/openapi.json`）
+- `-o, --output <path>`：输出目录路径（默认为 `src/generated`）
+- `-c, --config <file>`：配置文件路径（可选）
+- `-v, --verbose`：启用详细日志记录
+- `--dry-run`：显示将要生成的内容而不写入文件（保留供将来使用）
+- `-h, --help`：显示帮助信息
+- `-V, --version`：显示版本号
 
-#### Examples
+#### 示例
 
 ```bash
-# Generate code from a local OpenAPI JSON file
+# 从本地 OpenAPI JSON 文件生成代码
 fetcher-generator generate -i ./api-spec.json -o ./src/generated
 
-# Generate code from a YAML specification
+# 从 YAML 规范生成代码
 fetcher-generator generate -i ./api-spec.yaml -o ./src/generated
 
-# Generate code from a remote OpenAPI specification via HTTPS
+# 从远程 OpenAPI 规范通过 HTTPS 生成代码
 fetcher-generator generate -i https://api.example.com/openapi.json -o ./src/generated
 
-# Generate code from a remote YAML specification via HTTP
+# 从远程 YAML 规范通过 HTTP 生成代码
 fetcher-generator generate -i http://localhost:8080/api-spec.yaml -o ./src/generated
 ```
 
-### Generated Code Structure
+### 生成的代码结构
 
-The generator creates the following structure in your output directory:
+生成器在输出目录中创建以下结构：
 
 ```
 output/
 ├── {bounded-context}/
-│   ├── index.ts                   # Auto-generated index file exporting all aggregates
-│   ├── boundedContext.ts          # Bounded context alias constant
-│   ├── types.ts                   # Shared types for the bounded context
-│   └── {aggregate}/               # Aggregate-specific files
-│       ├── index.ts               # Auto-generated index file for aggregate
-│       ├── types.ts               # Aggregate-specific types, models, and enums
-│       ├── queryClient.ts         # Query client factory for state and event queries
-│       └── commandClient.ts       # Command client classes (regular and streaming)
-├── index.ts                       # Root index file exporting all bounded contexts
-└── tsconfig.json                  # TypeScript configuration for generated code
+│   ├── index.ts                   # 自动生成的索引文件，导出所有聚合
+│   ├── boundedContext.ts          # 有界上下文别名常量
+│   ├── types.ts                   # 有界上下文的共享类型
+│   └── {aggregate}/               # 聚合特定文件
+│       ├── index.ts               # 聚合的自动生成索引文件
+│       ├── types.ts               # 聚合特定类型、模型和枚举
+│       ├── queryClient.ts         # 查询客户端工厂，用于状态和事件查询
+│       └── commandClient.ts       # 命令客户端类（常规和流式）
+├── index.ts                       # 根索引文件，导出所有有界上下文
+└── tsconfig.json                  # 生成代码的 TypeScript 配置
 ```
 
-#### Index File Generation
+#### 索引文件生成
 
-The generator automatically creates `index.ts` files in all directories to provide convenient module exports:
+生成器自动创建 `index.ts` 文件，为便捷的模块导出提供支持：
 
-- **Root index.ts**: Exports all bounded contexts
-- **Bounded context index.ts**: Exports all aggregates within the context
-- **Aggregate index.ts**: Exports all files within the aggregate
+- **根 index.ts**：导出所有有界上下文
+- **有界上下文 index.ts**：导出上下文中的所有聚合
+- **聚合 index.ts**：导出聚合中的所有文件
 
-This allows for clean imports like:
+这允许干净的导入，例如：
 
 ```typescript
-// Import everything from a bounded context
+// 导入有界上下文的所有内容
 import * as compensation from './generated/compensation';
 
-// Import specific aggregates
+// 导入特定聚合
 import { executionFailed } from './generated/compensation';
 
-// Import specific files
+// 导入特定文件
 import { ExecutionFailedState } from './generated/compensation/execution_failed';
 ```
 
-## 🎯 Generated Code Examples
+## 🎯 生成的代码示例
 
-### Models
+### 模型
 
 ```typescript
 /** apply_execution_failed */
@@ -155,10 +149,10 @@ export enum ExecutionFailedStatus {
 }
 ```
 
-### Query Clients
+### 查询客户端
 
 ```typescript
-// Generated query client factory for domain-driven design
+// 生成的查询客户端工厂，用于领域驱动设计
 import {
   QueryClientFactory,
   QueryClientOptions,
@@ -187,10 +181,10 @@ export const cartQueryClientFactory = new QueryClientFactory<
 >(DEFAULT_QUERY_CLIENT_OPTIONS);
 ```
 
-### Command Clients
+### 命令客户端
 
 ```typescript
-// Generated command client with decorator-based API
+// 生成的命令客户端，具有装饰器式 API
 import { ContentTypeValues } from '@ahoo-wang/fetcher';
 import {
   type ApiMetadata,
@@ -283,7 +277,7 @@ export class CartCommandClient implements ApiMetadataCapable {
 }
 ```
 
-The generator also creates streaming command clients for event-driven interactions:
+生成器还创建流式命令客户端，用于事件驱动的交互：
 
 ```typescript
 @api('', {
@@ -303,32 +297,32 @@ export class CartStreamCommandClient implements ApiMetadataCapable {
   ): Promise<CommandResultEventStream> {
     throw autoGeneratedError(commandRequest, attributes);
   }
-  // ... other streaming methods
+  // ... 其他流式方法
 }
 ```
 
-## 🔧 Integration with Fetcher
+## 🔧 与 Fetcher 集成
 
-The generated code is designed to work seamlessly with the Fetcher ecosystem:
+生成的代码设计为与 Fetcher 生态系统无缝集成：
 
 ```typescript
 import { Fetcher } from '@ahoo-wang/fetcher';
 import { cartQueryClientFactory } from './generated/example/cart/queryClient';
 import { CartCommandClient } from './generated/example/cart/commandClient';
 
-// Create a fetcher instance
+// 创建 fetcher 实例
 const fetcher = new Fetcher({
   baseURL: 'https://api.example.com',
 });
 
-// Register the fetcher (if using named fetchers)
+// 注册 fetcher（如果使用命名 fetcher）
 Fetcher.register('api', fetcher);
 
-// Use the generated query client factory
+// 使用生成的查询客户端工厂
 const queryClient = cartQueryClientFactory.createQueryClient();
 const cartState = await queryClient.loadAggregate('cart-id');
 
-// Use the generated command client
+// 使用生成的命令客户端
 const commandClient = new CartCommandClient();
 const result = await commandClient.addCartItem(
   {
@@ -343,79 +337,70 @@ const result = await commandClient.addCartItem(
 );
 ```
 
-## 📋 OpenAPI Specification Requirements
+## 📋 OpenAPI 规范要求
 
-The generator expects OpenAPI 3.0+ specifications with specific patterns for WOW domain-driven design framework:
+生成器期望 OpenAPI 3.0+ 规范具有 WOW 领域驱动设计框架的特定模式：
 
-### Aggregate Definition
+### 聚合定义
 
-Aggregates are identified by operation tags that follow the pattern:
+聚合通过遵循 `{context}.{aggregate}` 模式的标签进行识别。
 
-- `{context}.{aggregate}`
+### 操作模式
 
-### Operation Patterns
+生成器通过 `operationId` 后缀识别操作：
 
-The generator recognizes operations by their `operationId` suffixes:
+- **状态快照**：以 `.snapshot_state.single` 结尾的操作
+- **事件查询**：以 `.event.list_query` 结尾的操作
+- **字段查询**：以 `.snapshot.count` 结尾的操作
+- **命令**：任何具有有效命令请求/响应结构的 HTTP 操作
 
-- **State Snapshots**: Operations ending with `.snapshot_state.single`
-- **Event Queries**: Operations ending with `.event.list_query`
-- **Field Queries**: Operations ending with `.snapshot.count`
-- **Commands**: Any operation with a valid command request/response structure
+### 命令和查询
 
-### Commands and Queries
+- **命令**：具有 `POST`、`PUT`、`DELETE` 方法的操作，返回 `wow.CommandOk` 响应
+- **查询**：具有 `GET` 方法的操作，用于检索聚合状态或事件
+- **事件**：返回事件流数组的操作，具有领域事件结构
 
-- **Commands**: Operations with `POST`, `PUT`, `DELETE` methods that return `wow.CommandOk` responses
-- **Queries**: Operations with `GET` method for retrieving aggregate state or events
-- **Events**: Operations returning event stream arrays with domain event structures
+### 模式约定
 
-### Schema Conventions
+- 为模式使用描述性名称
+- 避免以 `wow.` 为前缀的模式（保留供内部框架使用）
+- 命令请求正文应引用 `components/schemas` 中的模式
+- 状态和事件模式应遵循域建模的预期结构
 
-- Use descriptive names for schemas
-- Avoid `wow.` prefixed schemas (reserved for internal framework schemas)
-- Command request bodies should reference schemas in `components/schemas`
-- State and event schemas should follow the expected structure for domain modeling
+## 🛠️ 开发
 
-## 🛠️ Development
-
-### Building
+### 构建
 
 ```bash
-# Build the package
+# 构建包
 pnpm build
 
-# Run tests
+# 运行测试
 pnpm test
 
-# Run linting
+# 运行 linting
 pnpm lint
 ```
 
-### Testing the Generator
+### 测试生成器
 
 ```bash
-# Generate test output using the demo spec
+# 生成测试输出
 pnpm generate
-
-# Run tests
-pnpm test
-
-# Run tests with coverage
-pnpm test -- --coverage
 ```
 
-## 🤝 Contributing
+## 🤝 贡献
 
-Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to
-discuss what you would like to change.
+欢迎贡献！请随时提交拉取请求。对于重大更改，请先打开 issue 进行讨论。
 
-## 📄 License
+## 📄 许可证
 
-This project is licensed under the Apache License 2.0 - see the [LICENSE](../../LICENSE) file for details.
+本项目采用 Apache License 2.0 许可证 - 查看 [LICENSE](../../LICENSE) 文件获取详情。
 
-## 🔗 Links
+## 🔗 链接
 
-- [Fetcher Core](https://github.com/Ahoo-Wang/fetcher/tree/main/packages/fetcher)
-- [Fetcher Decorator](https://github.com/Ahoo-Wang/fetcher/tree/main/packages/decorator)
-- [Fetcher EventStream](https://github.com/Ahoo-Wang/fetcher/tree/main/packages/eventstream)
-- [GitHub Repository](https://github.com/Ahoo-Wang/fetcher)
-- [NPM Package](https://www.npmjs.com/package/@ahoo-wang/fetcher-generator)
+- [Fetcher 核心](https://github.com/Ahoo-Wang/fetcher/tree/main/packages/fetcher)
+- [Fetcher 装饰器](https://github.com/Ahoo-Wang/fetcher/tree/main/packages/decorator)
+- [Fetcher 事件流](https://github.com/Ahoo-Wang/fetcher/tree/main/packages/eventstream)
+- [GitHub 仓库](https://github.com/Ahoo-Wang/fetcher)
+- [NPM 包](https://www.npmjs.com/package/@ahoo-wang/fetcher-generator)
