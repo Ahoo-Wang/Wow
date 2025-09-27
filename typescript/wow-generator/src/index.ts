@@ -33,6 +33,7 @@ export class CodeGenerator {
    */
   constructor(private readonly options: GeneratorOptions) {
     this.project = options.project;
+    this.options.logger.info('CodeGenerator instance created');
   }
 
   /**
@@ -41,9 +42,23 @@ export class CodeGenerator {
    * and formats the output files.
    */
   async generate(): Promise<void> {
+    this.options.logger.info(
+      'Starting code generation from OpenAPI specification',
+    );
+    this.options.logger.info(`Input path: ${this.options.inputPath}`);
+    this.options.logger.info(`Output directory: ${this.options.outputDir}`);
+
+    this.options.logger.info('Parsing OpenAPI specification');
     const openAPI = await parseOpenAPI(this.options.inputPath);
+    this.options.logger.info('OpenAPI specification parsed successfully');
+
+    this.options.logger.info('Resolving bounded context aggregates');
     const aggregateResolver = new AggregateResolver(openAPI);
     const boundedContextAggregates = aggregateResolver.resolve();
+    this.options.logger.info(
+      `Resolved ${boundedContextAggregates.size} bounded context aggregates`,
+    );
+
     const context: GenerateContext = {
       openAPI: openAPI,
       project: this.project,
@@ -51,13 +66,28 @@ export class CodeGenerator {
       contextAggregates: boundedContextAggregates,
       logger: this.options.logger,
     };
+
+    this.options.logger.info('Generating models');
     const modelGenerator = new ModelGenerator(context);
     modelGenerator.generate();
+    this.options.logger.info('Models generated successfully');
+
+    this.options.logger.info('Generating clients');
     const clientGenerator = new ClientGenerator(context);
     clientGenerator.generate();
+    this.options.logger.info('Clients generated successfully');
+
+    this.options.logger.info('Generating index files');
     this.generateIndex();
+    this.options.logger.info('Index files generated successfully');
+
+    this.options.logger.info('Optimizing source files');
     this.optimizeSourceFiles();
+    this.options.logger.info('Source files optimized successfully');
+
+    this.options.logger.info('Saving project to disk');
     await this.project.save();
+    this.options.logger.info('Code generation completed successfully');
   }
 
   /**
@@ -66,16 +96,25 @@ export class CodeGenerator {
    * and creates index.ts files with export * from './xxx' statements.
    */
   generateIndex() {
+    this.options.logger.info(
+      `Generating index files for output directory: ${this.options.outputDir}`,
+    );
     const outputDir = this.project.getDirectory(this.options.outputDir);
     if (!outputDir) {
+      this.options.logger.info(
+        'Output directory not found, skipping index generation',
+      );
       return;
     }
     this.processDirectory(outputDir);
+    this.options.logger.info('Index file generation completed');
   }
 
   private processDirectory(dir: Directory) {
     const subDirs = dir.getDirectories();
+    this.options.logger.info(`Processing ${subDirs.length} subdirectories`);
     for (const subDir of subDirs) {
+      this.options.logger.info(`Processing subdirectory: ${subDir.getPath()}`);
       this.generateIndexForDirectory(subDir);
       this.processDirectory(subDir);
     }
@@ -86,6 +125,9 @@ export class CodeGenerator {
    * @param dir - The directory to generate index.ts for
    */
   private generateIndexForDirectory(dir: Directory) {
+    const dirPath = dir.getPath();
+    this.options.logger.info(`Generating index for directory: ${dirPath}`);
+
     const tsFiles = dir
       .getSourceFiles()
       .filter(
@@ -95,22 +137,31 @@ export class CodeGenerator {
       );
 
     // Get subdirectories using fs
-    const dirPath = dir.getPath();
     let subDirNames: string[] = [];
     try {
       subDirNames = fs.readdirSync(dirPath).filter(item => {
         const itemPath = path.join(dirPath, item);
         return fs.statSync(itemPath).isDirectory();
       });
-    } catch {
-      // Ignore if can't read
+    } catch (error) {
+      this.options.logger.error(
+        `Failed to read subdirectories for ${dirPath}: ${error}`,
+      );
     }
 
+    this.options.logger.info(
+      `Found ${tsFiles.length} TypeScript files and ${subDirNames.length} subdirectories in ${dirPath}`,
+    );
+
     if (tsFiles.length === 0 && subDirNames.length === 0) {
+      this.options.logger.info(
+        `No files or subdirectories to export in ${dirPath}, skipping index generation`,
+      );
       return; // No files or subdirs to export
     }
 
     const indexFilePath = `${dirPath}/index.ts`;
+    this.options.logger.info(`Creating/updating index file: ${indexFilePath}`);
     const indexFile =
       this.project.getSourceFile(indexFilePath) ||
       this.project.createSourceFile(indexFilePath, '', { overwrite: true });
@@ -121,6 +172,7 @@ export class CodeGenerator {
     // Add export statements for .ts files
     for (const tsFile of tsFiles) {
       const relativePath = `./${tsFile.getBaseNameWithoutExtension()}`;
+      this.options.logger.info(`Adding export for file: ${relativePath}`);
       indexFile.addExportDeclaration({
         moduleSpecifier: relativePath,
         isTypeOnly: false,
@@ -131,19 +183,32 @@ export class CodeGenerator {
     // Add export statements for subdirectories
     for (const subDirName of subDirNames) {
       const relativePath = `./${subDirName}`;
+      this.options.logger.info(
+        `Adding export for subdirectory: ${relativePath}`,
+      );
       indexFile.addExportDeclaration({
         moduleSpecifier: relativePath,
         isTypeOnly: false,
         namedExports: [],
       });
     }
+
+    this.options.logger.info(
+      `Index file generated for ${dirPath} with ${tsFiles.length + subDirNames.length} exports`,
+    );
   }
 
   optimizeSourceFiles() {
-    this.project.getSourceFiles().forEach(sourceFile => {
+    const sourceFiles = this.project.getSourceFiles();
+    this.options.logger.info(`Optimizing ${sourceFiles.length} source files`);
+    sourceFiles.forEach((sourceFile, index) => {
+      this.options.logger.info(
+        `Optimizing file ${index + 1}/${sourceFiles.length}`,
+      );
       sourceFile.formatText();
       sourceFile.organizeImports();
       sourceFile.fixMissingImports();
     });
+    this.options.logger.info('All source files optimized');
   }
 }
