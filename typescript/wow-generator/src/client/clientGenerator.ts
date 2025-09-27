@@ -43,7 +43,7 @@ export class ClientGenerator extends BaseCodeGenerator {
       `Generating clients for ${this.contextAggregates.size} bounded contexts`,
     );
     for (const [contextAlias] of this.contextAggregates) {
-      this.logger.progress(`Processing bounded context: ${contextAlias}`);
+      this.logger.progress(`  Processing bounded context: ${contextAlias}`);
       this.processBoundedContext(contextAlias);
     }
     this.queryClientGenerator.generate();
@@ -57,9 +57,16 @@ export class ClientGenerator extends BaseCodeGenerator {
    */
   processBoundedContext(contextAlias: string) {
     const filePath = `${contextAlias}/boundedContext.ts`;
+    this.logger.info(`Creating bounded context file: ${filePath}`);
     const file = getOrCreateSourceFile(this.project, this.outputDir, filePath);
+    this.logger.info(
+      `Adding bounded context alias constant: BOUNDED_CONTEXT_ALIAS = '${contextAlias}'`,
+    );
     file.addStatements(
       `export const BOUNDED_CONTEXT_ALIAS = '${contextAlias}';`,
+    );
+    this.logger.success(
+      `Bounded context file created successfully: ${filePath}`,
     );
   }
 }

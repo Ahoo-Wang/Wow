@@ -79,6 +79,13 @@ export class QueryClientGenerator extends BaseCodeGenerator {
       aggregate.aggregate,
       'queryClient',
     );
+    this.logger.info(
+      `Processing query client for aggregate: ${aggregate.aggregate.aggregateName} in context: ${aggregate.aggregate.contextAlias}`,
+    );
+
+    this.logger.info(
+      `Adding imports from ${IMPORT_WOW_PATH}: QueryClientFactory, QueryClientOptions, ResourceAttributionPathSpec`,
+    );
     queryClientFile.addImportDeclaration({
       moduleSpecifier: IMPORT_WOW_PATH,
       namedImports: [
@@ -87,7 +94,11 @@ export class QueryClientGenerator extends BaseCodeGenerator {
         'ResourceAttributionPathSpec',
       ],
     });
+
     const defaultClientOptionsName = 'DEFAULT_QUERY_CLIENT_OPTIONS';
+    this.logger.info(
+      `Creating default query client options: ${defaultClientOptionsName}`,
+    );
     queryClientFile.addVariableStatement({
       declarationKind: VariableDeclarationKind.Const,
       declarations: [
@@ -103,22 +114,44 @@ export class QueryClientGenerator extends BaseCodeGenerator {
       ],
       isExported: false,
     });
+
     const eventModelInfos: ModelInfo[] = [];
+    this.logger.info(
+      `Processing ${aggregate.events.size} domain events for aggregate: ${aggregate.aggregate.aggregateName}`,
+    );
     for (const event of aggregate.events.values()) {
       const eventModelInfo = resolveModelInfo(event.schema.key);
+      this.logger.info(
+        `Adding import for event model: ${eventModelInfo.name} from path: ${eventModelInfo.path}`,
+      );
       addImportRefModel(queryClientFile, this.outputDir, eventModelInfo);
       eventModelInfos.push(eventModelInfo);
     }
+
     const domainEventTypesName = 'DOMAIN_EVENT_TYPES';
+    const eventTypeUnion = eventModelInfos.map(it => it.name).join(' | ');
+    this.logger.info(
+      `Creating domain event types union: ${domainEventTypesName} = ${eventTypeUnion}`,
+    );
     queryClientFile.addTypeAlias({
       name: domainEventTypesName,
-      type: eventModelInfos.map(it => it.name).join(' | '),
+      type: eventTypeUnion,
     });
+
     const clientFactoryName = `${camelCase(aggregate.aggregate.aggregateName)}QueryClientFactory`;
     const stateModelInfo = resolveModelInfo(aggregate.state.key);
     const fieldsModelInfo = resolveModelInfo(aggregate.fields.key);
+
+    this.logger.info(
+      `Adding import for state model: ${stateModelInfo.name} from path: ${stateModelInfo.path}`,
+    );
     addImportRefModel(queryClientFile, this.outputDir, stateModelInfo);
+    this.logger.info(
+      `Adding import for fields model: ${fieldsModelInfo.name} from path: ${fieldsModelInfo.path}`,
+    );
     addImportRefModel(queryClientFile, this.outputDir, fieldsModelInfo);
+
+    this.logger.info(`Creating query client factory: ${clientFactoryName}`);
     queryClientFile.addVariableStatement({
       declarationKind: VariableDeclarationKind.Const,
       declarations: [
@@ -129,5 +162,9 @@ export class QueryClientGenerator extends BaseCodeGenerator {
       ],
       isExported: true,
     });
+
+    this.logger.success(
+      `Query client generation completed for aggregate: ${aggregate.aggregate.aggregateName}`,
+    );
   }
 }
