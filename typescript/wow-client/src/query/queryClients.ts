@@ -14,7 +14,7 @@
 import { combineURLs, PartialBy } from '@ahoo-wang/fetcher';
 import { ApiMetadata } from '@ahoo-wang/fetcher-decorator';
 import { AggregateNameCapable, AliasBoundedContext } from '../types';
-import { ResourceAttributionPathSpec } from '../types/endpoints';
+import { ResourceAttributionPathSpec } from '../types';
 import { SnapshotQueryClient } from './snapshot';
 import { EventStreamQueryClient } from './event';
 
@@ -28,7 +28,7 @@ import { EventStreamQueryClient } from './event';
 export interface QueryClientOptions
   extends PartialBy<ApiMetadata, 'basePath'>,
     Partial<AliasBoundedContext>,
-    AggregateNameCapable {
+    Partial<AggregateNameCapable> {
   contextAlias?: string;
   resourceAttribution?: ResourceAttributionPathSpec;
 }
@@ -47,7 +47,7 @@ export function createQueryApiMetadata(
 ): ApiMetadata {
   let basePath = combineURLs(
     options.resourceAttribution ?? '',
-    options.aggregateName,
+    options.aggregateName ?? '',
   );
   if (options.contextAlias) {
     basePath = combineURLs(options.contextAlias, basePath);
