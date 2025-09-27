@@ -16,7 +16,8 @@ import { GenerateContext } from '../types';
 import {
   ClassDeclaration,
   DecoratorStructure,
-  OptionalKind, Scope,
+  OptionalKind,
+  Scope,
   SourceFile,
   VariableDeclarationKind,
 } from 'ts-morph';
@@ -24,7 +25,13 @@ import { HTTPMethod } from '@ahoo-wang/fetcher-openapi';
 import { AggregateDefinition, CommandDefinition } from '../aggregate';
 import { createClientFilePath, getClientName } from './utils';
 import { IMPORT_WOW_PATH, resolveModelInfo } from '../model';
-import { addImport, addImportRefModel, addJSDoc, camelCase, isEmptyObject } from '../utils';
+import {
+  addImport,
+  addImportRefModel,
+  addJSDoc,
+  camelCase,
+  isEmptyObject,
+} from '../utils';
 
 /**
  * Generates TypeScript command client classes for aggregates.

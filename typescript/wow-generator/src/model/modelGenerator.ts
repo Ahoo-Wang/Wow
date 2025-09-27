@@ -69,9 +69,7 @@ export class ModelGenerator extends BaseCodeGenerator {
       return;
     }
     const keySchemas = this.filterSchemas(schemas);
-    this.logger.progress(
-      `Generating models for ${keySchemas.length} schemas`,
-    );
+    this.logger.progress(`Generating models for ${keySchemas.length} schemas`);
     keySchemas.forEach((keySchema, index) => {
       this.logger.progressWithCount(
         index + 1,
@@ -85,12 +83,12 @@ export class ModelGenerator extends BaseCodeGenerator {
   }
 
   private filterSchemas(schemas: Record<string, Schema>): KeySchema[] {
-    return Object.entries(schemas).map(
-      ([schemaKey, schema]) => ({
+    return Object.entries(schemas)
+      .map(([schemaKey, schema]) => ({
         key: schemaKey,
         schema,
-      }),
-    ).filter(keySchema => !this.isWowSchema(keySchema.key));
+      }))
+      .filter(keySchema => !this.isWowSchema(keySchema.key));
   }
 
   private isWowSchema(schemaKey: string): boolean {
