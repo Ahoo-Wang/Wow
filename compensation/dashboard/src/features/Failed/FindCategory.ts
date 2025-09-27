@@ -40,13 +40,25 @@ export enum FindCategory {
 export class RetryConditions {
   static toRetryCondition(): Condition {
     return and(
-      ne(ExecutionFailedAggregatedFields["state.recoverable"], RecoverableType.UNRECOVERABLE),
-      eq(ExecutionFailedAggregatedFields["state.isRetryable"], true),
+      ne(
+        ExecutionFailedAggregatedFields.STATE_RECOVERABLE,
+        RecoverableType.UNRECOVERABLE,
+      ),
+      eq(ExecutionFailedAggregatedFields.STATE_IS_RETRYABLE, true),
       or(
-        eq(ExecutionFailedAggregatedFields["state.status"], ExecutionFailedStatus.FAILED),
+        eq(
+          ExecutionFailedAggregatedFields.STATE_STATUS,
+          ExecutionFailedStatus.FAILED,
+        ),
         and(
-          eq(ExecutionFailedAggregatedFields["state.status"], ExecutionFailedStatus.PREPARED),
-          lte(ExecutionFailedAggregatedFields["state.retryState.timeoutAt"], new Date().getTime()),
+          eq(
+            ExecutionFailedAggregatedFields.STATE_STATUS,
+            ExecutionFailedStatus.PREPARED,
+          ),
+          lte(
+            ExecutionFailedAggregatedFields.STATE_RETRY_STATE_TIMEOUT_AT,
+            new Date().getTime(),
+          ),
         ),
       ),
     );
@@ -54,40 +66,73 @@ export class RetryConditions {
 
   static executingCondition(): Condition {
     return and(
-      eq(ExecutionFailedAggregatedFields["state.status"], ExecutionFailedStatus.PREPARED),
-      gt(ExecutionFailedAggregatedFields["state.retryState.timeoutAt"], new Date().getTime()),
+      eq(
+        ExecutionFailedAggregatedFields.STATE_STATUS,
+        ExecutionFailedStatus.PREPARED,
+      ),
+      gt(
+        ExecutionFailedAggregatedFields.STATE_RETRY_STATE_TIMEOUT_AT,
+        new Date().getTime(),
+      ),
     );
   }
 
   static nextRetryCondition(): Condition {
     let currentTime = new Date().getTime();
     return and(
-      ne(ExecutionFailedAggregatedFields["state.recoverable"], RecoverableType.UNRECOVERABLE),
-      eq(ExecutionFailedAggregatedFields["state.isRetryable"], true),
-      lte(ExecutionFailedAggregatedFields["state.retryState.nextRetryAt"], currentTime),
+      ne(
+        ExecutionFailedAggregatedFields.STATE_RECOVERABLE,
+        RecoverableType.UNRECOVERABLE,
+      ),
+      eq(ExecutionFailedAggregatedFields.STATE_IS_RETRYABLE, true),
+      lte(
+        ExecutionFailedAggregatedFields.STATE_RETRY_STATE_NEXT_RETRY_AT,
+        currentTime,
+      ),
       or(
-        eq(ExecutionFailedAggregatedFields["state.status"], ExecutionFailedStatus.FAILED),
+        eq(
+          ExecutionFailedAggregatedFields.STATE_STATUS,
+          ExecutionFailedStatus.FAILED,
+        ),
         and(
-          eq(ExecutionFailedAggregatedFields["state.status"], ExecutionFailedStatus.PREPARED),
-          lte(ExecutionFailedAggregatedFields["state.retryState.timeoutAt"], currentTime),
+          eq(
+            ExecutionFailedAggregatedFields.STATE_STATUS,
+            ExecutionFailedStatus.PREPARED,
+          ),
+          lte(
+            ExecutionFailedAggregatedFields.STATE_RETRY_STATE_TIMEOUT_AT,
+            currentTime,
+          ),
         ),
       ),
     );
   }
 
   static nonRetryableCondition = and(
-    ne(ExecutionFailedAggregatedFields["state.recoverable"], RecoverableType.UNRECOVERABLE),
-    ne(ExecutionFailedAggregatedFields["state.status"], ExecutionFailedStatus.SUCCEEDED),
-    eq(ExecutionFailedAggregatedFields["state.isBelowRetryThreshold"], false),
+    ne(
+      ExecutionFailedAggregatedFields.STATE_RECOVERABLE,
+      RecoverableType.UNRECOVERABLE,
+    ),
+    ne(
+      ExecutionFailedAggregatedFields.STATE_STATUS,
+      ExecutionFailedStatus.SUCCEEDED,
+    ),
+    eq(ExecutionFailedAggregatedFields.STATE_IS_BELOW_RETRY_THRESHOLD, false),
   );
 
   static successCondition = eq(
-    ExecutionFailedAggregatedFields["state.status"],
+    ExecutionFailedAggregatedFields.STATE_STATUS,
     ExecutionFailedStatus.SUCCEEDED,
   );
   static unrecoverableCondition = and(
-    eq(ExecutionFailedAggregatedFields["state.recoverable"], RecoverableType.UNRECOVERABLE),
-    ne(ExecutionFailedAggregatedFields["state.status"], ExecutionFailedStatus.SUCCEEDED),
+    eq(
+      ExecutionFailedAggregatedFields.STATE_RECOVERABLE,
+      RecoverableType.UNRECOVERABLE,
+    ),
+    ne(
+      ExecutionFailedAggregatedFields.STATE_STATUS,
+      ExecutionFailedStatus.SUCCEEDED,
+    ),
   );
 
   static categoryToCondition(category: FindCategory): Condition {

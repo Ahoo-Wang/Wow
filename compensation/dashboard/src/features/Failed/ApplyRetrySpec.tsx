@@ -41,10 +41,10 @@ export function ApplyRetrySpec({
   const handleOk = () => {
     form.validateFields().then((values) => {
       executionFailedCommandClient
-        .applyRetrySpec(id, values)
+        .applyRetrySpec(id, { body: values })
         .then(() => {
           notification.info({ message: "Apply Retry Spec Successfully" });
-          onChanged?.()
+          onChanged?.();
           closeDrawer();
         })
         .catch((error) => {
