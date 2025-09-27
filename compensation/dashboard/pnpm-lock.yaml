@@ -10,7 +10,7 @@ importers:
     dependencies:
       '@ahoo-wang/fetcher':
         specifier: ^2.2.9
-        version: 2.2.9
+        version: 2.3.0
       '@ahoo-wang/fetcher-cosec':
         specifier: ^2.2.9
         version: 2.2.9
@@ -150,6 +150,9 @@ packages:
 
   '@ahoo-wang/fetcher@2.2.9':
     resolution: {integrity: sha512-EwEft2oFhSli+Yyjc7VNF7iAnhNmyGlRySOmtub83AgDpnsXTnFF2r0xHuGqABrdj2UzJTAVjEVYB0apCoPvqw==}
+
+  '@ahoo-wang/fetcher@2.3.0':
+    resolution: {integrity: sha512-9eHbyBmTEBka2Hm/QoS2gTJtKs/t7eXalCaDYCMbYQtRk06gUfys9CFI39nefDjDs722YNrFgOxcabD/5yuG/w==}
 
   '@ampproject/remapping@2.3.0':
     resolution: {integrity: sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw==}
@@ -2550,6 +2553,8 @@ snapshots:
       '@ahoo-wang/fetcher-eventstream': 2.2.9
 
   '@ahoo-wang/fetcher@2.2.9': {}
+
+  '@ahoo-wang/fetcher@2.3.0': {}
 
   '@ampproject/remapping@2.3.0':
     dependencies:
