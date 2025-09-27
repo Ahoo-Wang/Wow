@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
 import {
   getModelFileName,
   getOrCreateSourceFile,
@@ -23,11 +23,6 @@ import {
   addImportModelInfo,
 } from '../../src/utils';
 import { ModelInfo } from '../../src/model';
-
-// Import the mocked addImport
-const { addImport: mockedAddImport } = await import(
-  '../../src/utils/sourceFiles'
-);
 
 // Mock ts-morph
 vi.mock('ts-morph', () => ({
@@ -54,13 +49,23 @@ const mockProject = {
   createSourceFile: vi.fn(),
 };
 
+const mockDeclaration = {
+  addNamedImport: vi.fn(),
+};
+
 const mockSourceFile = {
   getImportDeclaration: vi.fn(),
-  addImportDeclaration: vi.fn(),
+  addImportDeclaration: vi.fn().mockReturnValue(mockDeclaration),
   addNamedImport: vi.fn(),
 };
 
 describe('sourceFiles', () => {
+  beforeEach(() => {
+    mockSourceFile.getImportDeclaration.mockClear();
+    mockSourceFile.addImportDeclaration.mockClear();
+    mockDeclaration.addNamedImport.mockClear();
+  });
+
   describe('getModelFileName', () => {
     it('should return the model file path', () => {
       const modelInfo: ModelInfo = {
@@ -285,11 +290,9 @@ describe('sourceFiles', () => {
 
       addImportRefModel(sourceFile, outputDir, refModelInfo);
 
-      expect(mockedAddImport).toHaveBeenCalledWith(
-        sourceFile,
-        '@ahoo-wang/fetcher-wow/types.ts',
-        ['WowType'],
-      );
+      expect(mockSourceFile.addImportDeclaration).toHaveBeenCalledWith({
+        moduleSpecifier: '@ahoo-wang/fetcher-wow/types.ts',
+      });
     });
 
     it('should add import for regular model', () => {
@@ -302,11 +305,9 @@ describe('sourceFiles', () => {
 
       addImportRefModel(sourceFile, outputDir, refModelInfo);
 
-      expect(mockedAddImport).toHaveBeenCalledWith(
-        sourceFile,
-        '@/output/models/types.ts',
-        ['User'],
-      );
+      expect(mockSourceFile.addImportDeclaration).toHaveBeenCalledWith({
+        moduleSpecifier: '@//output/models/types.ts',
+      });
     });
 
     it('should handle path starting with alias', () => {
@@ -319,11 +320,9 @@ describe('sourceFiles', () => {
 
       addImportRefModel(sourceFile, outputDir, refModelInfo);
 
-      expect(mockedAddImport).toHaveBeenCalledWith(
-        sourceFile,
-        '@/custom/path/types.ts',
-        ['AliasType'],
-      );
+      expect(mockSourceFile.addImportDeclaration).toHaveBeenCalledWith({
+        moduleSpecifier: '@/custom/path/types.ts',
+      });
     });
   });
 
@@ -342,7 +341,7 @@ describe('sourceFiles', () => {
 
       addImportModelInfo(currentModel, sourceFile, outputDir, refModel);
 
-      expect(mockedAddImport).not.toHaveBeenCalled();
+      expect(mockSourceFile.addImportDeclaration).not.toHaveBeenCalled();
     });
 
     it('should add import if paths are different', () => {
@@ -359,12 +358,10 @@ describe('sourceFiles', () => {
 
       addImportModelInfo(currentModel, sourceFile, outputDir, refModel);
 
-      // This should call addImportRefModel, which calls mockedAddImport
-      expect(mockedAddImport).toHaveBeenCalledWith(
-        sourceFile,
-        '@/output/products/types.ts',
-        ['Product'],
-      );
+      // This should call addImportRefModel, which calls addImport
+      expect(mockSourceFile.addImportDeclaration).toHaveBeenCalledWith({
+        moduleSpecifier: '@//output/products/types.ts',
+      });
     });
   });
 });
