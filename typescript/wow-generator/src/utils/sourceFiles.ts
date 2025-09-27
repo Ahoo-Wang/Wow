@@ -13,7 +13,8 @@
 
 import { JSDocableNode, Project, SourceFile } from 'ts-morph';
 import { combineURLs } from '@ahoo-wang/fetcher';
-import { IMPORT_WOW_PATH, ModelInfo } from '../model';
+import { join, relative } from 'path';
+import { ModelInfo } from '../model';
 
 /** Default file name for model files */
 const MODEL_FILE_NAME = 'types.ts';
@@ -99,10 +100,18 @@ export function addImportRefModel(
     addImport(sourceFile, refModelInfo.path, [refModelInfo.name]);
     return;
   }
-  let fileName = getModelFileName(refModelInfo);
-  fileName = combineURLs(outputDir, fileName);
-  const moduleSpecifier = combineURLs(IMPORT_ALIAS, fileName);
-  addImport(sourceFile, moduleSpecifier, [refModelInfo.name]);
+
+  const sourceDir = sourceFile.getDirectoryPath();
+  const targetFilePath = join(outputDir, refModelInfo.path, MODEL_FILE_NAME);
+  let relativePath = relative(sourceDir, targetFilePath);
+
+  relativePath = relativePath.replace(/\.ts$/, '');
+
+  if (!relativePath.startsWith('.')) {
+    relativePath = './' + relativePath;
+  }
+
+  addImport(sourceFile, relativePath, [refModelInfo.name]);
 }
 
 /**

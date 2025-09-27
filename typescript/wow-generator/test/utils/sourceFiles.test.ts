@@ -57,6 +57,7 @@ const mockSourceFile = {
   getImportDeclaration: vi.fn(),
   addImportDeclaration: vi.fn().mockReturnValue(mockDeclaration),
   addNamedImport: vi.fn(),
+  getDirectoryPath: vi.fn().mockReturnValue('/src'),
 };
 
 describe('sourceFiles', () => {
@@ -64,6 +65,7 @@ describe('sourceFiles', () => {
     mockSourceFile.getImportDeclaration.mockClear();
     mockSourceFile.addImportDeclaration.mockClear();
     mockDeclaration.addNamedImport.mockClear();
+    mockSourceFile.getDirectoryPath.mockClear();
   });
 
   describe('getModelFileName', () => {
@@ -306,7 +308,7 @@ describe('sourceFiles', () => {
       addImportRefModel(sourceFile, outputDir, refModelInfo);
 
       expect(mockSourceFile.addImportDeclaration).toHaveBeenCalledWith({
-        moduleSpecifier: '@//output/models/types.ts',
+        moduleSpecifier: '../output/models/types',
       });
     });
 
@@ -360,7 +362,7 @@ describe('sourceFiles', () => {
 
       // This should call addImportRefModel, which calls addImport
       expect(mockSourceFile.addImportDeclaration).toHaveBeenCalledWith({
-        moduleSpecifier: '@//output/products/types.ts',
+        moduleSpecifier: '../output/products/types',
       });
     });
   });
