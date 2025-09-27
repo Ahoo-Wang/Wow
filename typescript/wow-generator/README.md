@@ -11,17 +11,23 @@
 TypeScript code generator from OpenAPI specs for WOW domain-driven design framework. Generates type-safe models, query
 clients, and command clients from OpenAPI specifications.
 
+**WOW Framework**: A domain-driven design framework that provides event sourcing, CQRS (Command Query Responsibility
+Segregation),
+and aggregate patterns for building scalable distributed systems.
+
 ## 🌟 Features
 
-- **🎯 OpenAPI 3.0+ Support**: Full support for OpenAPI 3.0+ specifications
+- **🎯 OpenAPI 3.0+ Support**: Full support for OpenAPI 3.0+ specifications (JSON/YAML)
 - **📦 TypeScript Code Generation**: Generates type-safe TypeScript interfaces, enums, and classes
-- **🏗️ Domain-Driven Design**: Specialized for WOW framework with aggregates, commands, and queries
+- **🏗️ Domain-Driven Design**: Specialized for WOW framework with aggregates, commands, queries, and events
 - **🔧 CLI Tool**: Easy-to-use command-line interface for code generation
 - **🎨 Decorator-Based APIs**: Generates decorator-based client classes for clean API interactions
-- **📋 Comprehensive Models**: Handles complex schemas including unions, intersections, and references
-- **🚀 Fetcher Integration**: Seamlessly integrates with the Fetcher ecosystem
-- **📊 Progress Logging**: Friendly logging with progress indicators and emojis
+- **📋 Comprehensive Models**: Handles complex schemas including unions, intersections, enums, and references
+- **🚀 Fetcher Integration**: Seamlessly integrates with the Fetcher ecosystem packages
+- **📊 Progress Logging**: Friendly logging with progress indicators during generation
 - **📁 Auto Index Generation**: Automatically generates index.ts files for clean module organization
+- **🌐 Remote Spec Support**: Load OpenAPI specs directly from HTTP/HTTPS URLs
+- **🎭 Event Streaming**: Generates both regular and event-stream command clients
 
 ## 🚀 Quick Start
 
@@ -58,7 +64,10 @@ fetcher-generator generate [options]
 - `-i, --input <path>`: Input OpenAPI specification file path or URL (required)
   - Supports local file paths (e.g., `./api-spec.json`, `/path/to/spec.yaml`)
   - Supports HTTP/HTTPS URLs (e.g., `https://api.example.com/openapi.json`)
-- `-o, --output <path>`: Output directory path (required)
+- `-o, --output <path>`: Output directory path (default: `src/generated`)
+- `-c, --config <file>`: Configuration file path (optional)
+- `-v, --verbose`: Enable verbose logging during generation
+- `--dry-run`: Show what would be generated without writing files (reserved for future use)
 - `-h, --help`: Display help information
 - `-V, --version`: Display version number
 
@@ -85,16 +94,16 @@ The generator creates the following structure in your output directory:
 ```
 output/
 ├── {bounded-context}/
-│   ├── index.ts                   # Auto-generated index file exporting all modules
-│   ├── boundedContext.ts          # Bounded context constants
+│   ├── index.ts                   # Auto-generated index file exporting all aggregates
+│   ├── boundedContext.ts          # Bounded context alias constant
 │   ├── types.ts                   # Shared types for the bounded context
 │   └── {aggregate}/               # Aggregate-specific files
 │       ├── index.ts               # Auto-generated index file for aggregate
-│       ├── types.ts               # Aggregate-specific types and models
-│       ├── queryClient.ts         # Query client classes
-│       └── commandClient.ts       # Command client classes
+│       ├── types.ts               # Aggregate-specific types, models, and enums
+│       ├── queryClient.ts         # Query client factory for state and event queries
+│       └── commandClient.ts       # Command client classes (regular and streaming)
 ├── index.ts                       # Root index file exporting all bounded contexts
-└── tsconfig.json                  # TypeScript configuration
+└── tsconfig.json                  # TypeScript configuration for generated code
 ```
 
 #### Index File Generation
@@ -153,21 +162,25 @@ import {
   QueryClientOptions,
   ResourceAttributionPathSpec,
 } from '@ahoo-wang/fetcher-wow';
+import {
+  CartAggregatedFields,
+  CartItemAdded,
+  CartItemRemoved,
+  CartQuantityChanged,
+  CartState,
+} from './types';
 
 const DEFAULT_QUERY_CLIENT_OPTIONS: QueryClientOptions = {
-  contextAlias: 'compensation',
-  aggregateName: 'execution_failed',
-  resourceAttribution: ResourceAttributionPathSpec.NONE,
+  contextAlias: 'example',
+  aggregateName: 'cart',
+  resourceAttribution: ResourceAttributionPathSpec.OWNER,
 };
 
-type DOMAIN_EVENT_TYPES =
-  | CompensationPrepared
-  | ExecutionFailedApplied
-  | ExecutionFailedCreated;
+type DOMAIN_EVENT_TYPES = CartItemAdded | CartItemRemoved | CartQuantityChanged;
 
-export const executionFailedQueryClientFactory = new QueryClientFactory<
-  ExecutionFailedState,
-  ExecutionFailedAggregatedFields | string,
+export const cartQueryClientFactory = new QueryClientFactory<
+  CartState,
+  CartAggregatedFields | string,
   DOMAIN_EVENT_TYPES
 >(DEFAULT_QUERY_CLIENT_OPTIONS);
 ```
@@ -176,45 +189,119 @@ export const executionFailedQueryClientFactory = new QueryClientFactory<
 
 ```typescript
 // Generated command client with decorator-based API
+import { ContentTypeValues } from '@ahoo-wang/fetcher';
 import {
+  type ApiMetadata,
+  type ApiMetadataCapable,
   api,
-  post,
-  put,
-  path,
-  request,
   attribute,
   autoGeneratedError,
+  del,
+  path,
+  post,
+  put,
+  request,
 } from '@ahoo-wang/fetcher-decorator';
+import { JsonEventStreamResultExtractor } from '@ahoo-wang/fetcher-eventstream';
+import type {
+  CommandRequest,
+  CommandResult,
+  CommandResultEventStream,
+  DeleteAggregate,
+  RecoverAggregate,
+} from '@ahoo-wang/fetcher-wow';
+import {
+  AddCartItem,
+  ChangeQuantity,
+  MockVariableCommand,
+  MountedCommand,
+  RemoveCartItem,
+  ViewCart,
+} from './types';
 
-const COMMAND_ENDPOINT_PATHS = {
-  CREATE_EXECUTION_FAILED: '/execution_failed',
-  PREPARE_COMPENSATION: '/execution_failed/{id}/prepare_compensation',
-} as const;
+enum COMMAND_ENDPOINT_PATHS {
+  VIEW_CART = '/owner/{ownerId}/cart/view_cart',
+  ADD_CART_ITEM = '/owner/{ownerId}/cart/add_cart_item',
+  CHANGE_QUANTITY = '/owner/{ownerId}/cart/change_quantity',
+  REMOVE_CART_ITEM = '/owner/{ownerId}/cart/remove_cart_item',
+  MOUNTED_COMMAND = '/owner/{ownerId}/cart/mounted_command',
+  MOCK_VARIABLE_COMMAND = '/tenant/{tenantId}/owner/{ownerId}/cart/{id}/{customerId}/{mockEnum}',
+  DEFAULT_DELETE_AGGREGATE = '/owner/{ownerId}/cart',
+  DEFAULT_RECOVER_AGGREGATE = '/owner/{ownerId}/cart/recover',
+}
+
+const DEFAULT_COMMAND_CLIENT_OPTIONS: ApiMetadata = {
+  basePath: 'example',
+};
 
 @api()
-export class ExecutionFailedCommandClient implements ApiMetadataCapable {
+export class CartCommandClient implements ApiMetadataCapable {
   constructor(
-    public readonly apiMetadata: ApiMetadata = { basePath: 'compensation' },
+    public readonly apiMetadata: ApiMetadata = DEFAULT_COMMAND_CLIENT_OPTIONS,
   ) {}
 
-  /** create_execution_failed */
-  @post(COMMAND_ENDPOINT_PATHS.CREATE_EXECUTION_FAILED)
-  createExecutionFailed(
-    @request() commandRequest: CommandRequest<CreateExecutionFailed>,
+  /** view_cart */
+  @put(COMMAND_ENDPOINT_PATHS.VIEW_CART)
+  viewCart(
+    @request() commandRequest: CommandRequest<ViewCart>,
     @attribute() attributes: Record<string, any>,
   ): Promise<CommandResult> {
     throw autoGeneratedError(commandRequest, attributes);
   }
 
-  /** prepare_compensation */
-  @put(COMMAND_ENDPOINT_PATHS.PREPARE_COMPENSATION)
-  prepareCompensation(
-    @path('id') id: string,
-    @request() commandRequest: CommandRequest<PrepareCompensation>,
+  /**
+   * 加入购物车
+   * 加入购物车
+   */
+  @post(COMMAND_ENDPOINT_PATHS.ADD_CART_ITEM)
+  addCartItem(
+    @request() commandRequest: CommandRequest<AddCartItem>,
     @attribute() attributes: Record<string, any>,
   ): Promise<CommandResult> {
-    throw autoGeneratedError(id, commandRequest, attributes);
+    throw autoGeneratedError(commandRequest, attributes);
   }
+
+  /** 变更购买数量 */
+  @put(COMMAND_ENDPOINT_PATHS.CHANGE_QUANTITY)
+  changeQuantity(
+    @request() commandRequest: CommandRequest<ChangeQuantity>,
+    @attribute() attributes: Record<string, any>,
+  ): Promise<CommandResult> {
+    throw autoGeneratedError(commandRequest, attributes);
+  }
+
+  /** 删除商品 */
+  @put(COMMAND_ENDPOINT_PATHS.REMOVE_CART_ITEM)
+  removeCartItem(
+    @request() commandRequest: CommandRequest<RemoveCartItem>,
+    @attribute() attributes: Record<string, any>,
+  ): Promise<CommandResult> {
+    throw autoGeneratedError(commandRequest, attributes);
+  }
+}
+```
+
+The generator also creates streaming command clients for event-driven interactions:
+
+```typescript
+@api('', {
+  headers: { Accept: ContentTypeValues.TEXT_EVENT_STREAM },
+  resultExtractor: JsonEventStreamResultExtractor,
+})
+export class CartStreamCommandClient implements ApiMetadataCapable {
+  constructor(
+    public readonly apiMetadata: ApiMetadata = DEFAULT_COMMAND_CLIENT_OPTIONS,
+  ) {}
+
+  /** view_cart */
+  @put(COMMAND_ENDPOINT_PATHS.VIEW_CART)
+  viewCart(
+    @request() commandRequest: CommandRequest<ViewCart>,
+    @attribute() attributes: Record<string, any>,
+  ): Promise<CommandResultEventStream> {
+    throw autoGeneratedError(commandRequest, attributes);
+  }
+  // ... other streaming methods
 }
 ```
 
@@ -224,8 +311,8 @@ The generated code is designed to work seamlessly with the Fetcher ecosystem:
 
 ```typescript
 import { Fetcher } from '@ahoo-wang/fetcher';
-import { executionFailedQueryClientFactory } from './generated/compensation/execution_failed/queryClient';
-import { ExecutionFailedCommandClient } from './generated/compensation/execution_failed/commandClient';
+import { cartQueryClientFactory } from './generated/example/cart/queryClient';
+import { CartCommandClient } from './generated/example/cart/commandClient';
 
 // Create a fetcher instance
 const fetcher = new Fetcher({
@@ -236,43 +323,55 @@ const fetcher = new Fetcher({
 Fetcher.register('api', fetcher);
 
 // Use the generated query client factory
-const queryClient = executionFailedQueryClientFactory.createQueryClient();
-const state = await queryClient.loadAggregate('aggregate-id');
+const queryClient = cartQueryClientFactory.createQueryClient();
+const cartState = await queryClient.loadAggregate('cart-id');
 
 // Use the generated command client
-const commandClient = new ExecutionFailedCommandClient();
-const result = await commandClient.createExecutionFailed(
+const commandClient = new CartCommandClient();
+const result = await commandClient.addCartItem(
   {
     command: {
-      /* command data */
+      productId: 'product-123',
+      quantity: 2,
     },
   },
   {
-    /* attributes */
+    ownerId: 'user-456',
   },
 );
 ```
 
 ## 📋 OpenAPI Specification Requirements
 
-The generator expects OpenAPI 3.0+ specifications with specific patterns for WOW framework:
+The generator expects OpenAPI 3.0+ specifications with specific patterns for WOW domain-driven design framework:
 
 ### Aggregate Definition
 
-Aggregates are identified by operation IDs following the pattern:
+Aggregates are identified by operation tags that follow the pattern:
 
-- `{context}.{aggregate}.*`
+- `{context}.{aggregate}`
+
+### Operation Patterns
+
+The generator recognizes operations by their `operationId` suffixes:
+
+- **State Snapshots**: Operations ending with `.snapshot_state.single`
+- **Event Queries**: Operations ending with `.event.list_query`
+- **Field Queries**: Operations ending with `.snapshot.count`
+- **Commands**: Any operation with a valid command request/response structure
 
 ### Commands and Queries
 
-- **Commands**: Operations with `POST`, `PUT`, `DELETE` methods
-- **Queries**: Operations with `GET` method
-- **Events**: Operations returning event streams
+- **Commands**: Operations with `POST`, `PUT`, `DELETE` methods that return `wow.CommandOk` responses
+- **Queries**: Operations with `GET` method for retrieving aggregate state or events
+- **Events**: Operations returning event stream arrays with domain event structures
 
-### Schema Naming
+### Schema Conventions
 
 - Use descriptive names for schemas
-- Avoid `wow.` prefixed schemas (reserved for internal use)
+- Avoid `wow.` prefixed schemas (reserved for internal framework schemas)
+- Command request bodies should reference schemas in `components/schemas`
+- State and event schemas should follow the expected structure for domain modeling
 
 ## 🛠️ Development
 
@@ -292,8 +391,14 @@ pnpm lint
 ### Testing the Generator
 
 ```bash
-# Generate test output
+# Generate test output using the demo spec
 pnpm generate
+
+# Run tests
+pnpm test
+
+# Run tests with coverage
+pnpm test -- --coverage
 ```
 
 ## 🤝 Contributing
