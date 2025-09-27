@@ -40,9 +40,7 @@ export function setupCLI() {
  * Only executes when this file is run directly (not imported).
  */
 export function runCLI() {
-  if (require.main === module) {
-    setupCLI().parse();
-  }
+  setupCLI().parse();
 }
 
 runCLI();
