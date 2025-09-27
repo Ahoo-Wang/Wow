@@ -495,12 +495,10 @@ describe('ModelGenerator', () => {
       expect(mockInterface.addProperty).toHaveBeenCalledWith({
         name: 'id',
         type: 'string',
-        hasQuestionToken: true,
       });
       expect(mockInterface.addProperty).toHaveBeenCalledWith({
         name: 'name',
         type: 'string',
-        hasQuestionToken: true,
       });
       expect(mockAddJSDoc).toHaveBeenCalledWith(
         expect.any(Object),

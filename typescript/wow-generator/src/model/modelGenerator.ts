@@ -12,7 +12,7 @@
  */
 
 import { Schema, Reference } from '@ahoo-wang/fetcher-openapi';
-import { InterfaceDeclaration, JSDocableNode, OptionalKind, PropertySignatureStructure, SourceFile } from 'ts-morph';
+import { InterfaceDeclaration, JSDocableNode, SourceFile } from 'ts-morph';
 import { GenerateContext } from '../types';
 import { ModelInfo, resolveModelInfo } from './modelInfo';
 import {
@@ -214,8 +214,7 @@ export class ModelGenerator extends BaseCodeGenerator {
         propertySignature = interfaceDeclaration.addProperty({
           name: propName,
           type: propType,
-          hasQuestionToken: !schema.required?.includes(propName),
-        } as OptionalKind<PropertySignatureStructure>);
+        });
       }
       if (!isReference(propSchema)) {
         addJSDoc(propertySignature, propSchema.title, propSchema.description);
