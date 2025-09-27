@@ -19,19 +19,35 @@ import { Logger } from '../types';
  */
 export class ConsoleLogger implements Logger {
   info(message: string, ...params: any[]): void {
-    console.log(`ℹ️  ${message}`, params);
+    if (params.length > 0) {
+      console.log(`ℹ️  ${message}`, ...params);
+    } else {
+      console.log(`ℹ️  ${message}`);
+    }
   }
 
   success(message: string, ...params: any[]): void {
-    console.log(`✅ ${message}`, params);
+    if (params.length > 0) {
+      console.log(`✅ ${message}`, ...params);
+    } else {
+      console.log(`✅ ${message}`);
+    }
   }
 
   error(message: string, ...params: any[]): void {
-    console.error(`❌ ${message}`, params);
+    if (params.length > 0) {
+      console.error(`❌ ${message}`, ...params);
+    } else {
+      console.error(`❌ ${message}`);
+    }
   }
 
   progress(message: string, ...params: any[]): void {
-    console.log(`🔄 ${message}`, params);
+    if (params.length > 0) {
+      console.log(`🔄 ${message}`, ...params);
+    } else {
+      console.log(`🔄 ${message}`);
+    }
   }
 }
 
