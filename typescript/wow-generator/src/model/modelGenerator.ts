@@ -156,7 +156,7 @@ export class ModelGenerator extends BaseCodeGenerator {
 
   private processInterface(sourceFile: SourceFile, modelInfo: ModelInfo, schema: Schema, interfaceDeclaration: InterfaceDeclaration) {
     for (const [propName, propSchema] of Object.entries(schema.properties!)) {
-      let propType: string = this.resolvePropertyType(modelInfo, sourceFile, propName, propSchema);
+      const propType: string = this.resolvePropertyType(modelInfo, sourceFile, propName, propSchema);
       let propertySignature = interfaceDeclaration.getProperty(propName);
       if (propertySignature) {
         propertySignature.setType(propType);
@@ -184,7 +184,7 @@ export class ModelGenerator extends BaseCodeGenerator {
       return `'${propSchema.const}'`;
     }
     if (isArray(propSchema)) {
-      const itemsType = this.resolvePropertyType(currentModelInfo, sourceFile, propName, propSchema.items!!);
+      const itemsType = this.resolvePropertyType(currentModelInfo, sourceFile, propName, propSchema.items!);
       return toArrayType(itemsType);
     }
     if (propSchema.type && isPrimitive(propSchema.type)) {

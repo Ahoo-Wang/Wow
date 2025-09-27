@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { Reference, Schema, SchemaType } from '@ahoo-wang/fetcher-openapi';
+import { Schema, SchemaType } from '@ahoo-wang/fetcher-openapi';
 
 /** List of primitive schema types */
 const PRIMITIVE_TYPES: SchemaType[] = [
