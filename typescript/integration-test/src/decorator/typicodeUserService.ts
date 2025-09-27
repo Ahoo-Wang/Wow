@@ -21,7 +21,6 @@ import {
 } from '@ahoo-wang/fetcher-decorator';
 import { typicodeFetcher } from '../fetcher';
 import { Album, Post, Todo } from '../types';
-import { Fetcher } from '@ahoo-wang/fetcher';
 
 @api('/users/{userId}', { fetcher: typicodeFetcher })
 export class TypicodeUserService implements ApiMetadataCapable {

@@ -26,7 +26,7 @@ import { AuthorizationRequestInterceptor } from '@ahoo-wang/fetcher-cosec';
 
 export class MockTokenRefresher implements TokenRefresher {
   refresh(token: CompositeToken): Promise<CompositeToken> {
-    return Promise.reject('Token refresh failed');
+    return Promise.reject(`Token :${token} refresh failed`);
   }
 }
 
