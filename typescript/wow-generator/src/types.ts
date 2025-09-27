@@ -43,7 +43,16 @@ export interface Logger {
   error(message: string, ...params: any[]): void;
 
   /** Log progress messages */
-  progress(message: string, ...params: any[]): void;
+  progress(message: string, level?: number, ...params: any[]): void;
+
+  /** Log progress messages with count */
+  progressWithCount(
+    current: number,
+    total: number,
+    message: string,
+    level?: number,
+    ...params: any[]
+  ): void;
 }
 
 /**

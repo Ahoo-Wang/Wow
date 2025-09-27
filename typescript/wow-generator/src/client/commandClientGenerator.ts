@@ -48,14 +48,21 @@ export class CommandClientGenerator extends BaseCodeGenerator {
    * Generates command client classes for all aggregates.
    */
   generate(): void {
-    const totalAggregates = Array.from(this.contextAggregates.values()).flat()
-      .length;
+    const totalAggregates = Array.from(this.contextAggregates.values()).reduce(
+      (sum, set) => sum + set.size,
+      0,
+    );
+    this.logger.info('--- Generating Command Clients ---');
     this.logger.progress(
       `Generating command clients for ${totalAggregates} aggregates`,
     );
+    let currentIndex = 0;
     for (const [, aggregates] of this.contextAggregates) {
       aggregates.forEach(aggregateDefinition => {
-        this.logger.progress(
+        currentIndex++;
+        this.logger.progressWithCount(
+          currentIndex,
+          totalAggregates,
           `Processing command client for aggregate: ${aggregateDefinition.aggregate.aggregateName}`,
         );
         this.processAggregate(aggregateDefinition);

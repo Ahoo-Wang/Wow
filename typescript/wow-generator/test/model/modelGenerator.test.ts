@@ -103,6 +103,7 @@ describe('ModelGenerator', () => {
     success: vi.fn(),
     error: vi.fn(),
     progress: vi.fn(),
+    progressWithCount: vi.fn(),
   };
 
   const createContext = (logger?: any): GenerateContext => ({
@@ -194,13 +195,19 @@ describe('ModelGenerator', () => {
       generator.generate();
 
       expect(mockLogger.progress).toHaveBeenCalledWith(
-        'Generating models for 3 schemas',
+        'Generating models for 2 schemas',
       );
-      expect(mockLogger.progress).toHaveBeenCalledWith(
+      expect(mockLogger.progressWithCount).toHaveBeenCalledWith(
+        1,
+        2,
         'Processing schema: User',
+        2,
       );
-      expect(mockLogger.progress).toHaveBeenCalledWith(
+      expect(mockLogger.progressWithCount).toHaveBeenCalledWith(
+        2,
+        2,
         'Processing schema: Product',
+        2,
       );
       expect(mockLogger.success).toHaveBeenCalledWith(
         'Model generation completed',

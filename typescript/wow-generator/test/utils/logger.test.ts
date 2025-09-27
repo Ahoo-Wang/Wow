@@ -11,10 +11,15 @@
  * limitations under the License.
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ConsoleLogger, SilentLogger } from '../../src/utils/logger';
 
 describe('ConsoleLogger', () => {
+  beforeEach(() => {
+    vi.spyOn(ConsoleLogger.prototype as any, 'getTimestamp').mockReturnValue(
+      '12:00:00',
+    );
+  });
   it('should log info messages with emoji', () => {
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {
     });
@@ -22,7 +27,7 @@ describe('ConsoleLogger', () => {
 
     logger.info('Test info message');
 
-    expect(consoleSpy).toHaveBeenCalledWith('ℹ️  Test info message');
+    expect(consoleSpy).toHaveBeenCalledWith('[12:00:00] ℹ️  Test info message');
     consoleSpy.mockRestore();
   });
 
@@ -33,7 +38,9 @@ describe('ConsoleLogger', () => {
 
     logger.success('Test success message');
 
-    expect(consoleSpy).toHaveBeenCalledWith('✅ Test success message');
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[12:00:00] ✅ Test success message',
+    );
     consoleSpy.mockRestore();
   });
 
@@ -44,7 +51,7 @@ describe('ConsoleLogger', () => {
 
     logger.error('Test error message');
 
-    expect(consoleSpy).toHaveBeenCalledWith('❌ Test error message');
+    expect(consoleSpy).toHaveBeenCalledWith('[12:00:00] ❌ Test error message');
     consoleSpy.mockRestore();
   });
 
@@ -55,7 +62,9 @@ describe('ConsoleLogger', () => {
 
     logger.progress('Test progress message');
 
-    expect(consoleSpy).toHaveBeenCalledWith('🔄 Test progress message');
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[12:00:00] 🔄 Test progress message',
+    );
     consoleSpy.mockRestore();
   });
 });
@@ -74,6 +83,7 @@ describe('SilentLogger', () => {
     logger.success('Test success');
     logger.error('Test error');
     logger.progress('Test progress');
+    logger.progressWithCount(1, 1, 'Test progress with count');
 
     expect(consoleLogSpy).not.toHaveBeenCalled();
     expect(consoleErrorSpy).not.toHaveBeenCalled();

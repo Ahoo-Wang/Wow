@@ -12,24 +12,26 @@
  */
 
 import { Schema, Reference } from '@ahoo-wang/fetcher-openapi';
-import {
-  InterfaceDeclaration,
-  JSDocableNode,
-  SourceFile,
-
-} from 'ts-morph';
+import { InterfaceDeclaration, JSDocableNode, SourceFile } from 'ts-morph';
 import { GenerateContext } from '../types';
 import { ModelInfo, resolveModelInfo } from './modelInfo';
 import {
   addImportModelInfo,
-  addJSDoc, CompositionSchema,
+  addJSDoc,
+  CompositionSchema,
   extractComponentKey,
   getModelFileName,
-  getOrCreateSourceFile, isArray, isComposition,
-  isEnum, isPrimitive,
-  isReference, isUnion,
-  KeySchema, pascalCase,
-  resolvePrimitiveType, toArrayType,
+  getOrCreateSourceFile,
+  isArray,
+  isComposition,
+  isEnum,
+  isPrimitive,
+  isReference,
+  isUnion,
+  KeySchema,
+  pascalCase,
+  resolvePrimitiveType,
+  toArrayType,
 } from '../utils';
 import { BaseCodeGenerator } from '../baseCodeGenerator';
 
@@ -66,14 +68,19 @@ export class ModelGenerator extends BaseCodeGenerator {
       this.logger.info('No schemas found in OpenAPI specification');
       return;
     }
-    this.logger.progress(
-      `Generating models for ${Object.keys(schemas).length} schemas`,
+    const schemaEntries = Object.entries(schemas).filter(
+      ([schemaKey]) => !schemaKey.startsWith('wow.'),
     );
-    Object.entries(schemas).forEach(([schemaKey, schema]) => {
-      if (schemaKey.startsWith('wow.')) {
-        return;
-      }
-      this.logger.progress(`Processing schema: ${schemaKey}`);
+    this.logger.progress(
+      `Generating models for ${schemaEntries.length} schemas`,
+    );
+    schemaEntries.forEach(([schemaKey, schema], index) => {
+      this.logger.progressWithCount(
+        index + 1,
+        schemaEntries.length,
+        `Processing schema: ${schemaKey}`,
+        2,
+      );
       const keySchema: KeySchema = {
         key: schemaKey,
         schema,
@@ -128,35 +135,71 @@ export class ModelGenerator extends BaseCodeGenerator {
       isExported: true,
     });
     if (schema.type === 'object' && schema.properties) {
-      return this.processInterface(sourceFile, modelInfo, schema, interfaceDeclaration);
+      return this.processInterface(
+        sourceFile,
+        modelInfo,
+        schema,
+        interfaceDeclaration,
+      );
     }
 
     if (isComposition(schema)) {
       const compositionTypes = schema.anyOf || schema.oneOf || schema.allOf;
       compositionTypes!.forEach(compositionTypeSchema => {
         if (isReference(compositionTypeSchema)) {
-          const refModelInfo = resolveModelInfo(extractComponentKey(compositionTypeSchema));
-          addImportModelInfo(modelInfo, sourceFile, this.outputDir, refModelInfo);
+          const refModelInfo = resolveModelInfo(
+            extractComponentKey(compositionTypeSchema),
+          );
+          addImportModelInfo(
+            modelInfo,
+            sourceFile,
+            this.outputDir,
+            refModelInfo,
+          );
           interfaceDeclaration.addExtends(refModelInfo.name);
           return;
         }
-        this.processInterface(sourceFile, modelInfo, compositionTypeSchema, interfaceDeclaration);
+        this.processInterface(
+          sourceFile,
+          modelInfo,
+          compositionTypeSchema,
+          interfaceDeclaration,
+        );
       });
     }
     return interfaceDeclaration;
   }
 
-  private processObject(sourceFile: SourceFile, modelInfo: ModelInfo, schema: Schema) {
+  private processObject(
+    sourceFile: SourceFile,
+    modelInfo: ModelInfo,
+    schema: Schema,
+  ) {
     const interfaceDeclaration = sourceFile.addInterface({
       name: modelInfo.name,
       isExported: true,
     });
-    return this.processInterface(sourceFile, modelInfo, schema, interfaceDeclaration);
+    return this.processInterface(
+      sourceFile,
+      modelInfo,
+      schema,
+      interfaceDeclaration,
+    );
   }
 
-  private processInterface(sourceFile: SourceFile, modelInfo: ModelInfo, schema: Schema, interfaceDeclaration: InterfaceDeclaration) {
+  private processInterface(
+    sourceFile: SourceFile,
+    modelInfo: ModelInfo,
+    schema: Schema,
+    interfaceDeclaration: InterfaceDeclaration,
+  ) {
     for (const [propName, propSchema] of Object.entries(schema.properties!)) {
-      const propType: string = this.resolvePropertyType(modelInfo, sourceFile, propName, propSchema);
+      const propType: string = this.resolvePropertyType(
+        modelInfo,
+        sourceFile,
+        propName,
+        propSchema,
+      );
       let propertySignature = interfaceDeclaration.getProperty(propName);
       if (propertySignature) {
         propertySignature.setType(propType);
@@ -173,25 +216,43 @@ export class ModelGenerator extends BaseCodeGenerator {
     return interfaceDeclaration;
   }
 
-
-  private resolvePropertyType(currentModelInfo: ModelInfo, sourceFile: SourceFile, propName: string, propSchema: Schema | Reference): string {
+  private resolvePropertyType(
+    currentModelInfo: ModelInfo,
+    sourceFile: SourceFile,
+    propName: string,
+    propSchema: Schema | Reference,
+  ): string {
     if (isReference(propSchema)) {
       const refModelInfo = resolveModelInfo(extractComponentKey(propSchema));
-      addImportModelInfo(currentModelInfo, sourceFile, this.outputDir, refModelInfo);
+      addImportModelInfo(
+        currentModelInfo,
+        sourceFile,
+        this.outputDir,
+        refModelInfo,
+      );
       return refModelInfo.name;
     }
     if (propSchema.const) {
       return `'${propSchema.const}'`;
     }
     if (isArray(propSchema)) {
-      const itemsType = this.resolvePropertyType(currentModelInfo, sourceFile, propName, propSchema.items!);
+      const itemsType = this.resolvePropertyType(
+        currentModelInfo,
+        sourceFile,
+        propName,
+        propSchema.items!,
+      );
       return toArrayType(itemsType);
     }
     if (propSchema.type && isPrimitive(propSchema.type)) {
       return resolvePrimitiveType(propSchema.type!);
     }
     if (isComposition(propSchema)) {
-      return this.resolvePropertyCompositionType(currentModelInfo, sourceFile, propSchema);
+      return this.resolvePropertyCompositionType(
+        currentModelInfo,
+        sourceFile,
+        propSchema,
+      );
     }
     /**
      * handle object
@@ -201,20 +262,35 @@ export class ModelGenerator extends BaseCodeGenerator {
         path: currentModelInfo.path,
         name: `${currentModelInfo.name}${pascalCase(propName)}`,
       };
-      const interfaceDeclaration = this.processObject(sourceFile, propModelInfo, propSchema);
+      const interfaceDeclaration = this.processObject(
+        sourceFile,
+        propModelInfo,
+        propSchema,
+      );
       addJSDoc(interfaceDeclaration, propSchema.title, propSchema.description);
       return propModelInfo.name;
     }
     return 'any';
   }
 
-  private resolvePropertyCompositionType(currentModelInfo: ModelInfo, sourceFile: SourceFile, schema: CompositionSchema): string {
+  private resolvePropertyCompositionType(
+    currentModelInfo: ModelInfo,
+    sourceFile: SourceFile,
+    schema: CompositionSchema,
+  ): string {
     const compositionTypes = schema.anyOf || schema.oneOf || schema.allOf;
     const types: Set<string> = new Set<string>();
     compositionTypes!.forEach(compositionTypeSchema => {
       if (isReference(compositionTypeSchema)) {
-        const refModelInfo = resolveModelInfo(extractComponentKey(compositionTypeSchema));
-        addImportModelInfo(currentModelInfo, sourceFile, this.outputDir, refModelInfo);
+        const refModelInfo = resolveModelInfo(
+          extractComponentKey(compositionTypeSchema),
+        );
+        addImportModelInfo(
+          currentModelInfo,
+          sourceFile,
+          this.outputDir,
+          refModelInfo,
+        );
         types.add(refModelInfo.name);
         return;
       }

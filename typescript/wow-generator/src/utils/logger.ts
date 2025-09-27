@@ -18,35 +18,64 @@ import { Logger } from '../types';
  * Provides friendly colored output for different log levels.
  */
 export class ConsoleLogger implements Logger {
+  private getTimestamp(): string {
+    return new Date().toISOString().slice(11, 19); // HH:MM:SS format
+  }
+
   info(message: string, ...params: any[]): void {
+    const timestamp = this.getTimestamp();
     if (params.length > 0) {
-      console.log(`ℹ️  ${message}`, ...params);
+      console.log(`[${timestamp}] ℹ️  ${message}`, ...params);
     } else {
-      console.log(`ℹ️  ${message}`);
+      console.log(`[${timestamp}] ℹ️  ${message}`);
     }
   }
 
   success(message: string, ...params: any[]): void {
+    const timestamp = this.getTimestamp();
     if (params.length > 0) {
-      console.log(`✅ ${message}`, ...params);
+      console.log(`[${timestamp}] ✅ ${message}`, ...params);
     } else {
-      console.log(`✅ ${message}`);
+      console.log(`[${timestamp}] ✅ ${message}`);
     }
   }
 
   error(message: string, ...params: any[]): void {
+    const timestamp = this.getTimestamp();
     if (params.length > 0) {
-      console.error(`❌ ${message}`, ...params);
+      console.error(`[${timestamp}] ❌ ${message}`, ...params);
     } else {
-      console.error(`❌ ${message}`);
+      console.error(`[${timestamp}] ❌ ${message}`);
     }
   }
 
-  progress(message: string, ...params: any[]): void {
+  progress(message: string, level = 0, ...params: any[]): void {
+    const timestamp = this.getTimestamp();
+    const indent = '  '.repeat(level);
     if (params.length > 0) {
-      console.log(`🔄 ${message}`, ...params);
+      console.log(`[${timestamp}] 🔄 ${indent}${message}`, ...params);
     } else {
-      console.log(`🔄 ${message}`);
+      console.log(`[${timestamp}] 🔄 ${indent}${message}`);
+    }
+  }
+
+  progressWithCount(
+    current: number,
+    total: number,
+    message: string,
+    level = 0,
+    ...params: any[]
+  ): void {
+    const timestamp = this.getTimestamp();
+    const indent = '  '.repeat(level);
+    const countStr = `[${current}/${total}]`;
+    if (params.length > 0) {
+      console.log(
+        `[${timestamp}] 🔄 ${indent}${countStr} ${message}`,
+        ...params,
+      );
+    } else {
+      console.log(`[${timestamp}] 🔄 ${indent}${countStr} ${message}`);
     }
   }
 }
@@ -70,4 +99,16 @@ export class SilentLogger implements Logger {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   progress(_message: string, ...params: any[]): void {
   }
+
+  /* eslint-disable @typescript-eslint/no-unused-vars */
+  progressWithCount(
+    _current: number,
+    _total: number,
+    _message: string,
+    _level = 0,
+    ..._params: any[]
+  ): void {
+  }
+
+  /* eslint-enable @typescript-eslint/no-unused-vars */
 }
