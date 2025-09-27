@@ -14,6 +14,24 @@
 const NAMING_SEPARATORS = /[-_\s.]+|(?=[A-Z])/;
 
 /**
+ * Splits a name string or array of strings by common naming separators.
+ *
+ * This function takes a string or array of strings and splits them based on common naming
+ * separators including hyphens, underscores, spaces, dots, and before uppercase letters.
+ * If an array is provided, each element is split individually and the results are flattened.
+ *
+ * @param name - A string or array of strings to split by naming separators
+ * @returns An array of string parts split by naming separators
+ */
+function splitName(name: string | string[]): string[] {
+  if (Array.isArray(name)) {
+    // If input is an array, split each element by naming separators and flatten the result
+    return name.flatMap(part => part.split(NAMING_SEPARATORS));
+  }
+  return name.split(NAMING_SEPARATORS);
+}
+
+/**
  * Converts a string or array of strings to PascalCase format.
  *
  * This function takes a string or array of strings and converts them to PascalCase format
@@ -27,14 +45,7 @@ export function pascalCase(name: string | string[]): string {
   if (name === '' || name.length === 0) {
     return '';
   }
-  let names: string[];
-  if (Array.isArray(name)) {
-    // If input is an array, split each element by naming separators and flatten the result
-    names = name.flatMap(part => part.split(NAMING_SEPARATORS));
-  } else {
-    // If input is a string, split it by naming separators
-    names = name.split(NAMING_SEPARATORS);
-  }
+  let names: string[] = splitName(name);
   return names
     .filter(part => part.length > 0)
     .map(part => {
@@ -60,4 +71,21 @@ export function pascalCase(name: string | string[]): string {
 export function camelCase(name: string | string[]): string {
   const pascalCaseName = pascalCase(name);
   return pascalCaseName.charAt(0).toLowerCase() + pascalCaseName.slice(1);
+}
+
+/**
+ * Converts a string or array of strings to UPPER_SNAKE_CASE format.
+ *
+ * This function takes a string or array of strings and converts them to UPPER_SNAKE_CASE format
+ * by splitting the input based on common naming separators, converting each part to uppercase,
+ * and joining them with underscores.
+ *
+ * @param name - A string or array of strings to convert to UPPER_SNAKE_CASE
+ * @returns The UPPER_SNAKE_CASE formatted string
+ */
+export function upperSnakeCase(name: string | string[]): string {
+  if (name === '' || name.length === 0) {
+    return '';
+  }
+  return splitName(name).map(part => part.toUpperCase()).join('_');
 }
