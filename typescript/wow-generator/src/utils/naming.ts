@@ -11,7 +11,8 @@
  * limitations under the License.
  */
 
-const NAMING_SEPARATORS = /[-_\s.]+|(?=[A-Z])/;
+const NAMING_SEPARATORS = /[-_\s.]+/;
+const CAMEL_CASE_SPLIT = /(?=[A-Z])/;
 
 /**
  * Splits a name string or array of strings by common naming separators.
@@ -26,9 +27,46 @@ const NAMING_SEPARATORS = /[-_\s.]+|(?=[A-Z])/;
 function splitName(name: string | string[]): string[] {
   if (Array.isArray(name)) {
     // If input is an array, split each element by naming separators and flatten the result
-    return name.flatMap(part => part.split(NAMING_SEPARATORS));
+    return name.flatMap(part => splitCamelCase(part.split(NAMING_SEPARATORS)));
   }
-  return name.split(NAMING_SEPARATORS);
+  return splitCamelCase(name.split(NAMING_SEPARATORS));
+}
+
+/**
+ * Splits camelCase strings properly, keeping consecutive uppercase letters together.
+ *
+ * @param parts - Array of string parts to process
+ * @returns Array of properly split parts
+ */
+function splitCamelCase(parts: string[]): string[] {
+  return parts.flatMap(part => {
+    if (part.length === 0) {
+      return [];
+    }
+
+    // Split on uppercase letters that follow lowercase letters
+    const result: string[] = [];
+    let current = '';
+
+    for (let i = 0; i < part.length; i++) {
+      const char = part[i];
+      const isUpper = /[A-Z]/.test(char);
+      const prevIsLower = i > 0 && /[a-z]/.test(part[i - 1]);
+
+      if (isUpper && prevIsLower && current) {
+        result.push(current);
+        current = char;
+      } else {
+        current += char;
+      }
+    }
+
+    if (current) {
+      result.push(current);
+    }
+
+    return result;
+  });
 }
 
 /**
@@ -78,14 +116,20 @@ export function camelCase(name: string | string[]): string {
  *
  * This function takes a string or array of strings and converts them to UPPER_SNAKE_CASE format
  * by splitting the input based on common naming separators, converting each part to uppercase,
- * and joining them with underscores.
+ * and joining them with underscores. It properly handles consecutive uppercase letters
+ * (like acronyms) by treating them as single units.
  *
  * @param name - A string or array of strings to convert to UPPER_SNAKE_CASE
  * @returns The UPPER_SNAKE_CASE formatted string
  */
 export function upperSnakeCase(name: string | string[]): string {
-  if (name === '' || name.length === 0) {
+  if (name === '' || (Array.isArray(name) && name.length === 0)) {
     return '';
   }
-  return splitName(name).map(part => part.toUpperCase()).join('_');
+
+  const names = splitName(name);
+  return names
+    .filter(part => part.length > 0)
+    .map(part => part.toUpperCase())
+    .join('_');
 }

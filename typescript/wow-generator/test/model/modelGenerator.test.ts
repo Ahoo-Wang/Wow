@@ -41,6 +41,7 @@ vi.mock('../../src/utils', () => ({
   resolvePrimitiveType: vi.fn(),
   toArrayType: vi.fn(),
   pascalCase: vi.fn(),
+  upperSnakeCase: vi.fn(value => value.toUpperCase()),
 }));
 
 vi.mock('../../src/baseCodeGenerator', () => ({
@@ -319,8 +320,8 @@ describe('ModelGenerator', () => {
         name: 'Status',
         isExported: true,
         members: [
-          { name: 'active', initializer: '\'active\'' },
-          { name: 'inactive', initializer: '\'inactive\'' },
+          { name: 'ACTIVE', initializer: '\'active\'' },
+          { name: 'INACTIVE', initializer: '\'inactive\'' },
         ],
       });
       expect(result).toBe(mockEnum);

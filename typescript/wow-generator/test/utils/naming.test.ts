@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { pascalCase, camelCase } from '../../src/utils';
+import { pascalCase, camelCase, upperSnakeCase } from '../../src/utils';
 
 describe('naming', () => {
   describe('pascalCase', () => {
@@ -67,6 +67,89 @@ describe('naming', () => {
       expect(camelCase(['hello-world', 'user_name'])).toBe(
         'helloWorldUserName',
       );
+    });
+  });
+
+  describe('upperSnakeCase', () => {
+    it('should convert string to UPPER_SNAKE_CASE', () => {
+      expect(upperSnakeCase('hello world')).toBe('HELLO_WORLD');
+      expect(upperSnakeCase('hello-world')).toBe('HELLO_WORLD');
+      expect(upperSnakeCase('hello_world')).toBe('HELLO_WORLD');
+      expect(upperSnakeCase('hello.world')).toBe('HELLO_WORLD');
+      expect(upperSnakeCase('helloWorld')).toBe('HELLO_WORLD');
+      expect(upperSnakeCase('HelloWorld')).toBe('HELLO_WORLD');
+      expect(upperSnakeCase('userName')).toBe('USER_NAME');
+      expect(upperSnakeCase('APIEndpoint')).toBe('APIENDPOINT');
+      expect(upperSnakeCase('XMLHttpRequest')).toBe('XMLHTTP_REQUEST');
+      expect(upperSnakeCase('getUserById')).toBe('GET_USER_BY_ID');
+      expect(upperSnakeCase('POSTRequest')).toBe('POSTREQUEST');
+      expect(upperSnakeCase('HTTPStatusCode')).toBe('HTTPSTATUS_CODE');
+    });
+
+    it('should handle empty string', () => {
+      expect(upperSnakeCase('')).toBe('');
+    });
+
+    it('should handle empty array', () => {
+      expect(upperSnakeCase([])).toBe('');
+    });
+
+    it('should handle array of strings', () => {
+      expect(upperSnakeCase(['hello', 'world'])).toBe('HELLO_WORLD');
+      expect(upperSnakeCase(['user', 'name'])).toBe('USER_NAME');
+      expect(upperSnakeCase(['API', 'endpoint'])).toBe('API_ENDPOINT');
+      expect(upperSnakeCase(['XMLHttp', 'request'])).toBe('XMLHTTP_REQUEST');
+    });
+
+    it('should handle mixed separators in array', () => {
+      expect(upperSnakeCase(['hello-world', 'user_name'])).toBe(
+        'HELLO_WORLD_USER_NAME',
+      );
+      expect(upperSnakeCase(['XML.Http', 'request'])).toBe('XML_HTTP_REQUEST');
+    });
+
+    it('should handle single character strings', () => {
+      expect(upperSnakeCase('a')).toBe('A');
+      expect(upperSnakeCase('A')).toBe('A');
+      expect(upperSnakeCase('1')).toBe('1');
+    });
+
+    it('should handle strings with numbers', () => {
+      expect(upperSnakeCase('user123')).toBe('USER123');
+      expect(upperSnakeCase('version2.0')).toBe('VERSION2_0');
+      expect(upperSnakeCase('APIv2Endpoint')).toBe('APIV2ENDPOINT');
+    });
+
+    it('should handle strings with special characters', () => {
+      expect(upperSnakeCase('user@domain')).toBe('USER@DOMAIN');
+      expect(upperSnakeCase('test#value')).toBe('TEST#VALUE');
+      expect(upperSnakeCase('data$value')).toBe('DATA$VALUE');
+    });
+
+    it('should handle consecutive separators', () => {
+      expect(upperSnakeCase('hello__world')).toBe('HELLO_WORLD');
+      expect(upperSnakeCase('hello--world')).toBe('HELLO_WORLD');
+      expect(upperSnakeCase('hello  world')).toBe('HELLO_WORLD');
+      expect(upperSnakeCase('hello..world')).toBe('HELLO_WORLD');
+    });
+
+    it('should handle mixed case with separators', () => {
+      expect(upperSnakeCase('getUserById')).toBe('GET_USER_BY_ID');
+      expect(upperSnakeCase('POSTRequest')).toBe('POSTREQUEST');
+      expect(upperSnakeCase('HTTPStatusCode')).toBe('HTTPSTATUS_CODE');
+    });
+
+    it('should handle array with empty strings', () => {
+      expect(upperSnakeCase(['', 'hello', '', 'world', ''])).toBe(
+        'HELLO_WORLD',
+      );
+      expect(upperSnakeCase(['user', '', 'name'])).toBe('USER_NAME');
+    });
+
+    it('should handle array with single element', () => {
+      expect(upperSnakeCase(['hello'])).toBe('HELLO');
+      expect(upperSnakeCase(['API'])).toBe('API');
+      expect(upperSnakeCase(['user123'])).toBe('USER123');
     });
   });
 });
