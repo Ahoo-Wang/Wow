@@ -276,6 +276,38 @@ describe('AggregateResolver', () => {
       expect(mockAggregate.commands.size).toBe(1);
       expect(mockAggregate.commands.get('TestCommand')).toBeDefined();
     });
+
+    it('should skip commands for non-existent aggregates', () => {
+      (operationIdToCommandName as any).mockReturnValue('TestCommand');
+      (extractOkResponse as any).mockReturnValue({
+        $ref: '#/components/responses/wow.CommandOk',
+      });
+      (isReference as any).mockReturnValue(true);
+      (extractParameter as any).mockReturnValue({ name: 'id', in: 'path' });
+      (keySchema as any).mockReturnValue({ schema: { title: 'Test' } });
+
+      const methodOperation = {
+        method: 'post',
+        operation: {
+          operationId: 'test.operation',
+          summary: 'Test operation',
+          description: 'Test description',
+          tags: ['nonexistent-tag'], // This tag doesn't exist in aggregates
+          requestBody: {
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/TestCommand' },
+              },
+            },
+          },
+          parameters: [{ $ref: '#/components/parameters/wow.id' }],
+        },
+      };
+
+      (aggregateResolver as any).commands('/test', methodOperation);
+      // Should not throw and should not add commands to any aggregate
+      expect(mockAggregate.commands.size).toBe(0);
+    });
   });
 
   describe('state', () => {
