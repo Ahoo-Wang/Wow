@@ -16,8 +16,7 @@ import { GenerateContext } from '../types';
 import {
   ClassDeclaration,
   DecoratorStructure,
-  OptionalKind, ParameterDeclarationStructure,
-  Scope,
+  OptionalKind, Scope,
   SourceFile,
   VariableDeclarationKind,
 } from 'ts-morph';
