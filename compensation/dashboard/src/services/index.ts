@@ -13,4 +13,4 @@
 
 export * from "./compensationFetcher";
 export * from "./executionFailedQueryClient";
-export * from "./executionFailedState";
+export * from "./compensation";

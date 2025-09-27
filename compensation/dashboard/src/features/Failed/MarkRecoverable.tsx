@@ -13,14 +13,14 @@
 
 import { App, Select } from "antd";
 import { type Identifier, RecoverableType } from "@ahoo-wang/fetcher-wow";
-import {
-  executionFailedCommandClient,
-  type MarkRecoverable,
-} from "../../services/executionFailedCommandClient.ts";
+import { executionFailedCommandClient } from "../../services/executionFailedCommandClient.ts";
 import type { OnChangedCapable } from "./Actions.tsx";
+import type { MarkRecoverable } from "../../services/compensation";
 
-export interface MarkRecoverableProps extends MarkRecoverable, Identifier ,OnChangedCapable{
-}
+export interface MarkRecoverableProps
+  extends Identifier,
+    MarkRecoverable,
+    OnChangedCapable {}
 
 export function MarkRecoverable({
   id,
@@ -36,7 +36,7 @@ export function MarkRecoverable({
   const change = async (recoverable: RecoverableType) => {
     try {
       await executionFailedCommandClient.markRecoverable(id, {
-        recoverable,
+        body: { recoverable },
       });
       notification.success({
         message: "Success",
