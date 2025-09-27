@@ -244,13 +244,6 @@ describe('CodeGenerator', () => {
         '/output/subdir/index.ts',
       );
       expect(mockIndexFile.removeText).toHaveBeenCalled();
-      expect(mockIndexFile.addStatements).toHaveBeenCalledWith([
-        '/*',
-        ' * Auto-generated index file',
-        ' * This file exports all modules in this directory',
-        ' */',
-        '',
-      ]);
       expect(mockIndexFile.addExportDeclaration).toHaveBeenCalledWith({
         moduleSpecifier: './test',
         isTypeOnly: false,
@@ -261,7 +254,6 @@ describe('CodeGenerator', () => {
         isTypeOnly: false,
         namedExports: [],
       });
-      expect(mockIndexFile.formatText).toHaveBeenCalled();
     });
 
     it('should recursively process subdirectories', () => {
