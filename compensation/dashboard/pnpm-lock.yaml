@@ -19,7 +19,7 @@ importers:
         version: 2.2.9
       '@ahoo-wang/fetcher-eventstream':
         specifier: ^2.2.9
-        version: 2.2.9
+        version: 2.3.0
       '@ahoo-wang/fetcher-wow':
         specifier: ^2.2.9
         version: 2.2.9
@@ -135,6 +135,9 @@ packages:
   '@ahoo-wang/fetcher-eventstream@2.2.9':
     resolution: {integrity: sha512-si+S7Mtwo2ndrVyQYh2aq+R+uGejt9LDlMmothVeXe+n7fXBdk/Nr93ZV+L5NvLiQGInS3pc5FTIgYwmN3PevA==}
 
+  '@ahoo-wang/fetcher-eventstream@2.3.0':
+    resolution: {integrity: sha512-lGNCUYT4s7pIqcDmfHf8Ow79W/wHqRLJzAv/Lq723EC6ujh8dIpvy1/vIyEl9+QFSDs/xUbU3VmIxYzZoteDmQ==}
+
   '@ahoo-wang/fetcher-generator@2.2.9':
     resolution: {integrity: sha512-tD2BMEBkjCRHbPs3p9PFPplxLna5YUwCDgDWpmeyxz8dpT7FpjQgFj2Q2DGH9v2ZBFzm6oiADaHPSY1yNrhCVQ==}
     hasBin: true
@@ -150,6 +153,9 @@ packages:
 
   '@ahoo-wang/fetcher@2.2.9':
     resolution: {integrity: sha512-EwEft2oFhSli+Yyjc7VNF7iAnhNmyGlRySOmtub83AgDpnsXTnFF2r0xHuGqABrdj2UzJTAVjEVYB0apCoPvqw==}
+
+  '@ahoo-wang/fetcher@2.3.0':
+    resolution: {integrity: sha512-9eHbyBmTEBka2Hm/QoS2gTJtKs/t7eXalCaDYCMbYQtRk06gUfys9CFI39nefDjDs722YNrFgOxcabD/5yuG/w==}
 
   '@ampproject/remapping@2.3.0':
     resolution: {integrity: sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw==}
@@ -2528,6 +2534,10 @@ snapshots:
     dependencies:
       '@ahoo-wang/fetcher': 2.2.9
 
+  '@ahoo-wang/fetcher-eventstream@2.3.0':
+    dependencies:
+      '@ahoo-wang/fetcher': 2.3.0
+
   '@ahoo-wang/fetcher-generator@2.2.9':
     dependencies:
       '@ahoo-wang/fetcher': 2.2.9
@@ -2550,6 +2560,8 @@ snapshots:
       '@ahoo-wang/fetcher-eventstream': 2.2.9
 
   '@ahoo-wang/fetcher@2.2.9': {}
+
+  '@ahoo-wang/fetcher@2.3.0': {}
 
   '@ampproject/remapping@2.3.0':
     dependencies:
