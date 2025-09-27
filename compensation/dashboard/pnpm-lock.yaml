@@ -9,20 +9,20 @@ importers:
   .:
     dependencies:
       '@ahoo-wang/fetcher':
-        specifier: ^2.2.6
-        version: 2.2.6
+        specifier: ^2.2.9
+        version: 2.2.9
       '@ahoo-wang/fetcher-cosec':
-        specifier: ^2.2.6
-        version: 2.2.6
+        specifier: ^2.2.9
+        version: 2.2.9
       '@ahoo-wang/fetcher-decorator':
-        specifier: ^2.2.6
-        version: 2.2.6
+        specifier: ^2.2.9
+        version: 2.2.9
       '@ahoo-wang/fetcher-eventstream':
-        specifier: ^2.2.6
-        version: 2.2.6
+        specifier: ^2.2.9
+        version: 2.2.9
       '@ahoo-wang/fetcher-wow':
-        specifier: ^2.2.6
-        version: 2.2.6
+        specifier: ^2.2.9
+        version: 2.2.9
       '@ant-design/icons':
         specifier: ^6.0.2
         version: 6.0.2(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
@@ -55,8 +55,8 @@ importers:
         version: 4.1.13
     devDependencies:
       '@ahoo-wang/fetcher-generator':
-        specifier: ^2.2.6
-        version: 2.2.6
+        specifier: ^2.2.9
+        version: 2.2.9
       '@eslint/js':
         specifier: ^9.36.0
         version: 9.36.0
@@ -126,30 +126,30 @@ packages:
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
-  '@ahoo-wang/fetcher-cosec@2.2.6':
-    resolution: {integrity: sha512-zQulD1ngJvki6MqDV2e/Qbaa2ZLe1kDB+K7gWLqmNoog7qry7wPcnhEWTOaay9o9cQF0VcaDbMTSWxYF/f0SpA==}
+  '@ahoo-wang/fetcher-cosec@2.2.9':
+    resolution: {integrity: sha512-ArkZIfexYEtZjcnXvbwZqLoNcMkhGmtKjcFw/K4so0S3tg0JDMsMVxhki9i9eO/X41NJVuXadzObnQC5aY2EBg==}
 
-  '@ahoo-wang/fetcher-decorator@2.2.6':
-    resolution: {integrity: sha512-8gcfFUd4ZCAj3PDZcdBH4adLJ0KMwZxg/qTrvXm8M7GyN4V8ygW6hPa6fG8apNVKdnw33BhWGrCmsHeOsYcaRA==}
+  '@ahoo-wang/fetcher-decorator@2.2.9':
+    resolution: {integrity: sha512-cBhVBdIZLqpug/tReEietb9tx+s7nBAPsojmgvTzThPRBUpVu2iKJwOmdXIV4iQKKQatrlxVd0MWQYbisr4M3A==}
 
-  '@ahoo-wang/fetcher-eventstream@2.2.6':
-    resolution: {integrity: sha512-ci2k3eVXgGb2Rd3J7WOwFyP8P/ENQjJRpiUgFt8j7RnnuaidVCumVrWAieTjl3iXsDzJ9kpynzNYSHvE554qZQ==}
+  '@ahoo-wang/fetcher-eventstream@2.2.9':
+    resolution: {integrity: sha512-si+S7Mtwo2ndrVyQYh2aq+R+uGejt9LDlMmothVeXe+n7fXBdk/Nr93ZV+L5NvLiQGInS3pc5FTIgYwmN3PevA==}
 
-  '@ahoo-wang/fetcher-generator@2.2.6':
-    resolution: {integrity: sha512-gKVlgfMtwYFe+prjoTAxmRQjHREapB6ZaOfAfIoYr+DfasKdofpb7JKrBX0cfEldRhP3UvbCuglGM5Jmi9dKbw==}
+  '@ahoo-wang/fetcher-generator@2.2.9':
+    resolution: {integrity: sha512-tD2BMEBkjCRHbPs3p9PFPplxLna5YUwCDgDWpmeyxz8dpT7FpjQgFj2Q2DGH9v2ZBFzm6oiADaHPSY1yNrhCVQ==}
     hasBin: true
 
-  '@ahoo-wang/fetcher-openapi@2.2.6':
-    resolution: {integrity: sha512-ptgLXTJcI0lWlOAz2Y3sPZWea/fwT9RrCz/b+AJYjYdu0ZluPdTvp4yaLlVCM0vcMw+M1UsrmRiAFFMLz3lbeA==}
+  '@ahoo-wang/fetcher-openapi@2.2.9':
+    resolution: {integrity: sha512-YKqh104OCz8jCV+pNyfrbv8D41EGpIrSbhtrXlnCVI0ASb01qZwjDcknBYf2tZe68nsSZERiYMZHHeWMHKVW0w==}
 
-  '@ahoo-wang/fetcher-storage@2.2.6':
-    resolution: {integrity: sha512-LFtsE2HSHG5ui2pb/6vso8xAFFd14fwEjFf4RyfPx0Ox3INB3lHjGzuBVJKnx+efPGR8SsQD9GbhxzVu4fGFng==}
+  '@ahoo-wang/fetcher-storage@2.2.9':
+    resolution: {integrity: sha512-LgrTyfxvO14J1Wdd2TfdZn/ia9wBRygIeYeZwYa3hvNumisBDk/eSX1nO3xM4K8po+m5cnq0hoGFua2fJLW1YQ==}
 
-  '@ahoo-wang/fetcher-wow@2.2.6':
-    resolution: {integrity: sha512-JH/hNJKOvSEpAG2D6sNybXz/E25e7+qqarIYbefXtIE4G54nx8Rwxwx3uuE9QPI7HxSmfaczc7o1rTnnElEZdg==}
+  '@ahoo-wang/fetcher-wow@2.2.9':
+    resolution: {integrity: sha512-mpPusq0h/VEzpsTi+qOwTzOjcFeliUi9wwYgIUQtRKmESbMnhrcdO5Hsjfd+N4V94munw4loSD4O24/aAUh8PQ==}
 
-  '@ahoo-wang/fetcher@2.2.6':
-    resolution: {integrity: sha512-VCk1NoX3A4dvHC4d/H/ALgREQyR5Sf9rpiGsN3ZdJgjYhALWZWcIMTSdSDJCHahXAZ+Ut9I3WpkGzmZGb3i/uA==}
+  '@ahoo-wang/fetcher@2.2.9':
+    resolution: {integrity: sha512-EwEft2oFhSli+Yyjc7VNF7iAnhNmyGlRySOmtub83AgDpnsXTnFF2r0xHuGqABrdj2UzJTAVjEVYB0apCoPvqw==}
 
   '@ampproject/remapping@2.3.0':
     resolution: {integrity: sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw==}
@@ -2513,43 +2513,43 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@ahoo-wang/fetcher-cosec@2.2.6':
+  '@ahoo-wang/fetcher-cosec@2.2.9':
     dependencies:
-      '@ahoo-wang/fetcher': 2.2.6
-      '@ahoo-wang/fetcher-storage': 2.2.6
+      '@ahoo-wang/fetcher': 2.2.9
+      '@ahoo-wang/fetcher-storage': 2.2.9
       nanoid: 5.1.6
 
-  '@ahoo-wang/fetcher-decorator@2.2.6':
+  '@ahoo-wang/fetcher-decorator@2.2.9':
     dependencies:
-      '@ahoo-wang/fetcher': 2.2.6
+      '@ahoo-wang/fetcher': 2.2.9
       reflect-metadata: 0.2.2
 
-  '@ahoo-wang/fetcher-eventstream@2.2.6':
+  '@ahoo-wang/fetcher-eventstream@2.2.9':
     dependencies:
-      '@ahoo-wang/fetcher': 2.2.6
+      '@ahoo-wang/fetcher': 2.2.9
 
-  '@ahoo-wang/fetcher-generator@2.2.6':
+  '@ahoo-wang/fetcher-generator@2.2.9':
     dependencies:
-      '@ahoo-wang/fetcher': 2.2.6
-      '@ahoo-wang/fetcher-decorator': 2.2.6
-      '@ahoo-wang/fetcher-eventstream': 2.2.6
-      '@ahoo-wang/fetcher-openapi': 2.2.6
-      '@ahoo-wang/fetcher-wow': 2.2.6
+      '@ahoo-wang/fetcher': 2.2.9
+      '@ahoo-wang/fetcher-decorator': 2.2.9
+      '@ahoo-wang/fetcher-eventstream': 2.2.9
+      '@ahoo-wang/fetcher-openapi': 2.2.9
+      '@ahoo-wang/fetcher-wow': 2.2.9
       commander: 14.0.1
       ts-morph: 27.0.0
       yaml: 2.8.1
 
-  '@ahoo-wang/fetcher-openapi@2.2.6': {}
+  '@ahoo-wang/fetcher-openapi@2.2.9': {}
 
-  '@ahoo-wang/fetcher-storage@2.2.6': {}
+  '@ahoo-wang/fetcher-storage@2.2.9': {}
 
-  '@ahoo-wang/fetcher-wow@2.2.6':
+  '@ahoo-wang/fetcher-wow@2.2.9':
     dependencies:
-      '@ahoo-wang/fetcher': 2.2.6
-      '@ahoo-wang/fetcher-decorator': 2.2.6
-      '@ahoo-wang/fetcher-eventstream': 2.2.6
+      '@ahoo-wang/fetcher': 2.2.9
+      '@ahoo-wang/fetcher-decorator': 2.2.9
+      '@ahoo-wang/fetcher-eventstream': 2.2.9
 
-  '@ahoo-wang/fetcher@2.2.6': {}
+  '@ahoo-wang/fetcher@2.2.9': {}
 
   '@ampproject/remapping@2.3.0':
     dependencies:
