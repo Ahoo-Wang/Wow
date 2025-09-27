@@ -85,14 +85,16 @@ export class ModelGenerator extends BaseCodeGenerator {
   }
 
   private filterSchemas(schemas: Record<string, Schema>): KeySchema[] {
-    return Object.entries(schemas).filter(
-      ([schemaKey]) => !schemaKey.startsWith('wow.'),
-    ).map(
+    return Object.entries(schemas).map(
       ([schemaKey, schema]) => ({
         key: schemaKey,
         schema,
       }),
-    );
+    ).filter(keySchema => !this.isWowSchema(keySchema.key));
+  }
+
+  private isWowSchema(schemaKey: string): boolean {
+    return schemaKey.startsWith('wow.');
   }
 
   /**
