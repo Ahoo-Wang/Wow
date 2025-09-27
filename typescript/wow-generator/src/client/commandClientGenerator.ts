@@ -16,7 +16,7 @@ import { GenerateContext } from '../types';
 import {
   ClassDeclaration,
   DecoratorStructure,
-  OptionalKind,
+  OptionalKind, ParameterDeclarationStructure,
   Scope,
   SourceFile,
   VariableDeclarationKind,
@@ -284,6 +284,7 @@ export class CommandClientGenerator extends BaseCodeGenerator {
       return {
         name: parameter.name,
         type: 'string',
+        hasQuestionToken: false,
         decorators: [
           {
             name: 'path',
@@ -298,6 +299,7 @@ export class CommandClientGenerator extends BaseCodeGenerator {
     );
     parameters.push({
       name: 'commandRequest',
+      hasQuestionToken: true,
       type: `CommandRequest<${commandModelInfo.name}>`,
       decorators: [
         {
@@ -312,6 +314,7 @@ export class CommandClientGenerator extends BaseCodeGenerator {
     );
     parameters.push({
       name: 'attributes',
+      hasQuestionToken: true,
       type: 'Record<string, any>',
       decorators: [
         {
