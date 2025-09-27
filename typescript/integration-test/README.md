@@ -6,15 +6,15 @@ various components work correctly together and with external services.
 ## Structure
 
 - `src/` - Test subjects and utilities
-    - `cosec/` - COSEC integration tests
-    - `decorator/` - Decorator pattern integration tests
-    - `eventstream/` - Event stream integration tests
-    - `fetcher/` - Core fetcher integration tests
+  - `cosec/` - COSEC integration tests
+  - `decorator/` - Decorator pattern integration tests
+  - `eventstream/` - Event stream integration tests
+  - `fetcher/` - Core fetcher integration tests
 - `test/` - Actual test files
-    - `cosec/` - COSEC integration test implementations
-    - `decorator/` - Decorator pattern integration test implementations
-    - `eventstream/` - Event stream integration test implementations
-    - `fetcher/` - Core fetcher integration test implementations
+  - `cosec/` - COSEC integration test implementations
+  - `decorator/` - Decorator pattern integration test implementations
+  - `eventstream/` - Event stream integration test implementations
+  - `fetcher/` - Core fetcher integration test implementations
 
 ## Running Tests
 

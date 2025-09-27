@@ -12,7 +12,6 @@
  */
 
 const NAMING_SEPARATORS = /[-_\s.]+/;
-const CAMEL_CASE_SPLIT = /(?=[A-Z])/;
 
 /**
  * Splits a name string or array of strings by common naming separators.
@@ -83,7 +82,7 @@ export function pascalCase(name: string | string[]): string {
   if (name === '' || name.length === 0) {
     return '';
   }
-  let names: string[] = splitName(name);
+  const names: string[] = splitName(name);
   return names
     .filter(part => part.length > 0)
     .map(part => {

@@ -58,8 +58,8 @@ fetcher-generator generate [options]
 #### 选项
 
 - `-i, --input <path>`：输入 OpenAPI 规范文件路径或 URL（必需）
-    - 支持本地文件路径（例如：`./api-spec.json`、`./api-spec.yaml`）
-    - 支持 HTTP/HTTPS URL（例如：`https://api.example.com/openapi.json`）
+  - 支持本地文件路径（例如：`./api-spec.json`、`./api-spec.yaml`）
+  - 支持 HTTP/HTTPS URL（例如：`https://api.example.com/openapi.json`）
 - `-o, --output <path>`：输出目录路径（默认为 `src/generated`）
 - `-c, --config <file>`：配置文件路径（可选）
 - `-v, --verbose`：启用详细日志记录

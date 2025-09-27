@@ -5,15 +5,15 @@
 ## 目录结构
 
 - `src/` - 测试对象和工具
-    - `cosec/` - COSEC 集成测试
-    - `decorator/` - 装饰器模式集成测试
-    - `eventstream/` - 事件流集成测试
-    - `fetcher/` - 核心 fetcher 集成测试
+  - `cosec/` - COSEC 集成测试
+  - `decorator/` - 装饰器模式集成测试
+  - `eventstream/` - 事件流集成测试
+  - `fetcher/` - 核心 fetcher 集成测试
 - `test/` - 实际测试文件
-    - `cosec/` - COSEC 集成测试实现
-    - `decorator/` - 装饰器模式集成测试实现
-    - `eventstream/` - 事件流集成测试实现
-    - `fetcher/` - 核心 fetcher 集成测试实现
+  - `cosec/` - COSEC 集成测试实现
+  - `decorator/` - 装饰器模式集成测试实现
+  - `eventstream/` - 事件流集成测试实现
+  - `fetcher/` - 核心 fetcher 集成测试实现
 
 ## 运行测试
 

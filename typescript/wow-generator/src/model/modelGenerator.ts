@@ -31,7 +31,8 @@ import {
   KeySchema,
   pascalCase,
   resolvePrimitiveType,
-  toArrayType, upperSnakeCase,
+  toArrayType,
+  upperSnakeCase,
 } from '../utils';
 import { BaseCodeGenerator } from '../baseCodeGenerator';
 
