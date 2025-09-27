@@ -7,6 +7,7 @@
 
 import { program } from 'commander';
 import { generateAction } from './utils';
+import packageJson from '../package.json';
 
 /**
  * Sets up the CLI program with all commands and options.
@@ -16,7 +17,7 @@ export function setupCLI() {
   program
     .name('fetcher-generator')
     .description('OpenAPI Specification TypeScript code generator for Wow')
-    .version('2.1.1');
+    .version(packageJson.version);
 
   program
     .command('generate')

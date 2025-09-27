@@ -12,13 +12,6 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { readFileSync } from 'fs';
-import { join } from 'path';
-
-// Read version from package.json for testing
-const packageJson = JSON.parse(
-  readFileSync(join(__dirname, '..', '..', 'package.json'), 'utf-8'),
-);
 
 // Mock commander
 vi.mock('commander', () => ({
@@ -39,27 +32,21 @@ vi.mock('../../src/utils', () => ({
   generateAction: vi.fn(),
 }));
 
-// Mock fs for cli.ts
-vi.mock('fs', () => ({
-  readFileSync: vi.fn(),
-}));
-
-vi.mock('path', () => ({
-  join: vi.fn(),
+// Mock package.json import
+vi.mock('../package.json', () => ({
+  default: {
+    version: '2.1.2',
+    name: '@ahoo-wang/fetcher-generator',
+  },
 }));
 
 import { setupCLI, runCLI } from '../src/cli';
 import { generateAction } from '../src/utils';
+import packageJson from '../package.json';
 
 describe('CLI setup', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-
-    // Mock fs.readFileSync to return package.json content
-    const { readFileSync, join } = require('fs');
-    const { join: pathJoin } = require('path');
-    vi.mocked(readFileSync).mockReturnValue(JSON.stringify(packageJson));
-    vi.mocked(join).mockReturnValue('/path/to/package.json');
   });
 
   it('should setup CLI program with correct configuration', () => {
@@ -69,7 +56,7 @@ describe('CLI setup', () => {
     expect(result.description).toHaveBeenCalledWith(
       'OpenAPI Specification TypeScript code generator for Wow',
     );
-    expect(result.version).toHaveBeenCalledWith('2.1.1');
+    expect(result.version).toHaveBeenCalledWith(packageJson.version);
 
     expect(result.command).toHaveBeenCalledWith('generate');
     expect(result.requiredOption).toHaveBeenCalledWith(
