@@ -23,8 +23,9 @@ import {
   isAllOf,
   isComposition,
   toArrayType,
+  isEmptyObject,
   resolvePrimitiveType,
-} from '../../src/utils';
+} from '../../src/utils/schemas';
 
 describe('schemas', () => {
   describe('isPrimitive', () => {
@@ -197,6 +198,36 @@ describe('schemas', () => {
       expect(toArrayType('string')).toBe('string[]');
       expect(toArrayType('number')).toBe('number[]');
       expect(toArrayType('MyType')).toBe('MyType[]');
+    });
+  });
+
+  describe('isEmptyObject', () => {
+    it('should return true for object schemas without properties', () => {
+      const schema: Schema = { type: 'object' };
+      expect(isEmptyObject(schema)).toBe(true);
+    });
+
+    it('should return true for object schemas with empty properties', () => {
+      const schema: Schema = { type: 'object', properties: {} };
+      expect(isEmptyObject(schema)).toBe(true);
+    });
+
+    it('should return false for object schemas with properties', () => {
+      const schema: Schema = {
+        type: 'object',
+        properties: { name: { type: 'string' } },
+      };
+      expect(isEmptyObject(schema)).toBe(false);
+    });
+
+    it('should return false for non-object schemas', () => {
+      const schema: Schema = { type: 'string' };
+      expect(isEmptyObject(schema)).toBe(false);
+    });
+
+    it('should return false for schemas without type', () => {
+      const schema: Schema = {};
+      expect(isEmptyObject(schema)).toBe(false);
     });
   });
 

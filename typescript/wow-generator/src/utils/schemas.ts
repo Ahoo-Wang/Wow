@@ -123,6 +123,21 @@ export function toArrayType(type: string): string {
 }
 
 /**
+ * Checks if a schema represents an empty object.
+ * @param schema - The schema to check
+ * @returns True if the schema represents an empty object, false otherwise
+ */
+export function isEmptyObject(schema: Schema): boolean {
+  if (schema.type !== 'object') {
+    return false;
+  }
+  if (!schema.properties) {
+    return true;
+  }
+  return Object.keys(schema.properties).length === 0;
+}
+
+/**
  * Resolves a schema type to its TypeScript equivalent.
  * @param type - The schema type(s) to resolve
  * @returns The TypeScript type string
