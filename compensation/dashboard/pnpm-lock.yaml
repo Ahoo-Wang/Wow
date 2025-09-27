@@ -9,20 +9,20 @@ importers:
   .:
     dependencies:
       '@ahoo-wang/fetcher':
-        specifier: ^2.0.1
-        version: 2.0.1
+        specifier: ^2.2.2
+        version: 2.2.2
       '@ahoo-wang/fetcher-cosec':
-        specifier: ^2.0.1
-        version: 2.0.1
+        specifier: ^2.2.2
+        version: 2.2.2
       '@ahoo-wang/fetcher-decorator':
-        specifier: ^2.0.1
-        version: 2.0.1
+        specifier: ^2.2.0
+        version: 2.2.0
       '@ahoo-wang/fetcher-eventstream':
-        specifier: ^2.0.1
-        version: 2.0.1
+        specifier: ^2.2.2
+        version: 2.2.2
       '@ahoo-wang/fetcher-wow':
-        specifier: ^2.0.1
-        version: 2.0.1
+        specifier: ^2.2.0
+        version: 2.2.0
       '@ant-design/icons':
         specifier: ^6.0.2
         version: 6.0.2(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
@@ -45,8 +45,8 @@ importers:
         specifier: ^19.1.1
         version: 19.1.1(react@19.1.1)
       react-router:
-        specifier: ^7.9.2
-        version: 7.9.2(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
+        specifier: ^7.9.3
+        version: 7.9.3(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       swr:
         specifier: ^2.3.6
         version: 2.3.6(react@19.1.1)
@@ -65,13 +65,13 @@ importers:
         version: 6.8.0
       '@testing-library/react':
         specifier: ^16.3.0
-        version: 16.3.0(@testing-library/dom@10.4.1)(@types/react-dom@19.1.9(@types/react@19.1.13))(@types/react@19.1.13)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
+        version: 16.3.0(@testing-library/dom@10.4.1)(@types/react-dom@19.1.9(@types/react@19.1.14))(@types/react@19.1.14)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       '@types/react':
-        specifier: ^19.1.13
-        version: 19.1.13
+        specifier: ^19.1.14
+        version: 19.1.14
       '@types/react-dom':
         specifier: ^19.1.9
-        version: 19.1.9(@types/react@19.1.13)
+        version: 19.1.9(@types/react@19.1.14)
       '@vitejs/plugin-react':
         specifier: ^5.0.3
         version: 5.0.3(vite@7.1.7(jiti@2.6.0)(lightningcss@1.30.1))
@@ -88,8 +88,8 @@ importers:
         specifier: ^5.2.0
         version: 5.2.0(eslint@9.36.0(jiti@2.6.0))
       eslint-plugin-react-refresh:
-        specifier: ^0.4.21
-        version: 0.4.21(eslint@9.36.0(jiti@2.6.0))
+        specifier: ^0.4.22
+        version: 0.4.22(eslint@9.36.0(jiti@2.6.0))
       globals:
         specifier: ^16.4.0
         version: 16.4.0
@@ -116,30 +116,36 @@ importers:
         version: 3.2.4(@vitest/browser@3.2.4)(@vitest/ui@3.2.4)(jiti@2.6.0)(jsdom@27.0.0(postcss@8.5.6))(lightningcss@1.30.1)
       vitest-browser-react:
         specifier: ^1.0.1
-        version: 1.0.1(@types/react-dom@19.1.9(@types/react@19.1.13))(@types/react@19.1.13)(@vitest/browser@3.2.4)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(vitest@3.2.4)
+        version: 1.0.1(@types/react-dom@19.1.9(@types/react@19.1.14))(@types/react@19.1.14)(@vitest/browser@3.2.4)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(vitest@3.2.4)
 
 packages:
 
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
-  '@ahoo-wang/fetcher-cosec@2.0.1':
-    resolution: {integrity: sha512-8wgn7SZ+k7XZRNan7X0tb01XkdvBeTKLQQwdN0AyooD1KiSOdSppmnhQ0nJqFR98YFD0lX4+F1knT9vYKCQkzw==}
+  '@ahoo-wang/fetcher-cosec@2.2.2':
+    resolution: {integrity: sha512-H0bkpdeYOoTa40DFq8wTq0MRqOnDJwJ2aZPj85GY8azEIeJre6nfQEo5ulKwT7JOXPJ4udjhMDJP2OyVJWGLrQ==}
 
-  '@ahoo-wang/fetcher-decorator@2.0.1':
-    resolution: {integrity: sha512-BFKNmzpHMZ/LqYqnilqq0GSWMNRw5IAE80yAxyGMeKzdgugKVVGxRgQKCxMDF/k1znCSBdiL0DB3bgBqbcg/fw==}
+  '@ahoo-wang/fetcher-decorator@2.2.0':
+    resolution: {integrity: sha512-l0X4UjKRAS0bPaqVtNqdlp3dli/Kz/pJFgQgMkekVxG1nAHfBi/35fTvGLKzEPJko/Z9V5iiehuKjO2FyZdteg==}
 
-  '@ahoo-wang/fetcher-eventstream@2.0.1':
-    resolution: {integrity: sha512-mvvCEm0AXvqgHLJGLpTxFd560rG70BVFbmWTrqFUAwBTP01aB6OtEX/wRDvehFt8xkbiyPgLGspT3Htt/3ZKiQ==}
+  '@ahoo-wang/fetcher-eventstream@2.2.0':
+    resolution: {integrity: sha512-/oLnE9DCzMX1rpHqbhUelZWdBRuvpEW+y+SwvAL9VxtHZM7yFNif1+B4F/TJoXCk4RNlFId0p1IBzb2wY4Lq8g==}
 
-  '@ahoo-wang/fetcher-storage@2.0.1':
-    resolution: {integrity: sha512-kBZM9Fy3iuqbQ13nV4SMe88U6XrqhElYNN4FyDvbYzu1AiCGpUPzN+hAk0Qmy3Fr4CVwrHfYzMZ5LuT1SphDLQ==}
+  '@ahoo-wang/fetcher-eventstream@2.2.2':
+    resolution: {integrity: sha512-r2uvZukLOR6a73HnGEi0zez9l8cvsigEZdPP4ithQI38AkQ++epsfaBBcpch2kzSSxtZLbFY1jqCJfUmaaZfZA==}
 
-  '@ahoo-wang/fetcher-wow@2.0.1':
-    resolution: {integrity: sha512-7Iw/6zufxAumQusvxOwwPnAj8k8QgyoPDsPahUQEJn3swyHWAGb99VjWaFH4Xan7bB+WJUq07FYJG85Gi4KjFQ==}
+  '@ahoo-wang/fetcher-storage@2.2.2':
+    resolution: {integrity: sha512-/Lazo6Z1NFWI1vYa83VloxHLrXFl2pou+re/NjO2qsSi7ebhbQGmIJJl6msIJ3apzU5RwONpK5IEY0puqEGutQ==}
 
-  '@ahoo-wang/fetcher@2.0.1':
-    resolution: {integrity: sha512-kFZHoj2YowVJ+oLWtIcy5J5YKRerTiiyynqliwYTmzJgS3CiPdV8f0jZPpmG/Z2KgSb3C+Ovz+sF0JTVQOQ0lg==}
+  '@ahoo-wang/fetcher-wow@2.2.0':
+    resolution: {integrity: sha512-KbGDHMj1w+1YrJNZ4u63ZZMu4wM/tfvRmgV+XBuh2p1HR5YQOJjdvkc4Dff4KbUL1tX03KtSkz0MLkA0977g0Q==}
+
+  '@ahoo-wang/fetcher@2.2.0':
+    resolution: {integrity: sha512-SyZRqcCUORm/4PusXXleo+GAxLxXVbOugNUCWuq93QZGn5UNLbsBaFfsZC4Ohopdmfwc3L0fD8lX/TTrfTpcWw==}
+
+  '@ahoo-wang/fetcher@2.2.2':
+    resolution: {integrity: sha512-+LPRtuFlC/gOc/zVLWJiAI+Za0ZkdltRKZrrTRL43EGsKgvrrrAIF818piMXzr/pTCqHxfOFrpGPhMD8DoRTcQ==}
 
   '@ampproject/remapping@2.3.0':
     resolution: {integrity: sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw==}
@@ -933,8 +939,8 @@ packages:
     peerDependencies:
       '@types/react': ^19.0.0
 
-  '@types/react@19.1.13':
-    resolution: {integrity: sha512-hHkbU/eoO3EG5/MZkuFSKmYqPbSVk5byPFa3e7y/8TybHiLMACgI8seVYlicwk7H5K/rI2px9xrQp/C+AUDTiQ==}
+  '@types/react@19.1.14':
+    resolution: {integrity: sha512-ukd93VGzaNPMAUPy0gRDSC57UuQbnH9Kussp7HBjM06YFi9uZTFhOvMSO2OKqXm1rSgzOE+pVx1k1PYHGwlc8Q==}
 
   '@typescript-eslint/eslint-plugin@8.44.1':
     resolution: {integrity: sha512-molgphGqOBT7t4YKCSkbasmu1tb1MgrZ2szGzHbclF7PNmOkSTQVHy+2jXOSnxvR3+Xe1yySHFZoqMpz3TfQsw==}
@@ -1122,8 +1128,8 @@ packages:
   balanced-match@1.0.2:
     resolution: {integrity: sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==}
 
-  baseline-browser-mapping@2.8.6:
-    resolution: {integrity: sha512-wrH5NNqren/QMtKUEEJf7z86YjfqW/2uw3IL3/xpqZUC95SSVIFXYQeeGjL6FT/X68IROu6RMehZQS5foy2BXw==}
+  baseline-browser-mapping@2.8.7:
+    resolution: {integrity: sha512-bxxN2M3a4d1CRoQC//IqsR5XrLh0IJ8TCv2x6Y9N0nckNz/rTjZB3//GGscZziZOxmjP55rzxg/ze7usFI9FqQ==}
     hasBin: true
 
   bidi-js@1.0.3:
@@ -1152,8 +1158,8 @@ packages:
     resolution: {integrity: sha512-P8BjAsXvZS+VIDUI11hHCQEv74YT67YUi5JJFNWIqL235sBmjX4+qx9Muvls5ivyNENctx46xQLQ3aTuE7ssaQ==}
     engines: {node: '>=6'}
 
-  caniuse-lite@1.0.30001743:
-    resolution: {integrity: sha512-e6Ojr7RV14Un7dz6ASD0aZDmQPT/A+eZU+nuTNfjqmRrmkmQlnTNWH0SKmqagx9PeW87UVqapSurtAXifmtdmw==}
+  caniuse-lite@1.0.30001745:
+    resolution: {integrity: sha512-ywt6i8FzvdgrrrGbr1jZVObnVv6adj+0if2/omv9cmR2oiZs30zL4DIyaptKcbOrBdOIc74QTMoJvSE2QHh5UQ==}
 
   chai@5.3.3:
     resolution: {integrity: sha512-4zNhdJD/iOjSH0A05ea+Ke6MU5mmpQcbQsSOkgdaUMJ9zTlDTD/GYlwohmIE2u0gaxHYiVHEn1Fw9mZ/ktJWgw==}
@@ -1258,8 +1264,8 @@ packages:
   eastasianwidth@0.2.0:
     resolution: {integrity: sha512-I88TYZWc9XiYHRQ4/3c5rjjfgkjhLyW2luGIheGERbNQ6OY7yTybanSpDXZa8y7VUP9YmDcYa+eyq4ca7iLqWA==}
 
-  electron-to-chromium@1.5.223:
-    resolution: {integrity: sha512-qKm55ic6nbEmagFlTFczML33rF90aU+WtrJ9MdTCThrcvDNdUHN4p6QfVN78U06ZmguqXIyMPyYhw2TrbDUwPQ==}
+  electron-to-chromium@1.5.224:
+    resolution: {integrity: sha512-kWAoUu/bwzvnhpdZSIc6KUyvkI1rbRXMT0Eq8pKReyOyaPZcctMli+EgvcN1PAvwVc7Tdo4Fxi2PsLNDU05mdg==}
 
   emoji-regex@8.0.0:
     resolution: {integrity: sha512-MSjYzcWNOA0ewAHpz0MxpYFvwg6yjy1NG3xteoqz644VCo/RPgnr1/GGt+ic3iJTzQ8Eu3TdM14SawnVUmGE6A==}
@@ -1297,8 +1303,8 @@ packages:
     peerDependencies:
       eslint: ^3.0.0 || ^4.0.0 || ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0-0 || ^9.0.0
 
-  eslint-plugin-react-refresh@0.4.21:
-    resolution: {integrity: sha512-MWDWTtNC4voTcWDxXbdmBNe8b/TxfxRFUL6hXgKWJjN9c1AagYEmpiFWBWzDw+5H3SulWUe1pJKTnoSdmk88UA==}
+  eslint-plugin-react-refresh@0.4.22:
+    resolution: {integrity: sha512-atkAG6QaJMGoTLc4MDAP+rqZcfwQuTIh2IqHWFLy2TEjxr0MOK+5BSG4RzL2564AAPpZkDRsZXAUz68kjnU6Ug==}
     peerDependencies:
       eslint: '>=8.40'
 
@@ -2049,8 +2055,8 @@ packages:
     resolution: {integrity: sha512-z6F7K9bV85EfseRCp2bzrpyQ0Gkw1uLoCel9XBVWPg/TjRj94SkJzUTGfOa4bs7iJvBWtQG0Wq7wnI0syw3EBQ==}
     engines: {node: '>=0.10.0'}
 
-  react-router@7.9.2:
-    resolution: {integrity: sha512-i2TPp4dgaqrOqiRGLZmqh2WXmbdFknUyiCRmSKs0hf6fWXkTKg5h56b+9F22NbGRAMxjYfqQnpi63egzD2SuZA==}
+  react-router@7.9.3:
+    resolution: {integrity: sha512-4o2iWCFIwhI/eYAIL43+cjORXYn/aRQPgtFRRZb3VzoyQ5Uej0Bmqj7437L97N9NJW4wnicSwLOLS+yCXfAPgg==}
     engines: {node: '>=20.0.0'}
     peerDependencies:
       react: '>=18'
@@ -2470,30 +2476,36 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@ahoo-wang/fetcher-cosec@2.0.1':
+  '@ahoo-wang/fetcher-cosec@2.2.2':
     dependencies:
-      '@ahoo-wang/fetcher': 2.0.1
-      '@ahoo-wang/fetcher-storage': 2.0.1
+      '@ahoo-wang/fetcher': 2.2.2
+      '@ahoo-wang/fetcher-storage': 2.2.2
       nanoid: 5.1.6
 
-  '@ahoo-wang/fetcher-decorator@2.0.1':
+  '@ahoo-wang/fetcher-decorator@2.2.0':
     dependencies:
-      '@ahoo-wang/fetcher': 2.0.1
+      '@ahoo-wang/fetcher': 2.2.0
       reflect-metadata: 0.2.2
 
-  '@ahoo-wang/fetcher-eventstream@2.0.1':
+  '@ahoo-wang/fetcher-eventstream@2.2.0':
     dependencies:
-      '@ahoo-wang/fetcher': 2.0.1
+      '@ahoo-wang/fetcher': 2.2.0
 
-  '@ahoo-wang/fetcher-storage@2.0.1': {}
-
-  '@ahoo-wang/fetcher-wow@2.0.1':
+  '@ahoo-wang/fetcher-eventstream@2.2.2':
     dependencies:
-      '@ahoo-wang/fetcher': 2.0.1
-      '@ahoo-wang/fetcher-decorator': 2.0.1
-      '@ahoo-wang/fetcher-eventstream': 2.0.1
+      '@ahoo-wang/fetcher': 2.2.2
 
-  '@ahoo-wang/fetcher@2.0.1': {}
+  '@ahoo-wang/fetcher-storage@2.2.2': {}
+
+  '@ahoo-wang/fetcher-wow@2.2.0':
+    dependencies:
+      '@ahoo-wang/fetcher': 2.2.0
+      '@ahoo-wang/fetcher-decorator': 2.2.0
+      '@ahoo-wang/fetcher-eventstream': 2.2.0
+
+  '@ahoo-wang/fetcher@2.2.0': {}
+
+  '@ahoo-wang/fetcher@2.2.2': {}
 
   '@ampproject/remapping@2.3.0':
     dependencies:
@@ -3161,15 +3173,15 @@ snapshots:
       picocolors: 1.1.1
       redent: 3.0.0
 
-  '@testing-library/react@16.3.0(@testing-library/dom@10.4.1)(@types/react-dom@19.1.9(@types/react@19.1.13))(@types/react@19.1.13)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)':
+  '@testing-library/react@16.3.0(@testing-library/dom@10.4.1)(@types/react-dom@19.1.9(@types/react@19.1.14))(@types/react@19.1.14)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)':
     dependencies:
       '@babel/runtime': 7.28.4
       '@testing-library/dom': 10.4.1
       react: 19.1.1
       react-dom: 19.1.1(react@19.1.1)
     optionalDependencies:
-      '@types/react': 19.1.13
-      '@types/react-dom': 19.1.9(@types/react@19.1.13)
+      '@types/react': 19.1.14
+      '@types/react-dom': 19.1.9(@types/react@19.1.14)
 
   '@testing-library/user-event@14.6.1(@testing-library/dom@10.4.1)':
     dependencies:
@@ -3208,11 +3220,11 @@ snapshots:
 
   '@types/json-schema@7.0.15': {}
 
-  '@types/react-dom@19.1.9(@types/react@19.1.13)':
+  '@types/react-dom@19.1.9(@types/react@19.1.14)':
     dependencies:
-      '@types/react': 19.1.13
+      '@types/react': 19.1.14
 
-  '@types/react@19.1.13':
+  '@types/react@19.1.14':
     dependencies:
       csstype: 3.1.3
 
@@ -3515,7 +3527,7 @@ snapshots:
 
   balanced-match@1.0.2: {}
 
-  baseline-browser-mapping@2.8.6: {}
+  baseline-browser-mapping@2.8.7: {}
 
   bidi-js@1.0.3:
     dependencies:
@@ -3536,9 +3548,9 @@ snapshots:
 
   browserslist@4.26.2:
     dependencies:
-      baseline-browser-mapping: 2.8.6
-      caniuse-lite: 1.0.30001743
-      electron-to-chromium: 1.5.223
+      baseline-browser-mapping: 2.8.7
+      caniuse-lite: 1.0.30001745
+      electron-to-chromium: 1.5.224
       node-releases: 2.0.21
       update-browserslist-db: 1.1.3(browserslist@4.26.2)
 
@@ -3546,7 +3558,7 @@ snapshots:
 
   callsites@3.1.0: {}
 
-  caniuse-lite@1.0.30001743: {}
+  caniuse-lite@1.0.30001745: {}
 
   chai@5.3.3:
     dependencies:
@@ -3635,7 +3647,7 @@ snapshots:
 
   eastasianwidth@0.2.0: {}
 
-  electron-to-chromium@1.5.223: {}
+  electron-to-chromium@1.5.224: {}
 
   emoji-regex@8.0.0: {}
 
@@ -3687,7 +3699,7 @@ snapshots:
     dependencies:
       eslint: 9.36.0(jiti@2.6.0)
 
-  eslint-plugin-react-refresh@0.4.21(eslint@9.36.0(jiti@2.6.0)):
+  eslint-plugin-react-refresh@0.4.22(eslint@9.36.0(jiti@2.6.0)):
     dependencies:
       eslint: 9.36.0(jiti@2.6.0)
 
@@ -4500,7 +4512,7 @@ snapshots:
 
   react-refresh@0.17.0: {}
 
-  react-router@7.9.2(react-dom@19.1.1(react@19.1.1))(react@19.1.1):
+  react-router@7.9.3(react-dom@19.1.1(react@19.1.1))(react@19.1.1):
     dependencies:
       cookie: 1.0.2
       react: 19.1.1
@@ -4775,15 +4787,15 @@ snapshots:
       jiti: 2.6.0
       lightningcss: 1.30.1
 
-  vitest-browser-react@1.0.1(@types/react-dom@19.1.9(@types/react@19.1.13))(@types/react@19.1.13)(@vitest/browser@3.2.4)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(vitest@3.2.4):
+  vitest-browser-react@1.0.1(@types/react-dom@19.1.9(@types/react@19.1.14))(@types/react@19.1.14)(@vitest/browser@3.2.4)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(vitest@3.2.4):
     dependencies:
       '@vitest/browser': 3.2.4(vite@7.1.7(jiti@2.6.0)(lightningcss@1.30.1))(vitest@3.2.4)
       react: 19.1.1
       react-dom: 19.1.1(react@19.1.1)
       vitest: 3.2.4(@vitest/browser@3.2.4)(@vitest/ui@3.2.4)(jiti@2.6.0)(jsdom@27.0.0(postcss@8.5.6))(lightningcss@1.30.1)
     optionalDependencies:
-      '@types/react': 19.1.13
-      '@types/react-dom': 19.1.9(@types/react@19.1.13)
+      '@types/react': 19.1.14
+      '@types/react-dom': 19.1.9(@types/react@19.1.14)
 
   vitest@3.2.4(@vitest/browser@3.2.4)(@vitest/ui@3.2.4)(jiti@2.6.0)(jsdom@27.0.0(postcss@8.5.6))(lightningcss@1.30.1):
     dependencies:
