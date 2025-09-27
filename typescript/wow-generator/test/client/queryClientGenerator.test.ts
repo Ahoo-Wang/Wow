@@ -177,6 +177,5 @@ describe('QueryClientGenerator', () => {
     const generator = new QueryClientGenerator(context);
 
     generator.generate();
-
   });
 });

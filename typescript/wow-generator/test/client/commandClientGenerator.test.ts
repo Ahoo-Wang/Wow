@@ -268,6 +268,5 @@ describe('CommandClientGenerator', () => {
     const generator = new CommandClientGenerator(context);
 
     generator.generate();
-
   });
 });
