@@ -20,6 +20,46 @@ describe('ConsoleLogger', () => {
       '12:00:00',
     );
   });
+
+  it('should log progressWithCount messages', () => {
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {
+    });
+    const logger = new ConsoleLogger();
+
+    logger.progressWithCount(1, 5, 'Test progress with count');
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[12:00:00] 🔄 [1/5] Test progress with count',
+    );
+    consoleSpy.mockRestore();
+  });
+
+  it('should log progressWithCount messages with params', () => {
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {
+    });
+    const logger = new ConsoleLogger();
+
+    logger.progressWithCount(2, 5, 'Test progress with count', 1, 'param1');
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[12:00:00] 🔄   [2/5] Test progress with count',
+      'param1',
+    );
+    consoleSpy.mockRestore();
+  });
+
+  it('should log progressWithCount messages with level', () => {
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {
+    });
+    const logger = new ConsoleLogger();
+
+    logger.progressWithCount(3, 5, 'Test progress with count', 2);
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[12:00:00] 🔄     [3/5] Test progress with count',
+    );
+    consoleSpy.mockRestore();
+  });
   it('should log info messages with emoji', () => {
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {
     });
@@ -28,6 +68,21 @@ describe('ConsoleLogger', () => {
     logger.info('Test info message');
 
     expect(consoleSpy).toHaveBeenCalledWith('[12:00:00] ℹ️  Test info message');
+    consoleSpy.mockRestore();
+  });
+
+  it('should log info messages with params', () => {
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {
+    });
+    const logger = new ConsoleLogger();
+
+    logger.info('Test info message', 'param1', 'param2');
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[12:00:00] ℹ️  Test info message',
+      'param1',
+      'param2',
+    );
     consoleSpy.mockRestore();
   });
 
@@ -44,6 +99,20 @@ describe('ConsoleLogger', () => {
     consoleSpy.mockRestore();
   });
 
+  it('should log success messages with params', () => {
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {
+    });
+    const logger = new ConsoleLogger();
+
+    logger.success('Test success message', 'param1');
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[12:00:00] ✅ Test success message',
+      'param1',
+    );
+    consoleSpy.mockRestore();
+  });
+
   it('should log error messages with emoji', () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {
     });
@@ -52,6 +121,20 @@ describe('ConsoleLogger', () => {
     logger.error('Test error message');
 
     expect(consoleSpy).toHaveBeenCalledWith('[12:00:00] ❌ Test error message');
+    consoleSpy.mockRestore();
+  });
+
+  it('should log error messages with params', () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {
+    });
+    const logger = new ConsoleLogger();
+
+    logger.error('Test error message', 'error detail');
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[12:00:00] ❌ Test error message',
+      'error detail',
+    );
     consoleSpy.mockRestore();
   });
 
@@ -64,6 +147,33 @@ describe('ConsoleLogger', () => {
 
     expect(consoleSpy).toHaveBeenCalledWith(
       '[12:00:00] 🔄 Test progress message',
+    );
+    consoleSpy.mockRestore();
+  });
+
+  it('should log progress messages with params', () => {
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {
+    });
+    const logger = new ConsoleLogger();
+
+    logger.progress('Test progress message', 1, 'param1');
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[12:00:00] 🔄   Test progress message',
+      'param1',
+    );
+    consoleSpy.mockRestore();
+  });
+
+  it('should log progress messages with level', () => {
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {
+    });
+    const logger = new ConsoleLogger();
+
+    logger.progress('Test progress message', 2);
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[12:00:00] 🔄     Test progress message',
     );
     consoleSpy.mockRestore();
   });

@@ -11,12 +11,14 @@
  * limitations under the License.
  */
 
-import { Project } from 'ts-morph';
+import { Directory, Project, SourceFile } from 'ts-morph';
 import { GenerateContext, GeneratorOptions } from './types';
 import { parseOpenAPI } from './utils';
 import { AggregateResolver } from './aggregate';
 import { ModelGenerator } from './model';
 import { ClientGenerator } from './client';
+import * as fs from 'fs';
+import * as path from 'path';
 
 /**
  * Main code generator class that orchestrates the generation of TypeScript code from OpenAPI specifications.
@@ -53,11 +55,95 @@ export class CodeGenerator {
     modelGenerator.generate();
     const clientGenerator = new ClientGenerator(context);
     clientGenerator.generate();
+    this.generateIndex();
+    this.optimizeSourceFiles();
+    await this.project.save();
+  }
+
+  /**
+   * Generates index.ts files for all subdirectories in the output directory.
+   * Scans all directories, gets all .ts files in each directory,
+   * and creates index.ts files with export * from './xxx' statements.
+   */
+  generateIndex() {
+    const outputDir = this.project.getDirectory(this.options.outputDir);
+    if (!outputDir) {
+      return;
+    }
+    this.processDirectory(outputDir);
+  }
+
+  private processDirectory(dir: Directory) {
+    const subDirs = dir.getDirectories();
+    for (const subDir of subDirs) {
+      this.generateIndexForDirectory(subDir);
+      this.processDirectory(subDir);
+    }
+  }
+
+  /**
+   * Generates an index.ts file for a specific directory.
+   * @param dir - The directory to generate index.ts for
+   */
+  private generateIndexForDirectory(dir: Directory) {
+    const tsFiles = dir
+      .getSourceFiles()
+      .filter(
+        (file: SourceFile) =>
+          file.getBaseName().endsWith('.ts') &&
+          file.getBaseName() !== 'index.ts',
+      );
+
+    // Get subdirectories using fs
+    const dirPath = dir.getPath();
+    let subDirNames: string[] = [];
+    try {
+      subDirNames = fs.readdirSync(dirPath).filter(item => {
+        const itemPath = path.join(dirPath, item);
+        return fs.statSync(itemPath).isDirectory();
+      });
+    } catch {
+      // Ignore if can't read
+    }
+
+    if (tsFiles.length === 0 && subDirNames.length === 0) {
+      return; // No files or subdirs to export
+    }
+
+    const indexFilePath = `${dirPath}/index.ts`;
+    const indexFile =
+      this.project.getSourceFile(indexFilePath) ||
+      this.project.createSourceFile(indexFilePath, '', { overwrite: true });
+
+    // Clear existing content
+    indexFile.removeText();
+
+    // Add export statements for .ts files
+    for (const tsFile of tsFiles) {
+      const relativePath = `./${tsFile.getBaseNameWithoutExtension()}`;
+      indexFile.addExportDeclaration({
+        moduleSpecifier: relativePath,
+        isTypeOnly: false,
+        namedExports: [],
+      });
+    }
+
+    // Add export statements for subdirectories
+    for (const subDirName of subDirNames) {
+      const relativePath = `./${subDirName}`;
+      indexFile.addExportDeclaration({
+        moduleSpecifier: relativePath,
+        isTypeOnly: false,
+        namedExports: [],
+      });
+    }
+  }
+
+  optimizeSourceFiles() {
     this.project.getSourceFiles().forEach(sourceFile => {
       sourceFile.formatText();
       sourceFile.organizeImports();
       sourceFile.fixMissingImports();
     });
-    await this.project.save();
   }
 }

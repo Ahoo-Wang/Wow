@@ -21,6 +21,7 @@ clients, and command clients from OpenAPI specifications.
 - **📋 Comprehensive Models**: Handles complex schemas including unions, intersections, and references
 - **🚀 Fetcher Integration**: Seamlessly integrates with the Fetcher ecosystem
 - **📊 Progress Logging**: Friendly logging with progress indicators and emojis
+- **📁 Auto Index Generation**: Automatically generates index.ts files for clean module organization
 
 ## 🚀 Quick Start
 
@@ -84,13 +85,37 @@ The generator creates the following structure in your output directory:
 ```
 output/
 ├── {bounded-context}/
+│   ├── index.ts                   # Auto-generated index file exporting all modules
 │   ├── boundedContext.ts          # Bounded context constants
 │   ├── types.ts                   # Shared types for the bounded context
 │   └── {aggregate}/               # Aggregate-specific files
+│       ├── index.ts               # Auto-generated index file for aggregate
 │       ├── types.ts               # Aggregate-specific types and models
 │       ├── queryClient.ts         # Query client classes
 │       └── commandClient.ts       # Command client classes
+├── index.ts                       # Root index file exporting all bounded contexts
 └── tsconfig.json                  # TypeScript configuration
+```
+
+#### Index File Generation
+
+The generator automatically creates `index.ts` files in all directories to provide convenient module exports:
+
+- **Root index.ts**: Exports all bounded contexts
+- **Bounded context index.ts**: Exports all aggregates within the context
+- **Aggregate index.ts**: Exports all files within the aggregate
+
+This allows for clean imports like:
+
+```typescript
+// Import everything from a bounded context
+import * as compensation from './generated/compensation';
+
+// Import specific aggregates
+import { executionFailed } from './generated/compensation';
+
+// Import specific files
+import { ExecutionFailedState } from './generated/compensation/execution_failed';
 ```
 
 ## 🎯 Generated Code Examples
