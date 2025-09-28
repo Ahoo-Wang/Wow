@@ -14,11 +14,11 @@
     "generate": "fetcher-generator generate -i http://compensation-service.dev.svc.cluster.local/v3/api-docs -o src/services"
   },
   "dependencies": {
-    "@ahoo-wang/fetcher": "^2.3.0",
-    "@ahoo-wang/fetcher-cosec": "^2.3.0",
-    "@ahoo-wang/fetcher-decorator": "^2.3.0",
-    "@ahoo-wang/fetcher-eventstream": "^2.3.0",
-    "@ahoo-wang/fetcher-wow": "^2.3.0",
+    "@ahoo-wang/fetcher": "^2.3.2",
+    "@ahoo-wang/fetcher-cosec": "^2.3.2",
+    "@ahoo-wang/fetcher-decorator": "^2.3.2",
+    "@ahoo-wang/fetcher-eventstream": "^2.3.2",
+    "@ahoo-wang/fetcher-wow": "^2.3.2",
     "@ant-design/icons": "^6.0.2",
     "@ant-design/v5-patch-for-react-19": "^1.0.3",
     "@monaco-editor/react": "4.7.0",
@@ -31,14 +31,14 @@
     "tailwindcss": "^4.1.13"
   },
   "devDependencies": {
-    "@ahoo-wang/fetcher-generator": "^2.3.0",
+    "@ahoo-wang/fetcher-generator": "^2.3.2",
     "@eslint/js": "^9.36.0",
     "@tailwindcss/vite": "^4.1.13",
     "@testing-library/jest-dom": "^6.8.0",
     "@testing-library/react": "^16.3.0",
     "@types/react": "^19.1.14",
     "@types/react-dom": "^19.1.9",
-    "@vitejs/plugin-react": "^5.0.3",
+    "@vitejs/plugin-react": "^5.0.4",
     "@vitest/coverage-v8": "3.2.4",
     "@vitest/ui": "3.2.4",
     "eslint": "^9.36.0",
