@@ -136,7 +136,7 @@ export class CodeGenerator {
       );
 
     // Get subdirectories using fs
-    let subDirs: Directory[] = dir.getDirectories();
+    const subDirs: Directory[] = dir.getDirectories();
 
     this.options.logger.info(
       `Found ${tsFiles.length} TypeScript files and ${subDirs.length} subdirectories in ${dirPath}`,
