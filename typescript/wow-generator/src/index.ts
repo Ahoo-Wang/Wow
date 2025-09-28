@@ -106,6 +106,7 @@ export class CodeGenerator {
       );
       return;
     }
+    this.generateIndexForDirectory(outputDir);
     this.processDirectory(outputDir);
     this.options.logger.info('Index file generation completed');
   }
