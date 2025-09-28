@@ -61,9 +61,6 @@ abstract class AbstractKafkaBus<M, E>(
                     @Suppress("ThrowingExceptionsWithoutMessageOrCause")
                     val error = it.exception()
                     if (error != null) {
-                        log.error(error) {
-                            "Failed to send message[$message]."
-                        }
                         it.correlationMetadata().tryEmitError(error)
                     } else {
                         it.correlationMetadata().tryEmitEmpty()
