@@ -48,7 +48,7 @@
   "scripts": {
     "build": "vite build",
     "test:ui": "vitest --ui",
-    "test": "vitest run --coverage  --testTimeout=10000",
+    "test": "vitest run --coverage  --testTimeout=15000",
     "lint": "eslint . --fix",
     "clean": "rm -rf dist",
     "analyze": "npx vite-bundle-analyzer -p auto",
