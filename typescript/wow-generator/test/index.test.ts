@@ -61,8 +61,10 @@ describe('CodeGenerator', () => {
     vi.clearAllMocks();
 
     mockOutputDir = {
+      getPath: () => '/output',
       getDirectories: vi.fn().mockReturnValue([]),
-      getBaseName: vi.fn().mockReturnValue('example'),
+      getSourceFiles: vi.fn().mockReturnValue([]),
+      getBaseName: () => 'example',
     };
     mockProject = {
       getSourceFiles: vi.fn().mockReturnValue([]),
@@ -195,19 +197,21 @@ describe('CodeGenerator', () => {
       };
 
       mockSourceFile = {
-        getBaseName: vi.fn().mockReturnValue('test.ts'),
-        getBaseNameWithoutExtension: vi.fn().mockReturnValue('test'),
+        getBaseName: () => 'test.ts',
+        getBaseNameWithoutExtension: () => 'test',
       };
 
       mockSubDir = {
-        getPath: vi.fn().mockReturnValue('/output/subdir'),
+        getPath: () => '/output/subdir',
         getDirectories: vi.fn().mockReturnValue([]),
         getSourceFiles: vi.fn().mockReturnValue([mockSourceFile]),
       };
 
       mockOutputDir = {
+        getPath: () => '/output',
         getDirectories: vi.fn().mockReturnValue([mockSubDir]),
-        getBaseName: vi.fn().mockReturnValue('example'),
+        getSourceFiles: vi.fn().mockReturnValue([]),
+        getBaseName: () => 'example',
       };
 
       mockProject = {
@@ -258,7 +262,7 @@ describe('CodeGenerator', () => {
 
     it('should recursively process subdirectories', () => {
       const mockSubSubDir = {
-        getPath: vi.fn().mockReturnValue('/output/subdir/subsubdir'),
+        getPath: () => '/output/subdir/subsubdir',
         getDirectories: vi.fn().mockReturnValue([]),
         getSourceFiles: vi.fn().mockReturnValue([]),
       };
