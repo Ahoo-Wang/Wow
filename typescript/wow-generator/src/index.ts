@@ -17,8 +17,6 @@ import { parseOpenAPI } from './utils';
 import { AggregateResolver } from './aggregate';
 import { ModelGenerator } from './model';
 import { ClientGenerator } from './client';
-import * as fs from 'fs';
-import * as path from 'path';
 
 /**
  * Main code generator class that orchestrates the generation of TypeScript code from OpenAPI specifications.
@@ -106,8 +104,8 @@ export class CodeGenerator {
       );
       return;
     }
-    this.generateIndexForDirectory(outputDir);
     this.processDirectory(outputDir);
+    this.generateIndexForDirectory(outputDir);
     this.options.logger.info('Index file generation completed');
   }
 
@@ -138,23 +136,13 @@ export class CodeGenerator {
       );
 
     // Get subdirectories using fs
-    let subDirNames: string[] = [];
-    try {
-      subDirNames = fs.readdirSync(dirPath).filter(item => {
-        const itemPath = path.join(dirPath, item);
-        return fs.statSync(itemPath).isDirectory();
-      });
-    } catch (error) {
-      this.options.logger.error(
-        `Failed to read subdirectories for ${dirPath}: ${error}`,
-      );
-    }
+    let subDirs: Directory[] = dir.getDirectories();
 
     this.options.logger.info(
-      `Found ${tsFiles.length} TypeScript files and ${subDirNames.length} subdirectories in ${dirPath}`,
+      `Found ${tsFiles.length} TypeScript files and ${subDirs.length} subdirectories in ${dirPath}`,
     );
 
-    if (tsFiles.length === 0 && subDirNames.length === 0) {
+    if (tsFiles.length === 0 && subDirs.length === 0) {
       this.options.logger.info(
         `No files or subdirectories to export in ${dirPath}, skipping index generation`,
       );
@@ -182,8 +170,8 @@ export class CodeGenerator {
     }
 
     // Add export statements for subdirectories
-    for (const subDirName of subDirNames) {
-      const relativePath = `./${subDirName}`;
+    for (const subDir of subDirs) {
+      const relativePath = `./${subDir.getBaseName()}`;
       this.options.logger.info(
         `Adding export for subdirectory: ${relativePath}`,
       );
@@ -195,7 +183,7 @@ export class CodeGenerator {
     }
 
     this.options.logger.info(
-      `Index file generated for ${dirPath} with ${tsFiles.length + subDirNames.length} exports`,
+      `Index file generated for ${dirPath} with ${tsFiles.length + subDirs.length} exports`,
     );
   }
 
