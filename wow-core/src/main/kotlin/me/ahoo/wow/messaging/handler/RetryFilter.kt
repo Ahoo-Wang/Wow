@@ -18,7 +18,7 @@ import reactor.util.retry.Retry
 import java.time.Duration
 
 private const val MAX_RETRIES = 10L
-private val MIN_BACKOFF = Duration.ofMillis(500)
+private val MIN_BACKOFF = Duration.ofMillis(200)
 
 fun retryStrategy(
     maxAttempts: Long = MAX_RETRIES,
