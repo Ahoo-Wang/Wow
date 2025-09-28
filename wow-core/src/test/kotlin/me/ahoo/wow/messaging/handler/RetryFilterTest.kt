@@ -70,6 +70,7 @@ internal class RetryFilterTest {
 
         Mono.fromCallable {
             if (counter.getAndIncrement() < 2) {
+                @Suppress("TooGenericExceptionThrown")
                 throw RuntimeException("Test exception on attempt ${counter.get()}")
             }
             "success"
