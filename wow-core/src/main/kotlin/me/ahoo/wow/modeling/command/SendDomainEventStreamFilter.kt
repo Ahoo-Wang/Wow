@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.modeling.command
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.annotation.ORDER_LAST
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.command.ServerCommandExchange
@@ -21,6 +22,7 @@ import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterType
 import me.ahoo.wow.messaging.function.logErrorResume
 import me.ahoo.wow.messaging.handler.ExchangeFilter
+import me.ahoo.wow.messaging.handler.retryStrategy
 import reactor.core.publisher.Mono
 
 @FilterType(CommandDispatcher::class)
@@ -28,6 +30,11 @@ import reactor.core.publisher.Mono
 class SendDomainEventStreamFilter(
     private val domainEventBus: DomainEventBus
 ) : ExchangeFilter<ServerCommandExchange<*>> {
+    companion object {
+        private val log = KotlinLogging.logger {}
+        private val retryStrategy = retryStrategy(logger = log)
+    }
+
     override fun filter(
         exchange: ServerCommandExchange<*>,
         next: FilterChain<ServerCommandExchange<*>>
@@ -36,6 +43,7 @@ class SendDomainEventStreamFilter(
             val eventStream = exchange.getEventStream() ?: return@defer next.filter(exchange)
             domainEventBus.send(eventStream)
                 .checkpoint("Send Message[${eventStream.id}] [SendDomainEventStreamFilter]")
+                .retryWhen(retryStrategy)
                 .logErrorResume()
                 .then(next.filter(exchange))
         }
