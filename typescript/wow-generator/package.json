@@ -1,6 +1,6 @@
 {
   "name": "@ahoo-wang/fetcher-generator",
-  "version": "2.3.2",
+  "version": "2.3.5",
   "description": "TypeScript code generator from OpenAPI specs for Wow domain-driven design framework. ",
   "keywords": [
     "fetch",
@@ -54,12 +54,14 @@
     "analyze": "npx vite-bundle-analyzer -p auto",
     "generate": "node dist/cli.js generate -i test/demo-spec.json -o test-output"
   },
+  "peerDependencies": {
+    "@ahoo-wang/fetcher": "workspace:^2.3.4",
+    "@ahoo-wang/fetcher-eventstream": "workspace:^2.3.4",
+    "@ahoo-wang/fetcher-decorator": "workspace:^2.3.4",
+    "@ahoo-wang/fetcher-openapi": "workspace:^2.3.4",
+    "@ahoo-wang/fetcher-wow": "workspace:^2.3.4"
+  },
   "dependencies": {
-    "@ahoo-wang/fetcher": "workspace:*",
-    "@ahoo-wang/fetcher-eventstream": "workspace:*",
-    "@ahoo-wang/fetcher-decorator": "workspace:*",
-    "@ahoo-wang/fetcher-openapi": "workspace:*",
-    "@ahoo-wang/fetcher-wow": "workspace:*",
     "ts-morph": "catalog:",
     "commander": "catalog:",
     "yaml": "catalog:"

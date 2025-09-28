@@ -1,6 +1,6 @@
 {
   "name": "@ahoo-wang/fetcher-wow",
-  "version": "2.3.2",
+  "version": "2.3.5",
   "description": "Support for Wow(https://github.com/Ahoo-Wang/Wow) in Fetcher",
   "keywords": [
     "fetch",
@@ -45,10 +45,10 @@
     "clean": "rm -rf dist",
     "analyze": "npx vite-bundle-analyzer -p auto"
   },
-  "dependencies": {
-    "@ahoo-wang/fetcher": "workspace:*",
-    "@ahoo-wang/fetcher-eventstream": "workspace:*",
-    "@ahoo-wang/fetcher-decorator": "workspace:*"
+  "peerDependencies": {
+    "@ahoo-wang/fetcher": "workspace:^2.3.4",
+    "@ahoo-wang/fetcher-eventstream": "workspace:^2.3.4",
+    "@ahoo-wang/fetcher-decorator": "workspace:^2.3.4"
   },
   "devDependencies": {
     "@eslint/js": "catalog:",

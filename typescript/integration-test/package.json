@@ -1,6 +1,6 @@
 {
   "name": "@ahoo-wang/fetcher-integration-test",
-  "version": "2.3.2",
+  "version": "2.3.5",
   "private": true,
   "description": "Integration Test Fetcher",
   "keywords": [
@@ -44,14 +44,14 @@
     "generate": "pnpm dlx @ahoo-wang/fetcher-generator generate -i http://localhost:8080/v3/api-docs"
   },
   "dependencies": {
-    "@ahoo-wang/fetcher": "workspace:*",
-    "@ahoo-wang/fetcher-cosec": "workspace:*",
-    "@ahoo-wang/fetcher-decorator": "workspace:*",
-    "@ahoo-wang/fetcher-eventstream": "workspace:*",
-    "@ahoo-wang/fetcher-wow": "workspace:*"
+    "@ahoo-wang/fetcher": "workspace:^",
+    "@ahoo-wang/fetcher-cosec": "workspace:^",
+    "@ahoo-wang/fetcher-decorator": "workspace:^",
+    "@ahoo-wang/fetcher-eventstream": "workspace:^",
+    "@ahoo-wang/fetcher-wow": "workspace:^"
   },
   "devDependencies": {
-    "@ahoo-wang/fetcher-generator": "workspace:*",
+    "@ahoo-wang/fetcher-generator": "workspace:^",
     "@eslint/js": "catalog:",
     "@types/node": "catalog:",
     "@vitest/coverage-v8": "catalog:",
