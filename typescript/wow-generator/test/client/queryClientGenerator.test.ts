@@ -14,7 +14,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Project, SourceFile, VariableDeclarationKind } from 'ts-morph';
 import { QueryClientGenerator } from '../../src/client/queryClientGenerator';
-import { GenerateContext } from '../../src/types';
+import { GenerateContext } from '../../src/generateContext';
+import { GenerateContextInit } from '../../src/types';
 import { AggregateDefinition } from '../../src/aggregate';
 import { SilentLogger } from '../../src/utils/logger';
 
@@ -65,13 +66,17 @@ describe('QueryClientGenerator', () => {
 
   const mockLogger = new SilentLogger();
 
-  const createContext = (logger?: any): GenerateContext => ({
-    openAPI: mockOpenAPI,
-    project: new Project(),
-    outputDir: '/tmp/test',
-    contextAggregates: mockContextAggregates,
-    logger,
-  });
+  const createContext = (logger?: any): GenerateContext => {
+    const contextInit: GenerateContextInit = {
+      openAPI: mockOpenAPI,
+      project: new Project(),
+      outputDir: '/tmp/test',
+      contextAggregates: mockContextAggregates,
+      logger: logger || mockLogger,
+      config: {},
+    };
+    return new GenerateContext(contextInit);
+  };
 
   let mockSourceFile: any;
 
@@ -107,18 +112,18 @@ describe('QueryClientGenerator', () => {
     const context = createContext(mockLogger);
     const generator = new QueryClientGenerator(context);
 
-    expect(generator.project).toBe(context.project);
-    expect(generator.openAPI).toBe(context.openAPI);
-    expect(generator.outputDir).toBe(context.outputDir);
-    expect(generator.contextAggregates).toBe(context.contextAggregates);
-    expect(generator.logger).toBe(context.logger);
+    expect(generator.context.project).toBe(context.project);
+    expect(generator.context.openAPI).toBe(context.openAPI);
+    expect(generator.context.outputDir).toBe(context.outputDir);
+    expect(generator.context.contextAggregates).toBe(context.contextAggregates);
+    expect(generator.context.logger).toBe(context.logger);
   });
 
   it('should initialize without logger', () => {
     const context = createContext();
     const generator = new QueryClientGenerator(context);
 
-    expect(generator.logger).toBeUndefined();
+    expect(generator.context.logger).toBe(mockLogger);
   });
 
   it('should generate query clients for all aggregates', () => {
@@ -170,10 +175,15 @@ describe('QueryClientGenerator', () => {
 
   it('should handle empty context aggregates', () => {
     const emptyContextAggregates = new Map<string, Set<AggregateDefinition>>();
-    const context = {
-      ...createContext(mockLogger),
+    const contextInit: GenerateContextInit = {
+      openAPI: mockOpenAPI,
+      project: new Project(),
+      outputDir: '/tmp/test',
       contextAggregates: emptyContextAggregates,
+      logger: mockLogger,
+      config: {},
     };
+    const context = new GenerateContext(contextInit);
     const generator = new QueryClientGenerator(context);
 
     generator.generate();

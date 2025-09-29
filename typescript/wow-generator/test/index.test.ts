@@ -133,23 +133,15 @@ describe('CodeGenerator', () => {
       expect(mockAggregateResolver.resolve).toHaveBeenCalled();
 
       // Verify ModelGenerator was created and generate called
-      expect(ModelGenerator).toHaveBeenCalledWith({
-        openAPI: mockOpenAPI,
-        project: mockProject,
-        outputDir: options.outputDir,
-        contextAggregates: mockContextAggregates,
-        logger: mockLogger,
-      });
+      expect(ModelGenerator).toHaveBeenCalledWith(
+        expect.any(Object), // GenerateContext instance
+      );
       expect(mockModelGenerator.generate).toHaveBeenCalled();
 
       // Verify ClientGenerator was created and generate called
-      expect(ClientGenerator).toHaveBeenCalledWith({
-        openAPI: mockOpenAPI,
-        project: mockProject,
-        outputDir: options.outputDir,
-        contextAggregates: mockContextAggregates,
-        logger: mockLogger,
-      });
+      expect(ClientGenerator).toHaveBeenCalledWith(
+        expect.any(Object), // GenerateContext instance
+      );
       expect(mockClientGenerator.generate).toHaveBeenCalled();
 
       // Verify project.save was called

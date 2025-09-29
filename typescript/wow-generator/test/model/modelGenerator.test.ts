@@ -14,7 +14,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Project } from 'ts-morph';
 import { ModelGenerator } from '../../src/model/modelGenerator';
-import { GenerateContext } from '../../src/types';
+import { GenerateContext } from '../../src/generateContext';
+import { GenerateContextInit } from '../../src/types';
 import { Schema } from '@ahoo-wang/fetcher-openapi';
 
 // Mock dependencies
@@ -24,6 +25,7 @@ vi.mock('ts-morph', () => ({
 
 vi.mock('../../src/model/modelInfo', () => ({
   resolveModelInfo: vi.fn(),
+  resolveReferenceModelInfo: vi.fn(),
 }));
 
 vi.mock('../../src/utils', () => ({
@@ -49,7 +51,10 @@ vi.mock('../../src/baseCodeGenerator', () => ({
 }));
 
 // Import after mocking
-import { resolveModelInfo } from '../../src/model/modelInfo';
+import {
+  resolveModelInfo,
+  resolveReferenceModelInfo,
+} from '../../src/model/modelInfo';
 import {
   getModelFileName,
   getOrCreateSourceFile,
@@ -66,7 +71,6 @@ import {
   toArrayType,
   pascalCase,
 } from '../../src/utils';
-import { GenerateContext } from '../../src/generateContext';
 
 describe('ModelGenerator', () => {
   const mockOpenAPI = {
@@ -107,17 +111,22 @@ describe('ModelGenerator', () => {
     progressWithCount: vi.fn(),
   };
 
-  const createContext = (logger?: any): GenerateContext => ({
-    openAPI: mockOpenAPI,
-    project: new Project(),
-    outputDir: '/tmp/test',
-    contextAggregates: new Map(),
-    logger: logger || mockLogger,
-  });
+  const createContext = (logger?: any): GenerateContext => {
+    const contextInit: GenerateContextInit = {
+      openAPI: mockOpenAPI,
+      project: new Project(),
+      outputDir: '/tmp/test',
+      contextAggregates: new Map(),
+      logger: logger || mockLogger,
+      config: {},
+    };
+    return new GenerateContext(contextInit);
+  };
 
   let mockProject: any;
   let mockSourceFile: any;
   let mockResolveModelInfo: any;
+  let mockResolveReferenceModelInfo: any;
   let mockGetModelFileName: any;
   let mockGetOrCreateSourceFile: any;
   let mockAddImportModelInfo: any;
@@ -149,6 +158,7 @@ describe('ModelGenerator', () => {
     };
 
     mockResolveModelInfo = vi.mocked(resolveModelInfo);
+    mockResolveReferenceModelInfo = vi.mocked(resolveReferenceModelInfo);
     mockGetModelFileName = vi.mocked(getModelFileName);
     mockGetOrCreateSourceFile = vi.mocked(getOrCreateSourceFile);
     mockAddImportModelInfo = vi.mocked(addImportModelInfo);
@@ -168,6 +178,10 @@ describe('ModelGenerator', () => {
     // Setup default mocks
     mockGetOrCreateSourceFile.mockReturnValue(mockSourceFile);
     mockResolveModelInfo.mockReturnValue({ name: 'TestModel', path: 'models' });
+    mockResolveReferenceModelInfo.mockReturnValue({
+      name: 'RefModel',
+      path: 'models',
+    });
     mockGetModelFileName.mockReturnValue('models/types.ts');
   });
 
@@ -177,7 +191,6 @@ describe('ModelGenerator', () => {
       const generator = new ModelGenerator(context);
 
       expect(generator).toBeInstanceOf(ModelGenerator);
-      expect(GenerateContext).toHaveBeenCalledWith(context);
     });
   });
 
@@ -400,7 +413,7 @@ describe('ModelGenerator', () => {
 
       mockIsReference.mockReturnValueOnce(true).mockReturnValueOnce(false);
       mockExtractComponentKey.mockReturnValue('BaseUser');
-      mockResolveModelInfo.mockReturnValueOnce({
+      mockResolveReferenceModelInfo.mockReturnValueOnce({
         name: 'BaseUser',
         path: 'models',
       });
@@ -553,8 +566,10 @@ describe('ModelGenerator', () => {
 
       const propSchema = { $ref: '#/components/schemas/User' };
       mockIsReference.mockReturnValue(true);
-      mockExtractComponentKey.mockReturnValue('User');
-      mockResolveModelInfo.mockReturnValue({ name: 'User', path: 'models' });
+      mockResolveReferenceModelInfo.mockReturnValue({
+        name: 'User',
+        path: 'models',
+      });
 
       const result = (generator as any).resolvePropertyType(
         { name: 'Post', path: 'models' },
@@ -563,7 +578,7 @@ describe('ModelGenerator', () => {
         propSchema as any,
       );
 
-      expect(mockExtractComponentKey).toHaveBeenCalledWith(propSchema);
+      expect(mockResolveReferenceModelInfo).toHaveBeenCalledWith(propSchema);
       expect(mockAddImportModelInfo).toHaveBeenCalledWith(
         { name: 'Post', path: 'models' },
         mockSourceFile,
@@ -737,7 +752,10 @@ describe('ModelGenerator', () => {
 
       mockIsReference.mockReturnValueOnce(true).mockReturnValueOnce(false);
       mockExtractComponentKey.mockReturnValue('User');
-      mockResolveModelInfo.mockReturnValue({ name: 'User', path: 'models' });
+      mockResolveReferenceModelInfo.mockReturnValue({
+        name: 'User',
+        path: 'models',
+      });
       mockResolvePrimitiveType.mockReturnValue('string');
       mockIsUnion.mockReturnValue(true);
 
@@ -760,7 +778,10 @@ describe('ModelGenerator', () => {
 
       mockIsReference.mockReturnValueOnce(true).mockReturnValueOnce(false);
       mockExtractComponentKey.mockReturnValue('Base');
-      mockResolveModelInfo.mockReturnValue({ name: 'Base', path: 'models' });
+      mockResolveReferenceModelInfo.mockReturnValue({
+        name: 'Base',
+        path: 'models',
+      });
       mockResolvePrimitiveType.mockReturnValue('any');
       mockIsUnion.mockReturnValue(false);
 

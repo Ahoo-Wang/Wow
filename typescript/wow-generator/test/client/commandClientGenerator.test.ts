@@ -13,10 +13,11 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Project, SourceFile, VariableDeclarationKind } from 'ts-morph';
-import { CommandClientGenerator } from '../../src/client/commandClientGenerator';
-import { GenerateContext } from '../../src/types';
+import { CommandClientGenerator } from '../../src/client';
 import { AggregateDefinition } from '../../src/aggregate';
 import { SilentLogger } from '../../src/utils/logger';
+import { GenerateContext } from '../../src/generateContext';
+import { GenerateContextInit } from '../../src/types';
 
 // Mock the dependencies
 vi.mock('../../src/utils');
@@ -59,13 +60,17 @@ describe('CommandClientGenerator', () => {
 
   const mockLogger = new SilentLogger();
 
-  const createContext = (logger?: any): GenerateContext => ({
-    openAPI: mockOpenAPI,
-    project: new Project(),
-    outputDir: '/tmp/test',
-    contextAggregates: mockContextAggregates,
-    logger,
-  });
+  const createContext = (logger?: any): GenerateContext => {
+    const contextInit: GenerateContextInit = {
+      openAPI: mockOpenAPI,
+      project: new Project(),
+      outputDir: '/tmp/test',
+      contextAggregates: mockContextAggregates,
+      logger: logger || mockLogger,
+      config: {},
+    };
+    return new GenerateContext(contextInit);
+  };
 
   let mockSourceFile: any;
 
@@ -90,6 +95,7 @@ describe('CommandClientGenerator', () => {
       addVariableStatement: vi.fn(),
       addEnum: vi.fn(() => ({ addMember: vi.fn() })),
       addClass: vi.fn(() => ({
+        addImplements: vi.fn(),
         addConstructor: vi.fn(),
         addMethod: vi.fn(() => ({ addJSDoc: vi.fn() })),
       })),
@@ -118,18 +124,14 @@ describe('CommandClientGenerator', () => {
     const context = createContext(mockLogger);
     const generator = new CommandClientGenerator(context);
 
-    expect(generator.project).toBe(context.project);
-    expect(generator.openAPI).toBe(context.openAPI);
-    expect(generator.outputDir).toBe(context.outputDir);
-    expect(generator.contextAggregates).toBe(context.contextAggregates);
-    expect(generator.logger).toBe(context.logger);
+    expect(generator.context).toBe(context);
   });
 
   it('should initialize without logger', () => {
-    const context = createContext();
+    const context = createContext(undefined);
     const generator = new CommandClientGenerator(context);
 
-    expect(generator.logger).toBeUndefined();
+    expect(generator.context.logger).toBe(mockLogger);
   });
 
   it('should generate command clients for all aggregates', () => {
@@ -186,6 +188,7 @@ describe('CommandClientGenerator', () => {
     const generator = new CommandClientGenerator(context);
 
     const mockClass = {
+      addImplements: vi.fn(),
       addConstructor: vi.fn(),
       addMethod: vi.fn(),
     };
@@ -202,8 +205,8 @@ describe('CommandClientGenerator', () => {
           arguments: [],
         },
       ],
-      implements: ['ApiMetadataCapable'],
     });
+    expect(mockClass.addImplements).toHaveBeenCalledWith('ApiMetadataCapable');
     expect(mockClass.addConstructor).toHaveBeenCalled();
     expect(mockClass.addMethod).toHaveBeenCalled();
   });
@@ -213,6 +216,7 @@ describe('CommandClientGenerator', () => {
     const generator = new CommandClientGenerator(context);
 
     const mockClass = {
+      addImplements: vi.fn(),
       addConstructor: vi.fn(),
       addMethod: vi.fn(),
     };
@@ -225,9 +229,9 @@ describe('CommandClientGenerator', () => {
         name: expect.stringContaining('CommandClient'),
         isExported: true,
         decorators: expect.any(Array),
-        implements: ['ApiMetadataCapable'],
       }),
     );
+    expect(mockClass.addImplements).toHaveBeenCalledWith('ApiMetadataCapable');
   });
 
   it('should process command method', () => {

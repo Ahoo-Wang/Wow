@@ -12,9 +12,8 @@
  */
 
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { parseOpenAPI } from '../../src/utils';
 import { AggregateResolver } from '../../src/aggregate';
-import { tagsToAggregates } from '../../src/aggregate/utils';
+import { tagsToAggregates } from '../../src/aggregate';
 
 // Mock dependencies
 vi.mock('../../src/aggregate/utils', () => ({
@@ -44,7 +43,7 @@ import {
   isReference,
   keySchema,
 } from '../../src/utils';
-import { operationIdToCommandName } from '../../src/aggregate/utils';
+import { operationIdToCommandName } from '../../src/aggregate';
 
 // Integration test
 describe('AggregateResolver', () => {

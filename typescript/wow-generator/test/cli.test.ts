@@ -71,6 +71,7 @@ describe('CLI setup', () => {
     expect(result.option).toHaveBeenCalledWith(
       '-c, --config <file>',
       'Configuration file path',
+      './fetcher-generator.config.json',
     );
     expect(result.option).toHaveBeenCalledWith(
       '-v, --verbose',

@@ -14,7 +14,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Project } from 'ts-morph';
 import { ClientGenerator } from '../../src/client';
-import { GenerateContext } from '../../src/types';
+import { GenerateContext } from '../../src/generateContext';
+import { GenerateContextInit } from '../../src/types';
 import { AggregateDefinition } from '../../src/aggregate';
 import { SilentLogger } from '../../src/utils/logger';
 
@@ -67,13 +68,17 @@ describe('ClientGenerator', () => {
     ['context2', new Set([mockAggregate2])],
   ]);
   const mockLogger = new SilentLogger();
-  const createContext = (logger?: any): GenerateContext => ({
-    openAPI: mockOpenAPI,
-    project: new Project(),
-    outputDir: '/tmp/test',
-    contextAggregates: mockContextAggregates,
-    logger: mockLogger,
-  });
+  const createContext = (logger?: any): GenerateContext => {
+    const contextInit: GenerateContextInit = {
+      openAPI: mockOpenAPI,
+      project: new Project(),
+      outputDir: '/tmp/test',
+      contextAggregates: mockContextAggregates,
+      logger: logger || mockLogger,
+      config: {},
+    };
+    return new GenerateContext(contextInit);
+  };
 
   let mockQueryClientGenerator: any;
   let mockCommandClientGenerator: any;
@@ -112,11 +117,11 @@ describe('ClientGenerator', () => {
     const context = createContext(mockLogger);
     const generator = new ClientGenerator(context);
 
-    expect(generator.project).toBe(context.project);
-    expect(generator.openAPI).toBe(context.openAPI);
-    expect(generator.outputDir).toBe(context.outputDir);
-    expect(generator.contextAggregates).toBe(context.contextAggregates);
-    expect(generator.logger).toBe(context.logger);
+    expect(generator.context.project).toBe(context.project);
+    expect(generator.context.openAPI).toBe(context.openAPI);
+    expect(generator.context.outputDir).toBe(context.outputDir);
+    expect(generator.context.contextAggregates).toBe(context.contextAggregates);
+    expect(generator.context.logger).toBe(context.logger);
   });
 
   it('should generate clients for all bounded contexts and call child generators', () => {
@@ -165,10 +170,15 @@ describe('ClientGenerator', () => {
 
   it('should handle empty context aggregates', () => {
     const emptyContextAggregates = new Map<string, Set<AggregateDefinition>>();
-    const context = {
-      ...createContext(mockLogger),
+    const contextInit: GenerateContextInit = {
+      openAPI: mockOpenAPI,
+      project: new Project(),
+      outputDir: '/tmp/test',
       contextAggregates: emptyContextAggregates,
+      logger: mockLogger,
+      config: {},
     };
+    const context = new GenerateContext(contextInit);
     const generator = new ClientGenerator(context);
 
     generator.generate();
