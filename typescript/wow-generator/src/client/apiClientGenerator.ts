@@ -27,11 +27,8 @@ import { ModelInfo, resolveModelInfo, resolveReferenceModelInfo } from '../model
 import { combineURLs } from '@ahoo-wang/fetcher';
 import {
   ClassDeclaration,
-  DecoratorStructure,
   OptionalKind, ParameterDeclarationStructure,
-  Scope,
   SourceFile,
-
 } from 'ts-morph';
 import { methodToDecorator } from './utils';
 import { addApiMetadataCtor, addImportDecorator, createDecoratorClass } from './decorator';
