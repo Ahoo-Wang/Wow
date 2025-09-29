@@ -19,7 +19,7 @@ import {
   Response,
   Schema,
 } from '@ahoo-wang/fetcher-openapi';
-import { extractOkResponseJsonSchema } from './responses';
+import { extractResponseJsonSchema } from './responses';
 
 /**
  * Represents an HTTP method and its associated operation.
@@ -72,5 +72,5 @@ export function extractOperationOkResponseJsonSchema(
   operation: Operation,
 ): Schema | Reference | undefined {
   const okResponse = extractOkResponse(operation);
-  return extractOkResponseJsonSchema(okResponse);
+  return extractResponseJsonSchema(okResponse);
 }

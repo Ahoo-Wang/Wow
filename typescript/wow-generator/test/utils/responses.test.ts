@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { extractOkResponseJsonSchema } from '../../src/utils';
+import { extractResponseJsonSchema } from '../../src/utils';
 import { Response, Reference, Schema } from '@ahoo-wang/fetcher-openapi';
 import { ContentTypeValues } from '@ahoo-wang/fetcher';
 
@@ -27,21 +27,21 @@ describe('responses', () => {
         },
       };
 
-      expect(extractOkResponseJsonSchema(okResponse)).toBe(schema);
+      expect(extractResponseJsonSchema(okResponse)).toBe(schema);
     });
 
     it('should return undefined if response is undefined', () => {
-      expect(extractOkResponseJsonSchema(undefined)).toBeUndefined();
+      expect(extractResponseJsonSchema(undefined)).toBeUndefined();
     });
 
     it('should return undefined if response is a reference', () => {
       const reference: Reference = { $ref: '#/components/responses/OK' };
-      expect(extractOkResponseJsonSchema(reference)).toBeUndefined();
+      expect(extractResponseJsonSchema(reference)).toBeUndefined();
     });
 
     it('should return undefined if response has no content', () => {
       const okResponse: Response = { description: 'OK' };
-      expect(extractOkResponseJsonSchema(okResponse)).toBeUndefined();
+      expect(extractResponseJsonSchema(okResponse)).toBeUndefined();
     });
 
     it('should return undefined if response has no JSON content', () => {
@@ -52,7 +52,7 @@ describe('responses', () => {
         },
       };
 
-      expect(extractOkResponseJsonSchema(okResponse)).toBeUndefined();
+      expect(extractResponseJsonSchema(okResponse)).toBeUndefined();
     });
   });
 });

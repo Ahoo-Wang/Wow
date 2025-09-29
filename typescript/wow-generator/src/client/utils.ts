@@ -59,3 +59,11 @@ export function getClientName(
 ): string {
   return `${pascalCase(aggregate.aggregateName)}${suffix}`;
 }
+
+
+export function methodToDecorator(method: string): string {
+  if (method === 'delete') {
+    return 'del';
+  }
+  return method;
+}

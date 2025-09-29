@@ -15,24 +15,44 @@ import { Reference, Schema, Response } from '@ahoo-wang/fetcher-openapi';
 import { ContentTypeValues } from '@ahoo-wang/fetcher';
 import { isReference } from './references';
 
-/**
- * Extracts the JSON schema from an OK response.
- * @param okResponse - The response object or reference
- * @returns The JSON schema from the response content or undefined if not found
- */
-export function extractOkResponseJsonSchema(
-  okResponse?: Response | Reference,
+
+export function extractResponseSchema(
+  contentType: string,
+  response?: Response | Reference,
 ): Schema | Reference | undefined {
-  if (!okResponse) {
+  if (!response) {
     return;
   }
-  if (isReference(okResponse)) {
+  if (isReference(response)) {
     return undefined;
   }
 
-  if (!okResponse.content) {
+  if (!response.content) {
     return undefined;
   }
-  const jsonContent = okResponse.content[ContentTypeValues.APPLICATION_JSON];
-  return jsonContent?.schema;
+  return response.content[contentType]?.schema;
 }
+
+/**
+ * Extracts the JSON schema from an OK response.
+ * @param response - The response object or reference
+ * @returns The JSON schema from the response content or undefined if not found
+ */
+export function extractResponseJsonSchema(
+  response?: Response | Reference,
+): Schema | Reference | undefined {
+  return extractResponseSchema(ContentTypeValues.APPLICATION_JSON, response);
+}
+
+export function extractResponseEventStreamSchema(
+  response?: Response | Reference,
+): Schema | Reference | undefined {
+  return extractResponseSchema(ContentTypeValues.TEXT_EVENT_STREAM, response);
+}
+
+export function extractResponseWildcardSchema(
+  response?: Response | Reference,
+): Schema | Reference | undefined {
+  return extractResponseSchema('*/*', response);
+}
+

@@ -16,6 +16,7 @@ import { QueryClientGenerator } from './queryClientGenerator';
 import { CommandClientGenerator } from './commandClientGenerator';
 import { GenerateContext } from '../types';
 import { getOrCreateSourceFile } from '../utils';
+import { ApiClientGenerator } from './apiClientGenerator';
 
 /**
  * Generates TypeScript client classes for aggregates.
@@ -24,6 +25,7 @@ import { getOrCreateSourceFile } from '../utils';
 export class ClientGenerator extends BaseCodeGenerator {
   private readonly queryClientGenerator: QueryClientGenerator;
   private readonly commandClientGenerator: CommandClientGenerator;
+  private readonly apiClientGenerator: ApiClientGenerator;
 
   /**
    * Creates a new ClientGenerator instance.
@@ -33,6 +35,7 @@ export class ClientGenerator extends BaseCodeGenerator {
     super(context);
     this.queryClientGenerator = new QueryClientGenerator(context);
     this.commandClientGenerator = new CommandClientGenerator(context);
+    this.apiClientGenerator = new ApiClientGenerator(context);
   }
 
   /**
@@ -56,6 +59,7 @@ export class ClientGenerator extends BaseCodeGenerator {
     }
     this.queryClientGenerator.generate();
     this.commandClientGenerator.generate();
+    this.apiClientGenerator.generate();
     this.logger.success('Client generation completed');
   }
 

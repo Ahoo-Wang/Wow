@@ -13,7 +13,8 @@
 
 import { Named } from '@ahoo-wang/fetcher-wow';
 import { IMPORT_WOW_PATH, WOW_TYPE_MAPPING } from './wowTypeMapping';
-import { pascalCase } from '../utils';
+import { extractComponentKey, pascalCase } from '../utils';
+import { Reference } from '@ahoo-wang/fetcher-openapi';
 
 /**
  * Data Model Info
@@ -75,4 +76,9 @@ export function resolveModelInfo(schemaKey: string): ModelInfo {
   const name = pascalCase(nameParts);
 
   return { name, path };
+}
+
+export function resolveReferenceModelInfo(reference: Reference): ModelInfo {
+  const componentKey = extractComponentKey(reference);
+  return resolveModelInfo(componentKey);
 }

@@ -23,7 +23,7 @@ import {
 } from 'ts-morph';
 import { HTTPMethod } from '@ahoo-wang/fetcher-openapi';
 import { AggregateDefinition, CommandDefinition } from '../aggregate';
-import { createClientFilePath, getClientName } from './utils';
+import { createClientFilePath, getClientName, methodToDecorator } from './utils';
 import { IMPORT_WOW_PATH, resolveModelInfo } from '../model';
 import {
   addImport,
@@ -251,13 +251,6 @@ export class CommandClientGenerator extends BaseCodeGenerator {
     });
   }
 
-  private methodToDecorator(method: HTTPMethod): string {
-    if (method === 'delete') {
-      return 'del';
-    }
-    return method;
-  }
-
   /**
    * Processes and generates a command method for the command client.
    * @param sourceFile - The source file containing the client
@@ -334,7 +327,7 @@ export class CommandClientGenerator extends BaseCodeGenerator {
       name: camelCase(definition.name),
       decorators: [
         {
-          name: this.methodToDecorator(definition.method),
+          name: methodToDecorator(definition.method),
           arguments: [`${this.getEndpointPath(definition)}`],
         },
       ],
