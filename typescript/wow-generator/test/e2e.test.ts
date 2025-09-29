@@ -40,7 +40,11 @@ function clearOutputSubDirs() {
 describe('E2E Test', () => {
   it('should generate [test/demo-spec.json] code', async () => {
     clearOutputSubDirs();
-    await generateAction({ input: 'test/demo-spec.json', output: OUT_PUT_DIR });
+    await generateAction({
+      input: 'test/demo-spec.json',
+      output: OUT_PUT_DIR,
+      config: 'test/fetcher-generator.config.json',
+    });
   });
 
   it('should generate [test/compensation-spec.json] code', async () => {

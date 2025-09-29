@@ -57,20 +57,37 @@ import {
   STREAM_RESULT_EXTRACTOR_METADATA,
 } from './decorators';
 
+/**
+ * Interface extending MethodOperation with path information.
+ */
 interface PathMethodOperation extends MethodOperation {
   path: string;
 }
 
+/**
+ * Generator for creating TypeScript API client classes from OpenAPI specifications.
+ * Generates client classes with proper decorators, type annotations, and method signatures.
+ */
 export class ApiClientGenerator implements Generator {
   private defaultParameterRequestType = 'ParameterRequest';
   private defaultReturnType = { type: 'Promise<any>' };
 
   private readonly apiMetadataCtorInitializer: string | undefined;
 
+  /**
+   * Creates a new ApiClientGenerator instance.
+   * @param context - The generation context containing OpenAPI spec and configuration
+   */
   constructor(public readonly context: GenerateContext) {
-    this.apiMetadataCtorInitializer = this.context.currentContextAlias ? `{basePath:'${this.context.currentContextAlias}'}` : undefined;
+    this.apiMetadataCtorInitializer = this.context.currentContextAlias
+      ? `{basePath:'${this.context.currentContextAlias}'}`
+      : undefined;
   }
 
+  /**
+   * Generates API client classes for all valid tags in the OpenAPI specification.
+   * Processes tags, groups operations, and creates client classes with methods.
+   */
   generate() {
     this.context.logger.info('Starting API client generation');
     const apiClientTags: Map<string, Tag> = this.resolveApiTags();
@@ -87,11 +104,18 @@ export class ApiClientGenerator implements Generator {
     this.context.logger.success('API client generation completed');
   }
 
+  /**
+   * Generates API client classes for each tag group.
+   * @param apiClientTags - Map of valid API client tags
+   * @param groupOperations - Map of operations grouped by tag
+   */
   private generateApiClients(
     apiClientTags: Map<string, Tag>,
     groupOperations: Map<string, Set<PathMethodOperation>>,
   ) {
-    this.context.logger.info(`Generating ${groupOperations.size} API client classes`);
+    this.context.logger.info(
+      `Generating ${groupOperations.size} API client classes`,
+    );
     let clientCount = 0;
     for (const [tagName, operations] of groupOperations) {
       clientCount++;
@@ -105,6 +129,11 @@ export class ApiClientGenerator implements Generator {
     }
   }
 
+  /**
+   * Creates a new source file for the API client.
+   * @param modelInfo - The model information for the client
+   * @returns The created source file
+   */
   private createApiClientFile(modelInfo: ModelInfo): SourceFile {
     let filePath = modelInfo.path;
     if (this.context.currentContextAlias) {
@@ -115,6 +144,11 @@ export class ApiClientGenerator implements Generator {
     return this.context.getOrCreateSourceFile(filePath);
   }
 
+  /**
+   * Generates a single API client class for the given tag and operations.
+   * @param tag - The OpenAPI tag for the client
+   * @param operations - Set of operations for this client
+   */
   private generateApiClient(tag: Tag, operations: Set<PathMethodOperation>) {
     const modelInfo = resolveModelInfo(tag.name);
     this.context.logger.info(
@@ -134,9 +168,17 @@ export class ApiClientGenerator implements Generator {
     operations.forEach(operation => {
       this.processOperation(tag, apiClientFile, apiClientClass, operation);
     });
-    this.context.logger.success(`Completed API client: ${modelInfo.name}ApiClient`);
+    this.context.logger.success(
+      `Completed API client: ${modelInfo.name}ApiClient`,
+    );
   }
 
+  /**
+   * Generates a unique method name for the operation.
+   * @param apiClientClass - The client class to check for existing methods
+   * @param operation - The operation to generate a name for
+   * @returns A unique camelCase method name
+   */
   private getMethodName(
     apiClientClass: ClassDeclaration,
     operation: Operation,
@@ -152,6 +194,12 @@ export class ApiClientGenerator implements Generator {
     return camelCase(parts);
   }
 
+  /**
+   * Resolves the request type for an operation based on its request body.
+   * @param sourceFile - The source file to add imports to
+   * @param operation - The operation to resolve the request type for
+   * @returns The resolved request type string
+   */
   private resolveRequestType(
     sourceFile: SourceFile,
     operation: Operation,
@@ -207,6 +255,13 @@ export class ApiClientGenerator implements Generator {
     return this.defaultParameterRequestType;
   }
 
+  /**
+   * Resolves method parameters for an operation.
+   * @param tag - The tag for parameter filtering
+   * @param sourceFile - The source file to add imports to
+   * @param operation - The operation to resolve parameters for
+   * @returns Array of parameter declarations
+   */
   private resolveParameters(
     tag: Tag,
     sourceFile: SourceFile,
@@ -223,7 +278,10 @@ export class ApiClientGenerator implements Generator {
         return (
           !isReference(parameter) &&
           parameter.in === 'path' &&
-          !this.context.isIgnoreApiClientPathParameters(tag.name, parameter.name)
+          !this.context.isIgnoreApiClientPathParameters(
+            tag.name,
+            parameter.name,
+          )
         );
       }) as Parameter[]) ?? [];
     this.context.logger.info(
@@ -258,7 +316,9 @@ export class ApiClientGenerator implements Generator {
         },
       ],
     });
-    this.context.logger.info(`Adding attributes parameter: Record<string, any>`);
+    this.context.logger.info(
+      `Adding attributes parameter: Record<string, any>`,
+    );
     parameters.push({
       name: 'attributes',
       hasQuestionToken: true,
@@ -273,6 +333,12 @@ export class ApiClientGenerator implements Generator {
     return parameters;
   }
 
+  /**
+   * Resolves the return type for a schema.
+   * @param sourceFile - The source file to add imports to
+   * @param schema - The schema to resolve the return type for
+   * @returns The resolved return type string
+   */
   private resolveSchemaReturnType(
     sourceFile: SourceFile,
     schema: Schema | Reference,
@@ -305,6 +371,12 @@ export class ApiClientGenerator implements Generator {
     return this.defaultReturnType.type;
   }
 
+  /**
+   * Resolves the return type for an operation based on its responses.
+   * @param sourceFile - The source file to add imports to
+   * @param operation - The operation to resolve the return type for
+   * @returns Object containing type and optional stream flag
+   */
   private resolveReturnType(
     sourceFile: SourceFile,
     operation: Operation,
@@ -340,7 +412,8 @@ export class ApiClientGenerator implements Generator {
             `Adding import for event stream model: ${modelInfo.name} from ${modelInfo.path}`,
           );
           addImportRefModel(sourceFile, this.context.outputDir, modelInfo);
-          const returnType = `Promise<JsonServerSentEventStream<${modelInfo.name}['data']>>`;
+          const dataType = modelInfo.name.includes('ServerSentEvent') ? `${modelInfo.name}['data']` : modelInfo.name;
+          const returnType = `Promise<JsonServerSentEventStream<${dataType}>>`;
           this.context.logger.info(
             `Resolved event stream return type for operation ${operation.operationId}: ${returnType}`,
           );
@@ -373,6 +446,13 @@ export class ApiClientGenerator implements Generator {
     return this.defaultReturnType;
   }
 
+  /**
+   * Processes a single operation and adds it as a method to the client class.
+   * @param tag - The tag for parameter filtering
+   * @param sourceFile - The source file containing the client
+   * @param apiClientClass - The client class to add the method to
+   * @param operation - The operation to process
+   */
   private processOperation(
     tag: Tag,
     sourceFile: SourceFile,
@@ -384,7 +464,11 @@ export class ApiClientGenerator implements Generator {
     );
     const methodName = this.getMethodName(apiClientClass, operation.operation);
     this.context.logger.info(`Generated method name: ${methodName}`);
-    const parameters = this.resolveParameters(tag, sourceFile, operation.operation);
+    const parameters = this.resolveParameters(
+      tag,
+      sourceFile,
+      operation.operation,
+    );
     const returnType = this.resolveReturnType(sourceFile, operation.operation);
     const methodDecorator = returnType.stream
       ? {
@@ -415,6 +499,11 @@ export class ApiClientGenerator implements Generator {
     this.context.logger.success(`Operation method generated: ${methodName}`);
   }
 
+  /**
+   * Groups operations by their tags for client generation.
+   * @param apiClientTags - Map of valid API client tags
+   * @returns Map of operations grouped by tag name
+   */
   private groupOperations(
     apiClientTags: Map<string, Tag>,
   ): Map<string, Set<PathMethodOperation>> {
@@ -459,8 +548,15 @@ export class ApiClientGenerator implements Generator {
     return operations;
   }
 
+  /**
+   * Resolves valid API client tags from the OpenAPI specification.
+   * Filters out system tags like 'wow' and 'Actuator' and aggregate tags.
+   * @returns Map of valid API client tags
+   */
   private resolveApiTags(): Map<string, Tag> {
-    this.context.logger.info('Resolving API client tags from OpenAPI specification');
+    this.context.logger.info(
+      'Resolving API client tags from OpenAPI specification',
+    );
     const apiClientTags: Map<string, Tag> = new Map<string, Tag>();
     const totalTags = this.context.openAPI.tags?.length || 0;
     let filteredTags = 0;
@@ -474,7 +570,9 @@ export class ApiClientGenerator implements Generator {
         filteredTags++;
         this.context.logger.info(`Included API client tag: ${tag.name}`);
       } else {
-        this.context.logger.info(`Excluded tag: ${tag.name} (wow/Actuator/aggregate)`);
+        this.context.logger.info(
+          `Excluded tag: ${tag.name} (wow/Actuator/aggregate)`,
+        );
       }
     });
     this.context.logger.info(
