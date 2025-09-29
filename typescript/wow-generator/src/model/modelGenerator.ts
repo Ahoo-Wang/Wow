@@ -14,12 +14,11 @@
 import { Schema, Reference } from '@ahoo-wang/fetcher-openapi';
 import { InterfaceDeclaration, JSDocableNode, SourceFile } from 'ts-morph';
 import { GenerateContext } from '../types';
-import { ModelInfo, resolveModelInfo } from './modelInfo';
+import { ModelInfo, resolveModelInfo, resolveReferenceModelInfo } from './modelInfo';
 import {
   addImportModelInfo,
   addJSDoc,
   CompositionSchema,
-  extractComponentKey,
   getModelFileName,
   getOrCreateSourceFile,
   isArray,
@@ -69,7 +68,8 @@ export class ModelGenerator extends BaseCodeGenerator {
       this.logger.info('No schemas found in OpenAPI specification');
       return;
     }
-    const keySchemas = this.filterSchemas(schemas);
+    const stateAggregatedTypeNames = this.stateAggregatedTypeNames();
+    const keySchemas = this.filterSchemas(schemas, stateAggregatedTypeNames);
     this.logger.progress(`Generating models for ${keySchemas.length} schemas`);
     keySchemas.forEach((keySchema, index) => {
       this.logger.progressWithCount(
@@ -83,51 +83,55 @@ export class ModelGenerator extends BaseCodeGenerator {
     this.logger.success('Model generation completed');
   }
 
-  private filterSchemas(schemas: Record<string, Schema>): KeySchema[] {
+  private filterSchemas(schemas: Record<string, Schema>, aggregatedTypeNames: Set<string>): KeySchema[] {
     return Object.entries(schemas)
       .map(([schemaKey, schema]) => ({
         key: schemaKey,
         schema,
       }))
-      .filter(keySchema => !this.isWowSchema(keySchema.key));
+      .filter(keySchema => !this.isWowSchema(keySchema.key, aggregatedTypeNames));
   }
 
-  private isWowSchema(schemaKey: string): boolean {
-    return schemaKey.startsWith('wow.')
-      || this.isWowAggregatedSchema(schemaKey)
-      ;
-  }
-
-  private isAggregatePrefix(schemaKey: string): boolean {
-    const modelInfo = resolveModelInfo(schemaKey);
-    for (const aggregates of this.contextAggregates.values()) {
-      for (const aggregate of aggregates) {
-        if (modelInfo.name.startsWith(pascalCase(aggregate.aggregate.aggregateName))) {
-          return true;
-        }
-      }
-    }
-    return false;
-  }
-
-  private isWowAggregatedSchema(schemaKey: string): boolean {
-    if (!(
-      schemaKey.endsWith('AggregatedCondition')
+  private isWowSchema(schemaKey: string, stateAggregatedTypeNames: Set<string>): boolean {
+    if (schemaKey.startsWith('wow.')
+      || schemaKey.endsWith('AggregatedCondition')
       || schemaKey.endsWith('AggregatedDomainEventStream')
       || schemaKey.endsWith('AggregatedDomainEventStreamPagedList')
-      || schemaKey.endsWith('ServerSentEventNonNullData')
+      || schemaKey.endsWith('AggregatedDomainEventStreamServerSentEventNonNullData')
       || schemaKey.endsWith('AggregatedListQuery')
       || schemaKey.endsWith('AggregatedPagedQuery')
       || schemaKey.endsWith('AggregatedSingleQuery')
-      || schemaKey.endsWith('MaterializedSnapshot')
-      || schemaKey.endsWith('PagedList')
-      || schemaKey.endsWith('Snapshot')
-      || schemaKey.endsWith('StateEvent')
-    )
     ) {
-      return false;
+      return true;
     }
-    return this.isAggregatePrefix(schemaKey);
+    const modelInfo = resolveModelInfo(schemaKey);
+    return stateAggregatedTypeNames.has(modelInfo.name);
+  }
+
+  private aggregatedSchemaSuffix = [
+    'MaterializedSnapshot',
+    'MaterializedSnapshotPagedList',
+    'MaterializedSnapshotServerSentEventNonNullData',
+    'PagedList',
+    'ServerSentEventNonNullData',
+    'Snapshot',
+    'StateEvent',
+  ];
+
+  private stateAggregatedTypeNames() {
+    const typeNames = new Set<string>;
+    for (const aggregates of this.contextAggregates.values()) {
+      for (const aggregate of aggregates) {
+        this.aggregatedSchemaSuffix.forEach(
+          suffix => {
+            const modelInfo = resolveModelInfo(aggregate.state.key);
+            const typeName = pascalCase(modelInfo.name) + suffix;
+            typeNames.add(typeName);
+          },
+        );
+      }
+    }
+    return typeNames;
   }
 
   /**
@@ -170,6 +174,23 @@ export class ModelGenerator extends BaseCodeGenerator {
           })),
       });
     }
+    if (isArray(schema)) {
+      if (isReference(schema.items)) {
+        const refModelInfo = resolveReferenceModelInfo(schema.items);
+        addImportModelInfo(
+          modelInfo,
+          sourceFile,
+          this.outputDir,
+          refModelInfo,
+        );
+        return sourceFile.addTypeAlias({
+          name: modelInfo.name,
+          type: toArrayType(refModelInfo.name),
+          isExported: true,
+        });
+      }
+    }
+
     const interfaceDeclaration = sourceFile.addInterface({
       name: modelInfo.name,
       isExported: true,
@@ -183,13 +204,12 @@ export class ModelGenerator extends BaseCodeGenerator {
       );
     }
 
+
     if (isComposition(schema)) {
       const compositionTypes = schema.anyOf || schema.oneOf || schema.allOf;
       compositionTypes!.forEach(compositionTypeSchema => {
         if (isReference(compositionTypeSchema)) {
-          const refModelInfo = resolveModelInfo(
-            extractComponentKey(compositionTypeSchema),
-          );
+          const refModelInfo = resolveReferenceModelInfo(compositionTypeSchema);
           addImportModelInfo(
             modelInfo,
             sourceFile,
@@ -263,7 +283,7 @@ export class ModelGenerator extends BaseCodeGenerator {
     propSchema: Schema | Reference,
   ): string {
     if (isReference(propSchema)) {
-      const refModelInfo = resolveModelInfo(extractComponentKey(propSchema));
+      const refModelInfo = resolveReferenceModelInfo(propSchema);
       addImportModelInfo(
         currentModelInfo,
         sourceFile,
@@ -322,9 +342,7 @@ export class ModelGenerator extends BaseCodeGenerator {
     const types: Set<string> = new Set<string>();
     compositionTypes!.forEach(compositionTypeSchema => {
       if (isReference(compositionTypeSchema)) {
-        const refModelInfo = resolveModelInfo(
-          extractComponentKey(compositionTypeSchema),
-        );
+        const refModelInfo = resolveReferenceModelInfo(compositionTypeSchema);
         addImportModelInfo(
           currentModelInfo,
           sourceFile,
