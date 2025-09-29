@@ -13,12 +13,12 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { Project } from 'ts-morph';
-import { BaseCodeGenerator } from '../src/baseCodeGenerator';
+import { GenerateContext } from '../src/generateContext';
 import { GenerateContext } from '../src/types';
 import { BoundedContextAggregates } from '../src/aggregate';
 
 // Test implementation of BaseCodeGenerator
-class TestCodeGenerator extends BaseCodeGenerator {
+class TestCodeGenerator extends GenerateContext {
   public constructor(context: GenerateContext) {
     super(context);
   }

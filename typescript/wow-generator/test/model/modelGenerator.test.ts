@@ -66,7 +66,7 @@ import {
   toArrayType,
   pascalCase,
 } from '../../src/utils';
-import { BaseCodeGenerator } from '../../src/baseCodeGenerator';
+import { GenerateContext } from '../../src/generateContext';
 
 describe('ModelGenerator', () => {
   const mockOpenAPI = {
@@ -177,7 +177,7 @@ describe('ModelGenerator', () => {
       const generator = new ModelGenerator(context);
 
       expect(generator).toBeInstanceOf(ModelGenerator);
-      expect(BaseCodeGenerator).toHaveBeenCalledWith(context);
+      expect(GenerateContext).toHaveBeenCalledWith(context);
     });
   });
 

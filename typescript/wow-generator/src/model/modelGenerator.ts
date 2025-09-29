@@ -13,14 +13,13 @@
 
 import { Schema, Reference } from '@ahoo-wang/fetcher-openapi';
 import { InterfaceDeclaration, JSDocableNode, SourceFile } from 'ts-morph';
-import { GenerateContext } from '../types';
+
 import { ModelInfo, resolveModelInfo, resolveReferenceModelInfo } from './modelInfo';
 import {
   addImportModelInfo,
   addJSDoc,
   CompositionSchema,
   getModelFileName,
-  getOrCreateSourceFile,
   isArray,
   isComposition,
   isEnum,
@@ -33,7 +32,7 @@ import {
   toArrayType,
   upperSnakeCase,
 } from '../utils';
-import { BaseCodeGenerator } from '../baseCodeGenerator';
+import { GenerateContext, Generator } from '../generateContext';
 
 /**
  * Generates TypeScript models from OpenAPI schemas.
@@ -44,14 +43,13 @@ import { BaseCodeGenerator } from '../baseCodeGenerator';
  * @property outputDir - The output directory for generated files
  * @property contextAggregates - Map of aggregate definitions
  */
-export class ModelGenerator extends BaseCodeGenerator {
-  constructor(context: GenerateContext) {
-    super(context);
+export class ModelGenerator implements Generator {
+  constructor(public readonly context: GenerateContext) {
   }
 
   private getOrCreateSourceFile(modelInfo: ModelInfo): SourceFile {
     const fileName = getModelFileName(modelInfo);
-    return getOrCreateSourceFile(this.project, this.outputDir, fileName);
+    return this.context.getOrCreateSourceFile(fileName);
   }
 
   /**
@@ -63,16 +61,16 @@ export class ModelGenerator extends BaseCodeGenerator {
    * and generates corresponding TypeScript models for each one.
    */
   generate() {
-    const schemas = this.openAPI.components?.schemas;
+    const schemas = this.context.openAPI.components?.schemas;
     if (!schemas) {
-      this.logger.info('No schemas found in OpenAPI specification');
+      this.context.logger.info('No schemas found in OpenAPI specification');
       return;
     }
     const stateAggregatedTypeNames = this.stateAggregatedTypeNames();
     const keySchemas = this.filterSchemas(schemas, stateAggregatedTypeNames);
-    this.logger.progress(`Generating models for ${keySchemas.length} schemas`);
+    this.context.logger.progress(`Generating models for ${keySchemas.length} schemas`);
     keySchemas.forEach((keySchema, index) => {
-      this.logger.progressWithCount(
+      this.context.logger.progressWithCount(
         index + 1,
         keySchemas.length,
         `Processing schema: ${keySchema.key}`,
@@ -80,7 +78,7 @@ export class ModelGenerator extends BaseCodeGenerator {
       );
       this.generateKeyedSchema(keySchema);
     });
-    this.logger.success('Model generation completed');
+    this.context.logger.success('Model generation completed');
   }
 
   private filterSchemas(schemas: Record<string, Schema>, aggregatedTypeNames: Set<string>): KeySchema[] {
@@ -120,7 +118,7 @@ export class ModelGenerator extends BaseCodeGenerator {
 
   private stateAggregatedTypeNames() {
     const typeNames = new Set<string>;
-    for (const aggregates of this.contextAggregates.values()) {
+    for (const aggregates of this.context.contextAggregates.values()) {
       for (const aggregate of aggregates) {
         this.aggregatedSchemaSuffix.forEach(
           suffix => {
@@ -180,7 +178,7 @@ export class ModelGenerator extends BaseCodeGenerator {
         addImportModelInfo(
           modelInfo,
           sourceFile,
-          this.outputDir,
+          this.context.outputDir,
           refModelInfo,
         );
         return sourceFile.addTypeAlias({
@@ -213,7 +211,7 @@ export class ModelGenerator extends BaseCodeGenerator {
           addImportModelInfo(
             modelInfo,
             sourceFile,
-            this.outputDir,
+            this.context.outputDir,
             refModelInfo,
           );
           interfaceDeclaration.addExtends(refModelInfo.name);
@@ -287,7 +285,7 @@ export class ModelGenerator extends BaseCodeGenerator {
       addImportModelInfo(
         currentModelInfo,
         sourceFile,
-        this.outputDir,
+        this.context.outputDir,
         refModelInfo,
       );
       return refModelInfo.name;
@@ -346,7 +344,7 @@ export class ModelGenerator extends BaseCodeGenerator {
         addImportModelInfo(
           currentModelInfo,
           sourceFile,
-          this.outputDir,
+          this.context.outputDir,
           refModelInfo,
         );
         types.add(refModelInfo.name);

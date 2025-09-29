@@ -11,8 +11,7 @@
  * limitations under the License.
  */
 
-import { BaseCodeGenerator } from '../baseCodeGenerator';
-import { GenerateContext } from '../types';
+import { GenerateContext, Generator } from '../generateContext';
 import {
   ClassDeclaration,
   SourceFile,
@@ -39,7 +38,7 @@ import {
  * Generates TypeScript command client classes for aggregates.
  * Creates command clients that can send commands to aggregates.
  */
-export class CommandClientGenerator extends BaseCodeGenerator {
+export class CommandClientGenerator implements Generator {
   private readonly commandEndpointPathsName = 'COMMAND_ENDPOINT_PATHS';
   private readonly defaultCommandClientOptionsName =
     'DEFAULT_COMMAND_CLIENT_OPTIONS';
@@ -48,27 +47,26 @@ export class CommandClientGenerator extends BaseCodeGenerator {
    * Creates a new CommandClientGenerator instance.
    * @param context - The generation context containing OpenAPI spec and project details
    */
-  constructor(context: GenerateContext) {
-    super(context);
+  constructor(public readonly context: GenerateContext) {
   }
 
   /**
    * Generates command client classes for all aggregates.
    */
   generate(): void {
-    const totalAggregates = Array.from(this.contextAggregates.values()).reduce(
+    const totalAggregates = Array.from(this.context.contextAggregates.values()).reduce(
       (sum, set) => sum + set.size,
       0,
     );
-    this.logger.info('--- Generating Command Clients ---');
-    this.logger.progress(
+    this.context.logger.info('--- Generating Command Clients ---');
+    this.context.logger.progress(
       `Generating command clients for ${totalAggregates} aggregates`,
     );
     let currentIndex = 0;
-    for (const [, aggregates] of this.contextAggregates) {
+    for (const [, aggregates] of this.context.contextAggregates) {
       aggregates.forEach(aggregateDefinition => {
         currentIndex++;
-        this.logger.progressWithCount(
+        this.context.logger.progressWithCount(
           currentIndex,
           totalAggregates,
           `Processing command client for aggregate: ${aggregateDefinition.aggregate.aggregateName}`,
@@ -76,7 +74,7 @@ export class CommandClientGenerator extends BaseCodeGenerator {
         this.processAggregate(aggregateDefinition);
       });
     }
-    this.logger.success('Command client generation completed');
+    this.context.logger.success('Command client generation completed');
   }
 
   /**
@@ -84,23 +82,23 @@ export class CommandClientGenerator extends BaseCodeGenerator {
    * @param aggregate - The aggregate definition
    */
   processAggregate(aggregate: AggregateDefinition) {
-    this.logger.info(
+    this.context.logger.info(
       `Processing command client for aggregate: ${aggregate.aggregate.aggregateName} in context: ${aggregate.aggregate.contextAlias}`,
     );
 
     const commandClientFile = createClientFilePath(
-      this.project,
-      this.outputDir,
+      this.context.project,
+      this.context.outputDir,
       aggregate.aggregate,
       'commandClient',
     );
 
-    this.logger.info(
+    this.context.logger.info(
       `Processing command endpoint paths for ${aggregate.commands.size} commands`,
     );
     this.processCommandEndpointPaths(commandClientFile, aggregate);
 
-    this.logger.info(
+    this.context.logger.info(
       `Creating default command client options: ${this.defaultCommandClientOptionsName}`,
     );
     commandClientFile.addVariableStatement({
@@ -117,7 +115,7 @@ export class CommandClientGenerator extends BaseCodeGenerator {
       isExported: false,
     });
 
-    this.logger.info(
+    this.context.logger.info(
       `Adding imports from ${IMPORT_WOW_PATH}: CommandRequest, CommandResult, CommandResultEventStream, DeleteAggregate, RecoverAggregate`,
     );
     commandClientFile.addImportDeclaration({
@@ -132,7 +130,7 @@ export class CommandClientGenerator extends BaseCodeGenerator {
       isTypeOnly: true,
     });
 
-    this.logger.info(
+    this.context.logger.info(
       `Adding import from @ahoo-wang/fetcher-eventstream: JsonEventStreamResultExtractor`,
     );
     commandClientFile.addImportDeclaration({
@@ -140,22 +138,22 @@ export class CommandClientGenerator extends BaseCodeGenerator {
       namedImports: ['JsonEventStreamResultExtractor'],
     });
 
-    this.logger.info(
+    this.context.logger.info(
       `Adding import from @ahoo-wang/fetcher: ContentTypeValues`,
     );
     addImport(commandClientFile, '@ahoo-wang/fetcher', ['ContentTypeValues']);
 
-    this.logger.info(
+    this.context.logger.info(
       `Adding imports from @ahoo-wang/fetcher-decorator: ApiMetadata types and decorators`,
     );
     addImportDecorator(commandClientFile);
-    this.logger.info(`Generating standard command client class`);
+    this.context.logger.info(`Generating standard command client class`);
     this.processCommandClient(commandClientFile, aggregate);
 
-    this.logger.info(`Generating stream command client class`);
+    this.context.logger.info(`Generating stream command client class`);
     this.processCommandClient(commandClientFile, aggregate, true);
 
-    this.logger.success(
+    this.context.logger.success(
       `Command client generation completed for aggregate: ${aggregate.aggregate.aggregateName}`,
     );
   }
@@ -164,14 +162,14 @@ export class CommandClientGenerator extends BaseCodeGenerator {
     clientFile: SourceFile,
     aggregateDefinition: AggregateDefinition,
   ) {
-    this.logger.info(
+    this.context.logger.info(
       `Creating command endpoint paths enum: ${this.commandEndpointPathsName}`,
     );
     const enumDeclaration = clientFile.addEnum({
       name: this.commandEndpointPathsName,
     });
     aggregateDefinition.commands.forEach(command => {
-      this.logger.info(
+      this.context.logger.info(
         `Adding command endpoint: ${command.name.toUpperCase()} = '${command.path}'`,
       );
       enumDeclaration.addMember({
@@ -179,7 +177,7 @@ export class CommandClientGenerator extends BaseCodeGenerator {
         initializer: `'${command.path}'`,
       });
     });
-    this.logger.success(
+    this.context.logger.success(
       `Command endpoint paths enum created with ${aggregateDefinition.commands.size} entries`,
     );
   }
@@ -229,20 +227,20 @@ export class CommandClientGenerator extends BaseCodeGenerator {
     returnType: string,
   ) {
     const commandModelInfo = resolveModelInfo(definition.schema.key);
-    this.logger.info(
+    this.context.logger.info(
       `Adding import for command model: ${commandModelInfo.name} from path: ${commandModelInfo.path}`,
     );
-    addImportRefModel(sourceFile, this.outputDir, commandModelInfo);
+    addImportRefModel(sourceFile, this.context.outputDir, commandModelInfo);
 
-    this.logger.info(
+    this.context.logger.info(
       `Generating command method: ${camelCase(definition.name)} for command: ${definition.name}`,
     );
-    this.logger.info(
+    this.context.logger.info(
       `Command method details: HTTP ${definition.method}, path: ${definition.path}, return type: ${returnType}`,
     );
 
     const parameters = definition.pathParameters.map(parameter => {
-      this.logger.info(
+      this.context.logger.info(
         `Adding path parameter: ${parameter.name} (type: string)`,
       );
       return {
@@ -258,7 +256,7 @@ export class CommandClientGenerator extends BaseCodeGenerator {
       };
     });
 
-    this.logger.info(
+    this.context.logger.info(
       `Adding command request parameter: commandRequest (type: CommandRequest<${commandModelInfo.name}>)`,
     );
     parameters.push({
@@ -273,7 +271,7 @@ export class CommandClientGenerator extends BaseCodeGenerator {
       ],
     });
 
-    this.logger.info(
+    this.context.logger.info(
       `Adding attributes parameter: attributes (type: Record<string, any>)`,
     );
     parameters.push({
@@ -304,13 +302,13 @@ export class CommandClientGenerator extends BaseCodeGenerator {
     });
 
     if (definition.summary || definition.description) {
-      this.logger.info(
+      this.context.logger.info(
         `Adding JSDoc documentation for method: ${camelCase(definition.name)}`,
       );
     }
     addJSDoc(methodDeclaration, definition.summary, definition.description);
 
-    this.logger.success(
+    this.context.logger.success(
       `Command method generated: ${camelCase(definition.name)}`,
     );
   }

@@ -11,10 +11,9 @@
  * limitations under the License.
  */
 
-import { BaseCodeGenerator } from '../baseCodeGenerator';
+import { GenerateContext, Generator } from '../generateContext';
 import { QueryClientGenerator } from './queryClientGenerator';
 import { CommandClientGenerator } from './commandClientGenerator';
-import { GenerateContext } from '../types';
 import { getOrCreateSourceFile } from '../utils';
 import { ApiClientGenerator } from './apiClientGenerator';
 
@@ -22,7 +21,7 @@ import { ApiClientGenerator } from './apiClientGenerator';
  * Generates TypeScript client classes for aggregates.
  * Creates query clients and command clients based on aggregate definitions.
  */
-export class ClientGenerator extends BaseCodeGenerator {
+export class ClientGenerator implements Generator {
   private readonly queryClientGenerator: QueryClientGenerator;
   private readonly commandClientGenerator: CommandClientGenerator;
   private readonly apiClientGenerator: ApiClientGenerator;
@@ -31,8 +30,7 @@ export class ClientGenerator extends BaseCodeGenerator {
    * Creates a new ClientGenerator instance.
    * @param context - The generation context containing OpenAPI spec and project details
    */
-  constructor(context: GenerateContext) {
-    super(context);
+  constructor(public readonly context: GenerateContext) {
     this.queryClientGenerator = new QueryClientGenerator(context);
     this.commandClientGenerator = new CommandClientGenerator(context);
     this.apiClientGenerator = new ApiClientGenerator(context);
@@ -42,16 +40,16 @@ export class ClientGenerator extends BaseCodeGenerator {
    * Generates client classes for all aggregates.
    */
   generate(): void {
-    this.logger.info('--- Generating Clients ---');
-    this.logger.progress(
-      `Generating clients for ${this.contextAggregates.size} bounded contexts`,
+    this.context.logger.info('--- Generating Clients ---');
+    this.context.logger.progress(
+      `Generating clients for ${this.context.contextAggregates.size} bounded contexts`,
     );
     let currentIndex = 0;
-    for (const [contextAlias] of this.contextAggregates) {
+    for (const [contextAlias] of this.context.contextAggregates) {
       currentIndex++;
-      this.logger.progressWithCount(
+      this.context.logger.progressWithCount(
         currentIndex,
-        this.contextAggregates.size,
+        this.context.contextAggregates.size,
         `Processing bounded context: ${contextAlias}`,
         1,
       );
@@ -60,7 +58,7 @@ export class ClientGenerator extends BaseCodeGenerator {
     this.queryClientGenerator.generate();
     this.commandClientGenerator.generate();
     this.apiClientGenerator.generate();
-    this.logger.success('Client generation completed');
+    this.context.logger.success('Client generation completed');
   }
 
   /**
@@ -69,15 +67,15 @@ export class ClientGenerator extends BaseCodeGenerator {
    */
   processBoundedContext(contextAlias: string) {
     const filePath = `${contextAlias}/boundedContext.ts`;
-    this.logger.info(`Creating bounded context file: ${filePath}`);
-    const file = getOrCreateSourceFile(this.project, this.outputDir, filePath);
-    this.logger.info(
+    this.context.logger.info(`Creating bounded context file: ${filePath}`);
+    const file = this.context.getOrCreateSourceFile(filePath);
+    this.context.logger.info(
       `Adding bounded context alias constant: BOUNDED_CONTEXT_ALIAS = '${contextAlias}'`,
     );
     file.addStatements(
       `export const BOUNDED_CONTEXT_ALIAS = '${contextAlias}';`,
     );
-    this.logger.success(
+    this.context.logger.success(
       `Bounded context file created successfully: ${filePath}`,
     );
   }

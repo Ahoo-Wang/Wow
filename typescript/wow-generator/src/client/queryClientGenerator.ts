@@ -12,8 +12,7 @@
  */
 
 import { SourceFile, VariableDeclarationKind } from 'ts-morph';
-import { GenerateContext } from '../types';
-import { BaseCodeGenerator } from '../baseCodeGenerator';
+import { GenerateContext, GenerateContext } from '../generateContext';
 import { AggregateDefinition, TagAliasAggregate } from '../aggregate';
 import { IMPORT_WOW_PATH, ModelInfo, resolveModelInfo } from '../model';
 import { createClientFilePath, inferPathSpecType } from './utils';
@@ -23,7 +22,7 @@ import { addImportRefModel, camelCase } from '../utils';
  * Generates TypeScript query client classes for aggregates.
  * Creates query clients that can perform state queries and event streaming.
  */
-export class QueryClientGenerator extends BaseCodeGenerator {
+export class QueryClientGenerator extends GenerateContext {
   /**
    * Creates a new QueryClientGenerator instance.
    * @param context - The generation context containing OpenAPI spec and project details

@@ -11,8 +11,7 @@
  * limitations under the License.
  */
 
-import { BaseCodeGenerator } from '../baseCodeGenerator';
-import { GenerateContext } from '../types';
+import { GenerateContext, Generator } from '../generateContext';
 import {
   Operation,
   Parameter,
@@ -63,41 +62,41 @@ interface PathMethodOperation extends MethodOperation {
   path: string;
 }
 
-export class ApiClientGenerator extends BaseCodeGenerator {
+export class ApiClientGenerator implements Generator {
   private defaultParameterRequestType = 'ParameterRequest';
   private defaultReturnType = { type: 'Promise<any>' };
-  private currentContextAlias = this.openAPI.info['x-wow-context-alias'];
-  private apiMetadataCtorInitializer = this.currentContextAlias ? `{basePath:'${this.currentContextAlias}'}` : undefined;
 
-  constructor(context: GenerateContext) {
-    super(context);
+  private apiMetadataCtorInitializer: string | undefined;
+
+  constructor(public readonly context: GenerateContext) {
+    this.apiMetadataCtorInitializer == this.context.currentContextAlias ? `{basePath:'${this.context.currentContextAlias}'}` : undefined;
   }
 
   generate() {
-    this.logger.info('Starting API client generation');
+    this.context.logger.info('Starting API client generation');
     const apiClientTags: Map<string, Tag> = this.resolveApiTags();
-    this.logger.info(
+    this.context.logger.info(
       `Resolved ${apiClientTags.size} API client tags: ${Array.from(apiClientTags.keys()).join(', ')}`,
     );
 
     const groupOperations = this.groupOperations(apiClientTags);
-    this.logger.info(
+    this.context.logger.info(
       `Grouped operations into ${groupOperations.size} tag groups`,
     );
 
     this.generateApiClients(apiClientTags, groupOperations);
-    this.logger.success('API client generation completed');
+    this.context.logger.success('API client generation completed');
   }
 
   private generateApiClients(
     apiClientTags: Map<string, Tag>,
     groupOperations: Map<string, Set<PathMethodOperation>>,
   ) {
-    this.logger.info(`Generating ${groupOperations.size} API client classes`);
+    this.context.logger.info(`Generating ${groupOperations.size} API client classes`);
     let clientCount = 0;
     for (const [tagName, operations] of groupOperations) {
       clientCount++;
-      this.logger.progressWithCount(
+      this.context.logger.progressWithCount(
         clientCount,
         groupOperations.size,
         `Generating API client for tag: ${tagName}`,
@@ -109,17 +108,17 @@ export class ApiClientGenerator extends BaseCodeGenerator {
 
   private createApiClientFile(modelInfo: ModelInfo): SourceFile {
     let filePath = modelInfo.path;
-    if (this.currentContextAlias) {
-      filePath = combineURLs(this.currentContextAlias, filePath);
+    if (this.context.currentContextAlias) {
+      filePath = combineURLs(this.context.currentContextAlias, filePath);
     }
     filePath = combineURLs(filePath, `${modelInfo.name}ApiClient.ts`);
-    this.logger.info(`Creating API client file: ${filePath}`);
-    return getOrCreateSourceFile(this.project, this.outputDir, filePath);
+    this.context.logger.info(`Creating API client file: ${filePath}`);
+    return this.context.getOrCreateSourceFile(filePath);
   }
 
   private generateApiClient(tag: Tag, operations: Set<PathMethodOperation>) {
     const modelInfo = resolveModelInfo(tag.name);
-    this.logger.info(
+    this.context.logger.info(
       `Generating API client class: ${modelInfo.name}ApiClient with ${operations.size} operations`,
     );
     const apiClientFile = this.createApiClientFile(modelInfo);
@@ -130,13 +129,13 @@ export class ApiClientGenerator extends BaseCodeGenerator {
     );
     addJSDoc(apiClientClass, tag.description);
     addApiMetadataCtor(apiClientClass, this.apiMetadataCtorInitializer);
-    this.logger.info(
+    this.context.logger.info(
       `Processing ${operations.size} operations for ${modelInfo.name}ApiClient`,
     );
     operations.forEach(operation => {
       this.processOperation(apiClientFile, apiClientClass, operation);
     });
-    this.logger.success(`Completed API client: ${modelInfo.name}ApiClient`);
+    this.context.logger.success(`Completed API client: ${modelInfo.name}ApiClient`);
   }
 
   private getMethodName(
@@ -159,31 +158,31 @@ export class ApiClientGenerator extends BaseCodeGenerator {
     operation: Operation,
   ): string {
     if (!operation.requestBody) {
-      this.logger.info(
+      this.context.logger.info(
         `No request body found for operation ${operation.operationId}, using default: ${this.defaultParameterRequestType}`,
       );
       return this.defaultParameterRequestType;
     }
     let requestBody: RequestBody | undefined;
     if (isReference(operation.requestBody)) {
-      this.logger.info(
+      this.context.logger.info(
         `Extracting request body from reference for operation: ${operation.operationId}`,
       );
       requestBody = extractRequestBody(
         operation.requestBody,
-        this.openAPI.components!,
+        this.context.openAPI.components!,
       );
     } else {
       requestBody = operation.requestBody;
     }
     if (!requestBody) {
-      this.logger.info(
+      this.context.logger.info(
         `Request body extraction failed for operation ${operation.operationId}, using default: ${this.defaultParameterRequestType}`,
       );
       return this.defaultParameterRequestType;
     }
     if (requestBody.content['multipart/form-data']) {
-      this.logger.info(
+      this.context.logger.info(
         `Detected multipart/form-data content for operation ${operation.operationId}, using ParameterRequest<FormData>`,
       );
       return 'ParameterRequest<FormData>';
@@ -192,18 +191,18 @@ export class ApiClientGenerator extends BaseCodeGenerator {
       const requestBodySchema = requestBody.content['application/json'].schema;
       if (isReference(requestBodySchema)) {
         const modelInfo = resolveReferenceModelInfo(requestBodySchema);
-        this.logger.info(
+        this.context.logger.info(
           `Adding import for request body model: ${modelInfo.name} from ${modelInfo.path}`,
         );
-        addImportRefModel(sourceFile, this.outputDir, modelInfo);
+        addImportRefModel(sourceFile, this.context.outputDir, modelInfo);
         const requestType = `ParameterRequest<${modelInfo.name}>`;
-        this.logger.info(
+        this.context.logger.info(
           `Resolved request type for operation ${operation.operationId}: ${requestType}`,
         );
         return requestType;
       }
     }
-    this.logger.info(
+    this.context.logger.info(
       `Using default request type for operation ${operation.operationId}: ${this.defaultParameterRequestType}`,
     );
     return this.defaultParameterRequestType;
@@ -214,7 +213,7 @@ export class ApiClientGenerator extends BaseCodeGenerator {
     operation: Operation,
   ): OptionalKind<ParameterDeclarationStructure>[] {
     if (!operation.parameters) {
-      this.logger.info(
+      this.context.logger.info(
         `No parameters found for operation ${operation.operationId}`,
       );
       return [];
@@ -228,11 +227,11 @@ export class ApiClientGenerator extends BaseCodeGenerator {
           parameter.name !== 'ownerId'
         );
       }) as Parameter[]) ?? [];
-    this.logger.info(
+    this.context.logger.info(
       `Found ${pathParameters.length} path parameters for operation ${operation.operationId}`,
     );
     const parameters = pathParameters.map(parameter => {
-      this.logger.info(
+      this.context.logger.info(
         `Adding path parameter: ${parameter.name} (type: string)`,
       );
       return {
@@ -248,7 +247,7 @@ export class ApiClientGenerator extends BaseCodeGenerator {
       };
     });
     const requestType = this.resolveRequestType(sourceFile, operation);
-    this.logger.info(`Adding httpRequest parameter: ${requestType}`);
+    this.context.logger.info(`Adding httpRequest parameter: ${requestType}`);
     parameters.push({
       name: 'httpRequest',
       hasQuestionToken: requestType === this.defaultParameterRequestType,
@@ -260,7 +259,7 @@ export class ApiClientGenerator extends BaseCodeGenerator {
         },
       ],
     });
-    this.logger.info(`Adding attributes parameter: Record<string, any>`);
+    this.context.logger.info(`Adding attributes parameter: Record<string, any>`);
     parameters.push({
       name: 'attributes',
       hasQuestionToken: true,
@@ -281,16 +280,16 @@ export class ApiClientGenerator extends BaseCodeGenerator {
   ): string {
     if (isReference(schema)) {
       const modelInfo = resolveReferenceModelInfo(schema);
-      this.logger.info(
+      this.context.logger.info(
         `Adding import for response model: ${modelInfo.name} from ${modelInfo.path}`,
       );
-      addImportRefModel(sourceFile, this.outputDir, modelInfo);
+      addImportRefModel(sourceFile, this.context.outputDir, modelInfo);
       const returnType = `Promise<${modelInfo.name}>`;
-      this.logger.info(`Resolved reference return type: ${returnType}`);
+      this.context.logger.info(`Resolved reference return type: ${returnType}`);
       return returnType;
     }
     if (!schema.type) {
-      this.logger.info(
+      this.context.logger.info(
         `Schema has no type, using default return type: ${this.defaultReturnType.type}`,
       );
       return this.defaultReturnType.type;
@@ -298,10 +297,10 @@ export class ApiClientGenerator extends BaseCodeGenerator {
     if (isPrimitive(schema.type)) {
       const primitiveType = resolvePrimitiveType(schema.type);
       const returnType = `Promise<${primitiveType}>`;
-      this.logger.info(`Resolved primitive return type: ${returnType}`);
+      this.context.logger.info(`Resolved primitive return type: ${returnType}`);
       return returnType;
     }
-    this.logger.info(
+    this.context.logger.info(
       `Using default return type: ${this.defaultReturnType.type}`,
     );
     return this.defaultReturnType.type;
@@ -313,7 +312,7 @@ export class ApiClientGenerator extends BaseCodeGenerator {
   ): { stream?: boolean; type: string } {
     const okResponse = extractOkResponse(operation);
     if (!okResponse) {
-      this.logger.info(
+      this.context.logger.info(
         `No OK response found for operation ${operation.operationId}, using default return type: ${this.defaultReturnType.type}`,
       );
       return this.defaultReturnType;
@@ -321,7 +320,7 @@ export class ApiClientGenerator extends BaseCodeGenerator {
     const jsonSchema = extractResponseJsonSchema(okResponse);
     if (jsonSchema) {
       const returnType = this.resolveSchemaReturnType(sourceFile, jsonSchema);
-      this.logger.info(
+      this.context.logger.info(
         `Resolved JSON response return type for operation ${operation.operationId}: ${returnType}`,
       );
       return {
@@ -334,16 +333,16 @@ export class ApiClientGenerator extends BaseCodeGenerator {
       if (isReference(eventStreamSchema)) {
         const schema = extractSchema(
           eventStreamSchema,
-          this.openAPI.components!,
+          this.context.openAPI.components!,
         )!;
         if (isArray(schema) && isReference(schema.items)) {
           const modelInfo = resolveReferenceModelInfo(schema.items);
-          this.logger.info(
+          this.context.logger.info(
             `Adding import for event stream model: ${modelInfo.name} from ${modelInfo.path}`,
           );
-          addImportRefModel(sourceFile, this.outputDir, modelInfo);
+          addImportRefModel(sourceFile, this.context.outputDir, modelInfo);
           const returnType = `Promise<JsonServerSentEventStream<${modelInfo.name}['data']>>`;
-          this.logger.info(
+          this.context.logger.info(
             `Resolved event stream return type for operation ${operation.operationId}: ${returnType}`,
           );
           return {
@@ -353,7 +352,7 @@ export class ApiClientGenerator extends BaseCodeGenerator {
         }
       }
       const returnType = `Promise<JsonServerSentEventStream<any>>`;
-      this.logger.info(
+      this.context.logger.info(
         `Resolved generic event stream return type for operation ${operation.operationId}: ${returnType}`,
       );
       return { stream: true, type: returnType };
@@ -364,12 +363,12 @@ export class ApiClientGenerator extends BaseCodeGenerator {
         sourceFile,
         wildcardSchema,
       );
-      this.logger.info(
+      this.context.logger.info(
         `Resolved wildcard response return type for operation ${operation.operationId}: ${returnType}`,
       );
       return { type: returnType };
     }
-    this.logger.info(
+    this.context.logger.info(
       `Using default return type for operation ${operation.operationId}: ${this.defaultReturnType.type}`,
     );
     return this.defaultReturnType;
@@ -380,11 +379,11 @@ export class ApiClientGenerator extends BaseCodeGenerator {
     apiClientClass: ClassDeclaration,
     operation: PathMethodOperation,
   ) {
-    this.logger.info(
+    this.context.logger.info(
       `Processing operation: ${operation.operation.operationId} (${operation.method} ${operation.path})`,
     );
     const methodName = this.getMethodName(apiClientClass, operation.operation);
-    this.logger.info(`Generated method name: ${methodName}`);
+    this.context.logger.info(`Generated method name: ${methodName}`);
     const parameters = this.resolveParameters(sourceFile, operation.operation);
     const returnType = this.resolveReturnType(sourceFile, operation.operation);
     const methodDecorator = returnType.stream
@@ -396,7 +395,7 @@ export class ApiClientGenerator extends BaseCodeGenerator {
         name: methodToDecorator(operation.method),
         arguments: [`'${operation.path}'`],
       };
-    this.logger.info(
+    this.context.logger.info(
       `Creating method with ${parameters.length} parameters, return type: ${returnType.type}, stream: ${returnType.stream || false}`,
     );
     const methodDeclaration = apiClientClass.addMethod({
@@ -413,16 +412,16 @@ export class ApiClientGenerator extends BaseCodeGenerator {
       operation.operation.summary,
       operation.operation.description,
     );
-    this.logger.success(`Operation method generated: ${methodName}`);
+    this.context.logger.success(`Operation method generated: ${methodName}`);
   }
 
   private groupOperations(
     apiClientTags: Map<string, Tag>,
   ): Map<string, Set<PathMethodOperation>> {
-    this.logger.info('Grouping operations by API client tags');
+    this.context.logger.info('Grouping operations by API client tags');
     const operations: Map<string, Set<PathMethodOperation>> = new Map();
     let totalOperations = 0;
-    for (const [path, pathItem] of Object.entries(this.openAPI.paths)) {
+    for (const [path, pathItem] of Object.entries(this.context.openAPI.paths)) {
       const methodOperations = extractOperations(pathItem).filter(
         methodOperation => {
           if (!methodOperation.operation.operationId) {
@@ -437,7 +436,7 @@ export class ApiClientGenerator extends BaseCodeGenerator {
           });
         },
       );
-      this.logger.info(
+      this.context.logger.info(
         `Path ${path}: found ${methodOperations.length} valid operations`,
       );
       for (const methodOperation of methodOperations) {
@@ -454,18 +453,18 @@ export class ApiClientGenerator extends BaseCodeGenerator {
         });
       }
     }
-    this.logger.info(
+    this.context.logger.info(
       `Grouped ${totalOperations} operations into ${operations.size} tag groups`,
     );
     return operations;
   }
 
   private resolveApiTags(): Map<string, Tag> {
-    this.logger.info('Resolving API client tags from OpenAPI specification');
+    this.context.logger.info('Resolving API client tags from OpenAPI specification');
     const apiClientTags: Map<string, Tag> = new Map<string, Tag>();
-    const totalTags = this.openAPI.tags?.length || 0;
+    const totalTags = this.context.openAPI.tags?.length || 0;
     let filteredTags = 0;
-    this.openAPI.tags?.forEach(tag => {
+    this.context.openAPI.tags?.forEach(tag => {
       if (
         tag.name != 'wow' &&
         tag.name != 'Actuator' &&
@@ -473,19 +472,19 @@ export class ApiClientGenerator extends BaseCodeGenerator {
       ) {
         apiClientTags.set(tag.name, tag);
         filteredTags++;
-        this.logger.info(`Included API client tag: ${tag.name}`);
+        this.context.logger.info(`Included API client tag: ${tag.name}`);
       } else {
-        this.logger.info(`Excluded tag: ${tag.name} (wow/Actuator/aggregate)`);
+        this.context.logger.info(`Excluded tag: ${tag.name} (wow/Actuator/aggregate)`);
       }
     });
-    this.logger.info(
+    this.context.logger.info(
       `Resolved ${filteredTags} API client tags from ${totalTags} total tags`,
     );
     return apiClientTags;
   }
 
   private isAggregateTag(tag: Tag): boolean {
-    for (const aggregates of this.contextAggregates.values()) {
+    for (const aggregates of this.context.contextAggregates.values()) {
       for (const aggregate of aggregates) {
         if (aggregate.aggregate.tag.name === tag.name) {
           return true;

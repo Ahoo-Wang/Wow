@@ -11,12 +11,13 @@
  * limitations under the License.
  */
 
-import { Project } from 'ts-morph';
+import { Project, SourceFile } from 'ts-morph';
 import { OpenAPI } from '@ahoo-wang/fetcher-openapi';
-import { GenerateContext, GeneratorConfiguration, Logger } from './types';
+import { ApiClientConfiguration, GenerateContextInit, GeneratorConfiguration, Logger } from './types';
 import { BoundedContextAggregates } from './aggregate';
+import { getOrCreateSourceFile } from './utils';
 
-export abstract class BaseCodeGenerator implements GenerateContext {
+export class GenerateContext implements GenerateContextInit {
   /** The ts-morph project instance used for code generation */
   readonly project: Project;
   /** The OpenAPI specification object */
@@ -28,23 +29,35 @@ export abstract class BaseCodeGenerator implements GenerateContext {
   /** Optional logger for generation progress and errors */
   readonly logger: Logger;
   readonly config: GeneratorConfiguration;
+  private readonly defaultApiClientConfig: ApiClientConfiguration = {
+    ignorePathParameters: ['tenantId', 'ownerId'],
+  };
+  readonly currentContextAlias: string | undefined;
 
-  /**
-   * Creates a new ClientGenerator instance.
-   * @param context - The generation context containing OpenAPI spec and project details
-   */
-  protected constructor(context: GenerateContext) {
+  constructor(context: GenerateContextInit) {
     this.project = context.project;
     this.openAPI = context.openAPI;
     this.outputDir = context.outputDir;
     this.contextAggregates = context.contextAggregates;
     this.logger = context.logger;
     this.config = context.config ?? {};
+    this.currentContextAlias = this.openAPI.info['x-wow-context-alias'];
   }
 
+  getOrCreateSourceFile(filePath: string): SourceFile {
+    return getOrCreateSourceFile(this.project, this.outputDir, filePath);
+  }
+
+  getApiClientConfig(tagName: string): ApiClientConfiguration {
+    return this.config.apiClients?.[tagName] ?? this.defaultApiClientConfig;
+  }
+}
+
+export interface Generator {
   /**
    * Generates code based on the provided context.
    * Subclasses must implement this method to define their specific generation logic.
    */
-  abstract generate(): void;
+  generate(): void;
 }
+

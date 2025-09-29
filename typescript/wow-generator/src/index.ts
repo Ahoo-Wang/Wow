@@ -12,11 +12,12 @@
  */
 
 import { Directory, Project, SourceFile } from 'ts-morph';
-import { GenerateContext, GeneratorOptions } from './types';
 import { parseOpenAPI } from './utils';
 import { AggregateResolver } from './aggregate';
 import { ModelGenerator } from './model';
 import { ClientGenerator } from './client';
+import { GeneratorOptions } from './types';
+import { GenerateContext } from './generateContext';
 
 /**
  * Main code generator class that orchestrates the generation of TypeScript code from OpenAPI specifications.
