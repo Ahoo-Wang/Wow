@@ -1,6 +1,6 @@
 {
   "name": "@ahoo-wang/fetcher-generator",
-  "version": "2.3.6",
+  "version": "2.3.8",
   "description": "TypeScript code generator from OpenAPI specs for Wow domain-driven design framework. ",
   "keywords": [
     "fetch",
