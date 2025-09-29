@@ -28,7 +28,12 @@ import {
   camelCase,
   isEmptyObject,
 } from '../utils';
-import { addApiMetadataCtor, addImportDecorator, createDecoratorClass } from './decorator';
+import {
+  addApiMetadataCtor,
+  addImportDecorator,
+  createDecoratorClass,
+  STREAM_RESULT_EXTRACTOR_METADATA,
+} from './decorator';
 
 /**
  * Generates TypeScript command client classes for aggregates.
@@ -195,10 +200,7 @@ export class CommandClientGenerator extends BaseCodeGenerator {
       suffix = 'Stream' + suffix;
       apiDecoratorArgs = [
         `''`,
-        `{
-  headers: { Accept: ContentTypeValues.TEXT_EVENT_STREAM },
-  resultExtractor: JsonEventStreamResultExtractor,
-}`,
+        STREAM_RESULT_EXTRACTOR_METADATA,
       ];
       returnType = `Promise<CommandResultEventStream>`;
     }
