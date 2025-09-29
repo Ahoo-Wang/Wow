@@ -66,6 +66,8 @@ interface PathMethodOperation extends MethodOperation {
 export class ApiClientGenerator extends BaseCodeGenerator {
   private defaultParameterRequestType = 'ParameterRequest';
   private defaultReturnType = { type: 'Promise<any>' };
+  private currentContextAlias = this.openAPI.info['x-wow-context-alias'];
+  private apiMetadataCtorInitializer = this.currentContextAlias ? `{basePath:'${this.currentContextAlias}'}` : undefined;
 
   constructor(context: GenerateContext) {
     super(context);
@@ -106,10 +108,9 @@ export class ApiClientGenerator extends BaseCodeGenerator {
   }
 
   private createApiClientFile(modelInfo: ModelInfo): SourceFile {
-    const currentContextAlias = this.openAPI.info['x-wow-context-alias'];
     let filePath = modelInfo.path;
-    if (currentContextAlias) {
-      filePath = combineURLs(currentContextAlias, filePath);
+    if (this.currentContextAlias) {
+      filePath = combineURLs(this.currentContextAlias, filePath);
     }
     filePath = combineURLs(filePath, `${modelInfo.name}ApiClient.ts`);
     this.logger.info(`Creating API client file: ${filePath}`);
@@ -128,7 +129,7 @@ export class ApiClientGenerator extends BaseCodeGenerator {
       apiClientFile,
     );
     addJSDoc(apiClientClass, tag.description);
-    addApiMetadataCtor(apiClientClass);
+    addApiMetadataCtor(apiClientClass, this.apiMetadataCtorInitializer);
     this.logger.info(
       `Processing ${operations.size} operations for ${modelInfo.name}ApiClient`,
     );
