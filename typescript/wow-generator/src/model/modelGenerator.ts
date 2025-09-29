@@ -100,8 +100,8 @@ export class ModelGenerator extends BaseCodeGenerator {
 
   private isAggregatePrefix(schemaKey: string): boolean {
     const modelInfo = resolveModelInfo(schemaKey);
-    for (let aggregates of this.contextAggregates.values()) {
-      for (let aggregate of aggregates) {
+    for (const aggregates of this.contextAggregates.values()) {
+      for (const aggregate of aggregates) {
         if (modelInfo.name.startsWith(pascalCase(aggregate.aggregate.aggregateName))) {
           return true;
         }
