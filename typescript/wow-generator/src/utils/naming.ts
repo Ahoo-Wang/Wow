@@ -86,7 +86,6 @@ export function pascalCase(name: string | string[]): string {
   return names
     .filter(part => part.length > 0)
     .map(part => {
-      if (part.length === 0) return '';
       const firstChar = part.charAt(0);
       const rest = part.slice(1);
       return (
