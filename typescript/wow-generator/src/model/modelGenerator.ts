@@ -98,7 +98,7 @@ export class ModelGenerator extends BaseCodeGenerator {
       ;
   }
 
-  private isStateAggregate(schemaKey: string): boolean {
+  private isAggregatePrefix(schemaKey: string): boolean {
     const modelInfo = resolveModelInfo(schemaKey);
     for (let aggregates of this.contextAggregates.values()) {
       for (let aggregate of aggregates) {
@@ -127,7 +127,7 @@ export class ModelGenerator extends BaseCodeGenerator {
     ) {
       return false;
     }
-    return this.isStateAggregate(schemaKey);
+    return this.isAggregatePrefix(schemaKey);
   }
 
   /**
