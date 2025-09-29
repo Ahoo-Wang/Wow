@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { ErrorDetails } from "../details/ErrorDetails.tsx";
-import type { ErrorDetails as ErrorDetailsType } from "../../../services";
+import type { ErrorDetails as ErrorDetailsType } from "../../../generated";
 
 // Mock the Monaco Editor component since it's not easily testable in a jsdom environment
 vi.mock("@monaco-editor/react", () => ({

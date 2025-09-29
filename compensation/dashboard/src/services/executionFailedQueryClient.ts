@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { executionFailedQueryClientFactory } from "./compensation";
+import { executionFailedQueryClientFactory } from "../generated";
 import { executionFailedClientOptions } from "./compensationFetcher.ts";
 
 export const executionFailedSnapshotQueryClient =

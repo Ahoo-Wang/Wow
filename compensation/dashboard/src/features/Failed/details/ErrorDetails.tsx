@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { ErrorDetails } from "../../../services";
+import type { ErrorDetails } from "../../../generated";
 import { Card, Typography } from "antd";
 import { Editor } from "@monaco-editor/react";
 const { Text } = Typography;

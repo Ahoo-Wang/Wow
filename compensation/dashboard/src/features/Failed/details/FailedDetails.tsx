@@ -14,7 +14,7 @@
 import type { DescriptionsProps } from "antd";
 import { Descriptions, Flex, Statistic, Tag, Typography } from "antd";
 
-import { type ExecutionFailedState } from "../../../services";
+import { type ExecutionFailedState } from "../../../generated";
 import { ErrorDetails } from "./ErrorDetails.tsx";
 import { formatDate } from "../../../utils/dates.ts";
 
