@@ -15,7 +15,7 @@ import { BaseCodeGenerator } from '../baseCodeGenerator';
 import { GenerateContext } from '../types';
 import { Operation, Parameter, Reference, RequestBody, Schema, Tag } from '@ahoo-wang/fetcher-openapi';
 import {
-  addImport, addImportRefModel,
+  addImportRefModel,
   camelCase, extractOkResponse, extractResponseJsonSchema, extractOperations, extractRequestBody,
   getOrCreateSourceFile,
   isPrimitive,
@@ -37,7 +37,6 @@ import {
   createDecoratorClass,
   STREAM_RESULT_EXTRACTOR_METADATA,
 } from './decorator';
-import * as stream from 'node:stream';
 
 interface PathMethodOperation extends MethodOperation {
   path: string;
@@ -65,7 +64,12 @@ export class ApiClientGenerator extends BaseCodeGenerator {
   }
 
   private createApiClientFile(modelInfo: ModelInfo): SourceFile {
-    const filePath = combineURLs(modelInfo.path, `${modelInfo.name}ApiClient.ts`);
+    const currentContextAlias = this.openAPI.info['x-wow-context-alias'];
+    let filePath = modelInfo.path;
+    if (currentContextAlias) {
+      filePath = combineURLs(currentContextAlias, filePath);
+    }
+    filePath = combineURLs(filePath, `${modelInfo.name}ApiClient.ts`);
     return getOrCreateSourceFile(this.project, this.outputDir, filePath);
   }
 
@@ -197,7 +201,7 @@ export class ApiClientGenerator extends BaseCodeGenerator {
         if (isArray(schema) && isReference(schema.items)) {
           const modelInfo = resolveReferenceModelInfo(schema.items);
           addImportRefModel(sourceFile, this.outputDir, modelInfo);
-          return { stream: true, type: `JsonServerSentEventStream<${modelInfo.name}['data']>` };
+          return { stream: true, type: `Promise<JsonServerSentEventStream<${modelInfo.name}['data']>>` };
         }
       }
       return { stream: true, type: `Promise<JsonServerSentEventStream<any>>` };
