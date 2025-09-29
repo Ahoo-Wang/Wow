@@ -3,8 +3,13 @@
     "ChatSdk.Bot": {
       "ignorePathParameters": [
         "tenantId",
-        "ownerId",
         "botId"
+      ]
+    },
+    "ChatSdk.ReleasedBot": {
+      "ignorePathParameters": [
+        "tenantId",
+        "releasedId"
       ]
     }
   }
