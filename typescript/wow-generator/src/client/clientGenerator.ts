@@ -14,7 +14,6 @@
 import { GenerateContext, Generator } from '../generateContext';
 import { QueryClientGenerator } from './queryClientGenerator';
 import { CommandClientGenerator } from './commandClientGenerator';
-import { getOrCreateSourceFile } from '../utils';
 import { ApiClientGenerator } from './apiClientGenerator';
 
 /**

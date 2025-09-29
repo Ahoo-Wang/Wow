@@ -14,6 +14,7 @@
 import { OpenAPI } from '@ahoo-wang/fetcher-openapi';
 import { parse } from 'yaml';
 import { loadResource } from './resources';
+import { GeneratorConfiguration } from '../types';
 
 /**
  * Parses an OpenAPI specification from a file path.
@@ -31,6 +32,19 @@ export async function parseOpenAPI(inputPath: string): Promise<OpenAPI> {
       return parse(content);
     default:
       throw new Error(`Unsupported file format: ${inputPath}`);
+  }
+}
+
+export async function parseConfiguration(configPath: string): Promise<GeneratorConfiguration> {
+  const content = await loadResource(configPath);
+  const fileFormat = inferFileFormat(content);
+  switch (fileFormat) {
+    case FileFormat.JSON:
+      return JSON.parse(content);
+    case FileFormat.YAML:
+      return parse(content);
+    default:
+      throw new Error(`Unsupported file format: ${configPath}`);
   }
 }
 

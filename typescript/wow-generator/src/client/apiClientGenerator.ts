@@ -27,7 +27,6 @@ import {
   extractResponseJsonSchema,
   extractOperations,
   extractRequestBody,
-  getOrCreateSourceFile,
   isPrimitive,
   isReference,
   MethodOperation,
@@ -133,7 +132,7 @@ export class ApiClientGenerator implements Generator {
       `Processing ${operations.size} operations for ${modelInfo.name}ApiClient`,
     );
     operations.forEach(operation => {
-      this.processOperation(apiClientFile, apiClientClass, operation);
+      this.processOperation(tag, apiClientFile, apiClientClass, operation);
     });
     this.context.logger.success(`Completed API client: ${modelInfo.name}ApiClient`);
   }
@@ -209,6 +208,7 @@ export class ApiClientGenerator implements Generator {
   }
 
   private resolveParameters(
+    tag: Tag,
     sourceFile: SourceFile,
     operation: Operation,
   ): OptionalKind<ParameterDeclarationStructure>[] {
@@ -223,8 +223,7 @@ export class ApiClientGenerator implements Generator {
         return (
           !isReference(parameter) &&
           parameter.in === 'path' &&
-          parameter.name !== 'tenantId' &&
-          parameter.name !== 'ownerId'
+          !this.context.isIgnoreApiClientPathParameters(tag.name, parameter.name)
         );
       }) as Parameter[]) ?? [];
     this.context.logger.info(
@@ -375,6 +374,7 @@ export class ApiClientGenerator implements Generator {
   }
 
   private processOperation(
+    tag: Tag,
     sourceFile: SourceFile,
     apiClientClass: ClassDeclaration,
     operation: PathMethodOperation,
@@ -384,7 +384,7 @@ export class ApiClientGenerator implements Generator {
     );
     const methodName = this.getMethodName(apiClientClass, operation.operation);
     this.context.logger.info(`Generated method name: ${methodName}`);
-    const parameters = this.resolveParameters(sourceFile, operation.operation);
+    const parameters = this.resolveParameters(tag, sourceFile, operation.operation);
     const returnType = this.resolveReturnType(sourceFile, operation.operation);
     const methodDecorator = returnType.stream
       ? {

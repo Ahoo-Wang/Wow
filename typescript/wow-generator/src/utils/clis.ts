@@ -42,7 +42,7 @@ export function validateInput(input: string): boolean {
 export async function generateAction(options: {
   input: string;
   output: string;
-  config?: string;
+  config?: string,
   verbose?: boolean;
   dryRun?: boolean;
 }) {
@@ -66,6 +66,7 @@ export async function generateAction(options: {
     const generatorOptions: GeneratorOptions = {
       inputPath: options.input,
       outputDir: options.output,
+      configPath: options.config,
       project,
       logger,
     };

@@ -13,7 +13,7 @@
 
 import { Project, SourceFile } from 'ts-morph';
 import { OpenAPI } from '@ahoo-wang/fetcher-openapi';
-import { ApiClientConfiguration, GenerateContextInit, GeneratorConfiguration, Logger } from './types';
+import { GenerateContextInit, GeneratorConfiguration, Logger } from './types';
 import { BoundedContextAggregates } from './aggregate';
 import { getOrCreateSourceFile } from './utils';
 
@@ -29,9 +29,7 @@ export class GenerateContext implements GenerateContextInit {
   /** Optional logger for generation progress and errors */
   readonly logger: Logger;
   readonly config: GeneratorConfiguration;
-  private readonly defaultApiClientConfig: ApiClientConfiguration = {
-    ignorePathParameters: ['tenantId', 'ownerId'],
-  };
+  private readonly defaultIgnorePathParameters = ['tenantId', 'ownerId'];
   readonly currentContextAlias: string | undefined;
 
   constructor(context: GenerateContextInit) {
@@ -48,8 +46,9 @@ export class GenerateContext implements GenerateContextInit {
     return getOrCreateSourceFile(this.project, this.outputDir, filePath);
   }
 
-  getApiClientConfig(tagName: string): ApiClientConfiguration {
-    return this.config.apiClients?.[tagName] ?? this.defaultApiClientConfig;
+  isIgnoreApiClientPathParameters(tagName: string, parameterName: string): boolean {
+    const ignorePathParameters = this.config.apiClients?.[tagName]?.ignorePathParameters ?? this.defaultIgnorePathParameters;
+    return ignorePathParameters.includes(parameterName);
   }
 }
 

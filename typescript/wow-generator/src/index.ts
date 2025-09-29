@@ -12,12 +12,14 @@
  */
 
 import { Directory, Project, SourceFile } from 'ts-morph';
-import { parseOpenAPI } from './utils';
 import { AggregateResolver } from './aggregate';
 import { ModelGenerator } from './model';
 import { ClientGenerator } from './client';
-import { GeneratorOptions } from './types';
+import { GeneratorConfiguration, GeneratorOptions } from './types';
 import { GenerateContext } from './generateContext';
+import { parseOpenAPI, parseConfiguration } from './utils';
+
+export const DEFAULT_CONFIG_PATH = './fetcher-generator.config.json';
 
 /**
  * Main code generator class that orchestrates the generation of TypeScript code from OpenAPI specifications.
@@ -57,6 +59,14 @@ export class CodeGenerator {
     this.options.logger.info(
       `Resolved ${boundedContextAggregates.size} bounded context aggregates`,
     );
+    const configPath = this.options.configPath ?? DEFAULT_CONFIG_PATH;
+    let config: GeneratorConfiguration = {};
+    try {
+      this.options.logger.info('Parsing configuration file:', configPath);
+      config = await parseConfiguration(configPath);
+    } catch (e) {
+      this.options.logger.info('Configuration file parsing failed ', e);
+    }
 
     const context: GenerateContext = new GenerateContext({
       openAPI: openAPI,
@@ -64,6 +74,7 @@ export class CodeGenerator {
       outputDir: this.options.outputDir,
       contextAggregates: boundedContextAggregates,
       logger: this.options.logger,
+      config: config,
     });
 
     this.options.logger.info('Generating models');

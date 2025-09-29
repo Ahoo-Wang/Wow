@@ -1,0 +1,11 @@
+{
+  "apiClients": {
+    "ChatSdk.Bot": {
+      "ignorePathParameters": [
+        "tenantId",
+        "ownerId",
+        "botId"
+      ]
+    }
+  }
+}

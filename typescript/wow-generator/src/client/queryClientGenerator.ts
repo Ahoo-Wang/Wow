@@ -12,7 +12,7 @@
  */
 
 import { SourceFile, VariableDeclarationKind } from 'ts-morph';
-import { GenerateContext, GenerateContext } from '../generateContext';
+import { GenerateContext, Generator } from '../generateContext';
 import { AggregateDefinition, TagAliasAggregate } from '../aggregate';
 import { IMPORT_WOW_PATH, ModelInfo, resolveModelInfo } from '../model';
 import { createClientFilePath, inferPathSpecType } from './utils';
@@ -22,32 +22,31 @@ import { addImportRefModel, camelCase } from '../utils';
  * Generates TypeScript query client classes for aggregates.
  * Creates query clients that can perform state queries and event streaming.
  */
-export class QueryClientGenerator extends GenerateContext {
+export class QueryClientGenerator implements Generator {
   /**
    * Creates a new QueryClientGenerator instance.
    * @param context - The generation context containing OpenAPI spec and project details
    */
-  constructor(context: GenerateContext) {
-    super(context);
+  constructor(public readonly context: GenerateContext) {
   }
 
   /**
    * Generates query client classes for all aggregates.
    */
   generate(): void {
-    const totalAggregates = Array.from(this.contextAggregates.values()).reduce(
+    const totalAggregates = Array.from(this.context.contextAggregates.values()).reduce(
       (sum, set) => sum + set.size,
       0,
     );
-    this.logger.info('--- Generating Query Clients ---');
-    this.logger.progress(
+    this.context.logger.info('--- Generating Query Clients ---');
+    this.context.logger.progress(
       `Generating query clients for ${totalAggregates} aggregates`,
     );
     let currentIndex = 0;
-    for (const [, aggregates] of this.contextAggregates) {
+    for (const [, aggregates] of this.context.contextAggregates) {
       aggregates.forEach(aggregateDefinition => {
         currentIndex++;
-        this.logger.progressWithCount(
+        this.context.logger.progressWithCount(
           currentIndex,
           totalAggregates,
           `Processing query client for aggregate: ${aggregateDefinition.aggregate.aggregateName}`,
@@ -55,7 +54,7 @@ export class QueryClientGenerator extends GenerateContext {
         this.processQueryClient(aggregateDefinition);
       });
     }
-    this.logger.success('Query client generation completed');
+    this.context.logger.success('Query client generation completed');
   }
 
   /**
@@ -69,8 +68,8 @@ export class QueryClientGenerator extends GenerateContext {
     fileName: string,
   ): SourceFile {
     return createClientFilePath(
-      this.project,
-      this.outputDir,
+      this.context.project,
+      this.context.outputDir,
       aggregate,
       fileName,
     );
@@ -85,11 +84,11 @@ export class QueryClientGenerator extends GenerateContext {
       aggregate.aggregate,
       'queryClient',
     );
-    this.logger.info(
+    this.context.logger.info(
       `Processing query client for aggregate: ${aggregate.aggregate.aggregateName} in context: ${aggregate.aggregate.contextAlias}`,
     );
 
-    this.logger.info(
+    this.context.logger.info(
       `Adding imports from ${IMPORT_WOW_PATH}: QueryClientFactory, QueryClientOptions, ResourceAttributionPathSpec`,
     );
     queryClientFile.addImportDeclaration({
@@ -102,7 +101,7 @@ export class QueryClientGenerator extends GenerateContext {
     });
 
     const defaultClientOptionsName = 'DEFAULT_QUERY_CLIENT_OPTIONS';
-    this.logger.info(
+    this.context.logger.info(
       `Creating default query client options: ${defaultClientOptionsName}`,
     );
     queryClientFile.addVariableStatement({
@@ -122,21 +121,21 @@ export class QueryClientGenerator extends GenerateContext {
     });
 
     const eventModelInfos: ModelInfo[] = [];
-    this.logger.info(
+    this.context.logger.info(
       `Processing ${aggregate.events.size} domain events for aggregate: ${aggregate.aggregate.aggregateName}`,
     );
     for (const event of aggregate.events.values()) {
       const eventModelInfo = resolveModelInfo(event.schema.key);
-      this.logger.info(
+      this.context.logger.info(
         `Adding import for event model: ${eventModelInfo.name} from path: ${eventModelInfo.path}`,
       );
-      addImportRefModel(queryClientFile, this.outputDir, eventModelInfo);
+      addImportRefModel(queryClientFile, this.context.outputDir, eventModelInfo);
       eventModelInfos.push(eventModelInfo);
     }
 
     const domainEventTypesName = 'DOMAIN_EVENT_TYPES';
     const eventTypeUnion = eventModelInfos.map(it => it.name).join(' | ');
-    this.logger.info(
+    this.context.logger.info(
       `Creating domain event types union: ${domainEventTypesName} = ${eventTypeUnion}`,
     );
     queryClientFile.addTypeAlias({
@@ -148,16 +147,16 @@ export class QueryClientGenerator extends GenerateContext {
     const stateModelInfo = resolveModelInfo(aggregate.state.key);
     const fieldsModelInfo = resolveModelInfo(aggregate.fields.key);
 
-    this.logger.info(
+    this.context.logger.info(
       `Adding import for state model: ${stateModelInfo.name} from path: ${stateModelInfo.path}`,
     );
-    addImportRefModel(queryClientFile, this.outputDir, stateModelInfo);
-    this.logger.info(
+    addImportRefModel(queryClientFile, this.context.outputDir, stateModelInfo);
+    this.context.logger.info(
       `Adding import for fields model: ${fieldsModelInfo.name} from path: ${fieldsModelInfo.path}`,
     );
-    addImportRefModel(queryClientFile, this.outputDir, fieldsModelInfo);
+    addImportRefModel(queryClientFile, this.context.outputDir, fieldsModelInfo);
 
-    this.logger.info(`Creating query client factory: ${clientFactoryName}`);
+    this.context.logger.info(`Creating query client factory: ${clientFactoryName}`);
     queryClientFile.addVariableStatement({
       declarationKind: VariableDeclarationKind.Const,
       declarations: [
@@ -169,7 +168,7 @@ export class QueryClientGenerator extends GenerateContext {
       isExported: true,
     });
 
-    this.logger.success(
+    this.context.logger.success(
       `Query client generation completed for aggregate: ${aggregate.aggregate.aggregateName}`,
     );
   }

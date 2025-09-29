@@ -8,6 +8,7 @@
 import { program } from 'commander';
 import { generateAction } from './utils';
 import packageJson from '../package.json';
+import { DEFAULT_CONFIG_PATH } from './index';
 
 /**
  * Sets up the CLI program with all commands and options.
@@ -27,7 +28,7 @@ export function setupCLI() {
       'Input OpenAPI specification file path or URL (http/https)',
     )
     .option('-o, --output <path>', 'Output directory path', 'src/generated')
-    .option('-c, --config <file>', 'Configuration file path')
+    .option('-c, --config <file>', 'Configuration file path', DEFAULT_CONFIG_PATH)
     .option('-v, --verbose', 'Enable verbose logging')
     .option('--dry-run', 'Show what would be generated without writing files')
     .action(generateAction);

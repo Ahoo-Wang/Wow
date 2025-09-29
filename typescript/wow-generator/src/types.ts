@@ -25,6 +25,7 @@ export interface GeneratorOptions {
   readonly inputPath: string;
   /** Output directory for generated files */
   readonly outputDir: string;
+  readonly configPath?: string;
   /** Optional logger for friendly output */
   readonly logger: Logger;
 }
