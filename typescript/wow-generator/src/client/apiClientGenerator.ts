@@ -71,6 +71,7 @@ export class ApiClientGenerator extends BaseCodeGenerator {
     const apiClientFile = this.createApiClientFile(modelInfo);
     addImportDecorator(apiClientFile);
     const apiClientClass = createDecoratorClass(modelInfo.name + 'ApiClient', apiClientFile);
+    addJSDoc(apiClientClass, tag.description);
     addApiMetadataCtor(apiClientClass);
     operations.forEach(operation => {
       this.processOperation(apiClientFile, apiClientClass, operation);
