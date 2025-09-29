@@ -16,23 +16,35 @@ import { generateAction } from '../src/utils';
 
 const OUT_PUT_DIR = 'test-output';
 
-function clearOutputDir() {
+function clearOutputSubDirs() {
   const fs = require('fs');
   const path = require('path');
   const outPutDir = path.join(__dirname, '..', OUT_PUT_DIR);
-  if (fs.existsSync(outPutDir)) {
-    fs.rmSync(outPutDir, { recursive: true });
+
+  try {
+    if (fs.existsSync(outPutDir)) {
+      const files = fs.readdirSync(outPutDir);
+      for (const file of files) {
+        const filePath = path.join(outPutDir, file);
+        const stat = fs.statSync(filePath);
+        if (stat.isDirectory()) {
+          fs.rmSync(filePath, { recursive: true, force: true });
+        }
+      }
+    }
+  } catch (error) {
+    console.error(`Failed to remove subdirectories in ${outPutDir}:`, error);
   }
 }
 
 describe('E2E Test', () => {
   it('should generate [test/demo-spec.json] code', async () => {
-    clearOutputDir();
+    clearOutputSubDirs();
     await generateAction({ input: 'test/demo-spec.json', output: OUT_PUT_DIR });
   });
 
   it('should generate [test/compensation-spec.json] code', async () => {
-    clearOutputDir();
+    clearOutputSubDirs();
     await generateAction({ input: 'test/compensation-spec.json', output: OUT_PUT_DIR });
   });
 });

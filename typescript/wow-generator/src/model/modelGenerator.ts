@@ -93,7 +93,41 @@ export class ModelGenerator extends BaseCodeGenerator {
   }
 
   private isWowSchema(schemaKey: string): boolean {
-    return schemaKey.startsWith('wow.');
+    return schemaKey.startsWith('wow.')
+      || this.isWowAggregatedSchema(schemaKey)
+      ;
+  }
+
+  private isStateAggregate(schemaKey: string): boolean {
+    const modelInfo = resolveModelInfo(schemaKey);
+    for (let aggregates of this.contextAggregates.values()) {
+      for (let aggregate of aggregates) {
+        if (modelInfo.name.startsWith(pascalCase(aggregate.aggregate.aggregateName))) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  private isWowAggregatedSchema(schemaKey: string): boolean {
+    if (!(
+      schemaKey.endsWith('AggregatedCondition')
+      || schemaKey.endsWith('AggregatedDomainEventStream')
+      || schemaKey.endsWith('AggregatedDomainEventStreamPagedList')
+      || schemaKey.endsWith('ServerSentEventNonNullData')
+      || schemaKey.endsWith('AggregatedListQuery')
+      || schemaKey.endsWith('AggregatedPagedQuery')
+      || schemaKey.endsWith('AggregatedSingleQuery')
+      || schemaKey.endsWith('MaterializedSnapshot')
+      || schemaKey.endsWith('PagedList')
+      || schemaKey.endsWith('Snapshot')
+      || schemaKey.endsWith('StateEvent')
+    )
+    ) {
+      return false;
+    }
+    return this.isStateAggregate(schemaKey);
   }
 
   /**
