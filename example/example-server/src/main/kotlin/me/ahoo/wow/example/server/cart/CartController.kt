@@ -14,6 +14,7 @@
 package me.ahoo.wow.example.server.cart
 
 import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.tags.Tag
 import me.ahoo.wow.apiclient.query.queryState
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.CommandResult
@@ -32,6 +33,7 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
 
+@Tag(name = "Cart", description = "购物车")
 @RestController
 class CartController(
     private val commandGateway: CommandGateway,
