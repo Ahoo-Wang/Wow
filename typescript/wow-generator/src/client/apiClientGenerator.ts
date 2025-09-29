@@ -65,10 +65,10 @@ export class ApiClientGenerator implements Generator {
   private defaultParameterRequestType = 'ParameterRequest';
   private defaultReturnType = { type: 'Promise<any>' };
 
-  private apiMetadataCtorInitializer: string | undefined;
+  private readonly apiMetadataCtorInitializer: string | undefined;
 
   constructor(public readonly context: GenerateContext) {
-    this.apiMetadataCtorInitializer == this.context.currentContextAlias ? `{basePath:'${this.context.currentContextAlias}'}` : undefined;
+    this.apiMetadataCtorInitializer = this.context.currentContextAlias ? `{basePath:'${this.context.currentContextAlias}'}` : undefined;
   }
 
   generate() {
