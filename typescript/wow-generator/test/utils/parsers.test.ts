@@ -15,9 +15,10 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   FileFormat,
   inferFileFormat,
-  loadResource,
   parseOpenAPI,
+  parseConfiguration,
 } from '../../src/utils';
+import { loadResource } from '../../src/utils';
 
 // Mock the loadResource function
 vi.mock('@/utils/resources.ts', () => ({
@@ -104,6 +105,32 @@ describe('openAPIParser', () => {
       mockLoadResource.mockResolvedValue('invalid: content: [unbalanced');
 
       await expect(parseOpenAPI('test.unknown')).rejects.toThrow();
+    });
+  });
+
+  describe('parseConfiguration', () => {
+    it('should parse JSON configuration', async () => {
+      const jsonContent =
+        '{ "apiClients": { "test": { "baseUrl": "http://example.com" } } }';
+      mockLoadResource.mockResolvedValue(jsonContent);
+
+      const result = await parseConfiguration('config.json');
+      expect(result).toEqual({
+        apiClients: { test: { baseUrl: 'http://example.com' } },
+      });
+      expect(mockLoadResource).toHaveBeenCalledWith('config.json');
+    });
+
+    it('should parse YAML configuration', async () => {
+      const yamlContent =
+        'apiClients:\n  test:\n    baseUrl: http://example.com';
+      mockLoadResource.mockResolvedValue(yamlContent);
+
+      const result = await parseConfiguration('config.yaml');
+      expect(result).toEqual({
+        apiClients: { test: { baseUrl: 'http://example.com' } },
+      });
+      expect(mockLoadResource).toHaveBeenCalledWith('config.yaml');
     });
   });
 });
