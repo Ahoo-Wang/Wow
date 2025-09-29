@@ -58,7 +58,7 @@ export interface Logger {
 /**
  * Context object containing all necessary data for code generation.
  */
-export interface GenerateContext {
+export interface GenerateContextInit {
   /** The parsed OpenAPI specification */
   openAPI: OpenAPI;
   /** The ts-morph project instance */
@@ -68,4 +68,44 @@ export interface GenerateContext {
   contextAggregates: BoundedContextAggregates;
   /** Optional logger for friendly output */
   logger: Logger;
+  config?: GeneratorConfiguration;
+}
+
+export class GenerateContext implements GenerateContextInit {
+  /** The ts-morph project instance used for code generation */
+  readonly project: Project;
+  /** The OpenAPI specification object */
+  readonly openAPI: OpenAPI;
+  /** The output directory path for generated files */
+  readonly outputDir: string;
+  /** Map of bounded context aggregates for domain modeling */
+  readonly contextAggregates: BoundedContextAggregates;
+  /** Optional logger for generation progress and errors */
+  readonly logger: Logger;
+  readonly config: GeneratorConfiguration;
+
+  constructor(context: GenerateContextInit) {
+    this.project = context.project;
+    this.openAPI = context.openAPI;
+    this.outputDir = context.outputDir;
+    this.contextAggregates = context.contextAggregates;
+    this.logger = context.logger;
+    this.config = context.config ?? {};
+  }
+}
+
+export interface GeneratorConfiguration {
+  /**
+   * tag name -> api client configuration
+   */
+  apiClients?: Record<string, ApiClientConfiguration>;
+}
+
+export interface ApiClientConfiguration {
+  /**
+   * The path parameters to ignore
+   *
+   * default: ['tenantId','ownerId']
+   */
+  ignorePathParameters?: string[];
 }

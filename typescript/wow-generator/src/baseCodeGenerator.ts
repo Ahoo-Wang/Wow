@@ -13,7 +13,7 @@
 
 import { Project } from 'ts-morph';
 import { OpenAPI } from '@ahoo-wang/fetcher-openapi';
-import { GenerateContext, Logger } from './types';
+import { GenerateContext, GeneratorConfiguration, Logger } from './types';
 import { BoundedContextAggregates } from './aggregate';
 
 export abstract class BaseCodeGenerator implements GenerateContext {
@@ -27,6 +27,7 @@ export abstract class BaseCodeGenerator implements GenerateContext {
   readonly contextAggregates: BoundedContextAggregates;
   /** Optional logger for generation progress and errors */
   readonly logger: Logger;
+  readonly config: GeneratorConfiguration;
 
   /**
    * Creates a new ClientGenerator instance.
@@ -38,6 +39,7 @@ export abstract class BaseCodeGenerator implements GenerateContext {
     this.outputDir = context.outputDir;
     this.contextAggregates = context.contextAggregates;
     this.logger = context.logger;
+    this.config = context.config ?? {};
   }
 
   /**

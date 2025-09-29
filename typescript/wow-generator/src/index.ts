@@ -57,13 +57,13 @@ export class CodeGenerator {
       `Resolved ${boundedContextAggregates.size} bounded context aggregates`,
     );
 
-    const context: GenerateContext = {
+    const context: GenerateContext = new GenerateContext({
       openAPI: openAPI,
       project: this.project,
       outputDir: this.options.outputDir,
       contextAggregates: boundedContextAggregates,
       logger: this.options.logger,
-    };
+    });
 
     this.options.logger.info('Generating models');
     const modelGenerator = new ModelGenerator(context);
