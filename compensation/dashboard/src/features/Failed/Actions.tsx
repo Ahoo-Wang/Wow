@@ -12,12 +12,12 @@
  */
 
 import type { StateCapable } from "@ahoo-wang/fetcher-wow";
-import type { ExecutionFailedState } from "../../services";
+import type { ExecutionFailedState } from "../../generated";
 import { App, Dropdown } from "antd";
 import { FailedDetails } from "./details/FailedDetails.tsx";
 import { useGlobalDrawer } from "../../components/GlobalDrawer";
 import type { ItemType } from "antd/es/menu/interface";
-import { executionFailedCommandClient } from "../../services/executionFailedCommandClient.ts";
+import { executionFailedCommandClient } from "../../services";
 
 export interface OnChangedCapable {
   onChanged?: () => void;

@@ -13,9 +13,8 @@
 
 import useSWR from "swr";
 import {
-  executionFailedSnapshotQueryClient,
   type ExecutionFailedState,
-} from "../../../services";
+} from "../../../generated";
 import {
   aggregateId,
   type Identifier,
@@ -24,6 +23,7 @@ import {
 import { Flex, Skeleton, Typography } from "antd";
 const { Text } = Typography;
 import { FailedDetails } from "./FailedDetails.tsx";
+import { executionFailedSnapshotQueryClient } from "../../../services";
 
 export interface FetchingFailedDetailsProps extends Identifier {}
 

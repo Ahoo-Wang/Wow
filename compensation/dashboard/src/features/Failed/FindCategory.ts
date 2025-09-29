@@ -25,7 +25,7 @@ import {
 import {
   ExecutionFailedAggregatedFields,
   ExecutionFailedStatus,
-} from "../../services";
+} from "../../generated";
 
 export enum FindCategory {
   All = "All",

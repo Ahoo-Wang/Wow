@@ -14,7 +14,7 @@
 import { Table, Tag, Typography, Statistic, Button, Tooltip } from "antd";
 import type { TableColumnsType } from "antd";
 import { type PagedList } from "@ahoo-wang/fetcher-wow";
-import type { EventId, ExecutionFailedState } from "../../services";
+import type { EventId, ExecutionFailedState } from "../../generated";
 import { useGlobalDrawer } from "../../components/GlobalDrawer";
 import { EditTwoTone } from "@ant-design/icons";
 import { ApplyRetrySpec } from "./ApplyRetrySpec.tsx";

@@ -13,9 +13,9 @@
 
 import { App, Select } from "antd";
 import { type Identifier, RecoverableType } from "@ahoo-wang/fetcher-wow";
-import { executionFailedCommandClient } from "../../services/executionFailedCommandClient.ts";
+import { executionFailedCommandClient } from "../../services";
 import type { OnChangedCapable } from "./Actions.tsx";
-import type { MarkRecoverable } from "../../services";
+import type { MarkRecoverable } from "../../generated";
 
 export interface MarkRecoverableProps
   extends Identifier,

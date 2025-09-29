@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { ExecutionFailedCommandClient } from "./compensation";
+import { ExecutionFailedCommandClient } from "../generated";
 import { executionFailedClientOptions } from "./compensationFetcher.ts";
 
 export const executionFailedCommandClient = new ExecutionFailedCommandClient(executionFailedClientOptions);

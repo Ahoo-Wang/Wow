@@ -12,8 +12,8 @@
  */
 
 import { Button, Form, InputNumber, App, Input } from "antd";
-import type { RetrySpec } from "../../services";
-import { executionFailedCommandClient } from "../../services/executionFailedCommandClient.ts";
+import type { RetrySpec } from "../../generated";
+import { executionFailedCommandClient } from "../../services";
 import { useGlobalDrawer } from "../../components/GlobalDrawer";
 import type { OnChangedCapable } from "./Actions.tsx";
 

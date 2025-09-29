@@ -26,14 +26,14 @@ import {
   SnapshotMetadataFields,
 } from "@ahoo-wang/fetcher-wow";
 import {
-  executionFailedSnapshotQueryClient,
   type ExecutionFailedState,
-} from "../../services";
+} from "../../generated";
 import { useCallback, useEffect, useState } from "react";
 import type { Pagination } from "@ahoo-wang/fetcher-wow";
 import { useQueryParams } from "../../utils/useQuery.ts";
 import { useGlobalDrawer } from "../../components/GlobalDrawer";
 import { FetchingFailedDetails } from "./details/FetchingFailedDetails.tsx";
+import { executionFailedSnapshotQueryClient } from "../../services";
 
 interface FailedViewProps {
   category: FindCategory;
