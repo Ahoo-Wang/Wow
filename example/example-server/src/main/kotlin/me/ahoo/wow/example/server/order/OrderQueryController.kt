@@ -14,6 +14,7 @@
 package me.ahoo.wow.example.server.order
 
 import io.swagger.v3.oas.annotations.OpenAPIDefinition
+import io.swagger.v3.oas.annotations.tags.Tag
 import me.ahoo.wow.example.domain.order.OrderState
 import me.ahoo.wow.exception.throwNotFoundIfEmpty
 import me.ahoo.wow.query.dsl.singleQuery
@@ -27,6 +28,7 @@ import org.springframework.web.bind.annotation.RestController
 import reactor.core.publisher.Mono
 
 @OpenAPIDefinition
+@Tag(name = "Order", description = "订单")
 @RestController
 @RequestMapping("/order")
 class OrderQueryController(
