@@ -12,3 +12,8 @@
  */
 
 export * from './clientGenerator';
+export * from './apiClientGenerator';
+export * from './commandClientGenerator';
+export * from './decorators';
+export * from './queryClientGenerator';
+export * from './utils';

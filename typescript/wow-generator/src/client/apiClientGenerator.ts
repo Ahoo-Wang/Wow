@@ -36,7 +36,7 @@ import {
   addImportDecorator,
   createDecoratorClass,
   STREAM_RESULT_EXTRACTOR_METADATA,
-} from './decorator';
+} from './decorators';
 
 interface PathMethodOperation extends MethodOperation {
   path: string;

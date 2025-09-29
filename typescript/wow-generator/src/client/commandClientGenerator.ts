@@ -33,7 +33,7 @@ import {
   addImportDecorator,
   createDecoratorClass,
   STREAM_RESULT_EXTRACTOR_METADATA,
-} from './decorator';
+} from './decorators';
 
 /**
  * Generates TypeScript command client classes for aggregates.
