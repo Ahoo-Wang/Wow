@@ -31,7 +31,9 @@ export const DECORATOR_MODULE_SPECIFIER = '@ahoo-wang/fetcher-decorator';
 export const DECORATOR_NAMED_IMPORTS = [
   'type ApiMetadata',
   'type ApiMetadataCapable',
+  'type ParameterRequest',
   'api',
+  'get',
   'post',
   'put',
   'patch',
