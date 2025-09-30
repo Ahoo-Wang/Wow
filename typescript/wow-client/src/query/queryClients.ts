@@ -64,6 +64,17 @@ export class QueryClientFactory<
    * Creates a new QueryClientFactory instance with the specified default options.
    *
    * @param defaultOptions - The default options to be used for all query clients created by this factory
+   *
+   * @example
+   * ```typescript
+   * import { QueryClientFactory, ResourceAttributionPathSpec } from '@ahoo-wang/fetcher-wow';
+   *
+   * const factory = new QueryClientFactory({
+   *   contextAlias: 'example',
+   *   aggregateName: 'cart',
+   *   resourceAttribution: ResourceAttributionPathSpec.OWNER,
+   * });
+   * ```
    */
   constructor(private readonly defaultOptions: QueryClientOptions) {
   }
@@ -76,6 +87,15 @@ export class QueryClientFactory<
    *
    * @param options - The query client options used to configure the snapshot query client
    * @returns A new instance of SnapshotQueryClient
+   *
+   * @example
+   * ```typescript
+   * const snapshotClient = factory.createSnapshotQueryClient({
+   *   aggregateName: 'cart',
+   * });
+   *
+   * const cartState = await snapshotClient.singleState({ condition: all() });
+   * ```
    */
   createSnapshotQueryClient(
     options: QueryClientOptions,
@@ -95,6 +115,15 @@ export class QueryClientFactory<
    *
    * @param options - The query client options used to configure the event stream query client
    * @returns A new instance of EventStreamQueryClient
+   *
+   * @example
+   * ```typescript
+   * const eventClient = factory.createEventStreamQueryClient({
+   *   aggregateName: 'cart',
+   * });
+   *
+   * const events = await eventClient.list({ condition: all() });
+   * ```
    */
   createEventStreamQueryClient<FIELDS extends string = string>(
     options: QueryClientOptions,
