@@ -120,7 +120,7 @@ describe('CodeGenerator', () => {
       new CodeGenerator(options);
 
       expect(mockLogger.info).toHaveBeenCalledWith(
-        'CodeGenerator instance created',
+        'Project instance created with tsConfigFilePath: ', undefined,
       );
     });
   });
