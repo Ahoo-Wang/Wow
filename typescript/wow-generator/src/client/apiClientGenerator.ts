@@ -267,12 +267,6 @@ export class ApiClientGenerator implements Generator {
     sourceFile: SourceFile,
     operation: Operation,
   ): OptionalKind<ParameterDeclarationStructure>[] {
-    if (!operation.parameters) {
-      this.context.logger.info(
-        `No parameters found for operation ${operation.operationId}`,
-      );
-      return [];
-    }
     const pathParameters =
       (operation.parameters?.filter(parameter => {
         return (

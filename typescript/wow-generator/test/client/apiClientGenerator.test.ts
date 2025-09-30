@@ -13,7 +13,7 @@
 
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { Project } from 'ts-morph';
-import { ApiClientGenerator } from '../../src/client/apiClientGenerator';
+import { ApiClientGenerator } from '../../src/client';
 import { GenerateContext } from '../../src/generateContext';
 import { GenerateContextInit } from '../../src/types';
 import { Tag } from '@ahoo-wang/fetcher-openapi';
@@ -306,7 +306,7 @@ describe('ApiClientGenerator', () => {
 
       const result = (generator as any).resolveParameters({}, {}, operation);
 
-      expect(result).toEqual([]);
+      expect(result.length).toBe(2);
     });
 
     it('should resolve path parameters', () => {
