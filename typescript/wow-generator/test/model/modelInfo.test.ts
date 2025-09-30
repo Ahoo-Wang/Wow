@@ -77,11 +77,11 @@ describe('modelInfo', () => {
         path: '/',
       });
     });
-    it('should handle schema key with ', () => {
-      const result = resolveModelInfo('wow.byteArray');
+    it('should handle schema key with api.byteArray', () => {
+      const result = resolveModelInfo('api.byteArray');
       expect(result).toEqual({
         name: 'ByteArray',
-        path: '/wow',
+        path: '/api',
       });
     });
   });
