@@ -16,6 +16,10 @@ import { CodeGenerator } from '../src';
 import { GeneratorOptions } from '../src/types';
 
 // Mock dependencies
+vi.mock('ts-morph', () => ({
+  Project: vi.fn(),
+}));
+
 vi.mock('../src/utils', () => ({
   parseOpenAPI: vi.fn(),
 }));
@@ -33,6 +37,7 @@ vi.mock('../src/client', () => ({
 }));
 
 // Import after mocking
+import { Project } from 'ts-morph';
 import { parseOpenAPI } from '../src/utils';
 import { AggregateResolver } from '../src/aggregate';
 import { ModelGenerator } from '../src/model';
@@ -58,6 +63,8 @@ describe('CodeGenerator', () => {
       createSourceFile: vi.fn(),
       save: vi.fn(),
     };
+
+    (Project as any).mockImplementation(() => mockProject);
 
     mockLogger = {
       info: vi.fn(),
@@ -95,7 +102,7 @@ describe('CodeGenerator', () => {
     mockProject.save.mockResolvedValue(undefined);
 
     options = {
-      project: mockProject,
+      tsConfigFilePath: undefined,
       inputPath: '/path/to/openapi.yaml',
       outputDir: '/output/dir',
       logger: mockLogger,
@@ -106,7 +113,6 @@ describe('CodeGenerator', () => {
     it('should initialize with provided options', () => {
       const generator = new CodeGenerator(options);
 
-      expect(generator['project']).toBe(mockProject);
       expect(generator['options']).toBe(options);
     });
 

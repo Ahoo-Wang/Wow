@@ -44,6 +44,7 @@ describe('E2E Test', () => {
       input: 'test/demo-spec.json',
       output: OUT_PUT_DIR,
       config: 'test/fetcher-generator.config.json',
+      tsConfigFilePath: `${OUT_PUT_DIR}/tsconfig.json`,
     });
   });
 

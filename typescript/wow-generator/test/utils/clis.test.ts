@@ -105,7 +105,7 @@ describe('generateAction', () => {
     expect(CodeGenerator).toHaveBeenCalledWith({
       inputPath: 'http://example.com',
       outputDir: '/output',
-      project: mockProject,
+      tsConfigFilePath: undefined,
       logger: mockLogger,
     });
     expect(mockCodeGenerator.generate).toHaveBeenCalled();

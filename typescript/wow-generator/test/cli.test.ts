@@ -60,7 +60,7 @@ describe('CLI setup', () => {
 
     expect(result.command).toHaveBeenCalledWith('generate');
     expect(result.requiredOption).toHaveBeenCalledWith(
-      '-i, --input <path>',
+      '-i, --input <file>',
       'Input OpenAPI specification file path or URL (http/https)',
     );
     expect(result.option).toHaveBeenCalledWith(

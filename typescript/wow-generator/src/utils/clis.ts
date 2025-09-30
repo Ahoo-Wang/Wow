@@ -14,7 +14,6 @@
 import { ConsoleLogger } from './logger';
 import { GeneratorOptions } from '../types';
 import { CodeGenerator } from '../index';
-import { Project } from 'ts-morph';
 
 /**
  * Validates the input path or URL.
@@ -42,7 +41,8 @@ export function validateInput(input: string): boolean {
 export async function generateAction(options: {
   input: string;
   output: string;
-  config?: string,
+  config?: string;
+  tsConfigFilePath?: string;
   verbose?: boolean;
   dryRun?: boolean;
 }) {
@@ -62,12 +62,11 @@ export async function generateAction(options: {
 
   try {
     logger.info('Starting code generation...');
-    const project = new Project();
     const generatorOptions: GeneratorOptions = {
       inputPath: options.input,
       outputDir: options.output,
       configPath: options.config,
-      project,
+      tsConfigFilePath: options.tsConfigFilePath,
       logger,
     };
     const codeGenerator = new CodeGenerator(generatorOptions);

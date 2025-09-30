@@ -24,11 +24,12 @@ export function setupCLI() {
     .command('generate')
     .description('Generate TypeScript code from OpenAPI specification')
     .requiredOption(
-      '-i, --input <path>',
+      '-i, --input <file>',
       'Input OpenAPI specification file path or URL (http/https)',
     )
     .option('-o, --output <path>', 'Output directory path', 'src/generated')
     .option('-c, --config <file>', 'Configuration file path', DEFAULT_CONFIG_PATH)
+    .option('-t, --ts-config-file-path <file>', 'TypeScript configuration file path')
     .option('-v, --verbose', 'Enable verbose logging')
     .option('--dry-run', 'Show what would be generated without writing files')
     .action(generateAction);

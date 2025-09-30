@@ -19,13 +19,12 @@ import { BoundedContextAggregates } from './aggregate';
  * Configuration options for the code generator.
  */
 export interface GeneratorOptions {
-  /** The ts-morph project instance to use for code generation */
-  readonly project: Project;
   /** Path to the input OpenAPI specification file */
   readonly inputPath: string;
   /** Output directory for generated files */
   readonly outputDir: string;
   readonly configPath?: string;
+  readonly tsConfigFilePath?: string;
   /** Optional logger for friendly output */
   readonly logger: Logger;
 }
