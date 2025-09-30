@@ -28,8 +28,7 @@ import {
 } from '../utils';
 import {
   addApiMetadataCtor,
-  addImportDecorator,
-  createDecoratorClass,
+  addImportDecorator, addImportEventStream, createDecoratorClass,
   STREAM_RESULT_EXTRACTOR_METADATA,
 } from './decorators';
 import { createClientFilePath, getClientName, methodToDecorator } from './utils';
@@ -133,10 +132,7 @@ export class CommandClientGenerator implements Generator {
     this.context.logger.info(
       `Adding import from @ahoo-wang/fetcher-eventstream: JsonEventStreamResultExtractor`,
     );
-    commandClientFile.addImportDeclaration({
-      moduleSpecifier: '@ahoo-wang/fetcher-eventstream',
-      namedImports: ['JsonEventStreamResultExtractor'],
-    });
+    addImportEventStream(commandClientFile);
 
     this.context.logger.info(
       `Adding import from @ahoo-wang/fetcher: ContentTypeValues`,

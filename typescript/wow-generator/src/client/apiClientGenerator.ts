@@ -52,7 +52,7 @@ import {
 } from '../utils';
 import {
   addApiMetadataCtor,
-  addImportDecorator,
+  addImportDecorator, addImportEventStream,
   createDecoratorClass, DEFAULT_RETURN_TYPE, MethodReturnType,
   STREAM_RESULT_EXTRACTOR_METADATA,
 } from './decorators';
@@ -158,6 +158,7 @@ export class ApiClientGenerator implements Generator {
     );
     const apiClientFile = this.createApiClientFile(modelInfo);
     addImportDecorator(apiClientFile);
+    addImportEventStream(apiClientFile);
     const apiClientClass = createDecoratorClass(
       modelInfo.name + 'ApiClient',
       apiClientFile,

@@ -138,3 +138,9 @@ export function addApiMetadataCtor(
     ],
   });
 }
+
+export const EVENTSTREAM_MODULE_SPECIFIER = '@ahoo-wang/fetcher-eventstream';
+
+export function addImportEventStream(sourceFile: SourceFile) {
+  addImport(sourceFile, EVENTSTREAM_MODULE_SPECIFIER, ['JsonEventStreamResultExtractor', 'type JsonServerSentEventStream']);
+}
