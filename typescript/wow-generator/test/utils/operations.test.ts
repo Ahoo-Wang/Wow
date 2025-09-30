@@ -13,24 +13,18 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import {
-  extractOperations,
-  extractOkResponse,
-  extractOperationOkResponseJsonSchema,
   extractPathParameters,
   resolvePathParameterType,
 } from '../../src/utils';
 import {
-  PathItem,
   Operation,
-  Response,
-  Schema,
   Components,
   Parameter,
   Reference,
 } from '@ahoo-wang/fetcher-openapi';
-import { extractParameter } from '../../src/utils/components';
-import { isReference } from '../../src/utils/references';
-import { isPrimitive, resolvePrimitiveType } from '../../src/utils/schemas';
+import { extractParameter } from '../../src/utils';
+import { isReference } from '../../src/utils';
+import { isPrimitive, resolvePrimitiveType } from '../../src/utils';
 
 // Mock the dependencies
 vi.mock('../../src/utils/components', () => ({

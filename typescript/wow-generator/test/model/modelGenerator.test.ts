@@ -433,6 +433,46 @@ describe('ModelGenerator', () => {
       );
       expect(result).toBe(mockInterface);
     });
+
+    it('should process array schemas with reference items', () => {
+      const context = createContext();
+      const generator = new ModelGenerator(context);
+      (generator as any).outputDir = context.outputDir;
+
+      const mockTypeAlias = { name: 'Users' };
+      mockSourceFile.addTypeAlias.mockReturnValue(mockTypeAlias);
+      mockIsEnum.mockReturnValue(false);
+      mockIsArray.mockReturnValue(true);
+      mockIsReference.mockReturnValueOnce(true);
+      mockToArrayType.mockReturnValue('RefModel[]');
+
+      const schema: Schema = {
+        type: 'array',
+        items: { $ref: '#/components/schemas/User' },
+      };
+
+      const result = (generator as any).process(
+        { name: 'Users', path: 'models' },
+        mockSourceFile,
+        schema,
+      );
+
+      expect(mockIsArray).toHaveBeenCalledWith(schema);
+      expect(mockIsReference).toHaveBeenCalledWith(schema.items);
+      expect(mockResolveReferenceModelInfo).toHaveBeenCalledWith(schema.items);
+      expect(mockAddImportModelInfo).toHaveBeenCalledWith(
+        { name: 'Users', path: 'models' },
+        mockSourceFile,
+        '/tmp/test',
+        { name: 'RefModel', path: 'models' },
+      );
+      expect(mockSourceFile.addTypeAlias).toHaveBeenCalledWith({
+        name: 'Users',
+        type: 'RefModel[]',
+        isExported: true,
+      });
+      expect(result).toBe(mockTypeAlias);
+    });
   });
 
   describe('processObject', () => {
