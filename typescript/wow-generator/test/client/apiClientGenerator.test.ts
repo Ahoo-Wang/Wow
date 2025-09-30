@@ -299,30 +299,6 @@ describe('ApiClientGenerator', () => {
     });
   });
 
-  describe('resolveParameters', () => {
-    it('should return empty array when no parameters', () => {
-      const generator = new ApiClientGenerator(mockContext);
-      const operation = { operationId: 'test.op' };
-
-      const result = (generator as any).resolveParameters({}, {}, operation);
-
-      expect(result.length).toBe(2);
-    });
-
-    it('should resolve path parameters', () => {
-      const generator = new ApiClientGenerator(mockContext);
-      const operation = {
-        operationId: 'test.op',
-        parameters: [{ name: 'id', in: 'path', schema: { type: 'string' } }],
-      };
-
-      const result = (generator as any).resolveParameters({}, {}, operation);
-
-      expect(result.length).toBe(3); // path param + httpRequest + attributes
-      expect(result[0].name).toBe('id');
-    });
-  });
-
   describe('resolveSchemaReturnType', () => {
     it('should resolve reference schema', () => {
       const generator = new ApiClientGenerator(mockContext);

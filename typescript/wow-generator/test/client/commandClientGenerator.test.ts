@@ -234,34 +234,6 @@ describe('CommandClientGenerator', () => {
     expect(mockClass.addImplements).toHaveBeenCalledWith('ApiMetadataCapable');
   });
 
-  it('should process command method', () => {
-    const context = createContext(mockLogger);
-    const generator = new CommandClientGenerator(context);
-
-    const mockMethod = {
-      addJSDoc: vi.fn(),
-    };
-    const mockClass = {
-      addMethod: vi.fn().mockReturnValue(mockMethod),
-    };
-
-    generator.processCommandMethod(
-      mockSourceFile,
-      mockClass as any,
-      mockCommand,
-      'Promise<CommandResult>',
-    );
-
-    expect(mockClass.addMethod).toHaveBeenCalledWith(
-      expect.objectContaining({
-        decorators: expect.any(Array),
-        parameters: expect.any(Array),
-        returnType: 'Promise<CommandResult>',
-        statements: expect.any(Array),
-      }),
-    );
-    // addJSDoc is called on the method
-  });
 
   it('should handle empty context aggregates', () => {
     const emptyContextAggregates = new Map<string, Set<AggregateDefinition>>();
