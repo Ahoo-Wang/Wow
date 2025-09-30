@@ -13,7 +13,7 @@
 
 import { GenerateContext, Generator } from '../generateContext';
 import {
-  ClassDeclaration,
+  ClassDeclaration, OptionalKind, ParameterDeclarationStructure,
   SourceFile,
   VariableDeclarationKind,
 } from 'ts-morph';
@@ -24,8 +24,7 @@ import {
   addImport,
   addImportRefModel,
   addJSDoc,
-  camelCase,
-  isEmptyObject,
+  camelCase, isEmptyObject, resolvePathParameterType,
 } from '../utils';
 import {
   addApiMetadataCtor,
@@ -33,6 +32,7 @@ import {
   createDecoratorClass,
   STREAM_RESULT_EXTRACTOR_METADATA,
 } from './decorators';
+import { Tag } from '@ahoo-wang/fetcher-openapi';
 
 /**
  * Generates TypeScript command client classes for aggregates.
@@ -210,42 +210,33 @@ export class CommandClientGenerator implements Generator {
     addApiMetadataCtor(commandClient, this.defaultCommandClientOptionsName);
 
     aggregateDefinition.commands.forEach(command => {
-      this.processCommandMethod(clientFile, commandClient, command, returnType);
+      this.processCommandMethod(aggregateDefinition, clientFile, commandClient, command, returnType);
     });
   }
 
-  /**
-   * Processes and generates a command method for the command client.
-   * @param sourceFile - The source file containing the client
-   * @param client - The client class declaration
-   * @param definition - The command definition
-   */
-  processCommandMethod(
+  private resolveParameters(
+    tag: Tag,
     sourceFile: SourceFile,
-    client: ClassDeclaration,
     definition: CommandDefinition,
-    returnType: string,
-  ) {
+  ): OptionalKind<ParameterDeclarationStructure>[] {
     const commandModelInfo = resolveModelInfo(definition.schema.key);
     this.context.logger.info(
       `Adding import for command model: ${commandModelInfo.name} from path: ${commandModelInfo.path}`,
     );
     addImportRefModel(sourceFile, this.context.outputDir, commandModelInfo);
-
-    this.context.logger.info(
-      `Generating command method: ${camelCase(definition.name)} for command: ${definition.name}`,
-    );
-    this.context.logger.info(
-      `Command method details: HTTP ${definition.method}, path: ${definition.path}, return type: ${returnType}`,
-    );
-
-    const parameters = definition.pathParameters.map(parameter => {
+    const parameters = definition.pathParameters.filter(parameter => {
+      return !this.context.isIgnoreCommandClientPathParameters(
+        tag.name,
+        parameter.name,
+      );
+    }).map(parameter => {
+      const parameterType = resolvePathParameterType(parameter);
       this.context.logger.info(
-        `Adding path parameter: ${parameter.name} (type: string)`,
+        `Adding path parameter: ${parameter.name} (type: ${parameterType})`,
       );
       return {
         name: parameter.name,
-        type: 'string',
+        type: parameterType,
         hasQuestionToken: false,
         decorators: [
           {
@@ -285,7 +276,23 @@ export class CommandClientGenerator implements Generator {
         },
       ],
     });
+    return parameters;
+  }
 
+  processCommandMethod(
+    aggregate: AggregateDefinition,
+    sourceFile: SourceFile,
+    client: ClassDeclaration,
+    definition: CommandDefinition,
+    returnType: string,
+  ) {
+    this.context.logger.info(
+      `Generating command method: ${camelCase(definition.name)} for command: ${definition.name}`,
+    );
+    this.context.logger.info(
+      `Command method details: HTTP ${definition.method}, path: ${definition.path}, return type: ${returnType}`,
+    );
+    const parameters = this.resolveParameters(aggregate.aggregate.tag, sourceFile, definition);
     const methodDeclaration = client.addMethod({
       name: camelCase(definition.name),
       decorators: [

@@ -14,7 +14,6 @@
 import { GenerateContext, Generator } from '../generateContext';
 import {
   Operation,
-  Parameter,
   Reference,
   RequestBody,
   Schema,
@@ -277,12 +276,13 @@ export class ApiClientGenerator implements Generator {
       `Found ${pathParameters.length} path parameters for operation ${operation.operationId}`,
     );
     const parameters = pathParameters.map(parameter => {
+      const parameterType = resolvePathParameterType(parameter);
       this.context.logger.info(
-        `Adding path parameter: ${parameter.name} (type: string)`,
+        `Adding path parameter: ${parameter.name} (type: ${parameterType})`,
       );
       return {
         name: parameter.name,
-        type: resolvePathParameterType(parameter),
+        type: parameterType,
         hasQuestionToken: false,
         decorators: [
           {

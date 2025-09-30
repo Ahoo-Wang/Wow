@@ -50,6 +50,10 @@ export class GenerateContext implements GenerateContextInit {
     const ignorePathParameters = this.config.apiClients?.[tagName]?.ignorePathParameters ?? this.defaultIgnorePathParameters;
     return ignorePathParameters.includes(parameterName);
   }
+
+  isIgnoreCommandClientPathParameters(tagName: string, parameterName: string): boolean {
+    return this.defaultIgnorePathParameters.includes(parameterName);
+  }
 }
 
 export interface Generator {
