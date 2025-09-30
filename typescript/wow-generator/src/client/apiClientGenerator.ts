@@ -53,7 +53,7 @@ import {
 import {
   addApiMetadataCtor,
   addImportDecorator,
-  createDecoratorClass,
+  createDecoratorClass, DEFAULT_RETURN_TYPE, MethodReturnType,
   STREAM_RESULT_EXTRACTOR_METADATA,
 } from './decorators';
 import { methodToDecorator } from './utils';
@@ -65,13 +65,14 @@ interface PathMethodOperation extends MethodOperation {
   path: string;
 }
 
+
 /**
  * Generator for creating TypeScript API client classes from OpenAPI specifications.
  * Generates client classes with proper decorators, type annotations, and method signatures.
  */
 export class ApiClientGenerator implements Generator {
   private defaultParameterRequestType = 'ParameterRequest';
-  private defaultReturnType = { type: 'Promise<any>' };
+  private defaultReturnType = DEFAULT_RETURN_TYPE;
 
   private readonly apiMetadataCtorInitializer: string | undefined;
 
@@ -334,6 +335,7 @@ export class ApiClientGenerator implements Generator {
     sourceFile: SourceFile,
     schema: Schema | Reference,
   ): string {
+    const schemaDefaultReturnType = `Promise<any>`;
     if (isReference(schema)) {
       const modelInfo = resolveReferenceModelInfo(schema);
       this.context.logger.info(
@@ -346,9 +348,9 @@ export class ApiClientGenerator implements Generator {
     }
     if (!schema.type) {
       this.context.logger.info(
-        `Schema has no type, using default return type: ${this.defaultReturnType.type}`,
+        `Schema has no type, using default return type: ${schemaDefaultReturnType}`,
       );
-      return this.defaultReturnType.type;
+      return schemaDefaultReturnType;
     }
     if (isPrimitive(schema.type)) {
       const primitiveType = resolvePrimitiveType(schema.type);
@@ -357,9 +359,9 @@ export class ApiClientGenerator implements Generator {
       return returnType;
     }
     this.context.logger.info(
-      `Using default return type: ${this.defaultReturnType.type}`,
+      `Using default return type: ${schemaDefaultReturnType}`,
     );
-    return this.defaultReturnType.type;
+    return schemaDefaultReturnType;
   }
 
   /**
@@ -371,7 +373,7 @@ export class ApiClientGenerator implements Generator {
   private resolveReturnType(
     sourceFile: SourceFile,
     operation: Operation,
-  ): { stream?: boolean; type: string } {
+  ): MethodReturnType {
     const okResponse = extractOkResponse(operation);
     if (!okResponse) {
       this.context.logger.info(
@@ -379,14 +381,13 @@ export class ApiClientGenerator implements Generator {
       );
       return this.defaultReturnType;
     }
-    const jsonSchema = extractResponseJsonSchema(okResponse);
+    const jsonSchema = extractResponseJsonSchema(okResponse) || extractResponseWildcardSchema(okResponse);
     if (jsonSchema) {
       const returnType = this.resolveSchemaReturnType(sourceFile, jsonSchema);
       this.context.logger.info(
-        `Resolved JSON response return type for operation ${operation.operationId}: ${returnType}`,
+        `Resolved JSON/wildcard response return type for operation ${operation.operationId}: ${returnType}`,
       );
       return {
-        stream: false,
         type: returnType,
       };
     }
@@ -409,8 +410,8 @@ export class ApiClientGenerator implements Generator {
             `Resolved event stream return type for operation ${operation.operationId}: ${returnType}`,
           );
           return {
-            stream: true,
             type: returnType,
+            metadata: STREAM_RESULT_EXTRACTOR_METADATA,
           };
         }
       }
@@ -418,18 +419,7 @@ export class ApiClientGenerator implements Generator {
       this.context.logger.info(
         `Resolved generic event stream return type for operation ${operation.operationId}: ${returnType}`,
       );
-      return { stream: true, type: returnType };
-    }
-    const wildcardSchema = extractResponseWildcardSchema(okResponse);
-    if (wildcardSchema) {
-      const returnType = this.resolveSchemaReturnType(
-        sourceFile,
-        wildcardSchema,
-      );
-      this.context.logger.info(
-        `Resolved wildcard response return type for operation ${operation.operationId}: ${returnType}`,
-      );
-      return { type: returnType };
+      return { type: returnType, metadata: STREAM_RESULT_EXTRACTOR_METADATA };
     }
     this.context.logger.info(
       `Using default return type for operation ${operation.operationId}: ${this.defaultReturnType.type}`,
@@ -461,17 +451,17 @@ export class ApiClientGenerator implements Generator {
       operation.operation,
     );
     const returnType = this.resolveReturnType(sourceFile, operation.operation);
-    const methodDecorator = returnType.stream
+    const methodDecorator = returnType.metadata
       ? {
         name: methodToDecorator(operation.method),
-        arguments: [`'${operation.path}'`, STREAM_RESULT_EXTRACTOR_METADATA],
+        arguments: [`'${operation.path}'`, returnType.metadata],
       }
       : {
         name: methodToDecorator(operation.method),
         arguments: [`'${operation.path}'`],
       };
     this.context.logger.info(
-      `Creating method with ${parameters.length} parameters, return type: ${returnType.type}, stream: ${returnType.stream || false}`,
+      `Creating method with ${parameters.length} parameters, return type: ${returnType.type}`,
     );
     const methodDeclaration = apiClientClass.addMethod({
       name: methodName,

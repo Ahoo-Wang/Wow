@@ -24,6 +24,10 @@ vi.mock('../../src/client/decorators', () => ({
   createDecoratorClass: vi.fn(() => ({ addMethod: vi.fn() })),
   addApiMetadataCtor: vi.fn(),
   STREAM_RESULT_EXTRACTOR_METADATA: 'STREAM_METADATA',
+  DEFAULT_RETURN_TYPE: {
+    type: 'Promise<Response>',
+    metadata: '{resultExtractor: ResultExtractors.Response }',
+  },
 }));
 
 vi.mock('../../src/utils', () => ({
@@ -326,7 +330,10 @@ describe('ApiClientGenerator', () => {
 
       const result = (generator as any).resolveReturnType({}, operation);
 
-      expect(result).toEqual({ type: 'Promise<any>' });
+      expect(result).toEqual({
+        type: 'Promise<Response>',
+        metadata: '{resultExtractor: ResultExtractors.Response }',
+      });
     });
   });
 
