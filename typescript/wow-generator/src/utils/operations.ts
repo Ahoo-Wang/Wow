@@ -12,14 +12,18 @@
  */
 
 import {
+  Components,
   HTTPMethod,
-  Operation,
+  Operation, Parameter,
   PathItem,
   Reference,
   Response,
   Schema,
 } from '@ahoo-wang/fetcher-openapi';
 import { extractResponseJsonSchema } from './responses';
+import { isReference } from './references';
+import { extractParameter } from './components';
+import { isPrimitive, resolvePrimitiveType } from './schemas';
 
 /**
  * Represents an HTTP method and its associated operation.
@@ -73,4 +77,37 @@ export function extractOperationOkResponseJsonSchema(
 ): Schema | Reference | undefined {
   const okResponse = extractOkResponse(operation);
   return extractResponseJsonSchema(okResponse);
+}
+
+/**
+ * Extracts path parameters from an operation.
+ * @param operation - The OpenAPI operation to extract path parameters from
+ * @param components - The OpenAPI components object used to resolve references
+ * @returns Array of path parameters
+ */
+export function extractPathParameters(operation: Operation, components: Components): Parameter[] {
+  if (!operation.parameters) {
+    return [];
+  }
+  return operation.parameters.map((parameter) => {
+    if (isReference(parameter)) {
+      return extractParameter(parameter, components)!;
+    }
+    return parameter;
+  }).filter((parameter) => parameter.in === 'path');
+}
+
+const DEFAULT_PATH_PARAMETER_TYPE = 'string';
+
+/**
+ * Resolves the type of a path parameter.
+ * @param parameter - The path parameter to resolve the type for
+ * @returns The resolved primitive type as a string, or the default path parameter type if the schema is missing,
+ *          is a reference, lacks a type, or the type is not primitive
+ */
+export function resolvePathParameterType(parameter: Parameter): string {
+  if (!parameter.schema || isReference(parameter.schema) || !parameter.schema.type || !isPrimitive(parameter.schema.type)) {
+    return DEFAULT_PATH_PARAMETER_TYPE;
+  }
+  return resolvePrimitiveType(parameter.schema.type);
 }

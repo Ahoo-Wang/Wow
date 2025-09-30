@@ -35,7 +35,7 @@ import {
   extractSchema,
   isArray,
   extractResponseWildcardSchema,
-  addJSDoc,
+  addJSDoc, extractPathParameters, resolvePathParameterType,
 } from '../utils';
 import {
   ModelInfo,
@@ -267,17 +267,12 @@ export class ApiClientGenerator implements Generator {
     sourceFile: SourceFile,
     operation: Operation,
   ): OptionalKind<ParameterDeclarationStructure>[] {
-    const pathParameters =
-      (operation.parameters?.filter(parameter => {
-        return (
-          !isReference(parameter) &&
-          parameter.in === 'path' &&
-          !this.context.isIgnoreApiClientPathParameters(
-            tag.name,
-            parameter.name,
-          )
-        );
-      }) as Parameter[]) ?? [];
+    const pathParameters = extractPathParameters(operation, this.context.openAPI.components!).filter(parameter => {
+      return !this.context.isIgnoreApiClientPathParameters(
+        tag.name,
+        parameter.name,
+      );
+    });
     this.context.logger.info(
       `Found ${pathParameters.length} path parameters for operation ${operation.operationId}`,
     );
@@ -287,7 +282,7 @@ export class ApiClientGenerator implements Generator {
       );
       return {
         name: parameter.name,
-        type: 'string',
+        type: resolvePathParameterType(parameter),
         hasQuestionToken: false,
         decorators: [
           {
