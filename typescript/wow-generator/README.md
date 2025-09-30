@@ -385,7 +385,8 @@ export class CartApiClient implements ApiMetadataCapable {
 The generated code is designed to work seamlessly with the Fetcher ecosystem:
 
 ```typescript
-import { Fetcher } from '@ahoo-wang/fetcher';
+import { fetcher, Fetcher } from '@ahoo-wang/fetcher';
+import { all } from '@ahoo-wang/fetcher-wow';
 import { cartQueryClientFactory } from './generated/example/cart/queryClient';
 import { CartCommandClient } from './generated/example/cart/commandClient';
 import { CartApiClient } from './generated/example/CartApiClient';
@@ -395,15 +396,12 @@ const fetcher = new Fetcher({
   baseURL: 'https://api.example.com',
 });
 
-// Register the fetcher (if using named fetchers)
-Fetcher.register('api', fetcher);
-
 // Use the generated query client factory
-const queryClient = cartQueryClientFactory.createQueryClient();
-const cartState = await queryClient.loadAggregate('cart-id');
+const snapshotClient = cartQueryClientFactory.createSnapshotQueryClient({ fetcher: fetcher });
+const cartState = await snapshotClient.singleState({ condition: all() });
 
 // Use the generated command client
-const commandClient = new CartCommandClient();
+const commandClient = new CartCommandClient({ fetcher: fetcher });
 const result = await commandClient.addCartItem(
   {
     command: {
@@ -417,7 +415,7 @@ const result = await commandClient.addCartItem(
 );
 
 // Use the generated API client for custom endpoints (based on OpenAPI tag "cart")
-const apiClient = new CartApiClient();
+const apiClient = new CartApiClient({ fetcher: fetcher });
 const cartData = await apiClient.me();
 ```
 

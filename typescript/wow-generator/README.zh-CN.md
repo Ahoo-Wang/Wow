@@ -378,6 +378,7 @@ export class CartApiClient implements ApiMetadataCapable {
 
 ```typescript
 import { Fetcher } from '@ahoo-wang/fetcher';
+import { all } from '@ahoo-wang/fetcher-wow';
 import { cartQueryClientFactory } from './generated/example/cart/queryClient';
 import { CartCommandClient } from './generated/example/cart/commandClient';
 import { CartApiClient } from './generated/example/CartApiClient';
@@ -387,15 +388,12 @@ const fetcher = new Fetcher({
   baseURL: 'https://api.example.com',
 });
 
-// 注册 fetcher（如果使用命名 fetcher）
-Fetcher.register('api', fetcher);
-
 // 使用生成的查询客户端工厂
-const queryClient = cartQueryClientFactory.createQueryClient();
-const cartState = await queryClient.loadAggregate('cart-id');
+const snapshotClient = cartQueryClientFactory.createSnapshotQueryClient({ fetcher: fetcher });
+const cartState = await snapshotClient.singleState({ condition: all() });
 
 // 使用生成的命令客户端
-const commandClient = new CartCommandClient();
+const commandClient = new CartCommandClient({ fetcher: fetcher });
 const result = await commandClient.addCartItem(
   {
     command: {
@@ -409,7 +407,7 @@ const result = await commandClient.addCartItem(
 );
 
 // 使用生成的 API 客户端用于自定义端点（基于 OpenAPI 标签 "cart"）
-const apiClient = new CartApiClient();
+const apiClient = new CartApiClient({ fetcher: fetcher });
 const cartData = await apiClient.me();
 ```
 
