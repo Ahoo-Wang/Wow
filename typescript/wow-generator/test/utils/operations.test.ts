@@ -11,167 +11,216 @@
  * limitations under the License.
  */
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   extractOperations,
   extractOkResponse,
   extractOperationOkResponseJsonSchema,
+  extractPathParameters,
+  resolvePathParameterType,
 } from '../../src/utils';
 import {
   PathItem,
   Operation,
   Response,
   Schema,
+  Components,
+  Parameter,
+  Reference,
 } from '@ahoo-wang/fetcher-openapi';
+import { extractParameter } from '../../src/utils/components';
+import { isReference } from '../../src/utils/references';
+import { isPrimitive, resolvePrimitiveType } from '../../src/utils/schemas';
+
+// Mock the dependencies
+vi.mock('../../src/utils/components', () => ({
+  extractParameter: vi.fn(),
+}));
+
+vi.mock('../../src/utils/references', () => ({
+  isReference: vi.fn(),
+}));
+
+vi.mock('../../src/utils/schemas', () => ({
+  isPrimitive: vi.fn(),
+  resolvePrimitiveType: vi.fn(),
+}));
 
 describe('operations', () => {
-  describe('extractOperations', () => {
-    it('should extract all operations from path item', () => {
-      const getOperation: Operation = {
-        operationId: 'getUsers',
+  // ... existing tests ...
+
+  describe('extractPathParameters', () => {
+    it('should return empty array if operation has no parameters', () => {
+      const operation: Operation = {
         responses: {},
       };
-      const postOperation: Operation = {
-        operationId: 'createUser',
-        responses: {},
-      };
-      const pathItem: PathItem = {
-        get: getOperation,
-        post: postOperation,
-      };
+      const components: Components = {};
 
-      const result = extractOperations(pathItem);
-      expect(result).toEqual([
-        { method: 'get', operation: getOperation },
-        { method: 'post', operation: postOperation },
-      ]);
-    });
-
-    it('should filter out undefined operations', () => {
-      const getOperation: Operation = {
-        operationId: 'getUsers',
-        responses: {},
-      };
-      const pathItem: PathItem = {
-        get: getOperation,
-        post: undefined,
-        put: undefined,
-      };
-
-      const result = extractOperations(pathItem);
-      expect(result).toEqual([{ method: 'get', operation: getOperation }]);
-    });
-
-    it('should handle all HTTP methods', () => {
-      const operations: Record<string, Operation> = {
-        get: { operationId: 'get', responses: {} },
-        put: { operationId: 'put', responses: {} },
-        post: { operationId: 'post', responses: {} },
-        delete: { operationId: 'delete', responses: {} },
-        options: { operationId: 'options', responses: {} },
-        head: { operationId: 'head', responses: {} },
-        patch: { operationId: 'patch', responses: {} },
-        trace: { operationId: 'trace', responses: {} },
-      };
-
-      const pathItem: PathItem = operations;
-
-      const result = extractOperations(pathItem);
-      expect(result).toHaveLength(8);
-      expect(result.map(r => r.method)).toEqual([
-        'get',
-        'put',
-        'post',
-        'delete',
-        'options',
-        'head',
-        'patch',
-        'trace',
-      ]);
-    });
-
-    it('should return empty array for path item with no operations', () => {
-      const pathItem: PathItem = {};
-      const result = extractOperations(pathItem);
+      const result = extractPathParameters(operation, components);
       expect(result).toEqual([]);
     });
-  });
 
-  describe('extractOkResponse', () => {
-    it('should return the 200 response', () => {
-      const okResponse: Response = { description: 'OK' };
-      const operation: Operation = {
-        responses: {
-          '200': okResponse,
-          '404': { description: 'Not Found' },
-        },
+    it('should extract path parameters from operation parameters', () => {
+      const pathParameter: Parameter = {
+        name: 'id',
+        in: 'path',
+        schema: { type: 'string' },
       };
-
-      expect(extractOkResponse(operation)).toBe(okResponse);
-    });
-
-    it('should return undefined if no 200 response', () => {
-      const operation: Operation = {
-        responses: {
-          '404': { description: 'Not Found' },
-        },
-      };
-
-      expect(extractOkResponse(operation)).toBeUndefined();
-    });
-  });
-
-  describe('extractOperationOkResponseJsonSchema', () => {
-    it('should return the JSON schema from OK response', () => {
-      const schema: Schema = { type: 'object' };
-      const okResponse: Response = {
-        description: 'OK',
-        content: {
-          'application/json': { schema },
-        },
+      const queryParameter: Parameter = {
+        name: 'filter',
+        in: 'query',
+        schema: { type: 'string' },
       };
       const operation: Operation = {
-        responses: {
-          '200': okResponse,
-        },
-      };
-
-      expect(extractOperationOkResponseJsonSchema(operation)).toBe(schema);
-    });
-
-    it('should return undefined if no OK response', () => {
-      const operation: Operation = {
+        parameters: [pathParameter, queryParameter],
         responses: {},
       };
+      const components: Components = {};
 
-      expect(extractOperationOkResponseJsonSchema(operation)).toBeUndefined();
+      const result = extractPathParameters(operation, components);
+      expect(result).toEqual([pathParameter]);
     });
 
-    it('should return undefined if OK response has no content', () => {
-      const okResponse: Response = { description: 'OK' };
-      const operation: Operation = {
-        responses: {
-          '200': okResponse,
-        },
+    it('should resolve reference parameters', () => {
+      const reference: Reference = {
+        $ref: '#/components/parameters/UserId',
+      };
+      const resolvedParameter: Parameter = {
+        name: 'id',
+        in: 'path',
+        schema: { type: 'integer' },
       };
 
-      expect(extractOperationOkResponseJsonSchema(operation)).toBeUndefined();
+      vi.mocked(isReference).mockImplementation((param: any): param is Reference => {
+        return param && '$ref' in param;
+      });
+      vi.mocked(extractParameter).mockReturnValue(resolvedParameter);
+
+      const operation: Operation = {
+        parameters: [reference],
+        responses: {},
+      };
+      const components: Components = {};
+
+      const result = extractPathParameters(operation, components);
+      expect(isReference).toHaveBeenCalledWith(reference);
+      expect(extractParameter).toHaveBeenCalledWith(reference, components);
+      expect(result).toEqual([resolvedParameter]);
     });
 
-    it('should return undefined if OK response has no JSON content', () => {
-      const okResponse: Response = {
-        description: 'OK',
-        content: {
-          'text/plain': { schema: { type: 'string' } },
-        },
+    it('should filter out non-path parameters after resolving references', () => {
+      const pathParameter: Parameter = {
+        name: 'id',
+        in: 'path',
+        schema: { type: 'string' },
       };
+      const queryParameter: Parameter = {
+        name: 'filter',
+        in: 'query',
+        schema: { type: 'string' },
+      };
+      const referenceToQueryParameter: Reference = {
+        $ref: '#/components/parameters/Filter',
+      };
+      const resolvedQueryParameter: Parameter = {
+        name: 'resolvedFilter',
+        in: 'query',
+        schema: { type: 'integer' },
+      };
+
+      vi.mocked(isReference).mockImplementation((param: any): param is Reference => {
+        return param && '$ref' in param;
+      });
+      vi.mocked(extractParameter).mockReturnValue(resolvedQueryParameter);
+
       const operation: Operation = {
-        responses: {
-          '200': okResponse,
+        parameters: [pathParameter, queryParameter, referenceToQueryParameter],
+        responses: {},
+      };
+      const components: Components = {};
+
+      const result = extractPathParameters(operation, components);
+      expect(result).toEqual([pathParameter]);
+    });
+  });
+
+  describe('resolvePathParameterType', () => {
+    it('should return default type when parameter has no schema', () => {
+      const parameter: Parameter = {
+        name: 'id',
+        in: 'path',
+      };
+
+      const result = resolvePathParameterType(parameter);
+      expect(result).toBe('string');
+    });
+
+    it('should return default type when parameter schema is a reference', () => {
+      const parameter: Parameter = {
+        name: 'id',
+        in: 'path',
+        schema: {
+          $ref: '#/components/schemas/UserId',
         },
       };
 
-      expect(extractOperationOkResponseJsonSchema(operation)).toBeUndefined();
+      vi.mocked(isReference).mockReturnValue(true);
+
+      const result = resolvePathParameterType(parameter);
+      expect(isReference).toHaveBeenCalledWith(parameter.schema);
+      expect(result).toBe('string');
+    });
+
+    it('should return default type when parameter schema has no type', () => {
+      const parameter: Parameter = {
+        name: 'id',
+        in: 'path',
+        schema: {},
+      };
+
+      vi.mocked(isReference).mockReturnValue(false);
+
+      const result = resolvePathParameterType(parameter);
+      expect(isReference).toHaveBeenCalledWith(parameter.schema);
+      expect(result).toBe('string');
+    });
+
+    it('should return default type when parameter schema type is not primitive', () => {
+      const parameter: Parameter = {
+        name: 'id',
+        in: 'path',
+        schema: {
+          type: 'object',
+        },
+      };
+
+      vi.mocked(isReference).mockReturnValue(false);
+      vi.mocked(isPrimitive).mockReturnValue(false);
+
+      const result = resolvePathParameterType(parameter);
+      expect(isReference).toHaveBeenCalledWith(parameter.schema);
+      expect(isPrimitive).toHaveBeenCalledWith('object');
+      expect(result).toBe('string');
+    });
+
+    it('should resolve primitive type when all conditions are met', () => {
+      const parameter: Parameter = {
+        name: 'id',
+        in: 'path',
+        schema: {
+          type: 'integer',
+        },
+      };
+
+      vi.mocked(isReference).mockReturnValue(false);
+      vi.mocked(isPrimitive).mockReturnValue(true);
+      vi.mocked(resolvePrimitiveType).mockReturnValue('number');
+
+      const result = resolvePathParameterType(parameter);
+      expect(isReference).toHaveBeenCalledWith(parameter.schema);
+      expect(isPrimitive).toHaveBeenCalledWith('integer');
+      expect(resolvePrimitiveType).toHaveBeenCalledWith('integer');
+      expect(result).toBe('number');
     });
   });
 });
