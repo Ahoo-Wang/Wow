@@ -62,11 +62,6 @@ export function resolveModelInfo(schemaKey: string): ModelInfo {
     }
   }
 
-  // If no part starts with uppercase letter, treat the whole thing as the name
-  if (modelNameIndex === -1) {
-    return { name: schemaKey, path: '/' };
-  }
-
   // Construct the path from parts before the model name
   const pathParts = parts.slice(0, modelNameIndex);
   const path = pathParts.length > 0 ? `/${pathParts.join('/')}` : '/';

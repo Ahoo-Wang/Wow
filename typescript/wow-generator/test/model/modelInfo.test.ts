@@ -14,16 +14,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { resolveModelInfo, WOW_TYPE_MAPPING } from '../../src/model';
 
-// Mock the pascalCase function to avoid dependencies on the actual implementation
-vi.mock('@/utils/naming.ts', () => ({
-  pascalCase: vi.fn(parts => {
-    if (Array.isArray(parts)) {
-      return parts.join('');
-    }
-    return parts;
-  }),
-}));
-
 describe('modelInfo', () => {
   describe('resolveModelInfo', () => {
     it('should return empty name and root path for empty schemaKey', () => {
@@ -59,7 +49,7 @@ describe('modelInfo', () => {
     it('should treat whole string as name when no uppercase letter is found', () => {
       const result = resolveModelInfo('result');
       expect(result).toEqual({
-        name: 'result',
+        name: 'Result',
         path: '/',
       });
     });
@@ -85,6 +75,13 @@ describe('modelInfo', () => {
       expect(result).toEqual({
         name: 'User',
         path: '/',
+      });
+    });
+    it('should handle schema key with ', () => {
+      const result = resolveModelInfo('wow.byteArray');
+      expect(result).toEqual({
+        name: 'ByteArray',
+        path: '/wow',
       });
     });
   });

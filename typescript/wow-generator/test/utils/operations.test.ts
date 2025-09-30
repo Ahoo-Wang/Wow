@@ -41,8 +41,6 @@ vi.mock('../../src/utils/schemas', () => ({
 }));
 
 describe('operations', () => {
-  // ... existing tests ...
-
   describe('extractPathParameters', () => {
     it('should return empty array if operation has no parameters', () => {
       const operation: Operation = {

@@ -25,7 +25,7 @@ import {
   toArrayType,
   isEmptyObject,
   resolvePrimitiveType,
-} from '../../src/utils/schemas';
+} from '../../src/utils';
 
 describe('schemas', () => {
   describe('isPrimitive', () => {
