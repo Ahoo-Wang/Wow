@@ -36,11 +36,7 @@ vi.mock('../../src/utils', () => ({
   extractOkResponse: vi.fn(),
   extractResponseJsonSchema: vi.fn(),
   extractOperations: vi.fn(() => []),
-  extractRequestBody: vi.fn((ref, components) => ({
-    content: {
-      'application/json': { schema: { $ref: '#/components/schemas/Test' } },
-    },
-  })),
+  extractRequestBody: vi.fn(),
   isPrimitive: vi.fn(type => type === 'string'),
   isReference: vi.fn(obj => obj && typeof obj === 'object' && '$ref' in obj),
   resolvePrimitiveType: vi.fn(type => type),
@@ -257,6 +253,16 @@ describe('ApiClientGenerator', () => {
 
       expect(result).toBe('user.getProfile');
     });
+
+    it('should return camelCase of all parts when no unique method found', () => {
+      const generator = new ApiClientGenerator(mockContext);
+      const mockClass = { getMethod: vi.fn(() => true) }; // Always returns true, so no unique name found
+      const operation = { operationId: 'user.get.profile' };
+
+      const result = (generator as any).getMethodName(mockClass, operation);
+
+      expect(result).toBe('user.get.profile');
+    });
   });
 
   describe('resolveRequestType', () => {
@@ -301,6 +307,48 @@ describe('ApiClientGenerator', () => {
 
       expect(result).toBe('ParameterRequest<RefModel>');
     });
+
+    it('should handle reference request body that fails extraction', async () => {
+      const generator = new ApiClientGenerator(mockContext);
+      const operation = {
+        operationId: 'test.op',
+        requestBody: { $ref: '#/components/requestBodies/Test' },
+      };
+
+      // Mock extractRequestBody to return undefined (extraction fails)
+      vi.mocked(
+        await import('../../src/utils'),
+      ).extractRequestBody.mockReturnValueOnce(undefined);
+
+      const result = (generator as any).resolveRequestType({}, operation);
+
+      expect(result).toBe('ParameterRequest');
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        'Extracting request body from reference for operation: test.op',
+      );
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        'Request body extraction failed for operation test.op, using default: ParameterRequest',
+      );
+    });
+
+    it('should return default type when no matching content type', () => {
+      const generator = new ApiClientGenerator(mockContext);
+      const operation = {
+        operationId: 'test.op',
+        requestBody: {
+          content: {
+            'application/xml': { schema: { type: 'string' } },
+          },
+        },
+      };
+
+      const result = (generator as any).resolveRequestType({}, operation);
+
+      expect(result).toBe('ParameterRequest');
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        'Using default request type for operation test.op: ParameterRequest',
+      );
+    });
   });
 
   describe('resolveSchemaReturnType', () => {
@@ -321,6 +369,30 @@ describe('ApiClientGenerator', () => {
 
       expect(result).toBe('Promise<string>');
     });
+
+    it('should handle schema with no type', () => {
+      const generator = new ApiClientGenerator(mockContext);
+      const schema = { description: 'test schema' }; // No type property
+
+      const result = (generator as any).resolveSchemaReturnType({}, schema);
+
+      expect(result).toBe('Promise<any>');
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        'Schema has no type, using default return type: Promise<any>',
+      );
+    });
+
+    it('should handle non-primitive schema type', () => {
+      const generator = new ApiClientGenerator(mockContext);
+      const schema = { type: 'object' }; // Non-primitive type
+
+      const result = (generator as any).resolveSchemaReturnType({}, schema);
+
+      expect(result).toBe('Promise<any>');
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        'Using default return type: Promise<any>',
+      );
+    });
   });
 
   describe('resolveReturnType', () => {
@@ -333,6 +405,156 @@ describe('ApiClientGenerator', () => {
       expect(result).toEqual({
         type: 'Promise<Response>',
         metadata: '{resultExtractor: ResultExtractors.Response }',
+      });
+    });
+
+    it('should handle JSON response schema', async () => {
+      const generator = new ApiClientGenerator(mockContext);
+      const operation = { operationId: 'test.op' };
+
+      // Mock extractOkResponse to return a response
+      vi.mocked(
+        await import('../../src/utils'),
+      ).extractOkResponse.mockReturnValueOnce({
+        content: {
+          'application/json': { schema: { type: 'string' } },
+        },
+      });
+
+      // Mock extractResponseJsonSchema to return the schema
+      vi.mocked(
+        await import('../../src/utils'),
+      ).extractResponseJsonSchema.mockReturnValueOnce({ type: 'string' });
+
+      const result = (generator as any).resolveReturnType({}, operation);
+
+      expect(result).toEqual({ type: 'Promise<string>' });
+    });
+
+    it('should handle event stream with array reference schema', async () => {
+      const generator = new ApiClientGenerator(mockContext);
+      const operation = { operationId: 'test.op' };
+
+      // Mock extractOkResponse to return a response
+      vi.mocked(
+        await import('../../src/utils'),
+      ).extractOkResponse.mockReturnValueOnce({});
+
+      // Mock extractResponseEventStreamSchema to return a reference
+      vi.mocked(
+        await import('../../src/utils'),
+      ).extractResponseEventStreamSchema.mockReturnValueOnce({
+        $ref: '#/components/schemas/TestEvent',
+      });
+
+      // Mock extractSchema to return an array schema
+      vi.mocked(
+        await import('../../src/utils'),
+      ).extractSchema.mockReturnValueOnce({
+        type: 'array',
+        items: { $ref: '#/components/schemas/TestItem' },
+      });
+
+      // Mock isArray to return true
+      vi.mocked(await import('../../src/utils')).isArray.mockReturnValueOnce(
+        true,
+      );
+
+      const result = (generator as any).resolveReturnType({}, operation);
+
+      expect(result).toEqual({
+        type: 'Promise<JsonServerSentEventStream<RefModel>>',
+        metadata: 'STREAM_METADATA',
+      });
+    });
+
+    it('should handle event stream with non-array schema', async () => {
+      const generator = new ApiClientGenerator(mockContext);
+      const operation = { operationId: 'test.op' };
+
+      // Mock extractOkResponse to return a response
+      vi.mocked(
+        await import('../../src/utils'),
+      ).extractOkResponse.mockReturnValueOnce({});
+
+      // Mock extractResponseEventStreamSchema to return a schema
+      vi.mocked(
+        await import('../../src/utils'),
+      ).extractResponseEventStreamSchema.mockReturnValueOnce({
+        type: 'string',
+      });
+
+      const result = (generator as any).resolveReturnType({}, operation);
+
+      expect(result).toEqual({
+        type: 'Promise<JsonServerSentEventStream<any>>',
+        metadata: 'STREAM_METADATA',
+      });
+    });
+
+    it('should handle event stream with array reference schema', async () => {
+      const generator = new ApiClientGenerator(mockContext);
+      const operation = { operationId: 'test.op' };
+
+      // Mock extractOkResponse to return a response
+      vi.mocked(
+        await import('../../src/utils'),
+      ).extractOkResponse.mockReturnValueOnce({});
+
+      // Mock extractResponseJsonSchema to return undefined
+      vi.mocked(
+        await import('../../src/utils'),
+      ).extractResponseJsonSchema.mockReturnValueOnce(undefined);
+
+      // Mock extractResponseEventStreamSchema to return a reference
+      vi.mocked(
+        await import('../../src/utils'),
+      ).extractResponseEventStreamSchema.mockReturnValueOnce({
+        $ref: '#/components/schemas/TestEvent',
+      });
+
+      // Mock extractSchema to return an array schema
+      vi.mocked(
+        await import('../../src/utils'),
+      ).extractSchema.mockReturnValueOnce({
+        type: 'array',
+        items: { $ref: '#/components/schemas/TestItem' },
+      });
+
+      // Mock isArray to return true
+      vi.mocked(await import('../../src/utils')).isArray.mockReturnValueOnce(
+        true,
+      );
+
+      const result = (generator as any).resolveReturnType({}, operation);
+
+      expect(result).toEqual({
+        type: 'Promise<JsonServerSentEventStream<RefModel>>',
+        metadata: 'STREAM_METADATA',
+      });
+    });
+
+    it('should handle event stream with non-array schema', async () => {
+      const generator = new ApiClientGenerator(mockContext);
+      const operation = { operationId: 'test.op' };
+
+      // Mock extractOkResponse to return a response
+      vi.mocked(
+        await import('../../src/utils'),
+      ).extractOkResponse.mockReturnValueOnce({});
+
+      // Mock extractResponseEventStreamSchema to return a schema
+      vi.mocked(
+        await import('../../src/utils'),
+      ).extractResponseEventStreamSchema.mockReturnValueOnce({
+        type: 'string',
+      });
+
+      const result = (generator as any).resolveReturnType({}, operation);
+
+      expect(result).toEqual({
+        type: 'Promise<JsonServerSentEventStream<any>>',
+        metadata: 'STREAM_METADATA',
       });
     });
   });
@@ -358,6 +580,35 @@ describe('ApiClientGenerator', () => {
       expect(mockLogger.info).toHaveBeenCalledWith(
         'Grouping operations by API client tags',
       );
+    });
+
+    it('should filter out operations with invalid tags', async () => {
+      const generator = new ApiClientGenerator(mockContext);
+      const apiClientTags = new Map([['User', { name: 'User' } as Tag]]);
+
+      // Mock extractOperations to return operations, one with valid tag, one with invalid
+      vi.mocked(
+        await import('../../src/utils'),
+      ).extractOperations.mockReturnValue([
+        {
+          method: 'get',
+          operation: { operationId: 'user.get', tags: ['User'], responses: {} },
+        },
+        {
+          method: 'post',
+          operation: {
+            operationId: 'admin.create',
+            tags: ['Admin'],
+            responses: {},
+          },
+        },
+      ]);
+
+      const result = (generator as any).groupOperations(apiClientTags);
+
+      expect(result.size).toBe(1);
+      expect(result.has('User')).toBe(true);
+      expect(result.has('Admin')).toBe(false);
     });
   });
 });
