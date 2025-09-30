@@ -13,11 +13,11 @@
 
 import { Directory, Project, SourceFile } from 'ts-morph';
 import { AggregateResolver } from './aggregate';
-import { ModelGenerator } from './model';
 import { ClientGenerator } from './client';
-import { GeneratorConfiguration, GeneratorOptions } from './types';
 import { GenerateContext } from './generateContext';
-import { parseOpenAPI, parseConfiguration } from './utils';
+import { ModelGenerator } from './model';
+import { GeneratorConfiguration, GeneratorOptions } from './types';
+import { parseConfiguration, parseOpenAPI } from './utils';
 
 export const DEFAULT_CONFIG_PATH = './fetcher-generator.config.json';
 
@@ -34,7 +34,7 @@ export class CodeGenerator {
    */
   constructor(private readonly options: GeneratorOptions) {
     this.project = new Project({ tsConfigFilePath: this.options.tsConfigFilePath });
-    this.options.logger.info('CodeGenerator instance created');
+    this.options.logger.info('Project instance created with tsConfigFilePath: ', this.options.tsConfigFilePath);
   }
 
   /**

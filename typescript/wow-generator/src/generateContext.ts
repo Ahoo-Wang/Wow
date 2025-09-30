@@ -11,10 +11,10 @@
  * limitations under the License.
  */
 
-import { Project, SourceFile } from 'ts-morph';
 import { OpenAPI } from '@ahoo-wang/fetcher-openapi';
-import { GenerateContextInit, GeneratorConfiguration, Logger } from './types';
+import { Project, SourceFile } from 'ts-morph';
 import { BoundedContextAggregates } from './aggregate';
+import { GenerateContextInit, GeneratorConfiguration, Logger } from './types';
 import { getOrCreateSourceFile } from './utils';
 
 export class GenerateContext implements GenerateContextInit {

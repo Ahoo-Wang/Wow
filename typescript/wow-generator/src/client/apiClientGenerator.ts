@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { GenerateContext, Generator } from '../generateContext';
+import { combineURLs } from '@ahoo-wang/fetcher';
 import {
   Operation,
   Reference,
@@ -20,41 +20,43 @@ import {
   Tag,
 } from '@ahoo-wang/fetcher-openapi';
 import {
-  addImportRefModel,
-  camelCase,
-  extractOkResponse,
-  extractResponseJsonSchema,
-  extractOperations,
-  extractRequestBody,
-  isPrimitive,
-  isReference,
-  MethodOperation,
-  resolvePrimitiveType,
-  extractResponseEventStreamSchema,
-  extractSchema,
-  isArray,
-  extractResponseWildcardSchema,
-  addJSDoc, extractPathParameters, resolvePathParameterType,
-} from '../utils';
-import {
-  ModelInfo,
-  resolveModelInfo,
-  resolveReferenceModelInfo,
-} from '../model';
-import { combineURLs } from '@ahoo-wang/fetcher';
-import {
   ClassDeclaration,
   OptionalKind,
   ParameterDeclarationStructure,
   SourceFile,
 } from 'ts-morph';
-import { methodToDecorator } from './utils';
+import { GenerateContext, Generator } from '../generateContext';
+import {
+  ModelInfo,
+  resolveModelInfo,
+  resolveReferenceModelInfo,
+} from '../model';
+import {
+  addImportRefModel,
+  addJSDoc,
+  camelCase,
+  extractOkResponse,
+  extractOperations,
+  extractPathParameters,
+  extractRequestBody,
+  extractResponseEventStreamSchema,
+  extractResponseJsonSchema,
+  extractResponseWildcardSchema,
+  extractSchema,
+  isArray,
+  isPrimitive,
+  isReference,
+  MethodOperation,
+  resolvePathParameterType,
+  resolvePrimitiveType,
+} from '../utils';
 import {
   addApiMetadataCtor,
   addImportDecorator,
   createDecoratorClass,
   STREAM_RESULT_EXTRACTOR_METADATA,
 } from './decorators';
+import { methodToDecorator } from './utils';
 
 /**
  * Interface extending MethodOperation with path information.

@@ -27,7 +27,6 @@ import {
 } from './aggregate';
 
 import { ContentTypeValues, PartialBy } from '@ahoo-wang/fetcher';
-import { operationIdToCommandName, tagsToAggregates } from './utils';
 import {
   extractOkResponse,
   extractOperationOkResponseJsonSchema,
@@ -40,6 +39,7 @@ import {
   MethodOperation,
 } from '../utils';
 import { EventStreamSchema } from './types';
+import { operationIdToCommandName, tagsToAggregates } from './utils';
 
 const CommandOkResponseRef = '#/components/responses/wow.CommandOk';
 const IdParameterRef = '#/components/parameters/wow.id';

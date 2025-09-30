@@ -11,9 +11,9 @@
  * limitations under the License.
  */
 
-import { JSDocableNode, Project, SourceFile } from 'ts-morph';
 import { combineURLs } from '@ahoo-wang/fetcher';
 import { join, relative } from 'path';
+import { JSDocableNode, Project, SourceFile } from 'ts-morph';
 import { ModelInfo } from '../model';
 
 /** Default file name for model files */

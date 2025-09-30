@@ -13,8 +13,8 @@
 
 import { OpenAPI } from '@ahoo-wang/fetcher-openapi';
 import { parse } from 'yaml';
-import { loadResource } from './resources';
 import { GeneratorConfiguration } from '../types';
+import { loadResource } from './resources';
 
 /**
  * Parses an OpenAPI specification from a file path.

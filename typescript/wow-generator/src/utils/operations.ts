@@ -20,9 +20,9 @@ import {
   Response,
   Schema,
 } from '@ahoo-wang/fetcher-openapi';
-import { extractResponseJsonSchema } from './responses';
-import { isReference } from './references';
 import { extractParameter } from './components';
+import { isReference } from './references';
+import { extractResponseJsonSchema } from './responses';
 import { isPrimitive, resolvePrimitiveType } from './schemas';
 
 /**

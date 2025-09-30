@@ -11,8 +11,8 @@
  * limitations under the License.
  */
 
-import { Reference, Schema, Response } from '@ahoo-wang/fetcher-openapi';
 import { ContentTypeValues } from '@ahoo-wang/fetcher';
+import { Reference, Response, Schema } from '@ahoo-wang/fetcher-openapi';
 import { isReference } from './references';
 
 

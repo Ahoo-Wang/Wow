@@ -12,9 +12,9 @@
  */
 
 import { GenerateContext, Generator } from '../generateContext';
-import { QueryClientGenerator } from './queryClientGenerator';
-import { CommandClientGenerator } from './commandClientGenerator';
 import { ApiClientGenerator } from './apiClientGenerator';
+import { CommandClientGenerator } from './commandClientGenerator';
+import { QueryClientGenerator } from './queryClientGenerator';
 
 /**
  * Generates TypeScript client classes for aggregates.

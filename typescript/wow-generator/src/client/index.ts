@@ -11,8 +11,8 @@
  * limitations under the License.
  */
 
-export * from './clientGenerator';
 export * from './apiClientGenerator';
+export * from './clientGenerator';
 export * from './commandClientGenerator';
 export * from './decorators';
 export * from './queryClientGenerator';

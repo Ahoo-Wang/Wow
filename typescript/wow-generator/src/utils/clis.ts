@@ -11,9 +11,9 @@
  * limitations under the License.
  */
 
-import { ConsoleLogger } from './logger';
-import { GeneratorOptions } from '../types';
 import { CodeGenerator } from '../index';
+import { GeneratorOptions } from '../types';
+import { ConsoleLogger } from './logger';
 
 /**
  * Validates the input path or URL.

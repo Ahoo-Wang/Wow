@@ -6,9 +6,9 @@
  */
 
 import { program } from 'commander';
-import { generateAction } from './utils';
 import packageJson from '../package.json';
 import { DEFAULT_CONFIG_PATH } from './index';
+import { generateAction } from './utils';
 
 /**
  * Sets up the CLI program with all commands and options.

@@ -11,8 +11,8 @@
  * limitations under the License.
  */
 
-import { Tag } from '@ahoo-wang/fetcher-openapi';
 import { PartialBy } from '@ahoo-wang/fetcher';
+import { Tag } from '@ahoo-wang/fetcher-openapi';
 import { AggregateDefinition, TagAliasAggregate } from './aggregate';
 
 /**

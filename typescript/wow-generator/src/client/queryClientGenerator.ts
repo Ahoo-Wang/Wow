@@ -12,11 +12,11 @@
  */
 
 import { SourceFile, VariableDeclarationKind } from 'ts-morph';
-import { GenerateContext, Generator } from '../generateContext';
 import { AggregateDefinition, TagAliasAggregate } from '../aggregate';
+import { GenerateContext, Generator } from '../generateContext';
 import { IMPORT_WOW_PATH, ModelInfo, resolveModelInfo } from '../model';
-import { createClientFilePath, inferPathSpecType } from './utils';
 import { addImportRefModel, camelCase } from '../utils';
+import { createClientFilePath, inferPathSpecType } from './utils';
 
 /**
  * Generates TypeScript query client classes for aggregates.

@@ -11,14 +11,14 @@
  * limitations under the License.
  */
 
-import { GenerateContext, Generator } from '../generateContext';
+import { Tag } from '@ahoo-wang/fetcher-openapi';
 import {
   ClassDeclaration, OptionalKind, ParameterDeclarationStructure,
   SourceFile,
   VariableDeclarationKind,
 } from 'ts-morph';
 import { AggregateDefinition, CommandDefinition } from '../aggregate';
-import { createClientFilePath, getClientName, methodToDecorator } from './utils';
+import { GenerateContext, Generator } from '../generateContext';
 import { IMPORT_WOW_PATH, resolveModelInfo } from '../model';
 import {
   addImport,
@@ -32,7 +32,7 @@ import {
   createDecoratorClass,
   STREAM_RESULT_EXTRACTOR_METADATA,
 } from './decorators';
-import { Tag } from '@ahoo-wang/fetcher-openapi';
+import { createClientFilePath, getClientName, methodToDecorator } from './utils';
 
 /**
  * Generates TypeScript command client classes for aggregates.

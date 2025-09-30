@@ -11,10 +11,10 @@
  * limitations under the License.
  */
 
-import { Schema, Reference } from '@ahoo-wang/fetcher-openapi';
+import { Reference, Schema } from '@ahoo-wang/fetcher-openapi';
 import { InterfaceDeclaration, JSDocableNode, SourceFile } from 'ts-morph';
 
-import { ModelInfo, resolveModelInfo, resolveReferenceModelInfo } from './modelInfo';
+import { GenerateContext, Generator } from '../generateContext';
 import {
   addImportModelInfo,
   addJSDoc,
@@ -32,7 +32,7 @@ import {
   toArrayType,
   upperSnakeCase,
 } from '../utils';
-import { GenerateContext, Generator } from '../generateContext';
+import { ModelInfo, resolveModelInfo, resolveReferenceModelInfo } from './modelInfo';
 
 /**
  * Generates TypeScript models from OpenAPI schemas.

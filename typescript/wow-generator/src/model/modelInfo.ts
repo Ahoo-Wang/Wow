@@ -11,10 +11,10 @@
  * limitations under the License.
  */
 
-import { Named } from '@ahoo-wang/fetcher-wow';
-import { IMPORT_WOW_PATH, WOW_TYPE_MAPPING } from './wowTypeMapping';
-import { extractComponentKey, pascalCase } from '../utils';
 import { Reference } from '@ahoo-wang/fetcher-openapi';
+import { Named } from '@ahoo-wang/fetcher-wow';
+import { extractComponentKey, pascalCase } from '../utils';
+import { IMPORT_WOW_PATH, WOW_TYPE_MAPPING } from './wowTypeMapping';
 
 /**
  * Data Model Info
