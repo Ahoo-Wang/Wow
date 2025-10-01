@@ -16,7 +16,7 @@ import { Layout, Menu, type MenuProps, Watermark, theme } from "antd";
 import { GithubOutlined, CodepenOutlined } from "@ant-design/icons";
 import { ErrorBoundary } from "../../components/ErrorBoundary/ErrorBoundary.tsx";
 import { Link, Outlet, useLocation } from "react-router";
-import type { NavItem } from "../../routes/Routes.tsx";
+import type { NavItem } from "../../routes/constants.tsx";
 import * as React from "react";
 
 const { Header, Content, Footer } = Layout;

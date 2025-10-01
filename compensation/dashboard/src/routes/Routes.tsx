@@ -11,60 +11,10 @@
  * limitations under the License.
  */
 
-import * as React from "react";
+import { Suspense } from "react";
 import { createBrowserRouter, Navigate } from "react-router";
 import App from "../features/App/App.tsx";
-import FailedView from "../features/Failed/FailedView.tsx";
-import { FindCategory } from "../features/Failed/FindCategory.ts";
-
-export const NavItemPaths = {
-  ToRetry: "/to-retry",
-  Executing: "/executing",
-  NextRetry: "/next-retry",
-  NonRetryable: "/non-retryable",
-  Succeeded: "/succeeded",
-  Unrecoverable: "/unrecoverable",
-};
-
-export interface NavItem {
-  label: string;
-  path: string;
-  component: React.ReactNode;
-  icon?: React.ReactNode;
-}
-
-export const NavItems: NavItem[] = [
-  {
-    label: "To Retry",
-    path: NavItemPaths.ToRetry,
-    component: <FailedView key={FindCategory.ToRetry} category={FindCategory.ToRetry}></FailedView>,
-  },
-  {
-    label: "Executing",
-    path: NavItemPaths.Executing,
-    component: <FailedView key={FindCategory.Executing} category={FindCategory.Executing}></FailedView>,
-  },
-  {
-    label: "NextRetry",
-    path: NavItemPaths.NextRetry,
-    component: <FailedView key={FindCategory.NextRetry} category={FindCategory.NextRetry}></FailedView>,
-  },
-  {
-    label: "NonRetryable",
-    path: NavItemPaths.NonRetryable,
-    component: <FailedView  key={FindCategory.NonRetryable} category={FindCategory.NonRetryable}></FailedView>,
-  },
-  {
-    label: "Succeeded",
-    path: NavItemPaths.Succeeded,
-    component: <FailedView key={FindCategory.Succeeded} category={FindCategory.Succeeded}></FailedView>,
-  },
-  {
-    label: "Unrecoverable",
-    path: NavItemPaths.Unrecoverable,
-    component: <FailedView key={FindCategory.Unrecoverable} category={FindCategory.Unrecoverable}></FailedView>,
-  },
-];
+import { NavItems, NavItemPaths } from "./constants.tsx";
 
 export const AppRouter = createBrowserRouter([
   {
@@ -76,7 +26,11 @@ export const AppRouter = createBrowserRouter([
       },
       ...NavItems.map((routeItem) => ({
         path: routeItem.path,
-        element: routeItem.component,
+        element: (
+          <Suspense fallback={<div>Loading...</div>}>
+            <routeItem.component category={routeItem.category} />
+          </Suspense>
+        ),
       })),
       {
         path: "*",

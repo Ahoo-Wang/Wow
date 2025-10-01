@@ -51,7 +51,7 @@ export default function FailedView({ category }: FailedViewProps) {
       title: "Execution Failed Details",
       children: <FetchingFailedDetails id={queryIdParams as string} />,
     });
-  }, [queryIdParams]);
+  }, [queryIdParams, openDrawer]);
   const [searchCondition, setSearchCondition] = useState<Condition>(all());
   const [searchPagination, setSearchPagination] = useState<Pagination>(() => {
     return pagination();
@@ -92,7 +92,7 @@ export default function FailedView({ category }: FailedViewProps) {
   );
   useEffect(() => {
     search(searchCondition, searchPagination);
-  }, [category, searchCondition, searchPagination, refreshCount]);
+  }, [category, search, searchCondition, searchPagination, refreshCount]);
 
   return (
     <>

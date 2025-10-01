@@ -38,7 +38,7 @@ export function ChangeFunction({
   const [form] = Form.useForm<FunctionInfo & Identifier>();
   const { closeDrawer } = useGlobalDrawer();
   const promiseState = useExecutePromise<CommandResult, FetcherError>({
-    onSuccess: (_result) => {
+    onSuccess: () => {
       notification.success({ message: "Change Function Success" });
       onChanged?.();
       closeDrawer();
@@ -58,7 +58,7 @@ export function ChangeFunction({
       name: functionInfo.name,
       functionKind: functionInfo.functionKind,
     });
-  }, []);
+  }, [form, functionInfo.contextName, functionInfo.functionKind, functionInfo.name, functionInfo.processorName, id]);
 
   const handleOk = () => {
     form.validateFields().then((values) => {

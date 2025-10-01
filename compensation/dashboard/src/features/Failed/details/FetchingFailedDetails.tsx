@@ -17,7 +17,6 @@ import {
 } from "../../../generated";
 import {
   aggregateId,
-  type Identifier,
   singleQuery,
 } from "@ahoo-wang/fetcher-wow";
 import { Flex, Skeleton, Typography } from "antd";
@@ -25,7 +24,9 @@ const { Text } = Typography;
 import { FailedDetails } from "./FailedDetails.tsx";
 import { executionFailedSnapshotQueryClient } from "../../../services";
 
-export interface FetchingFailedDetailsProps extends Identifier {}
+export interface FetchingFailedDetailsProps {
+  id: string;
+}
 
 export function FetchingFailedDetails({ id }: FetchingFailedDetailsProps) {
   const { data, error, isLoading } = useSWR(id, () =>
