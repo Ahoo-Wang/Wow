@@ -11,11 +11,15 @@
  * limitations under the License.
  */
 
-import { Button, Form, InputNumber, App, Input } from "antd";
+import { App, Button, Form, Input, InputNumber } from "antd";
 import type { RetrySpec } from "../../generated";
 import { executionFailedCommandClient } from "../../services";
 import { useGlobalDrawer } from "../../components/GlobalDrawer";
 import type { OnChangedCapable } from "./Actions.tsx";
+import { useExecutePromise } from "@ahoo-wang/fetcher-react";
+import { CommandResult } from "@ahoo-wang/fetcher-wow";
+import { FetcherError } from "@ahoo-wang/fetcher";
+import { useEffect } from "react";
 
 export interface ApplyRetrySpecProps extends OnChangedCapable {
   id: string;
@@ -30,29 +34,35 @@ export function ApplyRetrySpec({
   const [form] = Form.useForm();
   const { notification } = App.useApp();
   const { closeDrawer } = useGlobalDrawer();
-
-  form.setFieldsValue({
-    id: id,
-    maxRetries: retrySpec.maxRetries,
-    minBackoff: retrySpec.minBackoff,
-    executionTimeout: retrySpec.executionTimeout,
+  const promiseState = useExecutePromise<CommandResult, FetcherError>({
+    onSuccess: (_result) => {
+      notification.info({ message: "Apply Retry Spec Successfully" });
+      onChanged?.();
+      closeDrawer();
+    },
+    onError: (error) => {
+      notification.error({
+        message: "Failed to Apply Retry Spec",
+        description: error.message,
+      });
+    },
   });
+  useEffect(() => {
+    form.setFieldsValue({
+      id: id,
+      maxRetries: retrySpec.maxRetries,
+      minBackoff: retrySpec.minBackoff,
+      executionTimeout: retrySpec.executionTimeout,
+    });
+  }, []);
 
   const handleOk = () => {
     form.validateFields().then((values) => {
-      executionFailedCommandClient
-        .applyRetrySpec(id, { body: values })
-        .then(() => {
-          notification.info({ message: "Apply Retry Spec Successfully" });
-          onChanged?.();
-          closeDrawer();
-        })
-        .catch((error) => {
-          notification.error({
-            message: "Failed to Apply Retry Spec",
-            description: error.message,
-          });
-        });
+      promiseState.execute(
+        executionFailedCommandClient.applyRetrySpec(id, {
+          body: values,
+        }),
+      );
     });
   };
 
@@ -83,7 +93,12 @@ export function ApplyRetrySpec({
         <InputNumber min={0} style={{ width: "100%" }} />
       </Form.Item>
       <Form.Item>
-        <Button type={"primary"} htmlType={"submit"} block>
+        <Button
+          type={"primary"}
+          htmlType={"submit"}
+          block
+          loading={promiseState.loading}
+        >
           Submit
         </Button>
       </Form.Item>
