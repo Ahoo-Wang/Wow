@@ -12,10 +12,17 @@
  */
 
 import { App, Button, Form, Input, Select } from "antd";
-import { type FunctionInfo, type Identifier } from "@ahoo-wang/fetcher-wow";
-import { executionFailedCommandClient } from "../../services/executionFailedCommandClient.ts";
+import {
+  CommandResult,
+  type FunctionInfo,
+  type Identifier,
+} from "@ahoo-wang/fetcher-wow";
+import { executionFailedCommandClient } from "../../services";
 import type { OnChangedCapable } from "./Actions.tsx";
 import { useGlobalDrawer } from "../../components/GlobalDrawer";
+import { useExecutePromise } from "@ahoo-wang/fetcher-react";
+import { FetcherError } from "@ahoo-wang/fetcher";
+import { useEffect } from "react";
 
 export interface ChangeFunctionProps extends OnChangedCapable {
   id: string;
@@ -30,28 +37,34 @@ export function ChangeFunction({
   const { notification } = App.useApp();
   const [form] = Form.useForm<FunctionInfo & Identifier>();
   const { closeDrawer } = useGlobalDrawer();
-  form.setFieldsValue({
-    id: id,
-    contextName: functionInfo.contextName,
-    processorName: functionInfo.processorName,
-    name: functionInfo.name,
-    functionKind: functionInfo.functionKind,
+  const promiseState = useExecutePromise<CommandResult, FetcherError>({
+    onSuccess: (_result) => {
+      notification.success({ message: "Change Function Success" });
+      onChanged?.();
+      closeDrawer();
+    },
+    onError: (error) => {
+      notification.error({
+        message: "Change Function Failed",
+        description: error.message,
+      });
+    },
   });
+  useEffect(() => {
+    form.setFieldsValue({
+      id: id,
+      contextName: functionInfo.contextName,
+      processorName: functionInfo.processorName,
+      name: functionInfo.name,
+      functionKind: functionInfo.functionKind,
+    });
+  }, []);
+
   const handleOk = () => {
     form.validateFields().then((values) => {
-      executionFailedCommandClient
-        .changeFunction(id, { body: values })
-        .then(() => {
-          onChanged?.();
-          notification.success({ message: "Change Function Success" });
-          closeDrawer();
-        })
-        .catch((error) => {
-          notification.error({
-            message: "Change Function Failed",
-            description: error.message,
-          });
-        });
+      promiseState.execute(
+        executionFailedCommandClient.changeFunction(id, { body: values }),
+      );
     });
   };
   const functionKindOptions = [
@@ -97,7 +110,12 @@ export function ChangeFunction({
           <Select options={functionKindOptions}></Select>
         </Form.Item>
         <Form.Item>
-          <Button type={"primary"} htmlType={"submit"} block>
+          <Button
+            type={"primary"}
+            htmlType={"submit"}
+            block
+            loading={promiseState.loading}
+          >
             Submit
           </Button>
         </Form.Item>

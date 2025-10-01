@@ -12,10 +12,16 @@
  */
 
 import { App, Select } from "antd";
-import { type Identifier, RecoverableType } from "@ahoo-wang/fetcher-wow";
+import {
+  CommandResult,
+  type Identifier,
+  RecoverableType,
+} from "@ahoo-wang/fetcher-wow";
 import { executionFailedCommandClient } from "../../services";
 import type { OnChangedCapable } from "./Actions.tsx";
 import type { MarkRecoverable } from "../../generated";
+import { useExecutePromise } from "@ahoo-wang/fetcher-react";
+import { FetcherError } from "@ahoo-wang/fetcher";
 
 export interface MarkRecoverableProps
   extends Identifier,
@@ -28,27 +34,29 @@ export function MarkRecoverable({
   onChanged,
 }: MarkRecoverableProps) {
   const { notification } = App.useApp();
+  const promiseState = useExecutePromise<CommandResult, FetcherError>({
+    onSuccess: (_result) => {
+      notification.success({ message: "Mark recoverable success." });
+      onChanged?.();
+    },
+    onError: (error) => {
+      notification.error({
+        message: "Mark recoverable failed.",
+        description: error.message,
+      });
+    },
+  });
   const recoverableOptions = Object.values(RecoverableType).map(
     (recoverable) => ({
       value: recoverable,
     }),
   );
-  const change = async (recoverable: RecoverableType) => {
-    try {
-      await executionFailedCommandClient.markRecoverable(id, {
+  const change = (recoverable: RecoverableType) => {
+    promiseState.execute(async () => {
+      return executionFailedCommandClient.markRecoverable(id, {
         body: { recoverable },
       });
-      notification.success({
-        message: "Success",
-        description: "Mark recoverable success.",
-      });
-      onChanged?.();
-    } catch (e) {
-      notification.error({
-        message: "Error",
-        description: "Mark recoverable failed.",
-      });
-    }
+    });
   };
 
   return (
@@ -58,6 +66,7 @@ export function MarkRecoverable({
         options={recoverableOptions}
         onChange={change}
         size="small"
+        loading={promiseState.loading}
       ></Select>
     </>
   );
