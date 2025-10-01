@@ -11,10 +11,86 @@
  * limitations under the License.
  */
 
-import { PagedList, PagedQuery } from '@ahoo-wang/fetcher-wow';
-import { PromiseState } from '../core';
+import {
+  PagedList,
+  PagedQuery,
+  QueryApi,
+  EMPTY_PAGED_LIST,
+} from '@ahoo-wang/fetcher-wow';
+import { PromiseState, usePromiseState, UsePromiseStateOptions } from '../core';
+import { useCallback, useEffect, useMemo } from 'react';
 
-export interface UsePagedQueryReturn<R> extends PagedList<R>, PromiseState<PagedList<R>> {
+export interface UsePagedQueryOptions<R, E = unknown>
+  extends UsePromiseStateOptions<PagedList<R>, E> {
+  /** The QueryApi instance to use for executing queries */
+  queryApi: QueryApi<R>;
+  /** Optional attributes to pass to the query API */
+  attributes?: Record<string, any>;
+}
 
+export interface UsePagedQueryReturn<R>
+  extends PagedList<R>,
+    PromiseState<PagedList<R>> {
+}
 
+/**
+ * A React hook for executing paged queries with automatic state management.
+ *
+ * @param query - The paged query to execute
+ * @param options - Configuration options including the QueryApi instance
+ * @returns An object containing the query result and promise state
+ *
+ * @example
+ * ```typescript
+ * import { usePagedQuery } from '@ahoo-wang/fetcher-react';
+ * import { pagedQuery } from '@ahoo-wang/fetcher-wow';
+ *
+ * function MyComponent() {
+ *   const query = pagedQuery({ condition: all() });
+ *   const { list, total, loading, error } = usePagedQuery(query, {
+ *     queryApi: myQueryClient,
+ *   });
+ *
+ *   if (loading) return <div>Loading...</div>;
+ *   if (error) return <div>Error: {error.message}</div>;
+ *
+ *   return (
+ *     <div>
+ *       <p>Total: {total}</p>
+ *       <ul>
+ *         {list.map(item => <li key={item.id}>{item.name}</li>)}
+ *       </ul>
+ *     </div>
+ *   );
+ * }
+ * ```
+ */
+export function usePagedQuery<R, FIELDS extends string = string, E = unknown>(
+  query: PagedQuery<FIELDS>,
+  options: UsePagedQueryOptions<R, E>,
+): UsePagedQueryReturn<R> {
+  const { queryApi, attributes, ...promiseStateOptions } = options;
+  const state = usePromiseState<PagedList<R>, E>(promiseStateOptions);
+
+  const executeQuery = useCallback(async () => {
+    state.setLoading();
+    try {
+      const result = await queryApi.paged(query, attributes);
+      await state.setSuccess(result);
+    } catch (error) {
+      await state.setError(error as E);
+    }
+  }, [queryApi, query, attributes, state]);
+
+  useEffect(() => {
+    executeQuery();
+  }, [executeQuery]);
+
+  return useMemo(
+    () => ({
+      ...(state.result ?? EMPTY_PAGED_LIST),
+      ...state,
+    }),
+    [state],
+  );
 }
