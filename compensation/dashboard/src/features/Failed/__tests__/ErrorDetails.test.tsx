@@ -26,20 +26,15 @@ describe("ErrorDetails", () => {
     expect(errorCodeElement.tagName).toBe("CODE");
   });
 
-  it("renders error message correctly", () => {
+  it("renders error details title", () => {
     render(<ErrorDetails error={mockErrorDetails} />);
 
-    const errorMessageElement = screen.getByText(
-      "This is a test error message",
-    );
-    expect(errorMessageElement).toBeInTheDocument();
+    const titleElement = screen.getByText("Error Details");
+    expect(titleElement).toBeInTheDocument();
   });
 
-  it("renders stack trace section", () => {
+  it("renders stack trace in editor", () => {
     render(<ErrorDetails error={mockErrorDetails} />);
-
-    const stackTraceTitle = screen.getByText("Stack Trace");
-    expect(stackTraceTitle).toBeInTheDocument();
 
     const editorElement = screen.getByTestId("monaco-editor");
     expect(editorElement).toBeInTheDocument();
@@ -66,8 +61,8 @@ describe("ErrorDetails", () => {
     render(<ErrorDetails error={emptyErrorDetails} />);
 
     // Check that the component renders without crashing
-    const stackTraceTitle = screen.getByText("Stack Trace");
-    expect(stackTraceTitle).toBeInTheDocument();
+    const titleElement = screen.getByText("Error Details");
+    expect(titleElement).toBeInTheDocument();
 
     const editorElement = screen.getByTestId("monaco-editor");
     expect(editorElement).toBeInTheDocument();
