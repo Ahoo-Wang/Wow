@@ -35,7 +35,7 @@ export function MarkRecoverable({
 }: MarkRecoverableProps) {
   const { notification } = App.useApp();
   const promiseState = useExecutePromise<CommandResult, FetcherError>({
-    onSuccess: (_result) => {
+    onSuccess: () => {
       notification.success({ message: "Mark recoverable success." });
       onChanged?.();
     },

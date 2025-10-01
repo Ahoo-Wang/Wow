@@ -23,7 +23,7 @@ interface FailedSearchProps {
 export function FailedSearch({ onSearch }: FailedSearchProps) {
   const [form] = Form.useForm();
   const onFinish: FormProps["onFinish"] = useCallback(
-    (values: any) => {
+    (values: Record<string, string>) => {
       try {
         const conditions: Condition[] = [];
         Object.keys(values).forEach((key) => {

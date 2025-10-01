@@ -35,7 +35,7 @@ export function ApplyRetrySpec({
   const { notification } = App.useApp();
   const { closeDrawer } = useGlobalDrawer();
   const promiseState = useExecutePromise<CommandResult, FetcherError>({
-    onSuccess: (_result) => {
+    onSuccess: () => {
       notification.info({ message: "Apply Retry Spec Successfully" });
       onChanged?.();
       closeDrawer();
@@ -54,7 +54,7 @@ export function ApplyRetrySpec({
       minBackoff: retrySpec.minBackoff,
       executionTimeout: retrySpec.executionTimeout,
     });
-  }, []);
+  }, [form, id, retrySpec.executionTimeout, retrySpec.maxRetries, retrySpec.minBackoff]);
 
   const handleOk = () => {
     form.validateFields().then((values) => {

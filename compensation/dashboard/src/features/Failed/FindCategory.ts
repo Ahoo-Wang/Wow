@@ -78,7 +78,7 @@ export class RetryConditions {
   }
 
   static nextRetryCondition(): Condition {
-    let currentTime = new Date().getTime();
+    const currentTime = new Date().getTime();
     return and(
       ne(
         ExecutionFailedAggregatedFields.STATE_RECOVERABLE,
