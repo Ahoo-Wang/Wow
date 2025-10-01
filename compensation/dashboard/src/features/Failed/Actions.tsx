@@ -11,13 +11,15 @@
  * limitations under the License.
  */
 
-import type { StateCapable } from "@ahoo-wang/fetcher-wow";
+import { CommandResult, StateCapable } from "@ahoo-wang/fetcher-wow";
 import type { ExecutionFailedState } from "../../generated";
 import { App, Dropdown } from "antd";
 import { FailedDetails } from "./details/FailedDetails.tsx";
 import { useGlobalDrawer } from "../../components/GlobalDrawer";
 import type { ItemType } from "antd/es/menu/interface";
 import { executionFailedCommandClient } from "../../services";
+import { useExecutePromise } from "@ahoo-wang/fetcher-react";
+import { ExchangeError } from "@ahoo-wang/fetcher";
 
 export interface OnChangedCapable {
   onChanged?: () => void;
@@ -25,47 +27,54 @@ export interface OnChangedCapable {
 
 export interface ActionsProps
   extends StateCapable<ExecutionFailedState>,
-    OnChangedCapable {
-}
+    OnChangedCapable {}
 
 export function Actions({ state, onChanged }: ActionsProps) {
   const { openDrawer } = useGlobalDrawer();
   const { notification } = App.useApp();
+  const preparePromiseState = useExecutePromise<CommandResult, ExchangeError>({
+    onSuccess: () => {
+      notification.info({ message: "Prepare Success" });
+      onChanged?.();
+    },
+    onError: async (error) => {
+      const commandResult = await error.exchange.extractResult<CommandResult>();
+      notification.error({
+        message: "Prepare Failed",
+        description: commandResult.errorMsg,
+      });
+    },
+  });
+  const forcePreparePromiseState = useExecutePromise<CommandResult, ExchangeError>({
+    onSuccess: () => {
+      notification.info({ message: "Force Prepare Success" });
+      onChanged?.();
+    },
+    onError: async (error) => {
+      const commandResult = await error.exchange.extractResult<CommandResult>();
+      notification.error({
+        message: "Force Prepare Failed",
+        description: commandResult.errorMsg,
+      });
+    },
+  });
   const items: ItemType[] = [
     {
       key: "prepare",
       label: "Prepare",
       onClick: () => {
-        executionFailedCommandClient
-          .prepareCompensation(state.id)
-          .then(() => {
-            notification.success({ message: "Prepare Success" });
-            onChanged?.();
-          })
-          .catch((error) => {
-            notification.error({
-              message: "Prepare Failed",
-              description: error.message,
-            });
-          });
+        preparePromiseState.execute(
+          executionFailedCommandClient.prepareCompensation(state.id),
+        );
       },
     },
     {
       key: "forcePrepare",
       label: "Force Prepare",
       onClick: () => {
-        executionFailedCommandClient
-          .forcePrepareCompensation(state.id)
-          .then(() => {
-            notification.success({ message: "Force Prepare Success" });
-            onChanged?.();
-          })
-          .catch((error) => {
-            notification.error({
-              message: "Force Prepare Failed",
-              description: error.message,
-            });
-          });
+        forcePreparePromiseState.execute(
+          executionFailedCommandClient.forcePrepareCompensation(state.id),
+        );
       },
     },
   ];
