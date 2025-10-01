@@ -18,7 +18,7 @@ import { useGlobalDrawer } from "../../components/GlobalDrawer";
 import type { OnChangedCapable } from "./Actions.tsx";
 import { useExecutePromise } from "@ahoo-wang/fetcher-react";
 import { CommandResult } from "@ahoo-wang/fetcher-wow";
-import { FetcherError } from "@ahoo-wang/fetcher";
+import { ExchangeError } from "@ahoo-wang/fetcher";
 import { useEffect } from "react";
 
 export interface ApplyRetrySpecProps extends OnChangedCapable {
@@ -34,16 +34,17 @@ export function ApplyRetrySpec({
   const [form] = Form.useForm();
   const { notification } = App.useApp();
   const { closeDrawer } = useGlobalDrawer();
-  const promiseState = useExecutePromise<CommandResult, FetcherError>({
+  const promiseState = useExecutePromise<CommandResult, ExchangeError>({
     onSuccess: () => {
       notification.info({ message: "Apply Retry Spec Successfully" });
       onChanged?.();
       closeDrawer();
     },
-    onError: (error) => {
+    onError: async (error) => {
+      const commandResult = await error.exchange.extractResult<CommandResult>();
       notification.error({
         message: "Failed to Apply Retry Spec",
-        description: error.message,
+        description: commandResult.errorMsg,
       });
     },
   });
