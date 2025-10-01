@@ -21,7 +21,7 @@ import { executionFailedCommandClient } from "../../services";
 import type { OnChangedCapable } from "./Actions.tsx";
 import { useGlobalDrawer } from "../../components/GlobalDrawer";
 import { useExecutePromise } from "@ahoo-wang/fetcher-react";
-import { ExchangeError, FetcherError } from "@ahoo-wang/fetcher";
+import { ExchangeError } from "@ahoo-wang/fetcher";
 import { useEffect } from "react";
 
 export interface ChangeFunctionProps extends OnChangedCapable {
