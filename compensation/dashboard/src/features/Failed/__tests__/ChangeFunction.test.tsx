@@ -48,7 +48,7 @@ describe("ChangeFunction", () => {
     const { getByTestId, getAllByTestId } = render(
       <ChangeFunction
         id="test-id"
-        functionInfo={{ contextName: "test", processorName: "test", name: "test", functionKind: "test" }}
+        functionInfo={{ contextName: "test", processorName: "test", name: "test", functionKind: "COMPENSATION" as any }}
         onChanged={vi.fn()}
       />
     );

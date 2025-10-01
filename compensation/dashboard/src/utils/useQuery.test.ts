@@ -25,8 +25,9 @@ describe("useQueryParams", () => {
     });
 
     expect(result.current).toBeInstanceOf(URLSearchParams);
-    expect(result.current.get("key1")).toBe("value1");
-    expect(result.current.get("key2")).toBe("value2");
+    const params = result.current as URLSearchParams;
+    expect(params.get("key1")).toBe("value1");
+    expect(params.get("key2")).toBe("value2");
   });
 
   it("returns specific query param value when name provided", () => {
@@ -53,7 +54,7 @@ describe("useQueryParams", () => {
     expect(result.current).toBeNull();
   });
 
-  it("handles empty search string", () => {
+   it("handles empty search string", () => {
     mockUseLocation.mockReturnValue({
       search: "",
     });
@@ -62,6 +63,7 @@ describe("useQueryParams", () => {
       wrapper: MemoryRouter,
     });
 
-    expect(result.current).toBeInstanceOf(URLSearchParams);
+    const params = result.current as URLSearchParams;
+    expect(params).toBeInstanceOf(URLSearchParams);
   });
 });
