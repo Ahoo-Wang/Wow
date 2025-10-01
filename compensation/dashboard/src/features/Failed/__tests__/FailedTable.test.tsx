@@ -57,7 +57,7 @@ vi.mock("react", async () => {
 
 describe("FailedTable", () => {
   const mockPagedList = {
-    data: [],
+    list: [],
     total: 0,
     page: 1,
     size: 10,

@@ -3,6 +3,15 @@ import { render } from "@testing-library/react";
 import { MarkRecoverable } from "../MarkRecoverable.tsx";
 
 // Mock dependencies
+vi.mock("@ahoo-wang/fetcher-wow", () => ({
+  RecoverableType: { UNRECOVERABLE: "UNRECOVERABLE", RECOVERABLE: "RECOVERABLE" },
+  ResourceAttributionPathSpec: { NONE: "NONE" },
+  QueryClientFactory: class {
+    createSnapshotQueryClient() {
+      return {};
+    }
+  },
+}));
 vi.mock("../../services", () => ({
   executionFailedCommandClient: {
     markRecoverable: vi.fn().mockResolvedValue({}),
@@ -29,7 +38,7 @@ describe("MarkRecoverable", () => {
     const { getByTestId } = render(
       <MarkRecoverable
         id="test-id"
-        recoverable="RECOVERABLE"
+        recoverable={"UNRECOVERABLE" as any}
         onChanged={vi.fn()}
       />
     );

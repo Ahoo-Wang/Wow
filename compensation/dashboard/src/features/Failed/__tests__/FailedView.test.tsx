@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render } from "@testing-library/react";
 import FailedView from "../FailedView.tsx";
+import { FindCategory } from "../FindCategory.ts";
 
 vi.mock("../../components/GlobalDrawer/useGlobalDrawer", () => ({
   useGlobalDrawer: () => ({ openDrawer: vi.fn() }),
@@ -49,7 +50,7 @@ vi.mock("../FailedTable.tsx", () => ({
   FailedTable: () => <div data-testid="failed-table">FailedTable</div>,
 }));
 
-vi.mock("./FindCategory.ts", () => ({
+vi.mock("../FindCategory.ts", () => ({
   FindCategory: { ToRetry: "ToRetry" },
 }));
 
@@ -59,7 +60,7 @@ vi.mock("react-router", () => ({
 
 describe("FailedView", () => {
   it("renders FailedSearch and FailedTable", () => {
-    const { getByTestId } = render(<FailedView category="ToRetry" />);
+    const { getByTestId } = render(<FailedView category={FindCategory.ToRetry} />);
     expect(getByTestId("failed-search")).toBeInTheDocument();
     expect(getByTestId("failed-table")).toBeInTheDocument();
   });

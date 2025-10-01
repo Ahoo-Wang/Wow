@@ -2,7 +2,18 @@ import { describe, it, expect, vi } from "vitest";
 import { render } from "@testing-library/react";
 import { Actions } from "../Actions.tsx";
 
+
 // Mock all dependencies
+vi.mock("@ahoo-wang/fetcher-wow", () => ({
+  FunctionKind: { COMPENSATION: "COMPENSATION" },
+  RecoverableType: { RECOVERABLE: "RECOVERABLE" },
+  ResourceAttributionPathSpec: { NONE: "NONE" },
+  QueryClientFactory: class {
+    createSnapshotQueryClient() {
+      return {};
+    }
+  },
+}));
 vi.mock("antd", () => ({
   App: {
     useApp: () => ({ notification: { success: vi.fn(), error: vi.fn() } }),
@@ -47,8 +58,45 @@ vi.mock("react", async () => {
 describe("Actions", () => {
   const mockState = {
     id: "test-id",
-    status: "FAILED",
-    recoverable: "RECOVERABLE",
+    status: "FAILED" as any,
+    recoverable: "UNRECOVERABLE" as any,
+    error: {
+      errorCode: "TEST_ERROR",
+      errorMsg: "Test error",
+      stackTrace: "stack trace",
+      succeeded: false,
+      bindingErrors: [],
+    },
+    eventId: {
+      id: "event-id",
+      version: 1,
+      aggregateId: {
+        aggregateName: "agg-name",
+        contextName: "context",
+        aggregateId: "agg-id",
+        tenantId: "tenant",
+      },
+    },
+    executeAt: Date.now(),
+    function: {
+      contextName: "context",
+      processorName: "processor",
+      name: "function",
+      functionKind: "COMPENSATION" as any,
+    },
+    retrySpec: {
+      maxRetries: 3,
+      minBackoff: 1000,
+      executionTimeout: 30000,
+    },
+    retryState: {
+      nextRetryAt: Date.now(),
+      retries: 0,
+      retryAt: Date.now(),
+      timeoutAt: Date.now(),
+    },
+    isBelowRetryThreshold: false,
+    isRetryable: true,
   };
 
   it("renders actions dropdown", () => {
