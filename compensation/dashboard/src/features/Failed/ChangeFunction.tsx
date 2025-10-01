@@ -21,7 +21,7 @@ import { executionFailedCommandClient } from "../../services";
 import type { OnChangedCapable } from "./Actions.tsx";
 import { useGlobalDrawer } from "../../components/GlobalDrawer";
 import { useExecutePromise } from "@ahoo-wang/fetcher-react";
-import { FetcherError } from "@ahoo-wang/fetcher";
+import { ExchangeError, FetcherError } from "@ahoo-wang/fetcher";
 import { useEffect } from "react";
 
 export interface ChangeFunctionProps extends OnChangedCapable {
@@ -37,16 +37,17 @@ export function ChangeFunction({
   const { notification } = App.useApp();
   const [form] = Form.useForm<FunctionInfo & Identifier>();
   const { closeDrawer } = useGlobalDrawer();
-  const promiseState = useExecutePromise<CommandResult, FetcherError>({
+  const promiseState = useExecutePromise<CommandResult, ExchangeError>({
     onSuccess: () => {
       notification.success({ message: "Change Function Success" });
       onChanged?.();
       closeDrawer();
     },
-    onError: (error) => {
+    onError: async (error) => {
+      const commandResult = await error.exchange.extractResult<CommandResult>();
       notification.error({
         message: "Change Function Failed",
-        description: error.message,
+        description: commandResult.errorMsg,
       });
     },
   });
@@ -58,7 +59,14 @@ export function ChangeFunction({
       name: functionInfo.name,
       functionKind: functionInfo.functionKind,
     });
-  }, [form, functionInfo.contextName, functionInfo.functionKind, functionInfo.name, functionInfo.processorName, id]);
+  }, [
+    form,
+    functionInfo.contextName,
+    functionInfo.functionKind,
+    functionInfo.name,
+    functionInfo.processorName,
+    id,
+  ]);
 
   const handleOk = () => {
     form.validateFields().then((values) => {
