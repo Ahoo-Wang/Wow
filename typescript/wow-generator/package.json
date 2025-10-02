@@ -69,7 +69,6 @@
   "devDependencies": {
     "@eslint/js": "catalog:",
     "@types/node": "catalog:",
-    "@types/yaml": "catalog:",
     "@vitest/coverage-v8": "catalog:",
     "@vitest/ui": "catalog:",
     "eslint": "catalog:",
