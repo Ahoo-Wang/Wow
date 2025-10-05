@@ -25,7 +25,7 @@ import {
   UsePromiseStateOptions,
   useLatest, UseExecutePromiseReturn,
 } from '../core';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 /**
  * Options for the usePagedQuery hook.
@@ -138,12 +138,17 @@ export function usePagedQuery<R, FIELDS extends string = string, E = unknown>(
     return promiseState.execute(queryExecutor);
   }, [promiseState, queryExecutor]);
 
-  return {
+  return useMemo(() => ({
     ...promiseState,
     execute,
     setCondition,
     setProjection,
     setPagination,
     setSort,
-  };
+  }), [promiseState,
+    execute,
+    setCondition,
+    setProjection,
+    setPagination,
+    setSort]);
 }

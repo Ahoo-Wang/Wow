@@ -23,7 +23,7 @@ import {
   useLatest,
   UseExecutePromiseReturn,
 } from '../core';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useListQueryState } from './useListQueryState';
 
 /**
@@ -128,12 +128,22 @@ export function useListQuery<R, FIELDS extends string = string, E = unknown>(
     return promiseState.execute(listExecutor);
   }, [promiseState, listExecutor]);
 
-  return {
-    ...promiseState,
-    execute,
-    setCondition: queryState.setCondition,
-    setProjection: queryState.setProjection,
-    setSort: queryState.setSort,
-    setLimit: queryState.setLimit,
-  };
+  return useMemo(
+    () => ({
+      ...promiseState,
+      execute,
+      setCondition: queryState.setCondition,
+      setProjection: queryState.setProjection,
+      setSort: queryState.setSort,
+      setLimit: queryState.setLimit,
+    }),
+    [
+      promiseState,
+      execute,
+      queryState.setCondition,
+      queryState.setProjection,
+      queryState.setSort,
+      queryState.setLimit,
+    ],
+  );
 }

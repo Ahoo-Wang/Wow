@@ -24,7 +24,7 @@ import {
   useLatest,
   UseExecutePromiseReturn,
 } from '../core';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useListQueryState } from './useListQueryState';
 
 /**
@@ -145,12 +145,22 @@ export function useListStreamQuery<
     return promiseState.execute(streamExecutor);
   }, [promiseState, streamExecutor]);
 
-  return {
-    ...promiseState,
-    execute,
-    setCondition: queryState.setCondition,
-    setProjection: queryState.setProjection,
-    setSort: queryState.setSort,
-    setLimit: queryState.setLimit,
-  };
+  return useMemo(
+    () => ({
+      ...promiseState,
+      execute,
+      setCondition: queryState.setCondition,
+      setProjection: queryState.setProjection,
+      setSort: queryState.setSort,
+      setLimit: queryState.setLimit,
+    }),
+    [
+      promiseState,
+      execute,
+      queryState.setCondition,
+      queryState.setProjection,
+      queryState.setSort,
+      queryState.setLimit,
+    ],
+  );
 }

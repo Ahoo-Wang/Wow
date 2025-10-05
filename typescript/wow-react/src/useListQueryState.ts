@@ -18,7 +18,7 @@ import {
   listQuery,
   FieldSort,
 } from '@ahoo-wang/fetcher-wow';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 
 /**
  * Options for the useListQueryState hook.
@@ -103,15 +103,28 @@ export function useListQueryState<FIELDS extends string = string>(
     });
   }, [condition, projection, sort, limit]);
 
-  return {
-    condition,
-    projection,
-    sort,
-    limit,
-    setCondition,
-    setProjection,
-    setSort,
-    setLimit,
-    buildQuery,
-  };
+  return useMemo(
+    () => ({
+      condition,
+      projection,
+      sort,
+      limit,
+      setCondition,
+      setProjection,
+      setSort,
+      setLimit,
+      buildQuery,
+    }),
+    [
+      condition,
+      projection,
+      sort,
+      limit,
+      setCondition,
+      setProjection,
+      setSort,
+      setLimit,
+      buildQuery,
+    ],
+  );
 }

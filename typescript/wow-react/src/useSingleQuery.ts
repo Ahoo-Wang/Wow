@@ -23,7 +23,7 @@ import {
   UsePromiseStateOptions,
   useLatest, UseExecutePromiseReturn,
 } from '../core';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 /**
  * Options for the useSingleQuery hook.
@@ -128,12 +128,11 @@ export function useSingleQuery<R, FIELDS extends string = string, E = unknown>(
   const execute = useCallback(() => {
     return promiseState.execute(queryExecutor);
   }, [promiseState, queryExecutor]);
-
-  return {
+  return useMemo(() => ({
     ...promiseState,
     execute,
     setCondition,
     setProjection,
     setSort,
-  };
+  }), [promiseState, execute, setCondition, setProjection, setSort]);
 }

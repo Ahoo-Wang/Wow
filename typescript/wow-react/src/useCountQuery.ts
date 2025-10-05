@@ -15,9 +15,10 @@ import { Condition } from '@ahoo-wang/fetcher-wow';
 import {
   useExecutePromise,
   UsePromiseStateOptions,
-  useLatest, UseExecutePromiseReturn,
+  useLatest,
+  UseExecutePromiseReturn,
 } from '../core';
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useMemo } from 'react';
 
 /**
  * Options for the useCountQuery hook.
@@ -101,9 +102,12 @@ export function useCountQuery<FIELDS extends string = string, E = unknown>(
     return promiseState.execute(countExecutor);
   }, [promiseState, countExecutor]);
 
-  return {
-    ...promiseState,
-    execute,
-    setCondition,
-  };
+  return useMemo(
+    () => ({
+      ...promiseState,
+      execute,
+      setCondition,
+    }),
+    [promiseState, execute, setCondition],
+  );
 }
