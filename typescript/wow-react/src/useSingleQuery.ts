@@ -12,12 +12,10 @@
  */
 
 import {
-  PagedList,
-  PagedQuery,
+  SingleQuery,
   Condition,
-  type Pagination,
-  pagedQuery,
-  Projection,
+  type Projection,
+  singleQuery,
   FieldSort,
 } from '@ahoo-wang/fetcher-wow';
 import {
@@ -28,30 +26,30 @@ import {
 import { useCallback, useState } from 'react';
 
 /**
- * Options for the usePagedQuery hook.
- * @template R - The type of the result items in the paged list.
+ * Options for the useSingleQuery hook.
+ * @template R - The type of the result.
  * @template FIELDS - The type of the fields used in conditions and projections.
  * @template E - The type of the error.
  */
-export interface UsePagedQueryOptions<
+export interface UseSingleQueryOptions<
   R,
   FIELDS extends string = string,
   E = unknown,
-> extends UsePromiseStateOptions<PagedList<R>, E> {
+> extends UsePromiseStateOptions<R, E> {
   /**
-   * The initial paged query configuration.
+   * The initial single query configuration.
    */
-  initialQuery: PagedQuery<FIELDS>;
+  initialQuery: SingleQuery<FIELDS>;
   /**
-   * The function to execute the paged query.
-   * @param pagedQuery - The paged query object.
+   * The function to execute the single query.
+   * @param singleQuery - The single query object.
    * @param attributes - Optional additional attributes.
-   * @returns A promise that resolves to a paged list of results.
+   * @returns A promise that resolves to the result.
    */
   query: (
-    pagedQuery: PagedQuery<FIELDS>,
+    singleQuery: SingleQuery<FIELDS>,
     attributes?: Record<string, any>,
-  ) => Promise<PagedList<R>>;
+  ) => Promise<R>;
   /**
    * Optional additional attributes to pass to the query function.
    */
@@ -59,21 +57,21 @@ export interface UsePagedQueryOptions<
 }
 
 /**
- * Return type for the usePagedQuery hook.
- * @template R - The type of the result items in the paged list.
+ * Return type for the useSingleQuery hook.
+ * @template R - The type of the result.
  * @template FIELDS - The type of the fields used in conditions and projections.
  * @template E - The type of the error.
  */
-export interface UsePagedQueryReturn<
+export interface UseSingleQueryReturn<
   R,
   FIELDS extends string = string,
   E = unknown,
-> extends UseExecutePromiseReturn<PagedList<R>, E> {
+> extends UseExecutePromiseReturn<R, E> {
   /**
-   * Executes the paged query.
-   * @returns A promise that resolves to the paged list or an error.
+   * Executes the single query.
+   * @returns A promise that resolves to the result or an error.
    */
-  execute: () => Promise<E | PagedList<R>>;
+  execute: () => Promise<E | R>;
   /**
    * Sets the condition for the query.
    * @param condition - The new condition.
@@ -85,11 +83,6 @@ export interface UsePagedQueryReturn<
    */
   setProjection: (projection: Projection<FIELDS>) => void;
   /**
-   * Sets the pagination for the query.
-   * @param pagination - The new pagination.
-   */
-  setPagination: (pagination: Pagination) => void;
-  /**
    * Sets the sort order for the query.
    * @param sort - The new sort array.
    */
@@ -97,34 +90,32 @@ export interface UsePagedQueryReturn<
 }
 
 /**
- * A React hook for managing paged queries with state management for conditions, projections, pagination, and sorting.
- * @template R - The type of the result items in the paged list.
+ * A React hook for managing single queries with state management for conditions, projections, and sorting.
+ * @template R - The type of the result.
  * @template FIELDS - The type of the fields used in conditions and projections.
  * @template E - The type of the error.
  * @param options - The options for the hook.
  * @returns An object containing the query state and methods to update it.
  * @example
  * ```typescript
- * const { data, loading, error, execute, setCondition, setPagination } = usePagedQuery({
- *   initialQuery: { condition: {}, pagination: { index: 1, size: 10 }, projection: {}, sort: [] },
- *   query: async (pagedQuery) => fetchPagedData(pagedQuery),
+ * const { data, loading, error, execute, setCondition, setProjection } = useSingleQuery({
+ *   initialQuery: { condition: {}, projection: {}, sort: [] },
+ *   query: async (singleQuery) => fetchSingleData(singleQuery),
  * });
  * ```
  */
-export function usePagedQuery<R, FIELDS extends string = string, E = unknown>(
-  options: UsePagedQueryOptions<R, FIELDS, E>,
-): UsePagedQueryReturn<R, FIELDS> {
+export function useSingleQuery<R, FIELDS extends string = string, E = unknown>(
+  options: UseSingleQueryOptions<R, FIELDS, E>,
+): UseSingleQueryReturn<R, FIELDS> {
   const { initialQuery } = options;
-  const promiseState = useExecutePromise<PagedList<R>, E>(options);
+  const promiseState = useExecutePromise<R, E>(options);
   const [condition, setCondition] = useState(initialQuery.condition);
-  const [pagination, setPagination] = useState(initialQuery.pagination);
   const [projection, setProjection] = useState(initialQuery.projection);
   const [sort, setSort] = useState(initialQuery.sort);
   const latestOptions = useLatest(options);
-  const queryExecutor = useCallback(async (): Promise<PagedList<R>> => {
-    const queryRequest = pagedQuery({
+  const queryExecutor = useCallback(async (): Promise<R> => {
+    const queryRequest = singleQuery({
       condition,
-      pagination,
       projection,
       sort,
     });
@@ -132,7 +123,7 @@ export function usePagedQuery<R, FIELDS extends string = string, E = unknown>(
       queryRequest,
       latestOptions.current.attributes,
     );
-  }, [condition, projection, pagination, sort, latestOptions]);
+  }, [condition, projection, sort, latestOptions]);
 
   const execute = useCallback(() => {
     return promiseState.execute(queryExecutor);
@@ -143,7 +134,6 @@ export function usePagedQuery<R, FIELDS extends string = string, E = unknown>(
     execute,
     setCondition,
     setProjection,
-    setPagination,
     setSort,
   };
 }

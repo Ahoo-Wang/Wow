@@ -12,3 +12,4 @@
  */
 
 export * from './usePagedQuery';
+export * from './useSingleQuery';
