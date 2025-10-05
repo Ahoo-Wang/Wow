@@ -23,7 +23,7 @@ import {
 import {
   useExecutePromise,
   UsePromiseStateOptions,
-  PromiseState,
+  PromiseState, useLatest,
 } from '../core';
 import { useCallback, useState } from 'react';
 
@@ -56,13 +56,13 @@ export interface UsePagedQueryReturn<
 export function usePagedQuery<R, FIELDS extends string = string, E = unknown>(
   options: UsePagedQueryOptions<R, FIELDS, E>,
 ): UsePagedQueryReturn<R, FIELDS> {
-  const { initialQuery, attributes } = options;
+  const { initialQuery } = options;
   const promiseState = useExecutePromise<PagedList<R>, E>(options);
   const [condition, setCondition] = useState(initialQuery.condition);
   const [pagination, setPagination] = useState(initialQuery.pagination);
   const [projection, setProjection] = useState(initialQuery.projection);
   const [sort, setSort] = useState(initialQuery.sort);
-
+  const latestOptions = useLatest(options);
   const queryExecutor = useCallback(async (): Promise<PagedList<R>> => {
     const queryRequest = pagedQuery({
       condition,
@@ -70,8 +70,8 @@ export function usePagedQuery<R, FIELDS extends string = string, E = unknown>(
       projection,
       sort,
     });
-    return options.query(queryRequest, attributes);
-  }, [condition, projection, pagination, sort, attributes, options]);
+    return latestOptions.current.query(queryRequest, latestOptions.current.attributes);
+  }, [condition, projection, pagination, sort, latestOptions]);
 
   const execute = useCallback(() => {
     return promiseState.execute(queryExecutor);
