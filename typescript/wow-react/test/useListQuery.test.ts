@@ -225,4 +225,39 @@ describe('useListQuery', () => {
 
     expect(mockExecute).toHaveBeenCalled();
   });
+
+  it('should auto execute on mount when autoExecute is true', () => {
+    renderHook(() =>
+      useListQuery({
+        initialQuery,
+        list: mockListFn,
+        autoExecute: true,
+      }),
+    );
+
+    expect(mockExecute).toHaveBeenCalledTimes(1);
+  });
+
+  it('should not auto execute on mount when autoExecute is false', () => {
+    renderHook(() =>
+      useListQuery({
+        initialQuery,
+        list: mockListFn,
+        autoExecute: false,
+      }),
+    );
+
+    expect(mockExecute).not.toHaveBeenCalled();
+  });
+
+  it('should not auto execute on mount when autoExecute is not provided', () => {
+    renderHook(() =>
+      useListQuery({
+        initialQuery,
+        list: mockListFn,
+      }),
+    );
+
+    expect(mockExecute).not.toHaveBeenCalled();
+  });
 });

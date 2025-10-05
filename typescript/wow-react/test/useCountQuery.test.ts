@@ -154,4 +154,39 @@ describe('useCountQuery', () => {
 
     expect(mockExecute).toHaveBeenCalled();
   });
+
+  it('should auto execute on mount when autoExecute is true', () => {
+    renderHook(() =>
+      useCountQuery({
+        initialCondition,
+        count: mockCountFn,
+        autoExecute: true,
+      } as any),
+    );
+
+    expect(mockExecute).toHaveBeenCalledTimes(1);
+  });
+
+  it('should not auto execute on mount when autoExecute is false', () => {
+    renderHook(() =>
+      useCountQuery({
+        initialCondition,
+        count: mockCountFn,
+        autoExecute: false,
+      } as any),
+    );
+
+    expect(mockExecute).not.toHaveBeenCalled();
+  });
+
+  it('should not auto execute on mount when autoExecute is not provided', () => {
+    renderHook(() =>
+      useCountQuery({
+        initialCondition,
+        count: mockCountFn,
+      }),
+    );
+
+    expect(mockExecute).not.toHaveBeenCalled();
+  });
 });

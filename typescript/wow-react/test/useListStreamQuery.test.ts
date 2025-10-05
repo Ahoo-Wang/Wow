@@ -228,4 +228,39 @@ describe('useListStreamQuery', () => {
 
     expect(mockExecute).toHaveBeenCalled();
   });
+
+  it('should auto execute on mount when autoExecute is true', () => {
+    renderHook(() =>
+      useListStreamQuery({
+        initialQuery,
+        listStream: mockListStreamFn,
+        autoExecute: true,
+      } as any),
+    );
+
+    expect(mockExecute).toHaveBeenCalledTimes(1);
+  });
+
+  it('should not auto execute on mount when autoExecute is false', () => {
+    renderHook(() =>
+      useListStreamQuery({
+        initialQuery,
+        listStream: mockListStreamFn,
+        autoExecute: false,
+      } as any),
+    );
+
+    expect(mockExecute).not.toHaveBeenCalled();
+  });
+
+  it('should not auto execute on mount when autoExecute is not provided', () => {
+    renderHook(() =>
+      useListStreamQuery({
+        initialQuery,
+        listStream: mockListStreamFn,
+      }),
+    );
+
+    expect(mockExecute).not.toHaveBeenCalled();
+  });
 });
