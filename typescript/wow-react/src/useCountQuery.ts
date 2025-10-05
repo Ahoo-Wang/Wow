@@ -18,7 +18,7 @@ import {
   useLatest,
   UseExecutePromiseReturn,
 } from '../core';
-import { useCallback, useState, useMemo } from 'react';
+import { useCallback, useState, useMemo, useEffect } from 'react';
 import { FetcherError } from '@ahoo-wang/fetcher';
 
 /**
@@ -48,6 +48,10 @@ export interface UseCountQueryOptions<
    * Optional additional attributes to pass to the count function.
    */
   attributes?: Record<string, any>;
+  /**
+   * Whether to automatically execute the query on component mount. Defaults to false.
+   */
+  autoExecute?: boolean;
 }
 
 /**
@@ -102,6 +106,14 @@ export function useCountQuery<FIELDS extends string = string, E = FetcherError>(
   const execute = useCallback(() => {
     return promiseState.execute(countExecutor);
   }, [promiseState, countExecutor]);
+
+  const { autoExecute } = options;
+
+  useEffect(() => {
+    if (autoExecute) {
+      execute();
+    }
+  }, [autoExecute, execute]);
 
   return useMemo(
     () => ({

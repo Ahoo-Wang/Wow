@@ -21,9 +21,10 @@ import {
 import {
   useExecutePromise,
   UsePromiseStateOptions,
-  useLatest, UseExecutePromiseReturn,
+  useLatest,
+  UseExecutePromiseReturn,
 } from '../core';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, useEffect } from 'react';
 import { FetcherError } from '@ahoo-wang/fetcher';
 
 /**
@@ -55,6 +56,10 @@ export interface UseSingleQueryOptions<
    * Optional additional attributes to pass to the query function.
    */
   attributes?: Record<string, any>;
+  /**
+   * Whether to automatically execute the query on component mount. Defaults to false.
+   */
+  autoExecute?: boolean;
 }
 
 /**
@@ -105,7 +110,11 @@ export interface UseSingleQueryReturn<
  * });
  * ```
  */
-export function useSingleQuery<R, FIELDS extends string = string, E = FetcherError>(
+export function useSingleQuery<
+  R,
+  FIELDS extends string = string,
+  E = FetcherError,
+>(
   options: UseSingleQueryOptions<R, FIELDS, E>,
 ): UseSingleQueryReturn<R, FIELDS, E> {
   const { initialQuery } = options;
@@ -129,11 +138,23 @@ export function useSingleQuery<R, FIELDS extends string = string, E = FetcherErr
   const execute = useCallback(() => {
     return promiseState.execute(queryExecutor);
   }, [promiseState, queryExecutor]);
-  return useMemo(() => ({
-    ...promiseState,
-    execute,
-    setCondition,
-    setProjection,
-    setSort,
-  }), [promiseState, execute, setCondition, setProjection, setSort]);
+
+  const { autoExecute } = options;
+
+  useEffect(() => {
+    if (autoExecute) {
+      execute();
+    }
+  }, [autoExecute, execute]);
+
+  return useMemo(
+    () => ({
+      ...promiseState,
+      execute,
+      setCondition,
+      setProjection,
+      setSort,
+    }),
+    [promiseState, execute, setCondition, setProjection, setSort],
+  );
 }

@@ -23,9 +23,10 @@ import {
 import {
   useExecutePromise,
   UsePromiseStateOptions,
-  useLatest, UseExecutePromiseReturn,
+  useLatest,
+  UseExecutePromiseReturn,
 } from '../core';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, useEffect } from 'react';
 import { FetcherError } from '@ahoo-wang/fetcher';
 
 /**
@@ -57,6 +58,10 @@ export interface UsePagedQueryOptions<
    * Optional additional attributes to pass to the query function.
    */
   attributes?: Record<string, any>;
+  /**
+   * Whether to automatically execute the query on component mount. Defaults to false.
+   */
+  autoExecute?: boolean;
 }
 
 /**
@@ -112,7 +117,11 @@ export interface UsePagedQueryReturn<
  * });
  * ```
  */
-export function usePagedQuery<R, FIELDS extends string = string, E = FetcherError>(
+export function usePagedQuery<
+  R,
+  FIELDS extends string = string,
+  E = FetcherError,
+>(
   options: UsePagedQueryOptions<R, FIELDS, E>,
 ): UsePagedQueryReturn<R, FIELDS, E> {
   const { initialQuery } = options;
@@ -139,17 +148,30 @@ export function usePagedQuery<R, FIELDS extends string = string, E = FetcherErro
     return promiseState.execute(queryExecutor);
   }, [promiseState, queryExecutor]);
 
-  return useMemo(() => ({
-    ...promiseState,
-    execute,
-    setCondition,
-    setProjection,
-    setPagination,
-    setSort,
-  }), [promiseState,
-    execute,
-    setCondition,
-    setProjection,
-    setPagination,
-    setSort]);
+  const { autoExecute } = options;
+
+  useEffect(() => {
+    if (autoExecute) {
+      execute();
+    }
+  }, [autoExecute, execute]);
+
+  return useMemo(
+    () => ({
+      ...promiseState,
+      execute,
+      setCondition,
+      setProjection,
+      setPagination,
+      setSort,
+    }),
+    [
+      promiseState,
+      execute,
+      setCondition,
+      setProjection,
+      setPagination,
+      setSort,
+    ],
+  );
 }

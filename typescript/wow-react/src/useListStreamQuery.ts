@@ -24,7 +24,7 @@ import {
   useLatest,
   UseExecutePromiseReturn,
 } from '../core';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useEffect } from 'react';
 import { useListQueryState } from './useListQueryState';
 import { FetcherError } from '@ahoo-wang/fetcher';
 
@@ -57,6 +57,10 @@ export interface UseListStreamQueryOptions<
    * Optional additional attributes to pass to the listStream function.
    */
   attributes?: Record<string, any>;
+  /**
+   * Whether to automatically execute the query on component mount. Defaults to false.
+   */
+  autoExecute?: boolean;
 }
 
 /**
@@ -145,6 +149,14 @@ export function useListStreamQuery<
   const execute = useCallback(() => {
     return promiseState.execute(streamExecutor);
   }, [promiseState, streamExecutor]);
+
+  const { autoExecute } = options;
+
+  useEffect(() => {
+    if (autoExecute) {
+      execute();
+    }
+  }, [autoExecute, execute]);
 
   return useMemo(
     () => ({
