@@ -26,6 +26,7 @@ import {
   useLatest, UseExecutePromiseReturn,
 } from '../core';
 import { useCallback, useMemo, useState } from 'react';
+import { FetcherError } from '@ahoo-wang/fetcher';
 
 /**
  * Options for the usePagedQuery hook.
@@ -36,7 +37,7 @@ import { useCallback, useMemo, useState } from 'react';
 export interface UsePagedQueryOptions<
   R,
   FIELDS extends string = string,
-  E = unknown,
+  E = FetcherError,
 > extends UsePromiseStateOptions<PagedList<R>, E> {
   /**
    * The initial paged query configuration.
@@ -67,7 +68,7 @@ export interface UsePagedQueryOptions<
 export interface UsePagedQueryReturn<
   R,
   FIELDS extends string = string,
-  E = unknown,
+  E = FetcherError,
 > extends UseExecutePromiseReturn<PagedList<R>, E> {
   /**
    * Executes the paged query.
@@ -111,7 +112,7 @@ export interface UsePagedQueryReturn<
  * });
  * ```
  */
-export function usePagedQuery<R, FIELDS extends string = string, E = unknown>(
+export function usePagedQuery<R, FIELDS extends string = string, E = FetcherError>(
   options: UsePagedQueryOptions<R, FIELDS, E>,
 ): UsePagedQueryReturn<R, FIELDS, E> {
   const { initialQuery } = options;

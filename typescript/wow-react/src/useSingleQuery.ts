@@ -24,6 +24,7 @@ import {
   useLatest, UseExecutePromiseReturn,
 } from '../core';
 import { useCallback, useMemo, useState } from 'react';
+import { FetcherError } from '@ahoo-wang/fetcher';
 
 /**
  * Options for the useSingleQuery hook.
@@ -34,7 +35,7 @@ import { useCallback, useMemo, useState } from 'react';
 export interface UseSingleQueryOptions<
   R,
   FIELDS extends string = string,
-  E = unknown,
+  E = FetcherError,
 > extends UsePromiseStateOptions<R, E> {
   /**
    * The initial single query configuration.
@@ -65,7 +66,7 @@ export interface UseSingleQueryOptions<
 export interface UseSingleQueryReturn<
   R,
   FIELDS extends string = string,
-  E = unknown,
+  E = FetcherError,
 > extends UseExecutePromiseReturn<R, E> {
   /**
    * Executes the single query.
@@ -104,7 +105,7 @@ export interface UseSingleQueryReturn<
  * });
  * ```
  */
-export function useSingleQuery<R, FIELDS extends string = string, E = unknown>(
+export function useSingleQuery<R, FIELDS extends string = string, E = FetcherError>(
   options: UseSingleQueryOptions<R, FIELDS, E>,
 ): UseSingleQueryReturn<R, FIELDS, E> {
   const { initialQuery } = options;

@@ -26,6 +26,7 @@ import {
 } from '../core';
 import { useCallback, useMemo } from 'react';
 import { useListQueryState } from './useListQueryState';
+import { FetcherError } from '@ahoo-wang/fetcher';
 
 /**
  * Options for the useListStreamQuery hook.
@@ -36,7 +37,7 @@ import { useListQueryState } from './useListQueryState';
 export interface UseListStreamQueryOptions<
   R,
   FIELDS extends string = string,
-  E = unknown,
+  E = FetcherError,
 > extends UsePromiseStateOptions<ReadableStream<JsonServerSentEvent<R>>, E> {
   /**
    * The initial list query configuration.
@@ -67,7 +68,7 @@ export interface UseListStreamQueryOptions<
 export interface UseListStreamQueryReturn<
   R,
   FIELDS extends string = string,
-  E = unknown,
+  E = FetcherError,
 > extends UseExecutePromiseReturn<ReadableStream<JsonServerSentEvent<R>>, E> {
   /**
    * Executes the list stream query.
@@ -121,7 +122,7 @@ export interface UseListStreamQueryReturn<
 export function useListStreamQuery<
   R,
   FIELDS extends string = string,
-  E = unknown,
+  E = FetcherError,
 >(
   options: UseListStreamQueryOptions<R, FIELDS, E>,
 ): UseListStreamQueryReturn<R, FIELDS, E> {

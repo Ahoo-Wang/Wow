@@ -19,6 +19,7 @@ import {
   UseExecutePromiseReturn,
 } from '../core';
 import { useCallback, useState, useMemo } from 'react';
+import { FetcherError } from '@ahoo-wang/fetcher';
 
 /**
  * Options for the useCountQuery hook.
@@ -27,7 +28,7 @@ import { useCallback, useState, useMemo } from 'react';
  */
 export interface UseCountQueryOptions<
   FIELDS extends string = string,
-  E = unknown,
+  E = FetcherError,
 > extends UsePromiseStateOptions<number, E> {
   /**
    * The initial condition for the count query.
@@ -56,7 +57,7 @@ export interface UseCountQueryOptions<
  */
 export interface UseCountQueryReturn<
   FIELDS extends string = string,
-  E = unknown,
+  E = FetcherError,
 > extends UseExecutePromiseReturn<number, E> {
   /**
    * Executes the count query.
@@ -84,7 +85,7 @@ export interface UseCountQueryReturn<
  * });
  * ```
  */
-export function useCountQuery<FIELDS extends string = string, E = unknown>(
+export function useCountQuery<FIELDS extends string = string, E = FetcherError>(
   options: UseCountQueryOptions<FIELDS, E>,
 ): UseCountQueryReturn<FIELDS, E> {
   const { initialCondition } = options;

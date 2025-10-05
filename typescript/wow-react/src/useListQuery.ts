@@ -25,6 +25,7 @@ import {
 } from '../core';
 import { useCallback, useMemo } from 'react';
 import { useListQueryState } from './useListQueryState';
+import { FetcherError } from '@ahoo-wang/fetcher';
 
 /**
  * Options for the useListQuery hook.
@@ -35,7 +36,7 @@ import { useListQueryState } from './useListQueryState';
 export interface UseListQueryOptions<
   R,
   FIELDS extends string = string,
-  E = unknown,
+  E = FetcherError,
 > extends UsePromiseStateOptions<R[], E> {
   /**
    * The initial list query configuration.
@@ -66,7 +67,7 @@ export interface UseListQueryOptions<
 export interface UseListQueryReturn<
   R,
   FIELDS extends string = string,
-  E = unknown,
+  E = FetcherError,
 > extends UseExecutePromiseReturn<R[], E> {
   /**
    * Executes the list query.
@@ -110,7 +111,7 @@ export interface UseListQueryReturn<
  * });
  * ```
  */
-export function useListQuery<R, FIELDS extends string = string, E = unknown>(
+export function useListQuery<R, FIELDS extends string = string, E = FetcherError>(
   options: UseListQueryOptions<R, FIELDS, E>,
 ): UseListQueryReturn<R, FIELDS, E> {
   const promiseState = useExecutePromise<R[], E>(options);
