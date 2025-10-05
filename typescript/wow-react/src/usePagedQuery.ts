@@ -111,7 +111,7 @@ export interface UsePagedQueryReturn<
  * @example
  * ```typescript
  * const { data, loading, error, execute, setCondition, setPagination } = usePagedQuery({
- *   initialQuery: { condition: {}, pagination: { page: 1, size: 10 }, projection: [], sort: [] },
+ *   initialQuery: { condition: {}, pagination: { index: 1, size: 10 }, projection: {}, sort: [] },
  *   query: async (pagedQuery) => fetchPagedData(pagedQuery),
  * });
  * ```
