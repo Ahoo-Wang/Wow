@@ -26,6 +26,7 @@ import {
 } from '../core';
 import { useCallback, useMemo, useState, useEffect } from 'react';
 import { AttributesCapable, FetcherError } from '@ahoo-wang/fetcher';
+import { AutoExecuteCapable } from './types';
 
 /**
  * Options for the useSingleQuery hook.
@@ -37,7 +38,7 @@ export interface UseSingleQueryOptions<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-> extends UsePromiseStateOptions<R, E>, AttributesCapable {
+> extends UsePromiseStateOptions<R, E>, AttributesCapable, AutoExecuteCapable {
   /**
    * The initial single query configuration.
    */
@@ -52,10 +53,6 @@ export interface UseSingleQueryOptions<
     singleQuery: SingleQuery<FIELDS>,
     attributes?: Record<string, any>,
   ) => Promise<R>;
-  /**
-   * Whether to automatically execute the query on component mount. Defaults to false.
-   */
-  autoExecute?: boolean;
 }
 
 /**

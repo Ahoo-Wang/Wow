@@ -20,6 +20,7 @@ import {
 } from '../core';
 import { useCallback, useState, useMemo, useEffect } from 'react';
 import { AttributesCapable, FetcherError } from '@ahoo-wang/fetcher';
+import { AutoExecuteCapable } from './types';
 
 /**
  * Options for the useCountQuery hook.
@@ -29,7 +30,7 @@ import { AttributesCapable, FetcherError } from '@ahoo-wang/fetcher';
 export interface UseCountQueryOptions<
   FIELDS extends string = string,
   E = FetcherError,
-> extends UsePromiseStateOptions<number, E>, AttributesCapable {
+> extends UsePromiseStateOptions<number, E>, AttributesCapable, AutoExecuteCapable {
   /**
    * The initial condition for the count query.
    */
@@ -44,10 +45,6 @@ export interface UseCountQueryOptions<
     condition: Condition<FIELDS>,
     attributes?: Record<string, any>,
   ) => Promise<number>;
-  /**
-   * Whether to automatically execute the query on component mount. Defaults to false.
-   */
-  autoExecute?: boolean;
 }
 
 /**

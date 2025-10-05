@@ -11,9 +11,9 @@
  * limitations under the License.
  */
 
-export * from './usePagedQuery';
-export * from './useSingleQuery';
-export * from './useCountQuery';
-export * from './useListQuery';
-export * from './useListStreamQuery';
-export * from './types';
+export interface AutoExecuteCapable {
+  /**
+   * Whether to automatically execute the query on component mount. Defaults to false.
+   */
+  autoExecute?: boolean;
+}
