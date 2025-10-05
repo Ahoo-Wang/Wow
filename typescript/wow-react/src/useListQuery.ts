@@ -112,7 +112,7 @@ export interface UseListQueryReturn<
  */
 export function useListQuery<R, FIELDS extends string = string, E = unknown>(
   options: UseListQueryOptions<R, FIELDS, E>,
-): UseListQueryReturn<R, FIELDS> {
+): UseListQueryReturn<R, FIELDS, E> {
   const promiseState = useExecutePromise<R[], E>(options);
   const queryState = useListQueryState({ initialQuery: options.initialQuery });
   const latestOptions = useLatest(options);

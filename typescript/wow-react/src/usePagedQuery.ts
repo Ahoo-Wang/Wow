@@ -113,7 +113,7 @@ export interface UsePagedQueryReturn<
  */
 export function usePagedQuery<R, FIELDS extends string = string, E = unknown>(
   options: UsePagedQueryOptions<R, FIELDS, E>,
-): UsePagedQueryReturn<R, FIELDS> {
+): UsePagedQueryReturn<R, FIELDS, E> {
   const { initialQuery } = options;
   const promiseState = useExecutePromise<PagedList<R>, E>(options);
   const [condition, setCondition] = useState(initialQuery.condition);

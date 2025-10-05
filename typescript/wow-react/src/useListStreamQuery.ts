@@ -124,7 +124,7 @@ export function useListStreamQuery<
   E = unknown,
 >(
   options: UseListStreamQueryOptions<R, FIELDS, E>,
-): UseListStreamQueryReturn<R, FIELDS> {
+): UseListStreamQueryReturn<R, FIELDS, E> {
   const promiseState = useExecutePromise<
     ReadableStream<JsonServerSentEvent<R>>,
     E

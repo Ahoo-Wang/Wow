@@ -86,7 +86,7 @@ export interface UseCountQueryReturn<
  */
 export function useCountQuery<FIELDS extends string = string, E = unknown>(
   options: UseCountQueryOptions<FIELDS, E>,
-): UseCountQueryReturn<FIELDS> {
+): UseCountQueryReturn<FIELDS, E> {
   const { initialCondition } = options;
   const promiseState = useExecutePromise<number, E>(options);
   const [condition, setCondition] = useState(initialCondition);

@@ -106,7 +106,7 @@ export interface UseSingleQueryReturn<
  */
 export function useSingleQuery<R, FIELDS extends string = string, E = unknown>(
   options: UseSingleQueryOptions<R, FIELDS, E>,
-): UseSingleQueryReturn<R, FIELDS> {
+): UseSingleQueryReturn<R, FIELDS, E> {
   const { initialQuery } = options;
   const promiseState = useExecutePromise<R, E>(options);
   const [condition, setCondition] = useState(initialQuery.condition);
