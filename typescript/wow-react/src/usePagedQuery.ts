@@ -27,7 +27,7 @@ import {
   UseExecutePromiseReturn,
 } from '../core';
 import { useCallback, useMemo, useState, useEffect } from 'react';
-import { FetcherError } from '@ahoo-wang/fetcher';
+import { AttributesCapable, FetcherError } from '@ahoo-wang/fetcher';
 
 /**
  * Options for the usePagedQuery hook.
@@ -39,7 +39,7 @@ export interface UsePagedQueryOptions<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-> extends UsePromiseStateOptions<PagedList<R>, E> {
+> extends UsePromiseStateOptions<PagedList<R>, E>, AttributesCapable {
   /**
    * The initial paged query configuration.
    */
@@ -54,10 +54,6 @@ export interface UsePagedQueryOptions<
     pagedQuery: PagedQuery<FIELDS>,
     attributes?: Record<string, any>,
   ) => Promise<PagedList<R>>;
-  /**
-   * Optional additional attributes to pass to the query function.
-   */
-  attributes?: Record<string, any>;
   /**
    * Whether to automatically execute the query on component mount. Defaults to false.
    */

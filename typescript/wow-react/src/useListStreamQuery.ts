@@ -26,7 +26,7 @@ import {
 } from '../core';
 import { useCallback, useMemo, useEffect } from 'react';
 import { useListQueryState } from './useListQueryState';
-import { FetcherError } from '@ahoo-wang/fetcher';
+import { AttributesCapable, FetcherError } from '@ahoo-wang/fetcher';
 
 /**
  * Options for the useListStreamQuery hook.
@@ -38,7 +38,7 @@ export interface UseListStreamQueryOptions<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-> extends UsePromiseStateOptions<ReadableStream<JsonServerSentEvent<R>>, E> {
+> extends UsePromiseStateOptions<ReadableStream<JsonServerSentEvent<R>>, E>, AttributesCapable {
   /**
    * The initial list query configuration.
    */
@@ -53,10 +53,6 @@ export interface UseListStreamQueryOptions<
     listQuery: ListQuery<FIELDS>,
     attributes?: Record<string, any>,
   ) => Promise<ReadableStream<JsonServerSentEvent<R>>>;
-  /**
-   * Optional additional attributes to pass to the listStream function.
-   */
-  attributes?: Record<string, any>;
   /**
    * Whether to automatically execute the query on component mount. Defaults to false.
    */
