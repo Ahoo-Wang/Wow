@@ -15,16 +15,17 @@ import {
   ListQuery,
   Condition,
   type Projection,
-  listQuery,
   FieldSort,
 } from '@ahoo-wang/fetcher-wow';
 import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 import {
   useExecutePromise,
   UsePromiseStateOptions,
-  useLatest, UseExecutePromiseReturn,
+  useLatest,
+  UseExecutePromiseReturn,
 } from '../core';
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
+import { useListQueryState } from './useListQueryState';
 
 /**
  * Options for the useListStreamQuery hook.
@@ -124,30 +125,21 @@ export function useListStreamQuery<
 >(
   options: UseListStreamQueryOptions<R, FIELDS, E>,
 ): UseListStreamQueryReturn<R, FIELDS> {
-  const { initialQuery } = options;
   const promiseState = useExecutePromise<
     ReadableStream<JsonServerSentEvent<R>>,
     E
   >(options);
-  const [condition, setCondition] = useState(initialQuery.condition);
-  const [projection, setProjection] = useState(initialQuery.projection);
-  const [sort, setSort] = useState(initialQuery.sort);
-  const [limit, setLimit] = useState(initialQuery.limit);
+  const queryState = useListQueryState({ initialQuery: options.initialQuery });
   const latestOptions = useLatest(options);
   const streamExecutor = useCallback(async (): Promise<
     ReadableStream<JsonServerSentEvent<R>>
   > => {
-    const queryRequest = listQuery({
-      condition,
-      projection,
-      sort,
-      limit,
-    });
+    const queryRequest = queryState.buildQuery();
     return latestOptions.current.listStream(
       queryRequest,
       latestOptions.current.attributes,
     );
-  }, [condition, projection, sort, limit, latestOptions]);
+  }, [queryState, latestOptions]);
 
   const execute = useCallback(() => {
     return promiseState.execute(streamExecutor);
@@ -156,9 +148,9 @@ export function useListStreamQuery<
   return {
     ...promiseState,
     execute,
-    setCondition,
-    setProjection,
-    setSort,
-    setLimit,
+    setCondition: queryState.setCondition,
+    setProjection: queryState.setProjection,
+    setSort: queryState.setSort,
+    setLimit: queryState.setLimit,
   };
 }

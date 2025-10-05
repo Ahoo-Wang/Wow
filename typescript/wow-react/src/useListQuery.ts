@@ -15,15 +15,16 @@ import {
   ListQuery,
   Condition,
   type Projection,
-  listQuery,
   FieldSort,
 } from '@ahoo-wang/fetcher-wow';
 import {
   useExecutePromise,
   UsePromiseStateOptions,
-  useLatest, UseExecutePromiseReturn,
+  useLatest,
+  UseExecutePromiseReturn,
 } from '../core';
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
+import { useListQueryState } from './useListQueryState';
 
 /**
  * Options for the useListQuery hook.
@@ -112,25 +113,16 @@ export interface UseListQueryReturn<
 export function useListQuery<R, FIELDS extends string = string, E = unknown>(
   options: UseListQueryOptions<R, FIELDS, E>,
 ): UseListQueryReturn<R, FIELDS> {
-  const { initialQuery } = options;
   const promiseState = useExecutePromise<R[], E>(options);
-  const [condition, setCondition] = useState(initialQuery.condition);
-  const [projection, setProjection] = useState(initialQuery.projection);
-  const [sort, setSort] = useState(initialQuery.sort);
-  const [limit, setLimit] = useState(initialQuery.limit);
+  const queryState = useListQueryState({ initialQuery: options.initialQuery });
   const latestOptions = useLatest(options);
   const listExecutor = useCallback(async (): Promise<R[]> => {
-    const queryRequest = listQuery({
-      condition,
-      projection,
-      sort,
-      limit,
-    });
+    const queryRequest = queryState.buildQuery();
     return latestOptions.current.list(
       queryRequest,
       latestOptions.current.attributes,
     );
-  }, [condition, projection, sort, limit, latestOptions]);
+  }, [queryState, latestOptions]);
 
   const execute = useCallback(() => {
     return promiseState.execute(listExecutor);
@@ -139,9 +131,9 @@ export function useListQuery<R, FIELDS extends string = string, E = unknown>(
   return {
     ...promiseState,
     execute,
-    setCondition,
-    setProjection,
-    setSort,
-    setLimit,
+    setCondition: queryState.setCondition,
+    setProjection: queryState.setProjection,
+    setSort: queryState.setSort,
+    setLimit: queryState.setLimit,
   };
 }
