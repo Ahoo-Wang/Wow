@@ -23,36 +23,99 @@ import {
 import {
   useExecutePromise,
   UsePromiseStateOptions,
-  PromiseState, useLatest,
+  PromiseState,
+  useLatest,
 } from '../core';
 import { useCallback, useState } from 'react';
 
+/**
+ * Options for the usePagedQuery hook.
+ * @template R - The type of the result items in the paged list.
+ * @template FIELDS - The type of the fields used in conditions and projections.
+ * @template E - The type of the error.
+ */
 export interface UsePagedQueryOptions<
   R,
   FIELDS extends string = string,
   E = unknown,
 > extends UsePromiseStateOptions<PagedList<R>, E> {
+  /**
+   * The initial paged query configuration.
+   */
   initialQuery: PagedQuery<FIELDS>;
+  /**
+   * The function to execute the paged query.
+   * @param pagedQuery - The paged query object.
+   * @param attributes - Optional additional attributes.
+   * @returns A promise that resolves to a paged list of results.
+   */
   query: (
     pagedQuery: PagedQuery<FIELDS>,
     attributes?: Record<string, any>,
   ) => Promise<PagedList<R>>;
+  /**
+   * Optional additional attributes to pass to the query function.
+   */
   attributes?: Record<string, any>;
 }
 
+/**
+ * Return type for the usePagedQuery hook.
+ * @template R - The type of the result items in the paged list.
+ * @template FIELDS - The type of the fields used in conditions and projections.
+ * @template E - The type of the error.
+ */
 export interface UsePagedQueryReturn<
   R,
   FIELDS extends string = string,
   E = unknown,
 > extends PromiseState<PagedList<R>, E> {
+  /**
+   * Executes the paged query.
+   * @returns A promise that resolves to the paged list or an error.
+   */
   execute: () => Promise<E | PagedList<R>>;
+  /**
+   * Resets the hook state.
+   */
   reset: () => void;
+  /**
+   * Sets the condition for the query.
+   * @param condition - The new condition.
+   */
   setCondition: (condition: Condition<FIELDS>) => void;
+  /**
+   * Sets the projection for the query.
+   * @param projection - The new projection.
+   */
   setProjection: (projection: Projection<FIELDS>) => void;
+  /**
+   * Sets the pagination for the query.
+   * @param pagination - The new pagination.
+   */
   setPagination: (pagination: Pagination) => void;
+  /**
+   * Sets the sort order for the query.
+   * @param sort - The new sort array.
+   */
   setSort: (sort: FieldSort<FIELDS>[]) => void;
 }
 
+/**
+ * A React hook for managing paged queries with state management for conditions, projections, pagination, and sorting.
+ * @template R - The type of the result items in the paged list.
+ * @template FIELDS - The type of the fields used in conditions and projections.
+ * @template E - The type of the error.
+ * @param options - The options for the hook.
+ * @returns An object containing the query state and methods to update it.
+ * @example
+ * ```typescript
+ * const { data, loading, error, execute, setCondition, setPagination } = usePagedQuery({
+ *   initialQuery: { condition: {}, pagination: { page: 1, size: 10 }, projection: [], sort: [] },
+ *   query: async (pagedQuery) => fetchPagedData(pagedQuery),
+ * });
+ * ```
+ */
 export function usePagedQuery<R, FIELDS extends string = string, E = unknown>(
   options: UsePagedQueryOptions<R, FIELDS, E>,
 ): UsePagedQueryReturn<R, FIELDS> {
@@ -70,7 +133,10 @@ export function usePagedQuery<R, FIELDS extends string = string, E = unknown>(
       projection,
       sort,
     });
-    return latestOptions.current.query(queryRequest, latestOptions.current.attributes);
+    return latestOptions.current.query(
+      queryRequest,
+      latestOptions.current.attributes,
+    );
   }, [condition, projection, pagination, sort, latestOptions]);
 
   const execute = useCallback(() => {
