@@ -20,9 +20,8 @@ import {
 import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 import {
   useExecutePromise,
-  UsePromiseStateOptions,
   useLatest,
-  UseExecutePromiseReturn,
+  UseExecutePromiseReturn, UseExecutePromiseOptions,
 } from '../core';
 import { useCallback, useMemo, useEffect } from 'react';
 import { useListQueryState } from './useListQueryState';
@@ -39,7 +38,7 @@ export interface UseListStreamQueryOptions<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-> extends UsePromiseStateOptions<ReadableStream<JsonServerSentEvent<R>>, E>, AttributesCapable, AutoExecuteCapable {
+> extends UseExecutePromiseOptions<ReadableStream<JsonServerSentEvent<R>>, E>, AttributesCapable, AutoExecuteCapable {
   /**
    * The initial list query configuration.
    */

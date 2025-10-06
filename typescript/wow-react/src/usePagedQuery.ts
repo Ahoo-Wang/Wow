@@ -22,9 +22,8 @@ import {
 } from '@ahoo-wang/fetcher-wow';
 import {
   useExecutePromise,
-  UsePromiseStateOptions,
   useLatest,
-  UseExecutePromiseReturn,
+  UseExecutePromiseReturn, UseExecutePromiseOptions,
 } from '../core';
 import { useCallback, useMemo, useState, useEffect } from 'react';
 import { AttributesCapable, FetcherError } from '@ahoo-wang/fetcher';
@@ -40,7 +39,7 @@ export interface UsePagedQueryOptions<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-> extends UsePromiseStateOptions<PagedList<R>, E>, AttributesCapable, AutoExecuteCapable {
+> extends UseExecutePromiseOptions<PagedList<R>, E>, AttributesCapable, AutoExecuteCapable {
   /**
    * The initial paged query configuration.
    */

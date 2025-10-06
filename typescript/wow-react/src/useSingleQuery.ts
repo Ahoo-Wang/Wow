@@ -20,9 +20,8 @@ import {
 } from '@ahoo-wang/fetcher-wow';
 import {
   useExecutePromise,
-  UsePromiseStateOptions,
   useLatest,
-  UseExecutePromiseReturn,
+  UseExecutePromiseReturn, UseExecutePromiseOptions,
 } from '../core';
 import { useCallback, useMemo, useState, useEffect } from 'react';
 import { AttributesCapable, FetcherError } from '@ahoo-wang/fetcher';
@@ -38,7 +37,7 @@ export interface UseSingleQueryOptions<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-> extends UsePromiseStateOptions<R, E>, AttributesCapable, AutoExecuteCapable {
+> extends UseExecutePromiseOptions<R, E>, AttributesCapable, AutoExecuteCapable {
   /**
    * The initial single query configuration.
    */

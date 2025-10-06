@@ -19,9 +19,8 @@ import {
 } from '@ahoo-wang/fetcher-wow';
 import {
   useExecutePromise,
-  UsePromiseStateOptions,
   useLatest,
-  UseExecutePromiseReturn,
+  UseExecutePromiseReturn, UseExecutePromiseOptions,
 } from '../core';
 import { useCallback, useMemo, useEffect } from 'react';
 import { useListQueryState } from './useListQueryState';
@@ -38,7 +37,7 @@ export interface UseListQueryOptions<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-> extends UsePromiseStateOptions<R[], E>, AttributesCapable, AutoExecuteCapable {
+> extends UseExecutePromiseOptions<R[], E>, AttributesCapable, AutoExecuteCapable {
   /**
    * The initial list query configuration.
    */

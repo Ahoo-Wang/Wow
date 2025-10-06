@@ -14,9 +14,8 @@
 import { Condition } from '@ahoo-wang/fetcher-wow';
 import {
   useExecutePromise,
-  UsePromiseStateOptions,
   useLatest,
-  UseExecutePromiseReturn,
+  UseExecutePromiseReturn, UseExecutePromiseOptions,
 } from '../core';
 import { useCallback, useState, useMemo, useEffect } from 'react';
 import { AttributesCapable, FetcherError } from '@ahoo-wang/fetcher';
@@ -30,7 +29,7 @@ import { AutoExecuteCapable } from './types';
 export interface UseCountQueryOptions<
   FIELDS extends string = string,
   E = FetcherError,
-> extends UsePromiseStateOptions<number, E>, AttributesCapable, AutoExecuteCapable {
+> extends UseExecutePromiseOptions<number, E>, AttributesCapable, AutoExecuteCapable {
   /**
    * The initial condition for the count query.
    */
