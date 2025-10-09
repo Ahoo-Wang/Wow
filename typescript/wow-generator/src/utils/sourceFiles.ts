@@ -16,7 +16,6 @@ import { join, relative } from 'path';
 import { JSDocableNode, Project, SourceFile } from 'ts-morph';
 import { ModelInfo } from '../model';
 import { Schema } from '@ahoo-wang/fetcher-openapi';
-import js from '@eslint/js';
 
 /** Default file name for model files */
 const MODEL_FILE_NAME = 'types.ts';
@@ -142,8 +141,11 @@ export function addImportModelInfo(
 export function jsDoc(
   descriptions: (string | undefined)[],
 ): string | undefined {
+  if (!Array.isArray(descriptions)) {
+    return undefined;
+  }
   const filtered = descriptions.filter(
-    v => v !== undefined && v.length > 0,
+    v => typeof v === 'string' && v.length > 0,
   );
   return filtered.length > 0 ? filtered.join('\n') : undefined;
 }
@@ -168,7 +170,10 @@ export function addJSDoc(
  * @param schema - The schema containing title and description
  */
 export function addSchemaJSDoc(node: JSDocableNode, schema: Schema) {
-  const descriptions: (string | undefined)[] = [schema.title, schema.description];
+  const descriptions: (string | undefined)[] = [
+    schema.title,
+    schema.description,
+  ];
   if (schema.format) {
     descriptions.push(`- format: ${schema.format}`);
   }
@@ -180,7 +185,11 @@ export function addSchemaJSDoc(node: JSDocableNode, schema: Schema) {
   addJSDoc(node, descriptions);
 }
 
-function addJsonJsDoc(descriptions: (string | undefined)[], schema: any, propertyName: keyof Schema) {
+function addJsonJsDoc(
+  descriptions: (string | undefined)[],
+  schema: any,
+  propertyName: keyof Schema,
+) {
   const json = schema[propertyName];
   if (!json) {
     return;
@@ -195,7 +204,10 @@ function addJsonJsDoc(descriptions: (string | undefined)[], schema: any, propert
   descriptions.push('```');
 }
 
-function addNumericConstraintsJsDoc(descriptions: (string | undefined)[], schema: Schema) {
+function addNumericConstraintsJsDoc(
+  descriptions: (string | undefined)[],
+  schema: Schema,
+) {
   const constraintsDescriptions = ['- Numeric Constraints'];
   if (schema.minimum !== undefined) {
     constraintsDescriptions.push(`  - minimum: ${schema.minimum}`);
@@ -204,10 +216,14 @@ function addNumericConstraintsJsDoc(descriptions: (string | undefined)[], schema
     constraintsDescriptions.push(`  - maximum: ${schema.maximum}`);
   }
   if (schema.exclusiveMinimum !== undefined) {
-    constraintsDescriptions.push(`  - exclusiveMinimum: ${schema.exclusiveMinimum}`);
+    constraintsDescriptions.push(
+      `  - exclusiveMinimum: ${schema.exclusiveMinimum}`,
+    );
   }
   if (schema.exclusiveMaximum !== undefined) {
-    constraintsDescriptions.push(`  - exclusiveMaximum: ${schema.exclusiveMaximum}`);
+    constraintsDescriptions.push(
+      `  - exclusiveMaximum: ${schema.exclusiveMaximum}`,
+    );
   }
   if (schema.multipleOf !== undefined) {
     constraintsDescriptions.push(`  - multipleOf: ${schema.multipleOf}`);
@@ -218,7 +234,10 @@ function addNumericConstraintsJsDoc(descriptions: (string | undefined)[], schema
   descriptions.push(...constraintsDescriptions);
 }
 
-function addStringConstraintsJsDoc(descriptions: (string | undefined)[], schema: Schema) {
+function addStringConstraintsJsDoc(
+  descriptions: (string | undefined)[],
+  schema: Schema,
+) {
   const constraintsDescriptions = ['- String Constraints'];
   if (schema.minLength !== undefined) {
     constraintsDescriptions.push(`  - minLength: ${schema.minLength}`);
@@ -235,7 +254,10 @@ function addStringConstraintsJsDoc(descriptions: (string | undefined)[], schema:
   descriptions.push(...constraintsDescriptions);
 }
 
-function addArrayConstraintsJsDoc(descriptions: (string | undefined)[], schema: Schema) {
+function addArrayConstraintsJsDoc(
+  descriptions: (string | undefined)[],
+  schema: Schema,
+) {
   const constraintsDescriptions = ['- Array Constraints'];
   if (schema.minItems !== undefined) {
     constraintsDescriptions.push(`  - minItems: ${schema.minItems}`);

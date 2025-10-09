@@ -229,6 +229,20 @@ describe('sourceFiles', () => {
       expect(jsDoc(['Title', ''])).toBe('Title');
       expect(jsDoc(['', 'Description'])).toBe('Description');
     });
+
+    it('should return undefined for non-array input', () => {
+      expect(jsDoc('string' as any)).toBeUndefined();
+      expect(jsDoc(null as any)).toBeUndefined();
+      expect(jsDoc(123 as any)).toBeUndefined();
+      expect(jsDoc({} as any)).toBeUndefined();
+    });
+
+    it('should filter out non-string values', () => {
+      expect(jsDoc(['string', null as any, 123 as any, undefined])).toBe(
+        'string',
+      );
+      expect(jsDoc([null as any, 456 as any, 'valid'])).toBe('valid');
+    });
   });
 
   describe('addJSDoc', () => {
@@ -401,6 +415,139 @@ describe('sourceFiles', () => {
       addSchemaJSDoc(mockNode as any, schema as any);
 
       expect(mockNode.addJsDoc).not.toHaveBeenCalled();
+    });
+
+    it('should include format in JSDoc', () => {
+      const mockNode = {
+        addJsDoc: vi.fn(),
+      };
+      const schema = {
+        title: 'Test Title',
+        format: 'date-time',
+      };
+
+      addSchemaJSDoc(mockNode as any, schema as any);
+
+      expect(mockNode.addJsDoc).toHaveBeenCalledWith(
+        'Test Title\n- format: date-time',
+      );
+    });
+
+    it('should include default value in JSDoc', () => {
+      const mockNode = {
+        addJsDoc: vi.fn(),
+      };
+      const schema = {
+        title: 'Test Title',
+        default: 'default-value',
+      };
+
+      addSchemaJSDoc(mockNode as any, schema as any);
+
+      expect(mockNode.addJsDoc).toHaveBeenCalledWith(
+        'Test Title\n- default: `default-value`',
+      );
+    });
+
+    it('should include example as JSON in JSDoc', () => {
+      const mockNode = {
+        addJsDoc: vi.fn(),
+      };
+      const schema = {
+        title: 'Test Title',
+        example: { key: 'value' },
+      };
+
+      addSchemaJSDoc(mockNode as any, schema as any);
+
+      expect(mockNode.addJsDoc).toHaveBeenCalledWith(
+        'Test Title\n- example: \n```json\n{"key":"value"}\n```',
+      );
+    });
+
+    it('should include numeric constraints in JSDoc', () => {
+      const mockNode = {
+        addJsDoc: vi.fn(),
+      };
+      const schema = {
+        title: 'Test Title',
+        minimum: 0,
+        maximum: 100,
+        multipleOf: 5,
+      };
+
+      addSchemaJSDoc(mockNode as any, schema as any);
+
+      expect(mockNode.addJsDoc).toHaveBeenCalledWith(
+        'Test Title\n- Numeric Constraints\n  - minimum: 0\n  - maximum: 100\n  - multipleOf: 5',
+      );
+    });
+
+    it('should include string constraints in JSDoc', () => {
+      const mockNode = {
+        addJsDoc: vi.fn(),
+      };
+      const schema = {
+        title: 'Test Title',
+        minLength: 1,
+        maxLength: 50,
+        pattern: '^[a-zA-Z]+$',
+      };
+
+      addSchemaJSDoc(mockNode as any, schema as any);
+
+      expect(mockNode.addJsDoc).toHaveBeenCalledWith(
+        'Test Title\n- String Constraints\n  - minLength: 1\n  - maxLength: 50\n  - pattern: ^[a-zA-Z]+$',
+      );
+    });
+
+    it('should include array constraints in JSDoc', () => {
+      const mockNode = {
+        addJsDoc: vi.fn(),
+      };
+      const schema = {
+        title: 'Test Title',
+        minItems: 1,
+        maxItems: 10,
+        uniqueItems: true,
+      };
+
+      addSchemaJSDoc(mockNode as any, schema as any);
+
+      expect(mockNode.addJsDoc).toHaveBeenCalledWith(
+        'Test Title\n- Array Constraints\n  - minItems: 1\n  - maxItems: 10\n  - uniqueItems: true',
+      );
+    });
+
+    it('should not include constraints sections when no constraints are present', () => {
+      const mockNode = {
+        addJsDoc: vi.fn(),
+      };
+      const schema = {
+        title: 'Test Title',
+        type: 'string',
+      };
+
+      addSchemaJSDoc(mockNode as any, schema as any);
+
+      expect(mockNode.addJsDoc).toHaveBeenCalledWith('Test Title');
+    });
+
+    it('should handle exclusive minimum and maximum', () => {
+      const mockNode = {
+        addJsDoc: vi.fn(),
+      };
+      const schema = {
+        title: 'Test Title',
+        exclusiveMinimum: 0,
+        exclusiveMaximum: 100,
+      };
+
+      addSchemaJSDoc(mockNode as any, schema as any);
+
+      expect(mockNode.addJsDoc).toHaveBeenCalledWith(
+        'Test Title\n- Numeric Constraints\n  - exclusiveMinimum: 0\n  - exclusiveMaximum: 100',
+      );
     });
   });
 });
