@@ -15,6 +15,7 @@ import { combineURLs } from '@ahoo-wang/fetcher';
 import { join, relative } from 'path';
 import { JSDocableNode, Project, SourceFile } from 'ts-morph';
 import { ModelInfo } from '../model';
+import { Schema } from '@ahoo-wang/fetcher-openapi';
 
 /** Default file name for model files */
 const MODEL_FILE_NAME = 'types.ts';
@@ -135,23 +136,13 @@ export function addImportModelInfo(
 
 /**
  * Generates a JSDoc comment string from a title and description.
- * @param title - The title for the JSDoc comment
- * @param description - The description for the JSDoc comment
  * @returns The formatted JSDoc string or undefined if both title and description are empty
  */
 export function jsDoc(
-  title?: string,
-  description?: string,
+  descriptions: (string | undefined)[],
 ): string | undefined {
-  const filtered = [title, description].filter(
-    v => v !== undefined && v.length > 0,
-  );
+  const filtered = descriptions.filter(v => v !== undefined && v.length > 0);
   return filtered.length > 0 ? filtered.join('\n') : undefined;
-}
-
-export function jsDocs(title?: string, description?: string): string[] {
-  const jsdoc = jsDoc(title, description);
-  return jsdoc ? [jsdoc] : [];
 }
 
 /**
@@ -165,11 +156,20 @@ export function addJSDoc(
   title?: string,
   description?: string,
 ) {
-  const jsdoc = jsDoc(title, description);
+  const jsdoc = jsDoc([title, description]);
   if (!jsdoc) {
     return;
   }
   node.addJsDoc({
     description: jsdoc,
   });
+}
+
+/**
+ * Adds a JSDoc comment to a node based on the schema's title and description.
+ * @param node - The node to add the JSDoc comment to
+ * @param schema - The schema containing title and description
+ */
+export function addSchemaJSDoc(node: JSDocableNode, schema: Schema) {
+  addJSDoc(node, schema.title, schema.description);
 }

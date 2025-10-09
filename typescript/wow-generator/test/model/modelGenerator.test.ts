@@ -33,6 +33,7 @@ vi.mock('../../src/utils', () => ({
   getOrCreateSourceFile: vi.fn(),
   addImportModelInfo: vi.fn(),
   addJSDoc: vi.fn(),
+  addSchemaJSDoc: vi.fn(),
   extractComponentKey: vi.fn(),
   isEnum: vi.fn(),
   isReference: vi.fn(),
@@ -60,6 +61,7 @@ import {
   getOrCreateSourceFile,
   addImportModelInfo,
   addJSDoc,
+  addSchemaJSDoc,
   extractComponentKey,
   isEnum,
   isReference,
@@ -131,6 +133,7 @@ describe('ModelGenerator', () => {
   let mockGetOrCreateSourceFile: any;
   let mockAddImportModelInfo: any;
   let mockAddJSDoc: any;
+  let mockAddSchemaJSDoc: any;
   let mockExtractComponentKey: any;
   let mockIsEnum: any;
   let mockIsReference: any;
@@ -163,6 +166,7 @@ describe('ModelGenerator', () => {
     mockGetOrCreateSourceFile = vi.mocked(getOrCreateSourceFile);
     mockAddImportModelInfo = vi.mocked(addImportModelInfo);
     mockAddJSDoc = vi.mocked(addJSDoc);
+    mockAddSchemaJSDoc = vi.mocked(addSchemaJSDoc);
     mockExtractComponentKey = vi.mocked(extractComponentKey);
     mockIsEnum = vi.mocked(isEnum);
     mockIsReference = vi.mocked(isReference);
@@ -286,7 +290,10 @@ describe('ModelGenerator', () => {
         mockSourceFile,
         keySchema.schema,
       );
-      expect(mockAddJSDoc).toHaveBeenCalledWith(mockNode, undefined, undefined);
+      expect(mockAddSchemaJSDoc).toHaveBeenCalledWith(
+        mockNode,
+        keySchema.schema,
+      );
     });
 
     it('should not add JSDoc if no node returned', () => {
@@ -554,11 +561,11 @@ describe('ModelGenerator', () => {
         name: 'name',
         type: 'string',
       });
-      expect(mockAddJSDoc).toHaveBeenCalledWith(
-        expect.any(Object),
-        'ID',
-        'User ID',
-      );
+      expect(mockAddSchemaJSDoc).toHaveBeenCalledWith(expect.any(Object), {
+        type: 'string',
+        title: 'ID',
+        description: 'User ID',
+      });
       expect(result).toBe(mockInterface);
     });
 
@@ -756,7 +763,10 @@ describe('ModelGenerator', () => {
         { name: 'ValueAddress', path: 'models' },
         propSchema,
       );
-      expect(mockAddJSDoc).toHaveBeenCalled();
+      expect(mockAddSchemaJSDoc).toHaveBeenCalledWith(
+        { name: 'ValueAddress' },
+        propSchema,
+      );
       expect(result).toBe('ValueAddress');
     });
 

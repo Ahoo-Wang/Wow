@@ -17,7 +17,7 @@ import { InterfaceDeclaration, JSDocableNode, SourceFile } from 'ts-morph';
 import { GenerateContext, Generator } from '../generateContext';
 import {
   addImportModelInfo,
-  addJSDoc,
+  addSchemaJSDoc,
   CompositionSchema,
   getModelFileName,
   isArray,
@@ -151,7 +151,7 @@ export class ModelGenerator implements Generator {
     const sourceFile = this.getOrCreateSourceFile(modelInfo);
     const node = this.process(modelInfo, sourceFile, schema);
     if (node) {
-      addJSDoc(node, schema.title, schema.description);
+      addSchemaJSDoc(node, schema);
     }
   }
 
@@ -268,7 +268,7 @@ export class ModelGenerator implements Generator {
         });
       }
       if (!isReference(propSchema)) {
-        addJSDoc(propertySignature, propSchema.title, propSchema.description);
+        addSchemaJSDoc(propertySignature, propSchema);
       }
     }
     return interfaceDeclaration;
@@ -325,7 +325,7 @@ export class ModelGenerator implements Generator {
         propModelInfo,
         propSchema,
       );
-      addJSDoc(interfaceDeclaration, propSchema.title, propSchema.description);
+      addSchemaJSDoc(interfaceDeclaration, propSchema);
       return propModelInfo.name;
     }
     return 'any';

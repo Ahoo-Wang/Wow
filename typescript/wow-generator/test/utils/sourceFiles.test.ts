@@ -17,8 +17,8 @@ import {
   getOrCreateSourceFile,
   addImport,
   jsDoc,
-  jsDocs,
   addJSDoc,
+  addSchemaJSDoc,
   addImportRefModel,
   addImportModelInfo,
 } from '../../src/utils';
@@ -209,39 +209,25 @@ describe('sourceFiles', () => {
 
   describe('jsDoc', () => {
     it('should return undefined for empty inputs', () => {
-      expect(jsDoc()).toBeUndefined();
-      expect(jsDoc('')).toBeUndefined();
-      expect(jsDoc('', '')).toBeUndefined();
-      expect(jsDoc(undefined, undefined)).toBeUndefined();
+      expect(jsDoc([''])).toBeUndefined();
+      expect(jsDoc([undefined, undefined])).toBeUndefined();
     });
 
     it('should return title only', () => {
-      expect(jsDoc('Title')).toBe('Title');
+      expect(jsDoc(['Title'])).toBe('Title');
     });
 
     it('should return description only', () => {
-      expect(jsDoc(undefined, 'Description')).toBe('Description');
+      expect(jsDoc([undefined, 'Description'])).toBe('Description');
     });
 
     it('should join title and description with newline', () => {
-      expect(jsDoc('Title', 'Description')).toBe('Title\nDescription');
+      expect(jsDoc(['Title', 'Description'])).toBe('Title\nDescription');
     });
 
     it('should filter out empty strings', () => {
-      expect(jsDoc('Title', '')).toBe('Title');
-      expect(jsDoc('', 'Description')).toBe('Description');
-    });
-  });
-
-  describe('jsDocs', () => {
-    it('should return empty array for no jsdoc', () => {
-      expect(jsDocs()).toEqual([]);
-      expect(jsDocs('', '')).toEqual([]);
-    });
-
-    it('should return array with jsdoc string', () => {
-      expect(jsDocs('Title')).toEqual(['Title']);
-      expect(jsDocs('Title', 'Description')).toEqual(['Title\nDescription']);
+      expect(jsDoc(['Title', ''])).toBe('Title');
+      expect(jsDoc(['', 'Description'])).toBe('Description');
     });
   });
 
@@ -364,6 +350,65 @@ describe('sourceFiles', () => {
       expect(mockSourceFile.addImportDeclaration).toHaveBeenCalledWith({
         moduleSpecifier: '../output/products/types',
       });
+    });
+  });
+
+  describe('addSchemaJSDoc', () => {
+    it('should add JSDoc with schema title and description', () => {
+      const mockNode = {
+        addJsDoc: vi.fn(),
+      };
+      const schema = {
+        title: 'Test Title',
+        description: 'Test Description',
+      };
+
+      addSchemaJSDoc(mockNode as any, schema as any);
+
+      expect(mockNode.addJsDoc).toHaveBeenCalledWith({
+        description: 'Test Title\nTest Description',
+      });
+    });
+
+    it('should handle schema with only title', () => {
+      const mockNode = {
+        addJsDoc: vi.fn(),
+      };
+      const schema = {
+        title: 'Test Title',
+      };
+
+      addSchemaJSDoc(mockNode as any, schema as any);
+
+      expect(mockNode.addJsDoc).toHaveBeenCalledWith({
+        description: 'Test Title',
+      });
+    });
+
+    it('should handle schema with only description', () => {
+      const mockNode = {
+        addJsDoc: vi.fn(),
+      };
+      const schema = {
+        description: 'Test Description',
+      };
+
+      addSchemaJSDoc(mockNode as any, schema as any);
+
+      expect(mockNode.addJsDoc).toHaveBeenCalledWith({
+        description: 'Test Description',
+      });
+    });
+
+    it('should not add JSDoc if schema has no title or description', () => {
+      const mockNode = {
+        addJsDoc: vi.fn(),
+      };
+      const schema = {};
+
+      addSchemaJSDoc(mockNode as any, schema as any);
+
+      expect(mockNode.addJsDoc).not.toHaveBeenCalled();
     });
   });
 });
