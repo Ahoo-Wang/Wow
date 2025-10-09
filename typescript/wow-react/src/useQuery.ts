@@ -107,30 +107,34 @@ export function useQuery<Q, R, E = FetcherError>(
   options: UseQueryOptions<Q, R, E>,
 ): UseQueryReturn<Q, R, E> {
   const { initialQuery } = options;
-  const promiseState = useExecutePromise<R, E>(options);
-  const latestQuery = useLatest(initialQuery);
   const latestOptions = useLatest(options);
+  const promiseState = useExecutePromise<R, E>(latestOptions.current);
+  const latestQuery = useLatest(initialQuery);
+
+
   const queryExecutor = useCallback(async (): Promise<R> => {
     return latestOptions.current.execute(
       latestQuery.current,
       latestOptions.current.attributes,
     );
   }, [latestQuery, latestOptions]);
-  const getQuery = useCallback(() => {
-    return latestQuery.current;
-  }, [latestQuery]);
-  const setQuery = useCallback(
-    (query: Q) => {
-      latestQuery.current = query;
-    },
-    [latestQuery],
-  );
   const { execute: promiseExecutor } = promiseState;
   const execute = useCallback(() => {
     return promiseExecutor(queryExecutor);
   }, [promiseExecutor, queryExecutor]);
-
+  const getQuery = useCallback(() => {
+    return latestQuery.current;
+  }, [latestQuery]);
   const { autoExecute } = options;
+  const setQuery = useCallback(
+    (query: Q) => {
+      latestQuery.current = query;
+      if (autoExecute) {
+        execute();
+      }
+    },
+    [latestQuery, autoExecute, execute],
+  );
 
   useEffect(() => {
     if (autoExecute) {

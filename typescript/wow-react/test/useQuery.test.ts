@@ -109,6 +109,29 @@ describe('useQuery', () => {
     });
 
     expect(mockLatestQuery.current).toEqual(newQuery);
+    expect(mockExecute).not.toHaveBeenCalled();
+  });
+
+  it('should auto execute when setQuery is called and autoExecute is true', () => {
+    const newQuery = { id: '2', filter: 'inactive' };
+    const mockQueryExecutor = vi.fn().mockResolvedValue(mockResult);
+    const options = {
+      initialQuery,
+      execute: mockQueryExecutor,
+      autoExecute: true,
+    };
+
+    const { result } = renderHook(() => useQuery(options));
+
+    // Mount executes once, setQuery executes again
+    expect(mockExecute).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      result.current.setQuery(newQuery);
+    });
+
+    expect(mockLatestQuery.current).toEqual(newQuery);
+    expect(mockExecute).toHaveBeenCalledTimes(2);
   });
 
   it('should execute query with updated query parameters after setQuery', async () => {
