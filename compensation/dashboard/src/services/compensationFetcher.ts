@@ -13,15 +13,10 @@
 
 import { NamedFetcher } from "@ahoo-wang/fetcher";
 import { cosecRequestInterceptor } from "./cosec.ts";
-import type { QueryClientOptions } from "@ahoo-wang/fetcher-wow";
 
 export const COMPENSATION_FETCHER_NAME = "compensation";
 export const compensationFetcher = new NamedFetcher(COMPENSATION_FETCHER_NAME, {
   baseURL: import.meta.env.VITE_API_BASE_URL,
 });
 compensationFetcher.interceptors.request.use(cosecRequestInterceptor);
-export const executionFailedClientOptions: QueryClientOptions = {
-  fetcher: compensationFetcher,
-  contextAlias: "",
-  basePath: "",
-};
+

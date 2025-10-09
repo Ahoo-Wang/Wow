@@ -32,11 +32,13 @@ const { Text } = Typography;
 const { Timer } = Statistic;
 
 interface FailedTableProps extends OnChangedCapable {
+  loading?: boolean;
   onPaginationChange?: (page: number, pageSize: number) => void;
   pagedList: PagedList<ExecutionFailedState>;
 }
 
 export function FailedTable({
+  loading,
   onPaginationChange,
   pagedList,
   onChanged,
@@ -320,6 +322,7 @@ export function FailedTable({
         }}
         bordered
         scroll={{ x: 1500 }}
+        loading={loading}
       ></Table>
     </>
   );

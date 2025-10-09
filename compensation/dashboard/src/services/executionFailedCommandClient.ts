@@ -12,6 +12,8 @@
  */
 
 import { ExecutionFailedCommandClient } from "../generated";
-import { executionFailedClientOptions } from "./compensationFetcher.ts";
+import { compensationFetcher } from "./compensationFetcher.ts";
 
-export const executionFailedCommandClient = new ExecutionFailedCommandClient(executionFailedClientOptions);
+export const executionFailedCommandClient = new ExecutionFailedCommandClient({
+  fetcher: compensationFetcher,
+});
