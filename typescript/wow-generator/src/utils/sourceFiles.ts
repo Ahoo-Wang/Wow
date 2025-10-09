@@ -16,6 +16,7 @@ import { join, relative } from 'path';
 import { JSDocableNode, Project, SourceFile } from 'ts-morph';
 import { ModelInfo } from '../model';
 import { Schema } from '@ahoo-wang/fetcher-openapi';
+import js from '@eslint/js';
 
 /** Default file name for model files */
 const MODEL_FILE_NAME = 'types.ts';
@@ -142,7 +143,7 @@ export function jsDoc(
   descriptions: (string | undefined)[],
 ): string | undefined {
   const filtered = descriptions.filter(
-    v => v !== undefined && typeof v === 'string' && v.length > 0,
+    v => v !== undefined && v.length > 0,
   );
   return filtered.length > 0 ? filtered.join('\n') : undefined;
 }
@@ -167,5 +168,86 @@ export function addJSDoc(
  * @param schema - The schema containing title and description
  */
 export function addSchemaJSDoc(node: JSDocableNode, schema: Schema) {
-  addJSDoc(node, [schema.title, schema.description]);
+  const descriptions: (string | undefined)[] = [schema.title, schema.description];
+  if (schema.format) {
+    descriptions.push(`- format: ${schema.format}`);
+  }
+  addJsonJsDoc(descriptions, schema, 'default');
+  addJsonJsDoc(descriptions, schema, 'example');
+  addNumericConstraintsJsDoc(descriptions, schema);
+  addStringConstraintsJsDoc(descriptions, schema);
+  addArrayConstraintsJsDoc(descriptions, schema);
+  addJSDoc(node, descriptions);
+}
+
+function addJsonJsDoc(descriptions: (string | undefined)[], schema: any, propertyName: keyof Schema) {
+  const json = schema[propertyName];
+  if (!json) {
+    return;
+  }
+  if (typeof json !== 'object') {
+    descriptions.push(`- ${propertyName}: \`${json}\``);
+    return;
+  }
+  descriptions.push(`- ${propertyName}: `);
+  descriptions.push('```json');
+  descriptions.push(JSON.stringify(json));
+  descriptions.push('```');
+}
+
+function addNumericConstraintsJsDoc(descriptions: (string | undefined)[], schema: Schema) {
+  const constraintsDescriptions = ['- Numeric Constraints'];
+  if (schema.minimum !== undefined) {
+    constraintsDescriptions.push(`  - minimum: ${schema.minimum}`);
+  }
+  if (schema.maximum !== undefined) {
+    constraintsDescriptions.push(`  - maximum: ${schema.maximum}`);
+  }
+  if (schema.exclusiveMinimum !== undefined) {
+    constraintsDescriptions.push(`  - exclusiveMinimum: ${schema.exclusiveMinimum}`);
+  }
+  if (schema.exclusiveMaximum !== undefined) {
+    constraintsDescriptions.push(`  - exclusiveMaximum: ${schema.exclusiveMaximum}`);
+  }
+  if (schema.multipleOf !== undefined) {
+    constraintsDescriptions.push(`  - multipleOf: ${schema.multipleOf}`);
+  }
+  if (constraintsDescriptions.length === 1) {
+    return;
+  }
+  descriptions.push(...constraintsDescriptions);
+}
+
+function addStringConstraintsJsDoc(descriptions: (string | undefined)[], schema: Schema) {
+  const constraintsDescriptions = ['- String Constraints'];
+  if (schema.minLength !== undefined) {
+    constraintsDescriptions.push(`  - minLength: ${schema.minLength}`);
+  }
+  if (schema.maxLength !== undefined) {
+    constraintsDescriptions.push(`  - maxLength: ${schema.maxLength}`);
+  }
+  if (schema.pattern !== undefined) {
+    constraintsDescriptions.push(`  - pattern: ${schema.pattern}`);
+  }
+  if (constraintsDescriptions.length === 1) {
+    return;
+  }
+  descriptions.push(...constraintsDescriptions);
+}
+
+function addArrayConstraintsJsDoc(descriptions: (string | undefined)[], schema: Schema) {
+  const constraintsDescriptions = ['- Array Constraints'];
+  if (schema.minItems !== undefined) {
+    constraintsDescriptions.push(`  - minItems: ${schema.minItems}`);
+  }
+  if (schema.maxItems !== undefined) {
+    constraintsDescriptions.push(`  - maxItems: ${schema.maxItems}`);
+  }
+  if (schema.uniqueItems !== undefined) {
+    constraintsDescriptions.push(`  - uniqueItems: ${schema.uniqueItems}`);
+  }
+  if (constraintsDescriptions.length === 1) {
+    return;
+  }
+  descriptions.push(...constraintsDescriptions);
 }
