@@ -18,7 +18,6 @@ import { useQuery, UseQueryOptions, UseQueryReturn } from './useQuery';
 /**
  * Options for the useCountQuery hook.
  * Extends UseQueryOptions with Condition as query key and number as data type.
- *
  * @template FIELDS - The fields type for the condition
  * @template E - The error type, defaults to FetcherError
  */
