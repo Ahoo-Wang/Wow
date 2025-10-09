@@ -3,19 +3,24 @@ import { AggregateId, BindingError, FunctionInfo, FunctionKind, RecoverableType 
 /** apply_execution_failed */
 export interface ApplyExecutionFailed {
     error: ErrorDetails;
+    /** - format: int64 */
     executeAt: number;
     recoverable: RecoverableType;
 }
 
 /** apply_execution_success */
 export interface ApplyExecutionSuccess {
+    /** - format: int64 */
     executeAt: number;
 }
 
 /** apply_retry_spec */
 export interface ApplyRetrySpec {
+    /** - format: int32 */
     executionTimeout: number;
+    /** - format: int32 */
     maxRetries: number;
+    /** - format: int32 */
     minBackoff: number;
 }
 
@@ -38,6 +43,7 @@ export interface CompensationPrepared {
 export interface CreateExecutionFailed {
     error: ErrorDetails;
     eventId: EventId;
+    /** - format: int64 */
     executeAt: number;
     function: FunctionInfo;
     recoverable: RecoverableType;
@@ -55,6 +61,7 @@ export interface ErrorDetails {
 export interface EventId {
     aggregateId: AggregateId;
     id: string;
+    /** - format: int32 */
     version: number;
 }
 
@@ -112,6 +119,7 @@ export enum ExecutionFailedAggregatedFields {
 /** execution_failed_applied */
 export interface ExecutionFailedApplied {
     error: ErrorDetails;
+    /** - format: int64 */
     executeAt: number;
     recoverable: RecoverableType;
 }
@@ -120,6 +128,7 @@ export interface ExecutionFailedApplied {
 export interface ExecutionFailedCreated {
     error: ErrorDetails;
     eventId: EventId;
+    /** - format: int64 */
     executeAt: number;
     function: FunctionInfo;
     recoverable: RecoverableType;
@@ -130,6 +139,7 @@ export interface ExecutionFailedCreated {
 export interface ExecutionFailedState {
     error: ErrorDetails;
     eventId: EventId;
+    /** - format: int64 */
     executeAt: number;
     function: FunctionInfo;
     id: string;
@@ -149,6 +159,7 @@ export enum ExecutionFailedStatus {
 
 /** execution_success_applied */
 export interface ExecutionSuccessApplied {
+    /** - format: int64 */
     executeAt: number;
 }
 
@@ -179,21 +190,31 @@ export interface RecoverableMarked {
 }
 
 export interface RetrySpec {
+    /** - format: int32 */
     executionTimeout: number;
+    /** - format: int32 */
     maxRetries: number;
+    /** - format: int32 */
     minBackoff: number;
 }
 
 /** retry_spec_applied */
 export interface RetrySpecApplied {
+    /** - format: int32 */
     executionTimeout: number;
+    /** - format: int32 */
     maxRetries: number;
+    /** - format: int32 */
     minBackoff: number;
 }
 
 export interface RetryState {
+    /** - format: int64 */
     nextRetryAt: number;
+    /** - format: int32 */
     retries: number;
+    /** - format: int64 */
     retryAt: number;
+    /** - format: int64 */
     timeoutAt: number;
 }
