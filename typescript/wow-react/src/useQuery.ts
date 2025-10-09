@@ -46,10 +46,11 @@ export interface UseQueryOptions<Q, R, E = FetcherError>
  */
 export interface UseQueryReturn<Q, R, E = FetcherError>
   extends UseExecutePromiseReturn<R, E> {
-  /** Function to execute the query with current parameters */
-  execute: () => Promise<R | E>;
+  getQuery: () => Q;
   /** Function to update the query parameters */
   setQuery: (query: Q) => void;
+  /** Function to execute the query with current parameters */
+  execute: () => Promise<R | E>;
 }
 
 /**
@@ -112,6 +113,9 @@ export function useQuery<Q, R, E = FetcherError>(
       latestOptions.current.attributes,
     );
   }, [latestQuery, latestOptions]);
+  const getQuery = useCallback(() => {
+    return latestQuery.current;
+  }, [latestQuery]);
   const setQuery = useCallback(
     (query: Q) => {
       latestQuery.current = query;
@@ -135,8 +139,9 @@ export function useQuery<Q, R, E = FetcherError>(
     () => ({
       ...promiseState,
       execute,
+      getQuery,
       setQuery,
     }),
-    [promiseState, execute, setQuery],
+    [promiseState, execute, getQuery, setQuery],
   );
 }
