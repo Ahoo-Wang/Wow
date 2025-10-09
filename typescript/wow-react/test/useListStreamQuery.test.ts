@@ -12,255 +12,111 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
-import { useListStreamQuery } from '../../src/wow/useListStreamQuery';
-import {
-  ListQuery,
-  Condition,
-  Projection,
-  FieldSort,
-  all,
-  SortDirection,
-} from '@ahoo-wang/fetcher-wow';
+import { renderHook } from '@testing-library/react';
+import { useListStreamQuery } from '../../src';
+import { ListQuery, all, SortDirection } from '@ahoo-wang/fetcher-wow';
+import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 
-// Mock the core hooks
-vi.mock('../../src/core', () => ({
-  useExecutePromise: vi.fn(),
-  useLatest: vi.fn(),
+// Mock useQuery
+vi.mock('../../src/wow/useQuery', () => ({
+  useQuery: vi.fn(),
 }));
 
-import { useExecutePromise, useLatest } from '../../src/core';
-
-// Mock stream type
-type MockStream = ReadableStream<any>;
+import { useQuery } from '../../src';
 
 describe('useListStreamQuery', () => {
-  const mockStream: MockStream = new ReadableStream();
+  const mockStream = new ReadableStream<
+    JsonServerSentEvent<{ id: number; name: string }>
+  >();
+  const mockUseQueryReturn = {
+    data: mockStream,
+    loading: false,
+    error: null,
+    execute: vi.fn(),
+    reset: vi.fn(),
+  };
 
   const initialQuery: ListQuery<'id' | 'name'> = {
     condition: all(),
     projection: { include: ['id', 'name'] },
     sort: [{ field: 'id', direction: SortDirection.ASC }],
-    limit: 10,
   };
-
-  const mockListStreamFn = vi.fn().mockResolvedValue(mockStream);
-  const mockExecute = vi.fn().mockImplementation(async executor => {
-    if (executor) {
-      return await executor();
-    }
-    return mockStream;
-  });
-  const mockReset = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
-    (useExecutePromise as any).mockReturnValue({
-      data: null,
-      loading: false,
-      error: null,
-      execute: mockExecute,
-      reset: mockReset,
-    });
-    (useLatest as any).mockReturnValue({
-      current: { listStream: mockListStreamFn, attributes: {} },
-    });
+    (useQuery as any).mockReturnValue(mockUseQueryReturn);
   });
 
-  it('should initialize with initial query values', () => {
-    const { result } = renderHook(() =>
-      useListStreamQuery({
-        initialQuery,
-        listStream: mockListStreamFn,
-      }),
-    );
+  it('should call useQuery with the provided options', () => {
+    const execute = vi.fn().mockResolvedValue(mockStream);
+    const options = {
+      initialQuery,
+      execute,
+    };
 
-    expect(result.current).toHaveProperty('execute');
-    expect(result.current).toHaveProperty('reset');
-    expect(result.current).toHaveProperty('setCondition');
-    expect(result.current).toHaveProperty('setProjection');
-    expect(result.current).toHaveProperty('setSort');
-    expect(result.current).toHaveProperty('setLimit');
-  });
-
-  it('should execute list stream query when execute is called', async () => {
-    const { result } = renderHook(() =>
-      useListStreamQuery({
-        initialQuery,
-        listStream: mockListStreamFn,
-      }),
-    );
-
-    await act(async () => {
-      await result.current.execute();
-    });
-
-    expect(mockExecute).toHaveBeenCalled();
-  });
-
-  it('should call reset when reset is called', () => {
-    const { result } = renderHook(() =>
-      useListStreamQuery({
-        initialQuery,
-        listStream: mockListStreamFn,
-      }),
-    );
-
-    act(() => {
-      result.current.reset();
-    });
-
-    expect(mockReset).toHaveBeenCalled();
-  });
-
-  it('should update condition when setCondition is called', () => {
-    const { result } = renderHook(() =>
-      useListStreamQuery({
-        initialQuery,
-        listStream: mockListStreamFn,
-      }),
-    );
-
-    const newCondition: Condition<'id' | 'name'> = all();
-
-    act(() => {
-      result.current.setCondition(newCondition);
-    });
-
-    expect(true).toBe(true); // Placeholder, as internal state is hard to test directly
-  });
-
-  it('should update projection when setProjection is called', () => {
-    const { result } = renderHook(() =>
-      useListStreamQuery({
-        initialQuery,
-        listStream: mockListStreamFn,
-      }),
-    );
-
-    const newProjection: Projection<'id' | 'name'> = { include: ['name'] };
-
-    act(() => {
-      result.current.setProjection(newProjection);
-    });
-
-    expect(true).toBe(true); // Placeholder
-  });
-
-  it('should update sort when setSort is called', () => {
-    const { result } = renderHook(() =>
-      useListStreamQuery({
-        initialQuery,
-        listStream: mockListStreamFn,
-      }),
-    );
-
-    const newSort: FieldSort<'id' | 'name'>[] = [
-      { field: 'name', direction: SortDirection.DESC },
-    ];
-
-    act(() => {
-      result.current.setSort(newSort);
-    });
-
-    expect(true).toBe(true); // Placeholder
-  });
-
-  it('should update limit when setLimit is called', () => {
-    const { result } = renderHook(() =>
-      useListStreamQuery({
-        initialQuery,
-        listStream: mockListStreamFn,
-      }),
-    );
-
-    const newLimit = 20;
-
-    act(() => {
-      result.current.setLimit(newLimit);
-    });
-
-    expect(true).toBe(true); // Placeholder
-  });
-
-  it('should pass attributes to listStream function', async () => {
-    const attributes = { token: 'abc' };
-    (useLatest as any).mockReturnValue({
-      current: { listStream: mockListStreamFn, attributes },
-    });
-
-    const { result } = renderHook(() =>
-      useListStreamQuery({
-        initialQuery,
-        listStream: mockListStreamFn,
-        attributes,
-      }),
-    );
-
-    await act(async () => {
-      await result.current.execute();
-    });
-
-    expect(mockListStreamFn).toHaveBeenCalledWith(
-      expect.any(Object),
-      attributes,
-    );
-  });
-
-  it('should handle listStream errors', async () => {
-    const error = new Error('ListStream failed');
-    mockExecute.mockRejectedValue(error);
-
-    const { result } = renderHook(() =>
-      useListStreamQuery({
-        initialQuery,
-        listStream: mockListStreamFn,
-      }),
-    );
-
-    await act(async () => {
-      try {
-        await result.current.execute();
-      } catch (e) {
-        // Expected error
-      }
-    });
-
-    expect(mockExecute).toHaveBeenCalled();
-  });
-
-  it('should auto execute on mount when autoExecute is true', () => {
     renderHook(() =>
-      useListStreamQuery({
-        initialQuery,
-        listStream: mockListStreamFn,
-        autoExecute: true,
-      } as any),
+      useListStreamQuery<{ id: number; name: string }, 'id' | 'name'>(options),
     );
 
-    expect(mockExecute).toHaveBeenCalledTimes(1);
+    expect(useQuery).toHaveBeenCalledWith(options);
   });
 
-  it('should not auto execute on mount when autoExecute is false', () => {
-    renderHook(() =>
-      useListStreamQuery({
-        initialQuery,
-        listStream: mockListStreamFn,
-        autoExecute: false,
-      } as any),
+  it('should return the result from useQuery', () => {
+    const execute = vi.fn().mockResolvedValue(mockStream);
+    const options = {
+      initialQuery,
+      execute,
+    };
+
+    const { result } = renderHook(() =>
+      useListStreamQuery<{ id: number; name: string }, 'id' | 'name'>(options),
     );
 
-    expect(mockExecute).not.toHaveBeenCalled();
+    expect(result.current).toBe(mockUseQueryReturn);
   });
 
-  it('should not auto execute on mount when autoExecute is not provided', () => {
+  it('should work with custom result and field types', () => {
+    const customStream = new ReadableStream<
+      JsonServerSentEvent<{ customId: number; customName: string }>
+    >();
+    const customInitialQuery: ListQuery<'customId' | 'customName'> = {
+      condition: all(),
+      projection: { include: ['customId', 'customName'] },
+      sort: [{ field: 'customId', direction: SortDirection.DESC }],
+    };
+    const execute = vi.fn().mockResolvedValue(customStream);
+    const options = {
+      initialQuery: customInitialQuery,
+      execute,
+    };
+
     renderHook(() =>
-      useListStreamQuery({
-        initialQuery,
-        listStream: mockListStreamFn,
-      }),
+      useListStreamQuery<
+        { customId: number; customName: string },
+        'customId' | 'customName'
+      >(options),
     );
 
-    expect(mockExecute).not.toHaveBeenCalled();
+    expect(useQuery).toHaveBeenCalledWith(options);
+  });
+
+  it('should work with custom error types', () => {
+    const customError = new Error('Custom error');
+    const mockReturnWithError = { ...mockUseQueryReturn, error: customError };
+    (useQuery as any).mockReturnValue(mockReturnWithError);
+
+    const execute = vi.fn().mockRejectedValue(customError);
+    const options = {
+      initialQuery,
+      execute,
+    };
+
+    const { result } = renderHook(() =>
+      useListStreamQuery<{ id: number; name: string }, 'id' | 'name', Error>(
+        options,
+      ),
+    );
+
+    expect(result.current.error).toBe(customError);
   });
 });

@@ -12,31 +12,33 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook } from '@testing-library/react';
 import { usePagedQuery } from '../../src';
 import {
   PagedList,
   PagedQuery,
-  Condition,
-  Projection,
-  Pagination,
-  FieldSort,
   all,
   SortDirection,
 } from '@ahoo-wang/fetcher-wow';
 
-// Mock the core hooks
-vi.mock('../../src/core', () => ({
-  useExecutePromise: vi.fn(),
-  useLatest: vi.fn(),
+// Mock useQuery
+vi.mock('../../src/wow/useQuery', () => ({
+  useQuery: vi.fn(),
 }));
 
-import { useExecutePromise, useLatest } from '../../src';
+import { useQuery } from '../../src/wow/useQuery';
 
 describe('usePagedQuery', () => {
-  const mockPagedList: PagedList<any> = {
+  const mockPagedList: PagedList<{ id: number; name: string }> = {
     total: 1,
     list: [{ id: 1, name: 'Item 1' }],
+  };
+  const mockUseQueryReturn = {
+    data: mockPagedList,
+    loading: false,
+    error: null,
+    execute: vi.fn(),
+    reset: vi.fn(),
   };
 
   const initialQuery: PagedQuery<'id' | 'name'> = {
@@ -46,222 +48,84 @@ describe('usePagedQuery', () => {
     sort: [{ field: 'id', direction: SortDirection.ASC }],
   };
 
-  const mockQuery = vi.fn().mockResolvedValue(mockPagedList);
-  const mockExecute = vi.fn().mockImplementation(async executor => {
-    if (executor) {
-      return await executor();
-    }
-    return mockPagedList;
-  });
-  const mockReset = vi.fn();
-
   beforeEach(() => {
     vi.clearAllMocks();
-    (useExecutePromise as any).mockReturnValue({
-      data: null,
-      loading: false,
-      error: null,
-      execute: mockExecute,
-      reset: mockReset,
-    });
-    (useLatest as any).mockReturnValue({
-      current: { query: mockQuery, attributes: {} },
-    });
+    (useQuery as any).mockReturnValue(mockUseQueryReturn);
   });
 
-  it('should initialize with initial query values', () => {
-    const { result } = renderHook(() =>
-      usePagedQuery({
-        initialQuery,
-        query: mockQuery,
-      }),
-    );
+  it('should call useQuery with the provided options', () => {
+    const execute = vi.fn().mockResolvedValue(mockPagedList);
+    const options = {
+      initialQuery,
+      execute,
+    };
 
-    expect(result.current).toHaveProperty('execute');
-    expect(result.current).toHaveProperty('reset');
-    expect(result.current).toHaveProperty('setCondition');
-    expect(result.current).toHaveProperty('setProjection');
-    expect(result.current).toHaveProperty('setPagination');
-    expect(result.current).toHaveProperty('setSort');
-  });
-
-  it('should execute query when execute is called', async () => {
-    const { result } = renderHook(() =>
-      usePagedQuery({
-        initialQuery,
-        query: mockQuery,
-      }),
-    );
-
-    await act(async () => {
-      await result.current.execute();
-    });
-
-    expect(mockExecute).toHaveBeenCalled();
-  });
-
-  it('should call reset when reset is called', () => {
-    const { result } = renderHook(() =>
-      usePagedQuery({
-        initialQuery,
-        query: mockQuery,
-      }),
-    );
-
-    act(() => {
-      result.current.reset();
-    });
-
-    expect(mockReset).toHaveBeenCalled();
-  });
-
-  it('should update condition when setCondition is called', () => {
-    const { result } = renderHook(() =>
-      usePagedQuery({
-        initialQuery,
-        query: mockQuery,
-      }),
-    );
-
-    const newCondition: Condition<'id' | 'name'> = all();
-
-    act(() => {
-      result.current.setCondition(newCondition);
-    });
-
-    // Since state is internal, we can check if execute uses the new condition
-    // by mocking the queryExecutor
-    expect(true).toBe(true); // Placeholder, as internal state is hard to test directly
-  });
-
-  it('should update projection when setProjection is called', () => {
-    const { result } = renderHook(() =>
-      usePagedQuery({
-        initialQuery,
-        query: mockQuery,
-      }),
-    );
-
-    const newProjection: Projection<'id' | 'name'> = { include: ['name'] };
-
-    act(() => {
-      result.current.setProjection(newProjection);
-    });
-
-    expect(true).toBe(true); // Placeholder
-  });
-
-  it('should update pagination when setPagination is called', () => {
-    const { result } = renderHook(() =>
-      usePagedQuery({
-        initialQuery,
-        query: mockQuery,
-      }),
-    );
-
-    const newPagination: Pagination = { index: 1, size: 20 };
-
-    act(() => {
-      result.current.setPagination(newPagination);
-    });
-
-    expect(true).toBe(true); // Placeholder
-  });
-
-  it('should update sort when setSort is called', () => {
-    const { result } = renderHook(() =>
-      usePagedQuery({
-        initialQuery,
-        query: mockQuery,
-      }),
-    );
-
-    const newSort: FieldSort<'id' | 'name'>[] = [
-      { field: 'name', direction: SortDirection.DESC },
-    ];
-
-    act(() => {
-      result.current.setSort(newSort);
-    });
-
-    expect(true).toBe(true); // Placeholder
-  });
-
-  it('should pass attributes to query function', async () => {
-    const attributes = { token: 'abc' };
-    (useLatest as any).mockReturnValue({
-      current: { query: mockQuery, attributes },
-    });
-
-    const { result } = renderHook(() =>
-      usePagedQuery({
-        initialQuery,
-        query: mockQuery,
-        attributes,
-      }),
-    );
-
-    await act(async () => {
-      await result.current.execute();
-    });
-
-    expect(mockQuery).toHaveBeenCalledWith(expect.any(Object), attributes);
-  });
-
-  it('should handle query errors', async () => {
-    const error = new Error('Query failed');
-    mockExecute.mockRejectedValue(error);
-
-    const { result } = renderHook(() =>
-      usePagedQuery({
-        initialQuery,
-        query: mockQuery,
-      }),
-    );
-
-    await act(async () => {
-      try {
-        await result.current.execute();
-      } catch (e) {
-        // Expected error
-      }
-    });
-
-    expect(mockExecute).toHaveBeenCalled();
-  });
-
-  it('should auto execute on mount when autoExecute is true', () => {
     renderHook(() =>
-      usePagedQuery({
-        initialQuery,
-        query: mockQuery,
-        autoExecute: true,
-      } as any),
+      usePagedQuery<{ id: number; name: string }, 'id' | 'name'>(options),
     );
 
-    expect(mockExecute).toHaveBeenCalledTimes(1);
+    expect(useQuery).toHaveBeenCalledWith(options);
   });
 
-  it('should not auto execute on mount when autoExecute is false', () => {
-    renderHook(() =>
-      usePagedQuery({
-        initialQuery,
-        query: mockQuery,
-        autoExecute: false,
-      } as any),
+  it('should return the result from useQuery', () => {
+    const execute = vi.fn().mockResolvedValue(mockPagedList);
+    const options = {
+      initialQuery,
+      execute,
+    };
+
+    const { result } = renderHook(() =>
+      usePagedQuery<{ id: number; name: string }, 'id' | 'name'>(options),
     );
 
-    expect(mockExecute).not.toHaveBeenCalled();
+    expect(result.current).toBe(mockUseQueryReturn);
   });
 
-  it('should not auto execute on mount when autoExecute is not provided', () => {
+  it('should work with custom result and field types', () => {
+    const customPagedList: PagedList<{ customId: number; customName: string }> =
+      {
+        total: 2,
+        list: [{ customId: 42, customName: 'Custom' }],
+      };
+    const customInitialQuery: PagedQuery<'customId' | 'customName'> = {
+      condition: all(),
+      pagination: { index: 1, size: 5 },
+      projection: { include: ['customId', 'customName'] },
+      sort: [{ field: 'customId', direction: SortDirection.DESC }],
+    };
+    const execute = vi.fn().mockResolvedValue(customPagedList);
+    const options = {
+      initialQuery: customInitialQuery,
+      execute,
+    };
+
     renderHook(() =>
-      usePagedQuery({
-        initialQuery,
-        query: mockQuery,
-      }),
+      usePagedQuery<
+        { customId: number; customName: string },
+        'customId' | 'customName'
+      >(options),
     );
 
-    expect(mockExecute).not.toHaveBeenCalled();
+    expect(useQuery).toHaveBeenCalledWith(options);
+  });
+
+  it('should work with custom error types', () => {
+    const customError = new Error('Custom error');
+    const mockReturnWithError = { ...mockUseQueryReturn, error: customError };
+    (useQuery as any).mockReturnValue(mockReturnWithError);
+
+    const execute = vi.fn().mockRejectedValue(customError);
+    const options = {
+      initialQuery,
+      execute,
+    };
+
+    const { result } = renderHook(() =>
+      usePagedQuery<{ id: number; name: string }, 'id' | 'name', Error>(
+        options,
+      ),
+    );
+
+    expect(result.current.error).toBe(customError);
   });
 });

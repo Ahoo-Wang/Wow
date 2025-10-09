@@ -12,181 +12,84 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook } from '@testing-library/react';
 import { useCountQuery } from '../../src';
 import { Condition, all } from '@ahoo-wang/fetcher-wow';
 
-// Mock the core hooks
-vi.mock('../../src/core', () => ({
-  useExecutePromise: vi.fn(),
-  useLatest: vi.fn(),
+// Mock useQuery
+vi.mock('../../src/wow/useQuery', () => ({
+  useQuery: vi.fn(),
 }));
 
-import { useExecutePromise, useLatest } from '../../src';
+import { useQuery } from '../../src';
 
 describe('useCountQuery', () => {
-  const mockCount = 42;
-
-  const initialCondition: Condition<'id' | 'name'> = all();
-
-  const mockCountFn = vi.fn().mockResolvedValue(mockCount);
-  const mockExecute = vi.fn().mockImplementation(async executor => {
-    if (executor) {
-      return await executor();
-    }
-    return mockCount;
-  });
-  const mockReset = vi.fn();
+  const mockUseQueryReturn = {
+    data: 42,
+    loading: false,
+    error: null,
+    execute: vi.fn(),
+    reset: vi.fn(),
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
-    (useExecutePromise as any).mockReturnValue({
-      data: null,
-      loading: false,
-      error: null,
-      execute: mockExecute,
-      reset: mockReset,
-    });
-    (useLatest as any).mockReturnValue({
-      current: { count: mockCountFn, attributes: {} },
-    });
+    (useQuery as any).mockReturnValue(mockUseQueryReturn);
   });
 
-  it('should initialize with initial condition values', () => {
-    const { result } = renderHook(() =>
-      useCountQuery({
-        initialCondition,
-        count: mockCountFn,
-      }),
-    );
+  it('should call useQuery with the provided options', () => {
+    const initialQuery = all() as Condition<string>;
+    const execute = vi.fn().mockResolvedValue(42);
+    const options = {
+      initialQuery,
+      execute,
+    };
 
-    expect(result.current).toHaveProperty('execute');
-    expect(result.current).toHaveProperty('reset');
-    expect(result.current).toHaveProperty('setCondition');
+    renderHook(() => useCountQuery(options));
+
+    expect(useQuery).toHaveBeenCalledWith(options);
   });
 
-  it('should execute count query when execute is called', async () => {
-    const { result } = renderHook(() =>
-      useCountQuery({
-        initialCondition,
-        count: mockCountFn,
-      }),
-    );
+  it('should return the result from useQuery', () => {
+    const initialQuery = all() as Condition<string>;
+    const execute = vi.fn().mockResolvedValue(0);
+    const options = {
+      initialQuery,
+      execute,
+    };
 
-    await act(async () => {
-      await result.current.execute();
-    });
+    const { result } = renderHook(() => useCountQuery(options));
 
-    expect(mockExecute).toHaveBeenCalled();
+    expect(result.current).toBe(mockUseQueryReturn);
   });
 
-  it('should call reset when reset is called', () => {
-    const { result } = renderHook(() =>
-      useCountQuery({
-        initialCondition,
-        count: mockCountFn,
-      }),
-    );
+  it('should work with custom field types', () => {
+    const initialQuery = all() as Condition<'id' | 'name'>;
+    const execute = vi.fn().mockResolvedValue(5);
+    const options = {
+      initialQuery,
+      execute,
+    };
 
-    act(() => {
-      result.current.reset();
-    });
+    renderHook(() => useCountQuery<'id' | 'name'>(options));
 
-    expect(mockReset).toHaveBeenCalled();
+    expect(useQuery).toHaveBeenCalledWith(options);
   });
 
-  it('should update condition when setCondition is called', () => {
-    const { result } = renderHook(() =>
-      useCountQuery({
-        initialCondition,
-        count: mockCountFn,
-      }),
-    );
+  it('should work with custom error types', () => {
+    const customError = new Error('Custom error');
+    const mockReturnWithError = { ...mockUseQueryReturn, error: customError };
+    (useQuery as any).mockReturnValue(mockReturnWithError);
 
-    const newCondition: Condition<'id' | 'name'> = all();
+    const initialQuery = all() as Condition<string>;
+    const execute = vi.fn().mockRejectedValue(customError);
+    const options = {
+      initialQuery,
+      execute,
+    };
 
-    act(() => {
-      result.current.setCondition(newCondition);
-    });
+    const { result } = renderHook(() => useCountQuery<string, Error>(options));
 
-    expect(true).toBe(true); // Placeholder, as internal state is hard to test directly
-  });
-
-  it('should pass attributes to count function', async () => {
-    const attributes = { token: 'abc' };
-    (useLatest as any).mockReturnValue({
-      current: { count: mockCountFn, attributes },
-    });
-
-    const { result } = renderHook(() =>
-      useCountQuery({
-        initialCondition,
-        count: mockCountFn,
-        attributes,
-      }),
-    );
-
-    await act(async () => {
-      await result.current.execute();
-    });
-
-    expect(mockCountFn).toHaveBeenCalledWith(expect.any(Object), attributes);
-  });
-
-  it('should handle count errors', async () => {
-    const error = new Error('Count failed');
-    mockExecute.mockRejectedValue(error);
-
-    const { result } = renderHook(() =>
-      useCountQuery({
-        initialCondition,
-        count: mockCountFn,
-      }),
-    );
-
-    await act(async () => {
-      try {
-        await result.current.execute();
-      } catch (e) {
-        // Expected error
-      }
-    });
-
-    expect(mockExecute).toHaveBeenCalled();
-  });
-
-  it('should auto execute on mount when autoExecute is true', () => {
-    renderHook(() =>
-      useCountQuery({
-        initialCondition,
-        count: mockCountFn,
-        autoExecute: true,
-      } as any),
-    );
-
-    expect(mockExecute).toHaveBeenCalledTimes(1);
-  });
-
-  it('should not auto execute on mount when autoExecute is false', () => {
-    renderHook(() =>
-      useCountQuery({
-        initialCondition,
-        count: mockCountFn,
-        autoExecute: false,
-      } as any),
-    );
-
-    expect(mockExecute).not.toHaveBeenCalled();
-  });
-
-  it('should not auto execute on mount when autoExecute is not provided', () => {
-    renderHook(() =>
-      useCountQuery({
-        initialCondition,
-        count: mockCountFn,
-      }),
-    );
-
-    expect(mockExecute).not.toHaveBeenCalled();
+    expect(result.current.error).toBe(customError);
   });
 });

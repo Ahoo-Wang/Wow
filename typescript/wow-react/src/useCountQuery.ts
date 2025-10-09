@@ -12,107 +12,54 @@
  */
 
 import { Condition } from '@ahoo-wang/fetcher-wow';
-import {
-  useExecutePromise,
-  useLatest,
-  UseExecutePromiseReturn, UseExecutePromiseOptions,
-} from '../core';
-import { useCallback, useState, useMemo, useEffect } from 'react';
-import { AttributesCapable, FetcherError } from '@ahoo-wang/fetcher';
-import { AutoExecuteCapable } from './types';
+import { FetcherError } from '@ahoo-wang/fetcher';
+import { useQuery, UseQueryOptions, UseQueryReturn } from './useQuery';
 
 /**
  * Options for the useCountQuery hook.
- * @template FIELDS - The type of the fields used in conditions.
- * @template E - The type of the error.
+ * Extends UseQueryOptions with Condition as query key and number as data type.
+ *
+ * @template FIELDS - The fields type for the condition
+ * @template E - The error type, defaults to FetcherError
  */
 export interface UseCountQueryOptions<
   FIELDS extends string = string,
   E = FetcherError,
-> extends UseExecutePromiseOptions<number, E>, AttributesCapable, AutoExecuteCapable {
-  /**
-   * The initial condition for the count query.
-   */
-  initialCondition: Condition<FIELDS>;
-  /**
-   * The function to execute the count query.
-   * @param condition - The condition to filter resources.
-   * @param attributes - Optional additional attributes.
-   * @returns A promise that resolves to the count of matching resources.
-   */
-  count: (
-    condition: Condition<FIELDS>,
-    attributes?: Record<string, any>,
-  ) => Promise<number>;
+> extends UseQueryOptions<Condition<FIELDS>, number, E> {
 }
 
 /**
  * Return type for the useCountQuery hook.
- * @template FIELDS - The type of the fields used in conditions.
- * @template E - The type of the error.
+ * Extends UseQueryReturn with Condition as query key and number as data type.
+ *
+ * @template FIELDS - The fields type for the condition
+ * @template E - The error type, defaults to FetcherError
  */
 export interface UseCountQueryReturn<
   FIELDS extends string = string,
   E = FetcherError,
-> extends UseExecutePromiseReturn<number, E> {
-  /**
-   * Executes the count query.
-   * @returns A promise that resolves to the count or an error.
-   */
-  execute: () => Promise<E | number>;
-  /**
-   * Sets the condition for the query.
-   * @param condition - The new condition.
-   */
-  setCondition: (condition: Condition<FIELDS>) => void;
+> extends UseQueryReturn<Condition<FIELDS>, number, E> {
 }
 
 /**
- * A React hook for managing count queries with state management for conditions.
- * @template FIELDS - The type of the fields used in conditions.
- * @template E - The type of the error.
- * @param options - The options for the hook.
- * @returns An object containing the query state and methods to update it.
+ * Hook for querying count data with conditions.
+ * Wraps useQuery to provide type-safe count queries.
+ *
+ * @template FIELDS - The fields type for the condition
+ * @template E - The error type, defaults to FetcherError
+ * @param options - The query options including condition and other settings
+ * @returns The query result with count data
+ *
  * @example
  * ```typescript
- * const { data, loading, error, execute, setCondition } = useCountQuery({
- *   initialCondition: {},
- *   count: async (condition) => fetchCount(condition),
+ * const { data, isLoading } = useCountQuery({
+ *   queryKey: [{ field: 'status', operator: 'eq', value: 'active' }],
+ *   queryFn: async (condition) => fetchCount(condition),
  * });
  * ```
  */
 export function useCountQuery<FIELDS extends string = string, E = FetcherError>(
   options: UseCountQueryOptions<FIELDS, E>,
 ): UseCountQueryReturn<FIELDS, E> {
-  const { initialCondition } = options;
-  const promiseState = useExecutePromise<number, E>(options);
-  const [condition, setCondition] = useState(initialCondition);
-  const latestOptions = useLatest(options);
-  const countExecutor = useCallback(async (): Promise<number> => {
-    return latestOptions.current.count(
-      condition,
-      latestOptions.current.attributes,
-    );
-  }, [condition, latestOptions]);
-
-  const execute = useCallback(() => {
-    return promiseState.execute(countExecutor);
-  }, [promiseState, countExecutor]);
-
-  const { autoExecute } = options;
-
-  useEffect(() => {
-    if (autoExecute) {
-      execute();
-    }
-  }, [autoExecute, execute]);
-
-  return useMemo(
-    () => ({
-      ...promiseState,
-      execute,
-      setCondition,
-    }),
-    [promiseState, execute, setCondition],
-  );
+  return useQuery(options);
 }

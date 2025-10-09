@@ -12,27 +12,26 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook } from '@testing-library/react';
 import { useSingleQuery } from '../../src';
-import {
-  SingleQuery,
-  Condition,
-  Projection,
-  FieldSort,
-  all,
-  SortDirection,
-} from '@ahoo-wang/fetcher-wow';
+import { SingleQuery, all, SortDirection } from '@ahoo-wang/fetcher-wow';
 
-// Mock the core hooks
-vi.mock('../../src/core', () => ({
-  useExecutePromise: vi.fn(),
-  useLatest: vi.fn(),
+// Mock useQuery
+vi.mock('../../src/wow/useQuery', () => ({
+  useQuery: vi.fn(),
 }));
 
-import { useExecutePromise, useLatest } from '../../src';
+import { useQuery } from '../../src';
 
 describe('useSingleQuery', () => {
   const mockResult = { id: 1, name: 'Item 1' };
+  const mockUseQueryReturn = {
+    data: mockResult,
+    loading: false,
+    error: null,
+    execute: vi.fn(),
+    reset: vi.fn(),
+  };
 
   const initialQuery: SingleQuery<'id' | 'name'> = {
     condition: all(),
@@ -40,202 +39,79 @@ describe('useSingleQuery', () => {
     sort: [{ field: 'id', direction: SortDirection.ASC }],
   };
 
-  const mockQuery = vi.fn().mockResolvedValue(mockResult);
-  const mockExecute = vi.fn().mockImplementation(async executor => {
-    if (executor) {
-      return await executor();
-    }
-    return mockResult;
-  });
-  const mockReset = vi.fn();
-
   beforeEach(() => {
     vi.clearAllMocks();
-    (useExecutePromise as any).mockReturnValue({
-      data: null,
-      loading: false,
-      error: null,
-      execute: mockExecute,
-      reset: mockReset,
-    });
-    (useLatest as any).mockReturnValue({
-      current: { query: mockQuery, attributes: {} },
-    });
+    (useQuery as any).mockReturnValue(mockUseQueryReturn);
   });
 
-  it('should initialize with initial query values', () => {
-    const { result } = renderHook(() =>
-      useSingleQuery({
-        initialQuery,
-        query: mockQuery,
-      }),
-    );
+  it('should call useQuery with the provided options', () => {
+    const execute = vi.fn().mockResolvedValue(mockResult);
+    const options = {
+      initialQuery,
+      execute,
+    };
 
-    expect(result.current).toHaveProperty('execute');
-    expect(result.current).toHaveProperty('reset');
-    expect(result.current).toHaveProperty('setCondition');
-    expect(result.current).toHaveProperty('setProjection');
-    expect(result.current).toHaveProperty('setSort');
-  });
-
-  it('should execute query when execute is called', async () => {
-    const { result } = renderHook(() =>
-      useSingleQuery({
-        initialQuery,
-        query: mockQuery,
-      }),
-    );
-
-    await act(async () => {
-      await result.current.execute();
-    });
-
-    expect(mockExecute).toHaveBeenCalled();
-  });
-
-  it('should call reset when reset is called', () => {
-    const { result } = renderHook(() =>
-      useSingleQuery({
-        initialQuery,
-        query: mockQuery,
-      }),
-    );
-
-    act(() => {
-      result.current.reset();
-    });
-
-    expect(mockReset).toHaveBeenCalled();
-  });
-
-  it('should update condition when setCondition is called', () => {
-    const { result } = renderHook(() =>
-      useSingleQuery({
-        initialQuery,
-        query: mockQuery,
-      }),
-    );
-
-    const newCondition: Condition<'id' | 'name'> = all();
-
-    act(() => {
-      result.current.setCondition(newCondition);
-    });
-
-    expect(true).toBe(true); // Placeholder, as internal state is hard to test directly
-  });
-
-  it('should update projection when setProjection is called', () => {
-    const { result } = renderHook(() =>
-      useSingleQuery({
-        initialQuery,
-        query: mockQuery,
-      }),
-    );
-
-    const newProjection: Projection<'id' | 'name'> = { include: ['name'] };
-
-    act(() => {
-      result.current.setProjection(newProjection);
-    });
-
-    expect(true).toBe(true); // Placeholder
-  });
-
-  it('should update sort when setSort is called', () => {
-    const { result } = renderHook(() =>
-      useSingleQuery({
-        initialQuery,
-        query: mockQuery,
-      }),
-    );
-
-    const newSort: FieldSort<'id' | 'name'>[] = [
-      { field: 'name', direction: SortDirection.DESC },
-    ];
-
-    act(() => {
-      result.current.setSort(newSort);
-    });
-
-    expect(true).toBe(true); // Placeholder
-  });
-
-  it('should pass attributes to query function', async () => {
-    const attributes = { token: 'abc' };
-    (useLatest as any).mockReturnValue({
-      current: { query: mockQuery, attributes },
-    });
-
-    const { result } = renderHook(() =>
-      useSingleQuery({
-        initialQuery,
-        query: mockQuery,
-        attributes,
-      }),
-    );
-
-    await act(async () => {
-      await result.current.execute();
-    });
-
-    expect(mockQuery).toHaveBeenCalledWith(expect.any(Object), attributes);
-  });
-
-  it('should handle query errors', async () => {
-    const error = new Error('Query failed');
-    mockExecute.mockRejectedValue(error);
-
-    const { result } = renderHook(() =>
-      useSingleQuery({
-        initialQuery,
-        query: mockQuery,
-      }),
-    );
-
-    await act(async () => {
-      try {
-        await result.current.execute();
-      } catch (e) {
-        // Expected error
-      }
-    });
-
-    expect(mockExecute).toHaveBeenCalled();
-  });
-
-  it('should auto execute on mount when autoExecute is true', () => {
     renderHook(() =>
-      useSingleQuery({
-        initialQuery,
-        query: mockQuery,
-        autoExecute: true,
-      } as any),
+      useSingleQuery<{ id: number; name: string }, 'id' | 'name'>(options),
     );
 
-    expect(mockExecute).toHaveBeenCalledTimes(1);
+    expect(useQuery).toHaveBeenCalledWith(options);
   });
 
-  it('should not auto execute on mount when autoExecute is false', () => {
-    renderHook(() =>
-      useSingleQuery({
-        initialQuery,
-        query: mockQuery,
-        autoExecute: false,
-      } as any),
+  it('should return the result from useQuery', () => {
+    const execute = vi.fn().mockResolvedValue(mockResult);
+    const options = {
+      initialQuery,
+      execute,
+    };
+
+    const { result } = renderHook(() =>
+      useSingleQuery<{ id: number; name: string }, 'id' | 'name'>(options),
     );
 
-    expect(mockExecute).not.toHaveBeenCalled();
+    expect(result.current).toBe(mockUseQueryReturn);
   });
 
-  it('should not auto execute on mount when autoExecute is not provided', () => {
+  it('should work with custom result and field types', () => {
+    const customResult = { customId: 42, customName: 'Custom' };
+    const customInitialQuery: SingleQuery<'customId' | 'customName'> = {
+      condition: all(),
+      projection: { include: ['customId', 'customName'] },
+      sort: [{ field: 'customId', direction: SortDirection.DESC }],
+    };
+    const execute = vi.fn().mockResolvedValue(customResult);
+    const options = {
+      initialQuery: customInitialQuery,
+      execute,
+    };
+
     renderHook(() =>
-      useSingleQuery({
-        initialQuery,
-        query: mockQuery,
-      }),
+      useSingleQuery<
+        { customId: number; customName: string },
+        'customId' | 'customName'
+      >(options),
     );
 
-    expect(mockExecute).not.toHaveBeenCalled();
+    expect(useQuery).toHaveBeenCalledWith(options);
+  });
+
+  it('should work with custom error types', () => {
+    const customError = new Error('Custom error');
+    const mockReturnWithError = { ...mockUseQueryReturn, error: customError };
+    (useQuery as any).mockReturnValue(mockReturnWithError);
+
+    const execute = vi.fn().mockRejectedValue(customError);
+    const options = {
+      initialQuery,
+      execute,
+    };
+
+    const { result } = renderHook(() =>
+      useSingleQuery<{ id: number; name: string }, 'id' | 'name', Error>(
+        options,
+      ),
+    );
+
+    expect(result.current.error).toBe(customError);
   });
 });

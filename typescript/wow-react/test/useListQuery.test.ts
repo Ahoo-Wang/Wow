@@ -12,252 +12,109 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook } from '@testing-library/react';
 import { useListQuery } from '../../src';
-import {
-  ListQuery,
-  Condition,
-  Projection,
-  FieldSort,
-  all,
-  SortDirection,
-} from '@ahoo-wang/fetcher-wow';
+import { ListQuery, all, SortDirection } from '@ahoo-wang/fetcher-wow';
 
-// Mock the core hooks
-vi.mock('../../src/core', () => ({
-  useExecutePromise: vi.fn(),
-  useLatest: vi.fn(),
+// Mock useQuery
+vi.mock('../../src/wow/useQuery', () => ({
+  useQuery: vi.fn(),
 }));
 
-import { useExecutePromise, useLatest } from '../../src';
+import { useQuery } from '../../src';
 
 describe('useListQuery', () => {
-  const mockList = [
+  const mockList: { id: number; name: string }[] = [
     { id: 1, name: 'Item 1' },
     { id: 2, name: 'Item 2' },
   ];
+  const mockUseQueryReturn = {
+    data: mockList,
+    loading: false,
+    error: null,
+    execute: vi.fn(),
+    reset: vi.fn(),
+  };
 
   const initialQuery: ListQuery<'id' | 'name'> = {
     condition: all(),
     projection: { include: ['id', 'name'] },
     sort: [{ field: 'id', direction: SortDirection.ASC }],
-    limit: 10,
   };
-
-  const mockListFn = vi.fn().mockResolvedValue(mockList);
-  const mockExecute = vi.fn().mockImplementation(async executor => {
-    if (executor) {
-      return await executor();
-    }
-    return mockList;
-  });
-  const mockReset = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
-    (useExecutePromise as any).mockReturnValue({
-      data: null,
-      loading: false,
-      error: null,
-      execute: mockExecute,
-      reset: mockReset,
-    });
-    (useLatest as any).mockReturnValue({
-      current: { list: mockListFn, attributes: {} },
-    });
+    (useQuery as any).mockReturnValue(mockUseQueryReturn);
   });
 
-  it('should initialize with initial query values', () => {
-    const { result } = renderHook(() =>
-      useListQuery({
-        initialQuery,
-        list: mockListFn,
-      }),
+  it('should call useQuery with the provided options', () => {
+    const execute = vi.fn().mockResolvedValue(mockList);
+    const options = {
+      initialQuery,
+      execute,
+    };
+
+    renderHook(() =>
+      useListQuery<{ id: number; name: string }, 'id' | 'name'>(options),
     );
 
-    expect(result.current).toHaveProperty('execute');
-    expect(result.current).toHaveProperty('reset');
-    expect(result.current).toHaveProperty('setCondition');
-    expect(result.current).toHaveProperty('setProjection');
-    expect(result.current).toHaveProperty('setSort');
-    expect(result.current).toHaveProperty('setLimit');
+    expect(useQuery).toHaveBeenCalledWith(options);
   });
 
-  it('should execute list query when execute is called', async () => {
+  it('should return the result from useQuery', () => {
+    const execute = vi.fn().mockResolvedValue(mockList);
+    const options = {
+      initialQuery,
+      execute,
+    };
+
     const { result } = renderHook(() =>
-      useListQuery({
-        initialQuery,
-        list: mockListFn,
-      }),
+      useListQuery<{ id: number; name: string }, 'id' | 'name'>(options),
     );
 
-    await act(async () => {
-      await result.current.execute();
-    });
-
-    expect(mockExecute).toHaveBeenCalled();
+    expect(result.current).toBe(mockUseQueryReturn);
   });
 
-  it('should call reset when reset is called', () => {
-    const { result } = renderHook(() =>
-      useListQuery({
-        initialQuery,
-        list: mockListFn,
-      }),
-    );
-
-    act(() => {
-      result.current.reset();
-    });
-
-    expect(mockReset).toHaveBeenCalled();
-  });
-
-  it('should update condition when setCondition is called', () => {
-    const { result } = renderHook(() =>
-      useListQuery({
-        initialQuery,
-        list: mockListFn,
-      }),
-    );
-
-    const newCondition: Condition<'id' | 'name'> = all();
-
-    act(() => {
-      result.current.setCondition(newCondition);
-    });
-
-    expect(true).toBe(true); // Placeholder, as internal state is hard to test directly
-  });
-
-  it('should update projection when setProjection is called', () => {
-    const { result } = renderHook(() =>
-      useListQuery({
-        initialQuery,
-        list: mockListFn,
-      }),
-    );
-
-    const newProjection: Projection<'id' | 'name'> = { include: ['name'] };
-
-    act(() => {
-      result.current.setProjection(newProjection);
-    });
-
-    expect(true).toBe(true); // Placeholder
-  });
-
-  it('should update sort when setSort is called', () => {
-    const { result } = renderHook(() =>
-      useListQuery({
-        initialQuery,
-        list: mockListFn,
-      }),
-    );
-
-    const newSort: FieldSort<'id' | 'name'>[] = [
-      { field: 'name', direction: SortDirection.DESC },
+  it('should work with custom result and field types', () => {
+    const customList: { customId: number; customName: string }[] = [
+      { customId: 42, customName: 'Custom' },
     ];
+    const customInitialQuery: ListQuery<'customId' | 'customName'> = {
+      condition: all(),
+      projection: { include: ['customId', 'customName'] },
+      sort: [{ field: 'customId', direction: SortDirection.DESC }],
+    };
+    const execute = vi.fn().mockResolvedValue(customList);
+    const options = {
+      initialQuery: customInitialQuery,
+      execute,
+    };
 
-    act(() => {
-      result.current.setSort(newSort);
-    });
-
-    expect(true).toBe(true); // Placeholder
-  });
-
-  it('should update limit when setLimit is called', () => {
-    const { result } = renderHook(() =>
-      useListQuery({
-        initialQuery,
-        list: mockListFn,
-      }),
+    renderHook(() =>
+      useListQuery<
+        { customId: number; customName: string },
+        'customId' | 'customName'
+      >(options),
     );
 
-    const newLimit = 20;
-
-    act(() => {
-      result.current.setLimit(newLimit);
-    });
-
-    expect(true).toBe(true); // Placeholder
+    expect(useQuery).toHaveBeenCalledWith(options);
   });
 
-  it('should pass attributes to list function', async () => {
-    const attributes = { token: 'abc' };
-    (useLatest as any).mockReturnValue({
-      current: { list: mockListFn, attributes },
-    });
+  it('should work with custom error types', () => {
+    const customError = new Error('Custom error');
+    const mockReturnWithError = { ...mockUseQueryReturn, error: customError };
+    (useQuery as any).mockReturnValue(mockReturnWithError);
 
-    const { result } = renderHook(() =>
-      useListQuery({
-        initialQuery,
-        list: mockListFn,
-        attributes,
-      }),
-    );
-
-    await act(async () => {
-      await result.current.execute();
-    });
-
-    expect(mockListFn).toHaveBeenCalledWith(expect.any(Object), attributes);
-  });
-
-  it('should handle list errors', async () => {
-    const error = new Error('List failed');
-    mockExecute.mockRejectedValue(error);
+    const execute = vi.fn().mockRejectedValue(customError);
+    const options = {
+      initialQuery,
+      execute,
+    };
 
     const { result } = renderHook(() =>
-      useListQuery({
-        initialQuery,
-        list: mockListFn,
-      }),
+      useListQuery<{ id: number; name: string }, 'id' | 'name', Error>(options),
     );
 
-    await act(async () => {
-      try {
-        await result.current.execute();
-      } catch (e) {
-        // Expected error
-      }
-    });
-
-    expect(mockExecute).toHaveBeenCalled();
-  });
-
-  it('should auto execute on mount when autoExecute is true', () => {
-    renderHook(() =>
-      useListQuery({
-        initialQuery,
-        list: mockListFn,
-        autoExecute: true,
-      }),
-    );
-
-    expect(mockExecute).toHaveBeenCalledTimes(1);
-  });
-
-  it('should not auto execute on mount when autoExecute is false', () => {
-    renderHook(() =>
-      useListQuery({
-        initialQuery,
-        list: mockListFn,
-        autoExecute: false,
-      }),
-    );
-
-    expect(mockExecute).not.toHaveBeenCalled();
-  });
-
-  it('should not auto execute on mount when autoExecute is not provided', () => {
-    renderHook(() =>
-      useListQuery({
-        initialQuery,
-        list: mockListFn,
-      }),
-    );
-
-    expect(mockExecute).not.toHaveBeenCalled();
+    expect(result.current.error).toBe(customError);
   });
 });

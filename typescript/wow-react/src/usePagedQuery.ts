@@ -11,101 +11,60 @@
  * limitations under the License.
  */
 
-import {
-  PagedList,
-  PagedQuery,
-  Condition,
-  type Pagination,
-  pagedQuery,
-  Projection,
-  FieldSort,
-} from '@ahoo-wang/fetcher-wow';
-import {
-  useExecutePromise,
-  useLatest,
-  UseExecutePromiseReturn, UseExecutePromiseOptions,
-} from '../core';
-import { useCallback, useMemo, useState, useEffect } from 'react';
-import { AttributesCapable, FetcherError } from '@ahoo-wang/fetcher';
-import { AutoExecuteCapable } from './types';
+import { PagedList, PagedQuery } from '@ahoo-wang/fetcher-wow';
+import { FetcherError } from '@ahoo-wang/fetcher';
+import { useQuery, UseQueryOptions, UseQueryReturn } from './useQuery';
 
 /**
  * Options for the usePagedQuery hook.
- * @template R - The type of the result items in the paged list.
- * @template FIELDS - The type of the fields used in conditions and projections.
- * @template E - The type of the error.
+ * Extends UseQueryOptions with PagedQuery as query key and PagedList as data type.
+ *
+ * @template R - The type of the result items in the paged list
+ * @template FIELDS - The fields type for the paged query
+ * @template E - The error type, defaults to FetcherError
  */
 export interface UsePagedQueryOptions<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-> extends UseExecutePromiseOptions<PagedList<R>, E>, AttributesCapable, AutoExecuteCapable {
-  /**
-   * The initial paged query configuration.
-   */
-  initialQuery: PagedQuery<FIELDS>;
-  /**
-   * The function to execute the paged query.
-   * @param pagedQuery - The paged query object.
-   * @param attributes - Optional additional attributes.
-   * @returns A promise that resolves to a paged list of results.
-   */
-  query: (
-    pagedQuery: PagedQuery<FIELDS>,
-    attributes?: Record<string, any>,
-  ) => Promise<PagedList<R>>;
+> extends UseQueryOptions<PagedQuery<FIELDS>, PagedList<R>, E> {
 }
 
 /**
  * Return type for the usePagedQuery hook.
- * @template R - The type of the result items in the paged list.
- * @template FIELDS - The type of the fields used in conditions and projections.
- * @template E - The type of the error.
+ * Extends UseQueryReturn with PagedQuery as query key and PagedList as data type.
+ *
+ * @template R - The type of the result items in the paged list
+ * @template FIELDS - The fields type for the paged query
+ * @template E - The error type, defaults to FetcherError
  */
 export interface UsePagedQueryReturn<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-> extends UseExecutePromiseReturn<PagedList<R>, E> {
-  /**
-   * Executes the paged query.
-   * @returns A promise that resolves to the paged list or an error.
-   */
-  execute: () => Promise<E | PagedList<R>>;
-  /**
-   * Sets the condition for the query.
-   * @param condition - The new condition.
-   */
-  setCondition: (condition: Condition<FIELDS>) => void;
-  /**
-   * Sets the projection for the query.
-   * @param projection - The new projection.
-   */
-  setProjection: (projection: Projection<FIELDS>) => void;
-  /**
-   * Sets the pagination for the query.
-   * @param pagination - The new pagination.
-   */
-  setPagination: (pagination: Pagination) => void;
-  /**
-   * Sets the sort order for the query.
-   * @param sort - The new sort array.
-   */
-  setSort: (sort: FieldSort<FIELDS>[]) => void;
+> extends UseQueryReturn<PagedQuery<FIELDS>, PagedList<R>, E> {
 }
 
 /**
- * A React hook for managing paged queries with state management for conditions, projections, pagination, and sorting.
- * @template R - The type of the result items in the paged list.
- * @template FIELDS - The type of the fields used in conditions and projections.
- * @template E - The type of the error.
- * @param options - The options for the hook.
- * @returns An object containing the query state and methods to update it.
+ * Hook for querying paged data with conditions, projection, pagination, and sorting.
+ * Wraps useQuery to provide type-safe paged queries.
+ *
+ * @template R - The type of the result items in the paged list
+ * @template FIELDS - The fields type for the paged query
+ * @template E - The error type, defaults to FetcherError
+ * @param options - The query options including paged query configuration
+ * @returns The query result with paged list data
+ *
  * @example
  * ```typescript
- * const { data, loading, error, execute, setCondition, setPagination } = usePagedQuery({
- *   initialQuery: { condition: {}, pagination: { index: 1, size: 10 }, projection: {}, sort: [] },
- *   query: async (pagedQuery) => fetchPagedData(pagedQuery),
+ * const { data, isLoading } = usePagedQuery<{ id: number; name: string }, 'id' | 'name'>({
+ *   initialQuery: {
+ *     condition: all(),
+ *     pagination: { index: 1, size: 10 },
+ *     projection: { include: ['id', 'name'] },
+ *     sort: [{ field: 'id', direction: SortDirection.ASC }],
+ *   },
+ *   execute: async (query) => fetchPagedData(query),
  * });
  * ```
  */
@@ -116,54 +75,5 @@ export function usePagedQuery<
 >(
   options: UsePagedQueryOptions<R, FIELDS, E>,
 ): UsePagedQueryReturn<R, FIELDS, E> {
-  const { initialQuery } = options;
-  const promiseState = useExecutePromise<PagedList<R>, E>(options);
-  const [condition, setCondition] = useState(initialQuery.condition);
-  const [pagination, setPagination] = useState(initialQuery.pagination);
-  const [projection, setProjection] = useState(initialQuery.projection);
-  const [sort, setSort] = useState(initialQuery.sort);
-  const latestOptions = useLatest(options);
-  const queryExecutor = useCallback(async (): Promise<PagedList<R>> => {
-    const queryRequest = pagedQuery({
-      condition,
-      pagination,
-      projection,
-      sort,
-    });
-    return latestOptions.current.query(
-      queryRequest,
-      latestOptions.current.attributes,
-    );
-  }, [condition, projection, pagination, sort, latestOptions]);
-
-  const execute = useCallback(() => {
-    return promiseState.execute(queryExecutor);
-  }, [promiseState, queryExecutor]);
-
-  const { autoExecute } = options;
-
-  useEffect(() => {
-    if (autoExecute) {
-      execute();
-    }
-  }, [autoExecute, execute]);
-
-  return useMemo(
-    () => ({
-      ...promiseState,
-      execute,
-      setCondition,
-      setProjection,
-      setPagination,
-      setSort,
-    }),
-    [
-      promiseState,
-      execute,
-      setCondition,
-      setProjection,
-      setPagination,
-      setSort,
-    ],
-  );
+  return useQuery<PagedQuery<FIELDS>, PagedList<R>, E>(options);
 }
