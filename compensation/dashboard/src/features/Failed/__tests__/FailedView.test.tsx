@@ -4,7 +4,7 @@ import FailedView from "../FailedView.tsx";
 import { FindCategory } from "../FindCategory.ts";
 
 // Mock all dependencies
-vi.mock("../../../utils/useQuery.ts", () => ({
+vi.mock("../../../utils/useQueryParams.ts", () => ({
   useQueryParams: vi.fn(),
 }));
 
@@ -83,7 +83,7 @@ vi.mock("antd", () => ({
 }));
 
 // Import mocks for manipulation
-import { useQueryParams } from "../../../utils/useQuery.ts";
+import { useQueryParams } from "../../../utils/useQueryParams.ts";
 import { useGlobalDrawer } from "../../../components/GlobalDrawer";
 import { PromiseStatus, usePagedQuery } from "@ahoo-wang/fetcher-react";
 import { App } from "antd";
