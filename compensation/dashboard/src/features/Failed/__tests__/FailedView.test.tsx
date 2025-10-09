@@ -14,6 +14,9 @@ vi.mock("../../../components/GlobalDrawer", () => ({
 
 vi.mock("@ahoo-wang/fetcher-react", () => ({
   usePagedQuery: vi.fn(),
+  PromiseStatus: {
+    IDLE: "idle"
+  },
 }));
 
 vi.mock("../../../services", () => ({
