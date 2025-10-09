@@ -16,4 +16,5 @@ export * from './useSingleQuery';
 export * from './useCountQuery';
 export * from './useListQuery';
 export * from './useListStreamQuery';
+export * from './useQuery';
 export * from './types';
