@@ -49,7 +49,6 @@ export function FailedDetails({ state }: FailedDetailsProps) {
             <Tag color="processing">Prepared</Tag>
           )}
           {state.status === "SUCCEEDED" && <Tag color="success">Succeeded</Tag>}
-          {!state.status && "-"}
         </>
       ),
       span: 1,
@@ -74,7 +73,6 @@ export function FailedDetails({ state }: FailedDetailsProps) {
           {state.recoverable === "UNKNOWN" && (
             <Tag color="warning">Unknown</Tag>
           )}
-          {!state.recoverable && "-"}
         </>
       ),
       span: 1,
