@@ -1,3 +1,4 @@
+import React from "react";
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
@@ -6,7 +7,7 @@ import { useGlobalDrawer } from "../useGlobalDrawer.ts";
 
 // Mock antd Drawer
 vi.mock("antd", () => ({
-  Drawer: ({ open, onClose, children }: any) => (
+  Drawer: ({ open, onClose, children }: { open?: boolean; onClose?: () => void; children?: React.ReactNode }) => (
     <div data-testid="drawer" data-open={open}>
       {children}
       <button onClick={onClose} data-testid="close-button">Close</button>

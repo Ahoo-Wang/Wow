@@ -1,10 +1,15 @@
+import React from "react";
 import { describe, it, expect, vi } from "vitest";
 import { render } from "@testing-library/react";
 import { MarkRecoverable } from "../MarkRecoverable.tsx";
+import { RecoverableType } from "@ahoo-wang/fetcher-wow";
 
 // Mock dependencies
 vi.mock("@ahoo-wang/fetcher-wow", () => ({
-  RecoverableType: { UNRECOVERABLE: "UNRECOVERABLE", RECOVERABLE: "RECOVERABLE" },
+  RecoverableType: {
+    UNRECOVERABLE: "UNRECOVERABLE",
+    RECOVERABLE: "RECOVERABLE",
+  },
   ResourceAttributionPathSpec: { NONE: "NONE" },
   QueryClientFactory: class {
     createSnapshotQueryClient() {
@@ -27,10 +32,16 @@ vi.mock("../../utils/useExecutePromise.ts", () => ({
 }));
 
 vi.mock("antd", () => ({
-  Button: ({ children }: any) => <button data-testid="button">{children}</button>,
+  Button: ({ children }: { children?: React.ReactNode }) => (
+    <button data-testid="button">{children}</button>
+  ),
   Select: () => <select data-testid="select" />,
-  Space: ({ children }: any) => <div>{children}</div>,
-  App: { useApp: () => ({ notification: { success: vi.fn(), error: vi.fn() } }) },
+  Space: ({ children }: { children?: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+  App: {
+    useApp: () => ({ notification: { success: vi.fn(), error: vi.fn() } }),
+  },
 }));
 
 describe("MarkRecoverable", () => {
@@ -38,9 +49,9 @@ describe("MarkRecoverable", () => {
     const { getByTestId } = render(
       <MarkRecoverable
         id="test-id"
-        recoverable={"UNRECOVERABLE" as any}
+        recoverable={RecoverableType.UNRECOVERABLE}
         onChanged={vi.fn()}
-      />
+      />,
     );
     expect(getByTestId("select")).toBeInTheDocument();
   });

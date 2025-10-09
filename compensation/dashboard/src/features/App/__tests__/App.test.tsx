@@ -1,3 +1,4 @@
+import React from "react";
 import { describe, it, expect, vi } from "vitest";
 import "@testing-library/jest-dom";
 import App from "../App.tsx";
@@ -9,7 +10,7 @@ vi.mock("antd", () => ({
     Content: ({ children }: { children: React.ReactNode }) => <main>{children}</main>,
     Footer: ({ children }: { children: React.ReactNode }) => <footer>{children}</footer>,
   },
-  Menu: ({ items }: any) => <nav>{items?.length} items</nav>,
+  Menu: ({ items }: { items?: unknown[] }) => <nav>{items?.length} items</nav>,
   Watermark: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   theme: { useToken: () => ({ token: {} }) },
   Typography: { Title: () => <h1>Title</h1> },
@@ -45,7 +46,7 @@ describe("App", () => {
       {
         label: "Test",
         path: "/test",
-        category: "test" as any,
+        category: "test",
         component: () => <div>Test Component</div>,
       },
     ];
