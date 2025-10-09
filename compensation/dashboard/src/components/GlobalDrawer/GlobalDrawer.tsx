@@ -12,7 +12,7 @@
  */
 
 import { Drawer } from "antd";
-import { useState, type ReactNode } from "react";
+import { useState, type ReactNode, useCallback, useMemo } from "react";
 import { GlobalDrawerContext } from "./useGlobalDrawer";
 import type { DrawerProps } from "antd/es/drawer";
 
@@ -26,37 +26,38 @@ export function GlobalDrawerProvider({ children }: GlobalDrawerProviderProps) {
     width: "80vw",
   });
 
-  const openDrawer = (config: DrawerProps) => {
+  const openDrawer = useCallback((config: DrawerProps) => {
     setDrawerProps({
       width: "80vw",
       ...config,
       open: true,
     });
-  };
+  }, []);
 
-  const closeDrawer = () => {
+  const closeDrawer = useCallback(() => {
     setDrawerProps((prev) => ({
       ...prev,
       children: null,
       open: false,
     }));
-  };
+  }, []);
 
-  const updateDrawer = (config: Partial<DrawerProps>) => {
+  const updateDrawer = useCallback((config: Partial<DrawerProps>) => {
     setDrawerProps((prev) => ({
       ...prev,
       ...config,
     }));
-  };
-
+  }, []);
+  const contextProps = useMemo(
+    () => ({
+      openDrawer,
+      closeDrawer,
+      updateDrawer,
+    }),
+    [openDrawer, closeDrawer, updateDrawer],
+  );
   return (
-    <GlobalDrawerContext.Provider
-      value={{
-        openDrawer,
-        closeDrawer,
-        updateDrawer,
-      }}
-    >
+    <GlobalDrawerContext.Provider value={contextProps}>
       {children}
       <Drawer {...drawerProps} onClose={closeDrawer} />
     </GlobalDrawerContext.Provider>

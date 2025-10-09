@@ -33,7 +33,7 @@ export const AppRouter = createBrowserRouter([
               <Skeleton active/>
             }
           >
-            <routeItem.component category={routeItem.category} />
+            <routeItem.component key={routeItem.category} category={routeItem.category} />
           </Suspense>
         ),
       })),

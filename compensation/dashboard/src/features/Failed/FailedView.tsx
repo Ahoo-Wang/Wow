@@ -27,12 +27,14 @@ import { useGlobalDrawer } from "../../components/GlobalDrawer";
 import { FetchingFailedDetails } from "./details/FetchingFailedDetails.tsx";
 import { executionFailedSnapshotQueryClient } from "../../services";
 import { usePagedQuery } from "@ahoo-wang/fetcher-react";
+import { App } from "antd";
 
 interface FailedViewProps {
   category: FindCategory;
 }
 
 export default function FailedView({ category }: FailedViewProps) {
+  const { notification } = App.useApp();
   const { openDrawer } = useGlobalDrawer();
   const queryIdParams = useQueryParams("id");
 
@@ -40,9 +42,10 @@ export default function FailedView({ category }: FailedViewProps) {
     if (!queryIdParams) {
       return;
     }
+    const queryId = queryIdParams as string;
     openDrawer({
       title: "Execution Failed Details",
-      children: <FetchingFailedDetails id={queryIdParams as string} />,
+      children: <FetchingFailedDetails key={queryId} id={queryId} />,
     });
   }, [queryIdParams, openDrawer]);
 
@@ -55,6 +58,12 @@ export default function FailedView({ category }: FailedViewProps) {
         executionFailedSnapshotQueryClient,
       ),
       autoExecute: true,
+      onError: (error) => {
+        notification.error({
+          message: "Search Error",
+          description: error.message,
+        });
+      },
     });
 
   const onSearch = useCallback(
@@ -67,19 +76,14 @@ export default function FailedView({ category }: FailedViewProps) {
           ),
         }),
       );
-      execute();
     },
-    [setQuery, execute, category],
+    [setQuery, category],
   );
   const onPaginationChange = useCallback(
     (page: number, pageSize: number) => {
-      getQuery().pagination = {
-        index: page,
-        size: pageSize,
-      };
-      execute();
+      setQuery({ ...getQuery(), pagination: { index: page, size: pageSize } });
     },
-    [execute, getQuery],
+    [getQuery, setQuery],
   );
   const onRefresh = useCallback(() => {
     execute();
