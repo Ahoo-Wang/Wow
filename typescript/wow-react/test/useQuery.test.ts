@@ -56,7 +56,7 @@ describe('useQuery', () => {
     (useLatest as any).mockImplementation((value: any) => {
       if (JSON.stringify(value) === JSON.stringify(initialQuery))
         return mockLatestQuery;
-      return mockLatestOptions;
+      return { current: value };
     });
   });
 

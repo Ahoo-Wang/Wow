@@ -88,8 +88,7 @@ export interface UseQueryReturn<Q, R, E = FetcherError>
  *   });
  *
  *   const handleUserChange = (userId: string) => {
- *     setQuery({ id: userId });
- *     execute();
+ *     setQuery({ id: userId }); // Automatically executes if autoExecute is true
  *   };
  *
  *   if (loading) return <div>Loading...</div>;
@@ -111,7 +110,6 @@ export function useQuery<Q, R, E = FetcherError>(
   const promiseState = useExecutePromise<R, E>(latestOptions.current);
   const latestQuery = useLatest(initialQuery);
 
-
   const queryExecutor = useCallback(async (): Promise<R> => {
     return latestOptions.current.execute(
       latestQuery.current,
@@ -125,22 +123,21 @@ export function useQuery<Q, R, E = FetcherError>(
   const getQuery = useCallback(() => {
     return latestQuery.current;
   }, [latestQuery]);
-  const { autoExecute } = options;
   const setQuery = useCallback(
     (query: Q) => {
       latestQuery.current = query;
-      if (autoExecute) {
+      if (latestOptions.current.autoExecute) {
         execute();
       }
     },
-    [latestQuery, autoExecute, execute],
+    [latestQuery, latestOptions, execute],
   );
 
   useEffect(() => {
-    if (autoExecute) {
+    if (latestOptions.current.autoExecute) {
       execute();
     }
-  }, [autoExecute, execute]);
+  }, [latestOptions, execute]);
 
   return useMemo(
     () => ({
