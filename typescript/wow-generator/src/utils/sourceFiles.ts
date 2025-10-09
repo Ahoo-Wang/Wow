@@ -141,9 +141,6 @@ export function addImportModelInfo(
 export function jsDoc(
   descriptions: (string | undefined)[],
 ): string | undefined {
-  if (!Array.isArray(descriptions)) {
-    return undefined;
-  }
   const filtered = descriptions.filter(
     v => v !== undefined && typeof v === 'string' && v.length > 0,
   );
