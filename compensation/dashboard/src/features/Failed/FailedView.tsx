@@ -22,7 +22,7 @@ import {
 } from "@ahoo-wang/fetcher-wow";
 import { type ExecutionFailedState } from "../../generated";
 import { useCallback, useEffect } from "react";
-import { useQueryParams } from "../../utils/useQuery.ts";
+import { useQueryParams } from "../../utils/useQueryParams.ts";
 import { useGlobalDrawer } from "../../components/GlobalDrawer";
 import { FetchingFailedDetails } from "./details/FetchingFailedDetails.tsx";
 import { executionFailedSnapshotQueryClient } from "../../services";

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
-import { useQueryParams } from "./useQuery.ts";
+import { useQueryParams } from "./useQueryParams.ts";
 import { MemoryRouter } from "react-router";
 
 // Mock useLocation
