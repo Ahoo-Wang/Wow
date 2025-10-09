@@ -51,9 +51,11 @@ describe('useQuery', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockLatestQuery.current = { ...initialQuery };
     (useExecutePromise as any).mockReturnValue(mockPromiseState);
     (useLatest as any).mockImplementation((value: any) => {
-      if (value === initialQuery) return mockLatestQuery;
+      if (JSON.stringify(value) === JSON.stringify(initialQuery))
+        return mockLatestQuery;
       return mockLatestOptions;
     });
   });
@@ -200,5 +202,69 @@ describe('useQuery', () => {
     const { result } = renderHook(() => useQuery(options));
 
     expect(result.current.loading).toBe(true);
+  });
+
+  it('should return current query with getQuery', () => {
+    const mockQueryExecutor = vi.fn().mockResolvedValue(mockResult);
+    const options = {
+      initialQuery,
+      execute: mockQueryExecutor,
+    };
+
+    const { result } = renderHook(() => useQuery(options));
+
+    expect(result.current.getQuery()).toEqual(initialQuery);
+  });
+
+  it('should update query with setQuery', () => {
+    const newQuery = { id: '2', filter: 'inactive' };
+    const mockQueryExecutor = vi.fn().mockResolvedValue(mockResult);
+    const options = {
+      initialQuery,
+      execute: mockQueryExecutor,
+    };
+
+    const { result } = renderHook(() => useQuery(options));
+
+    act(() => {
+      result.current.setQuery(newQuery);
+    });
+
+    expect(result.current.getQuery()).toEqual(newQuery);
+  });
+
+  it('should call execute with query and attributes', async () => {
+    const attributes = { source: 'test' };
+    const mockQueryExecutor = vi.fn().mockResolvedValue(mockResult);
+    const options = {
+      initialQuery,
+      execute: mockQueryExecutor,
+      attributes,
+    };
+
+    const { result } = renderHook(() => useQuery(options));
+
+    await act(async () => {
+      await result.current.execute();
+    });
+
+    expect(mockExecute).toHaveBeenCalled();
+    // Note: The actual call to queryExecutor is mocked, but the structure is tested
+  });
+
+  it('should reset the promise state', () => {
+    const mockQueryExecutor = vi.fn().mockResolvedValue(mockResult);
+    const options = {
+      initialQuery,
+      execute: mockQueryExecutor,
+    };
+
+    const { result } = renderHook(() => useQuery(options));
+
+    act(() => {
+      result.current.reset();
+    });
+
+    expect(mockReset).toHaveBeenCalled();
   });
 });

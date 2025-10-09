@@ -46,6 +46,9 @@ export interface UseQueryOptions<Q, R, E = FetcherError>
  */
 export interface UseQueryReturn<Q, R, E = FetcherError>
   extends UseExecutePromiseReturn<R, E> {
+  /**
+   * Get the current query parameters
+   */
   getQuery: () => Q;
   /** Function to update the query parameters */
   setQuery: (query: Q) => void;
