@@ -17,7 +17,7 @@ import {
   UseExecutePromiseReturn,
   UseExecutePromiseOptions,
 } from '../core';
-import { useCallback, useMemo, useEffect } from 'react';
+import { useCallback, useMemo, useEffect, useRef } from 'react';
 import { AttributesCapable, FetcherError } from '@ahoo-wang/fetcher';
 import { AutoExecuteCapable } from './types';
 
@@ -105,32 +105,31 @@ export interface UseQueryReturn<Q, R, E = FetcherError>
 export function useQuery<Q, R, E = FetcherError>(
   options: UseQueryOptions<Q, R, E>,
 ): UseQueryReturn<Q, R, E> {
-  const { initialQuery } = options;
   const latestOptions = useLatest(options);
   const promiseState = useExecutePromise<R, E>(latestOptions.current);
-  const latestQuery = useLatest(initialQuery);
+  const queryRef = useRef(options.initialQuery);
 
   const queryExecutor = useCallback(async (): Promise<R> => {
     return latestOptions.current.execute(
-      latestQuery.current,
+      queryRef.current,
       latestOptions.current.attributes,
     );
-  }, [latestQuery, latestOptions]);
+  }, [queryRef, latestOptions]);
   const { execute: promiseExecutor } = promiseState;
   const execute = useCallback(() => {
     return promiseExecutor(queryExecutor);
   }, [promiseExecutor, queryExecutor]);
   const getQuery = useCallback(() => {
-    return latestQuery.current;
-  }, [latestQuery]);
+    return queryRef.current;
+  }, [queryRef]);
   const setQuery = useCallback(
     (query: Q) => {
-      latestQuery.current = query;
+      queryRef.current = query;
       if (latestOptions.current.autoExecute) {
         execute();
       }
     },
-    [latestQuery, latestOptions, execute],
+    [queryRef, latestOptions, execute],
   );
 
   useEffect(() => {

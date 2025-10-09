@@ -13,7 +13,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useQuery } from '../../src';
+import { useQuery } from '../../src/wow/useQuery';
 
 // Mock the core hooks
 vi.mock('../../src/core', () => ({
@@ -21,7 +21,7 @@ vi.mock('../../src/core', () => ({
   useLatest: vi.fn(),
 }));
 
-import { useExecutePromise, useLatest } from '../../src';
+import { useExecutePromise, useLatest } from '../../src/core';
 
 describe('useQuery', () => {
   const mockResult = { id: 1, name: 'Test Item' };
@@ -44,19 +44,15 @@ describe('useQuery', () => {
     reset: mockReset,
   };
 
-  const mockLatestQuery = { current: initialQuery };
-  const mockLatestOptions = {
-    current: { execute: vi.fn().mockResolvedValue(mockResult) },
-  };
+  let mockLatestOptions: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockLatestQuery.current = { ...initialQuery };
+    mockLatestOptions = { current: {} };
     (useExecutePromise as any).mockReturnValue(mockPromiseState);
-    (useLatest as any).mockImplementation((value: any) => {
-      if (JSON.stringify(value) === JSON.stringify(initialQuery))
-        return mockLatestQuery;
-      return { current: value };
+    (useLatest as any).mockImplementation((options: any) => {
+      mockLatestOptions.current = options;
+      return mockLatestOptions;
     });
   });
 
@@ -71,6 +67,7 @@ describe('useQuery', () => {
 
     expect(result.current).toHaveProperty('execute');
     expect(result.current).toHaveProperty('setQuery');
+    expect(result.current).toHaveProperty('getQuery');
     expect(result.current).toHaveProperty('loading', false);
     expect(result.current).toHaveProperty('result', null);
     expect(result.current).toHaveProperty('error', null);
@@ -108,7 +105,7 @@ describe('useQuery', () => {
       result.current.setQuery(newQuery);
     });
 
-    expect(mockLatestQuery.current).toEqual(newQuery);
+    expect(result.current.getQuery()).toEqual(newQuery);
     expect(mockExecute).not.toHaveBeenCalled();
   });
 
@@ -130,7 +127,7 @@ describe('useQuery', () => {
       result.current.setQuery(newQuery);
     });
 
-    expect(mockLatestQuery.current).toEqual(newQuery);
+    expect(result.current.getQuery()).toEqual(newQuery);
     expect(mockExecute).toHaveBeenCalledTimes(2);
   });
 
@@ -165,9 +162,7 @@ describe('useQuery', () => {
 
     renderHook(() => useQuery(options));
 
-    // Note: autoExecute behavior is tested through useEffect, which may not trigger in this test environment
-    // This test verifies the option is accepted without error
-    expect(options.autoExecute).toBe(true);
+    expect(mockExecute).toHaveBeenCalledTimes(1);
   });
 
   it('should handle custom error types', () => {
@@ -272,7 +267,6 @@ describe('useQuery', () => {
     });
 
     expect(mockExecute).toHaveBeenCalled();
-    // Note: The actual call to queryExecutor is mocked, but the structure is tested
   });
 
   it('should reset the promise state', () => {
