@@ -64,6 +64,10 @@ jobs:
         working-directory: compensation/dashboard
         run: pnpm build
 
+      - name: Test Dashboard-UI
+        working-directory: compensation/dashboard
+        run: pnpm coverage
+
       - name: Set up JDK 17
         uses: actions/setup-java@v5
         with:
