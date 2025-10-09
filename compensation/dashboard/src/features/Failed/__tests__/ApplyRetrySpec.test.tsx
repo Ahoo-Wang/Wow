@@ -1,3 +1,4 @@
+import React from "react";
 import { describe, it, expect, vi } from "vitest";
 import { render } from "@testing-library/react";
 import { ApplyRetrySpec } from "../ApplyRetrySpec.tsx";
@@ -21,15 +22,15 @@ vi.mock("../../utils/useExecutePromise.ts", () => ({
 }));
 
 vi.mock("antd", () => {
-  const MockForm = ({ children }: any) => <div>{children}</div>;
+  const MockForm = ({ children }: { children?: React.ReactNode }) => <div>{children}</div>;
   MockForm.useForm = () => [{}];
-  MockForm.Item = ({ children }: any) => <div>{children}</div>;
+  MockForm.Item = ({ children }: { children?: React.ReactNode }) => <div>{children}</div>;
   return {
     Form: MockForm,
     Input: () => <input data-testid="input" />,
     InputNumber: () => <input data-testid="input-number" />,
-    Button: ({ children }: any) => <button>{children}</button>,
-    Space: ({ children }: any) => <div>{children}</div>,
+    Button: ({ children }: { children?: React.ReactNode }) => <button>{children}</button>,
+    Space: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
     App: { useApp: () => ({ notification: { info: vi.fn(), error: vi.fn() } }) },
   };
 });

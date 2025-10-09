@@ -4,7 +4,7 @@ import { FailedTable } from "../FailedTable.tsx";
 
 // Mock all dependencies
 vi.mock("antd", () => ({
-  Table: ({ dataSource }: any) => <div data-testid="table">Table with {dataSource?.length || 0} items</div>,
+  Table: ({ dataSource }: { dataSource?: unknown[] }) => <div data-testid="table">Table with {dataSource?.length || 0} items</div>,
   Typography: { Text: () => <span>Text</span> },
   Statistic: { Timer: () => <div>Timer</div> },
   Tag: () => <span>Tag</span>,

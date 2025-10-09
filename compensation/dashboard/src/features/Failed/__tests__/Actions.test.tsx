@@ -1,7 +1,12 @@
-import { describe, it, expect, vi } from "vitest";
+import React from "react";
+import { describe, expect, it, vi } from "vitest";
 import { render } from "@testing-library/react";
 import { Actions } from "../Actions.tsx";
-
+import {
+  ExecutionFailedState,
+  ExecutionFailedStatus,
+} from "../../../generated";
+import { FunctionKind, RecoverableType } from "@ahoo-wang/fetcher-wow";
 
 // Mock all dependencies
 vi.mock("@ahoo-wang/fetcher-wow", () => ({
@@ -19,7 +24,18 @@ vi.mock("antd", () => ({
     useApp: () => ({ notification: { success: vi.fn(), error: vi.fn() } }),
   },
   Dropdown: {
-    Button: ({ children, menu }: any) => <div data-testid="dropdown">{children}{menu?.items?.length} items</div>,
+    Button: ({
+      children,
+      menu,
+    }: {
+      children?: React.ReactNode;
+      menu?: { items?: unknown[] };
+    }) => (
+      <div data-testid="dropdown">
+        {children}
+        {menu?.items?.length} items
+      </div>
+    ),
   },
   Typography: { Text: () => <span>Text</span> },
   Space: () => <div>Space</div>,
@@ -56,10 +72,10 @@ vi.mock("react", async () => {
 });
 
 describe("Actions", () => {
-  const mockState = {
+  const mockState: ExecutionFailedState = {
     id: "test-id",
-    status: "FAILED" as any,
-    recoverable: "UNRECOVERABLE" as any,
+    status: ExecutionFailedStatus.FAILED,
+    recoverable: RecoverableType.RECOVERABLE,
     error: {
       errorCode: "TEST_ERROR",
       errorMsg: "Test error",
@@ -82,7 +98,7 @@ describe("Actions", () => {
       contextName: "context",
       processorName: "processor",
       name: "function",
-      functionKind: "COMPENSATION" as any,
+      functionKind: FunctionKind.EVENT,
     },
     retrySpec: {
       maxRetries: 3,
@@ -101,12 +117,18 @@ describe("Actions", () => {
 
   it("renders actions dropdown", () => {
     const { container } = render(<Actions state={mockState} />);
-    expect(container.querySelector('[data-testid="dropdown"]')).toBeInTheDocument();
+    expect(
+      container.querySelector('[data-testid="dropdown"]'),
+    ).toBeInTheDocument();
   });
 
   it("renders with onChanged callback", () => {
     const onChanged = vi.fn();
-    const { container } = render(<Actions state={mockState} onChanged={onChanged} />);
-    expect(container.querySelector('[data-testid="dropdown"]')).toBeInTheDocument();
+    const { container } = render(
+      <Actions state={mockState} onChanged={onChanged} />,
+    );
+    expect(
+      container.querySelector('[data-testid="dropdown"]'),
+    ).toBeInTheDocument();
   });
 });
