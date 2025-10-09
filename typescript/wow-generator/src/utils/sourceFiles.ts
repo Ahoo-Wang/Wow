@@ -141,28 +141,27 @@ export function addImportModelInfo(
 export function jsDoc(
   descriptions: (string | undefined)[],
 ): string | undefined {
-  const filtered = descriptions.filter(v => v !== undefined && v.length > 0);
+  if (!Array.isArray(descriptions)) {
+    return undefined;
+  }
+  const filtered = descriptions.filter(
+    v => v !== undefined && typeof v === 'string' && v.length > 0,
+  );
   return filtered.length > 0 ? filtered.join('\n') : undefined;
 }
 
 /**
  * Adds a JSDoc comment to a node with the provided title and description.
- * @param node - The node to add the JSDoc comment to
- * @param title - The title for the JSDoc comment
- * @param description - The description for the JSDoc comment
  */
 export function addJSDoc(
   node: JSDocableNode,
-  title?: string,
-  description?: string,
+  descriptions: (string | undefined)[],
 ) {
-  const jsdoc = jsDoc([title, description]);
+  const jsdoc = jsDoc(descriptions);
   if (!jsdoc) {
     return;
   }
-  node.addJsDoc({
-    description: jsdoc,
-  });
+  node.addJsDoc(jsdoc);
 }
 
 /**
@@ -171,5 +170,5 @@ export function addJSDoc(
  * @param schema - The schema containing title and description
  */
 export function addSchemaJSDoc(node: JSDocableNode, schema: Schema) {
-  addJSDoc(node, schema.title, schema.description);
+  addJSDoc(node, [schema.title, schema.description]);
 }

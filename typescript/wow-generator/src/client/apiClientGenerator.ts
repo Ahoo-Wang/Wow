@@ -163,7 +163,7 @@ export class ApiClientGenerator implements Generator {
       modelInfo.name + 'ApiClient',
       apiClientFile,
     );
-    addJSDoc(apiClientClass, tag.description);
+    addJSDoc(apiClientClass, [tag.description]);
     addApiMetadataCtor(apiClientClass, this.apiMetadataCtorInitializer);
     this.context.logger.info(
       `Processing ${operations.size} operations for ${modelInfo.name}ApiClient`,
@@ -475,8 +475,8 @@ export class ApiClientGenerator implements Generator {
     });
     addJSDoc(
       methodDeclaration,
-      operation.operation.summary,
-      operation.operation.description,
+      [operation.operation.summary,
+        operation.operation.description],
     );
     this.context.logger.success(`Operation method generated: ${methodName}`);
   }

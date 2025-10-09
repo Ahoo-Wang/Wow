@@ -237,7 +237,7 @@ describe('sourceFiles', () => {
         addJsDoc: vi.fn(),
       };
 
-      addJSDoc(mockNode as any, '', '');
+      addJSDoc(mockNode as any, ['', '']);
 
       expect(mockNode.addJsDoc).not.toHaveBeenCalled();
     });
@@ -247,11 +247,9 @@ describe('sourceFiles', () => {
         addJsDoc: vi.fn(),
       };
 
-      addJSDoc(mockNode as any, 'Title', 'Description');
+      addJSDoc(mockNode as any, ['Title', 'Description']);
 
-      expect(mockNode.addJsDoc).toHaveBeenCalledWith({
-        description: 'Title\nDescription',
-      });
+      expect(mockNode.addJsDoc).toHaveBeenCalledWith('Title\nDescription');
     });
 
     it('should add jsdoc with title only', () => {
@@ -259,11 +257,9 @@ describe('sourceFiles', () => {
         addJsDoc: vi.fn(),
       };
 
-      addJSDoc(mockNode as any, 'Title');
+      addJSDoc(mockNode as any, ['Title']);
 
-      expect(mockNode.addJsDoc).toHaveBeenCalledWith({
-        description: 'Title',
-      });
+      expect(mockNode.addJsDoc).toHaveBeenCalledWith('Title');
     });
   });
 
@@ -365,9 +361,9 @@ describe('sourceFiles', () => {
 
       addSchemaJSDoc(mockNode as any, schema as any);
 
-      expect(mockNode.addJsDoc).toHaveBeenCalledWith({
-        description: 'Test Title\nTest Description',
-      });
+      expect(mockNode.addJsDoc).toHaveBeenCalledWith(
+        'Test Title\nTest Description',
+      );
     });
 
     it('should handle schema with only title', () => {
@@ -380,9 +376,7 @@ describe('sourceFiles', () => {
 
       addSchemaJSDoc(mockNode as any, schema as any);
 
-      expect(mockNode.addJsDoc).toHaveBeenCalledWith({
-        description: 'Test Title',
-      });
+      expect(mockNode.addJsDoc).toHaveBeenCalledWith('Test Title');
     });
 
     it('should handle schema with only description', () => {
@@ -395,9 +389,7 @@ describe('sourceFiles', () => {
 
       addSchemaJSDoc(mockNode as any, schema as any);
 
-      expect(mockNode.addJsDoc).toHaveBeenCalledWith({
-        description: 'Test Description',
-      });
+      expect(mockNode.addJsDoc).toHaveBeenCalledWith('Test Description');
     });
 
     it('should not add JSDoc if schema has no title or description', () => {

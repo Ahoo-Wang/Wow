@@ -309,7 +309,7 @@ export class CommandClientGenerator implements Generator {
         `Adding JSDoc documentation for method: ${camelCase(definition.name)}`,
       );
     }
-    addJSDoc(methodDeclaration, definition.summary, definition.description);
+    addJSDoc(methodDeclaration, [definition.summary, definition.description]);
 
     this.context.logger.success(
       `Command method generated: ${camelCase(definition.name)}`,
