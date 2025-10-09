@@ -12,8 +12,20 @@
  */
 
 import { executionFailedQueryClientFactory } from "../generated";
-import { executionFailedClientOptions } from "./compensationFetcher.ts";
+import { compensationFetcher } from "./compensationFetcher.ts";
+import {
+  QueryClientOptions,
+  ResourceAttributionPathSpec,
+} from "@ahoo-wang/fetcher-wow";
+
+export const executionFailedQueryClientOptions: QueryClientOptions = {
+  fetcher: compensationFetcher,
+  contextAlias: "",
+  aggregateName: "execution_failed",
+  resourceAttribution: ResourceAttributionPathSpec.NONE,
+};
 
 export const executionFailedSnapshotQueryClient =
-  executionFailedQueryClientFactory.createSnapshotQueryClient(executionFailedClientOptions);
-
+  executionFailedQueryClientFactory.createSnapshotQueryClient(
+    executionFailedQueryClientOptions,
+  );

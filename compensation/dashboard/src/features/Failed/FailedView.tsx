@@ -15,31 +15,26 @@ import { FailedSearch } from "./FailedSearch.tsx";
 import { FailedTable } from "./FailedTable.tsx";
 import { type FindCategory, RetryConditions } from "./FindCategory.ts";
 import {
-  all,
   and,
   type Condition,
-  desc,
   pagedList,
-  type PagedList,
   pagedQuery,
-  pagination,
-  SnapshotMetadataFields,
 } from "@ahoo-wang/fetcher-wow";
-import {
-  type ExecutionFailedState,
-} from "../../generated";
-import { useCallback, useEffect, useState } from "react";
-import type { Pagination } from "@ahoo-wang/fetcher-wow";
+import { type ExecutionFailedState } from "../../generated";
+import { useCallback, useEffect } from "react";
 import { useQueryParams } from "../../utils/useQuery.ts";
 import { useGlobalDrawer } from "../../components/GlobalDrawer";
 import { FetchingFailedDetails } from "./details/FetchingFailedDetails.tsx";
 import { executionFailedSnapshotQueryClient } from "../../services";
+import { usePagedQuery } from "@ahoo-wang/fetcher-react";
+import { App } from "antd";
 
 interface FailedViewProps {
   category: FindCategory;
 }
 
 export default function FailedView({ category }: FailedViewProps) {
+  const { notification } = App.useApp();
   const { openDrawer } = useGlobalDrawer();
   const queryIdParams = useQueryParams("id");
 
@@ -47,60 +42,61 @@ export default function FailedView({ category }: FailedViewProps) {
     if (!queryIdParams) {
       return;
     }
+    const queryId = queryIdParams as string;
     openDrawer({
       title: "Execution Failed Details",
-      children: <FetchingFailedDetails id={queryIdParams as string} />,
+      children: <FetchingFailedDetails key={queryId} id={queryId} />,
     });
   }, [queryIdParams, openDrawer]);
-  const [searchCondition, setSearchCondition] = useState<Condition>(all());
-  const [searchPagination, setSearchPagination] = useState<Pagination>(() => {
-    return pagination();
-  });
-  const [pagedResult, setPagedResult] =
-    useState<PagedList<ExecutionFailedState>>(pagedList());
-  const [refreshCount, setRefreshCount] = useState(0);
-  const refresh = useCallback(() => {
-    setRefreshCount((count) => count + 1);
-  }, []);
-  const onSearch = useCallback((searchCondition: Condition) => {
-    setSearchCondition(searchCondition);
-  }, []);
-  const onPaginationChange = useCallback((page: number, pageSize: number) => {
-    setSearchPagination({
-      index: page,
-      size: pageSize,
-    });
-  }, []);
-  const search = useCallback(
-    (searchCondition: Condition, searchPagination: Pagination) => {
-      const query = pagedQuery({
-        condition: and(
-          RetryConditions.categoryToCondition(category),
-          searchCondition,
 
-        ),
-        pagination: searchPagination,
-        sort: [desc(SnapshotMetadataFields.FIRST_EVENT_TIME)],
-      });
-      executionFailedSnapshotQueryClient
-        .pagedState<ExecutionFailedState>(query)
-        .then((it) => {
-          setPagedResult(it);
+  const { loading, result, getQuery, setQuery, execute } =
+    usePagedQuery<ExecutionFailedState>({
+      initialQuery: pagedQuery({
+        condition: RetryConditions.categoryToCondition(category),
+      }),
+      execute: executionFailedSnapshotQueryClient.pagedState.bind(
+        executionFailedSnapshotQueryClient,
+      ),
+      autoExecute: true,
+      onError: (error) => {
+        notification.error({
+          message: "Search Error",
+          description: error.message,
         });
+      },
+    });
+
+  const onSearch = useCallback(
+    (searchCondition: Condition) => {
+      setQuery(
+        pagedQuery({
+          condition: and(
+            RetryConditions.categoryToCondition(category),
+            searchCondition,
+          ),
+        }),
+      );
     },
-    [category],
+    [setQuery, category],
   );
-  useEffect(() => {
-    search(searchCondition, searchPagination);
-  }, [category, search, searchCondition, searchPagination, refreshCount]);
+  const onPaginationChange = useCallback(
+    (page: number, pageSize: number) => {
+      setQuery({ ...getQuery(), pagination: { index: page, size: pageSize } });
+    },
+    [getQuery, setQuery],
+  );
+  const onRefresh = useCallback(() => {
+    execute();
+  }, [execute]);
 
   return (
     <>
       <FailedSearch onSearch={onSearch}></FailedSearch>
       <FailedTable
-        pagedList={pagedResult}
+        loading={loading}
+        pagedList={result ?? pagedList()}
         onPaginationChange={onPaginationChange}
-        onChanged={refresh}
+        onChanged={onRefresh}
       ></FailedTable>
     </>
   );

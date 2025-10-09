@@ -11,37 +11,45 @@
  * limitations under the License.
  */
 
-import useSWR from "swr";
 import {
+  ExecutionFailedAggregatedFields,
   type ExecutionFailedState,
 } from "../../../generated";
-import {
-  aggregateId,
-  singleQuery,
-} from "@ahoo-wang/fetcher-wow";
+import { aggregateId, singleQuery } from "@ahoo-wang/fetcher-wow";
 import { Flex, Skeleton, Typography } from "antd";
 const { Text } = Typography;
 import { FailedDetails } from "./FailedDetails.tsx";
 import { executionFailedSnapshotQueryClient } from "../../../services";
+import { useSingleQuery } from "@ahoo-wang/fetcher-react";
+import { FetcherError } from "@ahoo-wang/fetcher";
 
 export interface FetchingFailedDetailsProps {
   id: string;
 }
 
 export function FetchingFailedDetails({ id }: FetchingFailedDetailsProps) {
-  const { data, error, isLoading } = useSWR(id, () =>
-    executionFailedSnapshotQueryClient.singleState<ExecutionFailedState>(
-      singleQuery({ condition: aggregateId(id) }),
+  const singleQueryState = useSingleQuery<
+    ExecutionFailedState,
+    ExecutionFailedAggregatedFields,
+    FetcherError
+  >({
+    initialQuery: singleQuery({ condition: aggregateId(id) }),
+    execute: executionFailedSnapshotQueryClient.singleState.bind(
+      executionFailedSnapshotQueryClient,
     ),
-  );
-  if (error) {
+    autoExecute: true,
+  });
+  if (singleQueryState.error) {
     return (
       <Flex justify="center" align="center" style={{ minHeight: 100 }}>
-        <Text type="danger">Failed to load data: {error.message}</Text>
+        <Text type="danger">
+          Failed to load data: {singleQueryState.error.message}
+        </Text>
       </Flex>
     );
   }
-  if (isLoading) {
+
+  if (!singleQueryState.result) {
     return (
       <Flex gap="small" vertical>
         <Skeleton active />
@@ -50,5 +58,5 @@ export function FetchingFailedDetails({ id }: FetchingFailedDetailsProps) {
       </Flex>
     );
   }
-  return <FailedDetails state={data!} />;
+  return <FailedDetails state={singleQueryState.result} />;
 }

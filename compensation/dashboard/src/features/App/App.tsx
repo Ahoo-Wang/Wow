@@ -18,7 +18,7 @@ import { ErrorBoundary } from "../../components/ErrorBoundary/ErrorBoundary.tsx"
 import { Link, Outlet, useLocation } from "react-router";
 import type { NavItem } from "../../routes/constants.tsx";
 import * as React from "react";
-
+import "@ahoo-wang/fetcher-eventstream";
 const { Header, Content, Footer } = Layout;
 
 type MenuItem = Required<MenuProps>["items"][number];
