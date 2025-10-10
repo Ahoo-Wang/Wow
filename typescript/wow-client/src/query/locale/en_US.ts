@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { OperatorLocale } from './OperatorLocale';
+import { OperatorLocale } from './operatorLocale';
 
 export const en_US: OperatorLocale = {
   AND: 'AND',

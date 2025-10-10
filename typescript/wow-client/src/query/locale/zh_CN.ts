@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { OperatorLocale } from './OperatorLocale';
+import { OperatorLocale } from './operatorLocale';
 
 export const zh_CN: OperatorLocale = {
   AND: '与',

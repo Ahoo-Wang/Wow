@@ -13,7 +13,7 @@
 
 export * from './condition';
 export * from './operator';
-export * from './locale/OperatorLocale';
+export * from './locale/operatorLocale';
 export * from './pagination';
 export * from './projection';
 export * from './queryable';
