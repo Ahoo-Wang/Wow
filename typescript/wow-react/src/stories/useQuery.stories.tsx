@@ -54,10 +54,7 @@ interface UserProfileProps {
   autoExecute?: boolean;
 }
 
-const UserProfile: React.FC<UserProfileProps> = ({
-                                                   initialUserId,
-                                                   autoExecute = true,
-                                                 }) => {
+function UserProfile({ initialUserId, autoExecute = true }: UserProfileProps) {
   const [userId, setUserId] = React.useState(initialUserId);
 
   const { loading, result, error, execute, setQuery } = useQuery<
@@ -142,7 +139,7 @@ const UserProfile: React.FC<UserProfileProps> = ({
       </Space>
     </Card>
   );
-};
+}
 
 const meta: Meta<typeof UserProfile> = {
   title: 'React/Hooks/useQuery',

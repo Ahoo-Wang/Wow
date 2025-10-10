@@ -70,10 +70,10 @@ interface SingleQueryDemoProps {
   autoExecute?: boolean;
 }
 
-const SingleQueryDemo: React.FC<SingleQueryDemoProps> = ({
-                                                           initialUserId,
-                                                           autoExecute = true,
-                                                         }) => {
+function SingleQueryDemo({
+                           initialUserId,
+                           autoExecute = true,
+                         }: SingleQueryDemoProps) {
   const [userId, setUserId] = React.useState(initialUserId);
 
   const { loading, result, error, execute, setQuery } = useSingleQuery<User>({
@@ -170,7 +170,7 @@ const SingleQueryDemo: React.FC<SingleQueryDemoProps> = ({
       </Space>
     </Card>
   );
-};
+}
 
 const meta: Meta<typeof SingleQueryDemo> = {
   title: 'React/Hooks/useSingleQuery',

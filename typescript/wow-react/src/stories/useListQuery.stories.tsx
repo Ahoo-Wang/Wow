@@ -77,10 +77,10 @@ interface ListQueryDemoProps {
   autoExecute?: boolean;
 }
 
-const ListQueryDemo: React.FC<ListQueryDemoProps> = ({
-                                                       filterStatus = 'all',
-                                                       autoExecute = true,
-                                                     }) => {
+function ListQueryDemo({
+                         filterStatus = 'all',
+                         autoExecute = true,
+                       }: ListQueryDemoProps) {
   const getInitialQuery = (): ListQuery => {
     if (filterStatus === 'all') {
       return { condition: [] } as any;
@@ -187,7 +187,7 @@ const ListQueryDemo: React.FC<ListQueryDemoProps> = ({
       </Space>
     </Card>
   );
-};
+}
 
 const meta: Meta<typeof ListQueryDemo> = {
   title: 'React/Hooks/useListQuery',
