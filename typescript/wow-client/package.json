@@ -24,14 +24,24 @@
     "url": "https://github.com/Ahoo-Wang/fetcher/issues"
   },
   "type": "module",
-  "main": "./dist/index.umd.js",
+  "main": "./dist/index.cjs.js",
   "module": "./dist/index.es.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.es.js",
-      "require": "./dist/index.umd.js"
+      "require": "./dist/index.cjs.js"
+    },
+    "./query/locale/zh_CN": {
+      "types": "./dist/query/locale/zh_CN.d.ts",
+      "import": "./dist/query/locale/zh_CN.es.js",
+      "require": "./dist/query/locale/zh_CN.cjs.js"
+    },
+    "./query/locale/en_US": {
+      "types": "./dist/query/locale/en_US.d.ts",
+      "import": "./dist/query/locale/en_US.es.js",
+      "require": "./dist/query/locale/en_US.cjs.js"
     }
   },
   "files": [

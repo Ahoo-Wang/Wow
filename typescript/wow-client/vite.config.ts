@@ -18,9 +18,15 @@ export default defineConfig({
   build: {
     sourcemap: true,
     lib: {
-      entry: 'src/index.ts',
+      entry: {
+        index: 'src/index.ts',
+        'query/locale/zh_CN': 'src/query/locale/zh_CN.ts',
+        'query/locale/en_US': 'src/query/locale/en_US.ts',
+      },
       name: 'FetcherWow',
-      fileName: format => `index.${format}.js`,
+      fileName: (format, entryName) => {
+        return `${entryName}.${format}.js`;
+      },
     },
     rollupOptions: {
       external: [
