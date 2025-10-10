@@ -11,15 +11,8 @@
  * limitations under the License.
  */
 
-export * from './condition';
-export * from './operator';
-export * from './locale/operatorLocale';
-export * from './pagination';
-export * from './projection';
-export * from './queryable';
-export * from './queryApi';
-export * from './sort';
-export * from './event';
-export * from './snapshot';
-export * from './cursorQuery';
-export * from './queryClients';
+import { Operator } from '../operator';
+
+export type OperatorLocale = {
+  [K in Operator]: string;
+};
