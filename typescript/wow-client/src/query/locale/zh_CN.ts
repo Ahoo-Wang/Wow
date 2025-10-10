@@ -13,7 +13,7 @@
 
 import { OperatorLocale } from './OperatorLocale';
 
-const zh_CN: OperatorLocale = {
+export const zh_CN: OperatorLocale = {
   AND: '与',
   OR: '或',
   NOR: '非或',
@@ -56,5 +56,3 @@ const zh_CN: OperatorLocale = {
   EARLIER_DAYS: '几天前',
   RAW: '原始查询',
 };
-
-export default zh_CN;

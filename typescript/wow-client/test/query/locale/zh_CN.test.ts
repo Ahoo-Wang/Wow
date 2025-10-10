@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import zh_CN from '../../../src/query/locale/zh_CN';
+import { zh_CN } from '../../../src/query/locale/zh_CN';
 import { Operator } from '../../../src';
 import { OperatorLocale } from '../../../src';
 

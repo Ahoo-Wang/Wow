@@ -12,9 +12,9 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import en_US from '../../../src/query/locale/en_US';
-import { Operator } from '../../../src/query/operator';
-import { OperatorLocale } from '../../../src/query/locale/OperatorLocale';
+import { en_US } from '../../../src/query/locale/en_US';
+import { Operator } from '../../../src';
+import { OperatorLocale } from '../../../src';
 
 describe('en_US locale', () => {
   it('should be a valid OperatorLocale', () => {

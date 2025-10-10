@@ -13,7 +13,7 @@
 
 import { OperatorLocale } from './OperatorLocale';
 
-const en_US: OperatorLocale = {
+export const en_US: OperatorLocale = {
   AND: 'AND',
   OR: 'OR',
   NOR: 'NOR',
@@ -57,4 +57,3 @@ const en_US: OperatorLocale = {
   RAW: 'Raw Query',
 };
 
-export default en_US;
