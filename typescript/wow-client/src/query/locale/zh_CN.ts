@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { OperatorLocale } from './operatorLocale';
+import { OperatorLocale } from './OperatorLocale';
 
 const zh_CN: OperatorLocale = {
   AND: '与',
@@ -54,7 +54,7 @@ const zh_CN: OperatorLocale = {
   LAST_MONTH: '上月',
   RECENT_DAYS: '最近几天',
   EARLIER_DAYS: '几天前',
-  RAW: '原始',
+  RAW: '原始查询',
 };
 
 export default zh_CN;
