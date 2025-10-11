@@ -11,6 +11,7 @@
       "DOM",
       "DOM.Iterable"
     ],
+    "jsx": "react-jsx",
     "module": "ESNext",
     "moduleResolution": "bundler",
     "strict": true,
@@ -28,5 +29,6 @@
   "exclude": [
     "node_modules",
     "dist",
+    "**/*.stories.tsx"
   ]
 }
