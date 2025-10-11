@@ -1,6 +1,7 @@
 import type { Preview } from '@storybook/react-vite';
 import { ConfigProvider } from 'antd';
 import 'antd/dist/reset.css';
+import './preview.css';
 
 const preview: Preview = {
   parameters: {
@@ -12,7 +13,7 @@ const preview: Preview = {
     },
   },
   decorators: [
-    (Story) => (
+    Story => (
       <ConfigProvider>
         <Story />
       </ConfigProvider>
