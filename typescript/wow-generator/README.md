@@ -340,8 +340,7 @@ import {
 export class CartApiClient implements ApiMetadataCapable {
   constructor(
     public readonly apiMetadata: ApiMetadata = { basePath: 'example' },
-  ) {
-  }
+  ) {}
 
   /** Custom command sending */
   @post('/cart/{userId}/customize-send-cmd')
@@ -397,7 +396,9 @@ const fetcher = new Fetcher({
 });
 
 // Use the generated query client factory
-const snapshotClient = cartQueryClientFactory.createSnapshotQueryClient({ fetcher: fetcher });
+const snapshotClient = cartQueryClientFactory.createSnapshotQueryClient({
+  fetcher: fetcher,
+});
 const cartState = await snapshotClient.singleState({ condition: all() });
 
 // Use the generated command client
@@ -417,6 +418,209 @@ const result = await commandClient.addCartItem(
 // Use the generated API client for custom endpoints (based on OpenAPI tag "cart")
 const apiClient = new CartApiClient({ fetcher: fetcher });
 const cartData = await apiClient.me();
+```
+
+## 🚀 Advanced Usage Examples
+
+### Custom Configuration
+
+Create a `.fetcherrc.json` configuration file for advanced generation options:
+
+```json
+{
+  "generator": {
+    "targetFramework": "wow",
+    "outputFormat": "typescript",
+    "basePath": "api/v1",
+    "generateIndexFiles": true,
+    "verbose": true,
+    "typeMappings": {
+      "string": "string",
+      "integer": "number",
+      "boolean": "boolean",
+      "number": "number"
+    },
+    "schemaTransformers": [
+      {
+        "pattern": "^wow\\.",
+        "transform": "removePrefix"
+      }
+    ]
+  }
+}
+```
+
+### Multi-Context Generation
+
+Generate code for multiple bounded contexts from a single OpenAPI spec:
+
+```bash
+# Generate all contexts
+fetcher-generator generate -i ./multi-context-api.json -o ./src/generated
+
+# Generated structure:
+# src/generated/
+# ├── ecommerce/
+# │   ├── index.ts
+# │   ├── boundedContext.ts
+# │   ├── cart/
+# │   ├── order/
+# │   └── product/
+# └── inventory/
+#     ├── index.ts
+#     ├── boundedContext.ts
+#     └── stock/
+```
+
+### Event-Driven Architecture
+
+Generated code supports event streaming for real-time updates:
+
+```typescript
+import { cartQueryClientFactory } from './generated/ecommerce/cart/queryClient';
+import { CartStreamCommandClient } from './generated/ecommerce/cart/commandClient';
+
+// Create streaming query client
+const eventClient = cartQueryClientFactory.createEventQueryClient({
+  fetcher: fetcher,
+  onEvent: event => {
+    console.log('Cart event:', event);
+    // Handle real-time cart updates
+  },
+});
+
+// Use streaming command client
+const streamCommandClient = new CartStreamCommandClient({ fetcher });
+
+const eventStream = await streamCommandClient.addCartItem(
+  {
+    command: { productId: 'item-123', quantity: 1 },
+  },
+  { ownerId: 'user-456' },
+);
+
+// Process streaming events
+for await (const event of eventStream) {
+  console.log('Command event:', event);
+}
+```
+
+### Custom Type Guards and Validation
+
+Generated code includes runtime type validation:
+
+```typescript
+import { CartState, isCartState } from './generated/ecommerce/cart/types';
+
+// Runtime type checking
+function processCartData(data: unknown) {
+  if (isCartState(data)) {
+    // TypeScript knows data is CartState here
+    console.log('Valid cart state:', data.items.length);
+  } else {
+    throw new Error('Invalid cart data');
+  }
+}
+```
+
+### Integration with State Management
+
+Use generated clients with popular state management libraries:
+
+```typescript
+// Redux Toolkit integration
+import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
+import { cartQueryClientFactory } from './generated/ecommerce/cart/queryClient';
+
+const fetchCartState = createAsyncThunk(
+  'cart/fetchState',
+  async (ownerId: string) => {
+    const snapshotClient = cartQueryClientFactory.createSnapshotQueryClient({
+      fetcher: fetcher,
+    });
+    return await snapshotClient.singleState({ condition: { ownerId } });
+  },
+);
+
+const cartSlice = createSlice({
+  name: 'cart',
+  initialState: { items: [], loading: false },
+  reducers: {},
+  extraReducers: builder => {
+    builder.addCase(fetchCartState.pending, state => {
+      state.loading = true;
+    });
+    builder.addCase(fetchCartState.fulfilled, (state, action) => {
+      state.items = action.payload.items;
+      state.loading = false;
+    });
+  },
+});
+```
+
+### Error Handling and Retry Logic
+
+Generated clients work seamlessly with retry mechanisms:
+
+```typescript
+import { Fetcher } from '@ahoo-wang/fetcher';
+import { CartCommandClient } from './generated/ecommerce/cart/commandClient';
+
+// Configure fetcher with retry logic
+const fetcher = new Fetcher({
+  baseURL: 'https://api.example.com',
+  retryConfig: {
+    maxRetries: 3,
+    retryDelay: 1000,
+    retryCondition: error => error.status >= 500,
+  },
+});
+
+const commandClient = new CartCommandClient({ fetcher });
+
+// Commands automatically retry on server errors
+try {
+  const result = await commandClient.addCartItem(
+    {
+      command: { productId: 'item-123', quantity: 1 },
+    },
+    { ownerId: 'user-456' },
+  );
+} catch (error) {
+  console.error('Failed to add item after retries:', error);
+}
+```
+
+### Testing Generated Code
+
+Write unit tests for generated clients:
+
+```typescript
+import { describe, it, expect, vi } from 'vitest';
+import { CartCommandClient } from './generated/ecommerce/cart/commandClient';
+
+describe('CartCommandClient', () => {
+  it('should add item to cart', async () => {
+    const mockFetcher = {
+      request: vi.fn().mockResolvedValue({ success: true }),
+    };
+
+    const client = new CartCommandClient({
+      fetcher: mockFetcher as any,
+    });
+
+    // This will throw autoGeneratedError in generated code
+    // In real usage, you'd use a decorator interceptor
+    expect(() =>
+      client.addCartItem(
+        {
+          command: { productId: 'test', quantity: 1 },
+        },
+        { ownerId: 'user' },
+      ),
+    ).toThrow();
+  });
+});
 ```
 
 ## 📋 OpenAPI Specification Requirements
