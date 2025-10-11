@@ -1,7 +1,4 @@
-import
-
-'antd/dist/reset.css'
-;
+import 'antd/dist/reset.css';
 
 .sbdocs-content {
     max-width: 90% !important;
