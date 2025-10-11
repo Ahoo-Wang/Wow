@@ -29,6 +29,7 @@ export default mergeConfig(
           'src/query/snapshot/snapshotQueryClient.ts',
           // use integration-test, see integration-test/test/wow/eventStreamQueryClient.test.ts
           'src/query/event/eventStreamQueryClient.ts',
+          '**/**.stories.tsx',
         ],
       },
     },
