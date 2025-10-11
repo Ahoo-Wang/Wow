@@ -1,6 +1,4 @@
 import type { Preview } from '@storybook/react-vite';
-import { ConfigProvider } from 'antd';
-import 'antd/dist/reset.css';
 import './preview.css';
 
 const preview: Preview = {
@@ -13,15 +11,28 @@ const preview: Preview = {
     },
     docs: {
       codePanel: true,
+      toc: true,
+    },
+    options: {
+      storySort: {
+        order: [
+          'Introduction',
+          'Fetcher',
+          'Decorator',
+          'EventStream',
+          'EventBus',
+          'Storage',
+          'React',
+          'Wow',
+          'Cosec',
+          'Generator',
+          'OpenAPI',
+          'Viewer',
+        ],
+      },
     },
   },
-  decorators: [
-    Story => (
-      <ConfigProvider>
-        <Story />
-      </ConfigProvider>
-    ),
-  ],
+  tags: ['autodocs'],
 };
 
 export default preview;
