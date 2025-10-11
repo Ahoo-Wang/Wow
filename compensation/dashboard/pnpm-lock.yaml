@@ -13,7 +13,7 @@ importers:
         version: 2.8.1
       '@ahoo-wang/fetcher-cosec':
         specifier: ^2.8.1
-        version: 2.8.1(@ahoo-wang/fetcher-storage@2.3.0)(@ahoo-wang/fetcher@2.8.1)
+        version: 2.8.5(@ahoo-wang/fetcher-storage@2.3.0)(@ahoo-wang/fetcher@2.8.1)
       '@ahoo-wang/fetcher-decorator':
         specifier: ^2.8.1
         version: 2.8.1(@ahoo-wang/fetcher@2.8.1)
@@ -126,8 +126,8 @@ packages:
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
-  '@ahoo-wang/fetcher-cosec@2.8.1':
-    resolution: {integrity: sha512-1SGkQEx7Dwp/I+A0ypiLTWt2LmlAiKmE1wKUX7O7wl7aBpGnnpZRtYKF5wC4xW+e/jnAvcC7MAKrDQ6koe6GoQ==}
+  '@ahoo-wang/fetcher-cosec@2.8.5':
+    resolution: {integrity: sha512-xzGNzCFaJ4dCy4IHM0lpHEU53t9Co/9kpnp9LuV9iYd5beLpLtOgN4KsfE/a1u599aZgPEx6bt+XpH5xfeasFw==}
     peerDependencies:
       '@ahoo-wang/fetcher': ^2.3.4
       '@ahoo-wang/fetcher-storage': ^2.3.4
@@ -2549,7 +2549,7 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@ahoo-wang/fetcher-cosec@2.8.1(@ahoo-wang/fetcher-storage@2.3.0)(@ahoo-wang/fetcher@2.8.1)':
+  '@ahoo-wang/fetcher-cosec@2.8.5(@ahoo-wang/fetcher-storage@2.3.0)(@ahoo-wang/fetcher@2.8.1)':
     dependencies:
       '@ahoo-wang/fetcher': 2.8.1
       '@ahoo-wang/fetcher-storage': 2.3.0
