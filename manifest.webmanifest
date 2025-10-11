@@ -1,0 +1,16 @@
+{
+  "name": "Wow",
+  "short_name": "Wow",
+  "description": "领域模型即服务 | Modern Reactive CQRS Architecture Microservice development framework based on DDD and EventSourcing. | 基于 DDD、EventSourcing 的现代响应式 CQRS 架构微服务开发框架",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#fff",
+  "theme_color": "#3eaf7c",
+  "icons": [
+    {
+      "src": "/images/logo.svg",
+      "sizes": "192x192",
+      "type": "image/svg"
+    }
+  ]
+}
