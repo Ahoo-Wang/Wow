@@ -28,8 +28,39 @@ const config: StorybookConfig = {
     options: {},
   },
   async viteFinal(config) {
-    // 将 .md 文件视为静态资源
-    config.assetsInclude = ['../**/*.md','../*.md'];
+    config.assetsInclude = ['../**/*.md', '../*.md'];
+
+    config.plugins = config.plugins || [];
+    config.plugins.push({
+      name: 'markdown-link-transform',
+      transform(code, id) {
+        if (id.endsWith('.md?raw')) {
+          return code
+            .replace(
+              /\]\(\.\/packages\//g,
+              '](https://github.com/Ahoo-Wang/fetcher/tree/main/packages/',
+            )
+            .replace(
+              /\]\(\.\/integration-test/g,
+              '](https://github.com/Ahoo-Wang/fetcher/tree/main/integration-test',
+            )
+            .replace(
+              /\]\(\.\/CONTRIBUTING\.md/g,
+              '](https://github.com/Ahoo-Wang/fetcher/blob/main/CONTRIBUTING.md',
+            )
+            .replace(
+              /\]\(\.\/LICENSE/g,
+              '](https://github.com/Ahoo-Wang/fetcher/blob/main/LICENSE',
+            )
+            .replace(
+              /\]\(\.\//g,
+              '](https://github.com/Ahoo-Wang/fetcher/blob/main/',
+            );
+        }
+        return code;
+      },
+    });
+
     return config;
   },
 };
