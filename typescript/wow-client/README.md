@@ -25,11 +25,11 @@ working with the Wow CQRS/DDD framework.
 - **🔍 Powerful Query DSL**: Rich query condition builder with comprehensive operator support for complex querying
 - **🔍 Query Clients**: Specialized clients for querying snapshot and event stream data with comprehensive query
   operations:
-    - Counting resources
-    - Listing resources
-    - Streaming resources as Server-Sent Events
-    - Paging resources
-    - Retrieving single resources
+  - Counting resources
+  - Listing resources
+  - Streaming resources as Server-Sent Events
+  - Paging resources
+  - Retrieving single resources
 
 ## 🚀 Quick Start
 
@@ -407,9 +407,241 @@ const paged = await cartEventStreamQueryClient.paged(pagedQuery);
 - `paged(pagedQuery: PagedQuery): Promise<PagedList<Partial<DomainEventStream>>>` - Retrieves a paged list of domain
   event streams.
 
-## 🛠️ Advanced Usage
+## 🚀 Advanced Usage Examples
 
-### Complete Example with Command and Query Flow
+### Custom Command Builders and Validators
+
+Create type-safe command builders with validation:
+
+```typescript
+import { CommandClient, CommandRequest } from '@ahoo-wang/fetcher-wow';
+
+// Command type definitions
+interface CreateUserCommand {
+  commandType: 'CreateUser';
+  commandId: string;
+  aggregateId: string;
+  name: string;
+  email: string;
+  role: 'admin' | 'user' | 'moderator';
+}
+
+interface UpdateUserProfileCommand {
+  commandType: 'UpdateUserProfile';
+  commandId: string;
+  aggregateId: string;
+  displayName?: string;
+  bio?: string;
+  avatarUrl?: string;
+}
+
+// Command builder with validation
+class UserCommandBuilder {
+  private commandClient: CommandClient;
+
+  constructor(commandClient: CommandClient) {
+    this.commandClient = commandClient;
+  }
+
+  async createUser(params: {
+    name: string;
+    email: string;
+    role: 'admin' | 'user' | 'moderator';
+    ownerId: string;
+  }): Promise<any> {
+    // Validate input
+    this.validateCreateUserParams(params);
+
+    const command: CreateUserCommand = {
+      commandType: 'CreateUser',
+      commandId: crypto.randomUUID(),
+      aggregateId: crypto.randomUUID(), // New user gets new aggregate ID
+      ...params,
+    };
+
+    return this.commandClient.send(command, { ownerId: params.ownerId });
+  }
+
+  async updateProfile(params: {
+    userId: string;
+    displayName?: string;
+    bio?: string;
+    avatarUrl?: string;
+    ownerId: string;
+  }): Promise<any> {
+    // Validate input
+    this.validateUpdateProfileParams(params);
+
+    const command: UpdateUserProfileCommand = {
+      commandType: 'UpdateUserProfile',
+      commandId: crypto.randomUUID(),
+      aggregateId: params.userId, // User ID is the aggregate ID
+      displayName: params.displayName,
+      bio: params.bio,
+      avatarUrl: params.avatarUrl,
+    };
+
+    return this.commandClient.send(command, { ownerId: params.ownerId });
+  }
+
+  private validateCreateUserParams(params: any) {
+    if (!params.name || params.name.length < 2) {
+      throw new Error('Name must be at least 2 characters');
+    }
+    if (!params.email || !this.isValidEmail(params.email)) {
+      throw new Error('Valid email is required');
+    }
+    if (!['admin', 'user', 'moderator'].includes(params.role)) {
+      throw new Error('Invalid role');
+    }
+  }
+
+  private validateUpdateProfileParams(params: any) {
+    if (!params.userId) {
+      throw new Error('User ID is required');
+    }
+    if (params.displayName && params.displayName.length > 50) {
+      throw new Error('Display name too long');
+    }
+    if (params.bio && params.bio.length > 500) {
+      throw new Error('Bio too long');
+    }
+  }
+
+  private isValidEmail(email: string): boolean {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  }
+}
+
+// Usage
+const commandClient = new CommandClient({ basePath: '/api/commands' });
+const userCommands = new UserCommandBuilder(commandClient);
+
+try {
+  // Create a new user
+  const result = await userCommands.createUser({
+    name: 'John Doe',
+    email: 'john@example.com',
+    role: 'user',
+    ownerId: 'user-123',
+  });
+  console.log('User created:', result);
+
+  // Update user profile
+  await userCommands.updateProfile({
+    userId: result.aggregateId,
+    displayName: 'Johnny',
+    bio: 'Software developer',
+    ownerId: 'user-123',
+  });
+} catch (error) {
+  console.error('Command failed:', error);
+}
+```
+
+### Advanced Query Composition with Reactive Updates
+
+Create complex queries with reactive real-time updates:
+
+```typescript
+import {
+  SnapshotQueryClient,
+  EventStreamQueryClient,
+} from '@ahoo-wang/fetcher-wow';
+
+// Advanced query manager with reactive updates
+class ReactiveQueryManager {
+  private snapshotClient: SnapshotQueryClient;
+  private streamClient: EventStreamQueryClient;
+  private listeners: Map<string, (data: any) => void> = new Map();
+
+  constructor(basePath: string) {
+    this.snapshotClient = new SnapshotQueryClient({ basePath });
+    this.streamClient = new EventStreamQueryClient({ basePath });
+  }
+
+  // Subscribe to real-time updates for a query
+  subscribeToQuery(
+    queryId: string,
+    initialQuery: any,
+    callback: (data: any) => void,
+  ) {
+    this.listeners.set(queryId, callback);
+
+    // Start streaming updates
+    this.startStreaming(queryId, initialQuery);
+  }
+
+  // Unsubscribe from updates
+  unsubscribe(queryId: string) {
+    this.listeners.delete(queryId);
+    // Close stream if needed
+  }
+
+  private async startStreaming(queryId: string, query: any) {
+    try {
+      const stream = await this.streamClient.listStream(query);
+
+      for await (const event of stream) {
+        const listener = this.listeners.get(queryId);
+        if (listener) {
+          listener(event);
+        }
+      }
+    } catch (error) {
+      console.error(`Stream error for ${queryId}:`, error);
+    }
+  }
+
+  // Complex query with aggregations
+  async getUserDashboardStats(userId: string) {
+    const [userProfile, recentActivity, stats] = await Promise.all([
+      this.snapshotClient.single({
+        condition: { id: userId },
+        projection: { name: 1, email: 1, createdAt: 1 },
+      }),
+      this.snapshotClient.list({
+        condition: { userId, type: 'activity' },
+        sort: [{ field: 'timestamp', order: 'desc' }],
+        limit: 10,
+      }),
+      this.snapshotClient.count({
+        condition: { userId },
+      }),
+    ]);
+
+    return {
+      profile: userProfile,
+      recentActivity,
+      totalActions: stats,
+      lastActivity: recentActivity[0]?.timestamp,
+    };
+  }
+}
+
+// Usage
+const queryManager = new ReactiveQueryManager('/api/queries');
+
+// Get dashboard data
+const dashboard = await queryManager.getUserDashboardStats('user-123');
+console.log('Dashboard:', dashboard);
+
+// Subscribe to real-time updates
+queryManager.subscribeToQuery(
+  'user-activity',
+  {
+    condition: { userId: 'user-123', type: 'activity' },
+    sort: [{ field: 'timestamp', order: 'desc' }],
+  },
+  update => {
+    console.log('New activity:', update);
+    // Update UI with new data
+  },
+);
+```
+
+## 🛠️ Advanced Usage
 
 ```typescript
 import {

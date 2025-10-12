@@ -78,9 +78,9 @@ interface ListQueryDemoProps {
 }
 
 function ListQueryDemo({
-                         filterStatus = 'all',
-                         autoExecute = true,
-                       }: ListQueryDemoProps) {
+  filterStatus = 'all',
+  autoExecute = true,
+}: ListQueryDemoProps) {
   const getInitialQuery = (): ListQuery => {
     if (filterStatus === 'all') {
       return { condition: [] } as any;
@@ -197,7 +197,7 @@ const meta: Meta<typeof ListQueryDemo> = {
     docs: {
       description: {
         component:
-          'A React hook for querying list data with conditions, projection, and sorting.',
+          'A React hook for querying list data with conditions, projection, sorting, and limits. Supports both manual and automatic execution with comprehensive state management.',
       },
     },
   },
@@ -206,7 +206,7 @@ const meta: Meta<typeof ListQueryDemo> = {
     filterStatus: {
       control: { type: 'select' },
       options: ['all', 'active', 'inactive'],
-      description: 'Initial status filter',
+      description: 'Initial status filter for demo data',
     },
     autoExecute: {
       control: 'boolean',
