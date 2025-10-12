@@ -27,5 +27,10 @@ const config: StorybookConfig = {
     name: getAbsolutePath('@storybook/react-vite'),
     options: {},
   },
+  async viteFinal(config) {
+    // 将 .md 文件视为静态资源
+    config.assetsInclude = ['../**/*.md','../*.md'];
+    return config;
+  },
 };
 export default config;
