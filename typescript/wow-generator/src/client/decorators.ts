@@ -54,6 +54,12 @@ export const DEFAULT_RETURN_TYPE: MethodReturnType = {
   metadata: `{resultExtractor: ResultExtractors.Response }`,
 };
 
+export const STRING_RETURN_TYPE: MethodReturnType = {
+  type: 'Promise<string>',
+  metadata: `{resultExtractor: ResultExtractors.Text }`,
+};
+
+
 /**
  * Metadata configuration for stream result extraction.
  */

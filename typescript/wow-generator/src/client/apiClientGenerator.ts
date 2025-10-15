@@ -54,7 +54,7 @@ import {
   addApiMetadataCtor,
   addImportDecorator, addImportEventStream,
   createDecoratorClass, DEFAULT_RETURN_TYPE, MethodReturnType,
-  STREAM_RESULT_EXTRACTOR_METADATA,
+  STREAM_RESULT_EXTRACTOR_METADATA, STRING_RETURN_TYPE,
 } from './decorators';
 import { methodToDecorator } from './utils';
 
@@ -64,7 +64,6 @@ import { methodToDecorator } from './utils';
 interface PathMethodOperation extends MethodOperation {
   path: string;
 }
-
 
 /**
  * Generator for creating TypeScript API client classes from OpenAPI specifications.
@@ -390,6 +389,7 @@ export class ApiClientGenerator implements Generator {
       );
       return {
         type: returnType,
+        metadata: returnType === STRING_RETURN_TYPE.type ? STRING_RETURN_TYPE.metadata : undefined,
       };
     }
     const eventStreamSchema = extractResponseEventStreamSchema(okResponse);
