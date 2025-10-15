@@ -373,7 +373,7 @@ class JsonSchemaGeneratorTest {
         @field:Schema(requiredMode = Schema.RequiredMode.REQUIRED)
         val requiredField: String?,
 
-        ) {
+    ) {
         val getter: String
             get() = ""
 

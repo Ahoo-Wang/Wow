@@ -72,9 +72,12 @@ class SchemaGeneratorBuilder {
     /** The JSON Schema version to use for generation. */
     var schemaVersion: SchemaVersion = SchemaVersion.DRAFT_7
         private set
+
+    /** The preset of options to apply to the schema generator. */
     var optionPreset: OptionPreset = OptionPreset.PLAIN_JSON
         private set
 
+    /** Jackson module for handling Jackson annotations in schema generation. */
     var jacksonModule: JacksonModule? =
         WowJacksonModule(
             JacksonOption.FLATTENED_ENUMS_FROM_JSONVALUE,
@@ -118,6 +121,7 @@ class SchemaGeneratorBuilder {
     var typeContext: TypeContext? = null
         private set
 
+    /** Gets the TypeContext after build() has been called. Throws if not built yet. */
     val requiredTypeContent: TypeContext
         get() =
             checkNotNull(typeContext) {
@@ -184,6 +188,10 @@ class SchemaGeneratorBuilder {
         return this
     }
 
+    /**
+     * Builds and returns a SchemaGenerator instance with the configured modules and options.
+     * This method must be called before accessing requiredTypeContent.
+     */
     fun build(): SchemaGenerator {
         val openAPIObjectMapper = ObjectMapperFactory.create(null, openapi31)
         val configBuilder =
