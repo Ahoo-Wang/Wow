@@ -11,23 +11,18 @@
  * limitations under the License.
  */
 
-import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
-import {
-  LlmClient,
-  createLlmFetcher,
-  llmFetcherName,
-} from '../../src/eventstream/llmClient';
-import { fetcherRegistrar } from '@ahoo-wang/fetcher';
+import { describe, it, expect, beforeAll } from 'vitest';
 
-describe('LlmClient Integration Test', () => {
-  let llmClient: LlmClient | null = null;
+import { OpenAI } from '@ahoo-wang/fetcher-openai';
 
+describe('OpenAI Integration Test', () => {
+  let openAI: OpenAI | null = null;
+  let model: string | undefined = undefined;
   beforeAll(() => {
     // Get LLM options from environment variables
     const baseURL = process.env.FETCHER_LLM_BASE_URL;
     const apiKey = process.env.FETCHER_LLM_API_KEY;
-    const model = process.env.FETCHER_LLM_MODEL;
-
+    model = process.env.FETCHER_LLM_MODEL!;
     // Skip tests if environment variables are not set
     if (!baseURL || !apiKey) {
       console.warn(
@@ -36,35 +31,22 @@ describe('LlmClient Integration Test', () => {
       return;
     }
 
-    const llmOptions = {
-      baseURL,
-      apiKey,
-      model,
-    };
-
-    const llmFetcher = createLlmFetcher(llmOptions);
-  });
-
-  beforeEach(() => {
-    if (fetcherRegistrar.get(llmFetcherName)) {
-      llmClient = new LlmClient();
-    }
+    openAI = new OpenAI({ baseURL: baseURL, apiKey: apiKey });
   });
 
   it('should stream chat completion', async () => {
     // Skip the test if the client wasn't initialized
-    if (!llmClient) {
+    if (!openAI || !model) {
       console.warn('LLM client not initialized. Skipping test.');
       return;
     }
 
-    const chatRequest = {
+    const stream = await openAI.chat.completions({
+      model: model,
       messages: [{ role: 'user', content: 'Hello, how are you?' }],
       stream: true,
       max_tokens: 1,
-    };
-
-    const stream = await llmClient.streamChat(chatRequest);
+    });
     expect(stream).toBeDefined();
 
     // Collect events from the stream
@@ -82,18 +64,16 @@ describe('LlmClient Integration Test', () => {
 
   it('should chat completion', async () => {
     // Skip the test if the client wasn't initialized
-    if (!llmClient) {
+    if (!openAI) {
       console.warn('LLM client not initialized. Skipping test.');
       return;
     }
 
-    const chatRequest = {
+    const response = await openAI.chat.completions({
+      model: model,
       messages: [{ role: 'user', content: 'Hello, how are you?' }],
-      stream: false,
       max_tokens: 1,
-    };
-
-    const response = await llmClient.chat(chatRequest);
+    });
     expect(response).toBeDefined();
     expect(response.choices).toBeDefined();
     expect(Array.isArray(response.choices)).toBe(true);
