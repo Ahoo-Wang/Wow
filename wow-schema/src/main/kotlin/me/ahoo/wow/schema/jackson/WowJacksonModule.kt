@@ -22,6 +22,7 @@ import com.github.victools.jsonschema.generator.FieldScope
 import com.github.victools.jsonschema.generator.SchemaGeneratorConfigBuilder
 import com.github.victools.jsonschema.module.jackson.JacksonModule
 import com.github.victools.jsonschema.module.jackson.JacksonOption
+import me.ahoo.wow.schema.Types.isKotlinElement
 
 class WowJacksonModule(vararg options: JacksonOption) : JacksonModule(*options) {
     companion object {
@@ -68,7 +69,10 @@ class WowJacksonModule(vararg options: JacksonOption) : JacksonModule(*options) 
             return true
         }
 
-        if (field.type.erasedType == Boolean::class.java && field.name.startsWith("is")) {
+        if (field.declaringType.erasedType.isKotlinElement() &&
+            field.type.erasedType == Boolean::class.java &&
+            field.name.startsWith("is")
+        ) {
             return false
         }
 
