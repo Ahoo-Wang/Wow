@@ -314,7 +314,32 @@ class JsonSchemaGeneratorTest {
     }
 
     @Test
-    fun schemaStartIsField() {
+    fun schemaStartIsFieldUseWowJackson() {
+        val schema = jsonSchemaGenerator.generateSchema(StartIsProperty::class.java)
+        val isOwnerNode = schema.get("properties").get("isOwner")
+        isOwnerNode.assert().isNotNull()
+        val isMissingNode = schema.get("properties").get("isMissing")
+        isMissingNode.assert().isNotNull()
+    }
+
+    @Test
+    fun schemaStartIsFieldUseJackson() {
+        val jsonSchemaGenerator = SchemaGeneratorBuilder()
+            .openapi31(true)
+            .schemaVersion(SchemaVersion.DRAFT_2020_12)
+            .optionPreset(OptionPreset.PLAIN_JSON)
+            .jacksonModule(
+                JacksonModule(
+                    JacksonOption.FLATTENED_ENUMS_FROM_JSONVALUE,
+                    JacksonOption.FLATTENED_ENUMS_FROM_JSONPROPERTY,
+                    JacksonOption.RESPECT_JSONPROPERTY_ORDER,
+                    JacksonOption.RESPECT_JSONPROPERTY_REQUIRED,
+                    JacksonOption.INLINE_TRANSFORMED_SUBTYPES
+                )
+            )
+            .customizer {
+            }
+            .build()
         val schema = jsonSchemaGenerator.generateSchema(StartIsProperty::class.java)
         val isOwnerNode = schema.get("properties").get("isOwner")
         isOwnerNode.assert().isNotNull()
@@ -348,7 +373,7 @@ class JsonSchemaGeneratorTest {
         @field:Schema(requiredMode = Schema.RequiredMode.REQUIRED)
         val requiredField: String?,
 
-    ) {
+        ) {
         val getter: String
             get() = ""
 

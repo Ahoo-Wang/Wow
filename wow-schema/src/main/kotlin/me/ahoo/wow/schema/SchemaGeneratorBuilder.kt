@@ -26,13 +26,25 @@ import com.github.victools.jsonschema.module.jakarta.validation.JakartaValidatio
 import com.github.victools.jsonschema.module.jakarta.validation.JakartaValidationOption
 import com.github.victools.jsonschema.module.swagger2.Swagger2Module
 import io.swagger.v3.core.util.ObjectMapperFactory
+import me.ahoo.wow.schema.jackson.WowJacksonModule
 import me.ahoo.wow.schema.joda.money.JodaMoneyModule
 import me.ahoo.wow.schema.kotlin.KotlinModule
 import me.ahoo.wow.schema.naming.SchemaNamingModule
 import java.util.function.Consumer
 
+/**
+ * Builder class for constructing a SchemaGenerator with customizable modules and options.
+ * This builder allows configuration of various JSON schema generation modules including
+ * Jackson, Jakarta Validation, Swagger2, Kotlin, Joda Money, and Wow-specific modules.
+ */
 class SchemaGeneratorBuilder {
     companion object {
+        /**
+         * Extension function to conditionally add a module to the config builder.
+         */
+        /**
+         * Conditionally adds a module to the schema generator config builder if not null.
+         */
         private fun SchemaGeneratorConfigBuilder.withModule(
             module: com.github.victools.jsonschema.generator.Module?
         ): SchemaGeneratorConfigBuilder {
@@ -42,9 +54,10 @@ class SchemaGeneratorBuilder {
             return this
         }
 
-        private fun SchemaGeneratorConfigBuilder.withOptions(
-            options: List<Option>
-        ): SchemaGeneratorConfigBuilder {
+        /**
+         * Adds a list of options to the schema generator config builder.
+         */
+        private fun SchemaGeneratorConfigBuilder.withOptions(options: List<Option>): SchemaGeneratorConfigBuilder {
             options.forEach {
                 this.with(it)
             }
@@ -52,25 +65,30 @@ class SchemaGeneratorBuilder {
         }
     }
 
+    /** Whether to use OpenAPI 3.1 specification. */
     var openapi31: Boolean = true
         private set
+
+    /** The JSON Schema version to use for generation. */
     var schemaVersion: SchemaVersion = SchemaVersion.DRAFT_7
         private set
     var optionPreset: OptionPreset = OptionPreset.PLAIN_JSON
         private set
 
-    var jacksonModule: JacksonModule? = JacksonModule(
-        JacksonOption.FLATTENED_ENUMS_FROM_JSONVALUE,
-        JacksonOption.FLATTENED_ENUMS_FROM_JSONPROPERTY,
-        JacksonOption.RESPECT_JSONPROPERTY_ORDER,
-        JacksonOption.RESPECT_JSONPROPERTY_REQUIRED,
-        JacksonOption.INLINE_TRANSFORMED_SUBTYPES
-    )
+    var jacksonModule: JacksonModule? =
+        WowJacksonModule(
+            JacksonOption.FLATTENED_ENUMS_FROM_JSONVALUE,
+            JacksonOption.FLATTENED_ENUMS_FROM_JSONPROPERTY,
+            JacksonOption.RESPECT_JSONPROPERTY_ORDER,
+            JacksonOption.RESPECT_JSONPROPERTY_REQUIRED,
+            JacksonOption.INLINE_TRANSFORMED_SUBTYPES,
+        )
         private set
-    var jakartaValidationModule: JakartaValidationModule? = JakartaValidationModule(
-        JakartaValidationOption.PREFER_IDN_EMAIL_FORMAT,
-        JakartaValidationOption.INCLUDE_PATTERN_EXPRESSIONS
-    )
+    var jakartaValidationModule: JakartaValidationModule? =
+        JakartaValidationModule(
+            JakartaValidationOption.PREFER_IDN_EMAIL_FORMAT,
+            JakartaValidationOption.INCLUDE_PATTERN_EXPRESSIONS,
+        )
         private set
 
     var swagger2Module: Swagger2Module? = Swagger2Module()
@@ -83,25 +101,28 @@ class SchemaGeneratorBuilder {
         private set
     var schemaNamingModule: SchemaNamingModule? = SchemaNamingModule("")
         private set
-    var options: List<Option> = listOf(
-        Option.EXTRA_OPEN_API_FORMAT_VALUES,
-        Option.PLAIN_DEFINITION_KEYS,
-        Option.SIMPLIFIED_ENUMS,
-        Option.MAP_VALUES_AS_ADDITIONAL_PROPERTIES,
-        Option.INLINE_NULLABLE_SCHEMAS
-    )
+    var options: List<Option> =
+        listOf(
+            Option.EXTRA_OPEN_API_FORMAT_VALUES,
+            Option.PLAIN_DEFINITION_KEYS,
+            Option.SIMPLIFIED_ENUMS,
+            Option.MAP_VALUES_AS_ADDITIONAL_PROPERTIES,
+            Option.INLINE_NULLABLE_SCHEMAS,
+        )
         private set
-    var customizer: Consumer<SchemaGeneratorConfigBuilder>? = Consumer {
-        it.with(Option.DEFINITIONS_FOR_ALL_OBJECTS)
-    }
+    var customizer: Consumer<SchemaGeneratorConfigBuilder>? =
+        Consumer {
+            it.with(Option.DEFINITIONS_FOR_ALL_OBJECTS)
+        }
         private set
     var typeContext: TypeContext? = null
         private set
 
     val requiredTypeContent: TypeContext
-        get() = checkNotNull(typeContext) {
-            "typeContext is null, please call SchemaGeneratorBuilder.build() first."
-        }
+        get() =
+            checkNotNull(typeContext) {
+                "typeContext is null, please call SchemaGeneratorBuilder.build() first."
+            }
 
     fun openapi31(openapi31: Boolean): SchemaGeneratorBuilder {
         this.openapi31 = openapi31
@@ -165,15 +186,17 @@ class SchemaGeneratorBuilder {
 
     fun build(): SchemaGenerator {
         val openAPIObjectMapper = ObjectMapperFactory.create(null, openapi31)
-        val configBuilder = SchemaGeneratorConfigBuilder(openAPIObjectMapper, schemaVersion, optionPreset)
-            .withModule(jacksonModule)
-            .withModule(jakartaValidationModule)
-            .withModule(swagger2Module)
-            .withModule(kotlinModule)
-            .withModule(jodaMoneyModule)
-            .withModule(wowModule)
-            .withModule(schemaNamingModule)
-            .withOptions(options)
+        val configBuilder =
+            SchemaGeneratorConfigBuilder(openAPIObjectMapper, schemaVersion, optionPreset)
+                .withModule(jacksonModule)
+                .withModule(jakartaValidationModule)
+                .withModule(swagger2Module)
+                .withModule(kotlinModule)
+                .withModule(jodaMoneyModule)
+                .withModule(wowModule)
+                .withModule(schemaNamingModule)
+                .withOptions(options)
+        configBuilder.forFields()
         customizer?.accept(configBuilder)
         val config = configBuilder.build()
         typeContext = TypeContextFactory.createDefaultTypeContext(config)
