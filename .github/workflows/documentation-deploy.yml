@@ -46,7 +46,7 @@ jobs:
         run: cp -R build/dokka/htmlMultiModule documentation/docs/public/dokka
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: 22
           cache-dependency-path: documentation/yarn.lock
