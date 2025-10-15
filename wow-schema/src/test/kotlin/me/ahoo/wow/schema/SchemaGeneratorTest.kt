@@ -2,6 +2,7 @@ package me.ahoo.wow.schema
 
 import com.fasterxml.classmate.TypeResolver
 import com.fasterxml.jackson.annotation.JsonIgnore
+import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.databind.JsonNode
 import com.github.victools.jsonschema.generator.Module
 import com.github.victools.jsonschema.generator.Option
@@ -312,6 +313,15 @@ class JsonSchemaGeneratorTest {
         schema.get("properties").get("ignoreSchemaProperty").assert().isNull()
     }
 
+    @Test
+    fun schemaStartIsField() {
+        val schema = jsonSchemaGenerator.generateSchema(StartIsProperty::class.java)
+        val isOwnerNode = schema.get("properties").get("isOwner")
+        isOwnerNode.assert().isNotNull()
+        val isMissingNode = schema.get("properties").get("isMissing")
+        isMissingNode.assert().isNull()
+    }
+
     @Suppress("UnusedPrivateProperty")
     data class KotlinData(
         val field: String,
@@ -337,6 +347,7 @@ class JsonSchemaGeneratorTest {
         val writeOnlyField: String?,
         @field:Schema(requiredMode = Schema.RequiredMode.REQUIRED)
         val requiredField: String?,
+
     ) {
         val getter: String
             get() = ""
@@ -357,6 +368,19 @@ class JsonSchemaGeneratorTest {
         val ignoreSchemaProperty: String
             get() = ""
     }
+
+    data class StartIsProperty(
+        /**
+         * WARN: JacksonModule
+         *
+         * shouldIgnoreField
+         *
+         * // other kinds of field ignorals are handled implicitly, i.e. are only available by way of being absent
+         */
+        @field:JsonProperty("isOwner")
+        val isOwner: Boolean,
+        val isMissing: Boolean
+    )
 }
 
 @AggregateRoot
