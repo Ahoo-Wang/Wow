@@ -476,7 +476,7 @@ export class ApiClientGenerator implements Generator {
     addJSDoc(
       methodDeclaration,
       [operation.operation.summary,
-        operation.operation.description],
+        operation.operation.description, `- path: \`${operation.path}\``],
     );
     this.context.logger.success(`Operation method generated: ${methodName}`);
   }

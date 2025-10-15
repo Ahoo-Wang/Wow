@@ -304,12 +304,10 @@ export class CommandClientGenerator implements Generator {
       ],
     });
 
-    if (definition.summary || definition.description) {
-      this.context.logger.info(
-        `Adding JSDoc documentation for method: ${camelCase(definition.name)}`,
-      );
-    }
-    addJSDoc(methodDeclaration, [definition.summary, definition.description]);
+    this.context.logger.info(
+      `Adding JSDoc documentation for method: ${camelCase(definition.name)}`,
+    );
+    addJSDoc(methodDeclaration, [definition.summary, definition.description, `- path: \`${definition.path}\``]);
 
     this.context.logger.success(
       `Command method generated: ${camelCase(definition.name)}`,
