@@ -28,6 +28,10 @@ vi.mock('../../src/client/decorators', () => ({
     type: 'Promise<Response>',
     metadata: '{resultExtractor: ResultExtractors.Response }',
   },
+  STRING_RETURN_TYPE: {
+    type: 'Promise<string>',
+    metadata: '{resultExtractor: ResultExtractors.Text }',
+  },
 }));
 
 vi.mock('../../src/utils', () => ({
@@ -142,8 +146,7 @@ describe('ApiClientGenerator', () => {
       );
       vi.spyOn(generator as any, 'groupOperations').mockReturnValue(new Map());
       vi.spyOn(generator as any, 'generateApiClients').mockImplementation(
-        () => {
-        },
+        () => {},
       );
 
       generator.generate();
@@ -428,7 +431,10 @@ describe('ApiClientGenerator', () => {
 
       const result = (generator as any).resolveReturnType({}, operation);
 
-      expect(result).toEqual({ type: 'Promise<string>' });
+      expect(result).toEqual({
+        type: 'Promise<string>',
+        metadata: '{resultExtractor: ResultExtractors.Text }',
+      });
     });
 
     it('should handle event stream with array reference schema', async () => {
