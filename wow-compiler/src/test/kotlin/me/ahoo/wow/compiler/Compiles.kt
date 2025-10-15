@@ -32,7 +32,7 @@ fun compileTest(
     val kotlinCompilation = KotlinCompilation().apply {
         inheritClassPath = true
         this.sources = sources.map { it.toSourceFile() }
-        configureKsp(useKsp2 = true) {
+        configureKsp {
             incremental = true
             symbolProcessorProviders += symbolProcessorProvider
         }
