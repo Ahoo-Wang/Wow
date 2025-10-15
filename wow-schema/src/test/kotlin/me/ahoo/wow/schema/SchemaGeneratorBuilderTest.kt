@@ -17,11 +17,11 @@ import com.github.victools.jsonschema.generator.Option
 import com.github.victools.jsonschema.generator.OptionPreset
 import com.github.victools.jsonschema.generator.SchemaGeneratorConfigBuilder
 import com.github.victools.jsonschema.generator.SchemaVersion
-import com.github.victools.jsonschema.module.jackson.JacksonModule
 import com.github.victools.jsonschema.module.jakarta.validation.JakartaValidationModule
 import com.github.victools.jsonschema.module.swagger2.Swagger2Module
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.schema.jackson.WowJacksonModule
 import me.ahoo.wow.schema.kotlin.KotlinModule
 import me.ahoo.wow.schema.naming.SchemaNamingModule
 import org.junit.jupiter.api.Test
@@ -31,7 +31,7 @@ class SchemaGeneratorBuilderTest {
 
     @Test
     fun build() {
-        val jacksonModule = JacksonModule()
+        val jacksonModule = WowJacksonModule()
         val jakartaValidationModule = JakartaValidationModule()
         val swagger2Module = Swagger2Module()
         val kotlinModule = KotlinModule()
