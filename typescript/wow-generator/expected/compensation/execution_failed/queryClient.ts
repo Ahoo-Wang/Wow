@@ -22,8 +22,8 @@ import {
   FunctionChanged,
   RecoverableMarked,
   RetrySpecApplied,
-} from './types.ts';
-import { ResourceAttributionPathSpec } from '@ahoo-wang/fetcher-wow/dist/types/endpoints.ts';
+} from './types';
+import { ResourceAttributionPathSpec } from '@ahoo-wang/fetcher-wow';
 
 const DEFAULT_CLIENT_OPTIONS: QueryClientOptions = {
   contextAlias: 'compensation',

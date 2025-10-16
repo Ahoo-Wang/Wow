@@ -11,5 +11,5 @@
  * limitations under the License.
  */
 
-export * from './boundedContext.ts';
+export * from './boundedContext';
 export * from './execution_failed';

@@ -39,7 +39,7 @@ import {
   ForcePrepareCompensation,
   MarkRecoverable,
   PrepareCompensation,
-} from './types.ts';
+} from './types';
 import { ContentTypeValues } from '@ahoo-wang/fetcher';
 import { JsonEventStreamResultExtractor } from '@ahoo-wang/fetcher-eventstream';
 
