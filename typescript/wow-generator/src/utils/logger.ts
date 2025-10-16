@@ -19,7 +19,7 @@ import { Logger } from '../types';
  */
 export class ConsoleLogger implements Logger {
   private getTimestamp(): string {
-    return new Date().toISOString().slice(11, 19); // HH:MM:SS format
+    return new Date().toTimeString().slice(0, 8); // HH:MM:SS format
   }
 
   info(message: string, ...params: any[]): void {
