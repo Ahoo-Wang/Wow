@@ -14,7 +14,8 @@
 import { ResourceAttributionPathSpec } from '@ahoo-wang/fetcher-wow';
 import { Project, SourceFile } from 'ts-morph';
 import { AggregateDefinition, TagAliasAggregate } from '../aggregate';
-import { getOrCreateSourceFile, pascalCase } from '../utils';
+import { camelCase, getOrCreateSourceFile, pascalCase, splitName } from '../utils';
+import { Operation } from '@ahoo-wang/fetcher-openapi';
 
 export function inferPathSpecType(
   aggregateDefinition: AggregateDefinition,
@@ -66,4 +67,26 @@ export function methodToDecorator(method: string): string {
     return 'del';
   }
   return method;
+}
+
+const OPERATION_METHOD_NAME_KEY = 'x-fetcher-method';
+
+export function resolveMethodName(operation: Operation, isExists: (methodName: string) => boolean): string | undefined {
+  let methodName = operation[OPERATION_METHOD_NAME_KEY];
+  if (methodName) {
+    return methodName;
+  }
+  if (!operation.operationId) {
+    return undefined;
+  }
+
+  const nameParts = splitName(operation.operationId);
+  for (let i = nameParts.length - 1; i >= 0; i--) {
+    const operationName = camelCase(nameParts.slice(i));
+    if (isExists(operationName)) {
+      continue;
+    }
+    return operationName;
+  }
+  return camelCase(nameParts);
 }

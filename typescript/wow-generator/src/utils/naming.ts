@@ -23,7 +23,7 @@ const NAMING_SEPARATORS = /[-_\s.]+/;
  * @param name - A string or array of strings to split by naming separators
  * @returns An array of string parts split by naming separators
  */
-function splitName(name: string | string[]): string[] {
+export function splitName(name: string | string[]): string[] {
   if (Array.isArray(name)) {
     // If input is an array, split each element by naming separators and flatten the result
     return name.flatMap(part => splitCamelCase(part.split(NAMING_SEPARATORS)));
@@ -37,7 +37,7 @@ function splitName(name: string | string[]): string[] {
  * @param parts - Array of string parts to process
  * @returns Array of properly split parts
  */
-function splitCamelCase(parts: string[]): string[] {
+export function splitCamelCase(parts: string[]): string[] {
   return parts.flatMap(part => {
     if (part.length === 0) {
       return [];

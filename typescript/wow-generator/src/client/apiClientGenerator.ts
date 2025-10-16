@@ -56,7 +56,7 @@ import {
   createDecoratorClass, DEFAULT_RETURN_TYPE, MethodReturnType,
   STREAM_RESULT_EXTRACTOR_METADATA, STRING_RETURN_TYPE,
 } from './decorators';
-import { methodToDecorator } from './utils';
+import { methodToDecorator, resolveMethodName } from './utils';
 
 /**
  * Interface extending MethodOperation with path information.
@@ -185,15 +185,13 @@ export class ApiClientGenerator implements Generator {
     apiClientClass: ClassDeclaration,
     operation: Operation,
   ): string {
-    const parts = operation.operationId!.split('.');
-    for (let i = parts.length - 1; i >= 0; i--) {
-      const operationName = camelCase(parts.slice(i));
-      if (apiClientClass.getMethod(operationName)) {
-        continue;
-      }
-      return operationName;
+    const methodName = resolveMethodName(operation, (name) => {
+      return apiClientClass.getMethod(name) !== undefined;
+    });
+    if (!methodName) {
+      throw new Error(`Unable to resolve method name for apiClientClass:${apiClientClass.getName()}.`);
     }
-    return camelCase(parts);
+    return methodName;
   }
 
   /**
