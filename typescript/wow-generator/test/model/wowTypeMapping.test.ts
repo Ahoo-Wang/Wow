@@ -34,6 +34,9 @@ describe('wowTypeMapping', () => {
       expect(WOW_TYPE_MAPPING['wow.command.CommandResult']).toBe(
         'CommandResult',
       );
+      expect(WOW_TYPE_MAPPING['wow.command.CommandResultArray']).toBe(
+        'CommandResultArray',
+      );
       expect(WOW_TYPE_MAPPING['wow.MessageHeaderSqlType']).toBe(
         'MessageHeaderSqlType',
       );
@@ -89,7 +92,7 @@ describe('wowTypeMapping', () => {
     });
 
     it('should have the correct number of mappings', () => {
-      expect(Object.keys(WOW_TYPE_MAPPING).length).toBe(27);
+      expect(Object.keys(WOW_TYPE_MAPPING).length).toBe(28);
     });
   });
 });
