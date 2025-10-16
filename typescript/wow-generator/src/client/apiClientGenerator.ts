@@ -541,7 +541,7 @@ export class ApiClientGenerator implements Generator {
     );
     const apiClientTags: Map<string, Tag> = new Map<string, Tag>();
     const totalTags = this.context.openAPI.tags?.length || 0;
-    for (const [_, pathItem] of Object.entries(this.context.openAPI.paths)) {
+    for (const pathItem of Object.values(this.context.openAPI.paths)) {
       extractOperations(pathItem).forEach(methodOperation => {
         methodOperation.operation.tags?.forEach(tagName => {
           if (!apiClientTags.has(tagName)) {
