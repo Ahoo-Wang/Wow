@@ -22,16 +22,16 @@ importers:
         version: 2.10.1(@ahoo-wang/fetcher@2.10.1)
       '@ahoo-wang/fetcher-eventstream':
         specifier: ^2.10.1
-        version: 2.10.1(@ahoo-wang/fetcher@2.10.1)
+        version: 2.11.2(@ahoo-wang/fetcher@2.10.1)
       '@ahoo-wang/fetcher-react':
         specifier: ^2.10.1
-        version: 2.10.1(@ahoo-wang/fetcher-eventbus@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher-eventstream@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher-storage@2.10.1(@ahoo-wang/fetcher-eventbus@2.10.1(@ahoo-wang/fetcher@2.10.1)))(@ahoo-wang/fetcher-wow@2.10.1(@ahoo-wang/fetcher-decorator@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher-eventstream@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher@2.10.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+        version: 2.10.1(@ahoo-wang/fetcher-eventbus@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher-eventstream@2.11.2(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher-storage@2.10.1(@ahoo-wang/fetcher-eventbus@2.10.1(@ahoo-wang/fetcher@2.10.1)))(@ahoo-wang/fetcher-wow@2.10.1(@ahoo-wang/fetcher-decorator@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher-eventstream@2.11.2(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher@2.10.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@ahoo-wang/fetcher-storage':
         specifier: ^2.10.1
         version: 2.10.1(@ahoo-wang/fetcher-eventbus@2.10.1(@ahoo-wang/fetcher@2.10.1))
       '@ahoo-wang/fetcher-wow':
         specifier: ^2.10.1
-        version: 2.10.1(@ahoo-wang/fetcher-decorator@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher-eventstream@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher@2.10.1)
+        version: 2.10.1(@ahoo-wang/fetcher-decorator@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher-eventstream@2.11.2(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher@2.10.1)
       '@ant-design/icons':
         specifier: ^6.1.0
         version: 6.1.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
@@ -62,7 +62,7 @@ importers:
     devDependencies:
       '@ahoo-wang/fetcher-generator':
         specifier: ^2.10.1
-        version: 2.10.1(@ahoo-wang/fetcher-decorator@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher-eventstream@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher-openapi@2.3.0)(@ahoo-wang/fetcher-wow@2.10.1(@ahoo-wang/fetcher-decorator@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher-eventstream@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher@2.10.1)
+        version: 2.10.1(@ahoo-wang/fetcher-decorator@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher-eventstream@2.11.2(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher-openapi@2.3.0)(@ahoo-wang/fetcher-wow@2.10.1(@ahoo-wang/fetcher-decorator@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher-eventstream@2.11.2(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher@2.10.1)
       '@eslint/js':
         specifier: ^9.37.0
         version: 9.37.0
@@ -149,8 +149,8 @@ packages:
     peerDependencies:
       '@ahoo-wang/fetcher': ^2.3.4
 
-  '@ahoo-wang/fetcher-eventstream@2.10.1':
-    resolution: {integrity: sha512-5JBkv48j/LNiyKNzHSeluea0gbV9Qnq4QieDY5ByPuQ7hBOjDDqPLGUie/2NCM4cplDEbY/2zfAD0wqihy+PCg==}
+  '@ahoo-wang/fetcher-eventstream@2.11.2':
+    resolution: {integrity: sha512-3ODBCxCdUdfGV3qF/kPxypTayQLeV+v5Pu5EkhpaT4WfQJwYJy2+D+sljIUvFd/rOAUZfV2golbae73Dae2QBg==}
     peerDependencies:
       '@ahoo-wang/fetcher': ^2.3.4
 
@@ -2580,30 +2580,30 @@ snapshots:
     dependencies:
       '@ahoo-wang/fetcher': 2.10.1
 
-  '@ahoo-wang/fetcher-eventstream@2.10.1(@ahoo-wang/fetcher@2.10.1)':
+  '@ahoo-wang/fetcher-eventstream@2.11.2(@ahoo-wang/fetcher@2.10.1)':
     dependencies:
       '@ahoo-wang/fetcher': 2.10.1
 
-  '@ahoo-wang/fetcher-generator@2.10.1(@ahoo-wang/fetcher-decorator@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher-eventstream@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher-openapi@2.3.0)(@ahoo-wang/fetcher-wow@2.10.1(@ahoo-wang/fetcher-decorator@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher-eventstream@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher@2.10.1)':
+  '@ahoo-wang/fetcher-generator@2.10.1(@ahoo-wang/fetcher-decorator@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher-eventstream@2.11.2(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher-openapi@2.3.0)(@ahoo-wang/fetcher-wow@2.10.1(@ahoo-wang/fetcher-decorator@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher-eventstream@2.11.2(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher@2.10.1)':
     dependencies:
       '@ahoo-wang/fetcher': 2.10.1
       '@ahoo-wang/fetcher-decorator': 2.10.1(@ahoo-wang/fetcher@2.10.1)
-      '@ahoo-wang/fetcher-eventstream': 2.10.1(@ahoo-wang/fetcher@2.10.1)
+      '@ahoo-wang/fetcher-eventstream': 2.11.2(@ahoo-wang/fetcher@2.10.1)
       '@ahoo-wang/fetcher-openapi': 2.3.0
-      '@ahoo-wang/fetcher-wow': 2.10.1(@ahoo-wang/fetcher-decorator@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher-eventstream@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher@2.10.1)
+      '@ahoo-wang/fetcher-wow': 2.10.1(@ahoo-wang/fetcher-decorator@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher-eventstream@2.11.2(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher@2.10.1)
       commander: 14.0.1
       ts-morph: 27.0.2
       yaml: 2.8.1
 
   '@ahoo-wang/fetcher-openapi@2.3.0': {}
 
-  '@ahoo-wang/fetcher-react@2.10.1(@ahoo-wang/fetcher-eventbus@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher-eventstream@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher-storage@2.10.1(@ahoo-wang/fetcher-eventbus@2.10.1(@ahoo-wang/fetcher@2.10.1)))(@ahoo-wang/fetcher-wow@2.10.1(@ahoo-wang/fetcher-decorator@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher-eventstream@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher@2.10.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
+  '@ahoo-wang/fetcher-react@2.10.1(@ahoo-wang/fetcher-eventbus@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher-eventstream@2.11.2(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher-storage@2.10.1(@ahoo-wang/fetcher-eventbus@2.10.1(@ahoo-wang/fetcher@2.10.1)))(@ahoo-wang/fetcher-wow@2.10.1(@ahoo-wang/fetcher-decorator@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher-eventstream@2.11.2(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher@2.10.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
     dependencies:
       '@ahoo-wang/fetcher': 2.10.1
       '@ahoo-wang/fetcher-eventbus': 2.10.1(@ahoo-wang/fetcher@2.10.1)
-      '@ahoo-wang/fetcher-eventstream': 2.10.1(@ahoo-wang/fetcher@2.10.1)
+      '@ahoo-wang/fetcher-eventstream': 2.11.2(@ahoo-wang/fetcher@2.10.1)
       '@ahoo-wang/fetcher-storage': 2.10.1(@ahoo-wang/fetcher-eventbus@2.10.1(@ahoo-wang/fetcher@2.10.1))
-      '@ahoo-wang/fetcher-wow': 2.10.1(@ahoo-wang/fetcher-decorator@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher-eventstream@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher@2.10.1)
+      '@ahoo-wang/fetcher-wow': 2.10.1(@ahoo-wang/fetcher-decorator@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher-eventstream@2.11.2(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher@2.10.1)
       react: 19.2.0
       react-dom: 19.2.0(react@19.2.0)
 
@@ -2611,11 +2611,11 @@ snapshots:
     dependencies:
       '@ahoo-wang/fetcher-eventbus': 2.10.1(@ahoo-wang/fetcher@2.10.1)
 
-  '@ahoo-wang/fetcher-wow@2.10.1(@ahoo-wang/fetcher-decorator@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher-eventstream@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher@2.10.1)':
+  '@ahoo-wang/fetcher-wow@2.10.1(@ahoo-wang/fetcher-decorator@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher-eventstream@2.11.2(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher@2.10.1)':
     dependencies:
       '@ahoo-wang/fetcher': 2.10.1
       '@ahoo-wang/fetcher-decorator': 2.10.1(@ahoo-wang/fetcher@2.10.1)
-      '@ahoo-wang/fetcher-eventstream': 2.10.1(@ahoo-wang/fetcher@2.10.1)
+      '@ahoo-wang/fetcher-eventstream': 2.11.2(@ahoo-wang/fetcher@2.10.1)
 
   '@ahoo-wang/fetcher@2.10.1': {}
 
