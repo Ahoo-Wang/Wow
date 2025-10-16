@@ -12,8 +12,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { Project, SourceFile, VariableDeclarationKind } from 'ts-morph';
-import { QueryClientGenerator } from '../../src/client/queryClientGenerator';
+import { Project } from 'ts-morph';
+import { QueryClientGenerator } from '../../src/client';
 import { GenerateContext } from '../../src/generateContext';
 import { GenerateContextInit } from '../../src/types';
 import { AggregateDefinition } from '../../src/aggregate';
@@ -139,7 +139,7 @@ describe('QueryClientGenerator', () => {
 
     const aggregate = Array.from(mockContextAggregates.values())[0]
       .values()
-      .next().value;
+      .next().value as AggregateDefinition;
 
     generator.processQueryClient(aggregate);
 

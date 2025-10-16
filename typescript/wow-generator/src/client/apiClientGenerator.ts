@@ -541,6 +541,18 @@ export class ApiClientGenerator implements Generator {
     );
     const apiClientTags: Map<string, Tag> = new Map<string, Tag>();
     const totalTags = this.context.openAPI.tags?.length || 0;
+    for (const [_, pathItem] of Object.entries(this.context.openAPI.paths)) {
+      extractOperations(pathItem).forEach(methodOperation => {
+        methodOperation.operation.tags?.forEach(tagName => {
+          if (!apiClientTags.has(tagName)) {
+            apiClientTags.set(tagName, {
+              name: tagName,
+              description: '',
+            });
+          }
+        });
+      });
+    }
     let filteredTags = 0;
     this.context.openAPI.tags?.forEach(tag => {
       if (
