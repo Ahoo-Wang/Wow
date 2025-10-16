@@ -530,6 +530,10 @@ export class ApiClientGenerator implements Generator {
     return operations;
   }
 
+  private shouldIgnoreTag(tagName: string): boolean {
+    return tagName === 'wow' || tagName === 'Actuator' || this.isAggregateTag(tagName);
+  }
+
   /**
    * Resolves valid API client tags from the OpenAPI specification.
    * Filters out system tags like 'wow' and 'Actuator' and aggregate tags.
@@ -544,7 +548,7 @@ export class ApiClientGenerator implements Generator {
     for (const pathItem of Object.values(this.context.openAPI.paths)) {
       extractOperations(pathItem).forEach(methodOperation => {
         methodOperation.operation.tags?.forEach(tagName => {
-          if (!apiClientTags.has(tagName)) {
+          if (!this.shouldIgnoreTag(tagName) && !apiClientTags.has(tagName)) {
             apiClientTags.set(tagName, {
               name: tagName,
               description: '',
@@ -555,11 +559,7 @@ export class ApiClientGenerator implements Generator {
     }
     let filteredTags = 0;
     this.context.openAPI.tags?.forEach(tag => {
-      if (
-        tag.name != 'wow' &&
-        tag.name != 'Actuator' &&
-        !this.isAggregateTag(tag)
-      ) {
+      if (!this.shouldIgnoreTag(tag.name)) {
         apiClientTags.set(tag.name, tag);
         filteredTags++;
         this.context.logger.info(`Included API client tag: ${tag.name}`);
@@ -575,10 +575,10 @@ export class ApiClientGenerator implements Generator {
     return apiClientTags;
   }
 
-  private isAggregateTag(tag: Tag): boolean {
+  private isAggregateTag(tagName: string): boolean {
     for (const aggregates of this.context.contextAggregates.values()) {
       for (const aggregate of aggregates) {
-        if (aggregate.aggregate.tag.name === tag.name) {
+        if (aggregate.aggregate.tag.name === tagName) {
           return true;
         }
       }
