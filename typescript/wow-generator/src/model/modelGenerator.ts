@@ -91,6 +91,13 @@ export class ModelGenerator implements Generator {
   }
 
   private isWowSchema(schemaKey: string, stateAggregatedTypeNames: Set<string>): boolean {
+    if (
+      schemaKey === 'wow.api.query.PagedList'
+      && schemaKey.startsWith('wow.api.query.')
+      && (schemaKey.endsWith('PagedList'))) {
+      return false;
+    }
+
     if (schemaKey.startsWith('wow.')
       || schemaKey.endsWith('AggregatedCondition')
       || schemaKey.endsWith('AggregatedDomainEventStream')
