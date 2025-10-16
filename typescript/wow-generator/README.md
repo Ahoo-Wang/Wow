@@ -8,7 +8,7 @@
 [![npm bundle size](https://img.shields.io/bundlephobia/minzip/%40ahoo-wang%2Ffetcher-generator)](https://www.npmjs.com/package/@ahoo-wang/fetcher-generator)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/Ahoo-Wang/fetcher)
 
-A powerful TypeScript code generator from OpenAPI specifications, designed to be general-purpose with specialized support for the [Wow](https://github.com/Ahoo-Wang/Wow) domain-driven design framework's CQRS patterns. Generates type-safe models, query clients, command clients, and API clients from OpenAPI specifications.
+A powerful TypeScript code generation tool that automatically generates type-safe API client code based on OpenAPI specifications. It is designed for general use cases and is also deeply optimized for the [Wow](https://github.com/Ahoo-Wang/Wow) Domain-Driven Design framework, providing native support for the CQRS architectural pattern.
 
 **[Wow](https://github.com/Ahoo-Wang/Wow) Framework**: A domain-driven design framework that provides event sourcing, CQRS (Command Query Responsibility Segregation), and aggregate patterns for building scalable distributed systems. This generator provides enhanced support for Wow's CQRS architecture while remaining compatible with standard REST APIs.
 

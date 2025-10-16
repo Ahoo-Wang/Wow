@@ -7,7 +7,7 @@
 [![npm downloads](https://img.shields.io/npm/dm/@ahoo-wang/fetcher-generator.svg)](https://www.npmjs.com/package/@ahoo-wang/fetcher-generator)
 [![npm bundle size](https://img.shields.io/bundlephobia/minzip/%40ahoo-wang%2Ffetcher-generator)](https://www.npmjs.com/package/@ahoo-wang/fetcher-generator)
 
-一个强大的 TypeScript 代码生成器，从 OpenAPI 规范生成代码，设计为通用目的，同时为 [Wow](https://github.com/Ahoo-Wang/Wow) 领域驱动设计框架的 CQRS 模式提供专门支持。生成类型安全的模型、查询客户端、命令客户端和 API 客户端。
+一个功能强大的 TypeScript 代码生成工具，能够基于 OpenAPI 规范自动生成类型安全的 API 客户端代码。不仅适用于通用场景，还专门为 [Wow](https://github.com/Ahoo-Wang/Wow) 领域驱动设计框架 深度优化，原生支持 CQRS 架构模式。
 
 **[Wow](https://github.com/Ahoo-Wang/Wow) 框架**：一个领域驱动设计框架，提供事件溯源、CQRS（命令查询责任分离）和聚合模式，用于构建可扩展的分布式系统。此生成器为 Wow 的 CQRS 架构提供增强支持，同时保持与标准 REST API 的兼容性。
 
