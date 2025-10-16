@@ -41,7 +41,7 @@ describe('E2E Test', () => {
   it('should generate [test/demo-spec.json] code', async () => {
     clearOutputSubDirs();
     await generateAction({
-      input: 'http://markitdown-api.dev.svc.cluster.local/openapi.json',
+      input: 'test/demo-spec.json',
       output: OUT_PUT_DIR,
       config: 'test/fetcher-generator.config.json',
       tsConfigFilePath: `${OUT_PUT_DIR}/tsconfig.json`,
