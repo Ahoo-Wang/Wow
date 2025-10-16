@@ -88,6 +88,8 @@ export interface CommandResult
     NullableAggregateVersionCapable {
 }
 
+export type CommandResultArray = CommandResult[];
+
 /**
  * Command result event stream type
  *
