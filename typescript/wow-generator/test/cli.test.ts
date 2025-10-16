@@ -53,12 +53,17 @@ describe('CLI setup', () => {
     const result = setupCLI();
 
     expect(result.name).toHaveBeenCalledWith('fetcher-generator');
-    expect(result.description).toHaveBeenCalledWith(
+    expect(result.description).toHaveBeenNthCalledWith(
+      1,
       'OpenAPI Specification TypeScript code generator for Wow',
     );
-    expect(result.version).toHaveBeenCalledWith(packageJson.version);
+    expect(result.version).toHaveBeenCalledWith(packageJson.version, '-v, --version');
 
     expect(result.command).toHaveBeenCalledWith('generate');
+    expect(result.description).toHaveBeenNthCalledWith(
+      2,
+      'Generate TypeScript code from OpenAPI specification',
+    );
     expect(result.requiredOption).toHaveBeenCalledWith(
       '-i, --input <file>',
       'Input OpenAPI specification file path or URL (http/https)',
@@ -74,12 +79,8 @@ describe('CLI setup', () => {
       './fetcher-generator.config.json',
     );
     expect(result.option).toHaveBeenCalledWith(
-      '-v, --verbose',
-      'Enable verbose logging',
-    );
-    expect(result.option).toHaveBeenCalledWith(
-      '--dry-run',
-      'Show what would be generated without writing files',
+      '-t, --ts-config-file-path <file>',
+      'TypeScript configuration file path',
     );
     expect(result.action).toHaveBeenCalledWith(generateAction);
   });

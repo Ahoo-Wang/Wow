@@ -62,10 +62,8 @@ fetcher-generator generate [options]
   - Supports HTTP/HTTPS URLs (e.g., `https://api.example.com/openapi.json`)
 - `-o, --output <path>`: Output directory path (default: `src/generated`)
 - `-c, --config <file>`: Configuration file path (optional)
-- `-v, --verbose`: Enable verbose logging during generation
-- `--dry-run`: Show what would be generated without writing files (reserved for future use)
 - `-h, --help`: Display help information
-- `-V, --version`: Display version number
+- `-v, --version`: Display version number
 
 #### Examples
 

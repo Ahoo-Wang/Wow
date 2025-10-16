@@ -43,8 +43,6 @@ export async function generateAction(options: {
   output: string;
   config?: string;
   tsConfigFilePath?: string;
-  verbose?: boolean;
-  dryRun?: boolean;
 }) {
   const logger = new ConsoleLogger();
 

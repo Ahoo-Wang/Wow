@@ -63,10 +63,8 @@ fetcher-generator generate [options]
   - 支持 HTTP/HTTPS URL（例如：`https://api.example.com/openapi.json`）
 - `-o, --output <path>`：输出目录路径（默认为 `src/generated`）
 - `-c, --config <file>`：配置文件路径（可选）
-- `-v, --verbose`：启用详细日志记录
-- `--dry-run`：显示将要生成的内容而不写入文件（保留供将来使用）
 - `-h, --help`：显示帮助信息
-- `-V, --version`：显示版本号
+- `-v, --version`：显示版本号
 
 #### 示例
 
