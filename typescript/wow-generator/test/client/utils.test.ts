@@ -16,39 +16,19 @@ import {
   inferPathSpecType,
   getClientName,
   createClientFilePath,
-} from '../../src/client/utils';
+  methodToDecorator,
+  resolveMethodName,
+} from '../../src/client';
 import { ResourceAttributionPathSpec } from '@ahoo-wang/fetcher-wow';
 
 // Mock the dependencies
-vi.mock('../../src/utils', () => ({
-  getOrCreateSourceFile: vi.fn(() => 'mock-source-file'),
-  pascalCase: vi.fn(name => {
-    // Mock implementation that matches the actual pascalCase function behavior
-    if (name === '' || (Array.isArray(name) && name.length === 0)) {
-      return '';
-    }
-
-    let names: string[];
-    if (Array.isArray(name)) {
-      names = name.flatMap(part => part.split(/[-_\s.]+|(?=[A-Z])/));
-    } else {
-      names = name.split(/[-_\s.]+|(?=[A-Z])/);
-    }
-
-    return names
-      .filter(part => part.length > 0)
-      .map(part => {
-        if (part.length === 0) return '';
-        const firstChar = part.charAt(0);
-        const rest = part.slice(1);
-        return (
-          (/[a-zA-Z]/.test(firstChar) ? firstChar.toUpperCase() : firstChar) +
-          rest.toLowerCase()
-        );
-      })
-      .join('');
-  }),
-}));
+vi.mock('../../src/utils', async (importOriginal) => {
+  const actual: any = await importOriginal();
+  return {
+    ...actual,
+    getOrCreateSourceFile: vi.fn(() => 'mock-source-file'),
+  };
+});
 
 describe('client utils', () => {
   describe('inferPathSpecType', () => {
@@ -161,6 +141,104 @@ describe('client utils', () => {
         fileName,
       );
       expect(result).toBe('mock-source-file');
+    });
+  });
+
+  describe('methodToDecorator', () => {
+    it('should return "del" for delete method', () => {
+      const result = methodToDecorator('delete');
+      expect(result).toBe('del');
+    });
+
+    it('should return the same method name for non-delete methods', () => {
+      expect(methodToDecorator('get')).toBe('get');
+      expect(methodToDecorator('post')).toBe('post');
+      expect(methodToDecorator('put')).toBe('put');
+      expect(methodToDecorator('patch')).toBe('patch');
+      expect(methodToDecorator('head')).toBe('head');
+      expect(methodToDecorator('options')).toBe('options');
+    });
+  });
+
+  describe('resolveMethodName', () => {
+    it('should return custom method name from x-fetcher-method extension', () => {
+      const operation = {
+        'x-fetcher-method': 'customMethod',
+        operationId: 'user.getProfile',
+      };
+      const isExists = vi.fn();
+
+      const result = resolveMethodName(operation as any, isExists);
+
+      expect(result).toBe('customMethod');
+      expect(isExists).not.toHaveBeenCalled();
+    });
+
+    it('should return undefined when operation has no operationId', () => {
+      const operation = {};
+      const isExists = vi.fn();
+
+      const result = resolveMethodName(operation as any, isExists);
+
+      expect(result).toBeUndefined();
+      expect(isExists).not.toHaveBeenCalled();
+    });
+
+    it('should return the shortest unique method name from operationId', () => {
+      const operation = { operationId: 'user.getProfile' };
+      const isExists = vi.fn(() => false); // No methods exist
+
+      const result = resolveMethodName(operation as any, isExists);
+
+      expect(result).toBe('profile');
+      expect(isExists).toHaveBeenCalledWith('profile');
+    });
+
+    it('should try shorter suffixes when longer ones exist', () => {
+      const operation = { operationId: 'user.get.profile' };
+      const isExists = vi.fn(name => name === 'profile'); // Only 'profile' exists
+
+      const result = resolveMethodName(operation as any, isExists);
+
+      expect(result).toBe('getProfile');
+      expect(isExists).toHaveBeenCalledWith('profile');
+      expect(isExists).toHaveBeenCalledWith('getProfile');
+    });
+
+    it('should return full camelCase name when no unique method found', () => {
+      const operation = { operationId: 'user.get.profile' };
+      const isExists = vi.fn(() => true); // All methods exist
+
+      const result = resolveMethodName(operation as any, isExists);
+
+      expect(result).toBe('userGetProfile');
+    });
+
+    it('should handle single part operationId', () => {
+      const operation = { operationId: 'create' };
+      const isExists = vi.fn(() => false);
+
+      const result = resolveMethodName(operation as any, isExists);
+
+      expect(result).toBe('create');
+    });
+
+    it('should handle operationId with underscores', () => {
+      const operation = { operationId: 'user_create_profile' };
+      const isExists = vi.fn(() => false);
+
+      const result = resolveMethodName(operation as any, isExists);
+
+      expect(result).toBe('profile');
+    });
+
+    it('should handle operationId with camelCase', () => {
+      const operation = { operationId: 'getUserProfile' };
+      const isExists = vi.fn(() => false);
+
+      const result = resolveMethodName(operation as any, isExists);
+
+      expect(result).toBe('profile');
     });
   });
 });

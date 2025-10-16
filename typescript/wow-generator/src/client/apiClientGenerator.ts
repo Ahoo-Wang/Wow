@@ -34,7 +34,6 @@ import {
 import {
   addImportRefModel,
   addJSDoc,
-  camelCase,
   extractOkResponse,
   extractOperations,
   extractPathParameters,

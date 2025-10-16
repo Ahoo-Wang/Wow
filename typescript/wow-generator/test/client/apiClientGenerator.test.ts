@@ -37,6 +37,7 @@ vi.mock('../../src/client/decorators', () => ({
 vi.mock('../../src/utils', () => ({
   addImportRefModel: vi.fn(),
   camelCase: vi.fn(str => (Array.isArray(str) ? str.join('.') : str)),
+  splitName: vi.fn(str => (Array.isArray(str) ? str : str.split('.'))),
   extractOkResponse: vi.fn(),
   extractResponseJsonSchema: vi.fn(),
   extractOperations: vi.fn(() => []),
@@ -239,7 +240,7 @@ describe('ApiClientGenerator', () => {
   describe('getMethodName', () => {
     it('should generate method name from operationId', () => {
       const generator = new ApiClientGenerator(mockContext);
-      const mockClass = { getMethod: vi.fn(() => false) };
+      const mockClass = { getMethod: vi.fn(() => undefined) };
       const operation = { operationId: 'user.getProfile' };
 
       const result = (generator as any).getMethodName(mockClass, operation);
@@ -249,7 +250,7 @@ describe('ApiClientGenerator', () => {
 
     it('should handle existing method names', () => {
       const generator = new ApiClientGenerator(mockContext);
-      const mockClass = { getMethod: vi.fn(name => name === 'getProfile') };
+      const mockClass = { getMethod: vi.fn(name => name === 'getProfile' ? {} : undefined) };
       const operation = { operationId: 'user.getProfile' };
 
       const result = (generator as any).getMethodName(mockClass, operation);
