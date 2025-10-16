@@ -14,7 +14,7 @@
 import { ResourceAttributionPathSpec } from '@ahoo-wang/fetcher-wow';
 import { Project, SourceFile } from 'ts-morph';
 import { AggregateDefinition, TagAliasAggregate } from '../aggregate';
-import { camelCase, getOrCreateSourceFile, pascalCase, tokenizeName } from '../utils';
+import { camelCase, getOrCreateSourceFile, pascalCase, splitName } from '../utils';
 import { Operation } from '@ahoo-wang/fetcher-openapi';
 
 /**
@@ -187,7 +187,7 @@ export function resolveMethodName(operation: Operation, isExists: (methodName: s
     return undefined;
   }
 
-  const nameParts = tokenizeName(operation.operationId);
+  const nameParts = splitName(operation.operationId);
   for (let i = nameParts.length - 1; i >= 0; i--) {
     const operationName = camelCase(nameParts.slice(i));
     if (isExists(operationName)) {

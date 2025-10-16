@@ -13,6 +13,11 @@
 
 const NAMING_SEPARATORS = /[-_\s.]+/;
 
+export function splitName(name: string) {
+  return name.split(NAMING_SEPARATORS);
+}
+
+
 /**
  * Splits a name string or array of strings by common naming separators.
  *
@@ -26,9 +31,9 @@ const NAMING_SEPARATORS = /[-_\s.]+/;
 export function tokenizeName(name: string | string[]): string[] {
   if (Array.isArray(name)) {
     // If input is an array, split each element by naming separators and flatten the result
-    return name.flatMap(part => splitCamelCase(part.split(NAMING_SEPARATORS)));
+    return name.flatMap(part => splitCamelCase(splitName(part)));
   }
-  return splitCamelCase(name.split(NAMING_SEPARATORS));
+  return splitCamelCase(splitName(name));
 }
 
 /**

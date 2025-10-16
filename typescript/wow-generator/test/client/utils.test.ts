@@ -190,8 +190,8 @@ describe('client utils', () => {
 
       const result = resolveMethodName(operation as any, isExists);
 
-      expect(result).toBe('profile');
-      expect(isExists).toHaveBeenCalledWith('profile');
+      expect(result).toBe('getProfile');
+      expect(isExists).toHaveBeenCalledWith('getProfile');
     });
 
     it('should try shorter suffixes when longer ones exist', () => {
@@ -238,7 +238,7 @@ describe('client utils', () => {
 
       const result = resolveMethodName(operation as any, isExists);
 
-      expect(result).toBe('profile');
+      expect(result).toBe('getUserProfile');
     });
   });
 });

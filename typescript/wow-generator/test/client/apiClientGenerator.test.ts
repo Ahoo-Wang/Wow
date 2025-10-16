@@ -248,7 +248,7 @@ describe('ApiClientGenerator', () => {
 
       const result = (generator as any).getMethodName(mockClass, operation);
 
-      expect(result).toBe('profile');
+      expect(result).toBe('getProfile');
     });
 
     it('should handle existing method names', () => {
@@ -258,7 +258,7 @@ describe('ApiClientGenerator', () => {
 
       const result = (generator as any).getMethodName(mockClass, operation);
 
-      expect(result).toBe('profile');
+      expect(result).toBe('userGetProfile');
     });
 
     it('should return camelCase of all parts when no unique method found', () => {
