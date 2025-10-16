@@ -34,25 +34,27 @@ vi.mock('../../src/client/decorators', () => ({
   },
 }));
 
-vi.mock('../../src/utils', () => ({
-  addImportRefModel: vi.fn(),
-  camelCase: vi.fn(str => (Array.isArray(str) ? str.join('.') : str)),
-  splitName: vi.fn(str => (Array.isArray(str) ? str : str.split('.'))),
-  extractOkResponse: vi.fn(),
-  extractResponseJsonSchema: vi.fn(),
-  extractOperations: vi.fn(() => []),
-  extractRequestBody: vi.fn(),
-  isPrimitive: vi.fn(type => type === 'string'),
-  isReference: vi.fn(obj => obj && typeof obj === 'object' && '$ref' in obj),
-  resolvePrimitiveType: vi.fn(type => type),
-  extractResponseEventStreamSchema: vi.fn(),
-  extractSchema: vi.fn(),
-  isArray: vi.fn(),
-  extractResponseWildcardSchema: vi.fn(),
-  addJSDoc: vi.fn(),
-  methodToDecorator: vi.fn(() => 'get'),
-  getOrCreateSourceFile: vi.fn(() => ({ addImportDeclaration: vi.fn() })),
-}));
+vi.mock('../../src/utils', async (importOriginal) => {
+  const actual: any = await importOriginal();
+  return {
+    ...actual,
+    addImportRefModel: vi.fn(),
+    extractOkResponse: vi.fn(),
+    extractResponseJsonSchema: vi.fn(),
+    extractOperations: vi.fn(() => []),
+    extractRequestBody: vi.fn(),
+    isPrimitive: vi.fn(type => type === 'string'),
+    isReference: vi.fn(obj => obj && typeof obj === 'object' && '$ref' in obj),
+    resolvePrimitiveType: vi.fn(type => type),
+    extractResponseEventStreamSchema: vi.fn(),
+    extractSchema: vi.fn(),
+    isArray: vi.fn(),
+    extractResponseWildcardSchema: vi.fn(),
+    addJSDoc: vi.fn(),
+    methodToDecorator: vi.fn(() => 'get'),
+    getOrCreateSourceFile: vi.fn(() => ({ addImportDeclaration: vi.fn() })),
+  };
+});
 
 vi.mock('../../src/model/modelInfo', () => ({
   resolveModelInfo: vi.fn(() => ({ name: 'TestModel', path: '/test' })),
@@ -147,7 +149,8 @@ describe('ApiClientGenerator', () => {
       );
       vi.spyOn(generator as any, 'groupOperations').mockReturnValue(new Map());
       vi.spyOn(generator as any, 'generateApiClients').mockImplementation(
-        () => {},
+        () => {
+        },
       );
 
       generator.generate();
@@ -245,7 +248,7 @@ describe('ApiClientGenerator', () => {
 
       const result = (generator as any).getMethodName(mockClass, operation);
 
-      expect(result).toBe('getProfile');
+      expect(result).toBe('profile');
     });
 
     it('should handle existing method names', () => {
@@ -255,7 +258,7 @@ describe('ApiClientGenerator', () => {
 
       const result = (generator as any).getMethodName(mockClass, operation);
 
-      expect(result).toBe('user.getProfile');
+      expect(result).toBe('profile');
     });
 
     it('should return camelCase of all parts when no unique method found', () => {
@@ -265,7 +268,7 @@ describe('ApiClientGenerator', () => {
 
       const result = (generator as any).getMethodName(mockClass, operation);
 
-      expect(result).toBe('user.get.profile');
+      expect(result).toBe('userGetProfile');
     });
   });
 

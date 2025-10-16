@@ -23,7 +23,7 @@ const NAMING_SEPARATORS = /[-_\s.]+/;
  * @param name - A string or array of strings to split by naming separators
  * @returns An array of string parts split by naming separators
  */
-export function splitName(name: string | string[]): string[] {
+export function tokenizeName(name: string | string[]): string[] {
   if (Array.isArray(name)) {
     // If input is an array, split each element by naming separators and flatten the result
     return name.flatMap(part => splitCamelCase(part.split(NAMING_SEPARATORS)));
@@ -82,7 +82,7 @@ export function pascalCase(name: string | string[]): string {
   if (name === '' || name.length === 0) {
     return '';
   }
-  const names: string[] = splitName(name);
+  const names: string[] = tokenizeName(name);
   return names
     .filter(part => part.length > 0)
     .map(part => {
@@ -125,7 +125,7 @@ export function upperSnakeCase(name: string | string[]): string {
     return '';
   }
 
-  const names = splitName(name);
+  const names = tokenizeName(name);
   return names
     .filter(part => part.length > 0)
     .map(part => part.toUpperCase())
