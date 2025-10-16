@@ -93,6 +93,15 @@ describe('ModelGenerator', () => {
           type: 'string' as const,
           enum: ['active', 'inactive'],
         },
+        'wow.api.query.SomePagedList': {
+          type: 'object' as const,
+          properties: {
+            data: {
+              type: 'array' as const,
+              items: { type: 'string' as const },
+            },
+          },
+        },
         Product: {
           type: 'object' as const,
           properties: {
@@ -212,24 +221,30 @@ describe('ModelGenerator', () => {
       generator.generate();
 
       expect(mockLogger.progress).toHaveBeenCalledWith(
-        'Generating models for 2 schemas',
+        'Generating models for 3 schemas',
       );
       expect(mockLogger.progressWithCount).toHaveBeenCalledWith(
         1,
-        2,
+        3,
         'Processing schema: User',
         2,
       );
       expect(mockLogger.progressWithCount).toHaveBeenCalledWith(
         2,
+        3,
+        'Processing schema: wow.api.query.SomePagedList',
         2,
+      );
+      expect(mockLogger.progressWithCount).toHaveBeenCalledWith(
+        3,
+        3,
         'Processing schema: Product',
         2,
       );
       expect(mockLogger.success).toHaveBeenCalledWith(
         'Model generation completed',
       );
-      expect(mockProcess).toHaveBeenCalledTimes(2); // Should skip wow.Status
+      expect(mockProcess).toHaveBeenCalledTimes(3); // Should skip wow.Status
     });
 
     it('should skip wow schemas', () => {
@@ -863,6 +878,32 @@ describe('ModelGenerator', () => {
         path: 'models',
       });
       mockResolvePrimitiveType.mockReturnValue('string');
+      mockIsUnion.mockReturnValue(true);
+
+      const result = (generator as any).resolvePropertyCompositionType(
+        { name: 'Data', path: 'models' },
+        mockSourceFile,
+        schema,
+      );
+
+      expect(result).toBe('User|string');
+    });
+
+    it('should resolve composition types with missing type property', () => {
+      const context = createContext();
+      const generator = new ModelGenerator(context);
+
+      const schema = {
+        anyOf: [{ $ref: '#/components/schemas/User' }, {}],
+      } as any;
+
+      mockIsReference.mockReturnValueOnce(true).mockReturnValueOnce(false);
+      mockExtractComponentKey.mockReturnValue('User');
+      mockResolveReferenceModelInfo.mockReturnValue({
+        name: 'User',
+        path: 'models',
+      });
+      mockResolvePrimitiveType.mockReturnValue('string'); // default when type is undefined
       mockIsUnion.mockReturnValue(true);
 
       const result = (generator as any).resolvePropertyCompositionType(
