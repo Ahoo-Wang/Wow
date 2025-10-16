@@ -7,15 +7,15 @@
 [![npm downloads](https://img.shields.io/npm/dm/@ahoo-wang/fetcher-generator.svg)](https://www.npmjs.com/package/@ahoo-wang/fetcher-generator)
 [![npm bundle size](https://img.shields.io/bundlephobia/minzip/%40ahoo-wang%2Ffetcher-generator)](https://www.npmjs.com/package/@ahoo-wang/fetcher-generator)
 
-从 OpenAPI 规范生成 TypeScript 代码，专为 [Wow](https://github.com/Ahoo-Wang/Wow) 领域驱动设计框架打造。生成类型安全的模型、查询客户端和命令客户端。
+一个强大的 TypeScript 代码生成器，从 OpenAPI 规范生成代码，设计为通用目的，同时为 [Wow](https://github.com/Ahoo-Wang/Wow) 领域驱动设计框架的 CQRS 模式提供专门支持。生成类型安全的模型、查询客户端、命令客户端和 API 客户端。
 
-**[Wow](https://github.com/Ahoo-Wang/Wow) 框架**：一个领域驱动设计框架，提供事件溯源、CQRS（命令查询责任分离）和聚合模式，用于构建可扩展的分布式系统。
+**[Wow](https://github.com/Ahoo-Wang/Wow) 框架**：一个领域驱动设计框架，提供事件溯源、CQRS（命令查询责任分离）和聚合模式，用于构建可扩展的分布式系统。此生成器为 Wow 的 CQRS 架构提供增强支持，同时保持与标准 REST API 的兼容性。
 
 ## 🌟 特性
 
 - **🎯 OpenAPI 3.0+ 支持**：完整支持 OpenAPI 3.0+ 规范（JSON/YAML）
 - **📦 TypeScript 代码生成**：生成类型安全的 TypeScript 接口、枚举和类
-- **🏗️ 领域驱动设计**：专为 WOW 框架打造，支持聚合、命令、查询和领域事件
+
 - **🔧 CLI 工具**：易用的命令行界面，用于代码生成
 - **🎨 装饰器式 API**：生成装饰器式的客户端类，实现清晰的 API 交互
 - **📋 全面的模型**：处理复杂的模式，包括联合、交集、枚举和引用
@@ -24,6 +24,7 @@
 - **📁 自动索引生成**：自动生成 index.ts 文件，实现清晰的模块组织
 - **🌐 远程规范支持**：直接从 HTTP/HTTPS URL 加载 OpenAPI 规范
 - **🎭 事件流**：生成常规和事件流命令客户端
+- **🏗️ 领域驱动设计支持**：为 Wow 框架提供专门支持，支持聚合、命令、查询和领域事件（CQRS 模式）
 
 ## 🚀 快速开始
 

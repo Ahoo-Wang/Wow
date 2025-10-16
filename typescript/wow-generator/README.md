@@ -8,20 +8,14 @@
 [![npm bundle size](https://img.shields.io/bundlephobia/minzip/%40ahoo-wang%2Ffetcher-generator)](https://www.npmjs.com/package/@ahoo-wang/fetcher-generator)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/Ahoo-Wang/fetcher)
 
-TypeScript code generator from OpenAPI specs for [Wow](https://github.com/Ahoo-Wang/Wow) domain-driven design framework.
-Generates type-safe models, query
-clients, and command clients from OpenAPI specifications.
+A powerful TypeScript code generator from OpenAPI specifications, designed to be general-purpose with specialized support for the [Wow](https://github.com/Ahoo-Wang/Wow) domain-driven design framework's CQRS patterns. Generates type-safe models, query clients, command clients, and API clients from OpenAPI specifications.
 
-**[Wow](https://github.com/Ahoo-Wang/Wow) Framework**: A domain-driven design framework that provides event sourcing,
-CQRS (Command Query Responsibility
-Segregation),
-and aggregate patterns for building scalable distributed systems.
+**[Wow](https://github.com/Ahoo-Wang/Wow) Framework**: A domain-driven design framework that provides event sourcing, CQRS (Command Query Responsibility Segregation), and aggregate patterns for building scalable distributed systems. This generator provides enhanced support for Wow's CQRS architecture while remaining compatible with standard REST APIs.
 
 ## 🌟 Features
 
 - **🎯 OpenAPI 3.0+ Support**: Full support for OpenAPI 3.0+ specifications (JSON/YAML)
 - **📦 TypeScript Code Generation**: Generates type-safe TypeScript interfaces, enums, and classes
-- **🏗️ Domain-Driven Design**: Specialized for WOW framework with aggregates, commands, queries, and events
 - **🔧 CLI Tool**: Easy-to-use command-line interface for code generation
 - **🎨 Decorator-Based APIs**: Generates decorator-based client classes for clean API interactions
 - **📋 Comprehensive Models**: Handles complex schemas including unions, intersections, enums, and references
@@ -30,6 +24,7 @@ and aggregate patterns for building scalable distributed systems.
 - **📁 Auto Index Generation**: Automatically generates index.ts files for clean module organization
 - **🌐 Remote Spec Support**: Load OpenAPI specs directly from HTTP/HTTPS URLs
 - **🎭 Event Streaming**: Generates both regular and event-stream command clients
+- **🏗️ Domain-Driven Design Support**: Specialized support for Wow framework with aggregates, commands, queries, and events (CQRS patterns)
 
 ## 🚀 Quick Start
 

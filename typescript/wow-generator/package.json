@@ -1,7 +1,7 @@
 {
   "name": "@ahoo-wang/fetcher-generator",
   "version": "2.10.3",
-  "description": "TypeScript code generator from OpenAPI specs for Wow domain-driven design framework. ",
+  "description": "Powerful TypeScript code generator from OpenAPI specifications, designed to be general-purpose with specialized support for Wow domain-driven design framework's CQRS patterns.",
   "keywords": [
     "fetch",
     "http",
