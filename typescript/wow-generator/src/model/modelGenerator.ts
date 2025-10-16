@@ -92,7 +92,7 @@ export class ModelGenerator implements Generator {
 
   private isWowSchema(schemaKey: string, stateAggregatedTypeNames: Set<string>): boolean {
     if (
-      schemaKey === 'wow.api.query.PagedList'
+      schemaKey !== 'wow.api.query.PagedList'
       && schemaKey.startsWith('wow.api.query.')
       && (schemaKey.endsWith('PagedList'))) {
       return false;

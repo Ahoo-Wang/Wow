@@ -207,8 +207,7 @@ describe('ModelGenerator', () => {
 
       const mockProcess = vi
         .spyOn(generator as any, 'generateKeyedSchema')
-        .mockImplementation(() => {
-        });
+        .mockImplementation(() => {});
 
       generator.generate();
 
@@ -241,8 +240,7 @@ describe('ModelGenerator', () => {
 
       const mockProcess = vi
         .spyOn(generator as any, 'generateKeyedSchema')
-        .mockImplementation(() => {
-        });
+        .mockImplementation(() => {});
 
       generator.generate();
 
@@ -340,8 +338,8 @@ describe('ModelGenerator', () => {
         name: 'Status',
         isExported: true,
         members: [
-          { name: 'ACTIVE', initializer: '\'active\'' },
-          { name: 'INACTIVE', initializer: '\'inactive\'' },
+          { name: 'ACTIVE', initializer: "'active'" },
+          { name: 'INACTIVE', initializer: "'inactive'" },
         ],
       });
       expect(result).toBe(mockEnum);
@@ -405,8 +403,7 @@ describe('ModelGenerator', () => {
 
       const mockProcessInterface = vi
         .spyOn(generator as any, 'processInterface')
-        .mockImplementation(() => {
-        });
+        .mockImplementation(() => {});
 
       const schema: Schema = {
         allOf: [
@@ -479,6 +476,65 @@ describe('ModelGenerator', () => {
         isExported: true,
       });
       expect(result).toBe(mockTypeAlias);
+    });
+
+    it('should process array schemas with non-reference items', () => {
+      const context = createContext();
+      const generator = new ModelGenerator(context);
+
+      const mockInterface = { name: 'Tags' };
+      mockSourceFile.addInterface.mockReturnValue(mockInterface);
+      mockIsEnum.mockReturnValue(false);
+      mockIsArray.mockReturnValue(true);
+      mockIsReference.mockReturnValue(false); // items is not reference
+      mockIsComposition.mockReturnValue(false);
+
+      const schema: Schema = {
+        type: 'array',
+        items: { type: 'string' },
+      };
+
+      const result = (generator as any).process(
+        { name: 'Tags', path: 'models' },
+        mockSourceFile,
+        schema,
+      );
+
+      expect(mockIsArray).toHaveBeenCalledWith(schema);
+      expect(mockIsReference).toHaveBeenCalledWith(schema.items);
+      expect(mockSourceFile.addInterface).toHaveBeenCalledWith({
+        name: 'Tags',
+        isExported: true,
+      });
+      expect(result).toBe(mockInterface);
+    });
+
+    it('should process object schemas without properties', () => {
+      const context = createContext();
+      const generator = new ModelGenerator(context);
+
+      const mockInterface = { name: 'EmptyObject' };
+      mockSourceFile.addInterface.mockReturnValue(mockInterface);
+      mockIsEnum.mockReturnValue(false);
+      mockIsArray.mockReturnValue(false);
+      mockIsComposition.mockReturnValue(false);
+
+      const schema: Schema = {
+        type: 'object',
+        // no properties
+      };
+
+      const result = (generator as any).process(
+        { name: 'EmptyObject', path: 'models' },
+        mockSourceFile,
+        schema,
+      );
+
+      expect(mockSourceFile.addInterface).toHaveBeenCalledWith({
+        name: 'EmptyObject',
+        isExported: true,
+      });
+      expect(result).toBe(mockInterface);
     });
   });
 
@@ -649,7 +705,7 @@ describe('ModelGenerator', () => {
         propSchema as any,
       );
 
-      expect(result).toBe('\'active\'');
+      expect(result).toBe("'active'");
     });
 
     it('should resolve array types', () => {
