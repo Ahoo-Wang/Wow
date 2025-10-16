@@ -33,7 +33,7 @@ export class CodeGenerator {
    * @param options - Configuration options for code generation
    */
   constructor(private readonly options: GeneratorOptions) {
-    this.project = new Project({ tsConfigFilePath: this.options.tsConfigFilePath });
+    this.project = new Project(options);
     this.options.logger.info('Project instance created with tsConfigFilePath: ', this.options.tsConfigFilePath);
   }
 

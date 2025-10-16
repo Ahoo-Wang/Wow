@@ -12,19 +12,18 @@
  */
 
 import { OpenAPI } from '@ahoo-wang/fetcher-openapi';
-import { Project } from 'ts-morph';
+import { Project, ProjectOptions } from 'ts-morph';
 import { BoundedContextAggregates } from './aggregate';
 
 /**
  * Configuration options for the code generator.
  */
-export interface GeneratorOptions {
+export interface GeneratorOptions extends ProjectOptions {
   /** Path to the input OpenAPI specification file */
   readonly inputPath: string;
   /** Output directory for generated files */
   readonly outputDir: string;
   readonly configPath?: string;
-  readonly tsConfigFilePath?: string;
   /** Optional logger for friendly output */
   readonly logger: Logger;
 }
