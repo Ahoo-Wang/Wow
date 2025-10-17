@@ -52,7 +52,11 @@ open class MetricDomainEventBus<T : DomainEventBus>(delegate: T) :
 
 class MetricLocalDomainEventBus(delegate: LocalDomainEventBus) :
     LocalDomainEventBus,
-    MetricDomainEventBus<LocalDomainEventBus>(delegate)
+    MetricDomainEventBus<LocalDomainEventBus>(delegate) {
+    override fun subscriberCount(namedAggregate: NamedAggregate): Int {
+        return delegate.subscriberCount(namedAggregate)
+    }
+}
 
 class MetricDistributedDomainEventBus(delegate: DistributedDomainEventBus) :
     DistributedDomainEventBus,

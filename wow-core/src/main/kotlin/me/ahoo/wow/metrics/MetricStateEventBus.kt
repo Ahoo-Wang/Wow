@@ -52,7 +52,11 @@ open class MetricStateEventBus<T : StateEventBus>(delegate: T) :
 
 class MetricLocalStateEventBus(delegate: LocalStateEventBus) :
     LocalStateEventBus,
-    MetricStateEventBus<LocalStateEventBus>(delegate)
+    MetricStateEventBus<LocalStateEventBus>(delegate) {
+    override fun subscriberCount(namedAggregate: NamedAggregate): Int {
+        return delegate.subscriberCount(namedAggregate)
+    }
+}
 
 class MetricDistributedStateEventBus(delegate: DistributedStateEventBus) :
     DistributedStateEventBus,
