@@ -14,7 +14,25 @@
 package me.ahoo.wow.event
 
 import me.ahoo.wow.tck.event.DomainEventBusSpec
+import org.junit.jupiter.api.Test
+import reactor.core.publisher.Sinks
+import reactor.kotlin.test.test
 
 internal class InMemoryDomainEventBusTest : DomainEventBusSpec() {
     override fun createMessageBus(): DomainEventBus = InMemoryDomainEventBus()
+
+    @Test
+    fun sendMessageWhenNoSubscribers() {
+        val localBus = InMemoryDomainEventBus(sinkSupplier = {
+            Sinks.many().multicast().onBackpressureBuffer(1)
+        })
+        val message = createMessage()
+        localBus.send(message)
+            .test()
+            .verifyComplete()
+        localBus.send(message)
+            .test()
+            .verifyComplete()
+    }
+
 }
