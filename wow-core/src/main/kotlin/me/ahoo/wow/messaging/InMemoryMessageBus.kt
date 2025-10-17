@@ -25,7 +25,7 @@ import reactor.core.scheduler.Schedulers
 import java.util.concurrent.ConcurrentHashMap
 
 abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBus<M, E>
-    where M : Message<*, *>, M : NamedAggregate {
+        where M : Message<*, *>, M : NamedAggregate {
     companion object {
         private val log = KotlinLogging.logger {}
     }
@@ -45,6 +45,12 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
     override fun send(message: M): Mono<Void> {
         return Mono.fromRunnable<Void> {
             val sink = computeSink(message)
+            if (sink.currentSubscriberCount() == 0) {
+                log.debug {
+                    "No subscriber for [${message.aggregateName}]."
+                }
+                return@fromRunnable
+            }
             log.debug {
                 "Send to [${sink.currentSubscriberCount()}] \n $message."
             }
