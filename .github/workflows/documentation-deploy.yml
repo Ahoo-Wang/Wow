@@ -40,10 +40,10 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Generate KotlinDoc
-        run: ./gradlew dokkaHtmlMultiModule
+        run: ./gradlew dokkaGenerateHtml
 
       - name: Copy To Documentation
-        run: cp -R build/dokka/htmlMultiModule documentation/docs/public/dokka
+        run: cp -R build/dokka/html documentation/docs/public/dokka
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
