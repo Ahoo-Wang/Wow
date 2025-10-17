@@ -9,29 +9,29 @@ importers:
   .:
     dependencies:
       '@ahoo-wang/fetcher':
-        specifier: ^2.10.1
-        version: 2.10.1
+        specifier: ^2.11.2
+        version: 2.11.2
       '@ahoo-wang/fetcher-cosec':
-        specifier: ^2.10.1
-        version: 2.10.1(@ahoo-wang/fetcher-eventbus@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher-storage@2.10.1(@ahoo-wang/fetcher-eventbus@2.10.1(@ahoo-wang/fetcher@2.10.1)))(@ahoo-wang/fetcher@2.10.1)
+        specifier: ^2.11.2
+        version: 2.11.2(@ahoo-wang/fetcher-eventbus@2.11.2(@ahoo-wang/fetcher@2.11.2))(@ahoo-wang/fetcher-storage@2.11.2(@ahoo-wang/fetcher-eventbus@2.11.2(@ahoo-wang/fetcher@2.11.2)))(@ahoo-wang/fetcher@2.11.2)
       '@ahoo-wang/fetcher-decorator':
-        specifier: ^2.10.1
-        version: 2.10.1(@ahoo-wang/fetcher@2.10.1)
+        specifier: ^2.11.2
+        version: 2.11.2(@ahoo-wang/fetcher@2.11.2)
       '@ahoo-wang/fetcher-eventbus':
-        specifier: ^2.10.1
-        version: 2.10.1(@ahoo-wang/fetcher@2.10.1)
+        specifier: ^2.11.2
+        version: 2.11.2(@ahoo-wang/fetcher@2.11.2)
       '@ahoo-wang/fetcher-eventstream':
-        specifier: ^2.10.1
-        version: 2.10.1(@ahoo-wang/fetcher@2.10.1)
+        specifier: ^2.11.2
+        version: 2.11.2(@ahoo-wang/fetcher@2.11.2)
       '@ahoo-wang/fetcher-react':
-        specifier: ^2.10.1
-        version: 2.10.1(@ahoo-wang/fetcher-eventbus@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher-eventstream@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher-storage@2.10.1(@ahoo-wang/fetcher-eventbus@2.10.1(@ahoo-wang/fetcher@2.10.1)))(@ahoo-wang/fetcher-wow@2.10.1(@ahoo-wang/fetcher-decorator@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher-eventstream@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher@2.10.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+        specifier: ^2.11.2
+        version: 2.11.2(@ahoo-wang/fetcher-eventbus@2.11.2(@ahoo-wang/fetcher@2.11.2))(@ahoo-wang/fetcher-eventstream@2.11.2(@ahoo-wang/fetcher@2.11.2))(@ahoo-wang/fetcher-storage@2.11.2(@ahoo-wang/fetcher-eventbus@2.11.2(@ahoo-wang/fetcher@2.11.2)))(@ahoo-wang/fetcher-wow@2.11.2(@ahoo-wang/fetcher-decorator@2.11.2(@ahoo-wang/fetcher@2.11.2))(@ahoo-wang/fetcher-eventstream@2.11.2(@ahoo-wang/fetcher@2.11.2))(@ahoo-wang/fetcher@2.11.2))(@ahoo-wang/fetcher@2.11.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@ahoo-wang/fetcher-storage':
-        specifier: ^2.10.1
-        version: 2.10.1(@ahoo-wang/fetcher-eventbus@2.10.1(@ahoo-wang/fetcher@2.10.1))
+        specifier: ^2.11.2
+        version: 2.11.2(@ahoo-wang/fetcher-eventbus@2.11.2(@ahoo-wang/fetcher@2.11.2))
       '@ahoo-wang/fetcher-wow':
-        specifier: ^2.10.1
-        version: 2.10.1(@ahoo-wang/fetcher-decorator@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher-eventstream@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher@2.10.1)
+        specifier: ^2.11.2
+        version: 2.11.2(@ahoo-wang/fetcher-decorator@2.11.2(@ahoo-wang/fetcher@2.11.2))(@ahoo-wang/fetcher-eventstream@2.11.2(@ahoo-wang/fetcher@2.11.2))(@ahoo-wang/fetcher@2.11.2)
       '@ant-design/icons':
         specifier: ^6.1.0
         version: 6.1.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
@@ -61,8 +61,8 @@ importers:
         version: 4.1.14
     devDependencies:
       '@ahoo-wang/fetcher-generator':
-        specifier: ^2.10.1
-        version: 2.10.1(@ahoo-wang/fetcher-decorator@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher-eventstream@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher-openapi@2.3.0)(@ahoo-wang/fetcher-wow@2.10.1(@ahoo-wang/fetcher-decorator@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher-eventstream@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher@2.10.1)
+        specifier: ^2.11.2
+        version: 2.11.2(@ahoo-wang/fetcher-decorator@2.11.2(@ahoo-wang/fetcher@2.11.2))(@ahoo-wang/fetcher-eventstream@2.11.2(@ahoo-wang/fetcher@2.11.2))(@ahoo-wang/fetcher-openapi@2.3.0)(@ahoo-wang/fetcher-wow@2.11.2(@ahoo-wang/fetcher-decorator@2.11.2(@ahoo-wang/fetcher@2.11.2))(@ahoo-wang/fetcher-eventstream@2.11.2(@ahoo-wang/fetcher@2.11.2))(@ahoo-wang/fetcher@2.11.2))(@ahoo-wang/fetcher@2.11.2)
       '@eslint/js':
         specifier: ^9.37.0
         version: 9.37.0
@@ -132,30 +132,30 @@ packages:
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
-  '@ahoo-wang/fetcher-cosec@2.10.1':
-    resolution: {integrity: sha512-pQkjQpHQ5JcO8V7+wBF/uK2jar23Rp3xCE12a8WcVKpDLtELC5V8OxaxP2q68W2dTlyvxLf1bhLOBBAytU5/ng==}
+  '@ahoo-wang/fetcher-cosec@2.11.2':
+    resolution: {integrity: sha512-vCrLM4Rv+L3FiGG21/6xGofEiESpbaYsk9QXduaJN6vMVB2xWPne5lklaSeOxn5u9v7qZH0TEW22c4gMiCJzAQ==}
     peerDependencies:
       '@ahoo-wang/fetcher': ^2.3.4
       '@ahoo-wang/fetcher-eventbus': ^2.8.5
       '@ahoo-wang/fetcher-storage': ^2.3.4
 
-  '@ahoo-wang/fetcher-decorator@2.10.1':
-    resolution: {integrity: sha512-AWcCxPQmL3gZ9X466PRyGrRUgJ4gyOYfkd7Gq9fIyhZJLvxcpuISzHCgTYzKtQ7D2XIUtYxmkxezh84iT/5CWw==}
+  '@ahoo-wang/fetcher-decorator@2.11.2':
+    resolution: {integrity: sha512-Kag32N10Bl98K/JKjBOV+Bp1g8/Xd7jeLHghpEk28pJeKV5E1MfBhRr8tne+z0qjcO953yXJvXa8sup+UP2b8g==}
     peerDependencies:
       '@ahoo-wang/fetcher': ^2.9.3
 
-  '@ahoo-wang/fetcher-eventbus@2.10.1':
-    resolution: {integrity: sha512-KBNhQVvFBMbnHZkHjRUdEBYvAK8gejP6SBrycMiMZo67hpao4UUOveFrUuMggoHf2Ew4DMoc169BEWybAdA8Eg==}
+  '@ahoo-wang/fetcher-eventbus@2.11.2':
+    resolution: {integrity: sha512-5AaTDIE8/U2eeNedsAvQRd4wqUz8T2zjmCBlTmk7+TAHePy8VOFRRsh/WQ1zElRswbhzMjz0A4wLrBYE8bu/QA==}
     peerDependencies:
       '@ahoo-wang/fetcher': ^2.3.4
 
-  '@ahoo-wang/fetcher-eventstream@2.10.1':
-    resolution: {integrity: sha512-5JBkv48j/LNiyKNzHSeluea0gbV9Qnq4QieDY5ByPuQ7hBOjDDqPLGUie/2NCM4cplDEbY/2zfAD0wqihy+PCg==}
+  '@ahoo-wang/fetcher-eventstream@2.11.2':
+    resolution: {integrity: sha512-3ODBCxCdUdfGV3qF/kPxypTayQLeV+v5Pu5EkhpaT4WfQJwYJy2+D+sljIUvFd/rOAUZfV2golbae73Dae2QBg==}
     peerDependencies:
       '@ahoo-wang/fetcher': ^2.3.4
 
-  '@ahoo-wang/fetcher-generator@2.10.1':
-    resolution: {integrity: sha512-pUTMgSFQBWVX+zadEW0zEgMTzz0OfGOzTkpXdQRVGEHLu9aUqKEOXkci4oD1AvpWJWUdNUH1xMdyi9ETV+T7DQ==}
+  '@ahoo-wang/fetcher-generator@2.11.2':
+    resolution: {integrity: sha512-Um6syR3G9Rb1vMxal5mdKG8Tu6rEb48pekAG38+RKVdc/Kud78D1v/GrXcrgzViMZzHQ1UP0uPpIMoxF6JuJcQ==}
     hasBin: true
     peerDependencies:
       '@ahoo-wang/fetcher': ^2.3.4
@@ -167,8 +167,8 @@ packages:
   '@ahoo-wang/fetcher-openapi@2.3.0':
     resolution: {integrity: sha512-He3I/VovQzLNajxL2hoUZKlAnt0ZpehpMpbjgxvdPEoWfeAA3qZc0+C8Mhrk3HQQAC69lZOSt3JtAvzYDxpn/Q==}
 
-  '@ahoo-wang/fetcher-react@2.10.1':
-    resolution: {integrity: sha512-RwvA3DBoSzjmzrRClD0hGjxUAO+jnNHjFqjJQKRisc4UHXumq5YFownJMLT3+PTezDtrF5/ANtfiQj89BsByLw==}
+  '@ahoo-wang/fetcher-react@2.11.2':
+    resolution: {integrity: sha512-MMfgX/krJYe6R+Zn9/8tKcOQHcY7Gfu4sWEFYXK7rrUgDQwH0NZ2G3QrjRUH9gLCo9B6rusXvUgzVVw1RmA43A==}
     peerDependencies:
       '@ahoo-wang/fetcher': ^2.3.4
       '@ahoo-wang/fetcher-eventbus': ^2.8.8
@@ -178,20 +178,20 @@ packages:
       react: '>=18.0.0'
       react-dom: '>=18.0.0'
 
-  '@ahoo-wang/fetcher-storage@2.10.1':
-    resolution: {integrity: sha512-Z9zvaM+6XBoki1JrTR/igfOVW17CumBra2T5ItkX7lrcUr8EmxjWzHt7YJYQVp1tyFB3XAooASgRDLk6nL9pbg==}
+  '@ahoo-wang/fetcher-storage@2.11.2':
+    resolution: {integrity: sha512-yjzY6yaQUUVD6vz/F7oHVEgY/i+r+3jUyLOepWuIOyH93xil6D6TfyYwie3U9MqUeWgiwckyjBcDgDJH4KBABQ==}
     peerDependencies:
       '@ahoo-wang/fetcher-eventbus': ^2.8.5
 
-  '@ahoo-wang/fetcher-wow@2.10.1':
-    resolution: {integrity: sha512-eSKA3+cJ5ZJbruH2APd/LXxNIm6ksBCqUtpJLeksTpy6wh4RsFcDgxwPGv7AJabCNjBIXcCKMXAmXDwMch9QaA==}
+  '@ahoo-wang/fetcher-wow@2.11.2':
+    resolution: {integrity: sha512-mqdGwPKSl1RJpDdWCvHGex68hSNhnmpPh+kGG7l55MnDKKdxHdRGgF2cwuQNCgubICObguqq9YPvmH5o6QGWxA==}
     peerDependencies:
       '@ahoo-wang/fetcher': ^2.3.4
       '@ahoo-wang/fetcher-decorator': ^2.3.4
       '@ahoo-wang/fetcher-eventstream': ^2.3.4
 
-  '@ahoo-wang/fetcher@2.10.1':
-    resolution: {integrity: sha512-a0Czocx8iBxpIfzvEKEgEUT2FeHUEW7CmgrQ3zAa4BD14e/pBWtjlWoZVy8wGn9cSGXPyQw6eN0D9APZAlSPHg==}
+  '@ahoo-wang/fetcher@2.11.2':
+    resolution: {integrity: sha512-FX7Wo6UPe4FiHGJdSbiEgHRLE0j3E2QxMvm3K/HOKL0Py/1eO7oL8przNzZmdJbrcVsWNmmx6Kz4NNuKTbcW4w==}
 
   '@ampproject/remapping@2.3.0':
     resolution: {integrity: sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw==}
@@ -1179,14 +1179,14 @@ packages:
     resolution: {integrity: sha512-Izi8RQcffqCeNVgFigKli1ssklIbpHnCYc6AknXGYoB6grJqyeby7jv12JUQgmTAnIDnbck1uxksT4dzN3PWBA==}
     engines: {node: '>=12'}
 
-  ast-v8-to-istanbul@0.3.6:
-    resolution: {integrity: sha512-9tx1z/7OF/a8EdYL3FKoBhxLf3h3D8fXvuSj0HknsVeli2HE40qbNZxyFhMtnydaRiamwFu9zhb+BsJ5tVPehQ==}
+  ast-v8-to-istanbul@0.3.7:
+    resolution: {integrity: sha512-kr1Hy6YRZBkGQSb6puP+D6FQ59Cx4m0siYhAxygMCAgadiWQ6oxAxQXHOMvJx67SJ63jRoVIIg5eXzUbbct1ww==}
 
   balanced-match@1.0.2:
     resolution: {integrity: sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==}
 
-  baseline-browser-mapping@2.8.16:
-    resolution: {integrity: sha512-OMu3BGQ4E7P1ErFsIPpbJh0qvDudM/UuJeHgkAvfWe+0HFJCXh+t/l8L6fVLR55RI/UbKrVLnAXZSVwd9ysWYw==}
+  baseline-browser-mapping@2.8.17:
+    resolution: {integrity: sha512-j5zJcx6golJYTG6c05LUZ3Z8Gi+M62zRT/ycz4Xq4iCOdpcxwg7ngEYD4KA0eWZC7U17qh/Smq8bYbACJ0ipBA==}
     hasBin: true
 
   bidi-js@1.0.3:
@@ -1215,8 +1215,8 @@ packages:
     resolution: {integrity: sha512-P8BjAsXvZS+VIDUI11hHCQEv74YT67YUi5JJFNWIqL235sBmjX4+qx9Muvls5ivyNENctx46xQLQ3aTuE7ssaQ==}
     engines: {node: '>=6'}
 
-  caniuse-lite@1.0.30001750:
-    resolution: {integrity: sha512-cuom0g5sdX6rw00qOoLNSFCJ9/mYIsuSOA+yzpDw8eopiFqcVwQvZHqov0vmEighRxX++cfC0Vg1G+1Iy/mSpQ==}
+  caniuse-lite@1.0.30001751:
+    resolution: {integrity: sha512-A0QJhug0Ly64Ii3eIqHu5X51ebln3k4yTUkY1j8drqpWHVreg/VLijN48cZ1bYPiqOQuqpkIKnzr/Ul8V+p6Cw==}
 
   chai@5.3.3:
     resolution: {integrity: sha512-4zNhdJD/iOjSH0A05ea+Ke6MU5mmpQcbQsSOkgdaUMJ9zTlDTD/GYlwohmIE2u0gaxHYiVHEn1Fw9mZ/ktJWgw==}
@@ -1811,8 +1811,8 @@ packages:
   natural-compare@1.4.0:
     resolution: {integrity: sha512-OWND8ei3VtNC9h7V60qff3SVobHr996CTwgxubgyQYEpg290h9J0buyECNNJexkFm5sOajh5G116RYA1c8ZMSw==}
 
-  node-releases@2.0.23:
-    resolution: {integrity: sha512-cCmFDMSm26S6tQSDpBCg/NR8NENrVPhAJSf+XbxBG4rPFaaonlEoE9wHQmun+cls499TQGSb7ZyPBRlzgKfpeg==}
+  node-releases@2.0.25:
+    resolution: {integrity: sha512-4auku8B/vw5psvTiiN9j1dAOsXvMoGqJuKJcR+dTdqiXEK20mMTk1UEo3HS16LeGQsVG6+qKTPM9u/qQ2LqATA==}
 
   optionator@0.9.4:
     resolution: {integrity: sha512-6IpQ7mKUxRcZNLIObR0hz7lxsapSSIYNZJwXPGeF0mTVqGKFIXj1DQcMoT22S3ROcLyY/rz0PWaWZ9ayWmad9g==}
@@ -2564,60 +2564,60 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@ahoo-wang/fetcher-cosec@2.10.1(@ahoo-wang/fetcher-eventbus@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher-storage@2.10.1(@ahoo-wang/fetcher-eventbus@2.10.1(@ahoo-wang/fetcher@2.10.1)))(@ahoo-wang/fetcher@2.10.1)':
+  '@ahoo-wang/fetcher-cosec@2.11.2(@ahoo-wang/fetcher-eventbus@2.11.2(@ahoo-wang/fetcher@2.11.2))(@ahoo-wang/fetcher-storage@2.11.2(@ahoo-wang/fetcher-eventbus@2.11.2(@ahoo-wang/fetcher@2.11.2)))(@ahoo-wang/fetcher@2.11.2)':
     dependencies:
-      '@ahoo-wang/fetcher': 2.10.1
-      '@ahoo-wang/fetcher-eventbus': 2.10.1(@ahoo-wang/fetcher@2.10.1)
-      '@ahoo-wang/fetcher-storage': 2.10.1(@ahoo-wang/fetcher-eventbus@2.10.1(@ahoo-wang/fetcher@2.10.1))
+      '@ahoo-wang/fetcher': 2.11.2
+      '@ahoo-wang/fetcher-eventbus': 2.11.2(@ahoo-wang/fetcher@2.11.2)
+      '@ahoo-wang/fetcher-storage': 2.11.2(@ahoo-wang/fetcher-eventbus@2.11.2(@ahoo-wang/fetcher@2.11.2))
       nanoid: 5.1.6
 
-  '@ahoo-wang/fetcher-decorator@2.10.1(@ahoo-wang/fetcher@2.10.1)':
+  '@ahoo-wang/fetcher-decorator@2.11.2(@ahoo-wang/fetcher@2.11.2)':
     dependencies:
-      '@ahoo-wang/fetcher': 2.10.1
+      '@ahoo-wang/fetcher': 2.11.2
       reflect-metadata: 0.2.2
 
-  '@ahoo-wang/fetcher-eventbus@2.10.1(@ahoo-wang/fetcher@2.10.1)':
+  '@ahoo-wang/fetcher-eventbus@2.11.2(@ahoo-wang/fetcher@2.11.2)':
     dependencies:
-      '@ahoo-wang/fetcher': 2.10.1
+      '@ahoo-wang/fetcher': 2.11.2
 
-  '@ahoo-wang/fetcher-eventstream@2.10.1(@ahoo-wang/fetcher@2.10.1)':
+  '@ahoo-wang/fetcher-eventstream@2.11.2(@ahoo-wang/fetcher@2.11.2)':
     dependencies:
-      '@ahoo-wang/fetcher': 2.10.1
+      '@ahoo-wang/fetcher': 2.11.2
 
-  '@ahoo-wang/fetcher-generator@2.10.1(@ahoo-wang/fetcher-decorator@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher-eventstream@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher-openapi@2.3.0)(@ahoo-wang/fetcher-wow@2.10.1(@ahoo-wang/fetcher-decorator@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher-eventstream@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher@2.10.1)':
+  '@ahoo-wang/fetcher-generator@2.11.2(@ahoo-wang/fetcher-decorator@2.11.2(@ahoo-wang/fetcher@2.11.2))(@ahoo-wang/fetcher-eventstream@2.11.2(@ahoo-wang/fetcher@2.11.2))(@ahoo-wang/fetcher-openapi@2.3.0)(@ahoo-wang/fetcher-wow@2.11.2(@ahoo-wang/fetcher-decorator@2.11.2(@ahoo-wang/fetcher@2.11.2))(@ahoo-wang/fetcher-eventstream@2.11.2(@ahoo-wang/fetcher@2.11.2))(@ahoo-wang/fetcher@2.11.2))(@ahoo-wang/fetcher@2.11.2)':
     dependencies:
-      '@ahoo-wang/fetcher': 2.10.1
-      '@ahoo-wang/fetcher-decorator': 2.10.1(@ahoo-wang/fetcher@2.10.1)
-      '@ahoo-wang/fetcher-eventstream': 2.10.1(@ahoo-wang/fetcher@2.10.1)
+      '@ahoo-wang/fetcher': 2.11.2
+      '@ahoo-wang/fetcher-decorator': 2.11.2(@ahoo-wang/fetcher@2.11.2)
+      '@ahoo-wang/fetcher-eventstream': 2.11.2(@ahoo-wang/fetcher@2.11.2)
       '@ahoo-wang/fetcher-openapi': 2.3.0
-      '@ahoo-wang/fetcher-wow': 2.10.1(@ahoo-wang/fetcher-decorator@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher-eventstream@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher@2.10.1)
+      '@ahoo-wang/fetcher-wow': 2.11.2(@ahoo-wang/fetcher-decorator@2.11.2(@ahoo-wang/fetcher@2.11.2))(@ahoo-wang/fetcher-eventstream@2.11.2(@ahoo-wang/fetcher@2.11.2))(@ahoo-wang/fetcher@2.11.2)
       commander: 14.0.1
       ts-morph: 27.0.2
       yaml: 2.8.1
 
   '@ahoo-wang/fetcher-openapi@2.3.0': {}
 
-  '@ahoo-wang/fetcher-react@2.10.1(@ahoo-wang/fetcher-eventbus@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher-eventstream@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher-storage@2.10.1(@ahoo-wang/fetcher-eventbus@2.10.1(@ahoo-wang/fetcher@2.10.1)))(@ahoo-wang/fetcher-wow@2.10.1(@ahoo-wang/fetcher-decorator@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher-eventstream@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher@2.10.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
+  '@ahoo-wang/fetcher-react@2.11.2(@ahoo-wang/fetcher-eventbus@2.11.2(@ahoo-wang/fetcher@2.11.2))(@ahoo-wang/fetcher-eventstream@2.11.2(@ahoo-wang/fetcher@2.11.2))(@ahoo-wang/fetcher-storage@2.11.2(@ahoo-wang/fetcher-eventbus@2.11.2(@ahoo-wang/fetcher@2.11.2)))(@ahoo-wang/fetcher-wow@2.11.2(@ahoo-wang/fetcher-decorator@2.11.2(@ahoo-wang/fetcher@2.11.2))(@ahoo-wang/fetcher-eventstream@2.11.2(@ahoo-wang/fetcher@2.11.2))(@ahoo-wang/fetcher@2.11.2))(@ahoo-wang/fetcher@2.11.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
     dependencies:
-      '@ahoo-wang/fetcher': 2.10.1
-      '@ahoo-wang/fetcher-eventbus': 2.10.1(@ahoo-wang/fetcher@2.10.1)
-      '@ahoo-wang/fetcher-eventstream': 2.10.1(@ahoo-wang/fetcher@2.10.1)
-      '@ahoo-wang/fetcher-storage': 2.10.1(@ahoo-wang/fetcher-eventbus@2.10.1(@ahoo-wang/fetcher@2.10.1))
-      '@ahoo-wang/fetcher-wow': 2.10.1(@ahoo-wang/fetcher-decorator@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher-eventstream@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher@2.10.1)
+      '@ahoo-wang/fetcher': 2.11.2
+      '@ahoo-wang/fetcher-eventbus': 2.11.2(@ahoo-wang/fetcher@2.11.2)
+      '@ahoo-wang/fetcher-eventstream': 2.11.2(@ahoo-wang/fetcher@2.11.2)
+      '@ahoo-wang/fetcher-storage': 2.11.2(@ahoo-wang/fetcher-eventbus@2.11.2(@ahoo-wang/fetcher@2.11.2))
+      '@ahoo-wang/fetcher-wow': 2.11.2(@ahoo-wang/fetcher-decorator@2.11.2(@ahoo-wang/fetcher@2.11.2))(@ahoo-wang/fetcher-eventstream@2.11.2(@ahoo-wang/fetcher@2.11.2))(@ahoo-wang/fetcher@2.11.2)
       react: 19.2.0
       react-dom: 19.2.0(react@19.2.0)
 
-  '@ahoo-wang/fetcher-storage@2.10.1(@ahoo-wang/fetcher-eventbus@2.10.1(@ahoo-wang/fetcher@2.10.1))':
+  '@ahoo-wang/fetcher-storage@2.11.2(@ahoo-wang/fetcher-eventbus@2.11.2(@ahoo-wang/fetcher@2.11.2))':
     dependencies:
-      '@ahoo-wang/fetcher-eventbus': 2.10.1(@ahoo-wang/fetcher@2.10.1)
+      '@ahoo-wang/fetcher-eventbus': 2.11.2(@ahoo-wang/fetcher@2.11.2)
 
-  '@ahoo-wang/fetcher-wow@2.10.1(@ahoo-wang/fetcher-decorator@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher-eventstream@2.10.1(@ahoo-wang/fetcher@2.10.1))(@ahoo-wang/fetcher@2.10.1)':
+  '@ahoo-wang/fetcher-wow@2.11.2(@ahoo-wang/fetcher-decorator@2.11.2(@ahoo-wang/fetcher@2.11.2))(@ahoo-wang/fetcher-eventstream@2.11.2(@ahoo-wang/fetcher@2.11.2))(@ahoo-wang/fetcher@2.11.2)':
     dependencies:
-      '@ahoo-wang/fetcher': 2.10.1
-      '@ahoo-wang/fetcher-decorator': 2.10.1(@ahoo-wang/fetcher@2.10.1)
-      '@ahoo-wang/fetcher-eventstream': 2.10.1(@ahoo-wang/fetcher@2.10.1)
+      '@ahoo-wang/fetcher': 2.11.2
+      '@ahoo-wang/fetcher-decorator': 2.11.2(@ahoo-wang/fetcher@2.11.2)
+      '@ahoo-wang/fetcher-eventstream': 2.11.2(@ahoo-wang/fetcher@2.11.2)
 
-  '@ahoo-wang/fetcher@2.10.1': {}
+  '@ahoo-wang/fetcher@2.11.2': {}
 
   '@ampproject/remapping@2.3.0':
     dependencies:
@@ -3480,7 +3480,7 @@ snapshots:
     dependencies:
       '@ampproject/remapping': 2.3.0
       '@bcoe/v8-coverage': 1.0.2
-      ast-v8-to-istanbul: 0.3.6
+      ast-v8-to-istanbul: 0.3.7
       debug: 4.4.3
       istanbul-lib-coverage: 3.2.2
       istanbul-lib-report: 3.0.1
@@ -3645,7 +3645,7 @@ snapshots:
 
   assertion-error@2.0.1: {}
 
-  ast-v8-to-istanbul@0.3.6:
+  ast-v8-to-istanbul@0.3.7:
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
       estree-walker: 3.0.3
@@ -3653,7 +3653,7 @@ snapshots:
 
   balanced-match@1.0.2: {}
 
-  baseline-browser-mapping@2.8.16: {}
+  baseline-browser-mapping@2.8.17: {}
 
   bidi-js@1.0.3:
     dependencies:
@@ -3674,17 +3674,17 @@ snapshots:
 
   browserslist@4.26.3:
     dependencies:
-      baseline-browser-mapping: 2.8.16
-      caniuse-lite: 1.0.30001750
+      baseline-browser-mapping: 2.8.17
+      caniuse-lite: 1.0.30001751
       electron-to-chromium: 1.5.237
-      node-releases: 2.0.23
+      node-releases: 2.0.25
       update-browserslist-db: 1.1.3(browserslist@4.26.3)
 
   cac@6.7.14: {}
 
   callsites@3.1.0: {}
 
-  caniuse-lite@1.0.30001750: {}
+  caniuse-lite@1.0.30001751: {}
 
   chai@5.3.3:
     dependencies:
@@ -4263,7 +4263,7 @@ snapshots:
 
   natural-compare@1.4.0: {}
 
-  node-releases@2.0.23: {}
+  node-releases@2.0.25: {}
 
   optionator@0.9.4:
     dependencies:
