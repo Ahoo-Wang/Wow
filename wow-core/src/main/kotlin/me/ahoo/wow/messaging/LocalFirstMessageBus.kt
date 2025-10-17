@@ -23,8 +23,6 @@ import me.ahoo.wow.messaging.handler.ExchangeAck.filterThenAck
 import me.ahoo.wow.messaging.handler.MessageExchange
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
-import reactor.core.publisher.Sinks.EmissionException
-import reactor.core.publisher.Sinks.EmitResult
 
 const val LOCAL_FIRST_HEADER = "local_first"
 
@@ -63,21 +61,9 @@ interface LocalFirstMessageBus<M, E : MessageExchange<*, M>> : MessageBus<M, E>
     private val localBusName: String
         get() = localBus.javaClass.simpleName
 
-    private fun logLocalSendError(message: M, error: Throwable) {
-        if (error is EmissionException && error.reason == EmitResult.FAIL_ZERO_SUBSCRIBER) {
-            log.debug {
-                "[$localBusName] Failed to send local message[${message.id}], No subscriber."
-            }
-            return
-        }
-        log.error(error) {
-            "[$localBusName] Failed to send local message[${message.id}], LocalFirst mode temporarily disabled."
-        }
-    }
-
     @Suppress("ReturnCount")
     override fun send(message: M): Mono<Void> {
-        if (!message.shouldLocalFirst()) {
+        if (!message.shouldLocalFirst() || localBus.subscriberCount(message) == 0) {
             return distributedBus.send(message)
         }
 
@@ -88,7 +74,9 @@ interface LocalFirstMessageBus<M, E : MessageExchange<*, M>> : MessageBus<M, E>
             val distributedMessage = message.copy() as M
             if (it.hasError()) {
                 val error = it.throwable!!
-                logLocalSendError(message, error)
+                log.error(error) {
+                    "[$localBusName] Failed to send local message[${message.id}], LocalFirst mode temporarily disabled."
+                }
                 distributedMessage.withLocalFirst(false)
             }
             distributedBus.send(distributedMessage)
