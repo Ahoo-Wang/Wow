@@ -19,6 +19,7 @@ import me.ahoo.wow.api.messaging.TopicKindCapable
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.infra.Decorator.Companion.getOriginalDelegate
+import me.ahoo.wow.messaging.LocalMessageBus
 import me.ahoo.wow.messaging.MessageBus
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.messaging.writeReceiverGroup
@@ -54,6 +55,20 @@ abstract class MessageBusSpec<M : Message<*, *>, E : MessageExchange<*, M>, BUS 
             }
             block(bus)
         }
+    }
+
+    @Test
+    fun localSubscriberCount() {
+        val messageBus = createMessageBus().metrizable()
+        if (messageBus !is LocalMessageBus<*, *>) {
+            return
+        }
+        messageBus.subscriberCount(namedAggregate).assert().isEqualTo(0)
+        messageBus.receive(setOf(namedAggregate)).test()
+            .then {
+                messageBus.subscriberCount(namedAggregate).assert().isEqualTo(1)
+            }
+            .verifyTimeout(Duration.ofMillis(10))
     }
 
     @Test

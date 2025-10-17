@@ -37,6 +37,10 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
     }
 
     private val sender = Schedulers.newSingle(this::class.java.simpleName)
+    override fun subscriberCount(namedAggregate: NamedAggregate): Int {
+        val sink = sinks[namedAggregate.materialize()] ?: return 0
+        return sink.currentSubscriberCount()
+    }
 
     override fun send(message: M): Mono<Void> {
         return Mono.fromRunnable<Void> {

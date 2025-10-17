@@ -53,7 +53,11 @@ open class MetricCommandBus<T : CommandBus>(delegate: T) :
 
 class MetricLocalCommandBus(delegate: LocalCommandBus) :
     LocalCommandBus,
-    MetricCommandBus<LocalCommandBus>(delegate)
+    MetricCommandBus<LocalCommandBus>(delegate) {
+    override fun subscriberCount(namedAggregate: NamedAggregate): Int {
+        return delegate.subscriberCount(namedAggregate)
+    }
+}
 
 class MetricDistributedCommandBus(delegate: DistributedCommandBus) :
     DistributedCommandBus,
