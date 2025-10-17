@@ -34,5 +34,4 @@ internal class InMemoryDomainEventBusTest : DomainEventBusSpec() {
             .test()
             .verifyComplete()
     }
-
 }
