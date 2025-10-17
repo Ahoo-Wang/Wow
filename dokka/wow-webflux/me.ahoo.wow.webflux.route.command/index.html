@@ -1,0 +1,479 @@
+<!doctype html>
+<html class="no-js" lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>me.ahoo.wow.webflux.route.command</title>
+<link href="../../images/logo-icon.svg" rel="icon" type="image/svg"><script>var pathToRoot = "../../";</script>
+    <script>document.documentElement.classList.replace("no-js", "js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+      if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      } else {
+        const savedDarkMode = JSON.parse(storage)
+        if (savedDarkMode === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      }
+    </script>
+<script type="text/javascript" src="https://unpkg.com/kotlin-playground@1/dist/playground.min.js" async></script>
+<script type="text/javascript" src="../../scripts/sourceset_dependencies.js" async></script>
+<link href="../../styles/style.css" rel="Stylesheet">
+<link href="../../styles/main.css" rel="Stylesheet">
+<link href="../../styles/prism.css" rel="Stylesheet">
+<link href="../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../scripts/safe-local-storage_blocking.js"></script>
+<script type="text/javascript" src="../../scripts/navigation-loader.js" async></script>
+<script type="text/javascript" src="../../scripts/platform-content-handler.js" async></script>
+<script type="text/javascript" src="../../scripts/main.js" defer></script>
+<script type="text/javascript" src="../../scripts/prism.js" async></script>
+<script type="text/javascript" src="../../ui-kit/ui-kit.min.js" defer></script></head>
+<body>
+<div class="root">
+    <header class="navigation theme-dark" id="navigation-wrapper" role="banner">
+<a class="library-name--link" href="../../index.html" tabindex="1">
+                    Wow
+            </a>        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle" type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">6.2.9
+        </div>
+        <div class="navigation-controls">
+        <ul class="filter-section filter-section_loading" id="filter-section" aria-label="Target filter">
+                <button class="platform-tag platform-selector jvm-like" data-active="" aria-pressed="true" data-filter=":wow-webflux/main">jvm</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox" data-role="dropdown-toggle" aria-controls="platform-tags-listbox" aria-haspopup="listbox" aria-expanded="false" aria-label="Toggle source sets"></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox" aria-label="Target filter">
+                    <div class="dropdown--header"><span>Target filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close target filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option jvm-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":wow-webflux/main" data-filter=":wow-webflux/main">
+                                <span class="checkbox--icon"></span>
+                                jvm
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </ul>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button" type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </header>
+    <div id="container">
+        <nav id="leftColumn" class="sidebar" data-item-type="SECTION" data-item-config="{&quot;defaultSize&quot;: 280, &quot;minSize&quot;: 200, &quot;maxSize&quot;: 400}">
+            <a class="toc--skip-link" href="#main">Skip to content</a>
+            <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list" data-role="dropdown-listbox" aria-label="Table of contents">
+                    <div class="dropdown--header">
+                            <span>
+                                    Wow
+                            </span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                    <div class="sidebar--inner" id="sideMenu"></div>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </nav>
+        <div id="resizer" class="resizer" data-item-type="BAR"></div>
+        <div id="main" data-item-type="SECTION" role="main">
+<div class="main-content" data-page-type="package" id="content" pageids="wow-webflux::me.ahoo.wow.webflux.route.command////PointingToDeclaration//-1839007555">
+  <div class="breadcrumbs"><a href="../index.html">wow-webflux</a><span class="delimiter">/</span><span class="current">me.ahoo.wow.webflux.route.command</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span><span>Package-level</span></span> <span><span>declarations</span></span></h1>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="TYPE">Types</button><button class="section-tab" data-togglable="FUNCTION,EXTENSION_FUNCTION">Functions</button><button class="section-tab" data-togglable="PROPERTY,EXTENSION_PROPERTY">Properties</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="TYPE">
+        <h2 class="tableheader">Types</h2>
+        <div class="table"><a data-name="-1910569158%2FClasslikes%2F-1839007555" anchor-label="CommandFacadeHandlerFunction" id="-1910569158%2FClasslikes%2F-1839007555" data-filterable-set=":wow-webflux/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-webflux/main" data-filterable-set=":wow-webflux/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-command-facade-handler-function/index.html"><span>Command</span><wbr><span>Facade</span><wbr><span>Handler</span><wbr><span><span>Function</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1910569158%2FClasslikes%2F-1839007555"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-webflux/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="-command-facade-handler-function/index.html">CommandFacadeHandlerFunction</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">commandGateway<span class="token operator">: </span><a href="../../wow-core/me.ahoo.wow.command/-command-gateway/index.html">CommandGateway</a><span class="token punctuation">, </span></span><span class="parameter ">commandMessageExtractor<span class="token operator">: </span><a href="../me.ahoo.wow.webflux.route.command.extractor/-command-message-extractor/index.html">CommandMessageExtractor</a><span class="token punctuation">, </span></span><span class="parameter ">exceptionHandler<span class="token operator">: </span><a href="../me.ahoo.wow.webflux.exception/-request-exception-handler/index.html">RequestExceptionHandler</a><span class="token punctuation">, </span></span><span class="parameter ">timeout<span class="token operator">: </span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/time/Duration.html">Duration</a><span class="token operator"> = </span>DEFAULT_TIME_OUT</span></span><span class="token punctuation">)</span> : <span data-unresolved-link="org.springframework.web.reactive.function.server/HandlerFunction///PointingToDeclaration/">HandlerFunction</span><span class="token operator">&lt;</span><span data-unresolved-link="org.springframework.web.reactive.function.server/ServerResponse///PointingToDeclaration/">ServerResponse</span><span class="token operator">&gt; </span></div><div class="brief "><p class="paragraph"><span data-unresolved-link="org.springframework.web.reactive.result.method.annotation/RequestMappingHandlerMapping///PointingToDeclaration/">org.springframework.web.reactive.result.method.annotation.RequestMappingHandlerMapping</span></p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1090892962%2FClasslikes%2F-1839007555" anchor-label="CommandFacadeHandlerFunctionFactory" id="-1090892962%2FClasslikes%2F-1839007555" data-filterable-set=":wow-webflux/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-webflux/main" data-filterable-set=":wow-webflux/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-command-facade-handler-function-factory/index.html"><span>Command</span><wbr><span>Facade</span><wbr><span>Handler</span><wbr><span>Function</span><wbr><span><span>Factory</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1090892962%2FClasslikes%2F-1839007555"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-webflux/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="-command-facade-handler-function-factory/index.html">CommandFacadeHandlerFunctionFactory</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">commandGateway<span class="token operator">: </span><a href="../../wow-core/me.ahoo.wow.command/-command-gateway/index.html">CommandGateway</a><span class="token punctuation">, </span></span><span class="parameter ">commandMessageExtractor<span class="token operator">: </span><a href="../me.ahoo.wow.webflux.route.command.extractor/-command-message-extractor/index.html">CommandMessageExtractor</a><span class="token punctuation">, </span></span><span class="parameter ">exceptionHandler<span class="token operator">: </span><a href="../me.ahoo.wow.webflux.exception/-request-exception-handler/index.html">RequestExceptionHandler</a><span class="token punctuation">, </span></span><span class="parameter ">timeout<span class="token operator">: </span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/time/Duration.html">Duration</a><span class="token operator"> = </span>DEFAULT_TIME_OUT</span></span><span class="token punctuation">)</span> : <a href="../me.ahoo.wow.webflux.route/-route-handler-function-factory/index.html">RouteHandlerFunctionFactory</a><span class="token operator">&lt;</span><a href="../../wow-openapi/me.ahoo.wow.openapi.aggregate.command/-command-facade-route-spec/index.html">CommandFacadeRouteSpec</a><span class="token operator">&gt; </span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1947497160%2FClasslikes%2F-1839007555" anchor-label="CommandHandler" id="-1947497160%2FClasslikes%2F-1839007555" data-filterable-set=":wow-webflux/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-webflux/main" data-filterable-set=":wow-webflux/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-command-handler/index.html"><span>Command</span><wbr><span><span>Handler</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1947497160%2FClasslikes%2F-1839007555"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-webflux/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="-command-handler/index.html">CommandHandler</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">commandGateway<span class="token operator">: </span><a href="../../wow-core/me.ahoo.wow.command/-command-gateway/index.html">CommandGateway</a><span class="token punctuation">, </span></span><span class="parameter ">commandMessageExtractor<span class="token operator">: </span><a href="../me.ahoo.wow.webflux.route.command.extractor/-command-message-extractor/index.html">CommandMessageExtractor</a><span class="token punctuation">, </span></span><span class="parameter ">timeout<span class="token operator">: </span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/time/Duration.html">Duration</a><span class="token operator"> = </span>DEFAULT_TIME_OUT</span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-973986496%2FClasslikes%2F-1839007555" anchor-label="CommandHandlerFunction" id="-973986496%2FClasslikes%2F-1839007555" data-filterable-set=":wow-webflux/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-webflux/main" data-filterable-set=":wow-webflux/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-command-handler-function/index.html"><span>Command</span><wbr><span>Handler</span><wbr><span><span>Function</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-973986496%2FClasslikes%2F-1839007555"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-webflux/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="-command-handler-function/index.html">CommandHandlerFunction</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">aggregateRouteMetadata<span class="token operator">: </span><a href="../../wow-openapi/me.ahoo.wow.openapi.metadata/-aggregate-route-metadata/index.html">AggregateRouteMetadata</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter ">commandRouteMetadata<span class="token operator">: </span><a href="../../wow-openapi/me.ahoo.wow.openapi.metadata/-command-route-metadata/index.html">CommandRouteMetadata</a><span class="token operator">&lt;</span><span class="token keyword">out </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter ">commandGateway<span class="token operator">: </span><a href="../../wow-core/me.ahoo.wow.command/-command-gateway/index.html">CommandGateway</a><span class="token punctuation">, </span></span><span class="parameter ">commandMessageExtractor<span class="token operator">: </span><a href="../me.ahoo.wow.webflux.route.command.extractor/-command-message-extractor/index.html">CommandMessageExtractor</a><span class="token punctuation">, </span></span><span class="parameter ">exceptionHandler<span class="token operator">: </span><a href="../me.ahoo.wow.webflux.exception/-request-exception-handler/index.html">RequestExceptionHandler</a><span class="token punctuation">, </span></span><span class="parameter ">timeout<span class="token operator">: </span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/time/Duration.html">Duration</a><span class="token operator"> = </span>DEFAULT_TIME_OUT</span></span><span class="token punctuation">)</span> : <span data-unresolved-link="org.springframework.web.reactive.function.server/HandlerFunction///PointingToDeclaration/">HandlerFunction</span><span class="token operator">&lt;</span><span data-unresolved-link="org.springframework.web.reactive.function.server/ServerResponse///PointingToDeclaration/">ServerResponse</span><span class="token operator">&gt; </span></div><div class="brief "><p class="paragraph"><span data-unresolved-link="org.springframework.web.reactive.result.method.annotation/RequestMappingHandlerMapping///PointingToDeclaration/">org.springframework.web.reactive.result.method.annotation.RequestMappingHandlerMapping</span></p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1984985752%2FClasslikes%2F-1839007555" anchor-label="CommandHandlerFunctionFactory" id="1984985752%2FClasslikes%2F-1839007555" data-filterable-set=":wow-webflux/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-webflux/main" data-filterable-set=":wow-webflux/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-command-handler-function-factory/index.html"><span>Command</span><wbr><span>Handler</span><wbr><span>Function</span><wbr><span><span>Factory</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1984985752%2FClasslikes%2F-1839007555"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-webflux/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="-command-handler-function-factory/index.html">CommandHandlerFunctionFactory</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">commandGateway<span class="token operator">: </span><a href="../../wow-core/me.ahoo.wow.command/-command-gateway/index.html">CommandGateway</a><span class="token punctuation">, </span></span><span class="parameter ">commandMessageExtractor<span class="token operator">: </span><a href="../me.ahoo.wow.webflux.route.command.extractor/-command-message-extractor/index.html">CommandMessageExtractor</a><span class="token punctuation">, </span></span><span class="parameter ">exceptionHandler<span class="token operator">: </span><a href="../me.ahoo.wow.webflux.exception/-request-exception-handler/index.html">RequestExceptionHandler</a><span class="token punctuation">, </span></span><span class="parameter ">timeout<span class="token operator">: </span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/time/Duration.html">Duration</a><span class="token operator"> = </span>DEFAULT_TIME_OUT</span></span><span class="token punctuation">)</span> : <a href="../me.ahoo.wow.webflux.route/-route-handler-function-factory/index.html">RouteHandlerFunctionFactory</a><span class="token operator">&lt;</span><a href="../../wow-openapi/me.ahoo.wow.openapi.aggregate.command/-command-route-spec/index.html">CommandRouteSpec</a><span class="token operator">&gt; </span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="PROPERTY">
+        <h2 class="tableheader">Properties</h2>
+        <div class="table"><a data-name="1659116814%2FProperties%2F-1839007555" anchor-label="DEFAULT_TIME_OUT" id="1659116814%2FProperties%2F-1839007555" data-filterable-set=":wow-webflux/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-webflux/main" data-filterable-set=":wow-webflux/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-d-e-f-a-u-l-t_-t-i-m-e_-o-u-t.html"><span>DEFAULT_</span><wbr><span>TIME_</span><wbr><span>OUT</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1659116814%2FProperties%2F-1839007555"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-webflux/main"><div class="symbol monospace"><span class="token keyword">val </span><a href="-d-e-f-a-u-l-t_-t-i-m-e_-o-u-t.html">DEFAULT_TIME_OUT</a><span class="token operator">: </span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/time/Duration.html">Duration</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="EXTENSION_FUNCTION">
+        <h2 class="tableheader">Functions</h2>
+        <div class="table"><a data-name="2091652662%2FFunctions%2F-1839007555" anchor-label="extractWaitStrategy" id="2091652662%2FFunctions%2F-1839007555" data-filterable-set=":wow-webflux/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-webflux/main" data-filterable-set=":wow-webflux/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="extract-wait-strategy.html"><span>extract</span><wbr><span>Wait</span><wbr><span><span>Strategy</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="2091652662%2FFunctions%2F-1839007555"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-webflux/main"><div class="symbol monospace"><span class="token keyword">fun </span><span data-unresolved-link="org.springframework.web.reactive.function.server/ServerRequest///PointingToDeclaration/">ServerRequest</span><span class="token punctuation">.</span><a href="extract-wait-strategy.html"><span class="token function">extractWaitStrategy</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">commandMessage<span class="token operator">: </span><a href="../../wow-api/me.ahoo.wow.api.command/-command-message/index.html">CommandMessage</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../wow-core/me.ahoo.wow.command.wait/-wait-strategy/index.html">WaitStrategy</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-948297227%2FFunctions%2F-1839007555" anchor-label="getAggregateId" id="-948297227%2FFunctions%2F-1839007555" data-filterable-set=":wow-webflux/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-webflux/main" data-filterable-set=":wow-webflux/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="get-aggregate-id.html"><span>get</span><wbr><span>Aggregate</span><wbr><span><span>Id</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-948297227%2FFunctions%2F-1839007555"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-webflux/main"><div class="symbol monospace"><span class="token keyword">fun </span><span data-unresolved-link="org.springframework.web.reactive.function.server/ServerRequest///PointingToDeclaration/">ServerRequest</span><span class="token punctuation">.</span><a href="get-aggregate-id.html"><span class="token function">getAggregateId</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span></div><div class="symbol monospace"><span class="token keyword">fun </span><span data-unresolved-link="org.springframework.web.reactive.function.server/ServerRequest///PointingToDeclaration/">ServerRequest</span><span class="token punctuation">.</span><a href="get-aggregate-id.html"><span class="token function">getAggregateId</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">owner<span class="token operator">: </span><a href="../../wow-api/me.ahoo.wow.api.annotation/-aggregate-route/-owner/index.html">AggregateRoute.Owner</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span></div><div class="symbol monospace"><span class="token keyword">fun </span><span data-unresolved-link="org.springframework.web.reactive.function.server/ServerRequest///PointingToDeclaration/">ServerRequest</span><span class="token punctuation">.</span><a href="get-aggregate-id.html"><span class="token function">getAggregateId</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">owner<span class="token operator">: </span><a href="../../wow-api/me.ahoo.wow.api.annotation/-aggregate-route/-owner/index.html">AggregateRoute.Owner</a><span class="token punctuation">, </span></span><span class="parameter ">ownerId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1517731046%2FFunctions%2F-1839007555" anchor-label="getLocalFirst" id="-1517731046%2FFunctions%2F-1839007555" data-filterable-set=":wow-webflux/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-webflux/main" data-filterable-set=":wow-webflux/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="get-local-first.html"><span>get</span><wbr><span>Local</span><wbr><span><span>First</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1517731046%2FFunctions%2F-1839007555"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-webflux/main"><div class="symbol monospace"><span class="token keyword">fun </span><span data-unresolved-link="org.springframework.web.reactive.function.server/ServerRequest///PointingToDeclaration/">ServerRequest</span><span class="token punctuation">.</span><a href="get-local-first.html"><span class="token function">getLocalFirst</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1514274227%2FFunctions%2F-1839007555" anchor-label="getOwnerId" id="1514274227%2FFunctions%2F-1839007555" data-filterable-set=":wow-webflux/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-webflux/main" data-filterable-set=":wow-webflux/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="get-owner-id.html"><span>get</span><wbr><span>Owner</span><wbr><span><span>Id</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1514274227%2FFunctions%2F-1839007555"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-webflux/main"><div class="symbol monospace"><span class="token keyword">fun </span><span data-unresolved-link="org.springframework.web.reactive.function.server/ServerRequest///PointingToDeclaration/">ServerRequest</span><span class="token punctuation">.</span><a href="get-owner-id.html"><span class="token function">getOwnerId</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="381819630%2FFunctions%2F-1839007555" anchor-label="getTenantId" id="381819630%2FFunctions%2F-1839007555" data-filterable-set=":wow-webflux/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-webflux/main" data-filterable-set=":wow-webflux/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="get-tenant-id.html"><span>get</span><wbr><span>Tenant</span><wbr><span><span>Id</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="381819630%2FFunctions%2F-1839007555"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-webflux/main"><div class="symbol monospace"><span class="token keyword">fun </span><span data-unresolved-link="org.springframework.web.reactive.function.server/ServerRequest///PointingToDeclaration/">ServerRequest</span><span class="token punctuation">.</span><a href="get-tenant-id.html"><span class="token function">getTenantId</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">aggregateMetadata<span class="token operator">: </span><a href="../../wow-core/me.ahoo.wow.modeling.matedata/-aggregate-metadata/index.html">AggregateMetadata</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token punctuation">, </span><span class="token operator">*</span><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="2080710844%2FFunctions%2F-1839007555" anchor-label="getTenantIdOrDefault" id="2080710844%2FFunctions%2F-1839007555" data-filterable-set=":wow-webflux/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-webflux/main" data-filterable-set=":wow-webflux/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="get-tenant-id-or-default.html"><span>get</span><wbr><span>Tenant</span><wbr><span>Id</span><wbr><span>Or</span><wbr><span><span>Default</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="2080710844%2FFunctions%2F-1839007555"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-webflux/main"><div class="symbol monospace"><span class="token keyword">fun </span><span data-unresolved-link="org.springframework.web.reactive.function.server/ServerRequest///PointingToDeclaration/">ServerRequest</span><span class="token punctuation">.</span><a href="get-tenant-id-or-default.html"><span class="token function">getTenantIdOrDefault</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">aggregateMetadata<span class="token operator">: </span><a href="../../wow-core/me.ahoo.wow.modeling.matedata/-aggregate-metadata/index.html">AggregateMetadata</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token punctuation">, </span><span class="token operator">*</span><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1829792871%2FFunctions%2F-1839007555" anchor-label="getWaitContext" id="1829792871%2FFunctions%2F-1839007555" data-filterable-set=":wow-webflux/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-webflux/main" data-filterable-set=":wow-webflux/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="get-wait-context.html"><span>get</span><wbr><span>Wait</span><wbr><span><span>Context</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1829792871%2FFunctions%2F-1839007555"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-webflux/main"><div class="symbol monospace"><span class="token keyword">fun </span><span data-unresolved-link="org.springframework.web.reactive.function.server/ServerRequest///PointingToDeclaration/">ServerRequest</span><span class="token punctuation">.</span><a href="get-wait-context.html"><span class="token function">getWaitContext</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1554824206%2FFunctions%2F-1839007555" anchor-label="getWaitFunction" id="-1554824206%2FFunctions%2F-1839007555" data-filterable-set=":wow-webflux/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-webflux/main" data-filterable-set=":wow-webflux/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="get-wait-function.html"><span>get</span><wbr><span>Wait</span><wbr><span><span>Function</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1554824206%2FFunctions%2F-1839007555"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-webflux/main"><div class="symbol monospace"><span class="token keyword">fun </span><span data-unresolved-link="org.springframework.web.reactive.function.server/ServerRequest///PointingToDeclaration/">ServerRequest</span><span class="token punctuation">.</span><a href="get-wait-function.html"><span class="token function">getWaitFunction</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1074419876%2FFunctions%2F-1839007555" anchor-label="getWaitProcessor" id="1074419876%2FFunctions%2F-1839007555" data-filterable-set=":wow-webflux/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-webflux/main" data-filterable-set=":wow-webflux/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="get-wait-processor.html"><span>get</span><wbr><span>Wait</span><wbr><span><span>Processor</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1074419876%2FFunctions%2F-1839007555"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-webflux/main"><div class="symbol monospace"><span class="token keyword">fun </span><span data-unresolved-link="org.springframework.web.reactive.function.server/ServerRequest///PointingToDeclaration/">ServerRequest</span><span class="token punctuation">.</span><a href="get-wait-processor.html"><span class="token function">getWaitProcessor</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1204800584%2FFunctions%2F-1839007555" anchor-label="getWaitStage" id="-1204800584%2FFunctions%2F-1839007555" data-filterable-set=":wow-webflux/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-webflux/main" data-filterable-set=":wow-webflux/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="get-wait-stage.html"><span>get</span><wbr><span>Wait</span><wbr><span><span>Stage</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1204800584%2FFunctions%2F-1839007555"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-webflux/main"><div class="symbol monospace"><span class="token keyword">fun </span><span data-unresolved-link="org.springframework.web.reactive.function.server/ServerRequest///PointingToDeclaration/">ServerRequest</span><span class="token punctuation">.</span><a href="get-wait-stage.html"><span class="token function">getWaitStage</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../wow-core/me.ahoo.wow.command.wait/-command-stage/index.html">CommandStage</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-791177769%2FFunctions%2F-1839007555" anchor-label="getWaitTailContext" id="-791177769%2FFunctions%2F-1839007555" data-filterable-set=":wow-webflux/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-webflux/main" data-filterable-set=":wow-webflux/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="get-wait-tail-context.html"><span>get</span><wbr><span>Wait</span><wbr><span>Tail</span><wbr><span><span>Context</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-791177769%2FFunctions%2F-1839007555"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-webflux/main"><div class="symbol monospace"><span class="token keyword">fun </span><span data-unresolved-link="org.springframework.web.reactive.function.server/ServerRequest///PointingToDeclaration/">ServerRequest</span><span class="token punctuation">.</span><a href="get-wait-tail-context.html"><span class="token function">getWaitTailContext</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1200535422%2FFunctions%2F-1839007555" anchor-label="getWaitTailFunction" id="-1200535422%2FFunctions%2F-1839007555" data-filterable-set=":wow-webflux/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-webflux/main" data-filterable-set=":wow-webflux/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="get-wait-tail-function.html"><span>get</span><wbr><span>Wait</span><wbr><span>Tail</span><wbr><span><span>Function</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1200535422%2FFunctions%2F-1839007555"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-webflux/main"><div class="symbol monospace"><span class="token keyword">fun </span><span data-unresolved-link="org.springframework.web.reactive.function.server/ServerRequest///PointingToDeclaration/">ServerRequest</span><span class="token punctuation">.</span><a href="get-wait-tail-function.html"><span class="token function">getWaitTailFunction</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-827529708%2FFunctions%2F-1839007555" anchor-label="getWaitTailProcessor" id="-827529708%2FFunctions%2F-1839007555" data-filterable-set=":wow-webflux/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-webflux/main" data-filterable-set=":wow-webflux/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="get-wait-tail-processor.html"><span>get</span><wbr><span>Wait</span><wbr><span>Tail</span><wbr><span><span>Processor</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-827529708%2FFunctions%2F-1839007555"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-webflux/main"><div class="symbol monospace"><span class="token keyword">fun </span><span data-unresolved-link="org.springframework.web.reactive.function.server/ServerRequest///PointingToDeclaration/">ServerRequest</span><span class="token punctuation">.</span><a href="get-wait-tail-processor.html"><span class="token function">getWaitTailProcessor</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-376243928%2FFunctions%2F-1839007555" anchor-label="getWaitTailStage" id="-376243928%2FFunctions%2F-1839007555" data-filterable-set=":wow-webflux/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-webflux/main" data-filterable-set=":wow-webflux/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="get-wait-tail-stage.html"><span>get</span><wbr><span>Wait</span><wbr><span>Tail</span><wbr><span><span>Stage</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-376243928%2FFunctions%2F-1839007555"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-webflux/main"><div class="symbol monospace"><span class="token keyword">fun </span><span data-unresolved-link="org.springframework.web.reactive.function.server/ServerRequest///PointingToDeclaration/">ServerRequest</span><span class="token punctuation">.</span><a href="get-wait-tail-stage.html"><span class="token function">getWaitTailStage</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../wow-core/me.ahoo.wow.command.wait/-command-stage/index.html">CommandStage</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-630657940%2FFunctions%2F-1839007555" anchor-label="getWaitTimeout" id="-630657940%2FFunctions%2F-1839007555" data-filterable-set=":wow-webflux/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-webflux/main" data-filterable-set=":wow-webflux/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="get-wait-timeout.html"><span>get</span><wbr><span>Wait</span><wbr><span><span>Timeout</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-630657940%2FFunctions%2F-1839007555"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-webflux/main"><div class="symbol monospace"><span class="token keyword">fun </span><span data-unresolved-link="org.springframework.web.reactive.function.server/ServerRequest///PointingToDeclaration/">ServerRequest</span><span class="token punctuation">.</span><a href="get-wait-timeout.html"><span class="token function">getWaitTimeout</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">default<span class="token operator">: </span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/time/Duration.html">Duration</a><span class="token operator"> = </span>DEFAULT_TIME_OUT</span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/time/Duration.html">Duration</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1168069222%2FFunctions%2F-1839007555" anchor-label="isSse" id="-1168069222%2FFunctions%2F-1839007555" data-filterable-set=":wow-webflux/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-webflux/main" data-filterable-set=":wow-webflux/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="is-sse.html"><span>is</span><wbr><span><span>Sse</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1168069222%2FFunctions%2F-1839007555"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-webflux/main"><div class="symbol monospace"><span class="token keyword">fun </span><span data-unresolved-link="org.springframework.web.reactive.function.server/ServerRequest///PointingToDeclaration/">ServerRequest</span><span class="token punctuation">.</span><a href="is-sse.html"><span class="token function">isSse</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-230000228%2FFunctions%2F-1839007555" anchor-label="toCommandResponse" id="-230000228%2FFunctions%2F-1839007555" data-filterable-set=":wow-webflux/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-webflux/main" data-filterable-set=":wow-webflux/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="to-command-response.html"><span>to</span><wbr><span>Command</span><wbr><span><span>Response</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-230000228%2FFunctions%2F-1839007555"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-webflux/main"><div class="symbol monospace"><span class="token keyword">fun </span><span data-unresolved-link="reactor.core.publisher/Flux///PointingToDeclaration/">Flux</span><span class="token operator">&lt;</span><a href="../../wow-core/me.ahoo.wow.command/-command-result/index.html">CommandResult</a><span class="token operator">&gt;</span><span class="token punctuation">.</span><a href="to-command-response.html"><span class="token function">toCommandResponse</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">request<span class="token operator">: </span><span data-unresolved-link="org.springframework.web.reactive.function.server/ServerRequest///PointingToDeclaration/">ServerRequest</span><span class="token punctuation">, </span></span><span class="parameter ">exceptionHandler<span class="token operator">: </span><a href="../me.ahoo.wow.webflux.exception/-request-exception-handler/index.html">RequestExceptionHandler</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="reactor.core.publisher/Mono///PointingToDeclaration/">Mono</span><span class="token operator">&lt;</span><span data-unresolved-link="org.springframework.web.reactive.function.server/ServerResponse///PointingToDeclaration/">ServerResponse</span><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <div class="footer--container">
+            <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+            <div class="footer--content">
+                <div>
+                    <span>Generated by </span>
+                    <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                        Dokka
+                    </a>
+                    <div>© 2025 Copyright</div>
+                </div>
+            </div>
+        </div>
+    </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

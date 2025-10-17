@@ -1,0 +1,690 @@
+<!doctype html>
+<html class="no-js" lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>WebFluxAutoConfiguration</title>
+<link href="../../../images/logo-icon.svg" rel="icon" type="image/svg"><script>var pathToRoot = "../../../";</script>
+    <script>document.documentElement.classList.replace("no-js", "js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+      if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      } else {
+        const savedDarkMode = JSON.parse(storage)
+        if (savedDarkMode === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      }
+    </script>
+<script type="text/javascript" src="https://unpkg.com/kotlin-playground@1/dist/playground.min.js" async></script>
+<script type="text/javascript" src="../../../scripts/sourceset_dependencies.js" async></script>
+<link href="../../../styles/style.css" rel="Stylesheet">
+<link href="../../../styles/main.css" rel="Stylesheet">
+<link href="../../../styles/prism.css" rel="Stylesheet">
+<link href="../../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../../scripts/safe-local-storage_blocking.js"></script>
+<script type="text/javascript" src="../../../scripts/navigation-loader.js" async></script>
+<script type="text/javascript" src="../../../scripts/platform-content-handler.js" async></script>
+<script type="text/javascript" src="../../../scripts/main.js" defer></script>
+<script type="text/javascript" src="../../../scripts/prism.js" async></script>
+<script type="text/javascript" src="../../../ui-kit/ui-kit.min.js" defer></script></head>
+<body>
+<div class="root">
+    <header class="navigation theme-dark" id="navigation-wrapper" role="banner">
+<a class="library-name--link" href="../../../index.html" tabindex="1">
+                    Wow
+            </a>        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle" type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">6.2.9
+        </div>
+        <div class="navigation-controls">
+        <ul class="filter-section filter-section_loading" id="filter-section" aria-label="Target filter">
+                <button class="platform-tag platform-selector jvm-like" data-active="" aria-pressed="true" data-filter=":wow-spring-boot-starter/main">jvm</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox" data-role="dropdown-toggle" aria-controls="platform-tags-listbox" aria-haspopup="listbox" aria-expanded="false" aria-label="Toggle source sets"></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox" aria-label="Target filter">
+                    <div class="dropdown--header"><span>Target filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close target filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option jvm-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":wow-spring-boot-starter/main" data-filter=":wow-spring-boot-starter/main">
+                                <span class="checkbox--icon"></span>
+                                jvm
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </ul>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button" type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </header>
+    <div id="container">
+        <nav id="leftColumn" class="sidebar" data-item-type="SECTION" data-item-config="{&quot;defaultSize&quot;: 280, &quot;minSize&quot;: 200, &quot;maxSize&quot;: 400}">
+            <a class="toc--skip-link" href="#main">Skip to content</a>
+            <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list" data-role="dropdown-listbox" aria-label="Table of contents">
+                    <div class="dropdown--header">
+                            <span>
+                                    Wow
+                            </span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                    <div class="sidebar--inner" id="sideMenu"></div>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </nav>
+        <div id="resizer" class="resizer" data-item-type="BAR"></div>
+        <div id="main" data-item-type="SECTION" role="main">
+<div class="main-content" data-page-type="classlike" id="content" pageids="wow-spring-boot-starter::me.ahoo.wow.spring.boot.starter.webflux/WebFluxAutoConfiguration///PointingToDeclaration//1399351412">
+  <div class="breadcrumbs"><a href="../../index.html">wow-spring-boot-starter</a><span class="delimiter">/</span><a href="../index.html">me.ahoo.wow.spring.boot.starter.webflux</a><span class="delimiter">/</span><span class="current">WebFluxAutoConfiguration</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span>Web</span><wbr><span>Flux</span><wbr><span>Auto</span><wbr><span><span>Configuration</span></span></h1>
+    <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-spring-boot-starter/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.boot.autoconfigure/AutoConfiguration///PointingToDeclaration/"><span class="token annotation builtin">AutoConfiguration</span></span><span class="token punctuation">(</span><span>after<span class="token operator"> = </span><span class="token punctuation">[</span><span><a href="../../me.ahoo.wow.spring.boot.starter.command/-command-auto-configuration/index.html">CommandAutoConfiguration::class</a><span class="token punctuation">, </span></span><wbr><span><a href="../../me.ahoo.wow.spring.boot.starter.openapi/-open-a-p-i-auto-configuration/index.html">OpenAPIAutoConfiguration::class</a></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.boot.context.properties/EnableConfigurationProperties///PointingToDeclaration/"><span class="token annotation builtin">EnableConfigurationProperties</span></span><span class="token punctuation">(</span><span>value<span class="token operator"> = </span><span class="token punctuation">[</span><span><a href="../-web-flux-properties/index.html">WebFluxProperties::class</a></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.boot.autoconfigure.condition/ConditionalOnClass///PointingToDeclaration/"><span class="token annotation builtin">ConditionalOnClass</span></span><span class="token punctuation">(</span><span>name<span class="token operator"> = </span><span class="token punctuation">[</span><span><span class="breakable-word"><span class="token string">"org.springframework.web.server.WebFilter"</span></span><span class="token punctuation">, </span></span><wbr><span><span class="breakable-word"><span class="token string">"me.ahoo.wow.webflux.route.command.CommandHandlerFunction"</span></span></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">class </span><a href="index.html">WebFluxAutoConfiguration</a></div><p class="paragraph">WebFlux Auto Configuration .</p><span class="kdoc-tag"><h4 class="">Author</h4><p class="paragraph">ahoo wang</p></span></div></div>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="CONSTRUCTOR,TYPE,PROPERTY,FUNCTION">Members</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="CONSTRUCTOR">
+        <h2 class="tableheader">Constructors</h2>
+        <div class="table"><a data-name="574514810%2FConstructors%2F1399351412" anchor-label="WebFluxAutoConfiguration" id="574514810%2FConstructors%2F1399351412" data-filterable-set=":wow-spring-boot-starter/main"></a>
+          <div class="table-row table-row_content" data-togglable="CONSTRUCTOR" data-filterable-current=":wow-spring-boot-starter/main" data-filterable-set=":wow-spring-boot-starter/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-web-flux-auto-configuration.html"><span>Web</span><wbr><span>Flux</span><wbr><span>Auto</span><wbr><span><span>Configuration</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="574514810%2FConstructors%2F1399351412"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-spring-boot-starter/main"><div class="symbol monospace"><span class="token keyword">constructor</span><span class="token punctuation">(</span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="TYPE">
+        <h2 class="tableheader">Types</h2>
+        <div class="table"><a data-name="1308604061%2FClasslikes%2F1399351412" anchor-label="Companion" id="1308604061%2FClasslikes%2F1399351412" data-filterable-set=":wow-spring-boot-starter/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-spring-boot-starter/main" data-filterable-set=":wow-spring-boot-starter/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-companion/index.html"><span><span>Companion</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1308604061%2FClasslikes%2F1399351412"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-spring-boot-starter/main"><div class="symbol monospace"><span class="token keyword">object </span><a href="-companion/index.html">Companion</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="FUNCTION">
+        <h2 class="tableheader">Functions</h2>
+        <div class="table"><a data-name="1551756374%2FFunctions%2F1399351412" anchor-label="aggregateTracingHandlerFunctionFactory" id="1551756374%2FFunctions%2F1399351412" data-filterable-set=":wow-spring-boot-starter/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-spring-boot-starter/main" data-filterable-set=":wow-spring-boot-starter/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="aggregate-tracing-handler-function-factory.html"><span>aggregate</span><wbr><span>Tracing</span><wbr><span>Handler</span><wbr><span>Function</span><wbr><span><span>Factory</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1551756374%2FFunctions%2F1399351412"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-spring-boot-starter/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.context.annotation/Bean///PointingToDeclaration/"><span class="token annotation builtin">Bean</span></span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.core.annotation/Order///PointingToDeclaration/"><span class="token annotation builtin">Order</span></span><span class="token punctuation">(</span><span>value<span class="token operator"> = </span><span class="breakable-word"><span class="token constant">-2147483648</span></span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.boot.autoconfigure.condition/ConditionalOnMissingBean///PointingToDeclaration/"><span class="token annotation builtin">ConditionalOnMissingBean</span></span><span class="token punctuation">(</span><span>name<span class="token operator"> = </span><span class="token punctuation">[</span><span><span class="breakable-word"><span class="token string">"aggregateTracingHandlerFunctionFactory"</span></span></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">fun </span><a href="aggregate-tracing-handler-function-factory.html"><span class="token function">aggregateTracingHandlerFunctionFactory</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">stateAggregateFactory<span class="token operator">: </span><a href="../../../wow-core/me.ahoo.wow.modeling.state/-state-aggregate-factory/index.html">StateAggregateFactory</a><span class="token punctuation">, </span></span><span class="parameter ">eventStore<span class="token operator">: </span><a href="../../../wow-core/me.ahoo.wow.eventsourcing/-event-store/index.html">EventStore</a><span class="token punctuation">, </span></span><span class="parameter ">exceptionHandler<span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.exception/-request-exception-handler/index.html">RequestExceptionHandler</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.route.state/-aggregate-tracing-handler-function-factory/index.html">AggregateTracingHandlerFunctionFactory</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1193543214%2FFunctions%2F1399351412" anchor-label="batchRegenerateSnapshotHandlerFunctionFactory" id="1193543214%2FFunctions%2F1399351412" data-filterable-set=":wow-spring-boot-starter/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-spring-boot-starter/main" data-filterable-set=":wow-spring-boot-starter/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="batch-regenerate-snapshot-handler-function-factory.html"><span>batch</span><wbr><span>Regenerate</span><wbr><span>Snapshot</span><wbr><span>Handler</span><wbr><span>Function</span><wbr><span><span>Factory</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1193543214%2FFunctions%2F1399351412"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-spring-boot-starter/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.context.annotation/Bean///PointingToDeclaration/"><span class="token annotation builtin">Bean</span></span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.core.annotation/Order///PointingToDeclaration/"><span class="token annotation builtin">Order</span></span><span class="token punctuation">(</span><span>value<span class="token operator"> = </span><span class="breakable-word"><span class="token constant">-2147483648</span></span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.boot.autoconfigure.condition/ConditionalOnMissingBean///PointingToDeclaration/"><span class="token annotation builtin">ConditionalOnMissingBean</span></span><span class="token punctuation">(</span><span>name<span class="token operator"> = </span><span class="token punctuation">[</span><span><span class="breakable-word"><span class="token string">"batchRegenerateSnapshotHandlerFunctionFactory"</span></span></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">fun </span><a href="batch-regenerate-snapshot-handler-function-factory.html"><span class="token function">batchRegenerateSnapshotHandlerFunctionFactory</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">stateAggregateFactory<span class="token operator">: </span><a href="../../../wow-core/me.ahoo.wow.modeling.state/-state-aggregate-factory/index.html">StateAggregateFactory</a><span class="token punctuation">, </span></span><span class="parameter ">eventStore<span class="token operator">: </span><a href="../../../wow-core/me.ahoo.wow.eventsourcing/-event-store/index.html">EventStore</a><span class="token punctuation">, </span></span><span class="parameter ">snapshotRepository<span class="token operator">: </span><a href="../../../wow-core/me.ahoo.wow.eventsourcing.snapshot/-snapshot-repository/index.html">SnapshotRepository</a><span class="token punctuation">, </span></span><span class="parameter ">exceptionHandler<span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.exception/-request-exception-handler/index.html">RequestExceptionHandler</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.route.snapshot/-batch-regenerate-snapshot-handler-function-factory/index.html">BatchRegenerateSnapshotHandlerFunctionFactory</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1380762142%2FFunctions%2F1399351412" anchor-label="commandBuilderExtractor" id="-1380762142%2FFunctions%2F1399351412" data-filterable-set=":wow-spring-boot-starter/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-spring-boot-starter/main" data-filterable-set=":wow-spring-boot-starter/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="command-builder-extractor.html"><span>command</span><wbr><span>Builder</span><wbr><span><span>Extractor</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1380762142%2FFunctions%2F1399351412"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-spring-boot-starter/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.context.annotation/Bean///PointingToDeclaration/"><span class="token annotation builtin">Bean</span></span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.boot.autoconfigure.condition/ConditionalOnMissingBean///PointingToDeclaration/"><span class="token annotation builtin">ConditionalOnMissingBean</span></span></div></div><span class="token keyword">fun </span><a href="command-builder-extractor.html"><span class="token function">commandBuilderExtractor</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.route.command.extractor/-command-builder-extractor/index.html">CommandBuilderExtractor</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1406141260%2FFunctions%2F1399351412" anchor-label="commandFacadeHandlerFunctionFactory" id="-1406141260%2FFunctions%2F1399351412" data-filterable-set=":wow-spring-boot-starter/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-spring-boot-starter/main" data-filterable-set=":wow-spring-boot-starter/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="command-facade-handler-function-factory.html"><span>command</span><wbr><span>Facade</span><wbr><span>Handler</span><wbr><span>Function</span><wbr><span><span>Factory</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1406141260%2FFunctions%2F1399351412"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-spring-boot-starter/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.context.annotation/Bean///PointingToDeclaration/"><span class="token annotation builtin">Bean</span></span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.core.annotation/Order///PointingToDeclaration/"><span class="token annotation builtin">Order</span></span><span class="token punctuation">(</span><span>value<span class="token operator"> = </span><span class="breakable-word"><span class="token constant">-2147483648</span></span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.boot.autoconfigure.condition/ConditionalOnMissingBean///PointingToDeclaration/"><span class="token annotation builtin">ConditionalOnMissingBean</span></span><span class="token punctuation">(</span><span>name<span class="token operator"> = </span><span class="token punctuation">[</span><span><span class="breakable-word"><span class="token string">"commandFacadeHandlerFunctionFactory"</span></span></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">fun </span><a href="command-facade-handler-function-factory.html"><span class="token function">commandFacadeHandlerFunctionFactory</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">commandGateway<span class="token operator">: </span><a href="../../../wow-core/me.ahoo.wow.command/-command-gateway/index.html">CommandGateway</a><span class="token punctuation">, </span></span><span class="parameter ">commandMessageExtractor<span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.route.command.extractor/-command-message-extractor/index.html">CommandMessageExtractor</a><span class="token punctuation">, </span></span><span class="parameter ">exceptionHandler<span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.exception/-request-exception-handler/index.html">RequestExceptionHandler</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.route.command/-command-facade-handler-function-factory/index.html">CommandFacadeHandlerFunctionFactory</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1620489170%2FFunctions%2F1399351412" anchor-label="commandHandlerFunctionFactory" id="-1620489170%2FFunctions%2F1399351412" data-filterable-set=":wow-spring-boot-starter/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-spring-boot-starter/main" data-filterable-set=":wow-spring-boot-starter/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="command-handler-function-factory.html"><span>command</span><wbr><span>Handler</span><wbr><span>Function</span><wbr><span><span>Factory</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1620489170%2FFunctions%2F1399351412"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-spring-boot-starter/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.context.annotation/Bean///PointingToDeclaration/"><span class="token annotation builtin">Bean</span></span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.core.annotation/Order///PointingToDeclaration/"><span class="token annotation builtin">Order</span></span><span class="token punctuation">(</span><span>value<span class="token operator"> = </span><span class="breakable-word"><span class="token constant">-2147483648</span></span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.boot.autoconfigure.condition/ConditionalOnMissingBean///PointingToDeclaration/"><span class="token annotation builtin">ConditionalOnMissingBean</span></span><span class="token punctuation">(</span><span>name<span class="token operator"> = </span><span class="token punctuation">[</span><span><span class="breakable-word"><span class="token string">"commandHandlerFunctionFactory"</span></span></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">fun </span><a href="command-handler-function-factory.html"><span class="token function">commandHandlerFunctionFactory</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">commandGateway<span class="token operator">: </span><a href="../../../wow-core/me.ahoo.wow.command/-command-gateway/index.html">CommandGateway</a><span class="token punctuation">, </span></span><span class="parameter ">commandMessageExtractor<span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.route.command.extractor/-command-message-extractor/index.html">CommandMessageExtractor</a><span class="token punctuation">, </span></span><span class="parameter ">exceptionHandler<span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.exception/-request-exception-handler/index.html">RequestExceptionHandler</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.route.command/-command-handler-function-factory/index.html">CommandHandlerFunctionFactory</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1383899318%2FFunctions%2F1399351412" anchor-label="commandMessageExtractor" id="1383899318%2FFunctions%2F1399351412" data-filterable-set=":wow-spring-boot-starter/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-spring-boot-starter/main" data-filterable-set=":wow-spring-boot-starter/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="command-message-extractor.html"><span>command</span><wbr><span>Message</span><wbr><span><span>Extractor</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1383899318%2FFunctions%2F1399351412"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-spring-boot-starter/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.context.annotation/Bean///PointingToDeclaration/"><span class="token annotation builtin">Bean</span></span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.boot.autoconfigure.condition/ConditionalOnMissingBean///PointingToDeclaration/"><span class="token annotation builtin">ConditionalOnMissingBean</span></span></div></div><span class="token keyword">fun </span><a href="command-message-extractor.html"><span class="token function">commandMessageExtractor</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">commandMessageFactory<span class="token operator">: </span><a href="../../../wow-core/me.ahoo.wow.command.factory/-command-message-factory/index.html">CommandMessageFactory</a><span class="token punctuation">, </span></span><span class="parameter ">commandBuilderExtractor<span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.route.command.extractor/-command-builder-extractor/index.html">CommandBuilderExtractor</a><span class="token punctuation">, </span></span><span class="parameter ">commandRequestHeaderAppenderObjectProvider<span class="token operator">: </span><span data-unresolved-link="org.springframework.beans.factory/ObjectProvider///PointingToDeclaration/">ObjectProvider</span><span class="token operator">&lt;</span><a href="../../../wow-webflux/me.ahoo.wow.webflux.route.command.appender/-command-request-header-appender/index.html">CommandRequestHeaderAppender</a><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.route.command.extractor/-command-message-extractor/index.html">CommandMessageExtractor</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-852664078%2FFunctions%2F1399351412" anchor-label="commandRequestExtendHeaderAppender" id="-852664078%2FFunctions%2F1399351412" data-filterable-set=":wow-spring-boot-starter/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-spring-boot-starter/main" data-filterable-set=":wow-spring-boot-starter/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="command-request-extend-header-appender.html"><span>command</span><wbr><span>Request</span><wbr><span>Extend</span><wbr><span>Header</span><wbr><span><span>Appender</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-852664078%2FFunctions%2F1399351412"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-spring-boot-starter/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.context.annotation/Bean///PointingToDeclaration/"><span class="token annotation builtin">Bean</span></span></div></div><span class="token keyword">fun </span><a href="command-request-extend-header-appender.html"><span class="token function">commandRequestExtendHeaderAppender</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.route.command.appender/-command-request-extend-header-appender/index.html">CommandRequestExtendHeaderAppender</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1068416991%2FFunctions%2F1399351412" anchor-label="commandRequestRemoteIpHeaderAppender" id="1068416991%2FFunctions%2F1399351412" data-filterable-set=":wow-spring-boot-starter/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-spring-boot-starter/main" data-filterable-set=":wow-spring-boot-starter/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="command-request-remote-ip-header-appender.html"><span>command</span><wbr><span>Request</span><wbr><span>Remote</span><wbr><span>Ip</span><wbr><span>Header</span><wbr><span><span>Appender</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1068416991%2FFunctions%2F1399351412"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-spring-boot-starter/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.context.annotation/Bean///PointingToDeclaration/"><span class="token annotation builtin">Bean</span></span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.boot.autoconfigure.condition/ConditionalOnProperty///PointingToDeclaration/"><span class="token annotation builtin">ConditionalOnProperty</span></span><span class="token punctuation">(</span><span>value<span class="token operator"> = </span><span class="token punctuation">[</span><span><span class="breakable-word"><span class="token string">"wow.webflux.command.request.appender.ip.enabled"</span></span></span><wbr><span class="token punctuation">]</span><span class="token punctuation">, </span></span><wbr><span>matchIfMissing<span class="token operator"> = </span><span class="breakable-word"><span class="token boolean">true</span></span><span class="token punctuation">, </span></span><wbr><span>havingValue<span class="token operator"> = </span><span class="breakable-word"><span class="token string">"true"</span></span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">fun </span><a href="command-request-remote-ip-header-appender.html"><span class="token function">commandRequestRemoteIpHeaderAppender</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.route.command.appender/-command-request-remote-ip-header-appender/index.html">CommandRequestRemoteIpHeaderAppender</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-405976340%2FFunctions%2F1399351412" anchor-label="commandRequestUserAgentHeaderAppender" id="-405976340%2FFunctions%2F1399351412" data-filterable-set=":wow-spring-boot-starter/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-spring-boot-starter/main" data-filterable-set=":wow-spring-boot-starter/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="command-request-user-agent-header-appender.html"><span>command</span><wbr><span>Request</span><wbr><span>User</span><wbr><span>Agent</span><wbr><span>Header</span><wbr><span><span>Appender</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-405976340%2FFunctions%2F1399351412"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-spring-boot-starter/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.context.annotation/Bean///PointingToDeclaration/"><span class="token annotation builtin">Bean</span></span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.boot.autoconfigure.condition/ConditionalOnProperty///PointingToDeclaration/"><span class="token annotation builtin">ConditionalOnProperty</span></span><span class="token punctuation">(</span><span>value<span class="token operator"> = </span><span class="token punctuation">[</span><span><span class="breakable-word"><span class="token string">"wow.webflux.command.request.appender.agent.enabled"</span></span></span><wbr><span class="token punctuation">]</span><span class="token punctuation">, </span></span><wbr><span>matchIfMissing<span class="token operator"> = </span><span class="breakable-word"><span class="token boolean">true</span></span><span class="token punctuation">, </span></span><wbr><span>havingValue<span class="token operator"> = </span><span class="breakable-word"><span class="token string">"true"</span></span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">fun </span><a href="command-request-user-agent-header-appender.html"><span class="token function">commandRequestUserAgentHeaderAppender</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.route.command.appender/-command-request-user-agent-header-appender/index.html">CommandRequestUserAgentHeaderAppender</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-814906612%2FFunctions%2F1399351412" anchor-label="commandRouterFunction" id="-814906612%2FFunctions%2F1399351412" data-filterable-set=":wow-spring-boot-starter/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-spring-boot-starter/main" data-filterable-set=":wow-spring-boot-starter/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="command-router-function.html"><span>command</span><wbr><span>Router</span><wbr><span><span>Function</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-814906612%2FFunctions%2F1399351412"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-spring-boot-starter/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.context.annotation/Bean///PointingToDeclaration/"><span class="token annotation builtin">Bean</span></span></div></div><span class="token keyword">fun </span><a href="command-router-function.html"><span class="token function">commandRouterFunction</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">routerSpecs<span class="token operator">: </span><a href="../../../wow-openapi/me.ahoo.wow.openapi/-router-specs/index.html">RouterSpecs</a><span class="token punctuation">, </span></span><span class="parameter ">routeHandlerFunctionRegistrar<span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.route/-route-handler-function-registrar/index.html">RouteHandlerFunctionRegistrar</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="org.springframework.web.reactive.function.server/RouterFunction///PointingToDeclaration/">RouterFunction</span><span class="token operator">&lt;</span><span data-unresolved-link="org.springframework.web.reactive.function.server/ServerResponse///PointingToDeclaration/">ServerResponse</span><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1347542143%2FFunctions%2F1399351412" anchor-label="commandWaitHandlerFunctionFactory" id="1347542143%2FFunctions%2F1399351412" data-filterable-set=":wow-spring-boot-starter/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-spring-boot-starter/main" data-filterable-set=":wow-spring-boot-starter/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="command-wait-handler-function-factory.html"><span>command</span><wbr><span>Wait</span><wbr><span>Handler</span><wbr><span>Function</span><wbr><span><span>Factory</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1347542143%2FFunctions%2F1399351412"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-spring-boot-starter/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.context.annotation/Bean///PointingToDeclaration/"><span class="token annotation builtin">Bean</span></span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.core.annotation/Order///PointingToDeclaration/"><span class="token annotation builtin">Order</span></span><span class="token punctuation">(</span><span>value<span class="token operator"> = </span><span class="breakable-word"><span class="token constant">-2147483648</span></span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.boot.autoconfigure.condition/ConditionalOnMissingBean///PointingToDeclaration/"><span class="token annotation builtin">ConditionalOnMissingBean</span></span><span class="token punctuation">(</span><span>name<span class="token operator"> = </span><span class="token punctuation">[</span><span><span class="breakable-word"><span class="token string">"commandWaitHandlerFunctionFactory"</span></span></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">fun </span><a href="command-wait-handler-function-factory.html"><span class="token function">commandWaitHandlerFunctionFactory</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">waitStrategyRegistrar<span class="token operator">: </span><a href="../../../wow-core/me.ahoo.wow.command.wait/-wait-strategy-registrar/index.html">WaitStrategyRegistrar</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.wait/-command-wait-handler-function-factory/index.html">CommandWaitHandlerFunctionFactory</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1536060486%2FFunctions%2F1399351412" anchor-label="countEventStreamHandlerFunctionFactory" id="-1536060486%2FFunctions%2F1399351412" data-filterable-set=":wow-spring-boot-starter/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-spring-boot-starter/main" data-filterable-set=":wow-spring-boot-starter/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="count-event-stream-handler-function-factory.html"><span>count</span><wbr><span>Event</span><wbr><span>Stream</span><wbr><span>Handler</span><wbr><span>Function</span><wbr><span><span>Factory</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1536060486%2FFunctions%2F1399351412"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-spring-boot-starter/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.context.annotation/Bean///PointingToDeclaration/"><span class="token annotation builtin">Bean</span></span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.core.annotation/Order///PointingToDeclaration/"><span class="token annotation builtin">Order</span></span><span class="token punctuation">(</span><span>value<span class="token operator"> = </span><span class="breakable-word"><span class="token constant">-2147483648</span></span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.boot.autoconfigure.condition/ConditionalOnMissingBean///PointingToDeclaration/"><span class="token annotation builtin">ConditionalOnMissingBean</span></span><span class="token punctuation">(</span><span>name<span class="token operator"> = </span><span class="token punctuation">[</span><span><span class="breakable-word"><span class="token string">"countEventStreamHandlerFunctionFactory"</span></span></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">fun </span><a href="count-event-stream-handler-function-factory.html"><span class="token function">countEventStreamHandlerFunctionFactory</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">queryHandler<span class="token operator">: </span><a href="../../../wow-query/me.ahoo.wow.query.event.filter/-event-stream-query-handler/index.html">EventStreamQueryHandler</a><span class="token punctuation">, </span></span><span class="parameter ">exceptionHandler<span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.exception/-request-exception-handler/index.html">RequestExceptionHandler</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.route.event/-count-event-stream-handler-function-factory/index.html">CountEventStreamHandlerFunctionFactory</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-2083777076%2FFunctions%2F1399351412" anchor-label="countSnapshotHandlerFunctionFactory" id="-2083777076%2FFunctions%2F1399351412" data-filterable-set=":wow-spring-boot-starter/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-spring-boot-starter/main" data-filterable-set=":wow-spring-boot-starter/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="count-snapshot-handler-function-factory.html"><span>count</span><wbr><span>Snapshot</span><wbr><span>Handler</span><wbr><span>Function</span><wbr><span><span>Factory</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-2083777076%2FFunctions%2F1399351412"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-spring-boot-starter/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.context.annotation/Bean///PointingToDeclaration/"><span class="token annotation builtin">Bean</span></span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.core.annotation/Order///PointingToDeclaration/"><span class="token annotation builtin">Order</span></span><span class="token punctuation">(</span><span>value<span class="token operator"> = </span><span class="breakable-word"><span class="token constant">-2147483648</span></span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.boot.autoconfigure.condition/ConditionalOnMissingBean///PointingToDeclaration/"><span class="token annotation builtin">ConditionalOnMissingBean</span></span><span class="token punctuation">(</span><span>name<span class="token operator"> = </span><span class="token punctuation">[</span><span><span class="breakable-word"><span class="token string">"countSnapshotHandlerFunctionFactory"</span></span></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">fun </span><a href="count-snapshot-handler-function-factory.html"><span class="token function">countSnapshotHandlerFunctionFactory</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">snapshotQueryHandler<span class="token operator">: </span><a href="../../../wow-query/me.ahoo.wow.query.snapshot.filter/-snapshot-query-handler/index.html">SnapshotQueryHandler</a><span class="token punctuation">, </span></span><span class="parameter ">exceptionHandler<span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.exception/-request-exception-handler/index.html">RequestExceptionHandler</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.route.snapshot/-count-snapshot-handler-function-factory/index.html">CountSnapshotHandlerFunctionFactory</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1947349657%2FFunctions%2F1399351412" anchor-label="eventCompensateHandlerFunctionFactory" id="1947349657%2FFunctions%2F1399351412" data-filterable-set=":wow-spring-boot-starter/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-spring-boot-starter/main" data-filterable-set=":wow-spring-boot-starter/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="event-compensate-handler-function-factory.html"><span>event</span><wbr><span>Compensate</span><wbr><span>Handler</span><wbr><span>Function</span><wbr><span><span>Factory</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1947349657%2FFunctions%2F1399351412"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-spring-boot-starter/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.context.annotation/Bean///PointingToDeclaration/"><span class="token annotation builtin">Bean</span></span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.core.annotation/Order///PointingToDeclaration/"><span class="token annotation builtin">Order</span></span><span class="token punctuation">(</span><span>value<span class="token operator"> = </span><span class="breakable-word"><span class="token constant">-2147483648</span></span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.boot.autoconfigure.condition/ConditionalOnMissingBean///PointingToDeclaration/"><span class="token annotation builtin">ConditionalOnMissingBean</span></span><span class="token punctuation">(</span><span>name<span class="token operator"> = </span><span class="token punctuation">[</span><span><span class="breakable-word"><span class="token string">"eventCompensateHandlerFunctionFactory"</span></span></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">fun </span><a href="event-compensate-handler-function-factory.html"><span class="token function">eventCompensateHandlerFunctionFactory</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">eventCompensateSupporter<span class="token operator">: </span><a href="../../../wow-core/me.ahoo.wow.messaging.compensation/-event-compensate-supporter/index.html">EventCompensateSupporter</a><span class="token punctuation">, </span></span><span class="parameter ">exceptionHandler<span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.exception/-request-exception-handler/index.html">RequestExceptionHandler</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.route.event/-event-compensate-handler-function-factory/index.html">EventCompensateHandlerFunctionFactory</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="59145321%2FFunctions%2F1399351412" anchor-label="exceptionHandler" id="59145321%2FFunctions%2F1399351412" data-filterable-set=":wow-spring-boot-starter/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-spring-boot-starter/main" data-filterable-set=":wow-spring-boot-starter/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="exception-handler.html"><span>exception</span><wbr><span><span>Handler</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="59145321%2FFunctions%2F1399351412"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-spring-boot-starter/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.context.annotation/Bean///PointingToDeclaration/"><span class="token annotation builtin">Bean</span></span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.boot.autoconfigure.condition/ConditionalOnMissingBean///PointingToDeclaration/"><span class="token annotation builtin">ConditionalOnMissingBean</span></span></div></div><span class="token keyword">fun </span><a href="exception-handler.html"><span class="token function">exceptionHandler</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.exception/-request-exception-handler/index.html">RequestExceptionHandler</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-706706067%2FFunctions%2F1399351412" anchor-label="generateBIScriptHandlerFunctionFactory" id="-706706067%2FFunctions%2F1399351412" data-filterable-set=":wow-spring-boot-starter/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-spring-boot-starter/main" data-filterable-set=":wow-spring-boot-starter/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="generate-b-i-script-handler-function-factory.html"><span>generate</span><wbr><span>BIScript</span><wbr><span>Handler</span><wbr><span>Function</span><wbr><span><span>Factory</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-706706067%2FFunctions%2F1399351412"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-spring-boot-starter/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.context.annotation/Bean///PointingToDeclaration/"><span class="token annotation builtin">Bean</span></span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.core.annotation/Order///PointingToDeclaration/"><span class="token annotation builtin">Order</span></span><span class="token punctuation">(</span><span>value<span class="token operator"> = </span><span class="breakable-word"><span class="token constant">-2147483648</span></span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.boot.autoconfigure.condition/ConditionalOnMissingBean///PointingToDeclaration/"><span class="token annotation builtin">ConditionalOnMissingBean</span></span><span class="token punctuation">(</span><span>name<span class="token operator"> = </span><span class="token punctuation">[</span><span><span class="breakable-word"><span class="token string">"generateBIScriptHandlerFunctionFactory"</span></span></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">fun </span><a href="generate-b-i-script-handler-function-factory.html"><span class="token function">generateBIScriptHandlerFunctionFactory</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.lang/Nullable///PointingToDeclaration/"><span class="token annotation builtin">Nullable</span></span>&nbsp;</span>kafkaProperties<span class="token operator">: </span><a href="../../me.ahoo.wow.spring.boot.starter.kafka/-kafka-properties/index.html">KafkaProperties</a><span class="token operator">?</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.route.global/-generate-b-i-script-handler-function-factory/index.html">GenerateBIScriptHandlerFunctionFactory</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="633431876%2FFunctions%2F1399351412" anchor-label="getWowMetadataHandlerFunctionFactory" id="633431876%2FFunctions%2F1399351412" data-filterable-set=":wow-spring-boot-starter/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-spring-boot-starter/main" data-filterable-set=":wow-spring-boot-starter/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="get-wow-metadata-handler-function-factory.html"><span>get</span><wbr><span>Wow</span><wbr><span>Metadata</span><wbr><span>Handler</span><wbr><span>Function</span><wbr><span><span>Factory</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="633431876%2FFunctions%2F1399351412"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-spring-boot-starter/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.context.annotation/Bean///PointingToDeclaration/"><span class="token annotation builtin">Bean</span></span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.core.annotation/Order///PointingToDeclaration/"><span class="token annotation builtin">Order</span></span><span class="token punctuation">(</span><span>value<span class="token operator"> = </span><span class="breakable-word"><span class="token constant">-2147483648</span></span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.boot.autoconfigure.condition/ConditionalOnMissingBean///PointingToDeclaration/"><span class="token annotation builtin">ConditionalOnMissingBean</span></span><span class="token punctuation">(</span><span>name<span class="token operator"> = </span><span class="token punctuation">[</span><span><span class="breakable-word"><span class="token string">"getWowMetadataHandlerFunctionFactory"</span></span></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">fun </span><a href="get-wow-metadata-handler-function-factory.html"><span class="token function">getWowMetadataHandlerFunctionFactory</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.route.global/-get-wow-metadata-handler-function-factory/index.html">GetWowMetadataHandlerFunctionFactory</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1731282234%2FFunctions%2F1399351412" anchor-label="globalExceptionHandler" id="-1731282234%2FFunctions%2F1399351412" data-filterable-set=":wow-spring-boot-starter/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-spring-boot-starter/main" data-filterable-set=":wow-spring-boot-starter/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="global-exception-handler.html"><span>global</span><wbr><span>Exception</span><wbr><span><span>Handler</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1731282234%2FFunctions%2F1399351412"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-spring-boot-starter/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.context.annotation/Bean///PointingToDeclaration/"><span class="token annotation builtin">Bean</span></span></div></div><span class="token keyword">fun </span><a href="global-exception-handler.html"><span class="token function">globalExceptionHandler</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="org.springframework.web.server/WebExceptionHandler///PointingToDeclaration/">WebExceptionHandler</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-222495906%2FFunctions%2F1399351412" anchor-label="globalIdHandlerFunctionFactory" id="-222495906%2FFunctions%2F1399351412" data-filterable-set=":wow-spring-boot-starter/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-spring-boot-starter/main" data-filterable-set=":wow-spring-boot-starter/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="global-id-handler-function-factory.html"><span>global</span><wbr><span>Id</span><wbr><span>Handler</span><wbr><span>Function</span><wbr><span><span>Factory</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-222495906%2FFunctions%2F1399351412"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-spring-boot-starter/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.context.annotation/Bean///PointingToDeclaration/"><span class="token annotation builtin">Bean</span></span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.core.annotation/Order///PointingToDeclaration/"><span class="token annotation builtin">Order</span></span><span class="token punctuation">(</span><span>value<span class="token operator"> = </span><span class="breakable-word"><span class="token constant">-2147483648</span></span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.boot.autoconfigure.condition/ConditionalOnMissingBean///PointingToDeclaration/"><span class="token annotation builtin">ConditionalOnMissingBean</span></span><span class="token punctuation">(</span><span>name<span class="token operator"> = </span><span class="token punctuation">[</span><span><span class="breakable-word"><span class="token string">"globalIdHandlerFunctionFactory"</span></span></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">fun </span><a href="global-id-handler-function-factory.html"><span class="token function">globalIdHandlerFunctionFactory</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.route.global/-global-id-handler-function-factory/index.html">GlobalIdHandlerFunctionFactory</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1138752949%2FFunctions%2F1399351412" anchor-label="listQueryEventStreamHandlerFunctionFactory" id="1138752949%2FFunctions%2F1399351412" data-filterable-set=":wow-spring-boot-starter/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-spring-boot-starter/main" data-filterable-set=":wow-spring-boot-starter/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="list-query-event-stream-handler-function-factory.html"><span>list</span><wbr><span>Query</span><wbr><span>Event</span><wbr><span>Stream</span><wbr><span>Handler</span><wbr><span>Function</span><wbr><span><span>Factory</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1138752949%2FFunctions%2F1399351412"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-spring-boot-starter/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.context.annotation/Bean///PointingToDeclaration/"><span class="token annotation builtin">Bean</span></span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.core.annotation/Order///PointingToDeclaration/"><span class="token annotation builtin">Order</span></span><span class="token punctuation">(</span><span>value<span class="token operator"> = </span><span class="breakable-word"><span class="token constant">-2147483648</span></span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.boot.autoconfigure.condition/ConditionalOnMissingBean///PointingToDeclaration/"><span class="token annotation builtin">ConditionalOnMissingBean</span></span><span class="token punctuation">(</span><span>name<span class="token operator"> = </span><span class="token punctuation">[</span><span><span class="breakable-word"><span class="token string">"listQueryEventStreamHandlerFunctionFactory"</span></span></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">fun </span><a href="list-query-event-stream-handler-function-factory.html"><span class="token function">listQueryEventStreamHandlerFunctionFactory</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">eventStreamQueryHandler<span class="token operator">: </span><a href="../../../wow-query/me.ahoo.wow.query.event.filter/-event-stream-query-handler/index.html">EventStreamQueryHandler</a><span class="token punctuation">, </span></span><span class="parameter ">exceptionHandler<span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.exception/-request-exception-handler/index.html">RequestExceptionHandler</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.route.event/-list-query-event-stream-handler-function-factory/index.html">ListQueryEventStreamHandlerFunctionFactory</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="634348977%2FFunctions%2F1399351412" anchor-label="listQuerySnapshotHandlerFunctionFactory" id="634348977%2FFunctions%2F1399351412" data-filterable-set=":wow-spring-boot-starter/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-spring-boot-starter/main" data-filterable-set=":wow-spring-boot-starter/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="list-query-snapshot-handler-function-factory.html"><span>list</span><wbr><span>Query</span><wbr><span>Snapshot</span><wbr><span>Handler</span><wbr><span>Function</span><wbr><span><span>Factory</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="634348977%2FFunctions%2F1399351412"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-spring-boot-starter/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.context.annotation/Bean///PointingToDeclaration/"><span class="token annotation builtin">Bean</span></span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.core.annotation/Order///PointingToDeclaration/"><span class="token annotation builtin">Order</span></span><span class="token punctuation">(</span><span>value<span class="token operator"> = </span><span class="breakable-word"><span class="token constant">-2147483648</span></span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.boot.autoconfigure.condition/ConditionalOnMissingBean///PointingToDeclaration/"><span class="token annotation builtin">ConditionalOnMissingBean</span></span><span class="token punctuation">(</span><span>name<span class="token operator"> = </span><span class="token punctuation">[</span><span><span class="breakable-word"><span class="token string">"listQuerySnapshotHandlerFunctionFactory"</span></span></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">fun </span><a href="list-query-snapshot-handler-function-factory.html"><span class="token function">listQuerySnapshotHandlerFunctionFactory</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">snapshotQueryHandler<span class="token operator">: </span><a href="../../../wow-query/me.ahoo.wow.query.snapshot.filter/-snapshot-query-handler/index.html">SnapshotQueryHandler</a><span class="token punctuation">, </span></span><span class="parameter ">exceptionHandler<span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.exception/-request-exception-handler/index.html">RequestExceptionHandler</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.route.snapshot/-list-query-snapshot-handler-function-factory/index.html">ListQuerySnapshotHandlerFunctionFactory</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1302142890%2FFunctions%2F1399351412" anchor-label="listQuerySnapshotStateHandlerFunctionFactory" id="1302142890%2FFunctions%2F1399351412" data-filterable-set=":wow-spring-boot-starter/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-spring-boot-starter/main" data-filterable-set=":wow-spring-boot-starter/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="list-query-snapshot-state-handler-function-factory.html"><span>list</span><wbr><span>Query</span><wbr><span>Snapshot</span><wbr><span>State</span><wbr><span>Handler</span><wbr><span>Function</span><wbr><span><span>Factory</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1302142890%2FFunctions%2F1399351412"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-spring-boot-starter/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.context.annotation/Bean///PointingToDeclaration/"><span class="token annotation builtin">Bean</span></span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.core.annotation/Order///PointingToDeclaration/"><span class="token annotation builtin">Order</span></span><span class="token punctuation">(</span><span>value<span class="token operator"> = </span><span class="breakable-word"><span class="token constant">-2147483648</span></span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.boot.autoconfigure.condition/ConditionalOnMissingBean///PointingToDeclaration/"><span class="token annotation builtin">ConditionalOnMissingBean</span></span><span class="token punctuation">(</span><span>name<span class="token operator"> = </span><span class="token punctuation">[</span><span><span class="breakable-word"><span class="token string">"listQuerySnapshotStateHandlerFunctionFactory"</span></span></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">fun </span><a href="list-query-snapshot-state-handler-function-factory.html"><span class="token function">listQuerySnapshotStateHandlerFunctionFactory</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">snapshotQueryHandler<span class="token operator">: </span><a href="../../../wow-query/me.ahoo.wow.query.snapshot.filter/-snapshot-query-handler/index.html">SnapshotQueryHandler</a><span class="token punctuation">, </span></span><span class="parameter ">exceptionHandler<span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.exception/-request-exception-handler/index.html">RequestExceptionHandler</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.route.snapshot/-list-query-snapshot-state-handler-function-factory/index.html">ListQuerySnapshotStateHandlerFunctionFactory</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="174596396%2FFunctions%2F1399351412" anchor-label="loadAggregateHandlerFunctionFactory" id="174596396%2FFunctions%2F1399351412" data-filterable-set=":wow-spring-boot-starter/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-spring-boot-starter/main" data-filterable-set=":wow-spring-boot-starter/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="load-aggregate-handler-function-factory.html"><span>load</span><wbr><span>Aggregate</span><wbr><span>Handler</span><wbr><span>Function</span><wbr><span><span>Factory</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="174596396%2FFunctions%2F1399351412"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-spring-boot-starter/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.context.annotation/Bean///PointingToDeclaration/"><span class="token annotation builtin">Bean</span></span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.core.annotation/Order///PointingToDeclaration/"><span class="token annotation builtin">Order</span></span><span class="token punctuation">(</span><span>value<span class="token operator"> = </span><span class="breakable-word"><span class="token constant">-2147483648</span></span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.boot.autoconfigure.condition/ConditionalOnMissingBean///PointingToDeclaration/"><span class="token annotation builtin">ConditionalOnMissingBean</span></span><span class="token punctuation">(</span><span>name<span class="token operator"> = </span><span class="token punctuation">[</span><span><span class="breakable-word"><span class="token string">"loadAggregateHandlerFunctionFactory"</span></span></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">fun </span><a href="load-aggregate-handler-function-factory.html"><span class="token function">loadAggregateHandlerFunctionFactory</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">stateAggregateRepository<span class="token operator">: </span><a href="../../../wow-core/me.ahoo.wow.modeling.state/-state-aggregate-repository/index.html">StateAggregateRepository</a><span class="token punctuation">, </span></span><span class="parameter ">exceptionHandler<span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.exception/-request-exception-handler/index.html">RequestExceptionHandler</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.route.state/-load-aggregate-handler-function-factory/index.html">LoadAggregateHandlerFunctionFactory</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1567032221%2FFunctions%2F1399351412" anchor-label="loadEventStreamHandlerFunctionFactory" id="-1567032221%2FFunctions%2F1399351412" data-filterable-set=":wow-spring-boot-starter/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-spring-boot-starter/main" data-filterable-set=":wow-spring-boot-starter/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="load-event-stream-handler-function-factory.html"><span>load</span><wbr><span>Event</span><wbr><span>Stream</span><wbr><span>Handler</span><wbr><span>Function</span><wbr><span><span>Factory</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1567032221%2FFunctions%2F1399351412"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-spring-boot-starter/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.context.annotation/Bean///PointingToDeclaration/"><span class="token annotation builtin">Bean</span></span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.core.annotation/Order///PointingToDeclaration/"><span class="token annotation builtin">Order</span></span><span class="token punctuation">(</span><span>value<span class="token operator"> = </span><span class="breakable-word"><span class="token constant">-2147483648</span></span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.boot.autoconfigure.condition/ConditionalOnMissingBean///PointingToDeclaration/"><span class="token annotation builtin">ConditionalOnMissingBean</span></span><span class="token punctuation">(</span><span>name<span class="token operator"> = </span><span class="token punctuation">[</span><span><span class="breakable-word"><span class="token string">"loadEventStreamHandlerFunctionFactory"</span></span></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">fun </span><a href="load-event-stream-handler-function-factory.html"><span class="token function">loadEventStreamHandlerFunctionFactory</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">eventStreamQueryHandler<span class="token operator">: </span><a href="../../../wow-query/me.ahoo.wow.query.event.filter/-event-stream-query-handler/index.html">EventStreamQueryHandler</a><span class="token punctuation">, </span></span><span class="parameter ">exceptionHandler<span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.exception/-request-exception-handler/index.html">RequestExceptionHandler</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.route.event/-load-event-stream-handler-function-factory/index.html">LoadEventStreamHandlerFunctionFactory</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1588554301%2FFunctions%2F1399351412" anchor-label="loadSnapshotHandlerFunctionFactory" id="-1588554301%2FFunctions%2F1399351412" data-filterable-set=":wow-spring-boot-starter/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-spring-boot-starter/main" data-filterable-set=":wow-spring-boot-starter/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="load-snapshot-handler-function-factory.html"><span>load</span><wbr><span>Snapshot</span><wbr><span>Handler</span><wbr><span>Function</span><wbr><span><span>Factory</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1588554301%2FFunctions%2F1399351412"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-spring-boot-starter/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.context.annotation/Bean///PointingToDeclaration/"><span class="token annotation builtin">Bean</span></span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.core.annotation/Order///PointingToDeclaration/"><span class="token annotation builtin">Order</span></span><span class="token punctuation">(</span><span>value<span class="token operator"> = </span><span class="breakable-word"><span class="token constant">-2147483648</span></span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.boot.autoconfigure.condition/ConditionalOnMissingBean///PointingToDeclaration/"><span class="token annotation builtin">ConditionalOnMissingBean</span></span><span class="token punctuation">(</span><span>name<span class="token operator"> = </span><span class="token punctuation">[</span><span><span class="breakable-word"><span class="token string">"loadSnapshotHandlerFunctionFactory"</span></span></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">fun </span><a href="load-snapshot-handler-function-factory.html"><span class="token function">loadSnapshotHandlerFunctionFactory</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">snapshotQueryHandler<span class="token operator">: </span><a href="../../../wow-query/me.ahoo.wow.query.snapshot.filter/-snapshot-query-handler/index.html">SnapshotQueryHandler</a><span class="token punctuation">, </span></span><span class="parameter ">exceptionHandler<span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.exception/-request-exception-handler/index.html">RequestExceptionHandler</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.route.snapshot/-load-snapshot-handler-function-factory/index.html">LoadSnapshotHandlerFunctionFactory</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1177405692%2FFunctions%2F1399351412" anchor-label="loadTimeBasedAggregateHandlerFunctionFactory" id="-1177405692%2FFunctions%2F1399351412" data-filterable-set=":wow-spring-boot-starter/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-spring-boot-starter/main" data-filterable-set=":wow-spring-boot-starter/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="load-time-based-aggregate-handler-function-factory.html"><span>load</span><wbr><span>Time</span><wbr><span>Based</span><wbr><span>Aggregate</span><wbr><span>Handler</span><wbr><span>Function</span><wbr><span><span>Factory</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1177405692%2FFunctions%2F1399351412"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-spring-boot-starter/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.context.annotation/Bean///PointingToDeclaration/"><span class="token annotation builtin">Bean</span></span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.core.annotation/Order///PointingToDeclaration/"><span class="token annotation builtin">Order</span></span><span class="token punctuation">(</span><span>value<span class="token operator"> = </span><span class="breakable-word"><span class="token constant">-2147483648</span></span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.boot.autoconfigure.condition/ConditionalOnMissingBean///PointingToDeclaration/"><span class="token annotation builtin">ConditionalOnMissingBean</span></span><span class="token punctuation">(</span><span>name<span class="token operator"> = </span><span class="token punctuation">[</span><span><span class="breakable-word"><span class="token string">"loadTimeBasedAggregateHandlerFunctionFactory"</span></span></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">fun </span><a href="load-time-based-aggregate-handler-function-factory.html"><span class="token function">loadTimeBasedAggregateHandlerFunctionFactory</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">stateAggregateRepository<span class="token operator">: </span><a href="../../../wow-core/me.ahoo.wow.modeling.state/-state-aggregate-repository/index.html">StateAggregateRepository</a><span class="token punctuation">, </span></span><span class="parameter ">exceptionHandler<span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.exception/-request-exception-handler/index.html">RequestExceptionHandler</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.route.state/-load-time-based-aggregate-handler-function-factory/index.html">LoadTimeBasedAggregateHandlerFunctionFactory</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-784428397%2FFunctions%2F1399351412" anchor-label="loadVersionedAggregateHandlerFunctionFactory" id="-784428397%2FFunctions%2F1399351412" data-filterable-set=":wow-spring-boot-starter/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-spring-boot-starter/main" data-filterable-set=":wow-spring-boot-starter/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="load-versioned-aggregate-handler-function-factory.html"><span>load</span><wbr><span>Versioned</span><wbr><span>Aggregate</span><wbr><span>Handler</span><wbr><span>Function</span><wbr><span><span>Factory</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-784428397%2FFunctions%2F1399351412"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-spring-boot-starter/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.context.annotation/Bean///PointingToDeclaration/"><span class="token annotation builtin">Bean</span></span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.core.annotation/Order///PointingToDeclaration/"><span class="token annotation builtin">Order</span></span><span class="token punctuation">(</span><span>value<span class="token operator"> = </span><span class="breakable-word"><span class="token constant">-2147483648</span></span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.boot.autoconfigure.condition/ConditionalOnMissingBean///PointingToDeclaration/"><span class="token annotation builtin">ConditionalOnMissingBean</span></span><span class="token punctuation">(</span><span>name<span class="token operator"> = </span><span class="token punctuation">[</span><span><span class="breakable-word"><span class="token string">"loadVersionedAggregateHandlerFunctionFactory"</span></span></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">fun </span><a href="load-versioned-aggregate-handler-function-factory.html"><span class="token function">loadVersionedAggregateHandlerFunctionFactory</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">stateAggregateRepository<span class="token operator">: </span><a href="../../../wow-core/me.ahoo.wow.modeling.state/-state-aggregate-repository/index.html">StateAggregateRepository</a><span class="token punctuation">, </span></span><span class="parameter ">exceptionHandler<span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.exception/-request-exception-handler/index.html">RequestExceptionHandler</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.route.state/-load-versioned-aggregate-handler-function-factory/index.html">LoadVersionedAggregateHandlerFunctionFactory</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="42617104%2FFunctions%2F1399351412" anchor-label="pagedQueryEventStreamHandlerFunctionFactory" id="42617104%2FFunctions%2F1399351412" data-filterable-set=":wow-spring-boot-starter/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-spring-boot-starter/main" data-filterable-set=":wow-spring-boot-starter/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="paged-query-event-stream-handler-function-factory.html"><span>paged</span><wbr><span>Query</span><wbr><span>Event</span><wbr><span>Stream</span><wbr><span>Handler</span><wbr><span>Function</span><wbr><span><span>Factory</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="42617104%2FFunctions%2F1399351412"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-spring-boot-starter/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.context.annotation/Bean///PointingToDeclaration/"><span class="token annotation builtin">Bean</span></span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.core.annotation/Order///PointingToDeclaration/"><span class="token annotation builtin">Order</span></span><span class="token punctuation">(</span><span>value<span class="token operator"> = </span><span class="breakable-word"><span class="token constant">-2147483648</span></span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.boot.autoconfigure.condition/ConditionalOnMissingBean///PointingToDeclaration/"><span class="token annotation builtin">ConditionalOnMissingBean</span></span><span class="token punctuation">(</span><span>name<span class="token operator"> = </span><span class="token punctuation">[</span><span><span class="breakable-word"><span class="token string">"pagedQueryEventStreamHandlerFunctionFactory"</span></span></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">fun </span><a href="paged-query-event-stream-handler-function-factory.html"><span class="token function">pagedQueryEventStreamHandlerFunctionFactory</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">eventStreamQueryHandler<span class="token operator">: </span><a href="../../../wow-query/me.ahoo.wow.query.event.filter/-event-stream-query-handler/index.html">EventStreamQueryHandler</a><span class="token punctuation">, </span></span><span class="parameter ">exceptionHandler<span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.exception/-request-exception-handler/index.html">RequestExceptionHandler</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.route.event/-paged-query-event-stream-handler-function-factory/index.html">PagedQueryEventStreamHandlerFunctionFactory</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-467578826%2FFunctions%2F1399351412" anchor-label="pagedQuerySnapshotHandlerFunctionFactory" id="-467578826%2FFunctions%2F1399351412" data-filterable-set=":wow-spring-boot-starter/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-spring-boot-starter/main" data-filterable-set=":wow-spring-boot-starter/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="paged-query-snapshot-handler-function-factory.html"><span>paged</span><wbr><span>Query</span><wbr><span>Snapshot</span><wbr><span>Handler</span><wbr><span>Function</span><wbr><span><span>Factory</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-467578826%2FFunctions%2F1399351412"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-spring-boot-starter/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.context.annotation/Bean///PointingToDeclaration/"><span class="token annotation builtin">Bean</span></span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.core.annotation/Order///PointingToDeclaration/"><span class="token annotation builtin">Order</span></span><span class="token punctuation">(</span><span>value<span class="token operator"> = </span><span class="breakable-word"><span class="token constant">-2147483648</span></span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.boot.autoconfigure.condition/ConditionalOnMissingBean///PointingToDeclaration/"><span class="token annotation builtin">ConditionalOnMissingBean</span></span><span class="token punctuation">(</span><span>name<span class="token operator"> = </span><span class="token punctuation">[</span><span><span class="breakable-word"><span class="token string">"pagedQuerySnapshotHandlerFunctionFactory"</span></span></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">fun </span><a href="paged-query-snapshot-handler-function-factory.html"><span class="token function">pagedQuerySnapshotHandlerFunctionFactory</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">snapshotQueryHandler<span class="token operator">: </span><a href="../../../wow-query/me.ahoo.wow.query.snapshot.filter/-snapshot-query-handler/index.html">SnapshotQueryHandler</a><span class="token punctuation">, </span></span><span class="parameter ">exceptionHandler<span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.exception/-request-exception-handler/index.html">RequestExceptionHandler</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.route.snapshot/-paged-query-snapshot-handler-function-factory/index.html">PagedQuerySnapshotHandlerFunctionFactory</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="182583365%2FFunctions%2F1399351412" anchor-label="pagedQuerySnapshotStateHandlerFunctionFactory" id="182583365%2FFunctions%2F1399351412" data-filterable-set=":wow-spring-boot-starter/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-spring-boot-starter/main" data-filterable-set=":wow-spring-boot-starter/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="paged-query-snapshot-state-handler-function-factory.html"><span>paged</span><wbr><span>Query</span><wbr><span>Snapshot</span><wbr><span>State</span><wbr><span>Handler</span><wbr><span>Function</span><wbr><span><span>Factory</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="182583365%2FFunctions%2F1399351412"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-spring-boot-starter/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.context.annotation/Bean///PointingToDeclaration/"><span class="token annotation builtin">Bean</span></span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.core.annotation/Order///PointingToDeclaration/"><span class="token annotation builtin">Order</span></span><span class="token punctuation">(</span><span>value<span class="token operator"> = </span><span class="breakable-word"><span class="token constant">-2147483648</span></span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.boot.autoconfigure.condition/ConditionalOnMissingBean///PointingToDeclaration/"><span class="token annotation builtin">ConditionalOnMissingBean</span></span><span class="token punctuation">(</span><span>name<span class="token operator"> = </span><span class="token punctuation">[</span><span><span class="breakable-word"><span class="token string">"pagedQuerySnapshotStateHandlerFunctionFactory"</span></span></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">fun </span><a href="paged-query-snapshot-state-handler-function-factory.html"><span class="token function">pagedQuerySnapshotStateHandlerFunctionFactory</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">snapshotQueryHandler<span class="token operator">: </span><a href="../../../wow-query/me.ahoo.wow.query.snapshot.filter/-snapshot-query-handler/index.html">SnapshotQueryHandler</a><span class="token punctuation">, </span></span><span class="parameter ">exceptionHandler<span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.exception/-request-exception-handler/index.html">RequestExceptionHandler</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.route.snapshot/-paged-query-snapshot-state-handler-function-factory/index.html">PagedQuerySnapshotStateHandlerFunctionFactory</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1853469466%2FFunctions%2F1399351412" anchor-label="regenerateSnapshotHandlerFunctionFactory" id="-1853469466%2FFunctions%2F1399351412" data-filterable-set=":wow-spring-boot-starter/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-spring-boot-starter/main" data-filterable-set=":wow-spring-boot-starter/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="regenerate-snapshot-handler-function-factory.html"><span>regenerate</span><wbr><span>Snapshot</span><wbr><span>Handler</span><wbr><span>Function</span><wbr><span><span>Factory</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1853469466%2FFunctions%2F1399351412"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-spring-boot-starter/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.context.annotation/Bean///PointingToDeclaration/"><span class="token annotation builtin">Bean</span></span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.core.annotation/Order///PointingToDeclaration/"><span class="token annotation builtin">Order</span></span><span class="token punctuation">(</span><span>value<span class="token operator"> = </span><span class="breakable-word"><span class="token constant">-2147483648</span></span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.boot.autoconfigure.condition/ConditionalOnMissingBean///PointingToDeclaration/"><span class="token annotation builtin">ConditionalOnMissingBean</span></span><span class="token punctuation">(</span><span>name<span class="token operator"> = </span><span class="token punctuation">[</span><span><span class="breakable-word"><span class="token string">"regenerateSnapshotHandlerFunctionFactory"</span></span></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">fun </span><a href="regenerate-snapshot-handler-function-factory.html"><span class="token function">regenerateSnapshotHandlerFunctionFactory</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">stateAggregateFactory<span class="token operator">: </span><a href="../../../wow-core/me.ahoo.wow.modeling.state/-state-aggregate-factory/index.html">StateAggregateFactory</a><span class="token punctuation">, </span></span><span class="parameter ">eventStore<span class="token operator">: </span><a href="../../../wow-core/me.ahoo.wow.eventsourcing/-event-store/index.html">EventStore</a><span class="token punctuation">, </span></span><span class="parameter ">snapshotRepository<span class="token operator">: </span><a href="../../../wow-core/me.ahoo.wow.eventsourcing.snapshot/-snapshot-repository/index.html">SnapshotRepository</a><span class="token punctuation">, </span></span><span class="parameter ">exceptionHandler<span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.exception/-request-exception-handler/index.html">RequestExceptionHandler</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.route.snapshot/-regenerate-snapshot-handler-function-factory/index.html">RegenerateSnapshotHandlerFunctionFactory</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="451533986%2FFunctions%2F1399351412" anchor-label="resendStateEventFunctionFactory" id="451533986%2FFunctions%2F1399351412" data-filterable-set=":wow-spring-boot-starter/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-spring-boot-starter/main" data-filterable-set=":wow-spring-boot-starter/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="resend-state-event-function-factory.html"><span>resend</span><wbr><span>State</span><wbr><span>Event</span><wbr><span>Function</span><wbr><span><span>Factory</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="451533986%2FFunctions%2F1399351412"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-spring-boot-starter/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.context.annotation/Bean///PointingToDeclaration/"><span class="token annotation builtin">Bean</span></span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.core.annotation/Order///PointingToDeclaration/"><span class="token annotation builtin">Order</span></span><span class="token punctuation">(</span><span>value<span class="token operator"> = </span><span class="breakable-word"><span class="token constant">-2147483648</span></span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.boot.autoconfigure.condition/ConditionalOnMissingBean///PointingToDeclaration/"><span class="token annotation builtin">ConditionalOnMissingBean</span></span><span class="token punctuation">(</span><span>name<span class="token operator"> = </span><span class="token punctuation">[</span><span><span class="breakable-word"><span class="token string">"resendStateEventFunctionFactory"</span></span></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">fun </span><a href="resend-state-event-function-factory.html"><span class="token function">resendStateEventFunctionFactory</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">snapshotRepository<span class="token operator">: </span><a href="../../../wow-core/me.ahoo.wow.eventsourcing.snapshot/-snapshot-repository/index.html">SnapshotRepository</a><span class="token punctuation">, </span></span><span class="parameter ">stateEventCompensator<span class="token operator">: </span><a href="../../../wow-core/me.ahoo.wow.event.compensation/-state-event-compensator/index.html">StateEventCompensator</a><span class="token punctuation">, </span></span><span class="parameter ">exceptionHandler<span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.exception/-request-exception-handler/index.html">RequestExceptionHandler</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.route.event.state/-resend-state-event-function-factory/index.html">ResendStateEventFunctionFactory</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-348145075%2FFunctions%2F1399351412" anchor-label="routeHandlerFunctionRegistrar" id="-348145075%2FFunctions%2F1399351412" data-filterable-set=":wow-spring-boot-starter/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-spring-boot-starter/main" data-filterable-set=":wow-spring-boot-starter/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="route-handler-function-registrar.html"><span>route</span><wbr><span>Handler</span><wbr><span>Function</span><wbr><span><span>Registrar</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-348145075%2FFunctions%2F1399351412"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-spring-boot-starter/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.context.annotation/Bean///PointingToDeclaration/"><span class="token annotation builtin">Bean</span></span></div></div><span class="token keyword">fun </span><a href="route-handler-function-registrar.html"><span class="token function">routeHandlerFunctionRegistrar</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">factories<span class="token operator">: </span><span data-unresolved-link="org.springframework.beans.factory/ObjectProvider///PointingToDeclaration/">ObjectProvider</span><span class="token operator">&lt;</span><a href="../../../wow-webflux/me.ahoo.wow.webflux.route/-route-handler-function-factory/index.html">RouteHandlerFunctionFactory</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.route/-route-handler-function-registrar/index.html">RouteHandlerFunctionRegistrar</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1962460513%2FFunctions%2F1399351412" anchor-label="singleSnapshotHandlerFunctionFactory" id="1962460513%2FFunctions%2F1399351412" data-filterable-set=":wow-spring-boot-starter/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-spring-boot-starter/main" data-filterable-set=":wow-spring-boot-starter/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="single-snapshot-handler-function-factory.html"><span>single</span><wbr><span>Snapshot</span><wbr><span>Handler</span><wbr><span>Function</span><wbr><span><span>Factory</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1962460513%2FFunctions%2F1399351412"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-spring-boot-starter/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.context.annotation/Bean///PointingToDeclaration/"><span class="token annotation builtin">Bean</span></span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.core.annotation/Order///PointingToDeclaration/"><span class="token annotation builtin">Order</span></span><span class="token punctuation">(</span><span>value<span class="token operator"> = </span><span class="breakable-word"><span class="token constant">-2147483648</span></span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.boot.autoconfigure.condition/ConditionalOnMissingBean///PointingToDeclaration/"><span class="token annotation builtin">ConditionalOnMissingBean</span></span><span class="token punctuation">(</span><span>name<span class="token operator"> = </span><span class="token punctuation">[</span><span><span class="breakable-word"><span class="token string">"singleSnapshotHandlerFunctionFactory"</span></span></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">fun </span><a href="single-snapshot-handler-function-factory.html"><span class="token function">singleSnapshotHandlerFunctionFactory</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">snapshotQueryHandler<span class="token operator">: </span><a href="../../../wow-query/me.ahoo.wow.query.snapshot.filter/-snapshot-query-handler/index.html">SnapshotQueryHandler</a><span class="token punctuation">, </span></span><span class="parameter ">exceptionHandler<span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.exception/-request-exception-handler/index.html">RequestExceptionHandler</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.route.snapshot/-single-snapshot-handler-function-factory/index.html">SingleSnapshotHandlerFunctionFactory</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1489767930%2FFunctions%2F1399351412" anchor-label="singleSnapshotStateHandlerFunctionFactory" id="1489767930%2FFunctions%2F1399351412" data-filterable-set=":wow-spring-boot-starter/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-spring-boot-starter/main" data-filterable-set=":wow-spring-boot-starter/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="single-snapshot-state-handler-function-factory.html"><span>single</span><wbr><span>Snapshot</span><wbr><span>State</span><wbr><span>Handler</span><wbr><span>Function</span><wbr><span><span>Factory</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1489767930%2FFunctions%2F1399351412"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-spring-boot-starter/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.context.annotation/Bean///PointingToDeclaration/"><span class="token annotation builtin">Bean</span></span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.core.annotation/Order///PointingToDeclaration/"><span class="token annotation builtin">Order</span></span><span class="token punctuation">(</span><span>value<span class="token operator"> = </span><span class="breakable-word"><span class="token constant">-2147483648</span></span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.boot.autoconfigure.condition/ConditionalOnMissingBean///PointingToDeclaration/"><span class="token annotation builtin">ConditionalOnMissingBean</span></span><span class="token punctuation">(</span><span>name<span class="token operator"> = </span><span class="token punctuation">[</span><span><span class="breakable-word"><span class="token string">"singleSnapshotStateHandlerFunctionFactory"</span></span></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">fun </span><a href="single-snapshot-state-handler-function-factory.html"><span class="token function">singleSnapshotStateHandlerFunctionFactory</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">snapshotQueryHandler<span class="token operator">: </span><a href="../../../wow-query/me.ahoo.wow.query.snapshot.filter/-snapshot-query-handler/index.html">SnapshotQueryHandler</a><span class="token punctuation">, </span></span><span class="parameter ">exceptionHandler<span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.exception/-request-exception-handler/index.html">RequestExceptionHandler</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-webflux/me.ahoo.wow.webflux.route.snapshot/-single-snapshot-state-handler-function-factory/index.html">SingleSnapshotStateHandlerFunctionFactory</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <div class="footer--container">
+            <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+            <div class="footer--content">
+                <div>
+                    <span>Generated by </span>
+                    <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                        Dokka
+                    </a>
+                    <div>© 2025 Copyright</div>
+                </div>
+            </div>
+        </div>
+    </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

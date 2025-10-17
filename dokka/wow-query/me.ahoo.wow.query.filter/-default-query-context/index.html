@@ -1,0 +1,390 @@
+<!doctype html>
+<html class="no-js" lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>DefaultQueryContext</title>
+<link href="../../../images/logo-icon.svg" rel="icon" type="image/svg"><script>var pathToRoot = "../../../";</script>
+    <script>document.documentElement.classList.replace("no-js", "js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+      if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      } else {
+        const savedDarkMode = JSON.parse(storage)
+        if (savedDarkMode === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      }
+    </script>
+<script type="text/javascript" src="https://unpkg.com/kotlin-playground@1/dist/playground.min.js" async></script>
+<script type="text/javascript" src="../../../scripts/sourceset_dependencies.js" async></script>
+<link href="../../../styles/style.css" rel="Stylesheet">
+<link href="../../../styles/main.css" rel="Stylesheet">
+<link href="../../../styles/prism.css" rel="Stylesheet">
+<link href="../../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../../scripts/safe-local-storage_blocking.js"></script>
+<script type="text/javascript" src="../../../scripts/navigation-loader.js" async></script>
+<script type="text/javascript" src="../../../scripts/platform-content-handler.js" async></script>
+<script type="text/javascript" src="../../../scripts/main.js" defer></script>
+<script type="text/javascript" src="../../../scripts/prism.js" async></script>
+<script type="text/javascript" src="../../../ui-kit/ui-kit.min.js" defer></script></head>
+<body>
+<div class="root">
+    <header class="navigation theme-dark" id="navigation-wrapper" role="banner">
+<a class="library-name--link" href="../../../index.html" tabindex="1">
+                    Wow
+            </a>        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle" type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">6.2.9
+        </div>
+        <div class="navigation-controls">
+        <ul class="filter-section filter-section_loading" id="filter-section" aria-label="Target filter">
+                <button class="platform-tag platform-selector jvm-like" data-active="" aria-pressed="true" data-filter=":wow-query/main">jvm</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox" data-role="dropdown-toggle" aria-controls="platform-tags-listbox" aria-haspopup="listbox" aria-expanded="false" aria-label="Toggle source sets"></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox" aria-label="Target filter">
+                    <div class="dropdown--header"><span>Target filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close target filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option jvm-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":wow-query/main" data-filter=":wow-query/main">
+                                <span class="checkbox--icon"></span>
+                                jvm
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </ul>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button" type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </header>
+    <div id="container">
+        <nav id="leftColumn" class="sidebar" data-item-type="SECTION" data-item-config="{&quot;defaultSize&quot;: 280, &quot;minSize&quot;: 200, &quot;maxSize&quot;: 400}">
+            <a class="toc--skip-link" href="#main">Skip to content</a>
+            <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list" data-role="dropdown-listbox" aria-label="Table of contents">
+                    <div class="dropdown--header">
+                            <span>
+                                    Wow
+                            </span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                    <div class="sidebar--inner" id="sideMenu"></div>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </nav>
+        <div id="resizer" class="resizer" data-item-type="BAR"></div>
+        <div id="main" data-item-type="SECTION" role="main">
+<div class="main-content" data-page-type="classlike" id="content" pageids="wow-query::me.ahoo.wow.query.filter/DefaultQueryContext///PointingToDeclaration//-1337977720">
+  <div class="breadcrumbs"><a href="../../index.html">wow-query</a><span class="delimiter">/</span><a href="../index.html">me.ahoo.wow.query.filter</a><span class="delimiter">/</span><span class="current">DefaultQueryContext</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span>Default</span><wbr><span>Query</span><wbr><span><span>Context</span></span></h1>
+    <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="index.html">DefaultQueryContext</a><span class="token operator">&lt;</span><a href="index.html">Q</a><span class="token operator"> : </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token punctuation">, </span><a href="index.html">R</a><span class="token operator"> : </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">&gt;</span><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>queryType<span class="token operator">: </span><a href="../-query-type/index.html">QueryType</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>namedAggregate<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.modeling/-named-aggregate/index.html">NamedAggregate</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>attributes<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-mutable-map/index.html">MutableMap</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">&gt;</span><span class="token operator"> = </span>ConcurrentHashMap()</span></span><span class="token punctuation">)</span> : <a href="../-query-context/index.html">QueryContext</a><span class="token operator">&lt;</span><a href="index.html">Q</a><span class="token punctuation">, </span><a href="index.html">R</a><span class="token operator">&gt; </span></div></div></div>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="CONSTRUCTOR,TYPE,PROPERTY,FUNCTION">Members</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="CONSTRUCTOR">
+        <h2 class="tableheader">Constructors</h2>
+        <div class="table"><a data-name="-385671959%2FConstructors%2F-1337977720" anchor-label="DefaultQueryContext" id="-385671959%2FConstructors%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-togglable="CONSTRUCTOR" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-default-query-context.html"><span>Default</span><wbr><span>Query</span><wbr><span><span>Context</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-385671959%2FConstructors%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">constructor</span><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">queryType<span class="token operator">: </span><a href="../-query-type/index.html">QueryType</a><span class="token punctuation">, </span></span><span class="parameter ">namedAggregate<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.modeling/-named-aggregate/index.html">NamedAggregate</a><span class="token punctuation">, </span></span><span class="parameter ">attributes<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-mutable-map/index.html">MutableMap</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">&gt;</span><span class="token operator"> = </span>ConcurrentHashMap()</span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="PROPERTY">
+        <h2 class="tableheader">Properties</h2>
+        <div class="table"><a data-name="569152622%2FProperties%2F-1337977720" anchor-label="attributes" id="569152622%2FProperties%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="attributes.html"><span><span>attributes</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="569152622%2FProperties%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">val </span><a href="attributes.html">attributes</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-mutable-map/index.html">MutableMap</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1418693089%2FProperties%2F-1337977720" anchor-label="namedAggregate" id="-1418693089%2FProperties%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="named-aggregate.html"><span>named</span><wbr><span><span>Aggregate</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1418693089%2FProperties%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">val </span><a href="named-aggregate.html">namedAggregate</a><span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.modeling/-named-aggregate/index.html">NamedAggregate</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1078782285%2FProperties%2F-1337977720" anchor-label="queryType" id="-1078782285%2FProperties%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="query-type.html"><span>query</span><wbr><span><span>Type</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1078782285%2FProperties%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">val </span><a href="query-type.html">queryType</a><span class="token operator">: </span><a href="../-query-type/index.html">QueryType</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="FUNCTION">
+        <h2 class="tableheader">Functions</h2>
+        <div class="table"><a data-name="-341066341%2FFunctions%2F-1337977720" anchor-label="asCountQuery" id="-341066341%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../-query-context/as-count-query.html"><span>as</span><wbr><span>Count</span><wbr><span><span>Query</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-341066341%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><a href="../-query-context/as-count-query.html"><span class="token function">asCountQuery</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../-query-context/index.html">QueryContext</a><span class="token operator">&lt;</span><a href="../../../wow-api/me.ahoo.wow.api.query/-condition/index.html">Condition</a><span class="token punctuation">, </span><span data-unresolved-link="reactor.core.publisher/Mono///PointingToDeclaration/">Mono</span><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long/index.html">Long</a><span class="token operator">&gt;</span><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="741897372%2FFunctions%2F-1337977720" anchor-label="asListQuery" id="741897372%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../-query-context/as-list-query.html"><span>as</span><wbr><span>List</span><wbr><span><span>Query</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="741897372%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><span class="token operator">&lt;</span><a href="../-query-context/as-list-query.html">E</a><span class="token operator">&gt; </span><a href="../-query-context/as-list-query.html"><span class="token function">asListQuery</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../-query-context/index.html">QueryContext</a><span class="token operator">&lt;</span><a href="../../../wow-api/me.ahoo.wow.api.query/-i-list-query/index.html">IListQuery</a><span class="token punctuation">, </span><span data-unresolved-link="reactor.core.publisher/Flux///PointingToDeclaration/">Flux</span><span class="token operator">&lt;</span><a href="../-query-context/as-list-query.html">E</a><span class="token operator">&gt;</span><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-756697663%2FFunctions%2F-1337977720" anchor-label="asPagedQuery" id="-756697663%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../-query-context/as-paged-query.html"><span>as</span><wbr><span>Paged</span><wbr><span><span>Query</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-756697663%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><span class="token operator">&lt;</span><a href="../-query-context/as-paged-query.html">E</a><span class="token operator">&gt; </span><a href="../-query-context/as-paged-query.html"><span class="token function">asPagedQuery</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../-query-context/index.html">QueryContext</a><span class="token operator">&lt;</span><a href="../../../wow-api/me.ahoo.wow.api.query/-i-paged-query/index.html">IPagedQuery</a><span class="token punctuation">, </span><span data-unresolved-link="reactor.core.publisher/Mono///PointingToDeclaration/">Mono</span><span class="token operator">&lt;</span><a href="../../../wow-api/me.ahoo.wow.api.query/-paged-list/index.html">PagedList</a><span class="token operator">&lt;</span><a href="../-query-context/as-paged-query.html">E</a><span class="token operator">&gt;</span><span class="token operator">&gt;</span><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-796818095%2FFunctions%2F-1337977720" anchor-label="asRewritableQuery" id="-796818095%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../-query-context/as-rewritable-query.html"><span>as</span><wbr><span>Rewritable</span><wbr><span><span>Query</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-796818095%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><a href="../-query-context/as-rewritable-query.html"><span class="token function">asRewritableQuery</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../-query-context/index.html">QueryContext</a><span class="token operator">&lt;</span><a href="../../../wow-api/me.ahoo.wow.api.query/-rewritable-condition/index.html">RewritableCondition</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">, </span><a href="index.html">R</a><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1041724282%2FFunctions%2F-1337977720" anchor-label="asSingleQuery" id="-1041724282%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../-query-context/as-single-query.html"><span>as</span><wbr><span>Single</span><wbr><span><span>Query</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1041724282%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><span class="token operator">&lt;</span><a href="../-query-context/as-single-query.html">E</a><span class="token operator">&gt; </span><a href="../-query-context/as-single-query.html"><span class="token function">asSingleQuery</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../-query-context/index.html">QueryContext</a><span class="token operator">&lt;</span><a href="../../../wow-api/me.ahoo.wow.api.query/-i-single-query/index.html">ISingleQuery</a><span class="token punctuation">, </span><span data-unresolved-link="reactor.core.publisher/Mono///PointingToDeclaration/">Mono</span><span class="token operator">&lt;</span><a href="../-query-context/as-single-query.html">E</a><span class="token operator">&gt;</span><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1929182244%2FFunctions%2F-1337977720" anchor-label="getAttribute" id="1929182244%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../-query-context/get-attribute.html"><span>get</span><wbr><span><span>Attribute</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1929182244%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><span class="token operator">&lt;</span><a href="../-query-context/get-attribute.html">V</a><span class="token operator">&gt; </span><a href="../-query-context/get-attribute.html"><span class="token function">getAttribute</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">key<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../-query-context/get-attribute.html">V</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="147461044%2FFunctions%2F-1337977720" anchor-label="getQuery" id="147461044%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../-query-context/get-query.html"><span>get</span><wbr><span><span>Query</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="147461044%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><a href="../-query-context/get-query.html"><span class="token function">getQuery</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">Q</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="802753986%2FFunctions%2F-1337977720" anchor-label="getRequiredResult" id="802753986%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../-query-context/get-required-result.html"><span>get</span><wbr><span>Required</span><wbr><span><span>Result</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="802753986%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><a href="../-query-context/get-required-result.html"><span class="token function">getRequiredResult</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">R</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="89139192%2FFunctions%2F-1337977720" anchor-label="rewriteQuery" id="89139192%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../-query-context/rewrite-query.html"><span>rewrite</span><wbr><span><span>Query</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="89139192%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><a href="../-query-context/rewrite-query.html"><span class="token function">rewriteQuery</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">rewrite<span class="token operator">: </span><span class="token punctuation">(</span><a href="index.html">Q</a><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="index.html">Q</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../-query-context/index.html">QueryContext</a><span class="token operator">&lt;</span><a href="index.html">Q</a><span class="token punctuation">, </span><a href="index.html">R</a><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="344840919%2FFunctions%2F-1337977720" anchor-label="rewriteResult" id="344840919%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../-query-context/rewrite-result.html"><span>rewrite</span><wbr><span><span>Result</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="344840919%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><a href="../-query-context/rewrite-result.html"><span class="token function">rewriteResult</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">rewrite<span class="token operator">: </span><span class="token punctuation">(</span><a href="index.html">R</a><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="index.html">R</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../-query-context/index.html">QueryContext</a><span class="token operator">&lt;</span><a href="index.html">Q</a><span class="token punctuation">, </span><a href="index.html">R</a><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="170269224%2FFunctions%2F-1337977720" anchor-label="setAttribute" id="170269224%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../-query-context/set-attribute.html"><span>set</span><wbr><span><span>Attribute</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="170269224%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><a href="../-query-context/set-attribute.html"><span class="token function">setAttribute</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">key<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../-query-context/index.html">QueryContext</a><span class="token operator">&lt;</span><a href="index.html">Q</a><span class="token punctuation">, </span><a href="index.html">R</a><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-2017056339%2FFunctions%2F-1337977720" anchor-label="setQuery" id="-2017056339%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../-query-context/set-query.html"><span>set</span><wbr><span><span>Query</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-2017056339%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><a href="../-query-context/set-query.html"><span class="token function">setQuery</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">query<span class="token operator">: </span><a href="index.html">Q</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../-query-context/index.html">QueryContext</a><span class="token operator">&lt;</span><a href="index.html">Q</a><span class="token punctuation">, </span><a href="index.html">R</a><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1997754633%2FFunctions%2F-1337977720" anchor-label="setResult" id="-1997754633%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../-query-context/set-result.html"><span>set</span><wbr><span><span>Result</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1997754633%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><a href="../-query-context/set-result.html"><span class="token function">setResult</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">result<span class="token operator">: </span><a href="index.html">R</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../-query-context/index.html">QueryContext</a><span class="token operator">&lt;</span><a href="index.html">Q</a><span class="token punctuation">, </span><a href="index.html">R</a><span class="token operator">&gt;</span></div><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><a href="../-query-context/set-result.html"><span class="token function">setResult</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">handle<span class="token operator">: </span><span class="token punctuation">(</span><a href="index.html">Q</a><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="index.html">R</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../-query-context/index.html">QueryContext</a><span class="token operator">&lt;</span><a href="index.html">Q</a><span class="token punctuation">, </span><a href="index.html">R</a><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <div class="footer--container">
+            <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+            <div class="footer--content">
+                <div>
+                    <span>Generated by </span>
+                    <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                        Dokka
+                    </a>
+                    <div>© 2025 Copyright</div>
+                </div>
+            </div>
+        </div>
+    </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

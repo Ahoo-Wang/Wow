@@ -1,0 +1,1305 @@
+<!doctype html>
+<html class="no-js" lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>DefaultOpenAPIComponentContext</title>
+<link href="../../../images/logo-icon.svg" rel="icon" type="image/svg"><script>var pathToRoot = "../../../";</script>
+    <script>document.documentElement.classList.replace("no-js", "js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+      if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      } else {
+        const savedDarkMode = JSON.parse(storage)
+        if (savedDarkMode === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      }
+    </script>
+<script type="text/javascript" src="https://unpkg.com/kotlin-playground@1/dist/playground.min.js" async></script>
+<script type="text/javascript" src="../../../scripts/sourceset_dependencies.js" async></script>
+<link href="../../../styles/style.css" rel="Stylesheet">
+<link href="../../../styles/main.css" rel="Stylesheet">
+<link href="../../../styles/prism.css" rel="Stylesheet">
+<link href="../../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../../scripts/safe-local-storage_blocking.js"></script>
+<script type="text/javascript" src="../../../scripts/navigation-loader.js" async></script>
+<script type="text/javascript" src="../../../scripts/platform-content-handler.js" async></script>
+<script type="text/javascript" src="../../../scripts/main.js" defer></script>
+<script type="text/javascript" src="../../../scripts/prism.js" async></script>
+<script type="text/javascript" src="../../../ui-kit/ui-kit.min.js" defer></script></head>
+<body>
+<div class="root">
+    <header class="navigation theme-dark" id="navigation-wrapper" role="banner">
+<a class="library-name--link" href="../../../index.html" tabindex="1">
+                    Wow
+            </a>        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle" type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">6.2.9
+        </div>
+        <div class="navigation-controls">
+        <ul class="filter-section filter-section_loading" id="filter-section" aria-label="Target filter">
+                <button class="platform-tag platform-selector jvm-like" data-active="" aria-pressed="true" data-filter=":wow-openapi/main">jvm</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox" data-role="dropdown-toggle" aria-controls="platform-tags-listbox" aria-haspopup="listbox" aria-expanded="false" aria-label="Toggle source sets"></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox" aria-label="Target filter">
+                    <div class="dropdown--header"><span>Target filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close target filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option jvm-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":wow-openapi/main" data-filter=":wow-openapi/main">
+                                <span class="checkbox--icon"></span>
+                                jvm
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </ul>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button" type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </header>
+    <div id="container">
+        <nav id="leftColumn" class="sidebar" data-item-type="SECTION" data-item-config="{&quot;defaultSize&quot;: 280, &quot;minSize&quot;: 200, &quot;maxSize&quot;: 400}">
+            <a class="toc--skip-link" href="#main">Skip to content</a>
+            <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list" data-role="dropdown-listbox" aria-label="Table of contents">
+                    <div class="dropdown--header">
+                            <span>
+                                    Wow
+                            </span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                    <div class="sidebar--inner" id="sideMenu"></div>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </nav>
+        <div id="resizer" class="resizer" data-item-type="BAR"></div>
+        <div id="main" data-item-type="SECTION" role="main">
+<div class="main-content" data-page-type="classlike" id="content" pageids="wow-openapi::me.ahoo.wow.openapi.context/DefaultOpenAPIComponentContext///PointingToDeclaration//1497768208">
+  <div class="breadcrumbs"><a href="../../index.html">wow-openapi</a><span class="delimiter">/</span><a href="../index.html">me.ahoo.wow.openapi.context</a><span class="delimiter">/</span><span class="current">DefaultOpenAPIComponentContext</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span>Default</span><wbr><span>Open</span><wbr><span>APIComponent</span><wbr><span><span>Context</span></span></h1>
+    <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="index.html">DefaultOpenAPIComponentContext</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">schemaBuilder<span class="token operator">: </span><a href="../../../wow-schema/me.ahoo.wow.schema.openapi/-open-a-p-i-schema-builder/index.html">OpenAPISchemaBuilder</a></span></span><span class="token punctuation">)</span> : <a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a>, <a href="../../../wow-schema/me.ahoo.wow.schema.openapi/-inline-schema-capable/index.html">InlineSchemaCapable</a></div></div></div>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="CONSTRUCTOR,TYPE,PROPERTY,FUNCTION">Members</button><button class="section-tab" data-togglable="CONSTRUCTOR,TYPE,PROPERTY,FUNCTION,EXTENSION_PROPERTY,EXTENSION_FUNCTION">Members &amp; Extensions</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="CONSTRUCTOR">
+        <h2 class="tableheader">Constructors</h2>
+        <div class="table"><a data-name="1031635905%2FConstructors%2F1497768208" anchor-label="DefaultOpenAPIComponentContext" id="1031635905%2FConstructors%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="CONSTRUCTOR" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-default-open-a-p-i-component-context.html"><span>Default</span><wbr><span>Open</span><wbr><span>APIComponent</span><wbr><span><span>Context</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1031635905%2FConstructors%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">constructor</span><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">schemaBuilder<span class="token operator">: </span><a href="../../../wow-schema/me.ahoo.wow.schema.openapi/-open-a-p-i-schema-builder/index.html">OpenAPISchemaBuilder</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="PROPERTY">
+        <h2 class="tableheader">Properties</h2>
+        <div class="table"><a data-name="574068871%2FProperties%2F1497768208" anchor-label="headers" id="574068871%2FProperties%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="headers.html"><span><span>headers</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="574068871%2FProperties%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">val </span><a href="headers.html">headers</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-mutable-map/index.html">MutableMap</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><span data-unresolved-link="io.swagger.v3.oas.models.headers/Header///PointingToDeclaration/">Header</span><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1027185243%2FProperties%2F1497768208" anchor-label="inline" id="1027185243%2FProperties%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../-open-a-p-i-component-context/index.html#1027185243%2FProperties%2F1497768208"><span><span>inline</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1027185243%2FProperties%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">val </span><a href="../-open-a-p-i-component-context/index.html#1027185243%2FProperties%2F1497768208">inline</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1785450883%2FProperties%2F1497768208" anchor-label="parameters" id="1785450883%2FProperties%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="parameters.html"><span><span>parameters</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1785450883%2FProperties%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">val </span><a href="parameters.html">parameters</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-mutable-map/index.html">MutableMap</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><span data-unresolved-link="io.swagger.v3.oas.models.parameters/Parameter///PointingToDeclaration/">Parameter</span><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1109719806%2FProperties%2F1497768208" anchor-label="requestBodies" id="1109719806%2FProperties%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="request-bodies.html"><span>request</span><wbr><span><span>Bodies</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1109719806%2FProperties%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">val </span><a href="request-bodies.html">requestBodies</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-mutable-map/index.html">MutableMap</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><span data-unresolved-link="io.swagger.v3.oas.models.parameters/RequestBody///PointingToDeclaration/">RequestBody</span><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1320430907%2FProperties%2F1497768208" anchor-label="responses" id="1320430907%2FProperties%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="responses.html"><span><span>responses</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1320430907%2FProperties%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">val </span><a href="responses.html">responses</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-mutable-map/index.html">MutableMap</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><span data-unresolved-link="io.swagger.v3.oas.models.responses/ApiResponse///PointingToDeclaration/">ApiResponse</span><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1196983653%2FProperties%2F1497768208" anchor-label="schemas" id="-1196983653%2FProperties%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="schemas.html"><span><span>schemas</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1196983653%2FProperties%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">var </span><a href="schemas.html">schemas</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-map/index.html">Map</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><span data-unresolved-link="io.swagger.v3.oas.models.media/Schema///PointingToDeclaration/">Schema</span><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="FUNCTION">
+        <h2 class="tableheader">Functions</h2>
+        <div class="table"><a data-name="-742877305%2FFunctions%2F1497768208" anchor-label="acceptHeaderParameter" id="-742877305%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-parameter/accept-header-parameter.html"><span>accept</span><wbr><span>Header</span><wbr><span><span>Parameter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-742877305%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-parameter/accept-header-parameter.html"><span class="token function">acceptHeaderParameter</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.parameters/Parameter///PointingToDeclaration/">Parameter</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1020135405%2FFunctions%2F1497768208" anchor-label="aggregatedCountQueryRequestBody" id="-1020135405%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi/-query-component/-request-body/aggregated-count-query-request-body.html"><span>aggregated</span><wbr><span>Count</span><wbr><span>Query</span><wbr><span>Request</span><wbr><span><span>Body</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1020135405%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi/-query-component/-request-body/aggregated-count-query-request-body.html"><span class="token function">aggregatedCountQueryRequestBody</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">aggregateMetadata<span class="token operator">: </span><a href="../../../wow-core/me.ahoo.wow.modeling.matedata/-aggregate-metadata/index.html">AggregateMetadata</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token punctuation">, </span><span class="token operator">*</span><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.parameters/RequestBody///PointingToDeclaration/">RequestBody</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="711965180%2FFunctions%2F1497768208" anchor-label="aggregatedListQueryRequestBody" id="711965180%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi/-query-component/-request-body/aggregated-list-query-request-body.html"><span>aggregated</span><wbr><span>List</span><wbr><span>Query</span><wbr><span>Request</span><wbr><span><span>Body</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="711965180%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi/-query-component/-request-body/aggregated-list-query-request-body.html"><span class="token function">aggregatedListQueryRequestBody</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">aggregateMetadata<span class="token operator">: </span><a href="../../../wow-core/me.ahoo.wow.modeling.matedata/-aggregate-metadata/index.html">AggregateMetadata</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token punctuation">, </span><span class="token operator">*</span><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.parameters/RequestBody///PointingToDeclaration/">RequestBody</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="2075929273%2FFunctions%2F1497768208" anchor-label="aggregatedPagedQueryRequestBody" id="2075929273%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi/-query-component/-request-body/aggregated-paged-query-request-body.html"><span>aggregated</span><wbr><span>Paged</span><wbr><span>Query</span><wbr><span>Request</span><wbr><span><span>Body</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="2075929273%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi/-query-component/-request-body/aggregated-paged-query-request-body.html"><span class="token function">aggregatedPagedQueryRequestBody</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">aggregateMetadata<span class="token operator">: </span><a href="../../../wow-core/me.ahoo.wow.modeling.matedata/-aggregate-metadata/index.html">AggregateMetadata</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token punctuation">, </span><span class="token operator">*</span><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.parameters/RequestBody///PointingToDeclaration/">RequestBody</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="208555622%2FFunctions%2F1497768208" anchor-label="aggregatedSingleQueryRequestBody" id="208555622%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi/-query-component/-request-body/aggregated-single-query-request-body.html"><span>aggregated</span><wbr><span>Single</span><wbr><span>Query</span><wbr><span>Request</span><wbr><span><span>Body</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="208555622%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi/-query-component/-request-body/aggregated-single-query-request-body.html"><span class="token function">aggregatedSingleQueryRequestBody</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">aggregateMetadata<span class="token operator">: </span><a href="../../../wow-core/me.ahoo.wow.modeling.matedata/-aggregate-metadata/index.html">AggregateMetadata</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token punctuation">, </span><span class="token operator">*</span><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.parameters/RequestBody///PointingToDeclaration/">RequestBody</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-577477865%2FFunctions%2F1497768208" anchor-label="aggregateIdHeaderParameter" id="-577477865%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-parameter/aggregate-id-header-parameter.html"><span>aggregate</span><wbr><span>Id</span><wbr><span>Header</span><wbr><span><span>Parameter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-577477865%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-parameter/aggregate-id-header-parameter.html"><span class="token function">aggregateIdHeaderParameter</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.parameters/Parameter///PointingToDeclaration/">Parameter</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1560121066%2FFunctions%2F1497768208" anchor-label="aggregateVersionHeaderParameter" id="-1560121066%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-parameter/aggregate-version-header-parameter.html"><span>aggregate</span><wbr><span>Version</span><wbr><span>Header</span><wbr><span><span>Parameter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1560121066%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-parameter/aggregate-version-header-parameter.html"><span class="token function">aggregateVersionHeaderParameter</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.parameters/Parameter///PointingToDeclaration/">Parameter</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1963590092%2FFunctions%2F1497768208" anchor-label="arraySchema" id="1963590092%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="array-schema.html"><span>array</span><wbr><span><span>Schema</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1963590092%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="array-schema.html"><span class="token function">arraySchema</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">mainTargetType<span class="token operator">: </span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/reflect/Type.html">Type</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">vararg </span>typeParameters<span class="token operator">: </span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/reflect/Type.html">Type</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.media/Schema///PointingToDeclaration/">Schema</span><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="437453027%2FFunctions%2F1497768208" anchor-label="badRequestCommandResponse" id="437453027%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-response/bad-request-command-response.html"><span>bad</span><wbr><span>Request</span><wbr><span>Command</span><wbr><span><span>Response</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="437453027%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-response/bad-request-command-response.html"><span class="token function">badRequestCommandResponse</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.responses/ApiResponse///PointingToDeclaration/">ApiResponse</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1779028450%2FFunctions%2F1497768208" anchor-label="badRequestResponse" id="1779028450%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi/-common-component/-response/bad-request-response.html"><span>bad</span><wbr><span>Request</span><wbr><span><span>Response</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1779028450%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi/-common-component/-response/bad-request-response.html"><span class="token function">badRequestResponse</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.responses/ApiResponse///PointingToDeclaration/">ApiResponse</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-104742087%2FFunctions%2F1497768208" anchor-label="batchAfterIdPathParameter" id="-104742087%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi/-batch-component/-parameter/batch-after-id-path-parameter.html"><span>batch</span><wbr><span>After</span><wbr><span>Id</span><wbr><span>Path</span><wbr><span><span>Parameter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-104742087%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi/-batch-component/-parameter/batch-after-id-path-parameter.html"><span class="token function">batchAfterIdPathParameter</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.parameters/Parameter///PointingToDeclaration/">Parameter</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-189412843%2FFunctions%2F1497768208" anchor-label="batchLimitPathParameter" id="-189412843%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi/-batch-component/-parameter/batch-limit-path-parameter.html"><span>batch</span><wbr><span>Limit</span><wbr><span>Path</span><wbr><span><span>Parameter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-189412843%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi/-batch-component/-parameter/batch-limit-path-parameter.html"><span class="token function">batchLimitPathParameter</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.parameters/Parameter///PointingToDeclaration/">Parameter</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1356495174%2FFunctions%2F1497768208" anchor-label="batchResultResponse" id="-1356495174%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi/-batch-component/-response/batch-result-response.html"><span>batch</span><wbr><span>Result</span><wbr><span><span>Response</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1356495174%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi/-batch-component/-response/batch-result-response.html"><span class="token function">batchResultResponse</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.responses/ApiResponse///PointingToDeclaration/">ApiResponse</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="569587130%2FFunctions%2F1497768208" anchor-label="batchResultSchema" id="569587130%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi/-batch-component/-schema/batch-result-schema.html"><span>batch</span><wbr><span>Result</span><wbr><span><span>Schema</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="569587130%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi/-batch-component/-schema/batch-result-schema.html"><span class="token function">batchResultSchema</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.media/Schema///PointingToDeclaration/">Schema</span><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1563740202%2FFunctions%2F1497768208" anchor-label="commandAggregateContextHeaderParameter" id="-1563740202%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-parameter/command-aggregate-context-header-parameter.html"><span>command</span><wbr><span>Aggregate</span><wbr><span>Context</span><wbr><span>Header</span><wbr><span><span>Parameter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1563740202%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-parameter/command-aggregate-context-header-parameter.html"><span class="token function">commandAggregateContextHeaderParameter</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.parameters/Parameter///PointingToDeclaration/">Parameter</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1255599984%2FFunctions%2F1497768208" anchor-label="commandAggregateNameHeaderParameter" id="-1255599984%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-parameter/command-aggregate-name-header-parameter.html"><span>command</span><wbr><span>Aggregate</span><wbr><span>Name</span><wbr><span>Header</span><wbr><span><span>Parameter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1255599984%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-parameter/command-aggregate-name-header-parameter.html"><span class="token function">commandAggregateNameHeaderParameter</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.parameters/Parameter///PointingToDeclaration/">Parameter</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-188457184%2FFunctions%2F1497768208" anchor-label="commandCommonHeaderParameters" id="-188457184%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-parameter/command-common-header-parameters.html"><span>command</span><wbr><span>Common</span><wbr><span>Header</span><wbr><span><span>Parameters</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-188457184%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-parameter/command-common-header-parameters.html"><span class="token function">commandCommonHeaderParameters</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-list/index.html">List</a><span class="token operator">&lt;</span><span data-unresolved-link="io.swagger.v3.oas.models.parameters/Parameter///PointingToDeclaration/">Parameter</span><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="454704782%2FFunctions%2F1497768208" anchor-label="commandResponses" id="454704782%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-response/command-responses.html"><span>command</span><wbr><span><span>Responses</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="454704782%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-response/command-responses.html"><span class="token function">commandResponses</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.responses/ApiResponses///PointingToDeclaration/">ApiResponses</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1284702922%2FFunctions%2F1497768208" anchor-label="commandResultSchema" id="1284702922%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-schema/command-result-schema.html"><span>command</span><wbr><span>Result</span><wbr><span><span>Schema</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1284702922%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-schema/command-result-schema.html"><span class="token function">commandResultSchema</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.media/Schema///PointingToDeclaration/">Schema</span><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-241390004%2FFunctions%2F1497768208" anchor-label="commandTypeHeaderParameter" id="-241390004%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-parameter/command-type-header-parameter.html"><span>command</span><wbr><span>Type</span><wbr><span>Header</span><wbr><span><span>Parameter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-241390004%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-parameter/command-type-header-parameter.html"><span class="token function">commandTypeHeaderParameter</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.parameters/Parameter///PointingToDeclaration/">Parameter</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1997996191%2FFunctions%2F1497768208" anchor-label="compensationTargetRequestBody" id="-1997996191%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi.aggregate.event/-event-component/-request/compensation-target-request-body.html"><span>compensation</span><wbr><span>Target</span><wbr><span>Request</span><wbr><span><span>Body</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1997996191%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi.aggregate.event/-event-component/-request/compensation-target-request-body.html"><span class="token function">compensationTargetRequestBody</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.parameters/RequestBody///PointingToDeclaration/">RequestBody</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="979941333%2FFunctions%2F1497768208" anchor-label="compensationTargetResponse" id="979941333%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi.aggregate.event/-event-component/-response/compensation-target-response.html"><span>compensation</span><wbr><span>Target</span><wbr><span><span>Response</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="979941333%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi.aggregate.event/-event-component/-response/compensation-target-response.html"><span class="token function">compensationTargetResponse</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.responses/ApiResponse///PointingToDeclaration/">ApiResponse</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1716367765%2FFunctions%2F1497768208" anchor-label="compensationTargetSchema" id="1716367765%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi.aggregate.event/-event-component/-schema/compensation-target-schema.html"><span>compensation</span><wbr><span>Target</span><wbr><span><span>Schema</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1716367765%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi.aggregate.event/-event-component/-schema/compensation-target-schema.html"><span class="token function">compensationTargetSchema</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.media/Schema///PointingToDeclaration/">Schema</span><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-498221588%2FFunctions%2F1497768208" anchor-label="conditionSchema" id="-498221588%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi/-query-component/-schema/condition-schema.html"><span>condition</span><wbr><span><span>Schema</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-498221588%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi/-query-component/-schema/condition-schema.html"><span class="token function">conditionSchema</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.media/Schema///PointingToDeclaration/">Schema</span><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1568690396%2FFunctions%2F1497768208" anchor-label="countQueryRequestBody" id="-1568690396%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi/-query-component/-request-body/count-query-request-body.html"><span>count</span><wbr><span>Query</span><wbr><span>Request</span><wbr><span><span>Body</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1568690396%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi/-query-component/-request-body/count-query-request-body.html"><span class="token function">countQueryRequestBody</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.parameters/RequestBody///PointingToDeclaration/">RequestBody</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1205970994%2FFunctions%2F1497768208" anchor-label="countQueryResponse" id="1205970994%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi/-query-component/-response/count-query-response.html"><span>count</span><wbr><span>Query</span><wbr><span><span>Response</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1205970994%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi/-query-component/-response/count-query-response.html"><span class="token function">countQueryResponse</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.responses/ApiResponse///PointingToDeclaration/">ApiResponse</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1399028638%2FFunctions%2F1497768208" anchor-label="createTimePathParameter" id="1399028638%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi/-common-component/-parameter/create-time-path-parameter.html"><span>create</span><wbr><span>Time</span><wbr><span>Path</span><wbr><span><span>Parameter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1399028638%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi/-common-component/-parameter/create-time-path-parameter.html"><span class="token function">createTimePathParameter</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.parameters/Parameter///PointingToDeclaration/">Parameter</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="620603007%2FFunctions%2F1497768208" anchor-label="errorCodeHeader" id="620603007%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi/-common-component/-header/error-code-header.html"><span>error</span><wbr><span>Code</span><wbr><span><span>Header</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="620603007%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi/-common-component/-header/error-code-header.html"><span class="token function">errorCodeHeader</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.headers/Header///PointingToDeclaration/">Header</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-158545624%2FFunctions%2F1497768208" anchor-label="errorInfoSchema" id="-158545624%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi/-common-component/-schema/error-info-schema.html"><span>error</span><wbr><span>Info</span><wbr><span><span>Schema</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-158545624%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi/-common-component/-schema/error-info-schema.html"><span class="token function">errorInfoSchema</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.media/Schema///PointingToDeclaration/">Schema</span><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="249880314%2FFunctions%2F1497768208" anchor-label="finish" id="249880314%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="finish.html"><span><span>finish</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="249880314%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="finish.html"><span class="token function">finish</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1438795015%2FFunctions%2F1497768208" anchor-label="header" id="1438795015%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="header.html"><span><span>header</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1438795015%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="header.html"><span class="token function">header</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">key<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">builder<span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.headers/Header///PointingToDeclaration/">Header</span><span class="token punctuation">.</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-unit/index.html">Unit</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.headers/Header///PointingToDeclaration/">Header</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="263917538%2FFunctions%2F1497768208" anchor-label="headVersionPathParameter" id="263917538%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi/-batch-component/-parameter/head-version-path-parameter.html"><span>head</span><wbr><span>Version</span><wbr><span>Path</span><wbr><span><span>Parameter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="263917538%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi/-batch-component/-parameter/head-version-path-parameter.html"><span class="token function">headVersionPathParameter</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.parameters/Parameter///PointingToDeclaration/">Parameter</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1681273772%2FFunctions%2F1497768208" anchor-label="idPathParameter" id="1681273772%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi/-common-component/-parameter/id-path-parameter.html"><span>id</span><wbr><span>Path</span><wbr><span><span>Parameter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1681273772%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi/-common-component/-parameter/id-path-parameter.html"><span class="token function">idPathParameter</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.parameters/Parameter///PointingToDeclaration/">Parameter</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1696995731%2FFunctions%2F1497768208" anchor-label="illegalAccessDeletedAggregateCommandResponse" id="1696995731%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-response/illegal-access-deleted-aggregate-command-response.html"><span>illegal</span><wbr><span>Access</span><wbr><span>Deleted</span><wbr><span>Aggregate</span><wbr><span>Command</span><wbr><span><span>Response</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1696995731%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-response/illegal-access-deleted-aggregate-command-response.html"><span class="token function">illegalAccessDeletedAggregateCommandResponse</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.responses/ApiResponse///PointingToDeclaration/">ApiResponse</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-784625949%2FFunctions%2F1497768208" anchor-label="listQueryRequestBody" id="-784625949%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi/-query-component/-request-body/list-query-request-body.html"><span>list</span><wbr><span>Query</span><wbr><span>Request</span><wbr><span><span>Body</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-784625949%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi/-query-component/-request-body/list-query-request-body.html"><span class="token function">listQueryRequestBody</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.parameters/RequestBody///PointingToDeclaration/">RequestBody</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1352013275%2FFunctions%2F1497768208" anchor-label="listQuerySchema" id="1352013275%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi/-query-component/-schema/list-query-schema.html"><span>list</span><wbr><span>Query</span><wbr><span><span>Schema</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1352013275%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi/-query-component/-schema/list-query-schema.html"><span class="token function">listQuerySchema</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.media/Schema///PointingToDeclaration/">Schema</span><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1865430309%2FFunctions%2F1497768208" anchor-label="loadAggregateResponses" id="-1865430309%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi.aggregate.state/-load-aggregate-component/-response/load-aggregate-responses.html"><span>load</span><wbr><span>Aggregate</span><wbr><span><span>Responses</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1865430309%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi.aggregate.state/-load-aggregate-component/-response/load-aggregate-responses.html"><span class="token function">loadAggregateResponses</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">summary<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">aggregateMetadata<span class="token operator">: </span><a href="../../../wow-core/me.ahoo.wow.modeling.matedata/-aggregate-metadata/index.html">AggregateMetadata</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token punctuation">, </span><span class="token operator">*</span><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.responses/ApiResponses///PointingToDeclaration/">ApiResponses</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-34202055%2FFunctions%2F1497768208" anchor-label="loadEventStreamResponse" id="-34202055%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi/-query-component/-response/load-event-stream-response.html"><span>load</span><wbr><span>Event</span><wbr><span>Stream</span><wbr><span><span>Response</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-34202055%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi/-query-component/-response/load-event-stream-response.html"><span class="token function">loadEventStreamResponse</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">aggregateMetadata<span class="token operator">: </span><a href="../../../wow-core/me.ahoo.wow.modeling.matedata/-aggregate-metadata/index.html">AggregateMetadata</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token punctuation">, </span><span class="token operator">*</span><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.responses/ApiResponse///PointingToDeclaration/">ApiResponse</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="782786794%2FFunctions%2F1497768208" anchor-label="localFirstHeaderParameter" id="782786794%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-parameter/local-first-header-parameter.html"><span>local</span><wbr><span>First</span><wbr><span>Header</span><wbr><span><span>Parameter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="782786794%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-parameter/local-first-header-parameter.html"><span class="token function">localFirstHeaderParameter</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.parameters/Parameter///PointingToDeclaration/">Parameter</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1063408802%2FFunctions%2F1497768208" anchor-label="notFoundCommandResponse" id="-1063408802%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-response/not-found-command-response.html"><span>not</span><wbr><span>Found</span><wbr><span>Command</span><wbr><span><span>Response</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1063408802%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-response/not-found-command-response.html"><span class="token function">notFoundCommandResponse</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.responses/ApiResponse///PointingToDeclaration/">ApiResponse</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1805973447%2FFunctions%2F1497768208" anchor-label="notFoundResponse" id="1805973447%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi/-common-component/-response/not-found-response.html"><span>not</span><wbr><span>Found</span><wbr><span><span>Response</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1805973447%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi/-common-component/-response/not-found-response.html"><span class="token function">notFoundResponse</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.responses/ApiResponse///PointingToDeclaration/">ApiResponse</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1956256879%2FFunctions%2F1497768208" anchor-label="okCommandResponse" id="-1956256879%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-response/ok-command-response.html"><span>ok</span><wbr><span>Command</span><wbr><span><span>Response</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1956256879%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-response/ok-command-response.html"><span class="token function">okCommandResponse</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.responses/ApiResponse///PointingToDeclaration/">ApiResponse</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1844681949%2FFunctions%2F1497768208" anchor-label="ownerIdHeaderParameter" id="-1844681949%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-parameter/owner-id-header-parameter.html"><span>owner</span><wbr><span>Id</span><wbr><span>Header</span><wbr><span><span>Parameter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1844681949%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-parameter/owner-id-header-parameter.html"><span class="token function">ownerIdHeaderParameter</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.parameters/Parameter///PointingToDeclaration/">Parameter</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-94528229%2FFunctions%2F1497768208" anchor-label="ownerIdPathParameter" id="-94528229%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi/-common-component/-parameter/owner-id-path-parameter.html"><span>owner</span><wbr><span>Id</span><wbr><span>Path</span><wbr><span><span>Parameter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-94528229%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi/-common-component/-parameter/owner-id-path-parameter.html"><span class="token function">ownerIdPathParameter</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.parameters/Parameter///PointingToDeclaration/">Parameter</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1764054924%2FFunctions%2F1497768208" anchor-label="pagedListEventStreamResponse" id="-1764054924%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi/-query-component/-response/paged-list-event-stream-response.html"><span>paged</span><wbr><span>List</span><wbr><span>Event</span><wbr><span>Stream</span><wbr><span><span>Response</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1764054924%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi/-query-component/-response/paged-list-event-stream-response.html"><span class="token function">pagedListEventStreamResponse</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">aggregateMetadata<span class="token operator">: </span><a href="../../../wow-core/me.ahoo.wow.modeling.matedata/-aggregate-metadata/index.html">AggregateMetadata</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token punctuation">, </span><span class="token operator">*</span><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.responses/ApiResponse///PointingToDeclaration/">ApiResponse</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-345683766%2FFunctions%2F1497768208" anchor-label="pagedQueryRequestBody" id="-345683766%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi/-query-component/-request-body/paged-query-request-body.html"><span>paged</span><wbr><span>Query</span><wbr><span>Request</span><wbr><span><span>Body</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-345683766%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi/-query-component/-request-body/paged-query-request-body.html"><span class="token function">pagedQueryRequestBody</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.parameters/RequestBody///PointingToDeclaration/">RequestBody</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-863564916%2FFunctions%2F1497768208" anchor-label="pagedQuerySchema" id="-863564916%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi/-query-component/-schema/paged-query-schema.html"><span>paged</span><wbr><span>Query</span><wbr><span><span>Schema</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-863564916%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi/-query-component/-schema/paged-query-schema.html"><span class="token function">pagedQuerySchema</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.media/Schema///PointingToDeclaration/">Schema</span><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-82164301%2FFunctions%2F1497768208" anchor-label="parameter" id="-82164301%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="parameter.html"><span><span>parameter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-82164301%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="parameter.html"><span class="token function">parameter</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">key<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">builder<span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.parameters/Parameter///PointingToDeclaration/">Parameter</span><span class="token punctuation">.</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-unit/index.html">Unit</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.parameters/Parameter///PointingToDeclaration/">Parameter</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="229992342%2FFunctions%2F1497768208" anchor-label="requestBody" id="229992342%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="request-body.html"><span>request</span><wbr><span><span>Body</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="229992342%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="request-body.html"><span class="token function">requestBody</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">key<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">builder<span class="token operator">: </span><a href="../../me.ahoo.wow.openapi/-request-body-builder/index.html">RequestBodyBuilder</a><span class="token punctuation">.</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-unit/index.html">Unit</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.parameters/RequestBody///PointingToDeclaration/">RequestBody</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1509619847%2FFunctions%2F1497768208" anchor-label="requestIdHeaderParameter" id="1509619847%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-parameter/request-id-header-parameter.html"><span>request</span><wbr><span>Id</span><wbr><span>Header</span><wbr><span><span>Parameter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1509619847%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-parameter/request-id-header-parameter.html"><span class="token function">requestIdHeaderParameter</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.parameters/Parameter///PointingToDeclaration/">Parameter</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-3866533%2FFunctions%2F1497768208" anchor-label="requestTimeoutCommandResponse" id="-3866533%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-response/request-timeout-command-response.html"><span>request</span><wbr><span>Timeout</span><wbr><span>Command</span><wbr><span><span>Response</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-3866533%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-response/request-timeout-command-response.html"><span class="token function">requestTimeoutCommandResponse</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.responses/ApiResponse///PointingToDeclaration/">ApiResponse</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-72404630%2FFunctions%2F1497768208" anchor-label="requestTimeoutResponse" id="-72404630%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi/-common-component/-response/request-timeout-response.html"><span>request</span><wbr><span>Timeout</span><wbr><span><span>Response</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-72404630%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi/-common-component/-response/request-timeout-response.html"><span class="token function">requestTimeoutResponse</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.responses/ApiResponse///PointingToDeclaration/">ApiResponse</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1923908280%2FFunctions%2F1497768208" anchor-label="resolveType" id="1923908280%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="resolve-type.html"><span>resolve</span><wbr><span><span>Type</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1923908280%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="resolve-type.html"><span class="token function">resolveType</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">mainTargetType<span class="token operator">: </span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/reflect/Type.html">Type</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">vararg </span>typeParameters<span class="token operator">: </span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/reflect/Type.html">Type</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="com.fasterxml.classmate/ResolvedType///PointingToDeclaration/">ResolvedType</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1607241956%2FFunctions%2F1497768208" anchor-label="response" id="-1607241956%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="response.html"><span><span>response</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1607241956%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="response.html"><span class="token function">response</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">key<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">builder<span class="token operator">: </span><a href="../../me.ahoo.wow.openapi/-api-response-builder/index.html">ApiResponseBuilder</a><span class="token punctuation">.</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-unit/index.html">Unit</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.responses/ApiResponse///PointingToDeclaration/">ApiResponse</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1095329293%2FFunctions%2F1497768208" anchor-label="schema" id="-1095329293%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="schema.html"><span><span>schema</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1095329293%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="schema.html"><span class="token function">schema</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">mainTargetType<span class="token operator">: </span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/reflect/Type.html">Type</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">vararg </span>typeParameters<span class="token operator">: </span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/reflect/Type.html">Type</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.media/Schema///PointingToDeclaration/">Schema</span><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-224446894%2FFunctions%2F1497768208" anchor-label="tailVersionPathParameter" id="-224446894%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi/-batch-component/-parameter/tail-version-path-parameter.html"><span>tail</span><wbr><span>Version</span><wbr><span>Path</span><wbr><span><span>Parameter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-224446894%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi/-batch-component/-parameter/tail-version-path-parameter.html"><span class="token function">tailVersionPathParameter</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.parameters/Parameter///PointingToDeclaration/">Parameter</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1868948298%2FFunctions%2F1497768208" anchor-label="tenantIdHeaderParameter" id="1868948298%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-parameter/tenant-id-header-parameter.html"><span>tenant</span><wbr><span>Id</span><wbr><span>Header</span><wbr><span><span>Parameter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1868948298%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-parameter/tenant-id-header-parameter.html"><span class="token function">tenantIdHeaderParameter</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.parameters/Parameter///PointingToDeclaration/">Parameter</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1471089310%2FFunctions%2F1497768208" anchor-label="tenantIdPathParameter" id="-1471089310%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi/-common-component/-parameter/tenant-id-path-parameter.html"><span>tenant</span><wbr><span>Id</span><wbr><span>Path</span><wbr><span><span>Parameter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1471089310%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi/-common-component/-parameter/tenant-id-path-parameter.html"><span class="token function">tenantIdPathParameter</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.parameters/Parameter///PointingToDeclaration/">Parameter</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1785089028%2FFunctions%2F1497768208" anchor-label="tooManyRequestsCommandResponse" id="-1785089028%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-response/too-many-requests-command-response.html"><span>too</span><wbr><span>Many</span><wbr><span>Requests</span><wbr><span>Command</span><wbr><span><span>Response</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1785089028%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-response/too-many-requests-command-response.html"><span class="token function">tooManyRequestsCommandResponse</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.responses/ApiResponse///PointingToDeclaration/">ApiResponse</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-685624695%2FFunctions%2F1497768208" anchor-label="tooManyRequestsResponse" id="-685624695%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi/-common-component/-response/too-many-requests-response.html"><span>too</span><wbr><span>Many</span><wbr><span>Requests</span><wbr><span><span>Response</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-685624695%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi/-common-component/-response/too-many-requests-response.html"><span class="token function">tooManyRequestsResponse</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.responses/ApiResponse///PointingToDeclaration/">ApiResponse</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="2011198985%2FFunctions%2F1497768208" anchor-label="versionConflictCommandResponse" id="2011198985%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-response/version-conflict-command-response.html"><span>version</span><wbr><span>Conflict</span><wbr><span>Command</span><wbr><span><span>Response</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="2011198985%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-response/version-conflict-command-response.html"><span class="token function">versionConflictCommandResponse</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.responses/ApiResponse///PointingToDeclaration/">ApiResponse</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1195950415%2FFunctions%2F1497768208" anchor-label="versionPathParameter" id="-1195950415%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi/-common-component/-parameter/version-path-parameter.html"><span>version</span><wbr><span>Path</span><wbr><span><span>Parameter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1195950415%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi/-common-component/-parameter/version-path-parameter.html"><span class="token function">versionPathParameter</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.parameters/Parameter///PointingToDeclaration/">Parameter</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="987582423%2FFunctions%2F1497768208" anchor-label="waitContextHeaderParameter" id="987582423%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-parameter/wait-context-header-parameter.html"><span>wait</span><wbr><span>Context</span><wbr><span>Header</span><wbr><span><span>Parameter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="987582423%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-parameter/wait-context-header-parameter.html"><span class="token function">waitContextHeaderParameter</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.parameters/Parameter///PointingToDeclaration/">Parameter</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1996703294%2FFunctions%2F1497768208" anchor-label="waitFunctionHeaderParameter" id="-1996703294%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-parameter/wait-function-header-parameter.html"><span>wait</span><wbr><span>Function</span><wbr><span>Header</span><wbr><span><span>Parameter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1996703294%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-parameter/wait-function-header-parameter.html"><span class="token function">waitFunctionHeaderParameter</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.parameters/Parameter///PointingToDeclaration/">Parameter</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1502007700%2FFunctions%2F1497768208" anchor-label="waitProcessorHeaderParameter" id="1502007700%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-parameter/wait-processor-header-parameter.html"><span>wait</span><wbr><span>Processor</span><wbr><span>Header</span><wbr><span><span>Parameter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1502007700%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-parameter/wait-processor-header-parameter.html"><span class="token function">waitProcessorHeaderParameter</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.parameters/Parameter///PointingToDeclaration/">Parameter</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-306312536%2FFunctions%2F1497768208" anchor-label="waitStageHeaderParameter" id="-306312536%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-parameter/wait-stage-header-parameter.html"><span>wait</span><wbr><span>Stage</span><wbr><span>Header</span><wbr><span><span>Parameter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-306312536%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-parameter/wait-stage-header-parameter.html"><span class="token function">waitStageHeaderParameter</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.parameters/Parameter///PointingToDeclaration/">Parameter</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1725380935%2FFunctions%2F1497768208" anchor-label="waitTailContextHeaderParameter" id="1725380935%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-parameter/wait-tail-context-header-parameter.html"><span>wait</span><wbr><span>Tail</span><wbr><span>Context</span><wbr><span>Header</span><wbr><span><span>Parameter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1725380935%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-parameter/wait-tail-context-header-parameter.html"><span class="token function">waitTailContextHeaderParameter</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.parameters/Parameter///PointingToDeclaration/">Parameter</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-599785902%2FFunctions%2F1497768208" anchor-label="waitTailFunctionHeaderParameter" id="-599785902%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-parameter/wait-tail-function-header-parameter.html"><span>wait</span><wbr><span>Tail</span><wbr><span>Function</span><wbr><span>Header</span><wbr><span><span>Parameter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-599785902%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-parameter/wait-tail-function-header-parameter.html"><span class="token function">waitTailFunctionHeaderParameter</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.parameters/Parameter///PointingToDeclaration/">Parameter</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1856773892%2FFunctions%2F1497768208" anchor-label="waitTailProcessorHeaderParameter" id="1856773892%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-parameter/wait-tail-processor-header-parameter.html"><span>wait</span><wbr><span>Tail</span><wbr><span>Processor</span><wbr><span>Header</span><wbr><span><span>Parameter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1856773892%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-parameter/wait-tail-processor-header-parameter.html"><span class="token function">waitTailProcessorHeaderParameter</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.parameters/Parameter///PointingToDeclaration/">Parameter</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-721186792%2FFunctions%2F1497768208" anchor-label="waitTailStageHeaderParameter" id="-721186792%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-parameter/wait-tail-stage-header-parameter.html"><span>wait</span><wbr><span>Tail</span><wbr><span>Stage</span><wbr><span>Header</span><wbr><span><span>Parameter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-721186792%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-parameter/wait-tail-stage-header-parameter.html"><span class="token function">waitTailStageHeaderParameter</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.parameters/Parameter///PointingToDeclaration/">Parameter</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1903160059%2FFunctions%2F1497768208" anchor-label="waitTimeOutHeaderParameter" id="-1903160059%2FFunctions%2F1497768208" data-filterable-set=":wow-openapi/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-openapi/main" data-filterable-set=":wow-openapi/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-parameter/wait-time-out-header-parameter.html"><span>wait</span><wbr><span>Time</span><wbr><span>Out</span><wbr><span>Header</span><wbr><span><span>Parameter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1903160059%2FFunctions%2F1497768208"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-openapi/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-open-a-p-i-component-context/index.html">OpenAPIComponentContext</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.openapi.aggregate.command/-command-component/-parameter/wait-time-out-header-parameter.html"><span class="token function">waitTimeOutHeaderParameter</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="io.swagger.v3.oas.models.parameters/Parameter///PointingToDeclaration/">Parameter</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <div class="footer--container">
+            <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+            <div class="footer--content">
+                <div>
+                    <span>Generated by </span>
+                    <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                        Dokka
+                    </a>
+                    <div>© 2025 Copyright</div>
+                </div>
+            </div>
+        </div>
+    </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

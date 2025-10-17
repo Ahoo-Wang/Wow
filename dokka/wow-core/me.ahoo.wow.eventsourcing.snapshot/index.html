@@ -1,0 +1,404 @@
+<!doctype html>
+<html class="no-js" lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>me.ahoo.wow.eventsourcing.snapshot</title>
+<link href="../../images/logo-icon.svg" rel="icon" type="image/svg"><script>var pathToRoot = "../../";</script>
+    <script>document.documentElement.classList.replace("no-js", "js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+      if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      } else {
+        const savedDarkMode = JSON.parse(storage)
+        if (savedDarkMode === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      }
+    </script>
+<script type="text/javascript" src="https://unpkg.com/kotlin-playground@1/dist/playground.min.js" async></script>
+<script type="text/javascript" src="../../scripts/sourceset_dependencies.js" async></script>
+<link href="../../styles/style.css" rel="Stylesheet">
+<link href="../../styles/main.css" rel="Stylesheet">
+<link href="../../styles/prism.css" rel="Stylesheet">
+<link href="../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../scripts/safe-local-storage_blocking.js"></script>
+<script type="text/javascript" src="../../scripts/navigation-loader.js" async></script>
+<script type="text/javascript" src="../../scripts/platform-content-handler.js" async></script>
+<script type="text/javascript" src="../../scripts/main.js" defer></script>
+<script type="text/javascript" src="../../scripts/prism.js" async></script>
+<script type="text/javascript" src="../../ui-kit/ui-kit.min.js" defer></script></head>
+<body>
+<div class="root">
+    <header class="navigation theme-dark" id="navigation-wrapper" role="banner">
+<a class="library-name--link" href="../../index.html" tabindex="1">
+                    Wow
+            </a>        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle" type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">6.2.9
+        </div>
+        <div class="navigation-controls">
+        <ul class="filter-section filter-section_loading" id="filter-section" aria-label="Target filter">
+                <button class="platform-tag platform-selector jvm-like" data-active="" aria-pressed="true" data-filter=":wow-core/main">jvm</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox" data-role="dropdown-toggle" aria-controls="platform-tags-listbox" aria-haspopup="listbox" aria-expanded="false" aria-label="Toggle source sets"></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox" aria-label="Target filter">
+                    <div class="dropdown--header"><span>Target filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close target filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option jvm-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":wow-core/main" data-filter=":wow-core/main">
+                                <span class="checkbox--icon"></span>
+                                jvm
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </ul>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button" type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </header>
+    <div id="container">
+        <nav id="leftColumn" class="sidebar" data-item-type="SECTION" data-item-config="{&quot;defaultSize&quot;: 280, &quot;minSize&quot;: 200, &quot;maxSize&quot;: 400}">
+            <a class="toc--skip-link" href="#main">Skip to content</a>
+            <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list" data-role="dropdown-listbox" aria-label="Table of contents">
+                    <div class="dropdown--header">
+                            <span>
+                                    Wow
+                            </span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                    <div class="sidebar--inner" id="sideMenu"></div>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </nav>
+        <div id="resizer" class="resizer" data-item-type="BAR"></div>
+        <div id="main" data-item-type="SECTION" role="main">
+<div class="main-content" data-page-type="package" id="content" pageids="wow-core::me.ahoo.wow.eventsourcing.snapshot////PointingToDeclaration//-452084339">
+  <div class="breadcrumbs"><a href="../index.html">wow-core</a><span class="delimiter">/</span><span class="current">me.ahoo.wow.eventsourcing.snapshot</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span><span>Package-level</span></span> <span><span>declarations</span></span></h1>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="TYPE">Types</button><button class="section-tab" data-togglable="FUNCTION,EXTENSION_FUNCTION">Functions</button><button class="section-tab" data-togglable="PROPERTY,EXTENSION_PROPERTY">Properties</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="TYPE">
+        <h2 class="tableheader">Types</h2>
+        <div class="table"><a data-name="-534483146%2FClasslikes%2F-452084339" anchor-label="AggregateSnapshotDispatcher" id="-534483146%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-aggregate-snapshot-dispatcher/index.html"><span>Aggregate</span><wbr><span>Snapshot</span><wbr><span><span>Dispatcher</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-534483146%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="-aggregate-snapshot-dispatcher/index.html">AggregateSnapshotDispatcher</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">snapshotHandler<span class="token operator">: </span><a href="-snapshot-handler/index.html">SnapshotHandler</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>namedAggregate<span class="token operator">: </span><a href="../../wow-api/me.ahoo.wow.api.modeling/-named-aggregate/index.html">NamedAggregate</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>name<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator"> = </span><span class="token string">"-"</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>parallelism<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span>MessageParallelism.DEFAULT_PARALLELISM<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>scheduler<span class="token operator">: </span><span data-unresolved-link="reactor.core.scheduler/Scheduler///PointingToDeclaration/">Scheduler</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>messageFlux<span class="token operator">: </span><span data-unresolved-link="reactor.core.publisher/Flux///PointingToDeclaration/">Flux</span><span class="token operator">&lt;</span><a href="../me.ahoo.wow.eventsourcing.state/-state-event-exchange/index.html">StateEventExchange</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span> : <a href="../me.ahoo.wow.messaging.dispatcher/-aggregate-message-dispatcher/index.html">AggregateMessageDispatcher</a><span class="token operator">&lt;</span><a href="../me.ahoo.wow.eventsourcing.state/-state-event-exchange/index.html">StateEventExchange</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token operator">&gt; </span>, <a href="../../wow-api/me.ahoo.wow.api.messaging.processor/-processor-info/index.html">ProcessorInfo</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-770533731%2FClasslikes%2F-452084339" anchor-label="DefaultSnapshotHandler" id="-770533731%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-default-snapshot-handler/index.html"><span>Default</span><wbr><span>Snapshot</span><wbr><span><span>Handler</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-770533731%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="-default-snapshot-handler/index.html">DefaultSnapshotHandler</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">chain<span class="token operator">: </span><a href="../me.ahoo.wow.filter/-filter-chain/index.html">FilterChain</a><span class="token operator">&lt;</span><a href="../me.ahoo.wow.eventsourcing.state/-state-event-exchange/index.html">StateEventExchange</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter ">errorHandler<span class="token operator">: </span><a href="../me.ahoo.wow.filter/-error-handler/index.html">ErrorHandler</a><span class="token operator">&lt;</span><a href="../me.ahoo.wow.eventsourcing.state/-state-event-exchange/index.html">StateEventExchange</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token operator">&gt;</span><span class="token operator"> = </span>LogResumeErrorHandler()</span></span><span class="token punctuation">)</span> : <a href="-snapshot-handler/index.html">SnapshotHandler</a>, <a href="../me.ahoo.wow.filter/-abstract-handler/index.html">AbstractHandler</a><span class="token operator">&lt;</span><a href="../me.ahoo.wow.eventsourcing.state/-state-event-exchange/index.html">StateEventExchange</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token operator">&gt; </span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-2100991986%2FClasslikes%2F-452084339" anchor-label="InMemorySnapshotRepository" id="-2100991986%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-in-memory-snapshot-repository/index.html"><span>In</span><wbr><span>Memory</span><wbr><span>Snapshot</span><wbr><span><span>Repository</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-2100991986%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="-in-memory-snapshot-repository/index.html">InMemorySnapshotRepository</a> : <a href="-snapshot-repository/index.html">SnapshotRepository</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1862173166%2FClasslikes%2F-452084339" anchor-label="NoOpSnapshotRepository" id="-1862173166%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-no-op-snapshot-repository/index.html"><span>No</span><wbr><span>Op</span><wbr><span>Snapshot</span><wbr><span><span>Repository</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1862173166%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">object </span><a href="-no-op-snapshot-repository/index.html">NoOpSnapshotRepository</a> : <a href="-snapshot-repository/index.html">SnapshotRepository</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-507866228%2FClasslikes%2F-452084339" anchor-label="SimpleSnapshot" id="-507866228%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-simple-snapshot/index.html"><span>Simple</span><wbr><span><span>Snapshot</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-507866228%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-simple-snapshot/index.html">SimpleSnapshot</a><span class="token operator">&lt;</span><a href="-simple-snapshot/index.html">S</a><span class="token operator"> : </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">&gt;</span><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>delegate<span class="token operator">: </span><a href="../me.ahoo.wow.modeling.state/-read-only-state-aggregate/index.html">ReadOnlyStateAggregate</a><span class="token operator">&lt;</span><a href="-simple-snapshot/index.html">S</a><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>snapshotTime<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long/index.html">Long</a><span class="token operator"> = </span>System.currentTimeMillis()</span></span><span class="token punctuation">)</span> : <a href="-snapshot/index.html">Snapshot</a><span class="token operator">&lt;</span><a href="-simple-snapshot/index.html">S</a><span class="token operator">&gt; </span>, <a href="../me.ahoo.wow.modeling.state/-read-only-state-aggregate/index.html">ReadOnlyStateAggregate</a><span class="token operator">&lt;</span><a href="-simple-snapshot/index.html">S</a><span class="token operator">&gt; </span>, <a href="../me.ahoo.wow.infra/-decorator/index.html">Decorator</a><span class="token operator">&lt;</span><a href="../me.ahoo.wow.modeling.state/-read-only-state-aggregate/index.html">ReadOnlyStateAggregate</a><span class="token operator">&lt;</span><a href="-simple-snapshot/index.html">S</a><span class="token operator">&gt;</span><span class="token operator">&gt; </span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-764961703%2FClasslikes%2F-452084339" anchor-label="SimpleSnapshotStrategy" id="-764961703%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-simple-snapshot-strategy/index.html"><span>Simple</span><wbr><span>Snapshot</span><wbr><span><span>Strategy</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-764961703%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="-simple-snapshot-strategy/index.html">SimpleSnapshotStrategy</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">snapshotRepository<span class="token operator">: </span><a href="-snapshot-repository/index.html">SnapshotRepository</a></span></span><span class="token punctuation">)</span> : <a href="-snapshot-strategy/index.html">SnapshotStrategy</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-788561954%2FClasslikes%2F-452084339" anchor-label="Snapshot" id="-788561954%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-snapshot/index.html"><span><span>Snapshot</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-788561954%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-snapshot/index.html">Snapshot</a><span class="token operator">&lt;</span><a href="-snapshot/index.html">S</a><span class="token operator"> : </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">&gt;</span> : <a href="../me.ahoo.wow.modeling.state/-read-only-state-aggregate/index.html">ReadOnlyStateAggregate</a><span class="token operator">&lt;</span><a href="-snapshot/index.html">S</a><span class="token operator">&gt; </span>, <a href="../../wow-api/me.ahoo.wow.api.modeling/-snapshot-time-capable/index.html">SnapshotTimeCapable</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-208571721%2FClasslikes%2F-452084339" anchor-label="SnapshotDispatcher" id="-208571721%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-snapshot-dispatcher/index.html"><span>Snapshot</span><wbr><span><span>Dispatcher</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-208571721%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="-snapshot-dispatcher/index.html">SnapshotDispatcher</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>name<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>namedAggregates<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-set/index.html">Set</a><span class="token operator">&lt;</span><a href="../../wow-api/me.ahoo.wow.api.modeling/-named-aggregate/index.html">NamedAggregate</a><span class="token operator">&gt;</span><span class="token operator"> = </span>MetadataSearcher.namedAggregateType.keys.toSet()<span class="token punctuation">, </span></span><span class="parameter ">snapshotHandler<span class="token operator">: </span><a href="-snapshot-handler/index.html">SnapshotHandler</a><span class="token punctuation">, </span></span><span class="parameter ">stateEventBus<span class="token operator">: </span><a href="../me.ahoo.wow.eventsourcing.state/-state-event-bus/index.html">StateEventBus</a><span class="token punctuation">, </span></span><span class="parameter ">parallelism<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span>MessageParallelism.DEFAULT_PARALLELISM<span class="token punctuation">, </span></span><span class="parameter ">schedulerSupplier<span class="token operator">: </span><a href="../me.ahoo.wow.scheduler/-aggregate-scheduler-supplier/index.html">AggregateSchedulerSupplier</a><span class="token operator"> = </span>DefaultAggregateSchedulerSupplier(SNAPSHOT_PROCESSOR_NAME)</span></span><span class="token punctuation">)</span> : <a href="../me.ahoo.wow.messaging.dispatcher/-abstract-dispatcher/index.html">AbstractDispatcher</a><span class="token operator">&lt;</span><a href="../me.ahoo.wow.eventsourcing.state/-state-event-exchange/index.html">StateEventExchange</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token operator">&gt; </span>, <a href="../me.ahoo.wow.messaging/-message-dispatcher/index.html">MessageDispatcher</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1186252402%2FClasslikes%2F-452084339" anchor-label="SnapshotFunctionFilter" id="-1186252402%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-snapshot-function-filter/index.html"><span>Snapshot</span><wbr><span>Function</span><wbr><span><span>Filter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1186252402%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="../../wow-api/me.ahoo.wow.api.annotation/-order/index.html"><span class="token annotation builtin">Order</span></a><span class="token punctuation">(</span><span>value<span class="token operator"> = </span><span class="breakable-word"><span class="token constant">0</span></span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">class </span><a href="-snapshot-function-filter/index.html">SnapshotFunctionFilter</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">snapshotStrategy<span class="token operator">: </span><a href="-snapshot-strategy/index.html">SnapshotStrategy</a></span></span><span class="token punctuation">)</span> : <a href="../me.ahoo.wow.messaging.handler/-exchange-filter/index.html">ExchangeFilter</a><span class="token operator">&lt;</span><a href="../me.ahoo.wow.eventsourcing.state/-state-event-exchange/index.html">StateEventExchange</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token operator">&gt; </span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1403974650%2FClasslikes%2F-452084339" anchor-label="SnapshotHandler" id="1403974650%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-snapshot-handler/index.html"><span>Snapshot</span><wbr><span><span>Handler</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1403974650%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-snapshot-handler/index.html">SnapshotHandler</a> : <a href="../me.ahoo.wow.filter/-handler/index.html">Handler</a><span class="token operator">&lt;</span><a href="../me.ahoo.wow.eventsourcing.state/-state-event-exchange/index.html">StateEventExchange</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token operator">&gt; </span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1480367988%2FClasslikes%2F-452084339" anchor-label="SnapshotRepository" id="1480367988%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-snapshot-repository/index.html"><span>Snapshot</span><wbr><span><span>Repository</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1480367988%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-snapshot-repository/index.html">SnapshotRepository</a> : <a href="../../wow-api/me.ahoo.wow.api.naming/-named/index.html">Named</a>, <a href="../me.ahoo.wow.eventsourcing/-aggregate-id-scanner/index.html">AggregateIdScanner</a></div><div class="brief "><p class="paragraph">Snapshot Repository.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-773056853%2FClasslikes%2F-452084339" anchor-label="SnapshotStrategy" id="-773056853%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-snapshot-strategy/index.html"><span>Snapshot</span><wbr><span><span>Strategy</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-773056853%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-snapshot-strategy/index.html">SnapshotStrategy</a></div><div class="brief "><p class="paragraph">SnapshotStrategy .</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-748323042%2FClasslikes%2F-452084339" anchor-label="VersionOffsetSnapshotStrategy" id="-748323042%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-version-offset-snapshot-strategy/index.html"><span>Version</span><wbr><span>Offset</span><wbr><span>Snapshot</span><wbr><span><span>Strategy</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-748323042%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="-version-offset-snapshot-strategy/index.html">VersionOffsetSnapshotStrategy</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">versionOffset<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span>DEFAULT_VERSION_OFFSET<span class="token punctuation">, </span></span><span class="parameter ">snapshotRepository<span class="token operator">: </span><a href="-snapshot-repository/index.html">SnapshotRepository</a></span></span><span class="token punctuation">)</span> : <a href="-snapshot-strategy/index.html">SnapshotStrategy</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="PROPERTY">
+        <h2 class="tableheader">Properties</h2>
+        <div class="table"><a data-name="1550166949%2FProperties%2F-452084339" anchor-label="DEFAULT_VERSION_OFFSET" id="1550166949%2FProperties%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-d-e-f-a-u-l-t_-v-e-r-s-i-o-n_-o-f-f-s-e-t.html"><span>DEFAULT_</span><wbr><span>VERSION_</span><wbr><span>OFFSET</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1550166949%2FProperties%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-d-e-f-a-u-l-t_-v-e-r-s-i-o-n_-o-f-f-s-e-t.html">DEFAULT_VERSION_OFFSET</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">5</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1995338134%2FProperties%2F-452084339" anchor-label="SNAPSHOT_FUNCTION" id="-1995338134%2FProperties%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-s-n-a-p-s-h-o-t_-f-u-n-c-t-i-o-n.html"><span>SNAPSHOT_</span><wbr><span>FUNCTION</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1995338134%2FProperties%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">val </span><a href="-s-n-a-p-s-h-o-t_-f-u-n-c-t-i-o-n.html">SNAPSHOT_FUNCTION</a><span class="token operator">: </span><a href="../../wow-api/me.ahoo.wow.api.messaging.function/-function-info-data/index.html">FunctionInfoData</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="EXTENSION_FUNCTION">
+        <h2 class="tableheader">Functions</h2>
+        <div class="table"><a data-name="1696899893%2FFunctions%2F-452084339" anchor-label="materialize" id="1696899893%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="materialize.html"><span><span>materialize</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1696899893%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">fun </span><span class="token operator">&lt;</span><a href="materialize.html">S</a><span class="token operator"> : </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token punctuation">, </span><a href="materialize.html">D</a><span class="token operator"> : </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">&gt; </span><a href="-snapshot/index.html">Snapshot</a><span class="token operator">&lt;</span><a href="materialize.html">S</a><span class="token operator">&gt;</span><span class="token punctuation">.</span><a href="materialize.html"><span class="token function">materialize</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">materialize<span class="token operator">: </span><span class="token punctuation">(</span><a href="materialize.html">S</a><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="materialize.html">D</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../wow-api/me.ahoo.wow.api.query/-materialized-snapshot/index.html">MaterializedSnapshot</a><span class="token operator">&lt;</span><a href="materialize.html">D</a><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-2021681374%2FFunctions%2F-452084339" anchor-label="toMedium" id="-2021681374%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="to-medium.html"><span>to</span><wbr><span><span>Medium</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-2021681374%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">fun </span><span class="token operator">&lt;</span><a href="to-medium.html">S</a><span class="token operator"> : </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token punctuation">, </span><a href="to-medium.html">D</a><span class="token operator"> : </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">&gt; </span><a href="../me.ahoo.wow.modeling.state/-read-only-state-aggregate/index.html">ReadOnlyStateAggregate</a><span class="token operator">&lt;</span><a href="to-medium.html">S</a><span class="token operator">&gt;</span><span class="token punctuation">.</span><a href="to-medium.html"><span class="token function">toMedium</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">materialize<span class="token operator">: </span><span class="token punctuation">(</span><a href="to-medium.html">S</a><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="to-medium.html">D</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../wow-api/me.ahoo.wow.api.query/-medium-materialized-snapshot/index.html">MediumMaterializedSnapshot</a><span class="token operator">&lt;</span><a href="to-medium.html">D</a><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="795760550%2FFunctions%2F-452084339" anchor-label="toSmall" id="795760550%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="to-small.html"><span>to</span><wbr><span><span>Small</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="795760550%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">fun </span><span class="token operator">&lt;</span><a href="to-small.html">S</a><span class="token operator"> : </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token punctuation">, </span><a href="to-small.html">D</a><span class="token operator"> : </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">&gt; </span><a href="../me.ahoo.wow.modeling.state/-read-only-state-aggregate/index.html">ReadOnlyStateAggregate</a><span class="token operator">&lt;</span><a href="to-small.html">S</a><span class="token operator">&gt;</span><span class="token punctuation">.</span><a href="to-small.html"><span class="token function">toSmall</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">materialize<span class="token operator">: </span><span class="token punctuation">(</span><a href="to-small.html">S</a><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="to-small.html">D</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../wow-api/me.ahoo.wow.api.query/-small-materialized-snapshot/index.html">SmallMaterializedSnapshot</a><span class="token operator">&lt;</span><a href="to-small.html">D</a><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <div class="footer--container">
+            <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+            <div class="footer--content">
+                <div>
+                    <span>Generated by </span>
+                    <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                        Dokka
+                    </a>
+                    <div>© 2025 Copyright</div>
+                </div>
+            </div>
+        </div>
+    </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

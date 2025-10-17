@@ -1,0 +1,607 @@
+<!doctype html>
+<html class="no-js" lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>ExecutionFailedStateProperties</title>
+<link href="../../../images/logo-icon.svg" rel="icon" type="image/svg"><script>var pathToRoot = "../../../";</script>
+    <script>document.documentElement.classList.replace("no-js", "js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+      if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      } else {
+        const savedDarkMode = JSON.parse(storage)
+        if (savedDarkMode === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      }
+    </script>
+<script type="text/javascript" src="https://unpkg.com/kotlin-playground@1/dist/playground.min.js" async></script>
+<script type="text/javascript" src="../../../scripts/sourceset_dependencies.js" async></script>
+<link href="../../../styles/style.css" rel="Stylesheet">
+<link href="../../../styles/main.css" rel="Stylesheet">
+<link href="../../../styles/prism.css" rel="Stylesheet">
+<link href="../../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../../scripts/safe-local-storage_blocking.js"></script>
+<script type="text/javascript" src="../../../scripts/navigation-loader.js" async></script>
+<script type="text/javascript" src="../../../scripts/platform-content-handler.js" async></script>
+<script type="text/javascript" src="../../../scripts/main.js" defer></script>
+<script type="text/javascript" src="../../../scripts/prism.js" async></script>
+<script type="text/javascript" src="../../../ui-kit/ui-kit.min.js" defer></script></head>
+<body>
+<div class="root">
+    <header class="navigation theme-dark" id="navigation-wrapper" role="banner">
+<a class="library-name--link" href="../../../index.html" tabindex="1">
+                    Wow
+            </a>        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle" type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">6.2.9
+        </div>
+        <div class="navigation-controls">
+        <ul class="filter-section filter-section_loading" id="filter-section" aria-label="Target filter">
+                <button class="platform-tag platform-selector jvm-like" data-active="" aria-pressed="true" data-filter=":wow-compensation-domain/main">jvm</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox" data-role="dropdown-toggle" aria-controls="platform-tags-listbox" aria-haspopup="listbox" aria-expanded="false" aria-label="Toggle source sets"></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox" aria-label="Target filter">
+                    <div class="dropdown--header"><span>Target filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close target filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option jvm-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":wow-compensation-domain/main" data-filter=":wow-compensation-domain/main">
+                                <span class="checkbox--icon"></span>
+                                jvm
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </ul>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button" type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </header>
+    <div id="container">
+        <nav id="leftColumn" class="sidebar" data-item-type="SECTION" data-item-config="{&quot;defaultSize&quot;: 280, &quot;minSize&quot;: 200, &quot;maxSize&quot;: 400}">
+            <a class="toc--skip-link" href="#main">Skip to content</a>
+            <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list" data-role="dropdown-listbox" aria-label="Table of contents">
+                    <div class="dropdown--header">
+                            <span>
+                                    Wow
+                            </span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                    <div class="sidebar--inner" id="sideMenu"></div>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </nav>
+        <div id="resizer" class="resizer" data-item-type="BAR"></div>
+        <div id="main" data-item-type="SECTION" role="main">
+<div class="main-content" data-page-type="classlike" id="content" pageids="wow-compensation-domain::me.ahoo.wow.compensation.domain/ExecutionFailedStateProperties///PointingToDeclaration//14209431">
+  <div class="breadcrumbs"><a href="../../index.html">wow-compensation-domain</a><span class="delimiter">/</span><a href="../index.html">me.ahoo.wow.compensation.domain</a><span class="delimiter">/</span><span class="current">ExecutionFailedStateProperties</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span>Execution</span><wbr><span>Failed</span><wbr><span>State</span><wbr><span><span>Properties</span></span></h1>
+    <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-compensation-domain/main"><div class="symbol monospace"><span class="token keyword">object </span><a href="index.html">ExecutionFailedStateProperties</a></div></div></div>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="CONSTRUCTOR,TYPE,PROPERTY,FUNCTION">Members</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="PROPERTY">
+        <h2 class="tableheader">Properties</h2>
+        <div class="table"><a data-name="-1536568450%2FProperties%2F14209431" anchor-label="ERROR" id="-1536568450%2FProperties%2F14209431" data-filterable-set=":wow-compensation-domain/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-compensation-domain/main" data-filterable-set=":wow-compensation-domain/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-e-r-r-o-r.html"><span><span>ERROR</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1536568450%2FProperties%2F14209431"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-compensation-domain/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-e-r-r-o-r.html">ERROR</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-196059463%2FProperties%2F14209431" anchor-label="ERROR__BINDING_ERRORS" id="-196059463%2FProperties%2F14209431" data-filterable-set=":wow-compensation-domain/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-compensation-domain/main" data-filterable-set=":wow-compensation-domain/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-e-r-r-o-r__-b-i-n-d-i-n-g_-e-r-r-o-r-s.html"><span>ERROR_</span><wbr><span>_</span><wbr><span>BINDING_</span><wbr><span>ERRORS</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-196059463%2FProperties%2F14209431"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-compensation-domain/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-e-r-r-o-r__-b-i-n-d-i-n-g_-e-r-r-o-r-s.html">ERROR__BINDING_ERRORS</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="367056058%2FProperties%2F14209431" anchor-label="ERROR__ERROR_CODE" id="367056058%2FProperties%2F14209431" data-filterable-set=":wow-compensation-domain/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-compensation-domain/main" data-filterable-set=":wow-compensation-domain/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-e-r-r-o-r__-e-r-r-o-r_-c-o-d-e.html"><span>ERROR_</span><wbr><span>_</span><wbr><span>ERROR_</span><wbr><span>CODE</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="367056058%2FProperties%2F14209431"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-compensation-domain/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-e-r-r-o-r__-e-r-r-o-r_-c-o-d-e.html">ERROR__ERROR_CODE</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-678714382%2FProperties%2F14209431" anchor-label="ERROR__ERROR_MSG" id="-678714382%2FProperties%2F14209431" data-filterable-set=":wow-compensation-domain/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-compensation-domain/main" data-filterable-set=":wow-compensation-domain/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-e-r-r-o-r__-e-r-r-o-r_-m-s-g.html"><span>ERROR_</span><wbr><span>_</span><wbr><span>ERROR_</span><wbr><span>MSG</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-678714382%2FProperties%2F14209431"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-compensation-domain/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-e-r-r-o-r__-e-r-r-o-r_-m-s-g.html">ERROR__ERROR_MSG</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1802884270%2FProperties%2F14209431" anchor-label="ERROR__STACK_TRACE" id="1802884270%2FProperties%2F14209431" data-filterable-set=":wow-compensation-domain/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-compensation-domain/main" data-filterable-set=":wow-compensation-domain/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-e-r-r-o-r__-s-t-a-c-k_-t-r-a-c-e.html"><span>ERROR_</span><wbr><span>_</span><wbr><span>STACK_</span><wbr><span>TRACE</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1802884270%2FProperties%2F14209431"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-compensation-domain/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-e-r-r-o-r__-s-t-a-c-k_-t-r-a-c-e.html">ERROR__STACK_TRACE</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-656646629%2FProperties%2F14209431" anchor-label="ERROR__SUCCEEDED" id="-656646629%2FProperties%2F14209431" data-filterable-set=":wow-compensation-domain/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-compensation-domain/main" data-filterable-set=":wow-compensation-domain/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-e-r-r-o-r__-s-u-c-c-e-e-d-e-d.html"><span>ERROR_</span><wbr><span>_</span><wbr><span>SUCCEEDED</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-656646629%2FProperties%2F14209431"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-compensation-domain/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-e-r-r-o-r__-s-u-c-c-e-e-d-e-d.html">ERROR__SUCCEEDED</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-368682636%2FProperties%2F14209431" anchor-label="EVENT_ID" id="-368682636%2FProperties%2F14209431" data-filterable-set=":wow-compensation-domain/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-compensation-domain/main" data-filterable-set=":wow-compensation-domain/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-e-v-e-n-t_-i-d.html"><span>EVENT_</span><wbr><span>ID</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-368682636%2FProperties%2F14209431"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-compensation-domain/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-e-v-e-n-t_-i-d.html">EVENT_ID</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-131170823%2FProperties%2F14209431" anchor-label="EVENT_ID__AGGREGATE_ID" id="-131170823%2FProperties%2F14209431" data-filterable-set=":wow-compensation-domain/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-compensation-domain/main" data-filterable-set=":wow-compensation-domain/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-e-v-e-n-t_-i-d__-a-g-g-r-e-g-a-t-e_-i-d.html"><span>EVENT_</span><wbr><span>ID_</span><wbr><span>_</span><wbr><span>AGGREGATE_</span><wbr><span>ID</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-131170823%2FProperties%2F14209431"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-compensation-domain/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-e-v-e-n-t_-i-d__-a-g-g-r-e-g-a-t-e_-i-d.html">EVENT_ID__AGGREGATE_ID</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1413084839%2FProperties%2F14209431" anchor-label="EVENT_ID__ID" id="-1413084839%2FProperties%2F14209431" data-filterable-set=":wow-compensation-domain/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-compensation-domain/main" data-filterable-set=":wow-compensation-domain/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-e-v-e-n-t_-i-d__-i-d.html"><span>EVENT_</span><wbr><span>ID_</span><wbr><span>_</span><wbr><span>ID</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1413084839%2FProperties%2F14209431"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-compensation-domain/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-e-v-e-n-t_-i-d__-i-d.html">EVENT_ID__ID</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1319877870%2FProperties%2F14209431" anchor-label="EVENT_ID__INITIALIZED" id="-1319877870%2FProperties%2F14209431" data-filterable-set=":wow-compensation-domain/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-compensation-domain/main" data-filterable-set=":wow-compensation-domain/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-e-v-e-n-t_-i-d__-i-n-i-t-i-a-l-i-z-e-d.html"><span>EVENT_</span><wbr><span>ID_</span><wbr><span>_</span><wbr><span><span>INITIALIZED</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1319877870%2FProperties%2F14209431"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-compensation-domain/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-e-v-e-n-t_-i-d__-i-n-i-t-i-a-l-i-z-e-d.html">EVENT_ID__INITIALIZED</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="708792204%2FProperties%2F14209431" anchor-label="EVENT_ID__IS_INITIAL_VERSION" id="708792204%2FProperties%2F14209431" data-filterable-set=":wow-compensation-domain/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-compensation-domain/main" data-filterable-set=":wow-compensation-domain/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-e-v-e-n-t_-i-d__-i-s_-i-n-i-t-i-a-l_-v-e-r-s-i-o-n.html"><span>EVENT_</span><wbr><span>ID_</span><wbr><span>_</span><wbr><span>IS_</span><wbr><span>INITIAL_</span><wbr><span>VERSION</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="708792204%2FProperties%2F14209431"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-compensation-domain/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-e-v-e-n-t_-i-d__-i-s_-i-n-i-t-i-a-l_-v-e-r-s-i-o-n.html">EVENT_ID__IS_INITIAL_VERSION</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="129830414%2FProperties%2F14209431" anchor-label="EVENT_ID__VERSION" id="129830414%2FProperties%2F14209431" data-filterable-set=":wow-compensation-domain/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-compensation-domain/main" data-filterable-set=":wow-compensation-domain/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-e-v-e-n-t_-i-d__-v-e-r-s-i-o-n.html"><span>EVENT_</span><wbr><span>ID_</span><wbr><span>_</span><wbr><span>VERSION</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="129830414%2FProperties%2F14209431"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-compensation-domain/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-e-v-e-n-t_-i-d__-v-e-r-s-i-o-n.html">EVENT_ID__VERSION</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="814396919%2FProperties%2F14209431" anchor-label="EXECUTE_AT" id="814396919%2FProperties%2F14209431" data-filterable-set=":wow-compensation-domain/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-compensation-domain/main" data-filterable-set=":wow-compensation-domain/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-e-x-e-c-u-t-e_-a-t.html"><span>EXECUTE_</span><wbr><span>AT</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="814396919%2FProperties%2F14209431"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-compensation-domain/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-e-x-e-c-u-t-e_-a-t.html">EXECUTE_AT</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1289650588%2FProperties%2F14209431" anchor-label="FUNCTION" id="1289650588%2FProperties%2F14209431" data-filterable-set=":wow-compensation-domain/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-compensation-domain/main" data-filterable-set=":wow-compensation-domain/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-f-u-n-c-t-i-o-n.html"><span><span>FUNCTION</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1289650588%2FProperties%2F14209431"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-compensation-domain/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-f-u-n-c-t-i-o-n.html">FUNCTION</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1447842655%2FProperties%2F14209431" anchor-label="FUNCTION__CONTEXT_NAME" id="-1447842655%2FProperties%2F14209431" data-filterable-set=":wow-compensation-domain/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-compensation-domain/main" data-filterable-set=":wow-compensation-domain/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-f-u-n-c-t-i-o-n__-c-o-n-t-e-x-t_-n-a-m-e.html"><span>FUNCTION_</span><wbr><span>_</span><wbr><span>CONTEXT_</span><wbr><span>NAME</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1447842655%2FProperties%2F14209431"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-compensation-domain/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-f-u-n-c-t-i-o-n__-c-o-n-t-e-x-t_-n-a-m-e.html">FUNCTION__CONTEXT_NAME</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1790350499%2FProperties%2F14209431" anchor-label="FUNCTION__FUNCTION_KIND" id="1790350499%2FProperties%2F14209431" data-filterable-set=":wow-compensation-domain/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-compensation-domain/main" data-filterable-set=":wow-compensation-domain/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-f-u-n-c-t-i-o-n__-f-u-n-c-t-i-o-n_-k-i-n-d.html"><span>FUNCTION_</span><wbr><span>_</span><wbr><span>FUNCTION_</span><wbr><span>KIND</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1790350499%2FProperties%2F14209431"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-compensation-domain/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-f-u-n-c-t-i-o-n__-f-u-n-c-t-i-o-n_-k-i-n-d.html">FUNCTION__FUNCTION_KIND</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1058517423%2FProperties%2F14209431" anchor-label="FUNCTION__NAME" id="-1058517423%2FProperties%2F14209431" data-filterable-set=":wow-compensation-domain/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-compensation-domain/main" data-filterable-set=":wow-compensation-domain/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-f-u-n-c-t-i-o-n__-n-a-m-e.html"><span>FUNCTION_</span><wbr><span>_</span><wbr><span>NAME</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1058517423%2FProperties%2F14209431"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-compensation-domain/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-f-u-n-c-t-i-o-n__-n-a-m-e.html">FUNCTION__NAME</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="800351364%2FProperties%2F14209431" anchor-label="FUNCTION__PROCESSOR_NAME" id="800351364%2FProperties%2F14209431" data-filterable-set=":wow-compensation-domain/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-compensation-domain/main" data-filterable-set=":wow-compensation-domain/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-f-u-n-c-t-i-o-n__-p-r-o-c-e-s-s-o-r_-n-a-m-e.html"><span>FUNCTION_</span><wbr><span>_</span><wbr><span>PROCESSOR_</span><wbr><span>NAME</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="800351364%2FProperties%2F14209431"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-compensation-domain/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-f-u-n-c-t-i-o-n__-p-r-o-c-e-s-s-o-r_-n-a-m-e.html">FUNCTION__PROCESSOR_NAME</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="30364409%2FProperties%2F14209431" anchor-label="ID" id="30364409%2FProperties%2F14209431" data-filterable-set=":wow-compensation-domain/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-compensation-domain/main" data-filterable-set=":wow-compensation-domain/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-i-d.html"><span><span>ID</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="30364409%2FProperties%2F14209431"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-compensation-domain/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-i-d.html">ID</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-173102141%2FProperties%2F14209431" anchor-label="IS_BELOW_RETRY_THRESHOLD" id="-173102141%2FProperties%2F14209431" data-filterable-set=":wow-compensation-domain/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-compensation-domain/main" data-filterable-set=":wow-compensation-domain/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-i-s_-b-e-l-o-w_-r-e-t-r-y_-t-h-r-e-s-h-o-l-d.html"><span>IS_</span><wbr><span>BELOW_</span><wbr><span>RETRY_</span><wbr><span>THRESHOLD</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-173102141%2FProperties%2F14209431"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-compensation-domain/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-i-s_-b-e-l-o-w_-r-e-t-r-y_-t-h-r-e-s-h-o-l-d.html">IS_BELOW_RETRY_THRESHOLD</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="596540551%2FProperties%2F14209431" anchor-label="IS_RETRYABLE" id="596540551%2FProperties%2F14209431" data-filterable-set=":wow-compensation-domain/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-compensation-domain/main" data-filterable-set=":wow-compensation-domain/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-i-s_-r-e-t-r-y-a-b-l-e.html"><span>IS_</span><wbr><span>RETRYABLE</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="596540551%2FProperties%2F14209431"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-compensation-domain/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-i-s_-r-e-t-r-y-a-b-l-e.html">IS_RETRYABLE</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1079254728%2FProperties%2F14209431" anchor-label="RECOVERABLE" id="1079254728%2FProperties%2F14209431" data-filterable-set=":wow-compensation-domain/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-compensation-domain/main" data-filterable-set=":wow-compensation-domain/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-r-e-c-o-v-e-r-a-b-l-e.html"><span><span>RECOVERABLE</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1079254728%2FProperties%2F14209431"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-compensation-domain/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-r-e-c-o-v-e-r-a-b-l-e.html">RECOVERABLE</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-2119436830%2FProperties%2F14209431" anchor-label="RETRY_SPEC" id="-2119436830%2FProperties%2F14209431" data-filterable-set=":wow-compensation-domain/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-compensation-domain/main" data-filterable-set=":wow-compensation-domain/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-r-e-t-r-y_-s-p-e-c.html"><span>RETRY_</span><wbr><span>SPEC</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-2119436830%2FProperties%2F14209431"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-compensation-domain/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-r-e-t-r-y_-s-p-e-c.html">RETRY_SPEC</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="2026736542%2FProperties%2F14209431" anchor-label="RETRY_SPEC__EXECUTION_TIMEOUT" id="2026736542%2FProperties%2F14209431" data-filterable-set=":wow-compensation-domain/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-compensation-domain/main" data-filterable-set=":wow-compensation-domain/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-r-e-t-r-y_-s-p-e-c__-e-x-e-c-u-t-i-o-n_-t-i-m-e-o-u-t.html"><span>RETRY_</span><wbr><span>SPEC_</span><wbr><span>_</span><wbr><span>EXECUTION_</span><wbr><span>TIMEOUT</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="2026736542%2FProperties%2F14209431"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-compensation-domain/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-r-e-t-r-y_-s-p-e-c__-e-x-e-c-u-t-i-o-n_-t-i-m-e-o-u-t.html">RETRY_SPEC__EXECUTION_TIMEOUT</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-344348979%2FProperties%2F14209431" anchor-label="RETRY_SPEC__MAX_RETRIES" id="-344348979%2FProperties%2F14209431" data-filterable-set=":wow-compensation-domain/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-compensation-domain/main" data-filterable-set=":wow-compensation-domain/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-r-e-t-r-y_-s-p-e-c__-m-a-x_-r-e-t-r-i-e-s.html"><span>RETRY_</span><wbr><span>SPEC_</span><wbr><span>_</span><wbr><span>MAX_</span><wbr><span>RETRIES</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-344348979%2FProperties%2F14209431"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-compensation-domain/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-r-e-t-r-y_-s-p-e-c__-m-a-x_-r-e-t-r-i-e-s.html">RETRY_SPEC__MAX_RETRIES</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-2115879939%2FProperties%2F14209431" anchor-label="RETRY_SPEC__MIN_BACKOFF" id="-2115879939%2FProperties%2F14209431" data-filterable-set=":wow-compensation-domain/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-compensation-domain/main" data-filterable-set=":wow-compensation-domain/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-r-e-t-r-y_-s-p-e-c__-m-i-n_-b-a-c-k-o-f-f.html"><span>RETRY_</span><wbr><span>SPEC_</span><wbr><span>_</span><wbr><span>MIN_</span><wbr><span>BACKOFF</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-2115879939%2FProperties%2F14209431"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-compensation-domain/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-r-e-t-r-y_-s-p-e-c__-m-i-n_-b-a-c-k-o-f-f.html">RETRY_SPEC__MIN_BACKOFF</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1820233452%2FProperties%2F14209431" anchor-label="RETRY_STATE" id="1820233452%2FProperties%2F14209431" data-filterable-set=":wow-compensation-domain/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-compensation-domain/main" data-filterable-set=":wow-compensation-domain/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-r-e-t-r-y_-s-t-a-t-e.html"><span>RETRY_</span><wbr><span>STATE</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1820233452%2FProperties%2F14209431"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-compensation-domain/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-r-e-t-r-y_-s-t-a-t-e.html">RETRY_STATE</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-2072913864%2FProperties%2F14209431" anchor-label="RETRY_STATE__NEXT_RETRY_AT" id="-2072913864%2FProperties%2F14209431" data-filterable-set=":wow-compensation-domain/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-compensation-domain/main" data-filterable-set=":wow-compensation-domain/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-r-e-t-r-y_-s-t-a-t-e__-n-e-x-t_-r-e-t-r-y_-a-t.html"><span>RETRY_</span><wbr><span>STATE_</span><wbr><span>_</span><wbr><span>NEXT_</span><wbr><span>RETRY_</span><wbr><span>AT</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-2072913864%2FProperties%2F14209431"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-compensation-domain/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-r-e-t-r-y_-s-t-a-t-e__-n-e-x-t_-r-e-t-r-y_-a-t.html">RETRY_STATE__NEXT_RETRY_AT</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="108653288%2FProperties%2F14209431" anchor-label="RETRY_STATE__RETRIES" id="108653288%2FProperties%2F14209431" data-filterable-set=":wow-compensation-domain/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-compensation-domain/main" data-filterable-set=":wow-compensation-domain/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-r-e-t-r-y_-s-t-a-t-e__-r-e-t-r-i-e-s.html"><span>RETRY_</span><wbr><span>STATE_</span><wbr><span>_</span><wbr><span>RETRIES</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="108653288%2FProperties%2F14209431"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-compensation-domain/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-r-e-t-r-y_-s-t-a-t-e__-r-e-t-r-i-e-s.html">RETRY_STATE__RETRIES</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-279748030%2FProperties%2F14209431" anchor-label="RETRY_STATE__RETRY_AT" id="-279748030%2FProperties%2F14209431" data-filterable-set=":wow-compensation-domain/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-compensation-domain/main" data-filterable-set=":wow-compensation-domain/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-r-e-t-r-y_-s-t-a-t-e__-r-e-t-r-y_-a-t.html"><span>RETRY_</span><wbr><span>STATE_</span><wbr><span>_</span><wbr><span>RETRY_</span><wbr><span>AT</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-279748030%2FProperties%2F14209431"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-compensation-domain/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-r-e-t-r-y_-s-t-a-t-e__-r-e-t-r-y_-a-t.html">RETRY_STATE__RETRY_AT</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1590933061%2FProperties%2F14209431" anchor-label="RETRY_STATE__TIMEOUT_AT" id="-1590933061%2FProperties%2F14209431" data-filterable-set=":wow-compensation-domain/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-compensation-domain/main" data-filterable-set=":wow-compensation-domain/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-r-e-t-r-y_-s-t-a-t-e__-t-i-m-e-o-u-t_-a-t.html"><span>RETRY_</span><wbr><span>STATE_</span><wbr><span>_</span><wbr><span>TIMEOUT_</span><wbr><span>AT</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1590933061%2FProperties%2F14209431"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-compensation-domain/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-r-e-t-r-y_-s-t-a-t-e__-t-i-m-e-o-u-t_-a-t.html">RETRY_STATE__TIMEOUT_AT</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-758131582%2FProperties%2F14209431" anchor-label="STATUS" id="-758131582%2FProperties%2F14209431" data-filterable-set=":wow-compensation-domain/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-compensation-domain/main" data-filterable-set=":wow-compensation-domain/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-s-t-a-t-u-s.html"><span><span>STATUS</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-758131582%2FProperties%2F14209431"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-compensation-domain/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-s-t-a-t-u-s.html">STATUS</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <div class="footer--container">
+            <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+            <div class="footer--content">
+                <div>
+                    <span>Generated by </span>
+                    <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                        Dokka
+                    </a>
+                    <div>© 2025 Copyright</div>
+                </div>
+            </div>
+        </div>
+    </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

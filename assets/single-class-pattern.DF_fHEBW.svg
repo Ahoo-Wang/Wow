@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><!--
+  - Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+  - Licensed under the Apache License, Version 2.0 (the "License");
+  - you may not use this file except in compliance with the License.
+  - You may obtain a copy of the License at
+  -      http://www.apache.org/licenses/LICENSE-2.0
+  - Unless required by applicable law or agreed to in writing, software
+  - distributed under the License is distributed on an "AS IS" BASIS,
+  - WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  - See the License for the specific language governing permissions and
+  - limitations under the License.
+  -->
+
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" contentStyleType="text/css"
+     height="333px" preserveAspectRatio="none" style="width:312px;height:333px;background:#FFFFFF;" version="1.1"
+     viewBox="0 0 312 333" width="312px" zoomAndPan="magnify">
+    <defs/>
+    <g>
+        <rect fill="none" height="11.7773" style="stroke:none;stroke-width:1.0;" width="183" x="121" y="0"/>
+        <a href="https://github.com/Ahoo-Wang/Wow" target="_top" title="https://github.com/Ahoo-Wang/Wow"
+           xlink:actuate="onRequest" xlink:href="https://github.com/Ahoo-Wang/Wow" xlink:show="new"
+           xlink:title="https://github.com/Ahoo-Wang/Wow" xlink:type="simple">
+            <text fill="#808080" font-family="sans-serif" font-size="10" lengthAdjust="spacing"
+                  text-decoration="underline" textLength="183" x="121" y="9.668">https://github.com/Ahoo-Wang/Wow
+            </text>
+        </a>
+        <rect fill="none" height="26.4883" id="_title" style="stroke:none;stroke-width:1.0;" width="294" x="5"
+              y="17.7773"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" font-weight="bold" lengthAdjust="spacing"
+              textLength="284" x="10" y="36.3125">Aggregate Modeling Using Single Class
+        </text><!--MD5=[914cdf822bf80e984e8ac3bf93b406a5]
+class Aggregate-->
+        <g id="elem_Aggregate">
+            <rect codeLine="5" fill="#F1F1F1" height="249.8594" id="Aggregate" rx="2.5" ry="2.5"
+                  style="stroke:#181818;stroke-width:0.5;" width="237" x="34" y="57.2656"/>
+            <ellipse cx="112.25" cy="73.2656" fill="#ADD1B2" rx="11" ry="11" style="stroke:#181818;stroke-width:1.0;"/>
+            <path d="M115.2231,78.9087 Q114.6421,79.2075 114.0029,79.3569 Q113.3638,79.5063 112.6582,79.5063 Q110.1514,79.5063 108.8315,77.8545 Q107.5117,76.2026 107.5117,73.0815 Q107.5117,69.9521 108.8315,68.3003 Q110.1514,66.6484 112.6582,66.6484 Q113.3638,66.6484 114.0112,66.7979 Q114.6587,66.9473 115.2231,67.2461 L115.2231,69.9688 Q114.5923,69.3877 113.9988,69.1179 Q113.4053,68.8481 112.7744,68.8481 Q111.4297,68.8481 110.7449,69.9148 Q110.0601,70.9814 110.0601,73.0815 Q110.0601,75.1733 110.7449,76.24 Q111.4297,77.3066 112.7744,77.3066 Q113.4053,77.3066 113.9988,77.0369 Q114.5923,76.7671 115.2231,76.186 Z "
+                  fill="#000000"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="72"
+                  x="132.75" y="78.5566">Aggregate
+            </text>
+            <line style="stroke:#181818;stroke-width:0.5;" x1="35" x2="270" y1="89.2656" y2="89.2656"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="35" x2="119" y1="105.5098" y2="105.5098"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="35" x2="119" y1="107.5098" y2="107.5098"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="67" x="119"
+                  y="110.3008">state field
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="186" x2="270" y1="105.5098" y2="105.5098"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="186" x2="270" y1="107.5098" y2="107.5098"/>
+            <line style="stroke:#181818;stroke-width:1.0;stroke-dasharray:1.0,2.0;" x1="35" x2="137.5" y1="130.2422"
+                  y2="130.2422"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="30"
+                  x="137.5" y="135.0332">field
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;stroke-dasharray:1.0,2.0;" x1="167.5" x2="270" y1="130.2422"
+                  y2="130.2422"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="95" x="40"
+                  y="176.7539">Aggregate(id)
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="35" x2="111.5" y1="154.9746" y2="154.9746"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="35" x2="111.5" y1="156.9746" y2="156.9746"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="82"
+                  x="111.5" y="159.7656">Constructor
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="193.5" x2="270" y1="154.9746" y2="154.9746"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="193.5" x2="270" y1="156.9746" y2="156.9746"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="35" x2="132" y1="191.9512" y2="191.9512"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="35" x2="132" y1="193.9512" y2="193.9512"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="41" x="132"
+                  y="196.7422">getter
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="173" x2="270" y1="191.9512" y2="191.9512"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="173" x2="270" y1="193.9512" y2="193.9512"/>
+            <line style="stroke:#181818;stroke-width:1.0;stroke-dasharray:1.0,2.0;" x1="35" x2="114.5" y1="216.6836"
+                  y2="216.6836"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="76"
+                  x="114.5" y="221.4746">stateField()
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;stroke-dasharray:1.0,2.0;" x1="190.5" x2="270" y1="216.6836"
+                  y2="216.6836"/>
+            <rect fill="#F24D5C" height="6" style="stroke:#C82930;stroke-width:1.0;" width="6" x="42" y="256.4043"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="211" x="54"
+                  y="263.1953">void onSourcing(domainEvent)
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="35" x2="113" y1="241.416" y2="241.416"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="35" x2="113" y1="243.416" y2="243.416"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="79" x="113"
+                  y="246.207">onSourcing
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="192" x2="270" y1="241.416" y2="241.416"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="192" x2="270" y1="243.416" y2="243.416"/>
+            <rect fill="#F24D5C" height="6" style="stroke:#C82930;stroke-width:1.0;" width="6" x="42" y="293.3809"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="167" x="54"
+                  y="300.1719">onCommand(command)
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="35" x2="108" y1="278.3926" y2="278.3926"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="35" x2="108" y1="280.3926" y2="280.3926"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="89" x="108"
+                  y="283.1836">onCommand
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="197" x2="270" y1="278.3926" y2="278.3926"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="197" x2="270" y1="280.3926" y2="280.3926"/>
+        </g>
+        <rect fill="none" height="11.7773" style="stroke:none;stroke-width:1.0;" width="183" x="60.5" y="314.125"/>
+        <a href="https://github.com/Ahoo-Wang/Wow" target="_top" title="https://github.com/Ahoo-Wang/Wow"
+           xlink:actuate="onRequest" xlink:href="https://github.com/Ahoo-Wang/Wow" xlink:show="new"
+           xlink:title="https://github.com/Ahoo-Wang/Wow" xlink:type="simple">
+            <text fill="#808080" font-family="sans-serif" font-size="10" lengthAdjust="spacing"
+                  text-decoration="underline" textLength="183" x="60.5" y="323.793">https://github.com/Ahoo-Wang/Wow
+            </text>
+        </a><!--MD5=[ff58b3487d8b513e87d5b5df998005dc]
+@startuml Aggregate-Modeling-Single-Class
+!include layout.puml
+
+title Aggregate Modeling Using Single Class
+
+class Aggregate {
+    == state field ==
+    ..  field ..
+    == Constructor ==
+    Aggregate(id)
+    == getter ==
+    .. stateField() ..
+    == onSourcing ==
+    - void onSourcing(domainEvent)
+    == onCommand ==
+    - onCommand(command)
+}
+
+@enduml
+
+@startuml Aggregate-Modeling-Single-Class
+skinparam hyperlinkColor grey
+
+
+header
+[[https://github.com/Ahoo-Wang/Wow]]
+endheader
+
+center footer [[https://github.com/Ahoo-Wang/Wow]]
+
+
+title Aggregate Modeling Using Single Class
+
+class Aggregate {
+    == state field ==
+    ..  field ..
+    == Constructor ==
+    Aggregate(id)
+    == getter ==
+    .. stateField() ..
+    == onSourcing ==
+    - void onSourcing(domainEvent)
+    == onCommand ==
+    - onCommand(command)
+}
+
+@enduml
+
+PlantUML version 1.2022.12(Mon Oct 24 02:12:26 CST 2022)
+(GPL source distribution)
+Java Runtime: OpenJDK Runtime Environment
+JVM: OpenJDK 64-Bit Server VM
+Default Encoding: UTF-8
+Language: zh
+Country: CN
+-->
+    </g>
+</svg>

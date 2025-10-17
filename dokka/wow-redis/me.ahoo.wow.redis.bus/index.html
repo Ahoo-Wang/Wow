@@ -1,0 +1,355 @@
+<!doctype html>
+<html class="no-js" lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>me.ahoo.wow.redis.bus</title>
+<link href="../../images/logo-icon.svg" rel="icon" type="image/svg"><script>var pathToRoot = "../../";</script>
+    <script>document.documentElement.classList.replace("no-js", "js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+      if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      } else {
+        const savedDarkMode = JSON.parse(storage)
+        if (savedDarkMode === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      }
+    </script>
+<script type="text/javascript" src="https://unpkg.com/kotlin-playground@1/dist/playground.min.js" async></script>
+<script type="text/javascript" src="../../scripts/sourceset_dependencies.js" async></script>
+<link href="../../styles/style.css" rel="Stylesheet">
+<link href="../../styles/main.css" rel="Stylesheet">
+<link href="../../styles/prism.css" rel="Stylesheet">
+<link href="../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../scripts/safe-local-storage_blocking.js"></script>
+<script type="text/javascript" src="../../scripts/navigation-loader.js" async></script>
+<script type="text/javascript" src="../../scripts/platform-content-handler.js" async></script>
+<script type="text/javascript" src="../../scripts/main.js" defer></script>
+<script type="text/javascript" src="../../scripts/prism.js" async></script>
+<script type="text/javascript" src="../../ui-kit/ui-kit.min.js" defer></script></head>
+<body>
+<div class="root">
+    <header class="navigation theme-dark" id="navigation-wrapper" role="banner">
+<a class="library-name--link" href="../../index.html" tabindex="1">
+                    Wow
+            </a>        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle" type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">6.2.9
+        </div>
+        <div class="navigation-controls">
+        <ul class="filter-section filter-section_loading" id="filter-section" aria-label="Target filter">
+                <button class="platform-tag platform-selector jvm-like" data-active="" aria-pressed="true" data-filter=":wow-redis/main">jvm</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox" data-role="dropdown-toggle" aria-controls="platform-tags-listbox" aria-haspopup="listbox" aria-expanded="false" aria-label="Toggle source sets"></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox" aria-label="Target filter">
+                    <div class="dropdown--header"><span>Target filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close target filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option jvm-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":wow-redis/main" data-filter=":wow-redis/main">
+                                <span class="checkbox--icon"></span>
+                                jvm
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </ul>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button" type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </header>
+    <div id="container">
+        <nav id="leftColumn" class="sidebar" data-item-type="SECTION" data-item-config="{&quot;defaultSize&quot;: 280, &quot;minSize&quot;: 200, &quot;maxSize&quot;: 400}">
+            <a class="toc--skip-link" href="#main">Skip to content</a>
+            <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list" data-role="dropdown-listbox" aria-label="Table of contents">
+                    <div class="dropdown--header">
+                            <span>
+                                    Wow
+                            </span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                    <div class="sidebar--inner" id="sideMenu"></div>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </nav>
+        <div id="resizer" class="resizer" data-item-type="BAR"></div>
+        <div id="main" data-item-type="SECTION" role="main">
+<div class="main-content" data-page-type="package" id="content" pageids="wow-redis::me.ahoo.wow.redis.bus////PointingToDeclaration//-1092293">
+  <div class="breadcrumbs"><a href="../index.html">wow-redis</a><span class="delimiter">/</span><span class="current">me.ahoo.wow.redis.bus</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span><span>Package-level</span></span> <span><span>declarations</span></span></h1>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="TYPE">Types</button><button class="section-tab" data-togglable="PROPERTY,EXTENSION_PROPERTY">Properties</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="TYPE">
+        <h2 class="tableheader">Types</h2>
+        <div class="table"><a data-name="488244321%2FClasslikes%2F-1092293" anchor-label="AbstractRedisMessageBus" id="488244321%2FClasslikes%2F-1092293" data-filterable-set=":wow-redis/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-redis/main" data-filterable-set=":wow-redis/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-abstract-redis-message-bus/index.html"><span>Abstract</span><wbr><span>Redis</span><wbr><span>Message</span><wbr><span><span>Bus</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="488244321%2FClasslikes%2F-1092293"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-redis/main"><div class="symbol monospace"><span class="token keyword">abstract </span><span class="token keyword">class </span><a href="-abstract-redis-message-bus/index.html">AbstractRedisMessageBus</a><span class="token operator">&lt;</span><a href="-abstract-redis-message-bus/index.html">M</a><span class="token operator"> : </span><a href="../../wow-api/me.ahoo.wow.api.messaging/-message/index.html">Message</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token punctuation">, </span><span class="token operator">*</span><span class="token operator">&gt;</span>, <a href="../../wow-api/me.ahoo.wow.api.modeling/-aggregate-id-capable/index.html">AggregateIdCapable</a>, <a href="../../wow-api/me.ahoo.wow.api.modeling/-named-aggregate/index.html">NamedAggregate</a><span class="token punctuation">, </span><a href="-abstract-redis-message-bus/index.html">E</a><span class="token operator"> : </span><a href="../../wow-core/me.ahoo.wow.messaging.handler/-message-exchange/index.html">MessageExchange</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token punctuation">, </span><a href="-abstract-redis-message-bus/index.html">M</a><span class="token operator">&gt;</span><span class="token operator">&gt;</span><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">redisTemplate<span class="token operator">: </span><span data-unresolved-link="org.springframework.data.redis.core/ReactiveStringRedisTemplate///PointingToDeclaration/">ReactiveStringRedisTemplate</span><span class="token punctuation">, </span></span><span class="parameter ">topicConverter<span class="token operator">: </span><a href="-aggregate-topic-converter/index.html">AggregateTopicConverter</a><span class="token punctuation">, </span></span><span class="parameter ">pollTimeout<span class="token operator">: </span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/time/Duration.html">Duration</a><span class="token operator"> = </span>Duration.ofSeconds(2)</span></span><span class="token punctuation">)</span> : <a href="../../wow-core/me.ahoo.wow.messaging/-distributed-message-bus/index.html">DistributedMessageBus</a><span class="token operator">&lt;</span><a href="-abstract-redis-message-bus/index.html">M</a><span class="token punctuation">, </span><a href="-abstract-redis-message-bus/index.html">E</a><span class="token operator">&gt; </span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1862257245%2FClasslikes%2F-1092293" anchor-label="AggregateTopicConverter" id="-1862257245%2FClasslikes%2F-1092293" data-filterable-set=":wow-redis/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-redis/main" data-filterable-set=":wow-redis/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-aggregate-topic-converter/index.html"><span>Aggregate</span><wbr><span>Topic</span><wbr><span><span>Converter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1862257245%2FClasslikes%2F-1092293"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-redis/main"><div class="symbol monospace"><span class="token keyword">fun </span><span class="token keyword">interface </span><a href="-aggregate-topic-converter/index.html">AggregateTopicConverter</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="839423767%2FClasslikes%2F-1092293" anchor-label="CommandTopicConverter" id="839423767%2FClasslikes%2F-1092293" data-filterable-set=":wow-redis/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-redis/main" data-filterable-set=":wow-redis/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-command-topic-converter/index.html"><span>Command</span><wbr><span>Topic</span><wbr><span><span>Converter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="839423767%2FClasslikes%2F-1092293"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-redis/main"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-command-topic-converter/index.html">CommandTopicConverter</a> : <a href="-aggregate-topic-converter/index.html">AggregateTopicConverter</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-197585932%2FClasslikes%2F-1092293" anchor-label="DefaultCommandTopicConverter" id="-197585932%2FClasslikes%2F-1092293" data-filterable-set=":wow-redis/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-redis/main" data-filterable-set=":wow-redis/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-default-command-topic-converter/index.html"><span>Default</span><wbr><span>Command</span><wbr><span>Topic</span><wbr><span><span>Converter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-197585932%2FClasslikes%2F-1092293"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-redis/main"><div class="symbol monospace"><span class="token keyword">object </span><a href="-default-command-topic-converter/index.html">DefaultCommandTopicConverter</a> : <a href="-command-topic-converter/index.html">CommandTopicConverter</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="308234789%2FClasslikes%2F-1092293" anchor-label="DefaultEventStreamTopicConverter" id="308234789%2FClasslikes%2F-1092293" data-filterable-set=":wow-redis/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-redis/main" data-filterable-set=":wow-redis/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-default-event-stream-topic-converter/index.html"><span>Default</span><wbr><span>Event</span><wbr><span>Stream</span><wbr><span>Topic</span><wbr><span><span>Converter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="308234789%2FClasslikes%2F-1092293"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-redis/main"><div class="symbol monospace"><span class="token keyword">object </span><a href="-default-event-stream-topic-converter/index.html">DefaultEventStreamTopicConverter</a> : <a href="-event-stream-topic-converter/index.html">EventStreamTopicConverter</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-80967336%2FClasslikes%2F-1092293" anchor-label="DefaultStateEventTopicConverter" id="-80967336%2FClasslikes%2F-1092293" data-filterable-set=":wow-redis/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-redis/main" data-filterable-set=":wow-redis/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-default-state-event-topic-converter/index.html"><span>Default</span><wbr><span>State</span><wbr><span>Event</span><wbr><span>Topic</span><wbr><span><span>Converter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-80967336%2FClasslikes%2F-1092293"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-redis/main"><div class="symbol monospace"><span class="token keyword">object </span><a href="-default-state-event-topic-converter/index.html">DefaultStateEventTopicConverter</a> : <a href="-state-event-topic-converter/index.html">StateEventTopicConverter</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="144868296%2FClasslikes%2F-1092293" anchor-label="EventStreamTopicConverter" id="144868296%2FClasslikes%2F-1092293" data-filterable-set=":wow-redis/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-redis/main" data-filterable-set=":wow-redis/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-event-stream-topic-converter/index.html"><span>Event</span><wbr><span>Stream</span><wbr><span>Topic</span><wbr><span><span>Converter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="144868296%2FClasslikes%2F-1092293"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-redis/main"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-event-stream-topic-converter/index.html">EventStreamTopicConverter</a> : <a href="-aggregate-topic-converter/index.html">AggregateTopicConverter</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1679486307%2FClasslikes%2F-1092293" anchor-label="RedisCommandBus" id="1679486307%2FClasslikes%2F-1092293" data-filterable-set=":wow-redis/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-redis/main" data-filterable-set=":wow-redis/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-redis-command-bus/index.html"><span>Redis</span><wbr><span>Command</span><wbr><span><span>Bus</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1679486307%2FClasslikes%2F-1092293"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-redis/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="-redis-command-bus/index.html">RedisCommandBus</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">redisTemplate<span class="token operator">: </span><span data-unresolved-link="org.springframework.data.redis.core/ReactiveStringRedisTemplate///PointingToDeclaration/">ReactiveStringRedisTemplate</span><span class="token punctuation">, </span></span><span class="parameter ">topicConverter<span class="token operator">: </span><a href="-command-topic-converter/index.html">CommandTopicConverter</a><span class="token operator"> = </span>DefaultCommandTopicConverter<span class="token punctuation">, </span></span><span class="parameter ">pollTimeout<span class="token operator">: </span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/time/Duration.html">Duration</a><span class="token operator"> = </span>Duration.ofSeconds(2)</span></span><span class="token punctuation">)</span> : <a href="../../wow-core/me.ahoo.wow.command/-distributed-command-bus/index.html">DistributedCommandBus</a>, <a href="-abstract-redis-message-bus/index.html">AbstractRedisMessageBus</a><span class="token operator">&lt;</span><a href="../../wow-api/me.ahoo.wow.api.command/-command-message/index.html">CommandMessage</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">, </span><a href="../../wow-core/me.ahoo.wow.command/-server-command-exchange/index.html">ServerCommandExchange</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token operator">&gt; </span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1693574066%2FClasslikes%2F-1092293" anchor-label="RedisDomainEventBus" id="-1693574066%2FClasslikes%2F-1092293" data-filterable-set=":wow-redis/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-redis/main" data-filterable-set=":wow-redis/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-redis-domain-event-bus/index.html"><span>Redis</span><wbr><span>Domain</span><wbr><span>Event</span><wbr><span><span>Bus</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1693574066%2FClasslikes%2F-1092293"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-redis/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="-redis-domain-event-bus/index.html">RedisDomainEventBus</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">redisTemplate<span class="token operator">: </span><span data-unresolved-link="org.springframework.data.redis.core/ReactiveStringRedisTemplate///PointingToDeclaration/">ReactiveStringRedisTemplate</span><span class="token punctuation">, </span></span><span class="parameter ">topicConverter<span class="token operator">: </span><a href="-event-stream-topic-converter/index.html">EventStreamTopicConverter</a><span class="token operator"> = </span>DefaultEventStreamTopicConverter<span class="token punctuation">, </span></span><span class="parameter ">pollTimeout<span class="token operator">: </span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/time/Duration.html">Duration</a><span class="token operator"> = </span>Duration.ofSeconds(2)</span></span><span class="token punctuation">)</span> : <a href="../../wow-core/me.ahoo.wow.event/-distributed-domain-event-bus/index.html">DistributedDomainEventBus</a>, <a href="-abstract-redis-message-bus/index.html">AbstractRedisMessageBus</a><span class="token operator">&lt;</span><a href="../../wow-core/me.ahoo.wow.event/-domain-event-stream/index.html">DomainEventStream</a><span class="token punctuation">, </span><a href="../../wow-core/me.ahoo.wow.event/-event-stream-exchange/index.html">EventStreamExchange</a><span class="token operator">&gt; </span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="861659373%2FClasslikes%2F-1092293" anchor-label="RedisEventStreamExchange" id="861659373%2FClasslikes%2F-1092293" data-filterable-set=":wow-redis/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-redis/main" data-filterable-set=":wow-redis/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-redis-event-stream-exchange/index.html"><span>Redis</span><wbr><span>Event</span><wbr><span>Stream</span><wbr><span><span>Exchange</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="861659373%2FClasslikes%2F-1092293"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-redis/main"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-redis-event-stream-exchange/index.html">RedisEventStreamExchange</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>message<span class="token operator">: </span><a href="../../wow-core/me.ahoo.wow.event/-domain-event-stream/index.html">DomainEventStream</a><span class="token punctuation">, </span></span><span class="parameter ">acknowledge<span class="token operator">: </span><span data-unresolved-link="reactor.core.publisher/Mono///PointingToDeclaration/">Mono</span><span class="token operator">&lt;</span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Void.html">Void</a><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>attributes<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-mutable-map/index.html">MutableMap</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">&gt;</span><span class="token operator"> = </span>ConcurrentHashMap()</span></span><span class="token punctuation">)</span> : <a href="../../wow-core/me.ahoo.wow.event/-event-stream-exchange/index.html">EventStreamExchange</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-2032837473%2FClasslikes%2F-1092293" anchor-label="RedisServerCommandExchange" id="-2032837473%2FClasslikes%2F-1092293" data-filterable-set=":wow-redis/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-redis/main" data-filterable-set=":wow-redis/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-redis-server-command-exchange/index.html"><span>Redis</span><wbr><span>Server</span><wbr><span>Command</span><wbr><span><span>Exchange</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-2032837473%2FClasslikes%2F-1092293"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-redis/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="-redis-server-command-exchange/index.html">RedisServerCommandExchange</a><span class="token operator">&lt;</span><a href="-redis-server-command-exchange/index.html">C</a><span class="token operator"> : </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">&gt;</span><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>message<span class="token operator">: </span><a href="../../wow-api/me.ahoo.wow.api.command/-command-message/index.html">CommandMessage</a><span class="token operator">&lt;</span><a href="-redis-server-command-exchange/index.html">C</a><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter ">acknowledge<span class="token operator">: </span><span data-unresolved-link="reactor.core.publisher/Mono///PointingToDeclaration/">Mono</span><span class="token operator">&lt;</span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Void.html">Void</a><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>attributes<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-mutable-map/index.html">MutableMap</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">&gt;</span><span class="token operator"> = </span>ConcurrentHashMap()</span></span><span class="token punctuation">)</span> : <a href="../../wow-core/me.ahoo.wow.command/-server-command-exchange/index.html">ServerCommandExchange</a><span class="token operator">&lt;</span><a href="-redis-server-command-exchange/index.html">C</a><span class="token operator">&gt; </span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="674138803%2FClasslikes%2F-1092293" anchor-label="RedisStateEventBus" id="674138803%2FClasslikes%2F-1092293" data-filterable-set=":wow-redis/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-redis/main" data-filterable-set=":wow-redis/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-redis-state-event-bus/index.html"><span>Redis</span><wbr><span>State</span><wbr><span>Event</span><wbr><span><span>Bus</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="674138803%2FClasslikes%2F-1092293"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-redis/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="-redis-state-event-bus/index.html">RedisStateEventBus</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">redisTemplate<span class="token operator">: </span><span data-unresolved-link="org.springframework.data.redis.core/ReactiveStringRedisTemplate///PointingToDeclaration/">ReactiveStringRedisTemplate</span><span class="token punctuation">, </span></span><span class="parameter ">topicConverter<span class="token operator">: </span><a href="-state-event-topic-converter/index.html">StateEventTopicConverter</a><span class="token operator"> = </span>DefaultStateEventTopicConverter<span class="token punctuation">, </span></span><span class="parameter ">pollTimeout<span class="token operator">: </span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/time/Duration.html">Duration</a><span class="token operator"> = </span>Duration.ofSeconds(2)</span></span><span class="token punctuation">)</span> : <a href="../../wow-core/me.ahoo.wow.eventsourcing.state/-distributed-state-event-bus/index.html">DistributedStateEventBus</a>, <a href="-abstract-redis-message-bus/index.html">AbstractRedisMessageBus</a><span class="token operator">&lt;</span><a href="../../wow-core/me.ahoo.wow.eventsourcing.state/-state-event/index.html">StateEvent</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">, </span><a href="../../wow-core/me.ahoo.wow.eventsourcing.state/-state-event-exchange/index.html">StateEventExchange</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token operator">&gt; </span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="354423724%2FClasslikes%2F-1092293" anchor-label="RedisStateEventExchange" id="354423724%2FClasslikes%2F-1092293" data-filterable-set=":wow-redis/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-redis/main" data-filterable-set=":wow-redis/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-redis-state-event-exchange/index.html"><span>Redis</span><wbr><span>State</span><wbr><span>Event</span><wbr><span><span>Exchange</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="354423724%2FClasslikes%2F-1092293"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-redis/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="-redis-state-event-exchange/index.html">RedisStateEventExchange</a><span class="token operator">&lt;</span><a href="-redis-state-event-exchange/index.html">C</a><span class="token operator"> : </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">&gt;</span><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>message<span class="token operator">: </span><a href="../../wow-core/me.ahoo.wow.eventsourcing.state/-state-event/index.html">StateEvent</a><span class="token operator">&lt;</span><a href="-redis-state-event-exchange/index.html">C</a><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter ">acknowledge<span class="token operator">: </span><span data-unresolved-link="reactor.core.publisher/Mono///PointingToDeclaration/">Mono</span><span class="token operator">&lt;</span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Void.html">Void</a><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>attributes<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-mutable-map/index.html">MutableMap</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">&gt;</span><span class="token operator"> = </span>ConcurrentHashMap()</span></span><span class="token punctuation">)</span> : <a href="../../wow-core/me.ahoo.wow.eventsourcing.state/-state-event-exchange/index.html">StateEventExchange</a><span class="token operator">&lt;</span><a href="-redis-state-event-exchange/index.html">C</a><span class="token operator">&gt; </span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-224784555%2FClasslikes%2F-1092293" anchor-label="StateEventTopicConverter" id="-224784555%2FClasslikes%2F-1092293" data-filterable-set=":wow-redis/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-redis/main" data-filterable-set=":wow-redis/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-state-event-topic-converter/index.html"><span>State</span><wbr><span>Event</span><wbr><span>Topic</span><wbr><span><span>Converter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-224784555%2FClasslikes%2F-1092293"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-redis/main"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-state-event-topic-converter/index.html">StateEventTopicConverter</a> : <a href="-aggregate-topic-converter/index.html">AggregateTopicConverter</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="PROPERTY">
+        <h2 class="tableheader">Properties</h2>
+        <div class="table"><a data-name="1817690120%2FProperties%2F-1092293" anchor-label="MESSAGE_FIELD" id="1817690120%2FProperties%2F-1092293" data-filterable-set=":wow-redis/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-redis/main" data-filterable-set=":wow-redis/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-m-e-s-s-a-g-e_-f-i-e-l-d.html"><span>MESSAGE_</span><wbr><span>FIELD</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1817690120%2FProperties%2F-1092293"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-redis/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-m-e-s-s-a-g-e_-f-i-e-l-d.html">MESSAGE_FIELD</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <div class="footer--container">
+            <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+            <div class="footer--content">
+                <div>
+                    <span>Generated by </span>
+                    <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                        Dokka
+                    </a>
+                    <div>© 2025 Copyright</div>
+                </div>
+            </div>
+        </div>
+    </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

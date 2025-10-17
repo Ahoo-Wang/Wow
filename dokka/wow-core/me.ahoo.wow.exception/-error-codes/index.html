@@ -1,0 +1,412 @@
+<!doctype html>
+<html class="no-js" lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>ErrorCodes</title>
+<link href="../../../images/logo-icon.svg" rel="icon" type="image/svg"><script>var pathToRoot = "../../../";</script>
+    <script>document.documentElement.classList.replace("no-js", "js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+      if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      } else {
+        const savedDarkMode = JSON.parse(storage)
+        if (savedDarkMode === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      }
+    </script>
+<script type="text/javascript" src="https://unpkg.com/kotlin-playground@1/dist/playground.min.js" async></script>
+<script type="text/javascript" src="../../../scripts/sourceset_dependencies.js" async></script>
+<link href="../../../styles/style.css" rel="Stylesheet">
+<link href="../../../styles/main.css" rel="Stylesheet">
+<link href="../../../styles/prism.css" rel="Stylesheet">
+<link href="../../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../../scripts/safe-local-storage_blocking.js"></script>
+<script type="text/javascript" src="../../../scripts/navigation-loader.js" async></script>
+<script type="text/javascript" src="../../../scripts/platform-content-handler.js" async></script>
+<script type="text/javascript" src="../../../scripts/main.js" defer></script>
+<script type="text/javascript" src="../../../scripts/prism.js" async></script>
+<script type="text/javascript" src="../../../ui-kit/ui-kit.min.js" defer></script></head>
+<body>
+<div class="root">
+    <header class="navigation theme-dark" id="navigation-wrapper" role="banner">
+<a class="library-name--link" href="../../../index.html" tabindex="1">
+                    Wow
+            </a>        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle" type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">6.2.9
+        </div>
+        <div class="navigation-controls">
+        <ul class="filter-section filter-section_loading" id="filter-section" aria-label="Target filter">
+                <button class="platform-tag platform-selector jvm-like" data-active="" aria-pressed="true" data-filter=":wow-core/main">jvm</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox" data-role="dropdown-toggle" aria-controls="platform-tags-listbox" aria-haspopup="listbox" aria-expanded="false" aria-label="Toggle source sets"></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox" aria-label="Target filter">
+                    <div class="dropdown--header"><span>Target filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close target filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option jvm-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":wow-core/main" data-filter=":wow-core/main">
+                                <span class="checkbox--icon"></span>
+                                jvm
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </ul>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button" type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </header>
+    <div id="container">
+        <nav id="leftColumn" class="sidebar" data-item-type="SECTION" data-item-config="{&quot;defaultSize&quot;: 280, &quot;minSize&quot;: 200, &quot;maxSize&quot;: 400}">
+            <a class="toc--skip-link" href="#main">Skip to content</a>
+            <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list" data-role="dropdown-listbox" aria-label="Table of contents">
+                    <div class="dropdown--header">
+                            <span>
+                                    Wow
+                            </span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                    <div class="sidebar--inner" id="sideMenu"></div>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </nav>
+        <div id="resizer" class="resizer" data-item-type="BAR"></div>
+        <div id="main" data-item-type="SECTION" role="main">
+<div class="main-content" data-page-type="classlike" id="content" pageids="wow-core::me.ahoo.wow.exception/ErrorCodes///PointingToDeclaration//-452084339">
+  <div class="breadcrumbs"><a href="../../index.html">wow-core</a><span class="delimiter">/</span><a href="../index.html">me.ahoo.wow.exception</a><span class="delimiter">/</span><span class="current">ErrorCodes</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span>Error</span><wbr><span><span>Codes</span></span></h1>
+    <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">object </span><a href="index.html">ErrorCodes</a></div></div></div>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="CONSTRUCTOR,TYPE,PROPERTY,FUNCTION">Members</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="PROPERTY">
+        <h2 class="tableheader">Properties</h2>
+        <div class="table"><a data-name="1292166137%2FProperties%2F-452084339" anchor-label="BAD_REQUEST" id="1292166137%2FProperties%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-b-a-d_-r-e-q-u-e-s-t.html"><span>BAD_</span><wbr><span>REQUEST</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1292166137%2FProperties%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-b-a-d_-r-e-q-u-e-s-t.html">BAD_REQUEST</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><p class="paragraph">Undefined client exception</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1225912125%2FProperties%2F-452084339" anchor-label="COMMAND_EXPECT_VERSION_CONFLICT" id="-1225912125%2FProperties%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-c-o-m-m-a-n-d_-e-x-p-e-c-t_-v-e-r-s-i-o-n_-c-o-n-f-l-i-c-t.html"><span>COMMAND_</span><wbr><span>EXPECT_</span><wbr><span>VERSION_</span><wbr><span>CONFLICT</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1225912125%2FProperties%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-c-o-m-m-a-n-d_-e-x-p-e-c-t_-v-e-r-s-i-o-n_-c-o-n-f-l-i-c-t.html">COMMAND_EXPECT_VERSION_CONFLICT</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-49611137%2FProperties%2F-452084339" anchor-label="COMMAND_VALIDATION" id="-49611137%2FProperties%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-c-o-m-m-a-n-d_-v-a-l-i-d-a-t-i-o-n.html"><span>COMMAND_</span><wbr><span>VALIDATION</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-49611137%2FProperties%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-c-o-m-m-a-n-d_-v-a-l-i-d-a-t-i-o-n.html">COMMAND_VALIDATION</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-787488579%2FProperties%2F-452084339" anchor-label="DUPLICATE_AGGREGATE_ID" id="-787488579%2FProperties%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-d-u-p-l-i-c-a-t-e_-a-g-g-r-e-g-a-t-e_-i-d.html"><span>DUPLICATE_</span><wbr><span>AGGREGATE_</span><wbr><span>ID</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-787488579%2FProperties%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-d-u-p-l-i-c-a-t-e_-a-g-g-r-e-g-a-t-e_-i-d.html">DUPLICATE_AGGREGATE_ID</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="742937677%2FProperties%2F-452084339" anchor-label="DUPLICATE_REQUEST_ID" id="742937677%2FProperties%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-d-u-p-l-i-c-a-t-e_-r-e-q-u-e-s-t_-i-d.html"><span>DUPLICATE_</span><wbr><span>REQUEST_</span><wbr><span>ID</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="742937677%2FProperties%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-d-u-p-l-i-c-a-t-e_-r-e-q-u-e-s-t_-i-d.html">DUPLICATE_REQUEST_ID</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1212189582%2FProperties%2F-452084339" anchor-label="EVENT_VERSION_CONFLICT" id="1212189582%2FProperties%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-e-v-e-n-t_-v-e-r-s-i-o-n_-c-o-n-f-l-i-c-t.html"><span>EVENT_</span><wbr><span>VERSION_</span><wbr><span>CONFLICT</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1212189582%2FProperties%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-e-v-e-n-t_-v-e-r-s-i-o-n_-c-o-n-f-l-i-c-t.html">EVENT_VERSION_CONFLICT</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1340973061%2FProperties%2F-452084339" anchor-label="ILLEGAL_ACCESS_DELETED_AGGREGATE" id="1340973061%2FProperties%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-i-l-l-e-g-a-l_-a-c-c-e-s-s_-d-e-l-e-t-e-d_-a-g-g-r-e-g-a-t-e.html"><span>ILLEGAL_</span><wbr><span>ACCESS_</span><wbr><span>DELETED_</span><wbr><span>AGGREGATE</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1340973061%2FProperties%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-i-l-l-e-g-a-l_-a-c-c-e-s-s_-d-e-l-e-t-e-d_-a-g-g-r-e-g-a-t-e.html">ILLEGAL_ACCESS_DELETED_AGGREGATE</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-443525269%2FProperties%2F-452084339" anchor-label="ILLEGAL_ACCESS_OWNER_AGGREGATE" id="-443525269%2FProperties%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-i-l-l-e-g-a-l_-a-c-c-e-s-s_-o-w-n-e-r_-a-g-g-r-e-g-a-t-e.html"><span>ILLEGAL_</span><wbr><span>ACCESS_</span><wbr><span>OWNER_</span><wbr><span>AGGREGATE</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-443525269%2FProperties%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-i-l-l-e-g-a-l_-a-c-c-e-s-s_-o-w-n-e-r_-a-g-g-r-e-g-a-t-e.html">ILLEGAL_ACCESS_OWNER_AGGREGATE</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-859362074%2FProperties%2F-452084339" anchor-label="ILLEGAL_ARGUMENT" id="-859362074%2FProperties%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-i-l-l-e-g-a-l_-a-r-g-u-m-e-n-t.html"><span>ILLEGAL_</span><wbr><span>ARGUMENT</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-859362074%2FProperties%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-i-l-l-e-g-a-l_-a-r-g-u-m-e-n-t.html">ILLEGAL_ARGUMENT</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="435766502%2FProperties%2F-452084339" anchor-label="ILLEGAL_STATE" id="435766502%2FProperties%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-i-l-l-e-g-a-l_-s-t-a-t-e.html"><span>ILLEGAL_</span><wbr><span>STATE</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="435766502%2FProperties%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-i-l-l-e-g-a-l_-s-t-a-t-e.html">ILLEGAL_STATE</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-86730560%2FProperties%2F-452084339" anchor-label="INTERNAL_SERVER_ERROR" id="-86730560%2FProperties%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-i-n-t-e-r-n-a-l_-s-e-r-v-e-r_-e-r-r-o-r.html"><span>INTERNAL_</span><wbr><span>SERVER_</span><wbr><span>ERROR</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-86730560%2FProperties%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-i-n-t-e-r-n-a-l_-s-e-r-v-e-r_-e-r-r-o-r.html">INTERNAL_SERVER_ERROR</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="367761560%2FProperties%2F-452084339" anchor-label="NOT_FOUND" id="367761560%2FProperties%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-n-o-t_-f-o-u-n-d.html"><span>NOT_</span><wbr><span>FOUND</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="367761560%2FProperties%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-n-o-t_-f-o-u-n-d.html">NOT_FOUND</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-694736912%2FProperties%2F-452084339" anchor-label="NOT_FOUND_MESSAGE" id="-694736912%2FProperties%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-n-o-t_-f-o-u-n-d_-m-e-s-s-a-g-e.html"><span>NOT_</span><wbr><span>FOUND_</span><wbr><span>MESSAGE</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-694736912%2FProperties%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-n-o-t_-f-o-u-n-d_-m-e-s-s-a-g-e.html">NOT_FOUND_MESSAGE</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-806276195%2FProperties%2F-452084339" anchor-label="REQUEST_TIMEOUT" id="-806276195%2FProperties%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-r-e-q-u-e-s-t_-t-i-m-e-o-u-t.html"><span>REQUEST_</span><wbr><span>TIMEOUT</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-806276195%2FProperties%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-r-e-q-u-e-s-t_-t-i-m-e-o-u-t.html">REQUEST_TIMEOUT</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="953028748%2FProperties%2F-452084339" anchor-label="REWRITE_NO_COMMAND" id="953028748%2FProperties%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-r-e-w-r-i-t-e_-n-o_-c-o-m-m-a-n-d.html"><span>REWRITE_</span><wbr><span>NO_</span><wbr><span>COMMAND</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="953028748%2FProperties%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-r-e-w-r-i-t-e_-n-o_-c-o-m-m-a-n-d.html">REWRITE_NO_COMMAND</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="226337262%2FProperties%2F-452084339" anchor-label="SOURCING_VERSION_CONFLICT" id="226337262%2FProperties%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-s-o-u-r-c-i-n-g_-v-e-r-s-i-o-n_-c-o-n-f-l-i-c-t.html"><span>SOURCING_</span><wbr><span>VERSION_</span><wbr><span>CONFLICT</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="226337262%2FProperties%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-s-o-u-r-c-i-n-g_-v-e-r-s-i-o-n_-c-o-n-f-l-i-c-t.html">SOURCING_VERSION_CONFLICT</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1181221773%2FProperties%2F-452084339" anchor-label="SUCCEEDED" id="1181221773%2FProperties%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-s-u-c-c-e-e-d-e-d.html"><span><span>SUCCEEDED</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1181221773%2FProperties%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-s-u-c-c-e-e-d-e-d.html">SUCCEEDED</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="109563365%2FProperties%2F-452084339" anchor-label="SUCCEEDED_MESSAGE" id="109563365%2FProperties%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-s-u-c-c-e-e-d-e-d_-m-e-s-s-a-g-e.html"><span>SUCCEEDED_</span><wbr><span>MESSAGE</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="109563365%2FProperties%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-s-u-c-c-e-e-d-e-d_-m-e-s-s-a-g-e.html">SUCCEEDED_MESSAGE</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1685756427%2FProperties%2F-452084339" anchor-label="TOO_MANY_REQUESTS" id="-1685756427%2FProperties%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-t-o-o_-m-a-n-y_-r-e-q-u-e-s-t-s.html"><span>TOO_</span><wbr><span>MANY_</span><wbr><span>REQUESTS</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1685756427%2FProperties%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-t-o-o_-m-a-n-y_-r-e-q-u-e-s-t-s.html">TOO_MANY_REQUESTS</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <div class="footer--container">
+            <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+            <div class="footer--content">
+                <div>
+                    <span>Generated by </span>
+                    <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                        Dokka
+                    </a>
+                    <div>© 2025 Copyright</div>
+                </div>
+            </div>
+        </div>
+    </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

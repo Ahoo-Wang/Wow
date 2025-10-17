@@ -1,0 +1,1009 @@
+<!doctype html>
+<html class="no-js" lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>DefaultHeader</title>
+<link href="../../../images/logo-icon.svg" rel="icon" type="image/svg"><script>var pathToRoot = "../../../";</script>
+    <script>document.documentElement.classList.replace("no-js", "js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+      if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      } else {
+        const savedDarkMode = JSON.parse(storage)
+        if (savedDarkMode === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      }
+    </script>
+<script type="text/javascript" src="https://unpkg.com/kotlin-playground@1/dist/playground.min.js" async></script>
+<script type="text/javascript" src="../../../scripts/sourceset_dependencies.js" async></script>
+<link href="../../../styles/style.css" rel="Stylesheet">
+<link href="../../../styles/main.css" rel="Stylesheet">
+<link href="../../../styles/prism.css" rel="Stylesheet">
+<link href="../../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../../scripts/safe-local-storage_blocking.js"></script>
+<script type="text/javascript" src="../../../scripts/navigation-loader.js" async></script>
+<script type="text/javascript" src="../../../scripts/platform-content-handler.js" async></script>
+<script type="text/javascript" src="../../../scripts/main.js" defer></script>
+<script type="text/javascript" src="../../../scripts/prism.js" async></script>
+<script type="text/javascript" src="../../../ui-kit/ui-kit.min.js" defer></script></head>
+<body>
+<div class="root">
+    <header class="navigation theme-dark" id="navigation-wrapper" role="banner">
+<a class="library-name--link" href="../../../index.html" tabindex="1">
+                    Wow
+            </a>        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle" type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">6.2.9
+        </div>
+        <div class="navigation-controls">
+        <ul class="filter-section filter-section_loading" id="filter-section" aria-label="Target filter">
+                <button class="platform-tag platform-selector jvm-like" data-active="" aria-pressed="true" data-filter=":wow-core/main">jvm</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox" data-role="dropdown-toggle" aria-controls="platform-tags-listbox" aria-haspopup="listbox" aria-expanded="false" aria-label="Toggle source sets"></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox" aria-label="Target filter">
+                    <div class="dropdown--header"><span>Target filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close target filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option jvm-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":wow-core/main" data-filter=":wow-core/main">
+                                <span class="checkbox--icon"></span>
+                                jvm
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </ul>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button" type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </header>
+    <div id="container">
+        <nav id="leftColumn" class="sidebar" data-item-type="SECTION" data-item-config="{&quot;defaultSize&quot;: 280, &quot;minSize&quot;: 200, &quot;maxSize&quot;: 400}">
+            <a class="toc--skip-link" href="#main">Skip to content</a>
+            <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list" data-role="dropdown-listbox" aria-label="Table of contents">
+                    <div class="dropdown--header">
+                            <span>
+                                    Wow
+                            </span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                    <div class="sidebar--inner" id="sideMenu"></div>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </nav>
+        <div id="resizer" class="resizer" data-item-type="BAR"></div>
+        <div id="main" data-item-type="SECTION" role="main">
+<div class="main-content" data-page-type="classlike" id="content" pageids="wow-core::me.ahoo.wow.messaging/DefaultHeader///PointingToDeclaration//-452084339">
+  <div class="breadcrumbs"><a href="../../index.html">wow-core</a><span class="delimiter">/</span><a href="../index.html">me.ahoo.wow.messaging</a><span class="delimiter">/</span><span class="current">DefaultHeader</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span>Default</span><wbr><span><span>Header</span></span></h1>
+    <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="index.html">DefaultHeader</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">delegate<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-mutable-map/index.html">MutableMap</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">&gt;</span><span class="token operator"> = </span>mutableMapOf()<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">var </span>isReadOnly<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator"> = </span><span class="token boolean">false</span></span></span><span class="token punctuation">)</span> : <a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a>, <a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-mutable-map/index.html">MutableMap</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">&gt; </span></div><p class="paragraph">Default Header implementation.</p><span class="kdoc-tag"><h4 class="">Author</h4><p class="paragraph">ahoo wang</p></span></div></div>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="CONSTRUCTOR,TYPE,PROPERTY,FUNCTION">Members</button><button class="section-tab" data-togglable="CONSTRUCTOR,TYPE,PROPERTY,FUNCTION,EXTENSION_PROPERTY,EXTENSION_FUNCTION">Members &amp; Extensions</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="CONSTRUCTOR">
+        <h2 class="tableheader">Constructors</h2>
+        <div class="table"><a data-name="-900587403%2FConstructors%2F-452084339" anchor-label="DefaultHeader" id="-900587403%2FConstructors%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-togglable="CONSTRUCTOR" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-default-header.html"><span>Default</span><wbr><span><span>Header</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-900587403%2FConstructors%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">constructor</span><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">delegate<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-mutable-map/index.html">MutableMap</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">&gt;</span><span class="token operator"> = </span>mutableMapOf()<span class="token punctuation">, </span></span><span class="parameter ">isReadOnly<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator"> = </span><span class="token boolean">false</span></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="TYPE">
+        <h2 class="tableheader">Types</h2>
+        <div class="table"><a data-name="659323440%2FClasslikes%2F-452084339" anchor-label="Companion" id="659323440%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-companion/index.html"><span><span>Companion</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="659323440%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">object </span><a href="-companion/index.html">Companion</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="PROPERTY">
+        <h2 class="tableheader">Properties</h2>
+        <div class="table"><a data-name="-2145834255%2FProperties%2F-452084339" anchor-label="compensationId" id="-2145834255%2FProperties%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_PROPERTY" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.messaging.compensation/-compensation-matcher/compensation-id.html"><span>compensation</span><wbr><span><span>Id</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-2145834255%2FProperties%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">val </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.messaging.compensation/-compensation-matcher/compensation-id.html">compensationId</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="313986111%2FProperties%2F-452084339" anchor-label="entries" id="313986111%2FProperties%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.sharding/-simple-sharding-registrar/index.html#313986111%2FProperties%2F-452084339"><span><span>entries</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="313986111%2FProperties%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">val </span><a href="../../me.ahoo.wow.sharding/-simple-sharding-registrar/index.html#313986111%2FProperties%2F-452084339">entries</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-mutable-set/index.html">MutableSet</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-mutable-map/-mutable-entry/index.html">MutableMap.MutableEntry</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">&gt;</span><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1285971522%2FProperties%2F-452084339" anchor-label="isCompensation" id="1285971522%2FProperties%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_PROPERTY" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.messaging.compensation/-compensation-matcher/is-compensation.html"><span>is</span><wbr><span><span>Compensation</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1285971522%2FProperties%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">val </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.messaging.compensation/-compensation-matcher/is-compensation.html">isCompensation</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a></div><div class="brief "><p class="paragraph">是否是补偿消息</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-382049307%2FProperties%2F-452084339" anchor-label="isReadOnly" id="-382049307%2FProperties%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="is-read-only.html"><span>is</span><wbr><span>Read</span><wbr><span><span>Only</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-382049307%2FProperties%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.jvm/-volatile/index.html"><span class="token annotation builtin">Volatile</span></a></div></div><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">var </span><a href="is-read-only.html">isReadOnly</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1153773961%2FProperties%2F-452084339" anchor-label="keys" id="-1153773961%2FProperties%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.sharding/-simple-sharding-registrar/index.html#-1153773961%2FProperties%2F-452084339"><span><span>keys</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1153773961%2FProperties%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">val </span><a href="../../me.ahoo.wow.sharding/-simple-sharding-registrar/index.html#-1153773961%2FProperties%2F-452084339">keys</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-mutable-set/index.html">MutableSet</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1999449632%2FProperties%2F-452084339" anchor-label="operator" id="-1999449632%2FProperties%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_PROPERTY" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.command/-command-operator/operator.html"><span><span>operator</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1999449632%2FProperties%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">val </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.command/-command-operator/operator.html">operator</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="923980615%2FProperties%2F-452084339" anchor-label="remoteIp" id="923980615%2FProperties%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_PROPERTY" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.messaging.propagation/-command-request-header-propagator/-companion/remote-ip.html"><span>remote</span><wbr><span><span>Ip</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="923980615%2FProperties%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">val </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.messaging.propagation/-command-request-header-propagator/-companion/remote-ip.html">remoteIp</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="730502657%2FProperties%2F-452084339" anchor-label="requiredOperator" id="730502657%2FProperties%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_PROPERTY" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.command/-command-operator/required-operator.html"><span>required</span><wbr><span><span>Operator</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="730502657%2FProperties%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">val </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.command/-command-operator/required-operator.html">requiredOperator</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-157521630%2FProperties%2F-452084339" anchor-label="size" id="-157521630%2FProperties%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.sharding/-simple-sharding-registrar/index.html#-157521630%2FProperties%2F-452084339"><span><span>size</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-157521630%2FProperties%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">val </span><a href="../../me.ahoo.wow.sharding/-simple-sharding-registrar/index.html#-157521630%2FProperties%2F-452084339">size</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="712217899%2FProperties%2F-452084339" anchor-label="traceId" id="712217899%2FProperties%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_PROPERTY" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.messaging.propagation/-trace-message-propagator/-companion/trace-id.html"><span>trace</span><wbr><span><span>Id</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="712217899%2FProperties%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">val </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.messaging.propagation/-trace-message-propagator/-companion/trace-id.html">traceId</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="981328047%2FProperties%2F-452084339" anchor-label="upstreamId" id="981328047%2FProperties%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_PROPERTY" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.messaging.propagation/-trace-message-propagator/-companion/upstream-id.html"><span>upstream</span><wbr><span><span>Id</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="981328047%2FProperties%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">val </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.messaging.propagation/-trace-message-propagator/-companion/upstream-id.html">upstreamId</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1823371073%2FProperties%2F-452084339" anchor-label="upstreamName" id="-1823371073%2FProperties%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_PROPERTY" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.messaging.propagation/-trace-message-propagator/-companion/upstream-name.html"><span>upstream</span><wbr><span><span>Name</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1823371073%2FProperties%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">val </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.messaging.propagation/-trace-message-propagator/-companion/upstream-name.html">upstreamName</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1768292446%2FProperties%2F-452084339" anchor-label="userAgent" id="-1768292446%2FProperties%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_PROPERTY" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.messaging.propagation/-command-request-header-propagator/-companion/user-agent.html"><span>user</span><wbr><span><span>Agent</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1768292446%2FProperties%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">val </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.messaging.propagation/-command-request-header-propagator/-companion/user-agent.html">userAgent</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="211311497%2FProperties%2F-452084339" anchor-label="values" id="211311497%2FProperties%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.sharding/-simple-sharding-registrar/index.html#211311497%2FProperties%2F-452084339"><span><span>values</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="211311497%2FProperties%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">val </span><a href="../../me.ahoo.wow.sharding/-simple-sharding-registrar/index.html#211311497%2FProperties%2F-452084339">values</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-mutable-collection/index.html">MutableCollection</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="FUNCTION">
+        <h2 class="tableheader">Functions</h2>
+        <div class="table"><a data-name="-586536644%2FFunctions%2F-452084339" anchor-label="clear" id="-586536644%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="clear.html"><span><span>clear</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-586536644%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="clear.html"><span class="token function">clear</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="189495335%2FFunctions%2F-452084339" anchor-label="containsKey" id="189495335%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.sharding/-simple-sharding-registrar/index.html#189495335%2FFunctions%2F-452084339"><span>contains</span><wbr><span><span>Key</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="189495335%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="../../me.ahoo.wow.sharding/-simple-sharding-registrar/index.html#189495335%2FFunctions%2F-452084339"><span class="token function">containsKey</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">key<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-337993863%2FFunctions%2F-452084339" anchor-label="containsValue" id="-337993863%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.sharding/-simple-sharding-registrar/index.html#-337993863%2FFunctions%2F-452084339"><span>contains</span><wbr><span><span>Value</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-337993863%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="../../me.ahoo.wow.sharding/-simple-sharding-registrar/index.html#-337993863%2FFunctions%2F-452084339"><span class="token function">containsValue</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-178568900%2FFunctions%2F-452084339" anchor-label="copy" id="-178568900%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="copy.html"><span><span>copy</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-178568900%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="copy.html"><span class="token function">copy</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1268303248%2FFunctions%2F-452084339" anchor-label="equals" id="1268303248%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="equals.html"><span><span>equals</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1268303248%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">operator override </span><span class="token keyword">fun </span><a href="equals.html"><span class="token function">equals</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">other<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">?</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1266188420%2FFunctions%2F-452084339" anchor-label="extractCommandWaitEndpoint" id="-1266188420%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.command.wait/extract-command-wait-endpoint.html"><span>extract</span><wbr><span>Command</span><wbr><span>Wait</span><wbr><span><span>Endpoint</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1266188420%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.command.wait/extract-command-wait-endpoint.html"><span class="token function">extractCommandWaitEndpoint</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="912588150%2FFunctions%2F-452084339" anchor-label="extractCommandWaitId" id="912588150%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.command.wait/extract-command-wait-id.html"><span>extract</span><wbr><span>Command</span><wbr><span>Wait</span><wbr><span><span>Id</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="912588150%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.command.wait/extract-command-wait-id.html"><span class="token function">extractCommandWaitId</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1060394008%2FFunctions%2F-452084339" anchor-label="extractSimpleWaitingChain" id="-1060394008%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.command.wait.chain/-simple-waiting-chain/-companion/extract-simple-waiting-chain.html"><span>extract</span><wbr><span>Simple</span><wbr><span>Waiting</span><wbr><span><span>Chain</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1060394008%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.command.wait.chain/-simple-waiting-chain/-companion/extract-simple-waiting-chain.html"><span class="token function">extractSimpleWaitingChain</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../me.ahoo.wow.command.wait/-wait-strategy/-function-materialized/index.html">WaitStrategy.FunctionMaterialized</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-676404842%2FFunctions%2F-452084339" anchor-label="extractWaitChain" id="-676404842%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.command.wait.chain/-simple-waiting-chain/-companion/extract-wait-chain.html"><span>extract</span><wbr><span>Wait</span><wbr><span><span>Chain</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-676404842%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.command.wait.chain/-simple-waiting-chain/-companion/extract-wait-chain.html"><span class="token function">extractWaitChain</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1199159566%2FFunctions%2F-452084339" anchor-label="extractWaitFunction" id="-1199159566%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.command.wait/extract-wait-function.html"><span>extract</span><wbr><span>Wait</span><wbr><span><span>Function</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1199159566%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.command.wait/extract-wait-function.html"><span class="token function">extractWaitFunction</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.messaging.function/-named-function-info-data/index.html">NamedFunctionInfoData</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1360263212%2FFunctions%2F-452084339" anchor-label="extractWaitingChainTail" id="1360263212%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.command.wait.chain/-waiting-chain-tail/-companion/extract-waiting-chain-tail.html"><span>extract</span><wbr><span>Waiting</span><wbr><span>Chain</span><wbr><span><span>Tail</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1360263212%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.command.wait.chain/-waiting-chain-tail/-companion/extract-waiting-chain-tail.html"><span class="token function">extractWaitingChainTail</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../me.ahoo.wow.command.wait.chain/-waiting-chain-tail/index.html">WaitingChainTail</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="177973457%2FFunctions%2F-452084339" anchor-label="extractWaitingForStage" id="177973457%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.command.wait.stage/-waiting-for-stage/-companion/extract-waiting-for-stage.html"><span>extract</span><wbr><span>Waiting</span><wbr><span>For</span><wbr><span><span>Stage</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="177973457%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.command.wait.stage/-waiting-for-stage/-companion/extract-waiting-for-stage.html"><span class="token function">extractWaitingForStage</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../me.ahoo.wow.command.wait.stage/-waiting-for-stage/-materialized/index.html">WaitingForStage.Materialized</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1310092078%2FFunctions%2F-452084339" anchor-label="extractWaitingStage" id="1310092078%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.command.wait/extract-waiting-stage.html"><span>extract</span><wbr><span>Waiting</span><wbr><span><span>Stage</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1310092078%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.command.wait/extract-waiting-stage.html"><span class="token function">extractWaitingStage</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../me.ahoo.wow.command.wait/-command-stage/index.html">CommandStage</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1125250999%2FFunctions%2F-452084339" anchor-label="extractWaitStrategy" id="1125250999%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.command.wait/extract-wait-strategy.html"><span>extract</span><wbr><span>Wait</span><wbr><span><span>Strategy</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1125250999%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.command.wait/extract-wait-strategy.html"><span class="token function">extractWaitStrategy</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../me.ahoo.wow.command.wait/-extracted-wait-strategy/index.html">ExtractedWaitStrategy</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1589144509%2FFunctions%2F-452084339" anchor-label="get" id="1589144509%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.sharding/-simple-sharding-registrar/index.html#1589144509%2FFunctions%2F-452084339"><span><span>get</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1589144509%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">operator override </span><span class="token keyword">fun </span><a href="../../me.ahoo.wow.sharding/-simple-sharding-registrar/index.html#1589144509%2FFunctions%2F-452084339"><span class="token function">get</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">key<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1240735402%2FFunctions%2F-452084339" anchor-label="hashCode" id="-1240735402%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="hash-code.html"><span>hash</span><wbr><span><span>Code</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1240735402%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="hash-code.html"><span class="token function">hashCode</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1708477740%2FFunctions%2F-452084339" anchor-label="isEmpty" id="-1708477740%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.sharding/-simple-sharding-registrar/index.html#-1708477740%2FFunctions%2F-452084339"><span>is</span><wbr><span><span>Empty</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1708477740%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="../../me.ahoo.wow.sharding/-simple-sharding-registrar/index.html#-1708477740%2FFunctions%2F-452084339"><span class="token function">isEmpty</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="445479765%2FFunctions%2F-452084339" anchor-label="isLocalFirst" id="445479765%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../is-local-first.html"><span>is</span><wbr><span>Local</span><wbr><span><span>First</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="445479765%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a><span class="token punctuation">.</span><a href="../is-local-first.html"><span class="token function">isLocalFirst</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="600744607%2FFunctions%2F-452084339" anchor-label="match" id="600744607%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.messaging.compensation/-compensation-matcher/match.html"><span><span>match</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="600744607%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.messaging.compensation/-compensation-matcher/match.html"><span class="token function">match</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">function<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.messaging.function/-function-info/index.html">FunctionInfo</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-594480067%2FFunctions%2F-452084339" anchor-label="propagate" id="-594480067%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.messaging.propagation/-message-propagator-provider/propagate.html"><span><span>propagate</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-594480067%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.messaging.propagation/-message-propagator-provider/propagate.html"><span class="token function">propagate</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">upstream<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-message/index.html">Message</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token punctuation">, </span><span class="token operator">*</span><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1237012640%2FFunctions%2F-452084339" anchor-label="propagateCommandWaitEndpoint" id="-1237012640%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.command.wait/propagate-command-wait-endpoint.html"><span>propagate</span><wbr><span>Command</span><wbr><span>Wait</span><wbr><span><span>Endpoint</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1237012640%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.command.wait/propagate-command-wait-endpoint.html"><span class="token function">propagateCommandWaitEndpoint</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">endpoint<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-112593466%2FFunctions%2F-452084339" anchor-label="propagateWaitChain" id="-112593466%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.command.wait.chain/-simple-waiting-chain/-companion/propagate-wait-chain.html"><span>propagate</span><wbr><span>Wait</span><wbr><span><span>Chain</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-112593466%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.command.wait.chain/-simple-waiting-chain/-companion/propagate-wait-chain.html"><span class="token function">propagateWaitChain</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">chain<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="781620316%2FFunctions%2F-452084339" anchor-label="propagateWaitCommandId" id="781620316%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.command.wait/propagate-wait-command-id.html"><span>propagate</span><wbr><span>Wait</span><wbr><span>Command</span><wbr><span><span>Id</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="781620316%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.command.wait/propagate-wait-command-id.html"><span class="token function">propagateWaitCommandId</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">commandId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-706941110%2FFunctions%2F-452084339" anchor-label="propagateWaitFunction" id="-706941110%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.command.wait/propagate-wait-function.html"><span>propagate</span><wbr><span>Wait</span><wbr><span><span>Function</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-706941110%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.command.wait/propagate-wait-function.html"><span class="token function">propagateWaitFunction</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">function<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.messaging.function/-named-function-info-data/index.html">NamedFunctionInfoData</a><span class="token operator">?</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1121945843%2FFunctions%2F-452084339" anchor-label="propagateWaitingStage" id="1121945843%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.command.wait/propagate-waiting-stage.html"><span>propagate</span><wbr><span>Waiting</span><wbr><span><span>Stage</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1121945843%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.command.wait/propagate-waiting-stage.html"><span class="token function">propagateWaitingStage</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">stage<span class="token operator">: </span><a href="../../me.ahoo.wow.command.wait/-command-stage/index.html">CommandStage</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1576145135%2FFunctions%2F-452084339" anchor-label="put" id="1576145135%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="put.html"><span><span>put</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1576145135%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="put.html"><span class="token function">put</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">key<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1813396401%2FFunctions%2F-452084339" anchor-label="putAll" id="1813396401%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="put-all.html"><span>put</span><wbr><span><span>All</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1813396401%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="put-all.html"><span class="token function">putAll</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">from<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-map/index.html">Map</a><span class="token operator">&lt;</span><span class="token keyword">out </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="612764487%2FFunctions%2F-452084339" anchor-label="remove" id="612764487%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="remove.html"><span><span>remove</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="612764487%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="remove.html"><span class="token function">remove</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">key<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span></div><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="remove.html"><span class="token function">remove</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">key<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-825767225%2FFunctions%2F-452084339" anchor-label="requireExtractCommandWaitEndpoint" id="-825767225%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.command.wait/require-extract-command-wait-endpoint.html"><span>require</span><wbr><span>Extract</span><wbr><span>Command</span><wbr><span>Wait</span><wbr><span><span>Endpoint</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-825767225%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.command.wait/require-extract-command-wait-endpoint.html"><span class="token function">requireExtractCommandWaitEndpoint</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1140460917%2FFunctions%2F-452084339" anchor-label="requireExtractWaitCommandId" id="-1140460917%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.command.wait/require-extract-wait-command-id.html"><span>require</span><wbr><span>Extract</span><wbr><span>Wait</span><wbr><span>Command</span><wbr><span><span>Id</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1140460917%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.command.wait/require-extract-wait-command-id.html"><span class="token function">requireExtractWaitCommandId</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="2014916894%2FFunctions%2F-452084339" anchor-label="toHeader" id="2014916894%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../to-header.html"><span>to</span><wbr><span><span>Header</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="2014916894%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-map/index.html">Map</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">&gt;</span><span class="token operator">?</span><span class="token punctuation">.</span><a href="../to-header.html"><span class="token function">toHeader</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1418901467%2FFunctions%2F-452084339" anchor-label="toString" id="-1418901467%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="to-string.html"><span>to</span><wbr><span><span>String</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1418901467%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="to-string.html"><span class="token function">toString</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1469152173%2FFunctions%2F-452084339" anchor-label="with" id="-1469152173%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="index.html#929833884%2FFunctions%2F-452084339"><span><span>with</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1469152173%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><a href="index.html#929833884%2FFunctions%2F-452084339"><span class="token function">with</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">additional<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-map/index.html">Map</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a></div><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><a href="index.html#-1343390155%2FFunctions%2F-452084339"><span class="token function">with</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">key<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1522760441%2FFunctions%2F-452084339" anchor-label="withCompensation" id="-1522760441%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.messaging.compensation/-compensation-matcher/with-compensation.html"><span>with</span><wbr><span><span>Compensation</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1522760441%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.messaging.compensation/-compensation-matcher/with-compensation.html"><span class="token function">withCompensation</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">target<span class="token operator">: </span><a href="../../me.ahoo.wow.messaging.compensation/-compensation-target/index.html">CompensationTarget</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-258186562%2FFunctions%2F-452084339" anchor-label="withLocalFirst" id="-258186562%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../with-local-first.html"><span>with</span><wbr><span>Local</span><wbr><span><span>First</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-258186562%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a><span class="token punctuation">.</span><a href="../with-local-first.html"><span class="token function">withLocalFirst</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">localFirst<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator"> = </span><span class="token boolean">true</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1159594890%2FFunctions%2F-452084339" anchor-label="withOperator" id="1159594890%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.command/-command-operator/with-operator.html"><span>with</span><wbr><span><span>Operator</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1159594890%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.command/-command-operator/with-operator.html"><span class="token function">withOperator</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">operator<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="628612809%2FFunctions%2F-452084339" anchor-label="withReadOnly" id="628612809%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="with-read-only.html"><span>with</span><wbr><span>Read</span><wbr><span><span>Only</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="628612809%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">fun </span><a href="with-read-only.html"><span class="token function">withReadOnly</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="357996931%2FFunctions%2F-452084339" anchor-label="withRemoteIp" id="357996931%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.messaging.propagation/-command-request-header-propagator/-companion/with-remote-ip.html"><span>with</span><wbr><span>Remote</span><wbr><span><span>Ip</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="357996931%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.messaging.propagation/-command-request-header-propagator/-companion/with-remote-ip.html"><span class="token function">withRemoteIp</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">remoteIp<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1452985325%2FFunctions%2F-452084339" anchor-label="withTraceId" id="-1452985325%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.messaging.propagation/-trace-message-propagator/-companion/with-trace-id.html"><span>with</span><wbr><span>Trace</span><wbr><span><span>Id</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1452985325%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.messaging.propagation/-trace-message-propagator/-companion/with-trace-id.html"><span class="token function">withTraceId</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">traceId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="614200347%2FFunctions%2F-452084339" anchor-label="withUpstreamId" id="614200347%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.messaging.propagation/-trace-message-propagator/-companion/with-upstream-id.html"><span>with</span><wbr><span>Upstream</span><wbr><span><span>Id</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="614200347%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.messaging.propagation/-trace-message-propagator/-companion/with-upstream-id.html"><span class="token function">withUpstreamId</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">upstreamId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1906613387%2FFunctions%2F-452084339" anchor-label="withUpstreamName" id="1906613387%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.messaging.propagation/-trace-message-propagator/-companion/with-upstream-name.html"><span>with</span><wbr><span>Upstream</span><wbr><span><span>Name</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1906613387%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.messaging.propagation/-trace-message-propagator/-companion/with-upstream-name.html"><span class="token function">withUpstreamName</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">upstreamName<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="812156156%2FFunctions%2F-452084339" anchor-label="withUserAgent" id="812156156%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.messaging.propagation/-command-request-header-propagator/-companion/with-user-agent.html"><span>with</span><wbr><span>User</span><wbr><span><span>Agent</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="812156156%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.messaging.propagation/-command-request-header-propagator/-companion/with-user-agent.html"><span class="token function">withUserAgent</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">userAgent<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <div class="footer--container">
+            <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+            <div class="footer--content">
+                <div>
+                    <span>Generated by </span>
+                    <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                        Dokka
+                    </a>
+                    <div>© 2025 Copyright</div>
+                </div>
+            </div>
+        </div>
+    </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

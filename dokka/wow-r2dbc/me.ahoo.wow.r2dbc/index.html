@@ -1,0 +1,460 @@
+<!doctype html>
+<html class="no-js" lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>me.ahoo.wow.r2dbc</title>
+<link href="../../images/logo-icon.svg" rel="icon" type="image/svg"><script>var pathToRoot = "../../";</script>
+    <script>document.documentElement.classList.replace("no-js", "js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+      if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      } else {
+        const savedDarkMode = JSON.parse(storage)
+        if (savedDarkMode === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      }
+    </script>
+<script type="text/javascript" src="https://unpkg.com/kotlin-playground@1/dist/playground.min.js" async></script>
+<script type="text/javascript" src="../../scripts/sourceset_dependencies.js" async></script>
+<link href="../../styles/style.css" rel="Stylesheet">
+<link href="../../styles/main.css" rel="Stylesheet">
+<link href="../../styles/prism.css" rel="Stylesheet">
+<link href="../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../scripts/safe-local-storage_blocking.js"></script>
+<script type="text/javascript" src="../../scripts/navigation-loader.js" async></script>
+<script type="text/javascript" src="../../scripts/platform-content-handler.js" async></script>
+<script type="text/javascript" src="../../scripts/main.js" defer></script>
+<script type="text/javascript" src="../../scripts/prism.js" async></script>
+<script type="text/javascript" src="../../ui-kit/ui-kit.min.js" defer></script></head>
+<body>
+<div class="root">
+    <header class="navigation theme-dark" id="navigation-wrapper" role="banner">
+<a class="library-name--link" href="../../index.html" tabindex="1">
+                    Wow
+            </a>        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle" type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">6.2.9
+        </div>
+        <div class="navigation-controls">
+        <ul class="filter-section filter-section_loading" id="filter-section" aria-label="Target filter">
+                <button class="platform-tag platform-selector jvm-like" data-active="" aria-pressed="true" data-filter=":wow-r2dbc/main">jvm</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox" data-role="dropdown-toggle" aria-controls="platform-tags-listbox" aria-haspopup="listbox" aria-expanded="false" aria-label="Toggle source sets"></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox" aria-label="Target filter">
+                    <div class="dropdown--header"><span>Target filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close target filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option jvm-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":wow-r2dbc/main" data-filter=":wow-r2dbc/main">
+                                <span class="checkbox--icon"></span>
+                                jvm
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </ul>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button" type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </header>
+    <div id="container">
+        <nav id="leftColumn" class="sidebar" data-item-type="SECTION" data-item-config="{&quot;defaultSize&quot;: 280, &quot;minSize&quot;: 200, &quot;maxSize&quot;: 400}">
+            <a class="toc--skip-link" href="#main">Skip to content</a>
+            <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list" data-role="dropdown-listbox" aria-label="Table of contents">
+                    <div class="dropdown--header">
+                            <span>
+                                    Wow
+                            </span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                    <div class="sidebar--inner" id="sideMenu"></div>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </nav>
+        <div id="resizer" class="resizer" data-item-type="BAR"></div>
+        <div id="main" data-item-type="SECTION" role="main">
+<div class="main-content" data-page-type="package" id="content" pageids="wow-r2dbc::me.ahoo.wow.r2dbc////PointingToDeclaration//1308425573">
+  <div class="breadcrumbs"><a href="../index.html">wow-r2dbc</a><span class="delimiter">/</span><span class="current">me.ahoo.wow.r2dbc</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span><span>Package-level</span></span> <span><span>declarations</span></span></h1>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="TYPE">Types</button><button class="section-tab" data-togglable="PROPERTY,EXTENSION_PROPERTY">Properties</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="TYPE">
+        <h2 class="tableheader">Types</h2>
+        <div class="table"><a data-name="-518357018%2FClasslikes%2F1308425573" anchor-label="ConnectionFactoryRegistrar" id="-518357018%2FClasslikes%2F1308425573" data-filterable-set=":wow-r2dbc/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-r2dbc/main" data-filterable-set=":wow-r2dbc/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-connection-factory-registrar/index.html"><span>Connection</span><wbr><span>Factory</span><wbr><span><span>Registrar</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-518357018%2FClasslikes%2F1308425573"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-r2dbc/main"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-connection-factory-registrar/index.html">ConnectionFactoryRegistrar</a> : <a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-map/index.html">Map</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><span data-unresolved-link="io.r2dbc.spi/ConnectionFactory///PointingToDeclaration/">ConnectionFactory</span><span class="token operator">&gt; </span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="482745132%2FClasslikes%2F1308425573" anchor-label="Database" id="482745132%2FClasslikes%2F1308425573" data-filterable-set=":wow-r2dbc/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-r2dbc/main" data-filterable-set=":wow-r2dbc/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-database/index.html"><span><span>Database</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="482745132%2FClasslikes%2F1308425573"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-r2dbc/main"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-database/index.html">Database</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-10128986%2FClasslikes%2F1308425573" anchor-label="EventStreamDatabase" id="-10128986%2FClasslikes%2F1308425573" data-filterable-set=":wow-r2dbc/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-r2dbc/main" data-filterable-set=":wow-r2dbc/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-event-stream-database/index.html"><span>Event</span><wbr><span>Stream</span><wbr><span><span>Database</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-10128986%2FClasslikes%2F1308425573"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-r2dbc/main"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-event-stream-database/index.html">EventStreamDatabase</a> : <a href="-database/index.html">Database</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-509736896%2FClasslikes%2F1308425573" anchor-label="EventStreamSchema" id="-509736896%2FClasslikes%2F1308425573" data-filterable-set=":wow-r2dbc/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-r2dbc/main" data-filterable-set=":wow-r2dbc/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-event-stream-schema/index.html"><span>Event</span><wbr><span>Stream</span><wbr><span><span>Schema</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-509736896%2FClasslikes%2F1308425573"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-r2dbc/main"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-event-stream-schema/index.html">EventStreamSchema</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="302894354%2FClasslikes%2F1308425573" anchor-label="EventStreamStatement" id="302894354%2FClasslikes%2F1308425573" data-filterable-set=":wow-r2dbc/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-r2dbc/main" data-filterable-set=":wow-r2dbc/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-event-stream-statement/index.html"><span>Event</span><wbr><span>Stream</span><wbr><span><span>Statement</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="302894354%2FClasslikes%2F1308425573"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-r2dbc/main"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-event-stream-statement/index.html">EventStreamStatement</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>load<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>loadByEventTime<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>append<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1982181661%2FClasslikes%2F1308425573" anchor-label="EventStreamStatementGenerator" id="1982181661%2FClasslikes%2F1308425573" data-filterable-set=":wow-r2dbc/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-r2dbc/main" data-filterable-set=":wow-r2dbc/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-event-stream-statement-generator/index.html"><span>Event</span><wbr><span>Stream</span><wbr><span>Statement</span><wbr><span><span>Generator</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1982181661%2FClasslikes%2F1308425573"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-r2dbc/main"><div class="symbol monospace"><span class="token keyword">object </span><a href="-event-stream-statement-generator/index.html">EventStreamStatementGenerator</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="193806063%2FClasslikes%2F1308425573" anchor-label="R2dbcEventStore" id="193806063%2FClasslikes%2F1308425573" data-filterable-set=":wow-r2dbc/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-r2dbc/main" data-filterable-set=":wow-r2dbc/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-r2dbc-event-store/index.html"><span>R2dbc</span><wbr><span>Event</span><wbr><span><span>Store</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="193806063%2FClasslikes%2F1308425573"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-r2dbc/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="-r2dbc-event-store/index.html">R2dbcEventStore</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">database<span class="token operator">: </span><a href="-database/index.html">Database</a><span class="token punctuation">, </span></span><span class="parameter ">eventStreamSchema<span class="token operator">: </span><a href="-event-stream-schema/index.html">EventStreamSchema</a></span></span><span class="token punctuation">)</span> : <a href="../../wow-core/me.ahoo.wow.eventsourcing/-abstract-event-store/index.html">AbstractEventStore</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1391335928%2FClasslikes%2F1308425573" anchor-label="R2dbcSnapshotRepository" id="-1391335928%2FClasslikes%2F1308425573" data-filterable-set=":wow-r2dbc/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-r2dbc/main" data-filterable-set=":wow-r2dbc/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-r2dbc-snapshot-repository/index.html"><span>R2dbc</span><wbr><span>Snapshot</span><wbr><span><span>Repository</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1391335928%2FClasslikes%2F1308425573"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-r2dbc/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="-r2dbc-snapshot-repository/index.html">R2dbcSnapshotRepository</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">database<span class="token operator">: </span><a href="-database/index.html">Database</a><span class="token punctuation">, </span></span><span class="parameter ">snapshotSchema<span class="token operator">: </span><a href="-snapshot-schema/index.html">SnapshotSchema</a></span></span><span class="token punctuation">)</span> : <a href="../../wow-core/me.ahoo.wow.eventsourcing.snapshot/-snapshot-repository/index.html">SnapshotRepository</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1909077432%2FClasslikes%2F1308425573" anchor-label="ShardingDatabase" id="-1909077432%2FClasslikes%2F1308425573" data-filterable-set=":wow-r2dbc/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-r2dbc/main" data-filterable-set=":wow-r2dbc/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-sharding-database/index.html"><span>Sharding</span><wbr><span><span>Database</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1909077432%2FClasslikes%2F1308425573"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-r2dbc/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="-sharding-database/index.html">ShardingDatabase</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">registrar<span class="token operator">: </span><a href="-connection-factory-registrar/index.html">ConnectionFactoryRegistrar</a><span class="token punctuation">, </span></span><span class="parameter ">aggregateIdSharding<span class="token operator">: </span><a href="../../wow-core/me.ahoo.wow.sharding/-aggregate-id-sharding/index.html">AggregateIdSharding</a></span></span><span class="token punctuation">)</span> : <a href="-database/index.html">Database</a>, <a href="-event-stream-database/index.html">EventStreamDatabase</a>, <a href="-snapshot-database/index.html">SnapshotDatabase</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1989437276%2FClasslikes%2F1308425573" anchor-label="ShardingEventStreamSchema" id="-1989437276%2FClasslikes%2F1308425573" data-filterable-set=":wow-r2dbc/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-r2dbc/main" data-filterable-set=":wow-r2dbc/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-sharding-event-stream-schema/index.html"><span>Sharding</span><wbr><span>Event</span><wbr><span>Stream</span><wbr><span><span>Schema</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1989437276%2FClasslikes%2F1308425573"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-r2dbc/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="-sharding-event-stream-schema/index.html">ShardingEventStreamSchema</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">sharding<span class="token operator">: </span><a href="../../wow-core/me.ahoo.wow.sharding/-aggregate-id-sharding/index.html">AggregateIdSharding</a></span></span><span class="token punctuation">)</span> : <a href="-event-stream-schema/index.html">EventStreamSchema</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-2084652802%2FClasslikes%2F1308425573" anchor-label="ShardingSnapshotSchema" id="-2084652802%2FClasslikes%2F1308425573" data-filterable-set=":wow-r2dbc/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-r2dbc/main" data-filterable-set=":wow-r2dbc/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-sharding-snapshot-schema/index.html"><span>Sharding</span><wbr><span>Snapshot</span><wbr><span><span>Schema</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-2084652802%2FClasslikes%2F1308425573"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-r2dbc/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="-sharding-snapshot-schema/index.html">ShardingSnapshotSchema</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">sharding<span class="token operator">: </span><a href="../../wow-core/me.ahoo.wow.sharding/-aggregate-id-sharding/index.html">AggregateIdSharding</a></span></span><span class="token punctuation">)</span> : <a href="-snapshot-schema/index.html">SnapshotSchema</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="488375380%2FClasslikes%2F1308425573" anchor-label="SimpleConnectionFactoryRegistrar" id="488375380%2FClasslikes%2F1308425573" data-filterable-set=":wow-r2dbc/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-r2dbc/main" data-filterable-set=":wow-r2dbc/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-simple-connection-factory-registrar/index.html"><span>Simple</span><wbr><span>Connection</span><wbr><span>Factory</span><wbr><span><span>Registrar</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="488375380%2FClasslikes%2F1308425573"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-r2dbc/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="-simple-connection-factory-registrar/index.html">SimpleConnectionFactoryRegistrar</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">connectionFactories<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-map/index.html">Map</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><span data-unresolved-link="io.r2dbc.spi/ConnectionFactory///PointingToDeclaration/">ConnectionFactory</span><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span> : <a href="-connection-factory-registrar/index.html">ConnectionFactoryRegistrar</a>, <a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-map/index.html">Map</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><span data-unresolved-link="io.r2dbc.spi/ConnectionFactory///PointingToDeclaration/">ConnectionFactory</span><span class="token operator">&gt; </span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1982628070%2FClasslikes%2F1308425573" anchor-label="SimpleDatabase" id="-1982628070%2FClasslikes%2F1308425573" data-filterable-set=":wow-r2dbc/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-r2dbc/main" data-filterable-set=":wow-r2dbc/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-simple-database/index.html"><span>Simple</span><wbr><span><span>Database</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1982628070%2FClasslikes%2F1308425573"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-r2dbc/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="-simple-database/index.html">SimpleDatabase</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">connectionFactory<span class="token operator">: </span><span data-unresolved-link="io.r2dbc.spi/ConnectionFactory///PointingToDeclaration/">ConnectionFactory</span></span></span><span class="token punctuation">)</span> : <a href="-event-stream-database/index.html">EventStreamDatabase</a>, <a href="-snapshot-database/index.html">SnapshotDatabase</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1446457362%2FClasslikes%2F1308425573" anchor-label="SimpleEventStreamSchema" id="1446457362%2FClasslikes%2F1308425573" data-filterable-set=":wow-r2dbc/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-r2dbc/main" data-filterable-set=":wow-r2dbc/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-simple-event-stream-schema/index.html"><span>Simple</span><wbr><span>Event</span><wbr><span>Stream</span><wbr><span><span>Schema</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1446457362%2FClasslikes%2F1308425573"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-r2dbc/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="-simple-event-stream-schema/index.html">SimpleEventStreamSchema</a> : <a href="-event-stream-schema/index.html">EventStreamSchema</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-601749424%2FClasslikes%2F1308425573" anchor-label="SimpleSnapshotSchema" id="-601749424%2FClasslikes%2F1308425573" data-filterable-set=":wow-r2dbc/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-r2dbc/main" data-filterable-set=":wow-r2dbc/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-simple-snapshot-schema/index.html"><span>Simple</span><wbr><span>Snapshot</span><wbr><span><span>Schema</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-601749424%2FClasslikes%2F1308425573"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-r2dbc/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="-simple-snapshot-schema/index.html">SimpleSnapshotSchema</a> : <a href="-snapshot-schema/index.html">SnapshotSchema</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="173021128%2FClasslikes%2F1308425573" anchor-label="SnapshotDatabase" id="173021128%2FClasslikes%2F1308425573" data-filterable-set=":wow-r2dbc/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-r2dbc/main" data-filterable-set=":wow-r2dbc/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-snapshot-database/index.html"><span>Snapshot</span><wbr><span><span>Database</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="173021128%2FClasslikes%2F1308425573"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-r2dbc/main"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-snapshot-database/index.html">SnapshotDatabase</a> : <a href="-database/index.html">Database</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-169881886%2FClasslikes%2F1308425573" anchor-label="SnapshotSchema" id="-169881886%2FClasslikes%2F1308425573" data-filterable-set=":wow-r2dbc/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-r2dbc/main" data-filterable-set=":wow-r2dbc/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-snapshot-schema/index.html"><span>Snapshot</span><wbr><span><span>Schema</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-169881886%2FClasslikes%2F1308425573"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-r2dbc/main"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-snapshot-schema/index.html">SnapshotSchema</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1685580592%2FClasslikes%2F1308425573" anchor-label="SnapshotStatement" id="1685580592%2FClasslikes%2F1308425573" data-filterable-set=":wow-r2dbc/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-r2dbc/main" data-filterable-set=":wow-r2dbc/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-snapshot-statement/index.html"><span>Snapshot</span><wbr><span><span>Statement</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1685580592%2FClasslikes%2F1308425573"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-r2dbc/main"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-snapshot-statement/index.html">SnapshotStatement</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>load<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>loadByVersion<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>save<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>scan<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1993905343%2FClasslikes%2F1308425573" anchor-label="SnapshotStatementGenerator" id="1993905343%2FClasslikes%2F1308425573" data-filterable-set=":wow-r2dbc/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-r2dbc/main" data-filterable-set=":wow-r2dbc/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-snapshot-statement-generator/index.html"><span>Snapshot</span><wbr><span>Statement</span><wbr><span><span>Generator</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1993905343%2FClasslikes%2F1308425573"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-r2dbc/main"><div class="symbol monospace"><span class="token keyword">object </span><a href="-snapshot-statement-generator/index.html">SnapshotStatementGenerator</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="PROPERTY">
+        <h2 class="tableheader">Properties</h2>
+        <div class="table"><a data-name="868285357%2FProperties%2F1308425573" anchor-label="EVENT_STREAM_LOGIC_NAME_PREFIX" id="868285357%2FProperties%2F1308425573" data-filterable-set=":wow-r2dbc/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-r2dbc/main" data-filterable-set=":wow-r2dbc/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-e-v-e-n-t_-s-t-r-e-a-m_-l-o-g-i-c_-n-a-m-e_-p-r-e-f-i-x.html"><span>EVENT_</span><wbr><span>STREAM_</span><wbr><span>LOGIC_</span><wbr><span>NAME_</span><wbr><span>PREFIX</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="868285357%2FProperties%2F1308425573"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-r2dbc/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-e-v-e-n-t_-s-t-r-e-a-m_-l-o-g-i-c_-n-a-m-e_-p-r-e-f-i-x.html">EVENT_STREAM_LOGIC_NAME_PREFIX</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="2050359012%2FProperties%2F1308425573" anchor-label="EVENT_STREAM_TABLE" id="2050359012%2FProperties%2F1308425573" data-filterable-set=":wow-r2dbc/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-r2dbc/main" data-filterable-set=":wow-r2dbc/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-e-v-e-n-t_-s-t-r-e-a-m_-t-a-b-l-e.html"><span>EVENT_</span><wbr><span>STREAM_</span><wbr><span>TABLE</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="2050359012%2FProperties%2F1308425573"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-r2dbc/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-e-v-e-n-t_-s-t-r-e-a-m_-t-a-b-l-e.html">EVENT_STREAM_TABLE</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1333609563%2FProperties%2F1308425573" anchor-label="SNAPSHOT_TABLE" id="-1333609563%2FProperties%2F1308425573" data-filterable-set=":wow-r2dbc/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-r2dbc/main" data-filterable-set=":wow-r2dbc/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-s-n-a-p-s-h-o-t_-t-a-b-l-e.html"><span>SNAPSHOT_</span><wbr><span>TABLE</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1333609563%2FProperties%2F1308425573"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-r2dbc/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-s-n-a-p-s-h-o-t_-t-a-b-l-e.html">SNAPSHOT_TABLE</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <div class="footer--container">
+            <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+            <div class="footer--content">
+                <div>
+                    <span>Generated by </span>
+                    <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                        Dokka
+                    </a>
+                    <div>© 2025 Copyright</div>
+                </div>
+            </div>
+        </div>
+    </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,240 @@
+<!doctype html>
+<html class="no-js" lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>ErrorInfo</title>
+<link href="../../../images/logo-icon.svg" rel="icon" type="image/svg"><script>var pathToRoot = "../../../";</script>
+    <script>document.documentElement.classList.replace("no-js", "js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+      if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      } else {
+        const savedDarkMode = JSON.parse(storage)
+        if (savedDarkMode === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      }
+    </script>
+<script type="text/javascript" src="https://unpkg.com/kotlin-playground@1/dist/playground.min.js" async></script>
+<script type="text/javascript" src="../../../scripts/sourceset_dependencies.js" async></script>
+<link href="../../../styles/style.css" rel="Stylesheet">
+<link href="../../../styles/main.css" rel="Stylesheet">
+<link href="../../../styles/prism.css" rel="Stylesheet">
+<link href="../../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../../scripts/safe-local-storage_blocking.js"></script>
+<script type="text/javascript" src="../../../scripts/navigation-loader.js" async></script>
+<script type="text/javascript" src="../../../scripts/platform-content-handler.js" async></script>
+<script type="text/javascript" src="../../../scripts/main.js" defer></script>
+<script type="text/javascript" src="../../../scripts/prism.js" async></script>
+<script type="text/javascript" src="../../../ui-kit/ui-kit.min.js" defer></script></head>
+<body>
+<div class="root">
+    <header class="navigation theme-dark" id="navigation-wrapper" role="banner">
+<a class="library-name--link" href="../../../index.html" tabindex="1">
+                    Wow
+            </a>        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle" type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">6.2.9
+        </div>
+        <div class="navigation-controls">
+        <ul class="filter-section filter-section_loading" id="filter-section" aria-label="Target filter">
+                <button class="platform-tag platform-selector jvm-like" data-active="" aria-pressed="true" data-filter=":wow-api/main">jvm</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox" data-role="dropdown-toggle" aria-controls="platform-tags-listbox" aria-haspopup="listbox" aria-expanded="false" aria-label="Toggle source sets"></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox" aria-label="Target filter">
+                    <div class="dropdown--header"><span>Target filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close target filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option jvm-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":wow-api/main" data-filter=":wow-api/main">
+                                <span class="checkbox--icon"></span>
+                                jvm
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </ul>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button" type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </header>
+    <div id="container">
+        <nav id="leftColumn" class="sidebar" data-item-type="SECTION" data-item-config="{&quot;defaultSize&quot;: 280, &quot;minSize&quot;: 200, &quot;maxSize&quot;: 400}">
+            <a class="toc--skip-link" href="#main">Skip to content</a>
+            <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list" data-role="dropdown-listbox" aria-label="Table of contents">
+                    <div class="dropdown--header">
+                            <span>
+                                    Wow
+                            </span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                    <div class="sidebar--inner" id="sideMenu"></div>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </nav>
+        <div id="resizer" class="resizer" data-item-type="BAR"></div>
+        <div id="main" data-item-type="SECTION" role="main">
+<div class="main-content" data-page-type="classlike" id="content" pageids="wow-api::me.ahoo.wow.api.exception/ErrorInfo///PointingToDeclaration//-443338726">
+  <div class="breadcrumbs"><a href="../../index.html">wow-api</a><span class="delimiter">/</span><a href="../index.html">me.ahoo.wow.api.exception</a><span class="delimiter">/</span><span class="current">ErrorInfo</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span>Error</span><wbr><span><span>Info</span></span></h1>
+    <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><span class="token keyword">interface </span><a href="index.html">ErrorInfo</a></div><p class="paragraph">Represents the information about an error, including whether the operation succeeded, the error code, and any associated messages or binding errors.</p><p class="paragraph">This interface is designed to provide a standardized way of handling and representing errors across different parts of an application. It includes methods to check if the operation was successful, retrieve the error code , and access any additional error details such as messages or binding errors.</p><h4 class="tableheader">Inheritors</h4><div class="table"><div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><a href="../-default-error-info/index.html">DefaultErrorInfo</a></div></span></div><div></div></div></div></div></div></div>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="CONSTRUCTOR,TYPE,PROPERTY,FUNCTION">Members</button><button class="section-tab" data-togglable="CONSTRUCTOR,TYPE,PROPERTY,FUNCTION,EXTENSION_PROPERTY,EXTENSION_FUNCTION">Members &amp; Extensions</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="TYPE">
+        <h2 class="tableheader">Types</h2>
+        <div class="table"><a data-name="-2115787023%2FClasslikes%2F-443338726" anchor-label="Companion" id="-2115787023%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-companion/index.html"><span><span>Companion</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-2115787023%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><span class="token keyword">object </span><a href="-companion/index.html">Companion</a></div><div class="brief "><p class="paragraph">Companion object for <a href="index.html">ErrorInfo</a> that provides constants and utility functions to work with <a href="index.html">ErrorInfo</a> instances.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="PROPERTY">
+        <h2 class="tableheader">Properties</h2>
+        <div class="table"><a data-name="-713883942%2FProperties%2F-443338726" anchor-label="bindingErrors" id="-713883942%2FProperties%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="binding-errors.html"><span>binding</span><wbr><span><span>Errors</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-713883942%2FProperties%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">val </span><a href="binding-errors.html">bindingErrors</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-list/index.html">List</a><span class="token operator">&lt;</span><a href="../-binding-error/index.html">BindingError</a><span class="token operator">&gt;</span></div><div class="brief "><p class="paragraph">Provides a list of <a href="../-binding-error/index.html">BindingError</a> instances that occurred during the binding process. Each <a href="../-binding-error/index.html">BindingError</a> contains information about the error, including its name and a message describing the issue. This property returns an empty list if no binding errors are present.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="2101606197%2FProperties%2F-443338726" anchor-label="errorCode" id="2101606197%2FProperties%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="error-code.html"><span>error</span><wbr><span><span>Code</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="2101606197%2FProperties%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><span class="token keyword">abstract </span><span class="token keyword">val </span><a href="error-code.html">errorCode</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><p class="paragraph">Represents the error code associated with an error. This value is used to identify the type of error that has occurred, which can be useful for debugging, logging, and handling errors in a standardized way.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="37955063%2FProperties%2F-443338726" anchor-label="errorMsg" id="37955063%2FProperties%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="error-msg.html"><span>error</span><wbr><span><span>Msg</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="37955063%2FProperties%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><span class="token keyword">abstract </span><span class="token keyword">val </span><a href="error-msg.html">errorMsg</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div><div class="brief "><p class="paragraph">Represents the message associated with an error. This message provides a human-readable description of the error, which can be used for logging, debugging, or displaying to the user .</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1424043415%2FProperties%2F-443338726" anchor-label="succeeded" id="-1424043415%2FProperties%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="succeeded.html"><span><span>succeeded</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1424043415%2FProperties%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">val </span><a href="succeeded.html">succeeded</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a></div><div class="brief "><p class="paragraph">Indicates whether the operation has succeeded based on the <a href="error-code.html">errorCode</a>. It returns <code class="lang-kotlin">true</code> if the <a href="error-code.html">errorCode</a> is equal to <a href="-companion/-s-u-c-c-e-e-d-e-d.html">SUCCEEDED</a>, otherwise, it returns <code class="lang-kotlin">false</code>.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="EXTENSION_FUNCTION">
+        <h2 class="tableheader">Functions</h2>
+        <div class="table"><a data-name="-303089248%2FFunctions%2F-443338726" anchor-label="materialize" id="-303089248%2FFunctions%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-companion/materialize.html"><span><span>materialize</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-303089248%2FFunctions%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="index.html">ErrorInfo</a><span class="token punctuation">.</span><a href="-companion/materialize.html"><span class="token function">materialize</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">ErrorInfo</a></div><div class="brief "><p class="paragraph">Converts the current <a href="index.html">ErrorInfo</a> instance into a <a href="index.html">Materialized</a> if it is not already one. If the current instance is of type <a href="../../me.ahoo.wow.api.naming/-materialized/index.html">Materialized</a>, it returns itself. Otherwise, it creates a new <a href="../-default-error-info/index.html">DefaultErrorInfo</a> with the current error code, error message, and binding errors.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-814297383%2FFunctions%2F-443338726" anchor-label="toDefault" id="-814297383%2FFunctions%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-companion/to-default.html"><span>to</span><wbr><span><span>Default</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-814297383%2FFunctions%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="index.html">ErrorInfo</a><span class="token punctuation">.</span><a href="-companion/to-default.html"><span class="token function">toDefault</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../-default-error-info/index.html">DefaultErrorInfo</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <div class="footer--container">
+            <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+            <div class="footer--content">
+                <div>
+                    <span>Generated by </span>
+                    <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                        Dokka
+                    </a>
+                    <div>© 2025 Copyright</div>
+                </div>
+            </div>
+        </div>
+    </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

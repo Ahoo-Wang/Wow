@@ -1,0 +1,345 @@
+<!doctype html>
+<html class="no-js" lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>InitSubscriber</title>
+<link href="../../../../images/logo-icon.svg" rel="icon" type="image/svg"><script>var pathToRoot = "../../../../";</script>
+    <script>document.documentElement.classList.replace("no-js", "js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+      if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      } else {
+        const savedDarkMode = JSON.parse(storage)
+        if (savedDarkMode === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      }
+    </script>
+<script type="text/javascript" src="https://unpkg.com/kotlin-playground@1/dist/playground.min.js" async></script>
+<script type="text/javascript" src="../../../../scripts/sourceset_dependencies.js" async></script>
+<link href="../../../../styles/style.css" rel="Stylesheet">
+<link href="../../../../styles/main.css" rel="Stylesheet">
+<link href="../../../../styles/prism.css" rel="Stylesheet">
+<link href="../../../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../../../scripts/safe-local-storage_blocking.js"></script>
+<script type="text/javascript" src="../../../../scripts/navigation-loader.js" async></script>
+<script type="text/javascript" src="../../../../scripts/platform-content-handler.js" async></script>
+<script type="text/javascript" src="../../../../scripts/main.js" defer></script>
+<script type="text/javascript" src="../../../../scripts/prism.js" async></script>
+<script type="text/javascript" src="../../../../ui-kit/ui-kit.min.js" defer></script></head>
+<body>
+<div class="root">
+    <header class="navigation theme-dark" id="navigation-wrapper" role="banner">
+<a class="library-name--link" href="../../../../index.html" tabindex="1">
+                    Wow
+            </a>        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle" type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">6.2.9
+        </div>
+        <div class="navigation-controls">
+        <ul class="filter-section filter-section_loading" id="filter-section" aria-label="Target filter">
+                <button class="platform-tag platform-selector jvm-like" data-active="" aria-pressed="true" data-filter=":wow-elasticsearch/main">jvm</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox" data-role="dropdown-toggle" aria-controls="platform-tags-listbox" aria-haspopup="listbox" aria-expanded="false" aria-label="Toggle source sets"></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox" aria-label="Target filter">
+                    <div class="dropdown--header"><span>Target filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close target filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option jvm-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":wow-elasticsearch/main" data-filter=":wow-elasticsearch/main">
+                                <span class="checkbox--icon"></span>
+                                jvm
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </ul>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button" type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </header>
+    <div id="container">
+        <nav id="leftColumn" class="sidebar" data-item-type="SECTION" data-item-config="{&quot;defaultSize&quot;: 280, &quot;minSize&quot;: 200, &quot;maxSize&quot;: 400}">
+            <a class="toc--skip-link" href="#main">Skip to content</a>
+            <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list" data-role="dropdown-listbox" aria-label="Table of contents">
+                    <div class="dropdown--header">
+                            <span>
+                                    Wow
+                            </span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                    <div class="sidebar--inner" id="sideMenu"></div>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </nav>
+        <div id="resizer" class="resizer" data-item-type="BAR"></div>
+        <div id="main" data-item-type="SECTION" role="main">
+<div class="main-content" data-page-type="classlike" id="content" pageids="wow-elasticsearch::me.ahoo.wow.elasticsearch/IndexTemplateInitializer.InitSubscriber///PointingToDeclaration//-1981848707">
+  <div class="breadcrumbs"><a href="../../../index.html">wow-elasticsearch</a><span class="delimiter">/</span><a href="../../index.html">me.ahoo.wow.elasticsearch</a><span class="delimiter">/</span><a href="../index.html">IndexTemplateInitializer</a><span class="delimiter">/</span><span class="current">InitSubscriber</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span>Init</span><wbr><span><span>Subscriber</span></span></h1>
+    <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-elasticsearch/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="index.html">InitSubscriber</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>name<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span> : <a href="../../../../wow-core/me.ahoo.wow.messaging.dispatcher/-safe-subscriber/index.html">SafeSubscriber</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator">&gt; </span></div></div></div>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="CONSTRUCTOR,TYPE,PROPERTY,FUNCTION">Members</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="CONSTRUCTOR">
+        <h2 class="tableheader">Constructors</h2>
+        <div class="table"><a data-name="993267216%2FConstructors%2F-1981848707" anchor-label="InitSubscriber" id="993267216%2FConstructors%2F-1981848707" data-filterable-set=":wow-elasticsearch/main"></a>
+          <div class="table-row table-row_content" data-togglable="CONSTRUCTOR" data-filterable-current=":wow-elasticsearch/main" data-filterable-set=":wow-elasticsearch/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-init-subscriber.html"><span>Init</span><wbr><span><span>Subscriber</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="993267216%2FConstructors%2F-1981848707"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-elasticsearch/main"><div class="symbol monospace"><span class="token keyword">constructor</span><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">name<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="PROPERTY">
+        <h2 class="tableheader">Properties</h2>
+        <div class="table"><a data-name="-1114049554%2FProperties%2F-1981848707" anchor-label="isDisposed" id="-1114049554%2FProperties%2F-1981848707" data-filterable-set=":wow-elasticsearch/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-elasticsearch/main" data-filterable-set=":wow-elasticsearch/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="index.html#-1114049554%2FProperties%2F-1981848707"><span>is</span><wbr><span><span>Disposed</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1114049554%2FProperties%2F-1981848707"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-elasticsearch/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">val </span><a href="index.html#-1114049554%2FProperties%2F-1981848707">isDisposed</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1275626303%2FProperties%2F-1981848707" anchor-label="name" id="-1275626303%2FProperties%2F-1981848707" data-filterable-set=":wow-elasticsearch/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-elasticsearch/main" data-filterable-set=":wow-elasticsearch/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="name.html"><span><span>name</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1275626303%2FProperties%2F-1981848707"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-elasticsearch/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">override </span><span class="token keyword">val </span><a href="name.html">name</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="FUNCTION">
+        <h2 class="tableheader">Functions</h2>
+        <div class="table"><a data-name="1048730768%2FFunctions%2F-1981848707" anchor-label="cancel" id="1048730768%2FFunctions%2F-1981848707" data-filterable-set=":wow-elasticsearch/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-elasticsearch/main" data-filterable-set=":wow-elasticsearch/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="index.html#1048730768%2FFunctions%2F-1981848707"><span><span>cancel</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1048730768%2FFunctions%2F-1981848707"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-elasticsearch/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="index.html#1048730768%2FFunctions%2F-1981848707"><span class="token function">cancel</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1666417117%2FFunctions%2F-1981848707" anchor-label="currentContext" id="-1666417117%2FFunctions%2F-1981848707" data-filterable-set=":wow-elasticsearch/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-elasticsearch/main" data-filterable-set=":wow-elasticsearch/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="index.html#-1666417117%2FFunctions%2F-1981848707"><span>current</span><wbr><span><span>Context</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1666417117%2FFunctions%2F-1981848707"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-elasticsearch/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><a href="index.html#-1666417117%2FFunctions%2F-1981848707"><span class="token function">currentContext</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="reactor.util.context/Context///PointingToDeclaration/">Context</span><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1341634679%2FFunctions%2F-1981848707" anchor-label="dispose" id="-1341634679%2FFunctions%2F-1981848707" data-filterable-set=":wow-elasticsearch/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-elasticsearch/main" data-filterable-set=":wow-elasticsearch/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="index.html#-1341634679%2FFunctions%2F-1981848707"><span><span>dispose</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1341634679%2FFunctions%2F-1981848707"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-elasticsearch/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><a href="index.html#-1341634679%2FFunctions%2F-1981848707"><span class="token function">dispose</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="168720285%2FFunctions%2F-1981848707" anchor-label="onComplete" id="168720285%2FFunctions%2F-1981848707" data-filterable-set=":wow-elasticsearch/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-elasticsearch/main" data-filterable-set=":wow-elasticsearch/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="index.html#168720285%2FFunctions%2F-1981848707"><span>on</span><wbr><span><span>Complete</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="168720285%2FFunctions%2F-1981848707"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-elasticsearch/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="index.html#168720285%2FFunctions%2F-1981848707"><span class="token function">onComplete</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-189353335%2FFunctions%2F-1981848707" anchor-label="onError" id="-189353335%2FFunctions%2F-1981848707" data-filterable-set=":wow-elasticsearch/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-elasticsearch/main" data-filterable-set=":wow-elasticsearch/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="index.html#-189353335%2FFunctions%2F-1981848707"><span>on</span><wbr><span><span>Error</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-189353335%2FFunctions%2F-1981848707"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-elasticsearch/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="index.html#-189353335%2FFunctions%2F-1981848707"><span class="token function">onError</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">t<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-throwable/index.html">Throwable</a><span class="token operator">?</span></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1108828592%2FFunctions%2F-1981848707" anchor-label="onNext" id="-1108828592%2FFunctions%2F-1981848707" data-filterable-set=":wow-elasticsearch/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-elasticsearch/main" data-filterable-set=":wow-elasticsearch/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="index.html#-1108828592%2FFunctions%2F-1981848707"><span>on</span><wbr><span><span>Next</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1108828592%2FFunctions%2F-1981848707"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-elasticsearch/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="index.html#-1108828592%2FFunctions%2F-1981848707"><span class="token function">onNext</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator">?</span></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1580019167%2FFunctions%2F-1981848707" anchor-label="onSubscribe" id="1580019167%2FFunctions%2F-1981848707" data-filterable-set=":wow-elasticsearch/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-elasticsearch/main" data-filterable-set=":wow-elasticsearch/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="index.html#1580019167%2FFunctions%2F-1981848707"><span>on</span><wbr><span><span>Subscribe</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1580019167%2FFunctions%2F-1981848707"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-elasticsearch/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="index.html#1580019167%2FFunctions%2F-1981848707"><span class="token function">onSubscribe</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">s<span class="token operator">: </span><span data-unresolved-link="org.reactivestreams/Subscription///PointingToDeclaration/">Subscription</span><span class="token operator">?</span></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-665852680%2FFunctions%2F-1981848707" anchor-label="request" id="-665852680%2FFunctions%2F-1981848707" data-filterable-set=":wow-elasticsearch/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-elasticsearch/main" data-filterable-set=":wow-elasticsearch/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="index.html#-665852680%2FFunctions%2F-1981848707"><span><span>request</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-665852680%2FFunctions%2F-1981848707"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-elasticsearch/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="index.html#-665852680%2FFunctions%2F-1981848707"><span class="token function">request</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">n<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long/index.html">Long</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1416876040%2FFunctions%2F-1981848707" anchor-label="requestUnbounded" id="1416876040%2FFunctions%2F-1981848707" data-filterable-set=":wow-elasticsearch/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-elasticsearch/main" data-filterable-set=":wow-elasticsearch/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="index.html#1416876040%2FFunctions%2F-1981848707"><span>request</span><wbr><span><span>Unbounded</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1416876040%2FFunctions%2F-1981848707"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-elasticsearch/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="index.html#1416876040%2FFunctions%2F-1981848707"><span class="token function">requestUnbounded</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="266684847%2FFunctions%2F-1981848707" anchor-label="safeOnNext" id="266684847%2FFunctions%2F-1981848707" data-filterable-set=":wow-elasticsearch/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-elasticsearch/main" data-filterable-set=":wow-elasticsearch/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="index.html#266684847%2FFunctions%2F-1981848707"><span>safe</span><wbr><span>On</span><wbr><span><span>Next</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="266684847%2FFunctions%2F-1981848707"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-elasticsearch/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><a href="index.html#266684847%2FFunctions%2F-1981848707"><span class="token function">safeOnNext</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-543510033%2FFunctions%2F-1981848707" anchor-label="safeOnNextError" id="-543510033%2FFunctions%2F-1981848707" data-filterable-set=":wow-elasticsearch/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-elasticsearch/main" data-filterable-set=":wow-elasticsearch/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="index.html#-543510033%2FFunctions%2F-1981848707"><span>safe</span><wbr><span>On</span><wbr><span>Next</span><wbr><span><span>Error</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-543510033%2FFunctions%2F-1981848707"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-elasticsearch/main"><div class="symbol monospace"><span class="token keyword">open </span><span class="token keyword">fun </span><a href="index.html#-543510033%2FFunctions%2F-1981848707"><span class="token function">safeOnNextError</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token punctuation">, </span></span><span class="parameter ">throwable<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-throwable/index.html">Throwable</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <div class="footer--container">
+            <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+            <div class="footer--content">
+                <div>
+                    <span>Generated by </span>
+                    <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                        Dokka
+                    </a>
+                    <div>© 2025 Copyright</div>
+                </div>
+            </div>
+        </div>
+    </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,400 @@
+<!doctype html>
+<html class="no-js" lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>me.ahoo.wow.kafka</title>
+<link href="../../images/logo-icon.svg" rel="icon" type="image/svg"><script>var pathToRoot = "../../";</script>
+    <script>document.documentElement.classList.replace("no-js", "js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+      if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      } else {
+        const savedDarkMode = JSON.parse(storage)
+        if (savedDarkMode === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      }
+    </script>
+<script type="text/javascript" src="https://unpkg.com/kotlin-playground@1/dist/playground.min.js" async></script>
+<script type="text/javascript" src="../../scripts/sourceset_dependencies.js" async></script>
+<link href="../../styles/style.css" rel="Stylesheet">
+<link href="../../styles/main.css" rel="Stylesheet">
+<link href="../../styles/prism.css" rel="Stylesheet">
+<link href="../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../scripts/safe-local-storage_blocking.js"></script>
+<script type="text/javascript" src="../../scripts/navigation-loader.js" async></script>
+<script type="text/javascript" src="../../scripts/platform-content-handler.js" async></script>
+<script type="text/javascript" src="../../scripts/main.js" defer></script>
+<script type="text/javascript" src="../../scripts/prism.js" async></script>
+<script type="text/javascript" src="../../ui-kit/ui-kit.min.js" defer></script></head>
+<body>
+<div class="root">
+    <header class="navigation theme-dark" id="navigation-wrapper" role="banner">
+<a class="library-name--link" href="../../index.html" tabindex="1">
+                    Wow
+            </a>        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle" type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">6.2.9
+        </div>
+        <div class="navigation-controls">
+        <ul class="filter-section filter-section_loading" id="filter-section" aria-label="Target filter">
+                <button class="platform-tag platform-selector jvm-like" data-active="" aria-pressed="true" data-filter=":wow-kafka/main">jvm</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox" data-role="dropdown-toggle" aria-controls="platform-tags-listbox" aria-haspopup="listbox" aria-expanded="false" aria-label="Toggle source sets"></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox" aria-label="Target filter">
+                    <div class="dropdown--header"><span>Target filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close target filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option jvm-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":wow-kafka/main" data-filter=":wow-kafka/main">
+                                <span class="checkbox--icon"></span>
+                                jvm
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </ul>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button" type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </header>
+    <div id="container">
+        <nav id="leftColumn" class="sidebar" data-item-type="SECTION" data-item-config="{&quot;defaultSize&quot;: 280, &quot;minSize&quot;: 200, &quot;maxSize&quot;: 400}">
+            <a class="toc--skip-link" href="#main">Skip to content</a>
+            <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list" data-role="dropdown-listbox" aria-label="Table of contents">
+                    <div class="dropdown--header">
+                            <span>
+                                    Wow
+                            </span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                    <div class="sidebar--inner" id="sideMenu"></div>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </nav>
+        <div id="resizer" class="resizer" data-item-type="BAR"></div>
+        <div id="main" data-item-type="SECTION" role="main">
+<div class="main-content" data-page-type="package" id="content" pageids="wow-kafka::me.ahoo.wow.kafka////PointingToDeclaration//337738470">
+  <div class="breadcrumbs"><a href="../index.html">wow-kafka</a><span class="delimiter">/</span><span class="current">me.ahoo.wow.kafka</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span><span>Package-level</span></span> <span><span>declarations</span></span></h1>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="TYPE">Types</button><button class="section-tab" data-togglable="FUNCTION,EXTENSION_FUNCTION">Functions</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="TYPE">
+        <h2 class="tableheader">Types</h2>
+        <div class="table"><a data-name="1307531852%2FClasslikes%2F337738470" anchor-label="AbstractKafkaBus" id="1307531852%2FClasslikes%2F337738470" data-filterable-set=":wow-kafka/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-kafka/main" data-filterable-set=":wow-kafka/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-abstract-kafka-bus/index.html"><span>Abstract</span><wbr><span>Kafka</span><wbr><span><span>Bus</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1307531852%2FClasslikes%2F337738470"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-kafka/main"><div class="symbol monospace"><span class="token keyword">abstract </span><span class="token keyword">class </span><a href="-abstract-kafka-bus/index.html">AbstractKafkaBus</a><span class="token operator">&lt;</span><a href="-abstract-kafka-bus/index.html">M</a><span class="token operator"> : </span><a href="../../wow-api/me.ahoo.wow.api.messaging/-message/index.html">Message</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token punctuation">, </span><span class="token operator">*</span><span class="token operator">&gt;</span>, <a href="../../wow-api/me.ahoo.wow.api.modeling/-aggregate-id-capable/index.html">AggregateIdCapable</a>, <a href="../../wow-api/me.ahoo.wow.api.modeling/-named-aggregate/index.html">NamedAggregate</a><span class="token punctuation">, </span><a href="-abstract-kafka-bus/index.html">E</a><span class="token operator"> : </span><a href="../../wow-core/me.ahoo.wow.messaging.handler/-message-exchange/index.html">MessageExchange</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token punctuation">, </span><a href="-abstract-kafka-bus/index.html">M</a><span class="token operator">&gt;</span><span class="token operator">&gt;</span><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">topicConverter<span class="token operator">: </span><a href="-aggregate-topic-converter/index.html">AggregateTopicConverter</a><span class="token punctuation">, </span></span><span class="parameter ">senderOptions<span class="token operator">: </span><span data-unresolved-link="reactor.kafka.sender/SenderOptions///PointingToDeclaration/">SenderOptions</span><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter ">receiverOptions<span class="token operator">: </span><span data-unresolved-link="reactor.kafka.receiver/ReceiverOptions///PointingToDeclaration/">ReceiverOptions</span><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter ">receiverOptionsCustomizer<span class="token operator">: </span><a href="-receiver-options-customizer/index.html">ReceiverOptionsCustomizer</a><span class="token operator"> = </span>NoOpReceiverOptionsCustomizer</span></span><span class="token punctuation">)</span> : <a href="../../wow-core/me.ahoo.wow.messaging/-distributed-message-bus/index.html">DistributedMessageBus</a><span class="token operator">&lt;</span><a href="-abstract-kafka-bus/index.html">M</a><span class="token punctuation">, </span><a href="-abstract-kafka-bus/index.html">E</a><span class="token operator">&gt; </span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1917522134%2FClasslikes%2F337738470" anchor-label="AggregateTopicConverter" id="-1917522134%2FClasslikes%2F337738470" data-filterable-set=":wow-kafka/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-kafka/main" data-filterable-set=":wow-kafka/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-aggregate-topic-converter/index.html"><span>Aggregate</span><wbr><span>Topic</span><wbr><span><span>Converter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1917522134%2FClasslikes%2F337738470"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-kafka/main"><div class="symbol monospace"><span class="token keyword">fun </span><span class="token keyword">interface </span><a href="-aggregate-topic-converter/index.html">AggregateTopicConverter</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-707000738%2FClasslikes%2F337738470" anchor-label="CommandTopicConverter" id="-707000738%2FClasslikes%2F337738470" data-filterable-set=":wow-kafka/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-kafka/main" data-filterable-set=":wow-kafka/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-command-topic-converter/index.html"><span>Command</span><wbr><span>Topic</span><wbr><span><span>Converter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-707000738%2FClasslikes%2F337738470"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-kafka/main"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-command-topic-converter/index.html">CommandTopicConverter</a> : <a href="-aggregate-topic-converter/index.html">AggregateTopicConverter</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1592669901%2FClasslikes%2F337738470" anchor-label="DefaultCommandTopicConverter" id="1592669901%2FClasslikes%2F337738470" data-filterable-set=":wow-kafka/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-kafka/main" data-filterable-set=":wow-kafka/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-default-command-topic-converter/index.html"><span>Default</span><wbr><span>Command</span><wbr><span>Topic</span><wbr><span><span>Converter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1592669901%2FClasslikes%2F337738470"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-kafka/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="-default-command-topic-converter/index.html">DefaultCommandTopicConverter</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">topicPrefix<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator"> = </span>Wow.WOW_PREFIX</span></span><span class="token punctuation">)</span> : <a href="-command-topic-converter/index.html">CommandTopicConverter</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="94722174%2FClasslikes%2F337738470" anchor-label="DefaultEventStreamTopicConverter" id="94722174%2FClasslikes%2F337738470" data-filterable-set=":wow-kafka/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-kafka/main" data-filterable-set=":wow-kafka/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-default-event-stream-topic-converter/index.html"><span>Default</span><wbr><span>Event</span><wbr><span>Stream</span><wbr><span>Topic</span><wbr><span><span>Converter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="94722174%2FClasslikes%2F337738470"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-kafka/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="-default-event-stream-topic-converter/index.html">DefaultEventStreamTopicConverter</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">topicPrefix<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator"> = </span>Wow.WOW_PREFIX</span></span><span class="token punctuation">)</span> : <a href="-event-stream-topic-converter/index.html">EventStreamTopicConverter</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1473328161%2FClasslikes%2F337738470" anchor-label="DefaultStateEventTopicConverter" id="-1473328161%2FClasslikes%2F337738470" data-filterable-set=":wow-kafka/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-kafka/main" data-filterable-set=":wow-kafka/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-default-state-event-topic-converter/index.html"><span>Default</span><wbr><span>State</span><wbr><span>Event</span><wbr><span>Topic</span><wbr><span><span>Converter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1473328161%2FClasslikes%2F337738470"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-kafka/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="-default-state-event-topic-converter/index.html">DefaultStateEventTopicConverter</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">topicPrefix<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator"> = </span>Wow.WOW_PREFIX</span></span><span class="token punctuation">)</span> : <a href="-state-event-topic-converter/index.html">StateEventTopicConverter</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1425082481%2FClasslikes%2F337738470" anchor-label="EventStreamTopicConverter" id="-1425082481%2FClasslikes%2F337738470" data-filterable-set=":wow-kafka/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-kafka/main" data-filterable-set=":wow-kafka/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-event-stream-topic-converter/index.html"><span>Event</span><wbr><span>Stream</span><wbr><span>Topic</span><wbr><span><span>Converter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1425082481%2FClasslikes%2F337738470"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-kafka/main"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-event-stream-topic-converter/index.html">EventStreamTopicConverter</a> : <a href="-aggregate-topic-converter/index.html">AggregateTopicConverter</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1100387423%2FClasslikes%2F337738470" anchor-label="KafkaCommandBus" id="1100387423%2FClasslikes%2F337738470" data-filterable-set=":wow-kafka/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-kafka/main" data-filterable-set=":wow-kafka/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-kafka-command-bus/index.html"><span>Kafka</span><wbr><span>Command</span><wbr><span><span>Bus</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1100387423%2FClasslikes%2F337738470"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-kafka/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="-kafka-command-bus/index.html">KafkaCommandBus</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">topicConverter<span class="token operator">: </span><a href="-command-topic-converter/index.html">CommandTopicConverter</a><span class="token operator"> = </span>DefaultCommandTopicConverter()<span class="token punctuation">, </span></span><span class="parameter ">senderOptions<span class="token operator">: </span><span data-unresolved-link="reactor.kafka.sender/SenderOptions///PointingToDeclaration/">SenderOptions</span><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter ">receiverOptions<span class="token operator">: </span><span data-unresolved-link="reactor.kafka.receiver/ReceiverOptions///PointingToDeclaration/">ReceiverOptions</span><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter ">receiverOptionsCustomizer<span class="token operator">: </span><a href="-receiver-options-customizer/index.html">ReceiverOptionsCustomizer</a><span class="token operator"> = </span>NoOpReceiverOptionsCustomizer</span></span><span class="token punctuation">)</span> : <a href="../../wow-core/me.ahoo.wow.command/-distributed-command-bus/index.html">DistributedCommandBus</a>, <a href="-abstract-kafka-bus/index.html">AbstractKafkaBus</a><span class="token operator">&lt;</span><a href="../../wow-api/me.ahoo.wow.api.command/-command-message/index.html">CommandMessage</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">, </span><a href="../../wow-core/me.ahoo.wow.command/-server-command-exchange/index.html">ServerCommandExchange</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token operator">&gt; </span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1948640586%2FClasslikes%2F337738470" anchor-label="KafkaDomainEventBus" id="1948640586%2FClasslikes%2F337738470" data-filterable-set=":wow-kafka/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-kafka/main" data-filterable-set=":wow-kafka/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-kafka-domain-event-bus/index.html"><span>Kafka</span><wbr><span>Domain</span><wbr><span>Event</span><wbr><span><span>Bus</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1948640586%2FClasslikes%2F337738470"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-kafka/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="-kafka-domain-event-bus/index.html">KafkaDomainEventBus</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">topicConverter<span class="token operator">: </span><a href="-event-stream-topic-converter/index.html">EventStreamTopicConverter</a><span class="token operator"> = </span>DefaultEventStreamTopicConverter()<span class="token punctuation">, </span></span><span class="parameter ">senderOptions<span class="token operator">: </span><span data-unresolved-link="reactor.kafka.sender/SenderOptions///PointingToDeclaration/">SenderOptions</span><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter ">receiverOptions<span class="token operator">: </span><span data-unresolved-link="reactor.kafka.receiver/ReceiverOptions///PointingToDeclaration/">ReceiverOptions</span><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter ">receiverOptionsCustomizer<span class="token operator">: </span><a href="-receiver-options-customizer/index.html">ReceiverOptionsCustomizer</a><span class="token operator"> = </span>NoOpReceiverOptionsCustomizer</span></span><span class="token punctuation">)</span> : <a href="../../wow-core/me.ahoo.wow.event/-distributed-domain-event-bus/index.html">DistributedDomainEventBus</a>, <a href="-abstract-kafka-bus/index.html">AbstractKafkaBus</a><span class="token operator">&lt;</span><a href="../../wow-core/me.ahoo.wow.event/-domain-event-stream/index.html">DomainEventStream</a><span class="token punctuation">, </span><a href="../../wow-core/me.ahoo.wow.event/-event-stream-exchange/index.html">EventStreamExchange</a><span class="token operator">&gt; </span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1743148401%2FClasslikes%2F337738470" anchor-label="KafkaEventStreamExchange" id="1743148401%2FClasslikes%2F337738470" data-filterable-set=":wow-kafka/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-kafka/main" data-filterable-set=":wow-kafka/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-kafka-event-stream-exchange/index.html"><span>Kafka</span><wbr><span>Event</span><wbr><span>Stream</span><wbr><span><span>Exchange</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1743148401%2FClasslikes%2F337738470"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-kafka/main"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-kafka-event-stream-exchange/index.html">KafkaEventStreamExchange</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>message<span class="token operator">: </span><a href="../../wow-core/me.ahoo.wow.event/-domain-event-stream/index.html">DomainEventStream</a><span class="token punctuation">, </span></span><span class="parameter ">receiverOffset<span class="token operator">: </span><span data-unresolved-link="reactor.kafka.receiver/ReceiverOffset///PointingToDeclaration/">ReceiverOffset</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>attributes<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-mutable-map/index.html">MutableMap</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">&gt;</span><span class="token operator"> = </span>ConcurrentHashMap()</span></span><span class="token punctuation">)</span> : <a href="../../wow-core/me.ahoo.wow.event/-event-stream-exchange/index.html">EventStreamExchange</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1030438877%2FClasslikes%2F337738470" anchor-label="KafkaServerCommandExchange" id="-1030438877%2FClasslikes%2F337738470" data-filterable-set=":wow-kafka/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-kafka/main" data-filterable-set=":wow-kafka/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-kafka-server-command-exchange/index.html"><span>Kafka</span><wbr><span>Server</span><wbr><span>Command</span><wbr><span><span>Exchange</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1030438877%2FClasslikes%2F337738470"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-kafka/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="-kafka-server-command-exchange/index.html">KafkaServerCommandExchange</a><span class="token operator">&lt;</span><a href="-kafka-server-command-exchange/index.html">C</a><span class="token operator"> : </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">&gt;</span><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>message<span class="token operator">: </span><a href="../../wow-api/me.ahoo.wow.api.command/-command-message/index.html">CommandMessage</a><span class="token operator">&lt;</span><a href="-kafka-server-command-exchange/index.html">C</a><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter ">receiverOffset<span class="token operator">: </span><span data-unresolved-link="reactor.kafka.receiver/ReceiverOffset///PointingToDeclaration/">ReceiverOffset</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>attributes<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-mutable-map/index.html">MutableMap</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">&gt;</span><span class="token operator"> = </span>ConcurrentHashMap()</span></span><span class="token punctuation">)</span> : <a href="../../wow-core/me.ahoo.wow.command/-server-command-exchange/index.html">ServerCommandExchange</a><span class="token operator">&lt;</span><a href="-kafka-server-command-exchange/index.html">C</a><span class="token operator">&gt; </span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1622913591%2FClasslikes%2F337738470" anchor-label="KafkaStateEventBus" id="1622913591%2FClasslikes%2F337738470" data-filterable-set=":wow-kafka/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-kafka/main" data-filterable-set=":wow-kafka/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-kafka-state-event-bus/index.html"><span>Kafka</span><wbr><span>State</span><wbr><span>Event</span><wbr><span><span>Bus</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1622913591%2FClasslikes%2F337738470"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-kafka/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="-kafka-state-event-bus/index.html">KafkaStateEventBus</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">topicConverter<span class="token operator">: </span><a href="-state-event-topic-converter/index.html">StateEventTopicConverter</a><span class="token operator"> = </span>DefaultStateEventTopicConverter()<span class="token punctuation">, </span></span><span class="parameter ">senderOptions<span class="token operator">: </span><span data-unresolved-link="reactor.kafka.sender/SenderOptions///PointingToDeclaration/">SenderOptions</span><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter ">receiverOptions<span class="token operator">: </span><span data-unresolved-link="reactor.kafka.receiver/ReceiverOptions///PointingToDeclaration/">ReceiverOptions</span><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter ">receiverOptionsCustomizer<span class="token operator">: </span><a href="-receiver-options-customizer/index.html">ReceiverOptionsCustomizer</a><span class="token operator"> = </span>NoOpReceiverOptionsCustomizer</span></span><span class="token punctuation">)</span> : <a href="../../wow-core/me.ahoo.wow.eventsourcing.state/-distributed-state-event-bus/index.html">DistributedStateEventBus</a>, <a href="-abstract-kafka-bus/index.html">AbstractKafkaBus</a><span class="token operator">&lt;</span><a href="../../wow-core/me.ahoo.wow.eventsourcing.state/-state-event/index.html">StateEvent</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">, </span><a href="../../wow-core/me.ahoo.wow.eventsourcing.state/-state-event-exchange/index.html">StateEventExchange</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token operator">&gt; </span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1695351128%2FClasslikes%2F337738470" anchor-label="KafkaStateEventExchange" id="-1695351128%2FClasslikes%2F337738470" data-filterable-set=":wow-kafka/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-kafka/main" data-filterable-set=":wow-kafka/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-kafka-state-event-exchange/index.html"><span>Kafka</span><wbr><span>State</span><wbr><span>Event</span><wbr><span><span>Exchange</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1695351128%2FClasslikes%2F337738470"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-kafka/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="-kafka-state-event-exchange/index.html">KafkaStateEventExchange</a><span class="token operator">&lt;</span><a href="-kafka-state-event-exchange/index.html">S</a><span class="token operator"> : </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">&gt;</span><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>message<span class="token operator">: </span><a href="../../wow-core/me.ahoo.wow.eventsourcing.state/-state-event/index.html">StateEvent</a><span class="token operator">&lt;</span><a href="-kafka-state-event-exchange/index.html">S</a><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter ">receiverOffset<span class="token operator">: </span><span data-unresolved-link="reactor.kafka.receiver/ReceiverOffset///PointingToDeclaration/">ReceiverOffset</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>attributes<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-mutable-map/index.html">MutableMap</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">&gt;</span><span class="token operator"> = </span>ConcurrentHashMap()</span></span><span class="token punctuation">)</span> : <a href="../../wow-core/me.ahoo.wow.eventsourcing.state/-state-event-exchange/index.html">StateEventExchange</a><span class="token operator">&lt;</span><a href="-kafka-state-event-exchange/index.html">S</a><span class="token operator">&gt; </span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1516410754%2FClasslikes%2F337738470" anchor-label="NoOpReceiverOptionsCustomizer" id="-1516410754%2FClasslikes%2F337738470" data-filterable-set=":wow-kafka/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-kafka/main" data-filterable-set=":wow-kafka/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-no-op-receiver-options-customizer/index.html"><span>No</span><wbr><span>Op</span><wbr><span>Receiver</span><wbr><span>Options</span><wbr><span><span>Customizer</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1516410754%2FClasslikes%2F337738470"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-kafka/main"><div class="symbol monospace"><span class="token keyword">object </span><a href="-no-op-receiver-options-customizer/index.html">NoOpReceiverOptionsCustomizer</a> : <a href="-receiver-options-customizer/index.html">ReceiverOptionsCustomizer</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-501214756%2FClasslikes%2F337738470" anchor-label="ReceiverOptionsCustomizer" id="-501214756%2FClasslikes%2F337738470" data-filterable-set=":wow-kafka/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-kafka/main" data-filterable-set=":wow-kafka/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-receiver-options-customizer/index.html"><span>Receiver</span><wbr><span>Options</span><wbr><span><span>Customizer</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-501214756%2FClasslikes%2F337738470"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-kafka/main"><div class="symbol monospace"><span class="token keyword">fun </span><span class="token keyword">interface </span><a href="-receiver-options-customizer/index.html">ReceiverOptionsCustomizer</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1937996114%2FClasslikes%2F337738470" anchor-label="StateEventTopicConverter" id="-1937996114%2FClasslikes%2F337738470" data-filterable-set=":wow-kafka/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-kafka/main" data-filterable-set=":wow-kafka/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-state-event-topic-converter/index.html"><span>State</span><wbr><span>Event</span><wbr><span>Topic</span><wbr><span><span>Converter</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1937996114%2FClasslikes%2F337738470"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-kafka/main"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-state-event-topic-converter/index.html">StateEventTopicConverter</a> : <a href="-aggregate-topic-converter/index.html">AggregateTopicConverter</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="EXTENSION_FUNCTION">
+        <h2 class="tableheader">Functions</h2>
+        <div class="table"><a data-name="156574948%2FFunctions%2F337738470" anchor-label="getReceiverOptionsCustomizer" id="156574948%2FFunctions%2F337738470" data-filterable-set=":wow-kafka/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-kafka/main" data-filterable-set=":wow-kafka/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="get-receiver-options-customizer.html"><span>get</span><wbr><span>Receiver</span><wbr><span>Options</span><wbr><span><span>Customizer</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="156574948%2FFunctions%2F337738470"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-kafka/main"><div class="symbol monospace"><span class="token keyword">fun </span><span data-unresolved-link="reactor.util.context/ContextView///PointingToDeclaration/">ContextView</span><span class="token punctuation">.</span><a href="get-receiver-options-customizer.html"><span class="token function">getReceiverOptionsCustomizer</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="-receiver-options-customizer/index.html">ReceiverOptionsCustomizer</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-766542780%2FFunctions%2F337738470" anchor-label="writeReceiverOptionsCustomizer" id="-766542780%2FFunctions%2F337738470" data-filterable-set=":wow-kafka/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-kafka/main" data-filterable-set=":wow-kafka/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="write-receiver-options-customizer.html"><span>write</span><wbr><span>Receiver</span><wbr><span>Options</span><wbr><span><span>Customizer</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-766542780%2FFunctions%2F337738470"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-kafka/main"><div class="symbol monospace"><span class="token keyword">fun </span><span data-unresolved-link="reactor.util.context/Context///PointingToDeclaration/">Context</span><span class="token punctuation">.</span><a href="write-receiver-options-customizer.html"><span class="token function">writeReceiverOptionsCustomizer</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">receiverOptionsCustomizer<span class="token operator">: </span><a href="-receiver-options-customizer/index.html">ReceiverOptionsCustomizer</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="reactor.util.context/Context///PointingToDeclaration/">Context</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <div class="footer--container">
+            <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+            <div class="footer--content">
+                <div>
+                    <span>Generated by </span>
+                    <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                        Dokka
+                    </a>
+                    <div>© 2025 Copyright</div>
+                </div>
+            </div>
+        </div>
+    </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

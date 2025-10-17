@@ -1,0 +1,220 @@
+<!doctype html>
+<html class="no-js" lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>me.ahoo.wow.apiclient.command</title>
+<link href="../../images/logo-icon.svg" rel="icon" type="image/svg"><script>var pathToRoot = "../../";</script>
+    <script>document.documentElement.classList.replace("no-js", "js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+      if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      } else {
+        const savedDarkMode = JSON.parse(storage)
+        if (savedDarkMode === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      }
+    </script>
+<script type="text/javascript" src="https://unpkg.com/kotlin-playground@1/dist/playground.min.js" async></script>
+<script type="text/javascript" src="../../scripts/sourceset_dependencies.js" async></script>
+<link href="../../styles/style.css" rel="Stylesheet">
+<link href="../../styles/main.css" rel="Stylesheet">
+<link href="../../styles/prism.css" rel="Stylesheet">
+<link href="../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../scripts/safe-local-storage_blocking.js"></script>
+<script type="text/javascript" src="../../scripts/navigation-loader.js" async></script>
+<script type="text/javascript" src="../../scripts/platform-content-handler.js" async></script>
+<script type="text/javascript" src="../../scripts/main.js" defer></script>
+<script type="text/javascript" src="../../scripts/prism.js" async></script>
+<script type="text/javascript" src="../../ui-kit/ui-kit.min.js" defer></script></head>
+<body>
+<div class="root">
+    <header class="navigation theme-dark" id="navigation-wrapper" role="banner">
+<a class="library-name--link" href="../../index.html" tabindex="1">
+                    Wow
+            </a>        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle" type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">6.2.9
+        </div>
+        <div class="navigation-controls">
+        <ul class="filter-section filter-section_loading" id="filter-section" aria-label="Target filter">
+                <button class="platform-tag platform-selector jvm-like" data-active="" aria-pressed="true" data-filter=":wow-apiclient/main">jvm</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox" data-role="dropdown-toggle" aria-controls="platform-tags-listbox" aria-haspopup="listbox" aria-expanded="false" aria-label="Toggle source sets"></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox" aria-label="Target filter">
+                    <div class="dropdown--header"><span>Target filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close target filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option jvm-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":wow-apiclient/main" data-filter=":wow-apiclient/main">
+                                <span class="checkbox--icon"></span>
+                                jvm
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </ul>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button" type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </header>
+    <div id="container">
+        <nav id="leftColumn" class="sidebar" data-item-type="SECTION" data-item-config="{&quot;defaultSize&quot;: 280, &quot;minSize&quot;: 200, &quot;maxSize&quot;: 400}">
+            <a class="toc--skip-link" href="#main">Skip to content</a>
+            <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list" data-role="dropdown-listbox" aria-label="Table of contents">
+                    <div class="dropdown--header">
+                            <span>
+                                    Wow
+                            </span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                    <div class="sidebar--inner" id="sideMenu"></div>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </nav>
+        <div id="resizer" class="resizer" data-item-type="BAR"></div>
+        <div id="main" data-item-type="SECTION" role="main">
+<div class="main-content" data-page-type="package" id="content" pageids="wow-apiclient::me.ahoo.wow.apiclient.command////PointingToDeclaration//146531749">
+  <div class="breadcrumbs"><a href="../index.html">wow-apiclient</a><span class="delimiter">/</span><span class="current">me.ahoo.wow.apiclient.command</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span><span>Package-level</span></span> <span><span>declarations</span></span></h1>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="TYPE">Types</button><button class="section-tab" data-togglable="PROPERTY,EXTENSION_PROPERTY">Properties</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="TYPE">
+        <h2 class="tableheader">Types</h2>
+        <div class="table"><a data-name="-1708323424%2FClasslikes%2F146531749" anchor-label="CommandRequest" id="-1708323424%2FClasslikes%2F146531749" data-filterable-set=":wow-apiclient/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-apiclient/main" data-filterable-set=":wow-apiclient/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-command-request/index.html"><span>Command</span><wbr><span><span>Request</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1708323424%2FClasslikes%2F146531749"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-apiclient/main"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-command-request/index.html">CommandRequest</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>body<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>waitStrategy<span class="token operator">: </span><a href="-command-request/-wait-strategy/index.html">CommandRequest.WaitStrategy</a><span class="token operator"> = </span>WaitStrategy()<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>aggregateId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>aggregateVersion<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>tenantId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>ownerId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>requestId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>localFirst<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>context<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>aggregate<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>serviceUri<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>type<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="937053150%2FClasslikes%2F146531749" anchor-label="ReactiveRestCommandGateway" id="937053150%2FClasslikes%2F146531749" data-filterable-set=":wow-apiclient/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-apiclient/main" data-filterable-set=":wow-apiclient/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-reactive-rest-command-gateway/index.html"><span>Reactive</span><wbr><span>Rest</span><wbr><span>Command</span><wbr><span><span>Gateway</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="937053150%2FClasslikes%2F146531749"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-apiclient/main"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-reactive-rest-command-gateway/index.html">ReactiveRestCommandGateway</a> : <a href="-rest-command-gateway/index.html">RestCommandGateway</a><span class="token operator">&lt;</span><span data-unresolved-link="reactor.core.publisher/Mono///PointingToDeclaration/">Mono</span><span class="token operator">&lt;</span><span data-unresolved-link="org.springframework.http/ResponseEntity///PointingToDeclaration/">ResponseEntity</span><span class="token operator">&lt;</span><a href="../../wow-core/me.ahoo.wow.command/-command-result/index.html">CommandResult</a><span class="token operator">&gt;</span><span class="token operator">&gt;</span><span class="token punctuation">, </span><span data-unresolved-link="reactor.core.publisher/Mono///PointingToDeclaration/">Mono</span><span class="token operator">&lt;</span><a href="../../wow-core/me.ahoo.wow.command/-command-result/index.html">CommandResult</a><span class="token operator">&gt;</span><span class="token operator">&gt; </span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="341091223%2FClasslikes%2F146531749" anchor-label="RestCommandGateway" id="341091223%2FClasslikes%2F146531749" data-filterable-set=":wow-apiclient/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-apiclient/main" data-filterable-set=":wow-apiclient/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-rest-command-gateway/index.html"><span>Rest</span><wbr><span>Command</span><wbr><span><span>Gateway</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="341091223%2FClasslikes%2F146531749"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-apiclient/main"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-rest-command-gateway/index.html">RestCommandGateway</a><span class="token operator">&lt;</span><a href="-rest-command-gateway/index.html">RW</a><span class="token punctuation">, </span><a href="-rest-command-gateway/index.html">RB</a><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1556345284%2FClasslikes%2F146531749" anchor-label="RestCommandGatewayException" id="-1556345284%2FClasslikes%2F146531749" data-filterable-set=":wow-apiclient/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-apiclient/main" data-filterable-set=":wow-apiclient/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-rest-command-gateway-exception/index.html"><span>Rest</span><wbr><span>Command</span><wbr><span>Gateway</span><wbr><span><span>Exception</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1556345284%2FClasslikes%2F146531749"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-apiclient/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="-rest-command-gateway-exception/index.html">RestCommandGatewayException</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>request<span class="token operator">: </span><a href="-command-request/index.html">CommandRequest</a><span class="token punctuation">, </span></span><span class="parameter ">errorCode<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">errorMsg<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">cause<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-throwable/index.html">Throwable</a><span class="token punctuation">, </span></span><span class="parameter ">bindingErrors<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-list/index.html">List</a><span class="token operator">&lt;</span><a href="../../wow-api/me.ahoo.wow.api.exception/-binding-error/index.html">BindingError</a><span class="token operator">&gt;</span><span class="token operator"> = </span>emptyList()</span></span><span class="token punctuation">)</span> : <a href="../../wow-core/me.ahoo.wow.exception/-wow-exception/index.html">WowException</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="34466940%2FClasslikes%2F146531749" anchor-label="SyncRestCommandGateway" id="34466940%2FClasslikes%2F146531749" data-filterable-set=":wow-apiclient/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-apiclient/main" data-filterable-set=":wow-apiclient/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-sync-rest-command-gateway/index.html"><span>Sync</span><wbr><span>Rest</span><wbr><span>Command</span><wbr><span><span>Gateway</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="34466940%2FClasslikes%2F146531749"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-apiclient/main"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-sync-rest-command-gateway/index.html">SyncRestCommandGateway</a> : <a href="-rest-command-gateway/index.html">RestCommandGateway</a><span class="token operator">&lt;</span><span data-unresolved-link="org.springframework.http/ResponseEntity///PointingToDeclaration/">ResponseEntity</span><span class="token operator">&lt;</span><a href="../../wow-core/me.ahoo.wow.command/-command-result/index.html">CommandResult</a><span class="token operator">&gt;</span><span class="token punctuation">, </span><a href="../../wow-core/me.ahoo.wow.command/-command-result/index.html">CommandResult</a><span class="token operator">&gt; </span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="PROPERTY">
+        <h2 class="tableheader">Properties</h2>
+        <div class="table"><a data-name="-1979769049%2FProperties%2F146531749" anchor-label="COMMAND_SEND_ENDPOINT" id="-1979769049%2FProperties%2F146531749" data-filterable-set=":wow-apiclient/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-apiclient/main" data-filterable-set=":wow-apiclient/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-c-o-m-m-a-n-d_-s-e-n-d_-e-n-d-p-o-i-n-t.html"><span>COMMAND_</span><wbr><span>SEND_</span><wbr><span>ENDPOINT</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1979769049%2FProperties%2F146531749"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-apiclient/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-c-o-m-m-a-n-d_-s-e-n-d_-e-n-d-p-o-i-n-t.html">COMMAND_SEND_ENDPOINT</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <div class="footer--container">
+            <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+            <div class="footer--content">
+                <div>
+                    <span>Generated by </span>
+                    <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                        Dokka
+                    </a>
+                    <div>© 2025 Copyright</div>
+                </div>
+            </div>
+        </div>
+    </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

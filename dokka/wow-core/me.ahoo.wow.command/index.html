@@ -1,0 +1,556 @@
+<!doctype html>
+<html class="no-js" lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>me.ahoo.wow.command</title>
+<link href="../../images/logo-icon.svg" rel="icon" type="image/svg"><script>var pathToRoot = "../../";</script>
+    <script>document.documentElement.classList.replace("no-js", "js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+      if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      } else {
+        const savedDarkMode = JSON.parse(storage)
+        if (savedDarkMode === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      }
+    </script>
+<script type="text/javascript" src="https://unpkg.com/kotlin-playground@1/dist/playground.min.js" async></script>
+<script type="text/javascript" src="../../scripts/sourceset_dependencies.js" async></script>
+<link href="../../styles/style.css" rel="Stylesheet">
+<link href="../../styles/main.css" rel="Stylesheet">
+<link href="../../styles/prism.css" rel="Stylesheet">
+<link href="../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../scripts/safe-local-storage_blocking.js"></script>
+<script type="text/javascript" src="../../scripts/navigation-loader.js" async></script>
+<script type="text/javascript" src="../../scripts/platform-content-handler.js" async></script>
+<script type="text/javascript" src="../../scripts/main.js" defer></script>
+<script type="text/javascript" src="../../scripts/prism.js" async></script>
+<script type="text/javascript" src="../../ui-kit/ui-kit.min.js" defer></script></head>
+<body>
+<div class="root">
+    <header class="navigation theme-dark" id="navigation-wrapper" role="banner">
+<a class="library-name--link" href="../../index.html" tabindex="1">
+                    Wow
+            </a>        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle" type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">6.2.9
+        </div>
+        <div class="navigation-controls">
+        <ul class="filter-section filter-section_loading" id="filter-section" aria-label="Target filter">
+                <button class="platform-tag platform-selector jvm-like" data-active="" aria-pressed="true" data-filter=":wow-core/main">jvm</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox" data-role="dropdown-toggle" aria-controls="platform-tags-listbox" aria-haspopup="listbox" aria-expanded="false" aria-label="Toggle source sets"></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox" aria-label="Target filter">
+                    <div class="dropdown--header"><span>Target filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close target filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option jvm-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":wow-core/main" data-filter=":wow-core/main">
+                                <span class="checkbox--icon"></span>
+                                jvm
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </ul>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button" type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </header>
+    <div id="container">
+        <nav id="leftColumn" class="sidebar" data-item-type="SECTION" data-item-config="{&quot;defaultSize&quot;: 280, &quot;minSize&quot;: 200, &quot;maxSize&quot;: 400}">
+            <a class="toc--skip-link" href="#main">Skip to content</a>
+            <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list" data-role="dropdown-listbox" aria-label="Table of contents">
+                    <div class="dropdown--header">
+                            <span>
+                                    Wow
+                            </span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                    <div class="sidebar--inner" id="sideMenu"></div>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </nav>
+        <div id="resizer" class="resizer" data-item-type="BAR"></div>
+        <div id="main" data-item-type="SECTION" role="main">
+<div class="main-content" data-page-type="package" id="content" pageids="wow-core::me.ahoo.wow.command////PointingToDeclaration//-452084339">
+  <div class="breadcrumbs"><a href="../index.html">wow-core</a><span class="delimiter">/</span><span class="current">me.ahoo.wow.command</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span><span>Package-level</span></span> <span><span>declarations</span></span></h1>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="TYPE">Types</button><button class="section-tab" data-togglable="FUNCTION,EXTENSION_FUNCTION">Functions</button><button class="section-tab" data-togglable="PROPERTY,EXTENSION_PROPERTY">Properties</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="TYPE">
+        <h2 class="tableheader">Types</h2>
+        <div class="table"><a data-name="-1472508014%2FClasslikes%2F-452084339" anchor-label="ClientCommandExchange" id="-1472508014%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-client-command-exchange/index.html"><span>Client</span><wbr><span>Command</span><wbr><span><span>Exchange</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1472508014%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-client-command-exchange/index.html">ClientCommandExchange</a><span class="token operator">&lt;</span><a href="-client-command-exchange/index.html">C</a><span class="token operator"> : </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">&gt;</span> : <a href="-command-exchange/index.html">CommandExchange</a><span class="token operator">&lt;</span><a href="-client-command-exchange/index.html">ClientCommandExchange</a><span class="token operator">&lt;</span><a href="-client-command-exchange/index.html">C</a><span class="token operator">&gt;</span><span class="token punctuation">, </span><a href="-client-command-exchange/index.html">C</a><span class="token operator">&gt; </span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1971219416%2FClasslikes%2F-452084339" anchor-label="CommandBus" id="1971219416%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-command-bus/index.html"><span>Command</span><wbr><span><span>Bus</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1971219416%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-command-bus/index.html">CommandBus</a> : <a href="../me.ahoo.wow.messaging/-message-bus/index.html">MessageBus</a><span class="token operator">&lt;</span><a href="../../wow-api/me.ahoo.wow.api.command/-command-message/index.html">CommandMessage</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">, </span><a href="-server-command-exchange/index.html">ServerCommandExchange</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token operator">&gt; </span>, <a href="../../wow-api/me.ahoo.wow.api.messaging/-topic-kind-capable/index.html">TopicKindCapable</a></div><div class="brief "><p class="paragraph">Command Bus .</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-222813785%2FClasslikes%2F-452084339" anchor-label="CommandExchange" id="-222813785%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-command-exchange/index.html"><span>Command</span><wbr><span><span>Exchange</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-222813785%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-command-exchange/index.html">CommandExchange</a><span class="token operator">&lt;</span><a href="-command-exchange/index.html">SOURCE</a><span class="token operator"> : </span><a href="-command-exchange/index.html">CommandExchange</a><span class="token operator">&lt;</span><a href="-command-exchange/index.html">SOURCE</a><span class="token punctuation">, </span><a href="-command-exchange/index.html">C</a><span class="token operator">&gt;</span><span class="token punctuation">, </span><a href="-command-exchange/index.html">C</a><span class="token operator"> : </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">&gt;</span> : <a href="../me.ahoo.wow.messaging.handler/-message-exchange/index.html">MessageExchange</a><span class="token operator">&lt;</span><a href="-command-exchange/index.html">SOURCE</a><span class="token punctuation">, </span><a href="../../wow-api/me.ahoo.wow.api.command/-command-message/index.html">CommandMessage</a><span class="token operator">&lt;</span><a href="-command-exchange/index.html">C</a><span class="token operator">&gt;</span><span class="token operator">&gt; </span></div><div class="brief "><p class="paragraph">Command Exchange .</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1725252332%2FClasslikes%2F-452084339" anchor-label="CommandGateway" id="-1725252332%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-command-gateway/index.html"><span>Command</span><wbr><span><span>Gateway</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1725252332%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-command-gateway/index.html">CommandGateway</a> : <a href="-command-bus/index.html">CommandBus</a></div><div class="brief "><p class="paragraph">Command Gateway .</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1403759174%2FClasslikes%2F-452084339" anchor-label="CommandOperator" id="1403759174%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-command-operator/index.html"><span>Command</span><wbr><span><span>Operator</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1403759174%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">object </span><a href="-command-operator/index.html">CommandOperator</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1213927635%2FClasslikes%2F-452084339" anchor-label="CommandResult" id="-1213927635%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-command-result/index.html"><span>Command</span><wbr><span><span>Result</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1213927635%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-command-result/index.html">CommandResult</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>id<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>waitCommandId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>stage<span class="token operator">: </span><a href="../me.ahoo.wow.command.wait/-command-stage/index.html">CommandStage</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>contextName<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>aggregateName<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>tenantId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>aggregateId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>aggregateVersion<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>requestId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>commandId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>function<span class="token operator">: </span><a href="../../wow-api/me.ahoo.wow.api.messaging.function/-function-info-data/index.html">FunctionInfoData</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>errorCode<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator"> = </span>ErrorCodes.SUCCEEDED<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>errorMsg<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator"> = </span>ErrorCodes.SUCCEEDED_MESSAGE<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>bindingErrors<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-list/index.html">List</a><span class="token operator">&lt;</span><a href="../../wow-api/me.ahoo.wow.api.exception/-binding-error/index.html">BindingError</a><span class="token operator">&gt;</span><span class="token operator"> = </span>emptyList()<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>result<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-map/index.html">Map</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">&gt;</span><span class="token operator"> = </span>emptyMap()<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>signalTime<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long/index.html">Long</a><span class="token operator"> = </span>System.currentTimeMillis()</span></span><span class="token punctuation">)</span> : <a href="../../wow-api/me.ahoo.wow.api/-identifier/index.html">Identifier</a>, <a href="../me.ahoo.wow.command.wait/-wait-command-id-capable/index.html">WaitCommandIdCapable</a>, <a href="../me.ahoo.wow.command.wait/-command-stage-capable/index.html">CommandStageCapable</a>, <a href="../../wow-api/me.ahoo.wow.api.naming/-named-bounded-context/index.html">NamedBoundedContext</a>, <a href="../../wow-api/me.ahoo.wow.api.modeling/-aggregate-name-capable/index.html">AggregateNameCapable</a>, <a href="../../wow-api/me.ahoo.wow.api.modeling/-tenant-id/index.html">TenantId</a>, <a href="../me.ahoo.wow.command.wait/-nullable-aggregate-version-capable/index.html">NullableAggregateVersionCapable</a>, <a href="../../wow-api/me.ahoo.wow.api.command/-command-id/index.html">CommandId</a>, <a href="../../wow-api/me.ahoo.wow.api.command/-request-id/index.html">RequestId</a>, <a href="../../wow-api/me.ahoo.wow.api.exception/-error-info/index.html">ErrorInfo</a>, <a href="../../wow-api/me.ahoo.wow.api.messaging.function/-function-info-capable/index.html">FunctionInfoCapable</a><span class="token operator">&lt;</span><a href="../../wow-api/me.ahoo.wow.api.messaging.function/-function-info-data/index.html">FunctionInfoData</a><span class="token operator">&gt; </span>, <a href="-command-result-capable/index.html">CommandResultCapable</a>, <a href="../me.ahoo.wow.command.wait/-signal-time-capable/index.html">SignalTimeCapable</a>, <a href="../../wow-api/me.ahoo.wow.api.naming/-materialized/index.html">Materialized</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="936893225%2FClasslikes%2F-452084339" anchor-label="CommandResultCapable" id="936893225%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-command-result-capable/index.html"><span>Command</span><wbr><span>Result</span><wbr><span><span>Capable</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="936893225%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-command-result-capable/index.html">CommandResultCapable</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1628990310%2FClasslikes%2F-452084339" anchor-label="CommandResultException" id="1628990310%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-command-result-exception/index.html"><span>Command</span><wbr><span>Result</span><wbr><span><span>Exception</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1628990310%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="-command-result-exception/index.html">CommandResultException</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>commandResult<span class="token operator">: </span><a href="-command-result/index.html">CommandResult</a><span class="token punctuation">, </span></span><span class="parameter ">cause<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-throwable/index.html">Throwable</a><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span> : <a href="../me.ahoo.wow.exception/-wow-exception/index.html">WowException</a>, <a href="../../wow-api/me.ahoo.wow.api.exception/-error-info-capable/index.html">ErrorInfoCapable</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-371218110%2FClasslikes%2F-452084339" anchor-label="CommandValidationException" id="-371218110%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-command-validation-exception/index.html"><span>Command</span><wbr><span>Validation</span><wbr><span><span>Exception</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-371218110%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="-command-validation-exception/index.html">CommandValidationException</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>command<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token punctuation">, </span></span><span class="parameter ">errorMsg<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator"> = </span><span class="token string">"Command validation failed."</span><span class="token punctuation">, </span></span><span class="parameter ">bindingErrors<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-list/index.html">List</a><span class="token operator">&lt;</span><a href="../../wow-api/me.ahoo.wow.api.exception/-binding-error/index.html">BindingError</a><span class="token operator">&gt;</span><span class="token operator"> = </span>emptyList()<span class="token punctuation">, </span></span><span class="parameter ">cause<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-throwable/index.html">Throwable</a><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span> : <a href="../me.ahoo.wow.exception/-wow-exception/index.html">WowException</a>, <a href="../../wow-api/me.ahoo.wow.api.exception/-error-info/index.html">ErrorInfo</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1937438309%2FClasslikes%2F-452084339" anchor-label="DefaultCommandGateway" id="-1937438309%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-default-command-gateway/index.html"><span>Default</span><wbr><span>Command</span><wbr><span><span>Gateway</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1937438309%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="-default-command-gateway/index.html">DefaultCommandGateway</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">commandWaitEndpoint<span class="token operator">: </span><a href="../me.ahoo.wow.command.wait/-command-wait-endpoint/index.html">CommandWaitEndpoint</a><span class="token punctuation">, </span></span><span class="parameter ">commandBus<span class="token operator">: </span><a href="-command-bus/index.html">CommandBus</a><span class="token punctuation">, </span></span><span class="parameter ">validator<span class="token operator">: </span><span data-unresolved-link="jakarta.validation/Validator///PointingToDeclaration/">Validator</span><span class="token punctuation">, </span></span><span class="parameter ">idempotencyCheckerProvider<span class="token operator">: </span><a href="../me.ahoo.wow.infra.idempotency/-aggregate-idempotency-checker-provider/index.html">AggregateIdempotencyCheckerProvider</a><span class="token punctuation">, </span></span><span class="parameter ">waitStrategyRegistrar<span class="token operator">: </span><a href="../me.ahoo.wow.command.wait/-wait-strategy-registrar/index.html">WaitStrategyRegistrar</a><span class="token punctuation">, </span></span><span class="parameter ">commandWaitNotifier<span class="token operator">: </span><a href="../me.ahoo.wow.command.wait/-command-wait-notifier/index.html">CommandWaitNotifier</a></span></span><span class="token punctuation">)</span> : <a href="-command-gateway/index.html">CommandGateway</a>, <a href="-command-bus/index.html">CommandBus</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1272797635%2FClasslikes%2F-452084339" anchor-label="DistributedCommandBus" id="-1272797635%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-distributed-command-bus/index.html"><span>Distributed</span><wbr><span>Command</span><wbr><span><span>Bus</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1272797635%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-distributed-command-bus/index.html">DistributedCommandBus</a> : <a href="-command-bus/index.html">CommandBus</a>, <a href="../me.ahoo.wow.messaging/-distributed-message-bus/index.html">DistributedMessageBus</a><span class="token operator">&lt;</span><a href="../../wow-api/me.ahoo.wow.api.command/-command-message/index.html">CommandMessage</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">, </span><a href="-server-command-exchange/index.html">ServerCommandExchange</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token operator">&gt; </span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1078395739%2FClasslikes%2F-452084339" anchor-label="DuplicateRequestIdException" id="-1078395739%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-duplicate-request-id-exception/index.html"><span>Duplicate</span><wbr><span>Request</span><wbr><span>Id</span><wbr><span><span>Exception</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1078395739%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="-duplicate-request-id-exception/index.html">DuplicateRequestIdException</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>aggregateId<span class="token operator">: </span><a href="../../wow-api/me.ahoo.wow.api.modeling/-aggregate-id/index.html">AggregateId</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>requestId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">errorMsg<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator"> = </span><span class="token string">"Duplicate request ID["</span><span class="token punctuation">, </span></span><span class="parameter ">cause<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-throwable/index.html">Throwable</a><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span> : <a href="../me.ahoo.wow.exception/-wow-exception/index.html">WowException</a>, <a href="../../wow-api/me.ahoo.wow.api.modeling/-named-aggregate/index.html">NamedAggregate</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-649415822%2FClasslikes%2F-452084339" anchor-label="InMemoryCommandBus" id="-649415822%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-in-memory-command-bus/index.html"><span>In</span><wbr><span>Memory</span><wbr><span>Command</span><wbr><span><span>Bus</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-649415822%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="-in-memory-command-bus/index.html">InMemoryCommandBus</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>sinkSupplier<span class="token operator">: </span><span class="token punctuation">(</span><a href="../../wow-api/me.ahoo.wow.api.modeling/-named-aggregate/index.html">NamedAggregate</a><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><span data-unresolved-link="reactor.core.publisher/Sinks.Many///PointingToDeclaration/">Sinks.Many</span><span class="token operator">&lt;</span><a href="../../wow-api/me.ahoo.wow.api.command/-command-message/index.html">CommandMessage</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token operator">&gt;</span><span class="token operator"> = </span>{
+        Sinks.many().unicast().onBackpressureBuffer()
+    }</span></span><span class="token punctuation">)</span> : <a href="-local-command-bus/index.html">LocalCommandBus</a>, <a href="../me.ahoo.wow.messaging/-in-memory-message-bus/index.html">InMemoryMessageBus</a><span class="token operator">&lt;</span><a href="../../wow-api/me.ahoo.wow.api.command/-command-message/index.html">CommandMessage</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">, </span><a href="-server-command-exchange/index.html">ServerCommandExchange</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token operator">&gt; </span></div><div class="brief "><p class="paragraph">InMemoryCommandBus .</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1601492107%2FClasslikes%2F-452084339" anchor-label="LocalCommandBus" id="-1601492107%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-local-command-bus/index.html"><span>Local</span><wbr><span>Command</span><wbr><span><span>Bus</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1601492107%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-local-command-bus/index.html">LocalCommandBus</a> : <a href="-command-bus/index.html">CommandBus</a>, <a href="../me.ahoo.wow.messaging/-local-message-bus/index.html">LocalMessageBus</a><span class="token operator">&lt;</span><a href="../../wow-api/me.ahoo.wow.api.command/-command-message/index.html">CommandMessage</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">, </span><a href="-server-command-exchange/index.html">ServerCommandExchange</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token operator">&gt; </span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1835730067%2FClasslikes%2F-452084339" anchor-label="LocalFirstCommandBus" id="1835730067%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-local-first-command-bus/index.html"><span>Local</span><wbr><span>First</span><wbr><span>Command</span><wbr><span><span>Bus</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1835730067%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="-local-first-command-bus/index.html">LocalFirstCommandBus</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>distributedBus<span class="token operator">: </span><a href="-distributed-command-bus/index.html">DistributedCommandBus</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>localBus<span class="token operator">: </span><a href="-local-command-bus/index.html">LocalCommandBus</a><span class="token operator"> = </span>InMemoryCommandBus()</span></span><span class="token punctuation">)</span> : <a href="-command-bus/index.html">CommandBus</a>, <a href="../me.ahoo.wow.messaging/-local-first-message-bus/index.html">LocalFirstMessageBus</a><span class="token operator">&lt;</span><a href="../../wow-api/me.ahoo.wow.api.command/-command-message/index.html">CommandMessage</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">, </span><a href="-server-command-exchange/index.html">ServerCommandExchange</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token operator">&gt; </span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1121471734%2FClasslikes%2F-452084339" anchor-label="ServerCommandExchange" id="-1121471734%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-server-command-exchange/index.html"><span>Server</span><wbr><span>Command</span><wbr><span><span>Exchange</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1121471734%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-server-command-exchange/index.html">ServerCommandExchange</a><span class="token operator">&lt;</span><a href="-server-command-exchange/index.html">C</a><span class="token operator"> : </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">&gt;</span> : <a href="-command-exchange/index.html">CommandExchange</a><span class="token operator">&lt;</span><a href="-server-command-exchange/index.html">ServerCommandExchange</a><span class="token operator">&lt;</span><a href="-server-command-exchange/index.html">C</a><span class="token operator">&gt;</span><span class="token punctuation">, </span><a href="-server-command-exchange/index.html">C</a><span class="token operator">&gt; </span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1979458276%2FClasslikes%2F-452084339" anchor-label="SimpleClientCommandExchange" id="1979458276%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-simple-client-command-exchange/index.html"><span>Simple</span><wbr><span>Client</span><wbr><span>Command</span><wbr><span><span>Exchange</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1979458276%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="-simple-client-command-exchange/index.html">SimpleClientCommandExchange</a><span class="token operator">&lt;</span><a href="-simple-client-command-exchange/index.html">C</a><span class="token operator"> : </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">&gt;</span><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>message<span class="token operator">: </span><a href="../../wow-api/me.ahoo.wow.api.command/-command-message/index.html">CommandMessage</a><span class="token operator">&lt;</span><a href="-simple-client-command-exchange/index.html">C</a><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>waitStrategy<span class="token operator">: </span><a href="../me.ahoo.wow.command.wait/-wait-strategy/index.html">WaitStrategy</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>attributes<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-mutable-map/index.html">MutableMap</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">&gt;</span><span class="token operator"> = </span>ConcurrentHashMap()</span></span><span class="token punctuation">)</span> : <a href="-client-command-exchange/index.html">ClientCommandExchange</a><span class="token operator">&lt;</span><a href="-simple-client-command-exchange/index.html">C</a><span class="token operator">&gt; </span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1978980767%2FClasslikes%2F-452084339" anchor-label="SimpleCommandMessage" id="1978980767%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-simple-command-message/index.html"><span>Simple</span><wbr><span>Command</span><wbr><span><span>Message</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1978980767%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-simple-command-message/index.html">SimpleCommandMessage</a><span class="token operator">&lt;</span><a href="-simple-command-message/index.html">C</a><span class="token operator"> : </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">&gt;</span><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>id<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator"> = </span>generateGlobalId()<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>header<span class="token operator">: </span><a href="../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a><span class="token operator"> = </span>DefaultHeader.empty()<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>body<span class="token operator">: </span><a href="-simple-command-message/index.html">C</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>aggregateId<span class="token operator">: </span><a href="../../wow-api/me.ahoo.wow.api.modeling/-aggregate-id/index.html">AggregateId</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>ownerId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator"> = </span>OwnerId.DEFAULT_OWNER_ID<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>requestId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator"> = </span>id<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>aggregateVersion<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>name<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator"> = </span>body.javaClass.toName()<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>isCreate<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator"> = </span><span class="token boolean">false</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>allowCreate<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator"> = </span><span class="token boolean">false</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>isVoid<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator"> = </span><span class="token boolean">false</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>createTime<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long/index.html">Long</a><span class="token operator"> = </span>System.currentTimeMillis()</span></span><span class="token punctuation">)</span> : <a href="../../wow-api/me.ahoo.wow.api.command/-command-message/index.html">CommandMessage</a><span class="token operator">&lt;</span><a href="-simple-command-message/index.html">C</a><span class="token operator">&gt; </span>, <a href="../../wow-api/me.ahoo.wow.api.modeling/-named-aggregate/index.html">NamedAggregate</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1964472740%2FClasslikes%2F-452084339" anchor-label="SimpleServerCommandExchange" id="-1964472740%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-simple-server-command-exchange/index.html"><span>Simple</span><wbr><span>Server</span><wbr><span>Command</span><wbr><span><span>Exchange</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1964472740%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="-simple-server-command-exchange/index.html">SimpleServerCommandExchange</a><span class="token operator">&lt;</span><a href="-simple-server-command-exchange/index.html">C</a><span class="token operator"> : </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">&gt;</span><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>message<span class="token operator">: </span><a href="../../wow-api/me.ahoo.wow.api.command/-command-message/index.html">CommandMessage</a><span class="token operator">&lt;</span><a href="-simple-server-command-exchange/index.html">C</a><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>attributes<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-mutable-map/index.html">MutableMap</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">&gt;</span><span class="token operator"> = </span>ConcurrentHashMap()</span></span><span class="token punctuation">)</span> : <a href="-server-command-exchange/index.html">ServerCommandExchange</a><span class="token operator">&lt;</span><a href="-simple-server-command-exchange/index.html">C</a><span class="token operator">&gt; </span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="PROPERTY">
+        <h2 class="tableheader">Properties</h2>
+        <div class="table"><a data-name="970870326%2FProperties%2F-452084339" anchor-label="AGGREGATE_PROCESSOR_KEY" id="970870326%2FProperties%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-a-g-g-r-e-g-a-t-e_-p-r-o-c-e-s-s-o-r_-k-e-y.html"><span>AGGREGATE_</span><wbr><span>PROCESSOR_</span><wbr><span>KEY</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="970870326%2FProperties%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-a-g-g-r-e-g-a-t-e_-p-r-o-c-e-s-s-o-r_-k-e-y.html">AGGREGATE_PROCESSOR_KEY</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="2059026032%2FProperties%2F-452084339" anchor-label="AGGREGATE_VERSION_KEY" id="2059026032%2FProperties%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-a-g-g-r-e-g-a-t-e_-v-e-r-s-i-o-n_-k-e-y.html"><span>AGGREGATE_</span><wbr><span>VERSION_</span><wbr><span>KEY</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="2059026032%2FProperties%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-a-g-g-r-e-g-a-t-e_-v-e-r-s-i-o-n_-k-e-y.html">AGGREGATE_VERSION_KEY</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="120214603%2FProperties%2F-452084339" anchor-label="COMMAND_GATEWAY_FUNCTION" id="120214603%2FProperties%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-c-o-m-m-a-n-d_-g-a-t-e-w-a-y_-f-u-n-c-t-i-o-n.html"><span>COMMAND_</span><wbr><span>GATEWAY_</span><wbr><span>FUNCTION</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="120214603%2FProperties%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">val </span><a href="-c-o-m-m-a-n-d_-g-a-t-e-w-a-y_-f-u-n-c-t-i-o-n.html">COMMAND_GATEWAY_FUNCTION</a><span class="token operator">: </span><a href="../../wow-api/me.ahoo.wow.api.messaging.function/-function-info-data/index.html">FunctionInfoData</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-219006613%2FProperties%2F-452084339" anchor-label="COMMAND_GATEWAY_PROCESSOR_NAME" id="-219006613%2FProperties%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-c-o-m-m-a-n-d_-g-a-t-e-w-a-y_-p-r-o-c-e-s-s-o-r_-n-a-m-e.html"><span>COMMAND_</span><wbr><span>GATEWAY_</span><wbr><span>PROCESSOR_</span><wbr><span>NAME</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-219006613%2FProperties%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-c-o-m-m-a-n-d_-g-a-t-e-w-a-y_-p-r-o-c-e-s-s-o-r_-n-a-m-e.html">COMMAND_GATEWAY_PROCESSOR_NAME</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="138810968%2FProperties%2F-452084339" anchor-label="COMMAND_INVOKE_RESULT_KEY" id="138810968%2FProperties%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-c-o-m-m-a-n-d_-i-n-v-o-k-e_-r-e-s-u-l-t_-k-e-y.html"><span>COMMAND_</span><wbr><span>INVOKE_</span><wbr><span>RESULT_</span><wbr><span>KEY</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="138810968%2FProperties%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-c-o-m-m-a-n-d_-i-n-v-o-k-e_-r-e-s-u-l-t_-k-e-y.html">COMMAND_INVOKE_RESULT_KEY</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="2025441613%2FProperties%2F-452084339" anchor-label="EVENT_STREAM_KEY" id="2025441613%2FProperties%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-e-v-e-n-t_-s-t-r-e-a-m_-k-e-y.html"><span>EVENT_</span><wbr><span>STREAM_</span><wbr><span>KEY</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="2025441613%2FProperties%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-e-v-e-n-t_-s-t-r-e-a-m_-k-e-y.html">EVENT_STREAM_KEY</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="EXTENSION_FUNCTION">
+        <h2 class="tableheader">Functions</h2>
+        <div class="table"><a data-name="-1811462207%2FFunctions%2F-452084339" anchor-label="commandSentSignal" id="-1811462207%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="command-sent-signal.html"><span>command</span><wbr><span>Sent</span><wbr><span><span>Signal</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1811462207%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../../wow-api/me.ahoo.wow.api.command/-command-message/index.html">CommandMessage</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">.</span><a href="command-sent-signal.html"><span class="token function">commandSentSignal</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">waitCommandId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">error<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-throwable/index.html">Throwable</a><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../me.ahoo.wow.command.wait/-wait-signal/index.html">WaitSignal</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1991966547%2FFunctions%2F-452084339" anchor-label="toCommandMessage" id="-1991966547%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="to-command-message.html"><span>to</span><wbr><span>Command</span><wbr><span><span>Message</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1991966547%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">fun </span><span class="token operator">&lt;</span><a href="to-command-message.html">C</a><span class="token operator"> : </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">&gt; </span><a href="../me.ahoo.wow.command.factory/-command-builder/index.html">CommandBuilder</a><span class="token punctuation">.</span><a href="to-command-message.html"><span class="token function">toCommandMessage</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../wow-api/me.ahoo.wow.api.command/-command-message/index.html">CommandMessage</a><span class="token operator">&lt;</span><a href="to-command-message.html">C</a><span class="token operator">&gt;</span></div><div class="symbol monospace"><span class="token keyword">fun </span><span class="token operator">&lt;</span><a href="to-command-message.html">C</a><span class="token operator"> : </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">&gt; </span><a href="to-command-message.html">C</a><span class="token punctuation">.</span><a href="to-command-message.html"><span class="token function">toCommandMessage</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">id<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator"> = </span>generateGlobalId()<span class="token punctuation">, </span></span><span class="parameter ">requestId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter ">aggregateId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter ">tenantId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter ">ownerId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter ">aggregateVersion<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter ">namedAggregate<span class="token operator">: </span><a href="../../wow-api/me.ahoo.wow.api.modeling/-named-aggregate/index.html">NamedAggregate</a><span class="token operator">?</span><span class="token operator"> = </span>null<span class="token punctuation">, </span></span><span class="parameter ">header<span class="token operator">: </span><a href="../../wow-api/me.ahoo.wow.api.messaging/-header/index.html">Header</a><span class="token operator"> = </span>DefaultHeader.empty()<span class="token punctuation">, </span></span><span class="parameter ">createTime<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long/index.html">Long</a><span class="token operator"> = </span>System.currentTimeMillis()<span class="token punctuation">, </span></span><span class="parameter ">upstream<span class="token operator">: </span><a href="../../wow-api/me.ahoo.wow.api.event/-domain-event/index.html">DomainEvent</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../wow-api/me.ahoo.wow.api.command/-command-message/index.html">CommandMessage</a><span class="token operator">&lt;</span><a href="to-command-message.html">C</a><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1066690171%2FFunctions%2F-452084339" anchor-label="toResult" id="1066690171%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="to-result.html"><span>to</span><wbr><span><span>Result</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1066690171%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../me.ahoo.wow.command.wait/-wait-signal/index.html">WaitSignal</a><span class="token punctuation">.</span><a href="to-result.html"><span class="token function">toResult</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">commandMessage<span class="token operator">: </span><a href="../../wow-api/me.ahoo.wow.api.command/-command-message/index.html">CommandMessage</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="-command-result/index.html">CommandResult</a></div><div class="symbol monospace"><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-throwable/index.html">Throwable</a><span class="token punctuation">.</span><a href="to-result.html"><span class="token function">toResult</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">waitCommandId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">commandMessage<span class="token operator">: </span><a href="../../wow-api/me.ahoo.wow.api.command/-command-message/index.html">CommandMessage</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">, </span></span><span class="parameter ">function<span class="token operator">: </span><a href="../../wow-api/me.ahoo.wow.api.messaging.function/-function-info-data/index.html">FunctionInfoData</a><span class="token operator"> = </span>COMMAND_GATEWAY_FUNCTION<span class="token punctuation">, </span></span><span class="parameter ">id<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator"> = </span>generateGlobalId()<span class="token punctuation">, </span></span><span class="parameter ">stage<span class="token operator">: </span><a href="../me.ahoo.wow.command.wait/-command-stage/index.html">CommandStage</a><span class="token operator"> = </span>CommandStage.SENT<span class="token punctuation">, </span></span><span class="parameter ">result<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-map/index.html">Map</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">&gt;</span><span class="token operator"> = </span>emptyMap()<span class="token punctuation">, </span></span><span class="parameter ">signalTime<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-long/index.html">Long</a><span class="token operator"> = </span>System.currentTimeMillis()</span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="-command-result/index.html">CommandResult</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <div class="footer--container">
+            <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+            <div class="footer--content">
+                <div>
+                    <span>Generated by </span>
+                    <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                        Dokka
+                    </a>
+                    <div>© 2025 Copyright</div>
+                </div>
+            </div>
+        </div>
+    </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,610 @@
+<!doctype html>
+<html class="no-js" lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>me.ahoo.wow.serialization</title>
+<link href="../../images/logo-icon.svg" rel="icon" type="image/svg"><script>var pathToRoot = "../../";</script>
+    <script>document.documentElement.classList.replace("no-js", "js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+      if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      } else {
+        const savedDarkMode = JSON.parse(storage)
+        if (savedDarkMode === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      }
+    </script>
+<script type="text/javascript" src="https://unpkg.com/kotlin-playground@1/dist/playground.min.js" async></script>
+<script type="text/javascript" src="../../scripts/sourceset_dependencies.js" async></script>
+<link href="../../styles/style.css" rel="Stylesheet">
+<link href="../../styles/main.css" rel="Stylesheet">
+<link href="../../styles/prism.css" rel="Stylesheet">
+<link href="../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../scripts/safe-local-storage_blocking.js"></script>
+<script type="text/javascript" src="../../scripts/navigation-loader.js" async></script>
+<script type="text/javascript" src="../../scripts/platform-content-handler.js" async></script>
+<script type="text/javascript" src="../../scripts/main.js" defer></script>
+<script type="text/javascript" src="../../scripts/prism.js" async></script>
+<script type="text/javascript" src="../../ui-kit/ui-kit.min.js" defer></script></head>
+<body>
+<div class="root">
+    <header class="navigation theme-dark" id="navigation-wrapper" role="banner">
+<a class="library-name--link" href="../../index.html" tabindex="1">
+                    Wow
+            </a>        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle" type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">6.2.9
+        </div>
+        <div class="navigation-controls">
+        <ul class="filter-section filter-section_loading" id="filter-section" aria-label="Target filter">
+                <button class="platform-tag platform-selector jvm-like" data-active="" aria-pressed="true" data-filter=":wow-core/main">jvm</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox" data-role="dropdown-toggle" aria-controls="platform-tags-listbox" aria-haspopup="listbox" aria-expanded="false" aria-label="Toggle source sets"></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox" aria-label="Target filter">
+                    <div class="dropdown--header"><span>Target filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close target filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option jvm-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":wow-core/main" data-filter=":wow-core/main">
+                                <span class="checkbox--icon"></span>
+                                jvm
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </ul>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button" type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </header>
+    <div id="container">
+        <nav id="leftColumn" class="sidebar" data-item-type="SECTION" data-item-config="{&quot;defaultSize&quot;: 280, &quot;minSize&quot;: 200, &quot;maxSize&quot;: 400}">
+            <a class="toc--skip-link" href="#main">Skip to content</a>
+            <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list" data-role="dropdown-listbox" aria-label="Table of contents">
+                    <div class="dropdown--header">
+                            <span>
+                                    Wow
+                            </span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                    <div class="sidebar--inner" id="sideMenu"></div>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </nav>
+        <div id="resizer" class="resizer" data-item-type="BAR"></div>
+        <div id="main" data-item-type="SECTION" role="main">
+<div class="main-content" data-page-type="package" id="content" pageids="wow-core::me.ahoo.wow.serialization////PointingToDeclaration//-452084339">
+  <div class="breadcrumbs"><a href="../index.html">wow-core</a><span class="delimiter">/</span><span class="current">me.ahoo.wow.serialization</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span><span>Package-level</span></span> <span><span>declarations</span></span></h1>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="TYPE">Types</button><button class="section-tab" data-togglable="FUNCTION,EXTENSION_FUNCTION">Functions</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="TYPE">
+        <h2 class="tableheader">Types</h2>
+        <div class="table"><a data-name="-518654117%2FClasslikes%2F-452084339" anchor-label="AggregateIdJsonDeserializer" id="-518654117%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-aggregate-id-json-deserializer/index.html"><span>Aggregate</span><wbr><span>Id</span><wbr><span>Json</span><wbr><span><span>Deserializer</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-518654117%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">object </span><a href="-aggregate-id-json-deserializer/index.html">AggregateIdJsonDeserializer</a> : <span data-unresolved-link="com.fasterxml.jackson.databind.deser.std/StdDeserializer///PointingToDeclaration/">StdDeserializer</span><span class="token operator">&lt;</span><a href="../../wow-api/me.ahoo.wow.api.modeling/-aggregate-id/index.html">AggregateId</a><span class="token operator">&gt; </span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="961289916%2FClasslikes%2F-452084339" anchor-label="AggregateIdJsonSerializer" id="961289916%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-aggregate-id-json-serializer/index.html"><span>Aggregate</span><wbr><span>Id</span><wbr><span>Json</span><wbr><span><span>Serializer</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="961289916%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">object </span><a href="-aggregate-id-json-serializer/index.html">AggregateIdJsonSerializer</a> : <span data-unresolved-link="com.fasterxml.jackson.databind.ser.std/StdSerializer///PointingToDeclaration/">StdSerializer</span><span class="token operator">&lt;</span><a href="../../wow-api/me.ahoo.wow.api.modeling/-aggregate-id/index.html">AggregateId</a><span class="token operator">&gt; </span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="536450522%2FClasslikes%2F-452084339" anchor-label="DelegatingMessageRecord" id="536450522%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-delegating-message-record/index.html"><span>Delegating</span><wbr><span>Message</span><wbr><span><span>Record</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="536450522%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="-delegating-message-record/index.html">DelegatingMessageRecord</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>actual<span class="token operator">: </span><span data-unresolved-link="com.fasterxml.jackson.databind.node/ObjectNode///PointingToDeclaration/">ObjectNode</span></span></span><span class="token punctuation">)</span> : <a href="-message-record/index.html">MessageRecord</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="637285443%2FClasslikes%2F-452084339" anchor-label="DelegatingNamedBoundedContextMessageRecord" id="637285443%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-delegating-named-bounded-context-message-record/index.html"><span>Delegating</span><wbr><span>Named</span><wbr><span>Bounded</span><wbr><span>Context</span><wbr><span>Message</span><wbr><span><span>Record</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="637285443%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="-delegating-named-bounded-context-message-record/index.html">DelegatingNamedBoundedContextMessageRecord</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>actual<span class="token operator">: </span><span data-unresolved-link="com.fasterxml.jackson.databind.node/ObjectNode///PointingToDeclaration/">ObjectNode</span></span></span><span class="token punctuation">)</span> : <a href="-named-bounded-context-message-record/index.html">NamedBoundedContextMessageRecord</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1236372436%2FClasslikes%2F-452084339" anchor-label="HeaderRecord" id="1236372436%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-header-record/index.html"><span>Header</span><wbr><span><span>Record</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1236372436%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-header-record/index.html">HeaderRecord</a> : <a href="-json-record/index.html">JsonRecord</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-2029139367%2FClasslikes%2F-452084339" anchor-label="JsonRecord" id="-2029139367%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-json-record/index.html"><span>Json</span><wbr><span><span>Record</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-2029139367%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-json-record/index.html">JsonRecord</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-19421256%2FClasslikes%2F-452084339" anchor-label="JsonSerializer" id="-19421256%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-json-serializer/index.html"><span>Json</span><wbr><span><span>Serializer</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-19421256%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">object </span><a href="-json-serializer/index.html">JsonSerializer</a> : <span data-unresolved-link="com.fasterxml.jackson.databind/ObjectMapper///PointingToDeclaration/">ObjectMapper</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1491320686%2FClasslikes%2F-452084339" anchor-label="MessageAggregateIdRecord" id="1491320686%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-message-aggregate-id-record/index.html"><span>Message</span><wbr><span>Aggregate</span><wbr><span>Id</span><wbr><span><span>Record</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1491320686%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-message-aggregate-id-record/index.html">MessageAggregateIdRecord</a> : <a href="-json-record/index.html">JsonRecord</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-756906562%2FClasslikes%2F-452084339" anchor-label="MessageAggregateNameRecord" id="-756906562%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-message-aggregate-name-record/index.html"><span>Message</span><wbr><span>Aggregate</span><wbr><span>Name</span><wbr><span><span>Record</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-756906562%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-message-aggregate-name-record/index.html">MessageAggregateNameRecord</a> : <a href="-json-record/index.html">JsonRecord</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1124404982%2FClasslikes%2F-452084339" anchor-label="MessageBodyRecord" id="1124404982%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-message-body-record/index.html"><span>Message</span><wbr><span>Body</span><wbr><span><span>Record</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1124404982%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-message-body-record/index.html">MessageBodyRecord</a> : <a href="-json-record/index.html">JsonRecord</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-15129252%2FClasslikes%2F-452084339" anchor-label="MessageBodyTypeRecord" id="-15129252%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-message-body-type-record/index.html"><span>Message</span><wbr><span>Body</span><wbr><span>Type</span><wbr><span><span>Record</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-15129252%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-message-body-type-record/index.html">MessageBodyTypeRecord</a> : <a href="-json-record/index.html">JsonRecord</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-584752798%2FClasslikes%2F-452084339" anchor-label="MessageCommandIdRecord" id="-584752798%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-message-command-id-record/index.html"><span>Message</span><wbr><span>Command</span><wbr><span>Id</span><wbr><span><span>Record</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-584752798%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-message-command-id-record/index.html">MessageCommandIdRecord</a> : <a href="-json-record/index.html">JsonRecord</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-964027441%2FClasslikes%2F-452084339" anchor-label="MessageCreateTimeRecord" id="-964027441%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-message-create-time-record/index.html"><span>Message</span><wbr><span>Create</span><wbr><span>Time</span><wbr><span><span>Record</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-964027441%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-message-create-time-record/index.html">MessageCreateTimeRecord</a> : <a href="-json-record/index.html">JsonRecord</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="640821853%2FClasslikes%2F-452084339" anchor-label="MessageIdRecord" id="640821853%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-message-id-record/index.html"><span>Message</span><wbr><span>Id</span><wbr><span><span>Record</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="640821853%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-message-id-record/index.html">MessageIdRecord</a> : <a href="-json-record/index.html">JsonRecord</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1349563549%2FClasslikes%2F-452084339" anchor-label="MessageNamedBoundedContextRecord" id="1349563549%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-message-named-bounded-context-record/index.html"><span>Message</span><wbr><span>Named</span><wbr><span>Bounded</span><wbr><span>Context</span><wbr><span><span>Record</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1349563549%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-message-named-bounded-context-record/index.html">MessageNamedBoundedContextRecord</a> : <a href="-json-record/index.html">JsonRecord</a>, <a href="../../wow-api/me.ahoo.wow.api.naming/-named-bounded-context/index.html">NamedBoundedContext</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-2042498835%2FClasslikes%2F-452084339" anchor-label="MessageNameRecord" id="-2042498835%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-message-name-record/index.html"><span>Message</span><wbr><span>Name</span><wbr><span><span>Record</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-2042498835%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-message-name-record/index.html">MessageNameRecord</a> : <a href="-json-record/index.html">JsonRecord</a>, <a href="../../wow-api/me.ahoo.wow.api.naming/-named/index.html">Named</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="2026946808%2FClasslikes%2F-452084339" anchor-label="MessageRecord" id="2026946808%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-message-record/index.html"><span>Message</span><wbr><span><span>Record</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="2026946808%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-message-record/index.html">MessageRecord</a> : <a href="-message-id-record/index.html">MessageIdRecord</a>, <a href="-header-record/index.html">HeaderRecord</a>, <a href="-message-body-record/index.html">MessageBodyRecord</a>, <a href="-message-create-time-record/index.html">MessageCreateTimeRecord</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1670276297%2FClasslikes%2F-452084339" anchor-label="MessageRecords" id="-1670276297%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-message-records/index.html"><span>Message</span><wbr><span><span>Records</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1670276297%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">object </span><a href="-message-records/index.html">MessageRecords</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-442841442%2FClasslikes%2F-452084339" anchor-label="MessageRequestIdRecord" id="-442841442%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-message-request-id-record/index.html"><span>Message</span><wbr><span>Request</span><wbr><span>Id</span><wbr><span><span>Record</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-442841442%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-message-request-id-record/index.html">MessageRequestIdRecord</a> : <a href="-json-record/index.html">JsonRecord</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-756009257%2FClasslikes%2F-452084339" anchor-label="MessageSerializer" id="-756009257%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-message-serializer/index.html"><span>Message</span><wbr><span><span>Serializer</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-756009257%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">abstract </span><span class="token keyword">class </span><a href="-message-serializer/index.html">MessageSerializer</a><span class="token operator">&lt;</span><a href="-message-serializer/index.html">M</a><span class="token operator"> : </span><a href="../../wow-api/me.ahoo.wow.api.messaging/-message/index.html">Message</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token punctuation">, </span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token operator">&gt;</span><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">messageType<span class="token operator">: </span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Class.html">Class</a><span class="token operator">&lt;</span><a href="-message-serializer/index.html">M</a><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span> : <span data-unresolved-link="com.fasterxml.jackson.databind.ser.std/StdSerializer///PointingToDeclaration/">StdSerializer</span><span class="token operator">&lt;</span><a href="-message-serializer/index.html">M</a><span class="token operator">&gt; </span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-899922416%2FClasslikes%2F-452084339" anchor-label="MessageVersionRecord" id="-899922416%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-message-version-record/index.html"><span>Message</span><wbr><span>Version</span><wbr><span><span>Record</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-899922416%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-message-version-record/index.html">MessageVersionRecord</a> : <a href="-json-record/index.html">JsonRecord</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="733890661%2FClasslikes%2F-452084339" anchor-label="NamedBoundedContextMessageRecord" id="733890661%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-named-bounded-context-message-record/index.html"><span>Named</span><wbr><span>Bounded</span><wbr><span>Context</span><wbr><span>Message</span><wbr><span><span>Record</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="733890661%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-named-bounded-context-message-record/index.html">NamedBoundedContextMessageRecord</a> : <a href="-message-id-record/index.html">MessageIdRecord</a>, <a href="-message-named-bounded-context-record/index.html">MessageNamedBoundedContextRecord</a>, <a href="-header-record/index.html">HeaderRecord</a>, <a href="-message-body-record/index.html">MessageBodyRecord</a>, <a href="-message-create-time-record/index.html">MessageCreateTimeRecord</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="2144338161%2FClasslikes%2F-452084339" anchor-label="OwnerIdRecord" id="2144338161%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-owner-id-record/index.html"><span>Owner</span><wbr><span>Id</span><wbr><span><span>Record</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="2144338161%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-owner-id-record/index.html">OwnerIdRecord</a> : <a href="-json-record/index.html">JsonRecord</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-2100722907%2FClasslikes%2F-452084339" anchor-label="WowModule" id="-2100722907%2FClasslikes%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-wow-module/index.html"><span>Wow</span><wbr><span><span>Module</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-2100722907%2FClasslikes%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="-wow-module/index.html">WowModule</a> : <span data-unresolved-link="com.fasterxml.jackson.databind.module/SimpleModule///PointingToDeclaration/">SimpleModule</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="EXTENSION_FUNCTION">
+        <h2 class="tableheader">Functions</h2>
+        <div class="table"><a data-name="315078652%2FFunctions%2F-452084339" anchor-label="deepCody" id="315078652%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="deep-cody.html"><span>deep</span><wbr><span><span>Cody</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="315078652%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">fun </span><span class="token operator">&lt;</span><a href="deep-cody.html">T</a><span class="token operator"> : </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">&gt; </span><a href="deep-cody.html">T</a><span class="token punctuation">.</span><a href="deep-cody.html"><span class="token function">deepCody</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">objectType<span class="token operator">: </span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Class.html">Class</a><span class="token operator">&lt;</span><a href="deep-cody.html">T</a><span class="token operator">&gt;</span><span class="token operator"> = </span>this.javaClass</span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="deep-cody.html">T</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1286249008%2FFunctions%2F-452084339" anchor-label="toBoundedContextMessageRecord" id="1286249008%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="to-bounded-context-message-record.html"><span>to</span><wbr><span>Bounded</span><wbr><span>Context</span><wbr><span>Message</span><wbr><span><span>Record</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1286249008%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">fun </span><span data-unresolved-link="com.fasterxml.jackson.databind.node/ObjectNode///PointingToDeclaration/">ObjectNode</span><span class="token punctuation">.</span><a href="to-bounded-context-message-record.html"><span class="token function">toBoundedContextMessageRecord</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="-named-bounded-context-message-record/index.html">NamedBoundedContextMessageRecord</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1756625490%2FFunctions%2F-452084339" anchor-label="toJsonNode" id="1756625490%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="to-json-node.html"><span>to</span><wbr><span>Json</span><wbr><span><span>Node</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1756625490%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">fun </span><span class="token operator">&lt;</span><a href="to-json-node.html">T</a><span class="token operator"> : </span><span data-unresolved-link="com.fasterxml.jackson.databind/JsonNode///PointingToDeclaration/">JsonNode</span><span class="token operator">&gt; </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">.</span><a href="to-json-node.html"><span class="token function">toJsonNode</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="to-json-node.html">T</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1543363320%2FFunctions%2F-452084339" anchor-label="toJsonString" id="1543363320%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="to-json-string.html"><span>to</span><wbr><span>Json</span><wbr><span><span>String</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1543363320%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token punctuation">.</span><a href="to-json-string.html"><span class="token function">toJsonString</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1783771650%2FFunctions%2F-452084339" anchor-label="toMessageRecord" id="-1783771650%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="to-message-record.html"><span>to</span><wbr><span>Message</span><wbr><span><span>Record</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1783771650%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">fun </span><span data-unresolved-link="com.fasterxml.jackson.databind.node/ObjectNode///PointingToDeclaration/">ObjectNode</span><span class="token punctuation">.</span><a href="to-message-record.html"><span class="token function">toMessageRecord</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="-message-record/index.html">MessageRecord</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="405193624%2FFunctions%2F-452084339" anchor-label="toObject" id="405193624%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="to-object.html"><span>to</span><wbr><span><span>Object</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="405193624%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">inline </span><span class="token keyword">fun </span><span class="token operator">&lt;</span><a href="to-object.html">T</a><span class="token operator">&gt; </span><span data-unresolved-link="com.fasterxml.jackson.databind/JsonNode///PointingToDeclaration/">JsonNode</span><span class="token punctuation">.</span><a href="to-object.html"><span class="token function">toObject</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="to-object.html">T</a></div><div class="symbol monospace"><span class="token keyword">inline </span><span class="token keyword">fun </span><span class="token operator">&lt;</span><a href="to-object.html">T</a><span class="token operator">&gt; </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">.</span><a href="to-object.html"><span class="token function">toObject</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="to-object.html">T</a></div><div class="symbol monospace"><span class="token keyword">fun </span><span class="token operator">&lt;</span><a href="to-object.html">T</a><span class="token operator">&gt; </span><span data-unresolved-link="com.fasterxml.jackson.databind/JsonNode///PointingToDeclaration/">JsonNode</span><span class="token punctuation">.</span><a href="to-object.html"><span class="token function">toObject</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">objectType<span class="token operator">: </span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Class.html">Class</a><span class="token operator">&lt;</span><a href="to-object.html">T</a><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="to-object.html">T</a></div><div class="symbol monospace"><span class="token keyword">fun </span><span class="token operator">&lt;</span><a href="to-object.html">T</a><span class="token operator">&gt; </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">.</span><a href="to-object.html"><span class="token function">toObject</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">objectType<span class="token operator">: </span><span data-unresolved-link="com.fasterxml.jackson.databind/JavaType///PointingToDeclaration/">JavaType</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="to-object.html">T</a></div><div class="symbol monospace"><span class="token keyword">fun </span><span class="token operator">&lt;</span><a href="to-object.html">T</a><span class="token operator">&gt; </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">.</span><a href="to-object.html"><span class="token function">toObject</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">objectType<span class="token operator">: </span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Class.html">Class</a><span class="token operator">&lt;</span><a href="to-object.html">T</a><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="to-object.html">T</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="535211305%2FFunctions%2F-452084339" anchor-label="toObjectNode" id="535211305%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="to-object-node.html"><span>to</span><wbr><span>Object</span><wbr><span><span>Node</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="535211305%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">.</span><a href="to-object-node.html"><span class="token function">toObjectNode</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="com.fasterxml.jackson.databind.node/ObjectNode///PointingToDeclaration/">ObjectNode</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-346552973%2FFunctions%2F-452084339" anchor-label="toPrettyJson" id="-346552973%2FFunctions%2F-452084339" data-filterable-set=":wow-core/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-core/main" data-filterable-set=":wow-core/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="to-pretty-json.html"><span>to</span><wbr><span>Pretty</span><wbr><span><span>Json</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-346552973%2FFunctions%2F-452084339"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-core/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token punctuation">.</span><a href="to-pretty-json.html"><span class="token function">toPrettyJson</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <div class="footer--container">
+            <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+            <div class="footer--content">
+                <div>
+                    <span>Generated by </span>
+                    <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                        Dokka
+                    </a>
+                    <div>© 2025 Copyright</div>
+                </div>
+            </div>
+        </div>
+    </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

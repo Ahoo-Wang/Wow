@@ -1,0 +1,570 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><!--
+  - Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+  - Licensed under the Apache License, Version 2.0 (the "License");
+  - you may not use this file except in compliance with the License.
+  - You may obtain a copy of the License at
+  -      http://www.apache.org/licenses/LICENSE-2.0
+  - Unless required by applicable law or agreed to in writing, software
+  - distributed under the License is distributed on an "AS IS" BASIS,
+  - WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  - See the License for the specific language governing permissions and
+  - limitations under the License.
+  -->
+
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" contentStyleType="text/css"
+     height="763px" preserveAspectRatio="none" style="width:859px;height:763px;background:#FFFFFF;" version="1.1"
+     viewBox="0 0 859 763" width="859px" zoomAndPan="magnify">
+    <defs/>
+    <g>
+        <rect fill="none" height="11.7773" style="stroke:none;stroke-width:1.0;" width="183" x="662" y="0"/>
+        <a href="https://github.com/Ahoo-Wang/Wow" target="_top" title="https://github.com/Ahoo-Wang/Wow"
+           xlink:actuate="onRequest" xlink:href="https://github.com/Ahoo-Wang/Wow" xlink:show="new"
+           xlink:title="https://github.com/Ahoo-Wang/Wow" xlink:type="simple">
+            <text fill="#808080" font-family="sans-serif" font-size="10" lengthAdjust="spacing"
+                  text-decoration="underline" textLength="183" x="662" y="9.668">https://github.com/Ahoo-Wang/Wow
+            </text>
+        </a>
+        <rect fill="none" height="26.4883" id="_title" style="stroke:none;stroke-width:1.0;" width="351" x="247"
+              y="17.7773"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" font-weight="bold" lengthAdjust="spacing"
+              textLength="341" x="252" y="36.3125">Aggregate Modeling Using Aggregation Pattern
+        </text><!--MD5=[50a06d36ccfa4c208aeb06e709b5adbe]
+class StateAggregate-->
+        <g id="elem_StateAggregate">
+            <rect codeLine="5" fill="#F1F1F1" height="212.8828" id="StateAggregate" rx="2.5" ry="2.5"
+                  style="stroke:#181818;stroke-width:0.5;" width="237" x="311" y="57.2656"/>
+            <ellipse cx="372.25" cy="73.2656" fill="#ADD1B2" rx="11" ry="11" style="stroke:#181818;stroke-width:1.0;"/>
+            <path d="M375.2231,78.9087 Q374.6421,79.2075 374.0029,79.3569 Q373.3638,79.5063 372.6582,79.5063 Q370.1514,79.5063 368.8315,77.8545 Q367.5117,76.2026 367.5117,73.0815 Q367.5117,69.9521 368.8315,68.3003 Q370.1514,66.6484 372.6582,66.6484 Q373.3638,66.6484 374.0112,66.7979 Q374.6587,66.9473 375.2231,67.2461 L375.2231,69.9688 Q374.5923,69.3877 373.9988,69.1179 Q373.4053,68.8481 372.7744,68.8481 Q371.4297,68.8481 370.7449,69.9148 Q370.0601,70.9814 370.0601,73.0815 Q370.0601,75.1733 370.7449,76.24 Q371.4297,77.3066 372.7744,77.3066 Q373.4053,77.3066 373.9988,77.0369 Q374.5923,76.7671 375.2231,76.186 Z "
+                  fill="#000000"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="106"
+                  x="392.75" y="78.5566">StateAggregate
+            </text>
+            <line style="stroke:#181818;stroke-width:0.5;" x1="312" x2="547" y1="89.2656" y2="89.2656"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="312" x2="396" y1="105.5098" y2="105.5098"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="312" x2="396" y1="107.5098" y2="107.5098"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="67" x="396"
+                  y="110.3008">state field
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="463" x2="547" y1="105.5098" y2="105.5098"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="463" x2="547" y1="107.5098" y2="107.5098"/>
+            <line style="stroke:#181818;stroke-width:1.0;stroke-dasharray:1.0,2.0;" x1="312" x2="414.5" y1="130.2422"
+                  y2="130.2422"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="30"
+                  x="414.5" y="135.0332">field
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;stroke-dasharray:1.0,2.0;" x1="444.5" x2="547" y1="130.2422"
+                  y2="130.2422"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="129" x="317"
+                  y="176.7539">StateAggregate(id)
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="312" x2="388.5" y1="154.9746" y2="154.9746"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="312" x2="388.5" y1="156.9746" y2="156.9746"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="82"
+                  x="388.5" y="159.7656">Constructor
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="470.5" x2="547" y1="154.9746" y2="154.9746"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="470.5" x2="547" y1="156.9746" y2="156.9746"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="312" x2="409" y1="191.9512" y2="191.9512"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="312" x2="409" y1="193.9512" y2="193.9512"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="41" x="409"
+                  y="196.7422">getter
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="450" x2="547" y1="191.9512" y2="191.9512"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="450" x2="547" y1="193.9512" y2="193.9512"/>
+            <line style="stroke:#181818;stroke-width:1.0;stroke-dasharray:1.0,2.0;" x1="312" x2="391.5" y1="216.6836"
+                  y2="216.6836"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="76"
+                  x="391.5" y="221.4746">stateField()
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;stroke-dasharray:1.0,2.0;" x1="467.5" x2="547" y1="216.6836"
+                  y2="216.6836"/>
+            <rect fill="#F24D5C" height="6" style="stroke:#C82930;stroke-width:1.0;" width="6" x="319" y="256.4043"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="211" x="331"
+                  y="263.1953">void onSourcing(domainEvent)
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="312" x2="390" y1="241.416" y2="241.416"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="312" x2="390" y1="243.416" y2="243.416"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="79" x="390"
+                  y="246.207">onSourcing
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="469" x2="547" y1="241.416" y2="241.416"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="469" x2="547" y1="243.416" y2="243.416"/>
+        </g><!--MD5=[106f5ff52211694bd66d251f8ce1e28b]
+class CommandAggregate-->
+        <g id="elem_CommandAggregate">
+            <rect codeLine="16" fill="#F1F1F1" height="130.4414" id="CommandAggregate" rx="2.5" ry="2.5"
+                  style="stroke:#181818;stroke-width:0.5;" width="284" x="287.5" y="372.2656"/>
+            <ellipse cx="302.5" cy="388.2656" fill="#ADD1B2" rx="11" ry="11" style="stroke:#181818;stroke-width:1.0;"/>
+            <path d="M305.4731,393.9087 Q304.8921,394.2075 304.2529,394.3569 Q303.6138,394.5063 302.9082,394.5063 Q300.4014,394.5063 299.0815,392.8545 Q297.7617,391.2026 297.7617,388.0815 Q297.7617,384.9521 299.0815,383.3003 Q300.4014,381.6484 302.9082,381.6484 Q303.6138,381.6484 304.2612,381.7979 Q304.9087,381.9473 305.4731,382.2461 L305.4731,384.9688 Q304.8423,384.3877 304.2488,384.1179 Q303.6553,383.8481 303.0244,383.8481 Q301.6797,383.8481 300.9949,384.9148 Q300.3101,385.9814 300.3101,388.0815 Q300.3101,390.1733 300.9949,391.24 Q301.6797,392.3066 303.0244,392.3066 Q303.6553,392.3066 304.2488,392.0369 Q304.8423,391.7671 305.4731,391.186 Z "
+                  fill="#000000"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="143"
+                  x="316.5" y="393.5566">CommandAggregate
+            </text>
+            <rect fill="#FFFFFF" height="16.1328" style="stroke:#181818;stroke-width:1.0;stroke-dasharray:2.0,2.0;"
+                  width="107" x="467.5" y="369.2656"/>
+            <text fill="#000000" font-family="sans-serif" font-size="12" font-style="italic" lengthAdjust="spacing"
+                  textLength="105" x="468.5" y="381.8672">S : StateAggregate
+            </text>
+            <line style="stroke:#181818;stroke-width:0.5;" x1="288.5" x2="570.5" y1="404.2656" y2="404.2656"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="45"
+                  x="293.5" y="421.8008">S state
+            </text>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="186"
+                  x="293.5" y="458.7773">CommandAggregate(state)
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="288.5" x2="388.5" y1="436.998" y2="436.998"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="288.5" x2="388.5" y1="438.998" y2="438.998"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="82"
+                  x="388.5" y="441.7891">Constructor
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="470.5" x2="570.5" y1="436.998" y2="436.998"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="470.5" x2="570.5" y1="438.998" y2="438.998"/>
+            <rect fill="#F24D5C" height="6" style="stroke:#C82930;stroke-width:1.0;" width="6" x="295.5" y="488.9629"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="167"
+                  x="307.5" y="495.7539">onCommand(command)
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="288.5" x2="385" y1="473.9746" y2="473.9746"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="288.5" x2="385" y1="475.9746" y2="475.9746"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="89" x="385"
+                  y="478.7656">onCommand
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="474" x2="570.5" y1="473.9746" y2="473.9746"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="474" x2="570.5" y1="475.9746" y2="475.9746"/>
+        </g><!--MD5=[23a1e570c16e612f9034e0525c0e3ca1]
+class StateAggregateA-->
+        <g id="elem_StateAggregateA">
+            <rect codeLine="24" fill="#F1F1F1" height="212.8828" id="StateAggregateA" rx="2.5" ry="2.5"
+                  style="stroke:#181818;stroke-width:0.5;" width="237" x="7" y="330.2656"/>
+            <ellipse cx="63.25" cy="346.2656" fill="#ADD1B2" rx="11" ry="11" style="stroke:#181818;stroke-width:1.0;"/>
+            <path d="M66.2231,351.9087 Q65.6421,352.2075 65.0029,352.3569 Q64.3638,352.5063 63.6582,352.5063 Q61.1514,352.5063 59.8315,350.8545 Q58.5117,349.2026 58.5117,346.0815 Q58.5117,342.9521 59.8315,341.3003 Q61.1514,339.6484 63.6582,339.6484 Q64.3638,339.6484 65.0112,339.7979 Q65.6587,339.9473 66.2231,340.2461 L66.2231,342.9688 Q65.5923,342.3877 64.9988,342.1179 Q64.4053,341.8481 63.7744,341.8481 Q62.4297,341.8481 61.7449,342.9148 Q61.0601,343.9814 61.0601,346.0815 Q61.0601,348.1733 61.7449,349.24 Q62.4297,350.3066 63.7744,350.3066 Q64.4053,350.3066 64.9988,350.0369 Q65.5923,349.7671 66.2231,349.186 Z "
+                  fill="#000000"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="116"
+                  x="83.75" y="351.5566">StateAggregateA
+            </text>
+            <line style="stroke:#181818;stroke-width:0.5;" x1="8" x2="243" y1="362.2656" y2="362.2656"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="8" x2="92" y1="378.5098" y2="378.5098"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="8" x2="92" y1="380.5098" y2="380.5098"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="67" x="92"
+                  y="383.3008">state field
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="159" x2="243" y1="378.5098" y2="378.5098"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="159" x2="243" y1="380.5098" y2="380.5098"/>
+            <line style="stroke:#181818;stroke-width:1.0;stroke-dasharray:1.0,2.0;" x1="8" x2="110.5" y1="403.2422"
+                  y2="403.2422"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="30"
+                  x="110.5" y="408.0332">field
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;stroke-dasharray:1.0,2.0;" x1="140.5" x2="243" y1="403.2422"
+                  y2="403.2422"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="139" x="13"
+                  y="449.7539">StateAggregateA(id)
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="8" x2="84.5" y1="427.9746" y2="427.9746"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="8" x2="84.5" y1="429.9746" y2="429.9746"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="82" x="84.5"
+                  y="432.7656">Constructor
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="166.5" x2="243" y1="427.9746" y2="427.9746"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="166.5" x2="243" y1="429.9746" y2="429.9746"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="8" x2="105" y1="464.9512" y2="464.9512"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="8" x2="105" y1="466.9512" y2="466.9512"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="41" x="105"
+                  y="469.7422">getter
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="146" x2="243" y1="464.9512" y2="464.9512"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="146" x2="243" y1="466.9512" y2="466.9512"/>
+            <line style="stroke:#181818;stroke-width:1.0;stroke-dasharray:1.0,2.0;" x1="8" x2="87.5" y1="489.6836"
+                  y2="489.6836"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="76" x="87.5"
+                  y="494.4746">stateField()
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;stroke-dasharray:1.0,2.0;" x1="163.5" x2="243" y1="489.6836"
+                  y2="489.6836"/>
+            <rect fill="#F24D5C" height="6" style="stroke:#C82930;stroke-width:1.0;" width="6" x="15" y="529.4043"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="211" x="27"
+                  y="536.1953">void onSourcing(domainEvent)
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="8" x2="86" y1="514.416" y2="514.416"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="8" x2="86" y1="516.416" y2="516.416"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="79" x="86"
+                  y="519.207">onSourcing
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="165" x2="243" y1="514.416" y2="514.416"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="165" x2="243" y1="516.416" y2="516.416"/>
+        </g><!--MD5=[4a037510dba847ff6d1f982168f6db51]
+class StateAggregateB-->
+        <g id="elem_StateAggregateB">
+            <rect codeLine="35" fill="#F1F1F1" height="212.8828" id="StateAggregateB" rx="2.5" ry="2.5"
+                  style="stroke:#181818;stroke-width:0.5;" width="237" x="615" y="330.2656"/>
+            <ellipse cx="672.25" cy="346.2656" fill="#ADD1B2" rx="11" ry="11" style="stroke:#181818;stroke-width:1.0;"/>
+            <path d="M675.2231,351.9087 Q674.6421,352.2075 674.0029,352.3569 Q673.3638,352.5063 672.6582,352.5063 Q670.1514,352.5063 668.8315,350.8545 Q667.5117,349.2026 667.5117,346.0815 Q667.5117,342.9521 668.8315,341.3003 Q670.1514,339.6484 672.6582,339.6484 Q673.3638,339.6484 674.0112,339.7979 Q674.6587,339.9473 675.2231,340.2461 L675.2231,342.9688 Q674.5923,342.3877 673.9988,342.1179 Q673.4053,341.8481 672.7744,341.8481 Q671.4297,341.8481 670.7449,342.9148 Q670.0601,343.9814 670.0601,346.0815 Q670.0601,348.1733 670.7449,349.24 Q671.4297,350.3066 672.7744,350.3066 Q673.4053,350.3066 673.9988,350.0369 Q674.5923,349.7671 675.2231,349.186 Z "
+                  fill="#000000"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="114"
+                  x="692.75" y="351.5566">StateAggregateB
+            </text>
+            <line style="stroke:#181818;stroke-width:0.5;" x1="616" x2="851" y1="362.2656" y2="362.2656"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="616" x2="700" y1="378.5098" y2="378.5098"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="616" x2="700" y1="380.5098" y2="380.5098"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="67" x="700"
+                  y="383.3008">state field
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="767" x2="851" y1="378.5098" y2="378.5098"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="767" x2="851" y1="380.5098" y2="380.5098"/>
+            <line style="stroke:#181818;stroke-width:1.0;stroke-dasharray:1.0,2.0;" x1="616" x2="718.5" y1="403.2422"
+                  y2="403.2422"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="30"
+                  x="718.5" y="408.0332">field
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;stroke-dasharray:1.0,2.0;" x1="748.5" x2="851" y1="403.2422"
+                  y2="403.2422"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="137" x="621"
+                  y="449.7539">StateAggregateB(id)
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="616" x2="692.5" y1="427.9746" y2="427.9746"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="616" x2="692.5" y1="429.9746" y2="429.9746"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="82"
+                  x="692.5" y="432.7656">Constructor
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="774.5" x2="851" y1="427.9746" y2="427.9746"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="774.5" x2="851" y1="429.9746" y2="429.9746"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="616" x2="713" y1="464.9512" y2="464.9512"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="616" x2="713" y1="466.9512" y2="466.9512"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="41" x="713"
+                  y="469.7422">getter
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="754" x2="851" y1="464.9512" y2="464.9512"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="754" x2="851" y1="466.9512" y2="466.9512"/>
+            <line style="stroke:#181818;stroke-width:1.0;stroke-dasharray:1.0,2.0;" x1="616" x2="695.5" y1="489.6836"
+                  y2="489.6836"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="76"
+                  x="695.5" y="494.4746">stateField()
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;stroke-dasharray:1.0,2.0;" x1="771.5" x2="851" y1="489.6836"
+                  y2="489.6836"/>
+            <rect fill="#F24D5C" height="6" style="stroke:#C82930;stroke-width:1.0;" width="6" x="623" y="529.4043"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="211" x="635"
+                  y="536.1953">void onSourcing(domainEvent)
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="616" x2="694" y1="514.416" y2="514.416"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="616" x2="694" y1="516.416" y2="516.416"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="79" x="694"
+                  y="519.207">onSourcing
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="773" x2="851" y1="514.416" y2="514.416"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="773" x2="851" y1="516.416" y2="516.416"/>
+        </g><!--MD5=[0913b559f5b0cf27b4f22efe0ad61dae]
+class CommandAggregateA-->
+        <g id="elem_CommandAggregateA">
+            <rect codeLine="46" fill="#F1F1F1" height="130.4414" id="CommandAggregateA" rx="2.5" ry="2.5"
+                  style="stroke:#181818;stroke-width:0.5;" width="284" x="119.5" y="607.2656"/>
+            <ellipse cx="134.5" cy="623.2656" fill="#ADD1B2" rx="11" ry="11" style="stroke:#181818;stroke-width:1.0;"/>
+            <path d="M137.4731,628.9087 Q136.8921,629.2075 136.2529,629.3569 Q135.6138,629.5063 134.9082,629.5063 Q132.4014,629.5063 131.0815,627.8545 Q129.7617,626.2026 129.7617,623.0815 Q129.7617,619.9521 131.0815,618.3003 Q132.4014,616.6484 134.9082,616.6484 Q135.6138,616.6484 136.2612,616.7979 Q136.9087,616.9473 137.4731,617.2461 L137.4731,619.9688 Q136.8423,619.3877 136.2488,619.1179 Q135.6553,618.8481 135.0244,618.8481 Q133.6797,618.8481 132.9949,619.9148 Q132.3101,620.9814 132.3101,623.0815 Q132.3101,625.1733 132.9949,626.24 Q133.6797,627.3066 135.0244,627.3066 Q135.6553,627.3066 136.2488,627.0369 Q136.8423,626.7671 137.4731,626.186 Z "
+                  fill="#000000"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="153"
+                  x="148.5" y="628.5566">CommandAggregateA
+            </text>
+            <rect fill="#FFFFFF" height="16.1328" style="stroke:#181818;stroke-width:1.0;stroke-dasharray:2.0,2.0;"
+                  width="97" x="309.5" y="604.2656"/>
+            <text fill="#000000" font-family="sans-serif" font-size="12" font-style="italic" lengthAdjust="spacing"
+                  textLength="95" x="310.5" y="616.8672">StateAggregateA
+            </text>
+            <line style="stroke:#181818;stroke-width:0.5;" x1="120.5" x2="402.5" y1="639.2656" y2="639.2656"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="153"
+                  x="125.5" y="656.8008">StateAggregateA state
+            </text>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="186"
+                  x="125.5" y="693.7773">CommandAggregate(state)
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="120.5" x2="220.5" y1="671.998" y2="671.998"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="120.5" x2="220.5" y1="673.998" y2="673.998"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="82"
+                  x="220.5" y="676.7891">Constructor
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="302.5" x2="402.5" y1="671.998" y2="671.998"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="302.5" x2="402.5" y1="673.998" y2="673.998"/>
+            <rect fill="#F24D5C" height="6" style="stroke:#C82930;stroke-width:1.0;" width="6" x="127.5" y="723.9629"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="167"
+                  x="139.5" y="730.7539">onCommand(command)
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="120.5" x2="217" y1="708.9746" y2="708.9746"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="120.5" x2="217" y1="710.9746" y2="710.9746"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="89" x="217"
+                  y="713.7656">onCommand
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="306" x2="402.5" y1="708.9746" y2="708.9746"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="306" x2="402.5" y1="710.9746" y2="710.9746"/>
+        </g><!--MD5=[8a2222571bce2b8020371525a41a1516]
+class CommandAggregateB-->
+        <g id="elem_CommandAggregateB">
+            <rect codeLine="53" fill="#F1F1F1" height="130.4414" id="CommandAggregateB" rx="2.5" ry="2.5"
+                  style="stroke:#181818;stroke-width:0.5;" width="281" x="523" y="607.2656"/>
+            <ellipse cx="538" cy="623.2656" fill="#ADD1B2" rx="11" ry="11" style="stroke:#181818;stroke-width:1.0;"/>
+            <path d="M540.9731,628.9087 Q540.3921,629.2075 539.7529,629.3569 Q539.1138,629.5063 538.4082,629.5063 Q535.9014,629.5063 534.5815,627.8545 Q533.2617,626.2026 533.2617,623.0815 Q533.2617,619.9521 534.5815,618.3003 Q535.9014,616.6484 538.4082,616.6484 Q539.1138,616.6484 539.7612,616.7979 Q540.4087,616.9473 540.9731,617.2461 L540.9731,619.9688 Q540.3423,619.3877 539.7488,619.1179 Q539.1553,618.8481 538.5244,618.8481 Q537.1797,618.8481 536.4949,619.9148 Q535.8101,620.9814 535.8101,623.0815 Q535.8101,625.1733 536.4949,626.24 Q537.1797,627.3066 538.5244,627.3066 Q539.1553,627.3066 539.7488,627.0369 Q540.3423,626.7671 540.9731,626.186 Z "
+                  fill="#000000"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="151" x="552"
+                  y="628.5566">CommandAggregateB
+            </text>
+            <rect fill="#FFFFFF" height="16.1328" style="stroke:#181818;stroke-width:1.0;stroke-dasharray:2.0,2.0;"
+                  width="96" x="711" y="604.2656"/>
+            <text fill="#000000" font-family="sans-serif" font-size="12" font-style="italic" lengthAdjust="spacing"
+                  textLength="94" x="712" y="616.8672">StateAggregateB
+            </text>
+            <line style="stroke:#181818;stroke-width:0.5;" x1="524" x2="803" y1="639.2656" y2="639.2656"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="151" x="529"
+                  y="656.8008">StateAggregateB state
+            </text>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="186" x="529"
+                  y="693.7773">CommandAggregate(state)
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="524" x2="622.5" y1="671.998" y2="671.998"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="524" x2="622.5" y1="673.998" y2="673.998"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="82"
+                  x="622.5" y="676.7891">Constructor
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="704.5" x2="803" y1="671.998" y2="671.998"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="704.5" x2="803" y1="673.998" y2="673.998"/>
+            <rect fill="#F24D5C" height="6" style="stroke:#C82930;stroke-width:1.0;" width="6" x="531" y="723.9629"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="167" x="543"
+                  y="730.7539">onCommand(command)
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="524" x2="619" y1="708.9746" y2="708.9746"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="524" x2="619" y1="710.9746" y2="710.9746"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="89" x="619"
+                  y="713.7656">onCommand
+            </text>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="708" x2="803" y1="708.9746" y2="708.9746"/>
+            <line style="stroke:#181818;stroke-width:1.0;" x1="708" x2="803" y1="710.9746" y2="710.9746"/>
+        </g><!--MD5=[5d34beb3cf187eed62bcb4fa86fd708c]
+link StateAggregate to CommandAggregate-->
+        <g id="link_StateAggregate_CommandAggregate">
+            <path codeLine="61" d="M510.83,270.5456 C550.78,326.0356 589.45,386.9056 584.46,408.5656 " fill="none"
+                  id="StateAggregate-to-CommandAggregate" style="stroke:#181818;stroke-width:1.0;"/>
+            <polygon fill="none"
+                     points="573.75,415.9056,580.9604,415.8067,583.6423,409.1129,576.4319,409.2118,573.75,415.9056"
+                     style="stroke:#181818;stroke-width:1.0;"/>
+            <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="8"
+                  x="508.0256" y="290.8065">1
+            </text>
+        </g><!--MD5=[a7c1c84070917e3571d6f2e84edbe299]
+reverse link StateAggregate to StateAggregateA-->
+        <g id="link_StateAggregate_StateAggregateA">
+            <path codeLine="63" d="M294.67,284.9656 C277.87,299.9356 260.79,315.1656 244.26,329.8956 " fill="none"
+                  id="StateAggregate-backto-StateAggregateA" style="stroke:#181818;stroke-width:1.0;"/>
+            <polygon fill="none" points="289.94,279.7956,309.53,271.7156,299.26,290.2456,289.94,279.7956"
+                     style="stroke:#181818;stroke-width:1.0;"/>
+        </g><!--MD5=[060e48d02a4563d8c8631cfe560b7bf9]
+reverse link StateAggregate to StateAggregateB-->
+        <g id="link_StateAggregate_StateAggregateB">
+            <path codeLine="65" d="M564.33,284.9656 C581.13,299.9356 598.21,315.1656 614.74,329.8956 " fill="none"
+                  id="StateAggregate-backto-StateAggregateB" style="stroke:#181818;stroke-width:1.0;"/>
+            <polygon fill="none" points="559.74,290.2456,549.47,271.7156,569.06,279.7956,559.74,290.2456"
+                     style="stroke:#181818;stroke-width:1.0;"/>
+        </g><!--MD5=[1de01a4503ca6b9208d84158f41840aa]
+reverse link CommandAggregate to CommandAggregateA-->
+        <g id="link_CommandAggregate_CommandAggregateA">
+            <path codeLine="66" d="M368.55,522.3056 C349.28,549.0256 328.26,578.1856 309.98,603.5256 " fill="none"
+                  id="CommandAggregate-backto-CommandAggregateA" style="stroke:#181818;stroke-width:1.0;"/>
+            <polygon fill="none" points="362.65,518.5156,380.02,506.3856,374,526.7056,362.65,518.5156"
+                     style="stroke:#181818;stroke-width:1.0;"/>
+        </g><!--MD5=[874597e8c8d1938c97af8c04ea3cf22a]
+reverse link CommandAggregate to CommandAggregateB-->
+        <g id="link_CommandAggregate_CommandAggregateB">
+            <path codeLine="67" d="M512.11,520.0156 C539.56,547.3556 569.79,577.4556 595.97,603.5256 " fill="none"
+                  id="CommandAggregate-backto-CommandAggregateB" style="stroke:#181818;stroke-width:1.0;"/>
+            <polygon fill="none" points="507.49,525.2956,498.26,506.2256,517.37,515.3756,507.49,525.2956"
+                     style="stroke:#181818;stroke-width:1.0;"/>
+        </g><!--MD5=[aab075591df590ef240f062b6abe4139]
+link StateAggregateA to CommandAggregateA-->
+        <g id="link_StateAggregateA_CommandAggregateA">
+            <path codeLine="69" d="M86.64,543.5156 C74.22,591.5256 71.16,639.8856 104.51,649.8856 " fill="none"
+                  id="StateAggregateA-to-CommandAggregateA" style="stroke:#181818;stroke-width:1.0;"/>
+            <polygon fill="none"
+                     points="117,651.5656,111.5851,646.8034,105.1065,649.9702,110.5214,654.7324,117,651.5656"
+                     style="stroke:#181818;stroke-width:1.0;"/>
+            <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="8"
+                  x="75.7603" y="563.7745">1
+            </text>
+        </g><!--MD5=[cd39423c195474df813f7ee8d77a723f]
+link StateAggregateB to CommandAggregateB-->
+        <g id="link_StateAggregateB_CommandAggregateB">
+            <path codeLine="70" d="M806.41,543.5156 C834,591.5256 851.83,639.8856 819.68,649.8856 " fill="none"
+                  id="StateAggregateB-to-CommandAggregateB" style="stroke:#181818;stroke-width:1.0;"/>
+            <polygon fill="none"
+                     points="807,651.5656,813.4751,654.7394,818.8952,649.9831,812.4201,646.8093,807,651.5656"
+                     style="stroke:#181818;stroke-width:1.0;"/>
+            <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="8"
+                  x="803.0399" y="563.7745">1
+            </text>
+        </g>
+        <rect fill="none" height="11.7773" style="stroke:none;stroke-width:1.0;" width="183" x="331" y="743.707"/>
+        <a href="https://github.com/Ahoo-Wang/Wow" target="_top" title="https://github.com/Ahoo-Wang/Wow"
+           xlink:actuate="onRequest" xlink:href="https://github.com/Ahoo-Wang/Wow" xlink:show="new"
+           xlink:title="https://github.com/Ahoo-Wang/Wow" xlink:type="simple">
+            <text fill="#808080" font-family="sans-serif" font-size="10" lengthAdjust="spacing"
+                  text-decoration="underline" textLength="183" x="331" y="753.375">https://github.com/Ahoo-Wang/Wow
+            </text>
+        </a><!--MD5=[701a9ef9db551542d33c8c014f3bac2d]
+@startuml
+!include layout.puml
+
+title Aggregate Modeling Using Aggregation Pattern
+
+class StateAggregate {
+    == state field ==
+    ..  field ..
+    == Constructor ==
+    StateAggregate(id)
+    == getter ==
+    .. stateField() ..
+    == onSourcing ==
+    - void onSourcing(domainEvent)
+}
+
+class CommandAggregate<S : StateAggregate>{
+    S state
+    == Constructor ==
+    CommandAggregate(state)
+    == onCommand ==
+    - onCommand(command)
+}
+
+class StateAggregateA {
+    == state field ==
+    ..  field ..
+    == Constructor ==
+    StateAggregateA(id)
+    == getter ==
+    .. stateField() ..
+    == onSourcing ==
+    - void onSourcing(domainEvent)
+}
+
+class StateAggregateB {
+    == state field ==
+    ..  field ..
+    == Constructor ==
+    StateAggregateB(id)
+    == getter ==
+    .. stateField() ..
+    == onSourcing ==
+    - void onSourcing(domainEvent)
+}
+
+class CommandAggregateA<StateAggregateA>{
+    StateAggregateA state
+    == Constructor ==
+    CommandAggregate(state)
+    == onCommand ==
+    - onCommand(command)
+}
+class CommandAggregateB<StateAggregateB>{
+    StateAggregateB state
+    == Constructor ==
+    CommandAggregate(state)
+    == onCommand ==
+    - onCommand(command)
+}
+
+StateAggregate "1" - -o CommandAggregate::state
+
+StateAggregate <|- - StateAggregateA
+
+StateAggregate <|- - StateAggregateB
+CommandAggregate <|- - CommandAggregateA
+CommandAggregate <|- - CommandAggregateB
+
+StateAggregateA "1" - -o CommandAggregateA::state
+StateAggregateB "1" - -o CommandAggregateB::state
+@enduml
+
+@startuml
+skinparam hyperlinkColor grey
+
+
+header
+[[https://github.com/Ahoo-Wang/Wow]]
+endheader
+
+center footer [[https://github.com/Ahoo-Wang/Wow]]
+
+
+title Aggregate Modeling Using Aggregation Pattern
+
+class StateAggregate {
+    == state field ==
+    ..  field ..
+    == Constructor ==
+    StateAggregate(id)
+    == getter ==
+    .. stateField() ..
+    == onSourcing ==
+    - void onSourcing(domainEvent)
+}
+
+class CommandAggregate<S : StateAggregate>{
+    S state
+    == Constructor ==
+    CommandAggregate(state)
+    == onCommand ==
+    - onCommand(command)
+}
+
+class StateAggregateA {
+    == state field ==
+    ..  field ..
+    == Constructor ==
+    StateAggregateA(id)
+    == getter ==
+    .. stateField() ..
+    == onSourcing ==
+    - void onSourcing(domainEvent)
+}
+
+class StateAggregateB {
+    == state field ==
+    ..  field ..
+    == Constructor ==
+    StateAggregateB(id)
+    == getter ==
+    .. stateField() ..
+    == onSourcing ==
+    - void onSourcing(domainEvent)
+}
+
+class CommandAggregateA<StateAggregateA>{
+    StateAggregateA state
+    == Constructor ==
+    CommandAggregate(state)
+    == onCommand ==
+    - onCommand(command)
+}
+class CommandAggregateB<StateAggregateB>{
+    StateAggregateB state
+    == Constructor ==
+    CommandAggregate(state)
+    == onCommand ==
+    - onCommand(command)
+}
+
+StateAggregate "1" - -o CommandAggregate::state
+
+StateAggregate <|- - StateAggregateA
+
+StateAggregate <|- - StateAggregateB
+CommandAggregate <|- - CommandAggregateA
+CommandAggregate <|- - CommandAggregateB
+
+StateAggregateA "1" - -o CommandAggregateA::state
+StateAggregateB "1" - -o CommandAggregateB::state
+@enduml
+
+PlantUML version 1.2022.12(Mon Oct 24 02:12:26 CST 2022)
+(GPL source distribution)
+Java Runtime: OpenJDK Runtime Environment
+JVM: OpenJDK 64-Bit Server VM
+Default Encoding: UTF-8
+Language: zh
+Country: CN
+-->
+    </g>
+</svg>

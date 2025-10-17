@@ -1,0 +1,306 @@
+<!doctype html>
+<html class="no-js" lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>me.ahoo.wow.example.api.cart</title>
+<link href="../../images/logo-icon.svg" rel="icon" type="image/svg"><script>var pathToRoot = "../../";</script>
+    <script>document.documentElement.classList.replace("no-js", "js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+      if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      } else {
+        const savedDarkMode = JSON.parse(storage)
+        if (savedDarkMode === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      }
+    </script>
+<script type="text/javascript" src="https://unpkg.com/kotlin-playground@1/dist/playground.min.js" async></script>
+<script type="text/javascript" src="../../scripts/sourceset_dependencies.js" async></script>
+<link href="../../styles/style.css" rel="Stylesheet">
+<link href="../../styles/main.css" rel="Stylesheet">
+<link href="../../styles/prism.css" rel="Stylesheet">
+<link href="../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../scripts/safe-local-storage_blocking.js"></script>
+<script type="text/javascript" src="../../scripts/navigation-loader.js" async></script>
+<script type="text/javascript" src="../../scripts/platform-content-handler.js" async></script>
+<script type="text/javascript" src="../../scripts/main.js" defer></script>
+<script type="text/javascript" src="../../scripts/prism.js" async></script>
+<script type="text/javascript" src="../../ui-kit/ui-kit.min.js" defer></script></head>
+<body>
+<div class="root">
+    <header class="navigation theme-dark" id="navigation-wrapper" role="banner">
+<a class="library-name--link" href="../../index.html" tabindex="1">
+                    Wow
+            </a>        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle" type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">6.2.9
+        </div>
+        <div class="navigation-controls">
+        <ul class="filter-section filter-section_loading" id="filter-section" aria-label="Target filter">
+                <button class="platform-tag platform-selector jvm-like" data-active="" aria-pressed="true" data-filter=":example-api/main">jvm</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox" data-role="dropdown-toggle" aria-controls="platform-tags-listbox" aria-haspopup="listbox" aria-expanded="false" aria-label="Toggle source sets"></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox" aria-label="Target filter">
+                    <div class="dropdown--header"><span>Target filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close target filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option jvm-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":example-api/main" data-filter=":example-api/main">
+                                <span class="checkbox--icon"></span>
+                                jvm
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </ul>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button" type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </header>
+    <div id="container">
+        <nav id="leftColumn" class="sidebar" data-item-type="SECTION" data-item-config="{&quot;defaultSize&quot;: 280, &quot;minSize&quot;: 200, &quot;maxSize&quot;: 400}">
+            <a class="toc--skip-link" href="#main">Skip to content</a>
+            <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list" data-role="dropdown-listbox" aria-label="Table of contents">
+                    <div class="dropdown--header">
+                            <span>
+                                    Wow
+                            </span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                    <div class="sidebar--inner" id="sideMenu"></div>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </nav>
+        <div id="resizer" class="resizer" data-item-type="BAR"></div>
+        <div id="main" data-item-type="SECTION" role="main">
+<div class="main-content" data-page-type="package" id="content" pageids="example-api::me.ahoo.wow.example.api.cart////PointingToDeclaration//-291704859">
+  <div class="breadcrumbs"><a href="../index.html">example-api</a><span class="delimiter">/</span><span class="current">me.ahoo.wow.example.api.cart</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span><span>Package-level</span></span> <span><span>declarations</span></span></h1>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="TYPE">Types</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="TYPE">
+        <h2 class="tableheader">Types</h2>
+        <div class="table"><a data-name="1403236372%2FClasslikes%2F-291704859" anchor-label="AddCartItem" id="1403236372%2FClasslikes%2F-291704859" data-filterable-set=":example-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":example-api/main" data-filterable-set=":example-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-add-cart-item/index.html"><span>Add</span><wbr><span>Cart</span><wbr><span><span>Item</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1403236372%2FClasslikes%2F-291704859"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":example-api/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="../../wow-api/me.ahoo.wow.api.annotation/-order/index.html"><span class="token annotation builtin">Order</span></a><span class="token punctuation">(</span><span>value<span class="token operator"> = </span><span class="breakable-word"><span class="token constant">1</span></span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><a href="../../wow-api/me.ahoo.wow.api.annotation/-allow-create/index.html"><span class="token annotation builtin">AllowCreate</span></a></div><div class="block"><span class="token annotation builtin">@</span><a href="../../wow-api/me.ahoo.wow.api.annotation/-command-route/index.html"><span class="token annotation builtin">CommandRoute</span></a><span class="token punctuation">(</span><span>method<span class="token operator"> = </span><a href="../../wow-api/me.ahoo.wow.api.annotation/-command-route/-method/-p-o-s-t/index.html">CommandRoute.Method.POST</a><span class="token punctuation">, </span></span><wbr><span>summary<span class="token operator"> = </span><span class="breakable-word"><span class="token string">"加入购物车"</span></span><span class="token punctuation">, </span></span><wbr><span>description<span class="token operator"> = </span><span class="breakable-word"><span class="token string">"加入购物车"</span></span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">data </span><span class="token keyword">class </span><a href="-add-cart-item/index.html">AddCartItem</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>productId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>quantity<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">1</span></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="96234608%2FClasslikes%2F-291704859" anchor-label="CartData" id="96234608%2FClasslikes%2F-291704859" data-filterable-set=":example-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":example-api/main" data-filterable-set=":example-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-cart-data/index.html"><span>Cart</span><wbr><span><span>Data</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="96234608%2FClasslikes%2F-291704859"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":example-api/main"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-cart-data/index.html">CartData</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>items<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-list/index.html">List</a><span class="token operator">&lt;</span><a href="-cart-item/index.html">CartItem</a><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span> : <a href="-i-cart-info/index.html">ICartInfo</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1849645351%2FClasslikes%2F-291704859" anchor-label="CartItem" id="1849645351%2FClasslikes%2F-291704859" data-filterable-set=":example-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":example-api/main" data-filterable-set=":example-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-cart-item/index.html"><span>Cart</span><wbr><span><span>Item</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1849645351%2FClasslikes%2F-291704859"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":example-api/main"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-cart-item/index.html">CartItem</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>productId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>quantity<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">1</span></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="650283035%2FClasslikes%2F-291704859" anchor-label="CartItemAdded" id="650283035%2FClasslikes%2F-291704859" data-filterable-set=":example-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":example-api/main" data-filterable-set=":example-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-cart-item-added/index.html"><span>Cart</span><wbr><span>Item</span><wbr><span><span>Added</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="650283035%2FClasslikes%2F-291704859"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":example-api/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="../../wow-api/me.ahoo.wow.api.annotation/-summary/index.html"><span class="token annotation builtin">Summary</span></a><span class="token punctuation">(</span><span>value<span class="token operator"> = </span><span class="breakable-word"><span class="token string">"商品已加入购物车"</span></span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">data </span><span class="token keyword">class </span><a href="-cart-item-added/index.html">CartItemAdded</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>added<span class="token operator">: </span><a href="-cart-item/index.html">CartItem</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1499351611%2FClasslikes%2F-291704859" anchor-label="CartItemRemoved" id="1499351611%2FClasslikes%2F-291704859" data-filterable-set=":example-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":example-api/main" data-filterable-set=":example-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-cart-item-removed/index.html"><span>Cart</span><wbr><span>Item</span><wbr><span><span>Removed</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1499351611%2FClasslikes%2F-291704859"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":example-api/main"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-cart-item-removed/index.html">CartItemRemoved</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>productIds<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-set/index.html">Set</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1634132897%2FClasslikes%2F-291704859" anchor-label="CartQuantityChanged" id="-1634132897%2FClasslikes%2F-291704859" data-filterable-set=":example-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":example-api/main" data-filterable-set=":example-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-cart-quantity-changed/index.html"><span>Cart</span><wbr><span>Quantity</span><wbr><span><span>Changed</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1634132897%2FClasslikes%2F-291704859"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":example-api/main"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-cart-quantity-changed/index.html">CartQuantityChanged</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>changed<span class="token operator">: </span><a href="-cart-item/index.html">CartItem</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-808514209%2FClasslikes%2F-291704859" anchor-label="ChangeQuantity" id="-808514209%2FClasslikes%2F-291704859" data-filterable-set=":example-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":example-api/main" data-filterable-set=":example-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-change-quantity/index.html"><span>Change</span><wbr><span><span>Quantity</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-808514209%2FClasslikes%2F-291704859"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":example-api/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="../../wow-api/me.ahoo.wow.api.annotation/-order/index.html"><span class="token annotation builtin">Order</span></a><span class="token punctuation">(</span><span>value<span class="token operator"> = </span><span class="breakable-word"><span class="token constant">2</span></span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><a href="../../wow-api/me.ahoo.wow.api.annotation/-summary/index.html"><span class="token annotation builtin">Summary</span></a><span class="token punctuation">(</span><span>value<span class="token operator"> = </span><span class="breakable-word"><span class="token string">"变更购买数量"</span></span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><a href="../../wow-api/me.ahoo.wow.api.annotation/-command-route/index.html"><span class="token annotation builtin">CommandRoute</span></a><span class="token punctuation">(</span><span>appendIdPath<span class="token operator"> = </span><a href="../../wow-api/me.ahoo.wow.api.annotation/-command-route/-append-path/-a-l-w-a-y-s/index.html">CommandRoute.AppendPath.ALWAYS</a></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">data </span><span class="token keyword">class </span><a href="-change-quantity/index.html">ChangeQuantity</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>productId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>quantity<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-627524143%2FClasslikes%2F-291704859" anchor-label="ICartInfo" id="-627524143%2FClasslikes%2F-291704859" data-filterable-set=":example-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":example-api/main" data-filterable-set=":example-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-i-cart-info/index.html"><span>ICart</span><wbr><span><span>Info</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-627524143%2FClasslikes%2F-291704859"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":example-api/main"><div class="symbol monospace"><span class="token keyword">interface </span><a href="-i-cart-info/index.html">ICartInfo</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="439557635%2FClasslikes%2F-291704859" anchor-label="MockVariableCommand" id="439557635%2FClasslikes%2F-291704859" data-filterable-set=":example-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":example-api/main" data-filterable-set=":example-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-mock-variable-command/index.html"><span>Mock</span><wbr><span>Variable</span><wbr><span><span>Command</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="439557635%2FClasslikes%2F-291704859"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":example-api/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="../../wow-api/me.ahoo.wow.api.annotation/-order/index.html"><span class="token annotation builtin">Order</span></a><span class="token punctuation">(</span><span>value<span class="token operator"> = </span><span class="breakable-word"><span class="token constant">4</span></span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><a href="../../wow-api/me.ahoo.wow.api.annotation/-command-route/index.html"><span class="token annotation builtin">CommandRoute</span></a><span class="token punctuation">(</span><span>method<span class="token operator"> = </span><a href="../../wow-api/me.ahoo.wow.api.annotation/-command-route/-method/-p-o-s-t/index.html">CommandRoute.Method.POST</a><span class="token punctuation">, </span></span><wbr><span>appendIdPath<span class="token operator"> = </span><a href="../../wow-api/me.ahoo.wow.api.annotation/-command-route/-append-path/-a-l-w-a-y-s/index.html">CommandRoute.AppendPath.ALWAYS</a><span class="token punctuation">, </span></span><wbr><span>appendTenantPath<span class="token operator"> = </span><a href="../../wow-api/me.ahoo.wow.api.annotation/-command-route/-append-path/-a-l-w-a-y-s/index.html">CommandRoute.AppendPath.ALWAYS</a><span class="token punctuation">, </span></span><wbr><span>appendOwnerPath<span class="token operator"> = </span><a href="../../wow-api/me.ahoo.wow.api.annotation/-command-route/-append-path/-a-l-w-a-y-s/index.html">CommandRoute.AppendPath.ALWAYS</a><span class="token punctuation">, </span></span><wbr><span>action<span class="token operator"> = </span><span class="breakable-word"><span class="token string">"{id}/{customerId}/{mockEnum}"</span></span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">data </span><span class="token keyword">class </span><a href="-mock-variable-command/index.html">MockVariableCommand</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>tenantId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>ownerId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>id<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>customerId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>mockEnum<span class="token operator">: </span><a href="-mock-variable-command/-mock-enum/index.html">MockVariableCommand.MockEnum</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>headerParameter<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>headerEnumParameter<span class="token operator">: </span><a href="-mock-variable-command/-mock-enum/index.html">MockVariableCommand.MockEnum</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-798207225%2FClasslikes%2F-291704859" anchor-label="MountedCommand" id="-798207225%2FClasslikes%2F-291704859" data-filterable-set=":example-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":example-api/main" data-filterable-set=":example-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-mounted-command/index.html"><span>Mounted</span><wbr><span><span>Command</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-798207225%2FClasslikes%2F-291704859"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":example-api/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="../../wow-api/me.ahoo.wow.api.annotation/-order/index.html"><span class="token annotation builtin">Order</span></a><span class="token punctuation">(</span><span>value<span class="token operator"> = </span><span class="breakable-word"><span class="token constant">4</span></span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><a href="../../wow-api/me.ahoo.wow.api.annotation/-summary/index.html"><span class="token annotation builtin">Summary</span></a><span class="token punctuation">(</span><span>value<span class="token operator"> = </span><span class="breakable-word"><span class="token string">"挂载的命令"</span></span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">class </span><a href="-mounted-command/index.html">MountedCommand</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1304023485%2FClasslikes%2F-291704859" anchor-label="RemoveCartItem" id="-1304023485%2FClasslikes%2F-291704859" data-filterable-set=":example-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":example-api/main" data-filterable-set=":example-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-remove-cart-item/index.html"><span>Remove</span><wbr><span>Cart</span><wbr><span><span>Item</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1304023485%2FClasslikes%2F-291704859"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":example-api/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="../../wow-api/me.ahoo.wow.api.annotation/-order/index.html"><span class="token annotation builtin">Order</span></a><span class="token punctuation">(</span><span>value<span class="token operator"> = </span><span class="breakable-word"><span class="token constant">3</span></span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><a href="../../wow-api/me.ahoo.wow.api.annotation/-summary/index.html"><span class="token annotation builtin">Summary</span></a><span class="token punctuation">(</span><span>value<span class="token operator"> = </span><span class="breakable-word"><span class="token string">"删除商品"</span></span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">data </span><span class="token keyword">class </span><a href="-remove-cart-item/index.html">RemoveCartItem</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>productIds<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-set/index.html">Set</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="396647509%2FClasslikes%2F-291704859" anchor-label="ViewCart" id="396647509%2FClasslikes%2F-291704859" data-filterable-set=":example-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":example-api/main" data-filterable-set=":example-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-view-cart/index.html"><span>View</span><wbr><span><span>Cart</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="396647509%2FClasslikes%2F-291704859"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":example-api/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="../../wow-api/me.ahoo.wow.api.annotation/-void-command/index.html"><span class="token annotation builtin">VoidCommand</span></a></div></div><span class="token keyword">class </span><a href="-view-cart/index.html">ViewCart</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <div class="footer--container">
+            <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+            <div class="footer--content">
+                <div>
+                    <span>Generated by </span>
+                    <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                        Dokka
+                    </a>
+                    <div>© 2025 Copyright</div>
+                </div>
+            </div>
+        </div>
+    </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

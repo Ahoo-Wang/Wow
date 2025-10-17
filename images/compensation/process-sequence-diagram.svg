@@ -1,0 +1,294 @@
+<?xml version="1.0" encoding="us-ascii" standalone="no"?>
+<!--
+  - Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+  - Licensed under the Apache License, Version 2.0 (the "License");
+  - you may not use this file except in compliance with the License.
+  - You may obtain a copy of the License at
+  -      http://www.apache.org/licenses/LICENSE-2.0
+  - Unless required by applicable law or agreed to in writing, software
+  - distributed under the License is distributed on an "AS IS" BASIS,
+  - WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  - See the License for the specific language governing permissions and
+  - limitations under the License.
+  -->
+
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" contentStyleType="text/css"
+     height="915px" preserveAspectRatio="none" style="width:949px;height:915px;background:#FFFFFF;" version="1.1"
+     viewBox="0 0 949 915" width="949px" zoomAndPan="magnify">
+    <defs/>
+    <g>
+        <text fill="#000000" font-family="sans-serif" font-size="14" font-weight="bold" lengthAdjust="spacing"
+              textLength="143" x="399" y="41.3125">EventCompensation
+        </text>
+        <rect fill="#DDDDDD" height="838.3848" style="stroke:#181818;stroke-width:0.5;" width="285" x="16" y="56.2656"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacing"
+              textLength="124" x="96.5" y="68.834">Subscriber Service
+        </text>
+        <rect fill="#DDDDDD" height="838.3848" style="stroke:#181818;stroke-width:0.5;" width="327" x="303"
+              y="56.2656"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacing"
+              textLength="144" x="394.5" y="68.834">Compensation Server
+        </text>
+        <rect fill="#DDDDDD" height="838.3848" style="stroke:#181818;stroke-width:0.5;" width="309" x="632"
+              y="56.2656"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacing"
+              textLength="116" x="728.5" y="68.834">Publisher Service
+        </text>
+        <rect fill="#FFFFFF" height="36.6211" style="stroke:#181818;stroke-width:1.0;" width="10" x="74" y="133.5527"/>
+        <rect fill="#FFFFFF" height="350.75" style="stroke:#181818;stroke-width:1.0;" width="10" x="74" y="450.2793"/>
+        <rect fill="#FFFFFF" height="28" style="stroke:#181818;stroke-width:1.0;" width="10" x="79" y="532.9004"/>
+        <rect fill="#FFFFFF" height="29.3105" style="stroke:#181818;stroke-width:1.0;" width="10" x="217.5"
+              y="170.1738"/>
+        <rect fill="#FFFFFF" height="74.6211" style="stroke:#181818;stroke-width:1.0;" width="10" x="217.5"
+              y="636.832"/>
+        <rect fill="#FFFFFF" height="104.6211" style="stroke:#181818;stroke-width:1.0;" width="10" x="217.5"
+              y="771.0293"/>
+        <rect fill="#FFFFFF" height="146.8633" style="stroke:#181818;stroke-width:1.0;" width="10" x="365.5"
+              y="199.4844"/>
+        <rect fill="#FFFFFF" height="30" style="stroke:#181818;stroke-width:1.0;" width="10" x="365.5" y="681.4531"/>
+        <rect fill="#FFFFFF" height="46" style="stroke:#181818;stroke-width:1.0;" width="10" x="365.5" y="845.6504"/>
+        <rect fill="#FFFFFF" height="758.0977" style="stroke:#181818;stroke-width:1.0;" width="10" x="530"
+              y="133.5527"/>
+        <rect fill="#FFFFFF" height="49.6211" style="stroke:#181818;stroke-width:1.0;" width="10" x="535" y="252.1055"/>
+        <rect fill="#FFFFFF" height="74.6211" style="stroke:#181818;stroke-width:1.0;" width="10" x="704.5"
+              y="346.3477"/>
+        <rect fill="#FFFFFF" height="89.3105" style="stroke:#181818;stroke-width:1.0;" width="10" x="860" y="390.9688"/>
+        <rect fill="none" height="300.75" style="stroke:#000000;stroke-width:1.5;" width="434" x="10" y="582.9004"/>
+        <line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="79" x2="79" y1="123.5527"
+              y2="900.6504"/>
+        <line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="222" x2="222" y1="123.5527"
+              y2="900.6504"/>
+        <line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="370" x2="370" y1="123.5527"
+              y2="900.6504"/>
+        <line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="535" x2="535" y1="123.5527"
+              y2="900.6504"/>
+        <line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="709" x2="709" y1="123.5527"
+              y2="900.6504"/>
+        <line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="865" x2="865" y1="123.5527"
+              y2="900.6504"/>
+        <rect fill="#E2E2F0" height="30.4883" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="118"
+              x="20" y="92.0645"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="104" x="27"
+              y="112.5996">EventProcessor
+        </text>
+        <rect fill="#E2E2F0" height="30.4883" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="149"
+              x="148" y="92.0645"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="135" x="155"
+              y="112.5996">CompensationFilter
+        </text>
+        <rect fill="#E2E2F0" height="46.9766" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="127"
+              x="307" y="75.5762"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="109" x="314"
+              y="96.1113">ExecutionFailed
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="104" x="320.5"
+              y="112.5996">AggregateRoot
+        </text>
+        <rect fill="#E2E2F0" height="30.4883" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="182"
+              x="444" y="92.0645"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="168" x="451"
+              y="112.5996">CompensationScheduler
+        </text>
+        <rect fill="#E2E2F0" height="30.4883" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="147"
+              x="636" y="92.0645"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="133" x="643"
+              y="112.5996">CompensationSaga
+        </text>
+        <rect fill="#E2E2F0" height="30.4883" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="144"
+              x="793" y="92.0645"/>
+        <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="130" x="800"
+              y="112.5996">EventCompensator
+        </text>
+        <rect fill="#FFFFFF" height="36.6211" style="stroke:#181818;stroke-width:1.0;" width="10" x="74" y="133.5527"/>
+        <rect fill="#FFFFFF" height="350.75" style="stroke:#181818;stroke-width:1.0;" width="10" x="74" y="450.2793"/>
+        <rect fill="#FFFFFF" height="28" style="stroke:#181818;stroke-width:1.0;" width="10" x="79" y="532.9004"/>
+        <rect fill="#FFFFFF" height="29.3105" style="stroke:#181818;stroke-width:1.0;" width="10" x="217.5"
+              y="170.1738"/>
+        <rect fill="#FFFFFF" height="74.6211" style="stroke:#181818;stroke-width:1.0;" width="10" x="217.5"
+              y="636.832"/>
+        <rect fill="#FFFFFF" height="104.6211" style="stroke:#181818;stroke-width:1.0;" width="10" x="217.5"
+              y="771.0293"/>
+        <rect fill="#FFFFFF" height="146.8633" style="stroke:#181818;stroke-width:1.0;" width="10" x="365.5"
+              y="199.4844"/>
+        <rect fill="#FFFFFF" height="30" style="stroke:#181818;stroke-width:1.0;" width="10" x="365.5" y="681.4531"/>
+        <rect fill="#FFFFFF" height="46" style="stroke:#181818;stroke-width:1.0;" width="10" x="365.5" y="845.6504"/>
+        <rect fill="#FFFFFF" height="758.0977" style="stroke:#181818;stroke-width:1.0;" width="10" x="530"
+              y="133.5527"/>
+        <rect fill="#FFFFFF" height="49.6211" style="stroke:#181818;stroke-width:1.0;" width="10" x="535" y="252.1055"/>
+        <rect fill="#FFFFFF" height="74.6211" style="stroke:#181818;stroke-width:1.0;" width="10" x="704.5"
+              y="346.3477"/>
+        <rect fill="#FFFFFF" height="89.3105" style="stroke:#181818;stroke-width:1.0;" width="10" x="860" y="390.9688"/>
+        <polygon fill="#181818" points="205.5,166.1738,215.5,170.1738,205.5,174.1738,209.5,170.1738"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="79" x2="211.5" y1="170.1738" y2="170.1738"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="16" x="86"
+              y="157.7764">[1]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="42" x="106"
+              y="150.1211">Invoke
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="45" x="106"
+              y="165.4316">(Failed)
+        </text>
+        <polygon fill="#181818" points="353.5,195.4844,363.5,199.4844,353.5,203.4844,357.5,199.4844"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="222.5" x2="359.5" y1="199.4844" y2="199.4844"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="16" x="229.5"
+              y="194.7422">[2]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="77" x="249.5"
+              y="194.7422">CreateFailed
+        </text>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="540" x2="587" y1="239.1055" y2="239.1055"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="587" x2="587" y1="239.1055" y2="252.1055"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="546" x2="587" y1="252.1055" y2="252.1055"/>
+        <polygon fill="#181818" points="556,248.1055,546,252.1055,556,256.1055,552,252.1055"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="16" x="552"
+              y="226.708">[3]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="75" x="572"
+              y="219.0527">FindToRetry
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="112" x="576"
+              y="234.3633">(&#26597;&#35810;&#24453;&#37325;&#35797;&#30340;&#22833;&#36133;)
+        </text>
+        <polygon fill="#181818" points="386.5,297.7266,376.5,301.7266,386.5,305.7266,382.5,301.7266"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="380.5" x2="529" y1="301.7266" y2="301.7266"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="16" x="392.5"
+              y="289.3291">[4]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="46" x="412.5"
+              y="281.6738">Prepare
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="60" x="412.5"
+              y="296.9844">(&#20934;&#22791;&#37325;&#35797;)
+        </text>
+        <polygon fill="#181818" points="692.5,342.3477,702.5,346.3477,692.5,350.3477,696.5,346.3477"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;stroke-dasharray:2.0,2.0;" x1="370.5" x2="698.5" y1="346.3477"
+              y2="346.3477"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="16" x="377.5"
+              y="333.9502">[5]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="54" x="397.5"
+              y="326.2949">Prepared
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="73" x="397.5"
+              y="341.6055">(&#24050;&#20934;&#22791;&#23601;&#32490;)
+        </text>
+        <polygon fill="#181818" points="848,386.9688,858,390.9688,848,394.9688,852,390.9688"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="714.5" x2="854" y1="390.9688" y2="390.9688"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="16" x="721.5"
+              y="378.5713">[6]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="78" x="741.5"
+              y="370.916">Compensate
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="34" x="741.5"
+              y="386.2266">(&#34917;&#20607;)
+        </text>
+        <polygon fill="#181818" points="95,446.2793,85,450.2793,95,454.2793,91,450.2793"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;stroke-dasharray:2.0,2.0;" x1="89" x2="859" y1="450.2793"
+              y2="450.2793"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="16" x="101"
+              y="445.5371">[7]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="163" x="121"
+              y="445.5371">DomainEvent / StateEvent
+        </text>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="89" x2="131" y1="524.9004" y2="524.9004"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="131" x2="131" y1="524.9004" y2="537.9004"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="90" x2="131" y1="537.9004" y2="537.9004"/>
+        <polygon fill="#181818" points="100,533.9004,90,537.9004,100,541.9004,96,537.9004"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="16" x="96"
+              y="512.5029">[8]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="42" x="116"
+              y="504.8477">Invoke
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="60" x="116"
+              y="520.1582">(&#25191;&#34892;&#34917;&#20607;)
+        </text>
+        <path d="M10,582.9004 L72,582.9004 L72,590.2109 L62,600.2109 L10,600.2109 L10,582.9004 " fill="#EEEEEE"
+              style="stroke:#000000;stroke-width:1.5;"/>
+        <rect fill="none" height="300.75" style="stroke:#000000;stroke-width:1.5;" width="434" x="10" y="582.9004"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacing"
+              textLength="17" x="25" y="596.4688">alt
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="11" font-weight="bold" lengthAdjust="spacing"
+              textLength="84" x="87" y="595.5352">[success&#65306;&#25104;&#21151;]
+        </text>
+        <polygon fill="#181818" points="205.5,632.832,215.5,636.832,205.5,640.832,209.5,636.832"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="84" x2="211.5" y1="636.832" y2="636.832"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="16" x="91"
+              y="624.4346">[9]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="42" x="111"
+              y="616.7793">Invoke
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="58" x="111"
+              y="632.0898">(Success)
+        </text>
+        <polygon fill="#181818" points="353.5,677.4531,363.5,681.4531,353.5,685.4531,357.5,681.4531"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="227.5" x2="359.5" y1="681.4531" y2="681.4531"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="24" x="234.5"
+              y="669.0557">[10]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="86" x="262.5"
+              y="661.4004">ApplySuccess
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="60" x="262.5"
+              y="676.7109">(&#25191;&#34892;&#25104;&#21151;)
+        </text>
+        <line style="stroke:#000000;stroke-width:1.0;stroke-dasharray:2.0,2.0;" x1="10" x2="444" y1="720.4531"
+              y2="720.4531"/>
+        <text fill="#000000" font-family="sans-serif" font-size="11" font-weight="bold" lengthAdjust="spacing"
+              textLength="60" x="15" y="731.0879">[fail&#65306;&#22833;&#36133;]
+        </text>
+        <polygon fill="#181818" points="205.5,767.0293,215.5,771.0293,205.5,775.0293,209.5,771.0293"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="84" x2="211.5" y1="771.0293" y2="771.0293"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="24" x="91"
+              y="758.6318">[11]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="42" x="119"
+              y="750.9766">Invoke
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="45" x="119"
+              y="766.2871">(Failed)
+        </text>
+        <polygon fill="#181818" points="353.5,841.6504,363.5,845.6504,353.5,849.6504,357.5,845.6504"
+                 style="stroke:#181818;stroke-width:1.0;"/>
+        <line style="stroke:#181818;stroke-width:1.0;" x1="227.5" x2="359.5" y1="845.6504" y2="845.6504"/>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="24" x="234.5"
+              y="833.2529">[12]
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="73" x="262.5"
+              y="825.5977">ApplyFailed
+        </text>
+        <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="60" x="262.5"
+              y="840.9082">(&#25191;&#34892;&#22833;&#36133;)
+        </text>
+        <a href="https://github.com/Ahoo-Wang/Wow" target="_top" title="https://github.com/Ahoo-Wang/Wow"
+           xlink:actuate="onRequest" xlink:href="https://github.com/Ahoo-Wang/Wow" xlink:show="new"
+           xlink:title="https://github.com/Ahoo-Wang/Wow" xlink:type="simple">
+            <text fill="#808080" font-family="sans-serif" font-size="10" lengthAdjust="spacing"
+                  text-decoration="underline" textLength="183" x="758" y="14.668">https://github.com/Ahoo-Wang/Wow
+            </text>
+        </a>
+        <a href="https://github.com/Ahoo-Wang/Wow" target="_top" title="https://github.com/Ahoo-Wang/Wow"
+           xlink:actuate="onRequest" xlink:href="https://github.com/Ahoo-Wang/Wow" xlink:show="new"
+           xlink:title="https://github.com/Ahoo-Wang/Wow" xlink:type="simple">
+            <text fill="#808080" font-family="sans-serif" font-size="10" lengthAdjust="spacing"
+                  text-decoration="underline" textLength="183" x="379" y="905.3184">https://github.com/Ahoo-Wang/Wow
+            </text>
+        </a><!--SRC=[bPI_Rjim4CPtFWNhAOQXf7C60q7-0DcCg5lJWPQkDb6Q52ZIYCS2RTmMBT2bIvOWHOm0NT8K1JeaQ9z6ZZBb5K9JaYrJCk0k0gYx-_YxxqvwHdd0T0YOaP7GQZFI0uOKLGpG_X2usXM327XC51KS0Gzn5kjJK_9Q2DKL9mYP1_PrDmuaxOB4FiWX3G15H2eQq8XmXQrOHue0ubZ8fL3vYWFA54XxqLov7BVQi5pVs3-1GDjgGXc4-9ZZdLvFGeyeE3AC3KnYx2Ij9F23FeIQkH0TtMKqxg_eRac0z4YrzNc6A0aJhGJNWvbdZPVFNpKGMhQfrKArQEQzauczTesFsFDQBRoD3_bGl07ZoqRMV1FLvRPTZuhoNGd6oTotQauzeqkq25ZD0yh35-88b1pDvhKnFP-arz-Jl-yVnb_Iws_tP- -IovlqzwIvMjqbCIZRk2F1U6zxJSQdoUKuqslMSBShOoiQpaL2g_BdLoQK_Bovl_tXyDYYTcN4faVFcpbNlB90wSKaUVklYIhPNY5HchojtnC3GhaDuItiAoDa3yxqA-N5_Ol1JpzUfHUV2mB258vrC4j-l3kRVlYQV3fVRwESVV8paJKNAgVQYI8soYiNR1b5PL1clu35vcTZJeOrsufrMHqJ_clxox3p7qlEMkoc-PAV0000]-->
+    </g>
+</svg>

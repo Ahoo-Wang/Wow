@@ -1,0 +1,825 @@
+<!doctype html>
+<html class="no-js" lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>Operator</title>
+<link href="../../../images/logo-icon.svg" rel="icon" type="image/svg"><script>var pathToRoot = "../../../";</script>
+    <script>document.documentElement.classList.replace("no-js", "js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+      if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      } else {
+        const savedDarkMode = JSON.parse(storage)
+        if (savedDarkMode === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      }
+    </script>
+<script type="text/javascript" src="https://unpkg.com/kotlin-playground@1/dist/playground.min.js" async></script>
+<script type="text/javascript" src="../../../scripts/sourceset_dependencies.js" async></script>
+<link href="../../../styles/style.css" rel="Stylesheet">
+<link href="../../../styles/main.css" rel="Stylesheet">
+<link href="../../../styles/prism.css" rel="Stylesheet">
+<link href="../../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../../scripts/safe-local-storage_blocking.js"></script>
+<script type="text/javascript" src="../../../scripts/navigation-loader.js" async></script>
+<script type="text/javascript" src="../../../scripts/platform-content-handler.js" async></script>
+<script type="text/javascript" src="../../../scripts/main.js" defer></script>
+<script type="text/javascript" src="../../../scripts/prism.js" async></script>
+<script type="text/javascript" src="../../../ui-kit/ui-kit.min.js" defer></script></head>
+<body>
+<div class="root">
+    <header class="navigation theme-dark" id="navigation-wrapper" role="banner">
+<a class="library-name--link" href="../../../index.html" tabindex="1">
+                    Wow
+            </a>        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle" type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">6.2.9
+        </div>
+        <div class="navigation-controls">
+        <ul class="filter-section filter-section_loading" id="filter-section" aria-label="Target filter">
+                <button class="platform-tag platform-selector jvm-like" data-active="" aria-pressed="true" data-filter=":wow-api/main">jvm</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox" data-role="dropdown-toggle" aria-controls="platform-tags-listbox" aria-haspopup="listbox" aria-expanded="false" aria-label="Toggle source sets"></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox" aria-label="Target filter">
+                    <div class="dropdown--header"><span>Target filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close target filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option jvm-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":wow-api/main" data-filter=":wow-api/main">
+                                <span class="checkbox--icon"></span>
+                                jvm
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </ul>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button" type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </header>
+    <div id="container">
+        <nav id="leftColumn" class="sidebar" data-item-type="SECTION" data-item-config="{&quot;defaultSize&quot;: 280, &quot;minSize&quot;: 200, &quot;maxSize&quot;: 400}">
+            <a class="toc--skip-link" href="#main">Skip to content</a>
+            <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list" data-role="dropdown-listbox" aria-label="Table of contents">
+                    <div class="dropdown--header">
+                            <span>
+                                    Wow
+                            </span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                    <div class="sidebar--inner" id="sideMenu"></div>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </nav>
+        <div id="resizer" class="resizer" data-item-type="BAR"></div>
+        <div id="main" data-item-type="SECTION" role="main">
+<div class="main-content" data-page-type="classlike" id="content" pageids="wow-api::me.ahoo.wow.api.query/Operator///PointingToDeclaration//-443338726">
+  <div class="breadcrumbs"><a href="../../index.html">wow-api</a><span class="delimiter">/</span><a href="../index.html">me.ahoo.wow.api.query</a><span class="delimiter">/</span><span class="current">Operator</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span><span>Operator</span></span></h1>
+    <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><span class="token keyword">enum </span><a href="index.html">Operator</a> : <a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-enum/index.html">Enum</a><span class="token operator">&lt;</span><a href="index.html">Operator</a><span class="token operator">&gt; </span></div></div></div>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="CONSTRUCTOR,TYPE,PROPERTY,FUNCTION">Members</button><button class="section-tab" data-togglable="ENTRY">Entries</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="ENTRY">
+        <h2 class="tableheader">Entries</h2>
+        <div class="table"><a data-name="1905998140%2FClasslikes%2F-443338726" anchor-label="AND" id="1905998140%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-togglable="ENTRY" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-a-n-d/index.html">AND</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1905998140%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><a href="-a-n-d/index.html">AND</a></div></div><div class="brief "><p class="paragraph">对提供的条件列表执行逻辑与</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1138049510%2FClasslikes%2F-443338726" anchor-label="OR" id="1138049510%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-togglable="ENTRY" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-o-r/index.html">OR</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1138049510%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><a href="-o-r/index.html">OR</a></div></div><div class="brief "><p class="paragraph">对提供的条件列表执行逻辑或</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="999669942%2FClasslikes%2F-443338726" anchor-label="NOR" id="999669942%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-togglable="ENTRY" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-n-o-r/index.html">NOR</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="999669942%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><a href="-n-o-r/index.html">NOR</a></div></div><div class="brief "><p class="paragraph">对提供的条件列表执行逻辑或非</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1638936350%2FClasslikes%2F-443338726" anchor-label="ID" id="1638936350%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-togglable="ENTRY" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-i-d/index.html">ID</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1638936350%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><a href="-i-d/index.html">ID</a></div></div><div class="brief "><p class="paragraph">匹配<code class="lang-kotlin">id</code>字段值等于指定值的所有文档</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-73659811%2FClasslikes%2F-443338726" anchor-label="IDS" id="-73659811%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-togglable="ENTRY" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-i-d-s/index.html">IDS</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-73659811%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><a href="-i-d-s/index.html">IDS</a></div></div><div class="brief "><p class="paragraph">匹配<code class="lang-kotlin">id</code>字段值等于指定值列表中的任何值的所有文档</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1602009346%2FClasslikes%2F-443338726" anchor-label="AGGREGATE_ID" id="-1602009346%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-togglable="ENTRY" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-a-g-g-r-e-g-a-t-e_-i-d/index.html">AGGREGATE_ID</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1602009346%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><a href="-a-g-g-r-e-g-a-t-e_-i-d/index.html">AGGREGATE_ID</a></div></div><div class="brief "><p class="paragraph">匹配聚合根ID等于指定值的文档</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1758728579%2FClasslikes%2F-443338726" anchor-label="AGGREGATE_IDS" id="-1758728579%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-togglable="ENTRY" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-a-g-g-r-e-g-a-t-e_-i-d-s/index.html">AGGREGATE_IDS</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1758728579%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><a href="-a-g-g-r-e-g-a-t-e_-i-d-s/index.html">AGGREGATE_IDS</a></div></div><div class="brief "><p class="paragraph">匹配聚合根ID等于指定值列表中的任何值的所有文档</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1370698283%2FClasslikes%2F-443338726" anchor-label="TENANT_ID" id="-1370698283%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-togglable="ENTRY" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-t-e-n-a-n-t_-i-d/index.html">TENANT_ID</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1370698283%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><a href="-t-e-n-a-n-t_-i-d/index.html">TENANT_ID</a></div></div><div class="brief "><p class="paragraph">匹配<code class="lang-kotlin">tenantId</code>字段值等于指定值的所有文档</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1720907766%2FClasslikes%2F-443338726" anchor-label="OWNER_ID" id="-1720907766%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-togglable="ENTRY" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-o-w-n-e-r_-i-d/index.html">OWNER_ID</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1720907766%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><a href="-o-w-n-e-r_-i-d/index.html">OWNER_ID</a></div></div><div class="brief "><p class="paragraph">匹配<code class="lang-kotlin">ownerId</code>字段值等于指定值的所有文档</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1842216830%2FClasslikes%2F-443338726" anchor-label="DELETED" id="1842216830%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-togglable="ENTRY" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-d-e-l-e-t-e-d/index.html">DELETED</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1842216830%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><a href="-d-e-l-e-t-e-d/index.html">DELETED</a></div></div><div class="brief "><p class="paragraph">匹配<code class="lang-kotlin">deleted</code>字段值等于指定值的所有文档</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="752747398%2FClasslikes%2F-443338726" anchor-label="ALL" id="752747398%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-togglable="ENTRY" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-a-l-l/index.html">ALL</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="752747398%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><a href="-a-l-l/index.html">ALL</a></div></div><div class="brief "><p class="paragraph">匹配所有文档</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="2131676911%2FClasslikes%2F-443338726" anchor-label="EQ" id="2131676911%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-togglable="ENTRY" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-e-q/index.html">EQ</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="2131676911%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><a href="-e-q/index.html">EQ</a></div></div><div class="brief "><p class="paragraph">匹配字段名称值等于指定值的所有文档</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="2107238074%2FClasslikes%2F-443338726" anchor-label="NE" id="2107238074%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-togglable="ENTRY" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-n-e/index.html">NE</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="2107238074%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><a href="-n-e/index.html">NE</a></div></div><div class="brief "><p class="paragraph">匹配字段名称值不等于指定值的所有文档</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1252336784%2FClasslikes%2F-443338726" anchor-label="GT" id="-1252336784%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-togglable="ENTRY" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-t/index.html">GT</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1252336784%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><a href="-g-t/index.html">GT</a></div></div><div class="brief "><p class="paragraph">匹配给定字段的值大于指定值的所有文档</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1580701387%2FClasslikes%2F-443338726" anchor-label="LT" id="1580701387%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-togglable="ENTRY" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-l-t/index.html">LT</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1580701387%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><a href="-l-t/index.html">LT</a></div></div><div class="brief "><p class="paragraph">匹配给定字段的值小于指定值的所有文档</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-762241859%2FClasslikes%2F-443338726" anchor-label="GTE" id="-762241859%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-togglable="ENTRY" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-g-t-e/index.html">GTE</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-762241859%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><a href="-g-t-e/index.html">GTE</a></div></div><div class="brief "><p class="paragraph">匹配给定字段的值大于或等于指定值的所有文档</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1162595522%2FClasslikes%2F-443338726" anchor-label="LTE" id="1162595522%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-togglable="ENTRY" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-l-t-e/index.html">LTE</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1162595522%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><a href="-l-t-e/index.html">LTE</a></div></div><div class="brief "><p class="paragraph">匹配给定字段的值小于或等于指定值的所有文档</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1882653214%2FClasslikes%2F-443338726" anchor-label="CONTAINS" id="-1882653214%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-togglable="ENTRY" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-c-o-n-t-a-i-n-s/index.html">CONTAINS</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1882653214%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><a href="-c-o-n-t-a-i-n-s/index.html">CONTAINS</a></div></div><div class="brief "><p class="paragraph">匹配给定字段的值包含指定值的所有文档</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-533591640%2FClasslikes%2F-443338726" anchor-label="IN" id="-533591640%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-togglable="ENTRY" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-i-n/index.html">IN</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-533591640%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><a href="-i-n/index.html">IN</a></div></div><div class="brief "><p class="paragraph">匹配字段值等于指定值列表中的任何值的所有文档</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1813085644%2FClasslikes%2F-443338726" anchor-label="NOT_IN" id="-1813085644%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-togglable="ENTRY" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-n-o-t_-i-n/index.html">NOT_IN</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1813085644%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><a href="-n-o-t_-i-n/index.html">NOT_IN</a></div></div><div class="brief "><p class="paragraph">匹配字段值不等于任何指定值或不存在的所有文档</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1723628333%2FClasslikes%2F-443338726" anchor-label="BETWEEN" id="1723628333%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-togglable="ENTRY" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-b-e-t-w-e-e-n/index.html">BETWEEN</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1723628333%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><a href="-b-e-t-w-e-e-n/index.html">BETWEEN</a></div></div><div class="brief "><p class="paragraph">匹配字段值在指定值范围区间的所有文档</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1278776026%2FClasslikes%2F-443338726" anchor-label="ALL_IN" id="-1278776026%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-togglable="ENTRY" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-a-l-l_-i-n/index.html">ALL_IN</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1278776026%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><a href="-a-l-l_-i-n/index.html">ALL_IN</a></div></div><div class="brief "><p class="paragraph">匹配所有文档，其中字段值是包含所有指定值的数组</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-533281351%2FClasslikes%2F-443338726" anchor-label="STARTS_WITH" id="-533281351%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-togglable="ENTRY" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-s-t-a-r-t-s_-w-i-t-h/index.html">STARTS_WITH</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-533281351%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><a href="-s-t-a-r-t-s_-w-i-t-h/index.html">STARTS_WITH</a></div></div><div class="brief "><p class="paragraph">匹配字段值以指定字符串开头的文档</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-602265102%2FClasslikes%2F-443338726" anchor-label="ENDS_WITH" id="-602265102%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-togglable="ENTRY" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-e-n-d-s_-w-i-t-h/index.html">ENDS_WITH</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-602265102%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><a href="-e-n-d-s_-w-i-t-h/index.html">ENDS_WITH</a></div></div><div class="brief "><p class="paragraph">匹配字段值以指定字符串结尾的文档</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-254069128%2FClasslikes%2F-443338726" anchor-label="ELEM_MATCH" id="-254069128%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-togglable="ENTRY" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-e-l-e-m_-m-a-t-c-h/index.html">ELEM_MATCH</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-254069128%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><a href="-e-l-e-m_-m-a-t-c-h/index.html">ELEM_MATCH</a></div></div><div class="brief "><p class="paragraph">条件与包含数组字段的所有文档相匹配，其中数组中至少有一个成员与给定的条件匹配。</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-132636982%2FClasslikes%2F-443338726" anchor-label="NULL" id="-132636982%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-togglable="ENTRY" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-n-u-l-l/index.html">NULL</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-132636982%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><a href="-n-u-l-l/index.html">NULL</a></div></div><div class="brief "><p class="paragraph">匹配字段值在指定值为<code class="lang-kotlin">null</code>的所有文档</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1365728170%2FClasslikes%2F-443338726" anchor-label="NOT_NULL" id="-1365728170%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-togglable="ENTRY" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-n-o-t_-n-u-l-l/index.html">NOT_NULL</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1365728170%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><a href="-n-o-t_-n-u-l-l/index.html">NOT_NULL</a></div></div><div class="brief "><p class="paragraph">匹配字段值在指定值不为<code class="lang-kotlin">null</code>的所有文档</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="56734865%2FClasslikes%2F-443338726" anchor-label="TRUE" id="56734865%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-togglable="ENTRY" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-t-r-u-e/index.html">TRUE</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="56734865%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><a href="-t-r-u-e/index.html">TRUE</a></div></div><div class="brief "><p class="paragraph">匹配字段值在指定值为<code class="lang-kotlin">true</code>的所有文档</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1559836488%2FClasslikes%2F-443338726" anchor-label="FALSE" id="1559836488%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-togglable="ENTRY" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-f-a-l-s-e/index.html">FALSE</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1559836488%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><a href="-f-a-l-s-e/index.html">FALSE</a></div></div><div class="brief "><p class="paragraph">匹配字段值在指定值为<code class="lang-kotlin">false</code>的所有文档</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="697658143%2FClasslikes%2F-443338726" anchor-label="EXISTS" id="697658143%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-togglable="ENTRY" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-e-x-i-s-t-s/index.html">EXISTS</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="697658143%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><a href="-e-x-i-s-t-s/index.html">EXISTS</a></div></div><div class="brief "><p class="paragraph">匹配文档是否存在字段</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1407988506%2FClasslikes%2F-443338726" anchor-label="TODAY" id="-1407988506%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-togglable="ENTRY" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-t-o-d-a-y/index.html">TODAY</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1407988506%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><a href="-t-o-d-a-y/index.html">TODAY</a></div></div><div class="brief "><p class="paragraph">匹配字段在今天范围区间的所有文档</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="212284196%2FClasslikes%2F-443338726" anchor-label="BEFORE_TODAY" id="212284196%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-togglable="ENTRY" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-b-e-f-o-r-e_-t-o-d-a-y/index.html">BEFORE_TODAY</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="212284196%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><a href="-b-e-f-o-r-e_-t-o-d-a-y/index.html">BEFORE_TODAY</a></div></div><div class="brief "><p class="paragraph">匹配字段在今天_time_之前的所有文档</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1216993208%2FClasslikes%2F-443338726" anchor-label="TOMORROW" id="-1216993208%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-togglable="ENTRY" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-t-o-m-o-r-r-o-w/index.html">TOMORROW</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1216993208%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><a href="-t-o-m-o-r-r-o-w/index.html">TOMORROW</a></div></div><div class="brief "><p class="paragraph">匹配字段在昨天范围区间的所有文档</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-193829062%2FClasslikes%2F-443338726" anchor-label="THIS_WEEK" id="-193829062%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-togglable="ENTRY" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-t-h-i-s_-w-e-e-k/index.html">THIS_WEEK</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-193829062%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><a href="-t-h-i-s_-w-e-e-k/index.html">THIS_WEEK</a></div></div><div class="brief "><p class="paragraph">匹配字段在本周范围区间的所有文档</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1241604411%2FClasslikes%2F-443338726" anchor-label="NEXT_WEEK" id="-1241604411%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-togglable="ENTRY" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-n-e-x-t_-w-e-e-k/index.html">NEXT_WEEK</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1241604411%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><a href="-n-e-x-t_-w-e-e-k/index.html">NEXT_WEEK</a></div></div><div class="brief "><p class="paragraph">匹配字段在下周范围区间的所有文档</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-314343358%2FClasslikes%2F-443338726" anchor-label="LAST_WEEK" id="-314343358%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-togglable="ENTRY" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-l-a-s-t_-w-e-e-k/index.html">LAST_WEEK</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-314343358%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><a href="-l-a-s-t_-w-e-e-k/index.html">LAST_WEEK</a></div></div><div class="brief "><p class="paragraph">匹配字段在上周范围区间的所有文档</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1610058366%2FClasslikes%2F-443338726" anchor-label="THIS_MONTH" id="-1610058366%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-togglable="ENTRY" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-t-h-i-s_-m-o-n-t-h/index.html">THIS_MONTH</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1610058366%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><a href="-t-h-i-s_-m-o-n-t-h/index.html">THIS_MONTH</a></div></div><div class="brief "><p class="paragraph">匹配字段在本月范围区间的所有文档</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1051034246%2FClasslikes%2F-443338726" anchor-label="LAST_MONTH" id="-1051034246%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-togglable="ENTRY" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-l-a-s-t_-m-o-n-t-h/index.html">LAST_MONTH</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1051034246%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><a href="-l-a-s-t_-m-o-n-t-h/index.html">LAST_MONTH</a></div></div><div class="brief "><p class="paragraph">匹配字段在上月范围区间的所有文档</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="790532928%2FClasslikes%2F-443338726" anchor-label="RECENT_DAYS" id="790532928%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-togglable="ENTRY" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-r-e-c-e-n-t_-d-a-y-s/index.html">RECENT_DAYS</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="790532928%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><a href="-r-e-c-e-n-t_-d-a-y-s/index.html">RECENT_DAYS</a></div></div><div class="brief "><p class="paragraph">匹配字段在指定值最近天数范围区间的所有文档</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="267311129%2FClasslikes%2F-443338726" anchor-label="EARLIER_DAYS" id="267311129%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-togglable="ENTRY" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-e-a-r-l-i-e-r_-d-a-y-s/index.html">EARLIER_DAYS</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="267311129%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><a href="-e-a-r-l-i-e-r_-d-a-y-s/index.html">EARLIER_DAYS</a></div></div><div class="brief "><p class="paragraph">匹配字段在指定值之前天数范围的所有文档</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-36780083%2FClasslikes%2F-443338726" anchor-label="RAW" id="-36780083%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-togglable="ENTRY" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-r-a-w/index.html">RAW</a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-36780083%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><a href="-r-a-w/index.html">RAW</a></div></div><div class="brief "><p class="paragraph">原始操作符，将条件值直接作为原始的数据库查询条件</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="PROPERTY">
+        <h2 class="tableheader">Properties</h2>
+        <div class="table"><a data-name="-1450795811%2FProperties%2F-443338726" anchor-label="entries" id="-1450795811%2FProperties%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="entries.html"><span><span>entries</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1450795811%2FProperties%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><span class="token keyword">val </span><a href="entries.html">entries</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.enums/-enum-entries/index.html">EnumEntries</a><span class="token operator">&lt;</span><a href="index.html">Operator</a><span class="token operator">&gt;</span></div><div class="brief "><p class="paragraph">Returns a representation of an immutable list of all enum entries, in the order they're declared.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-372974862%2FProperties%2F-443338726" anchor-label="name" id="-372974862%2FProperties%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../-sort/-direction/-d-e-s-c/index.html#-372974862%2FProperties%2F-443338726"><span><span>name</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-372974862%2FProperties%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><span class="token keyword">val </span><a href="../-sort/-direction/-d-e-s-c/index.html#-372974862%2FProperties%2F-443338726">name</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-739389684%2FProperties%2F-443338726" anchor-label="ordinal" id="-739389684%2FProperties%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../-sort/-direction/-d-e-s-c/index.html#-739389684%2FProperties%2F-443338726"><span><span>ordinal</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-739389684%2FProperties%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><span class="token keyword">val </span><a href="../-sort/-direction/-d-e-s-c/index.html#-739389684%2FProperties%2F-443338726">ordinal</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="FUNCTION">
+        <h2 class="tableheader">Functions</h2>
+        <div class="table"><a data-name="-1587949601%2FFunctions%2F-443338726" anchor-label="valueOf" id="-1587949601%2FFunctions%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="value-of.html"><span>value</span><wbr><span><span>Of</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1587949601%2FFunctions%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="value-of.html"><span class="token function">valueOf</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">Operator</a></div><div class="brief "><p class="paragraph">Returns the enum constant of this type with the specified name. The string must match exactly an identifier used to declare an enum constant in this type. (Extraneous whitespace characters are not permitted.)</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-815448277%2FFunctions%2F-443338726" anchor-label="values" id="-815448277%2FFunctions%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="values.html"><span><span>values</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-815448277%2FFunctions%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="values.html"><span class="token function">values</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-array/index.html">Array</a><span class="token operator">&lt;</span><a href="index.html">Operator</a><span class="token operator">&gt;</span></div><div class="brief "><p class="paragraph">Returns an array containing the constants of this enum type, in the order they're declared.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <div class="footer--container">
+            <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+            <div class="footer--content">
+                <div>
+                    <span>Generated by </span>
+                    <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                        Dokka
+                    </a>
+                    <div>© 2025 Copyright</div>
+                </div>
+            </div>
+        </div>
+    </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

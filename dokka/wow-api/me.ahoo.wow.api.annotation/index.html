@@ -1,0 +1,835 @@
+<!doctype html>
+<html class="no-js" lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>me.ahoo.wow.api.annotation</title>
+<link href="../../images/logo-icon.svg" rel="icon" type="image/svg"><script>var pathToRoot = "../../";</script>
+    <script>document.documentElement.classList.replace("no-js", "js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+      if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      } else {
+        const savedDarkMode = JSON.parse(storage)
+        if (savedDarkMode === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      }
+    </script>
+<script type="text/javascript" src="https://unpkg.com/kotlin-playground@1/dist/playground.min.js" async></script>
+<script type="text/javascript" src="../../scripts/sourceset_dependencies.js" async></script>
+<link href="../../styles/style.css" rel="Stylesheet">
+<link href="../../styles/main.css" rel="Stylesheet">
+<link href="../../styles/prism.css" rel="Stylesheet">
+<link href="../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../scripts/safe-local-storage_blocking.js"></script>
+<script type="text/javascript" src="../../scripts/navigation-loader.js" async></script>
+<script type="text/javascript" src="../../scripts/platform-content-handler.js" async></script>
+<script type="text/javascript" src="../../scripts/main.js" defer></script>
+<script type="text/javascript" src="../../scripts/prism.js" async></script>
+<script type="text/javascript" src="../../ui-kit/ui-kit.min.js" defer></script></head>
+<body>
+<div class="root">
+    <header class="navigation theme-dark" id="navigation-wrapper" role="banner">
+<a class="library-name--link" href="../../index.html" tabindex="1">
+                    Wow
+            </a>        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle" type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">6.2.9
+        </div>
+        <div class="navigation-controls">
+        <ul class="filter-section filter-section_loading" id="filter-section" aria-label="Target filter">
+                <button class="platform-tag platform-selector jvm-like" data-active="" aria-pressed="true" data-filter=":wow-api/main">jvm</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox" data-role="dropdown-toggle" aria-controls="platform-tags-listbox" aria-haspopup="listbox" aria-expanded="false" aria-label="Toggle source sets"></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox" aria-label="Target filter">
+                    <div class="dropdown--header"><span>Target filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close target filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option jvm-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":wow-api/main" data-filter=":wow-api/main">
+                                <span class="checkbox--icon"></span>
+                                jvm
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </ul>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button" type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </header>
+    <div id="container">
+        <nav id="leftColumn" class="sidebar" data-item-type="SECTION" data-item-config="{&quot;defaultSize&quot;: 280, &quot;minSize&quot;: 200, &quot;maxSize&quot;: 400}">
+            <a class="toc--skip-link" href="#main">Skip to content</a>
+            <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list" data-role="dropdown-listbox" aria-label="Table of contents">
+                    <div class="dropdown--header">
+                            <span>
+                                    Wow
+                            </span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                    <div class="sidebar--inner" id="sideMenu"></div>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </nav>
+        <div id="resizer" class="resizer" data-item-type="BAR"></div>
+        <div id="main" data-item-type="SECTION" role="main">
+<div class="main-content" data-page-type="package" id="content" pageids="wow-api::me.ahoo.wow.api.annotation////PointingToDeclaration//-443338726">
+  <div class="breadcrumbs"><a href="../index.html">wow-api</a><span class="delimiter">/</span><span class="current">me.ahoo.wow.api.annotation</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span><span>Package-level</span></span> <span><span>declarations</span></span></h1>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="TYPE">Types</button><button class="section-tab" data-togglable="PROPERTY,EXTENSION_PROPERTY">Properties</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="TYPE">
+        <h2 class="tableheader">Types</h2>
+        <div class="table"><a data-name="2060384630%2FClasslikes%2F-443338726" anchor-label="AfterCommand" id="2060384630%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-after-command/index.html"><span>After</span><wbr><span><span>Command</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="2060384630%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-target/index.html"><span class="token annotation builtin">Target</span></a><span class="token punctuation">(</span><span>allowedTargets<span class="token operator"> = </span><span class="token punctuation">[</span><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-f-u-n-c-t-i-o-n/index.html">AnnotationTarget.FUNCTION</a><span class="token punctuation">, </span></span><wbr><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-a-n-n-o-t-a-t-i-o-n_-c-l-a-s-s/index.html">AnnotationTarget.ANNOTATION_CLASS</a></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/annotation/Inherited.html"><span class="token annotation builtin">Inherited</span></a></div><div class="block"><span class="token annotation builtin">@</span><a href="-on-message/index.html"><span class="token annotation builtin">OnMessage</span></a><span class="token punctuation">(</span><span>functionKind<span class="token operator"> = </span><a href="../me.ahoo.wow.api.messaging.function/-function-kind/-c-o-m-m-a-n-d/index.html">FunctionKind.COMMAND</a><span class="token punctuation">, </span></span><wbr><span>defaultFunctionName<span class="token operator"> = </span><span class="breakable-word"><span class="token string">"afterCommand"</span></span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">annotation class </span><a href="-after-command/index.html">AfterCommand</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>include<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-array/index.html">Array</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.reflect/-k-class/index.html">KClass</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token operator">&gt;</span><span class="token operator"> = </span>[]<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>exclude<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-array/index.html">Array</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.reflect/-k-class/index.html">KClass</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token operator">&gt;</span><span class="token operator"> = </span>[]</span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">在命令函数完成执行后执行的函数。</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="481014659%2FClasslikes%2F-443338726" anchor-label="AggregateId" id="481014659%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-aggregate-id/index.html"><span>Aggregate</span><wbr><span><span>Id</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="481014659%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-target/index.html"><span class="token annotation builtin">Target</span></a><span class="token punctuation">(</span><span>allowedTargets<span class="token operator"> = </span><span class="token punctuation">[</span><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-f-i-e-l-d/index.html">AnnotationTarget.FIELD</a><span class="token punctuation">, </span></span><wbr><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-p-r-o-p-e-r-t-y/index.html">AnnotationTarget.PROPERTY</a><span class="token punctuation">, </span></span><wbr><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-p-r-o-p-e-r-t-y_-g-e-t-t-e-r/index.html">AnnotationTarget.PROPERTY_GETTER</a><span class="token punctuation">, </span></span><wbr><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-a-n-n-o-t-a-t-i-o-n_-c-l-a-s-s/index.html">AnnotationTarget.ANNOTATION_CLASS</a></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/annotation/Inherited.html"><span class="token annotation builtin">Inherited</span></a></div></div><span class="token keyword">annotation class </span><a href="-aggregate-id/index.html">AggregateId</a></div><div class="brief "><p class="paragraph">AggregateId .</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1876429613%2FClasslikes%2F-443338726" anchor-label="AggregateName" id="-1876429613%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-aggregate-name/index.html"><span>Aggregate</span><wbr><span><span>Name</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1876429613%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-target/index.html"><span class="token annotation builtin">Target</span></a><span class="token punctuation">(</span><span>allowedTargets<span class="token operator"> = </span><span class="token punctuation">[</span><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-f-i-e-l-d/index.html">AnnotationTarget.FIELD</a><span class="token punctuation">, </span></span><wbr><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-p-r-o-p-e-r-t-y/index.html">AnnotationTarget.PROPERTY</a><span class="token punctuation">, </span></span><wbr><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-p-r-o-p-e-r-t-y_-g-e-t-t-e-r/index.html">AnnotationTarget.PROPERTY_GETTER</a><span class="token punctuation">, </span></span><wbr><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-a-n-n-o-t-a-t-i-o-n_-c-l-a-s-s/index.html">AnnotationTarget.ANNOTATION_CLASS</a></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/annotation/Inherited.html"><span class="token annotation builtin">Inherited</span></a></div></div><span class="token keyword">annotation class </span><a href="-aggregate-name/index.html">AggregateName</a></div><div class="brief "><p class="paragraph">Aggregate Name .</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-281809316%2FClasslikes%2F-443338726" anchor-label="AggregateRoot" id="-281809316%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-aggregate-root/index.html"><span>Aggregate</span><wbr><span><span>Root</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-281809316%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-target/index.html"><span class="token annotation builtin">Target</span></a><span class="token punctuation">(</span><span>allowedTargets<span class="token operator"> = </span><span class="token punctuation">[</span><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-c-l-a-s-s/index.html">AnnotationTarget.CLASS</a><span class="token punctuation">, </span></span><wbr><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-a-n-n-o-t-a-t-i-o-n_-c-l-a-s-s/index.html">AnnotationTarget.ANNOTATION_CLASS</a></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/annotation/Inherited.html"><span class="token annotation builtin">Inherited</span></a></div></div><span class="token keyword">annotation class </span><a href="-aggregate-root/index.html">AggregateRoot</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>commands<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-array/index.html">Array</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.reflect/-k-class/index.html">KClass</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token operator">&gt;</span><span class="token operator"> = </span>[]</span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Aggregate Root tag.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="2104998619%2FClasslikes%2F-443338726" anchor-label="AggregateRoute" id="2104998619%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-aggregate-route/index.html"><span>Aggregate</span><wbr><span><span>Route</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="2104998619%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-target/index.html"><span class="token annotation builtin">Target</span></a><span class="token punctuation">(</span><span>allowedTargets<span class="token operator"> = </span><span class="token punctuation">[</span><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-c-l-a-s-s/index.html">AnnotationTarget.CLASS</a></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/annotation/Inherited.html"><span class="token annotation builtin">Inherited</span></a></div></div><span class="token keyword">annotation class </span><a href="-aggregate-route/index.html">AggregateRoute</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>resourceName<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator"> = </span><span class="token string">""</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>enabled<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator"> = </span><span class="token boolean">true</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>owner<span class="token operator">: </span><a href="-aggregate-route/-owner/index.html">AggregateRoute.Owner</a><span class="token operator"> = </span>Owner.NEVER</span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Marks a class as an aggregate route, which is used to define the routing behavior for aggregate operations. The annotation can specify the resource name and the ownership policy for the aggregate.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1557173868%2FClasslikes%2F-443338726" anchor-label="AggregateVersion" id="1557173868%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-aggregate-version/index.html"><span>Aggregate</span><wbr><span><span>Version</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1557173868%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-target/index.html"><span class="token annotation builtin">Target</span></a><span class="token punctuation">(</span><span>allowedTargets<span class="token operator"> = </span><span class="token punctuation">[</span><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-f-i-e-l-d/index.html">AnnotationTarget.FIELD</a><span class="token punctuation">, </span></span><wbr><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-p-r-o-p-e-r-t-y/index.html">AnnotationTarget.PROPERTY</a><span class="token punctuation">, </span></span><wbr><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-p-r-o-p-e-r-t-y_-g-e-t-t-e-r/index.html">AnnotationTarget.PROPERTY_GETTER</a><span class="token punctuation">, </span></span><wbr><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-a-n-n-o-t-a-t-i-o-n_-c-l-a-s-s/index.html">AnnotationTarget.ANNOTATION_CLASS</a></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/annotation/Inherited.html"><span class="token annotation builtin">Inherited</span></a></div></div><span class="token keyword">annotation class </span><a href="-aggregate-version/index.html">AggregateVersion</a></div><div class="brief "><p class="paragraph">Expected Aggregate Version .</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-123506824%2FClasslikes%2F-443338726" anchor-label="AllowCreate" id="-123506824%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-allow-create/index.html"><span>Allow</span><wbr><span><span>Create</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-123506824%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-target/index.html"><span class="token annotation builtin">Target</span></a><span class="token punctuation">(</span><span>allowedTargets<span class="token operator"> = </span><span class="token punctuation">[</span><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-c-l-a-s-s/index.html">AnnotationTarget.CLASS</a><span class="token punctuation">, </span></span><wbr><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-a-n-n-o-t-a-t-i-o-n_-c-l-a-s-s/index.html">AnnotationTarget.ANNOTATION_CLASS</a></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/annotation/Inherited.html"><span class="token annotation builtin">Inherited</span></a></div></div><span class="token keyword">annotation class </span><a href="-allow-create/index.html">AllowCreate</a></div><div class="brief "><p class="paragraph">当聚合根未创建时允许创建</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-904689712%2FClasslikes%2F-443338726" anchor-label="Blocking" id="-904689712%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-blocking/index.html"><span><span>Blocking</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-904689712%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-target/index.html"><span class="token annotation builtin">Target</span></a><span class="token punctuation">(</span><span>allowedTargets<span class="token operator"> = </span><span class="token punctuation">[</span><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-f-u-n-c-t-i-o-n/index.html">AnnotationTarget.FUNCTION</a></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/annotation/Inherited.html"><span class="token annotation builtin">Inherited</span></a></div></div><span class="token keyword">annotation class </span><a href="-blocking/index.html">Blocking</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1058360493%2FClasslikes%2F-443338726" anchor-label="BoundedContext" id="-1058360493%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-bounded-context/index.html"><span>Bounded</span><wbr><span><span>Context</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1058360493%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-target/index.html"><span class="token annotation builtin">Target</span></a><span class="token punctuation">(</span><span>allowedTargets<span class="token operator"> = </span><span class="token punctuation">[</span><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-c-l-a-s-s/index.html">AnnotationTarget.CLASS</a><span class="token punctuation">, </span></span><wbr><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-a-n-n-o-t-a-t-i-o-n_-c-l-a-s-s/index.html">AnnotationTarget.ANNOTATION_CLASS</a></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/annotation/Inherited.html"><span class="token annotation builtin">Inherited</span></a></div></div><span class="token keyword">annotation class </span><a href="-bounded-context/index.html">BoundedContext</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>name<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>alias<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator"> = </span><span class="token string">""</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>description<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator"> = </span><span class="token string">""</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>scopes<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-array/index.html">Array</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">&gt;</span><span class="token operator"> = </span>[]<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>packageScopes<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-array/index.html">Array</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.reflect/-k-class/index.html">KClass</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token operator">&gt;</span><span class="token operator"> = </span>[]<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>aggregates<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-array/index.html">Array</a><span class="token operator">&lt;</span><a href="-bounded-context/-aggregate/index.html">BoundedContext.Aggregate</a><span class="token operator">&gt;</span><span class="token operator"> = </span>[]</span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-626189209%2FClasslikes%2F-443338726" anchor-label="CommandRoute" id="-626189209%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-command-route/index.html"><span>Command</span><wbr><span><span>Route</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-626189209%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-target/index.html"><span class="token annotation builtin">Target</span></a><span class="token punctuation">(</span><span>allowedTargets<span class="token operator"> = </span><span class="token punctuation">[</span><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-c-l-a-s-s/index.html">AnnotationTarget.CLASS</a><span class="token punctuation">, </span></span><wbr><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-a-n-n-o-t-a-t-i-o-n_-c-l-a-s-s/index.html">AnnotationTarget.ANNOTATION_CLASS</a></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/annotation/Inherited.html"><span class="token annotation builtin">Inherited</span></a></div></div><span class="token keyword">annotation class </span><a href="-command-route/index.html">CommandRoute</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>action<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator"> = </span>DEFAULT_COMMAND_ACTION<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>enabled<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator"> = </span><span class="token boolean">true</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>method<span class="token operator">: </span><a href="-command-route/-method/index.html">CommandRoute.Method</a><span class="token operator"> = </span>Method.DEFAULT<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>prefix<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator"> = </span><span class="token string">""</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>appendIdPath<span class="token operator">: </span><a href="-command-route/-append-path/index.html">CommandRoute.AppendPath</a><span class="token operator"> = </span>AppendPath.DEFAULT<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>appendTenantPath<span class="token operator">: </span><a href="-command-route/-append-path/index.html">CommandRoute.AppendPath</a><span class="token operator"> = </span>AppendPath.DEFAULT<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>appendOwnerPath<span class="token operator">: </span><a href="-command-route/-append-path/index.html">CommandRoute.AppendPath</a><span class="token operator"> = </span>AppendPath.DEFAULT<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>summary<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator"> = </span><span class="token string">""</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>description<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator"> = </span><span class="token string">""</span></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Marks a class or annotation as a command route, defining the action, method, and other properties for handling commands.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="770838714%2FClasslikes%2F-443338726" anchor-label="CreateAggregate" id="770838714%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-create-aggregate/index.html"><span>Create</span><wbr><span><span>Aggregate</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="770838714%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-target/index.html"><span class="token annotation builtin">Target</span></a><span class="token punctuation">(</span><span>allowedTargets<span class="token operator"> = </span><span class="token punctuation">[</span><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-c-l-a-s-s/index.html">AnnotationTarget.CLASS</a><span class="token punctuation">, </span></span><wbr><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-a-n-n-o-t-a-t-i-o-n_-c-l-a-s-s/index.html">AnnotationTarget.ANNOTATION_CLASS</a></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/annotation/Inherited.html"><span class="token annotation builtin">Inherited</span></a></div></div><span class="token keyword">annotation class </span><a href="-create-aggregate/index.html">CreateAggregate</a></div><div class="brief "><p class="paragraph">标记命令为创建聚合命令,这意味着该命令是聚合的第一个命令.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1614954239%2FClasslikes%2F-443338726" anchor-label="Description" id="-1614954239%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-description/index.html"><span><span>Description</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1614954239%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-target/index.html"><span class="token annotation builtin">Target</span></a><span class="token punctuation">(</span><span>allowedTargets<span class="token operator"> = </span><span class="token punctuation">[</span><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-c-l-a-s-s/index.html">AnnotationTarget.CLASS</a><span class="token punctuation">, </span></span><wbr><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-a-n-n-o-t-a-t-i-o-n_-c-l-a-s-s/index.html">AnnotationTarget.ANNOTATION_CLASS</a><span class="token punctuation">, </span></span><wbr><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-p-r-o-p-e-r-t-y/index.html">AnnotationTarget.PROPERTY</a><span class="token punctuation">, </span></span><wbr><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-f-i-e-l-d/index.html">AnnotationTarget.FIELD</a></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/annotation/Inherited.html"><span class="token annotation builtin">Inherited</span></a></div></div><span class="token keyword">annotation class </span><a href="-description/index.html">Description</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1605209507%2FClasslikes%2F-443338726" anchor-label="EntityObject" id="1605209507%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-entity-object/index.html"><span>Entity</span><wbr><span><span>Object</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1605209507%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-target/index.html"><span class="token annotation builtin">Target</span></a><span class="token punctuation">(</span><span>allowedTargets<span class="token operator"> = </span><span class="token punctuation">[</span><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-c-l-a-s-s/index.html">AnnotationTarget.CLASS</a><span class="token punctuation">, </span></span><wbr><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-a-n-n-o-t-a-t-i-o-n_-c-l-a-s-s/index.html">AnnotationTarget.ANNOTATION_CLASS</a></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/annotation/Inherited.html"><span class="token annotation builtin">Inherited</span></a></div></div><span class="token keyword">annotation class </span><a href="-entity-object/index.html">EntityObject</a></div><div class="brief "><p class="paragraph">Entity tag.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="2116503843%2FClasslikes%2F-443338726" anchor-label="Event" id="2116503843%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-event/index.html"><span><span>Event</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="2116503843%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-target/index.html"><span class="token annotation builtin">Target</span></a><span class="token punctuation">(</span><span>allowedTargets<span class="token operator"> = </span><span class="token punctuation">[</span><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-c-l-a-s-s/index.html">AnnotationTarget.CLASS</a><span class="token punctuation">, </span></span><wbr><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-a-n-n-o-t-a-t-i-o-n_-c-l-a-s-s/index.html">AnnotationTarget.ANNOTATION_CLASS</a></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/annotation/Inherited.html"><span class="token annotation builtin">Inherited</span></a></div></div><span class="token keyword">annotation class </span><a href="-event/index.html">Event</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>revision<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator"> = </span>DEFAULT_REVISION</span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Event .</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="944876365%2FClasslikes%2F-443338726" anchor-label="EventProcessor" id="944876365%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-event-processor/index.html"><span>Event</span><wbr><span><span>Processor</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="944876365%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-target/index.html"><span class="token annotation builtin">Target</span></a><span class="token punctuation">(</span><span>allowedTargets<span class="token operator"> = </span><span class="token punctuation">[</span><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-c-l-a-s-s/index.html">AnnotationTarget.CLASS</a><span class="token punctuation">, </span></span><wbr><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-a-n-n-o-t-a-t-i-o-n_-c-l-a-s-s/index.html">AnnotationTarget.ANNOTATION_CLASS</a></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/annotation/Inherited.html"><span class="token annotation builtin">Inherited</span></a></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.stereotype/Component///PointingToDeclaration/"><span class="token annotation builtin">Component</span></span></div></div><span class="token keyword">annotation class </span><a href="-event-processor/index.html">EventProcessor</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1499239986%2FClasslikes%2F-443338726" anchor-label="Generated" id="-1499239986%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-generated/index.html"><span><span>Generated</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1499239986%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><span class="token keyword">annotation class </span><a href="-generated/index.html">Generated</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator"> = </span><span class="token string">""</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>date<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator"> = </span><span class="token string">""</span></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Annotation indicating that a class or method was auto-generated. This annotation is used to mark elements in the code (such as classes, methods, etc.) that were generated by a tool or program, rather than written manually. It can help developers quickly identify which parts of the code should not be modified manually, to avoid conflicts when regenerating the code.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-464166854%2FClasslikes%2F-443338726" anchor-label="Name" id="-464166854%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-name/index.html"><span><span>Name</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-464166854%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-target/index.html"><span class="token annotation builtin">Target</span></a><span class="token punctuation">(</span><span>allowedTargets<span class="token operator"> = </span><span class="token punctuation">[</span><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-c-l-a-s-s/index.html">AnnotationTarget.CLASS</a><span class="token punctuation">, </span></span><wbr><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-v-a-l-u-e_-p-a-r-a-m-e-t-e-r/index.html">AnnotationTarget.VALUE_PARAMETER</a></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/annotation/Inherited.html"><span class="token annotation builtin">Inherited</span></a></div></div><span class="token keyword">annotation class </span><a href="-name/index.html">Name</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-35019375%2FClasslikes%2F-443338726" anchor-label="OnCommand" id="-35019375%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-on-command/index.html"><span>On</span><wbr><span><span>Command</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-35019375%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-target/index.html"><span class="token annotation builtin">Target</span></a><span class="token punctuation">(</span><span>allowedTargets<span class="token operator"> = </span><span class="token punctuation">[</span><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-f-u-n-c-t-i-o-n/index.html">AnnotationTarget.FUNCTION</a><span class="token punctuation">, </span></span><wbr><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-a-n-n-o-t-a-t-i-o-n_-c-l-a-s-s/index.html">AnnotationTarget.ANNOTATION_CLASS</a></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/annotation/Inherited.html"><span class="token annotation builtin">Inherited</span></a></div><div class="block"><span class="token annotation builtin">@</span><a href="-on-message/index.html"><span class="token annotation builtin">OnMessage</span></a><span class="token punctuation">(</span><span>functionKind<span class="token operator"> = </span><a href="../me.ahoo.wow.api.messaging.function/-function-kind/-c-o-m-m-a-n-d/index.html">FunctionKind.COMMAND</a><span class="token punctuation">, </span></span><wbr><span>defaultFunctionName<span class="token operator"> = </span><span class="breakable-word"><span class="token string">"onCommand"</span></span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">annotation class </span><a href="-on-command/index.html">OnCommand</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>returns<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-array/index.html">Array</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.reflect/-k-class/index.html">KClass</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token operator">&gt;</span><span class="token operator"> = </span>[]</span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">OnCommand .</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1749542964%2FClasslikes%2F-443338726" anchor-label="OnError" id="1749542964%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-on-error/index.html"><span>On</span><wbr><span><span>Error</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1749542964%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-target/index.html"><span class="token annotation builtin">Target</span></a><span class="token punctuation">(</span><span>allowedTargets<span class="token operator"> = </span><span class="token punctuation">[</span><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-f-u-n-c-t-i-o-n/index.html">AnnotationTarget.FUNCTION</a><span class="token punctuation">, </span></span><wbr><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-a-n-n-o-t-a-t-i-o-n_-c-l-a-s-s/index.html">AnnotationTarget.ANNOTATION_CLASS</a></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/annotation/Inherited.html"><span class="token annotation builtin">Inherited</span></a></div><div class="block"><span class="token annotation builtin">@</span><a href="-on-message/index.html"><span class="token annotation builtin">OnMessage</span></a><span class="token punctuation">(</span><span>functionKind<span class="token operator"> = </span><a href="../me.ahoo.wow.api.messaging.function/-function-kind/-e-r-r-o-r/index.html">FunctionKind.ERROR</a><span class="token punctuation">, </span></span><wbr><span>defaultFunctionName<span class="token operator"> = </span><span class="breakable-word"><span class="token string">"onError"</span></span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">annotation class </span><a href="-on-error/index.html">OnError</a></div><div class="brief "><p class="paragraph">OnCommandError .</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1655984158%2FClasslikes%2F-443338726" anchor-label="OnEvent" id="-1655984158%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-on-event/index.html"><span>On</span><wbr><span><span>Event</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1655984158%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-target/index.html"><span class="token annotation builtin">Target</span></a><span class="token punctuation">(</span><span>allowedTargets<span class="token operator"> = </span><span class="token punctuation">[</span><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-f-u-n-c-t-i-o-n/index.html">AnnotationTarget.FUNCTION</a><span class="token punctuation">, </span></span><wbr><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-a-n-n-o-t-a-t-i-o-n_-c-l-a-s-s/index.html">AnnotationTarget.ANNOTATION_CLASS</a></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/annotation/Inherited.html"><span class="token annotation builtin">Inherited</span></a></div><div class="block"><span class="token annotation builtin">@</span><a href="-on-message/index.html"><span class="token annotation builtin">OnMessage</span></a><span class="token punctuation">(</span><span>functionKind<span class="token operator"> = </span><a href="../me.ahoo.wow.api.messaging.function/-function-kind/-e-v-e-n-t/index.html">FunctionKind.EVENT</a><span class="token punctuation">, </span></span><wbr><span>defaultFunctionName<span class="token operator"> = </span><span class="breakable-word"><span class="token string">"onEvent"</span></span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">annotation class </span><a href="-on-event/index.html">OnEvent</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">On Event .</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-348024747%2FClasslikes%2F-443338726" anchor-label="OnMessage" id="-348024747%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-on-message/index.html"><span>On</span><wbr><span><span>Message</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-348024747%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-target/index.html"><span class="token annotation builtin">Target</span></a><span class="token punctuation">(</span><span>allowedTargets<span class="token operator"> = </span><span class="token punctuation">[</span><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-c-l-a-s-s/index.html">AnnotationTarget.CLASS</a><span class="token punctuation">, </span></span><wbr><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-a-n-n-o-t-a-t-i-o-n_-c-l-a-s-s/index.html">AnnotationTarget.ANNOTATION_CLASS</a></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/annotation/Inherited.html"><span class="token annotation builtin">Inherited</span></a></div></div><span class="token keyword">annotation class </span><a href="-on-message/index.html">OnMessage</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>functionKind<span class="token operator">: </span><a href="../me.ahoo.wow.api.messaging.function/-function-kind/index.html">FunctionKind</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>defaultFunctionName<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">OnMessage .</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="136055854%2FClasslikes%2F-443338726" anchor-label="OnSourcing" id="136055854%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-on-sourcing/index.html"><span>On</span><wbr><span><span>Sourcing</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="136055854%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-target/index.html"><span class="token annotation builtin">Target</span></a><span class="token punctuation">(</span><span>allowedTargets<span class="token operator"> = </span><span class="token punctuation">[</span><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-f-u-n-c-t-i-o-n/index.html">AnnotationTarget.FUNCTION</a><span class="token punctuation">, </span></span><wbr><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-a-n-n-o-t-a-t-i-o-n_-c-l-a-s-s/index.html">AnnotationTarget.ANNOTATION_CLASS</a></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/annotation/Inherited.html"><span class="token annotation builtin">Inherited</span></a></div><div class="block"><span class="token annotation builtin">@</span><a href="-on-message/index.html"><span class="token annotation builtin">OnMessage</span></a><span class="token punctuation">(</span><span>functionKind<span class="token operator"> = </span><a href="../me.ahoo.wow.api.messaging.function/-function-kind/-s-o-u-r-c-i-n-g/index.html">FunctionKind.SOURCING</a><span class="token punctuation">, </span></span><wbr><span>defaultFunctionName<span class="token operator"> = </span><span class="breakable-word"><span class="token string">"onSourcing"</span></span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">annotation class </span><a href="-on-sourcing/index.html">OnSourcing</a></div><div class="brief "><p class="paragraph">OnSourcing .</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1587509859%2FClasslikes%2F-443338726" anchor-label="OnStateEvent" id="-1587509859%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-on-state-event/index.html"><span>On</span><wbr><span>State</span><wbr><span><span>Event</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1587509859%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-target/index.html"><span class="token annotation builtin">Target</span></a><span class="token punctuation">(</span><span>allowedTargets<span class="token operator"> = </span><span class="token punctuation">[</span><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-f-u-n-c-t-i-o-n/index.html">AnnotationTarget.FUNCTION</a><span class="token punctuation">, </span></span><wbr><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-a-n-n-o-t-a-t-i-o-n_-c-l-a-s-s/index.html">AnnotationTarget.ANNOTATION_CLASS</a></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/annotation/Inherited.html"><span class="token annotation builtin">Inherited</span></a></div><div class="block"><span class="token annotation builtin">@</span><a href="-on-message/index.html"><span class="token annotation builtin">OnMessage</span></a><span class="token punctuation">(</span><span>functionKind<span class="token operator"> = </span><a href="../me.ahoo.wow.api.messaging.function/-function-kind/-s-t-a-t-e_-e-v-e-n-t/index.html">FunctionKind.STATE_EVENT</a><span class="token punctuation">, </span></span><wbr><span>defaultFunctionName<span class="token operator"> = </span><span class="breakable-word"><span class="token string">"onStateEvent"</span></span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">annotation class </span><a href="-on-state-event/index.html">OnStateEvent</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">Marks a function as a handler for state events, indicating that the function should be invoked when a state event is emitted. This annotation is used in conjunction with the <a href="-on-message/index.html">OnMessage</a> annotation to specify the type of message and default function name.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-414636305%2FClasslikes%2F-443338726" anchor-label="Order" id="-414636305%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-order/index.html"><span><span>Order</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-414636305%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-target/index.html"><span class="token annotation builtin">Target</span></a><span class="token punctuation">(</span><span>allowedTargets<span class="token operator"> = </span><span class="token punctuation">[</span><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-c-l-a-s-s/index.html">AnnotationTarget.CLASS</a><span class="token punctuation">, </span></span><wbr><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-a-n-n-o-t-a-t-i-o-n_-c-l-a-s-s/index.html">AnnotationTarget.ANNOTATION_CLASS</a><span class="token punctuation">, </span></span><wbr><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-f-u-n-c-t-i-o-n/index.html">AnnotationTarget.FUNCTION</a></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/annotation/Inherited.html"><span class="token annotation builtin">Inherited</span></a></div></div><span class="token keyword">annotation class </span><a href="-order/index.html">Order</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span>ORDER_DEFAULT<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>before<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-array/index.html">Array</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.reflect/-k-class/index.html">KClass</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token operator">&gt;</span><span class="token operator"> = </span>[]<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>after<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-array/index.html">Array</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.reflect/-k-class/index.html">KClass</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token operator">&gt;</span><span class="token operator"> = </span>[]</span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1960522737%2FClasslikes%2F-443338726" anchor-label="OwnerId" id="-1960522737%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-owner-id/index.html"><span>Owner</span><wbr><span><span>Id</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1960522737%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-target/index.html"><span class="token annotation builtin">Target</span></a><span class="token punctuation">(</span><span>allowedTargets<span class="token operator"> = </span><span class="token punctuation">[</span><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-f-i-e-l-d/index.html">AnnotationTarget.FIELD</a><span class="token punctuation">, </span></span><wbr><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-p-r-o-p-e-r-t-y/index.html">AnnotationTarget.PROPERTY</a><span class="token punctuation">, </span></span><wbr><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-p-r-o-p-e-r-t-y_-g-e-t-t-e-r/index.html">AnnotationTarget.PROPERTY_GETTER</a><span class="token punctuation">, </span></span><wbr><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-a-n-n-o-t-a-t-i-o-n_-c-l-a-s-s/index.html">AnnotationTarget.ANNOTATION_CLASS</a></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/annotation/Inherited.html"><span class="token annotation builtin">Inherited</span></a></div></div><span class="token keyword">annotation class </span><a href="-owner-id/index.html">OwnerId</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-993081706%2FClasslikes%2F-443338726" anchor-label="PreparableKey" id="-993081706%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-preparable-key/index.html"><span>Preparable</span><wbr><span><span>Key</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-993081706%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-target/index.html"><span class="token annotation builtin">Target</span></a><span class="token punctuation">(</span><span>allowedTargets<span class="token operator"> = </span><span class="token punctuation">[</span><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-c-l-a-s-s/index.html">AnnotationTarget.CLASS</a></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.stereotype/Component///PointingToDeclaration/"><span class="token annotation builtin">Component</span></span></div></div><span class="token keyword">annotation class </span><a href="-preparable-key/index.html">PreparableKey</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>name<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator"> = </span><span class="token string">""</span></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-87125030%2FClasslikes%2F-443338726" anchor-label="ProjectionProcessor" id="-87125030%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-projection-processor/index.html"><span>Projection</span><wbr><span><span>Processor</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-87125030%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-target/index.html"><span class="token annotation builtin">Target</span></a><span class="token punctuation">(</span><span>allowedTargets<span class="token operator"> = </span><span class="token punctuation">[</span><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-c-l-a-s-s/index.html">AnnotationTarget.CLASS</a><span class="token punctuation">, </span></span><wbr><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-a-n-n-o-t-a-t-i-o-n_-c-l-a-s-s/index.html">AnnotationTarget.ANNOTATION_CLASS</a></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/annotation/Inherited.html"><span class="token annotation builtin">Inherited</span></a></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.stereotype/Component///PointingToDeclaration/"><span class="token annotation builtin">Component</span></span></div></div><span class="token keyword">annotation class </span><a href="-projection-processor/index.html">ProjectionProcessor</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-748673835%2FClasslikes%2F-443338726" anchor-label="Retry" id="-748673835%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-retry/index.html"><span><span>Retry</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-748673835%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-target/index.html"><span class="token annotation builtin">Target</span></a><span class="token punctuation">(</span><span>allowedTargets<span class="token operator"> = </span><span class="token punctuation">[</span><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-f-u-n-c-t-i-o-n/index.html">AnnotationTarget.FUNCTION</a></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">annotation class </span><a href="-retry/index.html">Retry</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>enabled<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator"> = </span><span class="token boolean">true</span><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>maxRetries<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span>DEFAULT_MAX_RETRIES<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>minBackoff<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span>DEFAULT_MIN_BACKOFF<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>executionTimeout<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span>DEFAULT_EXECUTION_TIMEOUT<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>recoverable<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-array/index.html">Array</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.reflect/-k-class/index.html">KClass</a><span class="token operator">&lt;</span><span class="token keyword">out </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-throwable/index.html">Throwable</a><span class="token operator">&gt;</span><span class="token operator">&gt;</span><span class="token operator"> = </span>[]<span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>unrecoverable<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-array/index.html">Array</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.reflect/-k-class/index.html">KClass</a><span class="token operator">&lt;</span><span class="token keyword">out </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-throwable/index.html">Throwable</a><span class="token operator">&gt;</span><span class="token operator">&gt;</span><span class="token operator"> = </span>[]</span></span><span class="token punctuation">)</span></div><div class="brief "><p class="paragraph">用于标记函数，以启用重试机制。该注解允许配置重试策略，包括是否启用、最大重试次数、最小回退时间、执行超时时间以及指定可恢复和不可恢复的异常类型。</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1970728523%2FClasslikes%2F-443338726" anchor-label="StatelessSaga" id="1970728523%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-stateless-saga/index.html"><span>Stateless</span><wbr><span><span>Saga</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1970728523%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-target/index.html"><span class="token annotation builtin">Target</span></a><span class="token punctuation">(</span><span>allowedTargets<span class="token operator"> = </span><span class="token punctuation">[</span><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-c-l-a-s-s/index.html">AnnotationTarget.CLASS</a><span class="token punctuation">, </span></span><wbr><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-a-n-n-o-t-a-t-i-o-n_-c-l-a-s-s/index.html">AnnotationTarget.ANNOTATION_CLASS</a></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/annotation/Inherited.html"><span class="token annotation builtin">Inherited</span></a></div><div class="block"><span class="token annotation builtin">@</span><span data-unresolved-link="org.springframework.stereotype/Component///PointingToDeclaration/"><span class="token annotation builtin">Component</span></span></div></div><span class="token keyword">annotation class </span><a href="-stateless-saga/index.html">StatelessSaga</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="608284177%2FClasslikes%2F-443338726" anchor-label="StaticAggregateId" id="608284177%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-static-aggregate-id/index.html"><span>Static</span><wbr><span>Aggregate</span><wbr><span><span>Id</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="608284177%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-target/index.html"><span class="token annotation builtin">Target</span></a><span class="token punctuation">(</span><span>allowedTargets<span class="token operator"> = </span><span class="token punctuation">[</span><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-c-l-a-s-s/index.html">AnnotationTarget.CLASS</a><span class="token punctuation">, </span></span><wbr><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-a-n-n-o-t-a-t-i-o-n_-c-l-a-s-s/index.html">AnnotationTarget.ANNOTATION_CLASS</a></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/annotation/Inherited.html"><span class="token annotation builtin">Inherited</span></a></div></div><span class="token keyword">annotation class </span><a href="-static-aggregate-id/index.html">StaticAggregateId</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>aggregateId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1427847890%2FClasslikes%2F-443338726" anchor-label="StaticTenantId" id="1427847890%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-static-tenant-id/index.html"><span>Static</span><wbr><span>Tenant</span><wbr><span><span>Id</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1427847890%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-target/index.html"><span class="token annotation builtin">Target</span></a><span class="token punctuation">(</span><span>allowedTargets<span class="token operator"> = </span><span class="token punctuation">[</span><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-c-l-a-s-s/index.html">AnnotationTarget.CLASS</a><span class="token punctuation">, </span></span><wbr><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-a-n-n-o-t-a-t-i-o-n_-c-l-a-s-s/index.html">AnnotationTarget.ANNOTATION_CLASS</a></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/annotation/Inherited.html"><span class="token annotation builtin">Inherited</span></a></div></div><span class="token keyword">annotation class </span><a href="-static-tenant-id/index.html">StaticTenantId</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>tenantId<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator"> = </span>TenantId.DEFAULT_TENANT_ID</span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="584365719%2FClasslikes%2F-443338726" anchor-label="Summary" id="584365719%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-summary/index.html"><span><span>Summary</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="584365719%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-target/index.html"><span class="token annotation builtin">Target</span></a><span class="token punctuation">(</span><span>allowedTargets<span class="token operator"> = </span><span class="token punctuation">[</span><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-c-l-a-s-s/index.html">AnnotationTarget.CLASS</a><span class="token punctuation">, </span></span><wbr><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-a-n-n-o-t-a-t-i-o-n_-c-l-a-s-s/index.html">AnnotationTarget.ANNOTATION_CLASS</a><span class="token punctuation">, </span></span><wbr><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-p-r-o-p-e-r-t-y/index.html">AnnotationTarget.PROPERTY</a><span class="token punctuation">, </span></span><wbr><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-f-i-e-l-d/index.html">AnnotationTarget.FIELD</a></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/annotation/Inherited.html"><span class="token annotation builtin">Inherited</span></a></div></div><span class="token keyword">annotation class </span><a href="-summary/index.html">Summary</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1515354784%2FClasslikes%2F-443338726" anchor-label="TenantId" id="1515354784%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-tenant-id/index.html"><span>Tenant</span><wbr><span><span>Id</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1515354784%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-target/index.html"><span class="token annotation builtin">Target</span></a><span class="token punctuation">(</span><span>allowedTargets<span class="token operator"> = </span><span class="token punctuation">[</span><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-f-i-e-l-d/index.html">AnnotationTarget.FIELD</a><span class="token punctuation">, </span></span><wbr><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-p-r-o-p-e-r-t-y/index.html">AnnotationTarget.PROPERTY</a><span class="token punctuation">, </span></span><wbr><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-p-r-o-p-e-r-t-y_-g-e-t-t-e-r/index.html">AnnotationTarget.PROPERTY_GETTER</a><span class="token punctuation">, </span></span><wbr><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-a-n-n-o-t-a-t-i-o-n_-c-l-a-s-s/index.html">AnnotationTarget.ANNOTATION_CLASS</a></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/annotation/Inherited.html"><span class="token annotation builtin">Inherited</span></a></div></div><span class="token keyword">annotation class </span><a href="-tenant-id/index.html">TenantId</a></div><div class="brief "><p class="paragraph">TenantId .</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1165540205%2FClasslikes%2F-443338726" anchor-label="ValueObject" id="1165540205%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-value-object/index.html"><span>Value</span><wbr><span><span>Object</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1165540205%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-target/index.html"><span class="token annotation builtin">Target</span></a><span class="token punctuation">(</span><span>allowedTargets<span class="token operator"> = </span><span class="token punctuation">[</span><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-c-l-a-s-s/index.html">AnnotationTarget.CLASS</a><span class="token punctuation">, </span></span><wbr><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-a-n-n-o-t-a-t-i-o-n_-c-l-a-s-s/index.html">AnnotationTarget.ANNOTATION_CLASS</a></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/annotation/Inherited.html"><span class="token annotation builtin">Inherited</span></a></div></div><span class="token keyword">annotation class </span><a href="-value-object/index.html">ValueObject</a></div><div class="brief "><p class="paragraph">ValueObject annotation is used to mark a class or an annotation as a value object. A value object represents a domain concept that is defined by its data and does not have a distinct identity. This annotation can be applied to classes and annotation classes.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1917743686%2FClasslikes%2F-443338726" anchor-label="VoidCommand" id="1917743686%2FClasslikes%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-void-command/index.html"><span>Void</span><wbr><span><span>Command</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1917743686%2FClasslikes%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-target/index.html"><span class="token annotation builtin">Target</span></a><span class="token punctuation">(</span><span>allowedTargets<span class="token operator"> = </span><span class="token punctuation">[</span><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-c-l-a-s-s/index.html">AnnotationTarget.CLASS</a><span class="token punctuation">, </span></span><wbr><span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.annotation/-annotation-target/-a-n-n-o-t-a-t-i-o-n_-c-l-a-s-s/index.html">AnnotationTarget.ANNOTATION_CLASS</a></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div><div class="block"><span class="token annotation builtin">@</span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/annotation/Inherited.html"><span class="token annotation builtin">Inherited</span></a></div></div><span class="token keyword">annotation class </span><a href="-void-command/index.html">VoidCommand</a></div><div class="brief "><p class="paragraph">标记命令为虚空命令（Void Command）。</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="PROPERTY">
+        <h2 class="tableheader">Properties</h2>
+        <div class="table"><a data-name="1683220154%2FProperties%2F-443338726" anchor-label="DEFAULT_AFTER_COMMAND_NAME" id="1683220154%2FProperties%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-d-e-f-a-u-l-t_-a-f-t-e-r_-c-o-m-m-a-n-d_-n-a-m-e.html"><span>DEFAULT_</span><wbr><span>AFTER_</span><wbr><span>COMMAND_</span><wbr><span>NAME</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1683220154%2FProperties%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-d-e-f-a-u-l-t_-a-f-t-e-r_-c-o-m-m-a-n-d_-n-a-m-e.html">DEFAULT_AFTER_COMMAND_NAME</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1286680401%2FProperties%2F-443338726" anchor-label="DEFAULT_AGGREGATE_ID_NAME" id="-1286680401%2FProperties%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-d-e-f-a-u-l-t_-a-g-g-r-e-g-a-t-e_-i-d_-n-a-m-e.html"><span>DEFAULT_</span><wbr><span>AGGREGATE_</span><wbr><span>ID_</span><wbr><span>NAME</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1286680401%2FProperties%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-d-e-f-a-u-l-t_-a-g-g-r-e-g-a-t-e_-i-d_-n-a-m-e.html">DEFAULT_AGGREGATE_ID_NAME</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-200205774%2FProperties%2F-443338726" anchor-label="DEFAULT_COMMAND_ACTION" id="-200205774%2FProperties%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-d-e-f-a-u-l-t_-c-o-m-m-a-n-d_-a-c-t-i-o-n.html"><span>DEFAULT_</span><wbr><span>COMMAND_</span><wbr><span>ACTION</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-200205774%2FProperties%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-d-e-f-a-u-l-t_-c-o-m-m-a-n-d_-a-c-t-i-o-n.html">DEFAULT_COMMAND_ACTION</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1039069697%2FProperties%2F-443338726" anchor-label="DEFAULT_ON_COMMAND_NAME" id="-1039069697%2FProperties%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-d-e-f-a-u-l-t_-o-n_-c-o-m-m-a-n-d_-n-a-m-e.html"><span>DEFAULT_</span><wbr><span>ON_</span><wbr><span>COMMAND_</span><wbr><span>NAME</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1039069697%2FProperties%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-d-e-f-a-u-l-t_-o-n_-c-o-m-m-a-n-d_-n-a-m-e.html">DEFAULT_ON_COMMAND_NAME</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="534839356%2FProperties%2F-443338726" anchor-label="DEFAULT_ON_ERROR_NAME" id="534839356%2FProperties%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-d-e-f-a-u-l-t_-o-n_-e-r-r-o-r_-n-a-m-e.html"><span>DEFAULT_</span><wbr><span>ON_</span><wbr><span>ERROR_</span><wbr><span>NAME</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="534839356%2FProperties%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-d-e-f-a-u-l-t_-o-n_-e-r-r-o-r_-n-a-m-e.html">DEFAULT_ON_ERROR_NAME</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1376572750%2FProperties%2F-443338726" anchor-label="DEFAULT_ON_EVENT_NAME" id="1376572750%2FProperties%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-d-e-f-a-u-l-t_-o-n_-e-v-e-n-t_-n-a-m-e.html"><span>DEFAULT_</span><wbr><span>ON_</span><wbr><span>EVENT_</span><wbr><span>NAME</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1376572750%2FProperties%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-d-e-f-a-u-l-t_-o-n_-e-v-e-n-t_-n-a-m-e.html">DEFAULT_ON_EVENT_NAME</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1209595722%2FProperties%2F-443338726" anchor-label="DEFAULT_ON_SOURCING_NAME" id="1209595722%2FProperties%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-d-e-f-a-u-l-t_-o-n_-s-o-u-r-c-i-n-g_-n-a-m-e.html"><span>DEFAULT_</span><wbr><span>ON_</span><wbr><span>SOURCING_</span><wbr><span>NAME</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1209595722%2FProperties%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-d-e-f-a-u-l-t_-o-n_-s-o-u-r-c-i-n-g_-n-a-m-e.html">DEFAULT_ON_SOURCING_NAME</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1936626624%2FProperties%2F-443338726" anchor-label="DEFAULT_ON_STATE_EVENT_NAME" id="1936626624%2FProperties%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-d-e-f-a-u-l-t_-o-n_-s-t-a-t-e_-e-v-e-n-t_-n-a-m-e.html"><span>DEFAULT_</span><wbr><span>ON_</span><wbr><span>STATE_</span><wbr><span>EVENT_</span><wbr><span>NAME</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1936626624%2FProperties%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-d-e-f-a-u-l-t_-o-n_-s-t-a-t-e_-e-v-e-n-t_-n-a-m-e.html">DEFAULT_ON_STATE_EVENT_NAME</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1212140016%2FProperties%2F-443338726" anchor-label="ORDER_DEFAULT" id="1212140016%2FProperties%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-o-r-d-e-r_-d-e-f-a-u-l-t.html"><span>ORDER_</span><wbr><span>DEFAULT</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1212140016%2FProperties%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-o-r-d-e-r_-d-e-f-a-u-l-t.html">ORDER_DEFAULT</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">0</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="468915231%2FProperties%2F-443338726" anchor-label="ORDER_DEFAULT_STEP" id="468915231%2FProperties%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-o-r-d-e-r_-d-e-f-a-u-l-t_-s-t-e-p.html"><span>ORDER_</span><wbr><span>DEFAULT_</span><wbr><span>STEP</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="468915231%2FProperties%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-o-r-d-e-r_-d-e-f-a-u-l-t_-s-t-e-p.html">ORDER_DEFAULT_STEP</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token operator"> = </span><span class="token constant">100</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1412490911%2FProperties%2F-443338726" anchor-label="ORDER_FIRST" id="-1412490911%2FProperties%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-o-r-d-e-r_-f-i-r-s-t.html"><span>ORDER_</span><wbr><span>FIRST</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1412490911%2FProperties%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-o-r-d-e-r_-f-i-r-s-t.html">ORDER_FIRST</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-357488333%2FProperties%2F-443338726" anchor-label="ORDER_LAST" id="-357488333%2FProperties%2F-443338726" data-filterable-set=":wow-api/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-api/main" data-filterable-set=":wow-api/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-o-r-d-e-r_-l-a-s-t.html"><span>ORDER_</span><wbr><span>LAST</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-357488333%2FProperties%2F-443338726"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-api/main"><div class="symbol monospace"><span class="token keyword">const </span><span class="token keyword">val </span><a href="-o-r-d-e-r_-l-a-s-t.html">ORDER_LAST</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <div class="footer--container">
+            <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+            <div class="footer--content">
+                <div>
+                    <span>Generated by </span>
+                    <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                        Dokka
+                    </a>
+                    <div>© 2025 Copyright</div>
+                </div>
+            </div>
+        </div>
+    </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

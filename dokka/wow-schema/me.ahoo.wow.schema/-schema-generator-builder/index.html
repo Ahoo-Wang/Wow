@@ -1,0 +1,574 @@
+<!doctype html>
+<html class="no-js" lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>SchemaGeneratorBuilder</title>
+<link href="../../../images/logo-icon.svg" rel="icon" type="image/svg"><script>var pathToRoot = "../../../";</script>
+    <script>document.documentElement.classList.replace("no-js", "js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+      if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      } else {
+        const savedDarkMode = JSON.parse(storage)
+        if (savedDarkMode === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      }
+    </script>
+<script type="text/javascript" src="https://unpkg.com/kotlin-playground@1/dist/playground.min.js" async></script>
+<script type="text/javascript" src="../../../scripts/sourceset_dependencies.js" async></script>
+<link href="../../../styles/style.css" rel="Stylesheet">
+<link href="../../../styles/main.css" rel="Stylesheet">
+<link href="../../../styles/prism.css" rel="Stylesheet">
+<link href="../../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../../scripts/safe-local-storage_blocking.js"></script>
+<script type="text/javascript" src="../../../scripts/navigation-loader.js" async></script>
+<script type="text/javascript" src="../../../scripts/platform-content-handler.js" async></script>
+<script type="text/javascript" src="../../../scripts/main.js" defer></script>
+<script type="text/javascript" src="../../../scripts/prism.js" async></script>
+<script type="text/javascript" src="../../../ui-kit/ui-kit.min.js" defer></script></head>
+<body>
+<div class="root">
+    <header class="navigation theme-dark" id="navigation-wrapper" role="banner">
+<a class="library-name--link" href="../../../index.html" tabindex="1">
+                    Wow
+            </a>        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle" type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">6.2.9
+        </div>
+        <div class="navigation-controls">
+        <ul class="filter-section filter-section_loading" id="filter-section" aria-label="Target filter">
+                <button class="platform-tag platform-selector jvm-like" data-active="" aria-pressed="true" data-filter=":wow-schema/main">jvm</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox" data-role="dropdown-toggle" aria-controls="platform-tags-listbox" aria-haspopup="listbox" aria-expanded="false" aria-label="Toggle source sets"></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox" aria-label="Target filter">
+                    <div class="dropdown--header"><span>Target filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close target filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option jvm-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":wow-schema/main" data-filter=":wow-schema/main">
+                                <span class="checkbox--icon"></span>
+                                jvm
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </ul>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button" type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </header>
+    <div id="container">
+        <nav id="leftColumn" class="sidebar" data-item-type="SECTION" data-item-config="{&quot;defaultSize&quot;: 280, &quot;minSize&quot;: 200, &quot;maxSize&quot;: 400}">
+            <a class="toc--skip-link" href="#main">Skip to content</a>
+            <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list" data-role="dropdown-listbox" aria-label="Table of contents">
+                    <div class="dropdown--header">
+                            <span>
+                                    Wow
+                            </span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                    <div class="sidebar--inner" id="sideMenu"></div>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </nav>
+        <div id="resizer" class="resizer" data-item-type="BAR"></div>
+        <div id="main" data-item-type="SECTION" role="main">
+<div class="main-content" data-page-type="classlike" id="content" pageids="wow-schema::me.ahoo.wow.schema/SchemaGeneratorBuilder///PointingToDeclaration//2012345807">
+  <div class="breadcrumbs"><a href="../../index.html">wow-schema</a><span class="delimiter">/</span><a href="../index.html">me.ahoo.wow.schema</a><span class="delimiter">/</span><span class="current">SchemaGeneratorBuilder</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span>Schema</span><wbr><span>Generator</span><wbr><span><span>Builder</span></span></h1>
+    <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-schema/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="index.html">SchemaGeneratorBuilder</a></div><p class="paragraph">Builder class for constructing a SchemaGenerator with customizable modules and options. This builder allows configuration of various JSON schema generation modules including Jackson, Jakarta Validation, Swagger2, Kotlin, Joda Money, and Wow-specific modules.</p></div></div>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="CONSTRUCTOR,TYPE,PROPERTY,FUNCTION">Members</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="CONSTRUCTOR">
+        <h2 class="tableheader">Constructors</h2>
+        <div class="table"><a data-name="-611063268%2FConstructors%2F2012345807" anchor-label="SchemaGeneratorBuilder" id="-611063268%2FConstructors%2F2012345807" data-filterable-set=":wow-schema/main"></a>
+          <div class="table-row table-row_content" data-togglable="CONSTRUCTOR" data-filterable-current=":wow-schema/main" data-filterable-set=":wow-schema/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-schema-generator-builder.html"><span>Schema</span><wbr><span>Generator</span><wbr><span><span>Builder</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-611063268%2FConstructors%2F2012345807"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-schema/main"><div class="symbol monospace"><span class="token keyword">constructor</span><span class="token punctuation">(</span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="TYPE">
+        <h2 class="tableheader">Types</h2>
+        <div class="table"><a data-name="985155740%2FClasslikes%2F2012345807" anchor-label="Companion" id="985155740%2FClasslikes%2F2012345807" data-filterable-set=":wow-schema/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-schema/main" data-filterable-set=":wow-schema/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-companion/index.html"><span><span>Companion</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="985155740%2FClasslikes%2F2012345807"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-schema/main"><div class="symbol monospace"><span class="token keyword">object </span><a href="-companion/index.html">Companion</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="PROPERTY">
+        <h2 class="tableheader">Properties</h2>
+        <div class="table"><a data-name="-1868286602%2FProperties%2F2012345807" anchor-label="customizer" id="-1868286602%2FProperties%2F2012345807" data-filterable-set=":wow-schema/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-schema/main" data-filterable-set=":wow-schema/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="customizer.html"><span><span>customizer</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1868286602%2FProperties%2F2012345807"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-schema/main"><div class="symbol monospace"><span class="token keyword">var </span><a href="customizer.html">customizer</a><span class="token operator">: </span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/function/Consumer.html">Consumer</a><span class="token operator">&lt;</span><span data-unresolved-link="com.github.victools.jsonschema.generator/SchemaGeneratorConfigBuilder///PointingToDeclaration/">SchemaGeneratorConfigBuilder</span><span class="token operator">&gt;</span><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1500188310%2FProperties%2F2012345807" anchor-label="jacksonModule" id="1500188310%2FProperties%2F2012345807" data-filterable-set=":wow-schema/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-schema/main" data-filterable-set=":wow-schema/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="jackson-module.html"><span>jackson</span><wbr><span><span>Module</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1500188310%2FProperties%2F2012345807"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-schema/main"><div class="symbol monospace"><span class="token keyword">var </span><a href="jackson-module.html">jacksonModule</a><span class="token operator">: </span><span data-unresolved-link="com.github.victools.jsonschema.module.jackson/JacksonModule///PointingToDeclaration/">JacksonModule</span><span class="token operator">?</span></div><div class="brief "><p class="paragraph">Jackson module for handling Jackson annotations in schema generation.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="674668126%2FProperties%2F2012345807" anchor-label="jakartaValidationModule" id="674668126%2FProperties%2F2012345807" data-filterable-set=":wow-schema/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-schema/main" data-filterable-set=":wow-schema/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="jakarta-validation-module.html"><span>jakarta</span><wbr><span>Validation</span><wbr><span><span>Module</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="674668126%2FProperties%2F2012345807"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-schema/main"><div class="symbol monospace"><span class="token keyword">var </span><a href="jakarta-validation-module.html">jakartaValidationModule</a><span class="token operator">: </span><span data-unresolved-link="com.github.victools.jsonschema.module.jakarta.validation/JakartaValidationModule///PointingToDeclaration/">JakartaValidationModule</span><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="5474091%2FProperties%2F2012345807" anchor-label="jodaMoneyModule" id="5474091%2FProperties%2F2012345807" data-filterable-set=":wow-schema/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-schema/main" data-filterable-set=":wow-schema/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="joda-money-module.html"><span>joda</span><wbr><span>Money</span><wbr><span><span>Module</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="5474091%2FProperties%2F2012345807"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-schema/main"><div class="symbol monospace"><span class="token keyword">var </span><a href="joda-money-module.html">jodaMoneyModule</a><span class="token operator">: </span><a href="../../me.ahoo.wow.schema.joda.money/-joda-money-module/index.html">JodaMoneyModule</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1203319544%2FProperties%2F2012345807" anchor-label="kotlinModule" id="1203319544%2FProperties%2F2012345807" data-filterable-set=":wow-schema/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-schema/main" data-filterable-set=":wow-schema/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="kotlin-module.html"><span>kotlin</span><wbr><span><span>Module</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1203319544%2FProperties%2F2012345807"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-schema/main"><div class="symbol monospace"><span class="token keyword">var </span><a href="kotlin-module.html">kotlinModule</a><span class="token operator">: </span><a href="../../me.ahoo.wow.schema.kotlin/-kotlin-module/index.html">KotlinModule</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-665893593%2FProperties%2F2012345807" anchor-label="openapi31" id="-665893593%2FProperties%2F2012345807" data-filterable-set=":wow-schema/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-schema/main" data-filterable-set=":wow-schema/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="openapi31.html"><span><span>openapi31</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-665893593%2FProperties%2F2012345807"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-schema/main"><div class="symbol monospace"><span class="token keyword">var </span><a href="openapi31.html">openapi31</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a></div><div class="brief "><p class="paragraph">Whether to use OpenAPI 3.1 specification.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1496936433%2FProperties%2F2012345807" anchor-label="optionPreset" id="1496936433%2FProperties%2F2012345807" data-filterable-set=":wow-schema/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-schema/main" data-filterable-set=":wow-schema/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="option-preset.html"><span>option</span><wbr><span><span>Preset</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1496936433%2FProperties%2F2012345807"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-schema/main"><div class="symbol monospace"><span class="token keyword">var </span><a href="option-preset.html">optionPreset</a><span class="token operator">: </span><span data-unresolved-link="com.github.victools.jsonschema.generator/OptionPreset///PointingToDeclaration/">OptionPreset</span></div><div class="brief "><p class="paragraph">The preset of options to apply to the schema generator.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1297546121%2FProperties%2F2012345807" anchor-label="options" id="-1297546121%2FProperties%2F2012345807" data-filterable-set=":wow-schema/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-schema/main" data-filterable-set=":wow-schema/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="options.html"><span><span>options</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1297546121%2FProperties%2F2012345807"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-schema/main"><div class="symbol monospace"><span class="token keyword">var </span><a href="options.html">options</a><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-list/index.html">List</a><span class="token operator">&lt;</span><span data-unresolved-link="com.github.victools.jsonschema.generator/Option///PointingToDeclaration/">Option</span><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="710776469%2FProperties%2F2012345807" anchor-label="requiredTypeContent" id="710776469%2FProperties%2F2012345807" data-filterable-set=":wow-schema/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-schema/main" data-filterable-set=":wow-schema/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="required-type-content.html"><span>required</span><wbr><span>Type</span><wbr><span><span>Content</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="710776469%2FProperties%2F2012345807"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-schema/main"><div class="symbol monospace"><span class="token keyword">val </span><a href="required-type-content.html">requiredTypeContent</a><span class="token operator">: </span><span data-unresolved-link="com.github.victools.jsonschema.generator/TypeContext///PointingToDeclaration/">TypeContext</span></div><div class="brief "><p class="paragraph">Gets the TypeContext after build() has been called. Throws if not built yet.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1495120016%2FProperties%2F2012345807" anchor-label="schemaNamingModule" id="-1495120016%2FProperties%2F2012345807" data-filterable-set=":wow-schema/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-schema/main" data-filterable-set=":wow-schema/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="schema-naming-module.html"><span>schema</span><wbr><span>Naming</span><wbr><span><span>Module</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1495120016%2FProperties%2F2012345807"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-schema/main"><div class="symbol monospace"><span class="token keyword">var </span><a href="schema-naming-module.html">schemaNamingModule</a><span class="token operator">: </span><a href="../../me.ahoo.wow.schema.naming/-schema-naming-module/index.html">SchemaNamingModule</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1978996930%2FProperties%2F2012345807" anchor-label="schemaVersion" id="-1978996930%2FProperties%2F2012345807" data-filterable-set=":wow-schema/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-schema/main" data-filterable-set=":wow-schema/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="schema-version.html"><span>schema</span><wbr><span><span>Version</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1978996930%2FProperties%2F2012345807"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-schema/main"><div class="symbol monospace"><span class="token keyword">var </span><a href="schema-version.html">schemaVersion</a><span class="token operator">: </span><span data-unresolved-link="com.github.victools.jsonschema.generator/SchemaVersion///PointingToDeclaration/">SchemaVersion</span></div><div class="brief "><p class="paragraph">The JSON Schema version to use for generation.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="2095701297%2FProperties%2F2012345807" anchor-label="swagger2Module" id="2095701297%2FProperties%2F2012345807" data-filterable-set=":wow-schema/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-schema/main" data-filterable-set=":wow-schema/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="swagger2-module.html"><span><span>swagger2Module</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="2095701297%2FProperties%2F2012345807"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-schema/main"><div class="symbol monospace"><span class="token keyword">var </span><a href="swagger2-module.html">swagger2Module</a><span class="token operator">: </span><span data-unresolved-link="com.github.victools.jsonschema.module.swagger2/Swagger2Module///PointingToDeclaration/">Swagger2Module</span><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1150704096%2FProperties%2F2012345807" anchor-label="typeContext" id="1150704096%2FProperties%2F2012345807" data-filterable-set=":wow-schema/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-schema/main" data-filterable-set=":wow-schema/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="type-context.html"><span>type</span><wbr><span><span>Context</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1150704096%2FProperties%2F2012345807"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-schema/main"><div class="symbol monospace"><span class="token keyword">var </span><a href="type-context.html">typeContext</a><span class="token operator">: </span><span data-unresolved-link="com.github.victools.jsonschema.generator/TypeContext///PointingToDeclaration/">TypeContext</span><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1417086518%2FProperties%2F2012345807" anchor-label="wowModule" id="-1417086518%2FProperties%2F2012345807" data-filterable-set=":wow-schema/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-schema/main" data-filterable-set=":wow-schema/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="wow-module.html"><span>wow</span><wbr><span><span>Module</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1417086518%2FProperties%2F2012345807"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-schema/main"><div class="symbol monospace"><span class="token keyword">var </span><a href="wow-module.html">wowModule</a><span class="token operator">: </span><a href="../-wow-module/index.html">WowModule</a><span class="token operator">?</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="FUNCTION">
+        <h2 class="tableheader">Functions</h2>
+        <div class="table"><a data-name="-300567385%2FFunctions%2F2012345807" anchor-label="build" id="-300567385%2FFunctions%2F2012345807" data-filterable-set=":wow-schema/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-schema/main" data-filterable-set=":wow-schema/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="build.html"><span><span>build</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-300567385%2FFunctions%2F2012345807"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-schema/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="build.html"><span class="token function">build</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><span data-unresolved-link="com.github.victools.jsonschema.generator/SchemaGenerator///PointingToDeclaration/">SchemaGenerator</span></div><div class="brief "><p class="paragraph">Builds and returns a SchemaGenerator instance with the configured modules and options. This method must be called before accessing requiredTypeContent.</p></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1738049236%2FFunctions%2F2012345807" anchor-label="customizer" id="-1738049236%2FFunctions%2F2012345807" data-filterable-set=":wow-schema/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-schema/main" data-filterable-set=":wow-schema/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="customizer.html"><span><span>customizer</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1738049236%2FFunctions%2F2012345807"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-schema/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="customizer.html"><span class="token function">customizer</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">customizer<span class="token operator">: </span><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/function/Consumer.html">Consumer</a><span class="token operator">&lt;</span><span data-unresolved-link="com.github.victools.jsonschema.generator/SchemaGeneratorConfigBuilder///PointingToDeclaration/">SchemaGeneratorConfigBuilder</span><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">SchemaGeneratorBuilder</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="120719225%2FFunctions%2F2012345807" anchor-label="jacksonModule" id="120719225%2FFunctions%2F2012345807" data-filterable-set=":wow-schema/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-schema/main" data-filterable-set=":wow-schema/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="jackson-module.html"><span>jackson</span><wbr><span><span>Module</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="120719225%2FFunctions%2F2012345807"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-schema/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="jackson-module.html"><span class="token function">jacksonModule</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">jacksonModule<span class="token operator">: </span><span data-unresolved-link="com.github.victools.jsonschema.module.jackson/JacksonModule///PointingToDeclaration/">JacksonModule</span><span class="token operator">?</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">SchemaGeneratorBuilder</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1370216731%2FFunctions%2F2012345807" anchor-label="jakartaValidationModule" id="-1370216731%2FFunctions%2F2012345807" data-filterable-set=":wow-schema/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-schema/main" data-filterable-set=":wow-schema/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="jakarta-validation-module.html"><span>jakarta</span><wbr><span>Validation</span><wbr><span><span>Module</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1370216731%2FFunctions%2F2012345807"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-schema/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="jakarta-validation-module.html"><span class="token function">jakartaValidationModule</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">jakartaValidationModule<span class="token operator">: </span><span data-unresolved-link="com.github.victools.jsonschema.module.jakarta.validation/JakartaValidationModule///PointingToDeclaration/">JakartaValidationModule</span><span class="token operator">?</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">SchemaGeneratorBuilder</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1527620553%2FFunctions%2F2012345807" anchor-label="jodaMoneyModule" id="1527620553%2FFunctions%2F2012345807" data-filterable-set=":wow-schema/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-schema/main" data-filterable-set=":wow-schema/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="joda-money-module.html"><span>joda</span><wbr><span>Money</span><wbr><span><span>Module</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1527620553%2FFunctions%2F2012345807"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-schema/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="joda-money-module.html"><span class="token function">jodaMoneyModule</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">jodaMoneyModule<span class="token operator">: </span><a href="../../me.ahoo.wow.schema.joda.money/-joda-money-module/index.html">JodaMoneyModule</a><span class="token operator">?</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">SchemaGeneratorBuilder</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1093358584%2FFunctions%2F2012345807" anchor-label="kotlinModule" id="1093358584%2FFunctions%2F2012345807" data-filterable-set=":wow-schema/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-schema/main" data-filterable-set=":wow-schema/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="kotlin-module.html"><span>kotlin</span><wbr><span><span>Module</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1093358584%2FFunctions%2F2012345807"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-schema/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="kotlin-module.html"><span class="token function">kotlinModule</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">kotlinModule<span class="token operator">: </span><a href="../../me.ahoo.wow.schema.kotlin/-kotlin-module/index.html">KotlinModule</a><span class="token operator">?</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">SchemaGeneratorBuilder</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="436968492%2FFunctions%2F2012345807" anchor-label="openapi31" id="436968492%2FFunctions%2F2012345807" data-filterable-set=":wow-schema/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-schema/main" data-filterable-set=":wow-schema/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="openapi31.html"><span><span>openapi31</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="436968492%2FFunctions%2F2012345807"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-schema/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="openapi31.html"><span class="token function">openapi31</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">openapi31<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">SchemaGeneratorBuilder</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1603786014%2FFunctions%2F2012345807" anchor-label="optionPreset" id="-1603786014%2FFunctions%2F2012345807" data-filterable-set=":wow-schema/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-schema/main" data-filterable-set=":wow-schema/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="option-preset.html"><span>option</span><wbr><span><span>Preset</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1603786014%2FFunctions%2F2012345807"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-schema/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="option-preset.html"><span class="token function">optionPreset</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">optionPreset<span class="token operator">: </span><span data-unresolved-link="com.github.victools.jsonschema.generator/OptionPreset///PointingToDeclaration/">OptionPreset</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">SchemaGeneratorBuilder</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1542062323%2FFunctions%2F2012345807" anchor-label="options" id="1542062323%2FFunctions%2F2012345807" data-filterable-set=":wow-schema/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-schema/main" data-filterable-set=":wow-schema/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="options.html"><span><span>options</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1542062323%2FFunctions%2F2012345807"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-schema/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="options.html"><span class="token function">options</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">options<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-list/index.html">List</a><span class="token operator">&lt;</span><span data-unresolved-link="com.github.victools.jsonschema.generator/Option///PointingToDeclaration/">Option</span><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">SchemaGeneratorBuilder</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="226643041%2FFunctions%2F2012345807" anchor-label="schemaNamingModule" id="226643041%2FFunctions%2F2012345807" data-filterable-set=":wow-schema/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-schema/main" data-filterable-set=":wow-schema/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="schema-naming-module.html"><span>schema</span><wbr><span>Naming</span><wbr><span><span>Module</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="226643041%2FFunctions%2F2012345807"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-schema/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="schema-naming-module.html"><span class="token function">schemaNamingModule</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">schemaNamingModule<span class="token operator">: </span><a href="../../me.ahoo.wow.schema.naming/-schema-naming-module/index.html">SchemaNamingModule</a><span class="token operator">?</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">SchemaGeneratorBuilder</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1787146910%2FFunctions%2F2012345807" anchor-label="schemaVersion" id="-1787146910%2FFunctions%2F2012345807" data-filterable-set=":wow-schema/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-schema/main" data-filterable-set=":wow-schema/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="schema-version.html"><span>schema</span><wbr><span><span>Version</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1787146910%2FFunctions%2F2012345807"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-schema/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="schema-version.html"><span class="token function">schemaVersion</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">schemaVersion<span class="token operator">: </span><span data-unresolved-link="com.github.victools.jsonschema.generator/SchemaVersion///PointingToDeclaration/">SchemaVersion</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">SchemaGeneratorBuilder</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="790652234%2FFunctions%2F2012345807" anchor-label="swagger2Module" id="790652234%2FFunctions%2F2012345807" data-filterable-set=":wow-schema/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-schema/main" data-filterable-set=":wow-schema/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="swagger2-module.html"><span><span>swagger2Module</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="790652234%2FFunctions%2F2012345807"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-schema/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="swagger2-module.html"><span class="token function">swagger2Module</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">swagger2Module<span class="token operator">: </span><span data-unresolved-link="com.github.victools.jsonschema.module.swagger2/Swagger2Module///PointingToDeclaration/">Swagger2Module</span><span class="token operator">?</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">SchemaGeneratorBuilder</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="121091959%2FFunctions%2F2012345807" anchor-label="wowModule" id="121091959%2FFunctions%2F2012345807" data-filterable-set=":wow-schema/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-schema/main" data-filterable-set=":wow-schema/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="wow-module.html"><span>wow</span><wbr><span><span>Module</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="121091959%2FFunctions%2F2012345807"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-schema/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="wow-module.html"><span class="token function">wowModule</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">wowModule<span class="token operator">: </span><a href="../-wow-module/index.html">WowModule</a><span class="token operator">?</span></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="index.html">SchemaGeneratorBuilder</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <div class="footer--container">
+            <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+            <div class="footer--content">
+                <div>
+                    <span>Generated by </span>
+                    <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                        Dokka
+                    </a>
+                    <div>© 2025 Copyright</div>
+                </div>
+            </div>
+        </div>
+    </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

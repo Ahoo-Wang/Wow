@@ -1,0 +1,265 @@
+<!doctype html>
+<html class="no-js" lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>me.ahoo.wow.tck.mock</title>
+<link href="../../images/logo-icon.svg" rel="icon" type="image/svg"><script>var pathToRoot = "../../";</script>
+    <script>document.documentElement.classList.replace("no-js", "js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+      if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      } else {
+        const savedDarkMode = JSON.parse(storage)
+        if (savedDarkMode === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      }
+    </script>
+<script type="text/javascript" src="https://unpkg.com/kotlin-playground@1/dist/playground.min.js" async></script>
+<script type="text/javascript" src="../../scripts/sourceset_dependencies.js" async></script>
+<link href="../../styles/style.css" rel="Stylesheet">
+<link href="../../styles/main.css" rel="Stylesheet">
+<link href="../../styles/prism.css" rel="Stylesheet">
+<link href="../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../scripts/safe-local-storage_blocking.js"></script>
+<script type="text/javascript" src="../../scripts/navigation-loader.js" async></script>
+<script type="text/javascript" src="../../scripts/platform-content-handler.js" async></script>
+<script type="text/javascript" src="../../scripts/main.js" defer></script>
+<script type="text/javascript" src="../../scripts/prism.js" async></script>
+<script type="text/javascript" src="../../ui-kit/ui-kit.min.js" defer></script></head>
+<body>
+<div class="root">
+    <header class="navigation theme-dark" id="navigation-wrapper" role="banner">
+<a class="library-name--link" href="../../index.html" tabindex="1">
+                    Wow
+            </a>        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle" type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">6.2.9
+        </div>
+        <div class="navigation-controls">
+        <ul class="filter-section filter-section_loading" id="filter-section" aria-label="Target filter">
+                <button class="platform-tag platform-selector jvm-like" data-active="" aria-pressed="true" data-filter=":wow-tck/main">jvm</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox" data-role="dropdown-toggle" aria-controls="platform-tags-listbox" aria-haspopup="listbox" aria-expanded="false" aria-label="Toggle source sets"></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox" aria-label="Target filter">
+                    <div class="dropdown--header"><span>Target filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close target filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option jvm-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":wow-tck/main" data-filter=":wow-tck/main">
+                                <span class="checkbox--icon"></span>
+                                jvm
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </ul>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button" type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </header>
+    <div id="container">
+        <nav id="leftColumn" class="sidebar" data-item-type="SECTION" data-item-config="{&quot;defaultSize&quot;: 280, &quot;minSize&quot;: 200, &quot;maxSize&quot;: 400}">
+            <a class="toc--skip-link" href="#main">Skip to content</a>
+            <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list" data-role="dropdown-listbox" aria-label="Table of contents">
+                    <div class="dropdown--header">
+                            <span>
+                                    Wow
+                            </span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                    <div class="sidebar--inner" id="sideMenu"></div>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </nav>
+        <div id="resizer" class="resizer" data-item-type="BAR"></div>
+        <div id="main" data-item-type="SECTION" role="main">
+<div class="main-content" data-page-type="package" id="content" pageids="wow-tck::me.ahoo.wow.tck.mock////PointingToDeclaration//1757146588">
+  <div class="breadcrumbs"><a href="../index.html">wow-tck</a><span class="delimiter">/</span><span class="current">me.ahoo.wow.tck.mock</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span><span>Package-level</span></span> <span><span>declarations</span></span></h1>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="TYPE">Types</button><button class="section-tab" data-togglable="PROPERTY,EXTENSION_PROPERTY">Properties</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="TYPE">
+        <h2 class="tableheader">Types</h2>
+        <div class="table"><a data-name="1921074367%2FClasslikes%2F1757146588" anchor-label="MockAggregateChanged" id="1921074367%2FClasslikes%2F1757146588" data-filterable-set=":wow-tck/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-tck/main" data-filterable-set=":wow-tck/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-mock-aggregate-changed/index.html"><span>Mock</span><wbr><span>Aggregate</span><wbr><span><span>Changed</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1921074367%2FClasslikes%2F1757146588"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-tck/main"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-mock-aggregate-changed/index.html">MockAggregateChanged</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>data<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1742375691%2FClasslikes%2F1757146588" anchor-label="MockAggregateCreated" id="1742375691%2FClasslikes%2F1757146588" data-filterable-set=":wow-tck/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-tck/main" data-filterable-set=":wow-tck/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-mock-aggregate-created/index.html"><span>Mock</span><wbr><span>Aggregate</span><wbr><span><span>Created</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1742375691%2FClasslikes%2F1757146588"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-tck/main"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-mock-aggregate-created/index.html">MockAggregateCreated</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>data<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1656430559%2FClasslikes%2F1757146588" anchor-label="MockChangeAggregate" id="1656430559%2FClasslikes%2F1757146588" data-filterable-set=":wow-tck/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-tck/main" data-filterable-set=":wow-tck/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-mock-change-aggregate/index.html"><span>Mock</span><wbr><span>Change</span><wbr><span><span>Aggregate</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1656430559%2FClasslikes%2F1757146588"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-tck/main"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-mock-change-aggregate/index.html">MockChangeAggregate</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>id<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>data<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-2009981216%2FClasslikes%2F1757146588" anchor-label="MockCommandAggregate" id="-2009981216%2FClasslikes%2F1757146588" data-filterable-set=":wow-tck/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-tck/main" data-filterable-set=":wow-tck/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-mock-command-aggregate/index.html"><span>Mock</span><wbr><span>Command</span><wbr><span><span>Aggregate</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-2009981216%2FClasslikes%2F1757146588"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-tck/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="../../wow-api/me.ahoo.wow.api.annotation/-aggregate-root/index.html"><span class="token annotation builtin">AggregateRoot</span></a><span class="token punctuation">(</span><span>commands<span class="token operator"> = </span><span class="token punctuation">[</span><span><a href="-mock-void-command/index.html">MockVoidCommand::class</a></span><wbr><span class="token punctuation">]</span></span><wbr><span class="token punctuation">)</span></div></div><span class="token keyword">class </span><a href="-mock-command-aggregate/index.html">MockCommandAggregate</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>state<span class="token operator">: </span><a href="-mock-state-aggregate/index.html">MockStateAggregate</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1447077333%2FClasslikes%2F1757146588" anchor-label="MockCreateAggregate" id="-1447077333%2FClasslikes%2F1757146588" data-filterable-set=":wow-tck/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-tck/main" data-filterable-set=":wow-tck/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-mock-create-aggregate/index.html"><span>Mock</span><wbr><span>Create</span><wbr><span><span>Aggregate</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1447077333%2FClasslikes%2F1757146588"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-tck/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="../../wow-api/me.ahoo.wow.api.annotation/-create-aggregate/index.html"><span class="token annotation builtin">CreateAggregate</span></a></div></div><span class="token keyword">data </span><span class="token keyword">class </span><a href="-mock-create-aggregate/index.html">MockCreateAggregate</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>id<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter "><span class="token keyword">val </span>data<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1922633574%2FClasslikes%2F1757146588" anchor-label="MockStateAggregate" id="1922633574%2FClasslikes%2F1757146588" data-filterable-set=":wow-tck/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-tck/main" data-filterable-set=":wow-tck/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-mock-state-aggregate/index.html"><span>Mock</span><wbr><span>State</span><wbr><span><span>Aggregate</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1922633574%2FClasslikes%2F1757146588"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-tck/main"><div class="symbol monospace"><span class="token keyword">data </span><span class="token keyword">class </span><a href="-mock-state-aggregate/index.html">MockStateAggregate</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>id<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span> : <a href="../../wow-core/me.ahoo.wow.modeling.state/-read-only-state-aggregate-aware/index.html">ReadOnlyStateAggregateAware</a><span class="token operator">&lt;</span><a href="-mock-state-aggregate/index.html">MockStateAggregate</a><span class="token operator">&gt; </span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-573301705%2FClasslikes%2F1757146588" anchor-label="MockVoidCommand" id="-573301705%2FClasslikes%2F1757146588" data-filterable-set=":wow-tck/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-tck/main" data-filterable-set=":wow-tck/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-mock-void-command/index.html"><span>Mock</span><wbr><span>Void</span><wbr><span><span>Command</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-573301705%2FClasslikes%2F1757146588"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-tck/main"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="../../wow-api/me.ahoo.wow.api.annotation/-void-command/index.html"><span class="token annotation builtin">VoidCommand</span></a></div></div><span class="token keyword">data </span><span class="token keyword">class </span><a href="-mock-void-command/index.html">MockVoidCommand</a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">val </span>data<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1362520037%2FClasslikes%2F1757146588" anchor-label="WrongCommandMessage" id="-1362520037%2FClasslikes%2F1757146588" data-filterable-set=":wow-tck/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-tck/main" data-filterable-set=":wow-tck/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-wrong-command-message/index.html"><span>Wrong</span><wbr><span>Command</span><wbr><span><span>Message</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1362520037%2FClasslikes%2F1757146588"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-tck/main"><div class="symbol monospace"><span class="token keyword">object </span><a href="-wrong-command-message/index.html">WrongCommandMessage</a> : <a href="../../wow-api/me.ahoo.wow.api.command.validation/-command-validator/index.html">CommandValidator</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="PROPERTY">
+        <h2 class="tableheader">Properties</h2>
+        <div class="table"><a data-name="-1129614155%2FProperties%2F1757146588" anchor-label="MOCK_AGGREGATE_METADATA" id="-1129614155%2FProperties%2F1757146588" data-filterable-set=":wow-tck/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-tck/main" data-filterable-set=":wow-tck/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-m-o-c-k_-a-g-g-r-e-g-a-t-e_-m-e-t-a-d-a-t-a.html"><span>MOCK_</span><wbr><span>AGGREGATE_</span><wbr><span>METADATA</span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1129614155%2FProperties%2F1757146588"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-tck/main"><div class="symbol monospace"><span class="token keyword">val </span><a href="-m-o-c-k_-a-g-g-r-e-g-a-t-e_-m-e-t-a-d-a-t-a.html">MOCK_AGGREGATE_METADATA</a><span class="token operator">: </span><a href="../../wow-core/me.ahoo.wow.modeling.matedata/-aggregate-metadata/index.html">AggregateMetadata</a><span class="token operator">&lt;</span><a href="-mock-command-aggregate/index.html">MockCommandAggregate</a><span class="token punctuation">, </span><a href="-mock-state-aggregate/index.html">MockStateAggregate</a><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <div class="footer--container">
+            <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+            <div class="footer--content">
+                <div>
+                    <span>Generated by </span>
+                    <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                        Dokka
+                    </a>
+                    <div>© 2025 Copyright</div>
+                </div>
+            </div>
+        </div>
+    </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

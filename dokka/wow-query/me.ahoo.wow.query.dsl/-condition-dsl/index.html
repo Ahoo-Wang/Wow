@@ -1,0 +1,836 @@
+<!doctype html>
+<html class="no-js" lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>ConditionDsl</title>
+<link href="../../../images/logo-icon.svg" rel="icon" type="image/svg"><script>var pathToRoot = "../../../";</script>
+    <script>document.documentElement.classList.replace("no-js", "js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+      if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      } else {
+        const savedDarkMode = JSON.parse(storage)
+        if (savedDarkMode === true) {
+          document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+      }
+    </script>
+<script type="text/javascript" src="https://unpkg.com/kotlin-playground@1/dist/playground.min.js" async></script>
+<script type="text/javascript" src="../../../scripts/sourceset_dependencies.js" async></script>
+<link href="../../../styles/style.css" rel="Stylesheet">
+<link href="../../../styles/main.css" rel="Stylesheet">
+<link href="../../../styles/prism.css" rel="Stylesheet">
+<link href="../../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../../ui-kit/ui-kit.min.css" rel="Stylesheet">
+<script type="text/javascript" src="../../../scripts/safe-local-storage_blocking.js"></script>
+<script type="text/javascript" src="../../../scripts/navigation-loader.js" async></script>
+<script type="text/javascript" src="../../../scripts/platform-content-handler.js" async></script>
+<script type="text/javascript" src="../../../scripts/main.js" defer></script>
+<script type="text/javascript" src="../../../scripts/prism.js" async></script>
+<script type="text/javascript" src="../../../ui-kit/ui-kit.min.js" defer></script></head>
+<body>
+<div class="root">
+    <header class="navigation theme-dark" id="navigation-wrapper" role="banner">
+<a class="library-name--link" href="../../../index.html" tabindex="1">
+                    Wow
+            </a>        <button class="navigation-controls--btn navigation-controls--btn_toc ui-kit_mobile-only" id="toc-toggle" type="button">Toggle table of contents
+        </button>
+        <div class="navigation-controls--break ui-kit_mobile-only"></div>
+        <div class="library-version" id="library-version">6.2.9
+        </div>
+        <div class="navigation-controls">
+        <ul class="filter-section filter-section_loading" id="filter-section" aria-label="Target filter">
+                <button class="platform-tag platform-selector jvm-like" data-active="" aria-pressed="true" data-filter=":wow-query/main">jvm</button>
+            <div class="dropdown filter-section--dropdown" data-role="dropdown" id="filter-section-dropdown">
+                <button class="button button_dropdown filter-section--dropdown-toggle" role="combobox" data-role="dropdown-toggle" aria-controls="platform-tags-listbox" aria-haspopup="listbox" aria-expanded="false" aria-label="Toggle source sets"></button>
+                <ul role="listbox" id="platform-tags-listbox" class="dropdown--list" data-role="dropdown-listbox" aria-label="Target filter">
+                    <div class="dropdown--header"><span>Target filter</span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close target filter">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                        <li role="option" class="dropdown--option platform-selector-option jvm-like" tabindex="0">
+                            <label class="checkbox">
+                                <input type="checkbox" class="checkbox--input" id=":wow-query/main" data-filter=":wow-query/main">
+                                <span class="checkbox--icon"></span>
+                                jvm
+                            </label>
+                        </li>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </ul>
+            <button class="navigation-controls--btn navigation-controls--btn_theme" id="theme-toggle-button" type="button">Switch theme
+            </button>
+            <div class="navigation-controls--btn navigation-controls--btn_search" id="searchBar" role="button">Search in
+                API
+            </div>
+        </div>
+    </header>
+    <div id="container">
+        <nav id="leftColumn" class="sidebar" data-item-type="SECTION" data-item-config="{&quot;defaultSize&quot;: 280, &quot;minSize&quot;: 200, &quot;maxSize&quot;: 400}">
+            <a class="toc--skip-link" href="#main">Skip to content</a>
+            <div class="dropdown theme-dark_mobile" data-role="dropdown" id="toc-dropdown">
+                <ul role="listbox" id="toc-listbox" class="dropdown--list dropdown--list_toc-list" data-role="dropdown-listbox" aria-label="Table of contents">
+                    <div class="dropdown--header">
+                            <span>
+                                    Wow
+                            </span>
+                        <button class="button" data-role="dropdown-toggle" aria-label="Close table of contents">
+                            <i class="ui-kit-icon ui-kit-icon_cross"></i>
+                        </button>
+                    </div>
+                    <div class="sidebar--inner" id="sideMenu"></div>
+                </ul>
+                <div class="dropdown--overlay"></div>
+            </div>
+        </nav>
+        <div id="resizer" class="resizer" data-item-type="BAR"></div>
+        <div id="main" data-item-type="SECTION" role="main">
+<div class="main-content" data-page-type="classlike" id="content" pageids="wow-query::me.ahoo.wow.query.dsl/ConditionDsl///PointingToDeclaration//-1337977720">
+  <div class="breadcrumbs"><a href="../../index.html">wow-query</a><span class="delimiter">/</span><a href="../index.html">me.ahoo.wow.query.dsl</a><span class="delimiter">/</span><span class="current">ConditionDsl</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span>Condition</span><wbr><span><span>Dsl</span></span></h1>
+    <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">class </span><a href="index.html">ConditionDsl</a> : <a href="../-nested-field-dsl/index.html">NestedFieldDsl</a></div><p class="paragraph">A DSL for building complex conditions in a fluent and readable manner. This class extends <a href="../-nested-field-dsl/index.html">NestedFieldDsl</a> to support nested field operations and provides a wide range of methods to construct various types of conditions.</p><p class="paragraph">Example usage:</p><div class="sample-container"><pre><code class="block lang-kotlin" theme="idea">val condition = ConditionDsl().apply {<br>    "name" eq "John"<br>    "age" gt 30<br>    and {<br>        "status" eq "active"<br>        "role" isIn listOf("admin", "user")<br>    }<br>    or {<br>        "email" contains "@example.com"<br>        "phone" isNull()<br>    }<br>}</code></pre><span class="copy-tooltip"><div class="copy-popup-wrapper popup-to-left"><span class="copy-popup-icon"></span><span>Content copied to clipboard</span></div><span class="copy-icon"></span></span></div><p class="paragraph">Methods:</p><ul><li><p class="paragraph"><code class="lang-kotlin">condition(condition: Condition)</code>: Adds a condition to the list of conditions.</p></li><li><p class="paragraph"><code class="lang-kotlin">String.nested(block: ConditionDsl.() -&gt; Unit)</code>: Creates a nested condition block for the given field.</p></li><li><p class="paragraph"><code class="lang-kotlin">KCallable&lt;*&gt;.nested(block: ConditionDsl.() -&gt; Unit)</code>: Creates a nested condition block for the property represented by the KCallable.</p></li><li><p class="paragraph"><code class="lang-kotlin">and(block: ConditionDsl.() -&gt; Unit)</code>: Combines multiple conditions with a logical AND.</p></li><li><p class="paragraph"><code class="lang-kotlin">or(block: ConditionDsl.() -&gt; Unit)</code>: Combines multiple conditions with a logical OR.</p></li><li><p class="paragraph"><code class="lang-kotlin">nor(block: ConditionDsl.() -&gt; Unit)</code>: Combines multiple conditions with a logical NOR.</p></li><li><p class="paragraph"><code class="lang-kotlin">all()</code>: Adds a condition that matches all documents.</p></li><li><p class="paragraph"><code class="lang-kotlin">id(value: String)</code>: Adds a condition to match a specific ID.</p></li><li><p class="paragraph"><code class="lang-kotlin">ids(value: List&lt;String&gt;)</code> and <code class="lang-kotlin">ids(vararg value: String)</code>: Adds a condition to match multiple IDs.</p></li><li><p class="paragraph"><code class="lang-kotlin">aggregateId(value: String)</code>, <code class="lang-kotlin">aggregateIds(value: List&lt;String&gt;)</code>, and <code class="lang-kotlin">aggregateIds(vararg value: String)</code>: Adds a condition to match aggregate IDs.</p></li><li><p class="paragraph"><code class="lang-kotlin">tenantId(value: String)</code>: Adds a condition to match a specific tenant ID.</p></li><li><p class="paragraph"><code class="lang-kotlin">ownerId(value: String)</code>: Adds a condition to match a specific owner ID.</p></li><li><p class="paragraph"><code class="lang-kotlin">deleted(value: DeletionState)</code>: Adds a condition to match based on the deletion state.</p></li><li><p class="paragraph"><code class="lang-kotlin">String.eq(value: Any)</code> and <code class="lang-kotlin">KCallable&lt;*&gt;.eq(value: Any)</code>: Adds an equality condition.</p></li><li><p class="paragraph"><code class="lang-kotlin">String.ne(value: Any)</code> and <code class="lang-kotlin">KCallable&lt;*&gt;.ne(value: Any)</code>: Adds a not-equal condition.</p></li><li><p class="paragraph"><code class="lang-kotlin">String.gt(value: Any)</code> and <code class="lang-kotlin">KCallable&lt;*&gt;.gt(value: Any)</code>: Adds a greater-than condition.</p></li><li><p class="paragraph"><code class="lang-kotlin">String.lt(value: Any)</code> and <code class="lang-kotlin">KCallable&lt;*&gt;.lt(value: Any)</code>: Adds a less-than condition.</p></li><li><p class="paragraph"><code class="lang-kotlin">String.gte(value: Any)</code> and <code class="lang-kotlin">KCallable&lt;*&gt;.gte(value: Any)</code>: Adds a greater-than-or-equal condition.</p></li><li><p class="paragraph"><code class="lang-kotlin">String.lte(value: Any)</code> and <code class="lang-kotlin">KCallable&lt;*&gt;.lte(value: Any)</code>: Adds a less-than-or-equal condition.</p></li><li><p class="paragraph"><code class="lang-kotlin">String.contains(value: String, ignoreCase: Boolean = false)</code> and <code class="lang-kotlin">KCallable&lt;*&gt;.contains(value: String)</code>: Adds a condition to check if the field contains the specified value.</p></li><li><p class="paragraph"><code class="lang-kotlin">String.isIn(value: List&lt;Any&gt;)</code> and <code class="lang-kotlin">KCallable&lt;*&gt;.isIn(value: List&lt;Any&gt;)</code>: Adds a condition to check if the field is in the specified list.</p></li><li><p class="paragraph"><code class="lang-kotlin">String.notIn(value: List&lt;Any&gt;)</code> and <code class="lang-kotlin">KCallable&lt;*&gt;.notIn(value: List&lt;Any&gt;)</code>: Adds a condition to check if the field is not in the specified list.</p></li><li><p class="paragraph"><code class="lang-kotlin">String.between(value: Pair&lt;V, V&gt;)</code> and <code class="lang-kotlin">KCallable&lt;*&gt;.between(start: V)</code>: Adds a condition to check if the field is between two values.</p></li><li><p class="paragraph"><code class="lang-kotlin">BetweenStart&lt;V&gt;.to(end: V)</code>: Completes the between condition with the end value.</p></li><li><p class="paragraph"><code class="lang-kotlin">String.all(value: List&lt;Any&gt;)</code> and <code class="lang-kotlin">KCallable&lt;*&gt;.all(value: List&lt;Any&gt;)</code>: Adds a condition to check if the field contains all the specified values.</p></li><li><p class="paragraph"><code class="lang-kotlin">String.startsWith(value: String, ignoreCase: Boolean = false)</code> and <code class="lang-kotlin">KCallable&lt;*&gt;.startsWith(value: String)</code>: Adds a condition to check if the field starts with the specified value.</p></li><li><p class="paragraph"><code class="lang-kotlin">String.endsWith(value: String, ignoreCase: Boolean = false)</code> and <code class="lang-kotlin">KCallable&lt;*&gt;.endsWith(value: String)</code>: Adds a condition to check if the field ends with the specified value.</p></li><li><p class="paragraph"><code class="lang-kotlin">String.elemMatch(block: ConditionDsl.() -&gt; Unit)</code> and <code class="lang-kotlin">KCallable&lt;*&gt;.elemMatch(block: ConditionDsl.() -&gt; Unit)</code>: Adds a condition to match elements in an array.</p></li><li><p class="paragraph"><code class="lang-kotlin">String.isNull()</code> and <code class="lang-kotlin">KCallable&lt;*&gt;.isNull()</code>: Adds a condition to check if the field is null.</p></li><li><p class="paragraph"><code class="lang-kotlin">String.notNull()</code> and <code class="lang-kotlin">KCallable&lt;*&gt;.notNull()</code>: Adds a condition to check if the field is not null.</p></li><li><p class="paragraph"><code class="lang-kotlin">String.isTrue()</code> and <code class="lang-kotlin">KCallable&lt;*&gt;.isTrue()</code>: Adds a condition to check if the field is true.</p></li><li><p class="paragraph"><code class="lang-kotlin">String.isFalse()</code> and <code class="lang-kotlin">KCallable&lt;*&gt;.isFalse()</code>: Adds a condition to check if the field is false.</p></li><li><p class="paragraph"><code class="lang-kotlin">String.exists(exists: Boolean = true)</code> and <code class="lang-kotlin">KCallable&lt;*&gt;.exists(exists: Boolean = true)</code>: Adds a condition to check if the field exists.</p></li><li><p class="paragraph"><code class="lang-kotlin">String.today(datePattern: Any? = null)</code> and <code class="lang-kotlin">KCallable&lt;*&gt;.today(datePattern: Any? = null)</code>: Adds a condition to check if the field is today.</p></li><li><p class="paragraph"><code class="lang-kotlin">String.beforeToday(time: Any)</code>: Adds a condition to check if the field is before today at the specified time.</p></li><li><p class="paragraph"><code class="lang-kotlin">String.tomorrow(datePattern: Any? = null)</code>: Adds a condition to check if the field is tomorrow.</p></li></ul></div></div>
+  </div>
+  <div class="tabbedcontent">
+    <div class="tabs-section" tabs-section="tabs-section"><button class="section-tab" data-active="" data-togglable="CONSTRUCTOR,TYPE,PROPERTY,FUNCTION">Members</button><button class="section-tab" data-togglable="CONSTRUCTOR,TYPE,PROPERTY,FUNCTION,EXTENSION_PROPERTY,EXTENSION_FUNCTION">Members &amp; Extensions</button></div>
+    <div class="tabs-section-body">
+      <div data-togglable="CONSTRUCTOR">
+        <h2 class="tableheader">Constructors</h2>
+        <div class="table"><a data-name="1760124678%2FConstructors%2F-1337977720" anchor-label="ConditionDsl" id="1760124678%2FConstructors%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-togglable="CONSTRUCTOR" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="-condition-dsl.html"><span>Condition</span><wbr><span><span>Dsl</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1760124678%2FConstructors%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">constructor</span><span class="token punctuation">(</span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-togglable="FUNCTION">
+        <h2 class="tableheader">Functions</h2>
+        <div class="table"><a data-name="2045034348%2FFunctions%2F-1337977720" anchor-label="aggregateId" id="2045034348%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="aggregate-id.html"><span>aggregate</span><wbr><span><span>Id</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="2045034348%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="aggregate-id.html"><span class="token function">aggregateId</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1294448030%2FFunctions%2F-1337977720" anchor-label="aggregateIds" id="-1294448030%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="aggregate-ids.html"><span>aggregate</span><wbr><span><span>Ids</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1294448030%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="aggregate-ids.html"><span class="token function">aggregateIds</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">vararg </span>value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span></div><div class="symbol monospace"><span class="token keyword">fun </span><a href="aggregate-ids.html"><span class="token function">aggregateIds</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-list/index.html">List</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-289973370%2FFunctions%2F-1337977720" anchor-label="all" id="-289973370%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="all.html"><span><span>all</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-289973370%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="all.html"><span class="token function">all</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span></div><div class="symbol monospace"><span class="token keyword">infix </span><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">.</span><a href="all.html"><span class="token function">all</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-list/index.html">List</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span></div><div class="symbol monospace"><span class="token keyword">infix </span><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.reflect/-k-callable/index.html">KCallable</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">.</span><a href="all.html"><span class="token function">all</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-list/index.html">List</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1575265163%2FFunctions%2F-1337977720" anchor-label="and" id="1575265163%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="and.html"><span><span>and</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1575265163%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="and.html"><span class="token function">and</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">block<span class="token operator">: </span><a href="index.html">ConditionDsl</a><span class="token punctuation">.</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-unit/index.html">Unit</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-399386421%2FFunctions%2F-1337977720" anchor-label="beforeToday" id="-399386421%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="before-today.html"><span>before</span><wbr><span><span>Today</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-399386421%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">infix </span><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">.</span><a href="before-today.html"><span class="token function">beforeToday</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">time<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1802526286%2FFunctions%2F-1337977720" anchor-label="between" id="-1802526286%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="between.html"><span><span>between</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1802526286%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">infix </span><span class="token keyword">fun </span><span class="token operator">&lt;</span><a href="between.html">V</a><span class="token operator">&gt; </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">.</span><a href="between.html"><span class="token function">between</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">start<span class="token operator">: </span><a href="between.html">V</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../-between-start/index.html">BetweenStart</a><span class="token operator">&lt;</span><a href="between.html">V</a><span class="token operator">&gt;</span></div><div class="symbol monospace"><span class="token keyword">infix </span><span class="token keyword">fun </span><span class="token operator">&lt;</span><a href="between.html">V</a><span class="token operator">&gt; </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">.</span><a href="between.html"><span class="token function">between</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-pair/index.html">Pair</a><span class="token operator">&lt;</span><a href="between.html">V</a><span class="token punctuation">, </span><a href="between.html">V</a><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span></div><div class="symbol monospace"><span class="token keyword">infix </span><span class="token keyword">fun </span><span class="token operator">&lt;</span><a href="between.html">V</a><span class="token operator">&gt; </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.reflect/-k-callable/index.html">KCallable</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">.</span><a href="between.html"><span class="token function">between</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">start<span class="token operator">: </span><a href="between.html">V</a></span></span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../-between-start/index.html">BetweenStart</a><span class="token operator">&lt;</span><a href="between.html">V</a><span class="token operator">&gt;</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-914285660%2FFunctions%2F-1337977720" anchor-label="build" id="-914285660%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="build.html"><span><span>build</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-914285660%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="build.html"><span class="token function">build</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.query/-condition/index.html">Condition</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1797984374%2FFunctions%2F-1337977720" anchor-label="condition" id="-1797984374%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="condition.html"><span><span>condition</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1797984374%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="condition.html"><span class="token function">condition</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">condition<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.query/-condition/index.html">Condition</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1530006604%2FFunctions%2F-1337977720" anchor-label="contains" id="-1530006604%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="contains.html"><span><span>contains</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1530006604%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">infix </span><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">.</span><a href="contains.html"><span class="token function">contains</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span></div><div class="symbol monospace"><span class="token keyword">infix </span><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.reflect/-k-callable/index.html">KCallable</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">.</span><a href="contains.html"><span class="token function">contains</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span></div><div class="symbol monospace"><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">.</span><a href="contains.html"><span class="token function">contains</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">ignoreCase<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator"> = </span><span class="token boolean">false</span></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1519198226%2FFunctions%2F-1337977720" anchor-label="deleted" id="1519198226%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="deleted.html"><span><span>deleted</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1519198226%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="deleted.html"><span class="token function"><strike>deleted</strike></span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a></span></span><span class="token punctuation">)</span></div><div class="symbol monospace"><span class="token keyword">fun </span><a href="deleted.html"><span class="token function">deleted</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">value<span class="token operator">: </span><a href="../../../wow-api/me.ahoo.wow.api.query/-deletion-state/index.html">DeletionState</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-668893504%2FFunctions%2F-1337977720" anchor-label="earlierDays" id="-668893504%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="earlier-days.html"><span>earlier</span><wbr><span><span>Days</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-668893504%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">.</span><a href="earlier-days.html"><span class="token function">earlierDays</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">days<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter ">datePattern<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1716186363%2FFunctions%2F-1337977720" anchor-label="elemMatch" id="1716186363%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="elem-match.html"><span>elem</span><wbr><span><span>Match</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1716186363%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">infix </span><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">.</span><a href="elem-match.html"><span class="token function">elemMatch</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">block<span class="token operator">: </span><a href="index.html">ConditionDsl</a><span class="token punctuation">.</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-unit/index.html">Unit</a></span></span><span class="token punctuation">)</span></div><div class="symbol monospace"><span class="token keyword">infix </span><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.reflect/-k-callable/index.html">KCallable</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">.</span><a href="elem-match.html"><span class="token function">elemMatch</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">block<span class="token operator">: </span><a href="index.html">ConditionDsl</a><span class="token punctuation">.</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-unit/index.html">Unit</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-170540107%2FFunctions%2F-1337977720" anchor-label="endsWith" id="-170540107%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="ends-with.html"><span>ends</span><wbr><span><span>With</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-170540107%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">infix </span><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">.</span><a href="ends-with.html"><span class="token function">endsWith</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span></div><div class="symbol monospace"><span class="token keyword">infix </span><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.reflect/-k-callable/index.html">KCallable</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">.</span><a href="ends-with.html"><span class="token function">endsWith</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span></div><div class="symbol monospace"><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">.</span><a href="ends-with.html"><span class="token function">endsWith</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">ignoreCase<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator"> = </span><span class="token boolean">false</span></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1849821655%2FFunctions%2F-1337977720" anchor-label="eq" id="1849821655%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="eq.html"><span><span>eq</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1849821655%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">infix </span><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">.</span><a href="eq.html"><span class="token function">eq</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a></span></span><span class="token punctuation">)</span></div><div class="symbol monospace"><span class="token keyword">infix </span><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.reflect/-k-callable/index.html">KCallable</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">.</span><a href="eq.html"><span class="token function">eq</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1974622167%2FFunctions%2F-1337977720" anchor-label="exists" id="1974622167%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="exists.html"><span><span>exists</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1974622167%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">.</span><a href="exists.html"><span class="token function">exists</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">exists<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator"> = </span><span class="token boolean">true</span></span></span><span class="token punctuation">)</span></div><div class="symbol monospace"><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.reflect/-k-callable/index.html">KCallable</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">.</span><a href="exists.html"><span class="token function">exists</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">exists<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator"> = </span><span class="token boolean">true</span></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-916320073%2FFunctions%2F-1337977720" anchor-label="gt" id="-916320073%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="gt.html"><span><span>gt</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-916320073%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">infix </span><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">.</span><a href="gt.html"><span class="token function">gt</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a></span></span><span class="token punctuation">)</span></div><div class="symbol monospace"><span class="token keyword">infix </span><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.reflect/-k-callable/index.html">KCallable</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">.</span><a href="gt.html"><span class="token function">gt</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="160500577%2FFunctions%2F-1337977720" anchor-label="gte" id="160500577%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="gte.html"><span><span>gte</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="160500577%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">infix </span><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">.</span><a href="gte.html"><span class="token function">gte</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a></span></span><span class="token punctuation">)</span></div><div class="symbol monospace"><span class="token keyword">infix </span><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.reflect/-k-callable/index.html">KCallable</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">.</span><a href="gte.html"><span class="token function">gte</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-553592425%2FFunctions%2F-1337977720" anchor-label="id" id="-553592425%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="id.html"><span><span>id</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-553592425%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="id.html"><span class="token function">id</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1754049670%2FFunctions%2F-1337977720" anchor-label="ids" id="1754049670%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="ids.html"><span><span>ids</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1754049670%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="ids.html"><span class="token function">ids</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter "><span class="token keyword">vararg </span>value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span></div><div class="symbol monospace"><span class="token keyword">fun </span><a href="ids.html"><span class="token function">ids</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-list/index.html">List</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1293781665%2FFunctions%2F-1337977720" anchor-label="isFalse" id="1293781665%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="is-false.html"><span>is</span><wbr><span><span>False</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1293781665%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">.</span><a href="is-false.html"><span class="token function">isFalse</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span></div><div class="symbol monospace"><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.reflect/-k-callable/index.html">KCallable</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">.</span><a href="is-false.html"><span class="token function">isFalse</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1126864605%2FFunctions%2F-1337977720" anchor-label="isIn" id="1126864605%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="is-in.html"><span>is</span><wbr><span><span>In</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1126864605%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">infix </span><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">.</span><a href="is-in.html"><span class="token function">isIn</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-list/index.html">List</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span></div><div class="symbol monospace"><span class="token keyword">infix </span><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.reflect/-k-callable/index.html">KCallable</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">.</span><a href="is-in.html"><span class="token function">isIn</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-list/index.html">List</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1174181911%2FFunctions%2F-1337977720" anchor-label="isNull" id="1174181911%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="is-null.html"><span>is</span><wbr><span><span>Null</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1174181911%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">.</span><a href="is-null.html"><span class="token function">isNull</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span></div><div class="symbol monospace"><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.reflect/-k-callable/index.html">KCallable</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">.</span><a href="is-null.html"><span class="token function">isNull</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="258002679%2FFunctions%2F-1337977720" anchor-label="isTrue" id="258002679%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="is-true.html"><span>is</span><wbr><span><span>True</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="258002679%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">.</span><a href="is-true.html"><span class="token function">isTrue</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span></div><div class="symbol monospace"><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.reflect/-k-callable/index.html">KCallable</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">.</span><a href="is-true.html"><span class="token function">isTrue</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="2054029313%2FFunctions%2F-1337977720" anchor-label="lastMonth" id="2054029313%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="last-month.html"><span>last</span><wbr><span><span>Month</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="2054029313%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">.</span><a href="last-month.html"><span class="token function">lastMonth</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">datePattern<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span></div><div class="symbol monospace"><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.reflect/-k-callable/index.html">KCallable</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">.</span><a href="last-month.html"><span class="token function">lastMonth</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">datePattern<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="618192245%2FFunctions%2F-1337977720" anchor-label="lastWeek" id="618192245%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="last-week.html"><span>last</span><wbr><span><span>Week</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="618192245%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">.</span><a href="last-week.html"><span class="token function">lastWeek</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">datePattern<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span></div><div class="symbol monospace"><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.reflect/-k-callable/index.html">KCallable</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">.</span><a href="last-week.html"><span class="token function">lastWeek</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">datePattern<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="416666199%2FFunctions%2F-1337977720" anchor-label="lt" id="416666199%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="lt.html"><span><span>lt</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="416666199%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">infix </span><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">.</span><a href="lt.html"><span class="token function">lt</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a></span></span><span class="token punctuation">)</span></div><div class="symbol monospace"><span class="token keyword">infix </span><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.reflect/-k-callable/index.html">KCallable</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">.</span><a href="lt.html"><span class="token function">lt</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1125477269%2FFunctions%2F-1337977720" anchor-label="lte" id="-1125477269%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="lte.html"><span><span>lte</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1125477269%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">infix </span><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">.</span><a href="lte.html"><span class="token function">lte</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a></span></span><span class="token punctuation">)</span></div><div class="symbol monospace"><span class="token keyword">infix </span><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.reflect/-k-callable/index.html">KCallable</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">.</span><a href="lte.html"><span class="token function">lte</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1125666167%2FFunctions%2F-1337977720" anchor-label="ne" id="1125666167%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="ne.html"><span><span>ne</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1125666167%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">infix </span><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">.</span><a href="ne.html"><span class="token function">ne</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a></span></span><span class="token punctuation">)</span></div><div class="symbol monospace"><span class="token keyword">infix </span><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.reflect/-k-callable/index.html">KCallable</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">.</span><a href="ne.html"><span class="token function">ne</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-770543120%2FFunctions%2F-1337977720" anchor-label="nested" id="-770543120%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="nested.html"><span><span>nested</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-770543120%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">infix </span><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">.</span><a href="nested.html"><span class="token function">nested</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">block<span class="token operator">: </span><a href="index.html">ConditionDsl</a><span class="token punctuation">.</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-unit/index.html">Unit</a></span></span><span class="token punctuation">)</span></div><div class="symbol monospace"><span class="token keyword">infix </span><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.reflect/-k-callable/index.html">KCallable</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">.</span><a href="nested.html"><span class="token function">nested</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">block<span class="token operator">: </span><a href="index.html">ConditionDsl</a><span class="token punctuation">.</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-unit/index.html">Unit</a></span></span><span class="token punctuation">)</span></div><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-nested-field-dsl/nested.html"><span class="token function">nested</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">nestedField<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-54808898%2FFunctions%2F-1337977720" anchor-label="nestedState" id="-54808898%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-togglable="EXTENSION_FUNCTION" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../../me.ahoo.wow.query.snapshot/nested-state.html"><span>nested</span><wbr><span><span>State</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-54808898%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="../-nested-field-dsl/index.html">NestedFieldDsl</a><span class="token punctuation">.</span><a href="../../me.ahoo.wow.query.snapshot/nested-state.html"><span class="token function">nestedState</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1889883333%2FFunctions%2F-1337977720" anchor-label="nextWeek" id="-1889883333%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="next-week.html"><span>next</span><wbr><span><span>Week</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1889883333%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">.</span><a href="next-week.html"><span class="token function">nextWeek</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">datePattern<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span></div><div class="symbol monospace"><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.reflect/-k-callable/index.html">KCallable</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">.</span><a href="next-week.html"><span class="token function">nextWeek</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">datePattern<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="674262993%2FFunctions%2F-1337977720" anchor-label="nor" id="674262993%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="nor.html"><span><span>nor</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="674262993%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="nor.html"><span class="token function">nor</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">block<span class="token operator">: </span><a href="index.html">ConditionDsl</a><span class="token punctuation">.</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-unit/index.html">Unit</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1828350177%2FFunctions%2F-1337977720" anchor-label="notIn" id="1828350177%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="not-in.html"><span>not</span><wbr><span><span>In</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1828350177%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">infix </span><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">.</span><a href="not-in.html"><span class="token function">notIn</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-list/index.html">List</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span></div><div class="symbol monospace"><span class="token keyword">infix </span><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.reflect/-k-callable/index.html">KCallable</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">.</span><a href="not-in.html"><span class="token function">notIn</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.collections/-list/index.html">List</a><span class="token operator">&lt;</span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">&gt;</span></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-303134429%2FFunctions%2F-1337977720" anchor-label="notNull" id="-303134429%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="not-null.html"><span>not</span><wbr><span><span>Null</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-303134429%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">.</span><a href="not-null.html"><span class="token function">notNull</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span></div><div class="symbol monospace"><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.reflect/-k-callable/index.html">KCallable</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">.</span><a href="not-null.html"><span class="token function">notNull</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1141409461%2FFunctions%2F-1337977720" anchor-label="or" id="1141409461%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="or.html"><span><span>or</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1141409461%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="or.html"><span class="token function">or</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">block<span class="token operator">: </span><a href="index.html">ConditionDsl</a><span class="token punctuation">.</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator"> -&gt; </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-unit/index.html">Unit</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1609436640%2FFunctions%2F-1337977720" anchor-label="ownerId" id="1609436640%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="owner-id.html"><span>owner</span><wbr><span><span>Id</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1609436640%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="owner-id.html"><span class="token function">ownerId</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1406041835%2FFunctions%2F-1337977720" anchor-label="raw" id="1406041835%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="raw.html"><span><span>raw</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1406041835%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="raw.html"><span class="token function">raw</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1325559152%2FFunctions%2F-1337977720" anchor-label="recentDays" id="-1325559152%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="recent-days.html"><span>recent</span><wbr><span><span>Days</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1325559152%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">infix </span><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">.</span><a href="recent-days.html"><span class="token function">recentDays</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">days<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a></span></span><span class="token punctuation">)</span></div><div class="symbol monospace"><span class="token keyword">infix </span><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.reflect/-k-callable/index.html">KCallable</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">.</span><a href="recent-days.html"><span class="token function">recentDays</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">days<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a></span></span><span class="token punctuation">)</span></div><div class="symbol monospace"><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">.</span><a href="recent-days.html"><span class="token function">recentDays</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">days<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-int/index.html">Int</a><span class="token punctuation">, </span></span><span class="parameter ">datePattern<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1906514404%2FFunctions%2F-1337977720" anchor-label="startsWith" id="-1906514404%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="starts-with.html"><span>starts</span><wbr><span><span>With</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1906514404%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">infix </span><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">.</span><a href="starts-with.html"><span class="token function">startsWith</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span></div><div class="symbol monospace"><span class="token keyword">infix </span><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.reflect/-k-callable/index.html">KCallable</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">.</span><a href="starts-with.html"><span class="token function">startsWith</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span></div><div class="symbol monospace"><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">.</span><a href="starts-with.html"><span class="token function">startsWith</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">, </span></span><span class="parameter ">ignoreCase<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-boolean/index.html">Boolean</a><span class="token operator"> = </span><span class="token boolean">false</span></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1954422623%2FFunctions%2F-1337977720" anchor-label="tenantId" id="-1954422623%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="tenant-id.html"><span>tenant</span><wbr><span><span>Id</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1954422623%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="tenant-id.html"><span class="token function">tenantId</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">value<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="603275009%2FFunctions%2F-1337977720" anchor-label="thisMonth" id="603275009%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="this-month.html"><span>this</span><wbr><span><span>Month</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="603275009%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">.</span><a href="this-month.html"><span class="token function">thisMonth</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">datePattern<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span></div><div class="symbol monospace"><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.reflect/-k-callable/index.html">KCallable</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">.</span><a href="this-month.html"><span class="token function">thisMonth</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">datePattern<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-355079835%2FFunctions%2F-1337977720" anchor-label="thisWeek" id="-355079835%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="this-week.html"><span>this</span><wbr><span><span>Week</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-355079835%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">.</span><a href="this-week.html"><span class="token function">thisWeek</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">datePattern<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span></div><div class="symbol monospace"><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.reflect/-k-callable/index.html">KCallable</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">.</span><a href="this-week.html"><span class="token function">thisWeek</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">datePattern<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="596558284%2FFunctions%2F-1337977720" anchor-label="to" id="596558284%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="to.html"><span><span>to</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="596558284%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">infix </span><span class="token keyword">fun </span><span class="token operator">&lt;</span><a href="to.html">V</a><span class="token operator">&gt; </span><a href="../-between-start/index.html">BetweenStart</a><span class="token operator">&lt;</span><a href="to.html">V</a><span class="token operator">&gt;</span><span class="token punctuation">.</span><a href="to.html"><span class="token function">to</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">end<span class="token operator">: </span><a href="to.html">V</a></span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="1251486817%2FFunctions%2F-1337977720" anchor-label="today" id="1251486817%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="today.html"><span><span>today</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="1251486817%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">.</span><a href="today.html"><span class="token function">today</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">datePattern<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span></div><div class="symbol monospace"><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.reflect/-k-callable/index.html">KCallable</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">.</span><a href="today.html"><span class="token function">today</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">datePattern<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-755218113%2FFunctions%2F-1337977720" anchor-label="tomorrow" id="-755218113%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="tomorrow.html"><span><span>tomorrow</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-755218113%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">.</span><a href="tomorrow.html"><span class="token function">tomorrow</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">datePattern<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span></div><div class="symbol monospace"><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.reflect/-k-callable/index.html">KCallable</a><span class="token operator">&lt;</span><span class="token operator">*</span><span class="token operator">&gt;</span><span class="token punctuation">.</span><a href="tomorrow.html"><span class="token function">tomorrow</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">datePattern<span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-any/index.html">Any</a><span class="token operator">?</span><span class="token operator"> = </span>null</span></span><span class="token punctuation">)</span></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+<a data-name="-1892229891%2FFunctions%2F-1337977720" anchor-label="withNestedField" id="-1892229891%2FFunctions%2F-1337977720" data-filterable-set=":wow-query/main"></a>
+          <div class="table-row table-row_content" data-filterable-current=":wow-query/main" data-filterable-set=":wow-query/main">
+            <div class="main-subrow keyValue ">
+              <div class=""><span class="inline-flex">
+                  <div><a href="../-nested-field-dsl/with-nested-field.html"><span>with</span><wbr><span>Nested</span><wbr><span><span>Field</span></span></a></div>
+<span class="anchor-wrapper"><span class="anchor-icon" pointing-to="-1892229891%2FFunctions%2F-1337977720"></span>
+                    <div class="copy-popup-wrapper "><span class="copy-popup-icon"></span><span>Link copied to clipboard</span></div>
+                  </span></span></div>
+              <div>
+                <div class="title">
+                  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":wow-query/main"><div class="symbol monospace"><span class="token keyword">fun </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a><span class="token punctuation">.</span><a href="../-nested-field-dsl/with-nested-field.html"><span class="token function">withNestedField</span></a><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token operator">: </span><a href="https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-string/index.html">String</a></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    <div class="footer">
+        <div class="footer--container">
+            <a href="#content" id="go-to-top-link" class="footer--button footer--button_go-to-top"></a>
+            <div class="footer--content">
+                <div>
+                    <span>Generated by </span>
+                    <a class="footer--link footer--link_external" href="https://github.com/Kotlin/dokka">
+                        Dokka
+                    </a>
+                    <div>© 2025 Copyright</div>
+                </div>
+            </div>
+        </div>
+    </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>
