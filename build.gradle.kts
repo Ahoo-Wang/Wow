@@ -225,3 +225,22 @@ nexusPublishing {
 }
 
 fun getPropertyOf(name: String) = project.properties[name]?.toString()
+
+dependencies {
+    libraryProjects.forEach {
+        dokka(it)
+    }
+}
+
+dokka {
+    moduleName.set("Wow")
+    dokkaPublications.html {
+        suppressInheritedMembers.set(true)
+        failOnWarning.set(true)
+    }
+    pluginsConfiguration.html {
+        homepageLink.set(getPropertyOf("website")!!)
+        customAssets.from("documentation/docs/public/images/logo.svg")
+        footerMessage.set(getPropertyOf("website")!!)
+    }
+}
