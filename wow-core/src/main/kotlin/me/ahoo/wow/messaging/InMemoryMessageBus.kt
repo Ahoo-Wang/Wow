@@ -45,7 +45,14 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
                 "Send to [${sink.currentSubscriberCount()}] \n $message."
             }
             message.withReadOnly()
-            sink.tryEmitNext(message).orThrow()
+            val emitResult = sink.tryEmitNext(message)
+            if (emitResult == Sinks.EmitResult.FAIL_ZERO_SUBSCRIBER) {
+                log.debug {
+                    "Failed to send local message[${message.id}], No subscriber."
+                }
+                return@fromRunnable
+            }
+            emitResult.orThrow()
         }.subscribeOn(sender)
     }
 
