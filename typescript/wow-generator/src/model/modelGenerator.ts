@@ -11,25 +11,16 @@
  * limitations under the License.
  */
 
-import { Reference, Schema } from '@ahoo-wang/fetcher-openapi';
-import { InterfaceDeclaration, JSDocableNode, SourceFile } from 'ts-morph';
+import { Schema } from '@ahoo-wang/fetcher-openapi';
+import { SourceFile } from 'ts-morph';
 
 import { GenerateContext, Generator } from '../generateContext';
 import {
-  addImportModelInfo,
-  addSchemaJSDoc, ArraySchema,
-  CompositionSchema, EnumSchema,
-  getModelFileName, isAllOf,
-  isArray,
-  isComposition,
-  isEnum, isObject,
-  isReference,
-  KeySchema, ObjectSchema,
-  pascalCase,
-  resolvePrimitiveType,
-  toArrayType, upperSnakeCase,
+  getModelFileName,
+  KeySchema, pascalCase,
 } from '../utils';
-import { ModelInfo, resolveModelInfo, resolveReferenceModelInfo } from './modelInfo';
+import { ModelInfo, resolveModelInfo } from './modelInfo';
+import { TypeGenerator } from './typeGenerator';
 
 /**
  * Generates TypeScript models from OpenAPI schemas.
@@ -140,8 +131,6 @@ export class ModelGenerator implements Generator {
    * Generates a model for a specific schema key.
    * Processes enums, objects, unions, and type aliases in order.
    *
-   * @param schemaKey - The key of the schema to generate
-   * @param schema - The schema definition
    *
    * @remarks
    * The generation process follows this order:
@@ -150,236 +139,10 @@ export class ModelGenerator implements Generator {
    * 3. Union processing
    * 4. Type alias processing
    */
-  generateKeyedSchema({ key, schema }: KeySchema) {
-    const modelInfo = resolveModelInfo(key);
+  generateKeyedSchema(keySchema: KeySchema) {
+    const modelInfo = resolveModelInfo(keySchema.key);
     const sourceFile = this.getOrCreateSourceFile(modelInfo);
-    const node = this.process(modelInfo, sourceFile, schema);
-    if (node) {
-      addSchemaJSDoc(node, schema, key);
-    }
-  }
-
-  private resolveReference(currentModelInfo: ModelInfo, sourceFile: SourceFile, schema: Reference) {
-    const refModelInfo = resolveReferenceModelInfo(schema);
-    addImportModelInfo(
-      currentModelInfo,
-      sourceFile,
-      this.context.outputDir,
-      refModelInfo,
-    );
-    return refModelInfo;
-  }
-
-  private resolveAdditionalProperties(currentModelInfo: ModelInfo,
-                                      sourceFile: SourceFile, schema: ObjectSchema): string {
-    if (schema.additionalProperties === undefined || schema.additionalProperties === false) {
-      return '';
-    }
-
-    if (schema.additionalProperties === true) {
-      return '[key: string]: any';
-    }
-
-    const valueType = this.resolveType(currentModelInfo, sourceFile, schema.additionalProperties);
-    return `[key: string]: ${valueType}`;
-  }
-
-  private resolvePropertyDefinitions(currentModelInfo: ModelInfo,
-                                     sourceFile: SourceFile, schema: ObjectSchema): string {
-    const { properties } = schema;
-    const propStrings = Object.entries(properties).map(([propName, propSchema]) => {
-      const type = this.resolveType(currentModelInfo, sourceFile, propSchema);
-      return `${propName}: ${type}`;
-    });
-
-    return `{\n  ${propStrings.join(';\n  ')}\n}`;
-  }
-
-  private resolveObjectType(currentModelInfo: ModelInfo,
-                            sourceFile: SourceFile, schema: ObjectSchema): string {
-    const parts: string[] = [];
-
-    if (isObject(schema)) {
-      const propertyDefs = this.resolvePropertyDefinitions(currentModelInfo, sourceFile, schema);
-      parts.push(propertyDefs);
-    }
-
-    const additionalProps = this.resolveAdditionalProperties(currentModelInfo, sourceFile, schema);
-    if (additionalProps) {
-      parts.push(additionalProps);
-    }
-
-    if (parts.length === 0) {
-      return schema.additionalProperties ? 'Record<string, any>' : '{}';
-    }
-
-    return parts.length === 1 ? parts[0] : `{ ${parts.join('; ')} }`;
-  }
-
-  private resolveType(currentModelInfo: ModelInfo,
-                      sourceFile: SourceFile, schema: Schema | Reference): string {
-
-    if (isReference(schema)) {
-      return this.resolveReference(currentModelInfo, sourceFile, schema).name;
-    }
-    if (schema.const) {
-      return `'${schema.const}'`;
-    }
-    if (isEnum(schema)) {
-      return schema.enum.map(val => `'${val}'`).join(' | ');
-    }
-
-    if (isComposition(schema)) {
-      const schemas = schema.oneOf || schema.anyOf || schema.allOf || [];
-      const types = schemas.map(s => this.resolveType(currentModelInfo, sourceFile, s));
-      const separator = isAllOf(schema) ? ' & ' : ' | ';
-      return `(${types.join(separator)})`;
-    }
-
-    if (isArray(schema)) {
-      const itemType = this.resolveType(currentModelInfo, sourceFile, schema.items);
-      return toArrayType(itemType);
-    }
-    if (isObject(schema)) {
-      return this.resolveObjectType(currentModelInfo, sourceFile, schema);
-    }
-    if (!schema.type) {
-      return 'any';
-    }
-    return resolvePrimitiveType(schema.type);
-  }
-
-  private processEnum(
-    modelInfo: ModelInfo,
-    sourceFile: SourceFile,
-    schema: EnumSchema,
-  ): JSDocableNode | undefined {
-    return sourceFile.addEnum({
-      name: modelInfo.name,
-      isExported: true,
-      members: schema.enum
-        .filter(value => typeof value === 'string' && value.length > 0)
-        .map(value => ({
-          name: upperSnakeCase(value),
-          initializer: `'${value}'`,
-        })),
-    });
-  }
-
-  private addPropertyToInterface(
-    currentModelInfo: ModelInfo,
-    sourceFile: SourceFile,
-    interfaceDeclaration: InterfaceDeclaration,
-    propName: string,
-    propSchema: Schema | Reference,
-    isRequired: boolean,
-  ): void {
-    const property = interfaceDeclaration.addProperty({
-      name: propName,
-      type: this.resolveType(currentModelInfo, sourceFile, propSchema),
-      hasQuestionToken: !isRequired,
-    });
-    if (!isReference(propSchema)) {
-      addSchemaJSDoc(property, propSchema);
-    }
-  }
-
-  private processInterface(
-    modelInfo: ModelInfo,
-    sourceFile: SourceFile,
-    schema: ObjectSchema,
-  ): JSDocableNode | undefined {
-    const interfaceDeclaration = sourceFile.addInterface({
-      name: modelInfo.name,
-      isExported: true,
-    });
-
-    const properties = schema.properties || {};
-    const required = new Set(schema.required || []);
-
-    Object.entries(properties).forEach(([propName, propSchema]) => {
-      const isRequired = required.has(propName);
-      this.addPropertyToInterface(
-        modelInfo,
-        sourceFile,
-        interfaceDeclaration,
-        propName,
-        propSchema,
-        isRequired,
-      );
-    });
-
-    if (schema.additionalProperties) {
-      const indexSignature = interfaceDeclaration.addIndexSignature({
-        keyName: 'key',
-        keyType: 'string',
-        returnType: this.resolveType(
-          modelInfo,
-          sourceFile,
-          schema.additionalProperties === true
-            ? {}
-            : schema.additionalProperties as Schema | Reference,
-        ),
-      });
-      indexSignature.addJsDoc('Additional properties');
-    }
-    return interfaceDeclaration;
-  }
-
-  private processArray(
-    modelInfo: ModelInfo,
-    sourceFile: SourceFile,
-    schema: ArraySchema,
-  ): JSDocableNode | undefined {
-    const itemType = this.resolveType(modelInfo, sourceFile, schema.items);
-    return sourceFile.addTypeAlias({
-      name: modelInfo.name,
-      type: `Array<${itemType}>`,
-      isExported: true,
-    });
-  }
-
-  private processComposition(
-    modelInfo: ModelInfo,
-    sourceFile: SourceFile,
-    schema: CompositionSchema,
-  ): JSDocableNode | undefined {
-    return sourceFile.addTypeAlias({
-      name: modelInfo.name,
-      type: this.resolveType(modelInfo, sourceFile, schema),
-      isExported: true,
-    });
-  }
-
-  private processTypeAlias(
-    modelInfo: ModelInfo,
-    sourceFile: SourceFile,
-    schema: Schema,
-  ): JSDocableNode | undefined {
-    return sourceFile.addTypeAlias({
-      name: modelInfo.name,
-      type: this.resolveType(modelInfo, sourceFile, schema),
-      isExported: true,
-    });
-  }
-
-  private process(
-    modelInfo: ModelInfo,
-    sourceFile: SourceFile,
-    schema: Schema,
-  ): JSDocableNode | undefined {
-    if (isEnum(schema)) {
-      return this.processEnum(modelInfo, sourceFile, schema);
-    }
-    if (isObject(schema)) {
-      return this.processInterface(modelInfo, sourceFile, schema);
-    }
-    if (isArray(schema)) {
-      return this.processArray(modelInfo, sourceFile, schema);
-    }
-    if (isComposition(schema)) {
-      return this.processComposition(modelInfo, sourceFile, schema);
-    }
-    return this.processTypeAlias(modelInfo, sourceFile, schema);
+    const typeGenerator = new TypeGenerator(modelInfo, sourceFile, keySchema, this.context.outputDir);
+    typeGenerator.generate();
   }
 }
