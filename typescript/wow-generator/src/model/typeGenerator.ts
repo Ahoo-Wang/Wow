@@ -19,9 +19,9 @@ import {
   isAllOf,
   isArray,
   isComposition,
-  isEnum,
+  isEnum, isMap,
   isObject,
-  isReference, KeySchema,
+  isReference, KeySchema, MapSchema,
   ObjectSchema, resolvePrimitiveType, toArrayType, upperSnakeCase,
 } from '../utils';
 import { Generator } from '../generateContext';
@@ -56,6 +56,9 @@ export class TypeGenerator implements Generator {
     if (isComposition(schema)) {
       return this.processComposition(schema);
     }
+    if (isMap(schema)) {
+      return this.processMap(schema);
+    }
     return this.processTypeAlias(schema);
   }
 
@@ -70,7 +73,7 @@ export class TypeGenerator implements Generator {
     return refModelInfo;
   }
 
-  private resolveAdditionalProperties(schema: ObjectSchema): string {
+  private resolveAdditionalProperties(schema: Schema): string {
     if (schema.additionalProperties === undefined || schema.additionalProperties === false) {
       return '';
     }
@@ -93,7 +96,7 @@ export class TypeGenerator implements Generator {
     return `{\n  ${propStrings.join(';\n  ')}\n}`;
   }
 
-  private resolveObjectType(schema: ObjectSchema): string {
+  private resolveObjectType(schema: Schema): string {
     const parts: string[] = [];
 
     if (isObject(schema)) {
@@ -107,14 +110,13 @@ export class TypeGenerator implements Generator {
     }
 
     if (parts.length === 0) {
-      return schema.additionalProperties ? 'Record<string, any>' : '{}';
+      return 'Record<string, any>';
     }
 
     return parts.length === 1 ? parts[0] : `{ ${parts.join('; ')} }`;
   }
 
   private resolveType(schema: Schema | Reference): string {
-
     if (isReference(schema)) {
       return this.resolveReference(schema).name;
     }
@@ -136,7 +138,7 @@ export class TypeGenerator implements Generator {
       const itemType = this.resolveType(schema.items);
       return toArrayType(itemType);
     }
-    if (isObject(schema)) {
+    if (schema.type === 'object') {
       return this.resolveObjectType(schema);
     }
     if (!schema.type) {
@@ -257,6 +259,24 @@ export class TypeGenerator implements Generator {
     });
 
     return interfaceDeclaration;
+  }
+
+  private resolveMapValueType(schema: MapSchema): string {
+    if (schema.additionalProperties === undefined || schema.additionalProperties === false || schema.additionalProperties === true) {
+      return 'any';
+    }
+    return this.resolveType(schema.additionalProperties);
+  }
+
+  private processMap(
+    schema: MapSchema,
+  ): JSDocableNode | undefined {
+    const valueType = this.resolveMapValueType(schema);
+    return this.sourceFile.addTypeAlias({
+      name: this.modelInfo.name,
+      type: `Record<string,${valueType}>`,
+      isExported: true,
+    });
   }
 
   private processTypeAlias(

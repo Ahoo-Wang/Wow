@@ -130,6 +130,12 @@ export function toArrayType(type: string): string {
   return `${type}[]`;
 }
 
+export type MapSchema = Schema & { type: 'object'; additionalProperties: boolean | Schema | Reference };
+
+export function isMap(schema: Schema): schema is MapSchema {
+  return schema.type === 'object' && schema.additionalProperties !== undefined;
+}
+
 /**
  * Checks if a schema represents an empty object.
  * @param schema - The schema to check
