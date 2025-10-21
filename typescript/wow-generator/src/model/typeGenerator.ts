@@ -15,7 +15,7 @@ import { ModelInfo, resolveReferenceModelInfo } from './modelInfo';
 import { InterfaceDeclaration, JSDocableNode, SourceFile } from 'ts-morph';
 import { Reference, Schema } from '@ahoo-wang/fetcher-openapi';
 import {
-  addImportModelInfo, addSchemaJSDoc, ArraySchema, CompositionSchema, EnumSchema,
+  addImportModelInfo, addSchemaJSDoc, AllOfSchema, ArraySchema, CompositionSchema, EnumSchema,
   isAllOf,
   isArray,
   isComposition,
@@ -49,6 +49,9 @@ export class TypeGenerator implements Generator {
     }
     if (isArray(schema)) {
       return this.processArray(schema);
+    }
+    if (isAllOf(schema)) {
+      return this.processIntersection(schema);
     }
     if (isComposition(schema)) {
       return this.processComposition(schema);
@@ -161,15 +164,19 @@ export class TypeGenerator implements Generator {
     interfaceDeclaration: InterfaceDeclaration,
     propName: string,
     propSchema: Schema | Reference,
-    isRequired: boolean,
   ): void {
-    const property = interfaceDeclaration.addProperty({
-      name: propName,
-      type: this.resolveType(propSchema),
-      hasQuestionToken: !isRequired,
-    });
+    const propType = this.resolveType(propSchema);
+    let propertySignature = interfaceDeclaration.getProperty(propName);
+    if (propertySignature) {
+      propertySignature.setType(propType);
+    } else {
+      propertySignature = interfaceDeclaration.addProperty({
+        name: propName,
+        type: propType,
+      });
+    }
     if (!isReference(propSchema)) {
-      addSchemaJSDoc(property, propSchema);
+      addSchemaJSDoc(propertySignature, propSchema);
     }
   }
 
@@ -182,15 +189,12 @@ export class TypeGenerator implements Generator {
     });
 
     const properties = schema.properties || {};
-    const required = new Set(schema.required || []);
 
     Object.entries(properties).forEach(([propName, propSchema]) => {
-      const isRequired = required.has(propName);
       this.addPropertyToInterface(
         interfaceDeclaration,
         propName,
         propSchema,
-        isRequired,
       );
     });
 
@@ -228,6 +232,31 @@ export class TypeGenerator implements Generator {
       type: this.resolveType(schema),
       isExported: true,
     });
+  }
+
+  private processIntersection(schema: AllOfSchema): JSDocableNode | undefined {
+    const interfaceDeclaration = this.sourceFile.addInterface({
+      name: this.modelInfo.name,
+      isExported: true,
+    });
+    schema.allOf.forEach(allOfSchema => {
+      if (isReference(allOfSchema)) {
+        const resolvedType = this.resolveType(allOfSchema);
+        interfaceDeclaration.addExtends(resolvedType);
+        return;
+      }
+      if (isObject(allOfSchema)) {
+        Object.entries(allOfSchema.properties).forEach(([propName, propSchema]) => {
+          this.addPropertyToInterface(
+            interfaceDeclaration,
+            propName,
+            propSchema,
+          );
+        });
+      }
+    });
+
+    return interfaceDeclaration;
   }
 
   private processTypeAlias(
