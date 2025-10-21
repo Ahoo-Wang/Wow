@@ -23,14 +23,11 @@ import {
   isArray,
   isComposition,
   isEnum, isObject,
-  isPrimitive,
   isReference,
-  isUnion,
   KeySchema, ObjectSchema,
   pascalCase,
   resolvePrimitiveType,
-  toArrayType, UnionSchema,
-  upperSnakeCase,
+  toArrayType, upperSnakeCase,
 } from '../utils';
 import { ModelInfo, resolveModelInfo, resolveReferenceModelInfo } from './modelInfo';
 
@@ -158,7 +155,7 @@ export class ModelGenerator implements Generator {
     const sourceFile = this.getOrCreateSourceFile(modelInfo);
     const node = this.process(modelInfo, sourceFile, schema);
     if (node) {
-      addSchemaJSDoc(node, schema);
+      addSchemaJSDoc(node, schema, key);
     }
   }
 
@@ -202,7 +199,7 @@ export class ModelGenerator implements Generator {
                             sourceFile: SourceFile, schema: ObjectSchema): string {
     const parts: string[] = [];
 
-    if (schema.properties && Object.keys(schema.properties).length > 0) {
+    if (isObject(schema)) {
       const propertyDefs = this.resolvePropertyDefinitions(currentModelInfo, sourceFile, schema);
       parts.push(propertyDefs);
     }
@@ -225,7 +222,9 @@ export class ModelGenerator implements Generator {
     if (isReference(schema)) {
       return this.resolveReference(currentModelInfo, sourceFile, schema).name;
     }
-
+    if (schema.const) {
+      return `'${schema.const}'`;
+    }
     if (isEnum(schema)) {
       return schema.enum.map(val => `'${val}'`).join(' | ');
     }
@@ -233,13 +232,8 @@ export class ModelGenerator implements Generator {
     if (isComposition(schema)) {
       const schemas = schema.oneOf || schema.anyOf || schema.allOf || [];
       const types = schemas.map(s => this.resolveType(currentModelInfo, sourceFile, s));
-      if (types.length === 1) {
-        return types[0];
-      }
-      if (isAllOf(schema)) {
-        return types.join(' & ');
-      }
-      return types.join(' | ');
+      const separator = isAllOf(schema) ? ' & ' : ' | ';
+      return `(${types.join(separator)})`;
     }
 
     if (isArray(schema)) {

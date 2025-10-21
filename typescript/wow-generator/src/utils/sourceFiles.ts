@@ -169,14 +169,18 @@ export function addJSDoc(
  * @param node - The node to add the JSDoc comment to
  * @param schema - The schema containing title and description
  */
-export function addSchemaJSDoc(node: JSDocableNode, schema: Schema) {
+export function addSchemaJSDoc(node: JSDocableNode, schema: Schema, key?: string) {
   const descriptions: (string | undefined)[] = [
     schema.title,
     schema.description,
   ];
+  if (key) {
+    descriptions.push(`- key: ${key}`);
+  }
   if (schema.format) {
     descriptions.push(`- format: ${schema.format}`);
   }
+
   addJsonJsDoc(descriptions, schema, 'default');
   addJsonJsDoc(descriptions, schema, 'example');
   addNumericConstraintsJsDoc(descriptions, schema);
