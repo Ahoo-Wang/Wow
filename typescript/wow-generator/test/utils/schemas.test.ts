@@ -50,7 +50,7 @@ describe('schemas', () => {
 
   describe('isArray', () => {
     it('should return true for array schemas', () => {
-      const schema: Schema = { type: 'array' };
+      const schema: Schema = { type: 'array', items: { type: 'string' } };
       expect(isArray(schema)).toBe(true);
     });
 
