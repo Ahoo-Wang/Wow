@@ -208,7 +208,7 @@ export class CodeGenerator {
       );
       sourceFile.formatText();
       sourceFile.organizeImports();
-      // sourceFile.fixMissingImports();
+      sourceFile.fixMissingImports();
     });
     this.options.logger.info('All source files optimized');
   }
