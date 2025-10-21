@@ -13,4 +13,5 @@
 
 export * from './modelGenerator';
 export * from './modelInfo';
+export * from './typeGenerator';
 export * from './wowTypeMapping';
