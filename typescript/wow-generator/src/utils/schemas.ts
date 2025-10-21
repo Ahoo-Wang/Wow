@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { Schema, SchemaType } from '@ahoo-wang/fetcher-openapi';
+import { Reference, Schema, SchemaType } from '@ahoo-wang/fetcher-openapi';
 
 /** List of primitive schema types */
 const PRIMITIVE_TYPES: SchemaType[] = [
@@ -34,15 +34,6 @@ export function isPrimitive(type: SchemaType | SchemaType[]): boolean {
   return PRIMITIVE_TYPES.includes(type);
 }
 
-/**
- * Checks if a schema is an array type.
- * @param schema - The schema to check
- * @returns True if the schema is an array type, false otherwise
- */
-export function isArray(schema: Schema): schema is Schema & { type: 'array' } {
-  return schema.type === 'array';
-}
-
 export type EnumSchema = Schema & { enum: any[] };
 
 /**
@@ -52,6 +43,23 @@ export type EnumSchema = Schema & { enum: any[] };
  */
 export function isEnum(schema: Schema): schema is EnumSchema {
   return Array.isArray(schema.enum) && schema.enum.length > 0;
+}
+
+export type ObjectSchema = Schema & { type: 'object', properties: Record<string, Schema | Reference> };
+
+export function isObject(schema: Schema): schema is ObjectSchema {
+  return schema.type === 'object' && !!schema.properties;
+}
+
+export type ArraySchema = Schema & { type: 'array', items: Schema | Reference };
+
+/**
+ * Checks if a schema is an array type.
+ * @param schema - The schema to check
+ * @returns True if the schema is an array type, false otherwise
+ */
+export function isArray(schema: Schema): schema is ArraySchema {
+  return schema.type === 'array' && !!schema.items;
 }
 
 export type AnyOfSchema = Schema & { anyOf: any[] };
