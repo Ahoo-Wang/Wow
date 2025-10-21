@@ -116,7 +116,7 @@ export class TypeGenerator implements Generator {
     return parts.length === 1 ? parts[0] : `{ ${parts.join('; ')} }`;
   }
 
-  private resolveType(schema: Schema | Reference): string {
+  resolveType(schema: Schema | Reference): string {
     if (isReference(schema)) {
       return this.resolveReference(schema).name;
     }
