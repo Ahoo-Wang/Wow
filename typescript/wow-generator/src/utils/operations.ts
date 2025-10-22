@@ -45,24 +45,14 @@ export function operationEndpointComparator(
   left: OperationEndpoint,
   right: OperationEndpoint,
 ): number {
-  // Compare by operationId if both have it
   if (left.operation.operationId && right.operation.operationId) {
     return left.operation.operationId.localeCompare(
       right.operation.operationId,
     );
   }
-  // If only one has operationId, prioritize the one without operationId (undefined operationId comes first)
-  if (left.operation.operationId && !right.operation.operationId) {
-    return 1; // left has operationId, right doesn't, so right comes first
-  }
-  if (!left.operation.operationId && right.operation.operationId) {
-    return -1; // right has operationId, left doesn't, so left comes first
-  }
-  // Compare by path if both have it
   if (left.path && right.path) {
     return left.path.localeCompare(right.path);
   }
-  // Compare by method if both have it
   if (left.method && right.method) {
     return left.method.localeCompare(right.method);
   }

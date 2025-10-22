@@ -350,7 +350,7 @@ describe('operations', () => {
       };
 
       const result = operationEndpointComparator(left, right);
-      expect(result).toBeGreaterThan(0); // defined operationId > undefined operationId
+      expect(result).toBe(0);
     });
 
     it('should handle empty strings as equivalent to undefined', () => {
