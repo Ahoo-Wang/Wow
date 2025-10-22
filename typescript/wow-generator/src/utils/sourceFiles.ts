@@ -140,6 +140,7 @@ export function addImportModelInfo(
  */
 export function jsDoc(
   descriptions: (string | undefined)[],
+  separator = '\n',
 ): string | undefined {
   if (!Array.isArray(descriptions)) {
     return undefined;
@@ -147,7 +148,7 @@ export function jsDoc(
   const filtered = descriptions.filter(
     v => typeof v === 'string' && v.length > 0,
   );
-  return filtered.length > 0 ? filtered.join('\n') : undefined;
+  return filtered.length > 0 ? filtered.join(separator) : undefined;
 }
 
 /**
@@ -164,12 +165,7 @@ export function addJSDoc(
   node.addJsDoc(jsdoc);
 }
 
-/**
- * Adds a JSDoc comment to a node based on the schema's title and description.
- * @param node - The node to add the JSDoc comment to
- * @param schema - The schema containing title and description
- */
-export function addSchemaJSDoc(node: JSDocableNode, schema: Schema, key?: string) {
+export function schemaJSDoc(schema: Schema, key?: string) {
   const descriptions: (string | undefined)[] = [
     schema.title,
     schema.description,
@@ -186,6 +182,17 @@ export function addSchemaJSDoc(node: JSDocableNode, schema: Schema, key?: string
   addNumericConstraintsJsDoc(descriptions, schema);
   addStringConstraintsJsDoc(descriptions, schema);
   addArrayConstraintsJsDoc(descriptions, schema);
+  return descriptions;
+}
+
+/**
+ * Adds a JSDoc comment to a node based on the schema's title and description.
+ * @param node - The node to add the JSDoc comment to
+ * @param schema - The schema containing title and description
+ * @param key - The key associated with the schema
+ */
+export function addSchemaJSDoc(node: JSDocableNode, schema: Schema, key?: string) {
+  const descriptions = schemaJSDoc(schema, key);
   addJSDoc(node, descriptions);
 }
 
