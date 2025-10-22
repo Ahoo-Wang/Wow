@@ -101,10 +101,12 @@ export function createDecoratorClass(
   className: string,
   sourceFile: SourceFile,
   apiArgs: string[] = [],
+  typeParameters: string[] = [],
 ): ClassDeclaration {
   return sourceFile.addClass({
     name: className,
     isExported: true,
+    typeParameters: typeParameters,
     decorators: [
       {
         name: 'api',
