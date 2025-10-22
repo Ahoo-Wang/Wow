@@ -34,7 +34,12 @@ vi.mock('../../src/client/decorators', () => ({
   },
 }));
 
-vi.mock('../../src/utils', async (importOriginal) => {
+vi.mock('../../src/client/utils', () => ({
+  methodToDecorator: vi.fn(() => 'get'),
+  resolveMethodName: vi.fn(),
+}));
+
+vi.mock('../../src/utils', async importOriginal => {
   const actual: any = await importOriginal();
   return {
     ...actual,
@@ -149,8 +154,7 @@ describe('ApiClientGenerator', () => {
       );
       vi.spyOn(generator as any, 'groupOperations').mockReturnValue(new Map());
       vi.spyOn(generator as any, 'generateApiClients').mockImplementation(
-        () => {
-        },
+        () => {},
       );
 
       generator.generate();
@@ -241,34 +245,112 @@ describe('ApiClientGenerator', () => {
   });
 
   describe('getMethodName', () => {
-    it('should generate method name from operationId', () => {
+    it('should generate method name from operationId', async () => {
       const generator = new ApiClientGenerator(mockContext);
-      const mockClass = { getMethod: vi.fn(() => undefined) };
+      const mockClass = {
+        getMethod: vi.fn(() => undefined),
+        getName: vi.fn(() => 'TestClass'),
+      };
       const operation = { operationId: 'user.getProfile' };
+
+      // Mock resolveMethodName to return the expected method name
+      vi.mocked(
+        await import('../../src/client/utils'),
+      ).resolveMethodName.mockReturnValueOnce('getProfile');
 
       const result = (generator as any).getMethodName(mockClass, operation);
 
       expect(result).toBe('getProfile');
     });
 
-    it('should handle existing method names', () => {
+    it('should handle existing method names', async () => {
       const generator = new ApiClientGenerator(mockContext);
-      const mockClass = { getMethod: vi.fn(name => name === 'getProfile' ? {} : undefined) };
+      const mockClass = {
+        getMethod: vi.fn(name => (name === 'getProfile' ? {} : undefined)),
+        getName: vi.fn(() => 'TestClass'),
+      };
       const operation = { operationId: 'user.getProfile' };
+
+      // Mock resolveMethodName to return the expected method name
+      vi.mocked(
+        await import('../../src/client/utils'),
+      ).resolveMethodName.mockReturnValueOnce('userGetProfile');
 
       const result = (generator as any).getMethodName(mockClass, operation);
 
       expect(result).toBe('userGetProfile');
     });
 
-    it('should return camelCase of all parts when no unique method found', () => {
+    it('should return camelCase of all parts when no unique method found', async () => {
       const generator = new ApiClientGenerator(mockContext);
-      const mockClass = { getMethod: vi.fn(() => true) }; // Always returns true, so no unique name found
+      const mockClass = {
+        getMethod: vi.fn(() => true),
+        getName: vi.fn(() => 'TestClass'),
+      }; // Always returns true, so no unique name found
       const operation = { operationId: 'user.get.profile' };
+
+      // Mock resolveMethodName to return the expected method name
+      vi.mocked(
+        await import('../../src/client/utils'),
+      ).resolveMethodName.mockReturnValueOnce('userGetProfile');
 
       const result = (generator as any).getMethodName(mockClass, operation);
 
       expect(result).toBe('userGetProfile');
+    });
+
+    it('should throw error when unable to resolve method name', async () => {
+      const generator = new ApiClientGenerator(mockContext);
+      const mockClass = {
+        getName: vi.fn(() => 'TestClass'),
+        getMethod: vi.fn(() => true),
+      };
+      const operation = { operationId: 'invalid' };
+
+      // Mock resolveMethodName to return undefined
+      vi.mocked(
+        await import('../../src/client/utils'),
+      ).resolveMethodName.mockReturnValueOnce(undefined);
+
+      expect(() =>
+        (generator as any).getMethodName(mockClass, operation),
+      ).toThrow('Unable to resolve method name for apiClientClass:TestClass.');
+    });
+
+    it('should return camelCase of all parts when no unique method found', async () => {
+      const generator = new ApiClientGenerator(mockContext);
+      const mockClass = {
+        getMethod: vi.fn(() => true),
+        getName: vi.fn(() => 'TestClass'),
+      }; // Always returns true, so no unique name found
+      const operation = { operationId: 'user.get.profile' };
+
+      // Mock resolveMethodName to return the expected method name
+      vi.mocked(
+        await import('../../src/client/utils'),
+      ).resolveMethodName.mockReturnValueOnce('userGetProfile');
+
+      const result = (generator as any).getMethodName(mockClass, operation);
+
+      expect(result).toBe('userGetProfile');
+    });
+
+    it('should throw error when unable to resolve method name', async () => {
+      const generator = new ApiClientGenerator(mockContext);
+      const mockClass = {
+        getName: vi.fn(() => 'TestClass'),
+        getMethod: vi.fn(() => true),
+      };
+      const operation = { operationId: 'invalid' };
+
+      // Mock resolveMethodName to return undefined
+      vi.mocked(
+        await import('../../src/client/utils'),
+      ).resolveMethodName.mockReturnValueOnce(undefined);
+
+      expect(() =>
+        (generator as any).getMethodName(mockClass, operation),
+      ).toThrow('Unable to resolve method name for apiClientClass:TestClass.');
     });
   });
 
@@ -567,6 +649,43 @@ describe('ApiClientGenerator', () => {
         metadata: 'STREAM_METADATA',
       });
     });
+
+    it('should return default type when OK response has no matching schema', async () => {
+      const generator = new ApiClientGenerator(mockContext);
+      const operation = { operationId: 'test.op' };
+
+      // Mock extractOkResponse to return a response with no matching schema
+      vi.mocked(
+        await import('../../src/utils'),
+      ).extractOkResponse.mockReturnValueOnce({
+        content: {
+          'application/xml': { schema: { type: 'string' } },
+        },
+      });
+
+      // Mock extractResponseJsonSchema and extractResponseWildcardSchema to return undefined
+      vi.mocked(
+        await import('../../src/utils'),
+      ).extractResponseJsonSchema.mockReturnValueOnce(undefined);
+      vi.mocked(
+        await import('../../src/utils'),
+      ).extractResponseWildcardSchema.mockReturnValueOnce(undefined);
+
+      // Mock extractResponseEventStreamSchema to return undefined
+      vi.mocked(
+        await import('../../src/utils'),
+      ).extractResponseEventStreamSchema.mockReturnValueOnce(undefined);
+
+      const result = (generator as any).resolveReturnType({}, operation);
+
+      expect(result).toEqual({
+        type: 'Promise<Response>',
+        metadata: '{resultExtractor: ResultExtractors.Response }',
+      });
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        'Using default return type for operation test.op: Promise<Response>',
+      );
+    });
   });
 
   describe('groupOperations', () => {
@@ -619,6 +738,78 @@ describe('ApiClientGenerator', () => {
       expect(result.size).toBe(1);
       expect(result.has('User')).toBe(true);
       expect(result.has('Admin')).toBe(false);
+    });
+
+    it('should filter out operations without operationId', async () => {
+      const generator = new ApiClientGenerator(mockContext);
+      const apiClientTags = new Map([['User', { name: 'User' } as Tag]]);
+
+      // Mock extractOperations to return operations, one with operationId, one without
+      vi.mocked(
+        await import('../../src/utils'),
+      ).extractOperations.mockReturnValue([
+        {
+          method: 'get',
+          operation: { operationId: 'user.get', tags: ['User'], responses: {} },
+        },
+        {
+          method: 'post',
+          operation: { tags: ['User'], responses: {} }, // No operationId
+        },
+      ]);
+
+      const result = (generator as any).groupOperations(apiClientTags);
+
+      expect(result.size).toBe(1);
+      expect(result.get('User')!.size).toBe(1);
+    });
+
+    it('should filter out operations without tags', async () => {
+      const generator = new ApiClientGenerator(mockContext);
+      const apiClientTags = new Map([['User', { name: 'User' } as Tag]]);
+
+      // Mock extractOperations to return operations, one with tags, one without
+      vi.mocked(
+        await import('../../src/utils'),
+      ).extractOperations.mockReturnValue([
+        {
+          method: 'get',
+          operation: { operationId: 'user.get', tags: ['User'], responses: {} },
+        },
+        {
+          method: 'post',
+          operation: { operationId: 'user.create', responses: {} }, // No tags
+        },
+      ]);
+
+      const result = (generator as any).groupOperations(apiClientTags);
+
+      expect(result.size).toBe(1);
+      expect(result.get('User')!.size).toBe(1);
+    });
+
+    it('should filter out operations with empty tags array', async () => {
+      const generator = new ApiClientGenerator(mockContext);
+      const apiClientTags = new Map([['User', { name: 'User' } as Tag]]);
+
+      // Mock extractOperations to return operations, one with tags, one with empty tags
+      vi.mocked(
+        await import('../../src/utils'),
+      ).extractOperations.mockReturnValue([
+        {
+          method: 'get',
+          operation: { operationId: 'user.get', tags: ['User'], responses: {} },
+        },
+        {
+          method: 'post',
+          operation: { operationId: 'user.create', tags: [], responses: {} }, // Empty tags
+        },
+      ]);
+
+      const result = (generator as any).groupOperations(apiClientTags);
+
+      expect(result.size).toBe(1);
+      expect(result.get('User')!.size).toBe(1);
     });
   });
 });
