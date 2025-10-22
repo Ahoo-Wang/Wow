@@ -26,6 +26,7 @@ vi.mock('../../src/utils', () => ({
   extractOkResponse: vi.fn(),
   extractOperationOkResponseJsonSchema: vi.fn(),
   extractOperations: vi.fn(),
+  extractOperationEndpoints: vi.fn(() => []),
   extractParameter: vi.fn(),
   extractRequestBody: vi.fn(),
   extractSchema: vi.fn(),
@@ -37,6 +38,7 @@ import {
   extractOkResponse,
   extractOperationOkResponseJsonSchema,
   extractOperations,
+  extractOperationEndpoints,
   extractParameter,
   extractRequestBody,
   extractSchema,
@@ -92,7 +94,7 @@ describe('AggregateResolver', () => {
 
       const aggregateResolver = new AggregateResolver(mockOpenAPI);
 
-      expect(mockExtractOperations).toHaveBeenCalledWith(mockPathItem);
+      expect(extractOperationEndpoints).toHaveBeenCalledWith(mockOpenAPI.paths);
       // Verify that commands, state, events, fields are called
       // Since they are private methods, we can't directly spy, but we can check side effects
     });

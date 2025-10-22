@@ -30,6 +30,7 @@ vi.mock('../../src/client/commandClientGenerator', () => ({
 
 vi.mock('../../src/utils', () => ({
   getOrCreateSourceFile: vi.fn(),
+  extractOperationEndpoints: vi.fn(() => []),
 }));
 
 describe('ClientGenerator', () => {
@@ -164,7 +165,7 @@ describe('ClientGenerator', () => {
       'test-context/boundedContext.ts',
     );
     expect(mockFile.addStatements).toHaveBeenCalledWith(
-      'export const BOUNDED_CONTEXT_ALIAS = \'test-context\';',
+      "export const BOUNDED_CONTEXT_ALIAS = 'test-context';",
     );
   });
 
