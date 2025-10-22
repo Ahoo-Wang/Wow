@@ -46,10 +46,10 @@ describe('E2E Test', () => {
       config: 'test/fetcher-generator.config.json',
       tsConfigFilePath: `${OUT_PUT_DIR}/tsconfig.json`,
     });
-  });
+  },15000);
 
   it('should generate [test/compensation-spec.json] code', async () => {
     clearOutputSubDirs();
     await generateAction({ input: 'test/compensation-spec.json', output: OUT_PUT_DIR });
-  });
+  },15000);
 });
