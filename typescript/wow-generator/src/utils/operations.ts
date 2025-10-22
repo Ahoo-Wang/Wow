@@ -15,7 +15,7 @@ import {
   Components,
   HTTPMethod,
   Operation, Parameter,
-  PathItem,
+  PathItem, Paths,
   Reference,
   Response,
   Schema,
@@ -33,6 +33,26 @@ export interface MethodOperation {
   method: HTTPMethod;
   /** The OpenAPI operation */
   operation: Operation;
+}
+
+export interface OperationEndpoint extends MethodOperation {
+  path: string;
+}
+
+export function extractOperationEndpoints(
+  paths: Paths,
+): Array<OperationEndpoint> {
+  const operationEndpoints: OperationEndpoint[] = [];
+  for (const [path, pathItem] of Object.entries(paths)) {
+    extractOperations(pathItem).forEach((methodOperation) => {
+      operationEndpoints.push({
+        method: methodOperation.method,
+        operation: methodOperation.operation,
+        path,
+      });
+    });
+  }
+  return operationEndpoints.sort((a, b) => a.operation.operationId!.localeCompare(b.method));
 }
 
 /**

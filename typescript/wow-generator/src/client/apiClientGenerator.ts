@@ -34,7 +34,7 @@ import {
 import {
   addImportRefModel,
   addJSDoc,
-  extractOkResponse,
+  extractOkResponse, extractOperationEndpoints,
   extractOperations,
   extractPathParameters,
   extractRequestBody,
@@ -45,7 +45,7 @@ import {
   isArray,
   isPrimitive,
   isReference,
-  MethodOperation,
+  OperationEndpoint,
   resolvePathParameterType,
   resolvePrimitiveType,
 } from '../utils';
@@ -56,13 +56,6 @@ import {
   STREAM_RESULT_EXTRACTOR_METADATA, STRING_RETURN_TYPE,
 } from './decorators';
 import { methodToDecorator, resolveMethodName } from './utils';
-
-/**
- * Interface extending MethodOperation with path information.
- */
-interface PathMethodOperation extends MethodOperation {
-  path: string;
-}
 
 /**
  * Generator for creating TypeScript API client classes from OpenAPI specifications.
@@ -111,7 +104,7 @@ export class ApiClientGenerator implements Generator {
    */
   private generateApiClients(
     apiClientTags: Map<string, Tag>,
-    groupOperations: Map<string, Set<PathMethodOperation>>,
+    groupOperations: Map<string, Set<OperationEndpoint>>,
   ) {
     this.context.logger.info(
       `Generating ${groupOperations.size} API client classes`,
@@ -149,7 +142,7 @@ export class ApiClientGenerator implements Generator {
    * @param tag - The OpenAPI tag for the client
    * @param operations - Set of operations for this client
    */
-  private generateApiClient(tag: Tag, operations: Set<PathMethodOperation>) {
+  private generateApiClient(tag: Tag, operations: Set<OperationEndpoint>) {
     const modelInfo = resolveModelInfo(tag.name);
     this.context.logger.info(
       `Generating API client class: ${modelInfo.name}ApiClient with ${operations.size} operations`,
@@ -436,7 +429,7 @@ export class ApiClientGenerator implements Generator {
     tag: Tag,
     sourceFile: SourceFile,
     apiClientClass: ClassDeclaration,
-    operation: PathMethodOperation,
+    operation: OperationEndpoint,
   ) {
     this.context.logger.info(
       `Processing operation: ${operation.operation.operationId} (${operation.method} ${operation.path})`,
@@ -489,41 +482,32 @@ export class ApiClientGenerator implements Generator {
    */
   private groupOperations(
     apiClientTags: Map<string, Tag>,
-  ): Map<string, Set<PathMethodOperation>> {
+  ): Map<string, Set<OperationEndpoint>> {
     this.context.logger.info('Grouping operations by API client tags');
-    const operations: Map<string, Set<PathMethodOperation>> = new Map();
-    let totalOperations = 0;
-    for (const [path, pathItem] of Object.entries(this.context.openAPI.paths)) {
-      const methodOperations = extractOperations(pathItem).filter(
-        methodOperation => {
-          if (!methodOperation.operation.operationId) {
-            return false;
-          }
-          const operationTags = methodOperation.operation.tags;
-          if (!operationTags || operationTags.length == 0) {
-            return false;
-          }
-          return operationTags.every(tagName => {
-            return apiClientTags.has(tagName);
-          });
-        },
-      );
-      this.context.logger.info(
-        `Path ${path}: found ${methodOperations.length} valid operations`,
-      );
-      for (const methodOperation of methodOperations) {
-        methodOperation.operation.tags!.forEach(tagName => {
-          const pathMethodOperation: PathMethodOperation = {
-            ...methodOperation,
-            path,
-          };
-          if (!operations.has(tagName)) {
-            operations.set(tagName, new Set());
-          }
-          operations.get(tagName)!.add(pathMethodOperation);
-          totalOperations++;
+    const operations: Map<string, Set<OperationEndpoint>> = new Map();
+    const availableEndpoints = extractOperationEndpoints(this.context.openAPI.paths).filter(
+      endpoint => {
+        if (!endpoint.operation.operationId) {
+          return false;
+        }
+        const operationTags = endpoint.operation.tags;
+        if (!operationTags || operationTags.length == 0) {
+          return false;
+        }
+        return operationTags.every(tagName => {
+          return apiClientTags.has(tagName);
         });
-      }
+      },
+    );
+    let totalOperations = 0;
+    for (const endpoint of availableEndpoints) {
+      endpoint.operation.tags!.forEach(tagName => {
+        if (!operations.has(tagName)) {
+          operations.set(tagName, new Set());
+        }
+        operations.get(tagName)!.add(endpoint);
+        totalOperations++;
+      });
     }
     this.context.logger.info(
       `Grouped ${totalOperations} operations into ${operations.size} tag groups`,

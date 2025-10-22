@@ -28,9 +28,8 @@ import {
 
 import { ContentTypeValues, PartialBy } from '@ahoo-wang/fetcher';
 import {
-  extractOkResponse,
+  extractOkResponse, extractOperationEndpoints,
   extractOperationOkResponseJsonSchema,
-  extractOperations,
   extractParameter,
   extractRequestBody,
   extractSchema,
@@ -68,14 +67,12 @@ export class AggregateResolver {
    * @private
    */
   private build() {
-    for (const [path, pathItem] of Object.entries(this.openAPI.paths)) {
-      const methodOperations = extractOperations(pathItem);
-      for (const methodOperation of methodOperations) {
-        this.commands(path, methodOperation);
-        this.state(methodOperation.operation);
-        this.events(methodOperation.operation);
-        this.fields(methodOperation.operation);
-      }
+    const endpoints = extractOperationEndpoints(this.openAPI.paths);
+    for (const endpoint of endpoints) {
+      this.commands(endpoint.path, endpoint);
+      this.state(endpoint.operation);
+      this.events(endpoint.operation);
+      this.fields(endpoint.operation);
     }
   }
 
