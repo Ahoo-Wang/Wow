@@ -59,7 +59,6 @@ export const STRING_RETURN_TYPE: MethodReturnType = {
   metadata: `{resultExtractor: ResultExtractors.Text }`,
 };
 
-
 /**
  * Metadata configuration for stream result extraction.
  */
@@ -89,6 +88,8 @@ export function addImportDecorator(sourceFile: SourceFile) {
  * @param className - The name of the class to create
  * @param sourceFile - The source file to add the class to
  * @param apiArgs - Optional arguments for the @api decorator
+ * @param typeParameters - Optional type parameters for the class
+ * @param extendsClass - Optional class to extend
  * @returns The created class declaration
  *
  * @example
@@ -102,11 +103,13 @@ export function createDecoratorClass(
   sourceFile: SourceFile,
   apiArgs: string[] = [],
   typeParameters: string[] = [],
+  extendsClass?: string,
 ): ClassDeclaration {
   return sourceFile.addClass({
     name: className,
     isExported: true,
     typeParameters: typeParameters,
+    extends: extendsClass,
     decorators: [
       {
         name: 'api',
@@ -150,5 +153,8 @@ export function addApiMetadataCtor(
 export const EVENTSTREAM_MODULE_SPECIFIER = '@ahoo-wang/fetcher-eventstream';
 
 export function addImportEventStream(sourceFile: SourceFile) {
-  addImport(sourceFile, EVENTSTREAM_MODULE_SPECIFIER, ['JsonEventStreamResultExtractor', 'type JsonServerSentEventStream']);
+  addImport(sourceFile, EVENTSTREAM_MODULE_SPECIFIER, [
+    'JsonEventStreamResultExtractor',
+    'type JsonServerSentEventStream',
+  ]);
 }

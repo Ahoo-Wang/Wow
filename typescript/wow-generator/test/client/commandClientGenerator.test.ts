@@ -12,7 +12,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { Project, SourceFile, VariableDeclarationKind } from 'ts-morph';
+import { Project } from 'ts-morph';
 import { CommandClientGenerator } from '../../src/client';
 import { AggregateDefinition } from '../../src/aggregate';
 import { SilentLogger } from '../../src/utils/logger';
@@ -105,16 +105,13 @@ describe('CommandClientGenerator', () => {
 
     mockGetOrCreateSourceFile.mockReturnValue(mockSourceFile as any);
     mockCreateClientFilePath.mockReturnValue(mockSourceFile as any);
-    mockAddImportRefModel.mockImplementation(() => {
-    });
+    mockAddImportRefModel.mockImplementation(() => {});
     mockResolveModelInfo.mockReturnValue({
       name: 'CreateUserCommand',
       path: 'createUserCommand',
     });
-    mockAddImport.mockImplementation(() => {
-    });
-    mockAddJSDoc.mockImplementation(() => {
-    });
+    mockAddImport.mockImplementation(() => {});
+    mockAddJSDoc.mockImplementation(() => {});
     mockGetClientName.mockImplementation(
       (aggregate, suffix) => `User${suffix}`,
     );
@@ -199,6 +196,7 @@ describe('CommandClientGenerator', () => {
     expect(mockSourceFile.addClass).toHaveBeenCalledWith({
       name: 'UserCommandClient',
       isExported: true,
+      typeParameters: ['R = CommandResult'],
       decorators: [
         {
           name: 'api',
@@ -233,7 +231,6 @@ describe('CommandClientGenerator', () => {
     );
     expect(mockClass.addImplements).toHaveBeenCalledWith('ApiMetadataCapable');
   });
-
 
   it('should handle empty context aggregates', () => {
     const emptyContextAggregates = new Map<string, Set<AggregateDefinition>>();

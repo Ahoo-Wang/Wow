@@ -86,6 +86,7 @@ describe('decorators', () => {
       expect(mockSourceFile.addClass).toHaveBeenCalledWith({
         name: className,
         isExported: true,
+        typeParameters: [],
         decorators: [
           {
             name: 'api',
@@ -108,6 +109,7 @@ describe('decorators', () => {
       expect(mockSourceFile.addClass).toHaveBeenCalledWith({
         name: className,
         isExported: true,
+        typeParameters: [],
         decorators: [
           {
             name: 'api',
