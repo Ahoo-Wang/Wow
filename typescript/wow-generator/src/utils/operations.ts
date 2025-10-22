@@ -14,8 +14,10 @@
 import {
   Components,
   HTTPMethod,
-  Operation, Parameter,
-  PathItem, Paths,
+  Operation,
+  Parameter,
+  PathItem,
+  Paths,
   Reference,
   Response,
   Schema,
@@ -39,12 +41,40 @@ export interface OperationEndpoint extends MethodOperation {
   path: string;
 }
 
+export function operationEndpointComparator(
+  left: OperationEndpoint,
+  right: OperationEndpoint,
+): number {
+  // Compare by operationId if both have it
+  if (left.operation.operationId && right.operation.operationId) {
+    return left.operation.operationId.localeCompare(
+      right.operation.operationId,
+    );
+  }
+  // If only one has operationId, prioritize the one without operationId (undefined operationId comes first)
+  if (left.operation.operationId && !right.operation.operationId) {
+    return 1; // left has operationId, right doesn't, so right comes first
+  }
+  if (!left.operation.operationId && right.operation.operationId) {
+    return -1; // right has operationId, left doesn't, so left comes first
+  }
+  // Compare by path if both have it
+  if (left.path && right.path) {
+    return left.path.localeCompare(right.path);
+  }
+  // Compare by method if both have it
+  if (left.method && right.method) {
+    return left.method.localeCompare(right.method);
+  }
+  return 0;
+}
+
 export function extractOperationEndpoints(
   paths: Paths,
 ): Array<OperationEndpoint> {
   const operationEndpoints: OperationEndpoint[] = [];
   for (const [path, pathItem] of Object.entries(paths)) {
-    extractOperations(pathItem).forEach((methodOperation) => {
+    extractOperations(pathItem).forEach(methodOperation => {
       operationEndpoints.push({
         method: methodOperation.method,
         operation: methodOperation.operation,
@@ -52,7 +82,7 @@ export function extractOperationEndpoints(
       });
     });
   }
-  return operationEndpoints.sort((a, b) => a.operation.operationId!.localeCompare(b.method));
+  return operationEndpoints.sort(operationEndpointComparator);
 }
 
 /**
@@ -105,16 +135,21 @@ export function extractOperationOkResponseJsonSchema(
  * @param components - The OpenAPI components object used to resolve references
  * @returns Array of path parameters
  */
-export function extractPathParameters(operation: Operation, components: Components): Parameter[] {
+export function extractPathParameters(
+  operation: Operation,
+  components: Components,
+): Parameter[] {
   if (!operation.parameters) {
     return [];
   }
-  return operation.parameters.map((parameter) => {
-    if (isReference(parameter)) {
-      return extractParameter(parameter, components)!;
-    }
-    return parameter;
-  }).filter((parameter) => parameter.in === 'path');
+  return operation.parameters
+    .map(parameter => {
+      if (isReference(parameter)) {
+        return extractParameter(parameter, components)!;
+      }
+      return parameter;
+    })
+    .filter(parameter => parameter.in === 'path');
 }
 
 const DEFAULT_PATH_PARAMETER_TYPE = 'string';
@@ -126,7 +161,12 @@ const DEFAULT_PATH_PARAMETER_TYPE = 'string';
  *          is a reference, lacks a type, or the type is not primitive
  */
 export function resolvePathParameterType(parameter: Parameter): string {
-  if (!parameter.schema || isReference(parameter.schema) || !parameter.schema.type || !isPrimitive(parameter.schema.type)) {
+  if (
+    !parameter.schema ||
+    isReference(parameter.schema) ||
+    !parameter.schema.type ||
+    !isPrimitive(parameter.schema.type)
+  ) {
     return DEFAULT_PATH_PARAMETER_TYPE;
   }
   return resolvePrimitiveType(parameter.schema.type);

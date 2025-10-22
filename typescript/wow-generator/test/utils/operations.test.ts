@@ -15,6 +15,8 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   extractPathParameters,
   resolvePathParameterType,
+  operationEndpointComparator,
+  OperationEndpoint,
 } from '../../src/utils';
 import {
   Operation,
@@ -83,9 +85,11 @@ describe('operations', () => {
         schema: { type: 'integer' },
       };
 
-      vi.mocked(isReference).mockImplementation((param: any): param is Reference => {
-        return param && '$ref' in param;
-      });
+      vi.mocked(isReference).mockImplementation(
+        (param: any): param is Reference => {
+          return param && '$ref' in param;
+        },
+      );
       vi.mocked(extractParameter).mockReturnValue(resolvedParameter);
 
       const operation: Operation = {
@@ -120,9 +124,11 @@ describe('operations', () => {
         schema: { type: 'integer' },
       };
 
-      vi.mocked(isReference).mockImplementation((param: any): param is Reference => {
-        return param && '$ref' in param;
-      });
+      vi.mocked(isReference).mockImplementation(
+        (param: any): param is Reference => {
+          return param && '$ref' in param;
+        },
+      );
       vi.mocked(extractParameter).mockReturnValue(resolvedQueryParameter);
 
       const operation: Operation = {
@@ -213,6 +219,155 @@ describe('operations', () => {
       expect(isPrimitive).toHaveBeenCalledWith('integer');
       expect(resolvePrimitiveType).toHaveBeenCalledWith('integer');
       expect(result).toBe('number');
+    });
+  });
+
+  describe('operationEndpointComparator', () => {
+    it('should return 0 when both operations have no operationId, path, or method', () => {
+      const left: OperationEndpoint = {
+        method: '' as any,
+        operation: { responses: {} },
+        path: '',
+      };
+      const right: OperationEndpoint = {
+        method: '' as any,
+        operation: { responses: {} },
+        path: '',
+      };
+
+      const result = operationEndpointComparator(left, right);
+      expect(result).toBe(0);
+    });
+
+    it('should compare by operationId when both operations have operationId', () => {
+      const left: OperationEndpoint = {
+        method: 'get',
+        operation: { operationId: 'getUser', responses: {} },
+        path: '/users',
+      };
+      const right: OperationEndpoint = {
+        method: 'get',
+        operation: { operationId: 'createUser', responses: {} },
+        path: '/users',
+      };
+
+      const result = operationEndpointComparator(left, right);
+      expect(result).toBeGreaterThan(0); // 'getUser' > 'createUser'
+    });
+
+    it('should return negative when left operationId comes before right operationId', () => {
+      const left: OperationEndpoint = {
+        method: 'get',
+        operation: { operationId: 'createUser', responses: {} },
+        path: '/users',
+      };
+      const right: OperationEndpoint = {
+        method: 'get',
+        operation: { operationId: 'getUser', responses: {} },
+        path: '/users',
+      };
+
+      const result = operationEndpointComparator(left, right);
+      expect(result).toBeLessThan(0); // 'createUser' < 'getUser'
+    });
+
+    it('should compare by path when neither operation has operationId but both have path', () => {
+      const left: OperationEndpoint = {
+        method: 'get',
+        operation: { responses: {} },
+        path: '/users',
+      };
+      const right: OperationEndpoint = {
+        method: 'get',
+        operation: { responses: {} },
+        path: '/posts',
+      };
+
+      const result = operationEndpointComparator(left, right);
+      expect(result).toBeGreaterThan(0); // '/users' > '/posts'
+    });
+
+    it('should compare by method when neither operation has operationId or path but both have method', () => {
+      const left: OperationEndpoint = {
+        method: 'post',
+        operation: { responses: {} },
+        path: '',
+      };
+      const right: OperationEndpoint = {
+        method: 'get',
+        operation: { responses: {} },
+        path: '',
+      };
+
+      const result = operationEndpointComparator(left, right);
+      expect(result).toBeGreaterThan(0); // 'post' > 'get'
+    });
+
+    it('should prioritize operationId over path and method', () => {
+      const left: OperationEndpoint = {
+        method: 'get',
+        operation: { operationId: 'getUser', responses: {} },
+        path: '/users',
+      };
+      const right: OperationEndpoint = {
+        method: 'post',
+        operation: { responses: {} },
+        path: '/posts',
+      };
+
+      const result = operationEndpointComparator(left, right);
+      // Should compare by operationId, not by path or method
+      expect(result).toBeGreaterThan(0); // 'getUser' > undefined operationId
+    });
+
+    it('should prioritize path over method when no operationId', () => {
+      const left: OperationEndpoint = {
+        method: 'get',
+        operation: { responses: {} },
+        path: '/users',
+      };
+      const right: OperationEndpoint = {
+        method: 'post',
+        operation: { responses: {} },
+        path: '/posts',
+      };
+
+      const result = operationEndpointComparator(left, right);
+      // Should compare by path, not by method
+      expect(result).toBeGreaterThan(0); // '/users' > '/posts'
+    });
+
+    it('should handle undefined operationId gracefully', () => {
+      const left: OperationEndpoint = {
+        method: 'get',
+        operation: { operationId: 'getUser', responses: {} },
+        path: '/users',
+      };
+      const right: OperationEndpoint = {
+        method: 'get',
+        operation: { responses: {} },
+        path: '/users',
+      };
+
+      const result = operationEndpointComparator(left, right);
+      expect(result).toBeGreaterThan(0); // defined operationId > undefined operationId
+    });
+
+    it('should handle empty strings as equivalent to undefined', () => {
+      const left: OperationEndpoint = {
+        method: 'get',
+        operation: { operationId: '', responses: {} },
+        path: '/users',
+      };
+      const right: OperationEndpoint = {
+        method: 'get',
+        operation: { responses: {} },
+        path: '/posts',
+      };
+
+      const result = operationEndpointComparator(left, right);
+      // Both have no operationId (empty string is falsy), so compare by path
+      expect(result).toBeGreaterThan(0); // '/users' > '/posts'
     });
   });
 });
