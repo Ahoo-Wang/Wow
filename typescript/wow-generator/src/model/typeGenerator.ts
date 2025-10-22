@@ -124,11 +124,12 @@ export class TypeGenerator implements Generator {
     });
   }
 
-  private resolveObjectType(schema: ObjectSchema): string {
+  private resolveObjectType(schema: Schema): string {
     const parts: string[] = [];
-
-    const propertyDefs = this.resolvePropertyDefinitions(schema);
-    parts.push(...propertyDefs);
+    if (isObject(schema)){
+      const propertyDefs = this.resolvePropertyDefinitions(schema);
+      parts.push(...propertyDefs);
+    }
 
     const additionalProps = this.resolveAdditionalProperties(schema);
     if (additionalProps) {
@@ -139,7 +140,7 @@ export class TypeGenerator implements Generator {
       return 'Record<string, any>';
     }
 
-    return `{\n  ${parts.join(';\n')} \n}`;
+    return `{\n  ${parts.join(';\n  ')}; \n}`;
   }
 
   private resolveMapValueType(schema: MapSchema): string {
@@ -179,7 +180,7 @@ export class TypeGenerator implements Generator {
       const itemType = this.resolveType(schema.items);
       return toArrayType(itemType);
     }
-    if (isObject(schema)) {
+    if (schema.type === 'object') {
       return this.resolveObjectType(schema);
     }
     if (!schema.type) {

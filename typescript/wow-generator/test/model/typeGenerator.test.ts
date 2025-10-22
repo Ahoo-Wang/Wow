@@ -213,7 +213,7 @@ describe('TypeGenerator', () => {
         properties: { name: { type: 'string' } },
         additionalProperties: { type: 'number' },
       });
-      expect(result).toBe('{\n  name: string;\n[key: string]: number \n}');
+      expect(result).toBe('{\n  name: string;\n  [key: string]: number; \n}');
     });
 
     it('should return Record<string, any> for empty object', () => {
@@ -223,7 +223,7 @@ describe('TypeGenerator', () => {
         {} as any,
         outputDir,
       );
-      const result = (generator as any).resolveType({ type: 'object' });
+      const result = generator.resolveType({ type: 'object' });
       expect(result).toBe('Record<string, any>');
     });
   });
@@ -295,7 +295,7 @@ describe('TypeGenerator', () => {
           age: { type: 'number' },
         },
       });
-      expect(result).toEqual(['name: string;', 'age: number;']);
+      expect(result).toEqual(['name: string', 'age: number']);
     });
   });
 
