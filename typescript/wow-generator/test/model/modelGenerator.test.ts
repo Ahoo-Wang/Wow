@@ -117,7 +117,7 @@ describe('ModelGenerator', () => {
       const result = (generator as any).filterSchemas(
         schemas,
         aggregatedTypeNames,
-      );
+      ) as KeySchema[];
 
       expect(result).toHaveLength(2);
       expect(result.map(r => r.key)).toEqual(['TestModel', 'TestEnum']);

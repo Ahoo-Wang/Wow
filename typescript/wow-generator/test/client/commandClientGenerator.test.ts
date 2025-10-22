@@ -191,7 +191,7 @@ describe('CommandClientGenerator', () => {
     };
     mockSourceFile.addClass.mockReturnValue(mockClass);
 
-    generator.processCommandClient(mockSourceFile, mockAggregate, false);
+    generator.processCommandClient(mockSourceFile, mockAggregate);
 
     expect(mockSourceFile.addClass).toHaveBeenCalledWith({
       name: 'UserCommandClient',
@@ -220,16 +220,15 @@ describe('CommandClientGenerator', () => {
     };
     mockSourceFile.addClass.mockReturnValue(mockClass);
 
-    generator.processCommandClient(mockSourceFile, mockAggregate, true);
+    generator.processStreamCommandClient(mockSourceFile, mockAggregate);
 
     expect(mockSourceFile.addClass).toHaveBeenCalledWith(
       expect.objectContaining({
-        name: expect.stringContaining('CommandClient'),
+        name: expect.stringContaining('StreamCommandClient'),
         isExported: true,
         decorators: expect.any(Array),
       }),
     );
-    expect(mockClass.addImplements).toHaveBeenCalledWith('ApiMetadataCapable');
   });
 
   it('should handle empty context aggregates', () => {
@@ -237,7 +236,7 @@ describe('CommandClientGenerator', () => {
     const context = {
       ...createContext(mockLogger),
       contextAggregates: emptyContextAggregates,
-    };
+    } as GenerateContext;
     const generator = new CommandClientGenerator(context);
 
     generator.generate();
