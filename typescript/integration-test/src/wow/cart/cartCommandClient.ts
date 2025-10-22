@@ -13,14 +13,10 @@
 
 import { CommandClient, CommandRequest } from '@ahoo-wang/fetcher-wow';
 import { cartClientOptions } from './cartClientOptions';
+import { AddCartItem } from '../../generated';
 
 export class CartCommandEndpoints {
   static readonly addCartItem = 'add_cart_item';
-}
-
-export interface AddCartItem {
-  productId: string;
-  quantity: number;
 }
 
 export type AddCartItemCommand = CommandRequest<AddCartItem>;

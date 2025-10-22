@@ -11,17 +11,10 @@
  * limitations under the License.
  */
 
-import { Identifier, SnapshotQueryClient } from '@ahoo-wang/fetcher-wow';
+import { SnapshotQueryClient } from '@ahoo-wang/fetcher-wow';
 import { cartClientOptions } from './cartClientOptions';
+import { CartState } from '../../generated';
 
-export interface CartItem {
-  productId: string;
-  quantity: number;
-}
-
-export interface CartState extends Identifier {
-  items: CartItem[];
-}
 
 export const cartSnapshotQueryClient = new SnapshotQueryClient<CartState>(
   cartClientOptions,

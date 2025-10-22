@@ -33,7 +33,7 @@ import {
   cartSnapshotQueryClient,
   currentUserId,
 } from '../../../src/wow';
-import { CartState } from '../../../src/wow';
+import { CartState } from '../../../src/generated';
 
 const command: AddCartItemCommand = {
   path: CartCommandEndpoints.addCartItem,
