@@ -21,6 +21,8 @@ vi.mock('../../src/utils/sourceFiles', () => ({
   addImportModelInfo: vi.fn(),
   addSchemaJSDoc: vi.fn(),
   addImport: vi.fn(),
+  schemaJSDoc: vi.fn(() => []),
+  jsDoc: vi.fn(() => ''),
 }));
 
 describe('TypeGenerator', () => {
@@ -115,7 +117,7 @@ describe('TypeGenerator', () => {
         type: 'object',
         properties: { name: { type: 'string' }, age: { type: 'number' } },
       });
-      expect(result).toBe('{\n  name: string;\n  age: number\n}');
+      expect(result).toBe('{\n  name: string;\n  age: number; \n}');
     });
 
     it('should resolve object type with additional properties', () => {
@@ -129,7 +131,7 @@ describe('TypeGenerator', () => {
         type: 'object',
         additionalProperties: { type: 'string' },
       });
-      expect(result).toBe('[key: string]: string');
+      expect(result).toBe('Record<string,string>');
     });
 
     it('should resolve composition oneOf type', () => {
@@ -182,7 +184,7 @@ describe('TypeGenerator', () => {
         type: 'object',
         properties: { name: { type: 'string' } },
       });
-      expect(result).toBe('{\n  name: string\n}');
+      expect(result).toBe('{\n  name: string; \n}');
     });
 
     it('should resolve object with additional properties only', () => {
@@ -192,11 +194,11 @@ describe('TypeGenerator', () => {
         {} as any,
         outputDir,
       );
-      const result = (generator as any).resolveObjectType({
+      const result = (generator as any).resolveType({
         type: 'object',
         additionalProperties: { type: 'string' },
       });
-      expect(result).toBe('[key: string]: string');
+      expect(result).toBe('Record<string,string>');
     });
 
     it('should resolve object with both properties and additional properties', () => {
@@ -211,7 +213,7 @@ describe('TypeGenerator', () => {
         properties: { name: { type: 'string' } },
         additionalProperties: { type: 'number' },
       });
-      expect(result).toBe('{ {\n  name: string\n}; [key: string]: number }');
+      expect(result).toBe('{\n  name: string;\n[key: string]: number \n}');
     });
 
     it('should return Record<string, any> for empty object', () => {
@@ -221,7 +223,7 @@ describe('TypeGenerator', () => {
         {} as any,
         outputDir,
       );
-      const result = (generator as any).resolveObjectType({ type: 'object' });
+      const result = (generator as any).resolveType({ type: 'object' });
       expect(result).toBe('Record<string, any>');
     });
   });
@@ -293,7 +295,7 @@ describe('TypeGenerator', () => {
           age: { type: 'number' },
         },
       });
-      expect(result).toBe('{\n  name: string;\n  age: number\n}');
+      expect(result).toEqual(['name: string;', 'age: number;']);
     });
   });
 
