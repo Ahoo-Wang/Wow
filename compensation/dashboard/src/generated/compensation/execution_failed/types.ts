@@ -1,6 +1,9 @@
 import { AggregateId, BindingError, FunctionInfo, FunctionKind, RecoverableType } from "@ahoo-wang/fetcher-wow";
 
-/** apply_execution_failed */
+/**
+ * apply_execution_failed
+ * - key: compensation.execution_failed.ApplyExecutionFailed
+ */
 export interface ApplyExecutionFailed {
     error: ErrorDetails;
     /** - format: int64 */
@@ -8,13 +11,19 @@ export interface ApplyExecutionFailed {
     recoverable: RecoverableType;
 }
 
-/** apply_execution_success */
+/**
+ * apply_execution_success
+ * - key: compensation.execution_failed.ApplyExecutionSuccess
+ */
 export interface ApplyExecutionSuccess {
     /** - format: int64 */
     executeAt: number;
 }
 
-/** apply_retry_spec */
+/**
+ * apply_retry_spec
+ * - key: compensation.execution_failed.ApplyRetrySpec
+ */
 export interface ApplyRetrySpec {
     /** - format: int32 */
     executionTimeout: number;
@@ -24,7 +33,10 @@ export interface ApplyRetrySpec {
     minBackoff: number;
 }
 
-/** change_function */
+/**
+ * change_function
+ * - key: compensation.execution_failed.ChangeFunction
+ */
 export interface ChangeFunction {
     contextName: string;
     functionKind: FunctionKind;
@@ -32,14 +44,20 @@ export interface ChangeFunction {
     processorName: string;
 }
 
-/** compensation_prepared */
+/**
+ * compensation_prepared
+ * - key: compensation.execution_failed.CompensationPrepared
+ */
 export interface CompensationPrepared {
     eventId: EventId;
     function: FunctionInfo;
     retryState: RetryState;
 }
 
-/** create_execution_failed */
+/**
+ * create_execution_failed
+ * - key: compensation.execution_failed.CreateExecutionFailed
+ */
 export interface CreateExecutionFailed {
     error: ErrorDetails;
     eventId: EventId;
@@ -47,9 +65,10 @@ export interface CreateExecutionFailed {
     executeAt: number;
     function: FunctionInfo;
     recoverable: RecoverableType;
-    retrySpec: null | RetrySpec;
+    retrySpec: (null | RetrySpec);
 }
 
+/** - key: compensation.execution_failed.ErrorDetails */
 export interface ErrorDetails {
     bindingErrors: BindingError[];
     errorCode: string;
@@ -58,6 +77,7 @@ export interface ErrorDetails {
     succeeded: boolean;
 }
 
+/** - key: compensation.execution_failed.EventId */
 export interface EventId {
     aggregateId: AggregateId;
     id: string;
@@ -65,6 +85,7 @@ export interface EventId {
     version: number;
 }
 
+/** - key: compensation.execution_failed.ExecutionFailedAggregatedFields */
 export enum ExecutionFailedAggregatedFields {
     AGGREGATE_ID = 'aggregateId',
     TENANT_ID = 'tenantId',
@@ -116,7 +137,10 @@ export enum ExecutionFailedAggregatedFields {
     STATE_IS_RETRYABLE = 'state.isRetryable'
 }
 
-/** execution_failed_applied */
+/**
+ * execution_failed_applied
+ * - key: compensation.execution_failed.ExecutionFailedApplied
+ */
 export interface ExecutionFailedApplied {
     error: ErrorDetails;
     /** - format: int64 */
@@ -124,7 +148,10 @@ export interface ExecutionFailedApplied {
     recoverable: RecoverableType;
 }
 
-/** execution_failed_created */
+/**
+ * execution_failed_created
+ * - key: compensation.execution_failed.ExecutionFailedCreated
+ */
 export interface ExecutionFailedCreated {
     error: ErrorDetails;
     eventId: EventId;
@@ -136,6 +163,7 @@ export interface ExecutionFailedCreated {
     retryState: RetryState;
 }
 
+/** - key: compensation.execution_failed.ExecutionFailedState */
 export interface ExecutionFailedState {
     error: ErrorDetails;
     eventId: EventId;
@@ -151,23 +179,32 @@ export interface ExecutionFailedState {
     isRetryable: boolean;
 }
 
+/** - key: compensation.execution_failed.ExecutionFailedStatus */
 export enum ExecutionFailedStatus {
     FAILED = 'FAILED',
     PREPARED = 'PREPARED',
     SUCCEEDED = 'SUCCEEDED'
 }
 
-/** execution_success_applied */
+/**
+ * execution_success_applied
+ * - key: compensation.execution_failed.ExecutionSuccessApplied
+ */
 export interface ExecutionSuccessApplied {
     /** - format: int64 */
     executeAt: number;
 }
 
-/** force_prepare_compensation */
-export interface ForcePrepareCompensation {
-}
+/**
+ * force_prepare_compensation
+ * - key: compensation.execution_failed.ForcePrepareCompensation
+ */
+export type ForcePrepareCompensation = Record<string, any>;
 
-/** function_changed */
+/**
+ * function_changed
+ * - key: compensation.execution_failed.FunctionChanged
+ */
 export interface FunctionChanged {
     contextName: string;
     functionKind: FunctionKind;
@@ -175,20 +212,29 @@ export interface FunctionChanged {
     processorName: string;
 }
 
-/** mark_recoverable */
+/**
+ * mark_recoverable
+ * - key: compensation.execution_failed.MarkRecoverable
+ */
 export interface MarkRecoverable {
     recoverable: RecoverableType;
 }
 
-/** prepare_compensation */
-export interface PrepareCompensation {
-}
+/**
+ * prepare_compensation
+ * - key: compensation.execution_failed.PrepareCompensation
+ */
+export type PrepareCompensation = Record<string, any>;
 
-/** recoverable_marked */
+/**
+ * recoverable_marked
+ * - key: compensation.execution_failed.RecoverableMarked
+ */
 export interface RecoverableMarked {
     recoverable: RecoverableType;
 }
 
+/** - key: compensation.execution_failed.RetrySpec */
 export interface RetrySpec {
     /** - format: int32 */
     executionTimeout: number;
@@ -198,7 +244,10 @@ export interface RetrySpec {
     minBackoff: number;
 }
 
-/** retry_spec_applied */
+/**
+ * retry_spec_applied
+ * - key: compensation.execution_failed.RetrySpecApplied
+ */
 export interface RetrySpecApplied {
     /** - format: int32 */
     executionTimeout: number;
@@ -208,6 +257,7 @@ export interface RetrySpecApplied {
     minBackoff: number;
 }
 
+/** - key: compensation.execution_failed.RetryState */
 export interface RetryState {
     /** - format: int64 */
     nextRetryAt: number;
