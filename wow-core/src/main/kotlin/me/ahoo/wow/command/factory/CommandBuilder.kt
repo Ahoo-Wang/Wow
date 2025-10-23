@@ -135,7 +135,7 @@ interface CommandBuilder : Identifier {
 
     fun upstream(upstream: DomainEvent<*>): CommandBuilder
 
-    fun ownerIdSameAsAggregateId(ownerIdSameAsAggregateId: Boolean = true): CommandBuilder
+    fun ownerIdSameAsAggregateId(ownerIdSameAsAggregateId: Boolean): CommandBuilder
 
     companion object {
 
