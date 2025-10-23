@@ -82,7 +82,12 @@ class CommandRouteSpec(
 
     override val appendOwnerPath: Boolean
         get() {
-            val default = super.appendOwnerPath
+            val default =
+                if (aggregateRouteMetadata.owner == AggregateRoute.Owner.AGGREGATE_ID && commandRouteMetadata.commandMetadata.isCreate) {
+                    false
+                } else {
+                    super.appendOwnerPath
+                }
             return commandRouteMetadata.appendOwnerPath.resolve(default)
         }
 
