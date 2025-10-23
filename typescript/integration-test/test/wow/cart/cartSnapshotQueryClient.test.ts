@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { ExchangeError, HttpMethod } from '@ahoo-wang/fetcher';
 import '@ahoo-wang/fetcher-eventstream';
 import {
@@ -30,10 +30,10 @@ import {
   AddCartItemCommand,
   cartCommandClient,
   CartCommandEndpoints,
-  cartSnapshotQueryClient,
   currentUserId,
+  exampleFetcher,
 } from '../../../src/wow';
-import { CartState } from '../../../src/generated';
+import { cartQueryClientFactory, CartState } from '../../../src/generated';
 
 const command: AddCartItemCommand = {
   path: CartCommandEndpoints.addCartItem,
@@ -76,7 +76,25 @@ function expectSnapshotToBeDefined(
   expectCartState(snapshot.state);
 }
 
+const cartSnapshotQueryClient =
+  cartQueryClientFactory.createSnapshotQueryClient({
+    contextAlias: '',
+    fetcher: exampleFetcher,
+  });
+
 describe('cartSnapshotQueryClient Integration Test', () => {
+  it('should getById', async () => {
+    const snapshot = await cartSnapshotQueryClient.getById(
+      commandResult.aggregateId,
+    );
+    expectSnapshotToBeDefined(snapshot);
+  });
+  it('should getStateById', async () => {
+    const state = await cartSnapshotQueryClient.getStateById(
+      commandResult.aggregateId,
+    );
+    expectCartState(state);
+  });
   it('should count', async () => {
     const count = await cartSnapshotQueryClient.count(all());
     expect(count).greaterThanOrEqual(1);

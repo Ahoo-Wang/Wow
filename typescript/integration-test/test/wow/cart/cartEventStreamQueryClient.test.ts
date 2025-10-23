@@ -16,18 +16,14 @@ import {
   all,
   CommandHeaders,
   CommandStage,
+  DomainEventStream,
   ErrorCodes,
   ListQuery,
   PagedQuery,
-  DomainEventStream,
 } from '@ahoo-wang/fetcher-wow';
 import { describe, expect, it } from 'vitest';
-import {
-  AddCartItemCommand,
-  cartCommandClient,
-  CartCommandEndpoints,
-  cartEventStreamQueryClient,
-} from '../../../src/wow';
+import { AddCartItemCommand, cartCommandClient, CartCommandEndpoints, exampleFetcher, } from '../../../src/wow';
+import { cartQueryClientFactory } from '../../../src/generated';
 
 const command: AddCartItemCommand = {
   path: CartCommandEndpoints.addCartItem,
@@ -42,6 +38,12 @@ const command: AddCartItemCommand = {
 };
 const commandResult = await cartCommandClient.send(command);
 expect(commandResult.errorCode).toBe(ErrorCodes.SUCCEEDED);
+
+const cartEventStreamQueryClient =
+  cartQueryClientFactory.createEventStreamQueryClient({
+    contextAlias: '',
+    fetcher: exampleFetcher,
+  });
 
 function expectDomainEventStreamToBeDefined(
   domainEventStream: Partial<DomainEventStream>,

@@ -13,5 +13,3 @@
 
 export * from './cartClientOptions';
 export * from './cartCommandClient';
-export * from './cartEventStreamQueryClient';
-export * from './cartSnapshotQueryClient';
