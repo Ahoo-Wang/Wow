@@ -32,6 +32,7 @@ interface CommandBuilder : Identifier {
     val header: Header
     val createTime: Long
     val upstream: DomainEvent<*>?
+    val ownerIdSameAsAggregateId: Boolean
 
     /**
      * Command Body
@@ -134,6 +135,8 @@ interface CommandBuilder : Identifier {
 
     fun upstream(upstream: DomainEvent<*>): CommandBuilder
 
+    fun ownerIdSameAsAggregateId(ownerIdSameAsAggregateId: Boolean = true): CommandBuilder
+
     companion object {
 
         fun Any.commandBuilder(): CommandBuilder {
@@ -168,6 +171,8 @@ class MutableCommandBuilder(body: Any) : CommandBuilder {
     override var createTime: Long = System.currentTimeMillis()
         private set
     override var upstream: DomainEvent<*>? = null
+        private set
+    override var ownerIdSameAsAggregateId: Boolean = false
         private set
 
     override fun body(body: Any): CommandBuilder {
@@ -227,6 +232,11 @@ class MutableCommandBuilder(body: Any) : CommandBuilder {
 
     override fun upstream(upstream: DomainEvent<*>): CommandBuilder {
         this.upstream = upstream
+        return this
+    }
+
+    override fun ownerIdSameAsAggregateId(ownerIdSameAsAggregateId: Boolean): CommandBuilder {
+        this.ownerIdSameAsAggregateId = ownerIdSameAsAggregateId
         return this
     }
 }
