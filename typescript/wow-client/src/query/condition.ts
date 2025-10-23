@@ -289,7 +289,7 @@ export function aggregateId<FIELDS extends string = string>(
  * @returns A condition with AGGREGATE_IDS operator
  */
 export function aggregateIds<FIELDS extends string = string>(
-  ...value: string[]
+  value: string[],
 ): Condition<FIELDS> {
   return { operator: Operator.AGGREGATE_IDS, value: value };
 }

@@ -299,7 +299,7 @@ describe('Condition', () => {
       });
 
       it('should create aggregate IDS condition', () => {
-        const result = aggregateIds('agg123', 'agg456');
+        const result = aggregateIds(['agg123', 'agg456']);
         expect(result).toEqual({
           operator: Operator.AGGREGATE_IDS,
           value: ['agg123', 'agg456'],

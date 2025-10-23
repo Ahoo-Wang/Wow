@@ -12,7 +12,7 @@
  */
 
 import { type SnapshotQueryApi, SnapshotQueryEndpointPaths, } from './snapshotQueryApi';
-import { Condition, id as idCondition, ids as idsCondition, } from '../condition';
+import { aggregateId, aggregateIds, Condition } from '../condition';
 import { listQuery, ListQuery, PagedList, PagedQuery, singleQuery, SingleQuery, } from '../queryable';
 import type { MaterializedSnapshot } from './snapshot';
 import { JsonEventStreamResultExtractor, JsonServerSentEvent, } from '@ahoo-wang/fetcher-eventstream';
@@ -389,7 +389,7 @@ export class SnapshotQueryClient<S, FIELDS extends string = string>
     @attribute() attributes?: Record<string, any>,
   ): Promise<MaterializedSnapshot<S>> {
     const query = singleQuery<FIELDS>({
-      condition: idCondition(id),
+      condition: aggregateId(id),
     });
     return this.single(query, attributes);
   }
@@ -414,7 +414,7 @@ export class SnapshotQueryClient<S, FIELDS extends string = string>
     @attribute() attributes?: Record<string, any>,
   ): Promise<S> {
     const query = singleQuery<FIELDS>({
-      condition: idCondition(id),
+      condition: aggregateId(id),
     });
     return this.singleState(query, attributes);
   }
@@ -441,7 +441,7 @@ export class SnapshotQueryClient<S, FIELDS extends string = string>
     @attribute() attributes?: Record<string, any>,
   ): Promise<MaterializedSnapshot<S>[]> {
     const query = listQuery<FIELDS>({
-      condition: idsCondition(ids),
+      condition: aggregateIds(ids),
       limit: ids.length,
     });
     return this.list(query, attributes);
@@ -469,7 +469,7 @@ export class SnapshotQueryClient<S, FIELDS extends string = string>
     @attribute() attributes?: Record<string, any>,
   ): Promise<S[]> {
     const query = listQuery<FIELDS>({
-      condition: idsCondition(ids),
+      condition: aggregateIds(ids),
       limit: ids.length,
     });
     return this.listState(query, attributes);
