@@ -41,6 +41,7 @@ fun <C : Any> C.toCommandMessage(
     header: Header = DefaultHeader.empty(),
     createTime: Long = System.currentTimeMillis(),
     upstream: DomainEvent<*>? = null,
+    ownerIdSameAsAggregateId: Boolean = false
 ): CommandMessage<C> {
     upstream?.let {
         header.propagate(it)
@@ -50,9 +51,20 @@ fun <C : Any> C.toCommandMessage(
     requireNotNull(commandNamedAggregate) {
         "The command[$javaClass] must be associated with a named aggregate!"
     }
-    val commandAggregateId = metadata.aggregateIdGetter?.get(this) ?: aggregateId ?: commandNamedAggregate.generateId()
+    val commandOwnerId = metadata.ownerIdGetter?.get(this) ?: ownerId
+    val commandAggregateId = if (ownerIdSameAsAggregateId && commandOwnerId.isNullOrBlank().not()) {
+        commandOwnerId
+    } else {
+        metadata.aggregateIdGetter?.get(this) ?: aggregateId ?: commandNamedAggregate.generateId()
+    }
+
+    val finalOwnerId = if (ownerIdSameAsAggregateId && commandOwnerId.isNullOrBlank()) {
+        commandAggregateId
+    } else {
+        commandOwnerId
+    }
     val commandTenantId = metadata.tenantIdGetter?.get(this) ?: tenantId.orDefaultTenantId()
-    val commandOwnerId = metadata.ownerIdGetter?.get(this) ?: ownerId.orDefaultOwnerId()
+
     val targetAggregateId = commandNamedAggregate.aggregateId(id = commandAggregateId, tenantId = commandTenantId)
     val expectedAggregateVersion = if (metadata.isCreate) {
         Version.UNINITIALIZED_VERSION
@@ -67,7 +79,7 @@ fun <C : Any> C.toCommandMessage(
         body = this,
         createTime = createTime,
         aggregateId = targetAggregateId,
-        ownerId = commandOwnerId,
+        ownerId = finalOwnerId.orDefaultOwnerId(),
         aggregateVersion = expectedAggregateVersion,
         name = metadata.name,
         isCreate = metadata.isCreate,
@@ -88,5 +100,6 @@ fun <C : Any> CommandBuilder.toCommandMessage(): CommandMessage<C> {
         header = header,
         createTime = createTime,
         upstream = upstream,
+        ownerIdSameAsAggregateId = ownerIdSameAsAggregateId
     )
 }
