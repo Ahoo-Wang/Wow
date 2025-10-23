@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.webflux.route.command.extractor
 
+import me.ahoo.wow.api.annotation.AggregateRoute
 import me.ahoo.wow.command.CommandOperator.withOperator
 import me.ahoo.wow.command.factory.CommandBuilder
 import me.ahoo.wow.command.factory.CommandBuilder.Companion.commandBuilder
@@ -48,6 +49,7 @@ object DefaultCommandBuilderExtractor : CommandBuilderExtractor {
             .aggregateVersion(aggregateVersion)
             .requestId(requestId)
             .namedAggregate(aggregateMetadata.namedAggregate)
+            .ownerIdSameAsAggregateId(aggregateRouteMetadata.owner == AggregateRoute.Owner.AGGREGATE_ID)
         request.getLocalFirst()?.let {
             commandBuilder.header { header ->
                 header.withLocalFirst(it)
