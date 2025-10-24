@@ -14,11 +14,10 @@
 package me.ahoo.wow.elasticsearch.query
 
 import co.elastic.clients.elasticsearch._types.SortOrder
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.elasticsearch.query.ElasticsearchSortConverter.toSortOptions
 import me.ahoo.wow.query.dsl.sort
-import org.hamcrest.CoreMatchers.equalTo
-import org.hamcrest.MatcherAssert.assertThat
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -34,12 +33,12 @@ class ElasticsearchSortConverterTest {
         val actual = sort.toSortOptions()
 
         actual.first().let {
-            assertThat(it.field().field(), equalTo("field1"))
-            assertThat(it.field().order(), equalTo(SortOrder.Asc))
+            it.field().field().assert().isEqualTo("field1")
+            it.field().order().assert().isEqualTo(SortOrder.Asc)
         }
         actual.last().let {
-            assertThat(it.field().field(), equalTo("field2"))
-            assertThat(it.field().order(), equalTo(SortOrder.Desc))
+            it.field().field().assert().isEqualTo("field2")
+            it.field().order().assert().isEqualTo(SortOrder.Desc)
         }
     }
 
