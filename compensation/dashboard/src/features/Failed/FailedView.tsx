@@ -91,7 +91,7 @@ export default function FailedView({ category }: FailedViewProps) {
 
   return (
     <>
-      <FailedSearch onSearch={onSearch}></FailedSearch>
+      <FailedSearch onSearch={onSearch} loading={loading}></FailedSearch>
       <FailedTable
         loading={loading}
         pagedList={result ?? pagedList()}
