@@ -11,97 +11,85 @@
  * limitations under the License.
  */
 
-import { ClearOutlined, SearchOutlined } from "@ant-design/icons";
-import { Button, Col, Form, type FormProps, Input, Row, Space } from "antd";
-import { and, type Condition, eq } from "@ahoo-wang/fetcher-wow";
-import { useCallback } from "react";
+import { type Condition } from "@ahoo-wang/fetcher-wow";
+
+import { FilterPanel, FilterPanelProps } from "@ahoo-wang/fetcher-viewer";
 
 interface FailedSearchProps {
   onSearch?: (condition: Condition) => void;
+  loading?: boolean;
 }
 
-export function FailedSearch({ onSearch }: FailedSearchProps) {
-  const [form] = Form.useForm();
-  const onFinish: FormProps["onFinish"] = useCallback(
-    (values: Record<string, string>) => {
-      try {
-        const conditions: Condition[] = [];
-        Object.keys(values).forEach((key) => {
-          const value = values[key];
-          if (value) {
-            conditions.push(eq(key, value));
-          }
-        });
-        if (onSearch) {
-          onSearch(and(...conditions));
-        }
-      } catch (error) {
-        console.error("Search error:", error);
-      }
+const filterPanelProps: FilterPanelProps = {
+  filters: [
+    {
+      key: "_id",
+      type: "id",
+      field: {
+        name: "_id",
+        type: "id",
+        label: "Id",
+      },
     },
-    [onSearch],
-  );
+    {
+      key: "state.eventId.id",
+      type: "text",
+      field: {
+        name: "state.eventId.id",
+        label: "EventId",
+      },
+    },
+    {
+      key: "state.eventId.aggregateId.aggregateId",
+      type: "text",
+      field: {
+        name: "state.eventId.aggregateId.aggregateId",
+        label: "AggregateId",
+      },
+    },
+    {
+      key: "state.eventId.aggregateId.contextName",
+      type: "text",
+      field: {
+        name: "state.eventId.aggregateId.contextName",
+        label: "AggregateContext",
+      },
+    },
+    {
+      key: "state.eventId.aggregateId.aggregateName",
+      type: "text",
+      field: {
+        name: "state.eventId.aggregateId.aggregateName",
+        label: "AggregateName",
+      },
+    },
+    {
+      key: "state.function.contextName",
+      type: "text",
+      field: {
+        name: "state.function.contextName",
+        label: "ProcessorContext",
+      },
+    },
+    {
+      key: "state.function.processorName",
+      type: "text",
+      field: {
+        name: "state.function.processorName",
+        label: "ProcessorName",
+      },
+    },
+  ],
+};
+
+export function FailedSearch({ onSearch, loading }: FailedSearchProps) {
   return (
-    <Form form={form} layout="vertical" onFinish={onFinish}>
-      <Row gutter={24}>
-        <Col span={6}>
-          <Form.Item name="_id">
-            <Input addonBefore="Id" placeholder="Id" />
-          </Form.Item>
-        </Col>
-        <Col span={6}>
-          <Form.Item name="state.eventId.id">
-            <Input addonBefore="EventId" placeholder="EventId" />
-          </Form.Item>
-        </Col>
-        <Col span={6}>
-          <Form.Item name="state.eventId.aggregateId.aggregateId">
-            <Input addonBefore="AggregateId" placeholder="AggregateId" />
-          </Form.Item>
-        </Col>
-        <Col span={6}>
-          <Form.Item name="state.eventId.aggregateId.contextName">
-            <Input
-              addonBefore="AggregateContext"
-              placeholder="AggregateContext"
-            />
-          </Form.Item>
-        </Col>
-        <Col span={6}>
-          <Form.Item name="state.eventId.aggregateId.aggregateName">
-            <Input addonBefore="AggregateName" placeholder="AggregateName" />
-          </Form.Item>
-        </Col>
-        <Col span={6}>
-          <Form.Item name="state.function.contextName">
-            <Input
-              addonBefore="ProcessorContext"
-              placeholder="ProcessorContext"
-            />
-          </Form.Item>
-        </Col>
-        <Col span={6}>
-          <Form.Item name="state.function.processorName">
-            <Input addonBefore="ProcessorName" placeholder="ProcessorName" />
-          </Form.Item>
-        </Col>
-        <Col span={6}>
-          <Form.Item>
-            <Space>
-              <Button
-                type="primary"
-                htmlType="submit"
-                icon={<SearchOutlined />}
-              >
-                Search
-              </Button>
-              <Button htmlType="reset" icon={<ClearOutlined />}>
-                Reset
-              </Button>
-            </Space>
-          </Form.Item>
-        </Col>
-      </Row>
-    </Form>
+    <FilterPanel
+      {...filterPanelProps}
+      onSearch={onSearch}
+      loading={loading}
+      colSpan={6}
+      style={{ marginBottom: "16px" }}
+    />
   );
 }
