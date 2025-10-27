@@ -8,6 +8,9 @@ export default defineConfig({
   plugins: [
     react({
       babel: {
+        parserOpts: {
+          plugins: ['decorators-legacy'],
+        },
         plugins: ["babel-plugin-react-compiler"],
       },
     }),
