@@ -56,6 +56,7 @@ export interface UseQueryReturn<Q, R, E = FetcherError>
   execute: () => Promise<R | E>;
 }
 
+/* eslint-disable react-hooks/preserve-manual-memoization */
 /**
  * A React hook for managing query-based asynchronous operations
  * @template Q - The type of the query parameters
