@@ -30,6 +30,11 @@ const filterPanelProps: FilterPanelProps = {
         type: "id",
         label: "Id",
       },
+      value: {
+        style: {
+          width: "100%",
+        },
+      },
     },
     {
       key: "state.eventId.id",
@@ -37,6 +42,11 @@ const filterPanelProps: FilterPanelProps = {
       field: {
         name: "state.eventId.id",
         label: "EventId",
+      },
+      value: {
+        style: {
+          width: "100%",
+        },
       },
     },
     {
@@ -46,6 +56,11 @@ const filterPanelProps: FilterPanelProps = {
         name: "state.eventId.aggregateId.aggregateId",
         label: "AggregateId",
       },
+      value: {
+        style: {
+          width: "100%",
+        },
+      },
     },
     {
       key: "state.eventId.aggregateId.contextName",
@@ -53,6 +68,11 @@ const filterPanelProps: FilterPanelProps = {
       field: {
         name: "state.eventId.aggregateId.contextName",
         label: "AggregateContext",
+      },
+      value: {
+        style: {
+          width: "100%",
+        },
       },
     },
     {
@@ -62,6 +82,11 @@ const filterPanelProps: FilterPanelProps = {
         name: "state.eventId.aggregateId.aggregateName",
         label: "AggregateName",
       },
+      value: {
+        style: {
+          width: "100%",
+        },
+      },
     },
     {
       key: "state.function.contextName",
@@ -70,6 +95,11 @@ const filterPanelProps: FilterPanelProps = {
         name: "state.function.contextName",
         label: "ProcessorContext",
       },
+      value: {
+        style: {
+          width: "100%",
+        },
+      },
     },
     {
       key: "state.function.processorName",
@@ -77,6 +107,11 @@ const filterPanelProps: FilterPanelProps = {
       field: {
         name: "state.function.processorName",
         label: "ProcessorName",
+      },
+      value: {
+        style: {
+          width: "100%",
+        },
       },
     },
   ],
@@ -87,9 +122,11 @@ export function FailedSearch({ onSearch, loading }: FailedSearchProps) {
     <FilterPanel
       {...filterPanelProps}
       onSearch={onSearch}
-      loading={loading}
-      colSpan={6}
-      style={{ marginBottom: "16px" }}
+      row={{ gutter: [8, 8], style: { marginBottom: 16 } }}
+      searchButton={{
+        loading: loading,
+      }}
+      actionsCol={{ span: 6 }}
     />
   );
 }
