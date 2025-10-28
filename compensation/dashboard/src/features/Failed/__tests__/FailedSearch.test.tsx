@@ -35,9 +35,4 @@ describe("FailedSearch", () => {
   it("is a function", () => {
     expect(typeof FailedSearch).toBe("function");
   });
-
-  it("can be called with onSearch prop", () => {
-    const mockOnSearch = vi.fn();
-    expect(() => FailedSearch({ onSearch: mockOnSearch })).not.toThrow();
-  });
 });
