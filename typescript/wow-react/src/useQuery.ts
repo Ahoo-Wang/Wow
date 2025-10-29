@@ -53,7 +53,7 @@ export interface UseQueryReturn<Q, R, E = FetcherError>
   /** Function to update the query parameters */
   setQuery: (query: Q) => void;
   /** Function to execute the query with current parameters */
-  execute: () => Promise<void>;
+  execute: () => Promise<R | E>;
 }
 
 /* eslint-disable react-hooks/preserve-manual-memoization */
