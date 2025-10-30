@@ -14,7 +14,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   inferPathSpecType,
-  getClientName,
+  resolveClassName,
   createClientFilePath,
   methodToDecorator,
   resolveMethodName,
@@ -110,7 +110,7 @@ describe('client utils', () => {
         aggregateName: 'user',
       };
 
-      const result = getClientName(aggregate as any, 'Client');
+      const result = resolveClassName(aggregate as any, 'Client');
       expect(result).toBe('UserClient');
     });
 
@@ -119,7 +119,7 @@ describe('client utils', () => {
         aggregateName: 'user-profile',
       };
 
-      const result = getClientName(aggregate as any, 'QueryClient');
+      const result = resolveClassName(aggregate as any, 'QueryClient');
       expect(result).toBe('UserProfileQueryClient');
     });
   });

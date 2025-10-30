@@ -96,27 +96,7 @@ export function createClientFilePath(
   return getOrCreateSourceFile(project, outputDir, filePath);
 }
 
-/**
- * Generates the client class name for an aggregate by combining the aggregate name with a suffix.
- *
- * This function converts the aggregate name to PascalCase and appends the specified suffix
- * to create a standardized client class name.
- *
- * @param aggregate - The aggregate metadata containing the aggregate name
- * @param suffix - The suffix to append to the aggregate name (e.g., 'Client', 'QueryClient')
- * @returns The generated client class name in PascalCase format
- *
- * @example
- * ```typescript
- * const aggregate = { aggregateName: 'user_profile' };
- * const clientName = getClientName(aggregate, 'Client');
- * // Returns: 'UserProfileClient'
- *
- * const queryClientName = getClientName(aggregate, 'QueryClient');
- * // Returns: 'UserProfileQueryClient'
- * ```
- */
-export function getClientName(
+export function resolveClassName(
   aggregate: TagAliasAggregate,
   suffix: string,
 ): string {

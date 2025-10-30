@@ -19,7 +19,7 @@ import {
   SourceFile,
   VariableDeclarationKind,
 } from 'ts-morph';
-import { AggregateDefinition, CommandDefinition } from '../aggregate';
+import { AggregateDefinition, CommandDefinition, TagAliasAggregate } from '../aggregate';
 import { GenerateContext, Generator } from '../generateContext';
 import { IMPORT_WOW_PATH, resolveModelInfo } from '../model';
 import {
@@ -39,7 +39,7 @@ import {
 } from './decorators';
 import {
   createClientFilePath,
-  getClientName,
+  resolveClassName,
   methodToDecorator,
 } from './utils';
 
@@ -48,7 +48,7 @@ import {
  * Creates command clients that can send commands to aggregates.
  */
 export class CommandClientGenerator implements Generator {
-  private readonly commandEndpointPathsName = 'COMMAND_ENDPOINT_PATHS';
+  private readonly commandEndpointPathsSuffixName = 'CommandEndpointPaths';
   private readonly defaultCommandClientOptionsName =
     'DEFAULT_COMMAND_CLIENT_OPTIONS';
 
@@ -56,7 +56,8 @@ export class CommandClientGenerator implements Generator {
    * Creates a new CommandClientGenerator instance.
    * @param context - The generation context containing OpenAPI spec and project details
    */
-  constructor(public readonly context: GenerateContext) {}
+  constructor(public readonly context: GenerateContext) {
+  }
 
   /**
    * Generates command client classes for all aggregates.
@@ -103,7 +104,7 @@ export class CommandClientGenerator implements Generator {
     this.context.logger.info(
       `Processing command endpoint paths for ${aggregate.commands.size} commands`,
     );
-    this.processCommandEndpointPaths(commandClientFile, aggregate);
+    const aggregateCommandEndpointPathsName = this.processCommandEndpointPaths(commandClientFile, aggregate);
 
     this.context.logger.info(
       `Creating default command client options: ${this.defaultCommandClientOptionsName}`,
@@ -152,7 +153,7 @@ export class CommandClientGenerator implements Generator {
     );
     addImportDecorator(commandClientFile);
     this.context.logger.info(`Generating standard command client class`);
-    this.processCommandClient(commandClientFile, aggregate);
+    this.processCommandClient(commandClientFile, aggregate, aggregateCommandEndpointPathsName);
 
     this.context.logger.info(`Generating stream command client class`);
     this.processStreamCommandClient(commandClientFile, aggregate);
@@ -162,15 +163,23 @@ export class CommandClientGenerator implements Generator {
     );
   }
 
+  resolveAggregateCommandEndpointPathsName(aggregate: TagAliasAggregate): string {
+    return resolveClassName(aggregate, this.commandEndpointPathsSuffixName);
+  }
+
   processCommandEndpointPaths(
     clientFile: SourceFile,
     aggregateDefinition: AggregateDefinition,
-  ) {
+  ): string {
+    const aggregateCommandEndpointPathsName = this.resolveAggregateCommandEndpointPathsName(
+      aggregateDefinition.aggregate,
+    );
     this.context.logger.info(
-      `Creating command endpoint paths enum: ${this.commandEndpointPathsName}`,
+      `Creating command endpoint paths enum: ${aggregateCommandEndpointPathsName}`,
     );
     const enumDeclaration = clientFile.addEnum({
-      name: this.commandEndpointPathsName,
+      name: aggregateCommandEndpointPathsName,
+      isExported: true,
     });
     aggregateDefinition.commands.forEach(command => {
       this.context.logger.info(
@@ -184,17 +193,19 @@ export class CommandClientGenerator implements Generator {
     this.context.logger.success(
       `Command endpoint paths enum created with ${aggregateDefinition.commands.size} entries`,
     );
+    return aggregateCommandEndpointPathsName;
   }
 
-  getEndpointPath(command: CommandDefinition): string {
-    return `${this.commandEndpointPathsName}.${command.name.toUpperCase()}`;
+  getEndpointPath(aggregateCommandEndpointPathsName: string, command: CommandDefinition): string {
+    return `${aggregateCommandEndpointPathsName}.${command.name.toUpperCase()}`;
   }
 
   processCommandClient(
     clientFile: SourceFile,
     aggregateDefinition: AggregateDefinition,
+    aggregateCommandEndpointPathsName: string,
   ) {
-    const commandClientName = getClientName(
+    const commandClientName = resolveClassName(
       aggregateDefinition.aggregate,
       'CommandClient',
     );
@@ -212,6 +223,7 @@ export class CommandClientGenerator implements Generator {
         clientFile,
         commandClient,
         command,
+        aggregateCommandEndpointPathsName,
       );
     });
   }
@@ -220,11 +232,11 @@ export class CommandClientGenerator implements Generator {
     clientFile: SourceFile,
     aggregateDefinition: AggregateDefinition,
   ) {
-    const commandClientName = getClientName(
+    const commandClientName = resolveClassName(
       aggregateDefinition.aggregate,
       'CommandClient',
     );
-    const commandStreamClientName = getClientName(
+    const commandStreamClientName = resolveClassName(
       aggregateDefinition.aggregate,
       'StreamCommandClient',
     );
@@ -320,6 +332,7 @@ export class CommandClientGenerator implements Generator {
     sourceFile: SourceFile,
     client: ClassDeclaration,
     definition: CommandDefinition,
+    aggregateCommandEndpointPathsName: string,
   ) {
     this.context.logger.info(
       `Generating command method: ${camelCase(definition.name)} for command: ${definition.name}`,
@@ -337,7 +350,7 @@ export class CommandClientGenerator implements Generator {
       decorators: [
         {
           name: methodToDecorator(definition.method),
-          arguments: [`${this.getEndpointPath(definition)}`],
+          arguments: [`${this.getEndpointPath(aggregateCommandEndpointPathsName, definition)}`],
         },
       ],
       parameters: parameters,

@@ -87,7 +87,7 @@ describe('CommandClientGenerator', () => {
     );
     const {
       createClientFilePath: mockCreateClientFilePath,
-      getClientName: mockGetClientName,
+      resolveClassName: mockGetClientName,
     } = vi.mocked(await import('../../src/client/utils'));
 
     mockSourceFile = {
@@ -105,13 +105,16 @@ describe('CommandClientGenerator', () => {
 
     mockGetOrCreateSourceFile.mockReturnValue(mockSourceFile as any);
     mockCreateClientFilePath.mockReturnValue(mockSourceFile as any);
-    mockAddImportRefModel.mockImplementation(() => {});
+    mockAddImportRefModel.mockImplementation(() => {
+    });
     mockResolveModelInfo.mockReturnValue({
       name: 'CreateUserCommand',
       path: 'createUserCommand',
     });
-    mockAddImport.mockImplementation(() => {});
-    mockAddJSDoc.mockImplementation(() => {});
+    mockAddImport.mockImplementation(() => {
+    });
+    mockAddJSDoc.mockImplementation(() => {
+    });
     mockGetClientName.mockImplementation(
       (aggregate, suffix) => `User${suffix}`,
     );
@@ -163,7 +166,8 @@ describe('CommandClientGenerator', () => {
     generator.processCommandEndpointPaths(mockSourceFile, mockAggregate);
 
     expect(mockSourceFile.addEnum).toHaveBeenCalledWith({
-      name: 'COMMAND_ENDPOINT_PATHS',
+      "isExported": true,
+      name: 'UserCommandEndpointPaths',
     });
     expect(mockEnum.addMember).toHaveBeenCalledWith({
       name: 'CREATEUSER',
@@ -175,9 +179,9 @@ describe('CommandClientGenerator', () => {
     const context = createContext(mockLogger);
     const generator = new CommandClientGenerator(context);
 
-    const result = generator.getEndpointPath(mockCommand);
+    const result = generator.getEndpointPath('CommandEndpointPaths', mockCommand);
 
-    expect(result).toBe('COMMAND_ENDPOINT_PATHS.CREATEUSER');
+    expect(result).toBe('CommandEndpointPaths.CREATEUSER');
   });
 
   it('should process command client without stream', () => {
@@ -191,7 +195,7 @@ describe('CommandClientGenerator', () => {
     };
     mockSourceFile.addClass.mockReturnValue(mockClass);
 
-    generator.processCommandClient(mockSourceFile, mockAggregate);
+    generator.processCommandClient(mockSourceFile, mockAggregate, 'CommandEndpointPaths');
 
     expect(mockSourceFile.addClass).toHaveBeenCalledWith({
       name: 'UserCommandClient',
