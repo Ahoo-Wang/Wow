@@ -48,7 +48,7 @@ import {
  * Creates command clients that can send commands to aggregates.
  */
 export class CommandClientGenerator implements Generator {
-  private readonly commandEndpointPathsSuffixName = 'CommandEndpointPaths';
+  private readonly commandEndpointPathsSuffix = 'CommandEndpointPaths';
   private readonly defaultCommandClientOptionsName =
     'DEFAULT_COMMAND_CLIENT_OPTIONS';
 
@@ -164,7 +164,7 @@ export class CommandClientGenerator implements Generator {
   }
 
   resolveAggregateCommandEndpointPathsName(aggregate: TagAliasAggregate): string {
-    return resolveClassName(aggregate, this.commandEndpointPathsSuffixName);
+    return resolveClassName(aggregate, this.commandEndpointPathsSuffix);
   }
 
   processCommandEndpointPaths(

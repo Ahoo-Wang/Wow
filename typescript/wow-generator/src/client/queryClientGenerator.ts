@@ -16,13 +16,15 @@ import { AggregateDefinition, TagAliasAggregate } from '../aggregate';
 import { GenerateContext, Generator } from '../generateContext';
 import { IMPORT_WOW_PATH, ModelInfo, resolveModelInfo } from '../model';
 import { addImportRefModel, camelCase } from '../utils';
-import { createClientFilePath, inferPathSpecType } from './utils';
+import { createClientFilePath, inferPathSpecType, resolveClassName } from './utils';
 
 /**
  * Generates TypeScript query client classes for aggregates.
  * Creates query clients that can perform state queries and event streaming.
  */
 export class QueryClientGenerator implements Generator {
+  private readonly domainEventTypeSuffix = 'DomainEventType';
+
   /**
    * Creates a new QueryClientGenerator instance.
    * @param context - The generation context containing OpenAPI spec and project details
@@ -132,14 +134,14 @@ export class QueryClientGenerator implements Generator {
       addImportRefModel(queryClientFile, this.context.outputDir, eventModelInfo);
       eventModelInfos.push(eventModelInfo);
     }
-
-    const domainEventTypesName = 'DOMAIN_EVENT_TYPES';
+    const aggregateDomainEventType = resolveClassName(aggregate.aggregate, this.domainEventTypeSuffix);
     const eventTypeUnion = eventModelInfos.map(it => it.name).join(' | ');
     this.context.logger.info(
-      `Creating domain event types union: ${domainEventTypesName} = ${eventTypeUnion}`,
+      `Creating domain event types union: ${aggregateDomainEventType} = ${eventTypeUnion}`,
     );
     queryClientFile.addTypeAlias({
-      name: domainEventTypesName,
+      isExported: true,
+      name: aggregateDomainEventType,
       type: eventTypeUnion,
     });
 
@@ -162,7 +164,7 @@ export class QueryClientGenerator implements Generator {
       declarations: [
         {
           name: clientFactoryName,
-          initializer: `new QueryClientFactory<${stateModelInfo.name}, ${fieldsModelInfo.name} | string, ${domainEventTypesName}>(${defaultClientOptionsName})`,
+          initializer: `new QueryClientFactory<${stateModelInfo.name}, ${fieldsModelInfo.name} | string, ${aggregateDomainEventType}>(${defaultClientOptionsName})`,
         },
       ],
       isExported: true,
