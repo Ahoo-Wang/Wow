@@ -96,6 +96,9 @@ describe('QueryClientGenerator', () => {
       addImportDeclaration: vi.fn(),
       addVariableStatement: vi.fn(),
       addTypeAlias: vi.fn(),
+      addEnum: vi.fn(() => ({
+        addMember: vi.fn(),
+      })),
     };
 
     mockGetOrCreateSourceFile.mockReturnValue(mockSourceFile as any);
