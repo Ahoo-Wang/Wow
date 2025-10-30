@@ -17,7 +17,7 @@ import { SourceFile } from 'ts-morph';
 import { GenerateContext, Generator } from '../generateContext';
 import {
   getModelFileName,
-  KeySchema, pascalCase,
+  KeySchema, pascalCase, upperSnakeCase,
 } from '../utils';
 import { ModelInfo, resolveModelInfo } from './modelInfo';
 import { TypeGenerator } from './typeGenerator';
@@ -113,7 +113,8 @@ export class ModelGenerator implements Generator {
 
   private stateAggregatedTypeNames() {
     const typeNames = new Set<string>;
-    for (const aggregates of this.context.contextAggregates.values()) {
+    for (const [boundedContext, aggregates] of this.context.contextAggregates) {
+      this.generateBoundedContext(boundedContext);
       for (const aggregate of aggregates) {
         this.aggregatedSchemaSuffix.forEach(
           suffix => {
@@ -144,5 +145,15 @@ export class ModelGenerator implements Generator {
     const sourceFile = this.getOrCreateSourceFile(modelInfo);
     const typeGenerator = new TypeGenerator(modelInfo, sourceFile, keySchema, this.context.outputDir);
     typeGenerator.generate();
+  }
+
+  generateBoundedContext(contextAlias: string) {
+    const filePath = `${contextAlias}/boundedContext.ts`;
+    this.context.logger.info(`Creating bounded context file: ${filePath}`);
+    const file = this.context.getOrCreateSourceFile(filePath);
+    const contextUpperName = upperSnakeCase(contextAlias);
+    file.addStatements(
+      `export const ${contextUpperName}_BOUNDED_CONTEXT_ALIAS = '${contextAlias}';`,
+    );
   }
 }

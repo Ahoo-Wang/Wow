@@ -145,30 +145,6 @@ describe('ClientGenerator', () => {
     expect(mockCommandClientGenerator.generate).toHaveBeenCalledTimes(1);
   });
 
-  it('should process bounded context by creating boundedContext.ts file', async () => {
-    const context = createContext(mockLogger);
-    const generator = new ClientGenerator(context);
-
-    const { getOrCreateSourceFile: mockGetOrCreateSourceFile } = vi.mocked(
-      await import('../../src/utils'),
-    );
-    const mockFile = {
-      addStatements: vi.fn(),
-    };
-    mockGetOrCreateSourceFile.mockReturnValue(mockFile as any);
-
-    generator.processBoundedContext('test-context');
-
-    expect(mockGetOrCreateSourceFile).toHaveBeenCalledWith(
-      context.project,
-      context.outputDir,
-      'test-context/boundedContext.ts',
-    );
-    expect(mockFile.addStatements).toHaveBeenCalledWith(
-      "export const BOUNDED_CONTEXT_ALIAS = 'test-context';",
-    );
-  });
-
   it('should handle empty context aggregates', () => {
     const emptyContextAggregates = new Map<string, Set<AggregateDefinition>>();
     const contextInit: GenerateContextInit = {

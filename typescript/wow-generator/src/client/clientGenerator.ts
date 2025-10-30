@@ -52,30 +52,10 @@ export class ClientGenerator implements Generator {
         `Processing bounded context: ${contextAlias}`,
         1,
       );
-      this.processBoundedContext(contextAlias);
     }
     this.queryClientGenerator.generate();
     this.commandClientGenerator.generate();
     this.apiClientGenerator.generate();
     this.context.logger.success('Client generation completed');
-  }
-
-  /**
-   * Processes a bounded context by creating a file with the context alias constant.
-   * @param contextAlias - The alias of the bounded context to process
-   */
-  processBoundedContext(contextAlias: string) {
-    const filePath = `${contextAlias}/boundedContext.ts`;
-    this.context.logger.info(`Creating bounded context file: ${filePath}`);
-    const file = this.context.getOrCreateSourceFile(filePath);
-    this.context.logger.info(
-      `Adding bounded context alias constant: BOUNDED_CONTEXT_ALIAS = '${contextAlias}'`,
-    );
-    file.addStatements(
-      `export const BOUNDED_CONTEXT_ALIAS = '${contextAlias}';`,
-    );
-    this.context.logger.success(
-      `Bounded context file created successfully: ${filePath}`,
-    );
   }
 }
