@@ -13,7 +13,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useQuery } from '../../src/wow/useQuery';
+import { useQuery } from '../../src';
 
 // Mock the core hooks
 vi.mock('../../src/core', () => ({
@@ -21,7 +21,7 @@ vi.mock('../../src/core', () => ({
   useLatest: vi.fn(),
 }));
 
-import { useExecutePromise, useLatest } from '../../src/core';
+import { useExecutePromise, useLatest } from '../../src';
 
 describe('useQuery', () => {
   const mockResult = { id: 1, name: 'Test Item' };

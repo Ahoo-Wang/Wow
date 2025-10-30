@@ -107,7 +107,14 @@ export function useQuery<Q, R, E = FetcherError>(
   options: UseQueryOptions<Q, R, E>,
 ): UseQueryReturn<Q, R, E> {
   const latestOptions = useLatest(options);
-  const promiseState = useExecutePromise<R, E>(latestOptions.current);
+  const {
+    loading,
+    result,
+    error,
+    status,
+    execute: promiseExecutor,
+    reset,
+  } = useExecutePromise<R, E>(latestOptions.current);
   const queryRef = useRef(options.initialQuery);
 
   const queryExecutor = useCallback(async (): Promise<R> => {
@@ -116,7 +123,7 @@ export function useQuery<Q, R, E = FetcherError>(
       latestOptions.current.attributes,
     );
   }, [queryRef, latestOptions]);
-  const { execute: promiseExecutor } = promiseState;
+
   const execute = useCallback(() => {
     return promiseExecutor(queryExecutor);
   }, [promiseExecutor, queryExecutor]);
@@ -141,11 +148,18 @@ export function useQuery<Q, R, E = FetcherError>(
 
   return useMemo(
     () => ({
-      ...promiseState,
+      loading,
+      result,
+      error,
+      status,
       execute,
+      reset,
       getQuery,
       setQuery,
     }),
-    [promiseState, execute, getQuery, setQuery],
+    [loading,
+      result,
+      error,
+      status, execute, reset, getQuery, setQuery],
   );
 }
