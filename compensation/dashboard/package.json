@@ -56,6 +56,6 @@
     "vite": "^7.1.12",
     "vite-bundle-analyzer": "^1.2.3",
     "vitest": "^3.2.4",
-    "vitest-browser-react": "^1.0.1"
+    "vitest-browser-react": "^2.0.0"
   }
 }
