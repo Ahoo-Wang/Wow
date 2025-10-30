@@ -14,15 +14,15 @@
     "generate": "fetcher-generator generate -i http://compensation-service.dev.svc.cluster.local/v3/api-docs -o src/generated"
   },
   "dependencies": {
-    "@ahoo-wang/fetcher": "^2.13.11",
-    "@ahoo-wang/fetcher-cosec": "^2.13.11",
-    "@ahoo-wang/fetcher-decorator": "^2.13.11",
-    "@ahoo-wang/fetcher-eventbus": "^2.13.11",
-    "@ahoo-wang/fetcher-eventstream": "^2.13.11",
-    "@ahoo-wang/fetcher-react": "^2.13.11",
-    "@ahoo-wang/fetcher-storage": "^2.13.11",
-    "@ahoo-wang/fetcher-viewer": "^2.13.11",
-    "@ahoo-wang/fetcher-wow": "^2.13.10",
+    "@ahoo-wang/fetcher": "^2.15.3",
+    "@ahoo-wang/fetcher-cosec": "^2.15.3",
+    "@ahoo-wang/fetcher-decorator": "^2.15.3",
+    "@ahoo-wang/fetcher-eventbus": "^2.15.3",
+    "@ahoo-wang/fetcher-eventstream": "^2.15.3",
+    "@ahoo-wang/fetcher-react": "^2.15.3",
+    "@ahoo-wang/fetcher-storage": "^2.15.3",
+    "@ahoo-wang/fetcher-viewer": "^2.15.3",
+    "@ahoo-wang/fetcher-wow": "^2.15.3",
     "@ant-design/icons": "^6.1.0",
     "@ant-design/v5-patch-for-react-19": "^1.0.3",
     "@monaco-editor/react": "4.7.0",
@@ -30,11 +30,10 @@
     "dayjs": "^1.11.18",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "react-router": "^7.9.4",
-    "tailwindcss": "^4.1.16"
+    "react-router": "^7.9.5"
   },
   "devDependencies": {
-    "@ahoo-wang/fetcher-generator": "^2.13.11",
+    "@ahoo-wang/fetcher-generator": "^2.15.3",
     "@eslint/js": "^9.38.0",
     "@tailwindcss/vite": "^4.1.16",
     "@testing-library/jest-dom": "^6.9.1",
@@ -56,6 +55,7 @@
     "vite": "^7.1.12",
     "vite-bundle-analyzer": "^1.2.3",
     "vitest": "^3.2.4",
-    "vitest-browser-react": "^1.0.1"
+    "vitest-browser-react": "^1.0.1",
+    "tailwindcss": "^4.1.16"
   }
 }
