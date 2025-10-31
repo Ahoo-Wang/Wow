@@ -1,1 +1,1 @@
-export const BOUNDED_CONTEXT_ALIAS = 'compensation';
+export const COMPENSATION_BOUNDED_CONTEXT_ALIAS = 'compensation';
