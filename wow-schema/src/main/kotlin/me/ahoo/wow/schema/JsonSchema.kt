@@ -91,10 +91,7 @@ class JsonSchema(
             return this
         }
 
-        val typePropertyName = SchemaKeyword.TAG_TYPE.toPropertyName(schemaVersion)
-        if (actual.get(typePropertyName)?.textValue() != "object") {
-            return this
-        }
+        SchemaKeyword.TAG_TYPE.toPropertyName(schemaVersion)
         actual.set<ObjectNode>(propertiesName, JsonSerializer.createObjectNode())
         return this
     }

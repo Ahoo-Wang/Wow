@@ -13,8 +13,14 @@
 
 package me.ahoo.wow.example.api.cart
 
+import io.swagger.v3.oas.annotations.media.Schema
+
 interface ICartInfo {
     val items: List<CartItem>
+
+    @get:Schema(description = "购物车数量")
+    val size: Int
+        get() = items.size
 }
 
 data class CartData(
