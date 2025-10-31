@@ -14,6 +14,7 @@
 package me.ahoo.wow.schema.kotlin
 
 import com.fasterxml.classmate.ResolvedType
+import com.fasterxml.classmate.members.ResolvedMethod
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.github.victools.jsonschema.generator.CustomDefinition
@@ -30,10 +31,12 @@ import me.ahoo.wow.schema.JsonSchema.Companion.toPropertyName
 import me.ahoo.wow.schema.Types.isKotlinElement
 import me.ahoo.wow.schema.Types.isStdType
 import me.ahoo.wow.schema.Types.isWowType
+import kotlin.reflect.KProperty1
 import kotlin.reflect.KVisibility
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.jvm.javaField
 import kotlin.reflect.jvm.javaGetter
+import kotlin.reflect.jvm.javaType
 
 object KotlinCustomDefinitionProvider : CustomDefinitionProviderV2 {
     private val cachedTypes = mutableSetOf<ResolvedType>()
@@ -67,8 +70,9 @@ object KotlinCustomDefinitionProvider : CustomDefinitionProviderV2 {
                 val kotlinGetterMethod = declarationDetails.declaringTypeMembers.memberMethods.firstOrNull {
                     it.name === kotlinGetter.javaGetter!!.name
                 } ?: continue
+                val resolvedMethod = copyResolvedMethod(kotlinGetter, kotlinGetterMethod, context)
                 val methodScope: MethodScope =
-                    context.typeContext.createMethodScope(kotlinGetterMethod, declarationDetails)
+                    context.typeContext.createMethodScope(resolvedMethod, declarationDetails)
                 val getterNode = context.createStandardDefinition(methodScope, null) as ObjectNode
                 val readOnly = SchemaKeyword.TAG_READ_ONLY.toPropertyName()
                 getterNode.put(readOnly, true)
@@ -76,6 +80,24 @@ object KotlinCustomDefinitionProvider : CustomDefinitionProviderV2 {
             }
         }
         return rootSchema.asCustomDefinition()
+    }
+
+    private fun copyResolvedMethod(
+        kotlinGetter: KProperty1<*, *>,
+        resolvedMethod: ResolvedMethod,
+        context: SchemaGenerationContext
+    ): ResolvedMethod {
+        val returnType = context.typeContext.resolve(kotlinGetter.returnType.javaType)
+        val argumentTypes: Array<ResolvedType> = Array(resolvedMethod.argumentCount) {
+            resolvedMethod.getArgumentType(it)
+        }
+        return ResolvedMethod(
+            resolvedMethod.declaringType,
+            resolvedMethod.annotations,
+            resolvedMethod.rawMember,
+            returnType,
+            argumentTypes
+        )
     }
 
     override fun resetAfterSchemaGenerationFinished() {
