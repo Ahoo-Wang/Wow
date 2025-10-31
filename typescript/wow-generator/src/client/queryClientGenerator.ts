@@ -24,7 +24,7 @@ import { createClientFilePath, inferPathSpecType, resolveClassName } from './uti
  */
 export class QueryClientGenerator implements Generator {
   private readonly domainEventTypeSuffix = 'DomainEventType';
-
+  private readonly domainEventTypeMapTitleSuffix = 'DomainEventTypeMapTitle';
   /**
    * Creates a new QueryClientGenerator instance.
    * @param context - The generation context containing OpenAPI spec and project details
@@ -181,7 +181,7 @@ export class QueryClientGenerator implements Generator {
   }
 
   private processAggregateDomainEventTypes(aggregate: AggregateDefinition, queryClientFile: SourceFile) {
-    const aggregateDomainEventTypes = resolveClassName(aggregate.aggregate, this.domainEventTypeSuffix + 's');
+    const aggregateDomainEventTypes = resolveClassName(aggregate.aggregate, this.domainEventTypeMapTitleSuffix);
     const enumDeclaration = queryClientFile.addEnum({
       name: aggregateDomainEventTypes,
       isExported: true,

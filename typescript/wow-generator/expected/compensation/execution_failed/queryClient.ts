@@ -7,7 +7,7 @@ const DEFAULT_QUERY_CLIENT_OPTIONS: QueryClientOptions = {
     resourceAttribution: ResourceAttributionPathSpec.NONE,
 };
 
-export enum ExecutionFailedDomainEventTypes {
+export enum ExecutionFailedDomainEventTypeMapTitle {
     compensation_prepared = 'compensation_prepared',
     execution_failed_applied = 'execution_failed_applied',
     execution_failed_created = 'execution_failed_created',
