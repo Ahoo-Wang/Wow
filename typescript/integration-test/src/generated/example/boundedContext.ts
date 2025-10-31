@@ -1,1 +1,1 @@
-export const BOUNDED_CONTEXT_ALIAS = 'example';
+export const EXAMPLE_BOUNDED_CONTEXT_ALIAS = 'example';

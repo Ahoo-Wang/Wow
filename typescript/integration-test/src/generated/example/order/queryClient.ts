@@ -7,6 +7,14 @@ const DEFAULT_QUERY_CLIENT_OPTIONS: QueryClientOptions = {
     resourceAttribution: ResourceAttributionPathSpec.TENANT,
 };
 
-type DOMAIN_EVENT_TYPES = AddressChanged | OrderCreated | OrderPaid | OrderReceived | OrderShipped;
+export enum OrderDomainEventTypes {
+    address_changed = '收货地址已修改',
+    order_created = 'order_created',
+    order_paid = 'order_paid',
+    order_received = 'order_received',
+    order_shipped = 'order_shipped'
+}
 
-export const orderQueryClientFactory = new QueryClientFactory<WowExampleOrderState, OrderAggregatedFields | string, DOMAIN_EVENT_TYPES>(DEFAULT_QUERY_CLIENT_OPTIONS);
+export type OrderDomainEventType = AddressChanged | OrderCreated | OrderPaid | OrderReceived | OrderShipped;
+
+export const orderQueryClientFactory = new QueryClientFactory<WowExampleOrderState, OrderAggregatedFields | string, OrderDomainEventType>(DEFAULT_QUERY_CLIENT_OPTIONS);

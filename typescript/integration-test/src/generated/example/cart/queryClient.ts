@@ -7,6 +7,12 @@ const DEFAULT_QUERY_CLIENT_OPTIONS: QueryClientOptions = {
     resourceAttribution: ResourceAttributionPathSpec.OWNER,
 };
 
-type DOMAIN_EVENT_TYPES = CartItemAdded | CartItemRemoved | CartQuantityChanged;
+export enum CartDomainEventTypes {
+    cart_item_added = '商品已加入购物车',
+    cart_item_removed = 'cart_item_removed',
+    cart_quantity_changed = 'cart_quantity_changed'
+}
 
-export const cartQueryClientFactory = new QueryClientFactory<CartState, CartAggregatedFields | string, DOMAIN_EVENT_TYPES>(DEFAULT_QUERY_CLIENT_OPTIONS);
+export type CartDomainEventType = CartItemAdded | CartItemRemoved | CartQuantityChanged;
+
+export const cartQueryClientFactory = new QueryClientFactory<CartState, CartAggregatedFields | string, CartDomainEventType>(DEFAULT_QUERY_CLIENT_OPTIONS);
