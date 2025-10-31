@@ -100,7 +100,7 @@ export class QueryClientFactory<
    * ```
    */
   createSnapshotQueryClient(
-    options: QueryClientOptions,
+    options?: QueryClientOptions,
   ): SnapshotQueryClient<S, FIELDS> {
     const apiMetadata = createQueryApiMetadata({
       ...this.defaultOptions,
@@ -136,7 +136,7 @@ export class QueryClientFactory<
    * ```
    */
   createLoadStateAggregateClient(
-    options: QueryClientOptions,
+    options?: QueryClientOptions,
   ): LoadStateAggregateClient<S> {
     const apiMetadata = createQueryApiMetadata({
       ...this.defaultOptions,
@@ -174,7 +174,7 @@ export class QueryClientFactory<
    * ```
    */
   createOwnerLoadStateAggregateClient(
-    options: QueryClientOptions,
+    options?: QueryClientOptions,
   ): LoadOwnerStateAggregateClient<S> {
     const apiMetadata = createQueryApiMetadata({
       ...this.defaultOptions,
@@ -202,7 +202,7 @@ export class QueryClientFactory<
    * ```
    */
   createEventStreamQueryClient<FIELDS extends string = string>(
-    options: QueryClientOptions,
+    options?: QueryClientOptions,
   ): EventStreamQueryClient<DomainEventBody, FIELDS> {
     const apiMetadata = createQueryApiMetadata({
       ...this.defaultOptions,
