@@ -126,7 +126,7 @@ export class TypeGenerator implements Generator {
 
   private resolveObjectType(schema: Schema): string {
     const parts: string[] = [];
-    if (isObject(schema)){
+    if (isObject(schema)) {
       const propertyDefs = this.resolvePropertyDefinitions(schema);
       parts.push(...propertyDefs);
     }
@@ -217,9 +217,7 @@ export class TypeGenerator implements Generator {
         type: propType,
       });
     }
-    if (!isReference(propSchema)) {
-      addSchemaJSDoc(propertySignature, propSchema);
-    }
+    addSchemaJSDoc(propertySignature, propSchema as Schema);
   }
 
   private processInterface(schema: ObjectSchema): JSDocableNode | undefined {
