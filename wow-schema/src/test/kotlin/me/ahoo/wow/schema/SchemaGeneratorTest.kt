@@ -311,6 +311,10 @@ class JsonSchemaGeneratorTest {
         required.get(1).textValue().assert().isEqualTo("requiredField")
         schema.get("properties").get("ignoreProperty").assert().isNull()
         schema.get("properties").get("ignoreSchemaProperty").assert().isNull()
+        val getterNode = schema.get("properties").get("getter")
+        getterNode.assert().isNotNull()
+        getterNode.get("readOnly").booleanValue().assert().isTrue()
+        getterNode.get("description").assert().isNotNull()
     }
 
     @Test
