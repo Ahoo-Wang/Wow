@@ -31,7 +31,7 @@ importers:
         version: 2.16.0(@ahoo-wang/fetcher-eventbus@2.16.1(@ahoo-wang/fetcher@2.16.1))
       '@ahoo-wang/fetcher-viewer':
         specifier: ^2.16.0
-        version: 2.16.0(48f37841705f317e045e78ab41f1a2c8)
+        version: 2.16.2(48f37841705f317e045e78ab41f1a2c8)
       '@ahoo-wang/fetcher-wow':
         specifier: ^2.16.0
         version: 2.16.0(@ahoo-wang/fetcher-decorator@2.16.1(@ahoo-wang/fetcher@2.16.1))(@ahoo-wang/fetcher-eventstream@2.16.1(@ahoo-wang/fetcher@2.16.1))(@ahoo-wang/fetcher@2.16.1)
@@ -189,8 +189,8 @@ packages:
     peerDependencies:
       '@ahoo-wang/fetcher-eventbus': ^2.8.5
 
-  '@ahoo-wang/fetcher-viewer@2.16.0':
-    resolution: {integrity: sha512-Do+tfxAlpUjWJ7i+IDR01aXtX15RdiHriGyTCevarLu4UuLtR2izqQwUourZ9UOyrYOWM7729B+M38Qjls8u0Q==}
+  '@ahoo-wang/fetcher-viewer@2.16.2':
+    resolution: {integrity: sha512-0Vy+DH076trpMMXgIKY473SGUWpNY5tvPX57SVSo9AMNO6g+3pPfqxGTM3eAbJZbEUcVCwJl1l0ZR9rUsqxnkA==}
     peerDependencies:
       '@ahoo-wang/fetcher': ^2.3.4
       '@ahoo-wang/fetcher-openapi': ^2.3.4
@@ -2594,7 +2594,7 @@ snapshots:
     dependencies:
       '@ahoo-wang/fetcher-eventbus': 2.16.1(@ahoo-wang/fetcher@2.16.1)
 
-  '@ahoo-wang/fetcher-viewer@2.16.0(48f37841705f317e045e78ab41f1a2c8)':
+  '@ahoo-wang/fetcher-viewer@2.16.2(48f37841705f317e045e78ab41f1a2c8)':
     dependencies:
       '@ahoo-wang/fetcher': 2.16.1
       '@ahoo-wang/fetcher-openapi': 2.3.0
