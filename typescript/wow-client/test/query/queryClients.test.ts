@@ -17,6 +17,10 @@ import {
   QueryClientOptions,
   createQueryApiMetadata,
 } from '../../src';
+import {
+  LoadStateAggregateClient,
+  LoadOwnerStateAggregateClient,
+} from '../../src/query/state';
 
 describe('queryClients', () => {
   describe('createQueryApiMetadata', () => {
@@ -139,6 +143,66 @@ describe('queryClients', () => {
         const client = factory.createEventStreamQueryClient(options);
 
         expect(client).toBeDefined();
+      });
+    });
+
+    describe('createLoadStateAggregateClient', () => {
+      it('should create a LoadStateAggregateClient with merged options', () => {
+        const factory = new QueryClientFactory(defaultOptions);
+        const options: QueryClientOptions = {
+          aggregateName: 'testAggregate',
+        };
+
+        const client = factory.createLoadStateAggregateClient(options);
+
+        expect(client).toBeInstanceOf(LoadStateAggregateClient);
+      });
+
+      it('should merge default options with provided options', () => {
+        const factoryDefaultOptions: QueryClientOptions = {
+          aggregateName: 'defaultAggregate',
+          contextAlias: 'defaultContext',
+        };
+        const factory = new QueryClientFactory(factoryDefaultOptions);
+
+        const options: QueryClientOptions = {
+          aggregateName: 'testAggregate',
+          // contextAlias should come from defaults
+        };
+
+        const client = factory.createLoadStateAggregateClient(options);
+
+        expect(client).toBeInstanceOf(LoadStateAggregateClient);
+      });
+    });
+
+    describe('createOwnerLoadStateAggregateClient', () => {
+      it('should create a LoadOwnerStateAggregateClient with merged options', () => {
+        const factory = new QueryClientFactory(defaultOptions);
+        const options: QueryClientOptions = {
+          aggregateName: 'testAggregate',
+        };
+
+        const client = factory.createOwnerLoadStateAggregateClient(options);
+
+        expect(client).toBeInstanceOf(LoadOwnerStateAggregateClient);
+      });
+
+      it('should merge default options with provided options', () => {
+        const factoryDefaultOptions: QueryClientOptions = {
+          aggregateName: 'defaultAggregate',
+          contextAlias: 'defaultContext',
+        };
+        const factory = new QueryClientFactory(factoryDefaultOptions);
+
+        const options: QueryClientOptions = {
+          aggregateName: 'testAggregate',
+          // contextAlias should come from defaults
+        };
+
+        const client = factory.createOwnerLoadStateAggregateClient(options);
+
+        expect(client).toBeInstanceOf(LoadOwnerStateAggregateClient);
       });
     });
   });

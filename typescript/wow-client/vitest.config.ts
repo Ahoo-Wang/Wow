@@ -21,13 +21,14 @@ export default mergeConfig(
       coverage: {
         exclude: [
           ...configDefaults.exclude,
-          // use integration-test, see integration-test/test/wow/commandClient.test.ts
+          // use integration-test, see integration-test/test/wow/cart/cartCommandClient.test.ts
           'src/command/commandClient.ts',
-          // use integration-test
-          'src/query/queryApi.ts',
-          // use integration-test, see integration-test/test/wow/snapshotQueryClient.test.ts
+          // use integration-test, see integration-test/test/wow/cart/cartSnapshotQueryClient.test.ts
           'src/query/snapshot/snapshotQueryClient.ts',
-          // use integration-test, see integration-test/test/wow/eventStreamQueryClient.test.ts
+          // use integration-test, see integration-test/test/wow/cart/cartLoadStateAggregateClient.test.ts
+          'src/query/state/loadStateAggregateClient.ts',
+          'src/query/state/loadOwnerStateAggregateClient.ts',
+          // use integration-test, see integration-test/test/wow/cart/cartEventStreamQueryClient.test.ts
           'src/query/event/eventStreamQueryClient.ts',
           '**/**.stories.tsx',
         ],
