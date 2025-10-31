@@ -22,6 +22,7 @@ vi.mock('ts-morph', () => ({
 
 vi.mock('../src/utils', () => ({
   parseOpenAPI: vi.fn(),
+  parseConfiguration: vi.fn(),
 }));
 
 vi.mock('../src/aggregate', () => ({
@@ -38,7 +39,7 @@ vi.mock('../src/client', () => ({
 
 // Import after mocking
 import { Project } from 'ts-morph';
-import { parseOpenAPI } from '../src/utils';
+import { parseOpenAPI, parseConfiguration } from '../src/utils';
 import { AggregateResolver } from '../src/aggregate';
 import { ModelGenerator } from '../src/model';
 import { ClientGenerator } from '../src/client';
@@ -96,6 +97,7 @@ describe('CodeGenerator', () => {
     };
 
     (parseOpenAPI as any).mockResolvedValue(mockOpenAPI);
+    (parseConfiguration as any).mockResolvedValue({});
     (AggregateResolver as any).mockImplementation(() => mockAggregateResolver);
     (ModelGenerator as any).mockImplementation(() => mockModelGenerator);
     (ClientGenerator as any).mockImplementation(() => mockClientGenerator);
@@ -120,7 +122,7 @@ describe('CodeGenerator', () => {
       new CodeGenerator(options);
 
       expect(mockLogger.info).toHaveBeenCalledWith(
-        'Project instance created with tsConfigFilePath: ', undefined,
+        'Project instance created with tsConfigFilePath: undefined',
       );
     });
   });
@@ -128,6 +130,12 @@ describe('CodeGenerator', () => {
   describe('generate', () => {
     it('should execute the complete code generation process', async () => {
       const generator = new CodeGenerator(options);
+      mockProject.getDirectory.mockReturnValue({
+        getPath: vi.fn().mockReturnValue(options.outputDir),
+        getDirectories: vi.fn().mockReturnValue([]),
+        getSourceFiles: vi.fn().mockReturnValue([]),
+        getDescendantSourceFiles: vi.fn().mockReturnValue([]),
+      } as any);
 
       await generator.generate();
 
@@ -156,6 +164,12 @@ describe('CodeGenerator', () => {
 
     it('should log progress throughout the generation process', async () => {
       const generator = new CodeGenerator(options);
+      mockProject.getDirectory.mockReturnValue({
+        getPath: vi.fn().mockReturnValue(options.outputDir),
+        getDirectories: vi.fn().mockReturnValue([]),
+        getSourceFiles: vi.fn().mockReturnValue([]),
+        getDescendantSourceFiles: vi.fn().mockReturnValue([]),
+      } as any);
 
       await generator.generate();
 
@@ -167,6 +181,9 @@ describe('CodeGenerator', () => {
       );
       expect(mockLogger.info).toHaveBeenCalledWith(
         `Output directory: ${options.outputDir}`,
+      );
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        'Parsing OpenAPI specification',
       );
       expect(mockLogger.info).toHaveBeenCalledWith(
         'OpenAPI specification parsed successfully',
@@ -193,6 +210,7 @@ describe('CodeGenerator', () => {
       expect(mockLogger.info).toHaveBeenCalledWith(
         'Source files optimized successfully',
       );
+      expect(mockLogger.info).toHaveBeenCalledWith('Saving project to disk');
       expect(mockLogger.info).toHaveBeenCalledWith(
         'Code generation completed successfully',
       );
@@ -205,6 +223,12 @@ describe('CodeGenerator', () => {
         generator as any,
         'optimizeSourceFiles',
       );
+      mockProject.getDirectory.mockReturnValue({
+        getPath: vi.fn().mockReturnValue(options.outputDir),
+        getDirectories: vi.fn().mockReturnValue([]),
+        getSourceFiles: vi.fn().mockReturnValue([]),
+        getDescendantSourceFiles: vi.fn().mockReturnValue([]),
+      } as any);
 
       await generator.generate();
 
@@ -223,25 +247,13 @@ describe('CodeGenerator', () => {
       };
       mockProject.getDirectory.mockReturnValue(mockOutputDir);
 
-      generator.generateIndex();
+      generator.generateIndex(mockOutputDir as any);
 
-      expect(mockProject.getDirectory).toHaveBeenCalledWith(options.outputDir);
       expect(mockLogger.info).toHaveBeenCalledWith(
         `Generating index files for output directory: ${options.outputDir}`,
       );
       expect(mockLogger.info).toHaveBeenCalledWith(
         'Index file generation completed',
-      );
-    });
-
-    it('should skip if output directory not found', () => {
-      const generator = new CodeGenerator(options);
-      mockProject.getDirectory.mockReturnValue(null);
-
-      generator.generateIndex();
-
-      expect(mockLogger.info).toHaveBeenCalledWith(
-        'Output directory not found, skipping index generation',
       );
     });
 
@@ -266,7 +278,7 @@ describe('CodeGenerator', () => {
         addExportDeclaration: vi.fn(),
       }));
 
-      generator.generateIndex();
+      generator.generateIndex(mockOutputDir as any);
 
       expect(mockLogger.info).toHaveBeenCalledWith(
         'Processing 1 subdirectories',
@@ -433,31 +445,37 @@ describe('CodeGenerator', () => {
   describe('optimizeSourceFiles', () => {
     it('should optimize all source files in the project', () => {
       const generator = new CodeGenerator(options);
+      const mockOutputDir = {
+        getPath: vi.fn().mockReturnValue(options.outputDir),
+        getDescendantSourceFiles: vi.fn(),
+      };
       const mockSourceFiles = [
         {
+          getFilePath: vi.fn().mockReturnValue('/path/to/file1.ts'),
           formatText: vi.fn(),
           organizeImports: vi.fn(),
           fixMissingImports: vi.fn(),
         },
         {
+          getFilePath: vi.fn().mockReturnValue('/path/to/file2.ts'),
           formatText: vi.fn(),
           organizeImports: vi.fn(),
           fixMissingImports: vi.fn(),
         },
       ];
 
-      mockProject.getSourceFiles.mockReturnValue(mockSourceFiles);
+      mockOutputDir.getDescendantSourceFiles.mockReturnValue(mockSourceFiles);
 
-      (generator as any).optimizeSourceFiles();
+      (generator as any).optimizeSourceFiles(mockOutputDir as any);
 
-      expect(mockProject.getSourceFiles).toHaveBeenCalled();
+      expect(mockOutputDir.getDescendantSourceFiles).toHaveBeenCalled();
       expect(mockLogger.info).toHaveBeenCalledWith(
-        `Optimizing ${mockSourceFiles.length} source files`,
+        `Optimizing ${mockSourceFiles.length} source files in ${mockOutputDir.getPath()}`,
       );
 
       mockSourceFiles.forEach((file, index) => {
         expect(mockLogger.info).toHaveBeenCalledWith(
-          `Optimizing file ${index + 1}/${mockSourceFiles.length}`,
+          `Optimizing file [${file.getFilePath()}] - ${index + 1}/${mockSourceFiles.length}`,
         );
         expect(file.formatText).toHaveBeenCalled();
         expect(file.organizeImports).toHaveBeenCalled();
