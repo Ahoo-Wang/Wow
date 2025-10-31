@@ -77,4 +77,8 @@ object KotlinCustomDefinitionProvider : CustomDefinitionProviderV2 {
         }
         return rootSchema.asCustomDefinition()
     }
+
+    override fun resetAfterSchemaGenerationFinished() {
+        this.cachedTypes.clear()
+    }
 }
