@@ -273,7 +273,7 @@ describe('CodeGenerator', () => {
       };
       mockProject.getDirectory.mockReturnValue(mockOutputDir);
       mockProject.getSourceFile.mockReturnValue(null);
-      mockProject.createSourceFile.mockImplementation(path => ({
+      mockProject.createSourceFile.mockImplementation(() => ({
         removeText: vi.fn(),
         addExportDeclaration: vi.fn(),
       }));
