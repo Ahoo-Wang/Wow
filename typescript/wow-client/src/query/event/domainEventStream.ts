@@ -70,7 +70,7 @@ export interface DomainEventStreamHeader {
   /**
    * The IP address of the remote client.
    */
-  remote_ip: string;
+  remote_ip?: string;
   /**
    * The user agent of the client.
    */
