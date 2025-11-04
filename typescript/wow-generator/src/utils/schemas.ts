@@ -154,6 +154,10 @@ export function isEmptyObject(schema: Schema): boolean {
   return Object.keys(schema.properties).length === 0;
 }
 
+export function isReadOnly(schema: Schema | Reference): boolean {
+  return (schema as Schema).readOnly === true;
+}
+
 /**
  * Resolves a schema type to its TypeScript equivalent.
  * @param type - The schema type(s) to resolve

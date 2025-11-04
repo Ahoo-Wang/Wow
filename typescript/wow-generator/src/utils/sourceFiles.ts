@@ -15,7 +15,7 @@ import { combineURLs } from '@ahoo-wang/fetcher';
 import { join, relative } from 'path';
 import { JSDocableNode, Project, SourceFile } from 'ts-morph';
 import { ModelInfo } from '../model';
-import { Schema } from '@ahoo-wang/fetcher-openapi';
+import { Reference, Schema } from '@ahoo-wang/fetcher-openapi';
 
 /** Default file name for model files */
 const MODEL_FILE_NAME = 'types.ts';
@@ -191,8 +191,8 @@ export function schemaJSDoc(schema: Schema, key?: string) {
  * @param schema - The schema containing title and description
  * @param key - The key associated with the schema
  */
-export function addSchemaJSDoc(node: JSDocableNode, schema: Schema, key?: string) {
-  const descriptions = schemaJSDoc(schema, key);
+export function addSchemaJSDoc(node: JSDocableNode, schema: Schema | Reference, key?: string) {
+  const descriptions = schemaJSDoc(schema as Schema, key);
   addJSDoc(node, descriptions);
 }
 

@@ -26,7 +26,7 @@ import {
   isComposition,
   isEnum,
   isMap,
-  isObject,
+  isObject, isReadOnly,
   isReference,
   jsDoc,
   KeySchema,
@@ -215,9 +215,10 @@ export class TypeGenerator implements Generator {
       propertySignature = interfaceDeclaration.addProperty({
         name: propName,
         type: propType,
+        isReadonly: isReadOnly(propSchema),
       });
     }
-    addSchemaJSDoc(propertySignature, propSchema as Schema);
+    addSchemaJSDoc(propertySignature, propSchema);
   }
 
   private processInterface(schema: ObjectSchema): JSDocableNode | undefined {

@@ -899,101 +899,6 @@
         }
       }
     },
-    "/tenant/{tenantId}/owner/{ownerId}/sales-order": {
-      "summary": "下单",
-      "description": "",
-      "post": {
-        "tags": [
-          "example.order"
-        ],
-        "summary": "下单",
-        "description": "",
-        "operationId": "example.order.create_order",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/wow.tenantId"
-          },
-          {
-            "$ref": "#/components/parameters/wow.ownerId"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Wait-Stage"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Wait-Context"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Wait-Processor"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Wait-Function"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Wait-Timout"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Stage"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Context"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Processor"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Function"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Aggregate-Id"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Aggregate-Version"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Request-Id"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Local-First"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Accept"
-          }
-        ],
-        "requestBody": {
-          "description": "下单",
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/example.order.CreateOrder"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "$ref": "#/components/responses/wow.CommandOk"
-          },
-          "400": {
-            "$ref": "#/components/responses/wow.CommandBadRequest"
-          },
-          "404": {
-            "$ref": "#/components/responses/wow.CommandNotFound"
-          },
-          "409": {
-            "$ref": "#/components/responses/wow.CommandVersionConflict"
-          },
-          "429": {
-            "$ref": "#/components/responses/wow.CommandTooManyRequests"
-          },
-          "408": {
-            "$ref": "#/components/responses/wow.CommandRequestTimeout"
-          },
-          "410": {
-            "$ref": "#/components/responses/wow.CommandIllegalAccessDeletedAggregate"
-          }
-        }
-      }
-    },
     "/tenant/{tenantId}/owner/{ownerId}/sales-order/{id}/address": {
       "summary": "修改收货地址",
       "description": "",
@@ -1092,22 +997,22 @@
         }
       }
     },
-    "/tenant/{tenantId}/sales-order/{id}/package": {
-      "summary": "发货",
+    "/tenant/{tenantId}/owner/{ownerId}/sales-order": {
+      "summary": "下单",
       "description": "",
       "post": {
         "tags": [
           "example.order"
         ],
-        "summary": "发货",
+        "summary": "下单",
         "description": "",
-        "operationId": "example.order.ship_order",
+        "operationId": "example.order.create_order",
         "parameters": [
           {
             "$ref": "#/components/parameters/wow.tenantId"
           },
           {
-            "$ref": "#/components/parameters/wow.id"
+            "$ref": "#/components/parameters/wow.ownerId"
           },
           {
             "$ref": "#/components/parameters/wow.Command-Wait-Stage"
@@ -1153,11 +1058,11 @@
           }
         ],
         "requestBody": {
-          "description": "发货",
+          "description": "下单",
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/example.order.ShipOrder"
+                "$ref": "#/components/schemas/example.order.CreateOrder"
               }
             }
           }
@@ -1253,6 +1158,101 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/example.order.PayOrder"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/wow.CommandOk"
+          },
+          "400": {
+            "$ref": "#/components/responses/wow.CommandBadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/wow.CommandNotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/wow.CommandVersionConflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/wow.CommandTooManyRequests"
+          },
+          "408": {
+            "$ref": "#/components/responses/wow.CommandRequestTimeout"
+          },
+          "410": {
+            "$ref": "#/components/responses/wow.CommandIllegalAccessDeletedAggregate"
+          }
+        }
+      }
+    },
+    "/tenant/{tenantId}/sales-order/{id}/package": {
+      "summary": "发货",
+      "description": "",
+      "post": {
+        "tags": [
+          "example.order"
+        ],
+        "summary": "发货",
+        "description": "",
+        "operationId": "example.order.ship_order",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/wow.tenantId"
+          },
+          {
+            "$ref": "#/components/parameters/wow.id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Stage"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Context"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Processor"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Function"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Timout"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Stage"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Context"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Processor"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Function"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Aggregate-Id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Aggregate-Version"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Request-Id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Local-First"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Accept"
+          }
+        ],
+        "requestBody": {
+          "description": "发货",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/example.order.ShipOrder"
               }
             }
           }
@@ -3079,14 +3079,14 @@
     },
     "/owner/{ownerId}/cart/add_cart_item": {
       "summary": "加入购物车",
-      "description": "加入购物车",
+      "description": "",
       "post": {
         "tags": [
           "example.cart",
           "customer"
         ],
         "summary": "加入购物车",
-        "description": "加入购物车",
+        "description": "",
         "operationId": "example.cart.add_cart_item",
         "parameters": [
           {
@@ -5019,6 +5019,12 @@
             "items": {
               "$ref": "#/components/schemas/example.cart.CartItem"
             }
+          },
+          "size": {
+            "type": "integer",
+            "format": "int32",
+            "description": "购物车数量",
+            "readOnly": true
           }
         },
         "required": [
@@ -5078,7 +5084,8 @@
         },
         "required": [
           "productId"
-        ]
+        ],
+        "title": "加入购物车"
       },
       "example.cart.CartAggregatedCondition": {
         "type": "object",
@@ -5407,7 +5414,8 @@
           "state.id",
           "state.items",
           "state.items.productId",
-          "state.items.quantity"
+          "state.items.quantity",
+          "state.size"
         ]
       },
       "example.cart.CartAggregatedListQuery": {
@@ -5505,7 +5513,8 @@
         },
         "required": [
           "added"
-        ]
+        ],
+        "title": "商品已加入购物车"
       },
       "example.cart.CartItemRemoved": {
         "type": "object",
@@ -5543,6 +5552,12 @@
             "items": {
               "$ref": "#/components/schemas/example.cart.CartItem"
             }
+          },
+          "size": {
+            "type": "integer",
+            "format": "int32",
+            "description": "购物车数量",
+            "readOnly": true
           }
         },
         "required": [
@@ -6019,7 +6034,8 @@
         "required": [
           "productId",
           "quantity"
-        ]
+        ],
+        "title": "变更购买数量"
       },
       "example.cart.MockVariableCommand": {
         "type": "object"
@@ -6033,7 +6049,8 @@
         ]
       },
       "example.cart.MountedCommand": {
-        "type": "object"
+        "type": "object",
+        "title": "挂载的命令"
       },
       "example.cart.RemoveCartItem": {
         "type": "object",
@@ -6048,7 +6065,8 @@
         },
         "required": [
           "productIds"
-        ]
+        ],
+        "title": "删除商品"
       },
       "example.cart.ViewCart": {
         "type": "object"
@@ -6062,7 +6080,8 @@
         },
         "required": [
           "shippingAddress"
-        ]
+        ],
+        "title": "收货地址已修改"
       },
       "example.order.ChangeAddress": {
         "type": "object",
@@ -6073,7 +6092,8 @@
         },
         "required": [
           "shippingAddress"
-        ]
+        ],
+        "title": "修改收货地址"
       },
       "example.order.CreateOrder": {
         "type": "object",
@@ -6096,7 +6116,8 @@
           "address",
           "fromCart",
           "items"
-        ]
+        ],
+        "title": "下单"
       },
       "example.order.CreateOrder.Item": {
         "type": "object",
@@ -6713,10 +6734,12 @@
         ]
       },
       "example.order.ReceiptOrder": {
-        "type": "object"
+        "type": "object",
+        "title": "收货"
       },
       "example.order.ShipOrder": {
-        "type": "object"
+        "type": "object",
+        "title": "发货"
       },
       "example.order.ShippingAddress": {
         "type": "object",
@@ -7278,10 +7301,12 @@
         ]
       },
       "wow.api.command.DefaultDeleteAggregate": {
-        "type": "object"
+        "type": "object",
+        "title": "Delete aggregate"
       },
       "wow.api.command.DefaultRecoverAggregate": {
-        "type": "object"
+        "type": "object",
+        "title": "Recover deleted aggregate"
       },
       "wow.api.messaging.FunctionInfoData": {
         "type": "object",
