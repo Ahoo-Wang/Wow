@@ -74,7 +74,7 @@ export interface ErrorDetails {
     errorCode: string;
     errorMsg: string;
     stackTrace: string;
-    succeeded: boolean;
+    readonly succeeded: boolean;
 }
 
 /** - key: compensation.execution_failed.EventId */
@@ -165,18 +165,18 @@ export interface ExecutionFailedCreated {
 
 /** - key: compensation.execution_failed.ExecutionFailedState */
 export interface ExecutionFailedState {
-    error: ErrorDetails;
-    eventId: EventId;
+    readonly error: ErrorDetails;
+    readonly eventId: EventId;
     /** - format: int64 */
     executeAt: number;
-    function: FunctionInfo;
+    readonly function: FunctionInfo;
     id: string;
     recoverable: RecoverableType;
-    retrySpec: RetrySpec;
-    retryState: RetryState;
+    readonly retrySpec: RetrySpec;
+    readonly retryState: RetryState;
     status: ExecutionFailedStatus;
-    isBelowRetryThreshold: boolean;
-    isRetryable: boolean;
+    readonly isBelowRetryThreshold: boolean;
+    readonly isRetryable: boolean;
 }
 
 /** - key: compensation.execution_failed.ExecutionFailedStatus */
