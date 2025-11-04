@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { RequestHeaders, UrlParams } from '@ahoo-wang/fetcher';
+import type { RemoveReadonlyFields, RequestHeaders, UrlParams } from '@ahoo-wang/fetcher';
 import { CommandHeaders } from './commandHeaders';
 import { type UrlPathParams } from '../types';
 import { ParameterRequest } from '@ahoo-wang/fetcher-decorator';
@@ -153,11 +153,11 @@ export interface CommandUrlParams extends Omit<UrlParams, 'path' | 'query'> {
  * This interface includes only the essential command headers commonly used in HTTP requests.
  */
 export interface CommandRequest<C extends object = object>
-  extends ParameterRequest<C> {
+  extends ParameterRequest<RemoveReadonlyFields<C>> {
   urlParams?: CommandUrlParams;
   headers?: CommandRequestHeaders;
   /**
    * The body of the command request.
    */
-  body?: C;
+  body?: RemoveReadonlyFields<C>;
 }
