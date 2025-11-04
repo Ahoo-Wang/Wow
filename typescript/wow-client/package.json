@@ -56,9 +56,9 @@
     "analyze": "npx vite-bundle-analyzer -p auto"
   },
   "peerDependencies": {
-    "@ahoo-wang/fetcher": "workspace:^2.3.4",
-    "@ahoo-wang/fetcher-eventstream": "workspace:^2.3.4",
-    "@ahoo-wang/fetcher-decorator": "workspace:^2.3.4"
+    "@ahoo-wang/fetcher": "workspace:^3.0.0",
+    "@ahoo-wang/fetcher-eventstream": "workspace:^3.0.0",
+    "@ahoo-wang/fetcher-decorator": "workspace:^3.0.0"
   },
   "devDependencies": {
     "@eslint/js": "catalog:",
