@@ -91,4 +91,12 @@ class WowSchemaNamingStrategy(override val defaultSchemaNamePrefix: String) :
     override fun getDefinitionNameForKey(key: DefinitionKey, generationContext: SchemaGenerationContext): String {
         return key.type.toSchemaName(defaultSchemaNamePrefix)
     }
+
+    override fun adjustNullableName(
+        key: DefinitionKey?,
+        definitionName: String?,
+        generationContext: SchemaGenerationContext?
+    ): String {
+        return definitionName + "Nullable"
+    }
 }
