@@ -34,7 +34,7 @@
   },
   "devDependencies": {
     "@ahoo-wang/fetcher-generator": "^3.0.0",
-    "@eslint/js": "^9.38.0",
+    "@eslint/js": "^9.39.1",
     "@tailwindcss/vite": "^4.1.16",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
@@ -44,7 +44,7 @@
     "@vitest/coverage-v8": "4.0.6",
     "@vitest/ui": "4.0.6",
     "babel-plugin-react-compiler": "^1.0.0",
-    "eslint": "^9.38.0",
+    "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.4.0",
