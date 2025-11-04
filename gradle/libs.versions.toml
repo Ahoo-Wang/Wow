@@ -26,7 +26,7 @@ test-retry = "1.6.4"
 detekt = "1.23.8"
 dokka = "2.1.0"
 kotlin = "2.2.21"
-ksp = "2.3.0"
+ksp = "2.3.1"
 publish-plugin = "2.0.0"
 
 [libraries]
