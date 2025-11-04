@@ -133,7 +133,8 @@
                   "$ref" : "#/$defs/example.cart.CartItem"
                 }
               },
-              "required" : [ "added" ]
+              "required" : [ "added" ],
+              "title" : "商品已加入购物车"
             }
           },
           "description" : "The body of the domain event",

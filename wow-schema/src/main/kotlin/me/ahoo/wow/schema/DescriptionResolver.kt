@@ -15,13 +15,20 @@ package me.ahoo.wow.schema
 
 import com.github.victools.jsonschema.generator.ConfigFunction
 import com.github.victools.jsonschema.generator.FieldScope
+import com.github.victools.jsonschema.generator.TypeScope
 import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
 import kotlin.reflect.jvm.kotlinProperty
 
-object DescriptionResolver : ConfigFunction<FieldScope, String> {
+object DescriptionFieldResolver : ConfigFunction<FieldScope, String> {
     override fun apply(fieldScope: FieldScope): String? {
         val property = fieldScope.rawMember.kotlinProperty ?: return null
         return property.scanAnnotation<Description>()?.value
+    }
+}
+
+object DescriptionTypeResolver : ConfigFunction<TypeScope, String> {
+    override fun apply(typeScope: TypeScope): String? {
+        return typeScope.type.erasedType.kotlin.scanAnnotation<Description>()?.value
     }
 }

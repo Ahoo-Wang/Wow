@@ -11,9 +11,8 @@ import me.ahoo.wow.api.annotation.Summary
 @AllowCreate
 @CommandRoute(
     method = CommandRoute.Method.POST,
-    summary = "加入购物车",
-    description = "加入购物车"
 )
+@Summary("加入购物车")
 data class AddCartItem(
     @field:NotBlank
     val productId: String,
