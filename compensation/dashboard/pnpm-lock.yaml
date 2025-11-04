@@ -107,7 +107,7 @@ importers:
         version: 16.4.0
       jsdom:
         specifier: ^27.0.1
-        version: 27.0.1
+        version: 27.1.0
       prettier:
         specifier: 3.6.2
         version: 3.6.2
@@ -128,12 +128,15 @@ importers:
         version: 1.2.3
       vitest:
         specifier: ^4.0.0
-        version: 4.0.6(@vitest/ui@4.0.6)(jiti@2.6.1)(jsdom@27.0.1)(lightningcss@1.30.2)(yaml@2.8.1)
+        version: 4.0.6(@vitest/ui@4.0.6)(jiti@2.6.1)(jsdom@27.1.0)(lightningcss@1.30.2)(yaml@2.8.1)
       vitest-browser-react:
         specifier: ^1.0.1
         version: 1.0.1(@types/react-dom@19.2.2(@types/react@19.2.2))(@types/react@19.2.2)(@vitest/browser@3.2.4(vite@7.1.12(jiti@2.6.1)(lightningcss@1.30.2)(yaml@2.8.1))(vitest@4.0.6))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(vitest@4.0.6)
 
 packages:
+
+  '@acemir/cssom@0.9.19':
+    resolution: {integrity: sha512-Pp2gAQXPZ2o7lt4j0IMwNRXqQ3pagxtDj5wctL5U2Lz4oV0ocDNlkgx4DpxfyKav4S/bePuI+SMqcBSUHLy9kg==}
 
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
@@ -257,8 +260,8 @@ packages:
   '@asamuzakjp/css-color@4.0.5':
     resolution: {integrity: sha512-lMrXidNhPGsDjytDy11Vwlb6OIGrT3CmLg3VWNFyWkLWtijKl7xjvForlh8vuj0SHGjgl4qZEQzUmYTeQA2JFQ==}
 
-  '@asamuzakjp/dom-selector@6.7.3':
-    resolution: {integrity: sha512-kiGFeY+Hxf5KbPpjRLf+ffWbkos1aGo8MBfd91oxS3O57RgU3XhZrt/6UzoVF9VMpWbC3v87SRc9jxGrc9qHtQ==}
+  '@asamuzakjp/dom-selector@6.7.4':
+    resolution: {integrity: sha512-buQDjkm+wDPXd6c13534URWZqbz0RP5PAhXZ+LIoa5LgwInT9HVJvGIJivg75vi8I13CxDGdTnz+aY5YUJlIAA==}
 
   '@asamuzakjp/nwsapi@2.3.9':
     resolution: {integrity: sha512-n8GuYSrI9bF7FFZ/SjhwevlHc8xaVlb/7HmHelnc/PZXBD2ZR49NnN9sMMuDdEGPeeRQ5d0hqlSlEpgCX3Wl0Q==}
@@ -1570,9 +1573,9 @@ packages:
     resolution: {integrity: sha512-wpxZs9NoxZaJESJGIZTyDEaYpl0FKSA+FB9aJiyemKhMwkxQg63h4T1KJgUGHpTqPDNRcmmYLugrRjJlBtWvRA==}
     hasBin: true
 
-  jsdom@27.0.1:
-    resolution: {integrity: sha512-SNSQteBL1IlV2zqhwwolaG9CwhIhTvVHWg3kTss/cLE7H/X4644mtPQqYvCfsSrGQWt9hSZcgOXX8bOZaMN+kA==}
-    engines: {node: '>=20'}
+  jsdom@27.1.0:
+    resolution: {integrity: sha512-Pcfm3eZ+eO4JdZCXthW9tCDT3nF4K+9dmeZ+5X39n+Kqz0DDIABRP5CAEOHRFZk8RGuC2efksTJxrjp8EXCunQ==}
+    engines: {node: ^20.19.0 || ^22.12.0 || >=24.0.0}
     peerDependencies:
       canvas: ^3.0.0
     peerDependenciesMeta:
@@ -2113,9 +2116,6 @@ packages:
     engines: {node: '>=18.0.0', npm: '>=8.0.0'}
     hasBin: true
 
-  rrweb-cssom@0.8.0:
-    resolution: {integrity: sha512-guoltQEx+9aMf2gDZ0s62EcV8lsXR+0w8915TC3ITdn2YueuNjdAYh/levpU9nFaoChh9RUS5ZdQMrKfVEN9tw==}
-
   run-parallel@1.2.0:
     resolution: {integrity: sha512-5l4VyZR86LZ/lDxZTR6jqL8AFE2S0IFLMP26AbjsLVADxHdhB/c0GUsH+y39UfCi3dzz8OlQuPmnaJOMoDHQBA==}
 
@@ -2456,6 +2456,8 @@ packages:
 
 snapshots:
 
+  '@acemir/cssom@0.9.19': {}
+
   '@adobe/css-tools@4.4.4': {}
 
   '@ahoo-wang/fetcher-cosec@3.0.0(@ahoo-wang/fetcher-eventbus@3.0.0(@ahoo-wang/fetcher@3.0.0))(@ahoo-wang/fetcher-storage@3.0.0(@ahoo-wang/fetcher-eventbus@3.0.0(@ahoo-wang/fetcher@3.0.0)))(@ahoo-wang/fetcher@3.0.0)':
@@ -2588,7 +2590,7 @@ snapshots:
       '@csstools/css-tokenizer': 3.0.4
       lru-cache: 11.2.2
 
-  '@asamuzakjp/dom-selector@6.7.3':
+  '@asamuzakjp/dom-selector@6.7.4':
     dependencies:
       '@asamuzakjp/nwsapi': 2.3.9
       bidi-js: 1.0.3
@@ -3331,7 +3333,7 @@ snapshots:
       magic-string: 0.30.21
       sirv: 3.0.2
       tinyrainbow: 2.0.0
-      vitest: 4.0.6(@vitest/ui@4.0.6)(jiti@2.6.1)(jsdom@27.0.1)(lightningcss@1.30.2)(yaml@2.8.1)
+      vitest: 4.0.6(@vitest/ui@4.0.6)(jiti@2.6.1)(jsdom@27.1.0)(lightningcss@1.30.2)(yaml@2.8.1)
       ws: 8.18.3
     transitivePeerDependencies:
       - bufferutil
@@ -3352,7 +3354,7 @@ snapshots:
       magicast: 0.3.5
       std-env: 3.10.0
       tinyrainbow: 3.0.3
-      vitest: 4.0.6(@vitest/ui@4.0.6)(jiti@2.6.1)(jsdom@27.0.1)(lightningcss@1.30.2)(yaml@2.8.1)
+      vitest: 4.0.6(@vitest/ui@4.0.6)(jiti@2.6.1)(jsdom@27.1.0)(lightningcss@1.30.2)(yaml@2.8.1)
     optionalDependencies:
       '@vitest/browser': 3.2.4(vite@7.1.12(jiti@2.6.1)(lightningcss@1.30.2)(yaml@2.8.1))(vitest@4.0.6)
     transitivePeerDependencies:
@@ -3417,7 +3419,7 @@ snapshots:
       sirv: 3.0.2
       tinyglobby: 0.2.15
       tinyrainbow: 3.0.3
-      vitest: 4.0.6(@vitest/ui@4.0.6)(jiti@2.6.1)(jsdom@27.0.1)(lightningcss@1.30.2)(yaml@2.8.1)
+      vitest: 4.0.6(@vitest/ui@4.0.6)(jiti@2.6.1)(jsdom@27.1.0)(lightningcss@1.30.2)(yaml@2.8.1)
 
   '@vitest/utils@3.2.4':
     dependencies:
@@ -3925,9 +3927,10 @@ snapshots:
     dependencies:
       argparse: 2.0.1
 
-  jsdom@27.0.1:
+  jsdom@27.1.0:
     dependencies:
-      '@asamuzakjp/dom-selector': 6.7.3
+      '@acemir/cssom': 0.9.19
+      '@asamuzakjp/dom-selector': 6.7.4
       cssstyle: 5.3.2
       data-urls: 6.0.0
       decimal.js: 10.6.0
@@ -3936,7 +3939,6 @@ snapshots:
       https-proxy-agent: 7.0.6
       is-potential-custom-element-name: 1.0.1
       parse5: 8.0.0
-      rrweb-cssom: 0.8.0
       saxes: 6.0.0
       symbol-tree: 3.2.4
       tough-cookie: 6.0.0
@@ -4533,8 +4535,6 @@ snapshots:
       '@rollup/rollup-win32-x64-msvc': 4.52.5
       fsevents: 2.3.3
 
-  rrweb-cssom@0.8.0: {}
-
   run-parallel@1.2.0:
     dependencies:
       queue-microtask: 1.2.3
@@ -4695,12 +4695,12 @@ snapshots:
       '@vitest/browser': 3.2.4(vite@7.1.12(jiti@2.6.1)(lightningcss@1.30.2)(yaml@2.8.1))(vitest@4.0.6)
       react: 19.2.0
       react-dom: 19.2.0(react@19.2.0)
-      vitest: 4.0.6(@vitest/ui@4.0.6)(jiti@2.6.1)(jsdom@27.0.1)(lightningcss@1.30.2)(yaml@2.8.1)
+      vitest: 4.0.6(@vitest/ui@4.0.6)(jiti@2.6.1)(jsdom@27.1.0)(lightningcss@1.30.2)(yaml@2.8.1)
     optionalDependencies:
       '@types/react': 19.2.2
       '@types/react-dom': 19.2.2(@types/react@19.2.2)
 
-  vitest@4.0.6(@vitest/ui@4.0.6)(jiti@2.6.1)(jsdom@27.0.1)(lightningcss@1.30.2)(yaml@2.8.1):
+  vitest@4.0.6(@vitest/ui@4.0.6)(jiti@2.6.1)(jsdom@27.1.0)(lightningcss@1.30.2)(yaml@2.8.1):
     dependencies:
       '@vitest/expect': 4.0.6
       '@vitest/mocker': 4.0.6(vite@7.1.12(jiti@2.6.1)(lightningcss@1.30.2)(yaml@2.8.1))
@@ -4724,7 +4724,7 @@ snapshots:
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@vitest/ui': 4.0.6(vitest@4.0.6)
-      jsdom: 27.0.1
+      jsdom: 27.1.0
     transitivePeerDependencies:
       - jiti
       - less
