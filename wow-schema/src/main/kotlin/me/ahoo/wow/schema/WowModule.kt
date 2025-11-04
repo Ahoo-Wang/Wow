@@ -38,10 +38,12 @@ class WowModule(
     Module {
     override fun applyToConfigBuilder(builder: SchemaGeneratorConfigBuilder) {
         val fieldConfigPart = builder.forFields()
-        fieldConfigPart.withTitleResolver(SummaryTitleResolver)
-        fieldConfigPart.withDescriptionResolver(DescriptionResolver)
+        fieldConfigPart.withTitleResolver(SummaryTitleFieldResolver)
+        fieldConfigPart.withDescriptionResolver(DescriptionFieldResolver)
         ignoreCommandRouteVariable(fieldConfigPart)
         val generalConfigPart = builder.forTypesInGeneral()
+        generalConfigPart.withTitleResolver(SummaryTitleTypeResolver)
+        generalConfigPart.withDescriptionResolver(DescriptionTypeResolver)
         generalConfigPart.withCustomDefinitionProvider(AggregateIdDefinitionProvider)
         generalConfigPart.withCustomDefinitionProvider(CommandDefinitionProvider)
         generalConfigPart.withCustomDefinitionProvider(DomainEventDefinitionProvider)

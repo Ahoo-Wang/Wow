@@ -154,6 +154,7 @@
         }
       },
       "required" : [ "address", "fromCart", "items" ],
+      "title" : "下单",
       "description" : "Command message body"
     },
     "createTime" : {
