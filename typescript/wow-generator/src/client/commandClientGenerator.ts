@@ -21,7 +21,7 @@ import {
 } from 'ts-morph';
 import { AggregateDefinition, CommandDefinition, TagAliasAggregate } from '../aggregate';
 import { GenerateContext, Generator } from '../generateContext';
-import { IMPORT_WOW_PATH, resolveContextDeclarationName, resolveModelInfo } from '../model';
+import { IMPORT_WOW_PATH, ModelInfo, resolveContextDeclarationName, resolveModelInfo } from '../model';
 import {
   addImport,
   addImportRefModel,
@@ -104,8 +104,9 @@ export class CommandClientGenerator implements Generator {
     this.context.logger.info(
       `Processing command endpoint paths for ${aggregate.commands.size} commands`,
     );
-    const aggregateCommandEndpointPathsName = this.processCommandEndpointPaths(commandClientFile, aggregate);
 
+    const aggregateCommandEndpointPathsName = this.processCommandEndpointPaths(commandClientFile, aggregate);
+    this.processCommandTypes(commandClientFile, aggregate);
     this.context.logger.info(
       `Creating default command client options: ${this.defaultCommandClientOptionsName}`,
     );
@@ -196,6 +197,34 @@ export class CommandClientGenerator implements Generator {
     return aggregateCommandEndpointPathsName;
   }
 
+  resolveCommandTypeName(definition: CommandDefinition): [ModelInfo, string] {
+    const commandModelInfo = resolveModelInfo(definition.schema.key);
+    return [commandModelInfo, commandModelInfo.name + 'Command'];
+  }
+
+  resolveCommandType(clientFile: SourceFile, definition: CommandDefinition) {
+    const [commandModelInfo, commandName] = this.resolveCommandTypeName(definition);
+    addImportRefModel(clientFile, this.context.outputDir, commandModelInfo);
+    let commandType = `${commandModelInfo.name}`;
+    const optionalFields = resolveOptionalFields(definition.schema.schema).map(fieldName => `'${fieldName}'`).join(' | ');
+    if (optionalFields !== '') {
+      commandType = `PartialBy<${commandType},${optionalFields}>`;
+    }
+    commandType = `RemoveReadonlyFields<${commandType}>`;
+    clientFile.addTypeAlias({
+      name: commandName,
+      type: `${commandType}`,
+      isExported: true,
+    });
+  }
+
+  processCommandTypes(clientFile: SourceFile,
+                      aggregateDefinition: AggregateDefinition) {
+    aggregateDefinition.commands.forEach(command => {
+      this.resolveCommandType(clientFile, command);
+    });
+  }
+
   getEndpointPath(aggregateCommandEndpointPathsName: string, command: CommandDefinition): string {
     return `${aggregateCommandEndpointPathsName}.${command.name.toUpperCase()}`;
   }
@@ -220,7 +249,6 @@ export class CommandClientGenerator implements Generator {
     aggregateDefinition.commands.forEach(command => {
       this.processCommandMethod(
         aggregateDefinition,
-        clientFile,
         commandClient,
         command,
         aggregateCommandEndpointPathsName,
@@ -262,26 +290,13 @@ export class CommandClientGenerator implements Generator {
 
   private resolveParameters(
     tag: Tag,
-    sourceFile: SourceFile,
     definition: CommandDefinition,
   ): OptionalKind<ParameterDeclarationStructure>[] {
-    const commandModelInfo = resolveModelInfo(definition.schema.key);
-    const commandName = commandModelInfo.name + 'Command';
-    let commandType = `${commandModelInfo.name}`;
-    const optionalFields = resolveOptionalFields(definition.schema.schema).map(fieldName => `'${fieldName}'`).join(' | ');
-    if (optionalFields !== '') {
-      commandType = `PartialBy<${commandType},${optionalFields}>`;
-    }
-    commandType = `RemoveReadonlyFields<${commandType}>`;
-    sourceFile.addTypeAlias({
-      name: commandName,
-      type: `${commandType}`,
-      isExported: true,
-    });
+    const [commandModelInfo, commandName] = this.resolveCommandTypeName(definition);
     this.context.logger.info(
       `Adding import for command model: ${commandModelInfo.name} from path: ${commandModelInfo.path}`,
     );
-    addImportRefModel(sourceFile, this.context.outputDir, commandModelInfo);
+
     const parameters = definition.pathParameters
       .filter(parameter => {
         return !this.context.isIgnoreCommandClientPathParameters(
@@ -341,7 +356,6 @@ export class CommandClientGenerator implements Generator {
 
   processCommandMethod(
     aggregate: AggregateDefinition,
-    sourceFile: SourceFile,
     client: ClassDeclaration,
     definition: CommandDefinition,
     aggregateCommandEndpointPathsName: string,
@@ -354,7 +368,6 @@ export class CommandClientGenerator implements Generator {
     );
     const parameters = this.resolveParameters(
       aggregate.aggregate.tag,
-      sourceFile,
       definition,
     );
     const methodDeclaration = client.addMethod({
