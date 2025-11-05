@@ -27,7 +27,7 @@ import {
 } from 'ts-morph';
 import { GenerateContext, Generator } from '../generateContext';
 import {
-  ModelInfo,
+  ModelInfo, resolveContextDeclarationName,
   resolveModelInfo,
   resolveReferenceModelInfo,
 } from '../model';
@@ -73,7 +73,7 @@ export class ApiClientGenerator implements Generator {
    */
   constructor(public readonly context: GenerateContext) {
     this.apiMetadataCtorInitializer = this.context.currentContextAlias
-      ? `{basePath:'${this.context.currentContextAlias}'}`
+      ? `{basePath:${resolveContextDeclarationName(this.context.currentContextAlias)}}`
       : undefined;
   }
 

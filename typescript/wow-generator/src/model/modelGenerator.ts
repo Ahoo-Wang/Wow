@@ -17,9 +17,9 @@ import { SourceFile } from 'ts-morph';
 import { GenerateContext, Generator } from '../generateContext';
 import {
   getModelFileName,
-  KeySchema, pascalCase, upperSnakeCase,
+  KeySchema, pascalCase,
 } from '../utils';
-import { ModelInfo, resolveModelInfo } from './modelInfo';
+import { ModelInfo, resolveContextDeclarationName, resolveModelInfo } from './modelInfo';
 import { TypeGenerator } from './typeGenerator';
 
 /**
@@ -151,9 +151,9 @@ export class ModelGenerator implements Generator {
     const filePath = `${contextAlias}/boundedContext.ts`;
     this.context.logger.info(`Creating bounded context file: ${filePath}`);
     const file = this.context.getOrCreateSourceFile(filePath);
-    const contextUpperName = upperSnakeCase(contextAlias);
+    const contextName = resolveContextDeclarationName(contextAlias);
     file.addStatements(
-      `export const ${contextUpperName}_BOUNDED_CONTEXT_ALIAS = '${contextAlias}';`,
+      `export const ${contextName} = '${contextAlias}';`,
     );
   }
 }

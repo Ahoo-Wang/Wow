@@ -21,7 +21,7 @@ import {
 } from 'ts-morph';
 import { AggregateDefinition, CommandDefinition, TagAliasAggregate } from '../aggregate';
 import { GenerateContext, Generator } from '../generateContext';
-import { IMPORT_WOW_PATH, resolveModelInfo } from '../model';
+import { IMPORT_WOW_PATH, resolveContextDeclarationName, resolveModelInfo } from '../model';
 import {
   addImport,
   addImportRefModel,
@@ -116,7 +116,7 @@ export class CommandClientGenerator implements Generator {
           name: this.defaultCommandClientOptionsName,
           type: 'ApiMetadata',
           initializer: `{
-        basePath: '${aggregate.aggregate.contextAlias}'
+        basePath: ${resolveContextDeclarationName(aggregate.aggregate.contextAlias)}
       }`,
         },
       ],

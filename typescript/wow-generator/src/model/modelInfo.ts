@@ -13,7 +13,7 @@
 
 import { Reference } from '@ahoo-wang/fetcher-openapi';
 import { Named } from '@ahoo-wang/fetcher-wow';
-import { extractComponentKey, pascalCase } from '../utils';
+import { extractComponentKey, pascalCase, upperSnakeCase } from '../utils';
 import { IMPORT_WOW_PATH, WOW_TYPE_MAPPING } from './wowTypeMapping';
 
 /**
@@ -76,4 +76,10 @@ export function resolveModelInfo(schemaKey: string): ModelInfo {
 export function resolveReferenceModelInfo(reference: Reference): ModelInfo {
   const componentKey = extractComponentKey(reference);
   return resolveModelInfo(componentKey);
+}
+
+
+export function resolveContextDeclarationName(contextAlias: string): string {
+  const contextUpperName = upperSnakeCase(contextAlias);
+  return `${contextUpperName}_BOUNDED_CONTEXT_ALIAS`;
 }

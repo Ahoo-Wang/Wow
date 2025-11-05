@@ -14,7 +14,7 @@
 import { SourceFile, VariableDeclarationKind } from 'ts-morph';
 import { AggregateDefinition, TagAliasAggregate } from '../aggregate';
 import { GenerateContext, Generator } from '../generateContext';
-import { IMPORT_WOW_PATH, ModelInfo, resolveModelInfo } from '../model';
+import { IMPORT_WOW_PATH, ModelInfo, resolveContextDeclarationName, resolveModelInfo } from '../model';
 import { addImportRefModel, camelCase } from '../utils';
 import { createClientFilePath, inferPathSpecType, resolveClassName } from './utils';
 
@@ -25,6 +25,7 @@ import { createClientFilePath, inferPathSpecType, resolveClassName } from './uti
 export class QueryClientGenerator implements Generator {
   private readonly domainEventTypeSuffix = 'DomainEventType';
   private readonly domainEventTypeMapTitleSuffix = 'DomainEventTypeMapTitle';
+
   /**
    * Creates a new QueryClientGenerator instance.
    * @param context - The generation context containing OpenAPI spec and project details
@@ -113,7 +114,7 @@ export class QueryClientGenerator implements Generator {
           name: defaultClientOptionsName,
           type: 'QueryClientOptions',
           initializer: `{
-        contextAlias: '${aggregate.aggregate.contextAlias}',
+        contextAlias: ${resolveContextDeclarationName(aggregate.aggregate.contextAlias)},
         aggregateName: '${aggregate.aggregate.aggregateName}',
         resourceAttribution: ${inferPathSpecType(aggregate)},
       }`,
