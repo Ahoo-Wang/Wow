@@ -7,6 +7,7 @@ import { RouterProvider } from "react-router";
 import { AppRouter } from "./routes/Routes.tsx";
 import { App } from "antd";
 import { GlobalDrawerProvider } from "./components/GlobalDrawer";
+import "./services/compensationFetcher";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

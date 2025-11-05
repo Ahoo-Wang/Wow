@@ -11,12 +11,8 @@
  * limitations under the License.
  */
 
-import { NamedFetcher } from "@ahoo-wang/fetcher";
-import { cosecRequestInterceptor } from "./cosec.ts";
+import { fetcher, UrlBuilder } from "@ahoo-wang/fetcher";
+import { coSecConfigurer } from "./cosec.ts";
 
-export const COMPENSATION_FETCHER_NAME = "compensation";
-export const compensationFetcher = new NamedFetcher(COMPENSATION_FETCHER_NAME, {
-  baseURL: import.meta.env.VITE_API_BASE_URL,
-});
-compensationFetcher.interceptors.request.use(cosecRequestInterceptor);
-
+fetcher.urlBuilder = new UrlBuilder(import.meta.env.VITE_API_BASE_URL);
+coSecConfigurer.applyTo(fetcher);

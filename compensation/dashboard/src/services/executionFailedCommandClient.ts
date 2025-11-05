@@ -12,8 +12,7 @@
  */
 
 import { ExecutionFailedCommandClient } from "../generated";
-import { compensationFetcher } from "./compensationFetcher.ts";
 
 export const executionFailedCommandClient = new ExecutionFailedCommandClient({
-  fetcher: compensationFetcher,
+  basePath: "",
 });
