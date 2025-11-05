@@ -181,3 +181,11 @@ export function resolvePrimitiveType(type: SchemaType | SchemaType[]): string {
       return 'any';
   }
 }
+
+export function resolveOptionalFields(schema: Schema): string[] {
+  if (!isObject(schema)) {
+    return [];
+  }
+  const required = schema.required || [];
+  return Object.keys(schema.properties).filter(it => !required.includes(it));
+}

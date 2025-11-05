@@ -27,7 +27,7 @@ import {
   addImportRefModel,
   addJSDoc,
   camelCase,
-  isEmptyObject,
+  isEmptyObject, resolveOptionalFields,
   resolvePathParameterType,
 } from '../utils';
 import {
@@ -266,6 +266,18 @@ export class CommandClientGenerator implements Generator {
     definition: CommandDefinition,
   ): OptionalKind<ParameterDeclarationStructure>[] {
     const commandModelInfo = resolveModelInfo(definition.schema.key);
+    const commandName = commandModelInfo.name + 'Command';
+    let commandType = `${commandModelInfo.name}`;
+    const optionalFields = resolveOptionalFields(definition.schema.schema).map(fieldName => `'${fieldName}'`).join(' | ');
+    if (optionalFields !== '') {
+      commandType = `PartialBy<${commandType},${optionalFields}>`;
+    }
+    commandType = `RemoveReadonlyFields<${commandType}>`;
+    sourceFile.addTypeAlias({
+      name: commandName,
+      type: `${commandType}`,
+      isExported: true,
+    });
     this.context.logger.info(
       `Adding import for command model: ${commandModelInfo.name} from path: ${commandModelInfo.path}`,
     );
@@ -296,12 +308,12 @@ export class CommandClientGenerator implements Generator {
       });
 
     this.context.logger.info(
-      `Adding command request parameter: commandRequest (type: CommandRequest<${commandModelInfo.name}>)`,
+      `Adding command request parameter: commandRequest (type: CommandRequest<${commandName}>)`,
     );
     parameters.push({
       name: 'commandRequest',
       hasQuestionToken: isEmptyObject(definition.schema.schema),
-      type: `CommandRequest<${commandModelInfo.name}>`,
+      type: `CommandRequest<${commandName}>`,
       decorators: [
         {
           name: 'request',
