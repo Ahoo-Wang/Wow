@@ -64,6 +64,7 @@ vi.mock('../../src/utils', async importOriginal => {
 vi.mock('../../src/model/modelInfo', () => ({
   resolveModelInfo: vi.fn(() => ({ name: 'TestModel', path: '/test' })),
   resolveReferenceModelInfo: vi.fn(() => ({ name: 'RefModel', path: '/ref' })),
+  resolveContextDeclarationName: vi.fn(() => 'TestContext'),
 }));
 
 vi.mock('@ahoo-wang/fetcher', async importOriginal => {
