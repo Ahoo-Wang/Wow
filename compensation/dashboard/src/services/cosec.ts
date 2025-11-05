@@ -11,19 +11,8 @@
  * limitations under the License.
  */
 
-import {
-  CoSecRequestInterceptor,
-  type CoSecRequestOptions,
-  DeviceIdStorage,
-} from "@ahoo-wang/fetcher-cosec";
+import { CoSecConfigurer } from "@ahoo-wang/fetcher-cosec";
 
-export const deviceIdStorage = new DeviceIdStorage();
-
-const cosecRequestOptions: CoSecRequestOptions = {
+export const coSecConfigurer = new CoSecConfigurer({
   appId: "compensation-dashboard",
-  deviceIdStorage: deviceIdStorage,
-};
-
-export const cosecRequestInterceptor = new CoSecRequestInterceptor(
-  cosecRequestOptions,
-);
+});

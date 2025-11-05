@@ -3,6 +3,7 @@ import { type ApiMetadata, type ApiMetadataCapable, api, attribute, autoGenerate
 import { JsonEventStreamResultExtractor } from "@ahoo-wang/fetcher-eventstream";
 import type { CommandRequest, CommandResult, CommandResultEventStream, DeleteAggregate, RecoverAggregate } from "@ahoo-wang/fetcher-wow";
 import { ApplyExecutionFailed, ApplyExecutionSuccess, ApplyRetrySpec, ChangeFunction, CreateExecutionFailed, ForcePrepareCompensation, MarkRecoverable, PrepareCompensation } from "./types";
+import { COMPENSATION_BOUNDED_CONTEXT_ALIAS } from "../boundedContext";
 
 export enum ExecutionFailedCommandEndpointPaths {
     APPLY_EXECUTION_FAILED = '/execution_failed/{id}/apply_execution_failed',
@@ -18,7 +19,7 @@ export enum ExecutionFailedCommandEndpointPaths {
 }
 
 const DEFAULT_COMMAND_CLIENT_OPTIONS: ApiMetadata = {
-    basePath: 'compensation'
+    basePath: COMPENSATION_BOUNDED_CONTEXT_ALIAS
 };
 
 @api()

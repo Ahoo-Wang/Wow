@@ -1,8 +1,9 @@
 import { QueryClientFactory, QueryClientOptions, ResourceAttributionPathSpec } from "@ahoo-wang/fetcher-wow";
 import { CompensationPrepared, ExecutionFailedAggregatedFields, ExecutionFailedApplied, ExecutionFailedCreated, ExecutionFailedState, ExecutionSuccessApplied, FunctionChanged, RecoverableMarked, RetrySpecApplied } from "./types";
+import { COMPENSATION_BOUNDED_CONTEXT_ALIAS } from "../boundedContext";
 
 const DEFAULT_QUERY_CLIENT_OPTIONS: QueryClientOptions = {
-    contextAlias: 'compensation',
+    contextAlias: COMPENSATION_BOUNDED_CONTEXT_ALIAS,
     aggregateName: 'execution_failed',
     resourceAttribution: ResourceAttributionPathSpec.NONE,
 };
