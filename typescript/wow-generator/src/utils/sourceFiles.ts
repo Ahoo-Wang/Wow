@@ -196,6 +196,12 @@ export function addSchemaJSDoc(node: JSDocableNode, schema: Schema | Reference, 
   addJSDoc(node, descriptions);
 }
 
+export function addMainSchemaJSDoc(node: JSDocableNode, schema: Schema | Reference, key?: string) {
+  const descriptions = schemaJSDoc(schema as Schema, key);
+  jsonJsDoc(descriptions, 'schema', schema)
+  addJSDoc(node, descriptions);
+}
+
 function addJsonJsDoc(
   descriptions: (string | undefined)[],
   schema: any,
@@ -209,9 +215,13 @@ function addJsonJsDoc(
     descriptions.push(`- ${propertyName}: \`${json}\``);
     return;
   }
-  descriptions.push(`- ${propertyName}: `);
+  jsonJsDoc(descriptions, propertyName, json);
+}
+
+function jsonJsDoc(descriptions: (string | undefined)[], name: string, json: any) {
+  descriptions.push(`- ${name}: `);
   descriptions.push('```json');
-  descriptions.push(JSON.stringify(json));
+  descriptions.push(JSON.stringify(json, null, 2));
   descriptions.push('```');
 }
 

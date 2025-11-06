@@ -15,7 +15,7 @@ import { ModelInfo, resolveReferenceModelInfo } from './modelInfo';
 import { InterfaceDeclaration, JSDocableNode, SourceFile } from 'ts-morph';
 import { Reference, Schema } from '@ahoo-wang/fetcher-openapi';
 import {
-  addImportModelInfo,
+  addImportModelInfo, addMainSchemaJSDoc,
   addSchemaJSDoc,
   AllOfSchema,
   ArraySchema,
@@ -51,7 +51,7 @@ export class TypeGenerator implements Generator {
   generate(): void {
     const node = this.process();
     if (node) {
-      addSchemaJSDoc(node, this.keySchema.schema, this.keySchema.key);
+      addMainSchemaJSDoc(node, this.keySchema.schema, this.keySchema.key);
     }
   }
 
