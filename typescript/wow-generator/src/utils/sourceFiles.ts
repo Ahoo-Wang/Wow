@@ -233,7 +233,7 @@ function jsonJsDoc(
 ) {
   descriptions.push(`- ${name}: `);
   descriptions.push('```json');
-  descriptions.push(JSON.stringify(json));
+  descriptions.push(JSON.stringify(json, null, 2));
   descriptions.push('```');
 }
 

@@ -461,7 +461,7 @@ describe('sourceFiles', () => {
       addSchemaJSDoc(mockNode as any, schema as any);
 
       expect(mockNode.addJsDoc).toHaveBeenCalledWith(
-        'Test Title\n- example: \n```json\n{"key":"value"}\n```',
+        'Test Title\n- example: \n```json\n{\n  "key": "value"\n}\n```',
       );
     });
 
