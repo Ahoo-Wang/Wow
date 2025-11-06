@@ -12,14 +12,17 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import { TypeGenerator } from '../../src/model/typeGenerator';
-import { ModelInfo } from '../../src/model/modelInfo';
-import { addSchemaJSDoc } from '../../src/utils/sourceFiles';
+import { TypeGenerator } from '../../src/model';
+import { ModelInfo } from '../../src/model';
+import {
+  addMainSchemaJSDoc,
+} from '../../src/utils';
 
 // Mock the sourceFiles module
 vi.mock('../../src/utils/sourceFiles', () => ({
   addImportModelInfo: vi.fn(),
   addSchemaJSDoc: vi.fn(),
+  addMainSchemaJSDoc: vi.fn(),
   addImport: vi.fn(),
   schemaJSDoc: vi.fn(() => []),
   jsDoc: vi.fn(() => ''),
@@ -513,7 +516,7 @@ describe('TypeGenerator', () => {
 
       generator.generate();
       expect(mockSourceFile.addInterface).toHaveBeenCalled();
-      expect(addSchemaJSDoc).toHaveBeenCalledWith(
+      expect(addMainSchemaJSDoc).toHaveBeenCalledWith(
         mockNode,
         {
           type: 'object',
@@ -610,7 +613,9 @@ describe('TypeGenerator', () => {
         keyType: 'string',
         returnType: 'any',
       });
-      expect(mockIndexSignature.addJsDoc).toHaveBeenCalledWith('Additional properties');
+      expect(mockIndexSignature.addJsDoc).toHaveBeenCalledWith(
+        'Additional properties',
+      );
       expect(result).toBe(mockInterfaceDeclaration);
     });
 
@@ -651,49 +656,53 @@ describe('TypeGenerator', () => {
         keyType: 'string',
         returnType: 'number',
       });
-      expect(mockIndexSignature.addJsDoc).toHaveBeenCalledWith('Additional properties');
+      expect(mockIndexSignature.addJsDoc).toHaveBeenCalledWith(
+        'Additional properties',
+      );
       expect(result).toBe(mockInterfaceDeclaration);
     });
   });
 
-    it('should add index signature when additionalProperties is a schema', () => {
-      const mockIndexSignature = {
-        addJsDoc: vi.fn(),
-      };
-      const mockInterfaceDeclaration = {
-        getProperty: vi.fn().mockReturnValue(null),
-        addProperty: vi.fn(),
-        addIndexSignature: vi.fn().mockReturnValue(mockIndexSignature),
-      };
-      const mockSourceFile = {
-        addInterface: vi.fn().mockReturnValue(mockInterfaceDeclaration),
-      };
-      const generator = new TypeGenerator(
-        modelInfo,
-        mockSourceFile as any,
-        {
-          key: 'TestModel',
-          schema: {
-            type: 'object',
-            properties: { id: { type: 'string' } },
-            additionalProperties: { type: 'number' },
-          },
+  it('should add index signature when additionalProperties is a schema', () => {
+    const mockIndexSignature = {
+      addJsDoc: vi.fn(),
+    };
+    const mockInterfaceDeclaration = {
+      getProperty: vi.fn().mockReturnValue(null),
+      addProperty: vi.fn(),
+      addIndexSignature: vi.fn().mockReturnValue(mockIndexSignature),
+    };
+    const mockSourceFile = {
+      addInterface: vi.fn().mockReturnValue(mockInterfaceDeclaration),
+    };
+    const generator = new TypeGenerator(
+      modelInfo,
+      mockSourceFile as any,
+      {
+        key: 'TestModel',
+        schema: {
+          type: 'object',
+          properties: { id: { type: 'string' } },
+          additionalProperties: { type: 'number' },
         },
-        outputDir,
-      );
+      },
+      outputDir,
+    );
 
-      const result = (generator as any).processInterface({
-        type: 'object',
-        properties: { id: { type: 'string' } },
-        additionalProperties: { type: 'number' },
-      });
-
-      expect(mockInterfaceDeclaration.addIndexSignature).toHaveBeenCalledWith({
-        keyName: 'key',
-        keyType: 'string',
-        returnType: 'number',
-      });
-      expect(mockIndexSignature.addJsDoc).toHaveBeenCalledWith('Additional properties');
-      expect(result).toBe(mockInterfaceDeclaration);
+    const result = (generator as any).processInterface({
+      type: 'object',
+      properties: { id: { type: 'string' } },
+      additionalProperties: { type: 'number' },
     });
+
+    expect(mockInterfaceDeclaration.addIndexSignature).toHaveBeenCalledWith({
+      keyName: 'key',
+      keyType: 'string',
+      returnType: 'number',
+    });
+    expect(mockIndexSignature.addJsDoc).toHaveBeenCalledWith(
+      'Additional properties',
+    );
+    expect(result).toBe(mockInterfaceDeclaration);
+  });
 });
