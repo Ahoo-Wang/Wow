@@ -125,7 +125,7 @@ export class CommandClientGenerator implements Generator {
     });
 
     this.context.logger.info(
-      `Adding imports from ${IMPORT_WOW_PATH}: CommandRequest, CommandResult, CommandResultEventStream, DeleteAggregate, RecoverAggregate`,
+      `Adding imports from ${IMPORT_WOW_PATH}: CommandRequest, CommandResult, CommandResultEventStream, CommandBody, DeleteAggregateCommand, RecoverAggregateCommand`,
     );
     commandClientFile.addImportDeclaration({
       moduleSpecifier: IMPORT_WOW_PATH,
@@ -133,8 +133,9 @@ export class CommandClientGenerator implements Generator {
         'CommandRequest',
         'CommandResult',
         'CommandResultEventStream',
-        'DeleteAggregate',
-        'RecoverAggregate',
+        'CommandBody',
+        'DeleteAggregateCommand',
+        'RecoverAggregateCommand',
       ],
       isTypeOnly: true,
     });
@@ -204,13 +205,16 @@ export class CommandClientGenerator implements Generator {
 
   resolveCommandType(clientFile: SourceFile, definition: CommandDefinition) {
     const [commandModelInfo, commandName] = this.resolveCommandTypeName(definition);
+    if (commandModelInfo.path === IMPORT_WOW_PATH) {
+      return;
+    }
     addImportRefModel(clientFile, this.context.outputDir, commandModelInfo);
     let commandType = `${commandModelInfo.name}`;
     const optionalFields = resolveOptionalFields(definition.schema.schema).map(fieldName => `'${fieldName}'`).join(' | ');
     if (optionalFields !== '') {
       commandType = `PartialBy<${commandType},${optionalFields}>`;
     }
-    commandType = `RemoveReadonlyFields<${commandType}>`;
+    commandType = `CommandBody<${commandType}>`;
     clientFile.addTypeAlias({
       name: commandName,
       type: `${commandType}`,
