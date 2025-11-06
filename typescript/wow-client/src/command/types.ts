@@ -12,7 +12,7 @@
  */
 
 import { ErrorInfo, FunctionInfoCapable, Identifier } from '../types';
-import { PartialBy } from '@ahoo-wang/fetcher';
+import { PartialBy, RemoveReadonlyFields } from '@ahoo-wang/fetcher';
 
 /**
  * Command identifier interface
@@ -143,6 +143,10 @@ export interface CompensationTarget
 export interface DeleteAggregate {
 }
 
+export type CommandBody<C> = RemoveReadonlyFields<C>
+
+export type DeleteAggregateCommand = CommandBody<DeleteAggregate>;
+
 /**
  * Represents a command to recover an aggregate.
  *
@@ -153,6 +157,8 @@ export interface DeleteAggregate {
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface RecoverAggregate {
 }
+
+export type RecoverAggregateCommand = CommandBody<RecoverAggregate>;
 
 /**
  * Represents the result of a batch operation, containing information about
