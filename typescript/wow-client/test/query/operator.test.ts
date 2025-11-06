@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { Operator } from '../../src';
+import { Operator, LOGICAL_OPERATORS, EMPTY_VALUE_OPERATORS } from '../../src';
 
 describe('Operator', () => {
   it('should have all logical operators', () => {
@@ -84,5 +84,50 @@ describe('Operator', () => {
 
   it('should have raw operator', () => {
     expect(Operator.RAW).toBe('RAW');
+  });
+});
+
+describe('LOGICAL_OPERATORS', () => {
+  it('should contain logical operators', () => {
+    expect(LOGICAL_OPERATORS.has(Operator.AND)).toBe(true);
+    expect(LOGICAL_OPERATORS.has(Operator.OR)).toBe(true);
+    expect(LOGICAL_OPERATORS.has(Operator.NOR)).toBe(true);
+  });
+
+  it('should not contain non-logical operators', () => {
+    expect(LOGICAL_OPERATORS.has(Operator.EQ)).toBe(false);
+    expect(LOGICAL_OPERATORS.has(Operator.ID)).toBe(false);
+    expect(LOGICAL_OPERATORS.has(Operator.ALL)).toBe(false);
+  });
+
+  it('should have exactly 3 operators', () => {
+    expect(LOGICAL_OPERATORS.size).toBe(3);
+  });
+});
+
+describe('EMPTY_VALUE_OPERATORS', () => {
+  it('should contain operators that work with empty values', () => {
+    expect(EMPTY_VALUE_OPERATORS.has(Operator.NULL)).toBe(true);
+    expect(EMPTY_VALUE_OPERATORS.has(Operator.NOT_NULL)).toBe(true);
+    expect(EMPTY_VALUE_OPERATORS.has(Operator.TRUE)).toBe(true);
+    expect(EMPTY_VALUE_OPERATORS.has(Operator.FALSE)).toBe(true);
+    expect(EMPTY_VALUE_OPERATORS.has(Operator.EXISTS)).toBe(true);
+    expect(EMPTY_VALUE_OPERATORS.has(Operator.TODAY)).toBe(true);
+    expect(EMPTY_VALUE_OPERATORS.has(Operator.TOMORROW)).toBe(true);
+    expect(EMPTY_VALUE_OPERATORS.has(Operator.THIS_WEEK)).toBe(true);
+    expect(EMPTY_VALUE_OPERATORS.has(Operator.NEXT_WEEK)).toBe(true);
+    expect(EMPTY_VALUE_OPERATORS.has(Operator.LAST_WEEK)).toBe(true);
+    expect(EMPTY_VALUE_OPERATORS.has(Operator.THIS_MONTH)).toBe(true);
+    expect(EMPTY_VALUE_OPERATORS.has(Operator.LAST_MONTH)).toBe(true);
+  });
+
+  it('should not contain operators that require values', () => {
+    expect(EMPTY_VALUE_OPERATORS.has(Operator.EQ)).toBe(false);
+    expect(EMPTY_VALUE_OPERATORS.has(Operator.GT)).toBe(false);
+    expect(EMPTY_VALUE_OPERATORS.has(Operator.IN)).toBe(false);
+  });
+
+  it('should have exactly 12 operators', () => {
+    expect(EMPTY_VALUE_OPERATORS.size).toBe(12);
   });
 });
