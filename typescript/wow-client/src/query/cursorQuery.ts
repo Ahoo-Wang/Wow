@@ -31,7 +31,7 @@ export interface CursorQuery<FIELDS extends string = string> {
   /** Sort direction for pagination traversal (ascending or descending) */
   direction?: SortDirection;
   /** Base query object to be enhanced with cursor-based parameters */
-  query: ListQuery;
+  query: ListQuery<FIELDS>;
 }
 
 /** Special cursor ID value representing the starting point of a dataset */
