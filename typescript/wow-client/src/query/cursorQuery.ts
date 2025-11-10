@@ -86,7 +86,7 @@ export function cursorSort<FIELDS extends string = string>({
  */
 export function cursorQuery<FIELDS extends string = string>(
   options: CursorQuery<FIELDS>,
-): ListQuery {
+): ListQuery<FIELDS> {
   const query = options.query;
   // Combine the cursor condition with the existing query condition
   const mergedCondition = and(cursorCondition(options), query.condition);
