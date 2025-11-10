@@ -31,8 +31,6 @@ import me.ahoo.wow.query.snapshot.dynamicQuery
 import me.ahoo.wow.query.snapshot.query
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockStateAggregate
-import org.hamcrest.CoreMatchers.sameInstance
-import org.hamcrest.MatcherAssert.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
@@ -66,7 +64,7 @@ abstract class SnapshotQueryServiceSpec {
     fun createFromCache() {
         val queryService1 = snapshotQueryServiceFactory.create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
         val queryService2 = snapshotQueryServiceFactory.create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
-        assertThat(queryService1, sameInstance(queryService2))
+        queryService1.assert().isSameAs(queryService2)
     }
 
     @Test
