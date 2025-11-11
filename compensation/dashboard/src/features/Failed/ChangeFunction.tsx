@@ -70,8 +70,11 @@ export function ChangeFunction({
 
   const handleOk = () => {
     form.validateFields().then((values) => {
-      promiseState.execute(
-        executionFailedCommandClient.changeFunction(id, { body: values }),
+      promiseState.execute((abortController) =>
+        executionFailedCommandClient.changeFunction(id, {
+          body: values,
+          abortController,
+        }),
       );
     });
   };

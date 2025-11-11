@@ -54,9 +54,13 @@ export default function FailedView({ category }: FailedViewProps) {
       initialQuery: pagedQuery({
         condition: RetryConditions.categoryToCondition(category),
       }),
-      execute: executionFailedSnapshotQueryClient.pagedState.bind(
-        executionFailedSnapshotQueryClient,
-      ),
+      execute: (query, attributes, abortController) => {
+        return executionFailedSnapshotQueryClient.pagedState(
+          query,
+          attributes,
+          abortController,
+        );
+      },
       autoExecute: true,
       onError: (error) => {
         notification.error({

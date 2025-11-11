@@ -55,13 +55,19 @@ export function ApplyRetrySpec({
       minBackoff: retrySpec.minBackoff,
       executionTimeout: retrySpec.executionTimeout,
     });
-  }, [form, id, retrySpec.executionTimeout, retrySpec.maxRetries, retrySpec.minBackoff]);
+  }, [
+    form,
+    id,
+    retrySpec.executionTimeout,
+    retrySpec.maxRetries,
+    retrySpec.minBackoff,
+  ]);
 
   const handleOk = () => {
     form.validateFields().then((values) => {
-      promiseState.execute(
-        executionFailedCommandClient.applyRetrySpec(id, {
-          body: values,
+      promiseState.execute((abortController) =>
+        executionFailedCommandClient.applyRetrySpec(values, {
+          abortController,
         }),
       );
     });
