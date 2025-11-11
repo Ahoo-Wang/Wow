@@ -12,7 +12,12 @@ export default mergeConfig(
     },
     test: {
       coverage: {
-        exclude: [...configDefaults.exclude, 'expected/**', 'test-output/**', '**/**.stories.tsx'],
+        exclude: [
+          ...configDefaults.exclude,
+          'expected/**',
+          'test-output/**',
+          '**/**.stories.tsx',
+        ],
       },
     },
   }),

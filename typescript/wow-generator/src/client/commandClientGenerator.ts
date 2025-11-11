@@ -19,15 +19,25 @@ import {
   SourceFile,
   VariableDeclarationKind,
 } from 'ts-morph';
-import { AggregateDefinition, CommandDefinition, TagAliasAggregate } from '../aggregate';
+import {
+  AggregateDefinition,
+  CommandDefinition,
+  TagAliasAggregate,
+} from '../aggregate';
 import { GenerateContext, Generator } from '../generateContext';
-import { IMPORT_WOW_PATH, ModelInfo, resolveContextDeclarationName, resolveModelInfo } from '../model';
+import {
+  IMPORT_WOW_PATH,
+  ModelInfo,
+  resolveContextDeclarationName,
+  resolveModelInfo,
+} from '../model';
 import {
   addImport,
   addImportRefModel,
   addJSDoc,
   camelCase,
-  isEmptyObject, resolveOptionalFields,
+  isEmptyObject,
+  resolveOptionalFields,
   resolvePathParameterType,
 } from '../utils';
 import {
@@ -56,8 +66,7 @@ export class CommandClientGenerator implements Generator {
    * Creates a new CommandClientGenerator instance.
    * @param context - The generation context containing OpenAPI spec and project details
    */
-  constructor(public readonly context: GenerateContext) {
-  }
+  constructor(public readonly context: GenerateContext) {}
 
   /**
    * Generates command client classes for all aggregates.
@@ -105,7 +114,10 @@ export class CommandClientGenerator implements Generator {
       `Processing command endpoint paths for ${aggregate.commands.size} commands`,
     );
 
-    const aggregateCommandEndpointPathsName = this.processCommandEndpointPaths(commandClientFile, aggregate);
+    const aggregateCommandEndpointPathsName = this.processCommandEndpointPaths(
+      commandClientFile,
+      aggregate,
+    );
     this.processCommandTypes(commandClientFile, aggregate);
     this.context.logger.info(
       `Creating default command client options: ${this.defaultCommandClientOptionsName}`,
@@ -155,7 +167,11 @@ export class CommandClientGenerator implements Generator {
     );
     addImportDecorator(commandClientFile);
     this.context.logger.info(`Generating standard command client class`);
-    this.processCommandClient(commandClientFile, aggregate, aggregateCommandEndpointPathsName);
+    this.processCommandClient(
+      commandClientFile,
+      aggregate,
+      aggregateCommandEndpointPathsName,
+    );
 
     this.context.logger.info(`Generating stream command client class`);
     this.processStreamCommandClient(commandClientFile, aggregate);
@@ -165,7 +181,9 @@ export class CommandClientGenerator implements Generator {
     );
   }
 
-  resolveAggregateCommandEndpointPathsName(aggregate: TagAliasAggregate): string {
+  resolveAggregateCommandEndpointPathsName(
+    aggregate: TagAliasAggregate,
+  ): string {
     return resolveClassName(aggregate, this.commandEndpointPathsSuffix);
   }
 
@@ -173,9 +191,10 @@ export class CommandClientGenerator implements Generator {
     clientFile: SourceFile,
     aggregateDefinition: AggregateDefinition,
   ): string {
-    const aggregateCommandEndpointPathsName = this.resolveAggregateCommandEndpointPathsName(
-      aggregateDefinition.aggregate,
-    );
+    const aggregateCommandEndpointPathsName =
+      this.resolveAggregateCommandEndpointPathsName(
+        aggregateDefinition.aggregate,
+      );
     this.context.logger.info(
       `Creating command endpoint paths enum: ${aggregateCommandEndpointPathsName}`,
     );
@@ -204,13 +223,16 @@ export class CommandClientGenerator implements Generator {
   }
 
   resolveCommandType(clientFile: SourceFile, definition: CommandDefinition) {
-    const [commandModelInfo, commandName] = this.resolveCommandTypeName(definition);
+    const [commandModelInfo, commandName] =
+      this.resolveCommandTypeName(definition);
     if (commandModelInfo.path === IMPORT_WOW_PATH) {
       return;
     }
     addImportRefModel(clientFile, this.context.outputDir, commandModelInfo);
     let commandType = `${commandModelInfo.name}`;
-    const optionalFields = resolveOptionalFields(definition.schema.schema).map(fieldName => `'${fieldName}'`).join(' | ');
+    const optionalFields = resolveOptionalFields(definition.schema.schema)
+      .map(fieldName => `'${fieldName}'`)
+      .join(' | ');
     if (optionalFields !== '') {
       commandType = `PartialBy<${commandType},${optionalFields}>`;
     }
@@ -222,14 +244,19 @@ export class CommandClientGenerator implements Generator {
     });
   }
 
-  processCommandTypes(clientFile: SourceFile,
-                      aggregateDefinition: AggregateDefinition) {
+  processCommandTypes(
+    clientFile: SourceFile,
+    aggregateDefinition: AggregateDefinition,
+  ) {
     aggregateDefinition.commands.forEach(command => {
       this.resolveCommandType(clientFile, command);
     });
   }
 
-  getEndpointPath(aggregateCommandEndpointPathsName: string, command: CommandDefinition): string {
+  getEndpointPath(
+    aggregateCommandEndpointPathsName: string,
+    command: CommandDefinition,
+  ): string {
     return `${aggregateCommandEndpointPathsName}.${command.name.toUpperCase()}`;
   }
 
@@ -296,7 +323,8 @@ export class CommandClientGenerator implements Generator {
     tag: Tag,
     definition: CommandDefinition,
   ): OptionalKind<ParameterDeclarationStructure>[] {
-    const [commandModelInfo, commandName] = this.resolveCommandTypeName(definition);
+    const [commandModelInfo, commandName] =
+      this.resolveCommandTypeName(definition);
     this.context.logger.info(
       `Adding import for command model: ${commandModelInfo.name} from path: ${commandModelInfo.path}`,
     );
@@ -379,7 +407,9 @@ export class CommandClientGenerator implements Generator {
       decorators: [
         {
           name: methodToDecorator(definition.method),
-          arguments: [`${this.getEndpointPath(aggregateCommandEndpointPathsName, definition)}`],
+          arguments: [
+            `${this.getEndpointPath(aggregateCommandEndpointPathsName, definition)}`,
+          ],
         },
       ],
       parameters: parameters,

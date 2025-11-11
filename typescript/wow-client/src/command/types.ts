@@ -129,8 +129,7 @@ export interface NullableAggregateVersionCapable {
  */
 export interface CompensationTarget
   extends PartialBy<Identifier, 'id'>,
-    FunctionInfoCapable {
-}
+    FunctionInfoCapable {}
 
 /**
  * Represents a command to delete an aggregate.
@@ -140,10 +139,9 @@ export interface CompensationTarget
  * command processing workflow.
  */
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface DeleteAggregate {
-}
+export interface DeleteAggregate {}
 
-export type CommandBody<C> = RemoveReadonlyFields<C>
+export type CommandBody<C> = RemoveReadonlyFields<C>;
 
 export type DeleteAggregateCommand = CommandBody<DeleteAggregate>;
 
@@ -155,8 +153,7 @@ export type DeleteAggregateCommand = CommandBody<DeleteAggregate>;
  * or recovered from an error condition.
  */
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface RecoverAggregate {
-}
+export interface RecoverAggregate {}
 
 export type RecoverAggregateCommand = CommandBody<RecoverAggregate>;
 

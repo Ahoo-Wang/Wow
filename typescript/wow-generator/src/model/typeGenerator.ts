@@ -15,7 +15,8 @@ import { ModelInfo, resolveReferenceModelInfo } from './modelInfo';
 import { InterfaceDeclaration, JSDocableNode, SourceFile } from 'ts-morph';
 import { Reference, Schema } from '@ahoo-wang/fetcher-openapi';
 import {
-  addImportModelInfo, addMainSchemaJSDoc,
+  addImportModelInfo,
+  addMainSchemaJSDoc,
   addSchemaJSDoc,
   AllOfSchema,
   ArraySchema,
@@ -26,7 +27,8 @@ import {
   isComposition,
   isEnum,
   isMap,
-  isObject, isReadOnly,
+  isObject,
+  isReadOnly,
   isReference,
   jsDoc,
   KeySchema,
@@ -45,8 +47,7 @@ export class TypeGenerator implements Generator {
     private readonly sourceFile: SourceFile,
     private readonly keySchema: KeySchema,
     private readonly outputDir: string,
-  ) {
-  }
+  ) {}
 
   generate(): void {
     const node = this.process();
@@ -98,9 +99,7 @@ export class TypeGenerator implements Generator {
       return '[key: string]: any';
     }
 
-    const valueType = this.resolveType(
-      schema.additionalProperties,
-    );
+    const valueType = this.resolveType(schema.additionalProperties);
     return `[key: string]: ${valueType}`;
   }
 

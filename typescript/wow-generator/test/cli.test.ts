@@ -57,7 +57,10 @@ describe('CLI setup', () => {
       1,
       'OpenAPI Specification TypeScript code generator for Wow',
     );
-    expect(result.version).toHaveBeenCalledWith(packageJson.version, '-v, --version');
+    expect(result.version).toHaveBeenCalledWith(
+      packageJson.version,
+      '-v, --version',
+    );
 
     expect(result.command).toHaveBeenCalledWith('generate');
     expect(result.description).toHaveBeenNthCalledWith(

@@ -239,20 +239,23 @@ export enum Operator {
   RAW = 'RAW',
 }
 
-export const LOGICAL_OPERATORS = new Set([Operator.AND, Operator.OR, Operator.NOR]);
+export const LOGICAL_OPERATORS = new Set([
+  Operator.AND,
+  Operator.OR,
+  Operator.NOR,
+]);
 
-export const EMPTY_VALUE_OPERATORS = new Set(
-  [
-    Operator.NULL,
-    Operator.NOT_NULL,
-    Operator.TRUE,
-    Operator.FALSE,
-    Operator.EXISTS,
-    Operator.TODAY,
-    Operator.TOMORROW,
-    Operator.THIS_WEEK,
-    Operator.NEXT_WEEK,
-    Operator.LAST_WEEK,
-    Operator.THIS_MONTH,
-    Operator.LAST_MONTH,
-  ]);
+export const EMPTY_VALUE_OPERATORS = new Set([
+  Operator.NULL,
+  Operator.NOT_NULL,
+  Operator.TRUE,
+  Operator.FALSE,
+  Operator.EXISTS,
+  Operator.TODAY,
+  Operator.TOMORROW,
+  Operator.THIS_WEEK,
+  Operator.NEXT_WEEK,
+  Operator.LAST_WEEK,
+  Operator.THIS_MONTH,
+  Operator.LAST_MONTH,
+]);

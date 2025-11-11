@@ -24,8 +24,7 @@ import { useQuery, UseQueryOptions, UseQueryReturn } from './useQuery';
 export interface UseCountQueryOptions<
   FIELDS extends string = string,
   E = FetcherError,
-> extends UseQueryOptions<Condition<FIELDS>, number, E> {
-}
+> extends UseQueryOptions<Condition<FIELDS>, number, E> {}
 
 /**
  * Return type for the useCountQuery hook.
@@ -37,8 +36,7 @@ export interface UseCountQueryOptions<
 export interface UseCountQueryReturn<
   FIELDS extends string = string,
   E = FetcherError,
-> extends UseQueryReturn<Condition<FIELDS>, number, E> {
-}
+> extends UseQueryReturn<Condition<FIELDS>, number, E> {}
 
 /**
  * Hook for querying count data with conditions.

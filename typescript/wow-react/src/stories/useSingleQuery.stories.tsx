@@ -71,9 +71,9 @@ interface SingleQueryDemoProps {
 }
 
 function SingleQueryDemo({
-                           initialUserId,
-                           autoExecute = true,
-                         }: SingleQueryDemoProps) {
+  initialUserId,
+  autoExecute = true,
+}: SingleQueryDemoProps) {
   const [userId, setUserId] = React.useState(initialUserId);
 
   const { loading, result, error, execute, setQuery } = useSingleQuery<User>({

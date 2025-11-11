@@ -45,13 +45,16 @@ export function isEnum(schema: Schema): schema is EnumSchema {
   return Array.isArray(schema.enum) && schema.enum.length > 0;
 }
 
-export type ObjectSchema = Schema & { type: 'object', properties: Record<string, Schema | Reference> };
+export type ObjectSchema = Schema & {
+  type: 'object';
+  properties: Record<string, Schema | Reference>;
+};
 
 export function isObject(schema: Schema): schema is ObjectSchema {
   return schema.type === 'object' && !!schema.properties;
 }
 
-export type ArraySchema = Schema & { type: 'array', items: Schema | Reference };
+export type ArraySchema = Schema & { type: 'array'; items: Schema | Reference };
 
 /**
  * Checks if a schema is an array type.
@@ -132,11 +135,15 @@ export function toArrayType(type: string): string {
 
 export type MapSchema = Schema & {
   type: 'object';
-  additionalProperties: boolean | Schema | Reference
+  additionalProperties: boolean | Schema | Reference;
 };
 
 export function isMap(schema: Schema): schema is MapSchema {
-  return schema.type === 'object' && !schema.properties && schema.additionalProperties !== undefined;
+  return (
+    schema.type === 'object' &&
+    !schema.properties &&
+    schema.additionalProperties !== undefined
+  );
 }
 
 /**

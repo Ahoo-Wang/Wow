@@ -58,8 +58,7 @@ export interface WaitSignal
     ErrorInfo,
     SignalTimeCapable,
     CommandResultCapable,
-    FunctionInfoCapable {
-}
+    FunctionInfoCapable {}
 
 /**
  * Command execution result interface
@@ -85,8 +84,7 @@ export interface CommandResult
     FunctionInfoCapable,
     CommandResultCapable,
     SignalTimeCapable,
-    NullableAggregateVersionCapable {
-}
+    NullableAggregateVersionCapable {}
 
 export type CommandResultArray = CommandResult[];
 

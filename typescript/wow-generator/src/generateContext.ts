@@ -46,12 +46,20 @@ export class GenerateContext implements GenerateContextInit {
     return getOrCreateSourceFile(this.project, this.outputDir, filePath);
   }
 
-  isIgnoreApiClientPathParameters(tagName: string, parameterName: string): boolean {
-    const ignorePathParameters = this.config.apiClients?.[tagName]?.ignorePathParameters ?? this.defaultIgnorePathParameters;
+  isIgnoreApiClientPathParameters(
+    tagName: string,
+    parameterName: string,
+  ): boolean {
+    const ignorePathParameters =
+      this.config.apiClients?.[tagName]?.ignorePathParameters ??
+      this.defaultIgnorePathParameters;
     return ignorePathParameters.includes(parameterName);
   }
 
-  isIgnoreCommandClientPathParameters(tagName: string, parameterName: string): boolean {
+  isIgnoreCommandClientPathParameters(
+    tagName: string,
+    parameterName: string,
+  ): boolean {
     return this.defaultIgnorePathParameters.includes(parameterName);
   }
 }
@@ -63,4 +71,3 @@ export interface Generator {
    */
   generate(): void;
 }
-

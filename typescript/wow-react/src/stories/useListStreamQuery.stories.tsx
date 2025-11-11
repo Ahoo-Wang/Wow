@@ -91,9 +91,9 @@ interface ListStreamQueryDemoProps {
 }
 
 function ListStreamQueryDemo({
-                               filterStatus = 'all',
-                               autoExecute = true,
-                             }: ListStreamQueryDemoProps) {
+  filterStatus = 'all',
+  autoExecute = true,
+}: ListStreamQueryDemoProps) {
   const [streamedUsers, setStreamedUsers] = React.useState<User[]>([]);
   const [isStreaming, setIsStreaming] = React.useState(false);
 

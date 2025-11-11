@@ -1,13 +1,13 @@
 /** - key: compensation.ApiVersion */
 export enum ApiVersion {
-    V2 = 'V2',
-    V3 = 'V3'
+  V2 = 'V2',
+  V3 = 'V3',
 }
 
 /** - key: compensation.Link */
 export interface Link {
-    href: string;
-    templated: boolean;
+  href: string;
+  templated: boolean;
 }
 
 /** - key: compensation.SecurityContext */
@@ -19,5 +19,5 @@ export type StringObjectMap = Record<string, any>;
 
 /** - key: compensation.WebServerNamespace */
 export interface WebServerNamespace {
-    value: string;
+  value: string;
 }

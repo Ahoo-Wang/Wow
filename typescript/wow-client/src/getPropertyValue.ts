@@ -68,11 +68,9 @@ export function getPropertyValue<T = any>(
         return defaultValue;
       }
       current = current[index];
-    }
-    else if (typeof current === 'object') {
+    } else if (typeof current === 'object') {
       current = current[segment];
-    }
-    else {
+    } else {
       return defaultValue;
     }
     if (current === undefined || current === null) {

@@ -156,7 +156,10 @@ describe('ModelGenerator', () => {
       const mockSourceFile = {};
       mockGetOrCreateSourceFile.mockReturnValue(mockSourceFile);
 
-      const keySchema: KeySchema = { key: 'TestModel', schema: { type: 'object' } };
+      const keySchema: KeySchema = {
+        key: 'TestModel',
+        schema: { type: 'object' },
+      };
 
       generator.generateKeyedSchema(keySchema);
 

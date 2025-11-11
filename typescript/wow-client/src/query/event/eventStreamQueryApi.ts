@@ -25,10 +25,9 @@ export interface EventStreamQueryApi<
   DomainEventBody = any,
   FIELDS extends string = string,
 > extends Omit<
-  QueryApi<DomainEventStream<DomainEventBody>, FIELDS>,
-  'single'
-> {
-}
+    QueryApi<DomainEventStream<DomainEventBody>, FIELDS>,
+    'single'
+  > {}
 
 /**
  * Provides endpoint paths for event stream query operations.

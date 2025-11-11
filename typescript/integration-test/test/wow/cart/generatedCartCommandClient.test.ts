@@ -12,9 +12,20 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { AddCartItemCommand, currentUserId, exampleFetcher } from '../../../src/wow';
-import { CommandHeaders, CommandStage, ErrorCodes } from '@ahoo-wang/fetcher-wow';
-import { CartCommandClient, CartStreamCommandClient } from '../../../src/generated';
+import {
+  AddCartItemCommand,
+  currentUserId,
+  exampleFetcher,
+} from '../../../src/wow';
+import {
+  CommandHeaders,
+  CommandStage,
+  ErrorCodes,
+} from '@ahoo-wang/fetcher-wow';
+import {
+  CartCommandClient,
+  CartStreamCommandClient,
+} from '../../../src/generated';
 import { expectCommandResultToBeDefined } from './cartCommandClient.test';
 
 describe('CartCommandClient Integration Test', () => {
@@ -29,8 +40,11 @@ describe('CartCommandClient Integration Test', () => {
   };
 
   it('should send command', async () => {
-    const cartCommandClient = new CartCommandClient({ fetcher: exampleFetcher });
-    const commandResult = await cartCommandClient.addCartItem(addCartItemCommand);
+    const cartCommandClient = new CartCommandClient({
+      fetcher: exampleFetcher,
+    });
+    const commandResult =
+      await cartCommandClient.addCartItem(addCartItemCommand);
     expectCommandResultToBeDefined(commandResult);
     expect(commandResult.aggregateId).toBe(currentUserId);
     expect(commandResult.errorCode).toBe(ErrorCodes.SUCCEEDED);
@@ -38,7 +52,9 @@ describe('CartCommandClient Integration Test', () => {
   });
 
   it('should send command and wait stream', async () => {
-    const cartCommandClient = new CartStreamCommandClient({ fetcher: exampleFetcher });
+    const cartCommandClient = new CartStreamCommandClient({
+      fetcher: exampleFetcher,
+    });
     const commandResultStream =
       await cartCommandClient.addCartItem(addCartItemCommand);
     expect(commandResultStream).toBeDefined();

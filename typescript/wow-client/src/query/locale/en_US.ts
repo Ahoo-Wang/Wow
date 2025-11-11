@@ -56,4 +56,3 @@ export const en_US: OperatorLocale = {
   EARLIER_DAYS: 'Earlier Days',
   RAW: 'Raw Query',
 };
-

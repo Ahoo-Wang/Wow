@@ -24,8 +24,7 @@ import { Album, Post, Todo } from '../types';
 
 @api('/users/{userId}', { fetcher: typicodeFetcher })
 export class TypicodeUserService implements ApiMetadataCapable {
-  constructor(public readonly apiMetadata?: ApiMetadata) {
-  }
+  constructor(public readonly apiMetadata?: ApiMetadata) {}
 
   @get('/albums')
   getAlbums(@path('userId') userId: string): Promise<Album[]> {

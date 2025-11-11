@@ -85,20 +85,16 @@ export class ConsoleLogger implements Logger {
  */
 export class SilentLogger implements Logger {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  info(_message: string, ...params: any[]): void {
-  }
+  info(_message: string, ...params: any[]): void {}
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  success(_message: string, ...params: any[]): void {
-  }
+  success(_message: string, ...params: any[]): void {}
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  error(_message: string, ...params: any[]): void {
-  }
+  error(_message: string, ...params: any[]): void {}
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  progress(_message: string, ...params: any[]): void {
-  }
+  progress(_message: string, ...params: any[]): void {}
 
   /* eslint-disable @typescript-eslint/no-unused-vars */
   progressWithCount(
@@ -107,8 +103,7 @@ export class SilentLogger implements Logger {
     _message: string,
     _level = 0,
     ..._params: any[]
-  ): void {
-  }
+  ): void {}
 
   /* eslint-enable @typescript-eslint/no-unused-vars */
 }

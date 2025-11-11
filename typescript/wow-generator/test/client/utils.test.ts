@@ -22,7 +22,7 @@ import {
 import { ResourceAttributionPathSpec } from '@ahoo-wang/fetcher-wow';
 
 // Mock the dependencies
-vi.mock('../../src/utils', async (importOriginal) => {
+vi.mock('../../src/utils', async importOriginal => {
   const actual: any = await importOriginal();
   return {
     ...actual,

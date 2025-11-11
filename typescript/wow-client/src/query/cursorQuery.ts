@@ -46,10 +46,10 @@ export const CURSOR_ID_START = '~';
  * @returns Condition object for filtering records based on cursor position
  */
 export function cursorCondition<FIELDS extends string = string>({
-                                                                  field,
-                                                                  cursorId = CURSOR_ID_START,
-                                                                  direction = SortDirection.DESC,
-                                                                }: Omit<CursorQuery<FIELDS>, 'query'>): Condition<FIELDS> {
+  field,
+  cursorId = CURSOR_ID_START,
+  direction = SortDirection.DESC,
+}: Omit<CursorQuery<FIELDS>, 'query'>): Condition<FIELDS> {
   // When sorting in ascending order, we want records greater than the cursor
   if (direction === SortDirection.ASC) {
     return gt(field, cursorId);
@@ -67,9 +67,9 @@ export function cursorCondition<FIELDS extends string = string>({
  * @returns FieldSort configuration for cursor-based pagination
  */
 export function cursorSort<FIELDS extends string = string>({
-                                                             field,
-                                                             direction = SortDirection.DESC,
-                                                           }: Omit<CursorQuery<FIELDS>, 'query'>): FieldSort<FIELDS> {
+  field,
+  direction = SortDirection.DESC,
+}: Omit<CursorQuery<FIELDS>, 'query'>): FieldSort<FIELDS> {
   return { field, direction };
 }
 

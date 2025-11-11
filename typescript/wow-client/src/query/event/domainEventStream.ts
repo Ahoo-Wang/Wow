@@ -113,8 +113,7 @@ export interface StateEvent<DomainEventBody = any, S = any>
     StateCapable<S>,
     FirstOperatorCapable,
     FirstEventTimeCapable,
-    DeletedCapable {
-}
+    DeletedCapable {}
 
 /**
  * Provides field names for domain event stream metadata.

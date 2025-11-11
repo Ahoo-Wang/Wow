@@ -22,16 +22,14 @@ import { type ProjectionCapable } from './projection';
 export interface Queryable<FIELDS extends string = string>
   extends ConditionCapable<FIELDS>,
     ProjectionCapable<FIELDS>,
-    SortCapable<FIELDS> {
-}
+    SortCapable<FIELDS> {}
 
 /**
  * Interface for single query objects.
  */
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface SingleQuery<FIELDS extends string = string>
-  extends Queryable<FIELDS> {
-}
+  extends Queryable<FIELDS> {}
 
 /**
  * Creates a SingleQuery object with the provided parameters.
@@ -46,10 +44,10 @@ export interface SingleQuery<FIELDS extends string = string>
  * @returns A SingleQuery object with the specified parameters
  */
 export function singleQuery<FIELDS extends string = string>({
-                                                              condition = all(),
-                                                              projection,
-                                                              sort,
-                                                            }: Partial<SingleQuery<FIELDS>> = {}): SingleQuery<FIELDS> {
+  condition = all(),
+  projection,
+  sort,
+}: Partial<SingleQuery<FIELDS>> = {}): SingleQuery<FIELDS> {
   return {
     condition,
     projection,
@@ -82,11 +80,11 @@ export interface ListQuery<FIELDS extends string = string>
  * @returns A ListQuery object with the specified parameters
  */
 export function listQuery<FIELDS extends string = string>({
-                                                            condition = all(),
-                                                            projection,
-                                                            sort,
-                                                            limit = DEFAULT_PAGINATION.size,
-                                                          }: Partial<ListQuery<FIELDS>> = {}): ListQuery<FIELDS> {
+  condition = all(),
+  projection,
+  sort,
+  limit = DEFAULT_PAGINATION.size,
+}: Partial<ListQuery<FIELDS>> = {}): ListQuery<FIELDS> {
   return {
     condition,
     projection,
@@ -119,11 +117,11 @@ export interface PagedQuery<FIELDS extends string = string>
  * @returns A PagedQuery object with the specified parameters
  */
 export function pagedQuery<FIELDS extends string = string>({
-                                                             condition = all(),
-                                                             projection,
-                                                             sort,
-                                                             pagination = DEFAULT_PAGINATION,
-                                                           }: Partial<PagedQuery<FIELDS>> = {}): PagedQuery<FIELDS> {
+  condition = all(),
+  projection,
+  sort,
+  pagination = DEFAULT_PAGINATION,
+}: Partial<PagedQuery<FIELDS>> = {}): PagedQuery<FIELDS> {
   return {
     condition,
     projection,
@@ -157,9 +155,9 @@ export const EMPTY_PAGED_LIST: PagedList<any> = {
  * @returns A PagedList object with the specified parameters
  */
 export function pagedList<T>({
-                               total,
-                               list = [],
-                             }: Partial<PagedList<T>> = EMPTY_PAGED_LIST): PagedList<T> {
+  total,
+  list = [],
+}: Partial<PagedList<T>> = EMPTY_PAGED_LIST): PagedList<T> {
   if (total === undefined) {
     total = list.length;
   }

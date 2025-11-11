@@ -15,11 +15,12 @@ import { Schema } from '@ahoo-wang/fetcher-openapi';
 import { SourceFile } from 'ts-morph';
 
 import { GenerateContext, Generator } from '../generateContext';
+import { getModelFileName, KeySchema, pascalCase } from '../utils';
 import {
-  getModelFileName,
-  KeySchema, pascalCase,
-} from '../utils';
-import { ModelInfo, resolveContextDeclarationName, resolveModelInfo } from './modelInfo';
+  ModelInfo,
+  resolveContextDeclarationName,
+  resolveModelInfo,
+} from './modelInfo';
 import { TypeGenerator } from './typeGenerator';
 
 /**
@@ -32,8 +33,7 @@ import { TypeGenerator } from './typeGenerator';
  * @property contextAggregates - Map of aggregate definitions
  */
 export class ModelGenerator implements Generator {
-  constructor(public readonly context: GenerateContext) {
-  }
+  constructor(public readonly context: GenerateContext) {}
 
   private getOrCreateSourceFile(modelInfo: ModelInfo): SourceFile {
     const fileName = getModelFileName(modelInfo);
@@ -56,7 +56,9 @@ export class ModelGenerator implements Generator {
     }
     const stateAggregatedTypeNames = this.stateAggregatedTypeNames();
     const keySchemas = this.filterSchemas(schemas, stateAggregatedTypeNames);
-    this.context.logger.progress(`Generating models for ${keySchemas.length} schemas`);
+    this.context.logger.progress(
+      `Generating models for ${keySchemas.length} schemas`,
+    );
     keySchemas.forEach((keySchema, index) => {
       this.context.logger.progressWithCount(
         index + 1,
@@ -69,31 +71,43 @@ export class ModelGenerator implements Generator {
     this.context.logger.success('Model generation completed');
   }
 
-  private filterSchemas(schemas: Record<string, Schema>, aggregatedTypeNames: Set<string>): KeySchema[] {
+  private filterSchemas(
+    schemas: Record<string, Schema>,
+    aggregatedTypeNames: Set<string>,
+  ): KeySchema[] {
     return Object.entries(schemas)
       .map(([schemaKey, schema]) => ({
         key: schemaKey,
         schema,
       }))
-      .filter(keySchema => !this.isWowSchema(keySchema.key, aggregatedTypeNames));
+      .filter(
+        keySchema => !this.isWowSchema(keySchema.key, aggregatedTypeNames),
+      );
   }
 
-  private isWowSchema(schemaKey: string, stateAggregatedTypeNames: Set<string>): boolean {
+  private isWowSchema(
+    schemaKey: string,
+    stateAggregatedTypeNames: Set<string>,
+  ): boolean {
     if (
-      schemaKey !== 'wow.api.query.PagedList'
-      && schemaKey.startsWith('wow.api.query.')
-      && (schemaKey.endsWith('PagedList'))) {
+      schemaKey !== 'wow.api.query.PagedList' &&
+      schemaKey.startsWith('wow.api.query.') &&
+      schemaKey.endsWith('PagedList')
+    ) {
       return false;
     }
 
-    if (schemaKey.startsWith('wow.')
-      || schemaKey.endsWith('AggregatedCondition')
-      || schemaKey.endsWith('AggregatedDomainEventStream')
-      || schemaKey.endsWith('AggregatedDomainEventStreamPagedList')
-      || schemaKey.endsWith('AggregatedDomainEventStreamServerSentEventNonNullData')
-      || schemaKey.endsWith('AggregatedListQuery')
-      || schemaKey.endsWith('AggregatedPagedQuery')
-      || schemaKey.endsWith('AggregatedSingleQuery')
+    if (
+      schemaKey.startsWith('wow.') ||
+      schemaKey.endsWith('AggregatedCondition') ||
+      schemaKey.endsWith('AggregatedDomainEventStream') ||
+      schemaKey.endsWith('AggregatedDomainEventStreamPagedList') ||
+      schemaKey.endsWith(
+        'AggregatedDomainEventStreamServerSentEventNonNullData',
+      ) ||
+      schemaKey.endsWith('AggregatedListQuery') ||
+      schemaKey.endsWith('AggregatedPagedQuery') ||
+      schemaKey.endsWith('AggregatedSingleQuery')
     ) {
       return true;
     }
@@ -112,17 +126,15 @@ export class ModelGenerator implements Generator {
   ];
 
   private stateAggregatedTypeNames() {
-    const typeNames = new Set<string>;
+    const typeNames = new Set<string>();
     for (const [boundedContext, aggregates] of this.context.contextAggregates) {
       this.generateBoundedContext(boundedContext);
       for (const aggregate of aggregates) {
-        this.aggregatedSchemaSuffix.forEach(
-          suffix => {
-            const modelInfo = resolveModelInfo(aggregate.state.key);
-            const typeName = pascalCase(modelInfo.name) + suffix;
-            typeNames.add(typeName);
-          },
-        );
+        this.aggregatedSchemaSuffix.forEach(suffix => {
+          const modelInfo = resolveModelInfo(aggregate.state.key);
+          const typeName = pascalCase(modelInfo.name) + suffix;
+          typeNames.add(typeName);
+        });
       }
     }
     return typeNames;
@@ -143,7 +155,12 @@ export class ModelGenerator implements Generator {
   generateKeyedSchema(keySchema: KeySchema) {
     const modelInfo = resolveModelInfo(keySchema.key);
     const sourceFile = this.getOrCreateSourceFile(modelInfo);
-    const typeGenerator = new TypeGenerator(modelInfo, sourceFile, keySchema, this.context.outputDir);
+    const typeGenerator = new TypeGenerator(
+      modelInfo,
+      sourceFile,
+      keySchema,
+      this.context.outputDir,
+    );
     typeGenerator.generate();
   }
 
@@ -152,8 +169,6 @@ export class ModelGenerator implements Generator {
     this.context.logger.info(`Creating bounded context file: ${filePath}`);
     const file = this.context.getOrCreateSourceFile(filePath);
     const contextName = resolveContextDeclarationName(contextAlias);
-    file.addStatements(
-      `export const ${contextName} = '${contextAlias}';`,
-    );
+    file.addStatements(`export const ${contextName} = '${contextAlias}';`);
   }
 }

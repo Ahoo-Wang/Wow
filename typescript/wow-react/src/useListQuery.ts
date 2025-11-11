@@ -27,8 +27,7 @@ export interface UseListQueryOptions<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-> extends UseQueryOptions<ListQuery<FIELDS>, R[], E> {
-}
+> extends UseQueryOptions<ListQuery<FIELDS>, R[], E> {}
 
 /**
  * Return type for the useListQuery hook.
@@ -42,8 +41,7 @@ export interface UseListQueryReturn<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-> extends UseQueryReturn<ListQuery<FIELDS>, R[], E> {
-}
+> extends UseQueryReturn<ListQuery<FIELDS>, R[], E> {}
 
 /**
  * Hook for querying list data with conditions, projection, and sorting.

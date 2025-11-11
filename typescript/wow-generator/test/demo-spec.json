@@ -47,9 +47,7 @@
   "paths": {
     "/cart/{userId}/customize-send-cmd": {
       "post": {
-        "tags": [
-          "Cart"
-        ],
+        "tags": ["Cart"],
         "description": "自定义发送命令",
         "operationId": "customizeSendCmd",
         "parameters": [
@@ -78,9 +76,7 @@
     },
     "/cart/{userId}/add-cart-item": {
       "post": {
-        "tags": [
-          "Cart"
-        ],
+        "tags": ["Cart"],
         "operationId": "addCartItem",
         "parameters": [
           {
@@ -108,9 +104,7 @@
     },
     "/order/{tenantId}/{orderId}": {
       "get": {
-        "tags": [
-          "Order"
-        ],
+        "tags": ["Order"],
         "operationId": "onQuery",
         "parameters": [
           {
@@ -146,9 +140,7 @@
     },
     "/cart/me": {
       "get": {
-        "tags": [
-          "Cart"
-        ],
+        "tags": ["Cart"],
         "operationId": "me",
         "responses": {
           "200": {
@@ -166,9 +158,7 @@
     },
     "/cart/me/sync": {
       "get": {
-        "tags": [
-          "Cart"
-        ],
+        "tags": ["Cart"],
         "operationId": "meSync",
         "responses": {
           "200": {
@@ -186,9 +176,7 @@
     },
     "/actuator/threaddump": {
       "get": {
-        "tags": [
-          "Actuator"
-        ],
+        "tags": ["Actuator"],
         "summary": "Actuator web endpoint 'threaddump'",
         "operationId": "threadDump",
         "responses": {
@@ -222,9 +210,7 @@
     },
     "/actuator/health/{path}": {
       "get": {
-        "tags": [
-          "Actuator"
-        ],
+        "tags": ["Actuator"],
         "summary": "Actuator web endpoint 'health-path'",
         "operationId": "health",
         "parameters": [
@@ -269,9 +255,7 @@
     },
     "/actuator/health": {
       "get": {
-        "tags": [
-          "Actuator"
-        ],
+        "tags": ["Actuator"],
         "summary": "Actuator web endpoint 'health'",
         "operationId": "health_1",
         "responses": {
@@ -300,9 +284,7 @@
     },
     "/actuator/cosidStringGenerator/{name}": {
       "get": {
-        "tags": [
-          "Actuator"
-        ],
+        "tags": ["Actuator"],
         "summary": "Actuator web endpoint 'cosidStringGenerator-name'",
         "operationId": "generateAsString",
         "parameters": [
@@ -344,9 +326,7 @@
     },
     "/actuator/cosidStringGenerator": {
       "get": {
-        "tags": [
-          "Actuator"
-        ],
+        "tags": ["Actuator"],
         "summary": "Actuator web endpoint 'cosidStringGenerator'",
         "operationId": "shareGenerateAsString",
         "responses": {
@@ -375,9 +355,7 @@
     },
     "/actuator/cosidGenerator/{name}": {
       "get": {
-        "tags": [
-          "Actuator"
-        ],
+        "tags": ["Actuator"],
         "summary": "Actuator web endpoint 'cosidGenerator-name'",
         "operationId": "generate",
         "parameters": [
@@ -419,9 +397,7 @@
     },
     "/actuator/cosidGenerator": {
       "get": {
-        "tags": [
-          "Actuator"
-        ],
+        "tags": ["Actuator"],
         "summary": "Actuator web endpoint 'cosidGenerator'",
         "operationId": "shareGenerate",
         "responses": {
@@ -450,9 +426,7 @@
     },
     "/actuator/cosid/{name}": {
       "get": {
-        "tags": [
-          "Actuator"
-        ],
+        "tags": ["Actuator"],
         "summary": "Actuator web endpoint 'cosid-name'",
         "operationId": "getStat",
         "parameters": [
@@ -492,9 +466,7 @@
         }
       },
       "delete": {
-        "tags": [
-          "Actuator"
-        ],
+        "tags": ["Actuator"],
         "summary": "Actuator web endpoint 'cosid-name'",
         "operationId": "remove",
         "parameters": [
@@ -519,9 +491,7 @@
     },
     "/actuator/cosid": {
       "get": {
-        "tags": [
-          "Actuator"
-        ],
+        "tags": ["Actuator"],
         "summary": "Actuator web endpoint 'cosid'",
         "operationId": "stat",
         "responses": {
@@ -550,9 +520,7 @@
     },
     "/actuator": {
       "get": {
-        "tags": [
-          "Actuator"
-        ],
+        "tags": ["Actuator"],
         "summary": "Actuator root web endpoint",
         "operationId": "links",
         "responses": {
@@ -592,9 +560,7 @@
       "summary": "The receiving endpoint of the wait signal",
       "description": "",
       "post": {
-        "tags": [
-          "wow"
-        ],
+        "tags": ["wow"],
         "summary": "The receiving endpoint of the wait signal",
         "description": "",
         "operationId": "wow.command.wait",
@@ -611,9 +577,7 @@
         "responses": {
           "200": {
             "description": "Ok",
-            "content": {
-
-            }
+            "content": {}
           }
         }
       }
@@ -622,9 +586,7 @@
       "summary": "Unified Sending Endpoint For Command Messages",
       "description": "",
       "post": {
-        "tags": [
-          "wow"
-        ],
+        "tags": ["wow"],
         "summary": "Unified Sending Endpoint For Command Messages",
         "description": "",
         "operationId": "wow.command.send",
@@ -726,9 +688,7 @@
       "summary": "Get Wow Metadata",
       "description": "",
       "get": {
-        "tags": [
-          "wow"
-        ],
+        "tags": ["wow"],
         "summary": "Get Wow Metadata",
         "description": "",
         "operationId": "wow.metadata.get",
@@ -751,9 +711,7 @@
       "summary": "Generate Global ID",
       "description": "",
       "get": {
-        "tags": [
-          "wow"
-        ],
+        "tags": ["wow"],
         "summary": "Generate Global ID",
         "description": "",
         "operationId": "wow.global_id.generate",
@@ -776,9 +734,7 @@
       "summary": "Generate BI Sync Script",
       "description": "",
       "get": {
-        "tags": [
-          "wow"
-        ],
+        "tags": ["wow"],
         "summary": "Generate BI Sync Script",
         "description": "",
         "operationId": "wow.bi_script.generate",
@@ -805,9 +761,7 @@
       "summary": "收货",
       "description": "",
       "patch": {
-        "tags": [
-          "example.order"
-        ],
+        "tags": ["example.order"],
         "summary": "收货",
         "description": "",
         "operationId": "example.order.receipt_order",
@@ -903,9 +857,7 @@
       "summary": "修改收货地址",
       "description": "",
       "put": {
-        "tags": [
-          "example.order"
-        ],
+        "tags": ["example.order"],
         "summary": "修改收货地址",
         "description": "",
         "operationId": "example.order.change_address",
@@ -1001,9 +953,7 @@
       "summary": "下单",
       "description": "",
       "post": {
-        "tags": [
-          "example.order"
-        ],
+        "tags": ["example.order"],
         "summary": "下单",
         "description": "",
         "operationId": "example.order.create_order",
@@ -1096,9 +1046,7 @@
       "summary": "pay_order",
       "description": "",
       "post": {
-        "tags": [
-          "example.order"
-        ],
+        "tags": ["example.order"],
         "summary": "pay_order",
         "description": "",
         "operationId": "example.order.pay_order",
@@ -1191,9 +1139,7 @@
       "summary": "发货",
       "description": "",
       "post": {
-        "tags": [
-          "example.order"
-        ],
+        "tags": ["example.order"],
         "summary": "发货",
         "description": "",
         "operationId": "example.order.ship_order",
@@ -1286,9 +1232,7 @@
       "summary": "Delete aggregate",
       "description": "",
       "delete": {
-        "tags": [
-          "example.order"
-        ],
+        "tags": ["example.order"],
         "summary": "Delete aggregate",
         "description": "",
         "operationId": "example.order.default_delete_aggregate",
@@ -1384,9 +1328,7 @@
       "summary": "Recover deleted aggregate",
       "description": "",
       "put": {
-        "tags": [
-          "example.order"
-        ],
+        "tags": ["example.order"],
         "summary": "Recover deleted aggregate",
         "description": "",
         "operationId": "example.order.default_recover_aggregate",
@@ -1482,9 +1424,7 @@
       "summary": "Get Aggregate Tracing",
       "description": "",
       "get": {
-        "tags": [
-          "example.order"
-        ],
+        "tags": ["example.order"],
         "summary": "Get Aggregate Tracing",
         "description": "",
         "operationId": "example.order.tenant.aggregate_tracing.get",
@@ -1522,9 +1462,7 @@
       "summary": "Load State Aggregate",
       "description": "",
       "get": {
-        "tags": [
-          "example.order"
-        ],
+        "tags": ["example.order"],
         "summary": "Load State Aggregate",
         "description": "",
         "operationId": "example.order.tenant.aggregate.load",
@@ -1568,9 +1506,7 @@
       "summary": "Load Versioned State Aggregate",
       "description": "",
       "get": {
-        "tags": [
-          "example.order"
-        ],
+        "tags": ["example.order"],
         "summary": "Load Versioned State Aggregate",
         "description": "",
         "operationId": "example.order.tenant.versioned_aggregate.load",
@@ -1617,9 +1553,7 @@
       "summary": "Load Time Based State Aggregate",
       "description": "",
       "get": {
-        "tags": [
-          "example.order"
-        ],
+        "tags": ["example.order"],
         "summary": "Load Time Based State Aggregate",
         "description": "",
         "operationId": "example.order.tenant.time_based_aggregate.load",
@@ -1666,9 +1600,7 @@
       "summary": "Get Snapshot",
       "description": "",
       "get": {
-        "tags": [
-          "example.order"
-        ],
+        "tags": ["example.order"],
         "summary": "Get Snapshot",
         "description": "",
         "operationId": "example.order.tenant.owner.snapshot.load",
@@ -1708,9 +1640,7 @@
       "summary": "Regenerate Aggregate Snapshot",
       "description": "",
       "put": {
-        "tags": [
-          "example.order"
-        ],
+        "tags": ["example.order"],
         "summary": "Regenerate Aggregate Snapshot",
         "description": "",
         "operationId": "example.order.tenant.snapshot.regenerate",
@@ -1723,9 +1653,7 @@
           }
         ],
         "responses": {
-          "200": {
-
-          },
+          "200": {},
           "404": {
             "$ref": "#/components/responses/wow.NotFound"
           }
@@ -1736,9 +1664,7 @@
       "summary": "Batch Regenerate Aggregate Snapshot",
       "description": "",
       "put": {
-        "tags": [
-          "example.order"
-        ],
+        "tags": ["example.order"],
         "summary": "Batch Regenerate Aggregate Snapshot",
         "description": "",
         "operationId": "example.order.snapshot.batch_regenerate",
@@ -1764,9 +1690,7 @@
       "summary": "Count Snapshot",
       "description": "",
       "post": {
-        "tags": [
-          "example.order"
-        ],
+        "tags": ["example.order"],
         "summary": "Count Snapshot",
         "description": "",
         "operationId": "example.order.snapshot.count",
@@ -1791,9 +1715,7 @@
       "summary": "Count Snapshot Within Tenant",
       "description": "",
       "post": {
-        "tags": [
-          "example.order"
-        ],
+        "tags": ["example.order"],
         "summary": "Count Snapshot Within Tenant",
         "description": "",
         "operationId": "example.order.tenant.snapshot.count",
@@ -1822,9 +1744,7 @@
       "summary": "Count Snapshot Within Owner",
       "description": "",
       "post": {
-        "tags": [
-          "example.order"
-        ],
+        "tags": ["example.order"],
         "summary": "Count Snapshot Within Owner",
         "description": "",
         "operationId": "example.order.owner.snapshot.count",
@@ -1853,9 +1773,7 @@
       "summary": "List Query Snapshot",
       "description": "",
       "post": {
-        "tags": [
-          "example.order"
-        ],
+        "tags": ["example.order"],
         "summary": "List Query Snapshot",
         "description": "",
         "operationId": "example.order.snapshot.list_query",
@@ -1896,9 +1814,7 @@
       "summary": "List Query Snapshot Within Tenant",
       "description": "",
       "post": {
-        "tags": [
-          "example.order"
-        ],
+        "tags": ["example.order"],
         "summary": "List Query Snapshot Within Tenant",
         "description": "",
         "operationId": "example.order.tenant.snapshot.list_query",
@@ -1943,9 +1859,7 @@
       "summary": "List Query Snapshot Within Owner",
       "description": "",
       "post": {
-        "tags": [
-          "example.order"
-        ],
+        "tags": ["example.order"],
         "summary": "List Query Snapshot Within Owner",
         "description": "",
         "operationId": "example.order.owner.snapshot.list_query",
@@ -1990,9 +1904,7 @@
       "summary": "List Query Snapshot State",
       "description": "",
       "post": {
-        "tags": [
-          "example.order"
-        ],
+        "tags": ["example.order"],
         "summary": "List Query Snapshot State",
         "description": "",
         "operationId": "example.order.snapshot_state.list_query",
@@ -2033,9 +1945,7 @@
       "summary": "List Query Snapshot State Within Tenant",
       "description": "",
       "post": {
-        "tags": [
-          "example.order"
-        ],
+        "tags": ["example.order"],
         "summary": "List Query Snapshot State Within Tenant",
         "description": "",
         "operationId": "example.order.tenant.snapshot_state.list_query",
@@ -2080,9 +1990,7 @@
       "summary": "List Query Snapshot State Within Owner",
       "description": "",
       "post": {
-        "tags": [
-          "example.order"
-        ],
+        "tags": ["example.order"],
         "summary": "List Query Snapshot State Within Owner",
         "description": "",
         "operationId": "example.order.owner.snapshot_state.list_query",
@@ -2127,9 +2035,7 @@
       "summary": "Paged Query Snapshot",
       "description": "",
       "post": {
-        "tags": [
-          "example.order"
-        ],
+        "tags": ["example.order"],
         "summary": "Paged Query Snapshot",
         "description": "",
         "operationId": "example.order.snapshot.paged_query",
@@ -2159,9 +2065,7 @@
       "summary": "Paged Query Snapshot Within Tenant",
       "description": "",
       "post": {
-        "tags": [
-          "example.order"
-        ],
+        "tags": ["example.order"],
         "summary": "Paged Query Snapshot Within Tenant",
         "description": "",
         "operationId": "example.order.tenant.snapshot.paged_query",
@@ -2195,9 +2099,7 @@
       "summary": "Paged Query Snapshot Within Owner",
       "description": "",
       "post": {
-        "tags": [
-          "example.order"
-        ],
+        "tags": ["example.order"],
         "summary": "Paged Query Snapshot Within Owner",
         "description": "",
         "operationId": "example.order.owner.snapshot.paged_query",
@@ -2231,9 +2133,7 @@
       "summary": "Paged Query Snapshot State",
       "description": "",
       "post": {
-        "tags": [
-          "example.order"
-        ],
+        "tags": ["example.order"],
         "summary": "Paged Query Snapshot State",
         "description": "",
         "operationId": "example.order.snapshot_state.paged_query",
@@ -2263,9 +2163,7 @@
       "summary": "Paged Query Snapshot State Within Tenant",
       "description": "",
       "post": {
-        "tags": [
-          "example.order"
-        ],
+        "tags": ["example.order"],
         "summary": "Paged Query Snapshot State Within Tenant",
         "description": "",
         "operationId": "example.order.tenant.snapshot_state.paged_query",
@@ -2299,9 +2197,7 @@
       "summary": "Paged Query Snapshot State Within Owner",
       "description": "",
       "post": {
-        "tags": [
-          "example.order"
-        ],
+        "tags": ["example.order"],
         "summary": "Paged Query Snapshot State Within Owner",
         "description": "",
         "operationId": "example.order.owner.snapshot_state.paged_query",
@@ -2335,9 +2231,7 @@
       "summary": "Single Snapshot",
       "description": "",
       "post": {
-        "tags": [
-          "example.order"
-        ],
+        "tags": ["example.order"],
         "summary": "Single Snapshot",
         "description": "",
         "operationId": "example.order.snapshot.single",
@@ -2370,9 +2264,7 @@
       "summary": "Single Snapshot Within Tenant",
       "description": "",
       "post": {
-        "tags": [
-          "example.order"
-        ],
+        "tags": ["example.order"],
         "summary": "Single Snapshot Within Tenant",
         "description": "",
         "operationId": "example.order.tenant.snapshot.single",
@@ -2409,9 +2301,7 @@
       "summary": "Single Snapshot Within Owner",
       "description": "",
       "post": {
-        "tags": [
-          "example.order"
-        ],
+        "tags": ["example.order"],
         "summary": "Single Snapshot Within Owner",
         "description": "",
         "operationId": "example.order.owner.snapshot.single",
@@ -2448,9 +2338,7 @@
       "summary": "Single Snapshot State",
       "description": "",
       "post": {
-        "tags": [
-          "example.order"
-        ],
+        "tags": ["example.order"],
         "summary": "Single Snapshot State",
         "description": "",
         "operationId": "example.order.snapshot_state.single",
@@ -2483,9 +2371,7 @@
       "summary": "Single Snapshot State Within Tenant",
       "description": "",
       "post": {
-        "tags": [
-          "example.order"
-        ],
+        "tags": ["example.order"],
         "summary": "Single Snapshot State Within Tenant",
         "description": "",
         "operationId": "example.order.tenant.snapshot_state.single",
@@ -2522,9 +2408,7 @@
       "summary": "Single Snapshot State Within Owner",
       "description": "",
       "post": {
-        "tags": [
-          "example.order"
-        ],
+        "tags": ["example.order"],
         "summary": "Single Snapshot State Within Owner",
         "description": "",
         "operationId": "example.order.owner.snapshot_state.single",
@@ -2561,9 +2445,7 @@
       "summary": "Load Event Stream",
       "description": "",
       "get": {
-        "tags": [
-          "example.order"
-        ],
+        "tags": ["example.order"],
         "summary": "Load Event Stream",
         "description": "",
         "operationId": "example.order.tenant.event_stream.load",
@@ -2614,9 +2496,7 @@
       "summary": "List Query Event Stream",
       "description": "",
       "post": {
-        "tags": [
-          "example.order"
-        ],
+        "tags": ["example.order"],
         "summary": "List Query Event Stream",
         "description": "",
         "operationId": "example.order.event.list_query",
@@ -2657,9 +2537,7 @@
       "summary": "List Query Event Stream Within Tenant",
       "description": "",
       "post": {
-        "tags": [
-          "example.order"
-        ],
+        "tags": ["example.order"],
         "summary": "List Query Event Stream Within Tenant",
         "description": "",
         "operationId": "example.order.tenant.event.list_query",
@@ -2704,9 +2582,7 @@
       "summary": "List Query Event Stream Within Owner",
       "description": "",
       "post": {
-        "tags": [
-          "example.order"
-        ],
+        "tags": ["example.order"],
         "summary": "List Query Event Stream Within Owner",
         "description": "",
         "operationId": "example.order.owner.event.list_query",
@@ -2751,9 +2627,7 @@
       "summary": "Paged Query Event Stream",
       "description": "",
       "post": {
-        "tags": [
-          "example.order"
-        ],
+        "tags": ["example.order"],
         "summary": "Paged Query Event Stream",
         "description": "",
         "operationId": "example.order.event.paged_query",
@@ -2783,9 +2657,7 @@
       "summary": "Paged Query Event Stream Within Tenant",
       "description": "",
       "post": {
-        "tags": [
-          "example.order"
-        ],
+        "tags": ["example.order"],
         "summary": "Paged Query Event Stream Within Tenant",
         "description": "",
         "operationId": "example.order.tenant.event.paged_query",
@@ -2819,9 +2691,7 @@
       "summary": "Paged Query Event Stream Within Owner",
       "description": "",
       "post": {
-        "tags": [
-          "example.order"
-        ],
+        "tags": ["example.order"],
         "summary": "Paged Query Event Stream Within Owner",
         "description": "",
         "operationId": "example.order.owner.event.paged_query",
@@ -2855,9 +2725,7 @@
       "summary": "Count Event Stream",
       "description": "",
       "post": {
-        "tags": [
-          "example.order"
-        ],
+        "tags": ["example.order"],
         "summary": "Count Event Stream",
         "description": "",
         "operationId": "example.order.event.count",
@@ -2876,9 +2744,7 @@
       "summary": "Count Event Stream Within Tenant",
       "description": "",
       "post": {
-        "tags": [
-          "example.order"
-        ],
+        "tags": ["example.order"],
         "summary": "Count Event Stream Within Tenant",
         "description": "",
         "operationId": "example.order.tenant.event.count",
@@ -2901,9 +2767,7 @@
       "summary": "Count Event Stream Within Owner",
       "description": "",
       "post": {
-        "tags": [
-          "example.order"
-        ],
+        "tags": ["example.order"],
         "summary": "Count Event Stream Within Owner",
         "description": "",
         "operationId": "example.order.owner.event.count",
@@ -2926,9 +2790,7 @@
       "summary": "Event Compensate",
       "description": "",
       "put": {
-        "tags": [
-          "example.order"
-        ],
+        "tags": ["example.order"],
         "summary": "Event Compensate",
         "description": "",
         "operationId": "example.order.tenant.compensate",
@@ -2960,9 +2822,7 @@
       "summary": "Resend State Event",
       "description": "",
       "post": {
-        "tags": [
-          "example.order"
-        ],
+        "tags": ["example.order"],
         "summary": "Resend State Event",
         "description": "",
         "operationId": "example.order.state_event.resend",
@@ -2988,10 +2848,7 @@
       "summary": "view_cart",
       "description": "",
       "put": {
-        "tags": [
-          "example.cart",
-          "customer"
-        ],
+        "tags": ["example.cart", "customer"],
         "summary": "view_cart",
         "description": "",
         "operationId": "example.cart.view_cart",
@@ -3081,10 +2938,7 @@
       "summary": "加入购物车",
       "description": "",
       "post": {
-        "tags": [
-          "example.cart",
-          "customer"
-        ],
+        "tags": ["example.cart", "customer"],
         "summary": "加入购物车",
         "description": "",
         "operationId": "example.cart.add_cart_item",
@@ -3174,10 +3028,7 @@
       "summary": "变更购买数量",
       "description": "",
       "put": {
-        "tags": [
-          "example.cart",
-          "customer"
-        ],
+        "tags": ["example.cart", "customer"],
         "summary": "变更购买数量",
         "description": "",
         "operationId": "example.cart.change_quantity",
@@ -3267,10 +3118,7 @@
       "summary": "删除商品",
       "description": "",
       "put": {
-        "tags": [
-          "example.cart",
-          "customer"
-        ],
+        "tags": ["example.cart", "customer"],
         "summary": "删除商品",
         "description": "",
         "operationId": "example.cart.remove_cart_item",
@@ -3360,10 +3208,7 @@
       "summary": "挂载的命令",
       "description": "",
       "put": {
-        "tags": [
-          "example.cart",
-          "customer"
-        ],
+        "tags": ["example.cart", "customer"],
         "summary": "挂载的命令",
         "description": "",
         "operationId": "example.cart.mounted_command",
@@ -3453,10 +3298,7 @@
       "summary": "mock_variable_command",
       "description": "",
       "post": {
-        "tags": [
-          "example.cart",
-          "customer"
-        ],
+        "tags": ["example.cart", "customer"],
         "summary": "mock_variable_command",
         "description": "",
         "operationId": "example.cart.mock_variable_command",
@@ -3590,10 +3432,7 @@
       "summary": "Delete aggregate",
       "description": "",
       "delete": {
-        "tags": [
-          "example.cart",
-          "customer"
-        ],
+        "tags": ["example.cart", "customer"],
         "summary": "Delete aggregate",
         "description": "",
         "operationId": "example.cart.default_delete_aggregate",
@@ -3683,10 +3522,7 @@
       "summary": "Recover deleted aggregate",
       "description": "",
       "put": {
-        "tags": [
-          "example.cart",
-          "customer"
-        ],
+        "tags": ["example.cart", "customer"],
         "summary": "Recover deleted aggregate",
         "description": "",
         "operationId": "example.cart.default_recover_aggregate",
@@ -3776,10 +3612,7 @@
       "summary": "Get Aggregate Tracing",
       "description": "",
       "get": {
-        "tags": [
-          "example.cart",
-          "customer"
-        ],
+        "tags": ["example.cart", "customer"],
         "summary": "Get Aggregate Tracing",
         "description": "",
         "operationId": "example.cart.aggregate_tracing.get",
@@ -3814,10 +3647,7 @@
       "summary": "Load State Aggregate",
       "description": "",
       "get": {
-        "tags": [
-          "example.cart",
-          "customer"
-        ],
+        "tags": ["example.cart", "customer"],
         "summary": "Load State Aggregate",
         "description": "",
         "operationId": "example.cart.aggregate.load",
@@ -3855,10 +3685,7 @@
       "summary": "Load Versioned State Aggregate",
       "description": "",
       "get": {
-        "tags": [
-          "example.cart",
-          "customer"
-        ],
+        "tags": ["example.cart", "customer"],
         "summary": "Load Versioned State Aggregate",
         "description": "",
         "operationId": "example.cart.versioned_aggregate.load",
@@ -3899,10 +3726,7 @@
       "summary": "Load Time Based State Aggregate",
       "description": "",
       "get": {
-        "tags": [
-          "example.cart",
-          "customer"
-        ],
+        "tags": ["example.cart", "customer"],
         "summary": "Load Time Based State Aggregate",
         "description": "",
         "operationId": "example.cart.time_based_aggregate.load",
@@ -3943,10 +3767,7 @@
       "summary": "Get Snapshot",
       "description": "",
       "get": {
-        "tags": [
-          "example.cart",
-          "customer"
-        ],
+        "tags": ["example.cart", "customer"],
         "summary": "Get Snapshot",
         "description": "",
         "operationId": "example.cart.owner.snapshot.load",
@@ -3980,10 +3801,7 @@
       "summary": "Regenerate Aggregate Snapshot",
       "description": "",
       "put": {
-        "tags": [
-          "example.cart",
-          "customer"
-        ],
+        "tags": ["example.cart", "customer"],
         "summary": "Regenerate Aggregate Snapshot",
         "description": "",
         "operationId": "example.cart.snapshot.regenerate",
@@ -3993,9 +3811,7 @@
           }
         ],
         "responses": {
-          "200": {
-
-          },
+          "200": {},
           "404": {
             "$ref": "#/components/responses/wow.NotFound"
           }
@@ -4006,10 +3822,7 @@
       "summary": "Batch Regenerate Aggregate Snapshot",
       "description": "",
       "put": {
-        "tags": [
-          "example.cart",
-          "customer"
-        ],
+        "tags": ["example.cart", "customer"],
         "summary": "Batch Regenerate Aggregate Snapshot",
         "description": "",
         "operationId": "example.cart.snapshot.batch_regenerate",
@@ -4035,10 +3848,7 @@
       "summary": "Count Snapshot",
       "description": "",
       "post": {
-        "tags": [
-          "example.cart",
-          "customer"
-        ],
+        "tags": ["example.cart", "customer"],
         "summary": "Count Snapshot",
         "description": "",
         "operationId": "example.cart.snapshot.count",
@@ -4063,10 +3873,7 @@
       "summary": "Count Snapshot Within Owner",
       "description": "",
       "post": {
-        "tags": [
-          "example.cart",
-          "customer"
-        ],
+        "tags": ["example.cart", "customer"],
         "summary": "Count Snapshot Within Owner",
         "description": "",
         "operationId": "example.cart.owner.snapshot.count",
@@ -4095,10 +3902,7 @@
       "summary": "List Query Snapshot",
       "description": "",
       "post": {
-        "tags": [
-          "example.cart",
-          "customer"
-        ],
+        "tags": ["example.cart", "customer"],
         "summary": "List Query Snapshot",
         "description": "",
         "operationId": "example.cart.snapshot.list_query",
@@ -4139,10 +3943,7 @@
       "summary": "List Query Snapshot Within Owner",
       "description": "",
       "post": {
-        "tags": [
-          "example.cart",
-          "customer"
-        ],
+        "tags": ["example.cart", "customer"],
         "summary": "List Query Snapshot Within Owner",
         "description": "",
         "operationId": "example.cart.owner.snapshot.list_query",
@@ -4187,10 +3988,7 @@
       "summary": "List Query Snapshot State",
       "description": "",
       "post": {
-        "tags": [
-          "example.cart",
-          "customer"
-        ],
+        "tags": ["example.cart", "customer"],
         "summary": "List Query Snapshot State",
         "description": "",
         "operationId": "example.cart.snapshot_state.list_query",
@@ -4231,10 +4029,7 @@
       "summary": "List Query Snapshot State Within Owner",
       "description": "",
       "post": {
-        "tags": [
-          "example.cart",
-          "customer"
-        ],
+        "tags": ["example.cart", "customer"],
         "summary": "List Query Snapshot State Within Owner",
         "description": "",
         "operationId": "example.cart.owner.snapshot_state.list_query",
@@ -4279,10 +4074,7 @@
       "summary": "Paged Query Snapshot",
       "description": "",
       "post": {
-        "tags": [
-          "example.cart",
-          "customer"
-        ],
+        "tags": ["example.cart", "customer"],
         "summary": "Paged Query Snapshot",
         "description": "",
         "operationId": "example.cart.snapshot.paged_query",
@@ -4312,10 +4104,7 @@
       "summary": "Paged Query Snapshot Within Owner",
       "description": "",
       "post": {
-        "tags": [
-          "example.cart",
-          "customer"
-        ],
+        "tags": ["example.cart", "customer"],
         "summary": "Paged Query Snapshot Within Owner",
         "description": "",
         "operationId": "example.cart.owner.snapshot.paged_query",
@@ -4349,10 +4138,7 @@
       "summary": "Paged Query Snapshot State",
       "description": "",
       "post": {
-        "tags": [
-          "example.cart",
-          "customer"
-        ],
+        "tags": ["example.cart", "customer"],
         "summary": "Paged Query Snapshot State",
         "description": "",
         "operationId": "example.cart.snapshot_state.paged_query",
@@ -4382,10 +4168,7 @@
       "summary": "Paged Query Snapshot State Within Owner",
       "description": "",
       "post": {
-        "tags": [
-          "example.cart",
-          "customer"
-        ],
+        "tags": ["example.cart", "customer"],
         "summary": "Paged Query Snapshot State Within Owner",
         "description": "",
         "operationId": "example.cart.owner.snapshot_state.paged_query",
@@ -4419,10 +4202,7 @@
       "summary": "Single Snapshot",
       "description": "",
       "post": {
-        "tags": [
-          "example.cart",
-          "customer"
-        ],
+        "tags": ["example.cart", "customer"],
         "summary": "Single Snapshot",
         "description": "",
         "operationId": "example.cart.snapshot.single",
@@ -4455,10 +4235,7 @@
       "summary": "Single Snapshot Within Owner",
       "description": "",
       "post": {
-        "tags": [
-          "example.cart",
-          "customer"
-        ],
+        "tags": ["example.cart", "customer"],
         "summary": "Single Snapshot Within Owner",
         "description": "",
         "operationId": "example.cart.owner.snapshot.single",
@@ -4495,10 +4272,7 @@
       "summary": "Single Snapshot State",
       "description": "",
       "post": {
-        "tags": [
-          "example.cart",
-          "customer"
-        ],
+        "tags": ["example.cart", "customer"],
         "summary": "Single Snapshot State",
         "description": "",
         "operationId": "example.cart.snapshot_state.single",
@@ -4531,10 +4305,7 @@
       "summary": "Single Snapshot State Within Owner",
       "description": "",
       "post": {
-        "tags": [
-          "example.cart",
-          "customer"
-        ],
+        "tags": ["example.cart", "customer"],
         "summary": "Single Snapshot State Within Owner",
         "description": "",
         "operationId": "example.cart.owner.snapshot_state.single",
@@ -4571,10 +4342,7 @@
       "summary": "Load Event Stream",
       "description": "",
       "get": {
-        "tags": [
-          "example.cart",
-          "customer"
-        ],
+        "tags": ["example.cart", "customer"],
         "summary": "Load Event Stream",
         "description": "",
         "operationId": "example.cart.event_stream.load",
@@ -4622,10 +4390,7 @@
       "summary": "List Query Event Stream",
       "description": "",
       "post": {
-        "tags": [
-          "example.cart",
-          "customer"
-        ],
+        "tags": ["example.cart", "customer"],
         "summary": "List Query Event Stream",
         "description": "",
         "operationId": "example.cart.event.list_query",
@@ -4666,10 +4431,7 @@
       "summary": "List Query Event Stream Within Owner",
       "description": "",
       "post": {
-        "tags": [
-          "example.cart",
-          "customer"
-        ],
+        "tags": ["example.cart", "customer"],
         "summary": "List Query Event Stream Within Owner",
         "description": "",
         "operationId": "example.cart.owner.event.list_query",
@@ -4714,10 +4476,7 @@
       "summary": "Paged Query Event Stream",
       "description": "",
       "post": {
-        "tags": [
-          "example.cart",
-          "customer"
-        ],
+        "tags": ["example.cart", "customer"],
         "summary": "Paged Query Event Stream",
         "description": "",
         "operationId": "example.cart.event.paged_query",
@@ -4747,10 +4506,7 @@
       "summary": "Paged Query Event Stream Within Owner",
       "description": "",
       "post": {
-        "tags": [
-          "example.cart",
-          "customer"
-        ],
+        "tags": ["example.cart", "customer"],
         "summary": "Paged Query Event Stream Within Owner",
         "description": "",
         "operationId": "example.cart.owner.event.paged_query",
@@ -4784,10 +4540,7 @@
       "summary": "Count Event Stream",
       "description": "",
       "post": {
-        "tags": [
-          "example.cart",
-          "customer"
-        ],
+        "tags": ["example.cart", "customer"],
         "summary": "Count Event Stream",
         "description": "",
         "operationId": "example.cart.event.count",
@@ -4806,10 +4559,7 @@
       "summary": "Count Event Stream Within Owner",
       "description": "",
       "post": {
-        "tags": [
-          "example.cart",
-          "customer"
-        ],
+        "tags": ["example.cart", "customer"],
         "summary": "Count Event Stream Within Owner",
         "description": "",
         "operationId": "example.cart.owner.event.count",
@@ -4832,10 +4582,7 @@
       "summary": "Event Compensate",
       "description": "",
       "put": {
-        "tags": [
-          "example.cart",
-          "customer"
-        ],
+        "tags": ["example.cart", "customer"],
         "summary": "Event Compensate",
         "description": "",
         "operationId": "example.cart.compensate",
@@ -4864,10 +4611,7 @@
       "summary": "Resend State Event",
       "description": "",
       "post": {
-        "tags": [
-          "example.cart",
-          "customer"
-        ],
+        "tags": ["example.cart", "customer"],
         "summary": "Resend State Event",
         "description": "",
         "operationId": "example.cart.state_event.resend",
@@ -4902,10 +4646,7 @@
             "type": "string"
           },
           "aggregateVersion": {
-            "type": [
-              "integer",
-              "null"
-            ],
+            "type": ["integer", "null"],
             "format": "int32"
           },
           "bindingErrors": {
@@ -5007,9 +4748,7 @@
             "readOnly": true
           }
         },
-        "required": [
-          "id"
-        ]
+        "required": ["id"]
       },
       "example.cart.CartData": {
         "type": "object",
@@ -5027,16 +4766,11 @@
             "readOnly": true
           }
         },
-        "required": [
-          "items"
-        ]
+        "required": ["items"]
       },
       "example.ApiVersion": {
         "type": "string",
-        "enum": [
-          "V2",
-          "V3"
-        ]
+        "enum": ["V2", "V3"]
       },
       "example.Link": {
         "type": "object",
@@ -5082,9 +4816,7 @@
             "exclusiveMinimum": 0
           }
         },
-        "required": [
-          "productId"
-        ],
+        "required": ["productId"],
         "title": "加入购物车"
       },
       "example.cart.CartAggregatedCondition": {
@@ -5108,9 +4840,7 @@
             "$ref": "#/components/schemas/wow.api.query.ConditionOptions",
             "default": "{}"
           },
-          "value": {
-
-          }
+          "value": {}
         }
       },
       "example.cart.CartAggregatedDomainEventStream": {
@@ -5240,13 +4970,7 @@
                       "$ref": "#/components/schemas/example.cart.CartItemAdded"
                     }
                   },
-                  "required": [
-                    "body",
-                    "bodyType",
-                    "id",
-                    "name",
-                    "revision"
-                  ],
+                  "required": ["body", "bodyType", "id", "name", "revision"],
                   "title": "商品已加入购物车"
                 },
                 {
@@ -5278,13 +5002,7 @@
                       "$ref": "#/components/schemas/example.cart.CartItemRemoved"
                     }
                   },
-                  "required": [
-                    "body",
-                    "bodyType",
-                    "id",
-                    "name",
-                    "revision"
-                  ],
+                  "required": ["body", "bodyType", "id", "name", "revision"],
                   "title": "cart_item_removed"
                 },
                 {
@@ -5316,13 +5034,7 @@
                       "$ref": "#/components/schemas/example.cart.CartQuantityChanged"
                     }
                   },
-                  "required": [
-                    "body",
-                    "bodyType",
-                    "id",
-                    "name",
-                    "revision"
-                  ],
+                  "required": ["body", "bodyType", "id", "name", "revision"],
                   "title": "cart_quantity_changed"
                 }
               ]
@@ -5361,10 +5073,7 @@
             "format": "int64"
           }
         },
-        "required": [
-          "list",
-          "total"
-        ]
+        "required": ["list", "total"]
       },
       "example.cart.CartAggregatedDomainEventStreamServerSentEventNonNullData": {
         "type": "object",
@@ -5373,28 +5082,17 @@
             "$ref": "#/components/schemas/example.cart.CartAggregatedDomainEventStream"
           },
           "event": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "id": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "retry": {
-            "type": [
-              "integer",
-              "null"
-            ],
+            "type": ["integer", "null"],
             "format": "int32"
           }
         },
-        "required": [
-          "data"
-        ]
+        "required": ["data"]
       },
       "example.cart.CartAggregatedFields": {
         "type": "string",
@@ -5440,9 +5138,7 @@
             }
           }
         },
-        "required": [
-          "condition"
-        ]
+        "required": ["condition"]
       },
       "example.cart.CartAggregatedPagedQuery": {
         "type": "object",
@@ -5464,9 +5160,7 @@
             }
           }
         },
-        "required": [
-          "condition"
-        ]
+        "required": ["condition"]
       },
       "example.cart.CartAggregatedSingleQuery": {
         "type": "object",
@@ -5485,9 +5179,7 @@
             }
           }
         },
-        "required": [
-          "condition"
-        ]
+        "required": ["condition"]
       },
       "example.cart.CartItem": {
         "type": "object",
@@ -5500,9 +5192,7 @@
             "format": "int32"
           }
         },
-        "required": [
-          "productId"
-        ]
+        "required": ["productId"]
       },
       "example.cart.CartItemAdded": {
         "type": "object",
@@ -5511,9 +5201,7 @@
             "$ref": "#/components/schemas/example.cart.CartItem"
           }
         },
-        "required": [
-          "added"
-        ],
+        "required": ["added"],
         "title": "商品已加入购物车"
       },
       "example.cart.CartItemRemoved": {
@@ -5526,9 +5214,7 @@
             }
           }
         },
-        "required": [
-          "productIds"
-        ]
+        "required": ["productIds"]
       },
       "example.cart.CartQuantityChanged": {
         "type": "object",
@@ -5537,9 +5223,7 @@
             "$ref": "#/components/schemas/example.cart.CartItem"
           }
         },
-        "required": [
-          "changed"
-        ]
+        "required": ["changed"]
       },
       "example.cart.CartState": {
         "type": "object",
@@ -5560,9 +5244,7 @@
             "readOnly": true
           }
         },
-        "required": [
-          "id"
-        ]
+        "required": ["id"]
       },
       "example.cart.CartStateMaterializedSnapshot": {
         "type": "object",
@@ -5652,10 +5334,7 @@
             "format": "int64"
           }
         },
-        "required": [
-          "list",
-          "total"
-        ]
+        "required": ["list", "total"]
       },
       "example.cart.CartStateMaterializedSnapshotServerSentEventNonNullData": {
         "type": "object",
@@ -5664,28 +5343,17 @@
             "$ref": "#/components/schemas/example.cart.CartStateMaterializedSnapshot"
           },
           "event": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "id": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "retry": {
-            "type": [
-              "integer",
-              "null"
-            ],
+            "type": ["integer", "null"],
             "format": "int32"
           }
         },
-        "required": [
-          "data"
-        ]
+        "required": ["data"]
       },
       "example.cart.CartStatePagedList": {
         "type": "object",
@@ -5701,10 +5369,7 @@
             "format": "int64"
           }
         },
-        "required": [
-          "list",
-          "total"
-        ]
+        "required": ["list", "total"]
       },
       "example.cart.CartStateServerSentEventNonNullData": {
         "type": "object",
@@ -5713,28 +5378,17 @@
             "$ref": "#/components/schemas/example.cart.CartState"
           },
           "event": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "id": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "retry": {
-            "type": [
-              "integer",
-              "null"
-            ],
+            "type": ["integer", "null"],
             "format": "int32"
           }
         },
-        "required": [
-          "data"
-        ]
+        "required": ["data"]
       },
       "example.cart.CartStateSnapshot": {
         "type": "object",
@@ -5802,9 +5456,7 @@
                 }
               }
             },
-            "required": [
-              "id"
-            ]
+            "required": ["id"]
           },
           "deleted": {
             "type": "boolean",
@@ -5955,13 +5607,7 @@
                   "description": "The message body of the domain event"
                 }
               },
-              "required": [
-                "body",
-                "bodyType",
-                "id",
-                "name",
-                "revision"
-              ]
+              "required": ["body", "bodyType", "id", "name", "revision"]
             },
             "minItems": 1
           },
@@ -5993,9 +5639,7 @@
                 }
               }
             },
-            "required": [
-              "id"
-            ]
+            "required": ["id"]
           },
           "deleted": {
             "type": "boolean",
@@ -6031,10 +5675,7 @@
             "exclusiveMinimum": 0
           }
         },
-        "required": [
-          "productId",
-          "quantity"
-        ],
+        "required": ["productId", "quantity"],
         "title": "变更购买数量"
       },
       "example.cart.MockVariableCommand": {
@@ -6042,11 +5683,7 @@
       },
       "example.cart.MockVariableCommand.MockEnum": {
         "type": "string",
-        "enum": [
-          "First",
-          "Second",
-          "Third"
-        ]
+        "enum": ["First", "Second", "Third"]
       },
       "example.cart.MountedCommand": {
         "type": "object",
@@ -6063,9 +5700,7 @@
             "minItems": 1
           }
         },
-        "required": [
-          "productIds"
-        ],
+        "required": ["productIds"],
         "title": "删除商品"
       },
       "example.cart.ViewCart": {
@@ -6078,9 +5713,7 @@
             "$ref": "#/components/schemas/example.order.ShippingAddress"
           }
         },
-        "required": [
-          "shippingAddress"
-        ],
+        "required": ["shippingAddress"],
         "title": "收货地址已修改"
       },
       "example.order.ChangeAddress": {
@@ -6090,9 +5723,7 @@
             "$ref": "#/components/schemas/example.order.ShippingAddress"
           }
         },
-        "required": [
-          "shippingAddress"
-        ],
+        "required": ["shippingAddress"],
         "title": "修改收货地址"
       },
       "example.order.CreateOrder": {
@@ -6112,11 +5743,7 @@
             "minItems": 1
           }
         },
-        "required": [
-          "address",
-          "fromCart",
-          "items"
-        ],
+        "required": ["address", "fromCart", "items"],
         "title": "下单"
       },
       "example.order.CreateOrder.Item": {
@@ -6136,11 +5763,7 @@
             "exclusiveMinimum": 0
           }
         },
-        "required": [
-          "price",
-          "productId",
-          "quantity"
-        ]
+        "required": ["price", "productId", "quantity"]
       },
       "example.order.OrderAggregatedCondition": {
         "type": "object",
@@ -6163,9 +5786,7 @@
             "$ref": "#/components/schemas/wow.api.query.ConditionOptions",
             "default": "{}"
           },
-          "value": {
-
-          }
+          "value": {}
         }
       },
       "example.order.OrderAggregatedDomainEventStream": {
@@ -6295,13 +5916,7 @@
                       "$ref": "#/components/schemas/example.order.AddressChanged"
                     }
                   },
-                  "required": [
-                    "body",
-                    "bodyType",
-                    "id",
-                    "name",
-                    "revision"
-                  ],
+                  "required": ["body", "bodyType", "id", "name", "revision"],
                   "title": "收货地址已修改"
                 },
                 {
@@ -6333,13 +5948,7 @@
                       "$ref": "#/components/schemas/example.order.OrderCreated"
                     }
                   },
-                  "required": [
-                    "body",
-                    "bodyType",
-                    "id",
-                    "name",
-                    "revision"
-                  ],
+                  "required": ["body", "bodyType", "id", "name", "revision"],
                   "title": "order_created"
                 },
                 {
@@ -6371,13 +5980,7 @@
                       "$ref": "#/components/schemas/example.order.OrderPaid"
                     }
                   },
-                  "required": [
-                    "body",
-                    "bodyType",
-                    "id",
-                    "name",
-                    "revision"
-                  ],
+                  "required": ["body", "bodyType", "id", "name", "revision"],
                   "title": "order_paid"
                 },
                 {
@@ -6409,13 +6012,7 @@
                       "$ref": "#/components/schemas/example.order.OrderReceived"
                     }
                   },
-                  "required": [
-                    "body",
-                    "bodyType",
-                    "id",
-                    "name",
-                    "revision"
-                  ],
+                  "required": ["body", "bodyType", "id", "name", "revision"],
                   "title": "order_received"
                 },
                 {
@@ -6447,13 +6044,7 @@
                       "$ref": "#/components/schemas/example.order.OrderShipped"
                     }
                   },
-                  "required": [
-                    "body",
-                    "bodyType",
-                    "id",
-                    "name",
-                    "revision"
-                  ],
+                  "required": ["body", "bodyType", "id", "name", "revision"],
                   "title": "order_shipped"
                 }
               ]
@@ -6492,10 +6083,7 @@
             "format": "int64"
           }
         },
-        "required": [
-          "list",
-          "total"
-        ]
+        "required": ["list", "total"]
       },
       "example.order.OrderAggregatedDomainEventStreamServerSentEventNonNullData": {
         "type": "object",
@@ -6504,28 +6092,17 @@
             "$ref": "#/components/schemas/example.order.OrderAggregatedDomainEventStream"
           },
           "event": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "id": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "retry": {
-            "type": [
-              "integer",
-              "null"
-            ],
+            "type": ["integer", "null"],
             "format": "int32"
           }
         },
-        "required": [
-          "data"
-        ]
+        "required": ["data"]
       },
       "example.order.OrderAggregatedFields": {
         "type": "string",
@@ -6583,9 +6160,7 @@
             }
           }
         },
-        "required": [
-          "condition"
-        ]
+        "required": ["condition"]
       },
       "example.order.OrderAggregatedPagedQuery": {
         "type": "object",
@@ -6607,9 +6182,7 @@
             }
           }
         },
-        "required": [
-          "condition"
-        ]
+        "required": ["condition"]
       },
       "example.order.OrderAggregatedSingleQuery": {
         "type": "object",
@@ -6628,9 +6201,7 @@
             }
           }
         },
-        "required": [
-          "condition"
-        ]
+        "required": ["condition"]
       },
       "example.order.OrderCreated": {
         "type": "object",
@@ -6651,12 +6222,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "address",
-          "fromCart",
-          "items",
-          "orderId"
-        ]
+        "required": ["address", "fromCart", "items", "orderId"]
       },
       "example.order.OrderItem": {
         "type": "object",
@@ -6679,12 +6245,7 @@
             "readOnly": true
           }
         },
-        "required": [
-          "id",
-          "price",
-          "productId",
-          "quantity"
-        ]
+        "required": ["id", "price", "productId", "quantity"]
       },
       "example.order.OrderPaid": {
         "type": "object",
@@ -6696,10 +6257,7 @@
             "type": "boolean"
           }
         },
-        "required": [
-          "amount",
-          "paid"
-        ]
+        "required": ["amount", "paid"]
       },
       "example.order.OrderReceived": {
         "type": "object"
@@ -6709,12 +6267,7 @@
       },
       "example.order.OrderStatus": {
         "type": "string",
-        "enum": [
-          "CREATED",
-          "PAID",
-          "SHIPPED",
-          "RECEIVED"
-        ]
+        "enum": ["CREATED", "PAID", "SHIPPED", "RECEIVED"]
       },
       "example.order.PayOrder": {
         "type": "object",
@@ -6728,10 +6281,7 @@
             "minLength": 1
           }
         },
-        "required": [
-          "amount",
-          "paymentId"
-        ]
+        "required": ["amount", "paymentId"]
       },
       "example.order.ReceiptOrder": {
         "type": "object",
@@ -6762,13 +6312,7 @@
             "minLength": 1
           }
         },
-        "required": [
-          "city",
-          "country",
-          "detail",
-          "district",
-          "province"
-        ]
+        "required": ["city", "country", "detail", "district", "province"]
       },
       "example.order.WowExampleOrderStateMaterializedSnapshot": {
         "type": "object",
@@ -6858,10 +6402,7 @@
             "format": "int64"
           }
         },
-        "required": [
-          "list",
-          "total"
-        ]
+        "required": ["list", "total"]
       },
       "example.order.WowExampleOrderStateMaterializedSnapshotServerSentEventNonNullData": {
         "type": "object",
@@ -6870,28 +6411,17 @@
             "$ref": "#/components/schemas/example.order.WowExampleOrderStateMaterializedSnapshot"
           },
           "event": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "id": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "retry": {
-            "type": [
-              "integer",
-              "null"
-            ],
+            "type": ["integer", "null"],
             "format": "int32"
           }
         },
-        "required": [
-          "data"
-        ]
+        "required": ["data"]
       },
       "example.order.WowExampleOrderStatePagedList": {
         "type": "object",
@@ -6907,10 +6437,7 @@
             "format": "int64"
           }
         },
-        "required": [
-          "list",
-          "total"
-        ]
+        "required": ["list", "total"]
       },
       "example.order.WowExampleOrderStateServerSentEventNonNullData": {
         "type": "object",
@@ -6919,28 +6446,17 @@
             "$ref": "#/components/schemas/example.order.WowExampleOrderState"
           },
           "event": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "id": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "retry": {
-            "type": [
-              "integer",
-              "null"
-            ],
+            "type": ["integer", "null"],
             "format": "int32"
           }
         },
-        "required": [
-          "data"
-        ]
+        "required": ["data"]
       },
       "example.order.WowExampleOrderStateSnapshot": {
         "type": "object",
@@ -7023,9 +6539,7 @@
                 "type": "number"
               }
             },
-            "required": [
-              "id"
-            ]
+            "required": ["id"]
           },
           "deleted": {
             "type": "boolean",
@@ -7176,13 +6690,7 @@
                   "description": "The message body of the domain event"
                 }
               },
-              "required": [
-                "body",
-                "bodyType",
-                "id",
-                "name",
-                "revision"
-              ]
+              "required": ["body", "bodyType", "id", "name", "revision"]
             },
             "minItems": 1
           },
@@ -7229,9 +6737,7 @@
                 "type": "number"
               }
             },
-            "required": [
-              "id"
-            ]
+            "required": ["id"]
           },
           "deleted": {
             "type": "boolean",
@@ -7256,10 +6762,7 @@
       },
       "wow.MessageHeaderSqlType": {
         "type": "string",
-        "enum": [
-          "MAP",
-          "STRING"
-        ]
+        "enum": ["MAP", "STRING"]
       },
       "wow.api.BindingError": {
         "type": "object",
@@ -7271,10 +6774,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "msg",
-          "name"
-        ]
+        "required": ["msg", "name"]
       },
       "wow.api.DefaultErrorInfo": {
         "type": "object",
@@ -7296,9 +6796,7 @@
             "readOnly": true
           }
         },
-        "required": [
-          "errorCode"
-        ]
+        "required": ["errorCode"]
       },
       "wow.api.command.DefaultDeleteAggregate": {
         "type": "object",
@@ -7324,22 +6822,11 @@
             "type": "string"
           }
         },
-        "required": [
-          "contextName",
-          "functionKind",
-          "name",
-          "processorName"
-        ]
+        "required": ["contextName", "functionKind", "name", "processorName"]
       },
       "wow.api.messaging.FunctionKind": {
         "type": "string",
-        "enum": [
-          "COMMAND",
-          "SOURCING",
-          "EVENT",
-          "STATE_EVENT",
-          "ERROR"
-        ]
+        "enum": ["COMMAND", "SOURCING", "EVENT", "STATE_EVENT", "ERROR"]
       },
       "wow.api.modeling.AggregateId": {
         "type": "object",
@@ -7367,12 +6854,7 @@
             "minLength": 1
           }
         },
-        "required": [
-          "aggregateId",
-          "aggregateName",
-          "contextName",
-          "tenantId"
-        ]
+        "required": ["aggregateId", "aggregateName", "contextName", "tenantId"]
       },
       "wow.api.query.Condition": {
         "type": "object",
@@ -7395,9 +6877,7 @@
             "$ref": "#/components/schemas/wow.api.query.ConditionOptions",
             "default": "{}"
           },
-          "value": {
-
-          }
+          "value": {}
         }
       },
       "wow.api.query.ConditionOptions": {
@@ -7441,9 +6921,7 @@
             }
           }
         },
-        "required": [
-          "condition"
-        ]
+        "required": ["condition"]
       },
       "wow.api.query.Operator": {
         "type": "string",
@@ -7511,9 +6989,7 @@
             }
           }
         },
-        "required": [
-          "condition"
-        ]
+        "required": ["condition"]
       },
       "wow.api.query.Pagination": {
         "type": "object",
@@ -7529,10 +7005,7 @@
             "default": "10"
           }
         },
-        "required": [
-          "index",
-          "size"
-        ]
+        "required": ["index", "size"]
       },
       "wow.api.query.Projection": {
         "type": "object",
@@ -7563,17 +7036,11 @@
             "type": "string"
           }
         },
-        "required": [
-          "direction",
-          "field"
-        ]
+        "required": ["direction", "field"]
       },
       "wow.api.query.Sort.Direction": {
         "type": "string",
-        "enum": [
-          "ASC",
-          "DESC"
-        ]
+        "enum": ["ASC", "DESC"]
       },
       "wow.command.CommandStage": {
         "type": "string",
@@ -7593,10 +7060,7 @@
             "$ref": "#/components/schemas/wow.api.modeling.AggregateId"
           },
           "aggregateVersion": {
-            "type": [
-              "integer",
-              "null"
-            ],
+            "type": ["integer", "null"],
             "format": "int32"
           },
           "bindingErrors": {
@@ -7672,10 +7136,7 @@
             }
           },
           "id": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "scopes": {
             "type": "array",
@@ -7684,16 +7145,10 @@
             }
           },
           "tenantId": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "type": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           }
         }
       },
@@ -7704,10 +7159,7 @@
             "$ref": "#/components/schemas/wow.configuration.StringAggregateMap"
           },
           "alias": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "description": {
             "type": "string"
@@ -7750,9 +7202,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "function"
-        ]
+        "required": ["function"]
       },
       "wow.openapi.BatchResult": {
         "type": "object",
@@ -7782,10 +7232,7 @@
             "readOnly": true
           }
         },
-        "required": [
-          "afterId",
-          "size"
-        ]
+        "required": ["afterId", "size"]
       }
     },
     "responses": {
@@ -8128,10 +7575,7 @@
         "schema": {
           "type": "string",
           "default": "application/json",
-          "enum": [
-            "application/json",
-            "text/event-stream"
-          ]
+          "enum": ["application/json", "text/event-stream"]
         }
       },
       "wow.Command-Tenant-Id": {

@@ -78,8 +78,7 @@ export class QueryClientFactory<
    * });
    * ```
    */
-  constructor(private readonly defaultOptions: QueryClientOptions) {
-  }
+  constructor(private readonly defaultOptions: QueryClientOptions) {}
 
   /**
    * Creates a snapshot query client for querying aggregate snapshots.

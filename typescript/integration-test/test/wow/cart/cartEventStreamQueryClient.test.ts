@@ -22,7 +22,12 @@ import {
   PagedQuery,
 } from '@ahoo-wang/fetcher-wow';
 import { describe, expect, it } from 'vitest';
-import { AddCartItemCommand, cartCommandClient, CartCommandEndpoints, exampleFetcher, } from '../../../src/wow';
+import {
+  AddCartItemCommand,
+  cartCommandClient,
+  CartCommandEndpoints,
+  exampleFetcher,
+} from '../../../src/wow';
 import { cartQueryClientFactory } from '../../../src/generated';
 
 const command: AddCartItemCommand = {

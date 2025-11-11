@@ -44,9 +44,9 @@ export const DEFAULT_PAGINATION: Pagination = {
  * @returns A Pagination object with the specified parameters
  */
 export function pagination({
-                             index = DEFAULT_PAGINATION.index,
-                             size = DEFAULT_PAGINATION.size,
-                           }: Partial<Pagination> = DEFAULT_PAGINATION): Pagination {
+  index = DEFAULT_PAGINATION.index,
+  size = DEFAULT_PAGINATION.size,
+}: Partial<Pagination> = DEFAULT_PAGINATION): Pagination {
   return {
     index,
     size,

@@ -59,13 +59,13 @@ describe('cartLoadStateAggregateClient Integration Test', () => {
   });
   it('should loadVersioned', async () => {
     const cartState = await cartLoadStateAggregateClient.loadVersioned(
-      commandResult.aggregateVersion!
+      commandResult.aggregateVersion!,
     );
     expectCartState(cartState);
   });
   it('should loadTimeBased', async () => {
     const cartState = await cartLoadStateAggregateClient.loadTimeBased(
-      commandResult.signalTime
+      commandResult.signalTime,
     );
     expectCartState(cartState);
   });

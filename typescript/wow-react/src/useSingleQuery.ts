@@ -27,8 +27,7 @@ export interface UseSingleQueryOptions<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-> extends UseQueryOptions<SingleQuery<FIELDS>, R, E> {
-}
+> extends UseQueryOptions<SingleQuery<FIELDS>, R, E> {}
 
 /**
  * Return type for the useSingleQuery hook.
@@ -42,8 +41,7 @@ export interface UseSingleQueryReturn<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-> extends UseQueryReturn<SingleQuery<FIELDS>, R, E> {
-}
+> extends UseQueryReturn<SingleQuery<FIELDS>, R, E> {}
 
 /**
  * Hook for querying a single item with conditions, projection, and sorting.

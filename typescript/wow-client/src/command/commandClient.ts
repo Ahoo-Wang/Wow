@@ -73,9 +73,9 @@ import {
  */
 @api()
 export class CommandClient<C extends object = object>
-  implements ApiMetadataCapable {
-  constructor(public readonly apiMetadata?: ApiMetadata) {
-  }
+  implements ApiMetadataCapable
+{
+  constructor(public readonly apiMetadata?: ApiMetadata) {}
 
   /**
    * Send a command to the server and wait for the result.

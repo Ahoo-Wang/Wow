@@ -42,9 +42,7 @@
   "paths": {
     "/actuator/health/{path}": {
       "get": {
-        "tags": [
-          "Actuator"
-        ],
+        "tags": ["Actuator"],
         "summary": "Actuator web endpoint 'health-path'",
         "operationId": "health",
         "parameters": [
@@ -89,9 +87,7 @@
     },
     "/actuator/health": {
       "get": {
-        "tags": [
-          "Actuator"
-        ],
+        "tags": ["Actuator"],
         "summary": "Actuator web endpoint 'health'",
         "operationId": "health_1",
         "responses": {
@@ -120,9 +116,7 @@
     },
     "/actuator/cosidStringGenerator/{name}": {
       "get": {
-        "tags": [
-          "Actuator"
-        ],
+        "tags": ["Actuator"],
         "summary": "Actuator web endpoint 'cosidStringGenerator-name'",
         "operationId": "generateAsString",
         "parameters": [
@@ -164,9 +158,7 @@
     },
     "/actuator/cosidStringGenerator": {
       "get": {
-        "tags": [
-          "Actuator"
-        ],
+        "tags": ["Actuator"],
         "summary": "Actuator web endpoint 'cosidStringGenerator'",
         "operationId": "shareGenerateAsString",
         "responses": {
@@ -195,9 +187,7 @@
     },
     "/actuator/cosidGenerator/{name}": {
       "get": {
-        "tags": [
-          "Actuator"
-        ],
+        "tags": ["Actuator"],
         "summary": "Actuator web endpoint 'cosidGenerator-name'",
         "operationId": "generate",
         "parameters": [
@@ -239,9 +229,7 @@
     },
     "/actuator/cosidGenerator": {
       "get": {
-        "tags": [
-          "Actuator"
-        ],
+        "tags": ["Actuator"],
         "summary": "Actuator web endpoint 'cosidGenerator'",
         "operationId": "shareGenerate",
         "responses": {
@@ -270,9 +258,7 @@
     },
     "/actuator/cosid/{name}": {
       "get": {
-        "tags": [
-          "Actuator"
-        ],
+        "tags": ["Actuator"],
         "summary": "Actuator web endpoint 'cosid-name'",
         "operationId": "getStat",
         "parameters": [
@@ -312,9 +298,7 @@
         }
       },
       "delete": {
-        "tags": [
-          "Actuator"
-        ],
+        "tags": ["Actuator"],
         "summary": "Actuator web endpoint 'cosid-name'",
         "operationId": "remove",
         "parameters": [
@@ -339,9 +323,7 @@
     },
     "/actuator/cosid": {
       "get": {
-        "tags": [
-          "Actuator"
-        ],
+        "tags": ["Actuator"],
         "summary": "Actuator web endpoint 'cosid'",
         "operationId": "stat",
         "responses": {
@@ -370,9 +352,7 @@
     },
     "/actuator": {
       "get": {
-        "tags": [
-          "Actuator"
-        ],
+        "tags": ["Actuator"],
         "summary": "Actuator root web endpoint",
         "operationId": "links",
         "responses": {
@@ -412,9 +392,7 @@
       "summary": "The receiving endpoint of the wait signal",
       "description": "",
       "post": {
-        "tags": [
-          "wow"
-        ],
+        "tags": ["wow"],
         "summary": "The receiving endpoint of the wait signal",
         "description": "",
         "operationId": "wow.command.wait",
@@ -440,9 +418,7 @@
       "summary": "Unified Sending Endpoint For Command Messages",
       "description": "",
       "post": {
-        "tags": [
-          "wow"
-        ],
+        "tags": ["wow"],
         "summary": "Unified Sending Endpoint For Command Messages",
         "description": "",
         "operationId": "wow.command.send",
@@ -544,9 +520,7 @@
       "summary": "Get Wow Metadata",
       "description": "",
       "get": {
-        "tags": [
-          "wow"
-        ],
+        "tags": ["wow"],
         "summary": "Get Wow Metadata",
         "description": "",
         "operationId": "wow.metadata.get",
@@ -569,9 +543,7 @@
       "summary": "Generate Global ID",
       "description": "",
       "get": {
-        "tags": [
-          "wow"
-        ],
+        "tags": ["wow"],
         "summary": "Generate Global ID",
         "description": "",
         "operationId": "wow.global_id.generate",
@@ -594,9 +566,7 @@
       "summary": "Generate BI Sync Script",
       "description": "",
       "get": {
-        "tags": [
-          "wow"
-        ],
+        "tags": ["wow"],
         "summary": "Generate BI Sync Script",
         "description": "",
         "operationId": "wow.bi_script.generate",
@@ -623,9 +593,7 @@
       "summary": "create_execution_failed",
       "description": "",
       "post": {
-        "tags": [
-          "compensation.execution_failed"
-        ],
+        "tags": ["compensation.execution_failed"],
         "summary": "create_execution_failed",
         "description": "",
         "operationId": "compensation.execution_failed.create_execution_failed",
@@ -712,9 +680,7 @@
       "summary": "prepare_compensation",
       "description": "",
       "put": {
-        "tags": [
-          "compensation.execution_failed"
-        ],
+        "tags": ["compensation.execution_failed"],
         "summary": "prepare_compensation",
         "description": "",
         "operationId": "compensation.execution_failed.prepare_compensation",
@@ -804,9 +770,7 @@
       "summary": "force_prepare_compensation",
       "description": "",
       "put": {
-        "tags": [
-          "compensation.execution_failed"
-        ],
+        "tags": ["compensation.execution_failed"],
         "summary": "force_prepare_compensation",
         "description": "",
         "operationId": "compensation.execution_failed.force_prepare_compensation",
@@ -896,9 +860,7 @@
       "summary": "apply_execution_success",
       "description": "",
       "put": {
-        "tags": [
-          "compensation.execution_failed"
-        ],
+        "tags": ["compensation.execution_failed"],
         "summary": "apply_execution_success",
         "description": "",
         "operationId": "compensation.execution_failed.apply_execution_success",
@@ -988,9 +950,7 @@
       "summary": "apply_execution_failed",
       "description": "",
       "put": {
-        "tags": [
-          "compensation.execution_failed"
-        ],
+        "tags": ["compensation.execution_failed"],
         "summary": "apply_execution_failed",
         "description": "",
         "operationId": "compensation.execution_failed.apply_execution_failed",
@@ -1080,9 +1040,7 @@
       "summary": "apply_retry_spec",
       "description": "",
       "put": {
-        "tags": [
-          "compensation.execution_failed"
-        ],
+        "tags": ["compensation.execution_failed"],
         "summary": "apply_retry_spec",
         "description": "",
         "operationId": "compensation.execution_failed.apply_retry_spec",
@@ -1172,9 +1130,7 @@
       "summary": "change_function",
       "description": "",
       "put": {
-        "tags": [
-          "compensation.execution_failed"
-        ],
+        "tags": ["compensation.execution_failed"],
         "summary": "change_function",
         "description": "",
         "operationId": "compensation.execution_failed.change_function",
@@ -1264,9 +1220,7 @@
       "summary": "mark_recoverable",
       "description": "",
       "put": {
-        "tags": [
-          "compensation.execution_failed"
-        ],
+        "tags": ["compensation.execution_failed"],
         "summary": "mark_recoverable",
         "description": "",
         "operationId": "compensation.execution_failed.mark_recoverable",
@@ -1356,9 +1310,7 @@
       "summary": "Delete aggregate",
       "description": "",
       "delete": {
-        "tags": [
-          "compensation.execution_failed"
-        ],
+        "tags": ["compensation.execution_failed"],
         "summary": "Delete aggregate",
         "description": "",
         "operationId": "compensation.execution_failed.default_delete_aggregate",
@@ -1448,9 +1400,7 @@
       "summary": "Recover deleted aggregate",
       "description": "",
       "put": {
-        "tags": [
-          "compensation.execution_failed"
-        ],
+        "tags": ["compensation.execution_failed"],
         "summary": "Recover deleted aggregate",
         "description": "",
         "operationId": "compensation.execution_failed.default_recover_aggregate",
@@ -1540,9 +1490,7 @@
       "summary": "Get Aggregate Tracing",
       "description": "",
       "get": {
-        "tags": [
-          "compensation.execution_failed"
-        ],
+        "tags": ["compensation.execution_failed"],
         "summary": "Get Aggregate Tracing",
         "description": "",
         "operationId": "compensation.execution_failed.aggregate_tracing.get",
@@ -1577,9 +1525,7 @@
       "summary": "Load State Aggregate",
       "description": "",
       "get": {
-        "tags": [
-          "compensation.execution_failed"
-        ],
+        "tags": ["compensation.execution_failed"],
         "summary": "Load State Aggregate",
         "description": "",
         "operationId": "compensation.execution_failed.aggregate.load",
@@ -1617,9 +1563,7 @@
       "summary": "Load Versioned State Aggregate",
       "description": "",
       "get": {
-        "tags": [
-          "compensation.execution_failed"
-        ],
+        "tags": ["compensation.execution_failed"],
         "summary": "Load Versioned State Aggregate",
         "description": "",
         "operationId": "compensation.execution_failed.versioned_aggregate.load",
@@ -1660,9 +1604,7 @@
       "summary": "Load Time Based State Aggregate",
       "description": "",
       "get": {
-        "tags": [
-          "compensation.execution_failed"
-        ],
+        "tags": ["compensation.execution_failed"],
         "summary": "Load Time Based State Aggregate",
         "description": "",
         "operationId": "compensation.execution_failed.time_based_aggregate.load",
@@ -1703,9 +1645,7 @@
       "summary": "Get Snapshot",
       "description": "",
       "get": {
-        "tags": [
-          "compensation.execution_failed"
-        ],
+        "tags": ["compensation.execution_failed"],
         "summary": "Get Snapshot",
         "description": "",
         "operationId": "compensation.execution_failed.snapshot.load",
@@ -1735,9 +1675,7 @@
         }
       },
       "put": {
-        "tags": [
-          "compensation.execution_failed"
-        ],
+        "tags": ["compensation.execution_failed"],
         "summary": "Regenerate Aggregate Snapshot",
         "description": "",
         "operationId": "compensation.execution_failed.snapshot.regenerate",
@@ -1758,9 +1696,7 @@
       "summary": "Batch Regenerate Aggregate Snapshot",
       "description": "",
       "put": {
-        "tags": [
-          "compensation.execution_failed"
-        ],
+        "tags": ["compensation.execution_failed"],
         "summary": "Batch Regenerate Aggregate Snapshot",
         "description": "",
         "operationId": "compensation.execution_failed.snapshot.batch_regenerate",
@@ -1786,9 +1722,7 @@
       "summary": "Count Snapshot",
       "description": "",
       "post": {
-        "tags": [
-          "compensation.execution_failed"
-        ],
+        "tags": ["compensation.execution_failed"],
         "summary": "Count Snapshot",
         "description": "",
         "operationId": "compensation.execution_failed.snapshot.count",
@@ -1813,9 +1747,7 @@
       "summary": "List Query Snapshot",
       "description": "",
       "post": {
-        "tags": [
-          "compensation.execution_failed"
-        ],
+        "tags": ["compensation.execution_failed"],
         "summary": "List Query Snapshot",
         "description": "",
         "operationId": "compensation.execution_failed.snapshot.list_query",
@@ -1856,9 +1788,7 @@
       "summary": "List Query Snapshot State",
       "description": "",
       "post": {
-        "tags": [
-          "compensation.execution_failed"
-        ],
+        "tags": ["compensation.execution_failed"],
         "summary": "List Query Snapshot State",
         "description": "",
         "operationId": "compensation.execution_failed.snapshot_state.list_query",
@@ -1899,9 +1829,7 @@
       "summary": "Paged Query Snapshot",
       "description": "",
       "post": {
-        "tags": [
-          "compensation.execution_failed"
-        ],
+        "tags": ["compensation.execution_failed"],
         "summary": "Paged Query Snapshot",
         "description": "",
         "operationId": "compensation.execution_failed.snapshot.paged_query",
@@ -1931,9 +1859,7 @@
       "summary": "Paged Query Snapshot State",
       "description": "",
       "post": {
-        "tags": [
-          "compensation.execution_failed"
-        ],
+        "tags": ["compensation.execution_failed"],
         "summary": "Paged Query Snapshot State",
         "description": "",
         "operationId": "compensation.execution_failed.snapshot_state.paged_query",
@@ -1963,9 +1889,7 @@
       "summary": "Single Snapshot",
       "description": "",
       "post": {
-        "tags": [
-          "compensation.execution_failed"
-        ],
+        "tags": ["compensation.execution_failed"],
         "summary": "Single Snapshot",
         "description": "",
         "operationId": "compensation.execution_failed.snapshot.single",
@@ -1998,9 +1922,7 @@
       "summary": "Single Snapshot State",
       "description": "",
       "post": {
-        "tags": [
-          "compensation.execution_failed"
-        ],
+        "tags": ["compensation.execution_failed"],
         "summary": "Single Snapshot State",
         "description": "",
         "operationId": "compensation.execution_failed.snapshot_state.single",
@@ -2033,9 +1955,7 @@
       "summary": "Load Event Stream",
       "description": "",
       "get": {
-        "tags": [
-          "compensation.execution_failed"
-        ],
+        "tags": ["compensation.execution_failed"],
         "summary": "Load Event Stream",
         "description": "",
         "operationId": "compensation.execution_failed.event_stream.load",
@@ -2083,9 +2003,7 @@
       "summary": "List Query Event Stream",
       "description": "",
       "post": {
-        "tags": [
-          "compensation.execution_failed"
-        ],
+        "tags": ["compensation.execution_failed"],
         "summary": "List Query Event Stream",
         "description": "",
         "operationId": "compensation.execution_failed.event.list_query",
@@ -2126,9 +2044,7 @@
       "summary": "Paged Query Event Stream",
       "description": "",
       "post": {
-        "tags": [
-          "compensation.execution_failed"
-        ],
+        "tags": ["compensation.execution_failed"],
         "summary": "Paged Query Event Stream",
         "description": "",
         "operationId": "compensation.execution_failed.event.paged_query",
@@ -2158,9 +2074,7 @@
       "summary": "Count Event Stream",
       "description": "",
       "post": {
-        "tags": [
-          "compensation.execution_failed"
-        ],
+        "tags": ["compensation.execution_failed"],
         "summary": "Count Event Stream",
         "description": "",
         "operationId": "compensation.execution_failed.event.count",
@@ -2179,9 +2093,7 @@
       "summary": "Event Compensate",
       "description": "",
       "put": {
-        "tags": [
-          "compensation.execution_failed"
-        ],
+        "tags": ["compensation.execution_failed"],
         "summary": "Event Compensate",
         "description": "",
         "operationId": "compensation.execution_failed.compensate",
@@ -2210,9 +2122,7 @@
       "summary": "Resend State Event",
       "description": "",
       "post": {
-        "tags": [
-          "compensation.execution_failed"
-        ],
+        "tags": ["compensation.execution_failed"],
         "summary": "Resend State Event",
         "description": "",
         "operationId": "compensation.execution_failed.state_event.resend",
@@ -2239,10 +2149,7 @@
     "schemas": {
       "compensation.ApiVersion": {
         "type": "string",
-        "enum": [
-          "V2",
-          "V3"
-        ]
+        "enum": ["V2", "V3"]
       },
       "compensation.Link": {
         "type": "object",
@@ -2289,10 +2196,7 @@
             "$ref": "#/components/schemas/wow.api.RecoverableType"
           }
         },
-        "required": [
-          "error",
-          "executeAt"
-        ]
+        "required": ["error", "executeAt"]
       },
       "compensation.execution_failed.ApplyExecutionSuccess": {
         "type": "object",
@@ -2302,9 +2206,7 @@
             "format": "int64"
           }
         },
-        "required": [
-          "executeAt"
-        ]
+        "required": ["executeAt"]
       },
       "compensation.execution_failed.ApplyRetrySpec": {
         "type": "object",
@@ -2322,11 +2224,7 @@
             "format": "int32"
           }
         },
-        "required": [
-          "executionTimeout",
-          "maxRetries",
-          "minBackoff"
-        ]
+        "required": ["executionTimeout", "maxRetries", "minBackoff"]
       },
       "compensation.execution_failed.ChangeFunction": {
         "type": "object",
@@ -2344,12 +2242,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "contextName",
-          "functionKind",
-          "name",
-          "processorName"
-        ]
+        "required": ["contextName", "functionKind", "name", "processorName"]
       },
       "compensation.execution_failed.CompensationPrepared": {
         "type": "object",
@@ -2364,11 +2257,7 @@
             "$ref": "#/components/schemas/compensation.execution_failed.RetryState"
           }
         },
-        "required": [
-          "eventId",
-          "function",
-          "retryState"
-        ]
+        "required": ["eventId", "function", "retryState"]
       },
       "compensation.execution_failed.CreateExecutionFailed": {
         "type": "object",
@@ -2400,12 +2289,7 @@
             ]
           }
         },
-        "required": [
-          "error",
-          "eventId",
-          "executeAt",
-          "function"
-        ]
+        "required": ["error", "eventId", "executeAt", "function"]
       },
       "compensation.execution_failed.ErrorDetails": {
         "type": "object",
@@ -2430,11 +2314,7 @@
             "readOnly": true
           }
         },
-        "required": [
-          "errorCode",
-          "errorMsg",
-          "stackTrace"
-        ]
+        "required": ["errorCode", "errorMsg", "stackTrace"]
       },
       "compensation.execution_failed.EventId": {
         "type": "object",
@@ -2450,11 +2330,7 @@
             "format": "int32"
           }
         },
-        "required": [
-          "aggregateId",
-          "id",
-          "version"
-        ]
+        "required": ["aggregateId", "id", "version"]
       },
       "compensation.execution_failed.ExecutionFailedAggregatedCondition": {
         "type": "object",
@@ -2607,13 +2483,7 @@
                       "$ref": "#/components/schemas/compensation.execution_failed.CompensationPrepared"
                     }
                   },
-                  "required": [
-                    "body",
-                    "bodyType",
-                    "id",
-                    "name",
-                    "revision"
-                  ],
+                  "required": ["body", "bodyType", "id", "name", "revision"],
                   "title": "compensation_prepared"
                 },
                 {
@@ -2645,13 +2515,7 @@
                       "$ref": "#/components/schemas/compensation.execution_failed.ExecutionFailedApplied"
                     }
                   },
-                  "required": [
-                    "body",
-                    "bodyType",
-                    "id",
-                    "name",
-                    "revision"
-                  ],
+                  "required": ["body", "bodyType", "id", "name", "revision"],
                   "title": "execution_failed_applied"
                 },
                 {
@@ -2683,13 +2547,7 @@
                       "$ref": "#/components/schemas/compensation.execution_failed.ExecutionFailedCreated"
                     }
                   },
-                  "required": [
-                    "body",
-                    "bodyType",
-                    "id",
-                    "name",
-                    "revision"
-                  ],
+                  "required": ["body", "bodyType", "id", "name", "revision"],
                   "title": "execution_failed_created"
                 },
                 {
@@ -2721,13 +2579,7 @@
                       "$ref": "#/components/schemas/compensation.execution_failed.ExecutionSuccessApplied"
                     }
                   },
-                  "required": [
-                    "body",
-                    "bodyType",
-                    "id",
-                    "name",
-                    "revision"
-                  ],
+                  "required": ["body", "bodyType", "id", "name", "revision"],
                   "title": "execution_success_applied"
                 },
                 {
@@ -2759,13 +2611,7 @@
                       "$ref": "#/components/schemas/compensation.execution_failed.FunctionChanged"
                     }
                   },
-                  "required": [
-                    "body",
-                    "bodyType",
-                    "id",
-                    "name",
-                    "revision"
-                  ],
+                  "required": ["body", "bodyType", "id", "name", "revision"],
                   "title": "function_changed"
                 },
                 {
@@ -2797,13 +2643,7 @@
                       "$ref": "#/components/schemas/compensation.execution_failed.RecoverableMarked"
                     }
                   },
-                  "required": [
-                    "body",
-                    "bodyType",
-                    "id",
-                    "name",
-                    "revision"
-                  ],
+                  "required": ["body", "bodyType", "id", "name", "revision"],
                   "title": "recoverable_marked"
                 },
                 {
@@ -2835,13 +2675,7 @@
                       "$ref": "#/components/schemas/compensation.execution_failed.RetrySpecApplied"
                     }
                   },
-                  "required": [
-                    "body",
-                    "bodyType",
-                    "id",
-                    "name",
-                    "revision"
-                  ],
+                  "required": ["body", "bodyType", "id", "name", "revision"],
                   "title": "retry_spec_applied"
                 }
               ]
@@ -2880,10 +2714,7 @@
             "format": "int64"
           }
         },
-        "required": [
-          "list",
-          "total"
-        ]
+        "required": ["list", "total"]
       },
       "compensation.execution_failed.ExecutionFailedAggregatedDomainEventStreamServerSentEventNonNullData": {
         "type": "object",
@@ -2892,28 +2723,17 @@
             "$ref": "#/components/schemas/compensation.execution_failed.ExecutionFailedAggregatedDomainEventStream"
           },
           "event": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "id": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "retry": {
-            "type": [
-              "integer",
-              "null"
-            ],
+            "type": ["integer", "null"],
             "format": "int32"
           }
         },
-        "required": [
-          "data"
-        ]
+        "required": ["data"]
       },
       "compensation.execution_failed.ExecutionFailedAggregatedFields": {
         "type": "string",
@@ -2991,9 +2811,7 @@
             }
           }
         },
-        "required": [
-          "condition"
-        ]
+        "required": ["condition"]
       },
       "compensation.execution_failed.ExecutionFailedAggregatedPagedQuery": {
         "type": "object",
@@ -3015,9 +2833,7 @@
             }
           }
         },
-        "required": [
-          "condition"
-        ]
+        "required": ["condition"]
       },
       "compensation.execution_failed.ExecutionFailedAggregatedSingleQuery": {
         "type": "object",
@@ -3036,9 +2852,7 @@
             }
           }
         },
-        "required": [
-          "condition"
-        ]
+        "required": ["condition"]
       },
       "compensation.execution_failed.ExecutionFailedApplied": {
         "type": "object",
@@ -3054,10 +2868,7 @@
             "$ref": "#/components/schemas/wow.api.RecoverableType"
           }
         },
-        "required": [
-          "error",
-          "executeAt"
-        ]
+        "required": ["error", "executeAt"]
       },
       "compensation.execution_failed.ExecutionFailedCreated": {
         "type": "object",
@@ -3139,9 +2950,7 @@
             "readOnly": true
           }
         },
-        "required": [
-          "id"
-        ]
+        "required": ["id"]
       },
       "compensation.execution_failed.ExecutionFailedStateMaterializedSnapshot": {
         "type": "object",
@@ -3231,10 +3040,7 @@
             "format": "int64"
           }
         },
-        "required": [
-          "list",
-          "total"
-        ]
+        "required": ["list", "total"]
       },
       "compensation.execution_failed.ExecutionFailedStateMaterializedSnapshotServerSentEventNonNullData": {
         "type": "object",
@@ -3243,28 +3049,17 @@
             "$ref": "#/components/schemas/compensation.execution_failed.ExecutionFailedStateMaterializedSnapshot"
           },
           "event": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "id": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "retry": {
-            "type": [
-              "integer",
-              "null"
-            ],
+            "type": ["integer", "null"],
             "format": "int32"
           }
         },
-        "required": [
-          "data"
-        ]
+        "required": ["data"]
       },
       "compensation.execution_failed.ExecutionFailedStatePagedList": {
         "type": "object",
@@ -3280,10 +3075,7 @@
             "format": "int64"
           }
         },
-        "required": [
-          "list",
-          "total"
-        ]
+        "required": ["list", "total"]
       },
       "compensation.execution_failed.ExecutionFailedStateServerSentEventNonNullData": {
         "type": "object",
@@ -3292,28 +3084,17 @@
             "$ref": "#/components/schemas/compensation.execution_failed.ExecutionFailedState"
           },
           "event": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "id": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "retry": {
-            "type": [
-              "integer",
-              "null"
-            ],
+            "type": ["integer", "null"],
             "format": "int32"
           }
         },
-        "required": [
-          "data"
-        ]
+        "required": ["data"]
       },
       "compensation.execution_failed.ExecutionFailedStateSnapshot": {
         "type": "object",
@@ -3405,9 +3186,7 @@
                 "$ref": "#/components/schemas/compensation.execution_failed.ExecutionFailedStatus"
               }
             },
-            "required": [
-              "id"
-            ]
+            "required": ["id"]
           },
           "deleted": {
             "type": "boolean",
@@ -3558,13 +3337,7 @@
                   "description": "The message body of the domain event"
                 }
               },
-              "required": [
-                "body",
-                "bodyType",
-                "id",
-                "name",
-                "revision"
-              ]
+              "required": ["body", "bodyType", "id", "name", "revision"]
             },
             "minItems": 1
           },
@@ -3620,9 +3393,7 @@
                 "$ref": "#/components/schemas/compensation.execution_failed.ExecutionFailedStatus"
               }
             },
-            "required": [
-              "id"
-            ]
+            "required": ["id"]
           },
           "deleted": {
             "type": "boolean",
@@ -3647,11 +3418,7 @@
       },
       "compensation.execution_failed.ExecutionFailedStatus": {
         "type": "string",
-        "enum": [
-          "FAILED",
-          "PREPARED",
-          "SUCCEEDED"
-        ]
+        "enum": ["FAILED", "PREPARED", "SUCCEEDED"]
       },
       "compensation.execution_failed.ExecutionSuccessApplied": {
         "type": "object",
@@ -3661,9 +3428,7 @@
             "format": "int64"
           }
         },
-        "required": [
-          "executeAt"
-        ]
+        "required": ["executeAt"]
       },
       "compensation.execution_failed.ForcePrepareCompensation": {
         "type": "object"
@@ -3684,12 +3449,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "contextName",
-          "functionKind",
-          "name",
-          "processorName"
-        ]
+        "required": ["contextName", "functionKind", "name", "processorName"]
       },
       "compensation.execution_failed.MarkRecoverable": {
         "type": "object",
@@ -3698,9 +3458,7 @@
             "$ref": "#/components/schemas/wow.api.RecoverableType"
           }
         },
-        "required": [
-          "recoverable"
-        ]
+        "required": ["recoverable"]
       },
       "compensation.execution_failed.PrepareCompensation": {
         "type": "object"
@@ -3712,9 +3470,7 @@
             "$ref": "#/components/schemas/wow.api.RecoverableType"
           }
         },
-        "required": [
-          "recoverable"
-        ]
+        "required": ["recoverable"]
       },
       "compensation.execution_failed.RetrySpec": {
         "type": "object",
@@ -3732,11 +3488,7 @@
             "format": "int32"
           }
         },
-        "required": [
-          "executionTimeout",
-          "maxRetries",
-          "minBackoff"
-        ]
+        "required": ["executionTimeout", "maxRetries", "minBackoff"]
       },
       "compensation.execution_failed.RetrySpecApplied": {
         "type": "object",
@@ -3754,11 +3506,7 @@
             "format": "int32"
           }
         },
-        "required": [
-          "executionTimeout",
-          "maxRetries",
-          "minBackoff"
-        ]
+        "required": ["executionTimeout", "maxRetries", "minBackoff"]
       },
       "compensation.execution_failed.RetryState": {
         "type": "object",
@@ -3780,19 +3528,11 @@
             "format": "int64"
           }
         },
-        "required": [
-          "nextRetryAt",
-          "retries",
-          "retryAt",
-          "timeoutAt"
-        ]
+        "required": ["nextRetryAt", "retries", "retryAt", "timeoutAt"]
       },
       "wow.MessageHeaderSqlType": {
         "type": "string",
-        "enum": [
-          "MAP",
-          "STRING"
-        ]
+        "enum": ["MAP", "STRING"]
       },
       "wow.api.BindingError": {
         "type": "object",
@@ -3804,10 +3544,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "msg",
-          "name"
-        ]
+        "required": ["msg", "name"]
       },
       "wow.api.DefaultErrorInfo": {
         "type": "object",
@@ -3829,17 +3566,11 @@
             "readOnly": true
           }
         },
-        "required": [
-          "errorCode"
-        ]
+        "required": ["errorCode"]
       },
       "wow.api.RecoverableType": {
         "type": "string",
-        "enum": [
-          "RECOVERABLE",
-          "UNRECOVERABLE",
-          "UNKNOWN"
-        ]
+        "enum": ["RECOVERABLE", "UNRECOVERABLE", "UNKNOWN"]
       },
       "wow.api.command.DefaultDeleteAggregate": {
         "type": "object"
@@ -3863,22 +3594,11 @@
             "type": "string"
           }
         },
-        "required": [
-          "contextName",
-          "functionKind",
-          "name",
-          "processorName"
-        ]
+        "required": ["contextName", "functionKind", "name", "processorName"]
       },
       "wow.api.messaging.FunctionKind": {
         "type": "string",
-        "enum": [
-          "COMMAND",
-          "SOURCING",
-          "EVENT",
-          "STATE_EVENT",
-          "ERROR"
-        ]
+        "enum": ["COMMAND", "SOURCING", "EVENT", "STATE_EVENT", "ERROR"]
       },
       "wow.api.modeling.AggregateId": {
         "type": "object",
@@ -3906,12 +3626,7 @@
             "minLength": 1
           }
         },
-        "required": [
-          "aggregateId",
-          "aggregateName",
-          "contextName",
-          "tenantId"
-        ]
+        "required": ["aggregateId", "aggregateName", "contextName", "tenantId"]
       },
       "wow.api.query.Condition": {
         "type": "object",
@@ -3978,9 +3693,7 @@
             }
           }
         },
-        "required": [
-          "condition"
-        ]
+        "required": ["condition"]
       },
       "wow.api.query.Operator": {
         "type": "string",
@@ -4048,9 +3761,7 @@
             }
           }
         },
-        "required": [
-          "condition"
-        ]
+        "required": ["condition"]
       },
       "wow.api.query.Pagination": {
         "type": "object",
@@ -4066,10 +3777,7 @@
             "default": "10"
           }
         },
-        "required": [
-          "index",
-          "size"
-        ]
+        "required": ["index", "size"]
       },
       "wow.api.query.Projection": {
         "type": "object",
@@ -4100,17 +3808,11 @@
             "type": "string"
           }
         },
-        "required": [
-          "direction",
-          "field"
-        ]
+        "required": ["direction", "field"]
       },
       "wow.api.query.Sort.Direction": {
         "type": "string",
-        "enum": [
-          "ASC",
-          "DESC"
-        ]
+        "enum": ["ASC", "DESC"]
       },
       "wow.command.CommandResult": {
         "type": "object",
@@ -4122,10 +3824,7 @@
             "type": "string"
           },
           "aggregateVersion": {
-            "type": [
-              "integer",
-              "null"
-            ],
+            "type": ["integer", "null"],
             "format": "int32"
           },
           "bindingErrors": {
@@ -4207,10 +3906,7 @@
             "$ref": "#/components/schemas/wow.api.modeling.AggregateId"
           },
           "aggregateVersion": {
-            "type": [
-              "integer",
-              "null"
-            ],
+            "type": ["integer", "null"],
             "format": "int32"
           },
           "bindingErrors": {
@@ -4283,10 +3979,7 @@
             }
           },
           "id": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "scopes": {
             "type": "array",
@@ -4295,16 +3988,10 @@
             }
           },
           "tenantId": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "type": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           }
         }
       },
@@ -4315,10 +4002,7 @@
             "$ref": "#/components/schemas/wow.configuration.StringAggregateMap"
           },
           "alias": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "description": {
             "type": "string"
@@ -4361,9 +4045,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "function"
-        ]
+        "required": ["function"]
       },
       "wow.openapi.BatchResult": {
         "type": "object",
@@ -4393,10 +4075,7 @@
             "readOnly": true
           }
         },
-        "required": [
-          "afterId",
-          "size"
-        ]
+        "required": ["afterId", "size"]
       }
     },
     "responses": {
@@ -4739,10 +4418,7 @@
         "schema": {
           "type": "string",
           "default": "application/json",
-          "enum": [
-            "application/json",
-            "text/event-stream"
-          ]
+          "enum": ["application/json", "text/event-stream"]
         }
       },
       "wow.Command-Tenant-Id": {

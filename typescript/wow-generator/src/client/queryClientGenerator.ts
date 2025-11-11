@@ -14,9 +14,18 @@
 import { SourceFile, VariableDeclarationKind } from 'ts-morph';
 import { AggregateDefinition, TagAliasAggregate } from '../aggregate';
 import { GenerateContext, Generator } from '../generateContext';
-import { IMPORT_WOW_PATH, ModelInfo, resolveContextDeclarationName, resolveModelInfo } from '../model';
+import {
+  IMPORT_WOW_PATH,
+  ModelInfo,
+  resolveContextDeclarationName,
+  resolveModelInfo,
+} from '../model';
 import { addImportRefModel, camelCase } from '../utils';
-import { createClientFilePath, inferPathSpecType, resolveClassName } from './utils';
+import {
+  createClientFilePath,
+  inferPathSpecType,
+  resolveClassName,
+} from './utils';
 
 /**
  * Generates TypeScript query client classes for aggregates.
@@ -30,17 +39,15 @@ export class QueryClientGenerator implements Generator {
    * Creates a new QueryClientGenerator instance.
    * @param context - The generation context containing OpenAPI spec and project details
    */
-  constructor(public readonly context: GenerateContext) {
-  }
+  constructor(public readonly context: GenerateContext) {}
 
   /**
    * Generates query client classes for all aggregates.
    */
   generate(): void {
-    const totalAggregates = Array.from(this.context.contextAggregates.values()).reduce(
-      (sum, set) => sum + set.size,
-      0,
-    );
+    const totalAggregates = Array.from(
+      this.context.contextAggregates.values(),
+    ).reduce((sum, set) => sum + set.size, 0);
     this.context.logger.info('--- Generating Query Clients ---');
     this.context.logger.progress(
       `Generating query clients for ${totalAggregates} aggregates`,
@@ -123,7 +130,10 @@ export class QueryClientGenerator implements Generator {
       isExported: false,
     });
     this.processAggregateDomainEventTypes(aggregate, queryClientFile);
-    const aggregateDomainEventType = this.processAggregateDomainEventType(aggregate, queryClientFile);
+    const aggregateDomainEventType = this.processAggregateDomainEventType(
+      aggregate,
+      queryClientFile,
+    );
 
     const clientFactoryName = `${camelCase(aggregate.aggregate.aggregateName)}QueryClientFactory`;
     const stateModelInfo = resolveModelInfo(aggregate.state.key);
@@ -138,7 +148,9 @@ export class QueryClientGenerator implements Generator {
     );
     addImportRefModel(queryClientFile, this.context.outputDir, fieldsModelInfo);
 
-    this.context.logger.info(`Creating query client factory: ${clientFactoryName}`);
+    this.context.logger.info(
+      `Creating query client factory: ${clientFactoryName}`,
+    );
     queryClientFile.addVariableStatement({
       declarationKind: VariableDeclarationKind.Const,
       declarations: [
@@ -155,7 +167,10 @@ export class QueryClientGenerator implements Generator {
     );
   }
 
-  private processAggregateDomainEventType(aggregate: AggregateDefinition, queryClientFile: SourceFile) {
+  private processAggregateDomainEventType(
+    aggregate: AggregateDefinition,
+    queryClientFile: SourceFile,
+  ) {
     const eventModelInfos: ModelInfo[] = [];
     this.context.logger.info(
       `Processing ${aggregate.events.size} domain events for aggregate: ${aggregate.aggregate.aggregateName}`,
@@ -165,10 +180,17 @@ export class QueryClientGenerator implements Generator {
       this.context.logger.info(
         `Adding import for event model: ${eventModelInfo.name} from path: ${eventModelInfo.path}`,
       );
-      addImportRefModel(queryClientFile, this.context.outputDir, eventModelInfo);
+      addImportRefModel(
+        queryClientFile,
+        this.context.outputDir,
+        eventModelInfo,
+      );
       eventModelInfos.push(eventModelInfo);
     }
-    const aggregateDomainEventType = resolveClassName(aggregate.aggregate, this.domainEventTypeSuffix);
+    const aggregateDomainEventType = resolveClassName(
+      aggregate.aggregate,
+      this.domainEventTypeSuffix,
+    );
     const eventTypeUnion = eventModelInfos.map(it => it.name).join(' | ');
     this.context.logger.info(
       `Creating domain event types union: ${aggregateDomainEventType} = ${eventTypeUnion}`,
@@ -181,14 +203,19 @@ export class QueryClientGenerator implements Generator {
     return aggregateDomainEventType;
   }
 
-  private processAggregateDomainEventTypes(aggregate: AggregateDefinition, queryClientFile: SourceFile) {
-    const aggregateDomainEventTypes = resolveClassName(aggregate.aggregate, this.domainEventTypeMapTitleSuffix);
+  private processAggregateDomainEventTypes(
+    aggregate: AggregateDefinition,
+    queryClientFile: SourceFile,
+  ) {
+    const aggregateDomainEventTypes = resolveClassName(
+      aggregate.aggregate,
+      this.domainEventTypeMapTitleSuffix,
+    );
     const enumDeclaration = queryClientFile.addEnum({
       name: aggregateDomainEventTypes,
       isExported: true,
     });
     for (const event of aggregate.events.values()) {
-
       enumDeclaration.addMember({
         name: event.name,
         initializer: `'${event.title}'`,

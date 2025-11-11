@@ -17,7 +17,6 @@ export function splitName(name: string) {
   return name.split(NAMING_SEPARATORS);
 }
 
-
 /**
  * Splits a name string or array of strings by common naming separators.
  *

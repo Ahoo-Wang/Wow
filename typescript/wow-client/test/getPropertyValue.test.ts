@@ -76,7 +76,9 @@ describe('getPropertyValue', () => {
     });
 
     it('should return default value when object is undefined', () => {
-      expect(getPropertyValue(undefined, 'any.path', 'default')).toBe('default');
+      expect(getPropertyValue(undefined, 'any.path', 'default')).toBe(
+        'default',
+      );
     });
 
     it('should return default value when intermediate property is null', () => {
@@ -127,9 +129,9 @@ describe('getPropertyValue', () => {
       const complex = {
         users: [
           { profile: { name: 'Alice', age: 30 } },
-          { profile: { name: 'Bob', age: 25 } }
+          { profile: { name: 'Bob', age: 25 } },
         ],
-        settings: { theme: 'dark' }
+        settings: { theme: 'dark' },
       };
       expect(getPropertyValue(complex, 'users.0.profile.name')).toBe('Alice');
       expect(getPropertyValue(complex, 'users.1.profile.age')).toBe(25);
@@ -151,7 +153,7 @@ describe('getPropertyValue', () => {
         array: [1, 2, 3],
         object: { nested: 'value' },
         null: null,
-        undefined: undefined
+        undefined: undefined,
       };
       expect(getPropertyValue(obj, 'string')).toBe('text');
       expect(getPropertyValue(obj, 'number')).toBe(42);
@@ -164,7 +166,9 @@ describe('getPropertyValue', () => {
 
     it('should return default value when accessing property on non-object', () => {
       const obj = { value: 42 };
-      expect(getPropertyValue(obj, 'value.someProp', 'default')).toBe('default');
+      expect(getPropertyValue(obj, 'value.someProp', 'default')).toBe(
+        'default',
+      );
     });
   });
 

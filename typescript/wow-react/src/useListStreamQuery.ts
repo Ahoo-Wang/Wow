@@ -29,11 +29,10 @@ export interface UseListStreamQueryOptions<
   FIELDS extends string = string,
   E = FetcherError,
 > extends UseQueryOptions<
-  ListQuery<FIELDS>,
-  ReadableStream<JsonServerSentEvent<R>>,
-  E
-> {
-}
+    ListQuery<FIELDS>,
+    ReadableStream<JsonServerSentEvent<R>>,
+    E
+  > {}
 
 /**
  * Return type for the useListStreamQuery hook.
@@ -48,11 +47,10 @@ export interface UseListStreamQueryReturn<
   FIELDS extends string = string,
   E = FetcherError,
 > extends UseQueryReturn<
-  ListQuery<FIELDS>,
+    ListQuery<FIELDS>,
     ReadableStream<JsonServerSentEvent<R>>,
     E
-> {
-}
+  > {}
 
 /**
  * Hook for querying streaming list data with conditions, projection, and sorting.

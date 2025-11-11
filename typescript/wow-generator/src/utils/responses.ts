@@ -15,7 +15,6 @@ import { ContentTypeValues } from '@ahoo-wang/fetcher';
 import { Reference, Response, Schema } from '@ahoo-wang/fetcher-openapi';
 import { isReference } from './references';
 
-
 export function extractResponseSchema(
   contentType: string,
   response?: Response | Reference,
@@ -55,4 +54,3 @@ export function extractResponseWildcardSchema(
 ): Schema | Reference | undefined {
   return extractResponseSchema('*/*', response);
 }
-

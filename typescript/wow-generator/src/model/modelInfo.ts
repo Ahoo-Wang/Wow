@@ -78,7 +78,6 @@ export function resolveReferenceModelInfo(reference: Reference): ModelInfo {
   return resolveModelInfo(componentKey);
 }
 
-
 export function resolveContextDeclarationName(contextAlias: string): string {
   const contextUpperName = upperSnakeCase(contextAlias);
   return `${contextUpperName}_BOUNDED_CONTEXT_ALIAS`;

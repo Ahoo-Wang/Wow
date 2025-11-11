@@ -14,7 +14,12 @@
 import { ResourceAttributionPathSpec } from '@ahoo-wang/fetcher-wow';
 import { Project, SourceFile } from 'ts-morph';
 import { AggregateDefinition, TagAliasAggregate } from '../aggregate';
-import { camelCase, getOrCreateSourceFile, pascalCase, splitName } from '../utils';
+import {
+  camelCase,
+  getOrCreateSourceFile,
+  pascalCase,
+  splitName,
+} from '../utils';
 import { Operation } from '@ahoo-wang/fetcher-openapi';
 
 /**
@@ -103,7 +108,6 @@ export function resolveClassName(
   return `${pascalCase(aggregate.aggregateName)}${suffix}`;
 }
 
-
 /**
  * Converts HTTP method names to their corresponding decorator names.
  *
@@ -158,7 +162,10 @@ const OPERATION_METHOD_NAME_KEY = 'x-fetcher-method';
  * // Returns: 'create' (unique method name found)
  * ```
  */
-export function resolveMethodName(operation: Operation, isExists: (methodName: string) => boolean): string | undefined {
+export function resolveMethodName(
+  operation: Operation,
+  isExists: (methodName: string) => boolean,
+): string | undefined {
   const methodName = operation[OPERATION_METHOD_NAME_KEY];
   if (methodName) {
     return methodName;

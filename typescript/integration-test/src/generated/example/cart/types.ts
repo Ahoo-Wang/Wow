@@ -1,6 +1,6 @@
 /** - key: example.cart.CartData */
 export interface CartData {
-    items: CartItem[];
+  items: CartItem[];
 }
 
 /**
@@ -9,43 +9,43 @@ export interface CartData {
  * - key: example.cart.AddCartItem
  */
 export interface AddCartItem {
-    /**
-     * - String Constraints
-     *   - minLength: 1
-     */
-    productId: string;
-    /**
-     * - format: int32
-     * - Numeric Constraints
-     *   - exclusiveMinimum: 0
-     */
-    quantity: number;
+  /**
+   * - String Constraints
+   *   - minLength: 1
+   */
+  productId: string;
+  /**
+   * - format: int32
+   * - Numeric Constraints
+   *   - exclusiveMinimum: 0
+   */
+  quantity: number;
 }
 
 /** - key: example.cart.CartAggregatedFields */
 export enum CartAggregatedFields {
-    AGGREGATE_ID = 'aggregateId',
-    TENANT_ID = 'tenantId',
-    OWNER_ID = 'ownerId',
-    VERSION = 'version',
-    EVENT_ID = 'eventId',
-    FIRST_OPERATOR = 'firstOperator',
-    OPERATOR = 'operator',
-    FIRST_EVENT_TIME = 'firstEventTime',
-    EVENT_TIME = 'eventTime',
-    DELETED = 'deleted',
-    STATE = 'state',
-    STATE_ID = 'state.id',
-    STATE_ITEMS = 'state.items',
-    STATE_ITEMS_PRODUCT_ID = 'state.items.productId',
-    STATE_ITEMS_QUANTITY = 'state.items.quantity'
+  AGGREGATE_ID = 'aggregateId',
+  TENANT_ID = 'tenantId',
+  OWNER_ID = 'ownerId',
+  VERSION = 'version',
+  EVENT_ID = 'eventId',
+  FIRST_OPERATOR = 'firstOperator',
+  OPERATOR = 'operator',
+  FIRST_EVENT_TIME = 'firstEventTime',
+  EVENT_TIME = 'eventTime',
+  DELETED = 'deleted',
+  STATE = 'state',
+  STATE_ID = 'state.id',
+  STATE_ITEMS = 'state.items',
+  STATE_ITEMS_PRODUCT_ID = 'state.items.productId',
+  STATE_ITEMS_QUANTITY = 'state.items.quantity',
 }
 
 /** - key: example.cart.CartItem */
 export interface CartItem {
-    productId: string;
-    /** - format: int32 */
-    quantity: number;
+  productId: string;
+  /** - format: int32 */
+  quantity: number;
 }
 
 /**
@@ -53,7 +53,7 @@ export interface CartItem {
  * - key: example.cart.CartItemAdded
  */
 export interface CartItemAdded {
-    added: CartItem;
+  added: CartItem;
 }
 
 /**
@@ -61,7 +61,7 @@ export interface CartItemAdded {
  * - key: example.cart.CartItemRemoved
  */
 export interface CartItemRemoved {
-    productIds: string[];
+  productIds: string[];
 }
 
 /**
@@ -69,13 +69,13 @@ export interface CartItemRemoved {
  * - key: example.cart.CartQuantityChanged
  */
 export interface CartQuantityChanged {
-    changed: CartItem;
+  changed: CartItem;
 }
 
 /** - key: example.cart.CartState */
 export interface CartState {
-    id: string;
-    items: CartItem[];
+  id: string;
+  items: CartItem[];
 }
 
 /**
@@ -83,17 +83,17 @@ export interface CartState {
  * - key: example.cart.ChangeQuantity
  */
 export interface ChangeQuantity {
-    /**
-     * - String Constraints
-     *   - minLength: 1
-     */
-    productId: string;
-    /**
-     * - format: int32
-     * - Numeric Constraints
-     *   - exclusiveMinimum: 0
-     */
-    quantity: number;
+  /**
+   * - String Constraints
+   *   - minLength: 1
+   */
+  productId: string;
+  /**
+   * - format: int32
+   * - Numeric Constraints
+   *   - exclusiveMinimum: 0
+   */
+  quantity: number;
 }
 
 /**
@@ -104,9 +104,9 @@ export type MockVariableCommand = Record<string, any>;
 
 /** - key: example.cart.MockVariableCommand.MockEnum */
 export enum MockVariableCommandMockEnum {
-    FIRST = 'First',
-    SECOND = 'Second',
-    THIRD = 'Third'
+  FIRST = 'First',
+  SECOND = 'Second',
+  THIRD = 'Third',
 }
 
 /**
@@ -120,11 +120,11 @@ export type MountedCommand = Record<string, any>;
  * - key: example.cart.RemoveCartItem
  */
 export interface RemoveCartItem {
-    /**
-     * - Array Constraints
-     *   - minItems: 1
-     */
-    productIds: string[];
+  /**
+   * - Array Constraints
+   *   - minItems: 1
+   */
+  productIds: string[];
 }
 
 /**

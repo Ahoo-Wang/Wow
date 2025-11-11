@@ -1,13 +1,13 @@
 /** - key: example.ApiVersion */
 export enum ApiVersion {
-    V2 = 'V2',
-    V3 = 'V3'
+  V2 = 'V2',
+  V3 = 'V3',
 }
 
 /** - key: example.Link */
 export interface Link {
-    href: string;
-    templated: boolean;
+  href: string;
+  templated: boolean;
 }
 
 /** - key: example.SecurityContext */
@@ -19,5 +19,5 @@ export type StringObjectMap = Record<string, any>;
 
 /** - key: example.WebServerNamespace */
 export interface WebServerNamespace {
-    value: string;
+  value: string;
 }

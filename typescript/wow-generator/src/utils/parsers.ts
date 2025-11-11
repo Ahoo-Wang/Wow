@@ -35,7 +35,9 @@ export async function parseOpenAPI(inputPath: string): Promise<OpenAPI> {
   }
 }
 
-export async function parseConfiguration(configPath: string): Promise<GeneratorConfiguration> {
+export async function parseConfiguration(
+  configPath: string,
+): Promise<GeneratorConfiguration> {
   const content = await loadResource(configPath);
   const fileFormat = inferFileFormat(content);
   switch (fileFormat) {

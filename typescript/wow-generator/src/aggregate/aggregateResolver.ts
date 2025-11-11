@@ -28,7 +28,8 @@ import {
 
 import { ContentTypeValues, PartialBy } from '@ahoo-wang/fetcher';
 import {
-  extractOkResponse, extractOperationEndpoints,
+  extractOkResponse,
+  extractOperationEndpoints,
   extractOperationOkResponseJsonSchema,
   extractParameter,
   extractRequestBody,
@@ -145,7 +146,7 @@ export class AggregateResolver {
     const requestBody = operation.requestBody as RequestBody;
     const commandRefSchema = requestBody.content[
       ContentTypeValues.APPLICATION_JSON
-      ].schema as Reference;
+    ].schema as Reference;
     const commandKeyedSchema = keySchema(
       commandRefSchema,
       this.openAPI.components!,
@@ -269,7 +270,7 @@ export class AggregateResolver {
     ) as RequestBody;
     const conditionRefSchema = requestBody.content[
       ContentTypeValues.APPLICATION_JSON
-      ].schema as Reference;
+    ].schema as Reference;
     const conditionSchema = extractSchema(
       conditionRefSchema,
       this.openAPI.components,

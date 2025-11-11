@@ -18,7 +18,7 @@ export function setupCLI() {
   program
     .name('fetcher-generator')
     .description('OpenAPI Specification TypeScript code generator for Wow')
-    .version(packageJson.version,'-v, --version');
+    .version(packageJson.version, '-v, --version');
 
   program
     .command('generate')
@@ -28,8 +28,15 @@ export function setupCLI() {
       'Input OpenAPI specification file path or URL (http/https)',
     )
     .option('-o, --output <path>', 'Output directory path', 'src/generated')
-    .option('-c, --config <file>', 'Configuration file path', DEFAULT_CONFIG_PATH)
-    .option('-t, --ts-config-file-path <file>', 'TypeScript configuration file path')
+    .option(
+      '-c, --config <file>',
+      'Configuration file path',
+      DEFAULT_CONFIG_PATH,
+    )
+    .option(
+      '-t, --ts-config-file-path <file>',
+      'TypeScript configuration file path',
+    )
     .action(generateAction);
 
   return program;

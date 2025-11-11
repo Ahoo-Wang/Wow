@@ -88,13 +88,11 @@ export interface AggregateNameCapable {
  */
 export interface NamedAggregate
   extends NamedBoundedContext,
-    AggregateNameCapable {
-}
+    AggregateNameCapable {}
 
 export interface AliasAggregate
   extends AliasBoundedContext,
-    AggregateNameCapable {
-}
+    AggregateNameCapable {}
 
 /**
  * Interface for aggregate IDs that combine tenant and named aggregate information.

@@ -14,9 +14,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { TypeGenerator } from '../../src/model';
 import { ModelInfo } from '../../src/model';
-import {
-  addMainSchemaJSDoc,
-} from '../../src/utils';
+import { addMainSchemaJSDoc } from '../../src/utils';
 
 // Mock the sourceFiles module
 vi.mock('../../src/utils/sourceFiles', () => ({

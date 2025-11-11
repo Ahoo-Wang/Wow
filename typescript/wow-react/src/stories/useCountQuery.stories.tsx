@@ -51,9 +51,9 @@ interface CountQueryDemoProps {
 }
 
 function CountQueryDemo({
-                          filterStatus = 'all',
-                          autoExecute = true,
-                        }: CountQueryDemoProps) {
+  filterStatus = 'all',
+  autoExecute = true,
+}: CountQueryDemoProps) {
   const getInitialQuery = () => {
     return filterStatus === 'all' ? all() : eq('status', filterStatus);
   };

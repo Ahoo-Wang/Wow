@@ -22,8 +22,7 @@ describe('ConsoleLogger', () => {
   });
 
   it('should log progressWithCount messages', () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {
-    });
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     const logger = new ConsoleLogger();
 
     logger.progressWithCount(1, 5, 'Test progress with count');
@@ -35,8 +34,7 @@ describe('ConsoleLogger', () => {
   });
 
   it('should log progressWithCount messages with params', () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {
-    });
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     const logger = new ConsoleLogger();
 
     logger.progressWithCount(2, 5, 'Test progress with count', 1, 'param1');
@@ -49,8 +47,7 @@ describe('ConsoleLogger', () => {
   });
 
   it('should log progressWithCount messages with level', () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {
-    });
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     const logger = new ConsoleLogger();
 
     logger.progressWithCount(3, 5, 'Test progress with count', 2);
@@ -61,8 +58,7 @@ describe('ConsoleLogger', () => {
     consoleSpy.mockRestore();
   });
   it('should log info messages with emoji', () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {
-    });
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     const logger = new ConsoleLogger();
 
     logger.info('Test info message');
@@ -72,8 +68,7 @@ describe('ConsoleLogger', () => {
   });
 
   it('should log info messages with params', () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {
-    });
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     const logger = new ConsoleLogger();
 
     logger.info('Test info message', 'param1', 'param2');
@@ -87,8 +82,7 @@ describe('ConsoleLogger', () => {
   });
 
   it('should log success messages with emoji', () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {
-    });
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     const logger = new ConsoleLogger();
 
     logger.success('Test success message');
@@ -100,8 +94,7 @@ describe('ConsoleLogger', () => {
   });
 
   it('should log success messages with params', () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {
-    });
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     const logger = new ConsoleLogger();
 
     logger.success('Test success message', 'param1');
@@ -114,8 +107,7 @@ describe('ConsoleLogger', () => {
   });
 
   it('should log error messages with emoji', () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {
-    });
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const logger = new ConsoleLogger();
 
     logger.error('Test error message');
@@ -125,8 +117,7 @@ describe('ConsoleLogger', () => {
   });
 
   it('should log error messages with params', () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {
-    });
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const logger = new ConsoleLogger();
 
     logger.error('Test error message', 'error detail');
@@ -139,8 +130,7 @@ describe('ConsoleLogger', () => {
   });
 
   it('should log progress messages with emoji', () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {
-    });
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     const logger = new ConsoleLogger();
 
     logger.progress('Test progress message');
@@ -152,8 +142,7 @@ describe('ConsoleLogger', () => {
   });
 
   it('should log progress messages with params', () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {
-    });
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     const logger = new ConsoleLogger();
 
     logger.progress('Test progress message', 1, 'param1');
@@ -166,8 +155,7 @@ describe('ConsoleLogger', () => {
   });
 
   it('should log progress messages with level', () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {
-    });
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     const logger = new ConsoleLogger();
 
     logger.progress('Test progress message', 2);
@@ -181,12 +169,10 @@ describe('ConsoleLogger', () => {
 
 describe('SilentLogger', () => {
   it('should not log any messages', () => {
-    const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {
-    });
+    const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     const consoleErrorSpy = vi
       .spyOn(console, 'error')
-      .mockImplementation(() => {
-      });
+      .mockImplementation(() => {});
     const logger = new SilentLogger();
 
     logger.info('Test info');

@@ -110,10 +110,10 @@ interface PagedQueryDemoProps {
 }
 
 function PagedQueryDemo({
-                          filterStatus = 'all',
-                          pageSize = 3,
-                          autoExecute = true,
-                        }: PagedQueryDemoProps) {
+  filterStatus = 'all',
+  pageSize = 3,
+  autoExecute = true,
+}: PagedQueryDemoProps) {
   const [currentPage, setCurrentPage] = React.useState(1);
 
   const getInitialQuery = (): PagedQuery => {

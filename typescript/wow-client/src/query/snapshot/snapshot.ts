@@ -42,8 +42,7 @@ export interface MaterializedSnapshot<S>
     FirstEventTimeCapable,
     EventTimeCapable,
     SnapshotTimeCapable,
-    DeletedCapable {
-}
+    DeletedCapable {}
 
 /**
  * Interface for materialized snapshots with medium capabilities.
@@ -63,8 +62,7 @@ export interface MediumMaterializedSnapshot<S>
     FirstOperatorCapable,
     OperatorCapable,
     FirstEventTimeCapable,
-    EventTimeCapable {
-}
+    EventTimeCapable {}
 
 /**
  * Interface for simplified materialized snapshots with generic state.
@@ -75,8 +73,7 @@ export interface SmallMaterializedSnapshot<S>
   extends StateCapable<S>,
     NamedAggregate,
     Version,
-    FirstEventTimeCapable {
-}
+    FirstEventTimeCapable {}
 
 /**
  * Provides field names for snapshot metadata.
