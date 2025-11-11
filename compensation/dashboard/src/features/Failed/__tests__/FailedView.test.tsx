@@ -150,6 +150,7 @@ describe("FailedView", () => {
       reset: vi.fn(),
       status: PromiseStatus.IDLE,
       error: null,
+      abort: vi.fn(),
     });
     mockGetQuery.mockReturnValue({ pagination: { index: 1, size: 10 } });
   });
@@ -190,6 +191,7 @@ describe("FailedView", () => {
       reset: vi.fn(),
       status: PromiseStatus.IDLE,
       error: null,
+      abort: vi.fn(),
     });
 
     render(<FailedView category={FindCategory.All} />);
@@ -206,6 +208,7 @@ describe("FailedView", () => {
       setQuery: mockSetQuery,
       execute: mockExecute,
       reset: vi.fn(),
+      abort: vi.fn(),
       status: PromiseStatus.IDLE,
       error: null,
     });

@@ -52,9 +52,10 @@ export function MarkRecoverable({
     }),
   );
   const change = (recoverable: RecoverableType) => {
-    promiseState.execute(async () => {
+    promiseState.execute(async (abortController) => {
       return executionFailedCommandClient.markRecoverable(id, {
         body: { recoverable },
+        abortController,
       });
     });
   };

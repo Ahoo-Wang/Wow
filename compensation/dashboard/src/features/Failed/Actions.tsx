@@ -45,7 +45,10 @@ export function Actions({ state, onChanged }: ActionsProps) {
       });
     },
   });
-  const forcePreparePromiseState = useExecutePromise<CommandResult, ExchangeError>({
+  const forcePreparePromiseState = useExecutePromise<
+    CommandResult,
+    ExchangeError
+  >({
     onSuccess: () => {
       notification.info({ message: "Force Prepare Success" });
       onChanged?.();
@@ -63,8 +66,10 @@ export function Actions({ state, onChanged }: ActionsProps) {
       key: "prepare",
       label: "Prepare",
       onClick: () => {
-        preparePromiseState.execute(
-          executionFailedCommandClient.prepareCompensation(state.id),
+        preparePromiseState.execute((abortController) =>
+          executionFailedCommandClient.prepareCompensation(state.id, {
+            abortController,
+          }),
         );
       },
     },
@@ -72,8 +77,10 @@ export function Actions({ state, onChanged }: ActionsProps) {
       key: "forcePrepare",
       label: "Force Prepare",
       onClick: () => {
-        forcePreparePromiseState.execute(
-          executionFailedCommandClient.forcePrepareCompensation(state.id),
+        forcePreparePromiseState.execute((abortController) =>
+          executionFailedCommandClient.forcePrepareCompensation(state.id, {
+            abortController,
+          }),
         );
       },
     },
