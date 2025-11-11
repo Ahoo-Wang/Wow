@@ -15,7 +15,7 @@ import {
   useExecutePromise,
   useLatest,
   UseExecutePromiseReturn,
-  UseExecutePromiseOptions,
+  UseExecutePromiseOptions, PromiseSupplier,
 } from '../core';
 import { useCallback, useMemo, useEffect, useRef } from 'react';
 import { AttributesCapable, FetcherError } from '@ahoo-wang/fetcher';
@@ -35,7 +35,7 @@ export interface UseQueryOptions<Q, R, E = FetcherError>
   initialQuery: Q;
 
   /** Function to execute the query with given parameters and optional attributes */
-  execute: (query: Q, attributes?: Record<string, any>) => Promise<R>;
+  execute: (query: Q, attributes?: Record<string, any>, abortController?: AbortController) => Promise<R>;
 }
 
 /**
@@ -118,10 +118,11 @@ export function useQuery<Q, R, E = FetcherError>(
   } = useExecutePromise<R, E>(latestOptions.current);
   const queryRef = useRef(options.initialQuery);
 
-  const queryExecutor = useCallback(async (): Promise<R> => {
+  const queryExecutor: PromiseSupplier<R> = useCallback(async (abortController: AbortController): Promise<R> => {
     return latestOptions.current.execute(
       queryRef.current,
       latestOptions.current.attributes,
+      abortController,
     );
   }, [queryRef, latestOptions]);
 
