@@ -11,11 +11,24 @@
  * limitations under the License.
  */
 
-import { type SnapshotQueryApi, SnapshotQueryEndpointPaths } from './snapshotQueryApi';
+import {
+  type SnapshotQueryApi,
+  SnapshotQueryEndpointPaths,
+} from './snapshotQueryApi';
 import { aggregateId, aggregateIds, Condition } from '../condition';
-import { listQuery, ListQuery, PagedList, PagedQuery, singleQuery, SingleQuery } from '../queryable';
+import {
+  listQuery,
+  ListQuery,
+  PagedList,
+  PagedQuery,
+  singleQuery,
+  SingleQuery,
+} from '../queryable';
 import type { MaterializedSnapshot } from './snapshot';
-import { JsonEventStreamResultExtractor, JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
+import {
+  JsonEventStreamResultExtractor,
+  JsonServerSentEvent,
+} from '@ahoo-wang/fetcher-eventstream';
 import { ContentTypeValues } from '@ahoo-wang/fetcher';
 import '@ahoo-wang/fetcher-eventstream';
 import {
@@ -104,12 +117,12 @@ import {
  */
 @api()
 export class SnapshotQueryClient<S, FIELDS extends string = string>
-  implements SnapshotQueryApi<S, FIELDS>, ApiMetadataCapable {
+  implements SnapshotQueryApi<S, FIELDS>, ApiMetadataCapable
+{
   /**
    * Creates a new SnapshotQueryClient instance.
    */
-  constructor(public readonly apiMetadata?: ApiMetadata) {
-  }
+  constructor(public readonly apiMetadata?: ApiMetadata) {}
 
   /**
    * Counts the number of snapshots that match the given condition.
@@ -118,6 +131,7 @@ export class SnapshotQueryClient<S, FIELDS extends string = string>
    * @param attributes - Optional shared attributes that can be accessed by interceptors
    *                     throughout the request lifecycle. These attributes allow passing
    *                     custom data between different interceptors.
+   * @param abortController - Optional AbortController for cancelling the request.
    * @returns A promise that resolves to the count of matching snapshots
    *
    * @example
@@ -142,6 +156,7 @@ export class SnapshotQueryClient<S, FIELDS extends string = string>
    * @param attributes - Optional shared attributes that can be accessed by interceptors
    *                     throughout the request lifecycle. These attributes allow passing
    *                     custom data between different interceptors.
+   * @param abortController - Optional AbortController for cancelling the request.
    * @returns A promise that resolves to an array of partial materialized snapshots
    *
    * @example
@@ -171,6 +186,7 @@ export class SnapshotQueryClient<S, FIELDS extends string = string>
    * @param attributes - Optional shared attributes that can be accessed by interceptors
    *                     throughout the request lifecycle. These attributes allow passing
    *                     custom data between different interceptors.
+   * @param abortController - Optional AbortController for cancelling the request.
    * @returns A promise that resolves to a readable stream of JSON server-sent events containing partial materialized snapshots
    *
    * @example
@@ -206,6 +222,7 @@ export class SnapshotQueryClient<S, FIELDS extends string = string>
    * @param attributes - Optional shared attributes that can be accessed by interceptors
    *                     throughout the request lifecycle. These attributes allow passing
    *                     custom data between different interceptors.
+   * @param abortController - Optional AbortController for cancelling the request.
    * @returns A promise that resolves to an array of partial snapshot states
    *
    * @example
@@ -235,6 +252,7 @@ export class SnapshotQueryClient<S, FIELDS extends string = string>
    * @param attributes - Optional shared attributes that can be accessed by interceptors
    *                     throughout the request lifecycle. These attributes allow passing
    *                     custom data between different interceptors.
+   * @param abortController - Optional AbortController for cancelling the request.
    * @returns A promise that resolves to a readable stream of JSON server-sent events containing partial snapshot states
    *
    * @example
@@ -268,6 +286,7 @@ export class SnapshotQueryClient<S, FIELDS extends string = string>
    * @param attributes - Optional shared attributes that can be accessed by interceptors
    *                     throughout the request lifecycle. These attributes allow passing
    *                     custom data between different interceptors.
+   * @param abortController - Optional AbortController for cancelling the request.
    * @returns A promise that resolves to a paged list of partial materialized snapshots
    *
    * @example
@@ -300,6 +319,7 @@ export class SnapshotQueryClient<S, FIELDS extends string = string>
    * @param attributes - Optional shared attributes that can be accessed by interceptors
    *                     throughout the request lifecycle. These attributes allow passing
    *                     custom data between different interceptors.
+   * @param abortController - Optional AbortController for cancelling the request.
    * @returns A promise that resolves to a paged list of partial snapshot states
    *
    * @example
@@ -331,6 +351,7 @@ export class SnapshotQueryClient<S, FIELDS extends string = string>
    * @param attributes - Optional shared attributes that can be accessed by interceptors
    *                     throughout the request lifecycle. These attributes allow passing
    *                     custom data between different interceptors.
+   * @param abortController - Optional AbortController for cancelling the request.
    * @returns A promise that resolves to a partial materialized snapshot
    *
    * @example
@@ -358,6 +379,7 @@ export class SnapshotQueryClient<S, FIELDS extends string = string>
    * @param attributes - Optional shared attributes that can be accessed by interceptors
    *                     throughout the request lifecycle. These attributes allow passing
    *                     custom data between different interceptors.
+   * @param abortController - Optional AbortController for cancelling the request.
    * @returns A promise that resolves to a partial snapshot state
    *
    * @example
@@ -385,6 +407,7 @@ export class SnapshotQueryClient<S, FIELDS extends string = string>
    * @param attributes - Optional shared attributes that can be accessed by interceptors
    *                     throughout the request lifecycle. These attributes allow passing
    *                     custom data between different interceptors.
+   * @param abortController - Optional AbortController for cancelling the request.
    * @returns A promise that resolves to the materialized snapshot with the specified ID
    *
    * @example
@@ -411,6 +434,7 @@ export class SnapshotQueryClient<S, FIELDS extends string = string>
    * @param attributes - Optional shared attributes that can be accessed by interceptors
    *                     throughout the request lifecycle. These attributes allow passing
    *                     custom data between different interceptors.
+   * @param abortController - Optional AbortController for cancelling the request.
    * @returns A promise that resolves to the snapshot state with the specified ID
    *
    * @example
@@ -437,6 +461,7 @@ export class SnapshotQueryClient<S, FIELDS extends string = string>
    * @param attributes - Optional shared attributes that can be accessed by interceptors
    *                     throughout the request lifecycle. These attributes allow passing
    *                     custom data between different interceptors.
+   * @param abortController - Optional AbortController for cancelling the request.
    * @returns A promise that resolves to an array of materialized snapshots with the specified IDs
    *
    * @example
@@ -466,6 +491,7 @@ export class SnapshotQueryClient<S, FIELDS extends string = string>
    * @param attributes - Optional shared attributes that can be accessed by interceptors
    *                     throughout the request lifecycle. These attributes allow passing
    *                     custom data between different interceptors.
+   * @param abortController - Optional AbortController for cancelling the request.
    * @returns A promise that resolves to an array of snapshot states with the specified IDs
    *
    * @example

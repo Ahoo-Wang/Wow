@@ -76,15 +76,15 @@ import {
  */
 @api()
 export class EventStreamQueryClient<
-  DomainEventBody = any,
-  FIELDS extends string = string,
->
-  implements EventStreamQueryApi<DomainEventBody, FIELDS>, ApiMetadataCapable {
+    DomainEventBody = any,
+    FIELDS extends string = string,
+  >
+  implements EventStreamQueryApi<DomainEventBody, FIELDS>, ApiMetadataCapable
+{
   /**
    * Creates a new EventStreamQueryClient instance.
    */
-  constructor(public readonly apiMetadata?: ApiMetadata) {
-  }
+  constructor(public readonly apiMetadata?: ApiMetadata) {}
 
   /**
    * Counts the number of domain event streams that match the given condition.
@@ -93,12 +93,19 @@ export class EventStreamQueryClient<
    * @param attributes - Optional shared attributes that can be accessed by interceptors
    *                     throughout the request lifecycle. These attributes allow passing
    *                     custom data between different interceptors.
+   * @param abortController - Optional AbortController for cancelling the request.
+   *                          When provided, allows the request to be cancelled mid-flight,
+   *                          which is useful for preventing race conditions and improving UX.
    * @returns A promise that resolves to the count of matching event streams
    *
    * @example
    * ```typescript
-   * const count = await eventStreamQueryClient.count(all());
+   * const abortController = new AbortController();
+   * const count = await eventStreamQueryClient.count(all(), {}, abortController);
    * console.log('Total event streams:', count);
+   *
+   * // Cancel the request if needed
+   * abortController.abort();
    * ```
    */
   @post(EventStreamQueryEndpointPaths.COUNT)
@@ -117,17 +124,24 @@ export class EventStreamQueryClient<
    * @param attributes - Optional shared attributes that can be accessed by interceptors
    *                     throughout the request lifecycle. These attributes allow passing
    *                     custom data between different interceptors.
+   * @param abortController - Optional AbortController for cancelling the request.
+   *                          When provided, allows the request to be cancelled mid-flight,
+   *                          which is useful for preventing race conditions and improving UX.
    * @returns A promise that resolves to an array of partial domain event streams
    *
    * @example
    * ```typescript
+   * const abortController = new AbortController();
    * const listQuery: ListQuery = {
    *   condition: all()
    * };
-   * const list = await eventStreamQueryClient.list(listQuery);
+   * const list = await eventStreamQueryClient.list(listQuery, {}, abortController);
    * for (const domainEventStream of list) {
    *   console.log('Event stream:', domainEventStream);
    * }
+   *
+   * // Cancel the request if needed
+   * abortController.abort();
    * ```
    */
   @post(EventStreamQueryEndpointPaths.LIST)
@@ -151,18 +165,25 @@ export class EventStreamQueryClient<
    * @param attributes - Optional shared attributes that can be accessed by interceptors
    *                     throughout the request lifecycle. These attributes allow passing
    *                     custom data between different interceptors.
+   * @param abortController - Optional AbortController for cancelling the request.
+   *                          When provided, allows the request to be cancelled mid-flight,
+   *                          which is useful for preventing race conditions and improving UX.
    * @returns A promise that resolves to a readable stream of JSON server-sent events containing partial domain event streams
    *
    * @example
    * ```typescript
+   * const abortController = new AbortController();
    * const listQuery: ListQuery = {
    *   condition: all()
    * };
-   * const listStream = await eventStreamQueryClient.listStream(listQuery);
+   * const listStream = await eventStreamQueryClient.listStream(listQuery, {}, abortController);
    * for await (const event of listStream) {
    *   const domainEventStream = event.data;
    *   console.log('Received event stream:', domainEventStream);
    * }
+   *
+   * // Cancel the request if needed
+   * abortController.abort();
    * ```
    */
   @post(EventStreamQueryEndpointPaths.LIST, {
@@ -188,20 +209,27 @@ export class EventStreamQueryClient<
    * @param attributes - Optional shared attributes that can be accessed by interceptors
    *                     throughout the request lifecycle. These attributes allow passing
    *                     custom data between different interceptors.
+   * @param abortController - Optional AbortController for cancelling the request.
+   *                          When provided, allows the request to be cancelled mid-flight,
+   *                          which is useful for preventing race conditions and improving UX.
    * @returns A promise that resolves to a paged list of partial domain event streams
    *
    * @example
    * ```typescript
+   * const abortController = new AbortController();
    * const pagedQuery: PagedQuery = {
    *   condition: all(),
    *   limit: 10,
    *   offset: 0
    * };
-   * const paged = await eventStreamQueryClient.paged(pagedQuery);
+   * const paged = await eventStreamQueryClient.paged(pagedQuery, {}, abortController);
    * console.log('Total:', paged.total);
    * for (const domainEventStream of paged.list) {
    *   console.log('Event stream:', domainEventStream);
    * }
+   *
+   * // Cancel the request if needed
+   * abortController.abort();
    * ```
    */
   @post(EventStreamQueryEndpointPaths.PAGED)

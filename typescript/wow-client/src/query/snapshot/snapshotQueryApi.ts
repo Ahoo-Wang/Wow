@@ -35,6 +35,9 @@ export interface SnapshotQueryApi<S, FIELDS extends string = string>
    * @param attributes - Optional shared attributes that can be accessed by interceptors
    *                     throughout the request lifecycle. These attributes allow passing
    *                     custom data between different interceptors.
+   * @param abortController - Optional AbortController for cancelling the request.
+   *                          When provided, allows the request to be cancelled mid-flight,
+   *                          which is useful for preventing race conditions and improving UX.
    * @returns A promise that resolves to a partial snapshot state
    */
   singleState<T extends Partial<S> = S>(
@@ -49,6 +52,9 @@ export interface SnapshotQueryApi<S, FIELDS extends string = string>
    * @param attributes - Optional shared attributes that can be accessed by interceptors
    *                     throughout the request lifecycle. These attributes allow passing
    *                     custom data between different interceptors.
+   * @param abortController - Optional AbortController for cancelling the request.
+   *                          When provided, allows the request to be cancelled mid-flight,
+   *                          which is useful for preventing race conditions and improving UX.
    * @returns A promise that resolves to an array of partial snapshot states
    */
   listState<T extends Partial<S> = S>(
@@ -63,6 +69,9 @@ export interface SnapshotQueryApi<S, FIELDS extends string = string>
    * @param attributes - Optional shared attributes that can be accessed by interceptors
    *                     throughout the request lifecycle. These attributes allow passing
    *                     custom data between different interceptors.
+   * @param abortController - Optional AbortController for cancelling the request.
+   *                          When provided, allows the request to be cancelled mid-flight,
+   *                          which is useful for preventing race conditions and improving UX.
    * @returns A promise that resolves to a readable stream of JSON server-sent events containing partial snapshot states
    */
   listStateStream<T extends Partial<S> = S>(
@@ -77,6 +86,9 @@ export interface SnapshotQueryApi<S, FIELDS extends string = string>
    * @param attributes - Optional shared attributes that can be accessed by interceptors
    *                     throughout the request lifecycle. These attributes allow passing
    *                     custom data between different interceptors.
+   * @param abortController - Optional AbortController for cancelling the request.
+   *                          When provided, allows the request to be cancelled mid-flight,
+   *                          which is useful for preventing race conditions and improving UX.
    * @returns A promise that resolves to a paged list of partial snapshot states
    */
   pagedState<T extends Partial<S> = S>(
