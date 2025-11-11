@@ -40,6 +40,7 @@ export interface SnapshotQueryApi<S, FIELDS extends string = string>
   singleState<T extends Partial<S> = S>(
     singleQuery: SingleQuery<FIELDS>,
     attributes?: Record<string, any>,
+    abortController?: AbortController,
   ): Promise<T>;
 
   /**
@@ -53,6 +54,7 @@ export interface SnapshotQueryApi<S, FIELDS extends string = string>
   listState<T extends Partial<S> = S>(
     listQuery: ListQuery<FIELDS>,
     attributes?: Record<string, any>,
+    abortController?: AbortController,
   ): Promise<T[]>;
 
   /**
@@ -66,6 +68,7 @@ export interface SnapshotQueryApi<S, FIELDS extends string = string>
   listStateStream<T extends Partial<S> = S>(
     listQuery: ListQuery<FIELDS>,
     attributes?: Record<string, any>,
+    abortController?: AbortController,
   ): Promise<ReadableStream<JsonServerSentEvent<T>>>;
 
   /**
@@ -79,6 +82,7 @@ export interface SnapshotQueryApi<S, FIELDS extends string = string>
   pagedState<T extends Partial<S> = S>(
     pagedQuery: PagedQuery<FIELDS>,
     attributes?: Record<string, any>,
+    abortController?: AbortController,
   ): Promise<PagedList<T>>;
 }
 
