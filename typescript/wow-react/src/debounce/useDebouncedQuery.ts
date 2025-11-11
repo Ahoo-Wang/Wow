@@ -69,7 +69,7 @@ export interface UseDebouncedQueryReturn<Q, R, E = FetcherError>
 export function useDebouncedQuery<Q, R, E = FetcherError>(
   options: UseDebouncedQueryOptions<Q, R, E>,
 ): UseDebouncedQueryReturn<Q, R, E> {
-  const { loading, result, error, status, execute, reset, getQuery, setQuery } =
+  const { loading, result, error, status, execute, reset,abort, getQuery, setQuery } =
     useQuery(options);
   const { run, cancel, isPending } = useDebouncedCallback(
     execute,
@@ -82,6 +82,7 @@ export function useDebouncedQuery<Q, R, E = FetcherError>(
       error,
       status,
       reset,
+      abort,
       getQuery,
       setQuery,
       run,
@@ -94,6 +95,7 @@ export function useDebouncedQuery<Q, R, E = FetcherError>(
       error,
       status,
       reset,
+      abort,
       getQuery,
       setQuery,
       run,

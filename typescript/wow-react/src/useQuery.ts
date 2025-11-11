@@ -114,6 +114,7 @@ export function useQuery<Q, R, E = FetcherError>(
     status,
     execute: promiseExecutor,
     reset,
+    abort,
   } = useExecutePromise<R, E>(latestOptions.current);
   const queryRef = useRef(options.initialQuery);
 
@@ -154,12 +155,13 @@ export function useQuery<Q, R, E = FetcherError>(
       status,
       execute,
       reset,
+      abort,
       getQuery,
       setQuery,
     }),
     [loading,
       result,
       error,
-      status, execute, reset, getQuery, setQuery],
+      status, execute, reset, abort, getQuery, setQuery],
   );
 }
