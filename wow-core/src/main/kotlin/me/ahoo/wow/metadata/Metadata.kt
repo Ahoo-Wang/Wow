@@ -13,4 +13,14 @@
 
 package me.ahoo.wow.metadata
 
+/**
+ * Marker interface for metadata objects in the Wow framework.
+ * Classes implementing this interface represent parsed metadata information
+ * about various components such as commands, events, aggregates, and other
+ * framework elements. This interface serves as a type constraint for metadata
+ * objects that can be cached and managed by metadata parsers.
+ *
+ * Metadata implementations typically contain information extracted from
+ * annotations, class structures, or other reflective analysis of framework components.
+ */
 interface Metadata
