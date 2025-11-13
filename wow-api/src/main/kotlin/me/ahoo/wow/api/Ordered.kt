@@ -15,6 +15,17 @@ package me.ahoo.wow.api
 
 import me.ahoo.wow.api.annotation.Order
 
+/**
+ * Represents an entity that has an ordering attribute.
+ *
+ * This interface is used to define objects that can be ordered or sorted based on a specific [Order] value.
+ * Implementations of this interface provide a way to determine the relative position or priority of instances
+ * in collections or sequences.
+ *
+ * @property order The ordering value that determines the position or priority of this entity.
+ *                 This property is read-only and must be implemented by classes that implement this interface.
+ *                 The [Order] type encapsulates the ordering logic and comparison rules.
+ */
 interface Ordered {
     val order: Order
 }
