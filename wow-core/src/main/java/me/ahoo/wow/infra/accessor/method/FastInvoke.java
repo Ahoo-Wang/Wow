@@ -20,24 +20,48 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
 /**
- * <a href="https://detekt.dev/docs/rules/performance/#spreadoperator">
- * SpreadOperator
- * </a>
+ * Utility class providing fast method invocation and object instantiation using Java reflection.
+ * <p>
+ * This class offers optimized methods for invoking methods and creating instances with improved
+ * exception handling. It avoids the performance overhead of the spread operator by using Object[]
+ * for method arguments, addressing the Detekt SpreadOperator rule.
+ * </p>
+ * <p>
+ * All methods in this class are thread-safe and can be used concurrently.
+ * </p>
+ * <p>
+ * <strong>Note:</strong> This class cannot be instantiated as it contains only static utility methods.
+ * </p>
+ *
+ * @see <a href="https://detekt.dev/docs/rules/performance/#spreadoperator">Detekt SpreadOperator Rule</a>
  */
 public final class FastInvoke {
     private FastInvoke() {
     }
 
     /**
-     * invoke target object method
+     * Invokes the specified method on the target object with the given arguments.
+     * <p>
+     * This method provides a type-safe wrapper around {@link Method#invoke(Object, Object...)}
+     * while avoiding the performance penalty of the spread operator.
+     * </p>
      *
-     * @param method method
-     * @param target target
-     * @param args   args
-     * @param <T>    result type
-     * @return result
-     * @throws InvocationTargetException InvocationTargetException
-     * @throws IllegalAccessException    IllegalAccessException
+     * @param method the method to invoke; must not be null
+     * @param target the object on which to invoke the method, or null for static methods
+     * @param args the arguments to pass to the method; may be null if the method takes no arguments
+     * @param <T> the return type of the method
+     * @return the result of the method invocation, or null if the method returns void
+     * @throws InvocationTargetException if the underlying method throws an exception
+     * @throws IllegalAccessException if the method is not accessible (e.g., private method)
+     * @throws IllegalArgumentException if the method is an instance method and target is null,
+     *         or if the arguments are not appropriate for the method
+     *
+     * @example
+     * <pre>{@code
+     * Method method = MyClass.class.getMethod("myMethod", String.class);
+     * MyClass instance = new MyClass();
+     * String result = FastInvoke.invoke(method, instance, new Object[]{"hello"});
+     * }</pre>
      */
     @SuppressWarnings({"AvoidObjectArrays", "unchecked"})
     public static <T> T invoke(@NotNull Method method, Object target, Object[] args)
@@ -46,15 +70,32 @@ public final class FastInvoke {
     }
 
     /**
-     * safe invoke target object method
+     * Safely invokes the specified method on the target object, unwrapping InvocationTargetException.
+     * <p>
+     * This method calls {@link #invoke(Method, Object, Object[])} but throws the target exception
+     * directly instead of wrapping it in InvocationTargetException, providing cleaner exception handling.
+     * </p>
      *
-     * @param method method
-     * @param target target
-     * @param args   args
-     * @param <T>    result type
-     * @return result
-     * @throws InvocationTargetException InvocationTargetException
-     * @throws IllegalAccessException    IllegalAccessException
+     * @param method the method to invoke; must not be null
+     * @param target the object on which to invoke the method, or null for static methods
+     * @param args the arguments to pass to the method; may be null if the method takes no arguments
+     * @param <T> the return type of the method
+     * @return the result of the method invocation, or null if the method returns void
+     * @throws Throwable if the underlying method throws an exception or if invocation fails
+     * @throws IllegalAccessException if the method is not accessible
+     * @throws IllegalArgumentException if the method is an instance method and target is null,
+     *         or if the arguments are not appropriate for the method
+     *
+     * @example
+     * <pre>{@code
+     * Method method = MyClass.class.getMethod("myMethod", String.class);
+     * MyClass instance = new MyClass();
+     * try {
+     *     String result = FastInvoke.safeInvoke(method, instance, new Object[]{"hello"});
+     * } catch (MyCustomException e) {
+     *     // Handle the actual exception thrown by myMethod
+     * }
+     * }</pre>
      */
     public static <T> T safeInvoke(@NotNull Method method, Object target, Object[] args)
             throws Throwable {
@@ -66,15 +107,26 @@ public final class FastInvoke {
     }
 
     /**
-     * create instance
+     * Creates a new instance of the class using the specified constructor with the given arguments.
+     * <p>
+     * This method provides a type-safe wrapper around {@link Constructor#newInstance(Object...)}
+     * while avoiding the performance penalty of the spread operator.
+     * </p>
      *
-     * @param constructor create instance
-     * @param args        args
-     * @param <T>         instance type
-     * @return instance
-     * @throws InvocationTargetException InvocationTargetException
-     * @throws InstantiationException    InstantiationException
-     * @throws IllegalAccessException    IllegalAccessException
+     * @param constructor the constructor to use for instantiation; must not be null
+     * @param args the arguments to pass to the constructor; may be null if the constructor takes no arguments
+     * @param <T> the type of the instance to create
+     * @return a new instance of the class; never null
+     * @throws InvocationTargetException if the constructor throws an exception
+     * @throws InstantiationException if the class cannot be instantiated (e.g., abstract class, interface)
+     * @throws IllegalAccessException if the constructor is not accessible
+     * @throws IllegalArgumentException if the arguments are not appropriate for the constructor
+     *
+     * @example
+     * <pre>{@code
+     * Constructor<MyClass> constructor = MyClass.class.getConstructor(String.class);
+     * MyClass instance = FastInvoke.newInstance(constructor, new Object[]{"initial value"});
+     * }</pre>
      */
     @NotNull
     @SuppressWarnings("AvoidObjectArrays")
@@ -85,15 +137,31 @@ public final class FastInvoke {
     }
 
     /**
-     * safe create instance
+     * Safely creates a new instance of the class, unwrapping InvocationTargetException.
+     * <p>
+     * This method calls {@link #newInstance(Constructor, Object[])} but throws the target exception
+     * directly instead of wrapping it in InvocationTargetException, providing cleaner exception handling
+     * for constructor calls.
+     * </p>
      *
-     * @param constructor create instance
-     * @param args        args
-     * @param <T>         instance type
-     * @return instance
-     * @throws InvocationTargetException InvocationTargetException
-     * @throws InstantiationException    InstantiationException
-     * @throws IllegalAccessException    IllegalAccessException
+     * @param constructor the constructor to use for instantiation; must not be null
+     * @param args the arguments to pass to the constructor; may be null if the constructor takes no arguments
+     * @param <T> the type of the instance to create
+     * @return a new instance of the class; never null
+     * @throws Throwable if the constructor throws an exception or if instantiation fails
+     * @throws InstantiationException if the class cannot be instantiated
+     * @throws IllegalAccessException if the constructor is not accessible
+     * @throws IllegalArgumentException if the arguments are not appropriate for the constructor
+     *
+     * @example
+     * <pre>{@code
+     * Constructor<MyClass> constructor = MyClass.class.getConstructor(String.class);
+     * try {
+     *     MyClass instance = FastInvoke.safeNewInstance(constructor, new Object[]{"initial value"});
+     * } catch (MyCustomException e) {
+     *     // Handle the actual exception thrown by the constructor
+     * }
+     * }</pre>
      */
     public static <T> T safeNewInstance(@NotNull Constructor<T> constructor, Object[] args)
             throws Throwable {
