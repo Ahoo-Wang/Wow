@@ -28,9 +28,6 @@ import java.lang.annotation.Inherited
  * The annotated field/property should contain a unique identifier for the owner/tenant,
  * such as a user ID, organization ID, or tenant key.
  *
- * @see TenantId for tenant-specific identification
- * @see AggregateRoute.Owner for ownership routing policies
- *
  * Example usage:
  * ```kotlin
  * @AggregateRoot
@@ -54,6 +51,9 @@ import java.lang.annotation.Inherited
  *     val newName: String
  * )
  * ```
+ *
+ * @see TenantId for tenant-specific identification
+ * @see AggregateRoute.Owner for ownership routing policies
  */
 @Target(
     AnnotationTarget.FIELD,

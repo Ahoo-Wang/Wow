@@ -28,10 +28,6 @@ import java.lang.annotation.Inherited
  * The summary should be brief (1-2 sentences) and focus on the most important
  * aspect of the annotated element. For more detailed descriptions, use @Description.
  *
- * @param value The summary text. Should be concise and descriptive.
- *
- * @see Description for longer, more detailed descriptions
- *
  * Example usage:
  * ```kotlin
  * @Summary("Manages customer orders and fulfillment")
@@ -46,6 +42,10 @@ import java.lang.annotation.Inherited
  *     val status: OrderStatus
  * }
  * ```
+ *
+ * @param value The summary text. Should be concise and descriptive.
+ *
+ * @see Description for longer, more detailed descriptions
  */
 @Target(
     AnnotationTarget.CLASS,
