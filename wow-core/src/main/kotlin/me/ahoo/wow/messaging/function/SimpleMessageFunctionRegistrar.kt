@@ -19,13 +19,29 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import java.util.concurrent.CopyOnWriteArraySet
 
+/**
+ * Simple implementation of MessageFunctionRegistrar using a thread-safe set.
+ *
+ * Provides basic registration and lookup functionality for message functions
+ * using a CopyOnWriteArraySet for thread safety.
+ *
+ * @param F The type of message function being registered
+ */
 class SimpleMessageFunctionRegistrar<F : MessageFunction<*, *, *>> : MessageFunctionRegistrar<F> {
     private companion object {
         private val log = KotlinLogging.logger {}
     }
 
+    /**
+     * Thread-safe set for storing registered functions.
+     */
     private val registrar: CopyOnWriteArraySet<F> = CopyOnWriteArraySet()
 
+    /**
+     * Registers a function and logs the registration.
+     *
+     * @param function The function to register
+     */
     override fun register(function: F) {
         log.info {
             "Register $function."
@@ -33,6 +49,11 @@ class SimpleMessageFunctionRegistrar<F : MessageFunction<*, *, *>> : MessageFunc
         registrar.add(function)
     }
 
+    /**
+     * Unregisters a function and logs the unregistration.
+     *
+     * @param function The function to unregister
+     */
     override fun unregister(function: F) {
         log.info {
             "Unregister $function."
@@ -40,14 +61,27 @@ class SimpleMessageFunctionRegistrar<F : MessageFunction<*, *, *>> : MessageFunc
         registrar.remove(function)
     }
 
+    /**
+     * Returns the set of registered functions.
+     */
     override val functions: Set<F>
         get() = registrar
 
-    override fun <M> supportedFunctions(message: M): Sequence<F>
-        where M : Message<*, Any>, M : NamedBoundedContext, M : NamedAggregate {
-        return functions.asSequence()
+    /**
+     * Returns a sequence of functions that support the given message.
+     *
+     * Filters the registered functions to only include those that can handle
+     * the message's type and aggregate.
+     *
+     * @param message The message to find supporting functions for
+     * @return A sequence of functions that support this message
+     */
+    override fun <M> supportedFunctions(
+        message: M
+    ): Sequence<F>
+        where M : Message<*, Any>, M : NamedBoundedContext, M : NamedAggregate =
+        functions.asSequence()
             .filter {
                 it.supportMessage(message)
             }
-    }
 }

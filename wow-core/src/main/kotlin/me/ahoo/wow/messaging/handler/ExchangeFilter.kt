@@ -17,7 +17,26 @@ import me.ahoo.wow.filter.Filter
 import me.ahoo.wow.filter.FilterChain
 import reactor.core.publisher.Mono
 
+/**
+ * A filter for processing message exchanges in a filter chain.
+ *
+ * Exchange filters can intercept and modify message exchanges as they pass
+ * through the processing pipeline, enabling cross-cutting concerns like
+ * logging, authentication, and error handling.
+ *
+ * @param T The type of message exchange this filter handles
+ */
 fun interface ExchangeFilter<T : MessageExchange<*, *>> : Filter<T> {
+    /**
+     * Processes the message exchange and optionally calls the next filter in the chain.
+     *
+     * @param exchange The message exchange to process
+     * @param next The next filter in the chain
+     * @return A Mono that completes when filtering is done
+     */
     @Suppress("PARAMETER_NAME_CHANGED_ON_OVERRIDE")
-    override fun filter(exchange: T, next: FilterChain<T>): Mono<Void>
+    override fun filter(
+        exchange: T,
+        next: FilterChain<T>
+    ): Mono<Void>
 }

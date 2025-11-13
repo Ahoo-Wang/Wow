@@ -129,5 +129,4 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
             it.createExchange()
         }
     }
-
 }
