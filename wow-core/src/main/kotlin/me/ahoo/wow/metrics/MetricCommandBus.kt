@@ -24,41 +24,88 @@ import me.ahoo.wow.metrics.Metrics.tagMetricsSubscriber
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-open class MetricCommandBus<T : CommandBus>(delegate: T) :
+/**
+ * Metric decorator for command buses that collects metrics on command sending and receiving operations.
+ * This class wraps any CommandBus implementation and adds metrics collection with tags for
+ * aggregate name, command name, and source identification.
+ *
+ * @param T the specific type of CommandBus being decorated
+ * @property delegate the underlying command bus implementation
+ */
+open class MetricCommandBus<T : CommandBus>(
+    delegate: T
+) : AbstractMetricDecorator<T>(delegate),
     CommandBus,
-    AbstractMetricDecorator<T>(delegate),
     Metrizable {
-
-    override fun send(message: CommandMessage<*>): Mono<Void> {
-        return delegate.send(message)
+    /**
+     * Sends a command message and collects metrics on the operation.
+     * Metrics collected include timing, success/failure rates, and tags for aggregate and command identification.
+     *
+     * @param message the command message to send
+     * @return a Mono that completes when the command is sent
+     */
+    override fun send(message: CommandMessage<*>): Mono<Void> =
+        delegate
+            .send(message)
             .name(Wow.WOW_PREFIX + "command.send")
             .tagSource()
             .tag(Metrics.AGGREGATE_KEY, message.aggregateName)
             .tag(Metrics.COMMAND_KEY, message.name)
             .metrics()
-    }
 
-    override fun receive(namedAggregates: Set<NamedAggregate>): Flux<ServerCommandExchange<*>> {
-        return delegate.receive(namedAggregates)
+    /**
+     * Receives command exchanges for the specified named aggregates and collects metrics on the operation.
+     * Metrics collected include timing and tags for aggregate identification and subscriber information.
+     *
+     * @param namedAggregates the set of named aggregates to receive commands for
+     * @return a Flux of server command exchanges
+     */
+    override fun receive(namedAggregates: Set<NamedAggregate>): Flux<ServerCommandExchange<*>> =
+        delegate
+            .receive(namedAggregates)
             .name(Wow.WOW_PREFIX + "command.receive")
             .tagSource()
             .tag(Metrics.AGGREGATE_KEY, namedAggregates.joinToString(",") { it.aggregateName })
             .tagMetricsSubscriber()
-    }
 
+    /**
+     * Closes the command bus and releases any resources.
+     * This delegates to the underlying command bus implementation.
+     */
     override fun close() {
         delegate.close()
     }
 }
 
-class MetricLocalCommandBus(delegate: LocalCommandBus) :
-    LocalCommandBus,
-    MetricCommandBus<LocalCommandBus>(delegate) {
-    override fun subscriberCount(namedAggregate: NamedAggregate): Int {
-        return delegate.subscriberCount(namedAggregate)
-    }
+/**
+ * Metric decorator specifically for local command buses.
+ * Extends MetricCommandBus to provide metrics collection for local command bus operations
+ * while maintaining the LocalCommandBus interface.
+ *
+ * @property delegate the underlying local command bus implementation
+ */
+class MetricLocalCommandBus(
+    delegate: LocalCommandBus
+) : MetricCommandBus<LocalCommandBus>(delegate),
+    LocalCommandBus {
+    /**
+     * Returns the number of subscribers for the specified named aggregate.
+     * This delegates to the underlying local command bus implementation.
+     *
+     * @param namedAggregate the named aggregate to check subscriber count for
+     * @return the number of subscribers
+     */
+    override fun subscriberCount(namedAggregate: NamedAggregate): Int = delegate.subscriberCount(namedAggregate)
 }
 
-class MetricDistributedCommandBus(delegate: DistributedCommandBus) :
-    DistributedCommandBus,
-    MetricCommandBus<DistributedCommandBus>(delegate)
+/**
+ * Metric decorator specifically for distributed command buses.
+ * Extends MetricCommandBus to provide metrics collection for distributed command bus operations
+ * while maintaining the DistributedCommandBus interface.
+ *
+ * @property delegate the underlying distributed command bus implementation
+ */
+class MetricDistributedCommandBus(
+    delegate: DistributedCommandBus
+) : MetricCommandBus<DistributedCommandBus>(delegate),
+    DistributedCommandBus

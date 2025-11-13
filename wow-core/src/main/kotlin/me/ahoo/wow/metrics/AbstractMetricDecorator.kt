@@ -18,24 +18,60 @@ import me.ahoo.wow.infra.Decorator.Companion.getOriginalDelegate
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-abstract class AbstractMetricDecorator<T : Any>(final override val delegate: T) : Decorator<T> {
+/**
+ * Abstract base class for metric decorators that provides common functionality for tagging
+ * reactive streams with source information. This class implements the Decorator pattern to wrap
+ * components and add metrics collection capabilities.
+ *
+ * @param T the type of the delegate component being decorated
+ * @property delegate the original component being decorated, must implement the Decorator interface
+ */
+abstract class AbstractMetricDecorator<T : Any>(
+    final override val delegate: T
+) : Decorator<T> {
+    /**
+     * The source identifier derived from the original delegate's class name.
+     * This is used for metrics tagging to identify the component type.
+     */
     val source: String = delegate.getOriginalDelegate().javaClass.simpleName
 
-    fun <M> Mono<M>.tagSource(): Mono<M> {
-        return this.tagSource(source)
-    }
+    /**
+     * Extension function to tag a Mono publisher with the current source identifier.
+     * This adds the source tag to metrics collected from this reactive stream.
+     *
+     * @param M the type of elements in the Mono
+     * @return the tagged Mono publisher
+     */
+    fun <M> Mono<M>.tagSource(): Mono<M> = this.tagSource(source)
 
-    fun <M> Flux<M>.tagSource(): Flux<M> {
-        return this.tagSource(source)
-    }
+    /**
+     * Extension function to tag a Flux publisher with the current source identifier.
+     * This adds the source tag to metrics collected from this reactive stream.
+     *
+     * @param M the type of elements in the Flux
+     * @return the tagged Flux publisher
+     */
+    fun <M> Flux<M>.tagSource(): Flux<M> = this.tagSource(source)
 
     companion object {
-        fun <M> Mono<M>.tagSource(source: String): Mono<M> {
-            return this.tag(Metrics.SOURCE_KEY, source)
-        }
+        /**
+         * Static extension function to tag a Mono publisher with a specified source identifier.
+         * This is used for metrics tagging to identify the component that generated the metrics.
+         *
+         * @param M the type of elements in the Mono
+         * @param source the source identifier to tag the metrics with
+         * @return the tagged Mono publisher
+         */
+        fun <M> Mono<M>.tagSource(source: String): Mono<M> = this.tag(Metrics.SOURCE_KEY, source)
 
-        fun <M> Flux<M>.tagSource(source: String): Flux<M> {
-            return this.tag(Metrics.SOURCE_KEY, source)
-        }
+        /**
+         * Static extension function to tag a Flux publisher with a specified source identifier.
+         * This is used for metrics tagging to identify the component that generated the metrics.
+         *
+         * @param M the type of elements in the Flux
+         * @param source the source identifier to tag the metrics with
+         * @return the tagged Flux publisher
+         */
+        fun <M> Flux<M>.tagSource(source: String): Flux<M> = this.tag(Metrics.SOURCE_KEY, source)
     }
 }
