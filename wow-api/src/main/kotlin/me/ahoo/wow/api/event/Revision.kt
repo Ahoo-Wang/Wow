@@ -13,27 +13,43 @@
 package me.ahoo.wow.api.event
 
 /**
- * Revision .
+ * The default revision string used when no specific revision is provided.
  *
- * @author ahoo wang
+ * This constant represents the initial version of domain events and aggregates.
+ * It follows semantic versioning format (major.minor.patch) and serves as
+ * the baseline version for backward compatibility checks.
  */
 const val DEFAULT_REVISION = "0.0.1"
 
 /**
- * Represents a revision of an entity or event, providing a way to track changes and versions.
+ * Interface for entities that have version/revision information.
  *
- * This interface is particularly useful in domain-driven design (DDD) contexts, where it can be used
- * by domain events to indicate the version of the aggregate that produced the event. It ensures that
- * every event has a `revision` property, which defaults to a predefined value if not explicitly set.
+ * Revisions provide a way to track changes and versions of domain objects,
+ * enabling backward compatibility, migration strategies, and proper event
+ * deserialization across different versions of the domain model.
+ *
+ * In domain-driven design contexts, revisions are particularly important for:
+ * - Domain events to indicate the aggregate version that produced them
+ * - Ensuring event schema compatibility during event sourcing
+ * - Supporting gradual migration of domain models
+ * - Maintaining audit trails of structural changes
+ *
+ * @see DomainEvent for domain events that implement this interface
+ * @see DEFAULT_REVISION for the default revision value
  */
 interface Revision {
-
     /**
-     * Represents the revision of the domain event. This value is used to track changes or updates in the domain model, ensuring that each version of an aggregate can be uniquely identified and
-     *  managed.
+     * The revision/version identifier for this entity.
      *
-     * The `revision` property returns a default revision string, which is typically used when a specific revision is not explicitly provided. This is useful for maintaining consistency and traceability
-     *  in the domain events, especially in scenarios where versioning and auditing are critical.
+     * The revision follows semantic versioning format (major.minor.patch) and is used to:
+     * - Track structural changes in domain events and aggregates
+     * - Ensure compatibility during event deserialization
+     * - Support migration strategies for domain model evolution
+     * - Provide audit trails for version changes
+     *
+     * When not explicitly provided, defaults to [DEFAULT_REVISION].
+     * Custom revisions should be set when the event or aggregate structure changes
+     * in ways that affect serialization or business logic.
      */
     val revision: String
         get() = DEFAULT_REVISION

@@ -16,12 +16,34 @@ package me.ahoo.wow.api.event
 import me.ahoo.wow.api.annotation.Event
 
 /**
- * Represents an event that is triggered when an aggregate is deleted.
+ * Marker interface for events indicating that an aggregate has been deleted.
  *
- * This event can be used to notify other components or services in the system that a specific aggregate has been deleted,
- * allowing them to take any necessary actions, such as updating their state or performing cleanup operations.
+ * This interface is implemented by domain events that signal the permanent removal
+ * of an aggregate from the system. When an aggregate is deleted, this event allows
+ * other components, services, and projections to react appropriately - such as
+ * cleaning up related data, updating indexes, or notifying external systems.
+ *
+ * Aggregate deletion is typically a permanent operation that cannot be undone,
+ * though some systems may support recovery through [AggregateRecovered] events.
+ *
+ * @see AggregateRecovered for events indicating aggregate recovery
+ * @see me.ahoo.wow.api.annotation.Event for the event annotation
+ *
+ * @sample
+ * ```kotlin
+ * class OrderDeleted : AggregateDeleted {
+ *     // Additional event data can be included here
+ * }
+ * ```
  */
 @Event
 interface AggregateDeleted
 
+/**
+ * Default implementation of [AggregateDeleted] for simple deletion events.
+ *
+ * This object can be used directly when no additional event data is needed
+ * beyond the fact that an aggregate has been deleted. It serves as a
+ * convenient default for basic aggregate deletion scenarios.
+ */
 object DefaultAggregateDeleted : AggregateDeleted

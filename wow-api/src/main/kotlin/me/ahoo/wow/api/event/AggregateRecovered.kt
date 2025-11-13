@@ -16,10 +16,39 @@ package me.ahoo.wow.api.event
 import me.ahoo.wow.api.annotation.Event
 
 /**
- * Represents an event that is triggered when a deleted aggregate has been recovered.
+ * Marker interface for events indicating that a previously deleted aggregate has been recovered.
+ *
+ * This interface is implemented by domain events that signal the restoration of an
+ * aggregate that was previously deleted. Aggregate recovery allows systems to undo
+ * deletion operations, restoring the aggregate to its previous state and allowing
+ * normal operations to resume.
+ *
+ * Recovery events are typically used in scenarios where:
+ * - Deletion was performed in error
+ * - Regulatory requirements demand data retention
+ * - Business processes require the ability to "undelete" entities
+ * - Data needs to be restored from backups or archives
+ *
+ * sample usage:
+ * ```kotlin
+ * class OrderRecovered : AggregateRecovered {
+ *     // Additional recovery metadata can be included here
+ *     val recoveredAt: Instant = Instant.now()
+ *     val recoveredBy: String = currentUser()
+ * }
+ * ```
+ * @see AggregateDeleted for events indicating aggregate deletion
+ * @see me.ahoo.wow.api.annotation.Event for the event annotation
  *
  */
 @Event
 interface AggregateRecovered
 
+/**
+ * Default implementation of [AggregateRecovered] for simple recovery events.
+ *
+ * This object can be used directly when no additional event data is needed
+ * beyond the fact that an aggregate has been recovered. It serves as a
+ * convenient default for basic aggregate recovery scenarios.
+ */
 object DefaultAggregateRecovered : AggregateRecovered
