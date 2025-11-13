@@ -23,6 +23,16 @@ import me.ahoo.wow.modeling.materialize
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
 
+/**
+ * Default implementation of recover aggregate command function.
+ *
+ * This function handles the DefaultRecoverAggregate command by generating a DefaultAggregateRecovered event.
+ * It provides a standard way to recover previously deleted aggregates in the system.
+ *
+ * @param C The type of the command aggregate root.
+ * @param commandAggregate The command aggregate instance this function belongs to.
+ * @param afterCommandFunctions List of after-command functions to execute after recovery.
+ */
 class DefaultRecoverAggregateFunction<C : Any>(
     commandAggregate: CommandAggregate<C, *>,
     afterCommandFunctions: List<AfterCommandFunction<C>>
@@ -33,11 +43,14 @@ class DefaultRecoverAggregateFunction<C : Any>(
     override val processor: C = commandAggregate.commandRoot
     override val name: String = "${processor.javaClass.simpleName}.${supportedType.simpleName}"
     override val functionKind: FunctionKind = FunctionKind.COMMAND
-    override fun <A : Annotation> getAnnotation(annotationClass: Class<A>): A? {
-        return null
-    }
 
-    override fun invokeCommand(exchange: ServerCommandExchange<*>): Mono<*> {
-        return DefaultAggregateRecovered.toMono()
-    }
+    override fun <A : Annotation> getAnnotation(annotationClass: Class<A>): A? = null
+
+    /**
+     * Invokes the recover command by returning a DefaultAggregateRecovered event.
+     *
+     * @param exchange The server command exchange containing the recover command.
+     * @return A Mono containing the DefaultAggregateRecovered event.
+     */
+    override fun invokeCommand(exchange: ServerCommandExchange<*>): Mono<*> = DefaultAggregateRecovered.toMono()
 }

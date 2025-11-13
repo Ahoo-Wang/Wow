@@ -16,11 +16,21 @@ import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregate
 
 /**
- * Command Aggregate Factory .
+ * Factory interface for creating command aggregate instances.
  *
- * @author ahoo wang
+ * Implementations of this interface are responsible for instantiating command aggregates
+ * with the appropriate metadata and state aggregate.
  */
 interface CommandAggregateFactory {
+    /**
+     * Creates a new command aggregate instance.
+     *
+     * @param C The type of the command aggregate root.
+     * @param S The type of the state aggregate.
+     * @param metadata The aggregate metadata containing configuration and function registries.
+     * @param stateAggregate The state aggregate providing the current state.
+     * @return A new command aggregate instance.
+     */
     fun <C : Any, S : Any> create(
         metadata: AggregateMetadata<C, S>,
         stateAggregate: StateAggregate<S>

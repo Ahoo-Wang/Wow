@@ -112,9 +112,9 @@ data class CommandAggregateMetadata<C : Any>(
             commandFunctionRegistry
                 .map {
                     val actualMessageFunction = it.value
-                            .toMessageFunction<C, ServerCommandExchange<*>, Mono<*>>(commandAggregate.commandRoot)
+                        .toMessageFunction<C, ServerCommandExchange<*>, Mono<*>>(commandAggregate.commandRoot)
                     val afterCommandFunctions = allAfterCommandFunction
-                            .filter { function -> function.metadata.supportCommand(it.key) }
+                        .filter { function -> function.metadata.supportCommand(it.key) }
                     it.key to CommandFunction(actualMessageFunction, commandAggregate, afterCommandFunctions)
                 }.also {
                     putAll(it)
@@ -122,7 +122,7 @@ data class CommandAggregateMetadata<C : Any>(
 
             if (!registeredRecoverAggregate) {
                 val afterCommandFunctions = allAfterCommandFunction
-                        .filter { function -> function.metadata.supportCommand(DefaultRecoverAggregate::class.java) }
+                    .filter { function -> function.metadata.supportCommand(DefaultRecoverAggregate::class.java) }
                 put(
                     DefaultRecoverAggregate::class.java,
                     DefaultRecoverAggregateFunction(commandAggregate, afterCommandFunctions),
@@ -130,7 +130,7 @@ data class CommandAggregateMetadata<C : Any>(
             }
             if (!registeredDeleteAggregate) {
                 val afterCommandFunctions = allAfterCommandFunction
-                        .filter { function -> function.metadata.supportCommand(DefaultDeleteAggregate::class.java) }
+                    .filter { function -> function.metadata.supportCommand(DefaultDeleteAggregate::class.java) }
                 put(
                     DefaultDeleteAggregate::class.java,
                     DefaultDeleteAggregateFunction(commandAggregate, afterCommandFunctions),
@@ -153,7 +153,7 @@ data class CommandAggregateMetadata<C : Any>(
         errorFunctionRegistry
             .map {
                 val actualMessageFunction = it.value
-                        .toMessageFunction<C, ServerCommandExchange<*>, Mono<*>>(commandAggregate.commandRoot)
+                    .toMessageFunction<C, ServerCommandExchange<*>, Mono<*>>(commandAggregate.commandRoot)
                 it.key to actualMessageFunction
             }.toMap()
 

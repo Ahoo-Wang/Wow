@@ -27,29 +27,58 @@ import me.ahoo.wow.modeling.state.StateAggregate
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
 
+/**
+ * Simple implementation of CommandAggregate that handles command processing with state management.
+ *
+ * This class coordinates between command execution, state aggregation, and event storage.
+ * It manages the command processing lifecycle including validation, execution, event sourcing, and persistence.
+ *
+ * @param C The type of the command aggregate root.
+ * @param S The type of the state aggregate.
+ * @property state The associated state aggregate containing the current state.
+ * @property commandRoot The command aggregate root instance.
+ * @param eventStore The event store for persisting domain events.
+ * @param metadata The metadata describing this command aggregate's configuration.
+ */
 class SimpleCommandAggregate<C : Any, S : Any>(
     override val state: StateAggregate<S>,
     override val commandRoot: C,
     private val eventStore: EventStore,
     private val metadata: CommandAggregateMetadata<C>
-) : CommandAggregate<C, S>, NamedTypedAggregate<C> by metadata {
+) : CommandAggregate<C, S>,
+    NamedTypedAggregate<C> by metadata {
     private companion object {
         private val log = KotlinLogging.logger {}
     }
 
     override val processorName: String = SimpleCommandAggregate::class.simpleName!!
-    private val processorFunction = FunctionInfoData(
-        functionKind = FunctionKind.COMMAND,
-        contextName = Wow.WOW,
-        processorName = processorName,
-        name = SimpleCommandAggregate<*, *>::process.name
-    )
+    private val processorFunction =
+        FunctionInfoData(
+            functionKind = FunctionKind.COMMAND,
+            contextName = Wow.WOW,
+            processorName = processorName,
+            name = SimpleCommandAggregate<*, *>::process.name,
+        )
     private val commandFunctionRegistry = metadata.toCommandFunctionRegistry(this)
     private val errorFunctionRegistry = metadata.toErrorFunctionRegistry(this)
 
     @Volatile
     override var commandState = CommandState.STORED
 
+    /**
+     * Processes a command exchange by validating, executing, and persisting the results.
+     *
+     * This method performs comprehensive command processing including:
+     * - Version conflict checking
+     * - Aggregate initialization validation
+     * - Ownership validation
+     * - Command execution with after-functions
+     * - Event sourcing to state
+     * - Event persistence
+     *
+     * @param exchange The server command exchange to process.
+     * @return A Mono containing the resulting domain event stream.
+     */
     override fun process(exchange: ServerCommandExchange<*>): Mono<DomainEventStream> {
         exchange.setFunction(processorFunction)
         exchange.setAggregateVersion(version)
@@ -105,6 +134,16 @@ class SimpleCommandAggregate<C : Any, S : Any>(
         }.errorResume(commandType, exchange)
     }
 
+    /**
+     * Extension function to handle errors during command processing using registered error functions.
+     *
+     * If an error function is registered for the command type, it will be invoked to handle the error.
+     * Otherwise, the original error is propagated.
+     *
+     * @param commandType The type of the command that caused the error.
+     * @param exchange The server command exchange where the error occurred.
+     * @return A Mono that either contains the error handling result or re-throws the original error.
+     */
     private fun Mono<DomainEventStream>.errorResume(
         commandType: Class<*>,
         exchange: ServerCommandExchange<*>
@@ -121,7 +160,5 @@ class SimpleCommandAggregate<C : Any, S : Any>(
         }
     }
 
-    override fun toString(): String {
-        return "SimpleCommandAggregate(state=$state, metadata=$metadata, commandState=$commandState)"
-    }
+    override fun toString(): String = "SimpleCommandAggregate(state=$state, metadata=$metadata, commandState=$commandState)"
 }

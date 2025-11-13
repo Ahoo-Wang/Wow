@@ -41,12 +41,19 @@ class IllegalAccessDeletedAggregateException(
 )
 
 /**
- * 非法访问拥有者聚合根对象异常.
+ * Exception thrown when attempting to access an aggregate owned by another tenant or user.
+ *
+ * This exception enforces multi-tenancy and ownership boundaries, preventing unauthorized
+ * access to aggregates that belong to different owners.
+ *
+ * @param aggregateId The ID of the owner-restricted aggregate being accessed.
+ * @param errorMsg Custom error message describing the access violation.
  */
 class IllegalAccessOwnerAggregateException(
     override val aggregateId: AggregateId,
     errorMsg: String = "Illegal access to a owner aggregate[${aggregateId.id}]."
-) : AggregateIdCapable, WowException(
+) : WowException(
     errorCode = ILLEGAL_ACCESS_OWNER_AGGREGATE,
-    errorMsg = errorMsg
-)
+    errorMsg = errorMsg,
+),
+    AggregateIdCapable
