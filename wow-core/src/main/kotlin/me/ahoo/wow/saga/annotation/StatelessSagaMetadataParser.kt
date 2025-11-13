@@ -37,9 +37,8 @@ object StatelessSagaMetadataParser : ProcessorMetadataParser<DomainEventExchange
  * @param P The type of the processor.
  * @return The processor metadata containing information about annotated functions.
  */
-fun <P : Any> Class<out P>.statelessSagaMetadata(): ProcessorMetadata<P, DomainEventExchange<*>> = StatelessSagaMetadataParser.parse(
-    this
-)
+fun <P : Any> Class<out P>.statelessSagaMetadata(): ProcessorMetadata<P, DomainEventExchange<*>> =
+    StatelessSagaMetadataParser.parse(this)
 
 /**
  * Parses the stateless saga metadata for the reified processor type.
@@ -47,4 +46,5 @@ fun <P : Any> Class<out P>.statelessSagaMetadata(): ProcessorMetadata<P, DomainE
  * @param P The type of the processor.
  * @return The processor metadata containing information about annotated functions.
  */
-inline fun <reified P : Any> statelessSagaMetadata(): ProcessorMetadata<P, DomainEventExchange<*>> = P::class.java.statelessSagaMetadata()
+inline fun <reified P : Any> statelessSagaMetadata(): ProcessorMetadata<P, DomainEventExchange<*>> =
+    P::class.java.statelessSagaMetadata()
