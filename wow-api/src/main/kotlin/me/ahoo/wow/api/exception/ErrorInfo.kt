@@ -19,64 +19,139 @@ import me.ahoo.wow.api.naming.Materialized
 import me.ahoo.wow.api.naming.Named
 
 /**
- * Represents the information about an error, including whether the operation succeeded, the error code, and any associated messages or binding errors.
+ * Standardized interface for representing error information in API responses and operations.
  *
- * This interface is designed to provide a standardized way of handling and representing errors across different parts of an application. It includes methods to check if the operation was successful, retrieve the error code
- * , and access any additional error details such as messages or binding errors.
+ * This interface provides a consistent structure for error reporting across the application,
+ * enabling uniform error handling, logging, and client communication. It encapsulates
+ * error codes, human-readable messages, and detailed binding errors for comprehensive
+ * error reporting.
+ *
+ * Key features:
+ * - Success/failure status determination
+ * - Structured error codes for programmatic handling
+ * - Localized error messages for user display
+ * - Detailed binding errors for validation failures
+ *
+ * @see DefaultErrorInfo for the default implementation
+ * @see ErrorInfoCapable for objects that can provide error information
+ *
+ * @sample
+ * ```kotlin
+ * // Successful operation
+ * val success = ErrorInfo.OK
+ * assert(success.succeeded) // true
+ *
+ * // Failed operation with details
+ * val error = ErrorInfo.of(
+ *     errorCode = "VALIDATION_ERROR",
+ *     errorMsg = "Invalid input parameters",
+ *     bindingErrors = listOf(
+ *         BindingError("email", "Invalid email format"),
+ *         BindingError("age", "Must be positive number")
+ *     )
+ * )
+ * ```
  */
 interface ErrorInfo {
     /**
-     * Indicates whether the operation has succeeded based on the [errorCode].
-     * It returns `true` if the [errorCode] is equal to [SUCCEEDED], otherwise, it returns `false`.
+     * Indicates whether the operation was successful.
+     *
+     * Success is determined by comparing the [errorCode] with the standard
+     * success code [SUCCEEDED]. This provides a consistent way to check
+     * operation status across different error implementations.
+     *
+     * @return `true` if the operation succeeded (errorCode equals "Ok"), `false` otherwise
      */
     val succeeded: Boolean get() = SUCCEEDED == errorCode
 
     /**
-     * Represents the error code associated with an error. This value is used to identify the type of error that has occurred,
-     * which can be useful for debugging, logging, and handling errors in a standardized way.
+     * The error code that uniquely identifies the type of error.
+     *
+     * Error codes should be:
+     * - Uppercase with underscores (e.g., "VALIDATION_ERROR", "NOT_FOUND")
+     * - Consistent across the application
+     * - Machine-readable for programmatic error handling
+     * - Used for internationalization and error categorization
+     *
+     * The special code "Ok" indicates success.
      */
     val errorCode: String
 
     /**
-     * Represents the message associated with an error. This message provides a human-readable description of the error, which can be used for logging, debugging, or displaying to the user
-     * .
+     * A human-readable message describing the error.
+     *
+     * This message should be:
+     * - User-friendly and localized when appropriate
+     * - Descriptive enough for debugging but not too technical
+     * - Suitable for display in UI or logs
+     * - Empty string for successful operations
      */
     val errorMsg: String
 
     /**
-     * Provides a list of [BindingError] instances that occurred during the binding process.
-     * Each [BindingError] contains information about the error, including its name and a message describing the issue.
-     * This property returns an empty list if no binding errors are present.
+     * A list of detailed binding errors that occurred during data validation or mapping.
+     *
+     * Binding errors provide field-level error information, typically from form validation
+     * or data transformation operations. Each error contains the field name and a specific
+     * error message. This is particularly useful for API responses where clients need
+     * detailed validation feedback.
+     *
+     * The list is empty for successful operations or when no binding errors occurred.
+     * The @JsonInclude annotation ensures empty lists are not serialized in JSON responses.
      */
     @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
     val bindingErrors: List<BindingError> get() = emptyList()
 
     /**
-     * Companion object for [ErrorInfo] that provides constants and utility functions to work with [ErrorInfo] instances.
+     * Companion object providing constants and utility functions for working with ErrorInfo instances.
      *
-     * It includes predefined success status values, a method to materialize an [ErrorInfo] instance into a [Materialized] one,
-     * and a factory function to create [ErrorInfo] instances.
+     * This companion object offers:
+     * - Standard success constants and instances
+     * - Factory methods for creating error instances
+     * - Utility functions for error checking and conversion
+     * - Materialization helpers for serialization
      */
     companion object {
         /**
-         * A constant representing a successful operation or status.
-         * This value is typically used in the context of error handling and response descriptions to indicate that an operation has been completed successfully.
+         * The standard error code indicating a successful operation.
+         *
+         * This constant should be used as the error code for all successful operations.
+         * It provides consistency across the application for success status checking.
          */
         const val SUCCEEDED = "Ok"
 
         /**
-         * Represents the message associated with a successful operation.
-         * This constant is used to provide a standard message for operations that complete without errors.
+         * The standard message for successful operations.
+         *
+         * Successful operations typically use an empty message, but this constant
+         * provides a consistent way to represent success messages.
          */
         const val SUCCEEDED_MESSAGE = ""
+
+        /**
+         * A pre-defined instance representing a successful operation.
+         *
+         * This can be used directly for successful responses without creating
+         * new instances. It has errorCode = "Ok" and an empty error message.
+         */
         val OK = DefaultErrorInfo(SUCCEEDED, SUCCEEDED_MESSAGE)
 
         /**
-         * Converts the current [ErrorInfo] instance into a [Materialized] [ErrorInfo] if it is not already one.
-         * If the current instance is of type [Materialized], it returns itself. Otherwise, it creates a new
-         * [DefaultErrorInfo] with the current error code, error message, and binding errors.
+         * Converts this ErrorInfo to a materialized instance for serialization.
          *
-         * @return A [Materialized] [ErrorInfo] instance.
+         * If the current instance is already [Materialized], returns it directly.
+         * Otherwise, creates a new [DefaultErrorInfo] with the same properties.
+         * This is useful for ensuring error information can be properly serialized
+         * in JSON responses or stored in databases.
+         *
+         * @receiver The ErrorInfo instance to materialize
+         * @return A [Materialized] ErrorInfo instance with the same error details
+         *
+         * @sample
+         * ```kotlin
+         * val error = someErrorInfo.materialize()
+         * // Now error is guaranteed to be serializable
+         * ```
          */
         fun ErrorInfo.materialize(): ErrorInfo {
             if (this is Materialized) {
@@ -85,10 +160,20 @@ interface ErrorInfo {
             return DefaultErrorInfo(
                 errorCode = errorCode,
                 errorMsg = errorMsg,
-                bindingErrors = bindingErrors
+                bindingErrors = bindingErrors,
             )
         }
 
+        /**
+         * Converts this ErrorInfo to a DefaultErrorInfo instance.
+         *
+         * If the current instance is already a [DefaultErrorInfo], returns it directly.
+         * Otherwise, creates a new [DefaultErrorInfo] with the same properties.
+         * This is useful when you need the concrete implementation for specific operations.
+         *
+         * @receiver The ErrorInfo instance to convert
+         * @return A [DefaultErrorInfo] instance with the same error details
+         */
         fun ErrorInfo.toDefault(): DefaultErrorInfo {
             if (this is DefaultErrorInfo) {
                 return this
@@ -96,21 +181,53 @@ interface ErrorInfo {
             return DefaultErrorInfo(
                 errorCode = errorCode,
                 errorMsg = errorMsg,
-                bindingErrors = bindingErrors
+                bindingErrors = bindingErrors,
             )
         }
 
-        fun Any?.isFailed(): Boolean {
-            return this is ErrorInfo && !succeeded
-        }
+        /**
+         * Checks if this object represents a failed operation.
+         *
+         * This extension function provides a convenient way to check if any object
+         * is an ErrorInfo instance that represents a failure (not successful).
+         * Returns false for null objects or successful ErrorInfo instances.
+         *
+         * @receiver Any object that might be an ErrorInfo
+         * @return `true` if this is a failed ErrorInfo, `false` otherwise
+         *
+         * @sample
+         * ```kotlin
+         * val result = someOperation()
+         * if (result.isFailed()) {
+         *     handleError(result as ErrorInfo)
+         * }
+         * ```
+         */
+        fun Any?.isFailed(): Boolean = this is ErrorInfo && !succeeded
 
         /**
-         * Creates an instance of [ErrorInfo] with the specified error code, optional error message, and a list of binding errors.
+         * Creates a new ErrorInfo instance with the specified parameters.
          *
-         * @param errorCode The unique identifier for the error.
-         * @param errorMsg An optional message that describes the error. Defaults to an empty string if not provided.
-         * @param bindingErrors A list of [BindingError] instances representing errors that occurred during the binding process. Defaults to an empty list if not provided.
-         * @return An [ErrorInfo] instance containing the provided error details.
+         * This factory method provides a convenient way to create error information
+         * instances without directly instantiating DefaultErrorInfo. It handles
+         * null error messages by converting them to empty strings.
+         *
+         * @param errorCode The error code that identifies the type of error (must not be null)
+         * @param errorMsg An optional human-readable error message (defaults to empty string if null)
+         * @param bindingErrors A list of field-level binding errors (defaults to empty list)
+         * @return A new [DefaultErrorInfo] instance with the specified error details
+         *
+         * @sample
+         * ```kotlin
+         * val validationError = ErrorInfo.of(
+         *     errorCode = "VALIDATION_FAILED",
+         *     errorMsg = "Input validation failed",
+         *     bindingErrors = listOf(
+         *         BindingError("username", "Username is required"),
+         *         BindingError("email", "Invalid email format")
+         *     )
+         * )
+         * ```
          */
         fun of(
             errorCode: String,
@@ -121,27 +238,66 @@ interface ErrorInfo {
 }
 
 /**
- * Represents an error that occurs during the binding process, typically when data is being mapped to or from an object.
- * This class extends the [Named] interface, inheriting the `name` property which can be used to identify the source or context of the error.
+ * Represents a field-level error that occurred during data binding or validation.
  *
- * @param name The name or identifier for the context in which the error occurred.
- * @param msg A message describing the error.
+ * Binding errors provide detailed information about validation failures at the
+ * individual field level, typically used in form validation, API request processing,
+ * or data transformation operations. Each error is associated with a specific
+ * field name and contains a descriptive error message.
+ *
+ * @property name The name of the field or property that failed validation
+ * @property msg A human-readable message describing the validation error
+ *
+ * @see ErrorInfo.bindingErrors for how binding errors are used in error responses
+ *
+ * @sample
+ * ```kotlin
+ * val errors = listOf(
+ *     BindingError("email", "Invalid email format"),
+ *     BindingError("age", "Must be a positive number"),
+ *     BindingError("password", "Password must be at least 8 characters")
+ * )
+ * ```
  */
-data class BindingError(override val name: String, val msg: String) : Named
+data class BindingError(
+    override val name: String,
+    val msg: String
+) : Named
 
 /**
- * Represents a default implementation of the [ErrorInfo] interface, providing a concrete structure for error information.
- * This class includes an error code, an error message, and optionally a list of [BindingError] instances that can detail
- * errors occurring during data binding processes. It also implements the [Materialized] interface, indicating it is a
- * fully realized instance of [ErrorInfo].
+ * Default implementation of the [ErrorInfo] interface.
  *
- * @param errorCode The unique identifier for the type of error.
- * @param errorMsg A human-readable message describing the error.
- * @param bindingErrors An optional list of [BindingError] objects, representing additional errors that occurred during the binding process.
- * Defaults to an empty list if not provided.
+ * This data class provides a concrete, serializable implementation of error information
+ * that can be used directly in API responses, logging, and error handling. It implements
+ * [Materialized] to ensure it can be properly serialized in JSON responses and stored
+ * in databases.
+ *
+ * @property errorCode The error code that identifies the type of error
+ * @property errorMsg A human-readable message describing the error (empty for success)
+ * @property bindingErrors A list of field-level validation errors (empty by default)
+ *
+ * @see ErrorInfo for the interface definition
+ * @see ErrorInfo.of for convenient factory method
+ *
+ * @sample
+ * ```kotlin
+ * // Create a simple error
+ * val error = DefaultErrorInfo("NOT_FOUND", "User not found")
+ *
+ * // Create an error with binding details
+ * val validationError = DefaultErrorInfo(
+ *     errorCode = "VALIDATION_ERROR",
+ *     errorMsg = "Input validation failed",
+ *     bindingErrors = listOf(
+ *         BindingError("email", "Invalid format"),
+ *         BindingError("password", "Too short")
+ *     )
+ * )
+ * ```
  */
 data class DefaultErrorInfo(
     override val errorCode: String,
     override val errorMsg: String = "",
     override val bindingErrors: List<BindingError> = emptyList()
-) : ErrorInfo, Materialized
+) : ErrorInfo,
+    Materialized
