@@ -16,8 +16,21 @@ package me.ahoo.wow.eventsourcing.snapshot
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
 import reactor.core.publisher.Mono
 
-class SimpleSnapshotStrategy(private val snapshotRepository: SnapshotRepository) : SnapshotStrategy {
-
+/**
+ * Simple implementation of SnapshotStrategy that creates a snapshot for every state event.
+ * This strategy saves a snapshot immediately after each state event is processed.
+ *
+ * @param snapshotRepository the repository to save snapshots to
+ */
+class SimpleSnapshotStrategy(
+    private val snapshotRepository: SnapshotRepository
+) : SnapshotStrategy {
+    /**
+     * Handles a state event by creating and saving a snapshot.
+     *
+     * @param stateEventExchange the state event exchange to process
+     * @return a Mono that completes when the snapshot is saved
+     */
     override fun onEvent(stateEventExchange: StateEventExchange<*>): Mono<Void> {
         val stateEvent = stateEventExchange.message
         val snapshot = SimpleSnapshot(stateEvent)
