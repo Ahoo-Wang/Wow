@@ -19,54 +19,56 @@ import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
 import kotlin.reflect.KClass
 
 /**
- * 定义一个函数式接口，用于确定是否应用过滤条件。
- * 这个接口的主要作用是提供一个标准方法来检查给定的过滤器是否满足某个条件。
+ * Functional interface for determining whether to apply a filter condition.
+ *
+ * The main purpose of this interface is to provide a standard method to check if a given filter
+ * meets a certain condition.
  */
 fun interface FilterCondition {
     /**
-     * 检查给定的过滤器是否满足此条件。
+     * Checks if the given filter meets this condition.
      *
-     * @param filter 要检查的过滤器对象。
-     * @return 如果过滤器满足此条件，则返回true；否则返回false。
+     * @param filter the filter object to check
+     * @return true if the filter meets this condition, false otherwise
      */
     fun matches(filter: Filter<*>): Boolean
 
     /**
-     * 伴生对象，用于定义一些预设的过滤条件。
+     * Companion object for defining preset filter conditions.
      */
     companion object {
         /**
-         * 一个特殊的过滤条件，表示所有过滤器都满足此条件。
-         * 这个对象覆盖了matches方法，使其总是返回true。
+         * A special filter condition that indicates all filters meet this condition.
+         * This object overrides the matches method to always return true.
          */
-        val ALL: FilterCondition = object : FilterCondition {
-            override fun matches(filter: Filter<*>): Boolean {
-                return true
-            }
+        val ALL: FilterCondition =
+            object : FilterCondition {
+                override fun matches(filter: Filter<*>): Boolean = true
 
-            override fun toString(): String {
-                return "ALL"
+                override fun toString(): String = "ALL"
             }
-        }
     }
 }
 
 /**
- * 根据过滤器的类型执行过滤条件的类
- * 这个类用于检查给定的过滤器是否属于特定的类型或其子类型
- * 主要用于在复杂的过滤逻辑中快速识别和处理特定类型的过滤器
+ * Class that executes filter conditions based on filter type.
  *
- * @param filterType 指定的过滤器类型，用于匹配过滤器条件
+ * This class checks if a given filter belongs to a specific type or its subtypes.
+ * Mainly used in complex filter logic to quickly identify and handle specific types of filters.
+ *
+ * @param filterType the specified filter type used for matching filter conditions
  */
-class TypedFilterCondition(private val filterType: KClass<*>) :
-    FilterCondition {
+class TypedFilterCondition(
+    private val filterType: KClass<*>
+) : FilterCondition {
     /**
-     * 检查给定的过滤器是否匹配指定的类型条件
-     * 通过反射获取过滤器的类型注解，然后检查该注解中是否包含指定的过滤器类型
-     * 如果过滤器没有使用FilterType注解，则默认认为它匹配条件
+     * Checks if the given filter matches the specified type condition.
      *
-     * @param filter 待检查的过滤器对象
-     * @return 如果过滤器匹配指定的类型条件，则返回true；否则返回false
+     * Uses reflection to get the filter's type annotation, then checks if the annotation contains the specified filter type.
+     * If the filter does not use the FilterType annotation, it is considered to match by default.
+     *
+     * @param filter the filter object to check
+     * @return true if the filter matches the specified type condition, false otherwise
      */
     override fun matches(filter: Filter<*>): Boolean {
         val type = filter::class.scanAnnotation<FilterType>()
@@ -74,10 +76,11 @@ class TypedFilterCondition(private val filterType: KClass<*>) :
     }
 
     /**
-     * 生成描述当前过滤条件的字符串表示
-     * 主要用于调试和日志记录，提供当前过滤条件的详细信息
+     * Generates a string representation describing the current filter condition.
      *
-     * @return 描述当前过滤条件的字符串
+     * Mainly used for debugging and logging, providing detailed information about the current filter condition.
+     *
+     * @return a string describing the current filter condition
      */
     override fun toString(): String {
         return "TypedFilterCondition(filterType=$filterType)"
@@ -85,8 +88,9 @@ class TypedFilterCondition(private val filterType: KClass<*>) :
 }
 
 /**
- * 构建过滤链的类，用于灵活地组合多个过滤器
- * @param T 过滤链中过滤器处理的数据类型
+ * Class for building filter chains, used to flexibly combine multiple filters.
+ *
+ * @param T the data type processed by filters in the filter chain
  */
 class FilterChainBuilder<T> {
     companion object {
@@ -94,17 +98,17 @@ class FilterChainBuilder<T> {
     }
 
     /**
-     * 过滤条件，默认为 ALL，即不过滤
+     * Filter condition, defaults to ALL, meaning no filtering.
      */
     private var filterCondition: FilterCondition = FilterCondition.ALL
 
     /**
-     * 过滤器列表，存储待构建的过滤器
+     * List of filters to be built into the chain.
      */
     private val filters = mutableListOf<Filter<T>>()
 
     /**
-     * 过滤链工厂方法，用于创建过滤链，默认为 SimpleFilterChain
+     * Factory method for creating filter chains, defaults to SimpleFilterChain.
      */
     private var chainFactory: (Filter<T>, FilterChain<T>) -> FilterChain<T> =
         { current, next ->
@@ -112,9 +116,10 @@ class FilterChainBuilder<T> {
         }
 
     /**
-     * 添加多个过滤器到过滤链中
-     * @param filters 过滤器列表
-     * @return FilterChainBuilder 实例，支持链式调用
+     * Adds multiple filters to the filter chain.
+     *
+     * @param filters the list of filters to add
+     * @return the FilterChainBuilder instance, supporting method chaining
      */
     fun addFilters(filters: List<Filter<T>>): FilterChainBuilder<T> {
         this.filters.addAll(filters)
@@ -122,9 +127,10 @@ class FilterChainBuilder<T> {
     }
 
     /**
-     * 添加单个过滤器到过滤链中
-     * @param filter 过滤器
-     * @return FilterChainBuilder 实例，支持链式调用
+     * Adds a single filter to the filter chain.
+     *
+     * @param filter the filter to add
+     * @return the FilterChainBuilder instance, supporting method chaining
      */
     fun addFilter(filter: Filter<T>): FilterChainBuilder<T> {
         filters.add(filter)
@@ -132,9 +138,10 @@ class FilterChainBuilder<T> {
     }
 
     /**
-     * 设置过滤链工厂方法，自定义过滤链创建逻辑
-     * @param chainFactory 过滤链工厂方法
-     * @return FilterChainBuilder 实例，支持链式调用
+     * Sets the filter chain factory method to customize filter chain creation logic.
+     *
+     * @param chainFactory the filter chain factory method
+     * @return the FilterChainBuilder instance, supporting method chaining
      */
     fun chainFactory(chainFactory: (Filter<T>, FilterChain<T>) -> FilterChain<T>): FilterChainBuilder<T> {
         this.chainFactory = chainFactory
@@ -142,9 +149,10 @@ class FilterChainBuilder<T> {
     }
 
     /**
-     * 设置过滤条件
-     * @param filterCondition 过滤条件
-     * @return FilterChainBuilder 实例，支持链式调用
+     * Sets the filter condition.
+     *
+     * @param filterCondition the filter condition
+     * @return the FilterChainBuilder instance, supporting method chaining
      */
     fun filterCondition(filterCondition: FilterCondition): FilterChainBuilder<T> {
         this.filterCondition = filterCondition
@@ -152,36 +160,39 @@ class FilterChainBuilder<T> {
     }
 
     /**
-     * 根据类型设置过滤条件
-     * @param filterType 过滤器类型
-     * @return FilterChainBuilder 实例，支持链式调用
+     * Sets the filter condition based on type.
+     *
+     * @param filterType the filter type
+     * @return the FilterChainBuilder instance, supporting method chaining
      */
     fun filterCondition(filterType: KClass<*>): FilterChainBuilder<T> {
         return filterCondition(TypedFilterCondition(filterType))
     }
 
     /**
-     * 构建过滤链
-     * 根据设定的过滤条件和过滤器列表，创建一个过滤链实例
-     * @return FilterChain<T> 过滤链实例
+     * Builds the filter chain.
+     *
+     * Creates a filter chain instance based on the set filter conditions and filter list.
+     *
+     * @return the FilterChain<T> instance
      */
     fun build(): FilterChain<T> {
         /**
-         * 根据过滤条件筛选并排序过滤器
+         * Filter and sort filters based on filter conditions.
          */
         val sortedFilters = filters
             .filter { filterCondition.matches(it) }
             .sortedByOrder()
 
         /**
-         * 从最后一个过滤器开始，逐步构建过滤链
+         * Build the filter chain starting from the last filter.
          */
         var next: FilterChain<T> = EmptyFilterChain.instance()
         for (i in sortedFilters.size - 1 downTo 0) {
             next = chainFactory(sortedFilters[i], next)
         }
         /**
-         * 记录过滤链构建信息
+         * Log filter chain build information.
          */
         log.info {
             buildString {

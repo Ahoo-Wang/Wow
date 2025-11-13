@@ -14,27 +14,30 @@
 package me.ahoo.wow.filter
 
 /**
- * 定义错误处理的基本操作
- * 它允许错误对象的设置、获取和清除
+ * Interface for accessing and managing error information in a context.
+ *
+ * This interface provides basic operations for setting, getting, and clearing error objects,
+ * allowing components to track and handle errors during processing.
  */
 interface ErrorAccessor {
     /**
-     * 设置错误对象
+     * Sets the error object for this context.
      *
-     * @param throwable 要设置的错误对象，类型为Throwable
+     * @param throwable the error to set, of type [Throwable]
      */
     fun setError(throwable: Throwable)
 
     /**
-     * 获取当前错误对象
+     * Gets the current error object.
      *
-     * @return 当前的错误对象，如果有的话；如果没有错误，则返回null
+     * @return the current error object if present, null otherwise
      */
     fun getError(): Throwable?
 
     /**
-     * 清除当前的错误对象
-     * 调用此方法后，getError()应该返回null
+     * Clears the current error object.
+     *
+     * After calling this method, [getError] should return null.
      */
     fun clearError()
 }
