@@ -23,8 +23,11 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 /**
- * Event Store State Aggregate Repository .
+ * Repository for loading state aggregates directly from the event store without snapshots.
+ * Always starts from an empty state and replays all relevant events.
  *
+ * @param stateAggregateFactory factory for creating state aggregates
+ * @param eventStore store for loading event streams
  * @author ahoo wang
  */
 class EventStoreStateAggregateRepository(
@@ -49,6 +52,15 @@ class EventStoreStateAggregateRepository(
         }
     }
 
+    /**
+     * Loads a state aggregate by replaying events up to the specified version.
+     * Starts from an empty state and applies all events from the expected next version.
+     *
+     * @param aggregateId the ID of the aggregate to load
+     * @param metadata metadata for the state aggregate type
+     * @param tailVersion the maximum version to load
+     * @return a Mono emitting the loaded state aggregate
+     */
     override fun <S : Any> load(
         aggregateId: AggregateId,
         metadata: StateAggregateMetadata<S>,
@@ -67,6 +79,15 @@ class EventStoreStateAggregateRepository(
         }
     }
 
+    /**
+     * Loads a state aggregate by replaying events up to the specified event time.
+     * Starts from an empty state and applies all events from the next event time.
+     *
+     * @param aggregateId the ID of the aggregate to load
+     * @param metadata metadata for the state aggregate type
+     * @param tailEventTime the maximum event time to load
+     * @return a Mono emitting the loaded state aggregate
+     */
     override fun <S : Any> load(
         aggregateId: AggregateId,
         metadata: StateAggregateMetadata<S>,

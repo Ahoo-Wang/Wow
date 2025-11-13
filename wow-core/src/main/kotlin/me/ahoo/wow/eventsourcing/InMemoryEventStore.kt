@@ -22,14 +22,26 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 
 /**
- * InMemoryEventStore .
+ * In-memory implementation of EventStore for testing and development purposes.
+ * Stores event streams in memory using thread-safe collections.
  *
  * @author ahoo wang
  */
 class InMemoryEventStore : AbstractEventStore() {
-
+    /**
+     * Thread-safe storage for event streams, keyed by aggregate ID.
+     */
     private val events = ConcurrentHashMap<AggregateId, CopyOnWriteArrayList<DomainEventStream>>()
 
+    /**
+     * Appends an event stream to the in-memory storage.
+     * Validates version conflicts and duplicate request IDs.
+     *
+     * @param eventStream the domain event stream to append
+     * @return a Mono that completes when the append operation is done
+     * @throws EventVersionConflictException if the version conflicts with existing events
+     * @throws DuplicateRequestIdException if the request ID is already used
+     */
     public override fun appendStream(eventStream: DomainEventStream): Mono<Void> {
         return Mono.fromRunnable {
             events.compute(
@@ -43,9 +55,10 @@ class InMemoryEventStore : AbstractEventStore() {
                         eventStream,
                     )
                 }
-                val requestRepeated = aggregateStream.any {
-                    it.requestId == eventStream.requestId
-                }
+                val requestRepeated =
+                    aggregateStream.any {
+                        it.requestId == eventStream.requestId
+                    }
                 if (requestRepeated) {
                     throw DuplicateRequestIdException(
                         eventStream.aggregateId,
@@ -58,6 +71,15 @@ class InMemoryEventStore : AbstractEventStore() {
         }
     }
 
+    /**
+     * Loads event streams for the specified aggregate within the version range.
+     * Returns copies of the stored event streams.
+     *
+     * @param aggregateId the ID of the aggregate
+     * @param headVersion the starting version (inclusive)
+     * @param tailVersion the ending version (inclusive)
+     * @return a Flux of domain event streams
+     */
     public override fun loadStream(
         aggregateId: AggregateId,
         headVersion: Int,
@@ -72,6 +94,15 @@ class InMemoryEventStore : AbstractEventStore() {
         }
     }
 
+    /**
+     * Loads event streams for the specified aggregate within the event time range.
+     * Returns copies of the stored event streams.
+     *
+     * @param aggregateId the ID of the aggregate
+     * @param headEventTime the starting event time (inclusive)
+     * @param tailEventTime the ending event time (inclusive)
+     * @return a Flux of domain event streams
+     */
     public override fun loadStream(
         aggregateId: AggregateId,
         headEventTime: Long,
