@@ -13,6 +13,19 @@
 
 package me.ahoo.wow.api.messaging.function
 
+/**
+ * Interface for entities that have a function name.
+ *
+ * This interface provides access to a function name, which can be used for
+ * identification, logging, and routing purposes. The function name is typically
+ * unique within a specific context or processor.
+ */
 interface FunctionNameCapable {
+    /**
+     * The name of the function.
+     *
+     * This name uniquely identifies the function within its scope and is used
+     * for function resolution, invocation, and metadata purposes.
+     */
     val functionName: String
 }
