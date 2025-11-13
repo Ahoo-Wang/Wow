@@ -14,11 +14,12 @@
 package me.ahoo.wow.api.modeling
 
 /**
- * 接口定义了拥有聚合ID能力的实体应遵循的规范
- * 聚合ID是用来唯一标识一个聚合的字段，聚合是一组相关的实体和值对象的集合，被视为一个整体单元
- * 在领域驱动设计（DDD）中，聚合是保持数据一致性的基本单位
+ * Interface defining the contract for entities that have aggregate ID capability.
+ * An aggregate ID is used to uniquely identify an aggregate, which is a cluster of related
+ * entities and value objects treated as a single unit. In Domain-Driven Design (DDD),
+ * aggregates are the basic units for maintaining data consistency.
  *
- * @property aggregateId 聚合ID，用于唯一标识一个聚合实例
+ * @property aggregateId The aggregate ID used to uniquely identify an aggregate instance.
  */
 interface AggregateIdCapable {
     val aggregateId: AggregateId

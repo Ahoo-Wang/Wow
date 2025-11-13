@@ -14,31 +14,29 @@
 package me.ahoo.wow.api.modeling
 
 /**
- * 用于标识资源的拥有者
+ * Interface for identifying the owner of a resource.
  */
 interface OwnerId {
     /**
-     * 资源拥有者的唯一标识符
+     * The unique identifier of the resource owner.
      */
     val ownerId: String
 
     /**
-     * 伴生对象，用于定义与接口相关的常量和函数
+     * Companion object containing constants and utility functions related to the interface.
      */
     companion object {
         /**
-         * 默认的资源拥有者标识符
+         * The default resource owner identifier.
          */
         const val DEFAULT_OWNER_ID = ""
 
         /**
-         * 扩展函数，用于处理可能为null的String值
-         * 如果字符串为null，则返回默认的资源拥有者标识符
+         * Extension function to handle nullable String values.
+         * Returns the default owner ID if the string is null.
          *
-         * @return 如果字符串为null，则返回DEFAULT_OWNER_ID，否则返回字符串本身
+         * @return The string itself if not null, otherwise DEFAULT_OWNER_ID.
          */
-        fun String?.orDefaultOwnerId(): String {
-            return this ?: DEFAULT_OWNER_ID
-        }
+        fun String?.orDefaultOwnerId(): String = this ?: DEFAULT_OWNER_ID
     }
 }

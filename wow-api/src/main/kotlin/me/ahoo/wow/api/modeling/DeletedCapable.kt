@@ -15,7 +15,19 @@ package me.ahoo.wow.api.modeling
 
 import io.swagger.v3.oas.annotations.media.Schema
 
+/**
+ * Interface for entities that can be marked as deleted (soft deletion).
+ *
+ * This interface provides a standard way to track whether an entity has been logically
+ * deleted without actually removing it from the data store. Soft deletion allows for
+ * audit trails and potential recovery of deleted data.
+ */
 interface DeletedCapable {
+    /**
+     * Indicates whether the entity has been marked as deleted.
+     *
+     * @return true if the entity is deleted, false if it is active.
+     */
     @get:Schema(description = "Whether the aggregate is deleted.")
     val deleted: Boolean
 }

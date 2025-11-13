@@ -13,6 +13,13 @@
 package me.ahoo.wow.api.modeling
 
 /**
- * Named Aggregate Type.
+ * Interface combining named aggregate capabilities with type information.
+ *
+ * This interface represents an aggregate that has both a name (within a bounded context)
+ * and type information, providing complete identification and typing for aggregates.
+ *
+ * @param A The type of the aggregate.
  */
-interface NamedTypedAggregate<A : Any> : TypedAggregate<A>, NamedAggregate
+interface NamedTypedAggregate<A : Any> :
+    TypedAggregate<A>,
+    NamedAggregate

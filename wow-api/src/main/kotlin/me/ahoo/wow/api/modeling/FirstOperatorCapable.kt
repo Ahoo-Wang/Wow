@@ -15,7 +15,18 @@ package me.ahoo.wow.api.modeling
 
 import io.swagger.v3.oas.annotations.media.Schema
 
+/**
+ * Interface for entities that track the identity of their first operator.
+ *
+ * This interface provides access to the user or system that performed the initial
+ * operation on the aggregate, useful for audit trails and ownership tracking.
+ */
 interface FirstOperatorCapable {
+    /**
+     * The identifier of the first operator who performed an operation on this aggregate.
+     *
+     * @return The first operator's identifier as a string.
+     */
     @get:Schema(description = "The first operator of the aggregate.")
     val firstOperator: String
 }
