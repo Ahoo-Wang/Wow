@@ -13,6 +13,20 @@
 
 package me.ahoo.wow.api.query
 
+/**
+ * Interface for query objects that support projection rewriting and modification.
+ *
+ * This interface provides methods to replace projections in existing queries,
+ * enabling fluent projection building and modification.
+ *
+ * @param Q The type of the query object that implements this interface, enabling method chaining.
+ */
 interface RewritableProjection<Q : RewritableProjection<Q>> {
+    /**
+     * Creates a new query with the specified projection.
+     *
+     * @param newProjection The new projection to use.
+     * @return A new query object with the specified projection.
+     */
     fun withProjection(newProjection: Projection): Q
 }

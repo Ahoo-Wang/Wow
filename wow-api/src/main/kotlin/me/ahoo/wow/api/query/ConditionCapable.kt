@@ -13,10 +13,26 @@
 
 package me.ahoo.wow.api.query
 
+/**
+ * Interface for query objects that can have conditions applied to them.
+ *
+ * This interface extends [RewritableCondition] and provides a way to access and modify
+ * the condition associated with a query. It allows for fluent condition building and modification.
+ *
+ * @param Q The type of the query object that implements this interface, enabling method chaining.
+ */
 interface ConditionCapable<Q : ConditionCapable<Q>> : RewritableCondition<Q> {
+    /**
+     * The condition currently applied to this query.
+     */
     val condition: Condition
 
-    override fun appendCondition(append: Condition): Q {
-        return withCondition(this.condition.appendCondition(append))
-    }
+    /**
+     * Appends a condition to the existing condition using logical AND.
+     * This method combines the current condition with the appended condition.
+     *
+     * @param append The condition to append to the current condition.
+     * @return A new query object with the combined condition.
+     */
+    override fun appendCondition(append: Condition): Q = withCondition(this.condition.appendCondition(append))
 }

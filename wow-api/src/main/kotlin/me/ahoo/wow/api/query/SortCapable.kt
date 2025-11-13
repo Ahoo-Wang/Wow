@@ -16,7 +16,18 @@ package me.ahoo.wow.api.query
 import com.fasterxml.jackson.annotation.JsonInclude
 import io.swagger.v3.oas.annotations.media.Schema
 
+/**
+ * Interface for query objects that support sorting capabilities.
+ *
+ * This interface provides access to sorting criteria that determine the order
+ * in which query results are returned.
+ */
 interface SortCapable {
+    /**
+     * The list of sort criteria to apply to the query results.
+     * Each sort criterion specifies a field and direction (ascending/descending).
+     * Sorts are applied in the order they appear in the list.
+     */
     @get:Schema(defaultValue = "[]")
     @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
     val sort: List<Sort>
