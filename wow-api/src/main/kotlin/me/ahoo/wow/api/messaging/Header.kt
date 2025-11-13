@@ -23,7 +23,15 @@ import me.ahoo.wow.api.Copyable
  * It provides a fluent API for setting header values and supports read-only mode
  * to prevent modifications after the header is finalized.
  *
+ * Headers are typically used to store metadata such as correlation IDs, timestamps,
+ * routing information, and other contextual data that accompanies the message body.
+ * Once a header is marked as read-only, any attempt to modify it will result in
+ * an [UnsupportedOperationException] being thrown.
+ *
  * @author ahoo wang
+ *
+ * @see DefaultHeader for the default implementation
+ * @see Message.header for usage in message contexts
  */
 interface Header :
     MutableMap<String, String>,
@@ -31,8 +39,10 @@ interface Header :
     /**
      * Indicates whether this header is in read-only mode.
      *
-     * When `true`, the header's contents cannot be modified. This is useful for
-     * ensuring immutability after the header has been finalized or sent.
+     * When `true`, the header's contents cannot be modified. Any attempt to modify
+     * the header (via [put], [remove], [putAll], [clear], or the fluent [with] methods)
+     * will result in an [UnsupportedOperationException]. This is useful for ensuring
+     * immutability after the header has been finalized or sent.
      *
      * @return `true` if the header is read-only, `false` otherwise
      */
@@ -51,14 +61,21 @@ interface Header :
     /**
      * Adds a key-value pair to this header and returns the header for method chaining.
      *
-     * This method provides a fluent API for setting header values. If the header is
-     * read-only, this operation may throw an exception or be ignored depending on
-     * the implementation.
+     * This method provides a fluent API for setting header values, allowing multiple
+     * header modifications to be chained together. Internally, this delegates to the
+     * [put] method, which will check the read-only status before making changes.
      *
-     * @param key The header key to set (must not be null)
+     * @param key The header key to set (must not be null or empty)
      * @param value The header value to associate with the key (must not be null)
      * @return This header instance to support method chaining
-     * @throws UnsupportedOperationException if the header is read-only and modifications are not allowed
+     * @throws UnsupportedOperationException if the header is read-only
+     *
+     * @sample
+     * ```kotlin
+     * val header = DefaultHeader()
+     *     .with("correlationId", "abc-123")
+     *     .with("timestamp", System.currentTimeMillis().toString())
+     * ```
      */
     fun with(
         key: String,
@@ -71,13 +88,24 @@ interface Header :
     /**
      * Adds all key-value pairs from the provided map to this header and returns the header for method chaining.
      *
-     * This method provides a fluent API for bulk setting header values. If the header is
-     * read-only, this operation may throw an exception or be ignored depending on
-     * the implementation.
+     * This method provides a fluent API for bulk header modifications, allowing multiple
+     * header fields to be set at once. Internally, this delegates to the [putAll] method,
+     * which will check the read-only status before making changes.
      *
      * @param additional A map containing key-value pairs to add to this header (must not be null)
      * @return This header instance to support method chaining
-     * @throws UnsupportedOperationException if the header is read-only and modifications are not allowed
+     * @throws UnsupportedOperationException if the header is read-only
+     *
+     * @sample
+     * ```kotlin
+     * val contextHeaders = mapOf(
+     *     "userId" to "user123",
+     *     "requestId" to "req456"
+     * )
+     * val header = DefaultHeader()
+     *     .with(contextHeaders)
+     *     .with("processedAt", System.currentTimeMillis().toString())
+     * ```
      */
     fun with(additional: Map<String, String>): Header {
         putAll(additional)
