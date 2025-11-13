@@ -22,24 +22,43 @@ import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 
 /**
- * StateAggregateMetadata .
+ * Represents the metadata for an aggregate, combining state and command aggregate metadata.
  *
- * @author ahoo wang
+ * This data class encapsulates all the metadata required to work with an aggregate, including
+ * its named aggregate information, static tenant ID, state aggregate metadata, and command aggregate metadata.
+ * It provides utilities for extracting aggregate IDs and determining if the aggregate follows an aggregation pattern.
+ *
+ * @param C The type of the command aggregate.
+ * @param S The type of the state aggregate.
+ * @property namedAggregate The named aggregate that this metadata belongs to.
+ * @property staticTenantId The static tenant ID configured for this aggregate, or null if not configured.
+ * @property state The metadata for the state aggregate.
+ * @property command The metadata for the command aggregate.
+ *
+ * @constructor Creates a new AggregateMetadata with the specified named aggregate, tenant ID, and metadata.
  */
 data class AggregateMetadata<C : Any, S : Any>(
     override val namedAggregate: NamedAggregate,
     val staticTenantId: String?,
     val state: StateAggregateMetadata<S>,
     val command: CommandAggregateMetadata<C>
-) : NamedAggregateDecorator, Metadata {
-
+) : NamedAggregateDecorator,
+    Metadata {
     /**
-     * Are state aggregation and command aggregation a aggregation relationship?.
+     * Determines if this aggregate follows an aggregation pattern where state and command aggregates are different types.
+     *
+     * An aggregation pattern is used when the command aggregate and state aggregate are separate classes,
+     * allowing for different representations of the same aggregate for commands and state.
+     *
+     * @return true if the command aggregate type differs from the state aggregate type, indicating an aggregation pattern.
      */
     val isAggregationPattern: Boolean
         get() = command.aggregateType != state.aggregateType
 
-    private fun extractAggregateId(state: S, aggregateId: String): String {
+    private fun extractAggregateId(
+        state: S,
+        aggregateId: String
+    ): String {
         val accessor = this.state.aggregateIdAccessor
         if (accessor != null) {
             return accessor[state]
@@ -50,7 +69,11 @@ data class AggregateMetadata<C : Any, S : Any>(
         return aggregateId
     }
 
-    fun extractAggregateId(state: S, aggregateId: String, tenantId: String = TenantId.DEFAULT_TENANT_ID): AggregateId {
+    fun extractAggregateId(
+        state: S,
+        aggregateId: String,
+        tenantId: String = TenantId.DEFAULT_TENANT_ID
+    ): AggregateId {
         val aggregateIdStr = extractAggregateId(state, aggregateId)
         return aggregateId(id = aggregateIdStr, tenantId = tenantId)
     }
@@ -62,15 +85,21 @@ data class AggregateMetadata<C : Any, S : Any>(
         return command == other.command
     }
 
-    override fun hashCode(): Int {
-        return command.hashCode()
-    }
+    override fun hashCode(): Int = command.hashCode()
 
-    override fun toString(): String {
-        return "AggregateMetadata(command=$command)"
-    }
+    override fun toString(): String = "AggregateMetadata(command=$command)"
 }
 
+/**
+ * Converts this [NamedAggregate] to its corresponding [AggregateMetadata].
+ *
+ * If this named aggregate is already an AggregateMetadata instance, it returns itself cast appropriately.
+ * Otherwise, it looks up the required aggregate type and parses its metadata.
+ *
+ * @param C The command aggregate type.
+ * @param S The state aggregate type.
+ * @return The aggregate metadata for this named aggregate.
+ */
 fun <C : Any, S : Any> NamedAggregate.asAggregateMetadata(): AggregateMetadata<C, S> {
     if (this is AggregateMetadata<*, *>) {
         @Suppress("UNCHECKED_CAST")

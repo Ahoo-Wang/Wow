@@ -19,6 +19,18 @@ import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.messaging.function.MessageFunction
 import reactor.core.publisher.Mono
 
+/**
+ * Represents an after-command function that executes after command processing.
+ *
+ * This class wraps a message function with metadata about which commands it should execute for,
+ * providing ordering and decoration capabilities.
+ *
+ * @param C The type of the command aggregate.
+ * @property metadata The metadata describing this after-command function's configuration.
+ * @property delegate The underlying message function to execute.
+ *
+ * @constructor Creates a new AfterCommandFunction with the specified metadata and delegate.
+ */
 class AfterCommandFunction<C : Any>(
     val metadata: AfterCommandFunctionMetadata<C>,
     override val delegate: MessageFunction<C, ServerCommandExchange<*>, Mono<*>>
