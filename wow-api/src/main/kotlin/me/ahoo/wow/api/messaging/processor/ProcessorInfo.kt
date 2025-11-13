@@ -15,6 +15,20 @@ package me.ahoo.wow.api.messaging.processor
 
 import me.ahoo.wow.api.naming.NamedBoundedContext
 
+/**
+ * Represents information about a message processor.
+ *
+ * Processors are components that handle messages within a bounded context.
+ * This interface provides the essential metadata needed to identify and
+ * locate processors in the messaging system, combining bounded context
+ * information with a specific processor name.
+ */
 interface ProcessorInfo : NamedBoundedContext {
+    /**
+     * The name of the processor.
+     *
+     * This name uniquely identifies the processor within its bounded context
+     * and is used for routing messages, configuration, and monitoring purposes.
+     */
     val processorName: String
 }

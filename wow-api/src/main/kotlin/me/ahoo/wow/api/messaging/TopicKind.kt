@@ -14,28 +14,63 @@
 package me.ahoo.wow.api.messaging
 
 /**
- * TopicKind 枚举类定义了主题的种类
- * 这些种类用于标识主题的性质或用途
+ * Defines the different kinds of topics in the messaging system.
+ *
+ * Topic kinds categorize topics by their purpose and behavior, helping with
+ * routing, processing, and system organization. Each kind corresponds to
+ * different message patterns and processing requirements.
  */
 enum class TopicKind {
-    // 未定义类型，用于标识未知或未分类的主题
+    /**
+     * Undefined or unknown topic kind.
+     *
+     * Used for topics that don't fit other categories or when the kind
+     * cannot be determined. Typically used for error handling or legacy topics.
+     */
     UNDEFINED,
 
-    // 命令类型，表示该主题用于发送命令或指令
+    /**
+     * Command topic kind.
+     *
+     * Used for topics that carry command messages, which are imperative
+     * instructions to perform actions. Commands typically expect a response
+     * or acknowledgment and may modify system state.
+     */
     COMMAND,
 
-    // 事件流类型，表示该主题用于传输一系列连续的事件
+    /**
+     * Event stream topic kind.
+     *
+     * Used for topics that carry event streams, representing sequences of
+     * domain events that have occurred. Events are facts about past occurrences
+     * and are typically used for event sourcing and reactive systems.
+     */
     EVENT_STREAM,
 
-    // 状态事件类型，表示该主题用于传输状态变化事件
+    /**
+     * State event topic kind.
+     *
+     * Used for topics that carry state change events, representing
+     * notifications about changes to entity state. These are typically
+     * used for state synchronization and reactive updates across systems.
+     */
     STATE_EVENT
 }
 
 /**
- * TopicKindCapable 接口定义了主题种类感知能力
- * 实现该接口的类必须提供主题种类属性，以供外部查询
+ * Interface for entities that are aware of their topic kind.
+ *
+ * Classes implementing this interface can report their associated topic kind,
+ * enabling type-safe handling and routing based on the topic category.
+ * This is useful for processors, handlers, and routing components that need
+ * to behave differently based on the message pattern.
  */
 interface TopicKindCapable {
-    // 获取主题种类的属性，具体种类由实现类决定
+    /**
+     * The topic kind associated with this entity.
+     *
+     * The specific kind is determined by the implementing class and indicates
+     * how messages of this topic should be processed or routed.
+     */
     val topicKind: TopicKind
 }

@@ -16,42 +16,68 @@ package me.ahoo.wow.api.messaging
 import me.ahoo.wow.api.Copyable
 
 /**
- * Message Header .
+ * Represents the header of a message, containing metadata key-value pairs.
+ *
+ * This interface extends [MutableMap]<String, String> to provide standard map operations
+ * for header fields, and [Copyable]<Header> to support creating copies of headers.
+ * It provides a fluent API for setting header values and supports read-only mode
+ * to prevent modifications after the header is finalized.
  *
  * @author ahoo wang
  */
-/**
- * 接口扩展了MutableMap<String, String>和Copyable<Header>，用于管理[Message]请求或响应的头部信息
- * 它提供了一种链式调用的方式来设置和获取头部字段，同时也支持将头部信息设置为只读状态
- */
-interface Header : MutableMap<String, String>, Copyable<Header> {
+interface Header :
+    MutableMap<String, String>,
+    Copyable<Header> {
     /**
-     * 表示当前[Header]实例是否为只读状态
-     * 当[isReadOnly]为`true`时，[Header]的内容不能被修改
+     * Indicates whether this header is in read-only mode.
+     *
+     * When `true`, the header's contents cannot be modified. This is useful for
+     * ensuring immutability after the header has been finalized or sent.
+     *
+     * @return `true` if the header is read-only, `false` otherwise
      */
     val isReadOnly: Boolean
 
     /**
-     * 创建一个新的Header实例，其内容与当前实例相同，但设置为只读状态
-     * @return 一个新的只读Header实例
+     * Creates a new read-only copy of this header.
+     *
+     * This method creates a copy of the current header with all the same key-value pairs,
+     * but marks it as read-only to prevent further modifications.
+     *
+     * @return A new [Header] instance that is read-only and contains the same data as this header
      */
     fun withReadOnly(): Header
 
     /**
-     * 在当前Header实例中添加一个键值对，并返回当前实例以支持链式调用
-     * @param key 要添加的键
-     * @param value 与键关联的值
-     * @return 当前Header实例
+     * Adds a key-value pair to this header and returns the header for method chaining.
+     *
+     * This method provides a fluent API for setting header values. If the header is
+     * read-only, this operation may throw an exception or be ignored depending on
+     * the implementation.
+     *
+     * @param key The header key to set (must not be null)
+     * @param value The header value to associate with the key (must not be null)
+     * @return This header instance to support method chaining
+     * @throws UnsupportedOperationException if the header is read-only and modifications are not allowed
      */
-    fun with(key: String, value: String): Header {
+    fun with(
+        key: String,
+        value: String
+    ): Header {
         this[key] = value
         return this
     }
 
     /**
-     * 在当前Header实例中添加一系列键值对，并返回当前实例以支持链式调用
-     * @param additional 包含要添加的键值对的Map
-     * @return 当前Header实例
+     * Adds all key-value pairs from the provided map to this header and returns the header for method chaining.
+     *
+     * This method provides a fluent API for bulk setting header values. If the header is
+     * read-only, this operation may throw an exception or be ignored depending on
+     * the implementation.
+     *
+     * @param additional A map containing key-value pairs to add to this header (must not be null)
+     * @return This header instance to support method chaining
+     * @throws UnsupportedOperationException if the header is read-only and modifications are not allowed
      */
     fun with(additional: Map<String, String>): Header {
         putAll(additional)

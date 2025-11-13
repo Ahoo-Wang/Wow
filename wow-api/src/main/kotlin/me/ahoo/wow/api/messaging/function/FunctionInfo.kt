@@ -14,17 +14,29 @@
 package me.ahoo.wow.api.messaging.function
 
 /**
- * Function Info
+ * Represents information about a function in the messaging system.
+ *
+ * This interface combines function naming and identification with function kind
+ * classification, providing complete metadata about functions that process messages.
+ * Functions are identified by their kind (command, event, etc.), context, processor,
+ * and name, allowing for precise routing and invocation.
  */
-interface FunctionInfo : NamedFunctionInfo, FunctionKindCapable {
-
+interface FunctionInfo :
+    NamedFunctionInfo,
+    FunctionKindCapable {
     /**
-     * Is Same Function
+     * Determines if this function info represents the same function as another.
+     *
+     * Two function infos are considered the same if they have identical function kind,
+     * processor name, context name, and function name. This is used for function
+     * deduplication, routing decisions, and equality comparisons.
+     *
+     * @param functionInfo The function info to compare with this one
+     * @return `true` if both function infos represent the same function, `false` otherwise
      */
-    fun isSameFunction(functionInfo: FunctionInfo): Boolean {
-        return this.functionKind == functionInfo.functionKind &&
+    fun isSameFunction(functionInfo: FunctionInfo): Boolean =
+        this.functionKind == functionInfo.functionKind &&
             this.processorName == functionInfo.processorName &&
             this.contextName == functionInfo.contextName &&
             this.name == functionInfo.name
-    }
 }
