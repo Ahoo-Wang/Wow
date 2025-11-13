@@ -19,18 +19,43 @@ import me.ahoo.wow.infra.prepare.PrepareKey
 import java.lang.reflect.InvocationHandler
 import java.lang.reflect.Method
 
+/**
+ * Invocation handler for PrepareKey proxy instances.
+ * This handler delegates method calls to the underlying PrepareKey implementation,
+ * with special handling for default methods in interfaces.
+ *
+ * @property metadata the metadata for the proxy configuration
+ * @property delegate the actual PrepareKey instance to delegate calls to
+ *
+ * @see DefaultPrepareKeyProxyFactory
+ * @see PrepareKey
+ */
 class PrepareKeyInvocationHandler(
     private val metadata: PrepareKeyMetadata<*>,
     override val delegate: PrepareKey<*>
-) : Decorator<PrepareKey<*>>, InvocationHandler {
+) : Decorator<PrepareKey<*>>,
+    InvocationHandler {
     companion object {
+        /** Empty array constant for methods with no arguments. */
         val EMPTY_ARGS = emptyArray<Any>()
     }
 
+    /** Lazily initialized list of default methods declared in the proxy interface. */
     private val declaredDefaultMethods by lazy {
-        metadata.proxyInterface.java.declaredMethods.filter { it.isDefault }
+        metadata.proxyInterface.java.declaredMethods
+            .filter { it.isDefault }
     }
 
+    /**
+     * Handles method invocation on the proxy instance.
+     * For default methods, uses the JDK's default method invocation mechanism.
+     * For other methods, delegates to the underlying PrepareKey instance using fast invocation.
+     *
+     * @param proxy the proxy instance
+     * @param method the method being invoked
+     * @param args the method arguments (null if no arguments)
+     * @return the result of the method invocation
+     */
     override fun invoke(
         proxy: Any,
         method: Method,

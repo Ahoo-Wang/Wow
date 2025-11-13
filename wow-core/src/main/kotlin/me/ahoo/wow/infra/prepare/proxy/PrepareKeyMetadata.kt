@@ -17,8 +17,23 @@ import me.ahoo.wow.api.naming.Named
 import me.ahoo.wow.metadata.Metadata
 import kotlin.reflect.KClass
 
+/**
+ * Metadata container for PrepareKey proxy configuration.
+ * Holds the necessary information to create and configure proxy instances
+ * of PrepareKey interfaces, including the key name, interface type, and value type.
+ *
+ * @param P the PrepareKey interface type
+ * @property name the unique name identifier for the prepare key
+ * @property proxyInterface the Kotlin class of the PrepareKey interface to proxy
+ * @property valueType the Kotlin class of the value type handled by the PrepareKey
+ *
+ * @see PrepareKey
+ * @see PrepareKeyProxyFactory
+ * @see PrepareKeyMetadataParser
+ */
 data class PrepareKeyMetadata<P : Any>(
     override val name: String,
     val proxyInterface: KClass<P>,
     val valueType: KClass<*>
-) : Named, Metadata
+) : Named,
+    Metadata

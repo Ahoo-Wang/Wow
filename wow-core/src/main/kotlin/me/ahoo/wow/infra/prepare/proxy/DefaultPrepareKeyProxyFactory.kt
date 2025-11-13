@@ -17,7 +17,28 @@ import me.ahoo.wow.infra.prepare.PrepareKey
 import me.ahoo.wow.infra.prepare.PrepareKeyFactory
 import java.lang.reflect.Proxy
 
-class DefaultPrepareKeyProxyFactory(private val prepareKeyFactory: PrepareKeyFactory) : PrepareKeyProxyFactory {
+/**
+ * Default implementation of PrepareKeyProxyFactory that creates JDK dynamic proxies.
+ * This factory uses Java's Proxy class to create runtime proxy instances that delegate
+ * to actual PrepareKey implementations through an invocation handler.
+ *
+ * @property prepareKeyFactory the factory used to create the underlying PrepareKey instances
+ *
+ * @see PrepareKeyProxyFactory
+ * @see PrepareKeyInvocationHandler
+ */
+class DefaultPrepareKeyProxyFactory(
+    private val prepareKeyFactory: PrepareKeyFactory
+) : PrepareKeyProxyFactory {
+    /**
+     * Creates a proxy instance of the PrepareKey interface using JDK dynamic proxy.
+     * The proxy delegates all method calls to the underlying PrepareKey instance
+     * created by the prepareKeyFactory, with special handling for default methods.
+     *
+     * @param P the PrepareKey interface type
+     * @param metadata the metadata containing proxy configuration
+     * @return a proxy instance implementing the PrepareKey interface
+     */
     @Suppress("UNCHECKED_CAST")
     override fun <P : PrepareKey<*>> create(metadata: PrepareKeyMetadata<P>): P {
         val delegate = prepareKeyFactory.create(metadata.name, metadata.valueType.java)
@@ -25,7 +46,7 @@ class DefaultPrepareKeyProxyFactory(private val prepareKeyFactory: PrepareKeyFac
         return Proxy.newProxyInstance(
             this.javaClass.classLoader,
             arrayOf(metadata.proxyInterface.java),
-            invocationHandler
+            invocationHandler,
         ) as P
     }
 }
