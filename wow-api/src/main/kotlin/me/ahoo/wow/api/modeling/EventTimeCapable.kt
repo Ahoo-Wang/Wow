@@ -15,7 +15,18 @@ package me.ahoo.wow.api.modeling
 
 import io.swagger.v3.oas.annotations.media.Schema
 
+/**
+ * Interface for entities that track the timestamp of their last processed event.
+ *
+ * This interface provides access to the time when the most recent event was applied
+ * to the aggregate's state, represented as milliseconds since the Unix epoch.
+ */
 interface EventTimeCapable {
+    /**
+     * The timestamp of the last event processed by this aggregate, in milliseconds since the Unix epoch.
+     *
+     * @return The event timestamp as a long value.
+     */
     @get:Schema(description = "The last event time of the aggregate, represented as a Unix timestamp in milliseconds.")
     val eventTime: Long
 }

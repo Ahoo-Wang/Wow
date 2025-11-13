@@ -16,42 +16,81 @@ package me.ahoo.wow.api.modeling
 import me.ahoo.wow.api.Identifier
 
 /**
- * 比较当前AggregateId对象是否与另一个对象相等
- * 此方法重写了equals方法，用于比较两个AggregateId对象是否在业务逻辑上相等
- * 它不仅比较对象引用，还比较对象的各个属性值
+ * Defines an aggregate root identifier that inherits multiple interfaces to support various functional requirements.
+ * As an identifier, it not only identifies the aggregate root but also supports naming, decorator pattern,
+ * tenant identification, and value comparison.
  *
- * @param other 可能与当前对象相等的另一个对象
- * @return 如果两个对象相等则返回true，否则返回false
+ * @see Identifier
+ * @see NamedAggregate
+ * @see NamedAggregateDecorator
+ * @see TenantId
+ * @see Comparable
  */
-fun AggregateId.equalTo(other: Any?): Boolean {
-    return when {
-        // 比较对象引用，如果引用相等则对象肯定相等
-        this === other -> true
-        // 检查other是否为AggregateId类型，如果不是则不相等
-        other !is AggregateId -> false
-        // 依次比较tenantId、contextName、aggregateName和id属性
-        // 如果有任何一个属性不相等，则两个对象不相等
-        tenantId != other.tenantId -> false
-        contextName != other.contextName -> false
-        aggregateName != other.aggregateName -> false
-        id != other.id -> false
-        // 如果所有属性都相等，则两个对象相等
-        else -> true
+interface AggregateId :
+    Identifier,
+    NamedAggregate,
+    NamedAggregateDecorator,
+    TenantId,
+    Comparable<AggregateId> {
+    /**
+     * The named aggregate that this ID belongs to.
+     * @see MaterializedNamedAggregate
+     */
+    override val namedAggregate: NamedAggregate
+
+    /**
+     * Compares two AggregateId instances for ordering, first ensuring they belong to the same aggregate.
+     * If they don't belong to the same aggregate, an IllegalArgumentException is thrown.
+     * Otherwise, the comparison is based on the identifier.
+     *
+     * @param other The other AggregateId instance to compare with.
+     * @return A negative integer if this is less than other, zero if equal, positive if greater.
+     *         Follows the Comparable interface convention.
+     * @throws IllegalArgumentException if the two AggregateIds don't belong to the same aggregate.
+     */
+    override fun compareTo(other: AggregateId): Int {
+        require(isSameAggregateName(other)) {
+            "NamedAggregate[$namedAggregate VS ${other.namedAggregate}] are different and cannot be compared."
+        }
+        return id.compareTo(other.id)
     }
 }
 
 /**
- * 定义哈希计算中的魔数常量
+ * Compares the current AggregateId object for equality with another object.
+ * This method provides business logic equality comparison for AggregateId objects,
+ * comparing all relevant properties rather than just reference equality.
+ *
+ * @param other The object to compare with this AggregateId.
+ * @return true if the objects are equal based on their properties, false otherwise.
+ */
+fun AggregateId.equalTo(other: Any?): Boolean =
+    when {
+        // Reference equality check - if same object, definitely equal
+        this === other -> true
+        // Type check - if not AggregateId, cannot be equal
+        other !is AggregateId -> false
+        // Property comparisons - all must match for equality
+        tenantId != other.tenantId -> false
+        contextName != other.contextName -> false
+        aggregateName != other.aggregateName -> false
+        id != other.id -> false
+        // All properties match, objects are equal
+        else -> true
+    }
+
+/**
+ * Magic number constant used in hash calculations for better distribution.
  */
 private const val HASH_MAGIC = 31
 
 /**
- * 计算AggregateId的哈希值
+ * Calculates a hash value for the AggregateId.
  *
- * 此方法通过结合租户ID、上下文名称、聚合名称和ID的哈希值来生成一个唯一的哈希值
- * 使用魔数常量HASH_MAGIC来确保哈希值的均匀分布和一致性
+ * This method generates a unique hash by combining the hash codes of tenantId, contextName,
+ * aggregateName, and id. The HASH_MAGIC constant ensures better distribution and consistency.
  *
- * @return AggregateId的哈希值
+ * @return The computed hash value for this AggregateId.
  */
 fun AggregateId.hash(): Int {
     var result = tenantId.hashCode()
@@ -62,47 +101,13 @@ fun AggregateId.hash(): Int {
 }
 
 /**
- * 计算AggregateId的ID哈希值除以给定除数的余数
+ * Calculates the remainder when the ID's hash code is divided by the given divisor.
  *
- * 此方法用于在分布式系统中对聚合进行分区或分片
- * 通过取哈希值的余数，可以将聚合均匀地分布到不同的分区或分片中
+ * This method is used in distributed systems for partitioning or sharding aggregates.
+ * By taking the hash code modulo the divisor, aggregates can be evenly distributed
+ * across different partitions or shards.
  *
- * @param divisor 除数，用于计算余数
- * @return 哈希值除以给定除数的余数
+ * @param divisor The divisor used to calculate the remainder.
+ * @return The remainder of the ID's hash code divided by the divisor.
  */
-fun AggregateId.mod(divisor: Int): Int {
-    return id.hashCode().mod(divisor)
-}
-
-/**
- * 定义一个聚合根标识符，它继承了多个接口以支持不同的功能需求.
- * 它作为一个标识符，不仅标识聚合根，还需要支持命名、装饰器模式、租户识别以及值的比较.
- *
- * @see Identifier
- * @see NamedAggregate
- * @see NamedAggregateDecorator
- * @see TenantId
- * @see Comparable
- */
-interface AggregateId : Identifier, NamedAggregate, NamedAggregateDecorator, TenantId, Comparable<AggregateId> {
-    /**
-     * @see MaterializedNamedAggregate
-     */
-    override val namedAggregate: NamedAggregate
-
-    /**
-     * 比较两个 AggregateId 的大小，首先确保它们属于同一个聚合根.
-     * 如果不属于同一个聚合根，则抛出 IllegalArgumentException 异常.
-     * 否则，使用标识符进行比较.
-     *
-     * @param other 要比较的另一个 AggregateId 实例.
-     * @return 返回值遵循 Comparable 接口的约定：负数表示 this 小于 other，0 表示相等，正数表示 this 大于 other.
-     * @throws IllegalArgumentException 如果两个 AggregateId 不属于同一个聚合根.
-     */
-    override fun compareTo(other: AggregateId): Int {
-        require(isSameAggregateName(other)) {
-            "NamedAggregate[$namedAggregate VS ${other.namedAggregate}] are different and cannot be compared."
-        }
-        return id.compareTo(other.id)
-    }
-}
+fun AggregateId.mod(divisor: Int): Int = id.hashCode().mod(divisor)

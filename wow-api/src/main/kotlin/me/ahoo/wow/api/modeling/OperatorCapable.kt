@@ -15,7 +15,18 @@ package me.ahoo.wow.api.modeling
 
 import io.swagger.v3.oas.annotations.media.Schema
 
+/**
+ * Interface for entities that track the identity of their last operator.
+ *
+ * This interface provides access to the user or system that most recently performed
+ * an operation on the aggregate, useful for audit trails and change tracking.
+ */
 interface OperatorCapable {
+    /**
+     * The identifier of the last operator who performed an operation on this aggregate.
+     *
+     * @return The operator's identifier as a string.
+     */
     @get:Schema(description = "The last operator of the aggregate.")
     val operator: String
 }

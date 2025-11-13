@@ -13,13 +13,18 @@
 package me.ahoo.wow.api.modeling
 
 /**
- * Typed Aggregate.
+ * Interface for aggregates that have a specific type.
+ *
+ * This interface provides type information about an aggregate, allowing for
+ * type-safe operations and reflection-based processing.
+ *
+ * @param A The type of the aggregate.
  */
 interface TypedAggregate<A : Any> {
     /**
-     * aggregate type.
+     * The runtime class of the aggregate type.
      *
-     * @return aggregate type
+     * @return The Class object representing the aggregate type.
      */
     val aggregateType: Class<A>
 }

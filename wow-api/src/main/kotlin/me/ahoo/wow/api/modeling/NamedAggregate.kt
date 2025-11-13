@@ -17,40 +17,45 @@ import com.fasterxml.jackson.annotation.JsonIgnore
 import io.swagger.v3.oas.annotations.media.Schema
 import me.ahoo.wow.api.naming.NamedBoundedContext
 
+/**
+ * Interface for entities that have an aggregate name.
+ */
 interface AggregateNameCapable {
     /**
-     * 聚合根的名称
+     * The name of the aggregate.
      */
     val aggregateName: String
 }
 
 /**
- * 一个在特定上下文中具有唯一名称的聚合根。
- * 它继承自NamedBoundedContext，以获取上下文名称，并额外定义了聚合根名称。
+ * Represents an aggregate with a unique name within a specific bounded context.
+ * It inherits from NamedBoundedContext to get the context name and additionally defines the aggregate name.
+ *
  * @see me.ahoo.wow.command.CommandBus
  * @see me.ahoo.wow.eventsourcing.EventStore
  */
-interface NamedAggregate : NamedBoundedContext, AggregateNameCapable {
-
+interface NamedAggregate :
+    NamedBoundedContext,
+    AggregateNameCapable {
     /**
-     * 检查两个聚合根是否属于同一个上下文并具有相同的聚合根名称。
+     * Checks if two aggregates belong to the same context and have the same aggregate name.
      *
-     * @param other 另一个NamedAggregate实例，用于比较。
-     * @return 如果两个聚合根属于同一个上下文且名称相同，则返回true；否则返回false。
+     * @param other Another NamedAggregate instance to compare with.
+     * @return true if both aggregates belong to the same context and have the same name, false otherwise.
      */
-    fun isSameAggregateName(other: NamedAggregate): Boolean {
-        return contextName == other.contextName && aggregateName == other.aggregateName
-    }
+    fun isSameAggregateName(
+        other: NamedAggregate
+    ): Boolean = contextName == other.contextName && aggregateName == other.aggregateName
 }
 
 /**
- * NamedAggregateDecorator接口定义了一个装饰器模式的命名聚合根。
- * 它继承自NamedAggregate，并委托实际的命名聚合根实现。
- * 这个接口允许在不修改原有聚合根逻辑的情况下，动态添加功能。
+ * Decorator interface for named aggregates following the decorator pattern.
+ * It inherits from NamedAggregate and delegates to the actual named aggregate implementation.
+ * This interface allows adding functionality dynamically without modifying the original aggregate logic.
  */
 interface NamedAggregateDecorator : NamedAggregate {
     /**
-     * 被装饰的命名聚合根。
+     * The decorated named aggregate.
      */
     val namedAggregate: NamedAggregate
 

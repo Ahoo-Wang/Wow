@@ -14,11 +14,16 @@
 package me.ahoo.wow.api.modeling
 
 /**
- * Interface for classes that have a creation time.
+ * Interface for entities that track their creation time.
+ *
+ * This interface provides a standard way to access the timestamp when an entity was created,
+ * typically represented as milliseconds since the Unix epoch (January 1, 1970, 00:00:00 UTC).
  */
 interface CreateTimeCapable {
     /**
-     * Gets the creation time in milliseconds since the Unix epoch.
+     * The creation time of the entity in milliseconds since the Unix epoch.
+     *
+     * @return The timestamp when this entity was created.
      */
     val createTime: Long
 }
