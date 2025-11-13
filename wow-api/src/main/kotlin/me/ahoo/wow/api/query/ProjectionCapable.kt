@@ -13,6 +13,17 @@
 
 package me.ahoo.wow.api.query
 
+/**
+ * Interface for query objects that support field projection.
+ *
+ * This interface extends [RewritableProjection] and provides access to the projection
+ * settings that control which fields are included or excluded from query results.
+ *
+ * @param Q The type of the query object that implements this interface, enabling method chaining.
+ */
 interface ProjectionCapable<Q : RewritableProjection<Q>> : RewritableProjection<Q> {
+    /**
+     * The projection settings that control which fields are included in or excluded from the query results.
+     */
     val projection: Projection
 }
