@@ -13,6 +13,17 @@
 
 package me.ahoo.wow.api.naming
 
+/**
+ * Interface for entities that provide descriptive information.
+ *
+ * This interface allows objects to include human-readable descriptions that explain
+ * their purpose, functionality, or characteristics.
+ */
 interface DescriptionCapable {
+    /**
+     * A human-readable description of the entity.
+     *
+     * @return A string containing descriptive text about the entity.
+     */
     val description: String
 }

@@ -13,6 +13,17 @@
 
 package me.ahoo.wow.api.naming
 
+/**
+ * Interface for entities that have a completion state.
+ *
+ * This interface is used to mark objects that can be in either a completed or incomplete state,
+ * allowing for tracking of progress, task completion, or workflow status.
+ */
 interface CompletedCapable {
+    /**
+     * Indicates whether the entity is completed.
+     *
+     * @return true if the entity is in a completed state, false otherwise.
+     */
     val completed: Boolean
 }
