@@ -22,17 +22,43 @@ import me.ahoo.wow.infra.Decorator
 import java.util.*
 
 /**
- * Global Id Generator
+ * Global ID generator that provides unique identifier generation across the application.
+ *
+ * This object acts as a singleton wrapper around a [CosIdGenerator], loading the actual generator
+ * lazily using [GlobalIdGeneratorFactory] implementations discovered via [ServiceLoader].
+ * It implements [Decorator] to delegate all operations to the underlying generator.
+ *
+ * The generator is initialized on first access, and if no factory can provide a generator,
+ * a [NotInitializedGlobalIdGeneratorError] is thrown.
+ *
+ * @see CosIdGenerator
+ * @see Decorator
+ * @see GlobalIdGeneratorFactory
  */
 object GlobalIdGenerator : CosIdGenerator, Decorator<CosIdGenerator> {
     private val log = KotlinLogging.logger {}
 
+    /**
+     * The underlying [CosIdGenerator] that handles the actual ID generation.
+     *
+     * This property is lazily initialized by loading a generator using [GlobalIdGeneratorFactory] implementations.
+     * If no generator can be loaded, accessing this property throws [NotInitializedGlobalIdGeneratorError].
+     */
     override val delegate: CosIdGenerator by lazy {
         return@lazy loadGlobalIdGenerator() ?: throw NotInitializedGlobalIdGeneratorError()
     }
 
-    private fun loadGlobalIdGenerator(): CosIdGenerator? {
-        return ServiceLoader.load(GlobalIdGeneratorFactory::class.java)
+    /**
+     * Loads a global [CosIdGenerator] using available [GlobalIdGeneratorFactory] implementations.
+     *
+     * Uses [ServiceLoader] to discover factories, sorts them by order, and attempts to create a generator
+     * with each factory until one succeeds. Logs the loading process for debugging.
+     *
+     * @return the first non-null [CosIdGenerator] created by a factory, or null if none succeed
+     */
+    private fun loadGlobalIdGenerator(): CosIdGenerator? =
+        ServiceLoader
+            .load(GlobalIdGeneratorFactory::class.java)
             .sortedByOrder()
             .firstNotNullOfOrNull {
                 log.info {
@@ -50,31 +76,39 @@ object GlobalIdGenerator : CosIdGenerator, Decorator<CosIdGenerator> {
                 }
                 idGenerator
             }
-    }
 
-    override fun getMachineId(): Int {
-        return delegate.machineId
-    }
+    override fun getMachineId(): Int = delegate.machineId
 
-    override fun getLastTimestamp(): Long {
-        return delegate.lastTimestamp
-    }
+    override fun getLastTimestamp(): Long = delegate.lastTimestamp
 
-    override fun getStateParser(): CosIdIdStateParser {
-        return delegate.stateParser
-    }
+    override fun getStateParser(): CosIdIdStateParser = delegate.stateParser
 
-    override fun generateAsState(): CosIdState {
-        return delegate.generateAsState()
-    }
+    override fun generateAsState(): CosIdState = delegate.generateAsState()
 }
 
 /**
- * Generate Global Id
+ * Generates a unique global ID string.
+ *
+ * This function provides a convenient way to generate a globally unique identifier using the [GlobalIdGenerator].
+ * The ID is generated as a string representation suitable for use in various contexts such as message IDs.
+ *
+ * @return a unique global ID as a string
+ * @see GlobalIdGenerator
+ * @sample
+ * val id = generateGlobalId() // Generates a unique string like "0H1F2G3H4I5J6K7L8M9N0O1P2Q3"
  */
-fun generateGlobalId(): String {
-    return GlobalIdGenerator.generateAsString()
-}
+fun generateGlobalId(): String = GlobalIdGenerator.generateAsString()
 
-class NotInitializedGlobalIdGeneratorError :
-    WowException("NotInitializedGlobalIdGenerator", "GlobalIdGenerator is not initialized.")
+/**
+ * Exception thrown when the [GlobalIdGenerator] cannot be initialized.
+ *
+ * This error occurs when no [GlobalIdGeneratorFactory] implementations are able to provide a valid [CosIdGenerator]
+ * during the lazy initialization of the global generator.
+ *
+ * @see GlobalIdGenerator
+ * @see GlobalIdGeneratorFactory
+ */
+class NotInitializedGlobalIdGeneratorError : WowException(
+    "NotInitializedGlobalIdGenerator",
+    "GlobalIdGenerator is not initialized."
+)
