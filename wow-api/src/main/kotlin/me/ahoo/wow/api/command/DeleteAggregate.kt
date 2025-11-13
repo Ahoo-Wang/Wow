@@ -17,13 +17,41 @@ import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.annotation.Summary
 
 /**
- * Represents a command to delete an aggregate. This interface is part of the command handling mechanism, ensuring that the deletion of an aggregate can be managed and tracked.
+ * Marker interface for commands that delete an aggregate instance.
  *
- * Implementations of this interface are expected to provide the necessary logic to delete an aggregate, which may include removing the aggregate from the system, updating related entities
- * , and ensuring that the operation is idempotent.
+ * Commands implementing this interface signal that the target aggregate should be
+ * permanently removed from the system. The deletion process typically involves:
+ * - Marking the aggregate as deleted (soft delete)
+ * - Publishing deletion events for downstream processing
+ * - Cleaning up related resources and references
+ * - Ensuring the operation is idempotent
+ *
+ * @see AggregateDeleted event published when deletion completes
+ * @see RecoverAggregate for undoing deletions
+ *
+ * Example usage:
+ * ```kotlin
+ * // Custom delete command with additional data
+ * data class DeleteUserCommand(
+ *     val reason: String,
+ *     val deletedBy: String
+ * ) : DeleteAggregate
+ *
+ * // Or use the default implementation
+ * val deleteCommand = DefaultDeleteAggregate
+ * ```
  */
 interface DeleteAggregate
 
+/**
+ * Default implementation of the delete aggregate command.
+ *
+ * This singleton provides a standard way to delete aggregates without additional payload.
+ * It's automatically routed as a DELETE request to the aggregate's resource path.
+ *
+ * @see CommandRoute for the automatic routing configuration
+ * @see Summary for API documentation generation
+ */
 @Summary("Delete aggregate")
 @CommandRoute(action = "", method = CommandRoute.Method.DELETE, appendIdPath = CommandRoute.AppendPath.ALWAYS)
 object DefaultDeleteAggregate : DeleteAggregate

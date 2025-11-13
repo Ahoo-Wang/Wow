@@ -14,15 +14,33 @@
 package me.ahoo.wow.api.command
 
 /**
- * Represents a unique identifier for a request. This interface is part of the command handling mechanism, ensuring that each request can be uniquely identified.
+ * Represents a unique identifier for a request within the Wow framework's command processing system.
  *
- * Implementations of this interface are expected to provide a `requestId` which should be unique and used to identify the specific request instance. This is particularly useful in scenarios
- * where idempotency of requests needs to be guaranteed or when tracking and correlating requests across system boundaries.
+ * This interface ensures that each request can be uniquely identified, which is essential for:
+ * - Maintaining request traceability across distributed systems
+ * - Implementing request deduplication and idempotency
+ * - Correlating requests with responses and events
+ * - Debugging and monitoring request flows
+ * - Supporting distributed tracing and logging
+ *
+ * @property requestId A unique string identifier for the request. Implementations should generate
+ *                     globally unique values, typically using UUIDs or similar mechanisms.
+ *
+ * @see CommandMessage for the complete command message interface that includes this identifier
+ *
+ * Example usage:
+ * ```kotlin
+ * class UserRequest(override val requestId: String = UUID.randomUUID().toString()) : RequestId {
+ *     // request payload
+ * }
+ * ```
  */
 interface RequestId {
     /**
-     * Represents a unique identifier for a request. This identifier is crucial for ensuring that each request can be uniquely identified,
-     * which is particularly useful in scenarios where idempotency of requests needs to be guaranteed or when tracking and correlating requests across system boundaries.
+     * A unique identifier for this request instance.
+     *
+     * @return A non-empty string that uniquely identifies this request. The format and generation
+     *         strategy is implementation-dependent but should ensure global uniqueness.
      */
     val requestId: String
 }
