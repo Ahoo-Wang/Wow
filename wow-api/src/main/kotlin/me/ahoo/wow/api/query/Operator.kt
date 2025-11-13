@@ -218,8 +218,8 @@ enum class Operator {
 
     /**
      * Tomorrow operator.
-     * Matches documents where the date field falls within yesterday's date range.
-     * Example: If today is 2024-06-06, matches range 2024-06-05 00:00:00.000 to 2024-06-05 23:59:59.999.
+     * Matches documents where the date field falls within tomorrow's date range.
+     * Example: If today is 2024-06-06, matches range 2024-06-07 00:00:00.000 to 2024-06-07 23:59:59.999.
      */
     TOMORROW,
 
