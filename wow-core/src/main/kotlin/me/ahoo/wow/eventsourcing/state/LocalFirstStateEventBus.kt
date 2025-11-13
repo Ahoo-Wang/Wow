@@ -15,7 +15,17 @@ package me.ahoo.wow.eventsourcing.state
 
 import me.ahoo.wow.messaging.LocalFirstMessageBus
 
+/**
+ * State event bus that prioritizes local message delivery before distributed delivery.
+ * Messages are first sent to local subscribers within the same JVM instance,
+ * then forwarded to the distributed bus for cross-instance communication.
+ * This ensures low-latency local processing while maintaining consistency across instances.
+ *
+ * @param distributedBus The distributed state event bus for cross-instance messaging.
+ * @param localBus The local state event bus for same-instance messaging (default: InMemoryStateEventBus).
+ */
 class LocalFirstStateEventBus(
     override val distributedBus: DistributedStateEventBus,
     override val localBus: LocalStateEventBus = InMemoryStateEventBus()
-) : StateEventBus, LocalFirstMessageBus<StateEvent<*>, StateEventExchange<*>>
+) : StateEventBus,
+    LocalFirstMessageBus<StateEvent<*>, StateEventExchange<*>>

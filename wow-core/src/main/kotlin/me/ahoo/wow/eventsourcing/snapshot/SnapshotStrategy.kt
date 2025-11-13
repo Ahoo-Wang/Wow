@@ -16,16 +16,38 @@ import me.ahoo.wow.eventsourcing.state.StateEventExchange
 import reactor.core.publisher.Mono
 
 /**
- * SnapshotStrategy .
+ * Strategy for managing snapshots of state aggregates.
+ * Snapshot strategies determine when and how to create snapshots based on state events.
+ * This helps optimize aggregate loading by reducing the number of events that need to be replayed.
+ *
+ * Implementations can define custom logic for snapshot creation, such as:
+ * - Taking snapshots after a certain number of events
+ * - Taking snapshots at specific time intervals
+ * - Taking snapshots based on aggregate state changes
  *
  * @author ahoo wang
  */
 interface SnapshotStrategy {
+    /**
+     * Processes a state event exchange to determine if a snapshot should be created.
+     * Implementations should analyze the event and potentially trigger snapshot creation.
+     *
+     * @param stateEventExchange The state event exchange containing the event and aggregate state.
+     * @return A Mono that completes when the snapshot strategy processing is done.
+     */
     fun onEvent(stateEventExchange: StateEventExchange<*>): Mono<Void>
 
+    /**
+     * No-operation implementation of SnapshotStrategy that never creates snapshots.
+     * Useful for testing or when snapshots are not needed.
+     */
     companion object NoOp : SnapshotStrategy {
-        override fun onEvent(stateEventExchange: StateEventExchange<*>): Mono<Void> {
-            return Mono.empty()
-        }
+        /**
+         * Does nothing and returns an empty Mono.
+         *
+         * @param stateEventExchange The state event exchange (ignored).
+         * @return An empty Mono indicating no action taken.
+         */
+        override fun onEvent(stateEventExchange: StateEventExchange<*>): Mono<Void> = Mono.empty()
     }
 }

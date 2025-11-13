@@ -28,14 +28,33 @@ import me.ahoo.wow.modeling.command.SendDomainEventStreamFilter
 import me.ahoo.wow.modeling.command.getCommandAggregate
 import reactor.core.publisher.Mono
 
+/**
+ * Filter that sends state events to the state event bus after command processing.
+ * This filter runs after domain events are sent, ensuring that subscribers receive
+ * both the domain event and the updated aggregate state.
+ *
+ * The filter creates a state event by combining the domain event stream with the current aggregate state,
+ * then publishes it to the configured state event bus.
+ */
 @FilterType(CommandDispatcher::class)
 @Order(ORDER_LAST, after = [SendDomainEventStreamFilter::class])
-class SendStateEventFilter(private val stateEventBus: StateEventBus) : ExchangeFilter<ServerCommandExchange<*>> {
+class SendStateEventFilter(
+    private val stateEventBus: StateEventBus
+) : ExchangeFilter<ServerCommandExchange<*>> {
     companion object {
         private val log = KotlinLogging.logger { }
         private val retryStrategy = retryStrategy(logger = log)
     }
 
+    /**
+     * Filters the command exchange by sending a state event if applicable.
+     * Creates and sends a state event containing both the domain event and aggregate state,
+     * then continues the filter chain.
+     *
+     * @param exchange The server command exchange containing the command and resulting events.
+     * @param next The next filter in the chain.
+     * @return A Mono that completes when filtering is done.
+     */
     override fun filter(
         exchange: ServerCommandExchange<*>,
         next: FilterChain<ServerCommandExchange<*>>
