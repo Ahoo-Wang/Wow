@@ -20,8 +20,17 @@ import kotlin.reflect.KAnnotatedElement
 import kotlin.reflect.KClass
 import kotlin.reflect.full.findAnnotation
 
-private fun <T : Any> T.getKClass(): KClass<*> {
-    return when (this) {
+/**
+ * Gets the Kotlin class representation of this object.
+ *
+ * This private utility function handles different types of objects and returns
+ * their corresponding KClass, supporting both Kotlin and Java class types.
+ *
+ * @param T the type of the object
+ * @return the KClass representation of this object
+ */
+private fun <T : Any> T.getKClass(): KClass<*> =
+    when (this) {
         is KClass<*> -> {
             this
         }
@@ -34,8 +43,20 @@ private fun <T : Any> T.getKClass(): KClass<*> {
             this.javaClass.kotlin
         }
     }
-}
 
+/**
+ * Retrieves the order configuration for this object.
+ *
+ * This method checks for order information in the following priority:
+ * 1. If the object implements Ordered interface, uses its order property
+ * 2. If it's a KAnnotatedElement (Kotlin), looks for @Order annotation
+ * 3. If it's an AnnotatedElement (Java), looks for @Order annotation
+ * 4. Falls back to class-level @Order annotation
+ * 5. Returns Order.DEFAULT if no order is specified
+ *
+ * @param T the type of the object
+ * @return the Order configuration for this object
+ */
 private fun <T : Any> T.getOrder(): Order {
     if (this is Ordered) {
         return order
@@ -49,11 +70,40 @@ private fun <T : Any> T.getOrder(): Order {
     return this.javaClass.getAnnotation(Order::class.java) ?: Order.DEFAULT
 }
 
+/**
+ * Sorts an iterable collection based on Order annotations and dependencies.
+ *
+ * This extension function sorts the collection by considering both the numeric order value
+ * and the before/after dependencies specified in @Order annotations. Items are first sorted
+ * by their order value, then repositioned according to their before/after relationships.
+ *
+ * Example usage:
+ * ```kotlin
+ * @Order(1)
+ * class FirstProcessor
+ *
+ * @Order(2, before = [ThirdProcessor::class])
+ * class SecondProcessor
+ *
+ * @Order(3)
+ * class ThirdProcessor
+ *
+ * val processors = listOf(ThirdProcessor(), FirstProcessor(), SecondProcessor())
+ * val sorted = processors.sortedByOrder()
+ * // Result: [FirstProcessor, SecondProcessor, ThirdProcessor]
+ * ```
+ *
+ * @param T the type of elements in the collection
+ * @return a new list sorted by order with dependencies resolved
+ * @see Order
+ */
 fun <T : Any> Iterable<T>.sortedByOrder(): List<T> {
-    val sortedByOrderList = this.map {
-        val order: Order = it.getOrder()
-        it to order
-    }.sortedBy { it.second.value }
+    val sortedByOrderList =
+        this
+            .map {
+                val order: Order = it.getOrder()
+                it to order
+            }.sortedBy { it.second.value }
 
     val sortedList = sortedByOrderList.toMutableList()
 
@@ -64,6 +114,15 @@ fun <T : Any> Iterable<T>.sortedByOrder(): List<T> {
     return sortedList.map { it.first }
 }
 
+/**
+ * Moves the current item to its correct position relative to items it should come before.
+ *
+ * This private extension function repositions the current item in the list so that it appears
+ * before all items specified in the 'before' array of its Order annotation.
+ *
+ * @param T the type of elements in the list
+ * @param current the item to reposition along with its order configuration
+ */
 private fun <T : Any> MutableList<Pair<T, Order>>.moveToBefore(current: Pair<T, Order>) {
     val beforeValues = current.second.before
     for (beforeClass in beforeValues) {
@@ -80,6 +139,15 @@ private fun <T : Any> MutableList<Pair<T, Order>>.moveToBefore(current: Pair<T, 
     }
 }
 
+/**
+ * Moves the current item to its correct position relative to items it should come after.
+ *
+ * This private extension function repositions the current item in the list so that it appears
+ * after all items specified in the 'after' array of its Order annotation.
+ *
+ * @param T the type of elements in the list
+ * @param current the item to reposition along with its order configuration
+ */
 private fun <T : Any> MutableList<Pair<T, Order>>.moveToAfter(current: Pair<T, Order>) {
     val afterValues = current.second.after
     for (afterClass in afterValues) {
