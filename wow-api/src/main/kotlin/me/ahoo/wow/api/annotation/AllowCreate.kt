@@ -16,7 +16,36 @@ package me.ahoo.wow.api.annotation
 import java.lang.annotation.Inherited
 
 /**
- * 当聚合根未创建时允许创建
+ * Allows creation of a new aggregate instance if one doesn't already exist.
+ *
+ * This annotation enables commands to create aggregate instances on-demand when they
+ * don't exist. Without this annotation, commands will fail if the target aggregate
+ * cannot be found.
+ *
+ * Use this annotation when:
+ * - Commands should be able to initialize new aggregates
+ * - The system supports lazy aggregate creation
+ * - Commands represent creation operations that may be retried
+ *
+ * Example usage:
+ * ```kotlin
+ * @AggregateRoot
+ * @AllowCreate
+ * class UserAggregate(
+ *     @AggregateId
+ *     val userId: String
+ * ) {
+ *
+ *     @OnCommand
+ *     fun createIfNotExists(command: CreateUserCommand): UserCreated {
+ *         // This command can create a new user if one doesn't exist
+ *         return UserCreated(userId, command.email)
+ *     }
+ * }
+ * ```
+ *
+ * @see CreateAggregate for marking commands that always create new aggregates
+ * @see AggregateRoot for aggregate root classes
  */
 @Target(AnnotationTarget.CLASS, AnnotationTarget.ANNOTATION_CLASS)
 @Inherited

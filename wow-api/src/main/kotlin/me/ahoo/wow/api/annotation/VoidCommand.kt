@@ -16,18 +16,45 @@ package me.ahoo.wow.api.annotation
 import java.lang.annotation.Inherited
 
 /**
- * 标记命令为虚空命令（Void Command）。
+ * Marks a command as a void command that doesn't require aggregate processing.
  *
- * 使用需要命令需要将命令通过 [AggregateRoot.commands] 挂载到聚合根。
+ * Void commands are sent to the command bus but don't need to be processed by aggregate roots.
+ * They are typically used for operations that don't require state changes or return values,
+ * such as logging, notifications, or external system integrations.
  *
- * 虚空命令的特点是：
- * - 只需要将命令发送到命令总线（Command Bus），而不需要聚合根（Aggregate Root）进行处理。
- * - 通常用于那些不需要返回结果或状态更新的命令操作。
+ * Void command characteristics:
+ * - Sent to command bus without requiring aggregate root processing
+ * - No return value or state update expected
+ * - Can be used for side effects and cross-cutting concerns
+ * - Must be mounted to aggregate roots via [AggregateRoot.commands]
  *
- * 使用场景：
- * - 记录用户的查询操作。
+ * Common use cases:
+ * - Recording user query operations for analytics
+ * - Sending notifications without changing domain state
+ * - Logging audit events
+ * - Triggering external system synchronizations
  *
- * @see AggregateRoot
+ * Example usage:
+ * ```kotlin
+ * @VoidCommand
+ * data class LogUserQuery(
+ *     val userId: String,
+ *     val query: String,
+ *     val timestamp: Instant = Instant.now()
+ * )
+ *
+ * @AggregateRoot(commands = [LogUserQuery::class])
+ * class UserQueryLogger {
+ *     // No command handlers needed - just receives the command for logging
+ * }
+ *
+ * // Usage
+ * commandBus.send(LogUserQuery(userId, searchQuery))
+ * // Command is processed (logged) but no aggregate state is changed
+ * ```
+ *
+ * @see AggregateRoot for mounting void commands to aggregates
+ * @see AggregateRoot.commands for command mounting configuration
  **/
 @Target(AnnotationTarget.CLASS, AnnotationTarget.ANNOTATION_CLASS)
 @Inherited

@@ -19,10 +19,52 @@ import kotlin.reflect.KClass
 const val DEFAULT_ON_COMMAND_NAME = "onCommand"
 
 /**
- * OnCommand .
+ * Marks a function as a command handler within an aggregate.
  *
- * @author ahoo wang
- * @see me.ahoo.wow.modeling.command.CommandAggregate
+ * Functions annotated with @OnCommand are responsible for processing commands and
+ * producing domain events that represent state changes. They are the primary way
+ * aggregates respond to business operations.
+ *
+ * Command handlers should:
+ * - Validate command data and business rules
+ * - Access and modify aggregate state
+ * - Return domain events representing the changes
+ * - Be idempotent when possible
+ * - Follow the command-query separation principle
+ *
+ * Example usage:
+ * ```kotlin
+ * @AggregateRoot
+ * class OrderAggregate(
+ *     @AggregateId
+ *     val orderId: String
+ * ) {
+ *
+ *     @OnCommand(returns = [OrderCreated::class])
+ *     fun create(command: CreateOrderCommand): OrderCreated {
+ *         require(command.items.isNotEmpty()) { "Order must have items" }
+ *
+ *         return OrderCreated(
+ *             orderId = command.orderId,
+ *             customerId = command.customerId,
+ *             items = command.items,
+ *             total = calculateTotal(command.items)
+ *         )
+ *     }
+ *
+ *     @OnCommand
+ *     fun addItem(command: AddOrderItemCommand): OrderItemAdded {
+ *         // Business logic for adding items
+ *         return OrderItemAdded(command.orderId, command.item)
+ *     }
+ * }
+ * ```
+ * @param returns Array of event types that this handler may produce. Used for
+ *               documentation and validation. Framework automatically infers
+ *               return types when not specified.
+ * @see AggregateRoot for aggregate classes containing command handlers
+ * @see OnEvent for event handlers
+ * @see CommandAggregate for the command processing implementation
  */
 @Target(AnnotationTarget.FUNCTION, AnnotationTarget.ANNOTATION_CLASS)
 @Inherited
@@ -30,7 +72,16 @@ const val DEFAULT_ON_COMMAND_NAME = "onCommand"
 @MustBeDocumented
 annotation class OnCommand(
     /**
-     * The domain event returned after the execution of the command function is completed
+     * Specifies the domain event types that this command handler may return.
+     *
+     * This information is used for:
+     * - API documentation generation
+     * - Runtime validation of return types
+     * - Framework optimization and routing
+     *
+     * If not specified, the framework will infer the return types from the actual
+     * function signature. Explicit specification improves clarity and enables
+     * compile-time validation.
      */
     val returns: Array<KClass<*>> = []
 )
