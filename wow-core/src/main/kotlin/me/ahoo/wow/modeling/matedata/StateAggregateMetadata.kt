@@ -21,6 +21,20 @@ import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.function.toMessageFunction
 import me.ahoo.wow.metadata.Metadata
 
+/**
+ * Represents the metadata for a state aggregate, containing information needed for state management and event sourcing.
+ *
+ * This data class holds the configuration for a state aggregate, including constructor accessors,
+ * aggregate ID accessors, and sourcing function registries for handling domain events.
+ *
+ * @param S The type of the state aggregate.
+ * @property aggregateType The class of the state aggregate.
+ * @property constructorAccessor The accessor for creating state aggregate instances.
+ * @property aggregateIdAccessor The optional property getter for accessing the aggregate ID from the state.
+ * @property sourcingFunctionRegistry Map of event types to their sourcing function metadata.
+ *
+ * @constructor Creates a new StateAggregateMetadata with the specified properties.
+ */
 data class StateAggregateMetadata<S : Any>(
     /**
      * State Aggregation Type
@@ -29,14 +43,21 @@ data class StateAggregateMetadata<S : Any>(
     val constructorAccessor: ConstructorAccessor<S>,
     val aggregateIdAccessor: PropertyGetter<S, String>?,
     val sourcingFunctionRegistry: Map<Class<*>, FunctionAccessorMetadata<S, Void>>
-) : TypedAggregate<S>, Metadata {
-
-    fun toMessageFunctionRegistry(stateRoot: S): Map<Class<*>, MessageFunction<S, DomainEventExchange<*>, Void>> {
-        return sourcingFunctionRegistry
+) : TypedAggregate<S>,
+    Metadata {
+    /**
+     * Converts the sourcing function registry into executable message functions.
+     *
+     * This method creates a map of event types to their corresponding message functions for event sourcing.
+     *
+     * @param stateRoot The state aggregate instance to bind functions to.
+     * @return A map of event classes to their message functions.
+     */
+    fun toMessageFunctionRegistry(stateRoot: S): Map<Class<*>, MessageFunction<S, DomainEventExchange<*>, Void>> =
+        sourcingFunctionRegistry
             .map {
                 it.key to it.value.toMessageFunction<S, DomainEventExchange<*>, Void>(stateRoot)
             }.toMap()
-    }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -45,11 +66,7 @@ data class StateAggregateMetadata<S : Any>(
         return aggregateType == other.aggregateType
     }
 
-    override fun hashCode(): Int {
-        return aggregateType.hashCode()
-    }
+    override fun hashCode(): Int = aggregateType.hashCode()
 
-    override fun toString(): String {
-        return "StateAggregateMetadata(aggregateType=$aggregateType)"
-    }
+    override fun toString(): String = "StateAggregateMetadata(aggregateType=$aggregateType)"
 }
