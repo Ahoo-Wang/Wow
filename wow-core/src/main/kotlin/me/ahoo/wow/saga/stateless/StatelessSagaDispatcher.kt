@@ -21,6 +21,19 @@ import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
 import me.ahoo.wow.scheduler.DefaultAggregateSchedulerSupplier
 import reactor.core.publisher.Mono
 
+/**
+ * Dispatcher for stateless sagas that handles domain events and coordinates command execution.
+ * This dispatcher extends [AbstractEventDispatcher] to provide event-driven processing for sagas
+ * that don't maintain state between events.
+ *
+ * @property name The name of the dispatcher, typically formatted as `applicationName.StatelessSagaDispatcher`.
+ * @property parallelism The number of parallel threads for processing messages (default: [MessageParallelism.DEFAULT_PARALLELISM]).
+ * @property domainEventBus The bus for publishing domain events.
+ * @property stateEventBus The bus for publishing state events.
+ * @property functionRegistrar The registrar for stateless saga functions.
+ * @property eventHandler The handler for processing domain events.
+ * @property schedulerSupplier The supplier for aggregate schedulers (default: [DefaultAggregateSchedulerSupplier] with "SagaDispatcher" prefix).
+ */
 class StatelessSagaDispatcher(
     /**
      * named like `applicationName.StatelessSagaDispatcher`

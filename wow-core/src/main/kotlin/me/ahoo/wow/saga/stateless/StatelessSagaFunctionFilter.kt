@@ -17,6 +17,13 @@ import me.ahoo.wow.event.DomainEventFunctionFilter
 import me.ahoo.wow.filter.FilterType
 import me.ahoo.wow.ioc.ServiceProvider
 
+/**
+ * Filter for stateless saga functions that applies to [StatelessSagaDispatcher].
+ * This filter extends [DomainEventFunctionFilter] to provide filtering capabilities
+ * specific to stateless saga processing.
+ *
+ * @param serviceProvider The service provider for dependency injection.
+ */
 @FilterType(StatelessSagaDispatcher::class)
 class StatelessSagaFunctionFilter(
     serviceProvider: ServiceProvider

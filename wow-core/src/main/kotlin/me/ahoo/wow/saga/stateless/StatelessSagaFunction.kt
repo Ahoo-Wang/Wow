@@ -30,6 +30,15 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
 
+/**
+ * A stateless saga function that processes domain events and generates command streams.
+ * This function wraps a delegate message function and extends its behavior to handle command execution
+ * and collection into a [CommandStream] for stateless saga processing.
+ *
+ * @property delegate The underlying message function that handles the domain event processing.
+ * @property commandGateway The gateway used to send commands.
+ * @property commandMessageFactory The factory for creating command messages.
+ */
 class StatelessSagaFunction(
     override val delegate: MessageFunction<Any, DomainEventExchange<*>, Mono<*>>,
     private val commandGateway: CommandGateway,
@@ -43,16 +52,14 @@ class StatelessSagaFunction(
     override val supportedTopics: Set<NamedAggregate> = delegate.supportedTopics
     override val functionKind: FunctionKind = delegate.functionKind
 
-    override fun <A : Annotation> getAnnotation(annotationClass: Class<A>): A? {
-        return delegate.getAnnotation(annotationClass)
-    }
+    override fun <A : Annotation> getAnnotation(annotationClass: Class<A>): A? = delegate.getAnnotation(annotationClass)
 
-    override fun invoke(exchange: DomainEventExchange<*>): Mono<CommandStream> {
-        return delegate.invoke(exchange)
+    override fun invoke(exchange: DomainEventExchange<*>): Mono<CommandStream> =
+        delegate
+            .invoke(exchange)
             .flatMapMany {
                 toCommandFlux(exchange.message, it)
-            }
-            .concatMap {
+            }.concatMap {
                 commandGateway.send(it).thenReturn(it)
             }.collectList()
             .map {
@@ -60,20 +67,27 @@ class StatelessSagaFunction(
                 exchange.setCommandStream(commandStream)
                 commandStream
             }
-    }
 
-    private fun toCommandFlux(domainEvent: DomainEvent<*>, handleResult: Any): Publisher<CommandMessage<*>> {
+    private fun toCommandFlux(
+        domainEvent: DomainEvent<*>,
+        handleResult: Any
+    ): Publisher<CommandMessage<*>> {
         if (handleResult !is Iterable<*>) {
             return toCommand(domainEvent = domainEvent, singleResult = handleResult)
         }
-        return Flux.fromIterable(handleResult)
+        return Flux
+            .fromIterable(handleResult)
             .index()
             .flatMap {
                 toCommand(domainEvent = domainEvent, singleResult = it.t2, index = it.t1.toInt())
             }
     }
 
-    private fun toCommand(domainEvent: DomainEvent<*>, singleResult: Any, index: Int = 0): Mono<CommandMessage<*>> {
+    private fun toCommand(
+        domainEvent: DomainEvent<*>,
+        singleResult: Any,
+        index: Int = 0
+    ): Mono<CommandMessage<*>> {
         if (singleResult is CommandMessage<*>) {
             singleResult.header.propagate(domainEvent)
             return singleResult.toMono()
@@ -90,7 +104,5 @@ class StatelessSagaFunction(
         return commandMessageFactory.create<Any>(commandBuilder) as Mono<CommandMessage<*>>
     }
 
-    override fun toString(): String {
-        return "StatelessSagaFunction(actual=$delegate)"
-    }
+    override fun toString(): String = "StatelessSagaFunction(actual=$delegate)"
 }
