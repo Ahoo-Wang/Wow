@@ -14,17 +14,40 @@
 package me.ahoo.wow.api
 
 /**
- * 定义复制操作的契约，允许实现该接口的类的对象复制自身
- * 使用泛型参数 SOURCE 来表示源对象的类型，该类型在实现时被具体化
+ * Defines a contract for copy operations, allowing objects implementing this interface to create copies of themselves.
  *
- * @param <SOURCE> 源对象的类型，由实现类具体指定
+ * This interface provides a type-safe way to duplicate objects, ensuring that modifications to the copy
+ * do not affect the original instance. The generic parameter [SOURCE] represents the type of the source object,
+ * which is concretized by implementing classes.
+ *
+ * Implementations should create deep copies where appropriate to prevent unintended side effects
+ * when the copied object is modified.
+ *
+ * @param SOURCE The type of the source object, specified by the implementing class.
+ *               This is a covariant generic parameter (declared with 'out') to allow more specific types
+ *               in implementations while maintaining type safety.
+ *
+ * @sample
+ * ```
+ * data class Person(val name: String, val age: Int) : Copyable<Person> {
+ *     override fun copy(): Person = Person(name, age)
+ * }
+ *
+ * val original = Person("Alice", 30)
+ * val copy = original.copy()
+ * // Modifications to 'copy' don't affect 'original'
+ * ```
  */
 interface Copyable<out SOURCE> {
     /**
-     * 复制当前对象
-     * 该方法用于创建并返回当前对象的一个复制品，确保复制品在修改时不会影响到原始对象
+     * Creates and returns a copy of the current object.
      *
-     * @return SOURCE 复制后的对象，其类型与源对象相同
+     * This method should produce a new instance that is functionally equivalent to the current object
+     * but independent in terms of state modifications. The copy should be deep enough to prevent
+     * shared mutable state between the original and the copy.
+     *
+     * @return A new instance of type [SOURCE] that represents a copy of this object.
+     *         The returned object should be of the same type as the implementing class.
      */
     fun copy(): SOURCE
 }
