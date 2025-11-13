@@ -34,17 +34,6 @@ const val ORDER_LAST = Int.MAX_VALUE
  * - Managing dependencies between processors
  * - Implementing complex business workflows
  *
- * @param value The priority value. Lower numbers execute first. Common values:
- *             ORDER_FIRST (-2^31), ORDER_DEFAULT (0), ORDER_LAST (2^31-1)
- * @param before Array of classes that this element should execute before.
- *              Useful for relative ordering without hard-coded values.
- * @param after Array of classes that this element should execute after.
- *             Useful for relative ordering without hard-coded values.
- *
- * @see ORDER_FIRST for the highest priority
- * @see ORDER_DEFAULT for normal priority
- * @see ORDER_LAST for the lowest priority
- *
  * Example usage:
  * ```kotlin
  * @EventProcessor
@@ -69,6 +58,17 @@ const val ORDER_LAST = Int.MAX_VALUE
  *     }
  * }
  * ```
+ *
+ * @param value The priority value. Lower numbers execute first. Common values:
+ *             ORDER_FIRST (-2^31), ORDER_DEFAULT (0), ORDER_LAST (2^31-1)
+ * @param before Array of classes that this element should execute before.
+ *              Useful for relative ordering without hard-coded values.
+ * @param after Array of classes that this element should execute after.
+ *             Useful for relative ordering without hard-coded values.
+ *
+ * @see ORDER_FIRST for the highest priority
+ * @see ORDER_DEFAULT for normal priority
+ * @see ORDER_LAST for the lowest priority
  */
 @Target(AnnotationTarget.CLASS, AnnotationTarget.ANNOTATION_CLASS, AnnotationTarget.FUNCTION)
 @Inherited
