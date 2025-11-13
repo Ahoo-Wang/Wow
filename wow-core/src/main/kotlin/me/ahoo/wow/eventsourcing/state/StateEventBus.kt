@@ -19,11 +19,35 @@ import me.ahoo.wow.messaging.DistributedMessageBus
 import me.ahoo.wow.messaging.LocalMessageBus
 import me.ahoo.wow.messaging.MessageBus
 
-interface StateEventBus : MessageBus<StateEvent<*>, StateEventExchange<*>>, TopicKindCapable {
+/**
+ * Message bus for publishing and subscribing to state events.
+ * State events combine domain events with the resulting aggregate state,
+ * enabling subscribers to react to both the event and the current state.
+ *
+ * This bus is specifically designed for state events with topic kind STATE_EVENT.
+ */
+interface StateEventBus :
+    MessageBus<StateEvent<*>, StateEventExchange<*>>,
+    TopicKindCapable {
+    /**
+     * The topic kind for state events.
+     */
     override val topicKind: TopicKind
         get() = TopicKind.STATE_EVENT
 }
 
-interface LocalStateEventBus : StateEventBus, LocalMessageBus<StateEvent<*>, StateEventExchange<*>>
+/**
+ * Local state event bus that handles message routing within the same JVM instance.
+ * Messages are processed synchronously without network communication.
+ */
+interface LocalStateEventBus :
+    StateEventBus,
+    LocalMessageBus<StateEvent<*>, StateEventExchange<*>>
 
-interface DistributedStateEventBus : StateEventBus, DistributedMessageBus<StateEvent<*>, StateEventExchange<*>>
+/**
+ * Distributed state event bus that handles message routing across multiple instances or services.
+ * Messages are published to a distributed messaging system for cross-instance communication.
+ */
+interface DistributedStateEventBus :
+    StateEventBus,
+    DistributedMessageBus<StateEvent<*>, StateEventExchange<*>>

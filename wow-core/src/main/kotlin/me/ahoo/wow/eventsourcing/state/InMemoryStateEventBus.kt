@@ -17,13 +17,24 @@ import me.ahoo.wow.messaging.InMemoryMessageBus
 import reactor.core.publisher.Sinks
 import reactor.core.publisher.Sinks.Many
 
+/**
+ * In-memory implementation of LocalStateEventBus for testing and development.
+ * Uses Reactor Sinks for message broadcasting within the same JVM instance.
+ * Messages are not persisted and are lost when the application restarts.
+ *
+ * @param sinkSupplier Supplier for creating sinks for each named aggregate (default: multicast sink with backpressure buffer).
+ */
 class InMemoryStateEventBus(
     override val sinkSupplier: (NamedAggregate) -> Many<StateEvent<*>> = {
         Sinks.many().multicast().onBackpressureBuffer()
     }
-) : LocalStateEventBus, InMemoryMessageBus<StateEvent<*>, StateEventExchange<*>>() {
-
-    override fun StateEvent<*>.createExchange(): StateEventExchange<*> {
-        return SimpleStateEventExchange(this)
-    }
+) : InMemoryMessageBus<StateEvent<*>, StateEventExchange<*>>(),
+    LocalStateEventBus {
+    /**
+     * Creates a StateEventExchange from a StateEvent message.
+     * Wraps the state event in a SimpleStateEventExchange for processing.
+     *
+     * @return A new StateEventExchange containing this state event.
+     */
+    override fun StateEvent<*>.createExchange(): StateEventExchange<*> = SimpleStateEventExchange(this)
 }
