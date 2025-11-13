@@ -49,12 +49,20 @@ interface Header :
     val isReadOnly: Boolean
 
     /**
-     * Creates a new read-only copy of this header.
+     * Marks this header as read-only and returns it for method chaining.
      *
-     * This method creates a copy of the current header with all the same key-value pairs,
-     * but marks it as read-only to prevent further modifications.
+     * After calling this method, the header becomes immutable and any subsequent
+     * modification attempts will throw [UnsupportedOperationException]. This method
+     * enables fluent API usage for marking headers as read-only.
      *
-     * @return A new [Header] instance that is read-only and contains the same data as this header
+     * @return This header instance (now read-only) to support method chaining
+     *
+     * @sample
+     * ```kotlin
+     * val header = DefaultHeader()
+     *     .with("correlationId", "123")
+     *     .withReadOnly() // Header is now immutable
+     * ```
      */
     fun withReadOnly(): Header
 
