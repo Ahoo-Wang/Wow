@@ -17,35 +17,43 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import reactor.core.publisher.Mono
 
 /**
- * 定义一个函数式接口，用于处理给定上下文的逻辑
- * @param T 上下文的类型
+ * Functional interface for handling logic on a given context.
+ *
+ * @param T the type of the context
  */
 fun interface Handler<T> {
     /**
-     * 执行处理逻辑的方法
-     * @param context 处理的上下文
-     * @return 完成信号的Mono
+     * Method to execute the handling logic.
+     *
+     * @param context the context to handle
+     * @return a Mono signaling completion
      */
     fun handle(context: T): Mono<Void>
 }
 
 /**
- * 定义一个函数式接口，用于处理错误情况下的上下文
- * @param T 上下文的类型
+ * Functional interface for handling contexts in error situations.
+ *
+ * @param T the type of the context
  */
 fun interface ErrorHandler<T> {
     /**
-     * 执行错误处理逻辑的方法
-     * @param context 错误处理的上下文
-     * @param throwable 发生的异常
-     * @return 完成信号的Mono
+     * Method to execute error handling logic.
+     *
+     * @param context the context for error handling
+     * @param throwable the exception that occurred
+     * @return a Mono signaling completion
      */
-    fun handle(context: T, throwable: Throwable): Mono<Void>
+    fun handle(
+        context: T,
+        throwable: Throwable
+    ): Mono<Void>
 }
 
 /**
- * 实现ErrorHandler接口，用于日志记录错误信息
- * @param T 上下文的类型
+ * Implementation of ErrorHandler interface for logging error information.
+ *
+ * @param T the type of the context
  */
 class LogErrorHandler<T> : ErrorHandler<T> {
     companion object {
@@ -53,34 +61,43 @@ class LogErrorHandler<T> : ErrorHandler<T> {
     }
 
     /**
-     * 记录错误信息并重新抛出异常
-     * @param context 错误处理的上下文
-     * @param throwable 发生的异常
-     * @return 完成信号的Mono，这里通过Mono.error重新抛出异常
+     * Logs error information and re-throws the exception.
+     *
+     * @param context the context for error handling
+     * @param throwable the exception that occurred
+     * @return a Mono signaling completion, here re-throwing the exception via Mono.error
      */
-    override fun handle(context: T, throwable: Throwable): Mono<Void> {
+    override fun handle(
+        context: T,
+        throwable: Throwable
+    ): Mono<Void> {
         log.error(throwable) { throwable.message }
         return Mono.error(throwable)
     }
 }
 
 /**
- * 实现ErrorHandler接口，用于日志记录错误信息后继续执行
- * @param T 上下文的类型
+ * Implementation of ErrorHandler interface for logging error information and continuing execution.
+ *
+ * @param T the type of the context
  */
 class LogResumeErrorHandler<T> : ErrorHandler<T> {
     companion object {
-        // 日志记录器
+        // Logger
         private val log = KotlinLogging.logger { }
     }
 
     /**
-     * 记录错误信息并返回空的Mono，表示错误处理完毕，继续执行
-     * @param context 错误处理的上下文
-     * @param throwable 发生的异常
-     * @return 空的Mono，表示错误处理完毕
+     * Logs error information and returns an empty Mono, indicating error handling is complete and execution continues.
+     *
+     * @param context the context for error handling
+     * @param throwable the exception that occurred
+     * @return an empty Mono, indicating error handling is complete
      */
-    override fun handle(context: T, throwable: Throwable): Mono<Void> {
+    override fun handle(
+        context: T,
+        throwable: Throwable
+    ): Mono<Void> {
         log.error(throwable) { throwable.message }
         return Mono.empty()
     }
@@ -101,8 +118,9 @@ abstract class AbstractHandler<T>(
      * @param context 处理的上下文
      * @return 完成信号的Mono，当发生异常时通过错误处理器进行处理
      */
-    override fun handle(context: T): Mono<Void> {
-        return chain.filter(context)
+    override fun handle(context: T): Mono<Void> =
+        chain
+            .filter(context)
             .onErrorResume {
                 // 如果上下文实现了ErrorAccessor接口，则设置错误信息
                 if (context is ErrorAccessor) {
@@ -111,5 +129,4 @@ abstract class AbstractHandler<T>(
                 // 使用错误处理器处理异常
                 errorHandler.handle(context, it)
             }
-    }
 }
