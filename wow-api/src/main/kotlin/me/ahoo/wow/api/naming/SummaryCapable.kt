@@ -13,6 +13,17 @@
 
 package me.ahoo.wow.api.naming
 
+/**
+ * Interface for entities that provide a summary or brief description.
+ *
+ * This interface allows objects to include concise summary information that
+ * provides a quick overview or abstract of the entity's content or purpose.
+ */
 interface SummaryCapable {
+    /**
+     * A brief summary of the entity.
+     *
+     * @return A string containing a concise summary or overview.
+     */
     val summary: String
 }

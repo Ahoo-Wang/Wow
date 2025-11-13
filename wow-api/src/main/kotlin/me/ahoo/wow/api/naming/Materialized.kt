@@ -13,4 +13,11 @@
 
 package me.ahoo.wow.api.naming
 
+/**
+ * Marker interface indicating that an entity represents materialized data.
+ *
+ * Materialized entities contain computed or cached data that has been derived from
+ * other sources and stored for efficient access. This interface serves as a type
+ * marker to distinguish materialized data from raw or computed data.
+ */
 interface Materialized

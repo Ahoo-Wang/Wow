@@ -13,6 +13,17 @@
 
 package me.ahoo.wow.api.naming
 
+/**
+ * Interface for entities that have a name identifier.
+ *
+ * This interface provides a standard way for objects to expose a human-readable
+ * name that can be used for identification, display, or referencing purposes.
+ */
 interface Named {
+    /**
+     * The name of the entity.
+     *
+     * @return A string representing the name of the entity.
+     */
     val name: String
 }
