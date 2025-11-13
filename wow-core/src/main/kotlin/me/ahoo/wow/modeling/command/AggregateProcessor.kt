@@ -21,6 +21,14 @@ import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.messaging.processor.MonoMessageProcessor
 import reactor.core.publisher.Mono
 
+/**
+ * Processor for handling commands on a specific aggregate instance.
+ *
+ * This interface defines the contract for processing commands against a particular aggregate,
+ * ensuring proper serialization and state management.
+ *
+ * @param C The type of the command aggregate root.
+ */
 interface AggregateProcessor<C : Any> :
     AggregateIdCapable,
     NamedTypedAggregate<C>,
@@ -28,7 +36,13 @@ interface AggregateProcessor<C : Any> :
     override val aggregateId: AggregateId
 
     /**
-     * Processing of commands must be serial.
+     * Processes a command exchange for this aggregate instance.
+     *
+     * Command processing must be serial to maintain consistency and prevent race conditions.
+     *
+     * @param exchange The command exchange to process.
+     * @return A Mono containing the resulting domain event stream.
+     * @throws CommandExpectVersionConflictException if there's a version conflict.
      */
     @Throws(CommandExpectVersionConflictException::class)
     override fun process(exchange: ServerCommandExchange<*>): Mono<DomainEventStream>

@@ -20,9 +20,25 @@ import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.Handler
 import me.ahoo.wow.filter.LogResumeErrorHandler
 
+/**
+ * Handler interface for processing command exchanges.
+ *
+ * Implementations of this interface are responsible for handling server command exchanges
+ * through a filter chain, providing the main entry point for command processing.
+ */
 interface CommandHandler : Handler<ServerCommandExchange<*>>
 
+/**
+ * Default implementation of CommandHandler using a filter chain.
+ *
+ * This handler processes commands by passing them through a configured filter chain,
+ * with built-in error handling capabilities.
+ *
+ * @param chain The filter chain to process commands through.
+ * @param errorHandler The error handler for handling exceptions during command processing. Defaults to LogResumeErrorHandler.
+ */
 class DefaultCommandHandler(
     chain: FilterChain<ServerCommandExchange<*>>,
     errorHandler: ErrorHandler<ServerCommandExchange<*>> = LogResumeErrorHandler()
-) : CommandHandler, AbstractHandler<ServerCommandExchange<*>>(chain, errorHandler)
+) : AbstractHandler<ServerCommandExchange<*>>(chain, errorHandler),
+    CommandHandler
