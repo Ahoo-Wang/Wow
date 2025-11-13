@@ -15,7 +15,21 @@ package me.ahoo.wow.infra.accessor.constructor
 import me.ahoo.wow.infra.accessor.ensureAccessible
 import java.lang.reflect.Constructor
 
-class DefaultConstructorAccessor<T : Any>(override val constructor: Constructor<T>) : ConstructorAccessor<T> {
+/**
+ * Default implementation of ConstructorAccessor that provides basic constructor invocation capabilities.
+ * This class automatically ensures the constructor is accessible during initialization,
+ * making it ready for reflection-based instantiation of private, protected, or package-private constructors.
+ *
+ * @param T the type of object that will be created by the constructor
+ * @property constructor the Java constructor to be accessed
+ */
+class DefaultConstructorAccessor<T : Any>(
+    override val constructor: Constructor<T>
+) : ConstructorAccessor<T> {
+    /**
+     * Initialization block that ensures the constructor is accessible for reflection.
+     * This automatically makes private, protected, or package-private constructors accessible.
+     */
     init {
         constructor.ensureAccessible()
     }

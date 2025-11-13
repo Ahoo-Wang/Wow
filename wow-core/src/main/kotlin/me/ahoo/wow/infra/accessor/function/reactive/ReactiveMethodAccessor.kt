@@ -16,6 +16,22 @@ import me.ahoo.wow.infra.accessor.function.FunctionAccessor
 import org.reactivestreams.Publisher
 import reactor.core.publisher.Mono
 
+/**
+ * Interface for accessing reactive functions that return Publisher-based types.
+ * Extends FunctionAccessor to provide reactive stream support for functions
+ * that return reactive types like Flux, Mono, or other Publisher implementations.
+ *
+ * @param T the type of the target object
+ * @param R the reactive return type that extends Publisher
+ */
 interface ReactiveFunctionAccessor<T, out R : Publisher<*>> : FunctionAccessor<T, R>
 
+/**
+ * Interface for accessing functions that return Mono reactive streams.
+ * Specializes ReactiveFunctionAccessor for Mono-specific operations,
+ * providing type safety for single-value reactive returns.
+ *
+ * @param T the type of the target object
+ * @param R the Mono return type
+ */
 interface MonoFunctionAccessor<T, out R : Mono<*>> : ReactiveFunctionAccessor<T, R>

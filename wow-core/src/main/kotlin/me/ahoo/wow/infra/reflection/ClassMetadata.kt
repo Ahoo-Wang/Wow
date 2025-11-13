@@ -18,7 +18,37 @@ import kotlin.reflect.full.memberFunctions
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.full.starProjectedType
 
+/**
+ * Utility object for visiting and analyzing Kotlin class metadata.
+ * Provides a visitor pattern implementation to traverse class elements including
+ * types, constructors, properties, and functions in a structured way.
+ *
+ * This is useful for frameworks that need to introspect class structures
+ * for code generation, validation, or runtime analysis.
+ */
 object ClassMetadata {
+    /**
+     * Visits all metadata elements of a Kotlin class using the provided visitor.
+     * The visit follows a structured pattern: start, visit types, constructors,
+     * properties, functions, and end. This ensures consistent traversal order.
+     *
+     * @param T the type of the class being visited
+     * @param visitor the visitor that will process each class element
+     *
+     * @sample
+     * ```
+     * class MyVisitor : ClassVisitor<MyClass, Unit> {
+     *     override fun start() { println("Starting visit") }
+     *     override fun visitType(type: KType) { println("Type: $type") }
+     *     override fun visitConstructor(constructor: KFunction<MyClass>) { println("Constructor: $constructor") }
+     *     override fun visitProperty(property: KProperty1<MyClass, *>) { println("Property: $property") }
+     *     override fun visitFunction(function: KFunction<*>) { println("Function: $function") }
+     *     override fun end() { println("Visit complete") }
+     * }
+     *
+     * MyClass::class.visit(MyVisitor())
+     * ```
+     */
     fun <T : Any> KClass<T>.visit(visitor: ClassVisitor<T, *>) {
         visitor.start()
         visitor.visitType(this.starProjectedType)

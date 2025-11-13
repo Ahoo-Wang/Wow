@@ -15,6 +15,15 @@ package me.ahoo.wow.infra.prepare
 
 import me.ahoo.wow.infra.prepare.PreparedValue.Companion.TTL_FOREVER
 
+/**
+ * Default implementation of PreparedValue that wraps a value with TTL information.
+ * This class provides a simple data structure for storing prepared values with
+ * optional expiration timestamps.
+ *
+ * @param V the type of the prepared value
+ * @property value the actual value being prepared
+ * @property ttlAt the expiration timestamp in milliseconds since epoch (defaults to permanent)
+ */
 data class DefaultPreparedValue<V>(
     override val value: V,
     override val ttlAt: Long = TTL_FOREVER

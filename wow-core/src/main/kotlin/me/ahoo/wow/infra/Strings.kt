@@ -13,6 +13,22 @@
 
 package me.ahoo.wow.infra
 
+/**
+ * Executes a function on a string if it is not null, empty, or blank (contains only whitespace).
+ * This is a null-safe utility function that provides a concise way to perform operations
+ * on non-blank strings while returning null for blank inputs.
+ *
+ * @param R the return type of the function
+ * @param func the function to execute if the string is not blank
+ * @return the result of the function if the string is not blank, null otherwise
+ *
+ * Example usage:
+ * ```
+ * val result = "  hello  ".ifNotBlank { it.trim().uppercase() } // returns "HELLO"
+ * val nullResult = "   ".ifNotBlank { it.trim() } // returns null
+ * val nullInput = null.ifNotBlank { it.length } // returns null
+ * ```
+ */
 public inline fun <R> String?.ifNotBlank(func: (String) -> R): R? {
     if (this.isNullOrBlank()) {
         return null

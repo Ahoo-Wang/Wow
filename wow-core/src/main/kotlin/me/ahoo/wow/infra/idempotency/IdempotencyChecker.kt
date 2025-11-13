@@ -15,20 +15,41 @@ package me.ahoo.wow.infra.idempotency
 import reactor.core.publisher.Mono
 
 /**
- * Idempotency Checker .
+ * Interface for checking idempotency of operations to prevent duplicate processing.
+ * Idempotency checkers determine whether a given element (typically a command or request identifier)
+ * has been processed before, ensuring that operations can be safely retried without side effects.
  *
  * @author ahoo wang
  */
 fun interface IdempotencyChecker {
     /**
-     * 检查幂等性，如果该元素通过幂等性检查则返回 `true`,即表示该命令不重复.
+     * Checks if the given element passes the idempotency test.
+     * Returns true if the element is considered unique (not a duplicate), false if it's a duplicate.
+     * The check is performed asynchronously and returns a Mono for reactive programming compatibility.
+     *
+     * @param element the element to check for idempotency (typically a command or request identifier)
+     * @return a Mono emitting true if the element passes the idempotency check (is unique),
+     *         false if it's a duplicate
      */
     fun check(element: String): Mono<Boolean>
 }
 
+/**
+ * No-operation implementation of IdempotencyChecker that always allows operations to proceed.
+ * This implementation always returns true, effectively disabling idempotency checking.
+ * Useful for scenarios where idempotency is not required or is handled elsewhere.
+ */
 object NoOpIdempotencyChecker : IdempotencyChecker {
+    /**
+     * Pre-computed Mono that always emits true, cached for performance.
+     */
     private val ALWAYS_TRUE = Mono.just(true)
-    override fun check(element: String): Mono<Boolean> {
-        return ALWAYS_TRUE
-    }
+
+    /**
+     * Always returns true, indicating that all elements pass the idempotency check.
+     *
+     * @param element the element to check (ignored in this implementation)
+     * @return a Mono that always emits true
+     */
+    override fun check(element: String): Mono<Boolean> = ALWAYS_TRUE
 }

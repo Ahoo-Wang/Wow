@@ -16,12 +16,40 @@ import java.lang.reflect.AccessibleObject
 import kotlin.reflect.KCallable
 import kotlin.reflect.jvm.isAccessible
 
+/**
+ * Ensures that a Java reflection AccessibleObject (like Method, Field, Constructor) is accessible.
+ * This method sets the accessible flag to true if it's not already set, allowing access
+ * to private, protected, or package-private members.
+ *
+ * This is a convenience method that safely handles the accessibility check and setting.
+ *
+ * Example usage:
+ * ```
+ * val method = MyClass::class.java.getDeclaredMethod("privateMethod")
+ * method.ensureAccessible() // Now accessible even if private
+ * method.invoke(instance)
+ * ```
+ */
 fun AccessibleObject.ensureAccessible() {
     if (!this.isAccessible) {
         this.isAccessible = true
     }
 }
 
+/**
+ * Ensures that a Kotlin reflection KCallable (like KFunction, KProperty) is accessible.
+ * This method sets the accessible flag to true if it's not already set, allowing access
+ * to private, protected, or package-private members.
+ *
+ * This is a convenience method that safely handles the accessibility check and setting.
+ *
+ * Example usage:
+ * ```
+ * val property = MyClass::class.members.find { it.name == "privateProperty" } as KProperty1<MyClass, *>
+ * property.ensureAccessible() // Now accessible even if private
+ * val value = property.get(instance)
+ * ```
+ */
 fun KCallable<*>.ensureAccessible() {
     if (!this.isAccessible) {
         this.isAccessible = true
