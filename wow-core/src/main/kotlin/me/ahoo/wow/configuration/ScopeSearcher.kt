@@ -85,7 +85,9 @@ interface ScopeSearcher<V : Any> : SortedMap<String, V> {
      * @return The matching value.
      * @throws IllegalStateException if no matching value is found.
      */
-    fun requiredSearch(scope: String): V = checkNotNull(search(scope)) { "Scope:[$scope] does not have a matching metadata definition." }
+    fun requiredSearch(scope: String): V = checkNotNull(search(scope)) {
+        "Scope:[$scope] does not have a matching metadata definition."
+    }
 }
 
 /**
