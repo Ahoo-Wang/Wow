@@ -17,14 +17,21 @@ import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.messaging.Message
 
 /**
- * 消息传播器接口，用于将上游消息的上下文信息传播到指定的头部信息中
+ * Interface for message propagators that transfer context information from upstream messages to headers.
+ *
+ * Message propagators are responsible for copying relevant context data (like tracing information,
+ * user details, etc.) from source messages to target message headers for distributed tracing
+ * and context propagation.
  */
 interface MessagePropagator {
     /**
-     * 将上游消息的上下文信息传播到目标头部
+     * Propagates context information from an upstream message to the target header.
      *
-     * @param header 目标消息的头部信息，用于接收传播的上下文数据
-     * @param upstream 上游消息，提供需要传播的上下文信息
+     * @param header The target message header to receive propagated context data
+     * @param upstream The upstream message providing context information to propagate
      */
-    fun propagate(header: Header, upstream: Message<*, *>)
+    fun propagate(
+        header: Header,
+        upstream: Message<*, *>
+    )
 }

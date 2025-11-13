@@ -21,6 +21,14 @@ import me.ahoo.wow.metrics.Metrics.writeMetricsSubscriber
 import me.ahoo.wow.serialization.toJsonString
 import reactor.core.publisher.Flux
 
+/**
+ * Abstract base class for message dispatchers that manage multiple aggregate dispatchers.
+ *
+ * This class coordinates the dispatching of messages to multiple named aggregates by
+ * creating individual dispatchers for each aggregate and managing their lifecycle.
+ *
+ * @param T The type of message being dispatched
+ */
 abstract class AbstractDispatcher<T : Any> : MessageDispatcher {
     companion object {
         private val log = KotlinLogging.logger {}
@@ -31,8 +39,32 @@ abstract class AbstractDispatcher<T : Any> : MessageDispatcher {
      */
     abstract val namedAggregates: Set<NamedAggregate>
 
+    /**
+     * Creates a flux of messages for the specified named aggregate.
+     *
+     * @param namedAggregate The named aggregate to receive messages for
+     * @return A flux of messages for the aggregate
+     */
     abstract fun receiveMessage(namedAggregate: NamedAggregate): Flux<T>
-    abstract fun newAggregateDispatcher(namedAggregate: NamedAggregate, messageFlux: Flux<T>): MessageDispatcher
+
+    /**
+     * Creates a new message dispatcher for a specific named aggregate.
+     *
+     * @param namedAggregate The named aggregate for the dispatcher
+     * @param messageFlux The flux of messages for the aggregate
+     * @return A new message dispatcher instance
+     */
+    abstract fun newAggregateDispatcher(
+        namedAggregate: NamedAggregate,
+        messageFlux: Flux<T>
+    ): MessageDispatcher
+
+    /**
+     * Lazily initialized list of aggregate dispatchers, one for each named aggregate.
+     *
+     * Each dispatcher is created with a message flux that includes receiver group
+     * and metrics context.
+     */
     protected val aggregateDispatchers by lazy {
         namedAggregates
             .map {
@@ -43,6 +75,12 @@ abstract class AbstractDispatcher<T : Any> : MessageDispatcher {
             }
     }
 
+    /**
+     * Starts the dispatcher by running all aggregate dispatchers.
+     *
+     * Logs the named aggregates being subscribed to and starts each individual
+     * aggregate dispatcher. If no aggregates are configured, logs a warning and returns.
+     */
     override fun run() {
         log.info {
             "[$name] Run subscribe to namedAggregates:${namedAggregates.toJsonString()}."
@@ -56,6 +94,11 @@ abstract class AbstractDispatcher<T : Any> : MessageDispatcher {
         aggregateDispatchers.forEach { it.run() }
     }
 
+    /**
+     * Closes the dispatcher and all its aggregate dispatchers.
+     *
+     * Logs the closure and calls close on each aggregate dispatcher.
+     */
     override fun close() {
         log.info {
             "[$name] Close."

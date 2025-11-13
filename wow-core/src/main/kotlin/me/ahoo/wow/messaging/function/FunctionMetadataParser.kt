@@ -42,9 +42,26 @@ import kotlin.reflect.full.valueParameters
 import kotlin.reflect.jvm.javaMethod
 import kotlin.reflect.jvm.jvmErasure
 
+/**
+ * Parser for extracting function metadata from Kotlin reflection.
+ *
+ * Provides utilities to analyze Kotlin functions and create metadata objects
+ * that describe how message functions should be invoked.
+ */
 object FunctionMetadataParser {
-
-    fun <P, R> KFunction<*>.toFunctionMetadata(accessorFactory: (KFunction<*>) -> FunctionAccessor<P, R>): FunctionAccessorMetadata<P, R> {
+    /**
+     * Parses a Kotlin function to create function accessor metadata.
+     *
+     * Analyzes the function's parameters, annotations, and context to determine
+     * how it should be invoked as a message function.
+     *
+     * @param accessorFactory Factory function to create the function accessor
+     * @return Metadata describing how to invoke this function
+     * @throws IllegalStateException if the function is not properly annotated
+     */
+    fun <P, R> KFunction<*>.toFunctionMetadata(
+        accessorFactory: (KFunction<*>) -> FunctionAccessor<P, R>
+    ): FunctionAccessorMetadata<P, R> {
         val parameterTypes = valueParameters
         check(parameterTypes.isNotEmpty()) { "The function has at least one parameter." }
         /*
@@ -57,10 +74,12 @@ object FunctionMetadataParser {
         val accessor = accessorFactory(this)
         val supportedTopics = toSupportedTopics(functionKind, supportedType)
 
-        val injectParameterTypes = parameterTypes.asSequence().drop(1)
+        val injectParameterTypes = parameterTypes.asSequence()
+            .drop(1)
             .map {
                 InjectParameter(it)
-            }.toList().toTypedArray()
+            }.toList()
+            .toTypedArray()
         return FunctionAccessorMetadata(
             functionKind = functionKind,
             accessor = accessor,
@@ -71,8 +90,8 @@ object FunctionMetadataParser {
         )
     }
 
-    private fun KParameter.toFirstParameterKind(): FirstParameterKind {
-        return when {
+    private fun KParameter.toFirstParameterKind(): FirstParameterKind =
+        when {
             type.isSubtypeOf(MessageExchange::class.starProjectedType) -> {
                 FirstParameterKind.MESSAGE_EXCHANGE
             }
@@ -85,7 +104,6 @@ object FunctionMetadataParser {
                 FirstParameterKind.MESSAGE_BODY
             }
         }
-    }
 
     private fun KFunction<*>.toFunctionKind(): FunctionKind {
         scanAnnotation<OnMessage>()?.let {
@@ -115,8 +133,8 @@ object FunctionMetadataParser {
         throw IllegalStateException("The method [$$name] is not annotated by @OnMessage.")
     }
 
-    private fun KParameter.toSupportedType(firstParameterKind: FirstParameterKind): Class<*> {
-        return when (firstParameterKind) {
+    private fun KParameter.toSupportedType(firstParameterKind: FirstParameterKind): Class<*> =
+        when (firstParameterKind) {
             FirstParameterKind.MESSAGE_EXCHANGE, FirstParameterKind.MESSAGE -> {
                 checkNotNull(type.arguments[0].type).jvmErasure.java
             }
@@ -125,7 +143,6 @@ object FunctionMetadataParser {
                 type.jvmErasure.java
             }
         }
-    }
 
     private fun KFunction<*>.toSupportedTopics(
         functionKind: FunctionKind,
@@ -167,15 +184,23 @@ object FunctionMetadataParser {
         return setOf()
     }
 
-    fun <P, R> KFunction<*>.toFunctionMetadata(): FunctionAccessorMetadata<P, R> {
-        return this.toFunctionMetadata {
+    /**
+     * Creates function metadata using a simple function accessor.
+     *
+     * @return Metadata for synchronous function invocation
+     */
+    fun <P, R> KFunction<*>.toFunctionMetadata(): FunctionAccessorMetadata<P, R> =
+        this.toFunctionMetadata {
             SimpleFunctionAccessor(it)
         }
-    }
 
-    fun <P, R> KFunction<*>.toMonoFunctionMetadata(): FunctionAccessorMetadata<P, Mono<R>> {
-        return this.toFunctionMetadata {
+    /**
+     * Creates function metadata for reactive Mono-returning functions.
+     *
+     * @return Metadata for reactive function invocation
+     */
+    fun <P, R> KFunction<*>.toMonoFunctionMetadata(): FunctionAccessorMetadata<P, Mono<R>> =
+        this.toFunctionMetadata {
             it.toMonoFunctionAccessor()
         }
-    }
 }

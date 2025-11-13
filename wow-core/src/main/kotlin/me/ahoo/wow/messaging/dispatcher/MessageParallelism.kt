@@ -16,11 +16,29 @@ package me.ahoo.wow.messaging.dispatcher
 import me.ahoo.wow.api.modeling.AggregateIdCapable
 import me.ahoo.wow.api.modeling.mod
 
+/**
+ * Utility object for calculating message processing parallelism.
+ *
+ * Provides default parallelism settings and functions to compute grouping keys
+ * for parallel message processing based on aggregate IDs.
+ */
 object MessageParallelism {
+    /**
+     * Default parallelism level for message processing.
+     *
+     * Can be overridden by the "wow.parallelism" system property.
+     * Defaults to 100 times the number of available processors.
+     */
     val DEFAULT_PARALLELISM = System.getProperty("wow.parallelism")?.toInt()
         ?: (100 * Runtime.getRuntime().availableProcessors())
 
-    fun AggregateIdCapable.toGroupKey(parallelism: Int = DEFAULT_PARALLELISM): Int {
-        return aggregateId.mod(parallelism)
-    }
+    /**
+     * Computes a grouping key for parallel processing based on the aggregate ID.
+     *
+     * Uses modulo operation to distribute aggregate IDs across parallel groups.
+     *
+     * @param parallelism The number of parallel groups (default: DEFAULT_PARALLELISM)
+     * @return An integer key between 0 and parallelism-1
+     */
+    fun AggregateIdCapable.toGroupKey(parallelism: Int = DEFAULT_PARALLELISM): Int = aggregateId.mod(parallelism)
 }

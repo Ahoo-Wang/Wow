@@ -17,9 +17,24 @@ import io.github.oshai.kotlinlogging.KLogger
 import reactor.util.retry.Retry
 import java.time.Duration
 
+/**
+ * Maximum number of retry attempts.
+ */
 private const val MAX_RETRIES = 10L
+
+/**
+ * Minimum backoff duration between retries.
+ */
 private val MIN_BACKOFF = Duration.ofMillis(200)
 
+/**
+ * Creates a retry strategy with exponential backoff and logging.
+ *
+ * @param maxAttempts Maximum number of retry attempts (default: 10)
+ * @param minBackoff Minimum backoff duration between retries (default: 200ms)
+ * @param logger Logger to use for retry notifications
+ * @return A configured Retry instance
+ */
 fun retryStrategy(
     maxAttempts: Long = MAX_RETRIES,
     minBackoff: Duration = MIN_BACKOFF,

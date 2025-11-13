@@ -18,39 +18,64 @@ import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.naming.Named
 
+/**
+ * Propagator that handles trace ID and upstream information propagation.
+ *
+ * This propagator copies trace IDs and upstream message information
+ * to maintain distributed tracing context across message boundaries.
+ */
 class TraceMessagePropagator : MessagePropagator {
     companion object {
+        /**
+         * Header key for trace ID.
+         */
         private const val TRACE_ID = "trace_id"
+
+        /**
+         * Header key for upstream message ID.
+         */
         private const val UPSTREAM_ID = "upstream_id"
+
+        /**
+         * Header key for upstream message name.
+         */
         private const val UPSTREAM_NAME = "upstream_name"
 
+        /**
+         * Gets the trace ID from the header.
+         */
         val Header.traceId: String?
             get() {
                 return this[TRACE_ID]
             }
 
-        fun Header.withTraceId(traceId: String): Header {
-            return this.with(TRACE_ID, traceId)
-        }
+        /**
+         * Adds a trace ID to the header.
+         *
+         * @param traceId The trace ID to add
+         * @return A new header with the trace ID
+         */
+        fun Header.withTraceId(traceId: String): Header = this.with(TRACE_ID, traceId)
 
         val Header.upstreamId: String?
             get() {
                 return this[UPSTREAM_ID]
             }
 
-        fun Header.withUpstreamId(upstreamId: String): Header {
-            return this.with(UPSTREAM_ID, upstreamId)
-        }
+        fun Header.withUpstreamId(upstreamId: String): Header = this.with(UPSTREAM_ID, upstreamId)
 
         val Header.upstreamName: String?
             get() {
                 return this[UPSTREAM_NAME]
             }
 
-        fun Header.withUpstreamName(upstreamName: String): Header {
-            return this.with(UPSTREAM_NAME, upstreamName)
-        }
+        fun Header.withUpstreamName(upstreamName: String): Header = this.with(UPSTREAM_NAME, upstreamName)
 
+        /**
+         * Ensures the command message has a trace ID, using its own ID if none exists.
+         *
+         * @return The command message with a trace ID
+         */
         fun <C : Any> CommandMessage<C>.ensureTraceId(): CommandMessage<C> {
             if (header.traceId == null) {
                 header.withTraceId(id)
@@ -59,7 +84,19 @@ class TraceMessagePropagator : MessagePropagator {
         }
     }
 
-    override fun propagate(header: Header, upstream: Message<*, *>) {
+    /**
+     * Propagates trace and upstream information from the upstream message.
+     *
+     * Copies trace ID if present, always sets upstream ID, and sets upstream name
+     * if the upstream message is named.
+     *
+     * @param header The target header to propagate to
+     * @param upstream The upstream message to propagate from
+     */
+    override fun propagate(
+        header: Header,
+        upstream: Message<*, *>
+    ) {
         upstream.header.traceId?.let {
             header.withTraceId(it)
         }

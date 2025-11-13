@@ -20,10 +20,31 @@ import me.ahoo.wow.event.compensation.StateEventCompensator
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
 
+/**
+ * Supporter class that coordinates event compensation operations.
+ *
+ * This class acts as a facade for different types of event compensators,
+ * routing compensation requests to the appropriate compensator based on
+ * the function kind.
+ *
+ * @property domainEventCompensator Handles domain event compensations
+ * @property stateEventCompensator Handles state event compensations
+ */
 class EventCompensateSupporter(
     private val domainEventCompensator: DomainEventCompensator,
     private val stateEventCompensator: StateEventCompensator
 ) {
+    /**
+     * Performs compensation for the specified aggregate and version.
+     *
+     * Routes the compensation request to the appropriate compensator based on
+     * the function kind (EVENT or STATE_EVENT).
+     *
+     * @param aggregateId The ID of the aggregate to compensate
+     * @param version The version to compensate from
+     * @param target The compensation target specifying what to compensate
+     * @return A Mono emitting the number of events resent, or an error for unsupported function kinds
+     */
     fun compensate(
         aggregateId: AggregateId,
         version: Int,
