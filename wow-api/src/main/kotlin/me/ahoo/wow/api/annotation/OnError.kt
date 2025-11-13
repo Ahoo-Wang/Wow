@@ -19,10 +19,48 @@ import java.lang.annotation.Inherited
 const val DEFAULT_ON_ERROR_NAME = "onError"
 
 /**
- * OnCommandError .
+ * Marks a function as a command error handler within an aggregate.
  *
- * @author ahoo wang
- * @see me.ahoo.wow.modeling.command.CommandAggregate
+ * Functions annotated with @OnError are invoked when command processing fails.
+ * They provide an opportunity to handle errors gracefully, potentially recovering
+ * from failures or publishing error events for monitoring and debugging.
+ *
+ * Error handlers can:
+ * - Log error details for monitoring
+ * - Publish error events for external systems
+ * - Attempt error recovery or compensation
+ * - Transform exceptions into domain events
+ * - Trigger fallback business logic
+ *
+ * Error handlers receive the original command and the exception that occurred,
+ * allowing for context-aware error processing.
+ *
+ * Example usage:
+ * ```kotlin
+ * @AggregateRoot
+ * class OrderAggregate {
+ *
+ *     @OnCommand
+ *     fun create(command: CreateOrderCommand): OrderCreated {
+ *         // Command processing that might fail
+ *         validateOrder(command)
+ *         return OrderCreated(command.orderId, command.items)
+ *     }
+ *
+ *     @OnError
+ *     fun onCreateError(command: CreateOrderCommand, error: Exception): OrderCreationFailed? {
+ *         // Log the error
+ *         logger.error("Failed to create order ${command.orderId}", error)
+ *
+ *         // Publish error event for monitoring
+ *         return if (error is ValidationException) {
+ *             OrderCreationFailed(command.orderId, error.message ?: "Validation failed")
+ *         } else null // Don't publish events for unexpected errors
+ *     }
+ * }
+ * ```
+ * @see OnCommand for regular command handlers
+ * @see CommandAggregate for command processing implementation
  */
 @Target(AnnotationTarget.FUNCTION, AnnotationTarget.ANNOTATION_CLASS)
 @Inherited

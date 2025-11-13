@@ -16,6 +16,52 @@ package me.ahoo.wow.api.annotation
 import org.springframework.stereotype.Component
 import java.lang.annotation.Inherited
 
+/**
+ * Marks a class as a stateless saga for orchestrating complex business processes.
+ *
+ * Stateless sagas coordinate multiple aggregates and external services to implement
+ * long-running business processes. Unlike stateful sagas, they don't maintain persistent
+ * state between events, making them simpler but less flexible for complex orchestrations.
+ *
+ * Stateless sagas are ideal for:
+ * - Simple sequential process orchestration
+ * - Event-driven workflows without complex state
+ * - Processes that can be restarted from any point
+ * - High-throughput scenarios where state persistence is costly
+ *
+ *
+ * Example usage:
+ * ```kotlin
+ * @StatelessSaga
+ * class OrderFulfillmentSaga {
+ *
+ *     @OnEvent
+ *     fun onOrderCreated(event: OrderCreated) {
+ *         // Start fulfillment process
+ *         inventoryService.reserveItems(event.orderId, event.items)
+ *         shippingService.schedulePickup(event.orderId, event.shippingAddress)
+ *     }
+ *
+ *     @OnEvent
+ *     fun onPaymentConfirmed(event: PaymentConfirmed) {
+ *         // Complete order when payment is confirmed
+ *         orderService.markAsPaid(event.orderId)
+ *         notificationService.sendOrderConfirmation(event.customerId)
+ *     }
+ *
+ *     @OnEvent
+ *     fun onInventoryShortage(event: InventoryShortage) {
+ *         // Handle inventory issues
+ *         orderService.cancelOrder(event.orderId, "Insufficient inventory")
+ *         notificationService.sendCancellationNotice(event.customerId)
+ *     }
+ * }
+ * ```
+ *
+ * @see EventProcessor for general event processing
+ * @see OnEvent for event handler methods
+
+ */
 @Target(AnnotationTarget.CLASS, AnnotationTarget.ANNOTATION_CLASS)
 @Inherited
 @MustBeDocumented

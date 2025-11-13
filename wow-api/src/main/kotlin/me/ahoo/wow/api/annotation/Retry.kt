@@ -19,32 +19,72 @@ import me.ahoo.wow.api.annotation.Retry.Companion.DEFAULT_MIN_BACKOFF
 import kotlin.reflect.KClass
 
 /**
- * 用于标记函数，以启用重试机制。该注解允许配置重试策略，包括是否启用、最大重试次数、最小回退时间、执行超时时间以及指定可恢复和不可恢复的异常类型。
+ * Enables retry mechanism for annotated functions with configurable retry policies.
  *
- * @param enabled 是否启用重试功能，默认为true。
- * @param maxRetries 最大重试次数，默认值为[DEFAULT_MAX_RETRIES]。
- * @param minBackoff 第一次回退的最短持续时间（单位：秒），默认值为[DEFAULT_MIN_BACKOFF]。查看[java.time.temporal.ChronoUnit.SECONDS]获取更多关于时间单位的信息。
- * @param executionTimeout 执行操作的最大超时时间（单位：秒），默认值为[DEFAULT_EXECUTION_TIMEOUT]。同样地，参考[java.time.temporal.ChronoUnit.SECONDS]了解时间单位详情。
- * @param recoverable 指定在遇到这些类型的异常时进行重试。数组形式，允许指定多个异常类。
- * @param unrecoverable 指定遇到这些异常时不进行重试。同样使用数组形式来指定一个或多个异常类。
+ * This annotation provides resilient error handling by automatically retrying failed operations
+ * according to specified policies. It's essential for handling transient failures in distributed
+ * systems, network operations, and external service calls.
+ *
+ * The retry mechanism supports:
+ * - Exponential backoff with jitter
+ * - Configurable retry counts and timeouts
+ * - Selective exception handling (recoverable vs unrecoverable)
+ * - Circuit breaker patterns integration
+ *
+ * Example usage:
+ * ```kotlin
+ * class PaymentService {
+ *
+ *     @Retry(
+ *         maxRetries = 3,
+ *         minBackoff = 1,
+ *         recoverable = [IOException::class, TimeoutException::class],
+ *         unrecoverable = [IllegalArgumentException::class]
+ *     )
+ *     fun processPayment(request: PaymentRequest): PaymentResult {
+ *         // Network call that might fail temporarily
+ *         return paymentGateway.charge(request)
+ *     }
+ *
+ *     @Retry(enabled = false)  // Disable retries for this operation
+ *     fun validatePayment(request: PaymentRequest) {
+ *         // Validation that should fail fast
+ *         require(request.amount > 0) { "Amount must be positive" }
+ *     }
+ * }
+ * ```
+ *
+ * @param enabled Whether retry functionality is enabled. Defaults to true.
+ * @param maxRetries Maximum number of retry attempts. Defaults to [DEFAULT_MAX_RETRIES].
+ * @param minBackoff Minimum backoff duration in seconds before first retry.
+ *                  Uses exponential backoff for subsequent retries.
+ *                  See [java.time.temporal.ChronoUnit.SECONDS] for time units.
+ * @param executionTimeout Maximum timeout in seconds for each execution attempt.
+ *                        Prevents hanging operations. See [java.time.temporal.ChronoUnit.SECONDS].
+ * @param recoverable Array of exception types that should trigger retries when encountered.
+ *                   Only these exceptions will cause retry attempts.
+ * @param unrecoverable Array of exception types that should NOT trigger retries.
+ *                     These exceptions fail immediately without retry.
+ *
+ * @see DEFAULT_MAX_RETRIES for the default retry limit
+ * @see DEFAULT_MIN_BACKOFF for the default backoff duration
+ * @see DEFAULT_EXECUTION_TIMEOUT for the default execution timeout
  */
 @Target(AnnotationTarget.FUNCTION)
 annotation class Retry(
     val enabled: Boolean = true,
     /**
-     * 最大重试次数
+     * Maximum number of retry attempts.
      */
     val maxRetries: Int = DEFAULT_MAX_RETRIES,
-
     /**
-     * the minimum Duration for the first backoff
+     * Minimum backoff duration in seconds before the first retry.
      *
      * @see java.time.temporal.ChronoUnit.SECONDS
      */
     val minBackoff: Int = DEFAULT_MIN_BACKOFF,
-
     /**
-     * 执行超时时间
+     * Maximum execution timeout in seconds for each retry attempt.
      *
      * @see java.time.temporal.ChronoUnit.SECONDS
      */

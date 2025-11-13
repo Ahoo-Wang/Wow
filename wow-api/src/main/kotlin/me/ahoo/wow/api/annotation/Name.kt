@@ -15,7 +15,32 @@ package me.ahoo.wow.api.annotation
 
 import java.lang.annotation.Inherited
 
+/**
+ * Specifies a custom name for an annotated element.
+ *
+ * This annotation allows overriding the default naming conventions used by the framework.
+ * It's commonly used for:
+ * - Custom aggregate names in routing
+ * - Named parameters in configuration
+ * - Custom identifiers in serialization
+ * - Override default naming in code generation
+ *
+ * Example usage:
+ * ```kotlin
+ * @AggregateRoot
+ * @Name("purchase-order")  // Custom name for routing instead of class name
+ * class OrderAggregate
+ *
+ * // In configuration or parameters
+ * fun process(@Name("order-id") orderId: String) {
+ *     // Parameter named "order-id" instead of "orderId"
+ * }
+ * ```
+ * @param value The custom name to use for the annotated element.
+ */
 @Target(AnnotationTarget.CLASS, AnnotationTarget.VALUE_PARAMETER)
 @Inherited
 @MustBeDocumented
-annotation class Name(val value: String)
+annotation class Name(
+    val value: String
+)

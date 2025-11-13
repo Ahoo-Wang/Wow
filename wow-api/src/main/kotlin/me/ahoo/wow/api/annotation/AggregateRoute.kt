@@ -16,11 +16,42 @@ package me.ahoo.wow.api.annotation
 import java.lang.annotation.Inherited
 
 /**
- * Marks a class as an aggregate route, which is used to define the routing behavior for aggregate operations.
- * The annotation can specify the resource name and the ownership policy for the aggregate.
+ * Configures routing and ownership behavior for aggregate operations.
  *
- * @param resourceName the name of the resource this aggregate route is associated with. Default is an empty string.
- * @param owner the ownership policy that determines how the aggregate handles ownership. It can be one of [Owner.NEVER], [Owner.ALWAYS], or [Owner.AGGREGATE_ID].
+ * This annotation defines how aggregate instances are accessed and managed in terms of:
+ * - Resource naming for API endpoints
+ * - Ownership policies for multi-tenant scenarios
+ * - Route generation for REST APIs
+ *
+ * The routing configuration affects how commands are dispatched and how API endpoints
+ * are generated for the aggregate.
+ *
+ * Example usage:
+ * ```kotlin
+ * @AggregateRoot
+ * @AggregateRoute(
+ *     resourceName = "orders",
+ *     owner = AggregateRoute.Owner.AGGREGATE_ID
+ * )
+ * class OrderAggregate(
+ *     @AggregateId
+ *     val orderId: String,
+ *
+ *     @OwnerId
+ *     val customerId: String
+ * )
+ * ```
+ * This generates routes like: `POST /orders/{orderId}/create`
+ *
+ * @param resourceName Custom name for the resource in API routes. If empty, the aggregate
+ *                    class name (lowercased) will be used. This affects URL generation.
+ * @param enabled Whether routing is enabled for this aggregate. When false, no routes
+ *               will be generated. Defaults to true.
+ * @param owner Ownership policy determining tenant isolation. Controls whether operations
+ *             require owner context and how ownership is determined.
+ *
+ * @see Owner for available ownership policies
+ * @see AggregateRoot for marking aggregate root classes
  */
 @Target(AnnotationTarget.CLASS)
 @Inherited
@@ -30,13 +61,29 @@ annotation class AggregateRoute(
     val enabled: Boolean = true,
     val owner: Owner = Owner.NEVER
 ) {
-
-    enum class Owner(val owned: Boolean) {
+    /**
+     * Defines ownership policies for aggregate operations in multi-tenant scenarios.
+     *
+     * @param owned Whether this policy requires ownership context for operations.
+     */
+    enum class Owner(
+        val owned: Boolean
+    ) {
+        /**
+         * No ownership required. Operations can be performed without owner context.
+         * Suitable for public aggregates or system-wide resources.
+         */
         NEVER(false),
+
+        /**
+         * Ownership always required. All operations must specify an owner context.
+         * Used when aggregates are strictly isolated by owner.
+         */
         ALWAYS(true),
 
         /**
-         * owner id is aggregate Id
+         * Owner ID is the same as aggregate ID. The aggregate instance itself serves
+         * as the ownership boundary. Common for user-specific aggregates.
          */
         AGGREGATE_ID(true)
     }

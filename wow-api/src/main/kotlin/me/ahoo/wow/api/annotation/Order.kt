@@ -21,6 +21,55 @@ const val ORDER_DEFAULT = 0
 const val ORDER_DEFAULT_STEP = 100
 const val ORDER_LAST = Int.MAX_VALUE
 
+/**
+ * Specifies the execution order for annotated elements.
+ *
+ * This annotation controls the sequence in which handlers, processors, or components
+ * are executed when multiple candidates exist for the same operation. Lower values
+ * indicate higher priority (executed first).
+ *
+ * Ordering is essential for:
+ * - Ensuring correct sequence of event processing
+ * - Controlling initialization order of components
+ * - Managing dependencies between processors
+ * - Implementing complex business workflows
+ *
+ * @param value The priority value. Lower numbers execute first. Common values:
+ *             ORDER_FIRST (-2^31), ORDER_DEFAULT (0), ORDER_LAST (2^31-1)
+ * @param before Array of classes that this element should execute before.
+ *              Useful for relative ordering without hard-coded values.
+ * @param after Array of classes that this element should execute after.
+ *             Useful for relative ordering without hard-coded values.
+ *
+ * @see ORDER_FIRST for the highest priority
+ * @see ORDER_DEFAULT for normal priority
+ * @see ORDER_LAST for the lowest priority
+ *
+ * Example usage:
+ * ```kotlin
+ * @EventProcessor
+ * class OrderProcessor {
+ *
+ *     @OnEvent
+ *     @Order(1)  // Execute first
+ *     fun validateOrder(event: OrderCreated) {
+ *         // Validation logic
+ *     }
+ *
+ *     @OnEvent
+ *     @Order(2)  // Execute after validation
+ *     fun processPayment(event: OrderCreated) {
+ *         // Payment processing
+ *     }
+ *
+ *     @OnEvent
+ *     @Order(after = [PaymentProcessor::class])  // Execute after PaymentProcessor
+ *     fun sendConfirmation(event: OrderCreated) {
+ *         // Send confirmation
+ *     }
+ * }
+ * ```
+ */
 @Target(AnnotationTarget.CLASS, AnnotationTarget.ANNOTATION_CLASS, AnnotationTarget.FUNCTION)
 @Inherited
 @MustBeDocumented
@@ -30,6 +79,9 @@ annotation class Order(
     val after: Array<KClass<*>> = []
 ) {
     companion object {
+        /**
+         * Default ordering instance with normal priority.
+         */
         val DEFAULT = Order()
     }
 }
