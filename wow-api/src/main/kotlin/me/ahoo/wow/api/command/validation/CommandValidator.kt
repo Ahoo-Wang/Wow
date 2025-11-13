@@ -14,17 +14,52 @@
 package me.ahoo.wow.api.command.validation
 
 /**
- * Command Validator
+ * Functional interface for validating command payloads before execution.
  *
- * 由命令体实现该接口，用于校验命令体的合法性
+ * Commands implementing this interface can perform custom validation logic on their
+ * payload data. Validation ensures that commands contain valid, consistent data before
+ * being processed by aggregates, preventing invalid state changes and improving system reliability.
  *
- * @see me.ahoo.wow.command.CommandValidationException
- * @see me.ahoo.wow.command.DefaultCommandGateway
+ * The validation is typically executed early in the command processing pipeline,
+ * allowing for fast failure of invalid commands.
+ *
+ * @see CommandValidationException thrown when validation fails
+ * @see DefaultCommandGateway for where validation is typically invoked
+ *
+ * Example usage:
+ * ```kotlin
+ * data class CreateUserCommand(
+ *     val email: String,
+ *     val password: String
+ * ) : CommandValidator {
+ *
+ *     override fun validate() {
+ *         require(email.isNotBlank()) { "Email cannot be blank" }
+ *         require(password.length >= 8) { "Password must be at least 8 characters" }
+ *         require(email.contains("@")) { "Email must be valid format" }
+ *     }
+ * }
+ * ```
+ *
+ * @throws CommandValidationException when validation rules are violated
+ * @throws IllegalArgumentException for invalid input parameters
+ * @throws IllegalStateException for invalid object state
  */
 fun interface CommandValidator {
     /**
-     * Validate Command Body
+     * Validates the command payload for correctness and consistency.
      *
+     * This method should check all business rules and constraints applicable to the command.
+     * If validation fails, it should throw an appropriate exception with a descriptive message.
+     *
+     * Validation should be:
+     * - Fast and lightweight (avoid expensive operations)
+     * - Deterministic (same input always produces same result)
+     * - Comprehensive (cover all critical validation rules)
+     *
+     * @throws CommandValidationException when business validation rules are violated
+     * @throws IllegalArgumentException when input parameters are invalid
+     * @throws IllegalStateException when the command is in an invalid state
      */
     fun validate()
 }

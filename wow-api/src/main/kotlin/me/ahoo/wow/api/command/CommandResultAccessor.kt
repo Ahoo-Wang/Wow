@@ -14,30 +14,68 @@
 package me.ahoo.wow.api.command
 
 /**
- * Provides methods to access and manipulate the results of a command execution. This interface is designed to store and retrieve command results, which can be useful for tracking the outcomes of commands
- *  and ensuring idempotency.
+ * Provides access to command execution results for tracking and idempotency purposes.
+ *
+ * This interface allows storing and retrieving the outcomes of command processing,
+ * which is essential for:
+ * - Implementing idempotent command handling
+ * - Caching command results
+ * - Auditing command executions
+ * - Supporting distributed command processing
+ *
+ * Results are stored as key-value pairs where keys are unique identifiers
+ * and values can be any serializable object.
+ *
+ * @see CommandMessage for the command structure
+ *
+ * Example usage:
+ * ```kotlin
+ * class CommandProcessor(private val resultAccessor: CommandResultAccessor) {
+ *     fun processCommand(command: CommandMessage<*>): Any? {
+ *         val result = resultAccessor.getCommandResult<Any>(command.commandId)
+ *         if (result != null) {
+ *             return result // Idempotent: return cached result
+ *         }
+ *         val newResult = executeCommand(command)
+ *         resultAccessor.setCommandResult(command.commandId, newResult)
+ *         return newResult
+ *     }
+ * }
+ * ```
  */
 interface CommandResultAccessor {
     /**
-     * Sets the result of a command execution with the specified key and value.
+     * Stores the result of a command execution for later retrieval.
      *
-     * @param key The unique identifier for the command result to set.
-     * @param value The value to be stored as the result of the command execution.
+     * @param key A unique identifier for the command result (typically the command ID)
+     * @param value The result value to store. Can be any object that needs to be preserved
+     *              for idempotency or auditing purposes.
+     *
+     * @throws IllegalArgumentException if the key is null or empty
+     * @throws IllegalStateException if the result cannot be stored due to storage limitations
      */
-    fun setCommandResult(key: String, value: Any)
+    fun setCommandResult(
+        key: String,
+        value: Any
+    )
 
     /**
-     * Retrieves the result of a command execution based on the provided key.
+     * Retrieves a previously stored command result by its key.
      *
-     * @param key The unique identifier for the command result to retrieve.
-     * @return The result of the command execution associated with the given key, or null if no result is found.
+     * @param R The expected type of the result value
+     * @param key The unique identifier for the command result to retrieve
+     * @return The stored result cast to type R, or null if no result exists for the key
+     *
+     * @throws ClassCastException if the stored value cannot be cast to type R
+     * @throws IllegalArgumentException if the key is null or empty
      */
     fun <R> getCommandResult(key: String): R?
 
     /**
-     * Retrieves the results of all command executions.
+     * Retrieves all stored command results as a read-only map.
      *
-     * @return A map containing the keys and their corresponding results of the command executions.
+     * @return An immutable map containing all command result key-value pairs.
+     *         Returns an empty map if no results are stored.
      */
     fun getCommandResult(): Map<String, Any>
 }
