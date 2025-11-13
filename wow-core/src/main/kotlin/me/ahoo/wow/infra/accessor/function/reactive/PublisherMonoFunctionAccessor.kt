@@ -19,15 +19,40 @@ import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
 import kotlin.reflect.KFunction
 
-data class PublisherMonoFunctionAccessor<T, D>(override val function: KFunction<*>) : MonoFunctionAccessor<T, Mono<D>> {
-
+/**
+ * MonoFunctionAccessor for functions that return Publisher streams.
+ * This accessor converts Publisher results to Mono<D> by taking the first emitted item,
+ * providing compatibility with the Reactive Streams specification.
+ *
+ * @param T the type of the target object
+ * @param D the type of data in the Publisher
+ * @property function the Kotlin function that returns a Publisher
+ */
+data class PublisherMonoFunctionAccessor<T, D>(
+    override val function: KFunction<*>
+) : MonoFunctionAccessor<T, Mono<D>> {
+    /**
+     * Initialization block that ensures the method is accessible for reflection.
+     * This automatically makes private, protected, or package-private methods accessible.
+     */
     init {
         method.ensureAccessible()
     }
 
-    override operator fun invoke(target: T, args: Array<Any?>): Mono<D> {
-        return Mono.defer {
+    /**
+     * Invokes the function that returns a Publisher and converts it to a Mono.
+     * Uses Mono.defer for lazy evaluation and toMono() to convert the Publisher
+     * to a Mono that emits the first item.
+     *
+     * @param target the object on which to invoke the function
+     * @param args the arguments to pass to the function
+     * @return a Mono containing the first item emitted by the Publisher
+     */
+    override operator fun invoke(
+        target: T,
+        args: Array<Any?>
+    ): Mono<D> =
+        Mono.defer {
             FastInvoke.safeInvoke<Publisher<D>>(method, target, args).toMono()
         }
-    }
 }

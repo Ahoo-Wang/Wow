@@ -17,16 +17,40 @@ import me.ahoo.wow.infra.accessor.method.FastInvoke
 import reactor.core.publisher.Mono
 import kotlin.reflect.KFunction
 
-data class SyncMonoFunctionAccessor<T, D>(override val function: KFunction<*>) :
-    MonoFunctionAccessor<T, Mono<D>> {
-
+/**
+ * MonoFunctionAccessor for synchronous functions that don't return reactive types.
+ * This accessor wraps synchronous function calls in Mono.fromCallable to provide
+ * reactive stream compatibility while executing the function on a blocking thread.
+ *
+ * @param T the type of the target object
+ * @param D the type of data in the Mono
+ * @property function the synchronous Kotlin function to be invoked
+ */
+data class SyncMonoFunctionAccessor<T, D>(
+    override val function: KFunction<*>
+) : MonoFunctionAccessor<T, Mono<D>> {
+    /**
+     * Initialization block that ensures the function is accessible for reflection.
+     * This automatically makes private, protected, or package-private functions accessible.
+     */
     init {
         function.ensureAccessible()
     }
 
-    override operator fun invoke(target: T, args: Array<Any?>): Mono<D> {
-        return Mono.fromCallable {
+    /**
+     * Invokes the synchronous function and wraps the result in a Mono.
+     * Uses Mono.fromCallable to execute the blocking operation on a suitable thread
+     * and provide reactive stream compatibility.
+     *
+     * @param target the object on which to invoke the function
+     * @param args the arguments to pass to the function
+     * @return a Mono containing the result of the synchronous function call
+     */
+    override operator fun invoke(
+        target: T,
+        args: Array<Any?>
+    ): Mono<D> =
+        Mono.fromCallable {
             FastInvoke.safeInvoke(method, target, args)
         }
-    }
 }

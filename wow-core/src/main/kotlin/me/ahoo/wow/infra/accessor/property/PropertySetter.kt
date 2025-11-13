@@ -16,16 +16,56 @@ package me.ahoo.wow.infra.accessor.property
 import me.ahoo.wow.infra.accessor.ensureAccessible
 import kotlin.reflect.KMutableProperty1
 
+/**
+ * Functional interface for setting property values on objects.
+ * Provides a unified way to modify properties using a consistent API.
+ *
+ * @param T the type of the target object
+ * @param V the type of the property value
+ */
 fun interface PropertySetter<in T, in V> {
-    operator fun set(target: T, value: V)
+    /**
+     * Sets the property value on the specified target object.
+     *
+     * @param target the object on which to set the property value
+     * @param value the new property value
+     */
+    operator fun set(
+        target: T,
+        value: V
+    )
 }
 
-class SimplePropertySetter<T, V>(private val property: KMutableProperty1<T, V>) : PropertySetter<T, V> {
+/**
+ * PropertySetter implementation that modifies a Kotlin mutable property reflectively.
+ * This setter uses Kotlin reflection to set property values, automatically
+ * ensuring the property is accessible for private/protected properties.
+ *
+ * @param T the type of the target object
+ * @param V the type of the property value
+ * @property property the Kotlin mutable property to modify
+ */
+class SimplePropertySetter<T, V>(
+    private val property: KMutableProperty1<T, V>
+) : PropertySetter<T, V> {
+    /**
+     * Initialization block that ensures the property is accessible for reflection.
+     * This automatically makes private, protected, or package-private properties accessible.
+     */
     init {
         property.ensureAccessible()
     }
 
-    override fun set(target: T, value: V) {
+    /**
+     * Sets the property value on the target using reflection.
+     *
+     * @param target the object on which to set the property value
+     * @param value the new property value
+     */
+    override fun set(
+        target: T,
+        value: V
+    ) {
         property.set(target, value)
     }
 }
