@@ -53,7 +53,8 @@ object AggregateIdGeneratorRegistrar :
     Map<NamedAggregate, IdGenerator> by AGGREGATE_ID_GENERATORS {
     private val log = KotlinLogging.logger {}
     private val factories: List<AggregateIdGeneratorFactory> by lazy {
-        return@lazy ServiceLoader.load(AggregateIdGeneratorFactory::class.java)
+        return@lazy ServiceLoader
+            .load(AggregateIdGeneratorFactory::class.java)
             .sortedByOrder()
     }
 
@@ -68,8 +69,8 @@ object AggregateIdGeneratorRegistrar :
      * @return the [IdGenerator] associated with the [key]
      * @throws IllegalStateException if no [AggregateIdGeneratorFactory] can create an [IdGenerator] for the [key]
      */
-    fun getOrInitialize(key: NamedAggregate): IdGenerator {
-        return AGGREGATE_ID_GENERATORS.computeIfAbsent(key) { _ ->
+    fun getOrInitialize(key: NamedAggregate): IdGenerator =
+        AGGREGATE_ID_GENERATORS.computeIfAbsent(key) { _ ->
             factories.firstNotNullOfOrNull {
                 log.info {
                     "Load $it to create [$key]'s AggregateIdGenerator."
@@ -87,7 +88,6 @@ object AggregateIdGeneratorRegistrar :
                 idGenerator
             } ?: throw IllegalStateException("No AggregateIdGeneratorFactory found for [$key]'s AggregateIdGenerator.")
         }
-    }
 
     /**
      * Generates a unique ID string for the given [key].
@@ -103,7 +103,13 @@ object AggregateIdGeneratorRegistrar :
 /**
  * Generates a unique ID string for this [NamedAggregate].
  *
+ * This extension function provides a convenient way to generate IDs directly on aggregate instances.
+ * It materializes the aggregate and delegates to [AggregateIdGeneratorRegistrar.generateId].
+ *
  * @return the generated ID as a string
+ * @sample
+ * val aggregate: NamedAggregate = // some aggregate instance
+ * val id = aggregate.generateId() // Generates a unique ID for this aggregate
  */
 fun NamedAggregate.generateId(): String {
     return AggregateIdGeneratorRegistrar.generateId(materialize())

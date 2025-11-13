@@ -24,15 +24,39 @@ import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.configuration.MetadataSearcher
 
+/**
+ * Factory for creating [IdGenerator] instances for [NamedAggregate] using the CosId library.
+ *
+ * This factory attempts to retrieve an existing [IdGenerator] from the [IdGeneratorProvider] based on the aggregate's
+ * metadata ID or name. If no generator is found, it creates a new [ClockSyncCosIdGenerator] with a [Radix62CosIdGenerator]
+ * using the global machine ID.
+ *
+ * The factory is ordered with [ORDER_LAST] to serve as a fallback when other factories cannot provide a generator.
+ *
+ * @property idProvider the [IdGeneratorProvider] used to retrieve or store ID generators. Defaults to [DefaultIdGeneratorProvider.INSTANCE].
+ * @see AggregateIdGeneratorFactory
+ * @see NamedAggregate
+ * @see IdGenerator
+ */
 @Order(ORDER_LAST)
 class CosIdAggregateIdGeneratorFactory(
     private val idProvider: IdGeneratorProvider = DefaultIdGeneratorProvider.INSTANCE
-) :
-    AggregateIdGeneratorFactory {
+) : AggregateIdGeneratorFactory {
     companion object {
         private val log = KotlinLogging.logger {}
     }
 
+    /**
+     * Creates an [IdGenerator] for the specified [NamedAggregate].
+     *
+     * This method first attempts to retrieve an existing [IdGenerator] from the [idProvider] using the aggregate's
+     * ID from metadata or the aggregate name as the key. If found, it returns the existing generator.
+     * If not found, it creates a new [ClockSyncCosIdGenerator] wrapping a [Radix62CosIdGenerator] initialized
+     * with the global machine ID.
+     *
+     * @param namedAggregate the [NamedAggregate] for which to create the ID generator
+     * @return the [IdGenerator] for the aggregate, either retrieved from the provider or newly created
+     */
     override fun create(namedAggregate: NamedAggregate): IdGenerator {
         val idGenName = MetadataSearcher.metadata
             .contexts[namedAggregate.contextName]
