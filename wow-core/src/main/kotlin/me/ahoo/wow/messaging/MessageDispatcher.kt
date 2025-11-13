@@ -15,4 +15,13 @@ package me.ahoo.wow.messaging
 
 import me.ahoo.wow.api.naming.Named
 
-interface MessageDispatcher : Runnable, AutoCloseable, Named
+/**
+ * Represents a message dispatcher that can run and dispatch messages.
+ *
+ * This interface combines the capabilities of running a dispatch process,
+ * being closable for resource management, and having a name for identification.
+ */
+interface MessageDispatcher :
+    Runnable,
+    AutoCloseable,
+    Named
