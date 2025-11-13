@@ -13,42 +13,71 @@
 
 package me.ahoo.wow.api.exception
 
-import me.ahoo.wow.api.exception.RecoverableType.RECOVERABLE
-import me.ahoo.wow.api.exception.RecoverableType.UNKNOWN
-import me.ahoo.wow.api.exception.RecoverableType.UNRECOVERABLE
-
 /**
- * Enumerates the types of recoverability for errors or operations, allowing for classification and handling based on whether an error is transient and can be resolved by retrying.
+ * Defines the recoverability classification for errors and operations.
  *
- * The [RecoverableType] enum provides a way to categorize errors into three distinct categories: [RECOVERABLE], [UNRECOVERABLE], and [UNKNOWN].
- * This categorization is essential for implementing robust error handling and retry mechanisms in applications,
- * ensuring that temporary issues are retried while permanent or unknown issues are handled appropriately.
+ * This enum categorizes errors based on whether they can be resolved through retry mechanisms.
+ * It provides a standardized way to determine error handling strategies, enabling intelligent
+ * retry policies and failure recovery in distributed systems.
  *
- *  @see me.ahoo.wow.api.annotation.Retry
+ * The classification helps in:
+ * - Implementing circuit breakers and retry logic
+ * - Determining appropriate error responses to clients
+ * - Logging and monitoring error patterns
+ * - Resource allocation for error recovery
+ *
+ * @see me.ahoo.wow.api.annotation.Retry for retry policy annotations
+ *
+ * @sample
+ * ```kotlin
+ * when (error.recoverableType) {
+ *     RECOVERABLE -> retryWithBackoff()
+ *     UNRECOVERABLE -> logAndFail(error)
+ *     UNKNOWN -> conservativeRetry()
+ * }
+ * ```
  */
 enum class RecoverableType {
     /**
-     * Represents an error type that indicates the operation or error can be retried.
+     * Indicates that the error or operation failure is recoverable through retry.
      *
-     * This enum value is used to classify errors in a way that allows for the implementation of retry logic. When an error
-     * is marked as [RECOVERABLE], it signifies that the error condition is temporary and might be resolved upon retrying the
-     * operation. This is particularly useful in scenarios where network issues, transient server errors, or other temporary
-     * conditions may cause an operation to fail, but with a high likelihood of success on subsequent attempts.
+     * Use this classification for transient errors that are likely to succeed on retry.
+     * Common scenarios include:
+     * - Network timeouts or connectivity issues
+     * - Temporary service unavailability
+     * - Rate limiting or throttling
+     * - Optimistic locking conflicts
+     * - Temporary resource exhaustion
+     *
+     * Operations with this type should be retried with appropriate backoff strategies.
      */
     RECOVERABLE,
 
     /**
-     * Represents an error type that indicates the operation or error cannot be retried.
+     * Indicates that the error or operation failure is not recoverable through retry.
      *
-     * This enum value is used to classify errors in a way that signifies the error condition is permanent and retrying the operation will not resolve the issue. It is particularly
-     *  useful for handling errors where the underlying problem is fundamental and cannot be resolved by simply retrying, such as invalid input, resource exhaustion, or other non-transient
-     *  issues.
+     * Use this classification for permanent errors that will consistently fail on retry.
+     * Common scenarios include:
+     * - Invalid input data or request parameters
+     * - Authentication or authorization failures
+     * - Resource not found (404 errors)
+     * - Business logic violations
+     * - Configuration errors
+     *
+     * Operations with this type should not be retried and should be handled as permanent failures.
      */
     UNRECOVERABLE,
 
     /**
-     * Represents an unknown type of recoverability for an error or operation.
-     * This is used when the recoverability of an error cannot be determined or is not specified.
+     * Indicates that the recoverability of the error cannot be determined.
+     *
+     * Use this classification when:
+     * - Error classification logic is not implemented
+     * - Error type is new or unrecognized
+     * - External systems don't provide recoverability information
+     * - Conservative approach is needed for unknown errors
+     *
+     * Operations with this type should use conservative retry policies or require manual intervention.
      */
     UNKNOWN
 }

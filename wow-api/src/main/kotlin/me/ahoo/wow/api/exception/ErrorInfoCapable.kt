@@ -13,6 +13,24 @@
 
 package me.ahoo.wow.api.exception
 
+/**
+ * Interface for entities that can provide error information.
+ *
+ * Classes implementing this interface are capable of supplying detailed error
+ * information through the [errorInfo] property. This is useful for objects that
+ * need to report errors in a standardized way, such as API responses, command
+ * results, or any operation that may fail.
+ *
+ * @see ErrorInfo for the structure of error information
+ * @see DefaultErrorInfo for a concrete implementation
+ */
 interface ErrorInfoCapable {
+    /**
+     * The error information associated with this entity.
+     *
+     * This property provides access to detailed error data including error codes,
+     * messages, and any binding errors that may have occurred. The error info
+     * can be used for logging, user feedback, or programmatic error handling.
+     */
     val errorInfo: ErrorInfo
 }
