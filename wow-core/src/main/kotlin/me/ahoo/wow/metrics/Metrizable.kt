@@ -13,4 +13,12 @@
 
 package me.ahoo.wow.metrics
 
+/**
+ * Marker interface indicating that a component has been wrapped with metrics collection capabilities.
+ * Components implementing this interface are already decorated with metric decorators and should
+ * not be wrapped again to avoid double metrics collection.
+ *
+ * This interface is used by the Metrics.metrizable() function to determine whether a component
+ * already has metrics enabled, preventing redundant decoration.
+ */
 interface Metrizable

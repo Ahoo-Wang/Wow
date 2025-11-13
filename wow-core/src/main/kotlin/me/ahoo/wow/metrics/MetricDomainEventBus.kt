@@ -24,40 +24,87 @@ import me.ahoo.wow.metrics.Metrics.tagMetricsSubscriber
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-open class MetricDomainEventBus<T : DomainEventBus>(delegate: T) :
+/**
+ * Metric decorator for domain event buses that collects metrics on domain event sending and receiving operations.
+ * This class wraps any DomainEventBus implementation and adds metrics collection with tags for
+ * aggregate name and source identification.
+ *
+ * @param T the specific type of DomainEventBus being decorated
+ * @property delegate the underlying domain event bus implementation
+ */
+open class MetricDomainEventBus<T : DomainEventBus>(
+    delegate: T
+) : AbstractMetricDecorator<T>(delegate),
     DomainEventBus,
-    AbstractMetricDecorator<T>(delegate),
     Metrizable {
-
-    override fun send(message: DomainEventStream): Mono<Void> {
-        return delegate.send(message)
+    /**
+     * Sends a domain event stream and collects metrics on the operation.
+     * Metrics collected include timing, success/failure rates, and tags for aggregate identification.
+     *
+     * @param message the domain event stream to send
+     * @return a Mono that completes when the event stream is sent
+     */
+    override fun send(message: DomainEventStream): Mono<Void> =
+        delegate
+            .send(message)
             .name(Wow.WOW_PREFIX + "event.send")
             .tagSource()
             .tag(Metrics.AGGREGATE_KEY, message.aggregateName)
             .metrics()
-    }
 
-    override fun receive(namedAggregates: Set<NamedAggregate>): Flux<EventStreamExchange> {
-        return delegate.receive(namedAggregates)
+    /**
+     * Receives event stream exchanges for the specified named aggregates and collects metrics on the operation.
+     * Metrics collected include timing and tags for aggregate identification and subscriber information.
+     *
+     * @param namedAggregates the set of named aggregates to receive events for
+     * @return a Flux of event stream exchanges
+     */
+    override fun receive(namedAggregates: Set<NamedAggregate>): Flux<EventStreamExchange> =
+        delegate
+            .receive(namedAggregates)
             .name(Wow.WOW_PREFIX + "event.receive")
             .tagSource()
             .tag(Metrics.AGGREGATE_KEY, namedAggregates.joinToString(",") { it.aggregateName })
             .tagMetricsSubscriber()
-    }
 
+    /**
+     * Closes the domain event bus and releases any resources.
+     * This delegates to the underlying domain event bus implementation.
+     */
     override fun close() {
         delegate.close()
     }
 }
 
-class MetricLocalDomainEventBus(delegate: LocalDomainEventBus) :
-    LocalDomainEventBus,
-    MetricDomainEventBus<LocalDomainEventBus>(delegate) {
-    override fun subscriberCount(namedAggregate: NamedAggregate): Int {
-        return delegate.subscriberCount(namedAggregate)
-    }
+/**
+ * Metric decorator specifically for local domain event buses.
+ * Extends MetricDomainEventBus to provide metrics collection for local domain event bus operations
+ * while maintaining the LocalDomainEventBus interface.
+ *
+ * @property delegate the underlying local domain event bus implementation
+ */
+class MetricLocalDomainEventBus(
+    delegate: LocalDomainEventBus
+) : MetricDomainEventBus<LocalDomainEventBus>(delegate),
+    LocalDomainEventBus {
+    /**
+     * Returns the number of subscribers for the specified named aggregate.
+     * This delegates to the underlying local domain event bus implementation.
+     *
+     * @param namedAggregate the named aggregate to check subscriber count for
+     * @return the number of subscribers
+     */
+    override fun subscriberCount(namedAggregate: NamedAggregate): Int = delegate.subscriberCount(namedAggregate)
 }
 
-class MetricDistributedDomainEventBus(delegate: DistributedDomainEventBus) :
-    DistributedDomainEventBus,
-    MetricDomainEventBus<DistributedDomainEventBus>(delegate)
+/**
+ * Metric decorator specifically for distributed domain event buses.
+ * Extends MetricDomainEventBus to provide metrics collection for distributed domain event bus operations
+ * while maintaining the DistributedDomainEventBus interface.
+ *
+ * @property delegate the underlying distributed domain event bus implementation
+ */
+class MetricDistributedDomainEventBus(
+    delegate: DistributedDomainEventBus
+) : MetricDomainEventBus<DistributedDomainEventBus>(delegate),
+    DistributedDomainEventBus

@@ -45,7 +45,12 @@ public final class FastInvoke {
      * This method provides a type-safe wrapper around {@link Method#invoke(Object, Object...)}
      * while avoiding the performance penalty of the spread operator.
      * </p>
-     *
+     * example:
+     * <pre>{@code
+     * Method method = MyClass.class.getMethod("myMethod", String.class);
+     * MyClass instance = new MyClass();
+     * String result = FastInvoke.invoke(method, instance, new Object[]{"hello"});
+     * }</pre>
      * @param method the method to invoke; must not be null
      * @param target the object on which to invoke the method, or null for static methods
      * @param args the arguments to pass to the method; may be null if the method takes no arguments
@@ -55,13 +60,6 @@ public final class FastInvoke {
      * @throws IllegalAccessException if the method is not accessible (e.g., private method)
      * @throws IllegalArgumentException if the method is an instance method and target is null,
      *         or if the arguments are not appropriate for the method
-     *
-     * @example
-     * <pre>{@code
-     * Method method = MyClass.class.getMethod("myMethod", String.class);
-     * MyClass instance = new MyClass();
-     * String result = FastInvoke.invoke(method, instance, new Object[]{"hello"});
-     * }</pre>
      */
     @SuppressWarnings({"AvoidObjectArrays", "unchecked"})
     public static <T> T invoke(@NotNull Method method, Object target, Object[] args)
@@ -76,17 +74,7 @@ public final class FastInvoke {
      * directly instead of wrapping it in InvocationTargetException, providing cleaner exception handling.
      * </p>
      *
-     * @param method the method to invoke; must not be null
-     * @param target the object on which to invoke the method, or null for static methods
-     * @param args the arguments to pass to the method; may be null if the method takes no arguments
-     * @param <T> the return type of the method
-     * @return the result of the method invocation, or null if the method returns void
-     * @throws Throwable if the underlying method throws an exception or if invocation fails
-     * @throws IllegalAccessException if the method is not accessible
-     * @throws IllegalArgumentException if the method is an instance method and target is null,
-     *         or if the arguments are not appropriate for the method
-     *
-     * @example
+     * example
      * <pre>{@code
      * Method method = MyClass.class.getMethod("myMethod", String.class);
      * MyClass instance = new MyClass();
@@ -96,6 +84,15 @@ public final class FastInvoke {
      *     // Handle the actual exception thrown by myMethod
      * }
      * }</pre>
+     * @param method the method to invoke; must not be null
+     * @param target the object on which to invoke the method, or null for static methods
+     * @param args the arguments to pass to the method; may be null if the method takes no arguments
+     * @param <T> the return type of the method
+     * @return the result of the method invocation, or null if the method returns void
+     * @throws Throwable if the underlying method throws an exception or if invocation fails
+     * @throws IllegalAccessException if the method is not accessible
+     * @throws IllegalArgumentException if the method is an instance method and target is null,
+     *         or if the arguments are not appropriate for the method
      */
     public static <T> T safeInvoke(@NotNull Method method, Object target, Object[] args)
             throws Throwable {
@@ -113,6 +110,12 @@ public final class FastInvoke {
      * while avoiding the performance penalty of the spread operator.
      * </p>
      *
+     * example
+     * <pre>{@code
+     * Constructor<MyClass> constructor = MyClass.class.getConstructor(String.class);
+     * MyClass instance = FastInvoke.newInstance(constructor, new Object[]{"initial value"});
+     * }</pre>
+     *
      * @param constructor the constructor to use for instantiation; must not be null
      * @param args the arguments to pass to the constructor; may be null if the constructor takes no arguments
      * @param <T> the type of the instance to create
@@ -121,12 +124,6 @@ public final class FastInvoke {
      * @throws InstantiationException if the class cannot be instantiated (e.g., abstract class, interface)
      * @throws IllegalAccessException if the constructor is not accessible
      * @throws IllegalArgumentException if the arguments are not appropriate for the constructor
-     *
-     * @example
-     * <pre>{@code
-     * Constructor<MyClass> constructor = MyClass.class.getConstructor(String.class);
-     * MyClass instance = FastInvoke.newInstance(constructor, new Object[]{"initial value"});
-     * }</pre>
      */
     @NotNull
     @SuppressWarnings("AvoidObjectArrays")
@@ -144,16 +141,7 @@ public final class FastInvoke {
      * for constructor calls.
      * </p>
      *
-     * @param constructor the constructor to use for instantiation; must not be null
-     * @param args the arguments to pass to the constructor; may be null if the constructor takes no arguments
-     * @param <T> the type of the instance to create
-     * @return a new instance of the class; never null
-     * @throws Throwable if the constructor throws an exception or if instantiation fails
-     * @throws InstantiationException if the class cannot be instantiated
-     * @throws IllegalAccessException if the constructor is not accessible
-     * @throws IllegalArgumentException if the arguments are not appropriate for the constructor
-     *
-     * @example
+     * example
      * <pre>{@code
      * Constructor<MyClass> constructor = MyClass.class.getConstructor(String.class);
      * try {
@@ -162,6 +150,15 @@ public final class FastInvoke {
      *     // Handle the actual exception thrown by the constructor
      * }
      * }</pre>
+     *
+     * @param constructor the constructor to use for instantiation; must not be null
+     * @param args the arguments to pass to the constructor; may be null if the constructor takes no arguments
+     * @param <T> the type of the instance to create
+     * @return a new instance of the class; never null
+     * @throws Throwable if the constructor throws an exception or if instantiation fails
+     * @throws InstantiationException if the class cannot be instantiated
+     * @throws IllegalAccessException if the constructor is not accessible
+     * @throws IllegalArgumentException if the arguments are not appropriate for the constructor
      */
     public static <T> T safeNewInstance(@NotNull Constructor<T> constructor, Object[] args)
             throws Throwable {

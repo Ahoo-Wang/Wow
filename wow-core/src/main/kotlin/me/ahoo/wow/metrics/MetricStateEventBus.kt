@@ -24,40 +24,87 @@ import me.ahoo.wow.metrics.Metrics.tagMetricsSubscriber
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-open class MetricStateEventBus<T : StateEventBus>(delegate: T) :
+/**
+ * Metric decorator for state event buses that collects metrics on state event sending and receiving operations.
+ * This class wraps any StateEventBus implementation and adds metrics collection with tags for
+ * aggregate name and source identification.
+ *
+ * @param T the specific type of StateEventBus being decorated
+ * @property delegate the underlying state event bus implementation
+ */
+open class MetricStateEventBus<T : StateEventBus>(
+    delegate: T
+) : AbstractMetricDecorator<T>(delegate),
     StateEventBus,
-    AbstractMetricDecorator<T>(delegate),
     Metrizable {
-
-    override fun send(message: StateEvent<*>): Mono<Void> {
-        return delegate.send(message)
+    /**
+     * Sends a state event and collects metrics on the operation.
+     * Metrics collected include timing, success/failure rates, and tags for aggregate identification.
+     *
+     * @param message the state event to send
+     * @return a Mono that completes when the state event is sent
+     */
+    override fun send(message: StateEvent<*>): Mono<Void> =
+        delegate
+            .send(message)
             .name(Wow.WOW_PREFIX + "state.send")
             .tagSource()
             .tag(Metrics.AGGREGATE_KEY, message.aggregateName)
             .metrics()
-    }
 
-    override fun receive(namedAggregates: Set<NamedAggregate>): Flux<StateEventExchange<*>> {
-        return delegate.receive(namedAggregates)
+    /**
+     * Receives state event exchanges for the specified named aggregates and collects metrics on the operation.
+     * Metrics collected include timing and tags for aggregate identification and subscriber information.
+     *
+     * @param namedAggregates the set of named aggregates to receive state events for
+     * @return a Flux of state event exchanges
+     */
+    override fun receive(namedAggregates: Set<NamedAggregate>): Flux<StateEventExchange<*>> =
+        delegate
+            .receive(namedAggregates)
             .name(Wow.WOW_PREFIX + "state.receive")
             .tagSource()
             .tag(Metrics.AGGREGATE_KEY, namedAggregates.joinToString(",") { it.aggregateName })
             .tagMetricsSubscriber()
-    }
 
+    /**
+     * Closes the state event bus and releases any resources.
+     * This delegates to the underlying state event bus implementation.
+     */
     override fun close() {
         delegate.close()
     }
 }
 
-class MetricLocalStateEventBus(delegate: LocalStateEventBus) :
-    LocalStateEventBus,
-    MetricStateEventBus<LocalStateEventBus>(delegate) {
-    override fun subscriberCount(namedAggregate: NamedAggregate): Int {
-        return delegate.subscriberCount(namedAggregate)
-    }
+/**
+ * Metric decorator specifically for local state event buses.
+ * Extends MetricStateEventBus to provide metrics collection for local state event bus operations
+ * while maintaining the LocalStateEventBus interface.
+ *
+ * @property delegate the underlying local state event bus implementation
+ */
+class MetricLocalStateEventBus(
+    delegate: LocalStateEventBus
+) : MetricStateEventBus<LocalStateEventBus>(delegate),
+    LocalStateEventBus {
+    /**
+     * Returns the number of subscribers for the specified named aggregate.
+     * This delegates to the underlying local state event bus implementation.
+     *
+     * @param namedAggregate the named aggregate to check subscriber count for
+     * @return the number of subscribers
+     */
+    override fun subscriberCount(namedAggregate: NamedAggregate): Int = delegate.subscriberCount(namedAggregate)
 }
 
-class MetricDistributedStateEventBus(delegate: DistributedStateEventBus) :
-    DistributedStateEventBus,
-    MetricStateEventBus<DistributedStateEventBus>(delegate)
+/**
+ * Metric decorator specifically for distributed state event buses.
+ * Extends MetricStateEventBus to provide metrics collection for distributed state event bus operations
+ * while maintaining the DistributedStateEventBus interface.
+ *
+ * @property delegate the underlying distributed state event bus implementation
+ */
+class MetricDistributedStateEventBus(
+    delegate: DistributedStateEventBus
+) : MetricStateEventBus<DistributedStateEventBus>(delegate),
+    DistributedStateEventBus
