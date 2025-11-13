@@ -62,7 +62,6 @@ object EmptyFilterChain : FilterChain<Any> {
     }
 }
 
-
 /**
  * Abstract base class for filter chains that delegates to a current filter and a next chain.
  *
