@@ -17,6 +17,13 @@ import me.ahoo.wow.event.DomainEventFunctionFilter
 import me.ahoo.wow.filter.FilterType
 import me.ahoo.wow.ioc.ServiceProvider
 
+/**
+ * Filter for projection functions that applies to [ProjectionDispatcher].
+ * This filter extends [DomainEventFunctionFilter] to provide filtering capabilities
+ * specific to projection processing.
+ *
+ * @param serviceProvider The service provider for dependency injection.
+ */
 @FilterType(ProjectionDispatcher::class)
 class ProjectionFunctionFilter(
     serviceProvider: ServiceProvider
