@@ -209,7 +209,6 @@ interface AggregateExpecter<S : Any, AE : AggregateExpecter<S, AE>> {
         assert().describedAs { "Expect the domain event stream size." }.hasSize(expected)
     }
 
-
     /**
      * Expects events of specific types in the exact order provided.
      *

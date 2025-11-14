@@ -20,9 +20,41 @@ import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.test.AggregateVerifier.aggregateVerifier
 import me.ahoo.wow.test.dsl.AbstractDynamicTestBuilder
 
-class DefaultAggregateDsl<C : Any, S : Any>(private val commandAggregateType: Class<C>) :
-    AggregateDsl<S>, AbstractDynamicTestBuilder() {
+/**
+ * Default implementation of the AggregateDsl interface for testing aggregate behavior.
+ *
+ * This class provides the core functionality for setting up aggregate tests by configuring
+ * the testing environment and delegating to the appropriate DSL stages. It manages the
+ * service provider and coordinates the creation of GivenDsl instances for test scenarios.
+ *
+ * @param C the command type that triggers aggregate operations
+ * @param S the state type maintained by the aggregate
+ * @property commandAggregateType the class of the command aggregate being tested, used to create verifiers
+ */
+class DefaultAggregateDsl<C : Any, S : Any>(
+    private val commandAggregateType: Class<C>
+) : AbstractDynamicTestBuilder(),
+    AggregateDsl<S> {
+    /**
+     * Public service provider instance that can be configured with test-specific services.
+     * This provider is copied to the test service provider during test execution.
+     */
     override val publicServiceProvider: ServiceProvider = SimpleServiceProvider()
+
+    /**
+     * Sets up a test scenario for the specified aggregate.
+     *
+     * This method initializes the aggregate verifier with the provided configuration and
+     * executes the test block using a GivenDsl instance. The resulting dynamic test nodes
+     * are collected for JUnit 5 dynamic test execution.
+     *
+     * @param aggregateId the unique identifier for the aggregate instance
+     * @param tenantId the tenant identifier for multi-tenant scenarios
+     * @param stateAggregateFactory factory for creating state aggregate instances
+     * @param eventStore the event store for retrieving and storing domain events
+     * @param serviceProvider the service provider containing dependencies for the test
+     * @param block the test scenario definition using GivenDsl
+     */
     override fun on(
         aggregateId: String,
         tenantId: String,
@@ -37,7 +69,7 @@ class DefaultAggregateDsl<C : Any, S : Any>(private val commandAggregateType: Cl
             tenantId = tenantId,
             stateAggregateFactory = stateAggregateFactory,
             eventStore = eventStore,
-            serviceProvider = serviceProvider
+            serviceProvider = serviceProvider,
         )
         val givenDsl = DefaultGivenDsl(givenStage)
         block(givenDsl)

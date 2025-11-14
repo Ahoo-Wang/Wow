@@ -20,14 +20,48 @@ import me.ahoo.wow.test.dsl.AbstractDynamicTestBuilder
 import me.ahoo.wow.test.dsl.NameSpecCapable.Companion.appendName
 import org.junit.jupiter.api.DynamicContainer
 
-class DefaultWhenDsl<S : Any>(private val delegate: WhenStage<S>) : WhenDsl<S>, Named, AbstractDynamicTestBuilder() {
+/**
+ * Default implementation of the WhenDsl interface for defining command execution in tests.
+ *
+ * This class provides functionality to specify commands to be executed against an aggregate
+ * and define expectations for the results. It manages test naming and coordinates
+ * the transition from command execution to expectation verification.
+ *
+ * @param S the state type of the aggregate
+ * @property delegate the underlying WhenStage that handles command execution
+ */
+class DefaultWhenDsl<S : Any>(
+    private val delegate: WhenStage<S>
+) : AbstractDynamicTestBuilder(),
+    WhenDsl<S>,
+    Named {
+    /**
+     * The name identifier for this test scenario.
+     * Used in test reporting and dynamic test naming.
+     */
     override var name: String = ""
         private set
 
+    /**
+     * Sets the name for this test scenario.
+     *
+     * @param name the descriptive name for the test
+     */
     override fun name(name: String) {
         this.name = name
     }
 
+    /**
+     * Executes a command and defines expectations for the result.
+     *
+     * This method processes the given command through the aggregate and allows
+     * specification of expected outcomes using the ExpectDsl.
+     *
+     * @param command the command to execute
+     * @param header message header for the command
+     * @param ownerId the owner identifier for the command
+     * @param block the expectation definition using ExpectDsl
+     */
     override fun whenCommand(
         command: Any,
         header: Header,
