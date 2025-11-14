@@ -13,14 +13,30 @@
 
 package me.ahoo.wow.test.saga.stateless
 
+/**
+ * Interface for defining and executing expectations on saga test results.
+ *
+ * This interface extends [StatelessSagaExpecter] and provides methods to
+ * verify that all accumulated expectations are met by the actual saga results.
+ *
+ * @param T The type of the saga being tested.
+ */
 interface ExpectStage<T : Any> : StatelessSagaExpecter<T, ExpectStage<T>> {
-
-    fun verify(): ExpectedResult<T> {
-        return verify(immediately = true)
-    }
+    /**
+     * Verifies all expectations immediately.
+     *
+     * This is a convenience method that calls [verify] with immediately = true.
+     *
+     * @return The expected result after verification.
+     */
+    fun verify(): ExpectedResult<T> = verify(immediately = true)
 
     /**
-     * 完成流程编排后，执行验证逻辑.
+     * Executes the verification logic after completing the test flow orchestration.
+     *
+     * @param immediately If true, performs verification immediately and throws on failure.
+     *                    If false, returns the result without immediate verification.
+     * @return The expected result.
      */
     fun verify(immediately: Boolean): ExpectedResult<T>
 }
