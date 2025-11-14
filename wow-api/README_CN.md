@@ -3,19 +3,19 @@
 [![License](https://img.shields.io/badge/license-Apache%202-4EB1BA.svg)](https://github.com/Ahoo-Wang/Wow/blob/main/LICENSE)
 [![Maven Central Version](https://img.shields.io/maven-central/v/me.ahoo.wow/wow-api)](https://central.sonatype.com/artifact/me.ahoo.wow/wow-api)
 
-The core API definitions module for the Wow framework, providing essential interfaces, annotations, and types for building domain-driven design (DDD) applications with Command Query Responsibility Segregation (CQRS) and Event Sourcing patterns.
+Wow 框架的核心 API 定义模块，为构建基于领域驱动设计 (DDD)、命令查询职责分离 (CQRS) 和事件溯源模式的应用程序提供基本的接口、注解和类型。
 
-## Introduction
+## 简介
 
-Wow API is the foundational module of the [Wow framework](https://github.com/Ahoo-Wang/Wow), a modern reactive microservice development framework based on DDD and Event Sourcing. This module defines the core abstractions and contracts that enable:
+Wow API 是 [Wow 框架](https://github.com/Ahoo-Wang/Wow) 的基础模块，Wow 是一个基于 DDD 和事件溯源的现代响应式微服务开发框架。该模块定义了核心抽象和契约，支持：
 
-- **Domain-Driven Design**: Aggregate roots, domain events, value objects, and entities
-- **CQRS Architecture**: Separate command and query models with clear boundaries
-- **Event Sourcing**: Immutable event streams for state reconstruction and audit trails
-- **Reactive Programming**: Non-blocking, asynchronous processing pipelines
-- **Type Safety**: Strongly-typed APIs with Kotlin's type system
+- **领域驱动设计**：聚合根、领域事件、值对象和实体
+- **CQRS 架构**：具有清晰边界的分离命令和查询模型
+- **事件溯源**：用于状态重建和审计跟踪的不可变事件流
+- **响应式编程**：非阻塞异步处理管道
+- **类型安全**：利用 Kotlin 类型系统的强类型 API
 
-## Installation
+## 安装
 
 ### Gradle (Kotlin DSL)
 
@@ -43,13 +43,13 @@ dependencies {
 </dependency>
 ```
 
-## Usage
+## 使用方法
 
-### Defining Commands and Events
+### 定义命令和事件
 
-Commands and events are simple data classes with validation and routing annotations:
+命令和事件是带有验证和路由注解的简单数据类：
 
-#### Commands with Validation and Routing
+#### 带有验证和路由的命令
 
 ```kotlin
 import jakarta.validation.constraints.NotBlank
@@ -62,7 +62,7 @@ import me.ahoo.wow.api.annotation.Summary
 @Order(1)
 @AllowCreate
 @CommandRoute(method = CommandRoute.Method.POST)
-@Summary("Add item to cart")
+@Summary("加入购物车")
 data class AddCartItem(
     @field:NotBlank
     val productId: String,
@@ -71,7 +71,7 @@ data class AddCartItem(
 )
 
 @Order(2)
-@Summary("Change item quantity")
+@Summary("变更购买数量")
 @CommandRoute(appendIdPath = CommandRoute.AppendPath.ALWAYS)
 data class ChangeQuantity(
     @field:NotBlank
@@ -81,17 +81,17 @@ data class ChangeQuantity(
 )
 
 @Order(3)
-@Summary("Remove items from cart")
+@Summary("删除商品")
 data class RemoveCartItem(
     @field:NotEmpty
     val productIds: Set<String>
 )
 ```
 
-#### Domain Events
+#### 领域事件
 
 ```kotlin
-@Summary("Item added to cart")
+@Summary("商品已加入购物车")
 data class CartItemAdded(
     val added: CartItem
 )
@@ -105,7 +105,7 @@ data class CartItemRemoved(
 )
 ```
 
-#### Value Objects and Entities
+#### 值对象和实体
 
 ```kotlin
 import me.ahoo.wow.api.annotation.ValueObject
@@ -129,9 +129,9 @@ data class OrderItem(
 }
 ```
 
-### Bounded Context Configuration
+### 限界上下文配置
 
-Define bounded contexts and aggregates:
+定义限界上下文和聚合：
 
 ```kotlin
 import me.ahoo.wow.api.annotation.BoundedContext
@@ -139,7 +139,7 @@ import me.ahoo.wow.api.annotation.BoundedContext
 @BoundedContext(
     name = "example-service",
     alias = "example",
-    description = "Example Service Context",
+    description = "示例服务上下文",
     aggregates = [
         BoundedContext.Aggregate("order", packageScopes = [CreateOrder::class]),
         BoundedContext.Aggregate(
@@ -156,60 +156,60 @@ object ExampleService {
 }
 ```
 
-## API Reference
+## API 参考
 
-### Core Annotations
+### 核心注解
 
-- `@AggregateRoot` - Marks a class as an aggregate root in DDD
-- `@AggregateId` - Marks a field as the aggregate identifier
-- `@Event` - Marks a class as a domain event
-- `@OnCommand` - Marks a method as a command handler
-- `@OnSourcing` - Marks a method as an event sourcing handler
-- `@StatelessSaga` - Marks a class as a stateless saga orchestrator
-- `@OnEvent` - Marks a method as an event handler (for sagas)
-- `@Retry` - Configures retry behavior for event processing
-- `@BoundedContext` - Defines a bounded context boundary
-- `@CommandRoute` - Configures REST API routing for commands
-- `@AllowCreate` - Allows command to create new aggregates
-- `@CreateAggregate` - Marks command as creating new aggregates
-- `@VoidCommand` - Marks command as fire-and-forget (no response)
-- `@Order` - Defines execution order for commands/events
-- `@Summary` - Provides human-readable descriptions
-- `@ValueObject` - Marks a class as a value object
-- `@EntityObject` - Marks a class as an entity within an aggregate
+- `@AggregateRoot` - 标记类为 DDD 中的聚合根
+- `@AggregateId` - 标记字段为聚合标识符
+- `@Event` - 标记类为领域事件
+- `@OnCommand` - 标记方法为命令处理器
+- `@OnSourcing` - 标记方法为事件溯源处理器
+- `@StatelessSaga` - 标记类为无状态 Saga 编排器
+- `@OnEvent` - 标记方法为事件处理器（用于 Saga）
+- `@Retry` - 配置事件处理的 retry 行为
+- `@BoundedContext` - 定义限界上下文边界
+- `@CommandRoute` - 为命令配置 REST API 路由
+- `@AllowCreate` - 允许命令创建新聚合
+- `@CreateAggregate` - 标记命令为创建新聚合
+- `@VoidCommand` - 标记命令为即发即弃（无响应）
+- `@Order` - 定义命令/事件的执行顺序
+- `@Summary` - 提供人类可读的描述
+- `@ValueObject` - 标记类为值对象
+- `@EntityObject` - 标记类为聚合内的实体
 
-### Key Interfaces
+### 关键接口
 
 #### CommandMessage<T>
-Represents a command to be executed against an aggregate.
+表示要对聚合执行的命令。
 
-**Key Properties:**
-- `aggregateId: AggregateId` - Target aggregate identifier
-- `aggregateVersion: Int?` - Expected version for optimistic locking
-- `isCreate: Boolean` - Whether this creates a new aggregate
-- `allowCreate: Boolean` - Whether creation is permitted
-- `isVoid: Boolean` - Whether a response is expected
+**关键属性：**
+- `aggregateId: AggregateId` - 目标聚合标识符
+- `aggregateVersion: Int?` - 用于乐观锁的期望版本
+- `isCreate: Boolean` - 是否创建新聚合
+- `allowCreate: Boolean` - 是否允许创建
+- `isVoid: Boolean` - 是否期望响应
 
 #### DomainEvent<T>
-Represents an immutable fact about a business occurrence.
+表示关于业务发生事件的不可变事实。
 
-**Key Properties:**
-- `aggregateId: AggregateId` - Source aggregate identifier
-- `sequence: Int` - Event sequence number
-- `revision: String` - Event schema version
-- `isLast: Boolean` - Whether this is the final event
+**关键属性：**
+- `aggregateId: AggregateId` - 源聚合标识符
+- `sequence: Int` - 事件序列号
+- `revision: String` - 事件模式版本
+- `isLast: Boolean` - 是否为最后一个事件
 
 #### AggregateId
-Identifies an aggregate instance within a bounded context.
+在限界上下文中标识聚合实例。
 
-**Properties:**
-- `contextName: String` - Bounded context name
-- `aggregateName: String` - Aggregate type name
-- `id: String` - Instance identifier
+**属性：**
+- `contextName: String` - 限界上下文名称
+- `aggregateName: String` - 聚合类型名称
+- `id: String` - 实例标识符
 
-### Saga Orchestration
+### Saga 编排
 
-Sagas coordinate distributed transactions using event-driven orchestration:
+Saga 使用事件驱动的编排来协调分布式事务：
 
 ```kotlin
 @StatelessSaga
@@ -229,52 +229,52 @@ class TransferSaga {
 }
 ```
 
-### Query APIs
+### 查询 API
 
-The module provides comprehensive query capabilities:
+该模块提供全面的查询功能：
 
 ```kotlin
-// Single entity query
+// 单个实体查询
 val query = SingleQuery(
     aggregateId = AggregateId("order", "order-123")
 )
 
-// Paged list query
+// 分页列表查询
 val pagedQuery = PagedQuery(
     condition = Condition("status", Operator.EQ, "PENDING"),
     sort = listOf(Sort("createdAt", Direction.DESC)),
     pagination = Pagination(page = 1, size = 20)
 )
 
-// Dynamic document queries
+// 动态文档查询
 val dynamicQuery = DynamicDocument(
     condition = Condition("customerId", Operator.EQ, customerId),
     projection = listOf("orderId", "totalAmount", "status")
 )
 ```
 
-## Modeling Patterns
+## 建模模式
 
-### Aggregation Pattern (Recommended)
+### 聚合模式（推荐）
 
-Separates command handling from state management for better separation of concerns:
+将命令处理与状态管理分离，以实现更好的关注点分离：
 
 ```kotlin
-// Command Aggregate - handles business logic
+// 命令聚合根 - 处理业务逻辑
 @AggregateRoot
 class Cart(private val state: CartState) {
 
     @OnCommand
     fun onCommand(command: AddCartItem): CartItemAdded {
         require(state.items.size < MAX_CART_ITEM_SIZE) {
-            "Shopping cart can only contain [$MAX_CART_ITEM_SIZE] items."
+            "购物车最多只能添加[$MAX_CART_ITEM_SIZE]个商品."
         }
-        // Business logic here
+        // 业务逻辑在这里
         return CartItemAdded(added = CartItem(command.productId, command.quantity))
     }
 }
 
-// State Aggregate - manages state data
+// 状态聚合根 - 管理状态数据
 class CartState(val id: String) {
     var items: List<CartItem> = listOf()
         private set
@@ -286,9 +286,9 @@ class CartState(val id: String) {
 }
 ```
 
-### Single Class Pattern
+### 单类模式
 
-Combines everything in one class (simpler but less strict):
+将所有内容放在一个类中（更简单但不那么严格）：
 
 ```kotlin
 @AggregateRoot
@@ -310,18 +310,18 @@ class Order(@AggregateId val orderId: String) {
 }
 ```
 
-## Examples
+## 示例
 
-### Shopping Cart API (Real Example)
+### 购物车 API（真实示例）
 
-Based on the actual example implementation:
+基于实际的示例实现：
 
 ```kotlin
-// Commands with validation and routing
+// 带有验证和路由的命令
 @Order(1)
 @AllowCreate
 @CommandRoute(method = CommandRoute.Method.POST)
-@Summary("Add item to cart")
+@Summary("加入购物车")
 data class AddCartItem(
     @field:NotBlank
     val productId: String,
@@ -330,7 +330,7 @@ data class AddCartItem(
 )
 
 @Order(2)
-@Summary("Change item quantity")
+@Summary("变更购买数量")
 @CommandRoute(appendIdPath = CommandRoute.AppendPath.ALWAYS)
 data class ChangeQuantity(
     @field:NotBlank
@@ -340,36 +340,36 @@ data class ChangeQuantity(
 )
 
 @Order(3)
-@Summary("Remove items from cart")
+@Summary("删除商品")
 data class RemoveCartItem(
     @field:NotEmpty
     val productIds: Set<String>
 )
 
-// Events
-@Summary("Item added to cart")
+// 事件
+@Summary("商品已加入购物车")
 data class CartItemAdded(val added: CartItem)
 
 data class CartQuantityChanged(val changed: CartItem)
 
 data class CartItemRemoved(val productIds: Set<String>)
 
-// Value objects
+// 值对象
 @ValueObject
 data class CartItem(
     val productId: String,
     val quantity: Int = 1
 )
 
-// Void command for queries
+// 用于查询的空命令
 @VoidCommand
 class ViewCart
 ```
 
-### Order Management API (Real Example)
+### 订单管理 API（真实示例）
 
 ```kotlin
-@Summary("Create order")
+@Summary("下单")
 @CommandRoute(action = "")
 @CreateAggregate
 data class CreateOrder(
@@ -404,7 +404,7 @@ data class PayOrder(
     val amount: BigDecimal
 )
 
-// Events
+// 事件
 data class OrderCreated(
     val orderId: String,
     val items: List<OrderItem>,
@@ -415,12 +415,12 @@ data class OrderCreated(
 data class OrderPaid(val amount: BigDecimal, val paid: Boolean)
 data class OrderOverPaid(val paymentId: String, val overPay: BigDecimal)
 
-// Error handling
+// 错误处理
 data class OrderPayDuplicated(val paymentId: String, override val errorMsg: String) : ErrorInfo {
     override val errorCode: String get() = "OrderPayDuplicated"
 }
 
-// Value objects and entities
+// 值对象和实体
 @ValueObject
 data class ShippingAddress(
     @field:NotBlank
@@ -445,7 +445,7 @@ data class OrderItem(
 }
 ```
 
-### Aggregate Implementation
+### 聚合实现
 
 ```kotlin
 @AggregateRoot
@@ -453,16 +453,16 @@ class Cart(private val state: CartState) {
 
     @OnCommand
     fun onCommand(command: AddCartItem): CartItemAdded {
-        // Business logic validation
+        // 业务逻辑验证
         return CartItemAdded(CartItem(command.productId, command.quantity))
     }
 
     @OnCommand
     fun onCommand(command: ChangeQuantity): CartQuantityChanged {
-        // Update existing item quantity
+        // 更新现有商品数量
         val updated = state.items.find { it.productId == command.productId }
             ?.copy(quantity = command.quantity)
-            ?: throw IllegalArgumentException("Item not found")
+            ?: throw IllegalArgumentException("商品未找到")
 
         return CartQuantityChanged(updated)
     }
@@ -486,36 +486,36 @@ class CartState(val id: String) {
 }
 ```
 
-## Contributing
+## 贡献
 
-We welcome contributions to the Wow API module! Please see the main [Wow repository](https://github.com/Ahoo-Wang/Wow) for contribution guidelines.
+我们欢迎对 Wow API 模块的贡献！请查看主 [Wow 仓库](https://github.com/Ahoo-Wang/Wow) 了解贡献指南。
 
-### Development Setup
+### 开发环境设置
 
-1. Clone the repository:
+1. 克隆仓库：
    ```bash
    git clone https://github.com/Ahoo-Wang/Wow.git
    cd Wow
    ```
 
-2. Build the project:
+2. 构建项目：
    ```bash
    ./gradlew build
    ```
 
-3. Run tests:
+3. 运行测试：
    ```bash
    ./gradlew :wow-api:test
    ```
 
-### Code Style
+### 代码风格
 
-This project follows Kotlin coding conventions and uses Detekt for static analysis. Format code using:
+本项目遵循 Kotlin 编码规范，并使用 Detekt 进行静态分析。使用以下命令格式化代码：
 
 ```bash
 ./gradlew detekt --auto-correct
 ```
 
-## License
+## 许可证
 
-Wow API is licensed under the Apache License 2.0. See [LICENSE](https://github.com/Ahoo-Wang/Wow/blob/main/LICENSE) for details.
+Wow API 采用 Apache License 2.0 许可证。详见 [LICENSE](https://github.com/Ahoo-Wang/Wow/blob/main/LICENSE)。
