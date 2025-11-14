@@ -14,8 +14,10 @@
 package me.ahoo.wow.example.transfer.api;
 
 import me.ahoo.wow.api.annotation.CommandRoute;
+import me.ahoo.wow.api.annotation.Summary;
 
-@CommandRoute(summary = "确认转账成功", appendIdPath = CommandRoute.AppendPath.ALWAYS)
+@Summary("确认转账成功")
+@CommandRoute(appendIdPath = CommandRoute.AppendPath.ALWAYS)
 public record Confirm(@CommandRoute.PathVariable String id, long amount) {
 }
 

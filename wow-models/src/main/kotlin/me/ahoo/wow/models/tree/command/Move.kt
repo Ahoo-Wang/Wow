@@ -14,13 +14,15 @@
 package me.ahoo.wow.models.tree.command
 
 import me.ahoo.wow.api.annotation.CommandRoute
+import me.ahoo.wow.api.annotation.Description
+import me.ahoo.wow.api.annotation.Summary
 
+@Summary("Move tree node order")
+@Description("Only sibling moves are allowed.")
 @CommandRoute(
     method = CommandRoute.Method.PUT,
     appendIdPath = CommandRoute.AppendPath.ALWAYS,
     action = "sort",
-    summary = "Move tree node order",
-    description = "Only sibling moves are allowed."
 )
 interface Move<E : Moved> {
     val codes: List<String>

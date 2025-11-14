@@ -13,9 +13,9 @@
 
 package me.ahoo.wow.example.transfer.domain;
 
+import me.ahoo.wow.api.annotation.StatelessSaga;
 import me.ahoo.wow.api.modeling.AggregateId;
 import me.ahoo.wow.example.transfer.api.*;
-import me.ahoo.wow.spring.stereotype.StatelessSaga;
 
 @StatelessSaga
 public class TransferSaga {
