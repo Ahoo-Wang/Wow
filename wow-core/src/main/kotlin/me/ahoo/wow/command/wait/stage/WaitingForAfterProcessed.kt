@@ -17,12 +17,18 @@ import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.WaitSignal
 import reactor.core.publisher.Mono
 
+/**
+ * Abstract base class for wait strategies that wait for a specific stage after command processing is complete.
+ * This class ensures that both PROCESSED stage and the target stage are completed before considering
+ * the wait strategy satisfied. It's designed for stages that occur after the basic command processing.
+ */
 abstract class WaitingForAfterProcessed : WaitingForStage() {
     @Volatile
     private var processedSignal: WaitSignal? = null
 
     @Volatile
     private var waitingForSignal: WaitSignal? = null
+
     private fun tryComplete() {
         if (completed) {
             return
@@ -34,9 +40,7 @@ abstract class WaitingForAfterProcessed : WaitingForStage() {
         super.complete()
     }
 
-    open fun isWaitingFor(signal: WaitSignal): Boolean {
-        return signal.stage == stage
-    }
+    open fun isWaitingFor(signal: WaitSignal): Boolean = signal.stage == stage
 
     override fun waitingLast(): Mono<WaitSignal> {
         return waiting().collectList().mapNotNull { signals ->

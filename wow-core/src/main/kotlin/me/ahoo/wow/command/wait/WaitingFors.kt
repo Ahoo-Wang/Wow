@@ -17,6 +17,14 @@ import me.ahoo.wow.api.messaging.function.FunctionInfo
 import me.ahoo.wow.api.messaging.function.NamedFunctionInfo
 import me.ahoo.wow.infra.ifNotBlank
 
+/**
+ * Checks if a function matches the criteria specified by this NamedFunctionInfo.
+ * Used to determine if a wait strategy should be notified about a specific function execution.
+ * Returns true if all specified criteria (context, processor, name) match or are not specified.
+ *
+ * @param function The function info to check against this criteria.
+ * @return true if the function matches the waiting criteria, false otherwise.
+ */
 fun NamedFunctionInfo?.isWaitingForFunction(function: FunctionInfo): Boolean {
     if (this == null || isEmpty()) {
         return true

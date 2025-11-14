@@ -22,6 +22,24 @@ import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.naming.annotation.toName
 
+/**
+ * Simple implementation of CommandMessage with default values for most properties.
+ * This class provides a convenient way to create command messages with sensible defaults.
+ *
+ * @param C The type of the command body.
+ * @param id Unique identifier for the command message. Defaults to a generated global ID.
+ * @param header Message header containing metadata. Defaults to an empty header.
+ * @param body The actual command payload.
+ * @param aggregateId Identifier of the aggregate this command targets.
+ * @param ownerId Identifier of the owner/user initiating the command. Defaults to default owner.
+ * @param requestId Identifier for request deduplication. Defaults to the message ID.
+ * @param aggregateVersion Expected version of the aggregate for optimistic concurrency. Null means no version check.
+ * @param name Human-readable name of the command. Defaults to the simple class name of the body.
+ * @param isCreate Whether this command creates a new aggregate instance.
+ * @param allowCreate Whether creation is allowed if the aggregate doesn't exist.
+ * @param isVoid Whether this is a void command that doesn't produce events.
+ * @param createTime Timestamp when the command was created. Defaults to current time.
+ */
 data class SimpleCommandMessage<C : Any>(
     override val id: String = generateGlobalId(),
     override val header: Header = DefaultHeader.empty(),
@@ -35,8 +53,13 @@ data class SimpleCommandMessage<C : Any>(
     override val allowCreate: Boolean = false,
     override val isVoid: Boolean = false,
     override val createTime: Long = System.currentTimeMillis()
-) : CommandMessage<C>, NamedAggregate by aggregateId {
-    override fun copy(): CommandMessage<C> {
-        return copy(header = header.copy())
-    }
+) : CommandMessage<C>,
+    NamedAggregate by aggregateId {
+    /**
+     * Creates a copy of this command message with a deep copy of the header.
+     * This ensures header modifications don't affect the original message.
+     *
+     * @return A new CommandMessage instance with copied header.
+     */
+    override fun copy(): CommandMessage<C> = copy(header = header.copy())
 }

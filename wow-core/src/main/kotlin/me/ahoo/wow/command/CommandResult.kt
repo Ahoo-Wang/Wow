@@ -35,6 +35,37 @@ import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.exception.toErrorInfo
 import me.ahoo.wow.id.generateGlobalId
 
+/**
+ * Represents the result of a command execution, containing all relevant information
+ * about the command processing outcome.
+ *
+ * CommandResult encapsulates the state of command processing at a specific stage,
+ * including success/failure status, aggregate version changes, and any additional
+ * result data.
+ *
+ * @property id unique identifier for this result
+ * @property waitCommandId the command ID being waited on
+ * @property stage the current processing stage of the command
+ * @property contextName the bounded context name
+ * @property aggregateName the aggregate name
+ * @property tenantId the tenant identifier
+ * @property aggregateId the aggregate instance identifier
+ * @property aggregateVersion the aggregate version after command processing:
+ *                          - On success: the version after processing
+ *                          - On gateway validation failure: null
+ *                          - On processor execution failure: current aggregate version
+ * @property requestId the request identifier
+ * @property commandId the command identifier
+ * @property function information about the function that processed the command
+ * @property errorCode error code if processing failed
+ * @property errorMsg error message if processing failed
+ * @property bindingErrors list of binding validation errors
+ * @property result additional result data as key-value pairs
+ * @property signalTime timestamp when this result was generated
+ * @see CommandStage
+ * @see ErrorInfo
+ * @see FunctionInfoData
+ */
 data class CommandResult(
     override val id: String,
     override val waitCommandId: String,
@@ -43,12 +74,6 @@ data class CommandResult(
     override val aggregateName: String,
     override val tenantId: String,
     val aggregateId: String,
-    /**
-     * 聚合根版本号
-     * - 命令处理成功时,为聚合根完成命令处理后的版本号
-     * - 当命令在命令网关验证失败时，为 null
-     * - 当命令在命令处理器中执行失败时，为聚合根的当前版本号
-     */
     override val aggregateVersion: Int? = null,
     override val requestId: String,
     override val commandId: String,
@@ -73,8 +98,19 @@ data class CommandResult(
     SignalTimeCapable,
     Materialized
 
-fun WaitSignal.toResult(commandMessage: CommandMessage<*>): CommandResult {
-    return CommandResult(
+/**
+ * Converts a WaitSignal to a CommandResult.
+ *
+ * This extension function transforms a wait signal into a command result,
+ * mapping all the signal properties to the corresponding result fields.
+ *
+ * @param commandMessage the original command message
+ * @return a CommandResult representing the wait signal
+ * @see WaitSignal
+ * @see CommandResult
+ */
+fun WaitSignal.toResult(commandMessage: CommandMessage<*>): CommandResult =
+    CommandResult(
         id = this.id,
         waitCommandId = waitCommandId,
         stage = this.stage,
@@ -90,10 +126,26 @@ fun WaitSignal.toResult(commandMessage: CommandMessage<*>): CommandResult {
         errorMsg = this.errorMsg,
         bindingErrors = bindingErrors,
         result = result,
-        signalTime = signalTime
+        signalTime = signalTime,
     )
-}
 
+/**
+ * Converts a Throwable to a CommandResult representing a command failure.
+ *
+ * This extension function creates a CommandResult from an exception, extracting
+ * error information and populating the result with failure details.
+ *
+ * @param waitCommandId the ID of the command being waited on
+ * @param commandMessage the original command message that failed
+ * @param function the function information (defaults to command gateway)
+ * @param id unique identifier for the result (auto-generated if not provided)
+ * @param stage the command stage when the error occurred (defaults to SENT)
+ * @param result additional result data (defaults to empty map)
+ * @param signalTime timestamp of the error (defaults to current time)
+ * @return a CommandResult representing the failure
+ * @see CommandResult
+ * @see Throwable.toErrorInfo
+ */
 fun Throwable.toResult(
     waitCommandId: String,
     commandMessage: CommandMessage<*>,
@@ -119,6 +171,6 @@ fun Throwable.toResult(
         errorMsg = errorInfo.errorMsg,
         bindingErrors = errorInfo.bindingErrors,
         result = result,
-        signalTime = signalTime
+        signalTime = signalTime,
     )
 }

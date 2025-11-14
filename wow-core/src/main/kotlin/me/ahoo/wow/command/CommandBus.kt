@@ -21,17 +21,49 @@ import me.ahoo.wow.messaging.LocalMessageBus
 import me.ahoo.wow.messaging.MessageBus
 
 /**
- * Command Bus .
+ * Command Bus interface for handling command messages in the CQRS architecture.
+ *
+ * The Command Bus is responsible for routing command messages to their appropriate handlers.
+ * It acts as a central hub for command processing, supporting both local and distributed
+ * command handling scenarios.
  *
  * @author ahoo wang
  * @see InMemoryCommandBus
- *
+ * @see LocalCommandBus
+ * @see DistributedCommandBus
+ * @property topicKind The topic kind for command messages, always returns [TopicKind.COMMAND]
  */
-interface CommandBus : MessageBus<CommandMessage<*>, ServerCommandExchange<*>>, TopicKindCapable {
+interface CommandBus :
+    MessageBus<CommandMessage<*>, ServerCommandExchange<*>>,
+    TopicKindCapable {
     override val topicKind: TopicKind
         get() = TopicKind.COMMAND
 }
 
-interface LocalCommandBus : CommandBus, LocalMessageBus<CommandMessage<*>, ServerCommandExchange<*>>
+/**
+ * Local Command Bus interface for handling commands within the same JVM instance.
+ *
+ * This interface extends both [CommandBus] and [LocalMessageBus], providing
+ * synchronous command processing capabilities within a single application instance.
+ * Commands are processed locally without network communication.
+ *
+ * @see CommandBus
+ * @see LocalMessageBus
+ */
+interface LocalCommandBus :
+    CommandBus,
+    LocalMessageBus<CommandMessage<*>, ServerCommandExchange<*>>
 
-interface DistributedCommandBus : CommandBus, DistributedMessageBus<CommandMessage<*>, ServerCommandExchange<*>>
+/**
+ * Distributed Command Bus interface for handling commands across multiple instances or services.
+ *
+ * This interface extends both [CommandBus] and [DistributedMessageBus], enabling
+ * asynchronous command processing across distributed systems. Commands may be routed
+ * to different services or instances based on load balancing and availability.
+ *
+ * @see CommandBus
+ * @see DistributedMessageBus
+ */
+interface DistributedCommandBus :
+    CommandBus,
+    DistributedMessageBus<CommandMessage<*>, ServerCommandExchange<*>>

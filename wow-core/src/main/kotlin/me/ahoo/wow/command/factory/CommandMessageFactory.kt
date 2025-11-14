@@ -17,12 +17,35 @@ import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.factory.CommandBuilder.Companion.commandBuilder
 import reactor.core.publisher.Mono
 
+/**
+ * Factory interface for creating command messages from command builders.
+ *
+ * CommandMessageFactory provides methods to convert CommandBuilder instances
+ * into CommandMessage objects, which can then be sent to the command bus.
+ *
+ * @see CommandBuilder
+ * @see CommandMessage
+ */
 interface CommandMessageFactory {
     /**
-     * Create a CommandMessage from a CommandBuilder
+     * Creates a CommandMessage from a CommandBuilder.
      *
+     * @param TARGET the type of the command body
+     * @param commandBuilder the command builder containing all message properties
+     * @return a Mono emitting the created CommandMessage
      */
     fun <TARGET : Any> create(commandBuilder: CommandBuilder): Mono<CommandMessage<TARGET>>
+
+    /**
+     * Creates a CommandMessage from a command body object.
+     *
+     * This convenience method creates a default CommandBuilder from the body
+     * and then converts it to a CommandMessage.
+     *
+     * @param TARGET the type of the command body
+     * @param body the command payload object
+     * @return a Mono emitting the created CommandMessage
+     */
     fun <TARGET : Any> create(body: Any): Mono<CommandMessage<TARGET>> {
         val commandBuilder = body.commandBuilder()
         return create(commandBuilder)

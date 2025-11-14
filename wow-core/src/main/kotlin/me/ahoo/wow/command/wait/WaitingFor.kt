@@ -23,6 +23,11 @@ import java.time.Duration
 import java.util.concurrent.atomic.AtomicReference
 import java.util.function.Consumer
 
+/**
+ * Abstract base class for wait strategies that wait for specific command processing stages.
+ * Provides common functionality for managing wait signals, completion, and error handling.
+ * Subclasses must implement the logic for determining which signals are relevant.
+ */
 abstract class WaitingFor : WaitStrategy {
     companion object {
         val DEFAULT_BUSY_LOOPING_DURATION: Duration = Duration.ofMillis(10)
@@ -52,9 +57,7 @@ abstract class WaitingFor : WaitStrategy {
         }
     }
 
-    override fun waiting(): Flux<WaitSignal> {
-        return waitSignalSink.asFlux().doFinally(this::safeDoFinally)
-    }
+    override fun waiting(): Flux<WaitSignal> = waitSignalSink.asFlux().doFinally(this::safeDoFinally)
 
     override fun waitingLast(): Mono<WaitSignal> {
         return waiting().collectList().mapNotNull { signals ->
@@ -70,9 +73,9 @@ abstract class WaitingFor : WaitStrategy {
         }
     }
 
-    protected fun busyLooping(): Sinks.EmitFailureHandler {
-        return Sinks.EmitFailureHandler.busyLooping(DEFAULT_BUSY_LOOPING_DURATION)
-    }
+    protected fun busyLooping(): Sinks.EmitFailureHandler = Sinks.EmitFailureHandler.busyLooping(
+        DEFAULT_BUSY_LOOPING_DURATION
+    )
 
     protected fun tryEmit(emit: () -> Unit): Boolean {
         if (completed) {
@@ -86,10 +89,12 @@ abstract class WaitingFor : WaitStrategy {
     }
 
     /**
-     * 判断给定的等待信号是否为前置信号
+     * Determines if the given wait signal represents a prerequisite stage.
+     * Prerequisite signals are those that must complete before this wait strategy
+     * can consider its waiting condition satisfied.
      *
-     * @param signal 等待信号
-     * @return 如果是前置信号则返回 true，否则返回 false
+     * @param signal The wait signal to evaluate.
+     * @return true if this is a prerequisite signal, false otherwise.
      */
     abstract fun isPreviousSignal(signal: WaitSignal): Boolean
 

@@ -19,21 +19,31 @@ import reactor.core.publisher.Sinks
 import reactor.core.publisher.Sinks.Many
 
 /**
- * InMemoryCommandBus .
+ * In-memory implementation of CommandBus for local command processing.
+ * This bus uses unicast sinks to ensure each command has exactly one consumer,
+ * making it suitable for single-instance or testing scenarios.
  *
+ * @param sinkSupplier Function that creates a unicast sink for each named aggregate.
+ *                     Defaults to unicast with backpressure buffer.
  * @author ahoo wang
  */
 class InMemoryCommandBus(
     /**
-     * 一个命令只能有一个消费者，所以使用单播模式.
+     * Supplier for creating sinks for command distribution.
+     * Uses unicast mode to ensure each command reaches exactly one consumer.
      *
      * @see Sinks.UnicastSpec
      */
     override val sinkSupplier: (NamedAggregate) -> Many<CommandMessage<*>> = {
         Sinks.many().unicast().onBackpressureBuffer()
     }
-) : LocalCommandBus, InMemoryMessageBus<CommandMessage<*>, ServerCommandExchange<*>>() {
-    override fun CommandMessage<*>.createExchange(): ServerCommandExchange<*> {
-        return SimpleServerCommandExchange(this)
-    }
+) : InMemoryMessageBus<CommandMessage<*>, ServerCommandExchange<*>>(),
+    LocalCommandBus {
+    /**
+     * Creates a server command exchange for the given command message.
+     * This exchange handles the command processing lifecycle.
+     *
+     * @return A new ServerCommandExchange instance for this command.
+     */
+    override fun CommandMessage<*>.createExchange(): ServerCommandExchange<*> = SimpleServerCommandExchange(this)
 }

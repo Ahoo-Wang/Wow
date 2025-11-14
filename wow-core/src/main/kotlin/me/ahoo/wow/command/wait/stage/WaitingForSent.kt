@@ -15,7 +15,16 @@ package me.ahoo.wow.command.wait.stage
 
 import me.ahoo.wow.command.wait.CommandStage
 
-class WaitingForSent(override val waitCommandId: String) : WaitingForStage() {
+/**
+ * Wait strategy that completes immediately when the command is sent to the bus.
+ * This is the most minimal wait strategy - it doesn't wait for any processing.
+ * Supports void commands since no processing results are expected.
+ *
+ * @param waitCommandId The unique identifier for this wait strategy.
+ */
+class WaitingForSent(
+    override val waitCommandId: String
+) : WaitingForStage() {
     override val stage: CommandStage
         get() = CommandStage.SENT
 

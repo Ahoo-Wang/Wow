@@ -16,6 +16,20 @@ package me.ahoo.wow.command.factory
 import me.ahoo.wow.exception.ErrorCodes.REWRITE_NO_COMMAND
 import me.ahoo.wow.exception.WowException
 
+/**
+ * Exception thrown when a command builder rewriter fails to return a command.
+ *
+ * This exception is raised when a CommandBuilderRewriter's rewrite method
+ * returns an empty Mono, indicating that the rewriter could not process
+ * the command builder successfully.
+ *
+ * @param commandBuilder the command builder that failed to be rewritten
+ * @param rewriter the rewriter that failed to return a command
+ * @param errorMsg custom error message (default provided)
+ * @param cause the underlying cause of the failure (optional)
+ * @see CommandBuilderRewriter.rewrite
+ * @see WowException
+ */
 class RewriteNoCommandException(
     val commandBuilder: CommandBuilder,
     val rewriter: CommandBuilderRewriter,

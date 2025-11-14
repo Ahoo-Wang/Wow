@@ -16,6 +16,15 @@ package me.ahoo.wow.command.wait.stage
 import me.ahoo.wow.api.messaging.function.NamedFunctionInfoData
 import me.ahoo.wow.command.wait.CommandStage
 
+/**
+ * Wait strategy that waits for sagas to handle command-generated events.
+ * This strategy completes when both command processing and saga event handling are finished.
+ * Sagas may generate additional commands as part of their processing.
+ * Optionally filters by specific saga function criteria if provided.
+ *
+ * @param waitCommandId The unique identifier for this wait strategy.
+ * @param function Optional function criteria to match specific saga handlers.
+ */
 class WaitingForSagaHandled(
     override val waitCommandId: String,
     override val function: NamedFunctionInfoData? = null
