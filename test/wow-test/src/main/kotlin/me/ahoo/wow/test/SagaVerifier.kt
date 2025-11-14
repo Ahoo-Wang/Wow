@@ -35,10 +35,24 @@ import me.ahoo.wow.test.validation.TestValidator
 /**
  * Utility object for creating and configuring stateless saga verifiers for testing.
  *
- * This object provides factory methods to create test environments for stateless sagas,
- * including default command gateways and when stages for defining test scenarios.
- * It simplifies the setup of saga testing by providing sensible defaults and
- * convenient extension methods.
+ * SagaVerifier provides a fluent API for testing stateless sagas using the Given/When/Expect pattern.
+ * It simplifies saga testing by offering pre-configured components and convenient factory methods
+ * that handle the complex setup of command gateways, service providers, and message factories.
+ *
+ * Key features:
+ * - Pre-configured command gateway for isolated testing
+ * - Automatic metadata extraction from saga class annotations
+ * - Support for dependency injection via ServiceProvider
+ * - Fluent DSL for defining test scenarios with domain events
+ * - Type-safe testing with generics and reified types
+ *
+ * Example usage:
+ * ```kotlin
+ * SagaVerifier.sagaVerifier<OrderSaga>()
+ *     .whenEvent(mockOrderCreatedEvent)
+ *     .expectNoCommand()
+ *     .verify()
+ * ```
  *
  * @author ahoo wang
  */
@@ -46,11 +60,25 @@ object SagaVerifier {
     /**
      * Creates a default command gateway configured for stateless saga testing.
      *
-     * This method returns a pre-configured [CommandGateway] with in-memory components
-     * suitable for testing sagas without external dependencies. It uses a test-specific
-     * endpoint name and no-op idempotency checking for simplified test scenarios.
+     * This method returns a pre-configured CommandGateway with in-memory components
+     * suitable for testing sagas in isolation without external dependencies. The gateway
+     * uses a test-specific endpoint name and no-op idempotency checking to simplify
+     * test scenarios and avoid external service interactions.
      *
-     * @return A [CommandGateway] instance configured for testing.
+     * The default configuration includes:
+     * - In-memory command bus for local message handling
+     * - Test validator for command validation
+     * - No-op idempotency checker to prevent duplicate command filtering
+     * - Local command wait notifier for synchronous testing
+     *
+     * @return a CommandGateway instance configured for testing stateless sagas
+     * @throws Exception if gateway initialization fails
+     *
+     * Example:
+     * ```kotlin
+     * val gateway = SagaVerifier.defaultCommandGateway()
+     * // Use gateway in custom saga verifier setup
+     * ```
      */
     @JvmStatic
     fun defaultCommandGateway(): CommandGateway =
@@ -66,15 +94,35 @@ object SagaVerifier {
     /**
      * Creates a when stage for testing a stateless saga of this class type.
      *
-     * This extension method on [Class] creates a test environment for the specified
-     * saga class, allowing you to define test scenarios using the fluent DSL.
-     * It automatically extracts processor metadata from the class annotations.
+     * This extension method on Class<T> creates a complete test environment for the specified
+     * saga class, allowing you to define test scenarios using the fluent DSL. It automatically
+     * extracts processor metadata from the class annotations and sets up all necessary
+     * components for saga testing.
      *
-     * @param T The type of the saga class.
-     * @param serviceProvider The service provider for dependency injection (defaults to simple provider).
-     * @param commandGateway The command gateway for sending commands (defaults to test gateway).
-     * @param commandMessageFactory The factory for creating command messages (defaults to simple factory with test validator).
-     * @return A [WhenStage] for defining test scenarios.
+     * The method configures:
+     * - Saga processor metadata extraction
+     * - Service provider for dependency injection
+     * - Command gateway for sending commands triggered by the saga
+     * - Command message factory for creating command messages
+     *
+     * @param T the type of the saga class to be tested
+     * @param serviceProvider the service provider for dependency injection, defaults to SimpleServiceProvider
+     * @param commandGateway the command gateway for sending commands, defaults to defaultCommandGateway()
+     * @param commandMessageFactory the factory for creating command messages, defaults to SimpleCommandMessageFactory with TestValidator
+     * @return a WhenStage instance for defining test scenarios with domain events
+     * @throws IllegalArgumentException if saga metadata cannot be resolved from class annotations
+     *
+     * Example:
+     * ```kotlin
+     * CartSaga::class.java.sagaVerifier()
+     *     .whenEvent(
+     *         event = mockk<OrderCreated> { ... },
+     *         ownerId = "owner123"
+     *     )
+     *     .expectCommandType(RemoveCartItem::class)
+     *     .expectCommand<RemoveCartItem> { body.productIds.assert().hasSize(1) }
+     *     .verify()
+     * ```
      */
     @JvmStatic
     @JvmOverloads
@@ -99,14 +147,32 @@ object SagaVerifier {
     /**
      * Creates a when stage for testing a stateless saga using reified generics.
      *
-     * This inline function provides a convenient way to create saga verifiers
-     * without explicitly specifying the class type. It uses reified generics
-     * to automatically infer the saga class type.
+     * This inline function provides a convenient way to create saga verifiers without explicitly
+     * specifying the Class type. It leverages Kotlin's reified generics to automatically infer
+     * the saga class type at compile time, enabling type-safe testing without reflection overhead.
      *
-     * @param T The type of the saga (inferred automatically).
-     * @param serviceProvider The service provider for dependency injection (defaults to simple provider).
-     * @param commandGateway The command gateway for sending commands (defaults to test gateway).
-     * @return A [WhenStage] for defining test scenarios.
+     * This is the recommended method for creating saga verifiers in Kotlin code due to its
+     * type safety and conciseness compared to the Class-based extension method.
+     *
+     * @param T the reified type of the saga class (inferred automatically)
+     * @param serviceProvider the service provider for dependency injection, defaults to SimpleServiceProvider
+     * @param commandGateway the command gateway for sending commands, defaults to defaultCommandGateway()
+     * @return a WhenStage instance for defining test scenarios with domain events
+     * @throws IllegalArgumentException if saga metadata cannot be resolved from class annotations
+     *
+     * Example:
+     * ```kotlin
+     * sagaVerifier<OrderSaga>()
+     *     .whenEvent(
+     *         event = mockk<OrderCreated> {
+     *             every { items } returns listOf(orderItem)
+     *             every { fromCart } returns true
+     *         },
+     *         state = mockk<OrderState>()
+     *     )
+     *     .expectNoCommand()
+     *     .verify()
+     * ```
      */
     @JvmStatic
     inline fun <reified T : Any> sagaVerifier(
