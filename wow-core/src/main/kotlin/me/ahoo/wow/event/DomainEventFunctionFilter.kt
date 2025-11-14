@@ -21,14 +21,45 @@ import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.handler.ExchangeFilter
 import reactor.core.publisher.Mono
 
+/**
+ * Filter for processing domain events through registered event functions.
+ *
+ * This filter is applied to domain event exchanges and is responsible for
+ * invoking the appropriate event handler functions. It sets up the service
+ * provider context and executes the event function before continuing the
+ * filter chain.
+ *
+ * @property serviceProvider The service provider for dependency injection
+ *
+ * @see ExchangeFilter
+ * @see DomainEventExchange
+ * @see FilterChain
+ * @see ServiceProvider
+ */
 @FilterType(DomainEventDispatcher::class)
 @Order(ORDER_DEFAULT)
 open class DomainEventFunctionFilter(
     private val serviceProvider: ServiceProvider
-) :
-    ExchangeFilter<DomainEventExchange<*>> {
-
-    override fun filter(exchange: DomainEventExchange<*>, next: FilterChain<DomainEventExchange<*>>): Mono<Void> {
+) : ExchangeFilter<DomainEventExchange<*>> {
+    /**
+     * Filters the domain event exchange by invoking the registered event function.
+     *
+     * This method sets the service provider on the exchange, retrieves the event function,
+     * invokes it, and then continues with the next filter in the chain.
+     *
+     * @param exchange The domain event exchange to process
+     * @param next The next filter in the chain
+     * @return A Mono that completes when the event function and subsequent filters finish
+     * @throws IllegalStateException if no event function is registered for the exchange
+     *
+     * @see ExchangeFilter.filter
+     * @see DomainEventExchange.getEventFunction
+     * @see MessageFunction.invoke
+     */
+    override fun filter(
+        exchange: DomainEventExchange<*>,
+        next: FilterChain<DomainEventExchange<*>>
+    ): Mono<Void> {
         exchange.setServiceProvider(serviceProvider)
         val eventFunction = checkNotNull(exchange.getEventFunction())
         return eventFunction

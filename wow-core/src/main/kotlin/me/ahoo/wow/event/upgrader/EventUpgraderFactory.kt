@@ -22,19 +22,43 @@ import me.ahoo.wow.serialization.event.DomainEventRecord
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
+/**
+ * Factory for managing and applying event upgraders.
+ *
+ * This object maintains a registry of event upgraders organized by event named aggregate.
+ * It automatically discovers upgraders via ServiceLoader and applies them in order
+ * when upgrading domain event records.
+ *
+ * @see EventUpgrader
+ * @see EventNamedAggregate
+ * @see DomainEventRecord
+ */
 object EventUpgraderFactory {
     private val log = KotlinLogging.logger {}
     private val eventUpgraderFactories: ConcurrentHashMap<EventNamedAggregate, List<EventUpgrader>> =
         ConcurrentHashMap()
 
     init {
-        ServiceLoader.load(EventUpgrader::class.java)
+        ServiceLoader
+            .load(EventUpgrader::class.java)
             .forEach {
                 log.info { "Load $it to register." }
                 register(it)
             }
     }
 
+    /**
+     * Registers an event upgrader in the factory.
+     *
+     * This method adds the upgrader to the registry, organizing upgraders by
+     * their event named aggregate and sorting them by order annotation.
+     *
+     * @param eventUpgrader The event upgrader to register
+     *
+     * @see EventUpgrader
+     * @see EventNamedAggregate
+     * @see sortedByOrder
+     */
     fun register(eventUpgrader: EventUpgrader) {
         log.info {
             "Register $eventUpgrader."
@@ -48,10 +72,33 @@ object EventUpgraderFactory {
         }
     }
 
-    fun get(eventNamedAggregate: EventNamedAggregate): List<EventUpgrader> {
-        return eventUpgraderFactories[eventNamedAggregate] ?: listOf()
-    }
+    /**
+     * Retrieves the list of upgraders for a specific event named aggregate.
+     *
+     * @param eventNamedAggregate The event named aggregate to get upgraders for
+     * @return The list of upgraders for the specified aggregate, or empty list if none found
+     *
+     * @see EventNamedAggregate
+     * @see EventUpgrader
+     */
+    fun get(
+        eventNamedAggregate: EventNamedAggregate
+    ): List<EventUpgrader> = eventUpgraderFactories[eventNamedAggregate] ?: listOf()
 
+    /**
+     * Upgrades a domain event record using registered upgraders.
+     *
+     * This method finds all applicable upgraders for the event record and applies
+     * them in order. If no upgraders are found, the original record is returned unchanged.
+     *
+     * @param domainEventRecord The event record to upgrade
+     * @return The upgraded event record, or the original if no upgraders apply
+     *
+     * @see DomainEventRecord
+     * @see EventUpgrader
+     * @see get
+     * @see toMutableDomainEventRecord
+     */
     fun upgrade(domainEventRecord: DomainEventRecord): DomainEventRecord {
         val namedAggregate = domainEventRecord.toAggregateId().namedAggregate.materialize()
         val eventNamedAggregate = namedAggregate.toEventNamedAggregate(domainEventRecord.name)
@@ -66,6 +113,6 @@ object EventUpgraderFactory {
             }
             mutableDomainEventRecord = it.upgrade(mutableDomainEventRecord).toMutableDomainEventRecord()
         }
-        return domainEventRecord
+        return mutableDomainEventRecord
     }
 }

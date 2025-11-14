@@ -24,6 +24,30 @@ import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
 import java.util.concurrent.ConcurrentHashMap
 
+/**
+ * Dispatcher for processing state events within a specific aggregate context.
+ *
+ * This class handles the distribution and processing of state events for a particular
+ * named aggregate. It extends AbstractAggregateEventDispatcher to provide concrete
+ * implementation for state event processing, including access to aggregate state.
+ *
+ * @property namedAggregate The named aggregate this dispatcher handles
+ * @property name The name of this dispatcher (default: derived from aggregate name)
+ * @property parallelism The level of parallelism for processing (default: DEFAULT_PARALLELISM)
+ * @property messageFlux The flux of state event exchanges to process
+ * @property functionRegistrar The registrar containing event processing functions
+ * @property eventHandler The handler for processing individual events
+ * @property scheduler The scheduler for managing event processing concurrency
+ *
+ * @constructor Creates a new AggregateStateEventDispatcher with the specified parameters
+ *
+ * @see AbstractAggregateEventDispatcher
+ * @see NamedAggregate
+ * @see StateEventExchange
+ * @see MessageFunctionRegistrar
+ * @see EventHandler
+ * @see Scheduler
+ */
 @Suppress("LongParameterList")
 class AggregateStateEventDispatcher(
     override val namedAggregate: NamedAggregate,
@@ -31,17 +55,27 @@ class AggregateStateEventDispatcher(
         "${namedAggregate.aggregateName}-${AggregateStateEventDispatcher::class.simpleName!!}",
     override val parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
     override val messageFlux: Flux<StateEventExchange<*>>,
-    override val functionRegistrar:
-    MessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>>,
+    override val functionRegistrar: MessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>>,
     override val eventHandler: EventHandler,
     override val scheduler: Scheduler
 ) : AbstractAggregateEventDispatcher<StateEventExchange<*>>() {
-
-    override fun StateEventExchange<*>.createEventExchange(event: DomainEvent<*>): DomainEventExchange<*> {
-        return SimpleStateDomainEventExchange(
+    /**
+     * Creates a state domain event exchange from a state event exchange and domain event.
+     *
+     * This method wraps a domain event in a SimpleStateDomainEventExchange, providing
+     * access to the aggregate state and copying attributes from the parent exchange.
+     *
+     * @param event The domain event to create an exchange for
+     * @return A new SimpleStateDomainEventExchange containing the event and state
+     *
+     * @see SimpleStateDomainEventExchange
+     * @see DomainEvent
+     * @see ReadOnlyStateAggregate
+     */
+    override fun StateEventExchange<*>.createEventExchange(event: DomainEvent<*>): DomainEventExchange<*> =
+        SimpleStateDomainEventExchange(
             state = message,
             message = event,
             attributes = ConcurrentHashMap(attributes),
         )
-    }
 }
