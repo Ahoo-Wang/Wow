@@ -33,47 +33,84 @@ import me.ahoo.wow.test.saga.stateless.WhenStage
 import me.ahoo.wow.test.validation.TestValidator
 
 /**
- * Stateless Saga Verifier .
+ * Utility object for creating and configuring stateless saga verifiers for testing.
+ *
+ * This object provides factory methods to create test environments for stateless sagas,
+ * including default command gateways and when stages for defining test scenarios.
+ * It simplifies the setup of saga testing by providing sensible defaults and
+ * convenient extension methods.
  *
  * @author ahoo wang
  */
 object SagaVerifier {
+    /**
+     * Creates a default command gateway configured for stateless saga testing.
+     *
+     * This method returns a pre-configured [CommandGateway] with in-memory components
+     * suitable for testing sagas without external dependencies. It uses a test-specific
+     * endpoint name and no-op idempotency checking for simplified test scenarios.
+     *
+     * @return A [CommandGateway] instance configured for testing.
+     */
     @JvmStatic
-    fun defaultCommandGateway(): CommandGateway {
-        return DefaultCommandGateway(
+    fun defaultCommandGateway(): CommandGateway =
+        DefaultCommandGateway(
             commandWaitEndpoint = SimpleCommandWaitEndpoint("__StatelessSagaVerifier__"),
             commandBus = InMemoryCommandBus(),
             validator = TestValidator,
             idempotencyCheckerProvider = DefaultAggregateIdempotencyCheckerProvider { NoOpIdempotencyChecker },
             waitStrategyRegistrar = SimpleWaitStrategyRegistrar,
-            commandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar)
+            commandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar),
         )
-    }
 
+    /**
+     * Creates a when stage for testing a stateless saga of this class type.
+     *
+     * This extension method on [Class] creates a test environment for the specified
+     * saga class, allowing you to define test scenarios using the fluent DSL.
+     * It automatically extracts processor metadata from the class annotations.
+     *
+     * @param T The type of the saga class.
+     * @param serviceProvider The service provider for dependency injection (defaults to simple provider).
+     * @param commandGateway The command gateway for sending commands (defaults to test gateway).
+     * @param commandMessageFactory The factory for creating command messages (defaults to simple factory with test validator).
+     * @return A [WhenStage] for defining test scenarios.
+     */
     @JvmStatic
     @JvmOverloads
     fun <T : Any> Class<T>.sagaVerifier(
         serviceProvider: ServiceProvider = SimpleServiceProvider(),
         commandGateway: CommandGateway = defaultCommandGateway(),
-        commandMessageFactory: CommandMessageFactory = SimpleCommandMessageFactory(
-            validator = TestValidator,
-            commandBuilderRewriterRegistry = SimpleCommandBuilderRewriterRegistry()
-        )
+        commandMessageFactory: CommandMessageFactory =
+            SimpleCommandMessageFactory(
+                validator = TestValidator,
+                commandBuilderRewriterRegistry = SimpleCommandBuilderRewriterRegistry(),
+            )
     ): WhenStage<T> {
         val sagaMetadata: ProcessorMetadata<T, DomainEventExchange<*>> = eventProcessorMetadata()
         return DefaultWhenStage(
             sagaMetadata = sagaMetadata,
             serviceProvider = serviceProvider,
             commandGateway = commandGateway,
-            commandMessageFactory = commandMessageFactory
+            commandMessageFactory = commandMessageFactory,
         )
     }
 
+    /**
+     * Creates a when stage for testing a stateless saga using reified generics.
+     *
+     * This inline function provides a convenient way to create saga verifiers
+     * without explicitly specifying the class type. It uses reified generics
+     * to automatically infer the saga class type.
+     *
+     * @param T The type of the saga (inferred automatically).
+     * @param serviceProvider The service provider for dependency injection (defaults to simple provider).
+     * @param commandGateway The command gateway for sending commands (defaults to test gateway).
+     * @return A [WhenStage] for defining test scenarios.
+     */
     @JvmStatic
     inline fun <reified T : Any> sagaVerifier(
         serviceProvider: ServiceProvider = SimpleServiceProvider(),
         commandGateway: CommandGateway = defaultCommandGateway()
-    ): WhenStage<T> {
-        return T::class.java.sagaVerifier(serviceProvider, commandGateway)
-    }
+    ): WhenStage<T> = T::class.java.sagaVerifier(serviceProvider, commandGateway)
 }
