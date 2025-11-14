@@ -22,28 +22,71 @@ import me.ahoo.wow.test.dsl.AbstractDynamicTestBuilder
 import me.ahoo.wow.test.dsl.NameSpecCapable.Companion.appendName
 import org.junit.jupiter.api.DynamicContainer
 
-abstract class AbstractGivenStageDsl<S : Any> : Decorator<GivenStage<S>>, GivenDsl<S>, Named,
-    AbstractDynamicTestBuilder() {
+/**
+ * Abstract base class for GivenDsl implementations that provides common functionality.
+ *
+ * This class implements the core GivenDsl interface methods and provides a foundation
+ * for concrete implementations. It handles service injection, owner ID management,
+ * and coordinates the setup of test scenarios with events or state.
+ *
+ * @param S the state type of the aggregate
+ */
+abstract class AbstractGivenStageDsl<S : Any> :
+    AbstractDynamicTestBuilder(),
+    Decorator<GivenStage<S>>,
+    GivenDsl<S>,
+    Named {
+    /**
+     * The name identifier for this test scenario.
+     * Used in dynamic test naming and reporting.
+     */
     final override var name: String = ""
         private set
 
+    /**
+     * Sets the name for this test scenario.
+     *
+     * @param name the descriptive name for the test
+     */
     override fun name(name: String) {
         this.name = name
     }
 
+    /**
+     * Injects services into the test service provider.
+     *
+     * @param inject lambda that configures the service provider with test dependencies
+     */
     override fun inject(inject: ServiceProvider.() -> Unit) {
         delegate.inject(inject)
     }
 
+    /**
+     * Sets the owner ID for subsequent operations.
+     *
+     * @param ownerId the owner identifier to use for commands and events
+     */
     override fun givenOwnerId(ownerId: String) {
         delegate.givenOwnerId(ownerId)
     }
 
-    override fun givenEvent(event: Any, block: WhenDsl<S>.() -> Unit) {
+    /**
+     * Sets up the aggregate with a single initial event.
+     *
+     * @param event the initial domain event
+     * @param block the test scenario continuation using WhenDsl
+     */
+    override fun givenEvent(
+        event: Any,
+        block: WhenDsl<S>.() -> Unit
+    ) {
         givenEvent(arrayOf(event), block)
     }
 
-    override fun givenEvent(events: Array<out Any>, block: WhenDsl<S>.() -> Unit) {
+    override fun givenEvent(
+        events: Array<out Any>,
+        block: WhenDsl<S>.() -> Unit
+    ) {
         val whenStage = delegate.givenEvent(*events)
         val whenDsl = DefaultWhenDsl(whenStage)
         block(whenDsl)
@@ -55,12 +98,23 @@ abstract class AbstractGivenStageDsl<S : Any> : Decorator<GivenStage<S>>, GivenD
         }
         val container = DynamicContainer.dynamicContainer(
             displayName,
-            whenDsl.dynamicNodes
+            whenDsl.dynamicNodes,
         )
         dynamicNodes.add(container)
     }
 
-    override fun givenState(state: S, version: Int, block: WhenDsl<S>.() -> Unit) {
+    /**
+     * Sets up the aggregate with a specific initial state and version.
+     *
+     * @param state the initial state of the aggregate
+     * @param version the version number of the initial state
+     * @param block the test scenario continuation using WhenDsl
+     */
+    override fun givenState(
+        state: S,
+        version: Int,
+        block: WhenDsl<S>.() -> Unit
+    ) {
         val whenStage = delegate.givenState(state, version)
         val whenDsl = DefaultWhenDsl(whenStage)
         block(whenDsl)
@@ -72,6 +126,14 @@ abstract class AbstractGivenStageDsl<S : Any> : Decorator<GivenStage<S>>, GivenD
         dynamicNodes.add(container)
     }
 
+    /**
+     * Executes a command without prior event setup.
+     *
+     * @param command the command to execute
+     * @param header message header for the command
+     * @param ownerId the owner identifier for the command
+     * @param block the expectation definition using ExpectDsl
+     */
     override fun whenCommand(
         command: Any,
         header: Header,
