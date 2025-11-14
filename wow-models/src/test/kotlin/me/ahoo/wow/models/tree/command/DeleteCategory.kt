@@ -15,14 +15,16 @@ package me.ahoo.wow.models.tree.command
 
 import jakarta.validation.constraints.NotBlank
 import me.ahoo.wow.api.annotation.CommandRoute
+import me.ahoo.wow.api.annotation.Description
+import me.ahoo.wow.api.annotation.Summary
 import me.ahoo.wow.models.tree.Flat
 
+@Summary("删除树节点")
+@Description("Id 为租户ID.")
 @CommandRoute(
     method = CommandRoute.Method.DELETE,
     appendIdPath = CommandRoute.AppendPath.ALWAYS,
-    action = "{code}",
-    summary = "删除树节点",
-    description = "Id 为租户ID."
+    action = "{code}"
 )
 data class DeleteCategory(
     @field:NotBlank

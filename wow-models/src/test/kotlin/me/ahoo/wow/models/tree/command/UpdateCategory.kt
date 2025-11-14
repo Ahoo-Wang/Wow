@@ -14,15 +14,17 @@
 package me.ahoo.wow.models.tree.command
 
 import me.ahoo.wow.api.annotation.CommandRoute
+import me.ahoo.wow.api.annotation.Description
+import me.ahoo.wow.api.annotation.Summary
 import me.ahoo.wow.api.naming.Named
 import me.ahoo.wow.models.tree.Flat
 
+@Summary("更新分类名称")
+@Description("Id 为租户ID.")
 @CommandRoute(
     method = CommandRoute.Method.PUT,
     appendIdPath = CommandRoute.AppendPath.ALWAYS,
     action = "",
-    summary = "更新分类名称",
-    description = "Id 为租户ID."
 )
 data class UpdateCategory(
     override val name: String,
