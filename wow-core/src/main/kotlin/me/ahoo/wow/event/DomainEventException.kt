@@ -17,11 +17,35 @@ import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.exception.WowException
 
-class DomainEventException(val domainEvent: DomainEvent<out ErrorInfo>) :
-    WowException(domainEvent.body.errorCode, domainEvent.body.errorMsg) {
+/**
+ * Exception wrapper for domain events containing error information.
+ *
+ * This exception is thrown when a domain event contains error details that need to be
+ * propagated as an exception. It wraps the original domain event and extracts the
+ * error code and message from the event body.
+ *
+ * @property domainEvent The domain event containing error information
+ * @constructor Creates a new DomainEventException from a domain event with error info
+ *
+ * @param domainEvent The domain event that contains error details
+ * @throws IllegalArgumentException if the domain event body is not ErrorInfo
+ *
+ * @see WowException
+ * @see ErrorInfo
+ * @see DomainEvent
+ */
+class DomainEventException(
+    val domainEvent: DomainEvent<out ErrorInfo>
+) : WowException(domainEvent.body.errorCode, domainEvent.body.errorMsg) {
     companion object {
-        fun DomainEvent<out ErrorInfo>.toException(): DomainEventException {
-            return DomainEventException(this)
-        }
+        /**
+         * Extension function to convert a domain event with error info to a DomainEventException.
+         *
+         * @receiver The domain event containing error information
+         * @return A new DomainEventException wrapping this domain event
+         *
+         * @see DomainEventException
+         */
+        fun DomainEvent<out ErrorInfo>.toException(): DomainEventException = DomainEventException(this)
     }
 }

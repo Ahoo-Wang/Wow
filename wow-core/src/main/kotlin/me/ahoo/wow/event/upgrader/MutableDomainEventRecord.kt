@@ -20,23 +20,55 @@ import me.ahoo.wow.serialization.MessageRecords.NAME
 import me.ahoo.wow.serialization.event.DomainEventRecord
 import me.ahoo.wow.serialization.event.DomainEventRecords.REVISION
 
-class MutableDomainEventRecord(override val actual: ObjectNode) : DomainEventRecord {
+/**
+ * Mutable wrapper for domain event records.
+ *
+ * This class provides a mutable interface to domain event records stored as
+ * Jackson ObjectNode instances. It allows modification of event properties
+ * during the upgrading process.
+ *
+ * @property actual The underlying ObjectNode containing the event data
+ *
+ * @constructor Creates a new MutableDomainEventRecord wrapping the given ObjectNode
+ *
+ * @param actual The ObjectNode to wrap
+ *
+ * @see DomainEventRecord
+ * @see ObjectNode
+ */
+class MutableDomainEventRecord(
+    override val actual: ObjectNode
+) : DomainEventRecord {
+    /**
+     * The body type of the event, mutable for upgrading.
+     */
     override var bodyType: String
         get() = super.bodyType
         set(value) {
             actual.put(BODY_TYPE, value)
         }
+
+    /**
+     * The name of the event, mutable for upgrading.
+     */
     override var name: String
         get() = super.name
         set(value) {
             actual.put(NAME, value)
         }
+
+    /**
+     * The revision of the event, mutable for upgrading.
+     */
     override var revision: String
         get() = super.revision
         set(value) {
             actual.put(REVISION, value)
         }
 
+    /**
+     * The body of the event as an ObjectNode, mutable for upgrading.
+     */
     override var body: ObjectNode
         get() = super.body as ObjectNode
         set(value) {
@@ -44,6 +76,18 @@ class MutableDomainEventRecord(override val actual: ObjectNode) : DomainEventRec
         }
 
     companion object {
+        /**
+         * Extension function to convert a DomainEventRecord to a MutableDomainEventRecord.
+         *
+         * If the record is already mutable, returns it as-is. Otherwise, creates
+         * a new MutableDomainEventRecord wrapping the underlying ObjectNode.
+         *
+         * @receiver The domain event record to convert
+         * @return A mutable version of the domain event record
+         *
+         * @see DomainEventRecord
+         * @see MutableDomainEventRecord
+         */
         fun DomainEventRecord.toMutableDomainEventRecord(): MutableDomainEventRecord {
             if (this is MutableDomainEventRecord) {
                 return this

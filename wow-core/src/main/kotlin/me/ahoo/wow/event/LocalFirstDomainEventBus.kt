@@ -15,7 +15,28 @@ package me.ahoo.wow.event
 
 import me.ahoo.wow.messaging.LocalFirstMessageBus
 
+/**
+ * Domain event bus that prioritizes local processing before distributed publishing.
+ *
+ * This implementation extends LocalFirstMessageBus to provide a hybrid event bus
+ * that first processes events locally (for immediate consistency) and then
+ * publishes them to a distributed bus (for cross-service communication).
+ *
+ * @property distributedBus The distributed event bus for cross-service communication
+ * @property localBus The local event bus for in-process handling (default: InMemoryDomainEventBus)
+ *
+ * @constructor Creates a new LocalFirstDomainEventBus with the specified buses
+ *
+ * @param distributedBus The distributed event bus
+ * @param localBus The local event bus (default: InMemoryDomainEventBus)
+ *
+ * @see DomainEventBus
+ * @see LocalFirstMessageBus
+ * @see DistributedDomainEventBus
+ * @see LocalDomainEventBus
+ */
 class LocalFirstDomainEventBus(
     override val distributedBus: DistributedDomainEventBus,
     override val localBus: LocalDomainEventBus = InMemoryDomainEventBus()
-) : DomainEventBus, LocalFirstMessageBus<DomainEventStream, EventStreamExchange>
+) : DomainEventBus,
+    LocalFirstMessageBus<DomainEventStream, EventStreamExchange>

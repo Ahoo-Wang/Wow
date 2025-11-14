@@ -19,14 +19,45 @@ import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.Handler
 import me.ahoo.wow.filter.LogResumeErrorHandler
 
+/**
+ * Base interface for event handlers that process domain event exchanges.
+ *
+ * @see Handler
+ * @see DomainEventExchange
+ */
 interface EventHandler : Handler<DomainEventExchange<*>>
+
+/**
+ * Interface for domain event handlers.
+ *
+ * This interface extends EventHandler to specifically handle domain events.
+ * Implementations should process domain event exchanges through a filter chain.
+ *
+ * @see EventHandler
+ * @see DomainEventExchange
+ */
 interface DomainEventHandler : EventHandler
 
+/**
+ * Default implementation of DomainEventHandler.
+ *
+ * This class provides a standard implementation of domain event handling using
+ * a filter chain and error handling. It extends AbstractHandler to manage
+ * the processing lifecycle.
+ *
+ * @param chain The filter chain to process domain events
+ * @param errorHandler The error handler for processing failures (default: LogResumeErrorHandler)
+ *
+ * @see DomainEventHandler
+ * @see AbstractHandler
+ * @see FilterChain
+ * @see ErrorHandler
+ */
 class DefaultDomainEventHandler(
     chain: FilterChain<DomainEventExchange<*>>,
     errorHandler: ErrorHandler<DomainEventExchange<*>> = LogResumeErrorHandler()
-) : DomainEventHandler,
-    AbstractHandler<DomainEventExchange<*>>(
-        chain,
-        errorHandler,
-    )
+) : AbstractHandler<DomainEventExchange<*>>(
+    chain,
+    errorHandler,
+),
+    DomainEventHandler

@@ -29,12 +29,27 @@ import me.ahoo.wow.naming.annotation.toName
 import kotlin.reflect.KProperty1
 
 /**
- * Event Metadata Parser .
+ * Parser for extracting metadata from domain event classes.
  *
- * @author ahoo wang
+ * This object parses domain event classes to extract metadata such as event names,
+ * revisions, and aggregate information from annotations and class structure.
+ * It implements CacheableMetadataParser for performance optimization.
+ *
+ * @see CacheableMetadataParser
+ * @see EventMetadata
+ * @see Event
  */
 object EventMetadataParser : CacheableMetadataParser() {
-
+    /**
+     * Parses a class to extract event metadata.
+     *
+     * @param TYPE The type of the event class
+     * @param M The metadata type (must be EventMetadata)
+     * @param type The class to parse
+     * @return The extracted event metadata
+     *
+     * @see EventMetadata
+     */
     override fun <TYPE : Any, M : Metadata> parseToMetadata(type: Class<TYPE>): M {
         val visitor = EventMetadataVisitor(type)
         type.kotlin.visit(visitor)
@@ -42,7 +57,21 @@ object EventMetadataParser : CacheableMetadataParser() {
         return visitor.toMetadata() as M
     }
 
-    internal class EventMetadataVisitor<E : Any>(private val eventType: Class<E>) : ClassVisitor<E, EventMetadata<E>> {
+    /**
+     * Visitor class for extracting event metadata from Kotlin classes.
+     *
+     * This internal class visits class properties and annotations to collect
+     * information needed to construct EventMetadata.
+     *
+     * @param E The event type
+     * @property eventType The class being visited
+     *
+     * @see ClassVisitor
+     * @see EventMetadata
+     */
+    internal class EventMetadataVisitor<E : Any>(
+        private val eventType: Class<E>
+    ) : ClassVisitor<E, EventMetadata<E>> {
         private val eventName: String = eventType.toName()
         private var aggregateNameGetter: PropertyGetter<E, String>? = null
         private var revision = DEFAULT_REVISION
@@ -56,6 +85,15 @@ object EventMetadataParser : CacheableMetadataParser() {
             }
         }
 
+        /**
+         * Visits a class property to extract aggregate-related getters.
+         *
+         * @param property The property being visited
+         *
+         * @see PropertyGetter
+         * @see toAggregateNameGetterIfAnnotated
+         * @see toAggregateIdGetterIfAnnotated
+         */
         override fun visitProperty(property: KProperty1<E, *>) {
             if (aggregateNameGetter == null) {
                 aggregateNameGetter = property.toAggregateNameGetterIfAnnotated()
@@ -65,6 +103,14 @@ object EventMetadataParser : CacheableMetadataParser() {
             }
         }
 
+        /**
+         * Creates the EventMetadata from collected information.
+         *
+         * @return The constructed EventMetadata instance
+         *
+         * @see EventMetadata
+         * @see NamedAggregateGetter
+         */
         override fun toMetadata(): EventMetadata<E> {
             val namedAggregateGetter = aggregateNameGetter.toNamedAggregateGetter(eventType)
             return EventMetadata(
@@ -78,10 +124,25 @@ object EventMetadataParser : CacheableMetadataParser() {
     }
 }
 
-fun <E : Any> Class<out E>.toEventMetadata(): EventMetadata<E> {
-    return EventMetadataParser.parse(this)
-}
+/**
+ * Extension function to parse event metadata from a class.
+ *
+ * @param E The event type
+ * @receiver The class to parse metadata from
+ * @return The parsed event metadata
+ *
+ * @see EventMetadataParser.parse
+ * @see EventMetadata
+ */
+fun <E : Any> Class<out E>.toEventMetadata(): EventMetadata<E> = EventMetadataParser.parse(this)
 
-inline fun <reified E : Any> eventMetadata(): EventMetadata<E> {
-    return E::class.java.toEventMetadata()
-}
+/**
+ * Inline function to get event metadata for a reified type.
+ *
+ * @param E The event type
+ * @return The event metadata for the specified type
+ *
+ * @see toEventMetadata
+ * @see EventMetadata
+ */
+inline fun <reified E : Any> eventMetadata(): EventMetadata<E> = E::class.java.toEventMetadata()

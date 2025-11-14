@@ -34,16 +34,62 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.GroupedFlux
 import reactor.core.publisher.Mono
 
+/**
+ * Abstract base class for event dispatchers that coordinate domain and state event processing.
+ *
+ * This class manages the lifecycle of event processing across multiple aggregates,
+ * handling both domain events and state events. It subscribes to event buses,
+ * groups events by aggregate, and creates appropriate dispatchers for each aggregate.
+ *
+ * @param R The return type of processing operations (typically Mono<Void>)
+ *
+ * @property parallelism The level of parallelism for processing
+ * @property stateEventBus The bus for state events
+ * @property domainEventBus The bus for domain events
+ * @property functionRegistrar The registrar for event processing functions
+ * @property eventHandler The handler for processing events
+ * @property schedulerSupplier Supplier for creating aggregate schedulers
+ *
+ * @see MessageDispatcher
+ * @see StateEventBus
+ * @see DomainEventBus
+ * @see AbstractEventFunctionRegistrar
+ * @see EventHandler
+ * @see AggregateSchedulerSupplier
+ */
 abstract class AbstractEventDispatcher<R : Mono<*>> : MessageDispatcher {
     companion object {
         private val log = KotlinLogging.logger {}
     }
 
+    /**
+     * The level of parallelism for processing events.
+     */
     abstract val parallelism: Int
+
+    /**
+     * The state event bus for handling state-related events.
+     */
     abstract val stateEventBus: StateEventBus
+
+    /**
+     * The domain event bus for handling domain events.
+     */
     abstract val domainEventBus: DomainEventBus
+
+    /**
+     * The registrar containing event processing functions.
+     */
     abstract val functionRegistrar: AbstractEventFunctionRegistrar
+
+    /**
+     * The handler responsible for processing events.
+     */
     abstract val eventHandler: EventHandler
+
+    /**
+     * Supplier for creating schedulers for aggregate processing.
+     */
     protected abstract val schedulerSupplier: AggregateSchedulerSupplier
     private val domainEventDistributionSubscriber = DomainEventDistributionSubscriber()
     private val stateEventDistributionSubscriber = StateEventDistributionSubscriber()
@@ -54,8 +100,7 @@ abstract class AbstractEventDispatcher<R : Mono<*>> : MessageDispatcher {
         eventStreamFunctionRegistrar.functions
             .flatMap {
                 it.supportedTopics
-            }
-            .toSet()
+            }.toSet()
     }
 
     private val stateEventFunctionRegistrar by lazy {
@@ -65,40 +110,38 @@ abstract class AbstractEventDispatcher<R : Mono<*>> : MessageDispatcher {
         stateEventFunctionRegistrar.functions
             .flatMap {
                 it.supportedTopics
-            }
-            .toSet()
+            }.toSet()
     }
 
     private fun filterRegistrar(topicKind: TopicKind): MessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>> {
         val registrar =
             SimpleMessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>>()
-        functionRegistrar.functions.filter {
-            it.functionKind.topicKind == topicKind
-        }.forEach {
-            registrar.register(it)
-        }
+        functionRegistrar.functions
+            .filter {
+                it.functionKind.topicKind == topicKind
+            }.forEach {
+                registrar.register(it)
+            }
         return registrar
     }
 
-    private fun receiveEventStream(namedAggregates: Set<NamedAggregate>): Flux<EventStreamExchange> {
-        return domainEventBus
+    private fun receiveEventStream(namedAggregates: Set<NamedAggregate>): Flux<EventStreamExchange> =
+        domainEventBus
             .receive(namedAggregates)
             .writeReceiverGroup(name)
             .writeMetricsSubscriber(name)
-    }
 
-    private fun receiveStateEventStream(namedAggregates: Set<NamedAggregate>): Flux<StateEventExchange<*>> {
-        return stateEventBus
+    private fun receiveStateEventStream(namedAggregates: Set<NamedAggregate>): Flux<StateEventExchange<*>> =
+        stateEventBus
             .receive(namedAggregates)
             .writeReceiverGroup(name)
             .writeMetricsSubscriber(name)
-    }
 
     private fun newAggregateEventDispatcher(
         namedAggregate: NamedAggregate,
         messageFlux: Flux<EventStreamExchange>
-    ): MessageDispatcher {
-        return AggregateEventDispatcher(
+    ): MessageDispatcher =
+        AggregateEventDispatcher(
             namedAggregate = namedAggregate,
             parallelism = parallelism,
             messageFlux = messageFlux,
@@ -106,13 +149,12 @@ abstract class AbstractEventDispatcher<R : Mono<*>> : MessageDispatcher {
             functionRegistrar = eventStreamFunctionRegistrar,
             scheduler = schedulerSupplier.getOrInitialize(namedAggregate),
         )
-    }
 
     private fun newAggregateStateEventDispatcher(
         namedAggregate: NamedAggregate,
         messageFlux: Flux<StateEventExchange<*>>
-    ): AggregateMessageDispatcher<StateEventExchange<*>> {
-        return AggregateStateEventDispatcher(
+    ): AggregateMessageDispatcher<StateEventExchange<*>> =
+        AggregateStateEventDispatcher(
             namedAggregate = namedAggregate,
             parallelism = parallelism,
             messageFlux = messageFlux,
@@ -120,8 +162,19 @@ abstract class AbstractEventDispatcher<R : Mono<*>> : MessageDispatcher {
             functionRegistrar = stateEventFunctionRegistrar,
             scheduler = schedulerSupplier.getOrInitialize(namedAggregate),
         )
-    }
 
+    /**
+     * Starts the event dispatcher by subscribing to event streams.
+     *
+     * This method initializes subscriptions to both domain event streams and state event streams.
+     * Events are grouped by aggregate and distributed to appropriate aggregate dispatchers.
+     * If no topics are available for subscription, appropriate warnings are logged.
+     *
+     * @see receiveEventStream
+     * @see receiveStateEventStream
+     * @see DomainEventDistributionSubscriber
+     * @see StateEventDistributionSubscriber
+     */
     override fun run() {
         log.info {
             "[$name] Run subscribe to Event:${eventStreamTopics.toJsonString()}."
@@ -150,6 +203,14 @@ abstract class AbstractEventDispatcher<R : Mono<*>> : MessageDispatcher {
         }
     }
 
+    /**
+     * Closes the event dispatcher and cancels all subscriptions.
+     *
+     * This method gracefully shuts down the dispatcher by canceling both
+     * domain event and state event subscriptions.
+     *
+     * @see SafeSubscriber.cancel
+     */
     override fun close() {
         log.info {
             "[$name] Close."
@@ -158,12 +219,36 @@ abstract class AbstractEventDispatcher<R : Mono<*>> : MessageDispatcher {
         stateEventDistributionSubscriber.cancel()
     }
 
-    inner class DomainEventDistributionSubscriber :
-        SafeSubscriber<GroupedFlux<MaterializedNamedAggregate, EventStreamExchange>>() {
-
+    /**
+     * Subscriber that distributes domain events to aggregate-specific dispatchers.
+     *
+     * This inner class handles grouped fluxes of domain event streams, creating
+     * and starting an aggregate event dispatcher for each named aggregate.
+     *
+     * @see SafeSubscriber
+     * @see GroupedFlux
+     * @see MaterializedNamedAggregate
+     * @see EventStreamExchange
+     * @see newAggregateEventDispatcher
+     */
+    inner class DomainEventDistributionSubscriber : SafeSubscriber<GroupedFlux<MaterializedNamedAggregate, EventStreamExchange>>() {
+        /**
+         * The name of this subscriber for logging and identification.
+         */
         override val name: String
             get() = "${this@AbstractEventDispatcher.name}-DomainEventDistributionSubscriber"
 
+        /**
+         * Processes a grouped flux of event streams for a specific aggregate.
+         *
+         * Creates a new aggregate event dispatcher and starts processing events
+         * for the aggregate represented by the group key.
+         *
+         * @param value The grouped flux containing event streams for one aggregate
+         *
+         * @see newAggregateEventDispatcher
+         * @see AggregateMessageDispatcher.run
+         */
         override fun safeOnNext(value: GroupedFlux<MaterializedNamedAggregate, EventStreamExchange>) {
             newAggregateEventDispatcher(
                 namedAggregate = value.key(),
@@ -172,12 +257,37 @@ abstract class AbstractEventDispatcher<R : Mono<*>> : MessageDispatcher {
         }
     }
 
+    /**
+     * Subscriber that distributes state events to aggregate-specific dispatchers.
+     *
+     * This inner class handles grouped fluxes of state events, creating
+     * and starting an aggregate state event dispatcher for each named aggregate.
+     *
+     * @see SafeSubscriber
+     * @see GroupedFlux
+     * @see MaterializedNamedAggregate
+     * @see StateEventExchange
+     * @see newAggregateStateEventDispatcher
+     */
     inner class StateEventDistributionSubscriber :
         SafeSubscriber<GroupedFlux<MaterializedNamedAggregate, StateEventExchange<*>>>() {
-
+        /**
+         * The name of this subscriber for logging and identification.
+         */
         override val name: String
-            get() = "${this@AbstractEventDispatcher.name}-DomainEventDistributionSubscriber"
+            get() = "${this@AbstractEventDispatcher.name}-StateEventDistributionSubscriber"
 
+        /**
+         * Processes a grouped flux of state events for a specific aggregate.
+         *
+         * Creates a new aggregate state event dispatcher and starts processing events
+         * for the aggregate represented by the group key.
+         *
+         * @param value The grouped flux containing state events for one aggregate
+         *
+         * @see newAggregateStateEventDispatcher
+         * @see AggregateMessageDispatcher.run
+         */
         override fun safeOnNext(value: GroupedFlux<MaterializedNamedAggregate, StateEventExchange<*>>) {
             newAggregateStateEventDispatcher(
                 namedAggregate = value.key(),

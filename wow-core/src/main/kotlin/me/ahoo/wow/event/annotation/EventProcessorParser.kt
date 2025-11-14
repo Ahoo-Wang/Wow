@@ -19,14 +19,45 @@ import me.ahoo.wow.messaging.processor.MessageAnnotationFunctionCondition
 import me.ahoo.wow.messaging.processor.ProcessorMetadata
 import me.ahoo.wow.messaging.processor.ProcessorMetadataParser
 
+/**
+ * Parser for event processor metadata.
+ *
+ * This object parses classes annotated with event processing annotations
+ * (@OnEvent, @OnStateEvent) to extract processor metadata for domain event handling.
+ *
+ * @see ProcessorMetadataParser
+ * @see DomainEventExchange
+ * @see OnEvent
+ * @see OnStateEvent
+ * @see MessageAnnotationFunctionCondition
+ */
 object EventProcessorParser : ProcessorMetadataParser<DomainEventExchange<*>>(
-    MessageAnnotationFunctionCondition(OnEvent::class, OnStateEvent::class)
+    MessageAnnotationFunctionCondition(OnEvent::class, OnStateEvent::class),
 )
 
-fun <P : Any> Class<P>.eventProcessorMetadata(): ProcessorMetadata<P, DomainEventExchange<*>> {
-    return EventProcessorParser.parse(this)
-}
+/**
+ * Extension function to parse event processor metadata from a class.
+ *
+ * @param P The processor type
+ * @receiver The class to parse processor metadata from
+ * @return The parsed processor metadata for domain event handling
+ *
+ * @see EventProcessorParser.parse
+ * @see ProcessorMetadata
+ * @see DomainEventExchange
+ */
+fun <P : Any> Class<P>.eventProcessorMetadata(): ProcessorMetadata<P, DomainEventExchange<*>> = EventProcessorParser.parse(
+    this
+)
 
-inline fun <reified P : Any> eventProcessorMetadata(): ProcessorMetadata<P, DomainEventExchange<*>> {
-    return P::class.java.eventProcessorMetadata()
-}
+/**
+ * Inline function to get event processor metadata for a reified type.
+ *
+ * @param P The processor type
+ * @return The processor metadata for domain event handling
+ *
+ * @see eventProcessorMetadata
+ * @see ProcessorMetadata
+ * @see DomainEventExchange
+ */
+inline fun <reified P : Any> eventProcessorMetadata(): ProcessorMetadata<P, DomainEventExchange<*>> = P::class.java.eventProcessorMetadata()

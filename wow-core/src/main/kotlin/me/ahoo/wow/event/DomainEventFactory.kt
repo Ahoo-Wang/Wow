@@ -24,6 +24,29 @@ import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.modeling.aggregateId
 
+/**
+ * Converts an object to a domain event with full parameter control.
+ *
+ * This extension function creates a DomainEvent from any object, allowing complete
+ * customization of all event properties. The event metadata is automatically
+ * derived from the object's class annotations.
+ *
+ * @param T The type of the event body
+ * @param aggregateId The aggregate ID this event belongs to
+ * @param commandId The ID of the command that triggered this event
+ * @param id The unique event ID (default: generated global ID)
+ * @param version The aggregate version for this event (default: INITIAL_VERSION)
+ * @param ownerId The owner ID of the event (default: DEFAULT_OWNER_ID)
+ * @param sequence The sequence number within the event stream (default: DEFAULT_EVENT_SEQUENCE)
+ * @param isLast Whether this is the last event in the stream (default: true)
+ * @param header The event header containing metadata (default: empty header)
+ * @param createTime The timestamp when the event was created (default: current time)
+ * @return A new DomainEvent instance
+ *
+ * @see DomainEvent
+ * @see AggregateId
+ * @see Header
+ */
 @Suppress("LongParameterList")
 fun <T : Any> T.toDomainEvent(
     aggregateId: AggregateId,
@@ -54,6 +77,31 @@ fun <T : Any> T.toDomainEvent(
     )
 }
 
+/**
+ * Converts an object to a domain event using string aggregate identifiers.
+ *
+ * This extension function creates a DomainEvent from any object, using string
+ * identifiers for aggregate ID and tenant. The named aggregate information is
+ * derived from the object's class annotations.
+ *
+ * @param T The type of the event body
+ * @param aggregateId The string identifier of the aggregate
+ * @param tenantId The tenant identifier
+ * @param commandId The ID of the command that triggered this event
+ * @param ownerId The owner ID of the event (default: DEFAULT_OWNER_ID)
+ * @param id The unique event ID (default: generated global ID)
+ * @param version The aggregate version for this event (default: INITIAL_VERSION)
+ * @param sequence The sequence number within the event stream (default: DEFAULT_EVENT_SEQUENCE)
+ * @param isLast Whether this is the last event in the stream (default: true)
+ * @param header The event header containing metadata (default: empty header)
+ * @param createTime The timestamp when the event was created (default: current time)
+ * @return A new DomainEvent instance
+ * @throws IllegalStateException if the event type doesn't have a named aggregate getter
+ *
+ * @see DomainEvent
+ * @see NamedAggregate
+ * @see Header
+ */
 @Suppress("LongParameterList")
 fun <T : Any> T.toDomainEvent(
     aggregateId: String,

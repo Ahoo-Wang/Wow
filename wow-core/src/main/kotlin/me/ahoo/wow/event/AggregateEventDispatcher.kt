@@ -23,6 +23,30 @@ import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
 import java.util.concurrent.ConcurrentHashMap
 
+/**
+ * Dispatcher for processing domain events within a specific aggregate context.
+ *
+ * This class handles the distribution and processing of domain event streams
+ * for a particular named aggregate. It extends AbstractAggregateEventDispatcher
+ * to provide concrete implementation for event stream processing.
+ *
+ * @property namedAggregate The named aggregate this dispatcher handles
+ * @property name The name of this dispatcher (default: derived from aggregate name)
+ * @property parallelism The level of parallelism for processing (default: DEFAULT_PARALLELISM)
+ * @property messageFlux The flux of event stream exchanges to process
+ * @property functionRegistrar The registrar containing event processing functions
+ * @property eventHandler The handler for processing individual events
+ * @property scheduler The scheduler for managing event processing concurrency
+ *
+ * @constructor Creates a new AggregateEventDispatcher with the specified parameters
+ *
+ * @see AbstractAggregateEventDispatcher
+ * @see NamedAggregate
+ * @see EventStreamExchange
+ * @see MessageFunctionRegistrar
+ * @see EventHandler
+ * @see Scheduler
+ */
 @Suppress("LongParameterList")
 class AggregateEventDispatcher(
     override val namedAggregate: NamedAggregate,
@@ -30,16 +54,25 @@ class AggregateEventDispatcher(
         "${namedAggregate.aggregateName}-${AggregateEventDispatcher::class.simpleName!!}",
     override val parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
     override val messageFlux: Flux<EventStreamExchange>,
-    override val functionRegistrar:
-    MessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>>,
+    override val functionRegistrar: MessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>>,
     override val eventHandler: EventHandler,
     override val scheduler: Scheduler
 ) : AbstractAggregateEventDispatcher<EventStreamExchange>() {
-
-    override fun EventStreamExchange.createEventExchange(event: DomainEvent<*>): DomainEventExchange<*> {
-        return SimpleDomainEventExchange(
+    /**
+     * Creates a domain event exchange from an event stream exchange and domain event.
+     *
+     * This method wraps a domain event in a SimpleDomainEventExchange, copying
+     * attributes from the parent event stream exchange.
+     *
+     * @param event The domain event to create an exchange for
+     * @return A new SimpleDomainEventExchange containing the event
+     *
+     * @see SimpleDomainEventExchange
+     * @see DomainEvent
+     */
+    override fun EventStreamExchange.createEventExchange(event: DomainEvent<*>): DomainEventExchange<*> =
+        SimpleDomainEventExchange(
             message = event,
             attributes = ConcurrentHashMap(attributes),
         )
-    }
 }

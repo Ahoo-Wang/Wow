@@ -19,27 +19,78 @@ import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.serialization.event.DomainEventRecord
 
 /**
+ * Interface for upgrading domain event records.
+ *
+ * Event upgraders are responsible for transforming domain event records from
+ * older schema versions to newer ones. They are ordered and applied sequentially
+ * to ensure proper event evolution.
+ *
  * @see me.ahoo.wow.api.annotation.Order
+ * @see EventNamedAggregate
+ * @see DomainEventRecord
  */
 interface EventUpgrader {
+    /**
+     * The event named aggregate this upgrader handles.
+     */
     val eventNamedAggregate: EventNamedAggregate
+
+    /**
+     * Upgrades a domain event record to a newer schema version.
+     *
+     * @param domainEventRecord The event record to upgrade
+     * @return The upgraded event record
+     *
+     * @see DomainEventRecord
+     */
     fun upgrade(domainEventRecord: DomainEventRecord): DomainEventRecord
 }
 
-interface EventNamedAggregate : NamedAggregate, Named {
+interface EventNamedAggregate :
+    NamedAggregate,
+    Named {
     /**
-     * event mame
+     * The name of the event within the aggregate.
      */
     override val name: String
 
     companion object {
-        fun NamedAggregate.toEventNamedAggregate(eventName: String): EventNamedAggregate {
-            return MaterializedEventNamedAggregate(materialize(), eventName)
-        }
+        /**
+         * Extension function to convert a NamedAggregate to an EventNamedAggregate.
+         *
+         * @param eventName The name of the event
+         * @receiver The named aggregate to convert
+         * @return A new EventNamedAggregate with the specified event name
+         *
+         * @see NamedAggregate
+         * @see MaterializedEventNamedAggregate
+         * @see materialize
+         */
+        fun NamedAggregate.toEventNamedAggregate(eventName: String): EventNamedAggregate =
+            MaterializedEventNamedAggregate(materialize(), eventName)
     }
 }
 
+/**
+ * Materialized implementation of EventNamedAggregate.
+ *
+ * This data class provides a concrete implementation that holds both
+ * the materialized named aggregate and the event name.
+ *
+ * @property namedAggregate The materialized named aggregate
+ * @property name The name of the event
+ *
+ * @constructor Creates a new MaterializedEventNamedAggregate
+ *
+ * @param namedAggregate The materialized named aggregate
+ * @param name The event name
+ *
+ * @see EventNamedAggregate
+ * @see NamedAggregate
+ * @see materialize
+ */
 data class MaterializedEventNamedAggregate(
     val namedAggregate: NamedAggregate,
     override val name: String
-) : EventNamedAggregate, NamedAggregate by namedAggregate
+) : EventNamedAggregate,
+    NamedAggregate by namedAggregate

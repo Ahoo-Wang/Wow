@@ -24,6 +24,33 @@ import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.naming.annotation.toName
 
+/**
+ * Simple implementation of DomainEvent.
+ *
+ * This data class provides a concrete implementation of the DomainEvent interface,
+ * representing a domain event with all required metadata and payload information.
+ *
+ * @param T The type of the event body
+ * @property id The unique identifier of this event (default: generated global ID)
+ * @property header The message header containing metadata (default: empty header)
+ * @property body The event payload data
+ * @property aggregateId The aggregate ID this event belongs to
+ * @property ownerId The owner identifier (default: DEFAULT_OWNER_ID)
+ * @property version The aggregate version when this event was created
+ * @property sequence The sequence number within the event stream (default: DEFAULT_EVENT_SEQUENCE)
+ * @property revision The event schema revision (default: DEFAULT_REVISION)
+ * @property commandId The ID of the command that triggered this event
+ * @property name The event name (default: derived from body class name)
+ * @property isLast Whether this is the last event in the stream (default: true)
+ * @property createTime The timestamp when the event was created (default: current time)
+ *
+ * @constructor Creates a new SimpleDomainEvent with the specified properties
+ *
+ * @see DomainEvent
+ * @see NamedAggregate
+ * @see AggregateId
+ * @see Header
+ */
 data class SimpleDomainEvent<T : Any>(
     override val id: String = generateGlobalId(),
     override val header: Header = DefaultHeader.empty(),
@@ -37,4 +64,5 @@ data class SimpleDomainEvent<T : Any>(
     override val name: String = body.javaClass.toName(),
     override val isLast: Boolean = true,
     override val createTime: Long = System.currentTimeMillis()
-) : DomainEvent<T>, NamedAggregate by aggregateId
+) : DomainEvent<T>,
+    NamedAggregate by aggregateId

@@ -26,47 +26,117 @@ import me.ahoo.wow.serialization.toJsonString
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-abstract class AbstractAggregateEventDispatcher<E : MessageExchange<*, DomainEventStream>> :
-    AggregateMessageDispatcher<E>() {
+/**
+ * Abstract base class for aggregate event dispatchers.
+ *
+ * This class provides the foundation for dispatching domain events to appropriate
+ * handlers within an aggregate context. It manages the processing of event streams,
+ * filtering events through registered functions, and coordinating with event handlers.
+ *
+ * @param E The type of message exchange being handled
+ *
+ * @property functionRegistrar The registrar containing event processing functions
+ * @property eventHandler The handler responsible for processing individual events
+ *
+ * @see AggregateMessageDispatcher
+ * @see MessageExchange
+ * @see DomainEventStream
+ * @see MessageFunctionRegistrar
+ * @see EventHandler
+ */
+abstract class AbstractAggregateEventDispatcher<E : MessageExchange<*, DomainEventStream>> : AggregateMessageDispatcher<E>() {
     companion object {
         private val log = KotlinLogging.logger {}
     }
 
+    /**
+     * The registrar containing event processing functions.
+     */
     abstract val functionRegistrar:
         MessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>>
+
+    /**
+     * The handler responsible for processing individual events.
+     */
     abstract val eventHandler: EventHandler
 
-    override fun E.toGroupKey(): Int {
-        return message.toGroupKey(parallelism)
-    }
+    /**
+     * Converts the exchange to a group key for parallel processing.
+     *
+     * @param exchange The message exchange
+     * @return The group key for partitioning events
+     *
+     * @see MessageParallelism.toGroupKey
+     */
+    override fun E.toGroupKey(): Int = message.toGroupKey(parallelism)
 
-    override fun handleExchange(exchange: E): Mono<Void> {
-        return Flux.fromIterable(exchange.message)
+    /**
+     * Handles a message exchange by processing all events in the stream.
+     *
+     * This method iterates through all events in the stream, processes each one,
+     * and acknowledges the exchange upon completion.
+     *
+     * @param exchange The message exchange containing the event stream
+     * @return A Mono that completes when all events are processed
+     *
+     * @see handleEvent
+     * @see ExchangeAck.finallyAck
+     */
+    override fun handleExchange(exchange: E): Mono<Void> =
+        Flux
+            .fromIterable(exchange.message)
             .concatMap { handleEvent(exchange, it) }
             .finallyAck(exchange)
-    }
 
+    /**
+     * Handles an individual domain event within the exchange context.
+     *
+     * This method finds all registered functions that can handle the event,
+     * creates event exchanges for each function, and invokes the event handler.
+     *
+     * @param exchange The parent message exchange
+     * @param event The domain event to process
+     * @return A Mono that completes when the event is processed
+     *
+     * @see MessageFunctionRegistrar.supportedFunctions
+     * @see EventHandler.handle
+     * @see createEventExchange
+     */
     private fun handleEvent(
         exchange: E,
         event: DomainEvent<*>
     ): Mono<Void> {
-        val functions = functionRegistrar.supportedFunctions(event)
-            .filter {
-                event.match(it)
-            }.toSet()
+        val functions =
+            functionRegistrar
+                .supportedFunctions(event)
+                .filter {
+                    event.match(it)
+                }.toSet()
         if (functions.isEmpty()) {
             log.debug {
                 "Not find any functions.Ignore this event:[${event.toJsonString()}]."
             }
             return Mono.empty()
         }
-        return Flux.fromIterable(functions)
+        return Flux
+            .fromIterable(functions)
             .flatMap { function ->
-                val eventExchange = exchange.createEventExchange(event)
-                    .setFunction(function)
+                val eventExchange =
+                    exchange
+                        .createEventExchange(event)
+                        .setFunction(function)
                 eventHandler.handle(eventExchange)
             }.then()
     }
 
+    /**
+     * Creates a domain event exchange for the given event.
+     *
+     * @param event The domain event to create an exchange for
+     * @return A new DomainEventExchange for processing the event
+     *
+     * @see DomainEventExchange
+     * @see DomainEvent
+     */
     abstract fun E.createEventExchange(event: DomainEvent<*>): DomainEventExchange<*>
 }
