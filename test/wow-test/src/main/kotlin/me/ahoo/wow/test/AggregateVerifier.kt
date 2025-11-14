@@ -62,16 +62,6 @@ object AggregateVerifier {
      * derived from the command class annotation. It sets up the necessary components for testing
      * aggregate behavior including event store, state factory, and service provider.
      *
-     * @param C the type of the command aggregate class
-     * @param S the type of the state aggregate
-     * @param aggregateId the unique identifier for the aggregate instance, defaults to a generated global ID
-     * @param tenantId the tenant identifier for multi-tenant scenarios, defaults to DEFAULT_TENANT_ID
-     * @param stateAggregateFactory factory for creating state aggregate instances, defaults to ConstructorStateAggregateFactory
-     * @param eventStore the event store implementation for event sourcing, defaults to InMemoryEventStore for isolated testing
-     * @param serviceProvider container for dependency injection, defaults to SimpleServiceProvider
-     * @return a GivenStage instance ready for chaining test expectations
-     * @throws IllegalArgumentException if aggregate metadata cannot be resolved from the class annotations
-     *
      * Example:
      * ```kotlin
      * Cart::class.java.aggregateVerifier<Cart, CartState>()
@@ -81,6 +71,16 @@ object AggregateVerifier {
      *     .expectState { items.assert().hasSize(1) }
      *     .verify()
      * ```
+     *
+     * @param C the type of the command aggregate class
+     * @param S the type of the state aggregate
+     * @param aggregateId the unique identifier for the aggregate instance, defaults to a generated global ID
+     * @param tenantId the tenant identifier for multi-tenant scenarios, defaults to DEFAULT_TENANT_ID
+     * @param stateAggregateFactory factory for creating state aggregate instances, defaults to ConstructorStateAggregateFactory
+     * @param eventStore the event store implementation for event sourcing, defaults to InMemoryEventStore for isolated testing
+     * @param serviceProvider container for dependency injection, defaults to SimpleServiceProvider
+     * @return a GivenStage instance ready for chaining test expectations
+     * @throws IllegalArgumentException if aggregate metadata cannot be resolved from the class annotations
      */
     fun <C : Any, S : Any> Class<C>.aggregateVerifier(
         aggregateId: String = generateGlobalId(),
@@ -109,6 +109,16 @@ object AggregateVerifier {
      * specify both command and state aggregate types explicitly. It internally delegates to the
      * extension function on the command aggregate type.
      *
+     * Example:
+     * ```kotlin
+     * aggregateVerifier(Cart::class.java, CartState::class.java)
+     *     .given(CartItemAdded(...))
+     *     .whenCommand(RemoveCartItem(productIds = setOf("item1")))
+     *     .expectEventType(CartItemRemoved::class)
+     *     .expectState { items.assert().isEmpty() }
+     *     .verify()
+     * ```
+     *
      * @param C the type of the command aggregate
      * @param S the type of the state aggregate
      * @param commandAggregateType the Class representing the command aggregate type
@@ -120,16 +130,6 @@ object AggregateVerifier {
      * @param serviceProvider container for dependency injection, defaults to SimpleServiceProvider
      * @return a GivenStage instance ready for chaining test expectations
      * @throws IllegalArgumentException if aggregate metadata cannot be resolved from the command class
-     *
-     * Example:
-     * ```kotlin
-     * aggregateVerifier(Cart::class.java, CartState::class.java)
-     *     .given(CartItemAdded(...))
-     *     .whenCommand(RemoveCartItem(productIds = setOf("item1")))
-     *     .expectEventType(CartItemRemoved::class)
-     *     .expectState { items.assert().isEmpty() }
-     *     .verify()
-     * ```
      */
     @JvmStatic
     @JvmOverloads
@@ -158,13 +158,6 @@ object AggregateVerifier {
  * specifying Class objects, leveraging Kotlin's reified generics for type-safe testing setup.
  * Uses default configurations for event store and service provider.
  *
- * @param C the reified type of the command aggregate
- * @param S the reified type of the state aggregate
- * @param aggregateId the unique identifier for the aggregate instance, defaults to a generated global ID
- * @param tenantId the tenant identifier for multi-tenant scenarios, defaults to DEFAULT_TENANT_ID
- * @return a GivenStage instance ready for chaining test expectations
- * @throws IllegalArgumentException if aggregate metadata cannot be resolved from the command class
- *
  * Example:
  * ```kotlin
  * aggregateVerifier<Cart, CartState>()
@@ -174,6 +167,13 @@ object AggregateVerifier {
  *     .expectState { items.assert().hasSize(1) }
  *     .verify()
  * ```
+ *
+ * @param C the reified type of the command aggregate
+ * @param S the reified type of the state aggregate
+ * @param aggregateId the unique identifier for the aggregate instance, defaults to a generated global ID
+ * @param tenantId the tenant identifier for multi-tenant scenarios, defaults to DEFAULT_TENANT_ID
+ * @return a GivenStage instance ready for chaining test expectations
+ * @throws IllegalArgumentException if aggregate metadata cannot be resolved from the command class
  */
 inline fun <reified C : Any, S : Any> aggregateVerifier(
     aggregateId: String = generateGlobalId(),
@@ -189,14 +189,6 @@ inline fun <reified C : Any, S : Any> aggregateVerifier(
  * This inline function allows specifying a custom ServiceProvider for dependency injection while
  * using default event store. Useful for testing aggregates with mocked dependencies.
  *
- * @param C the reified type of the command aggregate
- * @param S the reified type of the state aggregate
- * @param aggregateId the unique identifier for the aggregate instance, defaults to a generated global ID
- * @param tenantId the tenant identifier for multi-tenant scenarios, defaults to DEFAULT_TENANT_ID
- * @param serviceProvider the service provider instance for dependency injection
- * @return a GivenStage instance ready for chaining test expectations
- * @throws IllegalArgumentException if aggregate metadata cannot be resolved from the command class
- *
  * Example:
  * ```kotlin
  * val mockServiceProvider = SimpleServiceProvider().apply {
@@ -209,6 +201,14 @@ inline fun <reified C : Any, S : Any> aggregateVerifier(
  *     .expectEventType(OrderCreated::class)
  *     .verify()
  * ```
+ *
+ * @param C the reified type of the command aggregate
+ * @param S the reified type of the state aggregate
+ * @param aggregateId the unique identifier for the aggregate instance, defaults to a generated global ID
+ * @param tenantId the tenant identifier for multi-tenant scenarios, defaults to DEFAULT_TENANT_ID
+ * @param serviceProvider the service provider instance for dependency injection
+ * @return a GivenStage instance ready for chaining test expectations
+ * @throws IllegalArgumentException if aggregate metadata cannot be resolved from the command class
  */
 inline fun <reified C : Any, S : Any> aggregateVerifier(
     aggregateId: String = generateGlobalId(),
@@ -226,15 +226,6 @@ inline fun <reified C : Any, S : Any> aggregateVerifier(
  * This inline function provides full control over both event store and service provider configurations,
  * enabling comprehensive testing scenarios including custom event stores for testing event sourcing behavior.
  *
- * @param C the reified type of the command aggregate
- * @param S the reified type of the state aggregate
- * @param aggregateId the unique identifier for the aggregate instance, defaults to a generated global ID
- * @param tenantId the tenant identifier for multi-tenant scenarios, defaults to DEFAULT_TENANT_ID
- * @param eventStore the event store implementation, defaults to InMemoryEventStore
- * @param serviceProvider the service provider for dependency injection, defaults to SimpleServiceProvider
- * @return a GivenStage instance ready for chaining test expectations
- * @throws IllegalArgumentException if aggregate metadata cannot be resolved from the command class
- *
  * Example:
  * ```kotlin
  * val customEventStore = InMemoryEventStore()
@@ -251,6 +242,15 @@ inline fun <reified C : Any, S : Any> aggregateVerifier(
  *     .expectState { status.assert().isEqualTo(OrderStatus.PAID) }
  *     .verify()
  * ```
+ *
+ * @param C the reified type of the command aggregate
+ * @param S the reified type of the state aggregate
+ * @param aggregateId the unique identifier for the aggregate instance, defaults to a generated global ID
+ * @param tenantId the tenant identifier for multi-tenant scenarios, defaults to DEFAULT_TENANT_ID
+ * @param eventStore the event store implementation, defaults to InMemoryEventStore
+ * @param serviceProvider the service provider for dependency injection, defaults to SimpleServiceProvider
+ * @return a GivenStage instance ready for chaining test expectations
+ * @throws IllegalArgumentException if aggregate metadata cannot be resolved from the command class
  */
 inline fun <reified C : Any, S : Any> aggregateVerifier(
     aggregateId: String = generateGlobalId(),
