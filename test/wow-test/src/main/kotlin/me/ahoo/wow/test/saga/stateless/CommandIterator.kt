@@ -18,10 +18,30 @@ import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.infra.Decorator
 import kotlin.reflect.KClass
 
-class CommandIterator(override val delegate: Iterator<CommandMessage<*>>) :
-    Iterator<CommandMessage<*>> by delegate,
+/**
+ * A decorator iterator for command messages that provides testing utilities.
+ *
+ * This class wraps an iterator of [CommandMessage] instances and provides
+ * convenient methods for skipping commands and asserting command types
+ * during saga testing.
+ *
+ * @property delegate The underlying iterator being decorated.
+ */
+class CommandIterator(
+    override val delegate: Iterator<CommandMessage<*>>
+) : Iterator<CommandMessage<*>> by delegate,
     Decorator<Iterator<CommandMessage<*>>> {
-
+    /**
+     * Skips a specified number of commands in the iterator.
+     *
+     * This method advances the iterator by the given number of commands,
+     * ensuring that enough commands are available to skip.
+     *
+     * @param skip The number of commands to skip (must be non-negative).
+     * @return This iterator instance for method chaining.
+     * @throws IllegalArgumentException If skip is negative.
+     * @throws AssertionError If there are not enough commands to skip.
+     */
     fun skip(skip: Int): CommandIterator {
         require(skip >= 0) { "Skip value must be non-negative, but was: $skip" }
         repeat(skip) {
@@ -33,33 +53,78 @@ class CommandIterator(override val delegate: Iterator<CommandMessage<*>>) :
         return this
     }
 
-    fun <C : Any> nextCommand(commandType: KClass<C>): CommandMessage<C> {
-        return nextCommand(commandType.java)
-    }
+    /**
+     * Retrieves the next command and asserts it is of the specified type.
+     *
+     * @param C The expected type of the command body.
+     * @param commandType The [KClass] of the expected command body type.
+     * @return The next command message cast to the expected type.
+     * @throws AssertionError If no next command exists or the command type doesn't match.
+     */
+    fun <C : Any> nextCommand(commandType: KClass<C>): CommandMessage<C> = nextCommand(commandType.java)
 
+    /**
+     * Retrieves the next command and asserts it is of the specified type (Java Class version).
+     *
+     * This is a convenience overload that accepts a Java [Class] instance.
+     *
+     * @param C The expected type of the command body.
+     * @param commandType The [Class] of the expected command body type.
+     * @return The next command message cast to the expected type.
+     * @throws AssertionError If no next command exists or the command type doesn't match.
+     */
     @Suppress("UNCHECKED_CAST")
     fun <C : Any> nextCommand(commandType: Class<C>): CommandMessage<C> {
         hasNext().assert().describedAs { "Expect there to be a next command." }.isTrue()
         val nextCommand = next()
-        nextCommand.body.assert()
+        nextCommand.body
+            .assert()
             .describedAs { "Expect the next command body to be an instance of ${commandType.simpleName}." }
             .isInstanceOf(commandType)
         return nextCommand as CommandMessage<C>
     }
 
-    fun <C : Any> nextCommandBody(commandType: KClass<C>): C {
-        return nextCommand(commandType).body
-    }
+    /**
+     * Retrieves the body of the next command and asserts it is of the specified type.
+     *
+     * @param C The expected type of the command body.
+     * @param commandType The [KClass] of the expected command body type.
+     * @return The body of the next command cast to the expected type.
+     * @throws AssertionError If no next command exists or the command type doesn't match.
+     */
+    fun <C : Any> nextCommandBody(commandType: KClass<C>): C = nextCommand(commandType).body
 
-    fun <C : Any> nextCommandBody(commandType: Class<C>): C {
-        return nextCommand(commandType).body
-    }
+    /**
+     * Retrieves the body of the next command and asserts it is of the specified type (Java Class version).
+     *
+     * This is a convenience overload that accepts a Java [Class] instance.
+     *
+     * @param C The expected type of the command body.
+     * @param commandType The [Class] of the expected command body type.
+     * @return The body of the next command cast to the expected type.
+     * @throws AssertionError If no next command exists or the command type doesn't match.
+     */
+    fun <C : Any> nextCommandBody(commandType: Class<C>): C = nextCommand(commandType).body
 
-    inline fun <reified C : Any> nextCommand(): CommandMessage<C> {
-        return nextCommand(C::class)
-    }
+    /**
+     * Retrieves the next command with reified type checking.
+     *
+     * This inline function uses reified generics to automatically infer the command type.
+     *
+     * @param C The expected type of the command body (inferred).
+     * @return The next command message cast to the expected type.
+     * @throws AssertionError If no next command exists or the command type doesn't match.
+     */
+    inline fun <reified C : Any> nextCommand(): CommandMessage<C> = nextCommand(C::class)
 
-    inline fun <reified C : Any> nextCommandBody(): C {
-        return nextCommandBody(C::class)
-    }
+    /**
+     * Retrieves the body of the next command with reified type checking.
+     *
+     * This inline function uses reified generics to automatically infer the command type.
+     *
+     * @param C The expected type of the command body (inferred).
+     * @return The body of the next command cast to the expected type.
+     * @throws AssertionError If no next command exists or the command type doesn't match.
+     */
+    inline fun <reified C : Any> nextCommandBody(): C = nextCommandBody(C::class)
 }
