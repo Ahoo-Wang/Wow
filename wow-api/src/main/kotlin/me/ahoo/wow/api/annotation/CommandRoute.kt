@@ -50,8 +50,6 @@ const val DEFAULT_COMMAND_ACTION = "__{command_name}__"
  * @param appendIdPath Whether to include the aggregate ID in the URL path.
  * @param appendTenantPath Whether to include the tenant ID in the URL path for multi-tenant scenarios.
  * @param appendOwnerPath Whether to include the owner ID in the URL path for ownership-based routing.
- * @param summary Deprecated: Use @Summary annotation instead for API documentation.
- * @param description Deprecated: Use @Description annotation instead for API documentation.
  *
  * @see Method for available HTTP methods
  * @see AppendPath for path appending options
@@ -71,17 +69,7 @@ annotation class CommandRoute(
     val prefix: String = "",
     val appendIdPath: AppendPath = AppendPath.DEFAULT,
     val appendTenantPath: AppendPath = AppendPath.DEFAULT,
-    val appendOwnerPath: AppendPath = AppendPath.DEFAULT,
-    @Deprecated(
-        message = "use @Summary instead.",
-        replaceWith = ReplaceWith("@Summary(summary)"),
-    )
-    val summary: String = "",
-    @Deprecated(
-        message = "use @Description instead.",
-        replaceWith = ReplaceWith("@Description(description)"),
-    )
-    val description: String = ""
+    val appendOwnerPath: AppendPath = AppendPath.DEFAULT
 ) {
     /**
      * Marks a command field as a path variable in the generated URL.

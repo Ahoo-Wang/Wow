@@ -146,8 +146,8 @@ internal class CommandRouteMetadataVisitor<C : Any>(private val commandType: Cla
             commandMetadata = commandMetadata,
             pathVariableMetadata = pathVariables,
             headerVariableMetadata = headerVariables,
-            summary = commandRoute.summary.ifBlank { summary },
-            description = commandRoute.description.ifBlank { description },
+            summary = summary,
+            description = description,
         )
     }
 
