@@ -15,15 +15,17 @@ package me.ahoo.wow.models.tree.command
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import me.ahoo.wow.api.annotation.CommandRoute
+import me.ahoo.wow.api.annotation.Description
+import me.ahoo.wow.api.annotation.Summary
 import me.ahoo.wow.models.tree.Flat
 import me.ahoo.wow.models.tree.TreeCoded
 
+@Summary("Delete tree node")
+@Description("Id is the tenant ID.")
 @CommandRoute(
     method = CommandRoute.Method.DELETE,
     appendIdPath = CommandRoute.AppendPath.ALWAYS,
     action = "{code}",
-    summary = "Delete tree node",
-    description = "Id is the tenant ID."
 )
 interface Delete<E : Deleted> : TreeCoded {
     @get:JsonIgnore

@@ -23,8 +23,8 @@ package me.ahoo.wow.api.command.validation
  * The validation is typically executed early in the command processing pipeline,
  * allowing for fast failure of invalid commands.
  *
- * @see CommandValidationException thrown when validation fails
- * @see DefaultCommandGateway for where validation is typically invoked
+ * @see me.ahoo.wow.command.CommandValidationException thrown when validation fails
+ * @see me.ahoo.wow.command.DefaultCommandGateway for where validation is typically invoked
  *
  * Example usage:
  * ```kotlin
@@ -41,7 +41,7 @@ package me.ahoo.wow.api.command.validation
  * }
  * ```
  *
- * @throws CommandValidationException when validation rules are violated
+ * @throws me.ahoo.wow.command.CommandValidationException when validation rules are violated
  * @throws IllegalArgumentException for invalid input parameters
  * @throws IllegalStateException for invalid object state
  */
@@ -57,7 +57,7 @@ fun interface CommandValidator {
      * - Deterministic (same input always produces same result)
      * - Comprehensive (cover all critical validation rules)
      *
-     * @throws CommandValidationException when business validation rules are violated
+     * @throws me.ahoo.wow.command.CommandValidationException when business validation rules are violated
      * @throws IllegalArgumentException when input parameters are invalid
      * @throws IllegalStateException when the command is in an invalid state
      */

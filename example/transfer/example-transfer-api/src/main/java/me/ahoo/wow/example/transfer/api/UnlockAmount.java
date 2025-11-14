@@ -15,7 +15,9 @@ package me.ahoo.wow.example.transfer.api;
 
 import jakarta.validation.constraints.Positive;
 import me.ahoo.wow.api.annotation.CommandRoute;
+import me.ahoo.wow.api.annotation.Summary;
 
-@CommandRoute(summary = "解锁金额", appendIdPath = CommandRoute.AppendPath.ALWAYS)
+@Summary("解锁金额")
+@CommandRoute(appendIdPath = CommandRoute.AppendPath.ALWAYS)
 public record UnlockAmount(@CommandRoute.PathVariable String id, @Positive Long amount) {
 }

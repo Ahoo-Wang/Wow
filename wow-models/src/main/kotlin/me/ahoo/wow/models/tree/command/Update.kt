@@ -15,14 +15,15 @@ package me.ahoo.wow.models.tree.command
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import me.ahoo.wow.api.annotation.CommandRoute
+import me.ahoo.wow.api.annotation.Summary
 import me.ahoo.wow.models.tree.Flat
 import me.ahoo.wow.models.tree.TreeCoded
 
+@Summary("Update tree node")
 @CommandRoute(
     method = CommandRoute.Method.PUT,
     appendIdPath = CommandRoute.AppendPath.ALWAYS,
     action = "",
-    summary = "Update tree node"
 )
 interface Update<E : Updated> : TreeCoded {
     @get:JsonIgnore
