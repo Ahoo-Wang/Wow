@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.example.domain.cart
+package me.ahoo.wow.example.domain.cart.tradition
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.command.DefaultDeleteAggregate
@@ -24,6 +24,9 @@ import me.ahoo.wow.example.api.cart.CartItemRemoved
 import me.ahoo.wow.example.api.cart.CartQuantityChanged
 import me.ahoo.wow.example.api.cart.ChangeQuantity
 import me.ahoo.wow.example.api.cart.RemoveCartItem
+import me.ahoo.wow.example.domain.cart.Cart
+import me.ahoo.wow.example.domain.cart.CartState
+import me.ahoo.wow.example.domain.cart.MAX_CART_ITEM_SIZE
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.command.IllegalAccessDeletedAggregateException
 import me.ahoo.wow.test.aggregate.whenCommand
