@@ -71,14 +71,14 @@ object SagaVerifier {
      * - No-op idempotency checker to prevent duplicate command filtering
      * - Local command wait notifier for synchronous testing
      *
-     * @return a CommandGateway instance configured for testing stateless sagas
-     * @throws Exception if gateway initialization fails
-     *
      * Example:
      * ```kotlin
      * val gateway = SagaVerifier.defaultCommandGateway()
      * // Use gateway in custom saga verifier setup
      * ```
+     *
+     * @return a CommandGateway instance configured for testing stateless sagas
+     * @throws Exception if gateway initialization fails
      */
     @JvmStatic
     fun defaultCommandGateway(): CommandGateway =
@@ -105,13 +105,6 @@ object SagaVerifier {
      * - Command gateway for sending commands triggered by the saga
      * - Command message factory for creating command messages
      *
-     * @param T the type of the saga class to be tested
-     * @param serviceProvider the service provider for dependency injection, defaults to SimpleServiceProvider
-     * @param commandGateway the command gateway for sending commands, defaults to defaultCommandGateway()
-     * @param commandMessageFactory the factory for creating command messages, defaults to SimpleCommandMessageFactory with TestValidator
-     * @return a WhenStage instance for defining test scenarios with domain events
-     * @throws IllegalArgumentException if saga metadata cannot be resolved from class annotations
-     *
      * Example:
      * ```kotlin
      * CartSaga::class.java.sagaVerifier()
@@ -123,6 +116,13 @@ object SagaVerifier {
      *     .expectCommand<RemoveCartItem> { body.productIds.assert().hasSize(1) }
      *     .verify()
      * ```
+     *
+     * @param T the type of the saga class to be tested
+     * @param serviceProvider the service provider for dependency injection, defaults to SimpleServiceProvider
+     * @param commandGateway the command gateway for sending commands, defaults to defaultCommandGateway()
+     * @param commandMessageFactory the factory for creating command messages, defaults to SimpleCommandMessageFactory with TestValidator
+     * @return a WhenStage instance for defining test scenarios with domain events
+     * @throws IllegalArgumentException if saga metadata cannot be resolved from class annotations
      */
     @JvmStatic
     @JvmOverloads
@@ -154,12 +154,6 @@ object SagaVerifier {
      * This is the recommended method for creating saga verifiers in Kotlin code due to its
      * type safety and conciseness compared to the Class-based extension method.
      *
-     * @param T the reified type of the saga class (inferred automatically)
-     * @param serviceProvider the service provider for dependency injection, defaults to SimpleServiceProvider
-     * @param commandGateway the command gateway for sending commands, defaults to defaultCommandGateway()
-     * @return a WhenStage instance for defining test scenarios with domain events
-     * @throws IllegalArgumentException if saga metadata cannot be resolved from class annotations
-     *
      * Example:
      * ```kotlin
      * sagaVerifier<OrderSaga>()
@@ -173,6 +167,12 @@ object SagaVerifier {
      *     .expectNoCommand()
      *     .verify()
      * ```
+     *
+     * @param T the reified type of the saga class (inferred automatically)
+     * @param serviceProvider the service provider for dependency injection, defaults to SimpleServiceProvider
+     * @param commandGateway the command gateway for sending commands, defaults to defaultCommandGateway()
+     * @return a WhenStage instance for defining test scenarios with domain events
+     * @throws IllegalArgumentException if saga metadata cannot be resolved from class annotations
      */
     @JvmStatic
     inline fun <reified T : Any> sagaVerifier(
