@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.example.domain.order
+package me.ahoo.wow.example.domain.order.tradition
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.example.api.order.AddressChanged
@@ -21,7 +21,11 @@ import me.ahoo.wow.example.api.order.OrderCreated
 import me.ahoo.wow.example.api.order.OrderPaid
 import me.ahoo.wow.example.api.order.PayOrder
 import me.ahoo.wow.example.api.order.ShippingAddress
+import me.ahoo.wow.example.domain.order.DefaultCreateOrderSpec
+import me.ahoo.wow.example.domain.order.Order
 import me.ahoo.wow.example.domain.order.OrderFixture.SHIPPING_ADDRESS
+import me.ahoo.wow.example.domain.order.OrderState
+import me.ahoo.wow.example.domain.order.OrderStatus
 import me.ahoo.wow.example.domain.order.infra.InventoryService
 import me.ahoo.wow.example.domain.order.infra.PricingService
 import me.ahoo.wow.id.generateGlobalId

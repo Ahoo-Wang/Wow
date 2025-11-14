@@ -10,7 +10,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.ahoo.wow.example.domain.order
+package me.ahoo.wow.example.domain.order.tradition
 
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
@@ -32,9 +32,14 @@ import me.ahoo.wow.example.api.order.PayOrder
 import me.ahoo.wow.example.api.order.ReceiptOrder
 import me.ahoo.wow.example.api.order.ShipOrder
 import me.ahoo.wow.example.api.order.ShippingAddress
+import me.ahoo.wow.example.domain.order.CreateOrderSpec
+import me.ahoo.wow.example.domain.order.DefaultCreateOrderSpec
 import me.ahoo.wow.example.domain.order.DefaultCreateOrderSpec.InventoryShortageException
 import me.ahoo.wow.example.domain.order.DefaultCreateOrderSpec.PriceInconsistencyException
+import me.ahoo.wow.example.domain.order.Order
 import me.ahoo.wow.example.domain.order.OrderFixture.SHIPPING_ADDRESS
+import me.ahoo.wow.example.domain.order.OrderState
+import me.ahoo.wow.example.domain.order.OrderStatus
 import me.ahoo.wow.example.domain.order.infra.InventoryService
 import me.ahoo.wow.example.domain.order.infra.PricingService
 import me.ahoo.wow.id.generateGlobalId
