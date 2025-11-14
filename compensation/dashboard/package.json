@@ -14,15 +14,15 @@
     "generate": "fetcher-generator generate -i http://compensation-service.dev.svc.cluster.local/v3/api-docs -o src/generated"
   },
   "dependencies": {
-    "@ahoo-wang/fetcher": "^3.1.8",
-    "@ahoo-wang/fetcher-cosec": "^3.1.8",
-    "@ahoo-wang/fetcher-decorator": "^3.1.8",
-    "@ahoo-wang/fetcher-eventbus": "^3.1.8",
-    "@ahoo-wang/fetcher-eventstream": "^3.1.8",
-    "@ahoo-wang/fetcher-react": "^3.1.8",
-    "@ahoo-wang/fetcher-storage": "^3.1.8",
-    "@ahoo-wang/fetcher-viewer": "^3.1.8",
-    "@ahoo-wang/fetcher-wow": "^3.1.8",
+    "@ahoo-wang/fetcher": "^3.1.9",
+    "@ahoo-wang/fetcher-cosec": "^3.1.9",
+    "@ahoo-wang/fetcher-decorator": "^3.1.9",
+    "@ahoo-wang/fetcher-eventbus": "^3.1.9",
+    "@ahoo-wang/fetcher-eventstream": "^3.1.9",
+    "@ahoo-wang/fetcher-react": "^3.1.9",
+    "@ahoo-wang/fetcher-storage": "^3.1.9",
+    "@ahoo-wang/fetcher-viewer": "^3.1.9",
+    "@ahoo-wang/fetcher-wow": "^3.1.9",
     "@ant-design/icons": "^5.6.1",
     "@ant-design/v5-patch-for-react-19": "^1.0.3",
     "@monaco-editor/react": "4.7.0",
@@ -30,17 +30,17 @@
     "dayjs": "^1.11.19",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "react-router": "^7.9.5"
+    "react-router": "^7.9.6"
   },
   "devDependencies": {
-    "@ahoo-wang/fetcher-generator": "^3.1.8",
+    "@ahoo-wang/fetcher-generator": "^3.1.9",
     "@eslint/js": "^9.39.1",
     "@tailwindcss/vite": "^4.1.17",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
-    "@types/react": "^19.2.2",
-    "@types/react-dom": "^19.2.2",
-    "@vitejs/plugin-react": "^5.1.0",
+    "@types/react": "^19.2.4",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.1",
     "@vitest/coverage-v8": "4.0.8",
     "@vitest/ui": "4.0.8",
     "babel-plugin-react-compiler": "^1.0.0",
@@ -48,7 +48,7 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
-    "jsdom": "^27.1.0",
+    "jsdom": "^27.2.0",
     "prettier": "3.6.2",
     "tailwindcss": "^4.1.17",
     "typescript": "~5.9.3",
@@ -56,6 +56,6 @@
     "vite": "^7.2.2",
     "vite-bundle-analyzer": "^1.2.3",
     "vitest": "^4.0.8",
-    "vitest-browser-react": "^2.0.0"
+    "vitest-browser-react": "^2.0.2"
   }
 }
