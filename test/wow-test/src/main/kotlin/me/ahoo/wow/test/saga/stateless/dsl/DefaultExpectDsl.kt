@@ -23,8 +23,28 @@ import me.ahoo.wow.test.saga.stateless.ExpectedResult
 import org.junit.jupiter.api.DynamicTest
 import kotlin.reflect.KClass
 
-class DefaultExpectDsl<T : Any>(override val delegate: ExpectStage<T>) : Decorator<ExpectStage<T>>, ExpectDsl<T>,
-    AbstractDynamicTestBuilder() {
+/**
+ * Default implementation of [ExpectDsl] that creates dynamic JUnit 5 tests for each expectation.
+ *
+ * This class wraps an [ExpectStage] and converts each expectation method call into
+ * a [DynamicTest] that can be executed by JUnit 5's dynamic test framework.
+ * Each expectation is verified without immediately throwing exceptions, allowing
+ * for better test reporting.
+ *
+ * @param T The type of the saga being tested.
+ * @property delegate The underlying expect stage that performs the actual verification.
+ */
+class DefaultExpectDsl<T : Any>(
+    override val delegate: ExpectStage<T>
+) : AbstractDynamicTestBuilder(),
+    Decorator<ExpectStage<T>>,
+    ExpectDsl<T> {
+    /**
+     * Creates a dynamic test for custom expectations on the expected result.
+     *
+     * @param expected A lambda function defining expectations on the [ExpectedResult].
+     * @return This DSL instance for method chaining.
+     */
     override fun expect(expected: ExpectedResult<T>.() -> Unit): ExpectDsl<T> {
         val dynamicTest = DynamicTest.dynamicTest("Expect") {
             delegate.verify(false).expect(expected)
@@ -33,6 +53,12 @@ class DefaultExpectDsl<T : Any>(override val delegate: ExpectStage<T>) : Decorat
         return this
     }
 
+    /**
+     * Creates a dynamic test for expectations on the command stream.
+     *
+     * @param expected A lambda function defining expectations on the [CommandStream].
+     * @return This DSL instance for method chaining.
+     */
     override fun expectCommandStream(expected: CommandStream.() -> Unit): ExpectDsl<T> {
         val dynamicTest = DynamicTest.dynamicTest("ExpectCommandStream") {
             delegate.verify(false).expectCommandStream(expected)
@@ -41,6 +67,12 @@ class DefaultExpectDsl<T : Any>(override val delegate: ExpectStage<T>) : Decorat
         return this
     }
 
+    /**
+     * Creates a dynamic test for expectations on a command iterator.
+     *
+     * @param expected A lambda function defining expectations on the [CommandIterator].
+     * @return This DSL instance for method chaining.
+     */
     override fun expectCommandIterator(expected: CommandIterator.() -> Unit): ExpectDsl<T> {
         val dynamicTest = DynamicTest.dynamicTest("ExpectCommandIterator") {
             delegate.verify(false).expectCommandIterator(expected)
@@ -49,6 +81,11 @@ class DefaultExpectDsl<T : Any>(override val delegate: ExpectStage<T>) : Decorat
         return this
     }
 
+    /**
+     * Creates a dynamic test expecting no commands to be generated.
+     *
+     * @return This DSL instance for method chaining.
+     */
     override fun expectNoCommand(): ExpectDsl<T> {
         val dynamicTest = DynamicTest.dynamicTest("ExpectNoCommand") {
             delegate.verify(false).expectNoCommand()
@@ -57,6 +94,13 @@ class DefaultExpectDsl<T : Any>(override val delegate: ExpectStage<T>) : Decorat
         return this
     }
 
+    /**
+     * Creates a dynamic test for expectations on the first command.
+     *
+     * @param C The type of the command body.
+     * @param expected A lambda function defining expectations on the first [CommandMessage].
+     * @return This DSL instance for method chaining.
+     */
     override fun <C : Any> expectCommand(expected: CommandMessage<C>.() -> Unit): ExpectDsl<T> {
         val dynamicTest = DynamicTest.dynamicTest("ExpectCommand") {
             delegate.verify(false).expectCommand(expected)
@@ -65,6 +109,13 @@ class DefaultExpectDsl<T : Any>(override val delegate: ExpectStage<T>) : Decorat
         return this
     }
 
+    /**
+     * Creates a dynamic test for expectations on the first command's body.
+     *
+     * @param C The type of the command body.
+     * @param expected A lambda function defining expectations on the command body.
+     * @return This DSL instance for method chaining.
+     */
     override fun <C : Any> expectCommandBody(expected: C.() -> Unit): ExpectDsl<T> {
         val dynamicTest = DynamicTest.dynamicTest("ExpectCommandBody") {
             delegate.verify(false).expectCommandBody(expected)
@@ -73,6 +124,12 @@ class DefaultExpectDsl<T : Any>(override val delegate: ExpectStage<T>) : Decorat
         return this
     }
 
+    /**
+     * Creates a dynamic test expecting a specific number of commands.
+     *
+     * @param expected The expected number of commands in the command stream.
+     * @return This DSL instance for method chaining.
+     */
     override fun expectCommandCount(expected: Int): ExpectDsl<T> {
         val dynamicTest = DynamicTest.dynamicTest("ExpectCommandCount[$expected]") {
             delegate.verify(false).expectCommandCount(expected)
@@ -81,6 +138,12 @@ class DefaultExpectDsl<T : Any>(override val delegate: ExpectStage<T>) : Decorat
         return this
     }
 
+    /**
+     * Creates a dynamic test expecting commands of specific types in order.
+     *
+     * @param expected Variable number of [KClass] representing expected command body types.
+     * @return This DSL instance for method chaining.
+     */
     override fun expectCommandType(vararg expected: KClass<*>): ExpectDsl<T> {
         val dynamicTest =
             DynamicTest.dynamicTest("ExpectCommandType[${expected.joinToString(",") { it.simpleName!! }}]") {
@@ -90,6 +153,11 @@ class DefaultExpectDsl<T : Any>(override val delegate: ExpectStage<T>) : Decorat
         return this
     }
 
+    /**
+     * Creates a dynamic test expecting no error occurred.
+     *
+     * @return This DSL instance for method chaining.
+     */
     override fun expectNoError(): ExpectDsl<T> {
         val dynamicTest = DynamicTest.dynamicTest("ExpectNoError") {
             delegate.verify(false).expectNoError()
@@ -98,6 +166,11 @@ class DefaultExpectDsl<T : Any>(override val delegate: ExpectStage<T>) : Decorat
         return this
     }
 
+    /**
+     * Creates a dynamic test expecting an error occurred.
+     *
+     * @return This DSL instance for method chaining.
+     */
     override fun expectError(): ExpectDsl<T> {
         val dynamicTest = DynamicTest.dynamicTest("ExpectError") {
             delegate.verify(false).expectError()
@@ -106,6 +179,13 @@ class DefaultExpectDsl<T : Any>(override val delegate: ExpectStage<T>) : Decorat
         return this
     }
 
+    /**
+     * Creates a dynamic test for expectations on a specific error.
+     *
+     * @param E The type of the expected error.
+     * @param expected A lambda function defining expectations on the error.
+     * @return This DSL instance for method chaining.
+     */
     override fun <E : Throwable> expectError(expected: E.() -> Unit): ExpectDsl<T> {
         val dynamicTest = DynamicTest.dynamicTest("ExpectError") {
             delegate.verify(false).expectError(expected)
@@ -114,6 +194,13 @@ class DefaultExpectDsl<T : Any>(override val delegate: ExpectStage<T>) : Decorat
         return this
     }
 
+    /**
+     * Creates a dynamic test expecting an error of a specific type.
+     *
+     * @param E The type of the expected error.
+     * @param expected The [KClass] of the expected error type.
+     * @return This DSL instance for method chaining.
+     */
     override fun <E : Throwable> expectErrorType(expected: KClass<E>): ExpectDsl<T> {
         val dynamicTest = DynamicTest.dynamicTest("ExpectErrorType[${expected.simpleName}]") {
             delegate.verify(false).expectErrorType(expected)
