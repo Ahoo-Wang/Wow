@@ -29,6 +29,30 @@ import me.ahoo.wow.messaging.propagation.MessagePropagatorProvider.propagate
 import me.ahoo.wow.messaging.propagation.TraceMessagePropagator.Companion.ensureTraceId
 import me.ahoo.wow.modeling.aggregateId
 
+/**
+ * Converts any object to a CommandMessage using reflection and metadata.
+ *
+ * This extension function analyzes the command object's class to extract metadata
+ * and construct a properly configured CommandMessage. It uses command metadata
+ * to determine aggregate targeting, property getters, and command characteristics.
+ *
+ * @param C the type of the command
+ * @param id unique identifier for the command message (auto-generated if not provided)
+ * @param requestId request identifier for tracking (defaults to id)
+ * @param aggregateId target aggregate instance ID (optional, extracted from command if available)
+ * @param tenantId tenant identifier (optional, extracted from command if available)
+ * @param ownerId owner identifier (optional, extracted from command if available)
+ * @param aggregateVersion expected aggregate version (optional, extracted from command if available)
+ * @param namedAggregate named aggregate information (optional, extracted from command if available)
+ * @param header message headers (default empty)
+ * @param createTime creation timestamp (default current time)
+ * @param upstream upstream domain event (optional)
+ * @param ownerIdSameAsAggregateId whether owner ID should match aggregate ID
+ * @return a properly configured CommandMessage
+ * @throws IllegalArgumentException if no named aggregate can be determined
+ * @see CommandMessage
+ * @see commandMetadata
+ */
 @Suppress("LongParameterList")
 fun <C : Any> C.toCommandMessage(
     id: String = generateGlobalId(),
@@ -52,25 +76,28 @@ fun <C : Any> C.toCommandMessage(
         "The command[$javaClass] must be associated with a named aggregate!"
     }
     val commandOwnerId = metadata.ownerIdGetter?.get(this) ?: ownerId
-    val commandAggregateId = if (ownerIdSameAsAggregateId && commandOwnerId.isNullOrBlank().not()) {
-        commandOwnerId
-    } else {
-        metadata.aggregateIdGetter?.get(this) ?: aggregateId ?: commandNamedAggregate.generateId()
-    }
+    val commandAggregateId =
+        if (ownerIdSameAsAggregateId && commandOwnerId.isNullOrBlank().not()) {
+            commandOwnerId
+        } else {
+            metadata.aggregateIdGetter?.get(this) ?: aggregateId ?: commandNamedAggregate.generateId()
+        }
 
-    val finalOwnerId = if (ownerIdSameAsAggregateId && commandOwnerId.isNullOrBlank()) {
-        commandAggregateId
-    } else {
-        commandOwnerId
-    }
+    val finalOwnerId =
+        if (ownerIdSameAsAggregateId && commandOwnerId.isNullOrBlank()) {
+            commandAggregateId
+        } else {
+            commandOwnerId
+        }
     val commandTenantId = metadata.tenantIdGetter?.get(this) ?: tenantId.orDefaultTenantId()
 
     val targetAggregateId = commandNamedAggregate.aggregateId(id = commandAggregateId, tenantId = commandTenantId)
-    val expectedAggregateVersion = if (metadata.isCreate) {
-        Version.UNINITIALIZED_VERSION
-    } else {
-        metadata.aggregateVersionGetter?.get(this) ?: aggregateVersion
-    }
+    val expectedAggregateVersion =
+        if (metadata.isCreate) {
+            Version.UNINITIALIZED_VERSION
+        } else {
+            metadata.aggregateVersionGetter?.get(this) ?: aggregateVersion
+        }
 
     return SimpleCommandMessage(
         id = id,
@@ -88,8 +115,20 @@ fun <C : Any> C.toCommandMessage(
     ).ensureTraceId()
 }
 
-fun <C : Any> CommandBuilder.toCommandMessage(): CommandMessage<C> {
-    return this.bodyAs<C>().toCommandMessage(
+/**
+ * Converts a CommandBuilder to a CommandMessage.
+ *
+ * This extension function takes all the properties configured in the CommandBuilder
+ * and creates a corresponding CommandMessage using the same logic as the command
+ * object's toCommandMessage method.
+ *
+ * @param C the type of the command body
+ * @return a CommandMessage with all builder properties applied
+ * @see CommandBuilder
+ * @see CommandMessage
+ */
+fun <C : Any> CommandBuilder.toCommandMessage(): CommandMessage<C> =
+    this.bodyAs<C>().toCommandMessage(
         id = id,
         requestId = requestId,
         aggregateId = aggregateId,
@@ -100,6 +139,5 @@ fun <C : Any> CommandBuilder.toCommandMessage(): CommandMessage<C> {
         header = header,
         createTime = createTime,
         upstream = upstream,
-        ownerIdSameAsAggregateId = ownerIdSameAsAggregateId
+        ownerIdSameAsAggregateId = ownerIdSameAsAggregateId,
     )
-}

@@ -26,28 +26,41 @@ import reactor.core.publisher.SignalType
 import java.util.function.Consumer
 
 /**
- * 等待策略传播器接口
+ * Interface for propagating wait strategy information.
  *
- * 定义了命令等待策略中关于传播行为的抽象方法，用于控制命令处理结果的传播逻辑。
+ * Defines methods for controlling how command processing results are
+ * propagated to waiting endpoints in distributed scenarios.
+ *
+ * @see WaitStrategy
  */
 interface WaitStrategyPropagator {
-
     /**
-     * 执行传播操作
+     * Executes propagation operation.
      *
-     * 将命令处理结果传播到指定的等待端点
+     * Propagates command processing results to the specified wait endpoint.
      *
-     * @param commandWaitEndpoint 命令等待端点地址
-     * @param header 消息头信息，包含元数据和上下文信息
+     * @param commandWaitEndpoint the command wait endpoint address
+     * @param header message header containing metadata and context
      */
-    fun propagate(commandWaitEndpoint: String, header: Header)
+    fun propagate(
+        commandWaitEndpoint: String,
+        header: Header
+    )
 }
 
 /**
  * Command Wait Strategy
  * @see me.ahoo.wow.command.wait.stage.WaitingForStage
  */
-interface WaitStrategy : WaitCommandIdCapable, WaitStrategyPropagator, CompletedCapable {
+
+/**
+ * Command Wait Strategy
+ * @see me.ahoo.wow.command.wait.stage.WaitingForStage
+ */
+interface WaitStrategy :
+    WaitCommandIdCapable,
+    WaitStrategyPropagator,
+    CompletedCapable {
     val cancelled: Boolean
     val terminated: Boolean
     override val completed: Boolean
@@ -55,21 +68,51 @@ interface WaitStrategy : WaitCommandIdCapable, WaitStrategyPropagator, Completed
     val materialized: Materialized
 
     /**
-     * 是否支持虚空命令
+     * Whether this strategy supports void commands.
      */
     val supportVoidCommand: Boolean
+
+    /**
+     * Returns a flux of wait signals as processing progresses.
+     *
+     * @return a Flux emitting WaitSignal objects for each processing stage
+     */
     fun waiting(): Flux<WaitSignal>
+
+    /**
+     * Returns a mono that completes with the final wait signal.
+     *
+     * @return a Mono emitting the final WaitSignal when processing is complete
+     */
     fun waitingLast(): Mono<WaitSignal>
 
+    /**
+     * Signals an error occurred during command processing.
+     *
+     * @param throwable the error that occurred
+     */
     fun error(throwable: Throwable)
 
     /**
-     * 由下游(CommandBus or Aggregate or Projector)发送处理结果信号.
+     * Receives the next processing result signal from downstream processors.
+     *
+     * Called by downstream components (CommandBus, Aggregate, Projector) to
+     * send processing result signals.
+     *
+     * @param signal the wait signal from downstream processing
      */
     fun next(signal: WaitSignal)
 
+    /**
+     * Marks the wait strategy as completed.
+     */
     fun complete()
 
+    /**
+     * Registers a callback to be executed when the strategy completes.
+     *
+     * @param doFinally callback to execute on completion with signal type
+     */
     fun onFinally(doFinally: Consumer<SignalType>)
 
     /**
@@ -80,7 +123,10 @@ interface WaitStrategy : WaitCommandIdCapable, WaitStrategyPropagator, Completed
      * @param commandWaitEndpoint 命令等待端点地址
      * @param header 消息头信息，包含元数据和上下文信息
      */
-    override fun propagate(commandWaitEndpoint: String, header: Header) {
+    override fun propagate(
+        commandWaitEndpoint: String,
+        header: Header
+    ) {
         header.propagateWaitCommandId(waitCommandId)
         materialized.propagate(commandWaitEndpoint, header)
     }
@@ -91,18 +137,18 @@ interface WaitStrategy : WaitCommandIdCapable, WaitStrategyPropagator, Completed
         me.ahoo.wow.api.naming.Materialized,
         WaitStrategyPropagator,
         MessagePropagator {
-
         /**
          * 判断是否应该传播指定的消息
          *
          * @param upstream 上游消息对象，包含命令或事件的相关信息
          * @return 如果应该传播该消息则返回 true，否则返回 false
          */
-        fun shouldPropagate(upstream: Message<*, *>): Boolean {
-            return upstream is CommandMessage<*>
-        }
+        fun shouldPropagate(upstream: Message<*, *>): Boolean = upstream is CommandMessage<*>
 
-        override fun propagate(header: Header, upstream: Message<*, *>) {
+        override fun propagate(
+            header: Header,
+            upstream: Message<*, *>
+        ) {
             val commandWaitEndpoint = upstream.header.requireExtractCommandWaitEndpoint()
             propagate(commandWaitEndpoint, header)
         }
@@ -112,9 +158,7 @@ interface WaitStrategy : WaitCommandIdCapable, WaitStrategyPropagator, Completed
         Materialized,
         CommandStageCapable,
         NullableFunctionInfoCapable<NamedFunctionInfoData> {
-        override fun shouldNotify(processingStage: CommandStage): Boolean {
-            return stage.shouldNotify(processingStage)
-        }
+        override fun shouldNotify(processingStage: CommandStage): Boolean = stage.shouldNotify(processingStage)
 
         override fun shouldNotify(signal: WaitSignal): Boolean {
             if (stage.isPrevious(signal.stage)) {

@@ -18,10 +18,26 @@ import me.ahoo.wow.messaging.LocalFirstMessageBus
 import me.ahoo.wow.messaging.withLocalFirst
 import reactor.core.publisher.Mono
 
+/**
+ * Command bus that prioritizes local processing before falling back to distributed processing.
+ * Void commands are automatically configured to skip local-first behavior since they don't
+ * require waiting for results.
+ *
+ * @param distributedBus The distributed command bus for fallback processing.
+ * @param localBus The local command bus for primary processing. Defaults to InMemoryCommandBus.
+ */
 class LocalFirstCommandBus(
     override val distributedBus: DistributedCommandBus,
     override val localBus: LocalCommandBus = InMemoryCommandBus()
-) : CommandBus, LocalFirstMessageBus<CommandMessage<*>, ServerCommandExchange<*>> {
+) : CommandBus,
+    LocalFirstMessageBus<CommandMessage<*>, ServerCommandExchange<*>> {
+    /**
+     * Sends a command message, prioritizing local processing.
+     * Void commands are automatically configured to not use local-first behavior.
+     *
+     * @param message The command message to send.
+     * @return A Mono that completes when the command is processed.
+     */
     override fun send(message: CommandMessage<*>): Mono<Void> {
         if (message.isVoid) {
             message.withLocalFirst(false)

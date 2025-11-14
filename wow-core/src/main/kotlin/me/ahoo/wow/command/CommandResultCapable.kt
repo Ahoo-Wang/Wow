@@ -13,6 +13,17 @@
 
 package me.ahoo.wow.command
 
+/**
+ * Interface for objects that can provide command execution results.
+ * Implementations of this interface expose their results as a map of key-value pairs,
+ * allowing for flexible result representation and access.
+ */
 interface CommandResultCapable {
+    /**
+     * The result of the command execution as a map.
+     * Keys represent result field names, values are the corresponding data.
+     *
+     * @return A map containing the command execution results.
+     */
     val result: Map<String, Any>
 }

@@ -13,6 +13,15 @@
 
 package me.ahoo.wow.command.wait
 
+/**
+ * Interface for objects that have an associated wait command ID.
+ * The wait command ID is used to correlate wait strategies with their
+ * corresponding command executions in distributed scenarios.
+ */
 interface WaitCommandIdCapable {
+    /**
+     * The unique identifier for the wait command.
+     * This ID is used to match wait strategies with command processing results.
+     */
     val waitCommandId: String
 }

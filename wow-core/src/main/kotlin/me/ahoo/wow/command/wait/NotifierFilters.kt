@@ -36,6 +36,16 @@ import me.ahoo.wow.projection.ProjectionDispatcher
 import me.ahoo.wow.saga.stateless.StatelessSagaDispatcher
 import reactor.core.publisher.Mono
 
+/**
+ * Abstract base class for filters that notify wait strategies about command processing completion.
+ * These filters intercept message processing pipelines and send notifications to waiting clients
+ * when specific processing stages are reached.
+ *
+ * @param T The type of message exchange being filtered.
+ * @param M The type of message in the exchange.
+ * @param processingStage The command stage this filter notifies about.
+ * @param commandWaitNotifier The notifier used to send wait signals.
+ */
 abstract class AbstractNotifierFilter<T : MessageExchange<*, M>, M>(
     private val processingStage: CommandStage,
     private val commandWaitNotifier: CommandWaitNotifier
@@ -43,36 +53,64 @@ abstract class AbstractNotifierFilter<T : MessageExchange<*, M>, M>(
     override fun filter(
         exchange: T,
         next: FilterChain<T>
-    ): Mono<Void> {
-        return next.filter(exchange)
-            .thenNotifyAndForget(commandWaitNotifier, processingStage, exchange)
-    }
+    ): Mono<Void> = next.filter(exchange)
+        .thenNotifyAndForget(commandWaitNotifier, processingStage, exchange)
 }
 
+/**
+ * Filter that notifies wait strategies when command processing is complete.
+ * Intercepts the command dispatcher pipeline to send PROCESSED stage notifications.
+ *
+ * @param commandWaitNotifier The notifier for sending wait signals.
+ */
 @FilterType(CommandDispatcher::class)
 @Order(ORDER_FIRST)
 class ProcessedNotifierFilter(
     commandWaitNotifier: CommandWaitNotifier
 ) : AbstractNotifierFilter<ServerCommandExchange<*>, CommandMessage<*>>(CommandStage.PROCESSED, commandWaitNotifier)
 
+/**
+ * Filter that notifies wait strategies when aggregate snapshots are generated.
+ * Intercepts the snapshot dispatcher pipeline to send SNAPSHOT stage notifications.
+ *
+ * @param commandWaitNotifier The notifier for sending wait signals.
+ */
 @FilterType(SnapshotDispatcher::class)
 @Order(ORDER_FIRST)
 class SnapshotNotifierFilter(
     commandWaitNotifier: CommandWaitNotifier
 ) : AbstractNotifierFilter<StateEventExchange<*>, StateEvent<*>>(CommandStage.SNAPSHOT, commandWaitNotifier)
 
+/**
+ * Filter that notifies wait strategies when projections are updated.
+ * Intercepts the projection dispatcher pipeline to send PROJECTED stage notifications.
+ *
+ * @param commandWaitNotifier The notifier for sending wait signals.
+ */
 @FilterType(ProjectionDispatcher::class)
 @Order(ORDER_FIRST)
 class ProjectedNotifierFilter(
     commandWaitNotifier: CommandWaitNotifier
 ) : AbstractNotifierFilter<DomainEventExchange<Any>, DomainEvent<*>>(CommandStage.PROJECTED, commandWaitNotifier)
 
+/**
+ * Filter that notifies wait strategies when domain events are handled by event processors.
+ * Intercepts the domain event dispatcher pipeline to send EVENT_HANDLED stage notifications.
+ *
+ * @param commandWaitNotifier The notifier for sending wait signals.
+ */
 @FilterType(DomainEventDispatcher::class)
 @Order(ORDER_FIRST)
 class EventHandledNotifierFilter(
     commandWaitNotifier: CommandWaitNotifier
 ) : AbstractNotifierFilter<DomainEventExchange<Any>, DomainEvent<*>>(CommandStage.EVENT_HANDLED, commandWaitNotifier)
 
+/**
+ * Filter that notifies wait strategies when domain events are handled by sagas.
+ * Intercepts the stateless saga dispatcher pipeline to send SAGA_HANDLED stage notifications.
+ *
+ * @param commandWaitNotifier The notifier for sending wait signals.
+ */
 @FilterType(StatelessSagaDispatcher::class)
 @Order(ORDER_FIRST)
 class SagaHandledNotifierFilter(

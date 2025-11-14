@@ -23,57 +23,95 @@ import me.ahoo.wow.exception.ErrorCodes.COMMAND_VALIDATION
 import me.ahoo.wow.exception.ErrorCodes.DUPLICATE_REQUEST_ID
 import me.ahoo.wow.exception.WowException
 
+/**
+ * Exception thrown when a duplicate request ID is detected.
+ *
+ * This exception occurs when attempting to process a command with a request ID
+ * that has already been processed for the same aggregate, preventing duplicate
+ * command execution.
+ *
+ * @param aggregateId the aggregate for which the duplicate was detected
+ * @param requestId the duplicate request identifier
+ * @param errorMsg custom error message (default provided)
+ * @param cause the underlying cause (optional)
+ * @see WowException
+ */
 class DuplicateRequestIdException(
     val aggregateId: AggregateId,
     val requestId: String,
     errorMsg: String = "Duplicate request ID[$requestId].",
     cause: Throwable? = null
-) :
-    WowException(
-        errorCode = DUPLICATE_REQUEST_ID,
-        errorMsg = errorMsg,
-        cause = cause,
-    ),
+) : WowException(
+    errorCode = DUPLICATE_REQUEST_ID,
+    errorMsg = errorMsg,
+    cause = cause,
+),
     NamedAggregate by aggregateId
 
-class CommandResultException(val commandResult: CommandResult, cause: Throwable? = null) :
-    WowException(
-        errorCode = commandResult.errorCode,
-        errorMsg = commandResult.errorMsg,
-        cause = cause,
-        bindingErrors = commandResult.bindingErrors
-    ),
+/**
+ * Exception wrapping a command result that indicates failure.
+ *
+ * This exception is thrown when command processing completes with an error,
+ * providing access to the full command result including error details and
+ * binding errors.
+ *
+ * @param commandResult the command result containing error information
+ * @param cause the underlying cause (optional)
+ * @see CommandResult
+ * @see WowException
+ */
+class CommandResultException(
+    val commandResult: CommandResult,
+    cause: Throwable? = null
+) : WowException(
+    errorCode = commandResult.errorCode,
+    errorMsg = commandResult.errorMsg,
+    cause = cause,
+    bindingErrors = commandResult.bindingErrors,
+),
     ErrorInfoCapable {
     override val errorInfo: ErrorInfo
         get() = commandResult
 }
 
+/**
+ * Exception thrown when command validation fails.
+ *
+ * This exception contains validation errors that occurred during command
+ * processing, including constraint violations and binding errors.
+ *
+ * @param command the command that failed validation
+ * @param errorMsg custom error message (default provided)
+ * @param bindingErrors list of validation errors
+ * @param cause the underlying cause (optional)
+ * @see WowException
+ * @see BindingError
+ */
 class CommandValidationException(
     val command: Any,
     errorMsg: String = "Command validation failed.",
     bindingErrors: List<BindingError> = emptyList(),
-    cause: Throwable? = null,
+    cause: Throwable? = null
 ) : WowException(
     errorCode = COMMAND_VALIDATION,
     errorMsg = errorMsg,
     cause = cause,
-    bindingErrors = bindingErrors
+    bindingErrors = bindingErrors,
 ),
     ErrorInfo {
-
     companion object {
-
-        internal fun Set<ConstraintViolation<*>>.toBindingErrors(): List<BindingError> {
-            return this.map {
+        internal fun Set<ConstraintViolation<*>>.toBindingErrors(): List<BindingError> =
+            this.map {
                 BindingError(it.propertyPath.toString(), it.message)
             }
-        }
 
         fun <T> Set<ConstraintViolation<T>>.toCommandValidationException(
             command: Any,
             errorMsg: String = "Command validation failed."
-        ): CommandValidationException {
-            return CommandValidationException(command, errorMsg = errorMsg, bindingErrors = toBindingErrors())
-        }
+        ): CommandValidationException = CommandValidationException(
+            command,
+            errorMsg = errorMsg,
+            bindingErrors = toBindingErrors()
+        )
     }
 }

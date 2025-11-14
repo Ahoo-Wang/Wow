@@ -24,31 +24,95 @@ import java.util.concurrent.ConcurrentHashMap
 import kotlin.reflect.full.functions
 
 /**
- * CommandBuilderRewriter
+ * Interface for rewriting command builders before command execution.
  *
+ * CommandBuilderRewriters allow modification of command builders to add
+ * additional context, validation, or transformation logic before commands
+ * are processed by the command bus.
+ *
+ * @see CommandBuilder
+ * @see CommandBuilderRewriterRegistry
  */
 interface CommandBuilderRewriter {
+    /**
+     * The command type that this rewriter supports.
+     */
     val supportedCommandType: Class<*>
+
+    /**
+     * Rewrites the command builder, potentially modifying its properties.
+     *
+     * @param commandBuilder the command builder to rewrite
+     * @return a Mono emitting the rewritten command builder
+     */
     fun rewrite(commandBuilder: CommandBuilder): Mono<CommandBuilder>
 }
 
+/**
+ * Decorator that executes command builder rewriting on a blocking scheduler.
+ *
+ * This wrapper ensures that potentially blocking rewrite operations are
+ * executed on a separate thread pool to avoid blocking the reactive pipeline.
+ *
+ * @param delegate the original rewriter to wrap
+ * @param scheduler the scheduler for executing blocking operations (default: boundedElastic)
+ * @see CommandBuilderRewriter
+ * @see Decorator
+ */
 class BlockingCommandBuilderRewriter(
     override val delegate: CommandBuilderRewriter,
     private val scheduler: Scheduler = Schedulers.boundedElastic()
-) : Decorator<CommandBuilderRewriter>, CommandBuilderRewriter by delegate {
-    override fun rewrite(commandBuilder: CommandBuilder): Mono<CommandBuilder> {
-        return Mono.defer {
-            delegate.rewrite(commandBuilder)
-        }.subscribeOn(scheduler)
-    }
+) : Decorator<CommandBuilderRewriter>,
+    CommandBuilderRewriter by delegate {
+    override fun rewrite(commandBuilder: CommandBuilder): Mono<CommandBuilder> =
+        Mono
+            .defer {
+                delegate.rewrite(commandBuilder)
+            }.subscribeOn(scheduler)
 }
 
+/**
+ * Registry for managing command builder rewriters.
+ *
+ * This registry allows registration and lookup of rewriters based on command types,
+ * enabling dynamic modification of command builders before execution.
+ *
+ * @see CommandBuilderRewriter
+ * @see SimpleCommandBuilderRewriterRegistry
+ */
 interface CommandBuilderRewriterRegistry {
+    /**
+     * Registers a command builder rewriter.
+     *
+     * @param rewriter the rewriter to register
+     */
     fun register(rewriter: CommandBuilderRewriter)
+
+    /**
+     * Unregisters the rewriter for the specified command type.
+     *
+     * @param commandType the command type to unregister
+     */
     fun unregister(commandType: Class<*>)
+
+    /**
+     * Gets the rewriter for the specified command type.
+     *
+     * @param commandType the command type to look up
+     * @return the registered rewriter, or null if none found
+     */
     fun getRewriter(commandType: Class<*>): CommandBuilderRewriter?
 }
 
+/**
+ * Simple implementation of CommandBuilderRewriterRegistry.
+ *
+ * This implementation uses a concurrent hash map to store rewriters and
+ * automatically wraps blocking rewriters with BlockingCommandBuilderRewriter.
+ *
+ * @see CommandBuilderRewriterRegistry
+ * @see BlockingCommandBuilderRewriter
+ */
 class SimpleCommandBuilderRewriterRegistry : CommandBuilderRewriterRegistry {
     companion object {
         private val log = KotlinLogging.logger {}
@@ -56,6 +120,12 @@ class SimpleCommandBuilderRewriterRegistry : CommandBuilderRewriterRegistry {
 
     private val registrar = ConcurrentHashMap<Class<*>, CommandBuilderRewriter>()
 
+    /**
+     * Checks if the rewriter's rewrite method is annotated with @Blocking.
+     *
+     * @return true if the rewrite method has the @Blocking annotation
+     * @see Blocking
+     */
     private fun CommandBuilderRewriter.isBlocked(): Boolean {
         val rewriteFunction = javaClass.kotlin.functions.first {
             it.name == CommandBuilderRewriter::rewrite.name &&
@@ -64,6 +134,16 @@ class SimpleCommandBuilderRewriterRegistry : CommandBuilderRewriterRegistry {
         return rewriteFunction.scanAnnotation<Blocking>() != null
     }
 
+    /**
+     * Registers a command builder rewriter, automatically wrapping blocking rewriters.
+     *
+     * If the rewriter's rewrite method is annotated with @Blocking, it will be
+     * wrapped with BlockingCommandBuilderRewriter for proper thread management.
+     *
+     * @param rewriter the rewriter to register
+     * @see Blocking
+     * @see BlockingCommandBuilderRewriter
+     */
     override fun register(rewriter: CommandBuilderRewriter) {
         val blockableRewriter = if (rewriter.isBlocked()) {
             BlockingCommandBuilderRewriter(rewriter)
@@ -76,6 +156,11 @@ class SimpleCommandBuilderRewriterRegistry : CommandBuilderRewriterRegistry {
         }
     }
 
+    /**
+     * Unregisters the rewriter for the specified command type.
+     *
+     * @param commandType the command type to unregister
+     */
     override fun unregister(commandType: Class<*>) {
         val removed = registrar.remove(commandType)
         log.info {
@@ -83,7 +168,11 @@ class SimpleCommandBuilderRewriterRegistry : CommandBuilderRewriterRegistry {
         }
     }
 
-    override fun getRewriter(commandType: Class<*>): CommandBuilderRewriter? {
-        return registrar[commandType]
-    }
+    /**
+     * Gets the registered rewriter for the specified command type.
+     *
+     * @param commandType the command type to look up
+     * @return the registered rewriter, or null if none found
+     */
+    override fun getRewriter(commandType: Class<*>): CommandBuilderRewriter? = registrar[commandType]
 }

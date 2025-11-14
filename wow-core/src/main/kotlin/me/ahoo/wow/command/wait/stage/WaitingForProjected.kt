@@ -17,6 +17,15 @@ import me.ahoo.wow.api.messaging.function.NamedFunctionInfoData
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.WaitSignal
 
+/**
+ * Wait strategy that waits for projections to be updated based on command-generated events.
+ * This strategy completes when both command processing and projection updates are finished.
+ * Only completes on the final projection signal to ensure all projections are updated.
+ * Optionally filters by specific projection function criteria if provided.
+ *
+ * @param waitCommandId The unique identifier for this wait strategy.
+ * @param function Optional function criteria to match specific projection handlers.
+ */
 class WaitingForProjected(
     override val waitCommandId: String,
     override val function: NamedFunctionInfoData? = null
@@ -24,7 +33,5 @@ class WaitingForProjected(
     override val stage: CommandStage
         get() = CommandStage.PROJECTED
 
-    override fun isWaitingFor(signal: WaitSignal): Boolean {
-        return super.isWaitingFor(signal) && signal.isLastProjection
-    }
+    override fun isWaitingFor(signal: WaitSignal): Boolean = super.isWaitingFor(signal) && signal.isLastProjection
 }

@@ -13,8 +13,26 @@
 
 package me.ahoo.wow.command.wait
 
+/**
+ * Interface for defining command wait endpoints.
+ * Command wait endpoints specify where command processing results should be sent
+ * when using wait strategies in distributed scenarios.
+ */
 interface CommandWaitEndpoint {
+    /**
+     * The endpoint address for command wait notifications.
+     * This could be a URL, queue name, or other addressing mechanism
+     * depending on the underlying messaging infrastructure.
+     */
     val endpoint: String
 }
 
-data class SimpleCommandWaitEndpoint(override val endpoint: String) : CommandWaitEndpoint
+/**
+ * Simple implementation of CommandWaitEndpoint.
+ * Provides a basic data class wrapper for endpoint strings.
+ *
+ * @param endpoint The endpoint address string.
+ */
+data class SimpleCommandWaitEndpoint(
+    override val endpoint: String
+) : CommandWaitEndpoint
