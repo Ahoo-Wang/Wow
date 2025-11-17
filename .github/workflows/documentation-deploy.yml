@@ -41,6 +41,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@master
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.22.0
+
       - name: Set up JDK 17
         uses: actions/setup-java@v5
         with:
@@ -73,12 +78,12 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: 24
-          cache-dependency-path: documentation/yarn.lock
-          cache: yarn
+          cache-dependency-path: documentation/pnpm-lock.yaml
+          cache: 'pnpm'
 
       - name: Build VitePress site
         working-directory: documentation
-        run: yarn add -D vitepress && yarn run docs:build
+        run: pnpm install && pnpm run docs:build
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4
