@@ -165,7 +165,7 @@ class CartSagaSpec : SagaSpec<CartSaga>({
 ![CartSagaSpec-Results](../public/images/test-suite/CartSagaSpec-Results.png)
 
 
-### 高级场景
+## 高级场景
 
 对于包含服务注入和错误处理的复杂工作流：
 
