@@ -20,10 +20,12 @@ import me.ahoo.wow.test.aggregate.GivenStage
  *
  * This class provides a straightforward implementation that delegates all operations
  * to the underlying GivenStage, serving as a bridge between the DSL interface
- * and the actual test execution logic.
+ * and the actual test execution logic. It extends AbstractGivenStageDsl to inherit
+ * common functionality while providing a concrete implementation for the GivenDsl contract.
  *
- * @param S the state type of the aggregate
- * @property delegate the underlying GivenStage that handles the test setup
+ * @param S the state type of the aggregate being tested
+ * @property context the DSL context that manages shared state across test stages
+ * @property delegate the underlying GivenStage that handles the actual test setup and event replay logic
  */
 class DefaultGivenDsl<S : Any>(
     override val context: AggregateDslContext<S>,

@@ -39,8 +39,9 @@ import me.ahoo.wow.test.saga.stateless.dsl.InjectPublicServiceCapable
  *
  * @param S the type of the aggregate state
  */
-interface AggregateDsl<S : Any> : InjectPublicServiceCapable, AggregateDslContextCapable<S> {
-
+interface AggregateDsl<S : Any> :
+    InjectPublicServiceCapable,
+    AggregateDslContextCapable<S> {
     /**
      * Starts a new test scenario for an aggregate.
      *
@@ -64,6 +65,44 @@ interface AggregateDsl<S : Any> : InjectPublicServiceCapable, AggregateDslContex
         block: GivenDsl<S>.() -> Unit
     )
 
+    /**
+     * Creates a branching test scenario from a previously referenced ExpectStage.
+     *
+     * This method allows testing alternative scenarios starting from any previously
+     * marked verification point (using ref() in ExpectDsl). It enables complex
+     * test flows where multiple branches diverge from the same verified state.
+     *
+     * Example usage:
+     * ```kotlin
+     * // In your test setup
+     * on {
+     *     whenCommand(CreateOrderCommand(...)) {
+     *         expectEventType(OrderCreated::class)
+     *         ref("order-created")  // Mark this verification point
+     *         expectState { status.assert().isEqualTo(OrderStatus.CREATED) }
+     *     }
+     * }
+     *
+     * // Later, create branches from the marked point
+     * fork("order-created", "Pay Order") {
+     *     whenCommand(PayOrderCommand(...)) {
+     *         expectEventType(OrderPaid::class)
+     *         expectState { status.assert().isEqualTo(OrderStatus.PAID) }
+     *     }
+     * }
+     * fork("order-created", "Cancel Order") {
+     *     whenCommand(CancelOrderCommand(...)) {
+     *         expectEventType(OrderCancelled::class)
+     *         expectState { status.assert().isEqualTo(OrderStatus.CANCELLED) }
+     *     }
+     * }
+     * ```
+     *
+     * @param ref the reference name of a previously marked ExpectStage
+     * @param name optional descriptive name for the forked scenario
+     * @param verifyError whether to verify that an error occurred at the referenced stage
+     * @param block the test scenario to execute in the forked context
+     */
     fun fork(
         ref: String,
         name: String = "",
@@ -158,7 +197,9 @@ interface GivenDsl<S : Any> :
  *
  * @param S the type of the aggregate state
  */
-interface WhenDsl<S : Any> : NameSpecCapable, AggregateDslContextCapable<S> {
+interface WhenDsl<S : Any> :
+    NameSpecCapable,
+    AggregateDslContextCapable<S> {
     /**
      * Executes a command on the aggregate and validates the results.
      *
@@ -187,7 +228,35 @@ interface WhenDsl<S : Any> : NameSpecCapable, AggregateDslContextCapable<S> {
  *
  * @param S the type of the aggregate state
  */
-interface ExpectDsl<S : Any> : AggregateExpecter<S, ExpectDsl<S>>, AggregateDslContextCapable<S> {
+interface ExpectDsl<S : Any> :
+    AggregateExpecter<S, ExpectDsl<S>>,
+    AggregateDslContextCapable<S> {
+    /**
+     * Marks the current ExpectStage with a reference name for later branching.
+     *
+     * This method stores the current verification state under the specified reference,
+     * allowing subsequent test scenarios to fork from this exact point using
+     * AggregateDsl.fork(ref, ...). This enables complex test flows with multiple
+     * branches diverging from the same verified aggregate state.
+     *
+     * Example usage:
+     * ```kotlin
+     * whenCommand(CreateOrderCommand(...)) {
+     *     expectEventType(OrderCreated::class)
+     *     ref("order-created")  // Mark this point for later branching
+     *     expectState { /* ... */ }
+     * }
+     *
+     * // Later in the same test class
+     * aggregateDsl.fork("order-created", "Pay Order") {
+     *     whenCommand(PayOrderCommand(...)) {
+     *         expectEventType(OrderPaid::class)
+     *     }
+     * }
+     * ```
+     *
+     * @param ref the unique reference name to assign to this verification point
+     */
     fun ref(ref: String)
 
     /**
