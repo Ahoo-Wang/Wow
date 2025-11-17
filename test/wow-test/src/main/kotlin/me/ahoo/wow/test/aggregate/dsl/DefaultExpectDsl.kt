@@ -22,7 +22,6 @@ import me.ahoo.wow.test.aggregate.ExpectStage
 import me.ahoo.wow.test.aggregate.ExpectedResult
 import me.ahoo.wow.test.dsl.AbstractDynamicTestBuilder
 import me.ahoo.wow.test.dsl.NameSpecCapable.Companion.appendName
-import org.junit.jupiter.api.DynamicContainer
 import org.junit.jupiter.api.DynamicTest
 import java.util.function.Consumer
 import kotlin.reflect.KClass
@@ -38,6 +37,7 @@ import kotlin.reflect.KClass
  * @property delegate the underlying ExpectStage that performs the actual verification logic
  */
 class DefaultExpectDsl<S : Any>(
+    override val context: AggregateDslContext<S>,
     override val delegate: ExpectStage<S>
 ) : AbstractDynamicTestBuilder(),
     ExpectDsl<S>,
@@ -62,16 +62,7 @@ class DefaultExpectDsl<S : Any>(
             append("Fork")
             appendName(name)
         }
-        val forkNode = try {
-            val verifiedStage = delegate.verify().fork(verifyError)
-            val forkedVerifiedStageDsl = DefaultForkedVerifiedStageDsl(verifiedStage)
-            block(forkedVerifiedStageDsl)
-            DynamicContainer.dynamicContainer(displayName, forkedVerifiedStageDsl.dynamicNodes)
-        } catch (e: Throwable) {
-            DynamicTest.dynamicTest("$displayName Error") {
-                throw e
-            }
-        }
+        val forkNode = delegate.fork(displayName, context, verifyError, block)
         dynamicNodes.add(forkNode)
     }
 

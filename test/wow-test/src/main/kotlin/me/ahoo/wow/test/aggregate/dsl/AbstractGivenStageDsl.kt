@@ -88,7 +88,7 @@ abstract class AbstractGivenStageDsl<S : Any> :
         block: WhenDsl<S>.() -> Unit
     ) {
         val whenStage = delegate.givenEvent(*events)
-        val whenDsl = DefaultWhenDsl(whenStage)
+        val whenDsl = DefaultWhenDsl(context, whenStage)
         block(whenDsl)
 
         val displayName = buildString {
@@ -116,7 +116,7 @@ abstract class AbstractGivenStageDsl<S : Any> :
         block: WhenDsl<S>.() -> Unit
     ) {
         val whenStage = delegate.givenState(state, version)
-        val whenDsl = DefaultWhenDsl(whenStage)
+        val whenDsl = DefaultWhenDsl(context, whenStage)
         block(whenDsl)
         val displayName = buildString {
             append("Given[State]")
@@ -141,7 +141,7 @@ abstract class AbstractGivenStageDsl<S : Any> :
         block: ExpectDsl<S>.() -> Unit
     ) {
         val givenStage = delegate.givenEvent()
-        val whenDsl = DefaultWhenDsl(givenStage)
+        val whenDsl = DefaultWhenDsl(context, givenStage)
         whenDsl.whenCommand(command, header, ownerId, block)
         val displayName = buildString {
             append("Given[Empty]")
