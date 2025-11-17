@@ -39,7 +39,8 @@ import me.ahoo.wow.test.saga.stateless.dsl.InjectPublicServiceCapable
  *
  * @param S the type of the aggregate state
  */
-interface AggregateDsl<S : Any> : InjectPublicServiceCapable {
+interface AggregateDsl<S : Any> : InjectPublicServiceCapable, AggregateDslContextCapable<S> {
+
     /**
      * Starts a new test scenario for an aggregate.
      *
@@ -62,6 +63,13 @@ interface AggregateDsl<S : Any> : InjectPublicServiceCapable {
         serviceProvider: ServiceProvider = SimpleServiceProvider(),
         block: GivenDsl<S>.() -> Unit
     )
+
+    fun fork(
+        refWhen: String,
+        name: String,
+        verifyError: Boolean,
+        block: ForkedVerifiedStageDsl<S>.() -> Unit
+    )
 }
 
 /**
@@ -75,7 +83,8 @@ interface AggregateDsl<S : Any> : InjectPublicServiceCapable {
  */
 interface GivenDsl<S : Any> :
     WhenDsl<S>,
-    NameSpecCapable {
+    NameSpecCapable,
+    AggregateDslContextCapable<S> {
     /**
      * Injects services or dependencies into the test context.
      *
@@ -149,7 +158,7 @@ interface GivenDsl<S : Any> :
  *
  * @param S the type of the aggregate state
  */
-interface WhenDsl<S : Any> : NameSpecCapable {
+interface WhenDsl<S : Any> : NameSpecCapable, AggregateDslContextCapable<S> {
     /**
      * Executes a command on the aggregate and validates the results.
      *
@@ -178,7 +187,7 @@ interface WhenDsl<S : Any> : NameSpecCapable {
  *
  * @param S the type of the aggregate state
  */
-interface ExpectDsl<S : Any> : AggregateExpecter<S, ExpectDsl<S>> {
+interface ExpectDsl<S : Any> : AggregateExpecter<S, ExpectDsl<S>>, AggregateDslContextCapable<S> {
     /**
      * Creates a branching test scenario from the current verified state.
      *

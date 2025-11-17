@@ -19,6 +19,7 @@ import me.ahoo.wow.ioc.SimpleServiceProvider
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.test.AggregateVerifier.aggregateVerifier
 import me.ahoo.wow.test.dsl.AbstractDynamicTestBuilder
+import me.ahoo.wow.test.dsl.NameSpecCapable.Companion.appendName
 
 /**
  * Default implementation of the AggregateDsl interface for testing aggregate behavior.
@@ -40,6 +41,7 @@ class DefaultAggregateDsl<C : Any, S : Any>(
      * This provider is copied to the test service provider during test execution.
      */
     override val publicServiceProvider: ServiceProvider = SimpleServiceProvider()
+    override val context: AggregateDslContext<S> = DefaultAggregateDslContext(mutableMapOf())
 
     /**
      * Sets up a test scenario for the specified aggregate.
@@ -71,8 +73,24 @@ class DefaultAggregateDsl<C : Any, S : Any>(
             eventStore = eventStore,
             serviceProvider = serviceProvider,
         )
-        val givenDsl = DefaultGivenDsl(givenStage)
+        val givenDsl = DefaultGivenDsl(context, givenStage)
         block(givenDsl)
         dynamicNodes.addAll(givenDsl.dynamicNodes)
+    }
+
+    override fun fork(
+        refWhen: String,
+        name: String,
+        verifyError: Boolean,
+        block: ForkedVerifiedStageDsl<S>.() -> Unit
+    ) {
+        val displayName = buildString {
+            append("Fork")
+            appendName(name)
+            append("<-- $refWhen")
+        }
+        val expectStage = context.getExpectStage(refWhen)
+        val forkNode = expectStage.fork(displayName, context, verifyError, block)
+        dynamicNodes.add(forkNode)
     }
 }

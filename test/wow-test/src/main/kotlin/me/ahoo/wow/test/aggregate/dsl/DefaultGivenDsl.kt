@@ -26,5 +26,6 @@ import me.ahoo.wow.test.aggregate.GivenStage
  * @property delegate the underlying GivenStage that handles the test setup
  */
 class DefaultGivenDsl<S : Any>(
+    override val context: AggregateDslContext<S>,
     override val delegate: GivenStage<S>
 ) : AbstractGivenStageDsl<S>()

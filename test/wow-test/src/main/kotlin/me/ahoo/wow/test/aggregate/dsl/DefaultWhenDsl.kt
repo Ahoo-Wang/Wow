@@ -31,6 +31,7 @@ import org.junit.jupiter.api.DynamicContainer
  * @property delegate the underlying WhenStage that handles command execution
  */
 class DefaultWhenDsl<S : Any>(
+    override val context: AggregateDslContext<S>,
     private val delegate: WhenStage<S>
 ) : AbstractDynamicTestBuilder(),
     WhenDsl<S>,
@@ -69,7 +70,8 @@ class DefaultWhenDsl<S : Any>(
         block: ExpectDsl<S>.() -> Unit
     ) {
         val expectStage = delegate.whenCommand(command, header, ownerId)
-        val expectDsl = DefaultExpectDsl(expectStage)
+        context.setExpectStage(name, expectStage)
+        val expectDsl = DefaultExpectDsl(context, expectStage)
         block(expectDsl)
         val displayName = buildString {
             append("When[${command.javaClass.simpleName}]")

@@ -30,6 +30,7 @@ import org.junit.jupiter.api.DynamicContainer
  * @property delegate the underlying VerifiedStage that provides the verified result
  */
 class DefaultForkedVerifiedStageDsl<S : Any>(
+    override val context: AggregateDslContext<S>,
     override val delegate: VerifiedStage<S>
 ) : AbstractGivenStageDsl<S>(),
     ForkedVerifiedStageDsl<S> {
@@ -58,7 +59,7 @@ class DefaultForkedVerifiedStageDsl<S : Any>(
         block: ExpectDsl<S>.() -> Unit
     ) {
         val givenStage = delegate.givenEvent()
-        val whenDsl = DefaultWhenDsl(givenStage)
+        val whenDsl = DefaultWhenDsl(context, givenStage)
         whenDsl.whenCommand(command, header, ownerId, block)
         val displayName = buildString {
             append("Given[Verified Stage]")
