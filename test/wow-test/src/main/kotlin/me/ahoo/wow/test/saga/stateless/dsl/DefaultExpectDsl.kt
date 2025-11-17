@@ -16,6 +16,7 @@ package me.ahoo.wow.test.saga.stateless.dsl
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.saga.stateless.CommandStream
+import me.ahoo.wow.test.captureDynamicTest
 import me.ahoo.wow.test.dsl.AbstractDynamicTestBuilder
 import me.ahoo.wow.test.saga.stateless.CommandIterator
 import me.ahoo.wow.test.saga.stateless.ExpectStage
@@ -46,7 +47,7 @@ class DefaultExpectDsl<T : Any>(
      * @return This DSL instance for method chaining.
      */
     override fun expect(expected: ExpectedResult<T>.() -> Unit): ExpectDsl<T> {
-        val dynamicTest = DynamicTest.dynamicTest("Expect") {
+        val dynamicTest = captureDynamicTest("Expect") {
             delegate.verify(false).expect(expected)
         }
         dynamicNodes.add(dynamicTest)
@@ -60,7 +61,7 @@ class DefaultExpectDsl<T : Any>(
      * @return This DSL instance for method chaining.
      */
     override fun expectCommandStream(expected: CommandStream.() -> Unit): ExpectDsl<T> {
-        val dynamicTest = DynamicTest.dynamicTest("ExpectCommandStream") {
+        val dynamicTest = captureDynamicTest("ExpectCommandStream") {
             delegate.verify(false).expectCommandStream(expected)
         }
         dynamicNodes.add(dynamicTest)
@@ -74,7 +75,7 @@ class DefaultExpectDsl<T : Any>(
      * @return This DSL instance for method chaining.
      */
     override fun expectCommandIterator(expected: CommandIterator.() -> Unit): ExpectDsl<T> {
-        val dynamicTest = DynamicTest.dynamicTest("ExpectCommandIterator") {
+        val dynamicTest = captureDynamicTest("ExpectCommandIterator") {
             delegate.verify(false).expectCommandIterator(expected)
         }
         dynamicNodes.add(dynamicTest)
@@ -87,7 +88,7 @@ class DefaultExpectDsl<T : Any>(
      * @return This DSL instance for method chaining.
      */
     override fun expectNoCommand(): ExpectDsl<T> {
-        val dynamicTest = DynamicTest.dynamicTest("ExpectNoCommand") {
+        val dynamicTest = captureDynamicTest("ExpectNoCommand") {
             delegate.verify(false).expectNoCommand()
         }
         dynamicNodes.add(dynamicTest)
@@ -102,7 +103,7 @@ class DefaultExpectDsl<T : Any>(
      * @return This DSL instance for method chaining.
      */
     override fun <C : Any> expectCommand(expected: CommandMessage<C>.() -> Unit): ExpectDsl<T> {
-        val dynamicTest = DynamicTest.dynamicTest("ExpectCommand") {
+        val dynamicTest = captureDynamicTest("ExpectCommand") {
             delegate.verify(false).expectCommand(expected)
         }
         dynamicNodes.add(dynamicTest)
@@ -117,7 +118,7 @@ class DefaultExpectDsl<T : Any>(
      * @return This DSL instance for method chaining.
      */
     override fun <C : Any> expectCommandBody(expected: C.() -> Unit): ExpectDsl<T> {
-        val dynamicTest = DynamicTest.dynamicTest("ExpectCommandBody") {
+        val dynamicTest = captureDynamicTest("ExpectCommandBody") {
             delegate.verify(false).expectCommandBody(expected)
         }
         dynamicNodes.add(dynamicTest)
@@ -131,7 +132,7 @@ class DefaultExpectDsl<T : Any>(
      * @return This DSL instance for method chaining.
      */
     override fun expectCommandCount(expected: Int): ExpectDsl<T> {
-        val dynamicTest = DynamicTest.dynamicTest("ExpectCommandCount[$expected]") {
+        val dynamicTest = captureDynamicTest("ExpectCommandCount[$expected]") {
             delegate.verify(false).expectCommandCount(expected)
         }
         dynamicNodes.add(dynamicTest)
@@ -146,7 +147,7 @@ class DefaultExpectDsl<T : Any>(
      */
     override fun expectCommandType(vararg expected: KClass<*>): ExpectDsl<T> {
         val dynamicTest =
-            DynamicTest.dynamicTest("ExpectCommandType[${expected.joinToString(",") { it.simpleName!! }}]") {
+            captureDynamicTest("ExpectCommandType[${expected.joinToString(",") { it.simpleName!! }}]") {
                 delegate.verify(false).expectCommandType(*expected)
             }
         dynamicNodes.add(dynamicTest)
@@ -159,7 +160,7 @@ class DefaultExpectDsl<T : Any>(
      * @return This DSL instance for method chaining.
      */
     override fun expectNoError(): ExpectDsl<T> {
-        val dynamicTest = DynamicTest.dynamicTest("ExpectNoError") {
+        val dynamicTest = captureDynamicTest("ExpectNoError") {
             delegate.verify(false).expectNoError()
         }
         dynamicNodes.add(dynamicTest)
@@ -172,7 +173,7 @@ class DefaultExpectDsl<T : Any>(
      * @return This DSL instance for method chaining.
      */
     override fun expectError(): ExpectDsl<T> {
-        val dynamicTest = DynamicTest.dynamicTest("ExpectError") {
+        val dynamicTest = captureDynamicTest("ExpectError") {
             delegate.verify(false).expectError()
         }
         dynamicNodes.add(dynamicTest)
@@ -187,7 +188,7 @@ class DefaultExpectDsl<T : Any>(
      * @return This DSL instance for method chaining.
      */
     override fun <E : Throwable> expectError(expected: E.() -> Unit): ExpectDsl<T> {
-        val dynamicTest = DynamicTest.dynamicTest("ExpectError") {
+        val dynamicTest = captureDynamicTest("ExpectError") {
             delegate.verify(false).expectError(expected)
         }
         dynamicNodes.add(dynamicTest)
@@ -202,7 +203,7 @@ class DefaultExpectDsl<T : Any>(
      * @return This DSL instance for method chaining.
      */
     override fun <E : Throwable> expectErrorType(expected: KClass<E>): ExpectDsl<T> {
-        val dynamicTest = DynamicTest.dynamicTest("ExpectErrorType[${expected.simpleName}]") {
+        val dynamicTest = captureDynamicTest("ExpectErrorType[${expected.simpleName}]") {
             delegate.verify(false).expectErrorType(expected)
         }
         dynamicNodes.add(dynamicTest)
