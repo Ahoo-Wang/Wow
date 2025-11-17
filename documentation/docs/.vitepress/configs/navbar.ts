@@ -49,6 +49,10 @@ export const navbar: DefaultTheme.NavItem[] = [
                 link: 'https://github.com/Ahoo-Wang/wow-project-template'
             },
             {
+                text: '功能强大的 TypeScript 代码生成工具',
+                link: 'https://github.com/Ahoo-Wang/fetcher/blob/main/packages/generator/'
+            },
+            {
                 text: '开源项目 - 微服务治理',
                 items: [
                     {
