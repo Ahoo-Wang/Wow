@@ -42,6 +42,10 @@ class DefaultExpectDsl<S : Any>(
 ) : AbstractDynamicTestBuilder(),
     ExpectDsl<S>,
     Decorator<ExpectStage<S>> {
+    override fun ref(ref: String) {
+        context.setExpectStage(ref, delegate)
+    }
+
     /**
      * Creates a forked verification path for testing alternative scenarios.
      *

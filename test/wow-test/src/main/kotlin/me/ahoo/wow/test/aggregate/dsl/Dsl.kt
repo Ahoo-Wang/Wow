@@ -65,9 +65,9 @@ interface AggregateDsl<S : Any> : InjectPublicServiceCapable, AggregateDslContex
     )
 
     fun fork(
-        refWhen: String,
-        name: String,
-        verifyError: Boolean,
+        ref: String,
+        name: String = "",
+        verifyError: Boolean = false,
         block: ForkedVerifiedStageDsl<S>.() -> Unit
     )
 }
@@ -188,6 +188,8 @@ interface WhenDsl<S : Any> : NameSpecCapable, AggregateDslContextCapable<S> {
  * @param S the type of the aggregate state
  */
 interface ExpectDsl<S : Any> : AggregateExpecter<S, ExpectDsl<S>>, AggregateDslContextCapable<S> {
+    fun ref(ref: String)
+
     /**
      * Creates a branching test scenario from the current verified state.
      *

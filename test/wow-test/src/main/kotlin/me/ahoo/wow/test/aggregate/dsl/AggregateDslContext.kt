@@ -18,22 +18,22 @@ import me.ahoo.wow.test.aggregate.ExpectStage
 interface AggregateDslContext<S : Any> {
     val expectStages: MutableMap<String, ExpectStage<S>>
 
-    fun setExpectStage(name: String, expectStage: ExpectStage<S>) {
-        if (name.isBlank()) {
+    fun setExpectStage(ref: String, expectStage: ExpectStage<S>) {
+        if (ref.isBlank()) {
             return
         }
-        require(!expectStages.containsKey(name)) {
-            "ExpectStage[$name] already exists!"
+        require(!expectStages.containsKey(ref)) {
+            "ExpectStage[$ref] already exists!"
         }
-        expectStages[name] = expectStage
+        expectStages[ref] = expectStage
     }
 
-    fun getExpectStage(name: String): ExpectStage<S> {
-        require(name.isNotBlank()) {
+    fun getExpectStage(ref: String): ExpectStage<S> {
+        require(ref.isNotBlank()) {
             "ExpectStage name can not be blank!"
         }
-        return requireNotNull(expectStages[name]) {
-            "ExpectStage[$name] not found!"
+        return requireNotNull(expectStages[ref]) {
+            "ExpectStage[$ref] not found!"
         }
     }
 }

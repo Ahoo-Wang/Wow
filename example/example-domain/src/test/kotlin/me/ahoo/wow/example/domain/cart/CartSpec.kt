@@ -28,6 +28,7 @@ import me.ahoo.wow.test.AggregateSpec
 class CartSpec : AggregateSpec<Cart, CartState>(
     {
         on {
+            name("Main")
             val ownerId = generateGlobalId()
             val addCartItem = AddCartItem(
                 productId = "productId",
@@ -53,6 +54,7 @@ class CartSpec : AggregateSpec<Cart, CartState>(
                 }
                 fork {
                     whenCommand(DefaultDeleteAggregate) {
+                        ref("DeleteAggregate")
                         expectEventType(DefaultAggregateDeleted::class)
                         expectStateAggregate {
                             deleted.assert().isTrue()
@@ -78,6 +80,11 @@ class CartSpec : AggregateSpec<Cart, CartState>(
                         }
                     }
                 }
+            }
+        }
+        fork("DeleteAggregate") {
+            whenCommand(DefaultDeleteAggregate) {
+                expectErrorType(IllegalAccessDeletedAggregateException::class)
             }
         }
     }

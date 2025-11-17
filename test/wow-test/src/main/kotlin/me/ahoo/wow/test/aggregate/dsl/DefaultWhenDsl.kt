@@ -70,7 +70,6 @@ class DefaultWhenDsl<S : Any>(
         block: ExpectDsl<S>.() -> Unit
     ) {
         val expectStage = delegate.whenCommand(command, header, ownerId)
-        context.setExpectStage(name, expectStage)
         val expectDsl = DefaultExpectDsl(context, expectStage)
         block(expectDsl)
         val displayName = buildString {
