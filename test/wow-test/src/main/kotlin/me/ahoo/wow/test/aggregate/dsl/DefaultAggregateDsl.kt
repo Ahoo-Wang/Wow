@@ -79,7 +79,7 @@ class DefaultAggregateDsl<C : Any, S : Any>(
     }
 
     override fun fork(
-        refWhen: String,
+        ref: String,
         name: String,
         verifyError: Boolean,
         block: ForkedVerifiedStageDsl<S>.() -> Unit
@@ -87,9 +87,9 @@ class DefaultAggregateDsl<C : Any, S : Any>(
         val displayName = buildString {
             append("Fork")
             appendName(name)
-            append("<-- $refWhen")
+            append(" <-- $ref")
         }
-        val expectStage = context.getExpectStage(refWhen)
+        val expectStage = context.getExpectStage(ref)
         val forkNode = expectStage.fork(displayName, context, verifyError, block)
         dynamicNodes.add(forkNode)
     }
