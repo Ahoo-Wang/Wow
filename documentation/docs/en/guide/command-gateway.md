@@ -1,23 +1,23 @@
-# 命令网关
+# Command Gateway
 
-命令网关是系统中接收和发送命令的核心组件，作为命令的入口点发挥关键作用。
-它是命令总线的扩展，不仅负责命令的传递，还增加了一系列重要的职责，包括命令的幂等性、等待策略以及命令验证。
+The command gateway is the core component in the system for receiving and sending commands, serving as the entry point for commands.
+It is an extension of the command bus, not only responsible for command transmission, but also adds a series of important responsibilities, including command idempotency, waiting strategies, and command validation.
 
-## 发送命令
+## Send Command
 
-![发送命令 - 命令网关](/images/command-gateway/send-command.svg)
+![Send Command - Command Gateway](/images/command-gateway/send-command.svg)
 
-## 幂等性
+## Idempotency
 
-命令幂等性是确保相同命令在系统中最多执行一次的原则。
+Command idempotency is the principle of ensuring that the same command is executed at most once in the system.
 
-命令网关通过使用 `IdempotencyChecker` 对命令的 `RequestId` 进行幂等性检查。
-如果命令已经执行过，则会抛出 `DuplicateRequestIdException` 异常，防止对同一命令的重复执行。
+The command gateway uses `IdempotencyChecker` to perform idempotency checks on the command's `RequestId`.
+If the command has already been executed, a `DuplicateRequestIdException` exception will be thrown, preventing duplicate execution of the same command.
 
-以下是一个示例的 HTTP 请求，展示了如何在请求中使用 `Command-Request-Id` 来确保命令的幂等性：
+Below is an example HTTP request showing how to use `Command-Request-Id` in the request to ensure command idempotency:
 
 :::tip
-开发者也可以通过`CommandMessage`的`requestId`属性自定义`RequestId`。
+Developers can also customize the `RequestId` through the `requestId` property of `CommandMessage`.
 :::
 
 ```http request
@@ -34,7 +34,7 @@ Command-Aggregate-Id: sourceId
 }
 ```
 
-### 配置
+### Configuration
 
 ```yaml {5-10}
 wow:
@@ -50,13 +50,13 @@ wow:
 ```
 
 
-## 等待策略
+## Waiting Strategies
 
-*命令等待策略*指的是命令网关在发送命令后，等待命令执行结果的一种策略。
+*Command waiting strategy* refers to a strategy where the command gateway waits for command execution results after sending commands.
 
-*命令等待策略*是 _Wow_ 框架中的重要特性，其目标是解决 _CQRS_ 、读写分离模式下数据同步延迟的问题。
+*Command waiting strategy* is an important feature in the _Wow_ framework, aiming to solve the data synchronization delay problem in _CQRS_ and read-write separation patterns.
 
-目前支持的命令等待策略有：
+Currently supported command waiting strategies include:
 
 ### WaitingForStage
 
@@ -64,14 +64,14 @@ wow:
   <img  width="95%" src="/images/wait/WaitingForStage.svg" alt="WaitingForStage"/>
 </p>
 
-`WaitingForStage` 支持的等待信号如下：
+`WaitingForStage` supports the following waiting signals:
 
-- `SENT` : 当命令发布到命令总线/队列后，生成完成信号
-- `PROCESSED` : 当命令被聚合根处理完成后，生成完成信号
-- `SNAPSHOT` : 当快照被生成后，生成完成信号
-- `PROJECTED` : 当命令产生的事件*投影*完成后，生成完成信号
-- `EVENT_HANDLED` : 当命令产生的事件被*事件处理器*处理完成后，生成完成信号
-- `SAGA_HANDLED` : 当命令产生的事件被*Saga*处理完成后，生成完成信号
+- `SENT`: Generate completion signal when command is published to command bus/queue
+- `PROCESSED`: Generate completion signal when command is processed by aggregate root
+- `SNAPSHOT`: Generate completion signal when snapshot is created
+- `PROJECTED`: Generate completion signal when command-generated events are *projected*
+- `EVENT_HANDLED`: Generate completion signal when command-generated events are processed by *event handlers*
+- `SAGA_HANDLED`: Generate completion signal when command-generated events are processed by *Saga*
 
 ::: code-group
 ```http request
@@ -89,7 +89,7 @@ Command-Aggregate-Id: sourceId
 ```
 
 ```kotlin {1}
-commamdGateway.sendAndWaitForProcessed(message)
+commandGateway.sendAndWaitForProcessed(message)
 ```
 :::
 
@@ -99,33 +99,33 @@ commamdGateway.sendAndWaitForProcessed(message)
   <img  width="95%" src="/images/wait/WaitingForChain.svg" alt="WaitingForChain"/>
 </p>
 
-## 验证
+## Validation
 
-命令网关在发送命令之前会使用 `jakarta.validation.Validator` 对命令进行验证，如果验证失败，将会抛出 CommandValidationException 异常。
+The command gateway uses `jakarta.validation.Validator` to validate commands before sending them. If validation fails, a `CommandValidationException` exception will be thrown.
 
-通过利用 `jakarta.validation.Validator`，开发者可以使用 `jakarta.validation` 提供的各种验证注解，确保命令符合指定的规范和条件。
+By utilizing `jakarta.validation.Validator`, developers can use various validation annotations provided by `jakarta.validation` to ensure commands meet specified norms and conditions.
 
-## LocalFirst 模式：减少网络IO的影响
+## LocalFirst Mode: Reducing Network IO Impact
 
-通常情况下，从发送命令到聚合根完成命令处理的流程如下：
+Normally, the flow from sending a command to the aggregate root completing command processing is as follows:
 
-1. 聚合根处理器订阅分布式命令总线消息。
-2. 客户端通过命令网关将命令发送至分布式命令总线。
-3. 聚合根处理器接收并处理命令。
-4. 聚合根处理器发送处理完成信号给客户端。
+1. Aggregate root processor subscribes to distributed command bus messages.
+2. Client sends command to distributed command bus through command gateway.
+3. Aggregate root processor receives and processes command.
+4. Aggregate root processor sends completion signal to client.
 
-在上述流程中，步骤 2 和 3 中涉及网络IO。而 LocalFirst 模式的目标是尽量消除这些网络IO的影响。具体流程如下：
+In the above flow, steps 2 and 3 involve network IO. The goal of LocalFirst mode is to minimize the impact of this network IO. The specific flow is as follows:
 
-1. 聚合根处理器订阅本地命令总线以及分布式命令总线消息。
-2. 客户端通过命令网关发送命令。
-   1. 如果命令网关判断该命令不能在本地服务实例处理，则将命令发送至分布式命令总线。
-   2. 如果可以在本地处理，则将命令同时发送至本地命令总线和分布式命令总线。
-3. 聚合根处理器接收到命令并处理命令.
-4. 聚合根处理器发送处理完成信号给客户端.
+1. Aggregate root processor subscribes to local command bus and distributed command bus messages.
+2. Client sends command through command gateway.
+   1. If the command gateway determines that the command cannot be processed by the local service instance, it sends the command to the distributed command bus.
+   2. If it can be processed locally, it sends the command to both the local command bus and distributed command bus simultaneously.
+3. Aggregate root processor receives and processes the command.
+4. Aggregate root processor sends completion signal to client.
 
-通过 _LocalFirst 模式_，命令发送至本地总线以及完成信号通知均不需要网络IO。
+Through _LocalFirst mode_, sending commands to the local bus and completion signal notifications do not require network IO.
 
-### 配置
+### Configuration
 
 ```yaml {5-6}
 wow:
@@ -133,24 +133,25 @@ wow:
     bus:
       type: kafka
       local-first:
-        enabled: true # 默认已开启
+        enabled: true # Enabled by default
 ```
 
-## 命令改写器
+## Command Rewriter
 
-命令改写器(`CommandBuilderRewriter`)是用于改写命令的消息元数据(`aggregateId`/`tenantId` 等)以及命令体(`body`)。
+The command rewriter (`CommandBuilderRewriter`) is used to rewrite command message metadata (`aggregateId`/`tenantId`, etc.) and command body (`body`).
 
-以下是一个重置密码命令重写器的示例：
+Below is an example of a password reset command rewriter:
 
 ::: tip
-用户重置密码（找回密码）前是无法获得聚合根ID的，所以需要通过该改写器获得 `User` 聚合根的ID
+Before a user resets their password (password recovery), they cannot obtain the aggregate root ID, so this rewriter is needed to obtain the `User` aggregate root ID
 :::
 
 ```kotlin
 /**
- * 找回密码(`ResetPwd`)命令重写器。
+ * Password recovery (`ResetPwd`) command rewriter.
  *
- * 该命令需要根据命令体中的手机号码查询用户聚合根ID，以便满足命令消息聚合根ID必填的要求。
+ * This command needs to query the user aggregate root ID based on the phone number in the command body
+ * to meet the requirement that command messages must have an aggregate root ID.
  *
  */
 @Service
@@ -169,7 +170,7 @@ class ResetPwdCommandBuilderRewriter(private val queryService: SnapshotQueryServ
          }
       }.dynamicQuery(queryService)
          .switchIfEmpty {
-            IllegalArgumentException("手机号码尚未绑定。").toMono()
+            IllegalArgumentException("Phone number not yet bound.").toMono()
          }.map {
             commandBuilder.aggregateId(it.getValue(MessageRecords.AGGREGATE_ID))
          }
@@ -177,4 +178,4 @@ class ResetPwdCommandBuilderRewriter(private val queryService: SnapshotQueryServ
 }
 ```
 
-开发者通过 _Spring_ 的 `@Service` 注解，将该提取器注册到 _Spring_ 容器中即可完成提取器的注册。
+Developers can register the rewriter by using Spring's `@Service` annotation to register it in the Spring container.

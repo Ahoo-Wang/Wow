@@ -1,10 +1,10 @@
-# 聚合调度器
+# Aggregate Scheduler
 
-聚合调度器为每个聚合提供专用的 Reactor Scheduler，用于控制并发执行和资源分配。
+The aggregate scheduler provides a dedicated Reactor Scheduler for each aggregate, used to control concurrent execution and resource allocation.
 
-## 调度器供应器
+## Scheduler Supplier
 
-聚合调度器供应器为每个聚合提供或创建专用的调度器。
+The aggregate scheduler supplier provides or creates a dedicated scheduler for each aggregate.
 
 ```kotlin
 fun interface AggregateSchedulerSupplier {
@@ -12,7 +12,7 @@ fun interface AggregateSchedulerSupplier {
 }
 ```
 
-### 默认实现
+### Default Implementation
 
 ```kotlin
 class DefaultAggregateSchedulerSupplier(

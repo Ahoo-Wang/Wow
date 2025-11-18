@@ -1,1 +1,1 @@
-# 配置
+# Configuration
