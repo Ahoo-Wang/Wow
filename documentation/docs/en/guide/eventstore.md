@@ -1,6 +1,6 @@
-# 事件存储
+# Event Store
 
-## 事件溯源
+## Event Sourcing
 
 <center>
 

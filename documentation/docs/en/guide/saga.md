@@ -1,82 +1,82 @@
-# 分布式事务 (Saga)
+# Distributed Transactions (Saga)
 
-_Wow_ 框架提供了基于*流程编排(Orchestration)模式*的无状态的 _Saga_ 实现，可以用于处理分布式事务。
+The _Wow_ framework provides a stateless _Saga_ implementation based on the *Orchestration pattern*, which can be used to handle distributed transactions.
 
-在近三年的实际生产环境验证中，我们发现无状态的 _Saga_ 已经足够满足实际复杂场景的需求。
+In nearly three years of actual production environment validation, we have found that stateless _Saga_ is sufficient to meet the needs of actual complex scenarios.
 
-## Saga 模式
+## Saga Pattern
 
-Saga 模式是一种分布式事务协调方法，通过一系列事务步骤来更新每个服务并发布消息或事件。如果某个步骤失败，Saga 将执行补偿事务来抵消之前的事务。
+The Saga pattern is a method for distributed transaction coordination that updates each service and publishes messages or events through a series of transaction steps. If a step fails, the Saga will execute compensating transactions to offset the previous transactions.
 
-### 流程编舞 (Choreography)
+### Choreography
 
 <center>
 
 ![Choreography](/images/saga/choreography.png)
 </center>
 
-> 图片引用自 [A Saga on Sagas](https://learn.microsoft.com/en-us/previous-versions/msp-n-p/jj591569(v=pandp.10))。
+> Image referenced from [A Saga on Sagas](https://learn.microsoft.com/en-us/previous-versions/msp-n-p/jj591569(v=pandp.10)).
 
-流程编舞模式参与方在没有集中控制点的情况下交换事件。
-在这种方法中，每个本地事务都会发布领域事件，触发其他服务中的本地事务。
+The choreography pattern involves participants exchanging events without a centralized control point.
+In this approach, each local transaction publishes domain events, triggering local transactions in other services.
 
-**优点：**
-- 适用于需要少量参与方并且不需要复杂协调逻辑的简单工作流。
-- 不需要额外的服务实现和维护。
-- 消除了单点故障的风险，因为责任分散在各个分布式事务参与方之间。
+**Advantages:**
+- Suitable for simple workflows that require few participants and no complex coordination logic.
+- No additional service implementation and maintenance required.
+- Eliminates the risk of single points of failure, as responsibility is distributed among distributed transaction participants.
 
-**缺点：**
-- 添加新步骤时，工作流复杂性可能会增加，很难跟踪哪些分布式事务参与方响应特定命令。
-- 存在分布式事务参与方之间的循环依赖的风险。
-- 集成测试困难，因为必须运行所有服务以模拟事务。
+**Disadvantages:**
+- Workflow complexity may increase when adding new steps, making it difficult to track which distributed transaction participants respond to specific commands.
+- Risk of circular dependencies between distributed transaction participants.
+- Integration testing is difficult because all services must be run to simulate transactions.
 
-### 流程编排 (Orchestration)
+### Orchestration
 
 <center>
 
 ![Orchestration](/images/saga/orchestration.png)
 </center>
 
-> 图片引用自 [A Saga on Sagas](https://learn.microsoft.com/en-us/previous-versions/msp-n-p/jj591569(v=pandp.10))。
+> Image referenced from [A Saga on Sagas](https://learn.microsoft.com/en-us/previous-versions/msp-n-p/jj591569(v=pandp.10)).
 
-流程编排模式相对于编舞需要增加集中的流程管理器告诉分布式事务参与方执行哪些本地事务。
-Saga 流程管理器处理所有事务，并根据事件告诉参与方执行哪些操作。
+The orchestration pattern requires adding a centralized process manager compared to choreography to tell distributed transaction participants which local transactions to execute.
+The Saga process manager handles all transactions and tells participants what operations to perform based on events.
 
-**优点：**
-- 适用于涉及许多参与方或随时间添加新参与方的复杂工作流。
-- 在对每个参与方的流程和活动流的控制方面具有更大的灵活性。
-- 不引入循环依赖，因为流程管理器单方面依赖于Saga参与方。
-- 关注点分离，因为参与方不需要知道其他参与方的领域事件与命令。
+**Advantages:**
+- Suitable for complex workflows involving many participants or adding new participants over time.
+- Greater flexibility in controlling the flow and activity stream for each participant.
+- Does not introduce circular dependencies because the process manager unilaterally depends on Saga participants.
+- Separation of concerns, as participants do not need to know about other participants' domain events and commands.
 
-**缺点：**
-- 需要单独维护流程管理器。
+**Disadvantages:**
+- Requires separate maintenance of the process manager.
 
-Wow 框架使用流程编排模式实现 _Saga_ 模式，
+The Wow framework implements the _Saga_ pattern using the orchestration pattern.
 
-如果想要了解更多关于 _Saga_ 模式的内容，可以参考 [A Saga on Sagas](https://learn.microsoft.com/en-us/previous-versions/msp-n-p/jj591569(v=pandp.10))。
+If you want to learn more about the _Saga_ pattern, you can refer to [A Saga on Sagas](https://learn.microsoft.com/en-us/previous-versions/msp-n-p/jj591569(v=pandp.10)).
 
-## 约定
+## Conventions
 
-_Saga_ 通过订阅事件完成处理逻辑后返回聚合命令。
+_Saga_ completes processing logic by subscribing to events and then returns aggregate commands.
 
-- 流程管理器（_Saga_）需要添加 `@StatelessSaga` 注解，以便框架能够自动发现。
-- 领域事件处理函数需要添加 `@OnEvent` 注解，但该注解不是必须的，默认情况下命名为 `onEvent` 即表明该函数为事件接收函数。
-- 领域事件处理函数接受的参数为：具体领域事件 (`Prepared`)、领域事件 (`DomainEvent<Prepared>`)。
-- 领域事件处理函数的返回值类型为：`null`、命令体 (`Prepared`)、命令构造器 (`CommandBuilder`)、命令消息 (`CommandMessage<Prepared>`)。
-- 领域事件处理函数可以返回`0-N`个聚合命令，该聚合命令将会被发送到命令总线。
+- The process manager (_Saga_) needs to add the `@StatelessSaga` annotation so that the framework can automatically discover it.
+- Domain event handler functions need to add the `@OnEvent` annotation, but this annotation is not required. By default, naming it `onEvent` indicates that the function is an event receiver function.
+- Domain event handler functions accept parameters of: specific domain events (`Prepared`), domain events (`DomainEvent<Prepared>`).
+- Domain event handler function return value types are: `null`, command body (`Prepared`), command builder (`CommandBuilder`), command message (`CommandMessage<Prepared>`).
+- Domain event handler functions can return `0-N` aggregate commands, which will be sent to the command bus.
 
-## 银行转账案例中的转账流程管理器
+## Transfer Process Manager in Bank Transfer Case
 
 <center>
 
-![银行转账案例中的转账流程管理器](/images/example/transfer-saga.svg)
+![Transfer Process Manager in Bank Transfer Case](/images/example/transfer-saga.svg)
 </center>
 
-转账流程管理器（`TransferSaga`）负责协调处理转账的事件，并生成相应的命令。
+The transfer process manager (`TransferSaga`) is responsible for coordinating transfer events and generating corresponding commands.
 
-- `onEvent(Prepared)`: 订阅转账已准备就绪事件（`Prepared`），并生成入账命令(`Entry`)。
-- `onEvent(AmountEntered)`: 订阅转账已入账事件（`AmountEntered`），并生成确认转账命令(`Confirm`)。
-- `onEvent(EntryFailed)`: 订阅转账入账失败事件（`EntryFailed`），并生成解锁金额命令(`UnlockAmount`)。
+- `onEvent(Prepared)`: Subscribes to the transfer prepared event (`Prepared`) and generates the entry command (`Entry`).
+- `onEvent(AmountEntered)`: Subscribes to the transfer amount entered event (`AmountEntered`) and generates the confirm transfer command (`Confirm`).
+- `onEvent(EntryFailed)`: Subscribes to the transfer entry failed event (`EntryFailed`) and generates the unlock amount command (`UnlockAmount`).
 
 ```java
 @StatelessSaga
@@ -96,11 +96,11 @@ public class TransferSaga {
 }
 ```
 
-## 单元测试
+## Unit Testing
 
-> 使用 `SagaSpec` 进行 Saga 单元测试，可以有效的减少单元测试的编写工作量。
+> Using `SagaSpec` for Saga unit testing can effectively reduce the workload of writing unit tests.
 
-> `TransferSaga` 单元测试
+> `TransferSaga` Unit Test
 
 ```kotlin
 class TransferSagaSpec : SagaSpec<TransferSaga>({

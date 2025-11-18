@@ -1,24 +1,24 @@
-# 聚合根建模
+# Aggregate Root Modeling
 
-## 风格
+## Patterns
 
-### 聚合模式 (推荐)
+### Aggregate Pattern (Recommended)
 
-聚合模式将命令函数、溯源函数(包含聚合状态数据)分别放置在不同的类中，这样做的好处是可以避免命令函数直接变更聚合状态数据的问题(将`setter`访问器设置为`private`)。
-同时职责分离也使得聚合根的命令函数更加专注于命令处理，溯源函数更加专注于聚合状态数据的变更。
+The aggregate pattern places command functions and sourcing functions (containing aggregate state data) in separate classes. This approach avoids the problem of command functions directly modifying aggregate state data (by setting the `setter` accessor to `private`).
+At the same time, separation of responsibilities allows the aggregate root's command functions to focus more on command processing, while sourcing functions focus on aggregate state data changes.
 
 <center>
 
 ![Aggregation Class - Modeling](/images/modeling/aggregation-pattern.svg)
 </center>
 
-### 单一类模式
+### Single Class Pattern
 
-单一类模式将命令函数、溯源函数以及聚合状态数据放置在一起，这样做的好处是简单直接。
+The single class pattern places command functions, sourcing functions, and aggregate state data together in one class. The advantage is simplicity and directness.
 
-::: danger 
-但是因为所在同一个类中，所以命令函数是可以直接变更聚合状态数据的，这违反了`EventSourcing`的原则。
-要求开发人员时刻谨记，命令函数只能返回领域事件并交由溯源函数来变更聚合状态数据。
+::: danger
+However, because they are in the same class, command functions can directly modify aggregate state data, which violates the `EventSourcing` principle.
+It requires developers to constantly remember that command functions can only return domain events and delegate state changes to sourcing functions.
 :::
 
 <center>
@@ -26,9 +26,9 @@
 ![Single Class - Modeling](/images/modeling/single-class-pattern.svg)
 </center>
 
-### 继承模式
+### Inheritance Pattern
 
-继承模式将状态聚合根作为基类，并且将`setter`访问器设置为`private`。以避免命令聚合根在命令函数中修改聚合状态数据。
+The inheritance pattern uses the state aggregate root as the base class and sets the `setter` accessor to `private` to prevent command aggregate roots from modifying aggregate state data in command functions.
 
 <center>
 
@@ -36,18 +36,18 @@
 </center>
 
 
-## 约定
+## Conventions
 
-### 命令聚合根
+### Command Aggregate Root
 
-命令聚合根负责接收命令处理函数，执行相应的业务逻辑，并返回领域事件。
+The command aggregate root is responsible for receiving command handler functions, executing corresponding business logic, and returning domain events.
 
-- 命令聚合根需要添加 `@AggregateRoot` 注解，以便 `wow-compiler` 模块可以生成相应的元数据定义。
-- 命令处理函数的 `@OnCommand` 注解不是必须的，默认情况下将命令处理函数命名为 `onCommand` 即表明该函数为命令处理函数。
-- 命令处理函数的第一个参数可以定义为：具体命令(`AddCartItem`)、命令消息(`CommandMessage<AddCartItem>`)、命令消息交换(`CommandExchange<AddCartItem>`)。
-- 命令处理函数的其余参数将从 *IOC 容器*中获取。如果你在 _Spring IOC_ 容器中注入了某个实例，可以通过参数直接获取。
-- 命令处理函数的返回值为一个或者多个领域事件，该领域事件首先会由状态聚合根通过溯源函数将状态变更为最新状态，然后持久化到 _EventStore_。
-- 持久化完成后，将会通过 _DomainEventBus_ 发布到事件总线。
+- The command aggregate root needs to add the `@AggregateRoot` annotation so that the `wow-compiler` module can generate corresponding metadata definitions.
+- The `@OnCommand` annotation for command handler functions is not required. By default, naming a command handler function `onCommand` indicates it is a command handler function.
+- The first parameter of command handler functions can be defined as: specific command (`AddCartItem`), command message (`CommandMessage<AddCartItem>`), command message exchange (`CommandExchange<AddCartItem>`).
+- The remaining parameters of command handler functions will be obtained from the *IOC container*. If you have injected an instance in the _Spring IOC_ container, you can obtain it directly through parameters.
+- The return value of command handler functions is one or more domain events. These domain events will first have their state changed to the latest state by the state aggregate root through sourcing functions, then be persisted to the _EventStore_.
+- After persistence is complete, they will be published to the event bus through the _DomainEventBus_.
 
 ```kotlin
 @AggregateRoot
@@ -56,7 +56,7 @@ class Cart(private val state: CartState) {
     @OnCommand(returns = [CartItemAdded::class, CartQuantityChanged::class])
     fun onCommand(command: AddCartItem): Any {
         require(state.items.size < MAX_CART_ITEM_SIZE) {
-            "购物车最多只能添加[$MAX_CART_ITEM_SIZE]个商品."
+            "Shopping cart can only add up to [$MAX_CART_ITEM_SIZE] items."
         }
         state.items.firstOrNull {
             it.productId == command.productId
@@ -76,16 +76,16 @@ class Cart(private val state: CartState) {
 }
 ```
 
-### 状态聚合根
+### State Aggregate Root
 
 
-状态聚合根定义了聚合状态数据以及溯源函数。
+The state aggregate root defines aggregate state data and sourcing functions.
 
-- 状态聚合根在构造函数中必须定义聚合根 ID 字段。
-- 溯源函数的作用是将领域事件应用到聚合状态数据上，从而变更聚合状态数据。
-- 溯源函数使用 `@OnSourcing` 注解进行标记。不过，该注解是可选的，默认情况下，当函数名为 `onSourcing` 时，即表明该函数为溯源函数。
-- 溯源函数接受的参数为：具体领域事件 (`CartItemAdded`)、领域事件 (`DomainEvent<CartItemAdded>`)。
-- 无需为溯源函数定义返回值。
+- The state aggregate root must define the aggregate root ID field in the constructor.
+- The role of sourcing functions is to apply domain events to aggregate state data, thereby changing aggregate state data.
+- Sourcing functions are marked with the `@OnSourcing` annotation. However, this annotation is optional. By default, when the function name is `onSourcing`, it indicates that the function is a sourcing function.
+- Sourcing functions accept parameters of: specific domain events (`CartItemAdded`), domain events (`DomainEvent<CartItemAdded>`).
+- No return value needs to be defined for sourcing functions.
 
 ```kotlin
 class CartState(val id: String) {
