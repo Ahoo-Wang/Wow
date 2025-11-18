@@ -3,35 +3,35 @@ import {DefaultTheme} from "vitepress/types/default-theme";
 export const navbar: DefaultTheme.NavItem[] = [
     {
         text: '指南',
-        link: '/guide/getting-started',
-        activeMatch: '^/guide/'
+        link: '/zh/guide/getting-started',
+        activeMatch: '^/zh/guide/'
     },
     {
         text: '参考',
-        activeMatch: '^/reference/',
+        activeMatch: '^/zh/reference/',
         items: [
             {
                 text: '配置',
                 items: [
-                    {text: '基础配置', link: '/reference/config/basic'},
-                    {text: '命令总线', link: '/reference/config/command'},
-                    {text: '事件总线', link: '/reference/config/event'},
-                    {text: '事件溯源', link: '/reference/config/eventsourcing'},
+                    {text: '基础配置', link: '/zh/reference/config/basic'},
+                    {text: '命令总线', link: '/zh/reference/config/command'},
+                    {text: '事件总线', link: '/zh/reference/config/event'},
+                    {text: '事件溯源', link: '/zh/reference/config/eventsourcing'},
                 ],
             },
             {
                 text: '示例',
                 items: [
-                    {text: '银行转账(JAVA)', link: '/reference/example/transfer'},
-                    {text: '订单系统', link: '/reference/example/order'},
+                    {text: '银行转账(JAVA)', link: '/zh/reference/example/transfer'},
+                    {text: '订单系统', link: '/zh/reference/example/order'},
                 ],
             },
             {
                 text: 'Awesome',
                 items: [
-                    {text: 'CQRS', link: '/reference/awesome/cqrs'},
-                    {text: 'Microservices', link: '/reference/awesome/microservices'},
-                    {text: 'Reactive', link: '/reference/awesome/reactive'},
+                    {text: 'CQRS', link: '/zh/reference/awesome/cqrs'},
+                    {text: 'Microservices', link: '/zh/reference/awesome/microservices'},
+                    {text: 'Reactive', link: '/zh/reference/awesome/reactive'},
                 ],
             },
         ]

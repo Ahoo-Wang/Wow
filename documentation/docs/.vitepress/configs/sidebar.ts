@@ -14,9 +14,9 @@
 import {DefaultTheme} from "vitepress/types/default-theme";
 
 export const sidebar: DefaultTheme.Sidebar = {
-    '/guide/': [
+    '/zh/guide/': [
         {
-            base: '/guide/',
+            base: '/zh/guide/',
             text: '指南',
             collapsed: false,
             items: [
@@ -37,7 +37,7 @@ export const sidebar: DefaultTheme.Sidebar = {
                 {text: '性能评测', link: 'perf-test'},
             ],
         }, {
-            base: '/guide/extensions/',
+            base: '/zh/guide/extensions/',
             text: '扩展',
             collapsed: false,
             items: [
@@ -52,7 +52,7 @@ export const sidebar: DefaultTheme.Sidebar = {
                 {text: '兼容性测试套件', link: 'tck'},
             ],
         }, {
-            base: '/guide/advanced/',
+            base: '/zh/guide/advanced/',
             text: '深入',
             collapsed: false,
             items: [
@@ -66,7 +66,7 @@ export const sidebar: DefaultTheme.Sidebar = {
             ],
         }, {
             text: '参考',
-            base: '/reference/',
+            base: '/zh/reference/',
             collapsed: false,
             items: [
                 {text: '配置', link: 'config/basic'},
@@ -75,13 +75,13 @@ export const sidebar: DefaultTheme.Sidebar = {
             ]
         }
     ],
-    '/reference/': [
+    '/zh/reference/': [
         {
             text: '参考',
             items: [
                 {
                     text: '配置',
-                    base: '/reference/config/',
+                    base: '/zh/reference/config/',
                     collapsed: false,
                     items: [
                         {text: '基础配置', link: 'basic'},
@@ -92,7 +92,7 @@ export const sidebar: DefaultTheme.Sidebar = {
                 },
                 {
                     text: '示例',
-                    base: '/reference/example/',
+                    base: '/zh/reference/example/',
                     collapsed: false,
                     items: [
                         {text: '银行转账（JAVA）', link: 'transfer'},
@@ -101,7 +101,7 @@ export const sidebar: DefaultTheme.Sidebar = {
                 },
                 {
                     text: 'Awesome',
-                    base: '/reference/awesome/',
+                    base: '/zh/reference/awesome/',
                     collapsed: false,
                     items: [
                         {text: 'CQRS', link: 'cqrs'},
