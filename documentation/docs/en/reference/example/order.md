@@ -1,3 +1,3 @@
-# 订单系统
+# Order System
 
-_[订单系统案例](https://github.com/Ahoo-Wang/Wow/blob/main/example/)_ 是一个基于 _Wow_ 框架的示例项目，旨在帮助开发者快速上手 _Wow_ 框架。
+The _[Order System Example](https://github.com/Ahoo-Wang/Wow/blob/main/example/)_ is a sample project based on the _Wow_ framework, designed to help developers get started with the _Wow_ framework quickly.

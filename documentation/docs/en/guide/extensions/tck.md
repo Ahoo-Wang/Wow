@@ -1,11 +1,11 @@
-# 兼容性测试套件
+# Technology Compatibility Kit
 
-兼容性测试套件（_TCK_）是一组用于验证特定接口实现是否符合规范的测试用例。
+The Technology Compatibility Kit (_TCK_) is a set of test cases used to verify that specific interface implementations conform to specifications.
 
-通过 _TCK_，开发者能够确保扩展在不同情境下正确运行，为自定义扩展提供了便捷和正确性保障。
-这种标准化验证方式不仅简化了扩展开发，降低了潜在错误风险，还确保了整个生态系统的一致性和稳定性。
+Through _TCK_, developers can ensure that extensions run correctly in different scenarios, providing convenience and correctness guarantees for custom extensions.
+This standardized verification method not only simplifies extension development and reduces potential error risks, but also ensures the consistency and stability of the entire ecosystem.
 
-## 安装
+## Installation
 ::: code-group
 ```kotlin [Gradle(Kotlin)]
 testImplementation("me.ahoo.wow:wow-tck")
@@ -23,7 +23,7 @@ testImplementation 'me.ahoo.wow:wow-tck'
 ```
 :::
 
-## Redis 扩展案例
+## Redis Extension Example
 
 ### CommandBus
 

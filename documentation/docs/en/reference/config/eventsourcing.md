@@ -1,15 +1,15 @@
-# 事件源
+# Event Sourcing
 
 ## EventStoreProperties
 
-- 配置类：[EventStoreProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/eventsourcing/store/EventStoreProperties.kt)
-- 前缀：`wow.eventsourcing.store`
+- Configuration class: [EventStoreProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/eventsourcing/store/EventStoreProperties.kt)
+- Prefix: `wow.eventsourcing.store`
 
-| 名称        | 数据类型                | 说明                  | 默认值   |
-|-----------|---------------------|---------------------|-------|
+| Name       | Data Type           | Description | Default Value |
+|-----------|---------------------|-------------|---------------|
 | `storage` | `EventStoreStorage` | `EventStoreStorage` | mongo |
 
-**YAML 配置样例**
+**YAML Configuration Example**
 
 ```yaml
 wow:
@@ -33,15 +33,15 @@ enum class EventStoreStorage {
 
 ## SnapshotProperties
 
-- 配置类：[SnapshotProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/eventsourcing/snapshot/SnapshotProperties.kt)
-- 前缀：`wow.eventsourcing.snapshot`
+- Configuration class: [SnapshotProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/eventsourcing/snapshot/SnapshotProperties.kt)
+- Prefix: `wow.eventsourcing.snapshot`
 
-| 名称               | 数据类型              | 说明    | 默认值     |
-|------------------|-------------------|-------|---------|
-| `enabled`        | `Boolean`         | 是否启用  | `true`  |
-| `strategy`       | `Strategy`        | 快照策略  | `all`   |
-| `version-offset` | `Int`             | 版本偏移量 | `5`     |
-| `storage`        | `SnapshotStorage` | 快照存储  | `mongo` |
+| Name             | Data Type         | Description | Default Value |
+|------------------|-------------------|-------------|---------------|
+| `enabled`        | `Boolean`         | Whether to enable | `true`  |
+| `strategy`       | `Strategy`        | Snapshot strategy | `all`   |
+| `version-offset` | `Int`             | Version offset | `5`     |
+| `storage`        | `SnapshotStorage` | Snapshot storage | `mongo` |
 
 ```yaml
 wow:
@@ -78,14 +78,14 @@ enum class SnapshotStorage {
 
 ## StateProperties
 
-- 配置类：[StateProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/eventsourcing/state/StateProperties.kt)
-- 前缀：`wow.eventsourcing.state`
+- Configuration class: [StateProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/eventsourcing/state/StateProperties.kt)
+- Prefix: `wow.eventsourcing.state`
 
-| 名称            | 数据类型                    | 说明                                     | 默认值 |
-|---------------|-------------------------|----------------------------------------|-----|
-| `bus`         | `BusProperties`         | [BusProperties](./basic#busproperties) |     |
+| Name           | Data Type               | Description | Default Value |
+|---------------|------------------------|-------------|---------------|
+| `bus`         | `BusProperties`         | [BusProperties](./basic#busproperties) |  |
 
-**YAML 配置样例**
+**YAML Configuration Example**
 
 ```yaml
 wow:

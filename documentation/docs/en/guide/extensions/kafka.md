@@ -1,8 +1,8 @@
 # Kafka
 
-_Kafka_ 扩展提供了对 Kafka 的支持，实现了 `CommandBus`、`DomainEventBus` 和 `StateEventBus`。
+The _Kafka_ extension provides support for Kafka, implementing `CommandBus`, `DomainEventBus`, and `StateEventBus`.
 
-## 安装
+## Installation
 
 ::: code-group
 ```kotlin [Gradle(Kotlin)]
@@ -20,21 +20,21 @@ implementation 'me.ahoo.wow:wow-kafka'
 ```
 :::
 
-## 配置
+## Configuration
 
-- 配置类：[KafkaProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/kafka/KafkaProperties.kt)
-- 前缀：`wow.kafka.`
+- Configuration class: [KafkaProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/kafka/KafkaProperties.kt)
+- Prefix: `wow.kafka.`
 
-| 名称                  | 数据类型                  | 说明          | 默认值    |
-|---------------------|-----------------------|-------------|--------|
-| `enabled`           | `Boolean`             | 是否启用        | `true` |
-| `bootstrap-servers` | `List<String>`        | Kafka 服务器地址 |        |
-| `topic-prefix`      | `String`              | 主题前缀        | `wow.` |
-| `properties`        | `Map<String, String>` | 公共配置        |        |
-| `producer`          | `Map<String, String>` | 生产者配置       |        |
-| `consumer`          | `Map<String, String>` | 消费者配置       |        |
+| Name                  | Data Type               | Description | Default Value |
+|---------------------|-----------------------|-------------|---------------|
+| `enabled`           | `Boolean`             | Whether to enable | `true` |
+| `bootstrap-servers` | `List<String>`        | Kafka server addresses |  |
+| `topic-prefix`      | `String`              | Topic prefix | `wow.` |
+| `properties`        | `Map<String, String>` | Common configuration |  |
+| `producer`          | `Map<String, String>` | Producer configuration |  |
+| `consumer`          | `Map<String, String>` | Consumer configuration |  |
 
-**YAML 配置样例**
+**YAML Configuration Example**
 
 ```yaml
 wow:

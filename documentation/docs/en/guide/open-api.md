@@ -1,8 +1,8 @@
 # OpenAPI
 
-> Wow OpenAPI 模块提供了基于 [OpenAPI](https://swagger.io/specification/) 规范的 API 接口。
+> The Wow OpenAPI module provides API interfaces based on the [OpenAPI](https://swagger.io/specification/) specification.
 
-## 安装
+## Installation
 
 ::: code-group
 ```kotlin [Gradle(Kotlin)]
@@ -22,7 +22,7 @@ implementation 'me.ahoo.wow:wow-openapi'
 
 ## Swagger-UI
 
-> Swagger-UI 是一个基于 OpenAPI 规范的 API 文档工具，可以通过 Swagger-UI 来查看和测试 API 接口。
+> Swagger-UI is an API documentation tool based on the OpenAPI specification, which can be used to view and test API interfaces through Swagger-UI.
 
 ![Swagger-UI](/images/compensation/open-api.png)
 
@@ -30,13 +30,13 @@ implementation 'me.ahoo.wow:wow-openapi'
 
 `[tenant/{tenantId}]/[owner/{ownerId}]/resource/[{resourceId}]/action`
 
-### 租户资源
+### Tenant Resources
 
-当聚合根为租户资源时（未标记静态租户ID），自动生成的 RESTful API 会添加 `tenant/{tenantId}` 路径前缀。
+When an aggregate root is a tenant resource (not marked with static tenant ID), the automatically generated RESTful API will add the `tenant/{tenantId}` path prefix.
 
-### 拥有者资源
+### Owner Resources
 
-当聚合根被标记为拥有者资源时，自动生成的 RESTful API 会添加 `owner/{ownerId}` 路径前缀。
+When an aggregate root is marked as an owner resource, the automatically generated RESTful API will add the `owner/{ownerId}` path prefix.
 
 ```kotlin
 @AggregateRoot
@@ -44,7 +44,7 @@ implementation 'me.ahoo.wow:wow-openapi'
 class Order(private val state: OrderState)
 ```
 
-当聚合根 ID 与拥有者 ID 相同时，自动生成的 RESTful API 会将 `{resourceId}` 路径参数移除。比如用户购物车ID即是用户ID时：
+When the aggregate root ID is the same as the owner ID, the automatically generated RESTful API will remove the `{resourceId}` path parameter. For example, when the user cart ID is the user ID:
 
 ```kotlin
 @StaticTenantId
@@ -53,11 +53,11 @@ class Order(private val state: OrderState)
 class Cart(private val state: CartState)
 ```
 
-## 全局路由规范
+## Global Route Specifications
 
 ### GetWowMetadataRouteSpec
 
-`GetWowMetadataRouteSpec` 提供了通过 RESTful API 获取 *Wow 编译时元数据*的能力，以便验证 Wow 元数据(`WowMetadata`) 定义的正确性。
+`GetWowMetadataRouteSpec` provides the ability to obtain *Wow compile-time metadata* through RESTful API to verify the correctness of Wow metadata (`WowMetadata`) definitions.
 
 ::: code-group
 ```shell [OpenAPI]
@@ -65,7 +65,7 @@ curl -X 'GET' \
   'http://localhost:8080/wow/metadata' \
   -H 'accept: application/json'
 ```
-```json [响应]
+```json [Response]
 {
   "contexts": {
     "example-service": {
@@ -143,7 +143,7 @@ curl -X 'GET' \
 
 ### GenerateBIScriptRouteSpec
 
-`GenerateBIScriptRouteSpec` 提供了通过 RESTful API 生成*BI同步脚本*的能力。
+`GenerateBIScriptRouteSpec` provides the ability to generate *BI synchronization scripts* through RESTful API.
 
 ::: code-group
 ```shell [OpenAPI]
@@ -151,7 +151,7 @@ curl -X 'GET' \
   'http://localhost:8080/wow/bi/script' \
   -H 'accept: application/sql'
 ```
-```sql [响应]
+```sql [Response]
 -- global --
 CREATE DATABASE IF NOT EXISTS bi_db ON CLUSTER '{cluster}';
 CREATE DATABASE IF NOT EXISTS bi_db_consumer ON CLUSTER '{cluster}';
@@ -396,7 +396,7 @@ FROM bi_db.example_order_state_last;
 
 ### GenerateGlobalIdRouteSpec
 
-`GenerateGlobalIdRouteSpec` 提供了通过 RESTful API 生成*全局ID*的能力。
+`GenerateGlobalIdRouteSpec` provides the ability to generate *global IDs* through RESTful API.
 
 ::: code-group
 ```shell [OpenAPI]
@@ -404,9 +404,9 @@ curl -X 'GET' \
   'http://localhost:8080/wow/id/global' \
   -H 'accept: text/plain'
 ```
-```text [响应]
+```text [Response]
 0U2MNGBQ0001001
 ```
 :::
 
-## 聚合路由规范
+## Aggregate Routing Specification

@@ -1,8 +1,8 @@
-# 指标
+# Metrics
 
-Wow 框架集成了 Micrometer 指标收集功能，为所有核心组件提供全面的性能监控和可观测性。
+The Wow framework integrates Micrometer metrics collection functionality, providing comprehensive performance monitoring and observability for all core components.
 
-## 安装
+## Installation
 
 ::: code-group
 ```kotlin [Gradle(Kotlin)]
@@ -17,54 +17,55 @@ implementation 'io.micrometer:micrometer-core'
     <artifactId>micrometer-core</artifactId>
 </dependency>
 ```
+:::
 
-## 自动指标收集
+## Automatic Metrics Collection
 
-Wow 框架自动为以下组件收集指标：
+The Wow framework automatically collects metrics for the following components:
 
-### 命令总线指标
+### Command Bus Metrics
 
-- `wow.command.bus.send`: 命令发送计数和延迟
-- `wow.command.bus.receive`: 命令接收计数和延迟
-- 按聚合类型和命令类型分类的指标
+- `wow.command.bus.send`: Command send count and latency
+- `wow.command.bus.receive`: Command receive count and latency
+- Metrics categorized by aggregate type and command type
 
-### 事件总线指标
+### Event Bus Metrics
 
-- `wow.event.bus.send`: 事件发布计数和延迟
-- `wow.event.bus.receive`: 事件接收计数和延迟
-- 按聚合类型和事件类型分类的指标
+- `wow.event.bus.send`: Event publish count and latency
+- `wow.event.bus.receive`: Event receive count and latency
+- Metrics categorized by aggregate type and event type
 
-### 事件存储指标
+### Event Store Metrics
 
-- `wow.eventstore.append`: 事件追加计数和延迟
-- `wow.eventstore.load`: 事件加载计数和延迟
-- 按聚合类型分类的指标
+- `wow.eventstore.append`: Event append count and latency
+- `wow.eventstore.load`: Event load count and latency
+- Metrics categorized by aggregate type
 
-### 快照指标
+### Snapshot Metrics
 
-- `wow.snapshot.save`: 快照保存计数和延迟
-- `wow.snapshot.load`: 快照加载计数和延迟
-- 按聚合类型分类的指标
+- `wow.snapshot.save`: Snapshot save count and latency
+- `wow.snapshot.load`: Snapshot load count and latency
+- Metrics categorized by aggregate type
 
-### 处理器指标
+### Handler Metrics
 
-- `wow.command.handler`: 命令处理计数和延迟
-- `wow.event.handler`: 事件处理计数和延迟
-- `wow.projection.handler`: 投影处理计数和延迟
-- `wow.saga.handler`: Saga 处理计数和延迟
+- `wow.command.handler`: Command processing count and latency
+- `wow.event.handler`: Event processing count and latency
+- `wow.projection.handler`: Projection processing count and latency
+- `wow.saga.handler`: Saga processing count and latency
 
-## 指标标签
+## Metrics Tags
 
-所有指标都包含以下标签：
+All metrics include the following tags:
 
-- `aggregate`: 聚合名称
-- `context`: 限界上下文名称
-- `type`: 组件类型 (command, event, projection, saga)
-- `name`: 处理器或总线名称
+- `aggregate`: Aggregate name
+- `context`: Bounded context name
+- `type`: Component type (command, event, projection, saga)
+- `name`: Handler or bus name
 
-## 自定义指标
+## Custom Metrics
 
-### 手动指标收集
+### Manual Metrics Collection
 
 ```kotlin
 import io.micrometer.core.instrument.MeterRegistry
@@ -87,12 +88,12 @@ class OrderService(
             commandGateway.sendAndWait(createOrderCommand, WaitStrategy.PROCESSED)
                 .doOnSuccess { result ->
                     sample.stop(orderCreationTimer)
-                    // 业务成功指标
+                    // Business success metrics
                     meterRegistry.counter("wow.business.order.created").increment()
                 }
                 .doOnError { error ->
                     sample.stop(orderCreationTimer)
-                    // 业务失败指标
+                    // Business failure metrics
                     meterRegistry.counter("wow.business.order.failed").increment()
                 }
         }
@@ -100,7 +101,7 @@ class OrderService(
 }
 ```
 
-### 反应式流指标
+### Reactive Stream Metrics
 
 ```kotlin
 fun <T> Flux<T>.tagMetrics(operation: String): Flux<T> {
@@ -114,9 +115,9 @@ fun <T> Mono<T>.tagMetrics(operation: String): Mono<T> {
 }
 ```
 
-## 配置
+## Configuration
 
-### Micrometer 配置
+### Micrometer Configuration
 
 ```yaml
 management:
@@ -128,24 +129,24 @@ management:
       application: ${spring.application.name}
 ```
 
-### Wow 指标配置
+### Wow Metrics Configuration
 
-Wow 框架的指标收集默认启用，可以通过以下方式控制：
+Wow framework metrics collection is enabled by default and can be controlled as follows:
 
 ```yaml
 wow:
   metrics:
-    enabled: true  # 默认启用
+    enabled: true  # Enabled by default
 ```
 
-## 监控仪表板
+## Monitoring Dashboard
 
 ### Prometheus + Grafana
 
-使用 Prometheus 收集指标，Grafana 创建仪表板：
+Use Prometheus to collect metrics and Grafana to create dashboards:
 
 ```yaml
-# Prometheus 配置
+# Prometheus configuration
 scrape_configs:
   - job_name: 'wow-application'
     static_configs:
@@ -153,44 +154,44 @@ scrape_configs:
     metrics_path: '/actuator/prometheus'
 ```
 
-### 常用查询
+### Common Queries
 
 ```promql
-# 命令处理延迟
+# Command processing latency
 histogram_quantile(0.95, rate(wow_command_handler_duration_seconds_bucket[5m]))
 
-# 事件发布速率
+# Event publishing rate
 rate(wow_event_bus_send_total[5m])
 
-# 错误率
+# Error rate
 rate(wow_command_handler_errors_total[5m]) / rate(wow_command_handler_total[5m])
 ```
 
-## 性能影响
+## Performance Impact
 
-- **轻量级**: 指标收集使用高效的计数器和直方图
-- **异步**: 不会阻塞业务逻辑执行
-- **可配置**: 可以根据需要启用或禁用特定指标
+- **Lightweight**: Metrics collection uses efficient counters and histograms
+- **Asynchronous**: Does not block business logic execution
+- **Configurable**: Can enable or disable specific metrics as needed
 
-## 最佳实践
+## Best Practices
 
-1. **选择合适的指标**: 只收集真正需要的指标
-2. **设置合理的标签**: 避免标签数量过多导致的性能问题
-3. **监控告警**: 为关键业务指标设置告警阈值
-4. **定期审查**: 定期审查和清理不再需要的指标
+1. **Choose appropriate metrics**: Only collect metrics that are truly needed
+2. **Set reasonable tags**: Avoid performance issues caused by too many tags
+3. **Monitoring alerts**: Set alert thresholds for critical business metrics
+4. **Regular review**: Regularly review and clean up metrics that are no longer needed
 
-## 故障排除
+## Troubleshooting
 
-### 指标不显示
+### Metrics Not Showing
 
-检查：
-1. Micrometer 依赖是否正确添加
-2. MeterRegistry Bean 是否正确配置
-3. `/actuator/metrics` 端点是否可访问
+Check:
+1. Whether Micrometer dependencies are correctly added
+2. Whether MeterRegistry Bean is correctly configured
+3. Whether `/actuator/metrics` endpoint is accessible
 
-### 性能问题
+### Performance Issues
 
-如果指标收集影响性能：
-1. 减少收集的指标数量
-2. 使用采样率而不是全量收集
-3. 考虑异步指标收集
+If metrics collection affects performance:
+1. Reduce the number of metrics collected
+2. Use sampling rates instead of full collection
+3. Consider asynchronous metrics collection

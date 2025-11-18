@@ -1,10 +1,10 @@
 # R2DBC
 
-_R2DBC_ 扩展提供了使用响应式编程的方式对关系型数据库的支持，实现了 `EventStore` 和 `SnapshotRepository` 。
-使开发者能够直接利用关系型数据库进行事件存储和快照存储。
-同时提供了简单模式，跟分片模式的支持。
+The _R2DBC_ extension provides support for relational databases using reactive programming, implementing `EventStore` and `SnapshotRepository`.
+It enables developers to directly utilize relational databases for event storage and snapshot storage.
+It also provides support for both simple mode and sharding mode.
 
-## 安装
+## Installation
 
 ::: code-group
 ```kotlin [Gradle(Kotlin)]
@@ -22,16 +22,16 @@ implementation 'me.ahoo.wow:wow-r2dbc'
 ```
 :::
 
-## 配置
+## Configuration
 
-- 配置类：[R2dbcProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/r2dbc/R2dbcProperties.kt)
-- 前缀：`wow.r2dbc.`
+- Configuration class: [R2dbcProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/r2dbc/R2dbcProperties.kt)
+- Prefix: `wow.r2dbc.`
 
-| 名称                      | 数据类型      | 说明                 | 默认值                          |
-|-------------------------|-----------|--------------------|------------------------------|
-| `enabled`               | `Boolean` | 是否启用               | `true`                       |
+| Name                      | Data Type  | Description | Default Value |
+|-------------------------|------------|-------------|---------------|
+| `enabled`               | `Boolean` | Whether to enable | `true` |
 
-**YAML 配置样例**
+**YAML Configuration Example**
 
 ```yaml
 wow:
@@ -41,12 +41,12 @@ wow:
 
 ## DataSourceProperties
 
-- 配置类：[DataSourceProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/r2dbc/DataSourceProperties.kt)
-- 前缀：`wow.r2dbc.datasource.`
+- Configuration class: [DataSourceProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/r2dbc/DataSourceProperties.kt)
+- Prefix: `wow.r2dbc.datasource.`
 
-| 名称     | 数据类型   | 说明         | 默认值      |
-|--------|--------|------------|----------|
-| `type` | `Type` | 模式：简单/分片模式 | `simple` |
+| Name     | Data Type | Description | Default Value |
+|--------|-----------|-------------|---------------|
+| `type` | `Type`   | Mode: simple/sharding mode | `simple` |
 
 ### Type
 
@@ -60,51 +60,51 @@ enum class Type {
 
 ## ShardingProperties
 
-- 配置类：[ShardingProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/r2dbc/ShardingProperties.kt)
-- 前缀：`wow.r2dbc.datasource.sharding`
+- Configuration class: [ShardingProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/r2dbc/ShardingProperties.kt)
+- Prefix: `wow.r2dbc.datasource.sharding`
 
-| 名称             | 数据类型                             | 说明      | 默认值 |
-|----------------|----------------------------------|---------|-----|
-| `databases`    | `Map<String, Database>`          | 分片数据库   |     |
-| `event-stream` | `Map<String, ShardingRule>`      | 事件流分片规则 |     |
-| `snapshot`     | `Map<String, ShardingRule>`      | 快照分片规则  |     |
-| `algorithms`   | `Map<String, ShardingAlgorithm>` | 分片算法    |     |
+| Name             | Data Type                           | Description | Default Value |
+|----------------|----------------------------------|-------------|---------------|
+| `databases`    | `Map<String, Database>`          | Sharding databases |  |
+| `event-stream` | `Map<String, ShardingRule>`      | Event stream sharding rules |  |
+| `snapshot`     | `Map<String, ShardingRule>`      | Snapshot sharding rules |  |
+| `algorithms`   | `Map<String, ShardingAlgorithm>` | Sharding algorithms |  |
 
 
 ### Database
 
-| 名称    | 数据类型     | 说明      | 默认值 |
-|-------|----------|---------|-----|
-| `url` | `String` | 数据库连接地址 |     |
+| Name    | Data Type | Description | Default Value |
+|-------|-----------|-------------|---------------|
+| `url` | `String` | Database connection URL |  |
 
 
 ### ShardingRule
 
-| 名称                   | 数据类型     | 说明      | 默认值 |
-|----------------------|----------|---------|-----|
-| `database-algorithm` | `String` | 数据库分片算法 |     |
-| `table-algorithm`    | `String` | 表分片算法   |     |
+| Name                   | Data Type | Description | Default Value |
+|----------------------|-----------|-------------|---------------|
+| `database-algorithm` | `String` | Database sharding algorithm |  |
+| `table-algorithm`    | `String` | Table sharding algorithm |  |
 
 ### ShardingAlgorithm
 
-| 名称     | 数据类型           | 说明       | 默认值   |
-|--------|----------------|----------|-------|
-| `type` | `String`       | 分片算法类型   | `mod` |
-| `mod`  | `ModAlgorithm` | 取模分片算法配置 |       |
+| Name     | Data Type         | Description | Default Value |
+|--------|----------------|-------------|---------------|
+| `type` | `String`       | Sharding algorithm type | `mod` |
+| `mod`  | `ModAlgorithm` | Modulo sharding algorithm configuration |  |
 
 #### ModAlgorithm
 
-| 名称                  | 数据类型     | 说明    | 默认值 |
-|---------------------|----------|-------|-----|
-| `logic-name-prefix` | `String` | 逻辑名前缀 |     |
-| `divisor`           | `Int`    | 除数    |     |
+| Name                  | Data Type | Description | Default Value |
+|---------------------|-----------|-------------|---------------|
+| `logic-name-prefix` | `String` | Logic name prefix |  |
+| `divisor`           | `Int`    | Divisor |  |
 
-## 初始化SQL脚本
+## Initialization SQL Scripts
 
-### 命名约定
+### Naming Convention
 
-- 聚合事件流表: [聚合名称]_event_stream
-- 聚合快照表: [聚合名称]_snapshot
+- Aggregate event stream table: [aggregate_name]_event_stream
+- Aggregate snapshot table: [aggregate_name]_snapshot
 
 ```sql
 create table if not exists aggregate_name_event_stream
@@ -146,7 +146,7 @@ create table if not exists aggregate_name_snapshot
     collate = utf8mb4_bin;
 ```
 
-## 简单模式配置
+## Simple Mode Configuration
 
 ```yaml
 spring:
@@ -160,7 +160,7 @@ wow:
       storage: r2dbc
 ```
 
-## 分片模式配置
+## Sharding Mode Configuration
 
 ```yaml
 wow:

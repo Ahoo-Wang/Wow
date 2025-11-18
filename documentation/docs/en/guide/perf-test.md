@@ -1,10 +1,10 @@
-# 性能评测
+# Performance Testing
 
-- 测试代码：[Example](https://github.com/Ahoo-Wang/Wow/tree/main/example)
-- 测试场景：加入购物车、下单
-- 命令发送等待模式（`WaitStrategy`）：`SENT`、`PROCESSED`
+- Test Code: [Example](https://github.com/Ahoo-Wang/Wow/tree/main/example)
+- Test Scenarios: Add to cart, place order
+- Command send wait mode (`WaitStrategy`): `SENT`, `PROCESSED`
 
-## 部署环境
+## Deployment Environment
 
 - [Redis](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/example/perf/redis.yaml)
 - [MongoDB](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/example/perf/mongo.yaml)
@@ -12,9 +12,9 @@
 - [Application-Config](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/example/perf/config/mongo_kafka_redis.yaml)
 - [Application-Deployment](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/example/perf/deployment.yaml)
 
-## 压测报告
+## Performance Test Report
 
-### 加入购物车
+### Add to Cart
 
 ```http request
 POST {{host}}/cart/{{$uuid}}/add_cart_item
@@ -36,18 +36,18 @@ Command-Request-Id: {{$uuid}}
 
 ```
 
-- [详细报告(PDF)-SENT](/images/perf/Example.Cart.Add@SENT.pdf)
-- [详细报告(PDF)-PROCESSED](/images/perf/Example.Cart.Add@PROCESSED.pdf)
+- [Detailed Report (PDF)-SENT](/images/perf/Example.Cart.Add@SENT.pdf)
+- [Detailed Report (PDF)-PROCESSED](/images/perf/Example.Cart.Add@PROCESSED.pdf)
 
-> 命令等待策略（`WaitStrategy`）为`SENT`模式，加入购物车命令（`AddCartItem`）写请求 API 经过 2 分钟的压测，平均 TPS 为 *59625*，峰值为 *82312*，平均响应时间为 *29* 毫秒。
+> With command wait strategy (`WaitStrategy`) set to `SENT` mode, the add to cart command (`AddCartItem`) write request API underwent 2 minutes of stress testing, with average TPS of *59625*, peak of *82312*, and average response time of *29* milliseconds.
 
 ![AddCartItem-SENT](/images/perf/Example.Cart.Add@SENT.png)
 
-> 命令等待策略（`WaitStrategy`）为`PROCESSED`模式，加入购物车命令（`AddCartItem`）写请求 API 经过 2 分钟的压测，平均 TPS 为 *18696*，峰值为 *24141*，平均响应时间为 *239* 毫秒。
+> With command wait strategy (`WaitStrategy`) set to `PROCESSED` mode, the add to cart command (`AddCartItem`) write request API underwent 2 minutes of stress testing, with average TPS of *18696*, peak of *24141*, and average response time of *239* milliseconds.
 
 ![AddCartItem-PROCESSED](/images/perf/Example.Cart.Add@PROCESSED.png)
 
-### 下单
+### Place Order
 
 ```http request
 POST {{host}}/customer/{{$uuid}}/tenant/{{$uuid}}/order
@@ -81,13 +81,13 @@ Command-Request-Id: {{$uuid}}
 %}
 ```
 
-- [详细报告(PDF)-SENT](/images/perf/Example.Order.Create@SENT.pdf)
-- [详细报告(PDF)-PROCESSED](/images/perf/Example.Order.Create@PROCESSED.pdf)
+- [Detailed Report (PDF)-SENT](/images/perf/Example.Order.Create@SENT.pdf)
+- [Detailed Report (PDF)-PROCESSED](/images/perf/Example.Order.Create@PROCESSED.pdf)
 
-> 命令等待策略（`WaitStrategy`）为`SENT`模式，下单命令（`CreateOrder`）写请求 API 经过 2 分钟的压测，平均 TPS 为 *47838*，峰值为 *86200*，平均响应时间为 *217* 毫秒。
+> With command wait strategy (`WaitStrategy`) set to `SENT` mode, the place order command (`CreateOrder`) write request API underwent 2 minutes of stress testing, with average TPS of *47838*, peak of *86200*, and average response time of *217* milliseconds.
 
 ![CreateOrder-SENT](/images/perf/Example.Order.Create@SENT.png)
 
-> 命令等待策略（`WaitStrategy`）为`PROCESSED`模式，下单命令（`CreateOrder`）写请求 API 经过 2 分钟的压测，平均 TPS 为 *18230*，峰值为 *25506*，平均响应时间为 *268* 毫秒。
+> With command wait strategy (`WaitStrategy`) set to `PROCESSED` mode, the place order command (`CreateOrder`) write request API underwent 2 minutes of stress testing, with average TPS of *18230*, peak of *25506*, and average response time of *268* milliseconds.
 
 ![CreateOrder-PROCESSED](/images/perf/Example.Order.Create@PROCESSED.png)
