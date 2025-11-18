@@ -1,5 +1,6 @@
 import {defineConfig} from 'vitepress'
 import llmstxt from 'vitepress-plugin-llms'
+import { copyOrDownloadAsMarkdownButtons } from 'vitepress-plugin-llms'
 import {navbarZh} from "./configs/navbar.zh";
 import {sidebarZh} from "./configs/sidebar.zh";
 import {navbarEn} from "./configs/navbar.en";
@@ -49,6 +50,11 @@ export default defineConfig({
     },
     vite: {
         plugins: [llmstxt({workDir: 'en', ignoreFiles: ['index.md']})]
+    },
+    markdown: {
+        config(md) {
+            md.use(copyOrDownloadAsMarkdownButtons)
+        }
     },
     locales: {
         root: {
