@@ -1,8 +1,8 @@
 import {defineConfig} from 'vitepress'
-import {navbar} from "./configs/navbar";
-import {sidebar} from "./configs/sidebar";
-import {navbarEn} from "./configs/navbarEn";
-import {sidebarEn} from "./configs/sidebarEn";
+import {navbarZh} from "./configs/navbar.zh";
+import {sidebarZh} from "./configs/sidebar.zh";
+import {navbarEn} from "./configs/navbar.en";
+import {sidebarEn} from "./configs/sidebar.en";
 import {head} from "./configs/head";
 import {SITE_BASE} from "./configs/SITE_BASE";
 
@@ -37,7 +37,8 @@ export default defineConfig({
         search: {provider: 'local',},
         // https://vitepress.dev/reference/default-theme-config
         socialLinks: [
-            {icon: 'github', link: 'https://github.com/Ahoo-Wang/Wow'}
+            {icon: 'github', link: 'https://github.com/Ahoo-Wang/Wow'},
+            {icon: 'gitee', link: 'https://gitee.com/AhooWang/Wow'}
         ],
         externalLinkIcon: true,
         footer: {
@@ -92,8 +93,8 @@ export default defineConfig({
                     level: [2, 3]
                 },
                 aside: true,
-                nav: navbar,
-                sidebar: sidebar,
+                nav: navbarZh,
+                sidebar: sidebarZh,
                 notFound: {
                     title: '页面未找到',
                     quote: '你访问的页面不存在。',

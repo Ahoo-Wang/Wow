@@ -13,7 +13,7 @@
 
 import {DefaultTheme} from "vitepress/types/default-theme";
 
-export const sidebar: DefaultTheme.Sidebar = {
+export const sidebarZh: DefaultTheme.Sidebar = {
     '/zh/guide/': [
         {
             base: '/zh/guide/',

@@ -1,6 +1,6 @@
 import {DefaultTheme} from "vitepress/types/default-theme";
 
-export const navbar: DefaultTheme.NavItem[] = [
+export const navbarZh: DefaultTheme.NavItem[] = [
     {
         text: '指南',
         link: '/zh/guide/getting-started',
@@ -86,9 +86,5 @@ export const navbar: DefaultTheme.NavItem[] = [
     {
         text: `更新日志`,
         link: `https://github.com/Ahoo-Wang/Wow/releases`
-    },
-    {
-        text: `Gitee`,
-        link: `https://gitee.com/AhooWang/Wow`
     }
 ]
