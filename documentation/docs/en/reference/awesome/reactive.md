@@ -1,6 +1,6 @@
 # Awesome Reactive
 
-- [响应式宣言](https://www.reactivemanifesto.org/zh-CN)
+- [Reactive Manifesto](https://www.reactivemanifesto.org/)
 - [R2DBC](https://r2dbc.io/)
 - [ReactiveX](http://reactivex.io/)
 - [Reactive Streams](http://www.reactive-streams.org/)

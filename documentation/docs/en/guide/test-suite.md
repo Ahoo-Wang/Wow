@@ -237,12 +237,12 @@ class OrderSpec : AggregateSpec<Order, OrderState>({
 
         whenCommand(createOrder) {
             expectEventType(OrderCreated::class)
-            ref("order-created")  // 标记此验证点
+            ref("order-created")  // Mark this verification point
             expectState { status.assert().isEqualTo(OrderStatus.CREATED) }
         }
     }
 
-    // 在单独的场景中从标记点分支
+    // Branch from the marked point in a separate scenario
     fork("order-created", "Pay Order") {
         val payOrder = PayOrder(/*...*/)
         whenCommand(payOrder) {

@@ -1,6 +1,6 @@
 # Mongo
 
-_Mongo_ 扩展提供了对 MongoDB 的支持，实现了以下接口：
+The _Mongo_ extension provides support for MongoDB, implementing the following interfaces:
 
 - `EventStore`
 - `EventStreamQueryService`
@@ -8,7 +8,7 @@ _Mongo_ 扩展提供了对 MongoDB 的支持，实现了以下接口：
 - `SnapshotQueryService`
 - `PrepareKey`
 
-## 安装
+## Installation
 
 ::: code-group
 ```kotlin [Gradle(Kotlin)]
@@ -32,20 +32,20 @@ implementation 'org.springframework.boot:spring-boot-starter-data-mongodb-reacti
 ```
 :::
 
-## 配置
+## Configuration
 
-- 配置类：[MongoProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/mongo/MongoProperties.kt)
-- 前缀：`wow.mongo.`
+- Configuration class: [MongoProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/mongo/MongoProperties.kt)
+- Prefix: `wow.mongo.`
 
-| 名称                      | 数据类型      | 说明                 | 默认值                          |
-|-------------------------|-----------|--------------------|------------------------------|
-| `enabled`               | `Boolean` | 是否启用               | `true`                       |
-| `auto-init-schema`      | `Boolean` | 是否自动生成 *Schema*    | `true`                       |
-| `event-stream-database` | `String`  | 事件流数据库名称           | Spring Boot Mongo 模块配置的数据库名称 |
-| `snapshot-database`     | `String`  | 快照数据库名称            | Spring Boot Mongo 模块配置的数据库名称 |
-| `prepare-database`      | `String`  | `PrepareKey` 数据库名称 | Spring Boot Mongo 模块配置的数据库名称 |
+| Name                      | Data Type  | Description | Default Value |
+|-------------------------|------------|-------------|---------------|
+| `enabled`               | `Boolean` | Whether to enable | `true` |
+| `auto-init-schema`      | `Boolean` | Whether to auto-generate *Schema* | `true` |
+| `event-stream-database` | `String`  | Event stream database name | Database name configured by Spring Boot Mongo module |
+| `snapshot-database`     | `String`  | Snapshot database name | Database name configured by Spring Boot Mongo module |
+| `prepare-database`      | `String`  | `PrepareKey` database name | Database name configured by Spring Boot Mongo module |
 
-**YAML 配置样例**
+**YAML Configuration Example**
 
 ```yaml
 wow:
@@ -54,5 +54,5 @@ wow:
     auto-init-schema: true
     event-stream-database:
     snapshot-database:
-    prepare-database: 
+    prepare-database:
 ```

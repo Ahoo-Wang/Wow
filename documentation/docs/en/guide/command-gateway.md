@@ -11,10 +11,10 @@ It is an extension of the command bus, not only responsible for command transmis
 
 Command idempotency is the principle of ensuring that the same command is executed at most once in the system.
 
-The command gateway uses `IdempotencyChecker` to perform idempotency checks on the command's `RequestId`.
-If the command has already been executed, a `DuplicateRequestIdException` exception will be thrown, preventing duplicate execution of the same command.
+The command gateway uses `IdempotencyChecker` to check the `RequestId` of the command for idempotency.
+If the command has already been executed, it will throw a `DuplicateRequestIdException` exception to prevent duplicate execution of the same command.
 
-Below is an example HTTP request showing how to use `Command-Request-Id` in the request to ensure command idempotency:
+The following is an example HTTP request showing how to use `Command-Request-Id` in the request to ensure command idempotency:
 
 :::tip
 Developers can also customize the `RequestId` through the `requestId` property of `CommandMessage`.
@@ -52,9 +52,9 @@ wow:
 
 ## Waiting Strategies
 
-*Command waiting strategy* refers to a strategy where the command gateway waits for command execution results after sending commands.
+*Command waiting strategy* refers to a strategy where the command gateway waits for the command execution result after sending the command.
 
-*Command waiting strategy* is an important feature in the _Wow_ framework, aiming to solve the data synchronization delay problem in _CQRS_ and read-write separation patterns.
+*Command waiting strategy* is an important feature in the _Wow_ framework, aiming to solve the data synchronization delay problem in _CQRS_ and read-write separation modes.
 
 Currently supported command waiting strategies include:
 
@@ -64,14 +64,14 @@ Currently supported command waiting strategies include:
   <img  width="95%" src="/images/wait/WaitingForStage.svg" alt="WaitingForStage"/>
 </p>
 
-`WaitingForStage` supports the following waiting signals:
+The waiting signals supported by `WaitingForStage` are as follows:
 
-- `SENT`: Generate completion signal when command is published to command bus/queue
-- `PROCESSED`: Generate completion signal when command is processed by aggregate root
-- `SNAPSHOT`: Generate completion signal when snapshot is created
-- `PROJECTED`: Generate completion signal when command-generated events are *projected*
-- `EVENT_HANDLED`: Generate completion signal when command-generated events are processed by *event handlers*
-- `SAGA_HANDLED`: Generate completion signal when command-generated events are processed by *Saga*
+- `SENT`: Generates a completion signal when the command is published to the command bus/queue
+- `PROCESSED`: Generates a completion signal when the command is processed by the aggregate root
+- `SNAPSHOT`: Generates a completion signal when the snapshot is generated
+- `PROJECTED`: Generates a completion signal when the *projection* of the event produced by the command is completed
+- `EVENT_HANDLED`: Generates a completion signal when the event produced by the command is processed by the *event processor*
+- `SAGA_HANDLED`: Generates a completion signal when the event produced by the command is processed by *Saga*
 
 ::: code-group
 ```http request
@@ -89,7 +89,7 @@ Command-Aggregate-Id: sourceId
 ```
 
 ```kotlin {1}
-commandGateway.sendAndWaitForProcessed(message)
+commamdGateway.sendAndWaitForProcessed(message)
 ```
 :::
 
@@ -101,27 +101,27 @@ commandGateway.sendAndWaitForProcessed(message)
 
 ## Validation
 
-The command gateway uses `jakarta.validation.Validator` to validate commands before sending them. If validation fails, a `CommandValidationException` exception will be thrown.
+The command gateway uses `jakarta.validation.Validator` to validate the command before sending it. If validation fails, it will throw a CommandValidationException exception.
 
-By utilizing `jakarta.validation.Validator`, developers can use various validation annotations provided by `jakarta.validation` to ensure commands meet specified norms and conditions.
+By utilizing `jakarta.validation.Validator`, developers can use various validation annotations provided by `jakarta.validation` to ensure that commands meet the specified specifications and conditions.
 
-## LocalFirst Mode: Reducing Network IO Impact
+## LocalFirst Mode: Reducing the Impact of Network IO
 
-Normally, the flow from sending a command to the aggregate root completing command processing is as follows:
+Normally, the process from sending a command to the aggregate root completing command processing is as follows:
 
-1. Aggregate root processor subscribes to distributed command bus messages.
-2. Client sends command to distributed command bus through command gateway.
-3. Aggregate root processor receives and processes command.
-4. Aggregate root processor sends completion signal to client.
+1. The aggregate root processor subscribes to distributed command bus messages.
+2. The client sends the command to the distributed command bus through the command gateway.
+3. The aggregate root processor receives and processes the command.
+4. The aggregate root processor sends a completion signal to the client.
 
-In the above flow, steps 2 and 3 involve network IO. The goal of LocalFirst mode is to minimize the impact of this network IO. The specific flow is as follows:
+In the above process, steps 2 and 3 involve network IO. The goal of LocalFirst mode is to minimize the impact of this network IO. The specific process is as follows:
 
-1. Aggregate root processor subscribes to local command bus and distributed command bus messages.
-2. Client sends command through command gateway.
-   1. If the command gateway determines that the command cannot be processed by the local service instance, it sends the command to the distributed command bus.
-   2. If it can be processed locally, it sends the command to both the local command bus and distributed command bus simultaneously.
-3. Aggregate root processor receives and processes the command.
-4. Aggregate root processor sends completion signal to client.
+1. The aggregate root processor subscribes to local command bus and distributed command bus messages.
+2. The client sends the command through the command gateway.
+   1. If the command gateway determines that the command cannot be processed on the local service instance, it sends the command to the distributed command bus.
+   2. If it can be processed locally, it sends the command to both the local command bus and the distributed command bus.
+3. The aggregate root processor receives the command and processes it.
+4. The aggregate root processor sends a completion signal to the client.
 
 Through _LocalFirst mode_, sending commands to the local bus and completion signal notifications do not require network IO.
 
@@ -138,20 +138,19 @@ wow:
 
 ## Command Rewriter
 
-The command rewriter (`CommandBuilderRewriter`) is used to rewrite command message metadata (`aggregateId`/`tenantId`, etc.) and command body (`body`).
+The command rewriter (`CommandBuilderRewriter`) is used to rewrite the command's message metadata (`aggregateId`/`tenantId`, etc.) and command body (`body`).
 
-Below is an example of a password reset command rewriter:
+The following is an example of a password reset command rewriter:
 
 ::: tip
-Before a user resets their password (password recovery), they cannot obtain the aggregate root ID, so this rewriter is needed to obtain the `User` aggregate root ID
+Before a user resets their password (recovers password), they cannot obtain the aggregate root ID, so this rewriter is needed to obtain the `User` aggregate root ID
 :::
 
 ```kotlin
 /**
  * Password recovery (`ResetPwd`) command rewriter.
  *
- * This command needs to query the user aggregate root ID based on the phone number in the command body
- * to meet the requirement that command messages must have an aggregate root ID.
+ * This command needs to query the user aggregate root ID based on the phone number in the command body to meet the requirement that the command message aggregate root ID is mandatory.
  *
  */
 @Service
@@ -170,7 +169,7 @@ class ResetPwdCommandBuilderRewriter(private val queryService: SnapshotQueryServ
          }
       }.dynamicQuery(queryService)
          .switchIfEmpty {
-            IllegalArgumentException("Phone number not yet bound.").toMono()
+            IllegalArgumentException("Phone number not bound.").toMono()
          }.map {
             commandBuilder.aggregateId(it.getValue(MessageRecords.AGGREGATE_ID))
          }

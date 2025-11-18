@@ -1,29 +1,29 @@
-# 基础
+# Basic
 
 :::tip
-当前配置文档仅涵盖规范级别的公共配置，有关各模块的具体配置，请查阅相应模块的配置文档。
+The current configuration documentation only covers specification-level public configurations. For specific configurations of each module, please refer to the configuration documentation of the respective module.
 :::
 
 ## WowProperties
 
 - [WowProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowProperties.kt)
-- 前缀：`wow.`
+- Prefix: `wow.`
 
-| 名称             | 数据类型      | 说明      | 默认值                          |
-|----------------|-----------|---------|------------------------------|
-| `enabled`      | `Boolean` | 是否启用    | `true`                       |
-| `context-name` | `String`  | 限界上下文名称 | `${spring.application.name}` |
+| Name            | Data Type  | Description | Default Value                  |
+|----------------|------------|-------------|-------------------------------|
+| `enabled`      | `Boolean` | Whether to enable | `true`                       |
+| `context-name` | `String`  | Bounded context name | `${spring.application.name}` |
 
 ## BusProperties
 
-> `BusProperties` 是 `CommandBus` 和 `EventBus` 的公共配置。
+> `BusProperties` is the common configuration for `CommandBus` and `EventBus`.
 
 - [BusProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/BusProperties.kt)
 
-| 名称            | 数据类型                   | 说明           | 默认值     |
-|---------------|------------------------|--------------|---------|
-| `type`        | `BusType`              | 消息总线类型       | `kafka` |
-| `local-first` | `LocalFirstProperties` | LocalFist 模式 |         |
+| Name           | Data Type               | Description | Default Value |
+|---------------|------------------------|-------------|---------------|
+| `type`        | `BusType`              | Message bus type | `kafka` |
+| `local-first` | `LocalFirstProperties` | LocalFirst mode |  |
 
 ### BusType
 
@@ -38,6 +38,6 @@ enum class BusType {
 
 ### LocalFirstProperties
 
-| 名称        | 数据类型      | 说明   | 默认值    |
-|-----------|-----------|------|--------|
-| `enabled` | `Boolean` | 是否启用 | `true` |
+| Name       | Data Type  | Description | Default Value |
+|-----------|------------|-------------|---------------|
+| `enabled` | `Boolean` | Whether to enable | `true` |

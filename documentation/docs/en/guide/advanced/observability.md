@@ -1,8 +1,8 @@
-# 可观测性
+# Observability
 
-![可观测性](/images/observability/observability.png)
+![Observability](/images/observability/observability.png)
 
-## 安装
+## Installation
 
 ::: code-group
 ```kotlin [Gradle(Kotlin)]

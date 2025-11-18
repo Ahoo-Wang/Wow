@@ -1,13 +1,13 @@
 # Elasticsearch
 
-_Elasticsearch_ 扩展提供了对 _Elasticsearch_ 的支持，实现了以下接口：
+The _Elasticsearch_ extension provides support for _Elasticsearch_, implementing the following interfaces:
 
 - `EventStore`
 - `EventStreamQueryService`
 - `SnapshotRepository`
 - `SnapshotQueryService`
 
-## 安装
+## Installation
 
 ::: code-group
 ```kotlin [Gradle(Kotlin)]
@@ -25,9 +25,9 @@ implementation 'me.ahoo.wow:wow-elasticsearch'
 ```
 :::
 
-## 配置
+## Configuration
 
-**YAML 配置样例**
+**YAML Configuration Example**
 
 ```yaml
 wow:
@@ -38,7 +38,7 @@ wow:
       storage: elasticsearch
 ```
 
-### 配置事件流索引模板
+### Configure Event Stream Index Template
 
 ```http request
 POST _index_template/wow-event-stream-template
@@ -122,7 +122,7 @@ POST _index_template/wow-event-stream-template
 }
 ```
 
-### 配置快照索引模板
+### Configure Snapshot Index Template
 
 ```http request
 POST _index_template/wow-snapshot-template

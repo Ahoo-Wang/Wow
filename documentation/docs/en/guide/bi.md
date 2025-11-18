@@ -1,31 +1,31 @@
-# 商业智能
+# Business Intelligence
 
-## 传统架构 VS 事件溯源
+## Traditional Architecture VS Event Sourcing
 
 <center>
 
-![事件溯源 VS 传统架构](/images/eventstore/eventsourcing.svg)
+![Event Sourcing VS Traditional Architecture](/images/eventstore/eventsourcing.svg)
 </center>
 
-与传统架构有着明显区别，_Wow_ 提供了实时聚合根状态事件（`StateEvent`）和聚合命令（`Command`）作为数据分析的数据源，同时极大降低了实时 _ETL_（`Extract`, `Transform`, `Load`）的难度。
+Distinct from traditional architecture, _Wow_ provides real-time aggregate root state events (`StateEvent`) and aggregate commands (`Command`) as data sources for data analysis, while greatly reducing the difficulty of real-time _ETL_ (`Extract`, `Transform`, `Load`).
 
-在传统架构中，实现实时 _ETL_ 通常需要经过繁琐的流程，包括 `DB->CDC->Process->DB`，而在 _Wow_ 框架中，提供了自动生成实时 _ETL_ 脚本的工具，开发者仅需通过该工具生成脚本并在 _ClickHouse_ 中执行即可。
+In traditional architecture, implementing real-time _ETL_ usually requires a tedious process including `DB->CDC->Process->DB`, whereas in the _Wow_ framework, an automatic real-time _ETL_ script generation tool is provided. Developers only need to generate scripts through this tool and execute them in _ClickHouse_.
 
-另外，在传统架构中，使用 _CDC_（`MySql Binlog`）数据仅记录数据的变化，缺乏明确的业务语义。进行业务分析时，需要基于数据状态的变化推断出业务语义，这往往需要进行大量的数据处理。
-相较之下，_Wow_ 框架直接提供了聚合根状态事件和聚合命令作为数据分析的数据源，极大降低了数据处理的难度。
+Additionally, in traditional architecture, using _CDC_ (`MySql Binlog`) data only records data changes and lacks clear business semantics. When conducting business analysis, it is necessary to infer business semantics based on data state changes, which often requires extensive data processing.
+In contrast, the _Wow_ framework directly provides aggregate root state events and aggregate commands as data sources for data analysis, greatly reducing the difficulty of data processing.
 
-_Wow_ 提供的实时同步机制将数据实时同步至数据仓库（_ClickHouse_），为实时数据分析提供了极大的便利。这种方法为商业智能提供了强有力的支持，构建了一个实时数据分析系统，使决策制定能够基于及时而准确的信息。
+The real-time synchronization mechanism provided by _Wow_ synchronizes data to the data warehouse (_ClickHouse_) in real-time, providing great convenience for real-time data analysis. This approach provides strong support for business intelligence, building a real-time data analysis system that enables decision-making based on timely and accurate information.
 
-- 聚合命令（`Command`）: 包含用户发送的所有命令。
-- 状态事件（`StateEvent`）: 包含聚合状态的完整变化历史，同时记录了引发这些状态变更的事件关联信息。
-- 最新状态事件（`LastStateEvent`）: 包含最新的聚合状态，类似于传统数据库中的表，专门用于存储每个聚合根的最新状态信息。
-- 快照展开视图: 相比于传统数据库的关系表，聚合根快照是以聚合根为中心组织在一起的。 一对一、一对多的关系也是维护在聚合根内部的，所以并不会出现关系表的情况。 但是在数据分析时，我们需要将聚合根的快照展开，以便基于关系模式进行更有深度的数据分析。 Wow 框架提供的 ETL 脚本工具能够将聚合根快照逐层展开，形成关系清晰的视图，该展开视图甚至可以作为*数据仓库的大宽表*，为业务决策提供更清晰、更全面的数据支持。
+- Aggregate commands (`Command`): Contains all commands sent by users.
+- State events (`StateEvent`): Contains the complete change history of aggregate states, while recording the event association information that triggered these state changes.
+- Latest state events (`LastStateEvent`): Contains the latest aggregate state, similar to tables in traditional databases, specifically used to store the latest state information for each aggregate root.
+- Snapshot expansion view: Compared to relational tables in traditional databases, aggregate root snapshots are organized around the aggregate root. One-to-one and one-to-many relationships are also maintained within the aggregate root, so there are no relational table situations. However, during data analysis, we need to expand the aggregate root snapshots to perform deeper data analysis based on relational patterns. The ETL script tool provided by the Wow framework can expand aggregate root snapshots layer by layer to form views with clear relationships, and this expanded view can even serve as a *wide table in the data warehouse*, providing clearer and more comprehensive data support for business decisions.
 
-> ETL 同步流程
+> ETL Synchronization Process
 
-![商业智能](/images/bi/bi.svg)
+![Business Intelligence](/images/bi/bi.svg)
 
-## 生成 ETL 脚本
+## Generating ETL Scripts
 
 ::: code-group
 ```shell [OpenAPI]
@@ -33,7 +33,7 @@ curl -X 'GET' \
   'http://localhost:8080/wow/bi/script' \
   -H 'accept: application/sql'
 ```
-```sql [自动生成的 ETL 脚本]
+```sql [Auto-generated ETL Scripts]
 -- global --
 CREATE DATABASE IF NOT EXISTS bi_db ON CLUSTER '{cluster}';
 CREATE DATABASE IF NOT EXISTS bi_db_consumer ON CLUSTER '{cluster}';
@@ -276,38 +276,38 @@ FROM bi_db.example_order_state_last;
 ```
 :::
 
-## 创建数据库
+## Creating Databases
 
-- `bi_db`: 包含本地表和分布式表存储聚合根状态事件和聚合命令的数据。
-- `bi_db_consumer`: 包含聚合根状态事件和聚合命令的队列，物化视图会从该队列中消费数据并转换到`bi_db`。
+- `bi_db`: Contains local tables and distributed tables that store data for aggregate root state events and aggregate commands.
+- `bi_db_consumer`: Contains queues for aggregate root state events and aggregate commands. Materialized views will consume data from this queue and transform it to `bi_db`.
 
 ```sql
 create database if not exists bi_db on cluster '{cluster}';
 create database if not exists bi_db_consumer on cluster '{cluster}';
 ```
 
-## 聚合命令
+## Aggregate Commands
 
 ::: tip
-聚合命令不仅仅是用户发送的各种命令，它更是一个记录用户所有操作的全面档案。
-这一设计不仅有助于深入分析用户的行为模式，还能作为操作审计的重要数据源。
-通过聚合命令的记录，系统能够追踪用户的每一次操作，形成详实的操作历史。
+Aggregate commands are not just the various commands sent by users; they are a comprehensive archive that records all user operations.
+This design not only helps in-depth analysis of user behavior patterns but also serves as an important data source for operation auditing.
+Through the recording of aggregate commands, the system can track every user operation, forming a detailed operation history.
 
-作为操作审计的数据源，聚合命令记录了用户对系统发出的各类操作，为系统的安全性和合规性提供了有力的支持。
-在需要进行审计、追溯用户行为或解决潜在问题时，聚合命令的数据可以被用于还原用户的具体操作步骤，提供详实的操作日志，帮助系统更好地应对安全与合规的挑战。
+As a data source for operation auditing, aggregate commands record various operations issued by users to the system, providing strong support for system security and compliance.
+When auditing, tracing user behavior, or resolving potential issues is needed, aggregate command data can be used to restore the specific operation steps of users, providing detailed operation logs to help the system better cope with security and compliance challenges.
 :::
 
-### 名词解释
+### Glossary
 
-- 本地表（`command_local`）: 本地表，实际存放聚合命令。
-- 分布式表（`command`）: 分布式表，用于查询聚合命令。
-- 命名约定：`bi_db.{service alias}_{aggregate name}_{command_local|command}`
+- Local table (`command_local`): Local table that actually stores aggregate commands.
+- Distributed table (`command`): Distributed table used to query aggregate commands.
+- Naming convention: `bi_db.{service alias}_{aggregate name}_{command_local|command}`
 ---
-- 队列（`command_queue`）: 队列，建立与 _Kafka_ 的连接，用于订阅数据流。
-- 消费者（`command_consumer`）: 物化视图，从队列中消费数据并转换到本地表。
-- 命名约定：`bi_db_consumer.{service alias}_{aggregate name}_{command_queue|command_consumer}`
+- Queue (`command_queue`): Queue that establishes a connection with _Kafka_ for subscribing to data streams.
+- Consumer (`command_consumer`): Materialized view that consumes data from the queue and transforms it to the local table.
+- Naming convention: `bi_db_consumer.{service alias}_{aggregate name}_{command_queue|command_consumer}`
 
-### SQL 脚本
+### SQL Scripts
 
 ```sql
 -- example.order.command --
@@ -369,34 +369,34 @@ FROM bi_db_consumer.example_order_command_queue
 -- example.order.command --
 ```
 
-## 全量状态事件
+## Full State Events
 
 ::: tip
-全量状态事件(`StateEvent`)的设计核心思想在于记录聚合状态的完整演变历程，并详细记录导致状态变更的事件关联信息。
+The core idea of full state events (`StateEvent`) is to record the complete evolution process of aggregate states and detail the event association information that leads to state changes.
 
-通过全量状态事件，系统能够准确还原聚合状态的演变轨迹，追溯每一次状态变更的触发原因和上下文信息。
+Through full state events, the system can accurately restore the evolution trajectory of aggregate states, trace the trigger reasons and context information for each state change.
 
-这一设计不仅增强了系统的可追溯性，而且为实时数据分析提供了强有力的支持，使决策制定能够基于全面而准确的历史信息。
+This design not only enhances the system's traceability but also provides strong support for real-time data analysis, enabling decision-making based on comprehensive and accurate historical information.
 
-在漏斗分析中，全量状态事件的记录具有关键作用，可以帮助系统跟踪用户在不同阶段的操作和行为。通过追溯聚合状态的完整变化历史，系统实现了以下关键目标：
-1. 漏斗步骤分析： 记录了用户每一步操作和状态变更，精确分析用户在漏斗的每个步骤的行为，以了解转化率、流失率等关键指标。
-2. 用户行为路径追踪： 通过全量状态事件，系统还原了用户在漏斗中的行为路径，深入了解用户逐步进行操作的方式，从而识别用户的习惯和偏好。 
-3. 漏斗优化决策： 实时数据分析基于全量状态事件，使决策者能够更准确地评估漏斗的性能。这为优化漏斗流程、提升用户体验提供了可靠的数据支持。
+In funnel analysis, the recording of full state events plays a key role, helping the system track user operations and behaviors at different stages. By tracing the complete change history of aggregate states, the system achieves the following key objectives:
+1. Funnel step analysis: Records user operations and state changes at each step, accurately analyzing user behavior at each step of the funnel to understand key indicators such as conversion rates and churn rates.
+2. User behavior path tracking: Through full state events, the system restores the user behavior path in the funnel, deeply understanding how users progressively perform operations, thereby identifying user habits and preferences.
+3. Funnel optimization decisions: Real-time data analysis based on full state events enables decision-makers to more accurately evaluate funnel performance. This provides reliable data support for optimizing funnel processes and improving user experience.
 :::
 
-### 名词解释
+### Glossary
 
-- 服务别名（`service alias`）: 服务的别名(短名称)，用于区分不同的服务。
-- 聚合名称（`aggregate name`）: 聚合根的名称，用于区分不同类型聚合根。
-- 本地表（`state_local`）: 本地表，实际存放聚合根状态事件。
-- 分布式表（`state`）: 分布式表，用于查询聚合根状态事件。
-- 命名约定：`bi_db.{service alias}_{aggregate name}_{state_local|state}`
+- Service alias (`service alias`): The alias (short name) of the service, used to distinguish different services.
+- Aggregate name (`aggregate name`): The name of the aggregate root, used to distinguish different types of aggregate roots.
+- Local table (`state_local`): Local table that actually stores aggregate root state events.
+- Distributed table (`state`): Distributed table used to query aggregate root state events.
+- Naming convention: `bi_db.{service alias}_{aggregate name}_{state_local|state}`
 ---
-- 队列（`state_queue`）: 队列，建立与 _Kafka_ 的连接，用于订阅数据流。
-- 消费者（`state_consumer`）: 物化视图，从队列中消费数据并转换到本地表。
-- 命名约定：`bi_db_consumer.{service alias}_{aggregate name}_{state_queue|state_consumer}`
+- Queue (`state_queue`): Queue that establishes a connection with _Kafka_ for subscribing to data streams.
+- Consumer (`state_consumer`): Materialized view that consumes data from the queue and transforms it to the local table.
+- Naming convention: `bi_db_consumer.{service alias}_{aggregate name}_{state_queue|state_consumer}`
 
-### SQL 脚本
+### SQL Scripts
 
 ```sql
 --- example.order.stateEvent --
@@ -459,24 +459,24 @@ FROM bi_db_consumer.example_order_state_queue
 -- example.order.stateEvent --
 ```
 
-## 最新状态事件
+## Latest State Events
 
 ::: tip
-最新状态事件类似于传统数据库中的表，专门用于存储每个聚合根的最新状态信息。
-为了让习惯于传统数据库的使用者更容易上手，_Wow_ 提供了最新状态事件，使用户能够直接查询聚合根的最新状态信息。
-这一设计旨在提供更直观、熟悉的数据查询接口，方便用户快速获取所需的聚合根状态。
+Latest state events are similar to tables in traditional databases, specifically used to store the latest state information for each aggregate root.
+To make it easier for users accustomed to traditional databases to get started, _Wow_ provides latest state events, allowing users to directly query the latest state information of aggregate roots.
+This design aims to provide a more intuitive and familiar data query interface, making it convenient for users to quickly obtain the required aggregate root state.
 :::
 
-### 名词解释
+### Glossary
 
-- 本地表（`state_last_local`）: 本地表，实际存放聚合根最新状态事件。
-- 分布式表（`state_last`）: 分布式表，用于查询聚合根状态事件。
-- 命名约定：`bi_db.{service alias}_{aggregate name}_{state_last_local|state_last}`
+- Local table (`state_last_local`): Local table that actually stores the latest aggregate root state events.
+- Distributed table (`state_last`): Distributed table used to query aggregate root state events.
+- Naming convention: `bi_db.{service alias}_{aggregate name}_{state_last_local|state_last}`
 ---
-- 消费者（`state_last_consumer`）: 物化视图，从*全量状态事件*中消费数据并转换到最新状态事件本地表。
-- 命名约定：`bi_db.{service alias}_{aggregate name}_state_last_consumer`
+- Consumer (`state_last_consumer`): Materialized view that consumes data from *full state events* and transforms it to the latest state events local table.
+- Naming convention: `bi_db.{service alias}_{aggregate name}_state_last_consumer`
 
-### SQL 脚本
+### SQL Scripts
 
 ```sql
 -- example.order.stateLast --
@@ -517,25 +517,25 @@ FROM bi_db.example_order_state
 -- example.order.stateLast --
 ```
 
-## 快照展开视图
+## Snapshot Expansion Views
 
 ::: tip
-相比于传统数据库的关系表，聚合根快照是以聚合根为中心组织在一起的。
-一对一、一对多的关系也是维护在聚合根内部的，所以并不会出现关系表的情况。
-但是在数据分析时，我们需要将聚合根的快照展开，以便基于关系模式进行更有深度的数据分析。
+Compared to relational tables in traditional databases, aggregate root snapshots are organized around the aggregate root.
+One-to-one and one-to-many relationships are also maintained within the aggregate root, so there are no relational table situations.
+However, during data analysis, we need to expand the aggregate root snapshots to perform deeper data analysis based on relational patterns.
 
-Wow 框架提供的 ETL 脚本工具能够将聚合根快照逐层展开，形成关系清晰的视图，该展开视图甚至可以作为*数据仓库的大宽表*，为业务决策提供更清晰、更全面的数据支持。
+The ETL script tool provided by the Wow framework can expand aggregate root snapshots layer by layer to form views with clear relationships, and this expanded view can even serve as a *wide table in the data warehouse*, providing clearer and more comprehensive data support for business decisions.
 :::
 
-### 名词解释
+### Glossary
 
-- `root` 视图: 将一对一的关系对象展开成多个字段。
-- 列表视图: 将一对多的关系对象展开成多行，每行包含一个关系对象的所有字段，同时继承父对象字段。
+- `root` view: Expands one-to-one relationship objects into multiple fields.
+- List view: Expands one-to-many relationship objects into multiple rows, each row containing all fields of a relationship object while inheriting parent object fields.
 
-_Wow-ETL_  脚本工具会逐层展开所有的聚合根快照(支持层层嵌套)，生成多个视图，以便于基于关系模式的数据分析。
+The _Wow-ETL_ script tool will expand all aggregate root snapshots layer by layer (supporting nested layers), generating multiple views for relational pattern-based data analysis.
 
 :::code-group
-```json [数据格式]
+```json [Data Format]
 {
   "id": "0U0woS8Z0001001",
   "customerId": "customerId",
@@ -562,7 +562,7 @@ _Wow-ETL_  脚本工具会逐层展开所有的聚合根快照(支持层层嵌�
 }
 ```
 
-```sql [root 视图]
+```sql [Root View]
 CREATE VIEW IF NOT EXISTS bi_db.example_order_state_last_root ON CLUSTER '{cluster}' AS
 WITH
     JSONExtractString(state, 'address') AS address
@@ -590,7 +590,7 @@ SELECT JSONExtract(state, 'id', 'String')                  AS id,
        deleted                                             AS __deleted
 FROM bi_db.example_order_state_last;
 ```
-```sql [列表视图]
+```sql [List View]
 CREATE VIEW IF NOT EXISTS bi_db.example_order_state_last_root_items ON CLUSTER '{cluster}' AS
 WITH
     JSONExtractString(state, 'address') AS address, 

@@ -1,11 +1,11 @@
-# 预分配 Key
+# Prepare Key
 
-相比传统数据库，开发者可以通过为字段设置 `UNIQUE KEY` 来增加唯一性约束。
-但在 _EventSourcing_ 架构中，我们需要在应用层面保证 `Key` 的唯一性，`PrepareKey` 规范就是为此而生。
+Compared to traditional databases, developers can add uniqueness constraints by setting `UNIQUE KEY` for fields.
+But in the _EventSourcing_ architecture, we need to ensure `Key` uniqueness at the application level, and the `PrepareKey` specification was born for this purpose.
 
-## 用户注册场景
+## User Registration Scenario
 
-例如当用户注册时，需要保证用户名的唯一性：
+For example, when a user registers, the uniqueness of the username needs to be guaranteed:
 
 ```kotlin
 @AggregateRoot
@@ -33,9 +33,9 @@ class User(private val state: UserState) {
 }
 ```
 
-## 用户修改用户名场景
+## User Change Username Scenario
 
-例如当用户修改用户名时，需要保证新用户名的唯一性，以及回滚掉旧的用户名：
+For example, when a user changes their username, the uniqueness of the new username needs to be guaranteed, and the old username needs to be rolled back:
 
 ```kotlin
     @OnCommand

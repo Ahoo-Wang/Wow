@@ -1,12 +1,12 @@
 # Spring-Boot-Starter
 
-_Spring-Boot-Starter_ 模块 集成了所有 _Wow_ 扩展，提供了自动装配的能力，使 _Wow_ 框架在 _Spring Boot_ 项目中更加便捷地使用。
+The _Spring-Boot-Starter_ module integrates all _Wow_ extensions and provides auto-configuration capabilities, making the _Wow_ framework more convenient to use in _Spring Boot_ projects.
 
 ::: tip
-该模块的公共配置文档请参考 [配置](../../reference/config/basic)。
+For the public configuration documentation of this module, please refer to [Configuration](../../reference/config/basic).
 :::
 
-## 安装
+## Installation
 
 ::: code-group
 ```kotlin [Gradle(Kotlin)]
