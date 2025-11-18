@@ -37,11 +37,15 @@ export default defineConfig({
         logo: '/images/logo.svg',
         siteTitle: '领域模型即服务 | Wow',
         search: {provider: 'local',},
+        editLink: {
+            pattern: 'https://github.com/Ahoo-Wang/Wow/edit/main/documentation/docs/:path'
+        },
         // https://vitepress.dev/reference/default-theme-config
         socialLinks: [
             {icon: 'github', link: 'https://github.com/Ahoo-Wang/Wow'},
             {icon: 'gitee', link: 'https://gitee.com/AhooWang/Wow'}
         ],
+        aside: true,
         externalLinkIcon: true,
         footer: {
             message: 'Released under the Apache 2.0 License.',
@@ -64,9 +68,6 @@ export default defineConfig({
             description: 'Wow - Domain Model as a Service | Modern Reactive CQRS Architecture Microservice development framework based on DDD and EventSourcing.',
             themeConfig: {
                 siteTitle: 'Wow',
-                editLink: {
-                    pattern: 'https://github.com/Ahoo-Wang/Wow/edit/main/documentation/docs/:path'
-                },
                 lastUpdated: {
                     text: 'Last updated'
                 },
@@ -74,7 +75,6 @@ export default defineConfig({
                     label: 'On this page',
                     level: [2, 3]
                 },
-                aside: true,
                 nav: navbarEn,
                 sidebar: sidebarEn,
                 notFound: {
@@ -92,9 +92,6 @@ export default defineConfig({
             description: 'Wow - 领域模型即服务 | 基于 DDD & EventSourcing 的现代响应式 CQRS 架构微服务开发框架 | Modern Reactive CQRS Architecture Microservice development framework based on DDD and EventSourcing.',
             themeConfig: {
                 siteTitle: 'Wow',
-                editLink: {
-                    pattern: 'https://github.com/Ahoo-Wang/Wow/edit/main/documentation/docs/:path'
-                },
                 lastUpdated: {
                     text: '上次更新'
                 },
@@ -102,7 +99,6 @@ export default defineConfig({
                     label: '本页目录',
                     level: [2, 3]
                 },
-                aside: true,
                 nav: navbarZh,
                 sidebar: sidebarZh,
                 notFound: {
