@@ -53,6 +53,10 @@ export const navbar: DefaultTheme.NavItem[] = [
                 link: 'https://github.com/Ahoo-Wang/fetcher/blob/main/packages/generator/'
             },
             {
+                text: '流畅的 Kotlin 断言库',
+                link: 'https://github.com/Ahoo-Wang/FluentAssert'
+            },
+            {
                 text: '开源项目 - 微服务治理',
                 items: [
                     {
