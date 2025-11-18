@@ -1,25 +1,25 @@
-# 测试套件
+# Test Suite
 
-*单元测试*是确保代码质量且符合预期业务需求的重要手段，但在传统架构中，单元测试往往是一项相当困难的任务，因为你需要考虑数据库连接、事务管理、数据清理等问题。
+*Unit testing* is an important means to ensure code quality and meet expected business requirements, but in traditional architectures, unit testing is often a quite difficult task because you need to consider database connections, transaction management, data cleanup, and other issues.
 
-使用 _Wow_ 框架，你将会发现基于 _Given->When->Expect_ 模式的测试套件，使得单元测试变得异常简单。
-你只需关注领域模型是否符合预期，而无需为数据库连接等问题烦恼。
+With the _Wow_ framework, you will discover that the test suite based on the _Given->When->Expect_ pattern makes unit testing exceptionally simple.
+You only need to focus on whether the domain model meets expectations, without worrying about database connections and other issues.
 
 :::tip
-在实际应用中，我们将领域模型的单元测试覆盖率下限阈值设置为 **85%**，也是可以轻松实现的。
-在没有刻意要求的情况下，开发人员甚至自觉地将覆盖率提升至 **95%**。
-因此，每次提交代码都变得轻松自在，因为你确信你的代码经过了充分的测试，并且真正意义上从单元测试中获得了收益。
+In actual applications, we set the lower threshold for domain model unit test coverage to **85%**, which can be easily achieved.
+Without deliberate requirements, developers even voluntarily increase coverage to **95%**.
+Therefore, each code commit becomes relaxed and comfortable, because you are confident that your code has been thoroughly tested and truly benefits from unit testing.
 :::
 
-在研发同级别的项目中，我们的测试团队在系统 _API_ 测试中发现，基于 Wow 框架的项目，其 _BUG_ 数仅为传统架构项目的 **1/3**。
+In projects of the same R&D level, our testing team found in system _API_ testing that Wow framework-based projects have only **1/3** the number of _BUGs_ compared to traditional architecture projects.
 
-- Given: 先前的领域事件，用于初始化聚合根状态。
-- When：当前执行的命令，用于触发聚合根状态变更。
-- Expect：期望的结果，用于验证聚合根状态变更是否符合预期。
+- Given: Previous domain events, used to initialize aggregate root state.
+- When: Current command executed, used to trigger aggregate root state changes.
+- Expect: Expected results, used to verify whether aggregate root state changes meet expectations.
 
 ![Test Coverage](/images/getting-started/test-coverage.png)
 
-## 安装
+## Installation
 
 ::: code-group
 ```kotlin [Gradle(Kotlin)]
@@ -38,9 +38,9 @@ testImplementation 'me.ahoo.wow:wow-test'
 ```
 :::
 
-## 测试聚合根
+## Testing Aggregate Roots
 
-使用 `AggregateSpec` 进行全面的聚合测试：
+Use `AggregateSpec` for comprehensive aggregate testing:
 
 ```kotlin
 class CartSpec : AggregateSpec<Cart, CartState>(
@@ -104,9 +104,9 @@ class CartSpec : AggregateSpec<Cart, CartState>(
 
 ![CartSpec-Results](/images/test-suite/CartSpec-Results.png)
 
-## 测试 Saga
+## Testing Saga
 
-使用 `SagaSpec` 测试无状态 Saga 行为：
+Use `SagaSpec` to test stateless Saga behavior:
 
 ```kotlin
 class CartSagaSpec : SagaSpec<CartSaga>({
@@ -165,9 +165,9 @@ class CartSagaSpec : SagaSpec<CartSaga>({
 ![CartSagaSpec-Results](/images/test-suite/CartSagaSpec-Results.png)
 
 
-## 高级场景
+## Advanced Scenarios
 
-对于包含服务注入和错误处理的复杂工作流：
+For complex workflows that include service injection and error handling:
 
 ```kotlin
 class OrderSpec : AggregateSpec<Order, OrderState>({
@@ -177,7 +177,7 @@ class OrderSpec : AggregateSpec<Order, OrderState>({
 
         givenOwnerId(ownerId)
 
-        // 注入模拟服务
+        // Inject mock services
         val inventoryService = object : InventoryService {
             override fun getInventory(productId: String) = orderItem.quantity.toMono()
         }
@@ -225,9 +225,9 @@ class OrderSpec : AggregateSpec<Order, OrderState>({
 })
 ```
 
-### 引用点和跨场景分支
+### Reference Points and Cross-Scenario Branching
 
-使用 `ref()` 标记验证点，并使用 `fork(ref, ...)` 从它们分支到不同的测试场景：
+Use `ref()` to mark verification points and use `fork(ref, ...)` to branch from them to different test scenarios:
 
 ```kotlin
 class OrderSpec : AggregateSpec<Order, OrderState>({
@@ -261,85 +261,85 @@ class OrderSpec : AggregateSpec<Order, OrderState>({
 })
 ```
 
-## API 参考
+## API Reference
 
 ### AggregateSpec
 
-使用 Given/When/Expect 模式测试聚合的规范类：
+Specification class for testing aggregates using the Given/When/Expect pattern:
 
-- `AggregateSpec<C, S>(block: AggregateDsl<S>.() -> Unit)`：接受 DSL 块的构造函数
+- `AggregateSpec<C, S>(block: AggregateDsl<S>.() -> Unit)`: Constructor that accepts a DSL block
 
 ### SagaSpec
 
-测试无状态 Saga 的规范类：
+Specification class for testing stateless Sagas:
 
-- `SagaSpec<T>(block: StatelessSagaDsl<T>.() -> Unit)`：接受 DSL 块的构造函数
-- `on(block: WhenDsl<T>.() -> Unit)`：定义测试场景
+- `SagaSpec<T>(block: StatelessSagaDsl<T>.() -> Unit)`: Constructor that accepts a DSL block
+- `on(block: WhenDsl<T>.() -> Unit)`: Define test scenarios
 
-### DSL 接口
+### DSL Interfaces
 
 #### AggregateDsl
-- `on(block: GivenDsl<S>.() -> Unit)`：定义完整的测试场景
-- `fork(ref: String, name: String = "", verifyError: Boolean = false, block: ForkedVerifiedStageDsl<S>.() -> Unit)`：从之前引用的 ExpectStage 创建分支测试场景
+- `on(block: GivenDsl<S>.() -> Unit)`: Define complete test scenarios
+- `fork(ref: String, name: String = "", verifyError: Boolean = false, block: ForkedVerifiedStageDsl<S>.() -> Unit)`: Create branch test scenarios from previously referenced ExpectStage
 
 #### GivenDsl
-- `name(name: String)`：设置此测试场景的名称
-- `inject(block: ServiceProvider.() -> Unit)`：注入服务或依赖项
-- `givenOwnerId(ownerId: String)`：为聚合设置所有者 ID
-- `givenEvent(event: Any, block: WhenDsl<S>.() -> Unit)`：使用领域事件初始化
-- `givenEvent(events: Array<out Any>, block: WhenDsl<S>.() -> Unit)`：使用多个事件初始化
-- `givenState(state: S, version: Int, block: WhenDsl<S>.() -> Unit)`：使用直接状态初始化
+- `name(name: String)`: Set the name for this test scenario
+- `inject(block: ServiceProvider.() -> Unit)`: Inject services or dependencies
+- `givenOwnerId(ownerId: String)`: Set owner ID for the aggregate
+- `givenEvent(event: Any, block: WhenDsl<S>.() -> Unit)`: Initialize with domain events
+- `givenEvent(events: Array<out Any>, block: WhenDsl<S>.() -> Unit)`: Initialize with multiple events
+- `givenState(state: S, version: Int, block: WhenDsl<S>.() -> Unit)`: Initialize with direct state
 
 #### WhenDsl
-- `name(name: String)`：设置此测试场景的名称
-- `whenCommand(command: Any, header: Header, ownerId: String, block: ExpectDsl<S>.() -> Unit)`：执行命令
+- `name(name: String)`: Set the name for this test scenario
+- `whenCommand(command: Any, header: Header, ownerId: String, block: ExpectDsl<S>.() -> Unit)`: Execute command
 
 #### ExpectDsl
-- `expect(expected: ExpectedResult<S>.() -> Unit)`：定义对完整测试结果的期望
-- `expectNoError()`：断言未发生错误
-- `expectError()`：断言命令处理过程中发生了错误
-- `expectError(expected: E.() -> Unit)`：定义对特定发生的错误的期望
-- `expectErrorType(errorType: KClass<out Throwable>)`：断言特定错误类型
-- `expectEventType(eventType: KClass<out Any>)`：断言生成的事件类型
-- `expectEvent(expected: DomainEvent<E>.() -> Unit)`：定义对特定领域事件的期望
-- `expectEventBody(expected: E.() -> Unit)`：定义对领域事件主体内容的期望
-- `expectEventCount(expected: Int)`：定义对生成领域事件数量的期望
-- `expectEventStream(expected: DomainEventStream.() -> Unit)`：定义对完整领域事件流的期望
-- `expectEventIterator(expected: EventIterator.() -> Unit)`：定义对遍历领域事件的期望
-- `expectState(block: S.() -> Unit)`：验证聚合状态
-- `expectState(expected: Consumer<S>)`：使用 Consumer 定义对聚合状态的期望（Java）
-- `expectStateAggregate(block: StateAggregate<S>.() -> Unit)`：验证聚合元数据
-- `ref(ref: String)`：标记当前验证点以供后续分支使用
-- `fork(name: String = "", verifyError: Boolean = false, block: ForkedVerifiedStageDsl<S>.() -> Unit)`：从当前验证状态创建分支测试场景
+- `expect(expected: ExpectedResult<S>.() -> Unit)`: Define expectations for complete test results
+- `expectNoError()`: Assert no errors occurred
+- `expectError()`: Assert an error occurred during command processing
+- `expectError(expected: E.() -> Unit)`: Define expectations for specific errors that occurred
+- `expectErrorType(errorType: KClass<out Throwable>)`: Assert specific error type
+- `expectEventType(eventType: KClass<out Any>)`: Assert generated event type
+- `expectEvent(expected: DomainEvent<E>.() -> Unit)`: Define expectations for specific domain events
+- `expectEventBody(expected: E.() -> Unit)`: Define expectations for domain event body content
+- `expectEventCount(expected: Int)`: Define expectations for number of domain events generated
+- `expectEventStream(expected: DomainEventStream.() -> Unit)`: Define expectations for complete domain event stream
+- `expectEventIterator(expected: EventIterator.() -> Unit)`: Define expectations for iterating domain events
+- `expectState(block: S.() -> Unit)`: Verify aggregate state
+- `expectState(expected: Consumer<S>)`: Define expectations for aggregate state using Consumer (Java)
+- `expectStateAggregate(block: StateAggregate<S>.() -> Unit)`: Verify aggregate metadata
+- `ref(ref: String)`: Mark current verification point for subsequent branching
+- `fork(name: String = "", verifyError: Boolean = false, block: ForkedVerifiedStageDsl<S>.() -> Unit)`: Create branch test scenarios from current verification state
 
-##### Fork 函数使用场景
+##### Fork Function Use Cases
 
-`fork` 函数通过从验证状态创建独立测试分支来测试复杂工作流和边界情况：
+The `fork` function tests complex workflows and edge cases by creating independent test branches from verification states:
 
-- **顺序操作**：测试多步骤流程，如订单创建 → 支付 → 发货
-- **错误场景**：验证在无效状态下尝试操作时的行为
-- **替代路径**：从同一起点测试不同的命令序列
-- **聚合生命周期**：测试删除、恢复和删除后的行为
-- **业务规则**：验证跨状态转换的约束和业务逻辑
+- **Sequential Operations**: Test multi-step processes like Order Creation → Payment → Shipping
+- **Error Scenarios**: Verify behavior when attempting operations in invalid states
+- **Alternative Paths**: Test different command sequences from the same starting point
+- **Aggregate Lifecycle**: Test deletion, recovery, and behavior after deletion
+- **Business Rules**: Verify constraints and business logic across state transitions
 
-**引用点与 ref()：**
-`ref()` 方法允许标记特定的验证点以供后续分支。使用 `AggregateDsl.fork(ref, ...)` 从任何之前标记的点创建分支，实现跨不同 `on` 块的复杂测试流程。
+**Reference Points and ref():**
+The `ref()` method allows marking specific verification points for subsequent branching. Use `AggregateDsl.fork(ref, ...)` to create branches from any previously marked point, enabling complex test flows across different `on` blocks.
 
-**最佳实践：**
-- 为 fork 使用描述性名称以阐明测试意图
-- 使用 `ref()` 标记重要的验证点以进行跨场景分支
-- 避免深度嵌套（超过 3 层）- 使用 `ref()` 和 `fork(ref, ...)` 进行复杂分支
-- 对相关操作使用 fork，对不相关场景使用单独的 `on` 块
+**Best Practices:**
+- Use descriptive names for fork to clarify test intent
+- Use `ref()` to mark important verification points for cross-scenario branching
+- Avoid deep nesting (over 3 levels) - use `ref()` and `fork(ref, ...)` for complex branching
+- Use fork for related operations, separate `on` blocks for unrelated scenarios
 
 #### StatelessSagaDsl
-- `on(block: WhenDsl<T>.() -> Unit)`：定义 Saga 测试场景
+- `on(block: WhenDsl<T>.() -> Unit)`: Define Saga test scenarios
 
 #### Saga WhenDsl
-- `functionFilter(filter: (MessageFunction<*, *, *>) -> Boolean)`：过滤消息函数
-- `functionName(functionName: String)`：按函数名称过滤
-- `whenEvent(event: Any, state: Any?, ownerId: String, block: ExpectDsl<T>.() -> Unit)`：使用事件触发 Saga
+- `functionFilter(filter: (MessageFunction<*, *, *>) -> Boolean)`: Filter message functions
+- `functionName(functionName: String)`: Filter by function name
+- `whenEvent(event: Any, state: Any?, ownerId: String, block: ExpectDsl<T>.() -> Unit)`: Trigger Saga with event
 
 #### Saga ExpectDsl
-- `expectCommandType(commandType: KClass<out Any>)`：断言发送的命令类型
-- `expectCommand(block: CommandMessage<*>.() -> Unit)`：验证命令内容
-- `expectNoCommand()`：断言未发送命令
+- `expectCommandType(commandType: KClass<out Any>)`: Assert sent command type
+- `expectCommand(block: CommandMessage<*>.() -> Unit)`: Verify command content
+- `expectNoCommand()`: Assert no commands were sent

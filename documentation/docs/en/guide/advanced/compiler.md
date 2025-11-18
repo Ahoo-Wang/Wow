@@ -1,11 +1,11 @@
-# Wow 编译器
+# Wow Compiler
 
-_Wow_ 编译器负责：
+The _Wow_ compiler is responsible for:
 
-- 在限界上下文范围内生成聚合根及其定义的命令和领域事件的元数据。
-- 生成状态聚合根的查询属性导航，防止在写查询条件时出现拼写错误。
+- Generating metadata for aggregate roots and their defined commands and domain events within bounded contexts.
+- Generating query property navigation for state aggregate roots to prevent spelling errors when writing query conditions.
 
-## 安装
+## Installation
 
 ::: code-group
 ```kotlin [Gradle(Kotlin)]
@@ -16,7 +16,7 @@ ksp 'me.ahoo.wow:wow-compiler'
 ```
 :::
 
-## 元数据 Schema
+## Metadata Schema
 
 ```json
 {
@@ -127,7 +127,7 @@ ksp 'me.ahoo.wow:wow-compiler'
 
 ```
 
-## 生成事件补偿服务的元数据
+## Generate Event Compensation Service Metadata
 
 ```json
 {
@@ -165,7 +165,7 @@ ksp 'me.ahoo.wow:wow-compiler'
 }
 ```
 
-## 生成查询状态聚合根属性导航
+## Generate Query State Aggregate Root Property Navigation
 
 ```kotlin
 package me.ahoo.wow.compensation.domain

@@ -1,19 +1,19 @@
-# ID 生成器
+# ID Generator
 
-Wow 框架的*消息ID*、*聚合根ID*生成依赖于 [CosId](https://github.com/Ahoo-Wang/CosId) 提供的强大支持。
+The Wow framework's *message ID* and *aggregate root ID* generation relies on the powerful support provided by [CosId](https://github.com/Ahoo-Wang/CosId).
 
-## 全局 ID 生成器
+## Global ID Generator
 
-*全局ID生成器*主要用于生成消息ID(`Command` 、`DomainEvent` 、`DomainEventStream`)。
+The *global ID generator* is mainly used to generate message IDs (`Command`, `DomainEvent`, `DomainEventStream`).
 
-默认情况下*全局ID生成器*将从*CosId*的*ID生成器容器*(`IdGeneratorProvider`)中获取以 `cosid` 为名称的ID生成器。
+By default, the *global ID generator* will obtain the ID generator named `cosid` from CosId's *ID generator container* (`IdGeneratorProvider`).
 
-### 通过 SPI 自定义全局 ID 生成器
+### Customize Global ID Generator via SPI
 
-开发者可以通过 `GlobalIdGeneratorFactory` SPI 扩展点自定义全局 ID 生成器。
+Developers can customize the global ID generator through the `GlobalIdGeneratorFactory` SPI extension point.
 
-1. 实现 `GlobalIdGeneratorFactory` 接口
-2. 在 `META-INF/services/me.ahoo.wow.id.GlobalIdGeneratorFactory` 文件中添加实现类的全限定类名
+1. Implement the `GlobalIdGeneratorFactory` interface
+2. Add the fully qualified class name of the implementation class in the `META-INF/services/me.ahoo.wow.id.GlobalIdGeneratorFactory` file
 
 ```kotlin
 @Order(ORDER_LAST)
@@ -34,10 +34,10 @@ class TestGlobalIdGeneratorFactory : GlobalIdGeneratorFactory {
 }
 ```
 
-## 聚合 ID 生成器
+## Aggregate ID Generator
 
-*聚合ID生成器*主要用于生成聚合根ID。
-用户可以通过定义聚合根元数据中的ID名称，来从 _CosId_ 的*ID生成器容器*(`IdGeneratorProvider`)中获取对应的ID生成器。
+The *aggregate ID generator* is mainly used to generate aggregate root IDs.
+Users can obtain the corresponding ID generator from CosId's *ID generator container* (`IdGeneratorProvider`) by defining the ID name in the aggregate root metadata.
 
 ```kotlin
 @BoundedContext(
@@ -58,16 +58,16 @@ object ExampleService {
 }
 ```
 
-1. 首先获取元数据中的ID名称，如果未定义则使用聚合根名称作为ID名称。
-2. 获取到该名称之后再从*ID生成器容器*中获取对应的ID生成器。
-3. 如果未获取到则创建新的 `Radix62CosIdGenerator` 实例，其使用全局ID生成器的 `machineId` 作为它的 `machineId`。
+1. First obtain the ID name from the metadata, if not defined, use the aggregate root name as the ID name.
+2. After obtaining the name, get the corresponding ID generator from the *ID generator container*.
+3. If not obtained, create a new `Radix62CosIdGenerator` instance that uses the global ID generator's `machineId` as its `machineId`.
 
-### 自定义 ID 生成器
+### Custom ID Generator
 
-开发者可以通过 `AggregateIdGeneratorFactory` SPI 扩展点自定义 ID 生成器。
+Developers can customize the ID generator through the `AggregateIdGeneratorFactory` SPI extension point.
 
-1. 实现 `AggregateIdGeneratorFactory` 接口
-2. 在 `META-INF/services/me.ahoo.wow.id.AggregateIdGeneratorFactory` 文件中添加实现类的全限定类名
+1. Implement the `AggregateIdGeneratorFactory` interface
+2. Add the fully qualified class name of the implementation class in the `META-INF/services/me.ahoo.wow.id.AggregateIdGeneratorFactory` file
 
 ```kotlin
 @Order(ORDER_LAST)

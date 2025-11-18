@@ -1,54 +1,54 @@
-# 最佳实践
+# Best Practices
 
-## 架构最佳实践
+## Architecture Best Practices
 
-### 推荐技术栈组合
+### Recommended Technology Stack
 
-#### 生产环境推荐配置
+#### Production Environment Recommended Configuration
 
-- **MongoDB**: 作为事件存储（EventStore）、快照存储（SnapshotRepository）
-  - **伸缩性**: MongoDB 的自动分片特性极大地降低了系统的伸缩成本
-  - **读模型**: 将快照策略设置为 `all`，可以直接将 MongoDB 存储的快照作为读模型使用，无需额外编写投影处理器
-  - **等待策略**: 结合 `SNAPSHOT` 等待策略，实现请求的同步等待
-  - **适用场景**: 大多数业务场景，除了一些特殊查询需求（如商品搜索引擎）
+- **MongoDB**: As event store (EventStore), snapshot repository (SnapshotRepository)
+  - **Scalability**: MongoDB's automatic sharding feature greatly reduces system scaling costs
+  - **Read Model**: Setting snapshot strategy to `all` allows MongoDB-stored snapshots to be used directly as read models without additional projection processors
+  - **Waiting Strategy**: Combined with `SNAPSHOT` waiting strategy to achieve synchronous request waiting
+  - **Applicable Scenarios**: Most business scenarios, except for some special query requirements (such as product search engines)
 
-- **Kafka**: 作为消息引擎，包括 `CommandBus`、`DomainEventBus`、`StateEventBus`
-  - **可靠性**: 保证消息的持久化和顺序性
-  - **扩展性**: 支持水平扩展和分区
-  - **生态系统**: 丰富的生态系统和工具支持
+- **Kafka**: As messaging engine, including `CommandBus`, `DomainEventBus`, `StateEventBus`
+  - **Reliability**: Guarantees message persistence and ordering
+  - **Scalability**: Supports horizontal scaling and partitioning
+  - **Ecosystem**: Rich ecosystem and tool support
 
-- **Redis**: 作为缓存层和会话存储（可选）
-  - **性能**: 高速读写性能
-  - **数据结构**: 丰富的数据结构支持复杂缓存场景
+- **Redis**: As cache layer and session storage (optional)
+  - **Performance**: High-speed read/write performance
+  - **Data Structures**: Rich data structures support complex caching scenarios
 
-#### 开发环境简化配置
+#### Development Environment Simplified Configuration
 
-- **In-Memory**: 适用于本地开发和单元测试
-- **单节点数据库**: 简化部署和维护
+- **In-Memory**: Suitable for local development and unit testing
+- **Single-node Database**: Simplifies deployment and maintenance
 
-#### 聚合边界识别
+#### Aggregate Boundary Identification
 
-- **业务不变性**: 聚合内部保持强一致性
-- **事务边界**: 聚合修改在单个事务中完成
-- **并发控制**: 通过聚合版本控制并发冲突
-- **依赖关系**: 聚合间通过领域事件解耦
+- **Business Invariants**: Maintain strong consistency within aggregates
+- **Transaction Boundaries**: Aggregate modifications completed in single transactions
+- **Concurrency Control**: Control concurrency conflicts through aggregate versioning
+- **Dependencies**: Aggregates decoupled through domain events
 
-### 事件建模最佳实践
+### Event Modeling Best Practices
 
-#### 事件命名规范
+#### Event Naming Conventions
 
 ```kotlin
-// 推荐：过去时 + 具体业务行为
+// Recommended: Past tense + specific business behavior
 data class OrderCreated(val orderId: String, val items: List<OrderItem>)
 data class OrderPaid(val orderId: String, val amount: BigDecimal)
 data class OrderShipped(val orderId: String, val trackingNumber: String)
 
-// 避免：模糊命名
-data class OrderUpdated(val orderId: String) // ❌ 过于宽泛
-data class OrderChange(val orderId: String)  // ❌ 不够具体
+// Avoid: Vague naming
+data class OrderUpdated(val orderId: String) // ❌ Too broad
+data class OrderChange(val orderId: String)  // ❌ Not specific enough
 ```
 
-#### 事件版本控制
+#### Event Version Control
 
 ```kotlin
 @Event(revision = "1.0")
@@ -58,55 +58,55 @@ data class OrderCreated(val orderId: String, val items: List<OrderItem>)
 data class OrderCreated(
     val orderId: String,
     val items: List<OrderItem>,
-    val customerId: String // 新增字段
+    val customerId: String // New field
 )
 ```
 
-### 投影设计模式
+### Projection Design Patterns
 
-#### 按查询职责分组
+#### Group by Query Responsibilities
 
 ```kotlin
-// 订单列表投影
+// Order list projection
 @ProjectionProcessor
 class OrderListProjection {
     @OnEvent
     fun onOrderCreated(event: OrderCreated) {
-        // 更新订单列表查询模型
+        // Update order list query model
     }
 }
 
-// 订单详情投影
+// Order detail projection
 @ProjectionProcessor
 class OrderDetailProjection {
     @OnEvent
     fun onOrderPaid(event: OrderPaid) {
-        // 更新订单详情查询模型
+        // Update order detail query model
     }
 }
 ```
 
-#### 异步投影处理
+#### Asynchronous Projection Processing
 
 ```kotlin
 @ProjectionProcessor
 class EmailNotificationProjection {
 
     @OnEvent
-    @Blocking // 标记为阻塞操作
+    @Blocking // Marked as blocking operation
     fun onOrderShipped(event: OrderShipped) {
-        // 发送邮件通知（IO密集型操作）
+        // Send email notification (IO intensive operation)
         emailService.sendShippingNotification(event.orderId)
     }
 }
 ```
 
-### Saga 模式应用
+### Saga Pattern Application
 
-#### 流程编排 vs 流程编舞
+#### Orchestration vs Choreography
 
 ```kotlin
-// 推荐：流程编排（Orchestration）
+// Recommended: Orchestration
 @StatelessSaga
 class OrderProcessingSaga {
 
@@ -121,11 +121,11 @@ class OrderProcessingSaga {
     }
 }
 
-// 避免：流程编舞（Choreography）可能导致复杂依赖
-// 各服务直接通过事件耦合
+// Avoid: Choreography may lead to complex dependencies
+// Services coupled directly through events
 ```
 
-#### 补偿机制
+#### Compensation Mechanism
 
 ```kotlin
 @StatelessSaga
@@ -144,73 +144,73 @@ class OrderCancellationSaga {
 }
 ```
 
-## 开发最佳实践
+## Development Best Practices
 
-### 测试策略
+### Testing Strategy
 
-#### 单元测试覆盖
+#### Unit Test Coverage
 
 ```kotlin
-// 聚合测试：验证业务逻辑
+// Aggregate test: Verify business logic
 class OrderSpec : AggregateSpec<Order, OrderState> {
-    // Given-When-Expect 模式
+    // Given-When-Expect pattern
 }
 
-// Saga 测试：验证流程编排
+// Saga test: Verify orchestration
 class OrderSagaSpec : SagaSpec<OrderProcessingSaga> {
-    // 验证事件-命令映射
+    // Verify event-command mapping
 }
 
-// 投影测试：验证查询模型更新
+// Projection test: Verify query model updates
 class OrderProjectionSpec : ProjectionSpec<OrderProjection> {
-    // 验证事件处理结果
+    // Verify event processing results
 }
 ```
 
-#### 测试覆盖率目标
+#### Test Coverage Targets
 
-- **聚合根**: ≥ 85%
+- **Aggregate Root**: ≥ 85%
 - **Saga**: ≥ 80%
-- **投影**: ≥ 75%
-- **工具类**: ≥ 90%
+- **Projection**: ≥ 75%
+- **Utility Classes**: ≥ 90%
 
-### 错误处理策略
+### Error Handling Strategy
 
-#### 领域异常设计
+#### Domain Exception Design
 
 ```kotlin
-// 业务异常
+// Business exception
 class InsufficientInventoryException(productId: String, requested: Int, available: Int)
     : DomainException("Product $productId: requested $requested, available $available")
 
-// 技术异常
+// Technical exception
 class EventStoreException(message: String, cause: Throwable?)
     : InfrastructureException(message, cause)
 ```
 
-### 性能优化
+### Performance Optimization
 
-#### 快照策略选择
+#### Snapshot Strategy Selection
 
 ```yaml
 wow:
   eventsourcing:
     snapshot:
-      strategy: VERSION_OFFSET  # 基于版本偏移
-      version-offset: 10        # 每10个版本创建快照
+      strategy: VERSION_OFFSET  # Based on version offset
+      version-offset: 10        # Create snapshot every 10 versions
       storage: mongodb
 ```
 
-#### 查询优化
+#### Query Optimization
 
 ```kotlin
-// 使用投影分离读写
+// Use projections to separate read/write
 @ProjectionProcessor
 class OrderSummaryProjection {
 
     @OnEvent
     fun onOrderCreated(event: OrderCreated) {
-        // 只存储查询需要的字段
+        // Only store fields needed for queries
         orderSummaryRepository.save(OrderSummary(
             id = event.orderId,
             totalAmount = event.totalAmount,
@@ -221,61 +221,61 @@ class OrderSummaryProjection {
 }
 ```
 
-## 验证测试覆盖率
+## Verify Test Coverage
 
 ```shell
 ./gradlew domain:jacocoTestCoverageVerification
 ```
 
-> 查看测试覆盖率报告：`domain/build/reports/jacoco/test/html/index.html`
+> View test coverage report: `domain/build/reports/jacoco/test/html/index.html`
 
 ![test-coverage](/images/getting-started/test-coverage.png)
 
-## CI/CD 流水线
+## CI/CD Pipeline
 
 ![Wow-CI-Flow](/images/getting-started/ci-flow.png)
 
-### 测试阶段
+### Test Stage
 
-> 代码风格检查(Check CodeStyle)
+> Code Style Check
 
 ```shell
 ./gradlew detekt
 ```
 
-> 领域模型单元测试 (Check Domain)
+> Domain Model Unit Tests
 
 ```shell
 ./gradlew domain:check
 ```
 
-> 测试覆盖率验证(Check CodeCoverage)
+> Test Coverage Verification
 
 ```shell
 ./gradlew domain:jacocoTestCoverageVerification
 ```
 
-### 构建阶段
+### Build Stage
 
-> 生成部署包 (Build Server)
+> Generate Deployment Package
 
 ```shell
 ./gradlew server:installDist
 ```
 
-> 发布 Docker 镜像 (Push Image)
+> Publish Docker Image
 
-### 部署阶段
+### Deploy Stage
 
-> 部署到 Kubernetes (Deploy Kubernetes)
+> Deploy to Kubernetes
 
-### 流水线配置（阿里云效）
+### Pipeline Configuration (Alibaba Cloud Flow)
 
 ```yaml
 sources:
   wow_project_template_repo:
     type: codeup
-    name: Wow 项目模板代码源
+    name: Wow Project Template Source
     endpoint: <your-project-repo>
     branch: main
     certificate:
@@ -283,14 +283,14 @@ sources:
       serviceConnection: <your-service-connection-id>
 stages:
   test:
-    name: "测试"
+    name: "Test"
     jobs:
       code_style:
         name: "Check CodeStyle"
         runsOn: public/cn-hongkong
         steps:
           code_style:
-            name: "代码风格检查"
+            name: "Code Style Check"
             step: "JavaBuild"
             runsOn: public/
             with:
@@ -317,7 +317,7 @@ stages:
               run: ./gradlew domain:jacocoTestCoverageVerification
               reportDir: "domain/build/reports/jacoco/test/html"
   build:
-    name: "构建"
+    name: "Build"
     jobs:
       build:
         name: "Build Server And Push Image"
@@ -340,7 +340,7 @@ stages:
               region: "cn-hangzhou"
               serviceConnection: "<your-service-connection-id>"
   deploy:
-    name: "部署"
+    name: "Deploy"
     jobs:
       deploy:
         name: "Deploy"
@@ -366,9 +366,9 @@ stages:
                   value: demo-service
 ```
 
-## 设计文档
+## Design Documentation
 
-### 用例图
+### Use Case Diagram
 
 <center>
 

@@ -1,43 +1,43 @@
-# 事件补偿
+# Event Compensation
 
-> *事件补偿*在事件驱动架构中的作用是处理和恢复因为事件处理失败而导致的数据不一致性或错误状态。
-> 当系统中的某个事件处理失败时，_event compensation_ 机制会介入并执行相应的补偿操作，以确保系统状态得以修复并保持一致性。
-> 这个机制有助于保障系统的可靠性和稳定性，尤其是在复杂的分布式系统中，其中事件可能在多个组件或服务之间传递。
-> 通过 _event compensation_，系统可以更好地处理故障和异常情况，防止错误状态的传播，并最终确保系统能够从失败中恢复并继续正常运行。
+> The role of *event compensation* in event-driven architecture is to handle and recover from data inconsistencies or error states caused by event processing failures.
+> When an event processing fails in the system, the _event compensation_ mechanism intervenes and executes corresponding compensation operations to ensure system state is repaired and consistency is maintained.
+> This mechanism helps ensure system reliability and stability, especially in complex distributed systems where events may be passed between multiple components or services.
+> Through _event compensation_, systems can better handle faults and exceptions, prevent the propagation of error states, and ultimately ensure the system can recover from failures and continue normal operation.
 
-事件补偿模块提供了可视化的事件补偿控制台和自动补偿机制，确保系统数据的最终一致性。
+The event compensation module provides a visual event compensation console and automatic compensation mechanism to ensure eventual consistency of system data.
 
-## 用例场景
+## Use Case Scenarios
 
-- 订阅者服务：
-  - 订阅领域事件，执行业务逻辑。
-  - 在执行失败时，发送执行失败记录。
-  - 在执行成功时，发送执行成功记录。
-- 控制台：
-  - 分布式补偿调度器： 定时检查待补偿事件并执行准备补偿操作。
-  - 通知： 在发生执行失败异常时，发送通知消息。
-- 开发者：
-  - 监控： 监控补偿事件，执行重试操作以重新触发补偿逻辑，或标记不再需要的补偿事件。
-  - 接收通知： 接收执行失败通知，快速定位到异常，修复 BUG。
-  - 修复 BUG： 当发生无法自动修复的异常时，开发者可以通过控制台快速定位到异常，修复 BUG，并重新发起重试。
+- Subscriber Service:
+  - Subscribe to domain events and execute business logic.
+  - Send execution failure records when execution fails.
+  - Send execution success records when execution succeeds.
+- Console:
+  - Distributed compensation scheduler: Periodically check pending compensation events and execute prepare compensation operations.
+  - Notifications: Send notification messages when execution failure exceptions occur.
+- Developers:
+  - Monitoring: Monitor compensation events, execute retry operations to re-trigger compensation logic, or mark compensation events that are no longer needed.
+  - Receive notifications: Receive execution failure notifications to quickly locate exceptions and fix bugs.
+  - Fix bugs: When unfixable exceptions occur, developers can quickly locate exceptions through the console, fix bugs, and re-initiate retries.
 
 ![Event-Compensation-UserCase](/images/compensation/usercase.svg)
 
-## 状态图
+## State Diagram
 
 ![Event-Compensation](/images/compensation/state-diagram.svg)
 
-## 执行时序图
+## Execution Sequence Diagram
 
 ![Event-Compensation](/images/compensation/process-sequence-diagram.svg)
 
-## 订阅者服务
+## Subscriber Service
 
-> 默认情况下，*订阅者服务* 模块已经启用了事件补偿功能。
-> 
-> 如果你希望全局关闭该功能，只需在配置文件中设置 `wow.compensation.enabled=false` 即可。
-> 
-> 这一简便的配置选项为开发者提供了在整个系统范围内轻松管理事件补偿功能的途径。
+> By default, the *subscriber service* module has event compensation functionality enabled.
+>
+> If you want to globally disable this feature, simply set `wow.compensation.enabled=false` in the configuration file.
+>
+> This simple configuration option provides developers with an easy way to manage event compensation functionality across the entire system.
 
 ::: code-group
 ```kotlin [Gradle(Kotlin)]
@@ -54,16 +54,16 @@ implementation 'me.ahoo.wow:wow-compensation-core'
 ```
 :::
 
-### 自定义重试机制
+### Custom Retry Mechanism
 
-_Wow_ 框架的灵活性不仅体现在事件补偿控制台的设计上，还可以通过 `@Retry` 注解进行自定义补偿机制。
+The flexibility of the _Wow_ framework is not only reflected in the design of the event compensation console, but also allows for custom compensation mechanisms through the `@Retry` annotation.
 
 ```kotlin
 @Target(AnnotationTarget.FUNCTION)
 annotation class Retry(
     val enabled: Boolean = true,
     /**
-     * 最大重试次数
+     * Maximum retry count
      */
     val maxRetries: Int = DEFAULT_MAX_RETRIES,
 
@@ -75,7 +75,7 @@ annotation class Retry(
     val minBackoff: Int = DEFAULT_MIN_BACKOFF,
 
     /**
-     * 执行超时时间
+     * Execution timeout
      *
      * @see java.time.temporal.ChronoUnit.SECONDS
      */
@@ -91,9 +91,9 @@ annotation class Retry(
 }
 ```
 
-如果有特定处理函数不需要补偿，只需简单设置 `@Retry(false)` 即可关闭该函数的补偿功能。
+If a specific handler function does not need compensation, simply set `@Retry(false)` to disable the compensation functionality for that function.
 
-这种细粒度的控制让开发者能够更加精准地配置系统的行为，确保补偿机制仅在需要的地方发挥作用，进一步提升系统的可定制性和适应性。
+This fine-grained control allows developers to configure system behavior more precisely, ensuring that compensation mechanisms work only where needed, further improving the system's customizability and adaptability.
 
 ```kotlin{1}
     @Retry(maxRetries = 5, minBackoff = 60, executionTimeout = 10)
@@ -110,25 +110,25 @@ annotation class Retry(
 ```
 
 :::tip
-`@Retry` 同时支持 `recoverable` 和 `unrecoverable` 两类参数，用于标记执行函数发生异常时的可恢复性：
-- `recoverable`：表示可以通过重试来修复的异常。
-- `unrecoverable`：表示无法通过重试来修复的异常。
+`@Retry` simultaneously supports `recoverable` and `unrecoverable` parameters to mark the recoverability when exceptions occur in execution functions:
+- `recoverable`: Exceptions that can be fixed through retries.
+- `unrecoverable`: Exceptions that cannot be fixed through retries.
 :::
 
-## 控制台
+## Console
 
-*事件补偿控制台*的强大功能不仅包括分布式定时调度自动补偿，还搭载直观可视化的补偿事件管理功能、事件补偿通知（企业微信）以及 _OpenAPI_ 接口。
+The powerful features of the *event compensation console* include not only distributed scheduled automatic compensation, but also intuitive visual compensation event management functions, event compensation notifications (WeChat Work), and _OpenAPI_ interfaces.
 
-通过分布式定时自动补偿，_Wow_ 框架智能地解决了系统数据最终一致性的难题，摆脱了手动补偿的繁琐过程。
-而可视化的补偿事件管理功能为开发者提供了巨大便利，轻松监控和处理补偿事件。
+Through distributed scheduled automatic compensation, the _Wow_ framework intelligently solves the problem of eventual consistency of system data, eliminating the tedious process of manual compensation.
+The visual compensation event management function provides great convenience for developers to easily monitor and handle compensation events.
 
-在控制台上，开发者能轻松进行特定状态的补偿事件查询，执行重试操作以重新触发补偿逻辑，或删除不再需要的补偿事件，提供了灵活而直观的操作手段。
+On the console, developers can easily query compensation events of specific states, execute retry operations to re-trigger compensation logic, or delete compensation events that are no longer needed, providing flexible and intuitive operation methods.
 
-这一设计不仅增强了系统的稳健性和可维护性，同时也让开发者更容易处理复杂的分布式事务流程，确保系统在异常情况下能够正确而可控地进行补偿操作。
+This design not only enhances the robustness and maintainability of the system, but also makes it easier for developers to handle complex distributed transaction processes, ensuring that the system can perform compensation operations correctly and controllably in abnormal situations.
 
 :::tip
-[事件补偿控制台](https://github.com/Ahoo-Wang/Wow/tree/main/compensation) 也是基于 _Wow_ 框架设计开发的。可以作为 _Wow_ 框架的参考实现来学习。
-::: 
+The [event compensation console](https://github.com/Ahoo-Wang/Wow/tree/main/compensation) is also developed based on the _Wow_ framework. It can be used as a reference implementation for learning the _Wow_ framework.
+:::
 
 ### UI
 
@@ -140,37 +140,37 @@ annotation class Retry(
 
 ![Event-Compensation-Dashboard](/images/compensation/dashboard-error.png)
 
-### 通知（企业微信）
+### Notifications (WeChat Work)
 
-通过配置 *企业微信群机器人* *WebHook地址* 即可开启*企业微信*通知功能。
-同时，通过配置 `events` 属性，可选择只接收特定事件的通知。
-`events` 默认包括：`[execution_failed_created ,execution_failed_applied, execution_success_applied]`
+By configuring the *WeChat Work group robot* *WebHook address*, you can enable *WeChat Work* notification functionality.
+At the same time, by configuring the `events` property, you can choose to receive notifications for specific events only.
+`events` defaults to include: `[execution_failed_created ,execution_failed_applied, execution_success_applied]`
 
 ```yaml{3,6,7}
 wow:
   compensation:
-    host:  # 可选，配置该选项后，开发者可以通过通知消息快速导航到该异常
+    host:  # Optional, after configuring this option, developers can quickly navigate to the exception through notification messages
     webhook:
       weixin:
-        url: # 群机器人 Webhook 地址
+        url: # Group robot Webhook address
         events:
           - execution_failed_created
           - execution_failed_applied
           - execution_success_applied
 ```
 
-| 失败                                                          | 成功                                                           |
+| Failed                                                          | Success                                                           |
 |-------------------------------------------------------------|--------------------------------------------------------------|
-| ![执行失败](/images/compensation/execution-failed.png) | ![执行成功](/images/compensation/execution-success.png) |
+| ![Execution Failed](/images/compensation/execution-failed.png) | ![Execution Success](/images/compensation/execution-success.png) |
 
 ### OpenAPI
 
-_事件补偿控制台_ 提供了开发者友好的 [RESTful OpenAPI](https://wow-compensation.apifox.cn/)，方便集成和调用事件补偿功能。
-通过这个接口，开发者可以在自己的系统中实现对补偿事件的管理和控制。增强了系统的扩展性和定制性，使开发者能够更灵活地应对各种应用场景。
+The _event compensation console_ provides developer-friendly [RESTful OpenAPI](https://wow-compensation.apifox.cn/) for easy integration and invocation of event compensation functions.
+Through this interface, developers can implement management and control of compensation events in their own systems. This enhances the system's scalability and customizability, allowing developers to respond more flexibly to various application scenarios.
 
 ![Event-Compensation-OpenAPI](/images/compensation/open-api.png)
 
-### 部署 (Kubernetes)
+### Deployment (Kubernetes)
 
 ::: code-group
 ```yaml [ConfigMap]
