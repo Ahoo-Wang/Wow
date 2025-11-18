@@ -227,6 +227,7 @@ A specification class for testing stateless sagas:
 
 #### AggregateDsl
 - `on(block: GivenDsl<S>.() -> Unit)`: Defines a complete test scenario
+- `fork(ref: String, name: String = "", verifyError: Boolean = false, block: ForkedVerifiedStageDsl<S>.() -> Unit)`: Creates a branching test scenario from a previously referenced ExpectStage
 
 #### GivenDsl
 - `inject(block: ServiceProvider.() -> Unit)`: Injects services or dependencies

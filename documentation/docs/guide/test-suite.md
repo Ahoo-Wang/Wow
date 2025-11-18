@@ -282,6 +282,7 @@ class OrderSpec : AggregateSpec<Order, OrderState>({
 
 #### AggregateDsl
 - `on(block: GivenDsl<S>.() -> Unit)`：定义完整的测试场景
+- `fork(ref: String, name: String = "", verifyError: Boolean = false, block: ForkedVerifiedStageDsl<S>.() -> Unit)`：从之前引用的 ExpectStage 创建分支测试场景
 
 #### GivenDsl
 - `inject(block: ServiceProvider.() -> Unit)`：注入服务或依赖项
