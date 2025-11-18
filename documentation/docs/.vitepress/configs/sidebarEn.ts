@@ -14,9 +14,9 @@
 import {DefaultTheme} from "vitepress/types/default-theme";
 
 export const sidebarEn: DefaultTheme.Sidebar = {
-    '/en/guide/': [
+    '/guide/': [
         {
-            base: '/en/guide/',
+            base: '/guide/',
             text: 'Guide',
             collapsed: false,
             items: [
@@ -37,7 +37,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                 {text: 'Performance Testing', link: 'perf-test'},
             ],
         }, {
-            base: '/en/guide/extensions/',
+            base: '/guide/extensions/',
             text: 'Extensions',
             collapsed: false,
             items: [
@@ -52,7 +52,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                 {text: 'Compatibility Test Suite', link: 'tck'},
             ],
         }, {
-            base: '/en/guide/advanced/',
+            base: '/guide/advanced/',
             text: 'Advanced',
             collapsed: false,
             items: [
@@ -66,7 +66,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             ],
         }, {
             text: 'Reference',
-            base: '/en/reference/',
+            base: '/reference/',
             collapsed: false,
             items: [
                 {text: 'Configuration', link: 'config/basic'},
@@ -75,13 +75,13 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             ]
         }
     ],
-    '/en/reference/': [
+    '/reference/': [
         {
             text: 'Reference',
             items: [
                 {
                     text: 'Configuration',
-                    base: '/en/reference/config/',
+                    base: '/reference/config/',
                     collapsed: false,
                     items: [
                         {text: 'Basic Configuration', link: 'basic'},
@@ -92,7 +92,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                 },
                 {
                     text: 'Examples',
-                    base: '/en/reference/example/',
+                    base: '/reference/example/',
                     collapsed: false,
                     items: [
                         {text: 'Bank Transfer (JAVA)', link: 'transfer'},
@@ -101,7 +101,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                 },
                 {
                     text: 'Awesome',
-                    base: '/en/reference/awesome/',
+                    base: '/reference/awesome/',
                     collapsed: false,
                     items: [
                         {text: 'CQRS', link: 'cqrs'},

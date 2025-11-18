@@ -17,7 +17,7 @@ export default defineConfig({
     head: head,
     base: SITE_BASE,
     rewrites: {
-        'zh/:rest*': ':rest*'
+        'en/:rest*': ':rest*'
     },
     sitemap: {
         hostname: hostname,
@@ -47,36 +47,8 @@ export default defineConfig({
     },
     locales: {
         root: {
-            label: '中文',
-            lang: 'zh-CN',
-            title: 'Wow',
-            description: 'Wow - 领域模型即服务 | 基于 DDD & EventSourcing 的现代响应式 CQRS 架构微服务开发框架 | Modern Reactive CQRS Architecture Microservice development framework based on DDD and EventSourcing.',
-            themeConfig: {
-                siteTitle: '领域模型即服务 | Wow',
-                editLink: {
-                    pattern: 'https://github.com/Ahoo-Wang/Wow/edit/main/documentation/docs/:path'
-                },
-                lastUpdated: {
-                    text: '上次更新'
-                },
-                outline: {
-                    label: '本页目录',
-                    level: [2, 3]
-                },
-                aside: true,
-                nav: navbar,
-                sidebar: sidebar,
-                notFound: {
-                    title: '页面未找到',
-                    quote: '你访问的页面不存在。',
-                    linkText: '返回首页'
-                }
-            }
-        },
-        en: {
             label: 'English',
             lang: 'en-US',
-            link: '/en/',
             title: 'Wow',
             description: 'Wow - Domain Model as a Service | Modern Reactive CQRS Architecture Microservice development framework based on DDD and EventSourcing.',
             themeConfig: {
@@ -98,6 +70,34 @@ export default defineConfig({
                     title: 'Page Not Found',
                     quote: 'The page you are looking for does not exist.',
                     linkText: 'Go home'
+                }
+            }
+        },
+        zh: {
+            label: '中文',
+            lang: 'zh-CN',
+            link: '/zh/',
+            title: 'Wow',
+            description: 'Wow - 领域模型即服务 | 基于 DDD & EventSourcing 的现代响应式 CQRS 架构微服务开发框架 | Modern Reactive CQRS Architecture Microservice development framework based on DDD and EventSourcing.',
+            themeConfig: {
+                siteTitle: 'Wow',
+                editLink: {
+                    pattern: 'https://github.com/Ahoo-Wang/Wow/edit/main/documentation/docs/:path'
+                },
+                lastUpdated: {
+                    text: '上次更新'
+                },
+                outline: {
+                    label: '本页目录',
+                    level: [2, 3]
+                },
+                aside: true,
+                nav: navbar,
+                sidebar: sidebar,
+                notFound: {
+                    title: '页面未找到',
+                    quote: '你访问的页面不存在。',
+                    linkText: '返回首页'
                 }
             }
         }
