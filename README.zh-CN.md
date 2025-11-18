@@ -151,3 +151,51 @@ _Wow_ 提供的实时同步机制将数据实时同步至数据仓库（_ClickHo
 此外，Wow 框架提供的实时数据同步机制也为操作审计带来了便利，确保了审计数据的及时性和一致性。
 
 了解更多关于 [Wow 操作审计](https://wow.ahoo.me/guide/bi.html#聚合命令)。
+
+## 事件补偿
+
+> *事件补偿*在事件驱动架构中的作用是处理和恢复因为事件处理失败而导致的数据不一致性或错误状态。
+> 当系统中的某个事件处理失败时，_event compensation_ 机制会介入并执行相应的补偿操作，以确保系统状态得以修复并保持一致性。
+> 这个机制有助于保障系统的可靠性和稳定性，尤其是在复杂的分布式系统中，其中事件可能在多个组件或服务之间传递。
+> 通过 _event compensation_，系统可以更好地处理故障和异常情况，防止错误状态的传播，并最终确保系统能够从失败中恢复并继续正常运行。
+
+事件补偿模块提供了可视化的事件补偿控制台和自动补偿机制，确保系统数据的最终一致性。
+
+### 执行时序图
+
+- 订阅者服务：
+    - 订阅领域事件，执行业务逻辑。
+    - 在执行失败时，发送执行失败记录。
+    - 在执行成功时，发送执行成功记录。
+- 控制台：
+    - 分布式补偿调度器： 定时检查待补偿事件并执行准备补偿操作。
+    - 通知： 在发生执行失败异常时，发送通知消息。
+- 开发者：
+    - 监控： 监控补偿事件，执行重试操作以重新触发补偿逻辑，或标记不再需要的补偿事件。
+    - 接收通知： 接收执行失败通知，快速定位到异常，修复 BUG。
+    - 修复 BUG： 当发生无法自动修复的异常时，开发者可以通过控制台快速定位到异常，修复 BUG，并重新发起重试。
+
+![Event-Compensation](./documentation/docs/public/images/compensation/process-sequence-diagram.svg)
+
+### 控制台
+
+*事件补偿控制台*的强大功能不仅包括分布式定时调度自动补偿，还搭载直观可视化的补偿事件管理功能、事件补偿通知（企业微信）以及 _OpenAPI_ 接口。
+
+通过分布式定时自动补偿，_Wow_ 框架智能地解决了系统数据最终一致性的难题，摆脱了手动补偿的繁琐过程。
+而可视化的补偿事件管理功能为开发者提供了巨大便利，轻松监控和处理补偿事件。
+
+在控制台上，开发者能轻松进行特定状态的补偿事件查询，执行重试操作以重新触发补偿逻辑，或删除不再需要的补偿事件，提供了灵活而直观的操作手段。
+
+这一设计不仅增强了系统的稳健性和可维护性，同时也让开发者更容易处理复杂的分布式事务流程，确保系统在异常情况下能够正确而可控地进行补偿操作。
+
+> [事件补偿控制台](https://github.com/Ahoo-Wang/Wow/tree/main/compensation) 也是基于 _Wow_ 框架设计开发的。可以作为 _Wow_ 框架的参考实现来学习。
+
+#### UI
+
+![Event-Compensation-Dashboard](./documentation/docs/public/images/compensation/dashboard.png)
+
+![Event-Compensation-Dashboard](./documentation/docs/public/images/compensation/dashboard-apply-retry-spec.png)
+
+![Event-Compensation-Dashboard](./documentation/docs/public/images/compensation/dashboard-succeeded.png)
+
+![Event-Compensation-Dashboard](./documentation/docs/public/images/compensation/dashboard-error.png)
