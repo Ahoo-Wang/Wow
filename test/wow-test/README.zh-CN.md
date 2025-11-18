@@ -213,8 +213,6 @@ class OrderSpec : AggregateSpec<Order, OrderState>({
 使用 Given/When/Expect 模式测试聚合的规范类：
 
 - `AggregateSpec<C, S>(block: AggregateDsl<S>.() -> Unit)`：接受 DSL 块的构造函数
-- `on(block: GivenDsl<S>.() -> Unit)`：定义测试场景
-- `fork(ref: String, name: String = "", verifyError: Boolean = false, block: ForkedVerifiedStageDsl<S>.() -> Unit)`：从之前引用的验证点创建分支测试场景
 
 ### SagaSpec
 

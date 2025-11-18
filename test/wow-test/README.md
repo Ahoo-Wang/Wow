@@ -213,8 +213,6 @@ class OrderSpec : AggregateSpec<Order, OrderState>({
 A specification class for testing aggregates using the Given/When/Expect pattern:
 
 - `AggregateSpec<C, S>(block: AggregateDsl<S>.() -> Unit)`: Constructor taking a DSL block
-- `on(block: GivenDsl<S>.() -> Unit)`: Defines a test scenario
-- `fork(ref: String, name: String = "", verifyError: Boolean = false, block: ForkedVerifiedStageDsl<S>.() -> Unit)`: Creates branching test scenarios from a previously referenced verification point
 
 ### SagaSpec
 

@@ -97,12 +97,6 @@ abstract class AggregateSpec<C : Any, S : Any>(
      * The method handles the conversion of the DSL specification into executable JUnit tests,
      * including any forked test branches and nested scenarios.
      *
-     * Example generated tests:
-     * - "Add Cart Item"
-     * - "Add Cart Item > Remove Item"
-     * - "Add Cart Item > Delete Aggregate"
-     * - "Add Cart Item > Delete Aggregate > Operate on Deleted"
-     *
      * @return a Stream of DynamicNode objects representing the generated test cases
      * @throws Exception if test execution fails or DSL configuration is invalid
      */
