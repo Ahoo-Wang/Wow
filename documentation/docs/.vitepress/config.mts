@@ -1,4 +1,6 @@
 import {defineConfig} from 'vitepress'
+import llmstxt from 'vitepress-plugin-llms'
+import { copyOrDownloadAsMarkdownButtons } from 'vitepress-plugin-llms'
 import {navbarZh} from "./configs/navbar.zh";
 import {sidebarZh} from "./configs/sidebar.zh";
 import {navbarEn} from "./configs/navbar.en";
@@ -45,6 +47,14 @@ export default defineConfig({
             message: 'Released under the Apache 2.0 License.',
             copyright: 'Copyright © 2022-present <a href="https://github.com/Ahoo-Wang" target="_blank">Ahoo Wang</a>'
         },
+    },
+    vite: {
+        plugins: [llmstxt({workDir: 'en', ignoreFiles: ['index.md']})]
+    },
+    markdown: {
+        config(md) {
+            md.use(copyOrDownloadAsMarkdownButtons)
+        }
     },
     locales: {
         root: {

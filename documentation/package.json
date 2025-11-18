@@ -20,7 +20,8 @@
   "author": "ahoo-wang",
   "license": "Apache-2.0",
   "devDependencies": {
-    "vitepress": "^1.6.4"
+    "vitepress": "^1.6.4",
+    "vitepress-plugin-llms": "^1.9.3"
   },
   "dependencies": {
     "medium-zoom": "^1.1.0"
