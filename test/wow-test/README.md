@@ -170,6 +170,42 @@ class OrderSpec : AggregateSpec<Order, OrderState>({
 })
 ```
 
+### Reference Points and Cross-Scenario Branching
+
+Use `ref()` to mark verification points and `fork(ref, ...)` to branch from them across different test scenarios:
+
+```kotlin
+class OrderSpec : AggregateSpec<Order, OrderState>({
+    on {
+        val orderId = generateGlobalId()
+        val createOrder = CreateOrder(/*...*/)
+
+        whenCommand(createOrder) {
+            expectEventType(OrderCreated::class)
+            ref("order-created")  // Mark this verification point
+            expectState { status.assert().isEqualTo(OrderStatus.CREATED) }
+        }
+    }
+
+    // Branch from the marked point in a separate scenario
+    fork("order-created", "Pay Order") {
+        val payOrder = PayOrder(/*...*/)
+        whenCommand(payOrder) {
+            expectEventType(OrderPaid::class)
+            expectState { status.assert().isEqualTo(OrderStatus.PAID) }
+        }
+    }
+
+    fork("order-created", "Cancel Order") {
+        val cancelOrder = CancelOrder(/*...*/)
+        whenCommand(cancelOrder) {
+            expectEventType(OrderCancelled::class)
+            expectState { status.assert().isEqualTo(OrderStatus.CANCELLED) }
+        }
+    }
+})
+```
+
 ## API Reference
 
 ### AggregateSpec
@@ -178,6 +214,7 @@ A specification class for testing aggregates using the Given/When/Expect pattern
 
 - `AggregateSpec<C, S>(block: AggregateDsl<S>.() -> Unit)`: Constructor taking a DSL block
 - `on(block: GivenDsl<S>.() -> Unit)`: Defines a test scenario
+- `fork(ref: String, name: String = "", verifyError: Boolean = false, block: ForkedVerifiedStageDsl<S>.() -> Unit)`: Creates branching test scenarios from a previously referenced verification point
 
 ### SagaSpec
 
@@ -207,6 +244,7 @@ A specification class for testing stateless sagas:
 - `expectEventType(eventType: KClass<out Any>)`: Asserts event type produced
 - `expectState(block: S.() -> Unit)`: Validates aggregate state
 - `expectStateAggregate(block: StateAggregate<S>.() -> Unit)`: Validates aggregate metadata
+- `ref(ref: String)`: Marks the current verification point with a reference name for later branching
 - `fork(name: String = "", verifyError: Boolean = false, block: ForkedVerifiedStageDsl<S>.() -> Unit)`: Creates branching test scenarios from the current verified state
 
 ##### Fork Function Usage Scenarios
@@ -219,9 +257,12 @@ The `fork` function enables testing complex workflows and edge cases by creating
 - **Aggregate Lifecycle**: Test deletion, recovery, and post-deletion behavior
 - **Business Rules**: Validate constraints and business logic across state transitions
 
+**Reference Points with ref():**
+The `ref()` method allows marking specific verification points for later branching. Use `AggregateDsl.fork(ref, ...)` to create branches from any previously marked point, enabling complex test flows across different `on` blocks.
+
 **Best Practices:**
 - Use descriptive names for forks to clarify test intent
-- Set `verifyError = true` when forking after an error to ensure error state is maintained
+- Use `ref()` to mark important verification points for cross-scenario branching
 - Avoid deep nesting (more than 3 levels) - consider separate test scenarios instead
 - Use forks for related operations, separate `on` blocks for unrelated scenarios
 

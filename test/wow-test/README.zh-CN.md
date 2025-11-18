@@ -170,6 +170,42 @@ class OrderSpec : AggregateSpec<Order, OrderState>({
 })
 ```
 
+### 引用点和跨场景分支
+
+使用 `ref()` 标记验证点，并使用 `fork(ref, ...)` 从它们分支到不同的测试场景：
+
+```kotlin
+class OrderSpec : AggregateSpec<Order, OrderState>({
+    on {
+        val orderId = generateGlobalId()
+        val createOrder = CreateOrder(/*...*/)
+
+        whenCommand(createOrder) {
+            expectEventType(OrderCreated::class)
+            ref("order-created")  // 标记此验证点
+            expectState { status.assert().isEqualTo(OrderStatus.CREATED) }
+        }
+    }
+
+    // 在单独的场景中从标记点分支
+    fork("order-created", "Pay Order") {
+        val payOrder = PayOrder(/*...*/)
+        whenCommand(payOrder) {
+            expectEventType(OrderPaid::class)
+            expectState { status.assert().isEqualTo(OrderStatus.PAID) }
+        }
+    }
+
+    fork("order-created", "Cancel Order") {
+        val cancelOrder = CancelOrder(/*...*/)
+        whenCommand(cancelOrder) {
+            expectEventType(OrderCancelled::class)
+            expectState { status.assert().isEqualTo(OrderStatus.CANCELLED) }
+        }
+    }
+})
+```
+
 ## API 参考
 
 ### AggregateSpec
@@ -178,6 +214,7 @@ class OrderSpec : AggregateSpec<Order, OrderState>({
 
 - `AggregateSpec<C, S>(block: AggregateDsl<S>.() -> Unit)`：接受 DSL 块的构造函数
 - `on(block: GivenDsl<S>.() -> Unit)`：定义测试场景
+- `fork(ref: String, name: String = "", verifyError: Boolean = false, block: ForkedVerifiedStageDsl<S>.() -> Unit)`：从之前引用的验证点创建分支测试场景
 
 ### SagaSpec
 
@@ -207,6 +244,7 @@ class OrderSpec : AggregateSpec<Order, OrderState>({
 - `expectEventType(eventType: KClass<out Any>)`：断言生成的事件类型
 - `expectState(block: S.() -> Unit)`：验证聚合状态
 - `expectStateAggregate(block: StateAggregate<S>.() -> Unit)`：验证聚合元数据
+- `ref(ref: String)`：标记当前验证点以供后续分支使用
 - `fork(name: String = "", verifyError: Boolean = false, block: ForkedVerifiedStageDsl<S>.() -> Unit)`：从当前验证状态创建分支测试场景
 
 ##### Fork 函数使用场景
@@ -219,8 +257,12 @@ class OrderSpec : AggregateSpec<Order, OrderState>({
 - **聚合生命周期**：测试删除、恢复和删除后的行为
 - **业务规则**：验证跨状态转换的约束和业务逻辑
 
+**引用点与 ref()：**
+`ref()` 方法允许标记特定的验证点以供后续分支。使用 `AggregateDsl.fork(ref, ...)` 从任何之前标记的点创建分支，实现跨不同 `on` 块的复杂测试流程。
+
 **最佳实践：**
 - 为 fork 使用描述性名称以阐明测试意图
+- 使用 `ref()` 标记重要的验证点以进行跨场景分支
 - 当在错误后分支时设置 `verifyError = true` 以确保错误状态保持
 - 避免深度嵌套（超过 3 层）- 考虑改为单独的测试场景
 - 对相关操作使用 fork，对不相关场景使用单独的 `on` 块
