@@ -263,7 +263,7 @@ The `ref()` method allows marking specific verification points for later branchi
 **Best Practices:**
 - Use descriptive names for forks to clarify test intent
 - Use `ref()` to mark important verification points for cross-scenario branching
-- Avoid deep nesting (more than 3 levels) - consider separate test scenarios instead
+- Avoid deep nesting (more than 3 levels) - use `ref()` and `fork(ref, ...)` for complex branching instead
 - Use forks for related operations, separate `on` blocks for unrelated scenarios
 
 #### StatelessSagaDsl

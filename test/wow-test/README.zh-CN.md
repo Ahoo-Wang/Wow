@@ -263,8 +263,7 @@ class OrderSpec : AggregateSpec<Order, OrderState>({
 **最佳实践：**
 - 为 fork 使用描述性名称以阐明测试意图
 - 使用 `ref()` 标记重要的验证点以进行跨场景分支
-- 当在错误后分支时设置 `verifyError = true` 以确保错误状态保持
-- 避免深度嵌套（超过 3 层）- 考虑改为单独的测试场景
+- 避免深度嵌套（超过 3 层）- 使用 `ref()` 和 `fork(ref, ...)` 进行复杂分支
 - 对相关操作使用 fork，对不相关场景使用单独的 `on` 块
 
 #### StatelessSagaDsl
