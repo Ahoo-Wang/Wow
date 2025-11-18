@@ -23,7 +23,7 @@ Add the dependency to your `build.gradle.kts`:
 
 ```kotlin
 dependencies {
-    testImplementation("me.ahoo.wow:wow-test:6.5.2")
+    testImplementation("me.ahoo.wow:wow-test:${wow.version}")
 }
 ```
 
@@ -33,7 +33,7 @@ Or for Maven:
 <dependency>
     <groupId>me.ahoo.wow</groupId>
     <artifactId>wow-test</artifactId>
-    <version>6.5.2</version>
+    <version>${wow.version}</version>
     <scope>test</scope>
 </dependency>
 ```

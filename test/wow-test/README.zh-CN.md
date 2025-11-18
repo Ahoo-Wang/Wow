@@ -23,7 +23,7 @@ WOW 框架的综合测试库，提供基于 Given/When/Expect 模式的领域聚
 
 ```kotlin
 dependencies {
-    testImplementation("me.ahoo.wow:wow-test:6.5.2")
+    testImplementation("me.ahoo.wow:wow-test:${wow.version}")
 }
 ```
 
@@ -33,7 +33,7 @@ dependencies {
 <dependency>
     <groupId>me.ahoo.wow</groupId>
     <artifactId>wow-test</artifactId>
-    <version>6.5.2</version>
+    <version>${wow.version}</version>
     <scope>test</scope>
 </dependency>
 ```
