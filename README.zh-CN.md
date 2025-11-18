@@ -4,8 +4,6 @@
 
 # Wow : 基于 DDD & EventSourcing 的现代响应式 CQRS 架构微服务开发框架
 
-> [中文文档](https://wow.ahoo.me/zh/) | [English Document](https://wow.ahoo.me/)
-
 [![License](https://img.shields.io/badge/license-Apache%202-4EB1BA.svg)](https://github.com/Ahoo-Wang/Wow/blob/mvp/LICENSE)
 [![GitHub release](https://img.shields.io/github/release/Ahoo-Wang/Wow.svg)](https://github.com/Ahoo-Wang/Wow/releases)
 [![Maven Central Version](https://img.shields.io/maven-central/v/me.ahoo.wow/wow-core)](https://central.sonatype.com/artifact/me.ahoo.wow/wow-core)
@@ -16,6 +14,8 @@
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/Ahoo-Wang/Wow)
 
 **领域驱动** | **事件驱动** | **测试驱动** | **声明式设计** | **响应式编程** | **命令查询职责分离** | **事件溯源**
+
+> [中文文档](https://wow.ahoo.me/zh/) | [English Document](https://wow.ahoo.me/)
 
 ## 简介
 
