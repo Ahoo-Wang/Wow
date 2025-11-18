@@ -230,6 +230,7 @@ A specification class for testing stateless sagas:
 - `fork(ref: String, name: String = "", verifyError: Boolean = false, block: ForkedVerifiedStageDsl<S>.() -> Unit)`: Creates a branching test scenario from a previously referenced ExpectStage
 
 #### GivenDsl
+- `name(name: String)`: Sets the name for this test scenario
 - `inject(block: ServiceProvider.() -> Unit)`: Injects services or dependencies
 - `givenOwnerId(ownerId: String)`: Sets the owner ID for the aggregate
 - `givenEvent(event: Any, block: WhenDsl<S>.() -> Unit)`: Initializes with domain events
@@ -237,6 +238,7 @@ A specification class for testing stateless sagas:
 - `givenState(state: S, version: Int, block: WhenDsl<S>.() -> Unit)`: Initializes with direct state
 
 #### WhenDsl
+- `name(name: String)`: Sets the name for this test scenario
 - `whenCommand(command: Any, header: Header, ownerId: String, block: ExpectDsl<S>.() -> Unit)`: Executes a command
 
 #### ExpectDsl

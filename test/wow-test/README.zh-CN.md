@@ -230,6 +230,7 @@ class OrderSpec : AggregateSpec<Order, OrderState>({
 - `fork(ref: String, name: String = "", verifyError: Boolean = false, block: ForkedVerifiedStageDsl<S>.() -> Unit)`：从之前引用的 ExpectStage 创建分支测试场景
 
 #### GivenDsl
+- `name(name: String)`：设置此测试场景的名称
 - `inject(block: ServiceProvider.() -> Unit)`：注入服务或依赖项
 - `givenOwnerId(ownerId: String)`：为聚合设置所有者 ID
 - `givenEvent(event: Any, block: WhenDsl<S>.() -> Unit)`：使用领域事件初始化
@@ -237,6 +238,7 @@ class OrderSpec : AggregateSpec<Order, OrderState>({
 - `givenState(state: S, version: Int, block: WhenDsl<S>.() -> Unit)`：使用直接状态初始化
 
 #### WhenDsl
+- `name(name: String)`：设置此测试场景的名称
 - `whenCommand(command: Any, header: Header, ownerId: String, block: ExpectDsl<S>.() -> Unit)`：执行命令
 
 #### ExpectDsl
