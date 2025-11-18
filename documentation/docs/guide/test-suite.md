@@ -294,10 +294,19 @@ class OrderSpec : AggregateSpec<Order, OrderState>({
 - `whenCommand(command: Any, header: Header, ownerId: String, block: ExpectDsl<S>.() -> Unit)`：执行命令
 
 #### ExpectDsl
+- `expect(expected: ExpectedResult<S>.() -> Unit)`：定义对完整测试结果的期望
 - `expectNoError()`：断言未发生错误
+- `expectError()`：断言命令处理过程中发生了错误
+- `expectError(expected: E.() -> Unit)`：定义对特定发生的错误的期望
 - `expectErrorType(errorType: KClass<out Throwable>)`：断言特定错误类型
 - `expectEventType(eventType: KClass<out Any>)`：断言生成的事件类型
+- `expectEvent(expected: DomainEvent<E>.() -> Unit)`：定义对特定领域事件的期望
+- `expectEventBody(expected: E.() -> Unit)`：定义对领域事件主体内容的期望
+- `expectEventCount(expected: Int)`：定义对生成领域事件数量的期望
+- `expectEventStream(expected: DomainEventStream.() -> Unit)`：定义对完整领域事件流的期望
+- `expectEventIterator(expected: EventIterator.() -> Unit)`：定义对遍历领域事件的期望
 - `expectState(block: S.() -> Unit)`：验证聚合状态
+- `expectState(expected: Consumer<S>)`：使用 Consumer 定义对聚合状态的期望（Java）
 - `expectStateAggregate(block: StateAggregate<S>.() -> Unit)`：验证聚合元数据
 - `ref(ref: String)`：标记当前验证点以供后续分支使用
 - `fork(name: String = "", verifyError: Boolean = false, block: ForkedVerifiedStageDsl<S>.() -> Unit)`：从当前验证状态创建分支测试场景

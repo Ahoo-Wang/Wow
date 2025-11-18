@@ -239,10 +239,19 @@ A specification class for testing stateless sagas:
 - `whenCommand(command: Any, header: Header, ownerId: String, block: ExpectDsl<S>.() -> Unit)`: Executes a command
 
 #### ExpectDsl
+- `expect(expected: ExpectedResult<S>.() -> Unit)`: Defines expectations for the complete test result
 - `expectNoError()`: Asserts no errors occurred
+- `expectError()`: Asserts that an error occurred during command processing
+- `expectError(expected: E.() -> Unit)`: Defines expectations for a specific error that occurred
 - `expectErrorType(errorType: KClass<out Throwable>)`: Asserts specific error type
 - `expectEventType(eventType: KClass<out Any>)`: Asserts event type produced
+- `expectEvent(expected: DomainEvent<E>.() -> Unit)`: Defines expectations for a specific domain event
+- `expectEventBody(expected: E.() -> Unit)`: Defines expectations for a domain event's body content
+- `expectEventCount(expected: Int)`: Defines expectations for the number of domain events produced
+- `expectEventStream(expected: DomainEventStream.() -> Unit)`: Defines expectations for the complete domain event stream
+- `expectEventIterator(expected: EventIterator.() -> Unit)`: Defines expectations for iterating through domain events
 - `expectState(block: S.() -> Unit)`: Validates aggregate state
+- `expectState(expected: Consumer<S>)`: Defines expectations for the aggregate's state using a Consumer (Java)
 - `expectStateAggregate(block: StateAggregate<S>.() -> Unit)`: Validates aggregate metadata
 - `ref(ref: String)`: Marks the current verification point with a reference name for later branching
 - `fork(name: String = "", verifyError: Boolean = false, block: ForkedVerifiedStageDsl<S>.() -> Unit)`: Creates branching test scenarios from the current verified state
