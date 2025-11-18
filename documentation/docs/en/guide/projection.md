@@ -1,28 +1,28 @@
-# 投影处理器
+# Projection Processor
 
-*投影处理器*是一种将领域模型的状态以符合查询需求的形式进行组织和存储的机制。
+The *projection processor* is a mechanism that organizes and stores the state of the domain model in a form that meets query requirements.
 
-由于 _EventStore_ 中存储的是聚合根领域事件流，对于查询非常不友好。
-通过结合 _CQRS_ 架构模式，将*读模型*和*写模型*分开，允许针对查询的需求进行专门的优化。
+Since the _EventStore_ stores aggregate root domain event streams, which are very unfriendly for queries.
+By combining the _CQRS_ architectural pattern, separating the *read model* and *write model*, allowing specialized optimization for query requirements.
 
-在 _Wow_ 框架中，*读模型投影*是通过定义*投影处理器*实现的。投影处理器负责处理领域事件，更新读模型的索引状态，以反映最新的数据状态。
+In the _Wow_ framework, *read model projections* are implemented by defining *projection processors*. Projection processors are responsible for processing domain events and updating the index state of the read model to reflect the latest data state.
 
 :::tip
-需要特别指出的是，当快照模式设置为 `all` 时，投影就不是必须的。
+It should be particularly noted that when the snapshot mode is set to `all`, projections are not necessary.
 
-在一般场景中，聚合根的最新状态快照可以当做读模型，比如 [事件补偿控制台](./event-compensation) 就没有定义投影处理器，直接使用了最新状态快照作为读模型。
+In general scenarios, the latest state snapshot of the aggregate root can be used as the read model, for example, the [event compensation console](./event-compensation) does not define a projection processor and directly uses the latest state snapshot as the read model.
 :::
 
-- 投影处理器需要标记 `@ProjectionProcessor` 注解，以便框架能够自动发现。
-- 领域事件处理函数需要添加 `@OnEvent` 注解，但该注解不是必须的，默认情况下命名为 `onEvent` 即表明该函数为领域事件处理函数。
-- 领域事件处理函数接受的参数为：具体领域事件 (`OrderCreated`)、领域事件 (`DomainEvent<OrderCreated>`)。
+- Projection processors need to be marked with the `@ProjectionProcessor` annotation so that the framework can automatically discover them.
+- Domain event handler functions need to add the `@OnEvent` annotation, but this annotation is not required. By default, naming it `onEvent` indicates that the function is a domain event handler function.
+- Domain event handler functions accept parameters of: specific domain events (`OrderCreated`), domain events (`DomainEvent<OrderCreated>`).
 
 ```kotlin
 @ProjectionProcessor
 class OrderProjector {
 
     fun onEvent(orderCreated: OrderCreated) {
-        // 根据领域事件更新读模型
+        // Update read model based on domain events
     }
 }
 ```
