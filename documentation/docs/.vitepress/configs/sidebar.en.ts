@@ -59,7 +59,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                 // {text: 'Architecture', link: 'architecture'},
                 {text: 'ID Generator', link: 'id-generator'},
                 {text: 'Compiler', link: 'compiler'},
-                {text: 'Pre-allocated Key', link: 'prepare-key'},
+                {text: 'Prepare Key', link: 'prepare-key'},
                 // {text: 'Metrics', link: 'metrics'},
                 // {text: 'Observability', link: 'observability'},
                 // {text: 'Aggregate Scheduler', link: 'aggregate-scheduler'},
