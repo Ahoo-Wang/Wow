@@ -23,7 +23,7 @@ package me.ahoo.wow.test.dsl
  *
  * ## Purpose
  *
- * The `@TestDsl` marker ensures that:
+ * The `@TestDslMarker` marker ensures that:
  * - Test DSLs maintain clear hierarchical boundaries
  * - Child DSL contexts cannot accidentally call parent DSL methods
  * - IDE provides accurate code completion and error highlighting
@@ -34,17 +34,17 @@ package me.ahoo.wow.test.dsl
  * Apply this annotation to all DSL interfaces in the testing framework:
  *
  * ```kotlin
- * @TestDsl
+ * @TestDslMarker
  * interface AggregateDsl<S : Any> {
  *     fun on(block: GivenDsl<S>.() -> Unit)
  * }
  *
- * @TestDsl
+ * @TestDslMarker
  * interface GivenDsl<S : Any> {
  *     fun whenCommand(command: Any, block: ExpectDsl<S>.() -> Unit)
  * }
  *
- * @TestDsl
+ * @TestDslMarker
  * interface ExpectDsl<S : Any> {
  *     fun expectEvent(type: KClass<*>)
  * }
@@ -59,7 +59,7 @@ package me.ahoo.wow.test.dsl
  *
  * @see DslMarker for the underlying Kotlin compiler support
  * @see me.ahoo.wow.test.aggregate.dsl.AggregateDsl for aggregate testing DSL
- * @see me.ahoo.wow.test.saga.dsl.StatelessSagaDsl for saga testing DSL
+ * @see me.ahoo.wow.test.saga.stateless.dsl.StatelessSagaDsl for saga testing DSL
  */
 @DslMarker
-annotation class TestDsl
+annotation class TestDslMarker

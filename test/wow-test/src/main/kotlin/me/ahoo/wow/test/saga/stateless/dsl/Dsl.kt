@@ -24,7 +24,7 @@ import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.test.SagaVerifier.defaultCommandGateway
 import me.ahoo.wow.test.dsl.InjectServiceCapable
 import me.ahoo.wow.test.dsl.NameSpecCapable
-import me.ahoo.wow.test.dsl.TestDsl
+import me.ahoo.wow.test.dsl.TestDslMarker
 import me.ahoo.wow.test.saga.stateless.StatelessSagaExpecter
 import me.ahoo.wow.test.validation.TestValidator
 
@@ -37,7 +37,7 @@ import me.ahoo.wow.test.validation.TestValidator
  *
  * @param T The type of the saga being tested.
  */
-@TestDsl
+@TestDslMarker
 interface StatelessSagaDsl<T : Any> : InjectPublicServiceCapable {
     /**
      * Defines a test scenario with optional custom components.
@@ -70,7 +70,7 @@ interface StatelessSagaDsl<T : Any> : InjectPublicServiceCapable {
  *
  * @param T The type of the saga being tested.
  */
-@TestDsl
+@TestDslMarker
 interface WhenDsl<T : Any> :
     NameSpecCapable,
     InjectServiceCapable<Unit> {
@@ -119,5 +119,5 @@ interface WhenDsl<T : Any> :
  *
  * @param T The type of the saga being tested.
  */
-@TestDsl
+@TestDslMarker
 interface ExpectDsl<T : Any> : StatelessSagaExpecter<T, ExpectDsl<T>>
