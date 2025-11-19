@@ -69,7 +69,31 @@ _Saga_ 通过订阅事件完成处理逻辑后返回聚合命令。
 
 <center>
 
-![银行转账案例中的转账流程管理器](/images/example/transfer-saga.svg)
+```mermaid
+sequenceDiagram
+    autonumber
+    title TransferProcessManager (Saga)
+    actor User
+    participant SourceAccount
+    participant Saga
+    participant TargetAccount
+    User ->> SourceAccount: Prepare (准备转账)
+    SourceAccount ->> SourceAccount: CheckBalance (校验余额)
+    SourceAccount ->> SourceAccount: LockAmount (锁定金额)
+    SourceAccount -->> Saga: Prepared (转账已准备就绪)
+    SourceAccount -->> User: Prepared (转账已准备就绪)
+    Saga -->> TargetAccount: Entry (入账)
+    alt success：入账成功
+        TargetAccount -->> Saga: Entered (已入账)
+        Saga ->> SourceAccount: Confirm (确认转账)
+        SourceAccount -> SourceAccount: Confirmed (转账已确认)
+    else fail：入账失败
+        TargetAccount -->> Saga: EntryFailed (入账失败)
+        Saga ->> SourceAccount: UnlockAmount (解锁金额)
+        SourceAccount -> SourceAccount: AmountUnlocked (金额已解锁)
+    end
+```
+
 </center>
 
 转账流程管理器（`TransferSaga`）负责协调处理转账的事件，并生成相应的命令。
