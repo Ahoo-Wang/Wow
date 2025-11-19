@@ -90,7 +90,7 @@ describe('TypeGenerator', () => {
         type: 'string',
         enum: ['a', 'b', 'c'],
       });
-      expect(result).toBe("'a' | 'b' | 'c'");
+      expect(result).toBe("`a` | `b` | `c`");
     });
 
     it('should resolve array type', () => {
@@ -320,8 +320,8 @@ describe('TypeGenerator', () => {
         name: 'TestModel',
         isExported: true,
         members: [
-          { name: 'VALUE1', initializer: "'value1'" },
-          { name: 'VALUE2', initializer: "'value2'" },
+          { name: 'VALUE1', initializer: "`value1`" },
+          { name: 'VALUE2', initializer: "`value2`" },
         ],
       });
       expect(result).toBeDefined();

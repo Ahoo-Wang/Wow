@@ -18,7 +18,7 @@ import { AggregateResolver } from '../../src/aggregate';
 // Integration test
 describe('AggregateResolver Integration', () => {
   it('should resolve aggregates from OpenAPI spec', async () => {
-    const openAPI = await parseOpenAPI('test/compensation-spec.json');
+    const openAPI = await parseOpenAPI('test/compensation.spec.json');
     expect(openAPI).toBeDefined();
     const aggregateResolver = new AggregateResolver(openAPI!);
     const aggregates = aggregateResolver.resolve();

@@ -122,7 +122,7 @@ describe('generateAction', () => {
       generateAction({ input: 'http://example.com', output: '/output' }),
     ).rejects.toThrow('process.exit called');
     expect(mockLogger.error).toHaveBeenCalledWith(
-      `Error during code generation: ${error}`,
+      `Error during code generation: \n`, error,
     );
   });
 });
