@@ -1,6 +1,7 @@
 import {defineConfig} from 'vitepress'
 import llmstxt from 'vitepress-plugin-llms'
-import { copyOrDownloadAsMarkdownButtons } from 'vitepress-plugin-llms'
+import {copyOrDownloadAsMarkdownButtons} from 'vitepress-plugin-llms'
+import {withMermaid} from "vitepress-plugin-mermaid";
 import {navbarZh} from "./configs/navbar.zh";
 import {sidebarZh} from "./configs/sidebar.zh";
 import {navbarEn} from "./configs/navbar.en";
@@ -14,7 +15,7 @@ if (SITE_BASE == '/wow/') {
 }
 
 // https://vitepress.dev/reference/site-config
-export default defineConfig({
+let userConfig = defineConfig({
     ignoreDeadLinks: true,
     head: head,
     base: SITE_BASE,
@@ -110,3 +111,5 @@ export default defineConfig({
         }
     }
 })
+
+export default withMermaid(userConfig)
