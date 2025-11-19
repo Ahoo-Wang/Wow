@@ -38,21 +38,34 @@ function clearOutputSubDirs() {
 }
 
 describe('E2E Test', () => {
-  it('should generate [test/demo-spec.json] code', async () => {
+  it('should generate [test/demo.spec.json] code', async () => {
     clearOutputSubDirs();
     await generateAction({
-      input: 'test/demo-spec.json',
+      input: 'test/demo.spec.json',
       output: OUT_PUT_DIR,
       config: 'test/fetcher-generator.config.json',
       tsConfigFilePath: `${OUT_PUT_DIR}/tsconfig.json`,
     });
   }, 15000);
 
-  it('should generate [test/compensation-spec.json] code', async () => {
+  it('should generate [test/compensation.spec.json] code', async () => {
     clearOutputSubDirs();
     await generateAction({
-      input: 'test/compensation-spec.json',
+      input: 'test/compensation.spec.json',
       output: OUT_PUT_DIR,
     });
   }, 15000);
+
+  // it('should generate [test/openai.spec.yml] code', async () => {
+  //   clearOutputSubDirs();
+  //   await generateAction({
+  //     input: 'test/openai.spec.yml',
+  //     output: OUT_PUT_DIR,
+  //     config: 'test/fetcher-generator.config.json',
+  //     tsConfigFilePath: `${OUT_PUT_DIR}/tsconfig.json`,
+  //   });
+  // }, 150000);
+
+
+
 });
