@@ -28,6 +28,7 @@ import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.test.aggregate.AggregateExpecter
 import me.ahoo.wow.test.aggregate.ExpectedResult
 import me.ahoo.wow.test.dsl.NameSpecCapable
+import me.ahoo.wow.test.dsl.TestDsl
 import me.ahoo.wow.test.saga.stateless.dsl.InjectPublicServiceCapable
 
 /**
@@ -39,6 +40,7 @@ import me.ahoo.wow.test.saga.stateless.dsl.InjectPublicServiceCapable
  *
  * @param S the type of the aggregate state
  */
+@TestDsl
 interface AggregateDsl<S : Any> :
     InjectPublicServiceCapable,
     AggregateDslContextCapable<S> {
@@ -120,6 +122,7 @@ interface AggregateDsl<S : Any> :
  *
  * @param S the type of the aggregate state
  */
+@TestDsl
 interface GivenDsl<S : Any> :
     WhenDsl<S>,
     NameSpecCapable,
@@ -197,6 +200,7 @@ interface GivenDsl<S : Any> :
  *
  * @param S the type of the aggregate state
  */
+@TestDsl
 interface WhenDsl<S : Any> :
     NameSpecCapable,
     AggregateDslContextCapable<S> {
@@ -228,6 +232,7 @@ interface WhenDsl<S : Any> :
  *
  * @param S the type of the aggregate state
  */
+@TestDsl
 interface ExpectDsl<S : Any> :
     AggregateExpecter<S, ExpectDsl<S>>,
     AggregateDslContextCapable<S> {
@@ -303,6 +308,7 @@ interface ExpectDsl<S : Any> :
  *
  * @param S the type of the aggregate state
  */
+@TestDsl
 interface ForkedVerifiedStageDsl<S : Any> : GivenDsl<S> {
     /** The verified result from the previous command execution that this fork starts from. */
     val verifiedResult: ExpectedResult<S>
