@@ -25,6 +25,7 @@ import me.ahoo.wow.api.query.Sort
  *
  * @param Q The type of the queryable object that this DSL is constructing.
  */
+@QueryDslMarker
 abstract class QueryableDsl<Q : Queryable<Q>> {
     protected var projection: Projection = Projection.ALL
     protected var condition: Condition = Condition.all()
