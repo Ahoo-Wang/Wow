@@ -14,7 +14,31 @@ The _[Bank Account Transfer Example](https://github.com/Ahoo-Wang/Wow/blob/main/
 
 <center>
 
-![Saga-Transfer](../../../public/images/example/transfer-saga.svg)
+```mermaid
+sequenceDiagram
+    autonumber
+    title TransferProcessManager (Saga)
+    actor User
+    participant SourceAccount
+    participant Saga
+    participant TargetAccount
+    User ->> SourceAccount: Prepare Transfer
+    SourceAccount ->> SourceAccount: Check Balance
+    SourceAccount ->> SourceAccount: Lock Amount
+    SourceAccount -->> Saga: Prepared (Transfer Prepared)
+    SourceAccount -->> User: Prepared (Transfer Prepared)
+    Saga -->> TargetAccount: Entry (Deposit)
+    alt success: Deposit Successful
+        TargetAccount -->> Saga: Entered (Deposited)
+        Saga ->> SourceAccount: Confirm (Confirm Transfer)
+        SourceAccount -> SourceAccount: Confirmed (Transfer Confirmed)
+    else fail: Deposit Failed
+        TargetAccount -->> Saga: EntryFailed (Deposit Failed)
+        Saga ->> SourceAccount: UnlockAmount (Unlock Amount)
+        SourceAccount -> SourceAccount: AmountUnlocked (Amount Unlocked)
+    end
+```
+
 </center>
 
 
