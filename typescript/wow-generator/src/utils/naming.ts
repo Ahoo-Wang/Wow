@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-const NAMING_SEPARATORS = /[-_\s.]+/;
+const NAMING_SEPARATORS = /[-_'\s.]+/;
 
 export function splitName(name: string) {
   return name.split(NAMING_SEPARATORS);
@@ -134,4 +134,19 @@ export function upperSnakeCase(name: string | string[]): string {
     .filter(part => part.length > 0)
     .map(part => part.toUpperCase())
     .join('_');
+}
+
+export function resolvePropertyName(name: string): string {
+  if (/^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(name)) {
+    return name;
+  }
+
+  return `'${name}'`;
+}
+
+export function resolveEnumMemberName(name: string): string {
+  if ((/^\d+$/.test(name))) {
+    return `NUM_${name}`;
+  }
+  return resolvePropertyName(upperSnakeCase(name));
 }

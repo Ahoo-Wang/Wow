@@ -33,11 +33,10 @@ import {
   jsDoc,
   KeySchema,
   MapSchema,
-  ObjectSchema,
-  resolvePrimitiveType,
+  ObjectSchema, resolveEnumMemberName,
+  resolvePrimitiveType, resolvePropertyName,
   schemaJSDoc,
   toArrayType,
-  upperSnakeCase,
 } from '../utils';
 import { Generator } from '../generateContext';
 
@@ -47,7 +46,8 @@ export class TypeGenerator implements Generator {
     private readonly sourceFile: SourceFile,
     private readonly keySchema: KeySchema,
     private readonly outputDir: string,
-  ) {}
+  ) {
+  }
 
   generate(): void {
     const node = this.process();
@@ -107,6 +107,7 @@ export class TypeGenerator implements Generator {
     const { properties } = schema;
     return Object.entries(properties).map(([propName, propSchema]) => {
       const type = this.resolveType(propSchema);
+      const resolvedPropName = resolvePropertyName(propName);
       if (!isReference(propSchema)) {
         const jsDocDescriptions = schemaJSDoc(propSchema);
         const doc = jsDoc(jsDocDescriptions, '\n * ');
@@ -115,11 +116,11 @@ export class TypeGenerator implements Generator {
           /**
            * ${doc}
            */
-          ${propName}: ${type}
+          ${resolvedPropName}: ${type}
           `;
         }
       }
-      return `${propName}: ${type}`;
+      return `${resolvedPropName}: ${type}`;
     });
   }
 
@@ -165,7 +166,7 @@ export class TypeGenerator implements Generator {
       return `'${schema.const}'`;
     }
     if (isEnum(schema)) {
-      return schema.enum.map(val => `'${val}'`).join(' | ');
+      return schema.enum.map(val => `\`${val}\``).join(' | ');
     }
 
     if (isComposition(schema)) {
@@ -195,8 +196,8 @@ export class TypeGenerator implements Generator {
       members: schema.enum
         .filter(value => typeof value === 'string' && value.length > 0)
         .map(value => ({
-          name: upperSnakeCase(value),
-          initializer: `'${value}'`,
+          name: resolveEnumMemberName(value),
+          initializer: `\`${value}\``,
         })),
     });
   }
@@ -207,12 +208,13 @@ export class TypeGenerator implements Generator {
     propSchema: Schema | Reference,
   ): void {
     const propType = this.resolveType(propSchema);
-    let propertySignature = interfaceDeclaration.getProperty(propName);
+    const resolvedPropName = resolvePropertyName(propName);
+    let propertySignature = interfaceDeclaration.getProperty(resolvedPropName);
     if (propertySignature) {
       propertySignature.setType(propType);
     } else {
       propertySignature = interfaceDeclaration.addProperty({
-        name: propName,
+        name: resolvedPropName,
         type: propType,
         isReadonly: isReadOnly(propSchema),
       });
