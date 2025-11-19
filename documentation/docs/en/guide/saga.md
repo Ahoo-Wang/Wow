@@ -69,7 +69,31 @@ _Saga_ completes processing logic by subscribing to events and then returns aggr
 
 <center>
 
-![Transfer Process Manager in Bank Transfer Case](/images/example/transfer-saga.svg)
+```mermaid
+sequenceDiagram
+    autonumber
+    title TransferProcessManager (Saga)
+    actor User
+    participant SourceAccount
+    participant Saga
+    participant TargetAccount
+    User ->> SourceAccount: Prepare Transfer
+    SourceAccount ->> SourceAccount: Check Balance
+    SourceAccount ->> SourceAccount: Lock Amount
+    SourceAccount -->> Saga: Prepared (Transfer Prepared)
+    SourceAccount -->> User: Prepared (Transfer Prepared)
+    Saga -->> TargetAccount: Entry (Deposit)
+    alt success: Deposit Successful
+        TargetAccount -->> Saga: Entered (Deposited)
+        Saga ->> SourceAccount: Confirm (Confirm Transfer)
+        SourceAccount -> SourceAccount: Confirmed (Transfer Confirmed)
+    else fail: Deposit Failed
+        TargetAccount -->> Saga: EntryFailed (Deposit Failed)
+        Saga ->> SourceAccount: UnlockAmount (Unlock Amount)
+        SourceAccount -> SourceAccount: AmountUnlocked (Amount Unlocked)
+    end
+```
+
 </center>
 
 The transfer process manager (`TransferSaga`) is responsible for coordinating transfer events and generating corresponding commands.
