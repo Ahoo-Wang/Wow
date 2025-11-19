@@ -53,6 +53,7 @@ val function = FunctionInfoData(
 fun newError(): ErrorDetails {
     return ErrorDetails(generateGlobalId(), "errorMsg", "stackTrace")
 }
+
 class ExecutionFailedSpec : AggregateSpec<ExecutionFailed, ExecutionFailedState>({
     inject {
         register(DefaultNextRetryAtCalculatorTest.testRetrySpec)
@@ -84,6 +85,7 @@ class ExecutionFailedSpec : AggregateSpec<ExecutionFailed, ExecutionFailedState>
                 recoverable.assert().isEqualTo(createExecutionFailed.recoverable)
             }
             fork {
+                val stateRoot = stateRoot
                 val currentRetryState = stateRoot.retryState
                 val prepareCompensation = PrepareCompensation(id = stateRoot.id)
                 whenCommand(prepareCompensation) {
