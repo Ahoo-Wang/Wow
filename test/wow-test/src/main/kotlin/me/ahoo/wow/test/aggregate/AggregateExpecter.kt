@@ -51,7 +51,9 @@ interface AggregateExpecter<S : Any, AE : AggregateExpecter<S, AE>> {
      * @param expected a lambda function that receives the StateAggregate and performs assertions
      * @return the current expecter instance for method chaining
      */
-    fun expectStateAggregate(expected: StateAggregate<S>.() -> Unit): AE = expect { expected(stateAggregate) }
+    fun expectStateAggregate(expected: StateAggregate<S>.() -> Unit): AE = expect {
+        expected(stateAggregate)
+    }
 
     /**
      * Expects specific conditions on the aggregate state object.
@@ -62,7 +64,9 @@ interface AggregateExpecter<S : Any, AE : AggregateExpecter<S, AE>> {
      * @param expected a lambda function that receives the state object and performs assertions
      * @return the current expecter instance for method chaining
      */
-    fun expectState(expected: S.() -> Unit): AE = expectStateAggregate { expected(state) }
+    fun expectState(expected: S.() -> Unit): AE = expectStateAggregate {
+        expected(state)
+    }
 
     /**
      * Expects specific conditions on the aggregate state object using a Consumer.
@@ -73,7 +77,9 @@ interface AggregateExpecter<S : Any, AE : AggregateExpecter<S, AE>> {
      * @param expected a Consumer that receives the state object and performs assertions
      * @return the current expecter instance for method chaining
      */
-    fun expectState(expected: Consumer<S>): AE = expectState { expected.accept(this) }
+    fun expectState(expected: Consumer<S>): AE = expectState {
+        expected.accept(this)
+    }
 
     /**
      * Expects specific conditions on the domain event stream.
@@ -87,15 +93,17 @@ interface AggregateExpecter<S : Any, AE : AggregateExpecter<S, AE>> {
      */
     fun expectEventStream(expected: DomainEventStream.() -> Unit): AE =
         expect {
-            domainEventStream.assert().describedAs {
-                buildString {
-                    append("Expect the domain event stream is not null.")
-                    error?.let { error ->
-                        appendLine()
-                        append(error.stackTraceToString())
+            domainEventStream
+                .assert()
+                .describedAs {
+                    buildString {
+                        append("Expect the domain event stream is not null.")
+                        error?.let { error ->
+                            appendLine()
+                            append(error.stackTraceToString())
+                        }
                     }
-                }
-            }.isNotNull()
+                }.isNotNull()
             expected(domainEventStream!!)
         }
 
@@ -223,7 +231,11 @@ interface AggregateExpecter<S : Any, AE : AggregateExpecter<S, AE>> {
         .expectEventStream {
             val itr = iterator()
             for (eventType in expected) {
-                itr.next().body.assert().isInstanceOf(eventType.java)
+                itr
+                    .next()
+                    .body
+                    .assert()
+                    .isInstanceOf(eventType.java)
             }
         }
 
@@ -237,14 +249,20 @@ interface AggregateExpecter<S : Any, AE : AggregateExpecter<S, AE>> {
      * @return the current expecter instance for method chaining
      * @throws AssertionError if the event types don't match the expected sequence
      */
-    fun expectEventType(vararg expected: Class<*>): AE {
-        return expectEventType(*expected.map { it.kotlin }.toTypedArray())
-    }
+    fun expectEventType(vararg expected: Class<*>): AE = expectEventType(*expected.map { it.kotlin }.toTypedArray())
 
-    fun expectNoError(): AE {
-        return expect {
-            error.assert().describedAs { "Expect no error" }.isNull()
-        }
+    /**
+     * Expects that no error occurred during command execution.
+     *
+     * This method validates that the command was processed successfully without throwing
+     * any exceptions or encountering error conditions. It is commonly used to assert
+     * that aggregate operations completed normally and produced the expected results.
+     *
+     * @return the current expecter instance for method chaining
+     * @throws AssertionError if an error occurred during command execution
+     */
+    fun expectNoError(): AE = expect {
+        error.assert().describedAs { "Expect no error" }.isNull()
     }
 
     /**
