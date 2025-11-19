@@ -73,7 +73,7 @@ export async function generateAction(options: {
       `Code generation completed successfully! Files generated in: ${options.output}`,
     );
   } catch (error) {
-    logger.error(`Error during code generation: ${error}`);
+    logger.error(`Error during code generation: \n`, error);
     process.exit(1);
   }
 }
