@@ -7,23 +7,119 @@
 聚合模式将命令函数、溯源函数(包含聚合状态数据)分别放置在不同的类中，这样做的好处是可以避免命令函数直接变更聚合状态数据的问题(将`setter`访问器设置为`private`)。
 同时职责分离也使得聚合根的命令函数更加专注于命令处理，溯源函数更加专注于聚合状态数据的变更。
 
+
+#### 简单聚合模式
+
 <center>
 
-![Aggregation Class - Modeling](/images/modeling/aggregation-pattern.svg)
+```mermaid
+---
+title: Aggregate Modeling Using Simple Aggregation Pattern
+---
+classDiagram
+    class StateAggregate {
+        +StateAggregate(id)
+        //... state fields
+        -onSourcing(domainEvent)
+    }
+    class CommandAggregate~S: StateAggregate~ {
+        <<AggregateRoot>>
+        +CommandAggregate(state)
+        -onCommand(command)
+    }
+
+StateAggregate "1" o-- "state" CommandAggregate
+```
+
+</center>
+
+#### 复杂聚合模式
+
+<center>
+
+```mermaid
+---
+title: Aggregate Modeling Using Complex Aggregation Pattern
+---
+classDiagram
+    class StateAggregate {
+        +StateAggregate(id)
+        //... state fields
+        -onSourcing(domainEvent)
+    }
+
+    class CommandAggregate~S: StateAggregate~ {
+        +CommandAggregate(state)
+        state: S
+        -onCommand(command)
+    }
+
+    class StateAggregateA {
+        +StateAggregateA(id)
+        //... state fields
+        -onSourcing(domainEvent)
+    }
+
+    class StateAggregateB {
+        +StateAggregateB(id)
+        //... state fields
+        -onSourcing(domainEvent)
+    }
+
+    class CommandAggregateA~StateAggregateA~ {
+        <<AggregateRoot>>
+        +CommandAggregate(state)
+        state: StateAggregateA
+        -onCommand(command)
+    }
+
+    class CommandAggregateB~StateAggregateB~ {
+        <<AggregateRoot>>
+        +CommandAggregate(state)
+        state: StateAggregateB
+        -onCommand(command)
+    }
+
+StateAggregate "1" o-- "state" CommandAggregate
+StateAggregate <|-- StateAggregateA
+StateAggregate <|-- StateAggregateB
+CommandAggregate <|-- CommandAggregateA
+CommandAggregate <|-- CommandAggregateB
+StateAggregateA "1" o-- "state" CommandAggregateA
+StateAggregateB "1" o-- "state" CommandAggregateB
+```
+
 </center>
 
 ### 单一类模式
 
 单一类模式将命令函数、溯源函数以及聚合状态数据放置在一起，这样做的好处是简单直接。
 
-::: danger 
-但是因为所在同一个类中，所以命令函数是可以直接变更聚合状态数据的，这违反了`EventSourcing`的原则。
-要求开发人员时刻谨记，命令函数只能返回领域事件并交由溯源函数来变更聚合状态数据。
+::: danger  违反 Event Sourcing 原则
+在单一类模式中，命令函数可以直接修改聚合状态数据，这会导致：
+- 状态变更无法通过事件追溯
+- 破坏了事件溯源的核心价值
+- 可能产生不一致的状态变更
+
+**强烈建议**：仅在简单场景或原型开发中使用此模式。
 :::
 
 <center>
 
-![Single Class - Modeling](/images/modeling/single-class-pattern.svg)
+```mermaid
+---
+title: Aggregate Modeling Using Single Class
+---
+classDiagram
+    class Aggregate {
+        <<AggregateRoot>>
+        +Aggregate(id)
+        //... state fields
+        -onSourcing(domainEvent)
+        -onCommand(command)
+    }
+```
+
 </center>
 
 ### 继承模式
@@ -32,7 +128,25 @@
 
 <center>
 
-![Inheritance - Modeling](/images/modeling/inheritance-pattern.svg)
+```mermaid
+---
+title: Aggregate Modeling Using Inheritance Pattern
+---
+classDiagram
+    class StateAggregate {
+        +StateAggregate(id)
+        //... state fields
+        -onSourcing(domainEvent)
+    }
+
+    class CommandAggregate {
+        <<AggregateRoot>>
+        -onCommand(command)
+    }
+
+    StateAggregate <|-- CommandAggregate
+```
+
 </center>
 
 
@@ -40,14 +154,15 @@
 
 ### 命令聚合根
 
-命令聚合根负责接收命令处理函数，执行相应的业务逻辑，并返回领域事件。
+命令聚合根负责定义命令处理函数，处理命令并执行相应的业务逻辑，最终返回领域事件。
 
 - 命令聚合根需要添加 `@AggregateRoot` 注解，以便 `wow-compiler` 模块可以生成相应的元数据定义。
 - 命令处理函数的 `@OnCommand` 注解不是必须的，默认情况下将命令处理函数命名为 `onCommand` 即表明该函数为命令处理函数。
 - 命令处理函数的第一个参数可以定义为：具体命令(`AddCartItem`)、命令消息(`CommandMessage<AddCartItem>`)、命令消息交换(`CommandExchange<AddCartItem>`)。
-- 命令处理函数的其余参数将从 *IOC 容器*中获取。如果你在 _Spring IOC_ 容器中注入了某个实例，可以通过参数直接获取。
-- 命令处理函数的返回值为一个或者多个领域事件，该领域事件首先会由状态聚合根通过溯源函数将状态变更为最新状态，然后持久化到 _EventStore_。
-- 持久化完成后，将会通过 _DomainEventBus_ 发布到事件总线。
+- 命令处理函数的其余参数将从 `IOC` 容器中获取。如果你在 `Spring IOC` 容器中注入了某个实例，可以通过参数直接获取。
+- 命令处理函数的返回值为一个或者多个领域事件，该领域事件首先会由状态聚合根通过溯源函数将状态变更为最新状态，然后持久化到 `EventStore`。
+  - 当返回值类型不明确时，应通过 `@OnCommand.returns` 进行指定。否则 `wow-compiler` 将无法识别返回的领域事件类型。
+- 持久化完成后，将会通过 `DomainEventBus` 发布到事件总线。
 
 ```kotlin
 @AggregateRoot
@@ -77,7 +192,6 @@ class Cart(private val state: CartState) {
 ```
 
 ### 状态聚合根
-
 
 状态聚合根定义了聚合状态数据以及溯源函数。
 

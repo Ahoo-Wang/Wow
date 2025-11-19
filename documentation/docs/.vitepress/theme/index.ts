@@ -16,7 +16,8 @@ import {onMounted, watch, nextTick} from 'vue'
 import {type Theme, useRoute} from 'vitepress'
 import mediumZoom from 'medium-zoom'
 import './global.css'
-import CopyOrDownloadAsMarkdownButtons from 'vitepress-plugin-llms/vitepress-components/CopyOrDownloadAsMarkdownButtons.vue'
+import CopyOrDownloadAsMarkdownButtons
+    from 'vitepress-plugin-llms/vitepress-components/CopyOrDownloadAsMarkdownButtons.vue'
 
 export default {
     extends: DefaultTheme,

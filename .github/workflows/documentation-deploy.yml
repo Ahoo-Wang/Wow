@@ -83,7 +83,7 @@ jobs:
 
       - name: Build VitePress site
         working-directory: documentation
-        run: pnpm install && pnpm run docs:build
+        run: pnpm install --shamefully-hoist && pnpm run docs:build
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4
