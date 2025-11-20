@@ -306,6 +306,7 @@ class OrderSpec : AggregateSpec<Order, OrderState>({
 - `on(block: WhenDsl<T>.() -> Unit)`：定义 Saga 测试场景
 
 #### Saga WhenDsl
+- `name(name: String)`：设置此测试场景的名称
 - `functionFilter(filter: (MessageFunction<*, *, *>) -> Boolean)`：过滤消息函数
 - `functionName(functionName: String)`：按函数名称过滤
 - `whenEvent(event: Any, state: Any?, ownerId: String, block: ExpectDsl<T>.() -> Unit)`：使用事件触发 Saga

@@ -338,6 +338,7 @@ The `ref()` method allows marking specific verification points for subsequent br
 - `on(block: WhenDsl<T>.() -> Unit)`: Define Saga test scenarios
 
 #### Saga WhenDsl
+- `name(name: String)`: Sets the name for this test scenario
 - `functionFilter(filter: (MessageFunction<*, *, *>) -> Boolean)`: Filter message functions
 - `functionName(functionName: String)`: Filter by function name
 - `whenEvent(event: Any, state: Any?, ownerId: String, block: ExpectDsl<T>.() -> Unit)`: Trigger Saga with event
