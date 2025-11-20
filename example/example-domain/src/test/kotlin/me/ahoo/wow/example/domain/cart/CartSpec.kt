@@ -43,15 +43,18 @@ class CartSpec : AggregateSpec<Cart, CartState>(
                 expectStateAggregate {
                     ownerId.assert().isEqualTo(ownerId)
                 }
-                fork {
+                fork(name = "Remove CartItem") {
                     val removeCartItem = RemoveCartItem(
                         productIds = setOf(addCartItem.productId),
                     )
                     whenCommand(removeCartItem) {
                         expectEventType(CartItemRemoved::class)
+                        expectState {
+                            items.assert().isEmpty()
+                        }
                     }
                 }
-                fork {
+                fork(name = "Delete Aggregate") {
                     whenCommand(DefaultDeleteAggregate) {
                         ref("AggregateDeleted")
                         expectEventType(DefaultAggregateDeleted::class)
@@ -62,18 +65,18 @@ class CartSpec : AggregateSpec<Cart, CartState>(
                 }
             }
         }
-        fork("AggregateDeleted") {
+        fork(ref = "AggregateDeleted") {
             whenCommand(DefaultDeleteAggregate) {
                 expectErrorType(IllegalAccessDeletedAggregateException::class)
             }
         }
-        fork("AggregateDeleted") {
+        fork(ref = "AggregateDeleted", name = "Recover") {
             whenCommand(DefaultRecoverAggregate) {
                 expectNoError()
                 expectStateAggregate {
                     deleted.assert().isFalse()
                 }
-                fork {
+                fork(name = "Recover Again") {
                     whenCommand(DefaultRecoverAggregate) {
                         expectErrorType(IllegalStateException::class)
                     }
