@@ -28,7 +28,6 @@ import me.ahoo.wow.test.AggregateSpec
 class CartSpec : AggregateSpec<Cart, CartState>(
     {
         on {
-            name("Main")
             val ownerId = generateGlobalId()
             val addCartItem = AddCartItem(
                 productId = "productId",
@@ -44,47 +43,44 @@ class CartSpec : AggregateSpec<Cart, CartState>(
                 expectStateAggregate {
                     ownerId.assert().isEqualTo(ownerId)
                 }
-                fork("Added") {
+                fork(name = "Remove CartItem") {
                     val removeCartItem = RemoveCartItem(
                         productIds = setOf(addCartItem.productId),
                     )
                     whenCommand(removeCartItem) {
                         expectEventType(CartItemRemoved::class)
+                        expectState {
+                            items.assert().isEmpty()
+                        }
                     }
                 }
-                fork {
+                fork(name = "Delete Aggregate") {
                     whenCommand(DefaultDeleteAggregate) {
-                        ref("DeleteAggregate")
+                        ref("AggregateDeleted")
                         expectEventType(DefaultAggregateDeleted::class)
                         expectStateAggregate {
                             deleted.assert().isTrue()
-                        }
-
-                        fork {
-                            whenCommand(DefaultDeleteAggregate) {
-                                expectErrorType(IllegalAccessDeletedAggregateException::class)
-                            }
-                        }
-                        fork {
-                            whenCommand(DefaultRecoverAggregate) {
-                                expectNoError()
-                                expectStateAggregate {
-                                    deleted.assert().isFalse()
-                                }
-                                fork {
-                                    whenCommand(DefaultRecoverAggregate) {
-                                        expectErrorType(IllegalStateException::class)
-                                    }
-                                }
-                            }
                         }
                     }
                 }
             }
         }
-        fork("DeleteAggregate") {
+        fork(ref = "AggregateDeleted") {
             whenCommand(DefaultDeleteAggregate) {
                 expectErrorType(IllegalAccessDeletedAggregateException::class)
+            }
+        }
+        fork(ref = "AggregateDeleted", name = "Recover") {
+            whenCommand(DefaultRecoverAggregate) {
+                expectNoError()
+                expectStateAggregate {
+                    deleted.assert().isFalse()
+                }
+                fork(name = "Recover Again") {
+                    whenCommand(DefaultRecoverAggregate) {
+                        expectErrorType(IllegalStateException::class)
+                    }
+                }
             }
         }
     }
