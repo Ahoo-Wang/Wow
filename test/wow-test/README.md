@@ -47,40 +47,66 @@ Use `AggregateSpec` for comprehensive aggregate testing with the DSL:
 ```kotlin
 import me.ahoo.wow.test.AggregateSpec
 
-class CartSpec : AggregateSpec<Cart, CartState>({
-    on {
-        val ownerId = generateGlobalId()
-        val addCartItem = AddCartItem(productId = "productId", quantity = 1)
-        givenOwnerId(ownerId)
-        whenCommand(addCartItem) {
-            expectNoError()
-            expectEventType(CartItemAdded::class)
-            expectState { items.assert().hasSize(1) }
-            expectStateAggregate { ownerId.assert().isEqualTo(ownerId) }
-
-            fork("Remove Item") {
-                val removeCartItem = RemoveCartItem(productIds = setOf(addCartItem.productId))
-                whenCommand(removeCartItem) {
-                    expectEventType(CartItemRemoved::class)
-                    expectState { items.assert().isEmpty() }
+class CartSpec : AggregateSpec<Cart, CartState>(
+    {
+        on {
+            val ownerId = generateGlobalId()
+            val addCartItem = AddCartItem(
+                productId = "productId",
+                quantity = 1,
+            )
+            givenOwnerId(ownerId)
+            whenCommand(addCartItem) {
+                expectNoError()
+                expectEventType(CartItemAdded::class)
+                expectState {
+                    items.assert().hasSize(1)
                 }
-            }
-
-            fork("Delete Aggregate", verifyError = false) {
-                whenCommand(DefaultDeleteAggregate) {
-                    expectEventType(DefaultAggregateDeleted::class)
-                    expectStateAggregate { deleted.assert().isTrue() }
-
-                    fork("Access Deleted Aggregate") {
-                        whenCommand(addCartItem) {
-                            expectErrorType(IllegalAccessDeletedAggregateException::class)
+                expectStateAggregate {
+                    ownerId.assert().isEqualTo(ownerId)
+                }
+                fork(name = "Remove CartItem") {
+                    val removeCartItem = RemoveCartItem(
+                        productIds = setOf(addCartItem.productId),
+                    )
+                    whenCommand(removeCartItem) {
+                        expectEventType(CartItemRemoved::class)
+                        expectState {
+                            items.assert().isEmpty()
+                        }
+                    }
+                }
+                fork(name = "Delete Aggregate") {
+                    whenCommand(DefaultDeleteAggregate) {
+                        ref("AggregateDeleted")
+                        expectEventType(DefaultAggregateDeleted::class)
+                        expectStateAggregate {
+                            deleted.assert().isTrue()
                         }
                     }
                 }
             }
         }
+        fork(ref = "AggregateDeleted") {
+            whenCommand(DefaultDeleteAggregate) {
+                expectErrorType(IllegalAccessDeletedAggregateException::class)
+            }
+        }
+        fork(ref = "AggregateDeleted", name = "Recover") {
+            whenCommand(DefaultRecoverAggregate) {
+                expectNoError()
+                expectStateAggregate {
+                    deleted.assert().isFalse()
+                }
+                fork(name = "Recover Again") {
+                    whenCommand(DefaultRecoverAggregate) {
+                        expectErrorType(IllegalStateException::class)
+                    }
+                }
+            }
+        }
     }
-})
+)
 ```
 
 ### Saga Testing
