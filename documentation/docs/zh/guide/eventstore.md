@@ -4,5 +4,5 @@
 
 <center>
 
-![EventSourcing](/images/eventstore/eventsourcing.svg)
+![EventSourcing](../../public/images/eventstore/eventsourcing.svg)
 </center>

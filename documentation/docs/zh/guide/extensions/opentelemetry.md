@@ -33,7 +33,7 @@ Wow 框架的 _OpenTelemetry_ 模块通过提供一系列仪表器（_Instrument
 - `wow.message.id`: 消息ID
 - `wow.message.request_id`: 命令消息的请求ID。
 
-![可观测性](/images/observability/observability.png)
+![可观测性](../../../public/images/observability/observability.png)
 
 ## 安装
 

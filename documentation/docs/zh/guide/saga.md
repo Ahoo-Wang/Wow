@@ -12,7 +12,7 @@ Saga 模式是一种分布式事务协调方法，通过一系列事务步骤来
 
 <center>
 
-![Choreography](/images/saga/choreography.png)
+![Choreography](../../public/images/saga/choreography.png)
 </center>
 
 > 图片引用自 [A Saga on Sagas](https://learn.microsoft.com/en-us/previous-versions/msp-n-p/jj591569(v=pandp.10))。
@@ -34,7 +34,7 @@ Saga 模式是一种分布式事务协调方法，通过一系列事务步骤来
 
 <center>
 
-![Orchestration](/images/saga/orchestration.png)
+![Orchestration](../../public/images/saga/orchestration.png)
 </center>
 
 > 图片引用自 [A Saga on Sagas](https://learn.microsoft.com/en-us/previous-versions/msp-n-p/jj591569(v=pandp.10))。

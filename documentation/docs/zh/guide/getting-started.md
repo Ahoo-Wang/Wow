@@ -19,7 +19,7 @@
 
 > [使用模板创建项目](https://www.jetbrains.com/help/idea/saving-project-as-template.html#create-project-from-template)
 
-![创建项目](/images/getting-started/new-project.png)
+![创建项目](../../public/images/getting-started/new-project.png)
 
 - 修改 `settings.gradle.kts` 文件，将 `rootProject.name` 修改为项目名称
 - 修改 `api/{package}/DemoService`
@@ -155,11 +155,11 @@ wow:
 
 ## 启动服务
 
-![启动服务](/images/getting-started/run-server.png)
+![启动服务](../../public/images/getting-started/run-server.png)
 
 > 访问：[http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
 
-![Swagger-UI](/images/getting-started/swagger-ui.png)
+![Swagger-UI](../../public/images/getting-started/swagger-ui.png)
 
 ## 领域建模
 
@@ -254,11 +254,11 @@ class DemoSpec : AggregateSpec<Demo, DemoState>({
 
 ## CI/CD 流水线
 
-![Wow-CI-Flow](/images/getting-started/ci-flow.png)
+![Wow-CI-Flow](../../public/images/getting-started/ci-flow.png)
 
 ### 测试阶段
 
-![test-coverage](/images/getting-started/test-coverage.png)
+![test-coverage](../../public/images/getting-started/test-coverage.png)
 
 ::: code-group
 ```shell [代码风格检查]

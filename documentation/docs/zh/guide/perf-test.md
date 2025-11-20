@@ -36,16 +36,16 @@ Command-Request-Id: {{$uuid}}
 
 ```
 
-- [详细报告(PDF)-SENT](/images/perf/Example.Cart.Add@SENT.pdf)
-- [详细报告(PDF)-PROCESSED](/images/perf/Example.Cart.Add@PROCESSED.pdf)
+- [详细报告(PDF)-SENT](../../public/images/perf/Example.Cart.Add@SENT.pdf)
+- [详细报告(PDF)-PROCESSED](../../public/images/perf/Example.Cart.Add@PROCESSED.pdf)
 
 > 命令等待策略（`WaitStrategy`）为`SENT`模式，加入购物车命令（`AddCartItem`）写请求 API 经过 2 分钟的压测，平均 TPS 为 *59625*，峰值为 *82312*，平均响应时间为 *29* 毫秒。
 
-![AddCartItem-SENT](/images/perf/Example.Cart.Add@SENT.png)
+![AddCartItem-SENT](../../public/images/perf/Example.Cart.Add@SENT.png)
 
 > 命令等待策略（`WaitStrategy`）为`PROCESSED`模式，加入购物车命令（`AddCartItem`）写请求 API 经过 2 分钟的压测，平均 TPS 为 *18696*，峰值为 *24141*，平均响应时间为 *239* 毫秒。
 
-![AddCartItem-PROCESSED](/images/perf/Example.Cart.Add@PROCESSED.png)
+![AddCartItem-PROCESSED](../../public/images/perf/Example.Cart.Add@PROCESSED.png)
 
 ### 下单
 
@@ -81,13 +81,13 @@ Command-Request-Id: {{$uuid}}
 %}
 ```
 
-- [详细报告(PDF)-SENT](/images/perf/Example.Order.Create@SENT.pdf)
-- [详细报告(PDF)-PROCESSED](/images/perf/Example.Order.Create@PROCESSED.pdf)
+- [详细报告(PDF)-SENT](../../public/images/perf/Example.Order.Create@SENT.pdf)
+- [详细报告(PDF)-PROCESSED](../../public/images/perf/Example.Order.Create@PROCESSED.pdf)
 
 > 命令等待策略（`WaitStrategy`）为`SENT`模式，下单命令（`CreateOrder`）写请求 API 经过 2 分钟的压测，平均 TPS 为 *47838*，峰值为 *86200*，平均响应时间为 *217* 毫秒。
 
-![CreateOrder-SENT](/images/perf/Example.Order.Create@SENT.png)
+![CreateOrder-SENT](../../public/images/perf/Example.Order.Create@SENT.png)
 
 > 命令等待策略（`WaitStrategy`）为`PROCESSED`模式，下单命令（`CreateOrder`）写请求 API 经过 2 分钟的压测，平均 TPS 为 *18230*，峰值为 *25506*，平均响应时间为 *268* 毫秒。
 
-![CreateOrder-PROCESSED](/images/perf/Example.Order.Create@PROCESSED.png)
+![CreateOrder-PROCESSED](../../public/images/perf/Example.Order.Create@PROCESSED.png)

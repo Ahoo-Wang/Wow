@@ -79,7 +79,7 @@ _Wow_ 框架的目标是以简单易用的方式将领域驱动设计和事件�
 
 ### 工程质量
 
-![Test Coverage](/images/getting-started/test-coverage.png)
+![Test Coverage](../../public/images/getting-started/test-coverage.png)
 
 *单元测试*是确保代码质量且符合预期业务需求的重要手段，但在传统架构中，单元测试往往是一项相当困难的任务，因为你需要考虑数据库连接、事务管理、数据清理等问题。
 
@@ -106,7 +106,7 @@ _Wow_ 框架的目标是以简单易用的方式将领域驱动设计和事件�
 
 <center>
 
-![事件溯源 VS 传统架构](/images/eventstore/eventsourcing.svg)
+![事件溯源 VS 传统架构](../../public/images/eventstore/eventsourcing.svg)
 </center>
 
 在传统架构中，实现实时 _ETL_ 通常需要经过繁琐的流程，包括 `DB->CDC->Process->DB`，而在 _Wow_ 框架中，仅需一段简单的 _SQL_ 脚本即可完成这一过程。
@@ -153,17 +153,17 @@ _Wow_ 提供的实时同步机制将数据实时同步至数据仓库（_ClickHo
 为了解决该问题，*Wow* 集成了 *OpenTelemetry* 以实现系统的端到端可观测性，有助于监控和调试。
 
 <p align="center" style="text-align:center">
-  <img width="95%" src="/images/Features.png" alt="Wow-Features"/>
+  <img width="95%" src="../../public/images/Features.png" alt="Wow-Features"/>
 </p>
 
 ## 架构图
 
 <p align="center" style="text-align:center">
-  <img width="95%" src="/images/Architecture.svg" alt="Wow-Architecture"/>
+  <img width="95%" src="../../public/images/Architecture.svg" alt="Wow-Architecture"/>
 </p>
 
 ### 命令处理传播链
 
 <p align="center" style="text-align:center;">
-  <img  width="95%" src="/images/wait/WaitingForChain.svg" alt="Wow-WaitingForChain"/>
+  <img  width="95%" src="../../public/images/wait/WaitingForChain.svg" alt="Wow-WaitingForChain"/>
 </p>

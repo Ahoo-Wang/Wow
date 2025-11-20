@@ -21,15 +21,15 @@
   - 接收通知： 接收执行失败通知，快速定位到异常，修复 BUG。
   - 修复 BUG： 当发生无法自动修复的异常时，开发者可以通过控制台快速定位到异常，修复 BUG，并重新发起重试。
 
-![Event-Compensation-UserCase](/images/compensation/usercase.svg)
+![Event-Compensation-UserCase](../../public/images/compensation/usercase.svg)
 
 ## 状态图
 
-![Event-Compensation](/images/compensation/state-diagram.svg)
+![Event-Compensation](../../public/images/compensation/state-diagram.svg)
 
 ## 执行时序图
 
-![Event-Compensation](/images/compensation/process-sequence-diagram.svg)
+![Event-Compensation](../../public/images/compensation/process-sequence-diagram.svg)
 
 ## 订阅者服务
 
@@ -132,13 +132,13 @@ annotation class Retry(
 
 ### UI
 
-![Event-Compensation-Dashboard](/images/compensation/dashboard.png)
+![Event-Compensation-Dashboard](../../public/images/compensation/dashboard.png)
 
-![Event-Compensation-Dashboard](/images/compensation/dashboard-apply-retry-spec.png)
+![Event-Compensation-Dashboard](../../public/images/compensation/dashboard-apply-retry-spec.png)
 
-![Event-Compensation-Dashboard](/images/compensation/dashboard-succeeded.png)
+![Event-Compensation-Dashboard](../../public/images/compensation/dashboard-succeeded.png)
 
-![Event-Compensation-Dashboard](/images/compensation/dashboard-error.png)
+![Event-Compensation-Dashboard](../../public/images/compensation/dashboard-error.png)
 
 ### 通知（企业微信）
 
@@ -159,16 +159,16 @@ wow:
           - execution_success_applied
 ```
 
-| 失败                                                          | 成功                                                           |
-|-------------------------------------------------------------|--------------------------------------------------------------|
-| ![执行失败](/images/compensation/execution-failed.png) | ![执行成功](/images/compensation/execution-success.png) |
+| 失败                                                             | 成功                                                              |
+|----------------------------------------------------------------|-----------------------------------------------------------------|
+| ![执行失败](../../public/images/compensation/execution-failed.png) | ![执行成功](../../public/images/compensation/execution-success.png) |
 
 ### OpenAPI
 
 _事件补偿控制台_ 提供了开发者友好的 [RESTful OpenAPI](https://wow-compensation.apifox.cn/)，方便集成和调用事件补偿功能。
 通过这个接口，开发者可以在自己的系统中实现对补偿事件的管理和控制。增强了系统的扩展性和定制性，使开发者能够更灵活地应对各种应用场景。
 
-![Event-Compensation-OpenAPI](/images/compensation/open-api.png)
+![Event-Compensation-OpenAPI](../../public/images/compensation/open-api.png)
 
 ### 部署 (Kubernetes)
 

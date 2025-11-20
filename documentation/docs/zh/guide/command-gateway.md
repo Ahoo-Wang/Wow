@@ -5,7 +5,7 @@
 
 ## 发送命令
 
-![发送命令 - 命令网关](/images/command-gateway/send-command.svg)
+![发送命令 - 命令网关](../../public/images/command-gateway/send-command.svg)
 
 ## 幂等性
 
@@ -61,7 +61,7 @@ wow:
 ### WaitingForStage
 
 <p align="center" style="text-align:center;">
-  <img  width="95%" src="/images/wait/WaitingForStage.svg" alt="WaitingForStage"/>
+  <img  width="95%" src="../../public/images/wait/WaitingForStage.svg" alt="WaitingForStage"/>
 </p>
 
 `WaitingForStage` 支持的等待信号如下：
@@ -96,7 +96,7 @@ commamdGateway.sendAndWaitForProcessed(message)
 ### WaitingForChain
 
 <p align="center" style="text-align:center;">
-  <img  width="95%" src="/images/wait/WaitingForChain.svg" alt="WaitingForChain"/>
+  <img  width="95%" src="../../public/images/wait/WaitingForChain.svg" alt="WaitingForChain"/>
 </p>
 
 ## 验证

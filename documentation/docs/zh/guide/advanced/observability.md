@@ -1,6 +1,6 @@
 # 可观测性
 
-![可观测性](/images/observability/observability.png)
+![可观测性](../../../public/images/observability/observability.png)
 
 ## 安装
 
