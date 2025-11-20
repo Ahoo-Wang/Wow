@@ -68,7 +68,9 @@ abstract class MessageBusSpec<M : Message<*, *>, E : MessageExchange<*, M>, BUS 
             .then {
                 messageBus.subscriberCount(namedAggregate).assert().isEqualTo(1)
             }
-            .verifyTimeout(Duration.ofMillis(10))
+            .expectNextCount(0)
+            .thenCancel()
+            .verify()
     }
 
     @Test
