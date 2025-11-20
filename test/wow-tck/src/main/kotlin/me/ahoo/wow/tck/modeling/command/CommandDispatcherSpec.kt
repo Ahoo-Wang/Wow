@@ -73,11 +73,12 @@ import java.util.concurrent.ThreadLocalRandom
 abstract class CommandDispatcherSpec {
     protected val aggregateMetadata = aggregateMetadata<MockCommandAggregate, MockStateAggregate>()
     protected val serviceProvider: ServiceProvider = SimpleServiceProvider()
-    protected val idempotencyChecker: IdempotencyChecker = BloomFilterIdempotencyChecker(
-        Duration.ofSeconds(1),
-    ) {
-        BloomFilter.create(Funnels.stringFunnel(Charsets.UTF_8), 10000000)
-    }
+    protected val idempotencyChecker: IdempotencyChecker =
+        BloomFilterIdempotencyChecker(
+            Duration.ofSeconds(1),
+        ) {
+            BloomFilter.create(Funnels.stringFunnel(Charsets.UTF_8), 10000000)
+        }
     protected val stateAggregateFactory: StateAggregateFactory = ConstructorStateAggregateFactory
     protected val waitStrategyRegistrar = SimpleWaitStrategyRegistrar
     protected lateinit var aggregateProcessorFactory: AggregateProcessorFactory
@@ -99,7 +100,7 @@ abstract class CommandDispatcherSpec {
             validator = TestValidator,
             idempotencyCheckerProvider = DefaultAggregateIdempotencyCheckerProvider { idempotencyChecker },
             waitStrategyRegistrar = waitStrategyRegistrar,
-            commandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar)
+            commandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar),
         )
         eventStore = createEventStore().metrizable()
         snapshotRepository = createSnapshotRepository().metrizable()
@@ -111,37 +112,31 @@ abstract class CommandDispatcherSpec {
         domainEventBus = createEventBus().metrizable()
     }
 
-    protected open fun createCommandBus(): CommandBus {
-        return InMemoryCommandBus()
-    }
+    protected open fun createCommandBus(): CommandBus = InMemoryCommandBus()
 
-    protected open fun createEventBus(): DomainEventBus {
-        return InMemoryDomainEventBus()
-    }
+    protected open fun createEventBus(): DomainEventBus = InMemoryDomainEventBus()
 
-    protected open fun createEventStore(): EventStore {
-        return InMemoryEventStore()
-    }
+    protected open fun createEventStore(): EventStore = InMemoryEventStore()
 
-    protected open fun createSnapshotRepository(): SnapshotRepository {
-        return InMemorySnapshotRepository()
-    }
+    protected open fun createSnapshotRepository(): SnapshotRepository = InMemorySnapshotRepository()
 
     protected fun createStateAggregateRepository(
         stateAggregateFactory: StateAggregateFactory,
         snapshotRepository: SnapshotRepository,
         eventStore: EventStore
-    ): StateAggregateRepository {
-        return EventSourcingStateAggregateRepository(stateAggregateFactory, snapshotRepository, eventStore)
-    }
+    ): StateAggregateRepository = EventSourcingStateAggregateRepository(
+        stateAggregateFactory,
+        snapshotRepository,
+        eventStore,
+    )
 
-    protected fun createCommandAggregateFactory(
-        eventStore: EventStore
-    ): CommandAggregateFactory {
-        return SimpleCommandAggregateFactory(eventStore)
-    }
+    protected fun createCommandAggregateFactory(eventStore: EventStore): CommandAggregateFactory =
+        SimpleCommandAggregateFactory(
+            eventStore,
+        )
 
     protected open fun onCommandSeek(): Mono<Void> = Mono.empty()
+
     val concurrency: Int = 10
     val aggregateCount: Int = 200
 
@@ -177,6 +172,7 @@ abstract class CommandDispatcherSpec {
         )
         commandGateway
             .sendAndWaitForProcessed(mockCreateAggregate.toCommandMessage())
+            .checkpoint("Warm up command processing", true)
             .then()
             .test()
             .verifyComplete()
@@ -194,20 +190,26 @@ abstract class CommandDispatcherSpec {
                 )
             }
         }
-        creates.distinctBy { it.id }.size.assert().isEqualTo(aggregateCount)
+        creates
+            .distinctBy { it.id }
+            .size
+            .assert()
+            .isEqualTo(aggregateCount)
         println("------------- CreateAggregate -------------")
-        val createdDuration = creates.toFlux()
+        val createdDuration = creates
+            .toFlux()
             .subscribeOn(Schedulers.single())
-            .name("test.create-aggregate")
             .metrics()
             .flatMap({
                 // 生成聚合
                 commandGateway
                     .sendAndWaitForProcessed(it!!.toCommandMessage())
-            }, Int.MAX_VALUE).doOnNext {
+            }, Int.MAX_VALUE)
+            .checkpoint("Create aggregate command processing", true)
+            .doOnNext {
                 it.succeeded.assert().isTrue()
-            }
-            .timeout(Duration.ofMinutes(1))
+            }.timeout(Duration.ofMinutes(1))
+            .checkpoint("Create aggregate timeout", true)
             .then()
             .test()
             .verifyComplete()
@@ -233,10 +235,11 @@ abstract class CommandDispatcherSpec {
             .flatMap({
                 commandGateway.sendAndWaitForProcessed(it.toCommandMessage())
             }, Int.MAX_VALUE)
+            .checkpoint("Change aggregate command processing", true)
             .doOnNext {
                 it.succeeded.assert().isTrue()
-            }
-            .timeout(Duration.ofSeconds(30))
+            }.timeout(Duration.ofSeconds(30))
+            .checkpoint("Change aggregate timeout", true)
             .then()
             .test()
             .verifyComplete()
