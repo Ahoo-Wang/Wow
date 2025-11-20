@@ -1,6 +1,6 @@
 # Observability
 
-![Observability](/images/observability/observability.png)
+![Observability](../../../public/images/observability/observability.png)
 
 ## Installation
 

@@ -36,16 +36,16 @@ Command-Request-Id: {{$uuid}}
 
 ```
 
-- [Detailed Report (PDF)-SENT](/images/perf/Example.Cart.Add@SENT.pdf)
-- [Detailed Report (PDF)-PROCESSED](/images/perf/Example.Cart.Add@PROCESSED.pdf)
+- [Detailed Report (PDF)-SENT](../../public/images/perf/Example.Cart.Add@SENT.pdf)
+- [Detailed Report (PDF)-PROCESSED](../../public/images/perf/Example.Cart.Add@PROCESSED.pdf)
 
 > With command wait strategy (`WaitStrategy`) set to `SENT` mode, the add to cart command (`AddCartItem`) write request API underwent 2 minutes of stress testing, with average TPS of *59625*, peak of *82312*, and average response time of *29* milliseconds.
 
-![AddCartItem-SENT](/images/perf/Example.Cart.Add@SENT.png)
+![AddCartItem-SENT](../../public/images/perf/Example.Cart.Add@SENT.png)
 
 > With command wait strategy (`WaitStrategy`) set to `PROCESSED` mode, the add to cart command (`AddCartItem`) write request API underwent 2 minutes of stress testing, with average TPS of *18696*, peak of *24141*, and average response time of *239* milliseconds.
 
-![AddCartItem-PROCESSED](/images/perf/Example.Cart.Add@PROCESSED.png)
+![AddCartItem-PROCESSED](../../public/images/perf/Example.Cart.Add@PROCESSED.png)
 
 ### Place Order
 
@@ -81,13 +81,13 @@ Command-Request-Id: {{$uuid}}
 %}
 ```
 
-- [Detailed Report (PDF)-SENT](/images/perf/Example.Order.Create@SENT.pdf)
-- [Detailed Report (PDF)-PROCESSED](/images/perf/Example.Order.Create@PROCESSED.pdf)
+- [Detailed Report (PDF)-SENT](../../public/images/perf/Example.Order.Create@SENT.pdf)
+- [Detailed Report (PDF)-PROCESSED](../../public/images/perf/Example.Order.Create@PROCESSED.pdf)
 
 > With command wait strategy (`WaitStrategy`) set to `SENT` mode, the place order command (`CreateOrder`) write request API underwent 2 minutes of stress testing, with average TPS of *47838*, peak of *86200*, and average response time of *217* milliseconds.
 
-![CreateOrder-SENT](/images/perf/Example.Order.Create@SENT.png)
+![CreateOrder-SENT](../../public/images/perf/Example.Order.Create@SENT.png)
 
 > With command wait strategy (`WaitStrategy`) set to `PROCESSED` mode, the place order command (`CreateOrder`) write request API underwent 2 minutes of stress testing, with average TPS of *18230*, peak of *25506*, and average response time of *268* milliseconds.
 
-![CreateOrder-PROCESSED](/images/perf/Example.Order.Create@PROCESSED.png)
+![CreateOrder-PROCESSED](../../public/images/perf/Example.Order.Create@PROCESSED.png)

@@ -5,7 +5,7 @@ It is an extension of the command bus, not only responsible for command transmis
 
 ## Send Command
 
-![Send Command - Command Gateway](/images/command-gateway/send-command.svg)
+![Send Command - Command Gateway](../../public/images/command-gateway/send-command.svg)
 
 ## Idempotency
 
@@ -61,7 +61,7 @@ Currently supported command waiting strategies include:
 ### WaitingForStage
 
 <p align="center" style="text-align:center;">
-  <img  width="95%" src="/images/wait/WaitingForStage.svg" alt="WaitingForStage"/>
+  <img  width="95%" src="../../public/images/wait/WaitingForStage.svg" alt="WaitingForStage"/>
 </p>
 
 The waiting signals supported by `WaitingForStage` are as follows:
@@ -96,7 +96,7 @@ commamdGateway.sendAndWaitForProcessed(message)
 ### WaitingForChain
 
 <p align="center" style="text-align:center;">
-  <img  width="95%" src="/images/wait/WaitingForChain.svg" alt="WaitingForChain"/>
+  <img  width="95%" src="../../public/images/wait/WaitingForChain.svg" alt="WaitingForChain"/>
 </p>
 
 ## Validation

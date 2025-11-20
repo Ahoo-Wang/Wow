@@ -19,7 +19,7 @@
 
 > [Create project from template](https://www.jetbrains.com/help/idea/saving-project-as-template.html#create-project-from-template)
 
-![Create Project](/images/getting-started/new-project.png)
+![Create Project](../../public/images/getting-started/new-project.png)
 
 - Modify the `settings.gradle.kts` file, change `rootProject.name` to the project name
 - Modify `api/{package}/DemoService`
@@ -155,11 +155,11 @@ wow:
 
 ## Start Service
 
-![Start Service](/images/getting-started/run-server.png)
+![Start Service](../../public/images/getting-started/run-server.png)
 
 > Access: [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
 
-![Swagger-UI](/images/getting-started/swagger-ui.png)
+![Swagger-UI](../../public/images/getting-started/swagger-ui.png)
 
 ## Domain Modeling
 
@@ -254,11 +254,11 @@ class DemoSpec : AggregateSpec<Demo, DemoState>({
 
 ## CI/CD Pipeline
 
-![Wow-CI-Flow](/images/getting-started/ci-flow.png)
+![Wow-CI-Flow](../../public/images/getting-started/ci-flow.png)
 
 ### Test Stage
 
-![test-coverage](/images/getting-started/test-coverage.png)
+![test-coverage](../../public/images/getting-started/test-coverage.png)
 
 ::: code-group
 ```shell [Code Style Check]

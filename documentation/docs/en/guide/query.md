@@ -286,7 +286,7 @@ class DataFilterSnapshotQueryFilter : SnapshotQueryFilter {
 **Wow** not only automatically generates _OpenAPI_ endpoints for commands (`Command`), but also provides query (`Query`) _OpenAPI_ endpoints.
 This means developers usually only need to focus on writing domain models to complete service development, without worrying about implementing query logic, greatly improving development efficiency.
 
-![Query Service](/images/query/open-api-query.png)
+![Query Service](../../public/images/query/open-api-query.png)
 
 ### Paged Query
 

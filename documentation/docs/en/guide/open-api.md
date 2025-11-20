@@ -24,7 +24,7 @@ implementation 'me.ahoo.wow:wow-openapi'
 
 > Swagger-UI is an API documentation tool based on the OpenAPI specification, which can be used to view and test API interfaces through Swagger-UI.
 
-![Swagger-UI](/images/compensation/open-api.png)
+![Swagger-UI](../../public/images/compensation/open-api.png)
 
 ## RESTful URL PATH Spec
 

@@ -4,7 +4,7 @@
 
 <center>
 
-![Event Sourcing VS Traditional Architecture](/images/eventstore/eventsourcing.svg)
+![Event Sourcing VS Traditional Architecture](../../public/images/eventstore/eventsourcing.svg)
 </center>
 
 Distinct from traditional architecture, _Wow_ provides real-time aggregate root state events (`StateEvent`) and aggregate commands (`Command`) as data sources for data analysis, while greatly reducing the difficulty of real-time _ETL_ (`Extract`, `Transform`, `Load`).
@@ -23,7 +23,7 @@ The real-time synchronization mechanism provided by _Wow_ synchronizes data to t
 
 > ETL Synchronization Process
 
-![Business Intelligence](/images/bi/bi.svg)
+![Business Intelligence](../../public/images/bi/bi.svg)
 
 ## Generating ETL Scripts
 

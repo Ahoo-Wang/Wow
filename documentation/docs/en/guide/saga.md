@@ -12,7 +12,7 @@ The Saga pattern is a method for distributed transaction coordination that updat
 
 <center>
 
-![Choreography](/images/saga/choreography.png)
+![Choreography](../../public/images/saga/choreography.png)
 </center>
 
 > Image referenced from [A Saga on Sagas](https://learn.microsoft.com/en-us/previous-versions/msp-n-p/jj591569(v=pandp.10)).
@@ -34,7 +34,7 @@ In this approach, each local transaction publishes domain events, triggering loc
 
 <center>
 
-![Orchestration](/images/saga/orchestration.png)
+![Orchestration](../../public/images/saga/orchestration.png)
 </center>
 
 > Image referenced from [A Saga on Sagas](https://learn.microsoft.com/en-us/previous-versions/msp-n-p/jj591569(v=pandp.10)).

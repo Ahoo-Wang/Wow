@@ -21,15 +21,15 @@ The event compensation module provides a visual event compensation console and a
   - Receive notifications: Receive execution failure notifications to quickly locate exceptions and fix bugs.
   - Fix bugs: When unfixable exceptions occur, developers can quickly locate exceptions through the console, fix bugs, and re-initiate retries.
 
-![Event-Compensation-UserCase](/images/compensation/usercase.svg)
+![Event-Compensation-UserCase](../../public/images/compensation/usercase.svg)
 
 ## State Diagram
 
-![Event-Compensation](/images/compensation/state-diagram.svg)
+![Event-Compensation](../../public/images/compensation/state-diagram.svg)
 
 ## Execution Sequence Diagram
 
-![Event-Compensation](/images/compensation/process-sequence-diagram.svg)
+![Event-Compensation](../../public/images/compensation/process-sequence-diagram.svg)
 
 ## Subscriber Service
 
@@ -132,13 +132,13 @@ The [event compensation console](https://github.com/Ahoo-Wang/Wow/tree/main/comp
 
 ### UI
 
-![Event-Compensation-Dashboard](/images/compensation/dashboard.png)
+![Event-Compensation-Dashboard](../../public/images/compensation/dashboard.png)
 
-![Event-Compensation-Dashboard](/images/compensation/dashboard-apply-retry-spec.png)
+![Event-Compensation-Dashboard](../../public/images/compensation/dashboard-apply-retry-spec.png)
 
-![Event-Compensation-Dashboard](/images/compensation/dashboard-succeeded.png)
+![Event-Compensation-Dashboard](../../public/images/compensation/dashboard-succeeded.png)
 
-![Event-Compensation-Dashboard](/images/compensation/dashboard-error.png)
+![Event-Compensation-Dashboard](../../public/images/compensation/dashboard-error.png)
 
 ### Notifications (WeChat Work)
 
@@ -159,16 +159,16 @@ wow:
           - execution_success_applied
 ```
 
-| Failed                                                          | Success                                                           |
-|-------------------------------------------------------------|--------------------------------------------------------------|
-| ![Execution Failed](/images/compensation/execution-failed.png) | ![Execution Success](/images/compensation/execution-success.png) |
+| Failed                                                                     | Success                                                                      |
+|----------------------------------------------------------------------------|------------------------------------------------------------------------------|
+| ![Execution Failed](../../public/images/compensation/execution-failed.png) | ![Execution Success](../../public/images/compensation/execution-success.png) |
 
 ### OpenAPI
 
 The _event compensation console_ provides developer-friendly [RESTful OpenAPI](https://wow-compensation.apifox.cn/) for easy integration and invocation of event compensation functions.
 Through this interface, developers can implement management and control of compensation events in their own systems. This enhances the system's scalability and customizability, allowing developers to respond more flexibly to various application scenarios.
 
-![Event-Compensation-OpenAPI](/images/compensation/open-api.png)
+![Event-Compensation-OpenAPI](../../public/images/compensation/open-api.png)
 
 ### Deployment (Kubernetes)
 

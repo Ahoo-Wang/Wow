@@ -33,7 +33,7 @@ Supports the following attribute tags:
 - `wow.message.id`: Message ID
 - `wow.message.request_id`: Command message request ID.
 
-![Observability](/images/observability/observability.png)
+![Observability](../../../public/images/observability/observability.png)
 
 ## Installation
 

@@ -1,7 +1,7 @@
 # Introduction
 
 <center>
-  <img width="150" src="/images/logo.svg" alt="Wow: Modern Reactive CQRS Architecture Microservice Development Framework Based on DDD and EventSourcing"/>
+  <img width="150" src="../../public/images/logo.svg" alt="Wow: Modern Reactive CQRS Architecture Microservice Development Framework Based on DDD and EventSourcing"/>
 </center>
 
 :::info Keywords
@@ -58,7 +58,7 @@ At this time, you have to modify your business code to adapt to the horizontally
 
 However, if you choose to use the _Wow_ framework, you no longer need to pay too much attention to database relationship patterns, sharding rules, etc. Your business code does not need to change, and the system can easily achieve horizontal scaling.
 
-You can learn more about [Wow framework performance](/en/guide/perf-test) here.
+You can learn more about [Wow framework performance](./perf-test) here.
 
 ### Read-Write Separation and Sync Delay
 
@@ -75,11 +75,11 @@ However, sometimes 1 second cannot complete sync, which leads to **invalid** dat
 
 Using the _Wow_ framework, you can wait for the _PROJECTED_ signal to complete, then return the result to the user, handling data sync delay problems in a more elegant and efficient way.
 
-Learn more about [command waiting strategies](/en/guide/command-gateway#waiting-strategies).
+Learn more about [command waiting strategies](./command-gateway#waiting-strategies).
 
 ### Engineering Quality
 
-![Test Coverage](/images/getting-started/test-coverage.png)
+![Test Coverage](../../public/images/getting-started/test-coverage.png)
 
 *Unit testing* is an important means to ensure code quality and meet expected business requirements, but in traditional architecture, unit testing is often a quite difficult task because you need to consider database connections, transaction management, data cleanup, etc.
 
@@ -94,7 +94,7 @@ Therefore, each code commit becomes relaxed and comfortable, because you are sur
 
 In projects of the same R&D level, our testing team found in system _API_ testing that Wow framework-based projects have only **1/3** the number of _BUGs_ compared to traditional architecture projects.
 
-You can learn more about [Wow unit test suite](/en/guide/test-suite) here.
+You can learn more about [Wow unit test suite](./test-suite) here.
 
 ## What does the _Wow_ framework mean for enterprises?
 
@@ -106,19 +106,19 @@ Significantly different from traditional architecture, _Wow_ provides real-time 
 
 <center>
 
-![Event Sourcing VS Traditional Architecture](/images/eventstore/eventsourcing.svg)
+![Event Sourcing VS Traditional Architecture](../../public/images/eventstore/eventsourcing.svg)
 </center>
 
 In traditional architecture, implementing real-time _ETL_ usually requires cumbersome processes, including `DB->CDC->Process->DB`, while in the _Wow_ framework, it can be completed with a simple _SQL_ script.
 
-![Business Intelligence](/images/bi/bi.svg)
+![Business Intelligence](../../public/images/bi/bi.svg)
 
 In addition, in traditional architecture, using _CDC_ (`MySql Binlog`) data only records data changes, lacking clear business semantics. When conducting business analysis, it is necessary to infer business semantics based on data state changes, which often requires a lot of data processing.
 In contrast, the _Wow_ framework directly provides aggregate root state events and aggregate commands as data sources for analysis, greatly reducing the difficulty of data processing.
 
 The real-time sync mechanism provided by _Wow_ syncs data in real-time to the data warehouse (_ClickHouse_), providing great convenience for real-time data analysis. This method provides strong support for Business Intelligence, building a real-time data analysis system, enabling decision-making based on timely and accurate information.
 
-You can learn more about [Wow Business Intelligence](/en/guide/bi) here.
+You can learn more about [Wow Business Intelligence](./bi) here.
 
 ### Operation Audit
 
@@ -131,7 +131,7 @@ Compared to traditional audit methods, the data sources for operation audit in t
 
 In addition, the real-time data sync mechanism provided by the Wow framework also brings convenience to operation audit, ensuring the timeliness and consistency of audit data.
 
-Learn more about [Wow Operation Audit](/en/guide/bi#aggregate-commands).
+Learn more about [Wow Operation Audit](./bi#aggregate-commands).
 
 ## What features does _Wow_ provide?
 
@@ -153,17 +153,17 @@ This is mainly because _CQRS_ introduces a design that separates write operation
 To solve this problem, *Wow* integrates *OpenTelemetry* to achieve end-to-end observability of the system, helping with monitoring and debugging.
 
 <p align="center" style="text-align:center">
-  <img width="95%" src="/images/Features.png" alt="Wow-Features"/>
+  <img width="95%" src="../../public/images/Features.png" alt="Wow-Features"/>
 </p>
 
 ## Architecture Diagram
 
 <p align="center" style="text-align:center">
-  <img width="95%" src="/images/Architecture.svg" alt="Wow-Architecture"/>
+  <img width="95%" src="../../public/images/Architecture.svg" alt="Wow-Architecture"/>
 </p>
 
 ### Command Processing Propagation Chain
 
 <p align="center" style="text-align:center;">
-  <img  width="95%" src="/images/wait/WaitingForChain.svg" alt="Wow-WaitingForChain"/>
+  <img  width="95%" src="../../public/images/wait/WaitingForChain.svg" alt="Wow-WaitingForChain"/>
 </p>

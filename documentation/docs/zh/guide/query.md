@@ -286,7 +286,7 @@ class DataFilterSnapshotQueryFilter : SnapshotQueryFilter {
 **Wow** 除了为命令(`Command`)自动生成了 _OpenAPI_ 端点，另外还提供了查询(`Query`) _OpenAPI_ 端点。
 这意味着开发人员通常只需专注于编写领域模型，即可完成服务开发，而无需费心处理查询逻辑的实现，极大提升了开发效率。
 
-![Query Service](/images/query/open-api-query.png)
+![Query Service](../../public/images/query/open-api-query.png)
 
 ### 分页查询
 

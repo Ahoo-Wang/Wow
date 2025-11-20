@@ -229,11 +229,11 @@ class OrderSummaryProjection {
 
 > View test coverage report: `domain/build/reports/jacoco/test/html/index.html`
 
-![test-coverage](/images/getting-started/test-coverage.png)
+![test-coverage](../../public/images/getting-started/test-coverage.png)
 
 ## CI/CD Pipeline
 
-![Wow-CI-Flow](/images/getting-started/ci-flow.png)
+![Wow-CI-Flow](../../public/images/getting-started/ci-flow.png)
 
 ### Test Stage
 
@@ -372,5 +372,5 @@ stages:
 
 <center>
 
-![UseCase](/images/getting-started/usecase.svg)
+![UseCase](../../public/images/getting-started/usecase.svg)
 </center>
