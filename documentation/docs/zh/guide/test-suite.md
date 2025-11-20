@@ -17,7 +17,7 @@
 - When：当前执行的命令，用于触发聚合根状态变更。
 - Expect：期望的结果，用于验证聚合根状态变更是否符合预期。
 
-![Test Coverage](/images/getting-started/test-coverage.png)
+![Test Coverage](../../public/images/getting-started/test-coverage.png)
 
 ## 安装
 
@@ -105,7 +105,7 @@ class CartSpec : AggregateSpec<Cart, CartState>(
 )
 ```
 
-![CartSpec-Results](/images/test-suite/CartSpec-Results.png)
+![CartSpec-Results](../../public/images/test-suite/CartSpec-Results.png)
 
 ## 测试 Saga
 
@@ -165,7 +165,7 @@ class CartSagaSpec : SagaSpec<CartSaga>({
 })
 ```
 
-![CartSagaSpec-Results](/images/test-suite/CartSagaSpec-Results.png)
+![CartSagaSpec-Results](../../public/images/test-suite/CartSagaSpec-Results.png)
 
 
 ## 高级场景

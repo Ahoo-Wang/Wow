@@ -17,7 +17,7 @@ In projects of the same R&D level, our testing team found in system _API_ testin
 - When: Current command executed, used to trigger aggregate root state changes.
 - Expect: Expected results, used to verify whether aggregate root state changes meet expectations.
 
-![Test Coverage](/images/getting-started/test-coverage.png)
+![Test Coverage](../../public/images/getting-started/test-coverage.png)
 
 ## Installation
 
@@ -105,7 +105,7 @@ class CartSpec : AggregateSpec<Cart, CartState>(
 )
 ```
 
-![CartSpec-Results](/images/test-suite/CartSpec-Results.png)
+![CartSpec-Results](../../public/images/test-suite/CartSpec-Results.png)
 
 ## Testing Saga
 
@@ -165,7 +165,7 @@ class CartSagaSpec : SagaSpec<CartSaga>({
 })
 ```
 
-![CartSagaSpec-Results](/images/test-suite/CartSagaSpec-Results.png)
+![CartSagaSpec-Results](../../public/images/test-suite/CartSagaSpec-Results.png)
 
 
 ## Advanced Scenarios
