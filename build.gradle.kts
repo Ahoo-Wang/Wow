@@ -134,6 +134,7 @@ configure(libraryProjects) {
     }
 }
 
+
 configure(publishProjects) {
     val isBom = bomProjects.contains(this)
     apply<MavenPublishPlugin>()

@@ -34,13 +34,13 @@ export function Actions({ state, onChanged }: ActionsProps) {
   const { notification } = App.useApp();
   const preparePromiseState = useExecutePromise<CommandResult, ExchangeError>({
     onSuccess: () => {
-      notification.info({ message: "Prepare Success" });
+      notification.info({ title: "Prepare Success" });
       onChanged?.();
     },
     onError: async (error) => {
       const commandResult = await error.exchange.extractResult<CommandResult>();
       notification.error({
-        message: "Prepare Failed",
+        title: "Prepare Failed",
         description: commandResult.errorMsg,
       });
     },
@@ -50,13 +50,13 @@ export function Actions({ state, onChanged }: ActionsProps) {
     ExchangeError
   >({
     onSuccess: () => {
-      notification.info({ message: "Force Prepare Success" });
+      notification.info({ title: "Force Prepare Success" });
       onChanged?.();
     },
     onError: async (error) => {
       const commandResult = await error.exchange.extractResult<CommandResult>();
       notification.error({
-        message: "Force Prepare Failed",
+        title: "Force Prepare Failed",
         description: commandResult.errorMsg,
       });
     },
