@@ -64,7 +64,7 @@ export default function FailedView({ category }: FailedViewProps) {
       autoExecute: true,
       onError: (error) => {
         notification.error({
-          message: "Search Error",
+          title: "Search Error",
           description: error.message,
         });
       },

@@ -39,14 +39,14 @@ export function ChangeFunction({
   const { closeDrawer } = useGlobalDrawer();
   const promiseState = useExecutePromise<CommandResult, ExchangeError>({
     onSuccess: () => {
-      notification.success({ message: "Change Function Success" });
+      notification.success({ title: "Change Function Success" });
       onChanged?.();
       closeDrawer();
     },
     onError: async (error) => {
       const commandResult = await error.exchange.extractResult<CommandResult>();
       notification.error({
-        message: "Change Function Failed",
+        title: "Change Function Failed",
         description: commandResult.errorMsg,
       });
     },
