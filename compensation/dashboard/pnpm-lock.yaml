@@ -31,13 +31,13 @@ importers:
         version: 3.2.3(@ahoo-wang/fetcher-eventbus@3.2.3(@ahoo-wang/fetcher@3.2.3))
       '@ahoo-wang/fetcher-viewer':
         specifier: ^3.2.3
-        version: 3.2.3(a0b6867af1a53685a99f31523d39c8ac)
+        version: 3.2.3(8b589df1d0aa1973b061e57a6adc16f2)
       '@ahoo-wang/fetcher-wow':
         specifier: ^3.2.3
         version: 3.2.3(@ahoo-wang/fetcher-decorator@3.2.3(@ahoo-wang/fetcher@3.2.3))(@ahoo-wang/fetcher-eventstream@3.2.3(@ahoo-wang/fetcher@3.2.3))(@ahoo-wang/fetcher@3.2.3)
       '@ant-design/icons':
-        specifier: ^5.6.1
-        version: 5.6.1(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+        specifier: ^6.0.0
+        version: 6.1.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@monaco-editor/react':
         specifier: 4.7.0
         version: 4.7.0(monaco-editor@0.52.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
@@ -213,9 +213,6 @@ packages:
   '@ahoo-wang/fetcher@3.2.3':
     resolution: {integrity: sha512-IoP6PzX2ILP/4+I2uI7cLM749I1sj2NnZycDRuvT6ypUgsGGC8hNIQxZuxz0HyUwJZCqS3aMjYu2vR/x1ZpQMw==}
 
-  '@ant-design/colors@7.2.1':
-    resolution: {integrity: sha512-lCHDcEzieu4GA3n8ELeZ5VQ8pKQAWcGGLRTQ50aQM2iqPpq2evTxER84jfdPvsPAtEcZ7m44NI45edFMo8oOYQ==}
-
   '@ant-design/colors@8.0.0':
     resolution: {integrity: sha512-6YzkKCw30EI/E9kHOIXsQDHmMvTllT8STzjMb4K2qzit33RW2pqCJP0sk+hidBntXxE+Vz4n1+RvCTfBw6OErw==}
 
@@ -231,23 +228,12 @@ packages:
       react: '>=16.0.0'
       react-dom: '>=16.0.0'
 
-  '@ant-design/fast-color@2.0.6':
-    resolution: {integrity: sha512-y2217gk4NqL35giHl72o6Zzqji9O7vHh9YmhUVkPtAOpoTCH4uWxo/pr4VE8t0+ChEPs0qo4eJRC5Q1eXWo3vA==}
-    engines: {node: '>=8.x'}
-
   '@ant-design/fast-color@3.0.0':
     resolution: {integrity: sha512-eqvpP7xEDm2S7dUzl5srEQCBTXZMmY3ekf97zI+M2DHOYyKdJGH0qua0JACHTqbkRnD/KHFQP9J1uMJ/XWVzzA==}
     engines: {node: '>=8.x'}
 
   '@ant-design/icons-svg@4.4.2':
     resolution: {integrity: sha512-vHbT+zJEVzllwP+CM+ul7reTEfBR0vgxFe7+lREAsAA7YGsYpboiq2sQNeQeRvh09GfQgs/GyFEvZpJ9cLXpXA==}
-
-  '@ant-design/icons@5.6.1':
-    resolution: {integrity: sha512-0/xS39c91WjPAZOWsvi1//zjx6kAp4kxWwctR6kuU6p133w8RU0D2dSCvZC19uQyharg/sAvYxGYWl01BbZZfg==}
-    engines: {node: '>=8'}
-    peerDependencies:
-      react: '>=16.0.0'
-      react-dom: '>=16.0.0'
 
   '@ant-design/icons@6.1.0':
     resolution: {integrity: sha512-KrWMu1fIg3w/1F2zfn+JlfNDU8dDqILfA5Tg85iqs1lf8ooyGlbkA+TkwfOKKgqpUmAiRY1PTFpuOU2DAIgSUg==}
@@ -2485,14 +2471,14 @@ snapshots:
     dependencies:
       '@ahoo-wang/fetcher-eventbus': 3.2.3(@ahoo-wang/fetcher@3.2.3)
 
-  '@ahoo-wang/fetcher-viewer@3.2.3(a0b6867af1a53685a99f31523d39c8ac)':
+  '@ahoo-wang/fetcher-viewer@3.2.3(8b589df1d0aa1973b061e57a6adc16f2)':
     dependencies:
       '@ahoo-wang/fetcher': 3.2.3
       '@ahoo-wang/fetcher-openapi': 2.3.0
       '@ahoo-wang/fetcher-react': 3.2.3(@ahoo-wang/fetcher-eventbus@3.2.3(@ahoo-wang/fetcher@3.2.3))(@ahoo-wang/fetcher-eventstream@3.2.3(@ahoo-wang/fetcher@3.2.3))(@ahoo-wang/fetcher-storage@3.2.3(@ahoo-wang/fetcher-eventbus@3.2.3(@ahoo-wang/fetcher@3.2.3)))(@ahoo-wang/fetcher-wow@3.2.3(@ahoo-wang/fetcher-decorator@3.2.3(@ahoo-wang/fetcher@3.2.3))(@ahoo-wang/fetcher-eventstream@3.2.3(@ahoo-wang/fetcher@3.2.3))(@ahoo-wang/fetcher@3.2.3))(@ahoo-wang/fetcher@3.2.3)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@ahoo-wang/fetcher-storage': 3.2.3(@ahoo-wang/fetcher-eventbus@3.2.3(@ahoo-wang/fetcher@3.2.3))
       '@ahoo-wang/fetcher-wow': 3.2.3(@ahoo-wang/fetcher-decorator@3.2.3(@ahoo-wang/fetcher@3.2.3))(@ahoo-wang/fetcher-eventstream@3.2.3(@ahoo-wang/fetcher@3.2.3))(@ahoo-wang/fetcher@3.2.3)
-      '@ant-design/icons': 5.6.1(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      '@ant-design/icons': 6.1.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       antd: 6.0.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       dayjs: 1.11.19
       react: 19.2.0
@@ -2505,10 +2491,6 @@ snapshots:
       '@ahoo-wang/fetcher-eventstream': 3.2.3(@ahoo-wang/fetcher@3.2.3)
 
   '@ahoo-wang/fetcher@3.2.3': {}
-
-  '@ant-design/colors@7.2.1':
-    dependencies:
-      '@ant-design/fast-color': 2.0.6
 
   '@ant-design/colors@8.0.0':
     dependencies:
@@ -2534,23 +2516,9 @@ snapshots:
       react-dom: 19.2.0(react@19.2.0)
       stylis: 4.3.6
 
-  '@ant-design/fast-color@2.0.6':
-    dependencies:
-      '@babel/runtime': 7.28.4
-
   '@ant-design/fast-color@3.0.0': {}
 
   '@ant-design/icons-svg@4.4.2': {}
-
-  '@ant-design/icons@5.6.1(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
-    dependencies:
-      '@ant-design/colors': 7.2.1
-      '@ant-design/icons-svg': 4.4.2
-      '@babel/runtime': 7.28.4
-      classnames: 2.5.1
-      rc-util: 5.44.4(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      react: 19.2.0
-      react-dom: 19.2.0(react@19.2.0)
 
   '@ant-design/icons@6.1.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
     dependencies:
