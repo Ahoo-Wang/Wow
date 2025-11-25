@@ -1,7 +1,7 @@
 [versions]
 # libraries
 spring-boot = "3.5.8"
-cosid = "2.13.3"
+cosid = "2.15.1"
 simba = "2.9.6"
 coapi = "1.12.8"
 cocache = "3.10.5"
