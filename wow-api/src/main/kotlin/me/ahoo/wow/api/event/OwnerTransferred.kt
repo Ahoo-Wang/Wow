@@ -13,6 +13,15 @@
 
 package me.ahoo.wow.api.event
 
+/**
+ * Represents a domain event indicating that ownership of an aggregate has been transferred to a new owner.
+ *
+ * This interface is typically implemented by domain events that signal a change in ownership,
+ * such as transferring responsibility or control of an entity to another party.
+ *
+ * @property targetOwnerId The unique identifier of the new owner to whom ownership is being transferred.
+ *                         This should be a non-empty string representing the owner's ID.
+ */
 interface OwnerTransferred {
     val targetOwnerId: String
 }
