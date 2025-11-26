@@ -16,7 +16,7 @@ package me.ahoo.wow.compensation.api
 import me.ahoo.wow.api.Identifier
 import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.annotation.Retry
-import me.ahoo.wow.api.event.DomainEvent
+import me.ahoo.wow.api.event.EventMessage
 import me.ahoo.wow.api.exception.BindingError
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.exception.RecoverableType
@@ -38,7 +38,7 @@ data class EventId(override val id: String, override val aggregateId: AggregateI
     Version,
     AggregateIdCapable {
     companion object {
-        fun DomainEvent<*>.toEventId(): EventId {
+        fun EventMessage<*, *>.toEventId(): EventId {
             return EventId(id = id, aggregateId = aggregateId, version = version)
         }
     }

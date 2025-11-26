@@ -2,7 +2,9 @@ package me.ahoo.wow.compensation.core
 
 import io.mockk.every
 import io.mockk.mockk
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.Retry
+import me.ahoo.wow.api.messaging.function.FunctionInfoData
 import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.command.InMemoryCommandBus
 import me.ahoo.wow.event.DomainEventExchange
@@ -21,12 +23,12 @@ import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
 import java.time.Duration
 
-class CompensationFilterTest {
+class DomainEventCompensationFilterTest {
 
     @Test
     fun filterSuccessAndExecutionIdIsNull() {
         val commandBus = InMemoryCommandBus()
-        val compensationFilter = CompensationFilter(commandBus)
+        val compensationFilter = DomainEventCompensationFilter(commandBus)
         val exchange = mockk<DomainEventExchange<*>> {
             every { message.header } returns DefaultHeader.empty()
         }
@@ -42,7 +44,7 @@ class CompensationFilterTest {
     @Test
     fun filterSuccessAndExecutionIdNotNull() {
         val commandBus = InMemoryCommandBus()
-        val compensationFilter = CompensationFilter(commandBus)
+        val compensationFilter = DomainEventCompensationFilter(commandBus)
         val exchange = mockk<DomainEventExchange<*>> {
             every { message.header } returns DefaultHeader.empty()
                 .with(COMPENSATION_ID, GlobalIdGenerator.generateAsString())
@@ -59,10 +61,10 @@ class CompensationFilterTest {
     @Test
     fun filterErrorAndEventFunctionIsNull() {
         val commandBus = InMemoryCommandBus()
-        val compensationFilter = CompensationFilter(commandBus)
+        val compensationFilter = DomainEventCompensationFilter(commandBus)
         val exchange = mockk<DomainEventExchange<*>> {
             every { message.header } returns DefaultHeader.empty()
-            every { getEventFunction() } returns null
+            every { getFunction() } returns null
         }
         val error = IllegalStateException()
         val next: FilterChain<DomainEventExchange<*>> = mockk {
@@ -77,7 +79,7 @@ class CompensationFilterTest {
     @Test
     fun filterError() {
         val commandBus = InMemoryCommandBus()
-        val compensationFilter = CompensationFilter(commandBus)
+        val compensationFilter = DomainEventCompensationFilter(commandBus)
         val eventFunction = mockk<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>> {
             every { functionKind } returns FunctionKind.EVENT
             every { contextName } returns "contextName"
@@ -90,7 +92,7 @@ class CompensationFilterTest {
             every { message.aggregateId } returns "test.test".toNamedAggregate().aggregateId()
             every { message.version } returns 1
             every { message.header } returns DefaultHeader.empty()
-            every { getEventFunction() } returns eventFunction
+            every { getFunction() } returns eventFunction
         }
         val error = IllegalStateException()
         val next: FilterChain<DomainEventExchange<*>> = mockk {
@@ -105,7 +107,7 @@ class CompensationFilterTest {
     @Test
     fun filterErrorExecutionIdNotNull() {
         val commandBus = InMemoryCommandBus()
-        val compensationFilter = CompensationFilter(commandBus)
+        val compensationFilter = DomainEventCompensationFilter(commandBus)
         val sink = Sinks.empty<Void>()
         commandBus.receive(setOf(CompensationEventProcessorTest.LOCAL_AGGREGATE.materialize()))
             .doOnNext {
@@ -124,7 +126,7 @@ class CompensationFilterTest {
             every { message.version } returns 1
             every { message.header } returns DefaultHeader.empty()
                 .with(COMPENSATION_ID, GlobalIdGenerator.generateAsString())
-            every { getEventFunction() } returns eventFunction
+            every { getFunction() } returns eventFunction
         }
         val error = IllegalStateException()
         val next: FilterChain<DomainEventExchange<*>> = mockk {
@@ -148,7 +150,7 @@ class CompensationFilterTest {
                 sink.tryEmitEmpty()
             }
             .subscribe()
-        val compensationFilter = CompensationFilter(commandBus)
+        val compensationFilter = DomainEventCompensationFilter(commandBus)
         val eventFunction = mockk<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>> {
             every { functionKind } returns FunctionKind.EVENT
             every { contextName } returns "contextName"
@@ -161,7 +163,7 @@ class CompensationFilterTest {
             every { message.version } returns 1
             every { message.header } returns DefaultHeader.empty()
                 .with(COMPENSATION_ID, GlobalIdGenerator.generateAsString())
-            every { getEventFunction() } returns eventFunction
+            every { getFunction() } returns eventFunction
         }
         val error = IllegalStateException()
         val next: FilterChain<DomainEventExchange<*>> = mockk {
@@ -175,5 +177,11 @@ class CompensationFilterTest {
             .test()
             .expectTimeout(Duration.ofSeconds(1))
             .verify()
+    }
+
+    @Test
+    fun getRetryFunctionInfoData() {
+        val functionInfo = FunctionInfoData.unknown(FunctionKind.EVENT, "contextName")
+        functionInfo.getRetry().assert().isNull()
     }
 }

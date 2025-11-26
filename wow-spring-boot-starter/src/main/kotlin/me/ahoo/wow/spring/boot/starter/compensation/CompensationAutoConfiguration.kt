@@ -15,7 +15,8 @@ package me.ahoo.wow.spring.boot.starter.compensation
 
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.compensation.core.CompensationEventProcessor
-import me.ahoo.wow.compensation.core.CompensationFilter
+import me.ahoo.wow.compensation.core.DomainEventCompensationFilter
+import me.ahoo.wow.compensation.core.StateEventCompensationFilter
 import me.ahoo.wow.event.compensation.DomainEventCompensator
 import me.ahoo.wow.event.compensation.StateEventCompensator
 import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
@@ -37,8 +38,13 @@ class CompensationAutoConfiguration {
     }
 
     @Bean
-    fun compensationFilter(commandGateway: CommandGateway): CompensationFilter {
-        return CompensationFilter(commandGateway)
+    fun domainEventCompensationFilter(commandGateway: CommandGateway): DomainEventCompensationFilter {
+        return DomainEventCompensationFilter(commandGateway)
+    }
+
+    @Bean
+    fun stateEventCompensationFilter(commandGateway: CommandGateway): StateEventCompensationFilter {
+        return StateEventCompensationFilter(commandGateway)
     }
 
     @Bean

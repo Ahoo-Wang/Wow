@@ -16,12 +16,14 @@ package me.ahoo.wow.compensation.core
 import me.ahoo.wow.api.annotation.ORDER_FIRST
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.api.annotation.Retry
+import me.ahoo.wow.api.messaging.function.FunctionInfo
 import me.ahoo.wow.api.messaging.function.materialize
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.command.wait.EventHandledNotifierFilter
 import me.ahoo.wow.command.wait.ProjectedNotifierFilter
 import me.ahoo.wow.command.wait.SagaHandledNotifierFilter
+import me.ahoo.wow.command.wait.SnapshotNotifierFilter
 import me.ahoo.wow.compensation.api.ApplyExecutionFailed
 import me.ahoo.wow.compensation.api.ApplyExecutionSuccess
 import me.ahoo.wow.compensation.api.CreateExecutionFailed
@@ -30,11 +32,15 @@ import me.ahoo.wow.compensation.api.EventId.Companion.toEventId
 import me.ahoo.wow.compensation.api.RetrySpec.Companion.toSpec
 import me.ahoo.wow.event.DomainEventDispatcher
 import me.ahoo.wow.event.DomainEventExchange
+import me.ahoo.wow.event.EventExchange
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotDispatcher
+import me.ahoo.wow.eventsourcing.state.StateEventExchange
 import me.ahoo.wow.exception.recoverable
 import me.ahoo.wow.exception.toErrorInfo
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterType
 import me.ahoo.wow.messaging.compensation.CompensationMatcher.compensationId
+import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.handler.ExchangeFilter
 import me.ahoo.wow.messaging.handler.RetryableFilter
 import me.ahoo.wow.projection.ProjectionDispatcher
@@ -42,20 +48,33 @@ import me.ahoo.wow.saga.stateless.StatelessSagaDispatcher
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
 
-@FilterType(DomainEventDispatcher::class, StatelessSagaDispatcher::class, ProjectionDispatcher::class)
+fun FunctionInfo.getRetry(): Retry? {
+    if (this !is MessageFunction<*, *, *>) {
+        return null
+    }
+    return this.getAnnotation(Retry::class.java)
+}
+
+@FilterType(
+    DomainEventDispatcher::class,
+    StatelessSagaDispatcher::class,
+    ProjectionDispatcher::class,
+    SnapshotDispatcher::class
+)
 @Order(
     ORDER_FIRST,
-    after = [EventHandledNotifierFilter::class, SagaHandledNotifierFilter::class, ProjectedNotifierFilter::class],
+    after = [EventHandledNotifierFilter::class, SagaHandledNotifierFilter::class, ProjectedNotifierFilter::class, SnapshotNotifierFilter::class],
     before = [RetryableFilter::class]
 )
-class CompensationFilter(private val commandBus: CommandBus) : ExchangeFilter<DomainEventExchange<*>> {
+abstract class EventCompensationFilter<EXCHANGE : EventExchange<*, *>>(private val commandBus: CommandBus) :
+    ExchangeFilter<EXCHANGE> {
 
-    override fun filter(exchange: DomainEventExchange<*>, next: FilterChain<DomainEventExchange<*>>): Mono<Void> {
+    override fun filter(exchange: EXCHANGE, next: FilterChain<EXCHANGE>): Mono<Void> {
         val executionId = exchange.message.header.compensationId
         return next.filter(exchange)
             .onErrorResume {
-                val eventFunction = exchange.getEventFunction() ?: return@onErrorResume it.toMono()
-                val retry = eventFunction.getAnnotation(Retry::class.java)
+                val eventFunction = exchange.getFunction() ?: return@onErrorResume it.toMono()
+                val retry = eventFunction.getRetry()
                 if (retry?.enabled == false) {
                     return@onErrorResume it.toMono()
                 }
@@ -100,3 +119,9 @@ class CompensationFilter(private val commandBus: CommandBus) : ExchangeFilter<Do
             )
     }
 }
+
+class DomainEventCompensationFilter(commandBus: CommandBus) :
+    EventCompensationFilter<DomainEventExchange<*>>(commandBus)
+
+class StateEventCompensationFilter(commandBus: CommandBus) :
+    EventCompensationFilter<StateEventExchange<*>>(commandBus)
