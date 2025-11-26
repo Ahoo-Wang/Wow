@@ -13,13 +13,8 @@
 
 package me.ahoo.wow.api.event
 
-import me.ahoo.wow.api.Version
-import me.ahoo.wow.api.command.CommandId
-import me.ahoo.wow.api.messaging.NamedMessage
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.api.modeling.AggregateIdCapable
-import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.api.modeling.OwnerId
+import me.ahoo.wow.api.naming.Named
 
 const val DEFAULT_EVENT_SEQUENCE = 1
 
@@ -55,12 +50,8 @@ const val DEFAULT_EVENT_SEQUENCE = 1
  * @author ahoo wang
  */
 interface DomainEvent<T : Any> :
-    NamedMessage<DomainEvent<T>, T>,
-    AggregateIdCapable,
-    OwnerId,
-    CommandId,
-    NamedAggregate,
-    Version,
+    EventMessage<DomainEvent<T>, T>,
+    Named,
     Revision {
     /**
      * The unique identifier of the aggregate that published this domain event.

@@ -25,7 +25,7 @@ import java.util.concurrent.ConcurrentHashMap
  * @see MessageExchange
  * @see DomainEventStream
  */
-interface EventStreamExchange : MessageExchange<EventStreamExchange, DomainEventStream>
+interface EventStreamExchange : EventExchange<EventStreamExchange, DomainEventStream>
 
 /**
  * Simple implementation of EventStreamExchange.
