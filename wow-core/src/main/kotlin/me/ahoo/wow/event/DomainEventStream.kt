@@ -14,17 +14,15 @@ package me.ahoo.wow.event
 
 import me.ahoo.wow.api.Copyable
 import me.ahoo.wow.api.Version
-import me.ahoo.wow.api.command.CommandId
 import me.ahoo.wow.api.command.RequestId
 import me.ahoo.wow.api.event.DomainEvent
+import me.ahoo.wow.api.event.EventMessage
 import me.ahoo.wow.api.event.IgnoreSourcing
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.messaging.NamedBoundedContextMessage
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.AggregateIdCapable
-import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.api.modeling.OwnerId
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.DefaultHeader
 
@@ -50,14 +48,9 @@ import me.ahoo.wow.messaging.DefaultHeader
  * @see Copyable
  */
 interface DomainEventStream :
-    NamedBoundedContextMessage<DomainEventStream, List<DomainEvent<*>>>,
+    EventMessage<DomainEventStream, List<DomainEvent<*>>>,
     RequestId,
-    CommandId,
-    NamedAggregate,
-    Version,
     Iterable<DomainEvent<*>>,
-    AggregateIdCapable,
-    OwnerId,
     Copyable<DomainEventStream> {
     override val aggregateId: AggregateId
     val size: Int

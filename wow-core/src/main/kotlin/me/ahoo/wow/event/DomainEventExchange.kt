@@ -33,7 +33,7 @@ import java.util.concurrent.ConcurrentHashMap
  * @see DomainEvent
  * @see MessageFunction
  */
-interface DomainEventExchange<T : Any> : MessageExchange<DomainEventExchange<T>, DomainEvent<T>> {
+interface DomainEventExchange<T : Any> : EventExchange<DomainEventExchange<T>, DomainEvent<T>> {
     /**
      * Retrieves the event processing function for this exchange.
      *

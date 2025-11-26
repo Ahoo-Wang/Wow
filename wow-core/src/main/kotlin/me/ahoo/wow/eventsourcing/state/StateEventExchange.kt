@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.eventsourcing.state
 
-import me.ahoo.wow.messaging.handler.MessageExchange
+import me.ahoo.wow.event.EventExchange
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -22,7 +22,7 @@ import java.util.concurrent.ConcurrentHashMap
  *
  * @param S The type of the state in the state event.
  */
-interface StateEventExchange<S : Any> : MessageExchange<StateEventExchange<S>, StateEvent<S>>
+interface StateEventExchange<S : Any> : EventExchange<StateEventExchange<S>, StateEvent<S>>
 
 /**
  * Simple implementation of StateEventExchange using a concurrent hash map for attributes.
