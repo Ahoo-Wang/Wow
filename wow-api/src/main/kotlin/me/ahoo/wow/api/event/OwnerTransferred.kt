@@ -19,9 +19,9 @@ package me.ahoo.wow.api.event
  * This interface is typically implemented by domain events that signal a change in ownership,
  * such as transferring responsibility or control of an entity to another party.
  *
- * @property targetOwnerId The unique identifier of the new owner to whom ownership is being transferred.
+ * @property toOwnerId The unique identifier of the new owner to whom ownership is being transferred.
  *                         This should be a non-empty string representing the owner's ID.
  */
 interface OwnerTransferred {
-    val targetOwnerId: String
+    val toOwnerId: String
 }
