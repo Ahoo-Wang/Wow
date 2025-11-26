@@ -17,6 +17,7 @@ import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.event.AggregateDeleted
 import me.ahoo.wow.api.event.AggregateRecovered
 import me.ahoo.wow.api.event.DomainEvent
+import me.ahoo.wow.api.event.OwnerTransferred
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.OwnerId
 import me.ahoo.wow.api.modeling.TypedAggregate
@@ -85,11 +86,15 @@ class SimpleStateAggregate<S : Any>(
     }
 
     private fun sourcing(domainEvent: DomainEvent<*>) {
-        if (domainEvent.body is AggregateDeleted) {
+        val domainEventBody = domainEvent.body
+        if (domainEventBody is AggregateDeleted) {
             deleted = true
         }
-        if (domainEvent.body is AggregateRecovered) {
+        if (domainEventBody is AggregateRecovered) {
             deleted = false
+        }
+        if (domainEventBody is OwnerTransferred) {
+            ownerId = domainEventBody.targetOwnerId
         }
         val sourcingFunction = sourcingRegistry[domainEvent.body.javaClass]
         if (sourcingFunction != null) {

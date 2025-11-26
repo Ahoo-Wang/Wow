@@ -84,10 +84,9 @@ fun Any.toDomainEventStream(
     val eventStreamId = generateGlobalId()
     val aggregateId = upstream.aggregateId
     val streamVersion = aggregateVersion + 1
-    val streamOwnerId =
-        upstream.ownerId.ifBlank {
-            stateOwnerId
-        }
+    val streamOwnerId = upstream.ownerId.ifBlank {
+        stateOwnerId
+    }
     val events =
         flatEvent().toDomainEvents(
             streamVersion = streamVersion,
