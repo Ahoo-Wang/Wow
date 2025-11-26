@@ -138,7 +138,7 @@ class SimpleStateAggregate<S : Any>(
             deleted = false
         }
         if (domainEventBody is OwnerTransferred) {
-            ownerId = domainEventBody.targetOwnerId
+            ownerId = domainEventBody.toOwnerId
         }
         val sourcingFunction = sourcingRegistry[domainEvent.body.javaClass]
         if (sourcingFunction != null) {

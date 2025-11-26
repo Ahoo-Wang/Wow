@@ -403,7 +403,7 @@ internal class SimpleStateAggregateTest {
     class TestAggregateRecovered : AggregateRecovered
 
     data class TestOwnerTransferred(
-        override val targetOwnerId: String
+        override val toOwnerId: String
     ) : OwnerTransferred
 
     data class TestNormalEvent(
