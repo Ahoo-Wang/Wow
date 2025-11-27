@@ -33,8 +33,10 @@ export const sidebarZh: DefaultTheme.Sidebar = {
                 {text: '测试套件', link: 'test-suite'},
                 {text: '商业智能', link: 'bi'},
                 {text: '事件补偿', link: 'event-compensation'},
-                // {text: '最佳实践', link: 'best-practices'},
+                {text: '最佳实践', link: 'best-practices'},
                 {text: '性能评测', link: 'perf-test'},
+                {text: '故障排查', link: 'troubleshooting'},
+                {text: '迁移指南', link: 'migration'},
             ],
         }, {
             base: '/zh/guide/extensions/',
@@ -56,7 +58,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
             text: '深入',
             collapsed: false,
             items: [
-                // {text: '架构', link: 'architecture'},
+                {text: '架构', link: 'architecture'},
                 {text: 'Id 生成器', link: 'id-generator'},
                 {text: '编译器', link: 'compiler'},
                 {text: '预分配 Key', link: 'prepare-key'},

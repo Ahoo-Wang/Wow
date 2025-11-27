@@ -33,8 +33,10 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                 {text: 'Test Suite', link: 'test-suite'},
                 {text: 'Business Intelligence', link: 'bi'},
                 {text: 'Event Compensation', link: 'event-compensation'},
-                // {text: 'Best Practices', link: 'best-practices'},
+                {text: 'Best Practices', link: 'best-practices'},
                 {text: 'Performance Testing', link: 'perf-test'},
+                {text: 'Troubleshooting', link: 'troubleshooting'},
+                {text: 'Migration Guide', link: 'migration'},
             ],
         }, {
             base: '/guide/extensions/',
@@ -56,7 +58,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             text: 'Advanced',
             collapsed: false,
             items: [
-                // {text: 'Architecture', link: 'architecture'},
+                {text: 'Architecture', link: 'architecture'},
                 {text: 'ID Generator', link: 'id-generator'},
                 {text: 'Compiler', link: 'compiler'},
                 {text: 'Prepare Key', link: 'prepare-key'},
