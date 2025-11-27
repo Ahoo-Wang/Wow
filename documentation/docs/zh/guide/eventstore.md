@@ -163,6 +163,8 @@ wow:
       storage: mongo  # 事件存储类型 (mongo, r2dbc, redis, in_memory)
 ```
 
+更多详细配置选项请参阅[事件源配置](../reference/config/eventsourcing)。
+
 ## 最佳实践
 
 1. **选择合适的存储**：根据业务需求选择事件存储实现
