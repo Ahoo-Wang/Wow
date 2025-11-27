@@ -25,4 +25,4 @@ _[Event Compensation](https://github.com/Ahoo-Wang/Wow/tree/main/compensation)_ 
 
 ## Detailed Documentation
 
-For detailed usage instructions on event compensation, please refer to the [Event Compensation Guide](/guide/event-compensation).
+For detailed usage instructions on event compensation, please refer to the [Event Compensation Guide](../../guide/event-compensation).

@@ -25,4 +25,4 @@ _[事件补偿](https://github.com/Ahoo-Wang/Wow/tree/main/compensation)_ 是一
 
 ## 详细文档
 
-关于事件补偿的详细使用说明，请参阅 [事件补偿指南](/zh/guide/event-compensation)。
+关于事件补偿的详细使用说明，请参阅 [事件补偿指南](../../guide/event-compensation)。
