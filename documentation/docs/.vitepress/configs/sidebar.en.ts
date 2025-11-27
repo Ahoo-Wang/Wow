@@ -99,6 +99,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                     items: [
                         {text: 'Bank Transfer (JAVA)', link: 'transfer'},
                         {text: 'Order System', link: 'order'},
+                        {text: 'Event Compensation', link: 'compensation'},
                     ],
                 },
                 {
