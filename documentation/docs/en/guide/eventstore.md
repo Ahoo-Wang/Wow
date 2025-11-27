@@ -163,6 +163,8 @@ wow:
       storage: mongo  # Event store type (mongo, r2dbc, redis, in_memory)
 ```
 
+For more detailed configuration options, see [Event Sourcing Configuration](../reference/config/eventsourcing).
+
 ## Best Practices
 
 1. **Choose Appropriate Storage**: Select event store implementation based on business requirements
