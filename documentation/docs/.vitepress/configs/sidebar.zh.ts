@@ -99,6 +99,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
                     items: [
                         {text: '银行转账（JAVA）', link: 'transfer'},
                         {text: '订单系统', link: 'order'},
+                        {text: '事件补偿', link: 'compensation'},
                     ],
                 },
                 {
