@@ -10,7 +10,7 @@ _[事件补偿](https://github.com/Ahoo-Wang/Wow/tree/main/compensation)_ 是一
 | wow-compensation-core   | 核心层，包含补偿机制的核心实现。                                                                         |
 | wow-compensation-domain | 领域层，包含聚合根和业务约束的实现。                                                                       |
 | wow-compensation-server | 宿主服务，应用程序的启动点。负责整合其他模块，并提供应用程序的入口。                                                       |
-| dashboard               | 前端控制台，基于 Vue 3 + TypeScript 开发，提供可视化的事件补偿管理界面。                                           |
+| dashboard               | 前端控制台，基于 React + TypeScript + Vite 开发，提供可视化的事件补偿管理界面。                                           |
 
 ## 功能特性
 

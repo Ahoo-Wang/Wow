@@ -10,7 +10,7 @@ _[Event Compensation](https://github.com/Ahoo-Wang/Wow/tree/main/compensation)_ 
 | wow-compensation-core   | Core layer, contains the core implementation of the compensation mechanism.                                                              |
 | wow-compensation-domain | Domain layer, contains aggregate roots and business constraint implementations.                                                          |
 | wow-compensation-server | Host service, the application entry point. Responsible for integrating other modules and providing the application entry.               |
-| dashboard               | Frontend console, developed with Vue 3 + TypeScript, providing a visual event compensation management interface.                        |
+| dashboard               | Frontend console, developed with React + TypeScript + Vite, providing a visual event compensation management interface.                        |
 
 ## Features
 
