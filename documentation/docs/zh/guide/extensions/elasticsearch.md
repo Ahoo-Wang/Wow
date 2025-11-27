@@ -276,8 +276,7 @@ POST _index_template/wow-order-snapshot-template
           "properties": {
             "description": {
               "type": "text",
-              "analyzer": "ik_max_word",
-              "search_analyzer": "ik_smart"
+              "analyzer": "standard"
             },
             "customerName": {
               "type": "text",
@@ -295,12 +294,16 @@ POST _index_template/wow-order-snapshot-template
 }
 ```
 
+::: tip
+如果需要中文分词支持，可以安装 [IK 分析器插件](https://github.com/medcl/elasticsearch-analysis-ik)，然后使用 `ik_max_word` 和 `ik_smart` 分析器。
+:::
+
 ### 执行全文搜索
 
 ```kotlin
 // 使用 QueryService 进行全文搜索
 val condition = Condition.all()
-    .match("state.description", "手机")
+    .match("state.description", "搜索关键词")
     .range("state.totalAmount", 100, 500)
     .limit(10)
 
