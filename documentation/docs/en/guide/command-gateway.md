@@ -7,6 +7,297 @@ It is an extension of the command bus, not only responsible for command transmis
 
 ![Send Command - Command Gateway](../../public/images/command-gateway/send-command.svg)
 
+## API Usage
+
+The `CommandGateway` interface provides several methods for sending commands and waiting for their results. Below are the main methods and their usage patterns.
+
+### Basic Methods
+
+#### send(command, waitStrategy)
+
+The base method that sends a command with a specified wait strategy and returns a `ClientCommandExchange`.
+
+```kotlin
+val command = CreateAccount(balance = 1000, name = "John").toCommandMessage()
+val waitStrategy = WaitingForStage.processed(command.commandId)
+
+commandGateway.send(command, waitStrategy)
+    .flatMap { exchange ->
+        // Access the ClientCommandExchange
+        // Use the waitStrategy to get the command result
+        exchange.waitStrategy.waiting()
+    }
+    .subscribe { signal ->
+        println("Stage: ${signal.stage} - Succeeded: ${signal.succeeded}")
+    }
+```
+
+#### sendAndWait(command, waitStrategy)
+
+Sends a command and waits for the final result. If the command fails, it throws a `CommandResultException`.
+
+```kotlin
+val command = CreateAccount(balance = 1000, name = "John").toCommandMessage()
+val waitStrategy = WaitingForStage.processed(command.commandId)
+
+commandGateway.sendAndWait(command, waitStrategy)
+    .doOnSuccess { result ->
+        println("Command processed: ${result.commandId}")
+        println("Aggregate Version: ${result.aggregateVersion}")
+    }
+    .subscribe()
+```
+
+#### sendAndWaitStream(command, waitStrategy)
+
+Returns a `Flux<CommandResult>` for real-time streaming updates as the command progresses through different stages.
+
+```kotlin
+val command = CreateAccount(balance = 1000, name = "John").toCommandMessage()
+val waitStrategy = WaitingForStage.snapshot(command.commandId)
+
+commandGateway.sendAndWaitStream(command, waitStrategy)
+    .doOnNext { result ->
+        println("Stage: ${result.stage} - Succeeded: ${result.succeeded}")
+        println("Aggregate Version: ${result.aggregateVersion}")
+    }
+    .subscribe()
+```
+
+### Convenience Methods
+
+The `CommandGateway` provides convenience methods that pre-configure common wait strategies:
+
+```kotlin
+val command = CreateAccount(balance = 1000, name = "John").toCommandMessage()
+
+// Wait until command is sent to the bus
+commandGateway.sendAndWaitForSent(command)
+    .doOnSuccess { result ->
+        println("Command sent: ${result.commandId}")
+    }
+    .subscribe()
+
+// Wait until command is processed by the aggregate
+commandGateway.sendAndWaitForProcessed(command)
+    .doOnSuccess { result ->
+        if (result.succeeded) {
+            println("Command processed successfully: ${result.commandId}")
+            println("New aggregate version: ${result.aggregateVersion}")
+        }
+    }
+    .subscribe()
+
+// Wait until aggregate snapshot is created
+commandGateway.sendAndWaitForSnapshot(command)
+    .doOnSuccess { result ->
+        println("Snapshot created for aggregate: ${result.aggregateId}")
+    }
+    .subscribe()
+```
+
+## Core Concepts
+
+### ClientCommandExchange
+
+`ClientCommandExchange` is the client-side exchange context returned when sending commands via `CommandGateway.send()`. It provides access to:
+
+- **message**: The original `CommandMessage` that was sent
+- **waitStrategy**: The `WaitStrategy` used to wait for command processing results
+- **attributes**: A mutable map for storing additional exchange-related data
+
+```kotlin
+interface ClientCommandExchange<C : Any> {
+    val message: CommandMessage<C>
+    val waitStrategy: WaitStrategy
+    val attributes: MutableMap<String, Any>
+}
+```
+
+Use `ClientCommandExchange` when you need low-level access to the wait strategy or want to implement custom waiting logic:
+
+```kotlin
+commandGateway.send(command, waitStrategy)
+    .flatMap { exchange ->
+        // Access the command message
+        val commandId = exchange.message.commandId
+        
+        // Use the wait strategy directly
+        exchange.waitStrategy.waiting()
+            .filter { signal -> signal.stage == CommandStage.PROCESSED }
+            .next()
+    }
+    .subscribe()
+```
+
+### CommandResult
+
+`CommandResult` represents the result of a command execution at a specific processing stage. It contains comprehensive information about the command processing outcome.
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `id` | `String` | Unique identifier for this result |
+| `waitCommandId` | `String` | The command ID being waited on |
+| `stage` | `CommandStage` | Current processing stage (SENT, PROCESSED, SNAPSHOT, etc.) |
+| `contextName` | `String` | Bounded context name |
+| `aggregateName` | `String` | Aggregate name |
+| `tenantId` | `String` | Tenant identifier |
+| `aggregateId` | `String` | Aggregate instance identifier |
+| `aggregateVersion` | `Int?` | Aggregate version after processing (null on validation failure) |
+| `requestId` | `String` | Request identifier for idempotency |
+| `commandId` | `String` | Command identifier |
+| `function` | `FunctionInfoData` | Information about the processing function |
+| `errorCode` | `String` | Error code ("Ok" on success) |
+| `errorMsg` | `String` | Error message (empty on success) |
+| `bindingErrors` | `List<BindingError>` | List of validation errors |
+| `result` | `Map<String, Any>` | Additional result data |
+| `signalTime` | `Long` | Timestamp when this result was generated |
+| `succeeded` | `Boolean` | Whether the command processing succeeded |
+
+### WaitSignal vs CommandResult
+
+- **WaitSignal**: Internal interface used within the wait strategy infrastructure. Contains processing stage information and is used for signaling between components.
+- **CommandResult**: Public API for command results. Created from `WaitSignal` and includes additional context like `requestId` and formatted aggregate information.
+
+### CommandGateway vs CommandBus
+
+`CommandGateway` extends `CommandBus` with additional high-level features:
+
+| Feature | CommandBus | CommandGateway |
+|---------|------------|----------------|
+| Send commands | ✓ | ✓ |
+| Wait strategies | ✗ | ✓ |
+| Command validation | ✗ | ✓ |
+| Idempotency checking | ✗ | ✓ |
+| Real-time result streaming | ✗ | ✓ |
+| Convenience methods | ✗ | ✓ |
+
+Use `CommandBus` when you only need basic command routing. Use `CommandGateway` for full-featured command handling with wait strategies and validation.
+
+```kotlin
+// CommandBus - basic routing only
+interface CommandBus : MessageBus<CommandMessage<*>, ServerCommandExchange<*>>
+
+// CommandGateway - extends CommandBus with additional features
+interface CommandGateway : CommandBus {
+    fun <C : Any> send(command: CommandMessage<C>, waitStrategy: WaitStrategy): Mono<out ClientCommandExchange<C>>
+    fun <C : Any> sendAndWait(command: CommandMessage<C>, waitStrategy: WaitStrategy): Mono<CommandResult>
+    fun <C : Any> sendAndWaitStream(command: CommandMessage<C>, waitStrategy: WaitStrategy): Flux<CommandResult>
+    // ... convenience methods
+}
+```
+
+## Error Handling
+
+### CommandResultException
+
+When command processing fails, `sendAndWait` throws a `CommandResultException` containing the full `CommandResult` with error details.
+
+```kotlin
+commandGateway.sendAndWait(command, waitStrategy)
+    .doOnError { error ->
+        if (error is CommandResultException) {
+            val result = error.commandResult
+            println("Command failed at stage: ${result.stage}")
+            println("Error code: ${result.errorCode}")
+            println("Error message: ${result.errorMsg}")
+            
+            // Check for validation errors
+            if (result.bindingErrors.isNotEmpty()) {
+                result.bindingErrors.forEach { bindingError ->
+                    println("Field '${bindingError.name}': ${bindingError.msg}")
+                }
+            }
+        }
+    }
+    .onErrorResume { error ->
+        // Handle the error gracefully
+        when (error) {
+            is CommandResultException -> {
+                // Log and return a fallback value
+                Mono.empty()
+            }
+            else -> Mono.error(error)
+        }
+    }
+    .subscribe()
+```
+
+### CommandValidationException
+
+Thrown when command validation fails before sending. Contains validation constraint violations.
+
+```kotlin
+// Command with validation annotations
+data class CreateAccount(
+    @field:NotBlank(message = "Name is required")
+    val name: String,
+    @field:Min(value = 0, message = "Balance must be non-negative")
+    val balance: Int
+)
+
+commandGateway.sendAndWaitForProcessed(command)
+    .doOnError { error ->
+        if (error is CommandValidationException) {
+            println("Validation failed for command: ${error.command}")
+            error.bindingErrors.forEach { bindingError ->
+                println("Field '${bindingError.name}': ${bindingError.msg}")
+            }
+        }
+    }
+    .subscribe()
+```
+
+### DuplicateRequestIdException
+
+Thrown when attempting to process a command with a request ID that has already been processed.
+
+```kotlin
+commandGateway.sendAndWaitForProcessed(command)
+    .doOnError { error ->
+        if (error is DuplicateRequestIdException) {
+            println("Duplicate request: ${error.requestId}")
+            println("Aggregate: ${error.aggregateId}")
+        }
+    }
+    .onErrorResume(DuplicateRequestIdException::class.java) { error ->
+        // Return cached result or ignore duplicate
+        Mono.empty()
+    }
+    .subscribe()
+```
+
+### Error Handling Best Practices
+
+1. **Use specific exception handlers**: Handle `CommandResultException`, `CommandValidationException`, and `DuplicateRequestIdException` separately for appropriate responses.
+
+2. **Log error details**: Always log the `errorCode`, `errorMsg`, and `bindingErrors` for debugging.
+
+3. **Implement retry logic for transient failures**:
+
+```kotlin
+commandGateway.sendAndWaitForProcessed(command)
+    .retryWhen(Retry.backoff(3, Duration.ofSeconds(1))
+        .filter { error -> isTransientError(error) })
+    .subscribe()
+
+fun isTransientError(error: Throwable): Boolean {
+    return error !is CommandValidationException && 
+           error !is DuplicateRequestIdException
+}
+```
+
+4. **Handle timeout scenarios**: Configure appropriate timeouts for wait strategies.
+
+```kotlin
+commandGateway.sendAndWaitForProcessed(command)
+    .timeout(Duration.ofSeconds(30))
+    .doOnError(TimeoutException::class.java) { error ->
+        println("Command processing timed out")
+    }
+    .subscribe()
+```
+
 ## Idempotency
 
 Command idempotency is the principle of ensuring that the same command is executed at most once in the system.
