@@ -13,6 +13,10 @@ The `CommandGateway` interface provides several methods for sending commands and
 
 ### Basic Methods
 
+:::tip
+The `toCommandMessage()` extension function converts a command body into a `CommandMessage`. This is provided by the Wow framework and handles setting up the command ID, aggregate ID, and other metadata.
+:::
+
 #### send(command, waitStrategy)
 
 The base method that sends a command with a specified wait strategy and returns a `ClientCommandExchange`.
@@ -143,7 +147,7 @@ commandGateway.send(command, waitStrategy)
 | `aggregateName` | `String` | Aggregate name |
 | `tenantId` | `String` | Tenant identifier |
 | `aggregateId` | `String` | Aggregate instance identifier |
-| `aggregateVersion` | `Int?` | Aggregate version after processing (null on validation failure) |
+| `aggregateVersion` | `Int?` | Aggregate version after processing (null on gateway validation failure or before processing) |
 | `requestId` | `String` | Request identifier for idempotency |
 | `commandId` | `String` | Command identifier |
 | `function` | `FunctionInfoData` | Information about the processing function |
@@ -281,9 +285,15 @@ commandGateway.sendAndWaitForProcessed(command)
         .filter { error -> isTransientError(error) })
     .subscribe()
 
+// Transient errors are typically network or temporary infrastructure issues
+// Do NOT retry validation errors or duplicate request errors
 fun isTransientError(error: Throwable): Boolean {
-    return error !is CommandValidationException && 
-           error !is DuplicateRequestIdException
+    return when (error) {
+        is CommandValidationException -> false  // Validation errors won't succeed on retry
+        is DuplicateRequestIdException -> false // Duplicate requests should not be retried
+        is CommandResultException -> false      // Business logic errors from aggregate
+        else -> true                            // Network/infrastructure errors may be transient
+    }
 }
 ```
 
