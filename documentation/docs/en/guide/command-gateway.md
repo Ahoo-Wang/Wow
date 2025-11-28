@@ -20,19 +20,47 @@ The following is an example HTTP request showing how to use `Command-Request-Id`
 Developers can also customize the `RequestId` through the `requestId` property of `CommandMessage`.
 :::
 
-```http request
-POST http://localhost:8080/account/create_account
-Content-Type: application/json
-Command-Wait-Stage: PROCESSED
-Command-Wait-Timeout: 30000
-Command-Request-Id: {{$uuid}} // [!code focus]
-Command-Aggregate-Id: sourceId
+::: code-group
+```shell {6} [Http Request]
+curl -X 'POST' \
+  'http://localhost:8080/account/create_account' \
+  -H 'accept: application/json' \
+  -H 'Command-Wait-Stage: SNAPSHOT' \
+  -H 'Command-Aggregate-Id: sourceId' \
+  -H 'Command-Request-Id: {{$uuid}}' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "balance": 1000,
+  "name": "source"
+}'
+```
 
+```json [Response]
 {
-  "name": "source",
-  "balance": 100
+  "id": "0V3oAWI60001003",
+  "waitCommandId": "0V3oAWGt0001001",
+  "stage": "SNAPSHOT",
+  "contextName": "transfer-service",
+  "aggregateName": "account",
+  "tenantId": "(0)",
+  "aggregateId": "sourceId",
+  "aggregateVersion": 1,
+  "requestId": "0V3oAWGt0001001",
+  "commandId": "0V3oAWGt0001001",
+  "function": {
+    "functionKind": "STATE_EVENT",
+    "contextName": "wow",
+    "processorName": "SnapshotDispatcher",
+    "name": "save"
+  },
+  "errorCode": "Ok",
+  "errorMsg": "",
+  "result": {},
+  "signalTime": 1764297025846,
+  "succeeded": true
 }
 ```
+:::
 
 ### Configuration
 
@@ -74,20 +102,57 @@ The waiting signals supported by `WaitingForStage` are as follows:
 - `SAGA_HANDLED`: Generates a completion signal when the event produced by the command is processed by *Saga*
 
 ::: code-group
-```http request
-POST http://localhost:8080/account/create_account
-Content-Type: application/json
-Command-Wait-Stage: PROCESSED // [!code focus]
-Command-Wait-Timeout: 30000
-Command-Request-Id: {{$uuid}}
-Command-Aggregate-Id: sourceId
-
-{
-  "name": "source",
-  "balance": 100
-}
+```shell {4} [Http Request]
+curl -X 'POST' \
+  'http://localhost:8080/account/create_account' \
+  -H 'accept: application/json' \
+  -H 'Command-Wait-Stage: SNAPSHOT' \
+  -H 'Command-Aggregate-Id: targetId' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "balance": 1000,
+  "name": "target"
+}'
 ```
 
+```json [Response]
+{
+  "id": "0V3oAdHd0001007",
+  "waitCommandId": "0V3oAdHV0001005",
+  "stage": "SNAPSHOT",
+  "contextName": "transfer-service",
+  "aggregateName": "account",
+  "tenantId": "(0)",
+  "aggregateId": "targetId",
+  "aggregateVersion": 1,
+  "requestId": "0V3oAdHV0001005",
+  "commandId": "0V3oAdHV0001005",
+  "function": {
+    "functionKind": "STATE_EVENT",
+    "contextName": "wow",
+    "processorName": "SnapshotDispatcher",
+    "name": "save"
+  },
+  "errorCode": "Ok",
+  "errorMsg": "",
+  "result": {},
+  "signalTime": 1764297052692,
+  "succeeded": true
+}
+```
+```text [SSE Response]
+id:0V3oCwcv0001002
+event:SENT
+data:{"id":"0V3oCwcv0001002","waitCommandId":"0V3oCwbn0001001","stage":"SENT","contextName":"transfer-service","aggregateName":"account","tenantId":"(0)","aggregateId":"targetId","aggregateVersion":0,"requestId":"0V3oCwbn0001001","commandId":"0V3oCwbn0001001","function":{"functionKind":"COMMAND","contextName":"wow","processorName":"CommandGateway","name":"send"},"errorCode":"Ok","errorMsg":"","result":{},"signalTime":1764297603701,"succeeded":true}
+
+id:0V3oCwbn0001001
+event:PROCESSED
+data:{"id":"0V3oCwbn0001001","waitCommandId":"0V3oCwbn0001001","stage":"PROCESSED","contextName":"transfer-service","aggregateName":"account","tenantId":"(0)","aggregateId":"targetId","aggregateVersion":1,"requestId":"0V3oCwbn0001001","commandId":"0V3oCwbn0001001","function":{"functionKind":"COMMAND","contextName":"transfer-service","processorName":"Account","name":"onCommand"},"errorCode":"Ok","errorMsg":"","result":{},"signalTime":1764297603737,"succeeded":true}
+
+id:0V3oCwdB0001003
+event:SNAPSHOT
+data:{"id":"0V3oCwdB0001003","waitCommandId":"0V3oCwbn0001001","stage":"SNAPSHOT","contextName":"transfer-service","aggregateName":"account","tenantId":"(0)","aggregateId":"targetId","aggregateVersion":1,"requestId":"0V3oCwbn0001001","commandId":"0V3oCwbn0001001","function":{"functionKind":"STATE_EVENT","contextName":"wow","processorName":"SnapshotDispatcher","name":"save"},"errorCode":"Ok","errorMsg":"","result":{},"signalTime":1764297603754,"succeeded":true}
+```
 ```kotlin {1}
 commamdGateway.sendAndWaitForProcessed(message)
 ```
@@ -98,6 +163,81 @@ commamdGateway.sendAndWaitForProcessed(message)
 <p align="center" style="text-align:center;">
   <img  width="95%" src="../../public/images/wait/WaitingForChain.svg" alt="WaitingForChain"/>
 </p>
+
+
+::: code-group
+```shell {4-6} [Http Request]
+curl -X 'POST' \
+  'http://localhost:8080/account/sourceId/prepare' \
+  -H 'accept: application/json' \
+  -H 'Command-Wait-Stage: SAGA_HANDLED' \
+  -H 'Command-Wait-Tail-Stage: SNAPSHOT' \
+  -H 'Command-Wait-Tail-Processor: TransferSaga' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "amount": 100,
+  "to": "targetId"
+}'
+```
+```json [Response]
+{
+  "id": "0V3oAkw6000100G",
+  "waitCommandId": "0V3oAkvW0001009",
+  "stage": "SNAPSHOT",
+  "contextName": "transfer-service",
+  "aggregateName": "account",
+  "tenantId": "(0)",
+  "aggregateId": "targetId",
+  "aggregateVersion": 2,
+  "requestId": "0V3oAkvW0001009",
+  "commandId": "0V3oAkw2000100E",
+  "function": {
+    "functionKind": "STATE_EVENT",
+    "contextName": "wow",
+    "processorName": "SnapshotDispatcher",
+    "name": "save"
+  },
+  "errorCode": "Ok",
+  "errorMsg": "",
+  "result": {},
+  "signalTime": 1764297082107,
+  "succeeded": true
+}
+```
+```text [SSE Response]
+id:0V3oCVz9000100M
+event:SENT
+data:{"id":"0V3oCVz9000100M","waitCommandId":"0V3oCVyv000100L","stage":"SENT","contextName":"transfer-service","aggregateName":"account","tenantId":"(0)","aggregateId":"sourceId","aggregateVersion":null,"requestId":"0V3oCVyv000100L","commandId":"0V3oCVyv000100L","function":{"functionKind":"COMMAND","contextName":"wow","processorName":"CommandGateway","name":"send"},"errorCode":"Ok","errorMsg":"","result":{},"signalTime":1764297501291,"succeeded":true}
+
+id:0V3oCVyv000100L
+event:PROCESSED
+data:{"id":"0V3oCVyv000100L","waitCommandId":"0V3oCVyv000100L","stage":"PROCESSED","contextName":"transfer-service","aggregateName":"account","tenantId":"(0)","aggregateId":"sourceId","aggregateVersion":4,"requestId":"0V3oCVyv000100L","commandId":"0V3oCVyv000100L","function":{"functionKind":"COMMAND","contextName":"transfer-service","processorName":"Account","name":"onCommand"},"errorCode":"Ok","errorMsg":"","result":{},"signalTime":1764297501299,"succeeded":true}
+
+id:0V3oCVzW000100R
+event:SENT
+data:{"id":"0V3oCVzW000100R","waitCommandId":"0V3oCVyv000100L","stage":"SENT","contextName":"transfer-service","aggregateName":"account","tenantId":"(0)","aggregateId":"targetId","aggregateVersion":null,"requestId":"0V3oCVyv000100L","commandId":"0V3oCVzI000100Q","function":{"functionKind":"COMMAND","contextName":"wow","processorName":"CommandGateway","name":"send"},"errorCode":"Ok","errorMsg":"","result":{},"signalTime":1764297501314,"succeeded":true}
+
+id:0V3oCVzG000100P
+event:SAGA_HANDLED
+data:{"id":"0V3oCVzG000100P","waitCommandId":"0V3oCVyv000100L","stage":"SAGA_HANDLED","contextName":"transfer-service","aggregateName":"account","tenantId":"(0)","aggregateId":"sourceId","aggregateVersion":4,"requestId":"0V3oCVyv000100L","commandId":"0V3oCVyv000100L","function":{"functionKind":"EVENT","contextName":"transfer-service","processorName":"TransferSaga","name":"onEvent"},"errorCode":"Ok","errorMsg":"","result":{},"signalTime":1764297501314,"succeeded":true}
+
+id:0V3oCVzI000100Q
+event:PROCESSED
+data:{"id":"0V3oCVzI000100Q","waitCommandId":"0V3oCVyv000100L","stage":"PROCESSED","contextName":"transfer-service","aggregateName":"account","tenantId":"(0)","aggregateId":"targetId","aggregateVersion":3,"requestId":"0V3oCVyv000100L","commandId":"0V3oCVzI000100Q","function":{"functionKind":"COMMAND","contextName":"transfer-service","processorName":"Account","name":"onCommand"},"errorCode":"Ok","errorMsg":"","result":{},"signalTime":1764297501316,"succeeded":true}
+
+id:0V3oCVzX000100S
+event:SNAPSHOT
+data:{"id":"0V3oCVzX000100S","waitCommandId":"0V3oCVyv000100L","stage":"SNAPSHOT","contextName":"transfer-service","aggregateName":"account","tenantId":"(0)","aggregateId":"targetId","aggregateVersion":3,"requestId":"0V3oCVyv000100L","commandId":"0V3oCVzI000100Q","function":{"functionKind":"STATE_EVENT","contextName":"wow","processorName":"SnapshotDispatcher","name":"save"},"errorCode":"Ok","errorMsg":"","result":{},"signalTime":1764297501317,"succeeded":true}
+
+```
+```kotlin {1}
+val waitStrategy = SimpleWaitingForChain.chain(
+    tailStage = CommandStage.SNAPSHOT,
+    //...
+)
+commamdGateway.sendAndWait(message,waitStrategy)
+```
+:::
 
 ## Validation
 
