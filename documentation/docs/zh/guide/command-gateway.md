@@ -7,6 +7,307 @@
 
 ![发送命令 - 命令网关](../../public/images/command-gateway/send-command.svg)
 
+## API 使用
+
+`CommandGateway` 接口提供了多种发送命令并等待结果的方法。以下是主要方法及其使用模式。
+
+### 基础方法
+
+:::tip
+`toCommandMessage()` 扩展函数将命令体转换为 `CommandMessage`。该函数由 Wow 框架提供，负责设置命令 ID、聚合根 ID 以及其他元数据。
+:::
+
+#### send(command, waitStrategy)
+
+基础方法，使用指定的等待策略发送命令并返回 `ClientCommandExchange`。
+
+```kotlin
+val command = CreateAccount(balance = 1000, name = "张三").toCommandMessage()
+val waitStrategy = WaitingForStage.processed(command.commandId)
+
+commandGateway.send(command, waitStrategy)
+    .flatMap { exchange ->
+        // 访问 ClientCommandExchange
+        // 使用 waitStrategy 获取命令结果
+        exchange.waitStrategy.waiting()
+    }
+    .subscribe { signal ->
+        println("阶段: ${signal.stage} - 成功: ${signal.succeeded}")
+    }
+```
+
+#### sendAndWait(command, waitStrategy)
+
+发送命令并等待最终结果。如果命令失败，将抛出 `CommandResultException`。
+
+```kotlin
+val command = CreateAccount(balance = 1000, name = "张三").toCommandMessage()
+val waitStrategy = WaitingForStage.processed(command.commandId)
+
+commandGateway.sendAndWait(command, waitStrategy)
+    .doOnSuccess { result ->
+        println("命令处理完成: ${result.commandId}")
+        println("聚合根版本: ${result.aggregateVersion}")
+    }
+    .subscribe()
+```
+
+#### sendAndWaitStream(command, waitStrategy)
+
+返回 `Flux<CommandResult>` 用于实时流式更新，随着命令在不同阶段的处理进度发出更新。
+
+```kotlin
+val command = CreateAccount(balance = 1000, name = "张三").toCommandMessage()
+val waitStrategy = WaitingForStage.snapshot(command.commandId)
+
+commandGateway.sendAndWaitStream(command, waitStrategy)
+    .doOnNext { result ->
+        println("阶段: ${result.stage} - 成功: ${result.succeeded}")
+        println("聚合根版本: ${result.aggregateVersion}")
+    }
+    .subscribe()
+```
+
+### 便捷方法
+
+`CommandGateway` 提供了预配置常见等待策略的便捷方法：
+
+```kotlin
+val command = CreateAccount(balance = 1000, name = "张三").toCommandMessage()
+
+// 等待命令发送到总线
+commandGateway.sendAndWaitForSent(command)
+    .doOnSuccess { result ->
+        println("命令已发送: ${result.commandId}")
+    }
+    .subscribe()
+
+// 等待命令被聚合根处理
+commandGateway.sendAndWaitForProcessed(command)
+    .doOnSuccess { result ->
+        if (result.succeeded) {
+            println("命令处理成功: ${result.commandId}")
+            println("新聚合根版本: ${result.aggregateVersion}")
+        }
+    }
+    .subscribe()
+
+// 等待聚合根快照创建
+commandGateway.sendAndWaitForSnapshot(command)
+    .doOnSuccess { result ->
+        println("已为聚合根创建快照: ${result.aggregateId}")
+    }
+    .subscribe()
+```
+
+## 核心概念
+
+### ClientCommandExchange（客户端命令交换）
+
+`ClientCommandExchange` 是通过 `CommandGateway.send()` 发送命令时返回的客户端侧交换上下文。它提供以下访问：
+
+- **message**：发送的原始 `CommandMessage`
+- **waitStrategy**：用于等待命令处理结果的 `WaitStrategy`
+- **attributes**：用于存储额外交换相关数据的可变 Map
+
+```kotlin
+interface ClientCommandExchange<C : Any> {
+    val message: CommandMessage<C>
+    val waitStrategy: WaitStrategy
+    val attributes: MutableMap<String, Any>
+}
+```
+
+当需要低级别访问等待策略或想要实现自定义等待逻辑时，使用 `ClientCommandExchange`：
+
+```kotlin
+commandGateway.send(command, waitStrategy)
+    .flatMap { exchange ->
+        // 访问命令消息
+        val commandId = exchange.message.commandId
+        
+        // 直接使用等待策略
+        exchange.waitStrategy.waiting()
+            .filter { signal -> signal.stage == CommandStage.PROCESSED }
+            .next()
+    }
+    .subscribe()
+```
+
+### CommandResult（命令结果）
+
+`CommandResult` 表示命令在特定处理阶段的执行结果。它包含关于命令处理结果的完整信息。
+
+| 属性 | 类型 | 描述 |
+|------|------|------|
+| `id` | `String` | 该结果的唯一标识符 |
+| `waitCommandId` | `String` | 正在等待的命令 ID |
+| `stage` | `CommandStage` | 当前处理阶段（SENT、PROCESSED、SNAPSHOT 等） |
+| `contextName` | `String` | 限界上下文名称 |
+| `aggregateName` | `String` | 聚合根名称 |
+| `tenantId` | `String` | 租户标识符 |
+| `aggregateId` | `String` | 聚合根实例标识符 |
+| `aggregateVersion` | `Int?` | 处理后的聚合根版本（网关验证失败或处理前为 null） |
+| `requestId` | `String` | 幂等性请求标识符 |
+| `commandId` | `String` | 命令标识符 |
+| `function` | `FunctionInfoData` | 处理函数的相关信息 |
+| `errorCode` | `String` | 错误码（成功时为 "Ok"） |
+| `errorMsg` | `String` | 错误消息（成功时为空） |
+| `bindingErrors` | `List<BindingError>` | 验证错误列表 |
+| `result` | `Map<String, Any>` | 额外的结果数据 |
+| `signalTime` | `Long` | 生成该结果的时间戳 |
+| `succeeded` | `Boolean` | 命令处理是否成功 |
+
+### WaitSignal 与 CommandResult 的区别
+
+- **WaitSignal**：等待策略基础设施内部使用的接口。包含处理阶段信息，用于组件间的信号传递。
+- **CommandResult**：命令结果的公共 API。由 `WaitSignal` 创建，包含额外的上下文信息如 `requestId` 和格式化的聚合根信息。
+
+### CommandGateway 与 CommandBus 的关系
+
+`CommandGateway` 扩展了 `CommandBus`，提供额外的高级特性：
+
+| 特性 | CommandBus | CommandGateway |
+|------|------------|----------------|
+| 发送命令 | ✓ | ✓ |
+| 等待策略 | ✗ | ✓ |
+| 命令验证 | ✗ | ✓ |
+| 幂等性检查 | ✗ | ✓ |
+| 实时结果流 | ✗ | ✓ |
+| 便捷方法 | ✗ | ✓ |
+
+当只需要基本的命令路由时使用 `CommandBus`。当需要完整的命令处理功能（包括等待策略和验证）时使用 `CommandGateway`。
+
+```kotlin
+// CommandBus - 仅基本路由
+interface CommandBus : MessageBus<CommandMessage<*>, ServerCommandExchange<*>>
+
+// CommandGateway - 扩展 CommandBus 并增加额外功能
+interface CommandGateway : CommandBus {
+    fun <C : Any> send(command: CommandMessage<C>, waitStrategy: WaitStrategy): Mono<out ClientCommandExchange<C>>
+    fun <C : Any> sendAndWait(command: CommandMessage<C>, waitStrategy: WaitStrategy): Mono<CommandResult>
+    fun <C : Any> sendAndWaitStream(command: CommandMessage<C>, waitStrategy: WaitStrategy): Flux<CommandResult>
+    // ... 便捷方法
+}
+```
+
+## 错误处理
+
+### CommandResultException（命令结果异常）
+
+当命令处理失败时，`sendAndWait` 会抛出包含完整 `CommandResult` 和错误详情的 `CommandResultException`。
+
+```kotlin
+commandGateway.sendAndWait(command, waitStrategy)
+    .doOnError { error ->
+        if (error is CommandResultException) {
+            val result = error.commandResult
+            println("命令在阶段失败: ${result.stage}")
+            println("错误码: ${result.errorCode}")
+            println("错误消息: ${result.errorMsg}")
+            
+            // 检查验证错误
+            if (result.bindingErrors.isNotEmpty()) {
+                result.bindingErrors.forEach { bindingError ->
+                    println("字段 '${bindingError.name}': ${bindingError.msg}")
+                }
+            }
+        }
+    }
+    .onErrorResume { error ->
+        // 优雅地处理错误
+        when (error) {
+            is CommandResultException -> {
+                // 记录日志并返回降级值
+                Mono.empty()
+            }
+            else -> Mono.error(error)
+        }
+    }
+    .subscribe()
+```
+
+### CommandValidationException（命令验证异常）
+
+当命令验证在发送前失败时抛出。包含验证约束违规信息。
+
+```kotlin
+// 带有验证注解的命令
+data class CreateAccount(
+    @field:NotBlank(message = "名称不能为空")
+    val name: String,
+    @field:Min(value = 0, message = "余额不能为负数")
+    val balance: Int
+)
+
+commandGateway.sendAndWaitForProcessed(command)
+    .doOnError { error ->
+        if (error is CommandValidationException) {
+            println("命令验证失败: ${error.command}")
+            error.bindingErrors.forEach { bindingError ->
+                println("字段 '${bindingError.name}': ${bindingError.msg}")
+            }
+        }
+    }
+    .subscribe()
+```
+
+### DuplicateRequestIdException（重复请求 ID 异常）
+
+当尝试处理一个已处理过的请求 ID 的命令时抛出。
+
+```kotlin
+commandGateway.sendAndWaitForProcessed(command)
+    .doOnError { error ->
+        if (error is DuplicateRequestIdException) {
+            println("重复请求: ${error.requestId}")
+            println("聚合根: ${error.aggregateId}")
+        }
+    }
+    .onErrorResume(DuplicateRequestIdException::class.java) { error ->
+        // 返回缓存结果或忽略重复
+        Mono.empty()
+    }
+    .subscribe()
+```
+
+### 错误处理最佳实践
+
+1. **使用特定的异常处理器**：分别处理 `CommandResultException`、`CommandValidationException` 和 `DuplicateRequestIdException` 以提供适当的响应。
+
+2. **记录错误详情**：始终记录 `errorCode`、`errorMsg` 和 `bindingErrors` 以便调试。
+
+3. **为瞬时故障实现重试逻辑**：
+
+```kotlin
+commandGateway.sendAndWaitForProcessed(command)
+    .retryWhen(Retry.backoff(3, Duration.ofSeconds(1))
+        .filter { error -> isTransientError(error) })
+    .subscribe()
+
+// 瞬时错误通常是网络或临时基础设施问题
+// 不要重试验证错误或重复请求错误
+fun isTransientError(error: Throwable): Boolean {
+    return when (error) {
+        is CommandValidationException -> false  // 验证错误重试不会成功
+        is DuplicateRequestIdException -> false // 重复请求不应重试
+        is CommandResultException -> false      // 聚合根的业务逻辑错误
+        else -> true                            // 网络/基础设施错误可能是瞬时的
+    }
+}
+```
+
+4. **处理超时场景**：为等待策略配置适当的超时时间。
+
+```kotlin
+commandGateway.sendAndWaitForProcessed(command)
+    .timeout(Duration.ofSeconds(30))
+    .doOnError(TimeoutException::class.java) { error ->
+        println("命令处理超时")
+    }
+    .subscribe()
+```
+
 ## 幂等性
 
 命令幂等性是确保相同命令在系统中最多执行一次的原则。
