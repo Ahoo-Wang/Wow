@@ -112,26 +112,6 @@ fun migrateHistoricalData(legacyOrders: List<LegacyOrder>) {
 }
 ```
 
-#### 快照初始化
-
-对于大量历史数据，建议直接创建快照：
-
-```kotlin
-fun initializeSnapshot(legacyOrder: LegacyOrder) {
-    val snapshot = StateAggregate(
-        aggregateId = AggregateId(legacyOrder.id),
-        version = 1,
-        state = OrderState(
-            id = legacyOrder.id,
-            status = legacyOrder.status,
-            // 其他字段映射
-        )
-    )
-    
-    snapshotRepository.save(snapshot)
-}
-```
-
 ### 代码迁移
 
 #### 从 CRUD 到命令模式
@@ -225,7 +205,7 @@ interface OrderRepository : JpaRepository<Order, String> {
 }
 ```
 
-**迁移后的投影代码**：
+**迁移后的查询代码**：
 
 ```kotlin
 @ProjectionProcessor

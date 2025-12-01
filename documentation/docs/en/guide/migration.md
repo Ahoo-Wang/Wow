@@ -112,26 +112,6 @@ fun migrateHistoricalData(legacyOrders: List<LegacyOrder>) {
 }
 ```
 
-#### Snapshot Initialization
-
-For large amounts of historical data, create snapshots directly:
-
-```kotlin
-fun initializeSnapshot(legacyOrder: LegacyOrder) {
-    val snapshot = StateAggregate(
-        aggregateId = AggregateId(legacyOrder.id),
-        version = 1,
-        state = OrderState(
-            id = legacyOrder.id,
-            status = legacyOrder.status,
-            // Other field mappings
-        )
-    )
-    
-    snapshotRepository.save(snapshot)
-}
-```
-
 ### Code Migration
 
 #### From CRUD to Command Pattern
