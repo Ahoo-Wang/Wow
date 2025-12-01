@@ -72,27 +72,39 @@ flowchart LR
 
 #### 历史数据导入
 
-对于需要保留历史数据的场景，可以通过事件重建：
+对于需要保留历史数据的场景，推荐使用**迁移命令**将迁移逻辑封装在领域/聚合根中。这种方式确保迁移遵循与常规操作相同的命令处理流程，保持一致性和正确的事件溯源语义：
 
 ```kotlin
-// 将历史记录转换为领域事件
+// 1. 定义迁移命令
+@CreateAggregate
+data class MigrateOrder(
+    val customerId: String,
+    val items: List<OrderItem>,
+    val createdAt: Long
+)
+
+// 2. 在聚合根中处理
+@AggregateRoot
+class Order(private val state: OrderState) {
+    @OnCommand
+    fun onMigrate(command: MigrateOrder): OrderCreated {
+        return OrderCreated(
+            customerId = command.customerId,
+            items = command.items,
+            createdAt = command.createdAt
+        )
+    }
+}
+
+// 3. 发送命令进行迁移
 fun migrateHistoricalData(legacyOrders: List<LegacyOrder>) {
     legacyOrders.forEach { order ->
-        // 创建初始事件
-        val createdEvent = OrderCreated(
-            orderId = order.id,
+        val command = MigrateOrder(
             customerId = order.customerId,
-            items = order.items.map { /* 转换 */ },
+            items = order.items.map { /* convert */ },
             createdAt = order.createdAt
         )
-        
-        // 追加到事件存储
-        eventStore.append(
-            DomainEventStream(
-                aggregateId = AggregateId(order.id),
-                events = listOf(createdEvent)
-            )
-        )
+        commandGateway.send(command).block()
     }
 }
 ```
