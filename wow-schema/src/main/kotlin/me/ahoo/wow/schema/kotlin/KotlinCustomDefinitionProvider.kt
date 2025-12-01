@@ -73,13 +73,24 @@ object KotlinCustomDefinitionProvider : CustomDefinitionProviderV2 {
                 val resolvedMethod = copyResolvedMethod(kotlinGetter, kotlinGetterMethod, context)
                 val methodScope: MethodScope =
                     context.typeContext.createMethodScope(resolvedMethod, declarationDetails)
-                val getterNode = context.createStandardDefinition(methodScope, null) as ObjectNode
+                val getterNode = createStandardDefinition(methodScope, context)
                 val readOnly = SchemaKeyword.TAG_READ_ONLY.toPropertyName()
                 getterNode.put(readOnly, true)
                 propertiesNode.set<ObjectNode>(kotlinGetter.name, getterNode)
             }
         }
         return rootSchema.asCustomDefinition()
+    }
+
+    private fun createStandardDefinition(
+        methodScope: MethodScope,
+        context: SchemaGenerationContext
+    ): ObjectNode {
+        return if (context.generatorConfig.shouldInlineAllSchemas()) {
+            context.createStandardDefinition(methodScope, null) as ObjectNode
+        } else {
+            context.createStandardDefinitionReference(methodScope, null) as ObjectNode
+        }
     }
 
     private fun copyResolvedMethod(
