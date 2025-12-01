@@ -12,7 +12,7 @@
  */
 
 import { combineURLs } from '@ahoo-wang/fetcher';
-import { join, relative } from 'path';
+import { posix } from 'path';
 import { JSDocableNode, Project, SourceFile } from 'ts-morph';
 import { ModelInfo } from '../model';
 import { Reference, Schema } from '@ahoo-wang/fetcher-openapi';
@@ -86,6 +86,10 @@ export function addImport(
   });
 }
 
+function toPosix(filePath: string): string {
+  return filePath.split('\\').join('/');
+}
+
 /**
  * Adds an import for a referenced model.
  * @param sourceFile - The source file to modify
@@ -101,19 +105,14 @@ export function addImportRefModel(
     addImport(sourceFile, refModelInfo.path, [refModelInfo.name]);
     return;
   }
-
-  const sourceDir = sourceFile.getDirectoryPath();
-  const targetFilePath = join(outputDir, refModelInfo.path, MODEL_FILE_NAME);
-  let relativePath = relative(sourceDir, targetFilePath);
+  const sourceDir = toPosix(sourceFile.getDirectoryPath());
+  const normalizedOutputDir = toPosix(outputDir);
+  const targetFilePath = posix.join(normalizedOutputDir, refModelInfo.path, MODEL_FILE_NAME);
+  let relativePath = posix.relative(sourceDir, targetFilePath);
   relativePath = relativePath.replace(/\.ts$/, '');
-
-  // Normalize path separators to forward slashes for cross-platform compatibility
-  relativePath = relativePath.replace(/\\/g, '/');
-
   if (!relativePath.startsWith('.')) {
     relativePath = './' + relativePath;
   }
-
   addImport(sourceFile, relativePath, [refModelInfo.name]);
 }
 
