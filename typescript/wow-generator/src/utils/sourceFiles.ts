@@ -105,8 +105,10 @@ export function addImportRefModel(
   const sourceDir = sourceFile.getDirectoryPath();
   const targetFilePath = join(outputDir, refModelInfo.path, MODEL_FILE_NAME);
   let relativePath = relative(sourceDir, targetFilePath);
-
   relativePath = relativePath.replace(/\.ts$/, '');
+
+  // Normalize path separators to forward slashes for cross-platform compatibility
+  relativePath = relativePath.replace(/\\/g, '/');
 
   if (!relativePath.startsWith('.')) {
     relativePath = './' + relativePath;
