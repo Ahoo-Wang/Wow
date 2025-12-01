@@ -11,17 +11,6 @@
  * limitations under the License.
  */
 
-export * from './condition';
-export * from './operator';
-export * from './locale/operatorLocale';
-export * from './pagination';
-export * from './projection';
-export * from './queryable';
-export * from './queryApi';
-export * from './sort';
-export * from './event';
-export * from './snapshot';
-export * from './state';
-export * from './cursorQuery';
-export * from './queryClients';
-export * from './types';
+export type DynamicDocument = Record<string, any>;
+
+export type DynamicDocumentArray = DynamicDocument[];
