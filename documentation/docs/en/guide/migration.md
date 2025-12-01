@@ -193,7 +193,7 @@ class OrderState : Identifier {
 }
 ```
 
-#### From Direct Query to Projection
+#### From Direct Queries to Query Snapshots
 
 **Traditional Query Code**:
 
