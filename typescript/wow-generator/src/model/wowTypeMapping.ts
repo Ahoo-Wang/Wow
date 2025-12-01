@@ -36,6 +36,8 @@ export const WOW_TYPE_MAPPING = {
   'wow.api.query.Projection': 'Projection',
   'wow.api.query.Sort': 'FieldSort',
   'wow.api.query.Sort.Direction': 'SortDirection',
+  'wow.api.query.DynamicDocument': 'DynamicDocument',
+  'wow.api.query.DynamicDocumentArray': 'DynamicDocumentArray',
   'wow.command.CommandStage': 'CommandStage',
   'wow.command.SimpleWaitSignal': 'WaitSignal',
   'wow.configuration.Aggregate': 'Aggregate',
