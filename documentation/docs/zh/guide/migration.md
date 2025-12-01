@@ -101,7 +101,7 @@ fun migrateHistoricalData(legacyOrders: List<LegacyOrder>) {
     legacyOrders.forEach { order ->
         val command = MigrateOrder(
             customerId = order.customerId,
-            items = order.items.map { /* convert */ },
+            items = order.items.map { /* 转换 */ },
             createdAt = order.createdAt
         )
         commandGateway.send(command).block()
