@@ -72,30 +72,39 @@ flowchart LR
 
 #### Historical Data Import
 
-For scenarios requiring historical data preservation, rebuild through events:
+For scenarios requiring historical data preservation, we recommend using **Migration Commands**. This approach decouples migration logic from business logic, supports idempotent execution, and leverages the domain model for standardized processing.
 
 ```kotlin
-// Convert historical records to domain events
-fun migrateHistoricalData(legacyOrders: List<LegacyOrder>) {
-    legacyOrders.forEach { order ->
-        // Create initial event
-        val createdEvent = OrderCreated(
-            orderId = order.id,
-            customerId = order.customerId,
-            items = order.items.map { /* convert */ },
-            createdAt = order.createdAt
-        )
-        
-        // Append to event store
-        eventStore.append(
-            DomainEventStream(
-                aggregateId = AggregateId(order.id),
-                events = listOf(createdEvent)
-            )
+// Define a migration command
+@CreateAggregate
+data class MigrateOrder(
+    val customerId: String,
+    val items: List<OrderItem>,
+    val orderId: String,
+    val createdAt: Long
+)
+
+// Aggregate root handles migration command and emits events
+@AggregateRoot
+class Order(private val state: OrderState) {
+
+    @OnCommand
+    fun onMigrate(command: MigrateOrder): OrderCreated {
+        return OrderCreated(
+            customerId = command.customerId,
+            items = command.items,
+            orderId = command.orderId,
+            createdAt = command.createdAt
         )
     }
 }
 ```
+
+**Benefits of using Migration Commands:**
+
+- **Decoupled Migration Logic**: Separates migration concerns from regular business operations
+- **Idempotency Support**: Commands can be safely retried without side effects
+- **Domain Model Integration**: Leverages existing aggregate validation and event sourcing
 
 #### Snapshot Initialization
 
