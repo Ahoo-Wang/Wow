@@ -92,7 +92,7 @@ describe('wowTypeMapping', () => {
     });
 
     it('should have the correct number of mappings', () => {
-      expect(Object.keys(WOW_TYPE_MAPPING).length).toBe(28);
+      expect(Object.keys(WOW_TYPE_MAPPING).length).toBe(30);
     });
   });
 });
