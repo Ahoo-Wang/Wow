@@ -70,32 +70,44 @@ flowchart LR
 
 ### 数据迁移
 
-#### 历史数据导入
+#### 编写迁移命令（推荐）
 
-对于需要保留历史数据的场景，可以通过事件重建：
+对于数据迁移，推荐为每一个迁移场景编写专门的迁移命令（Migration Command），而不是直接在业务服务或脚本中进行数据转换操作。这样可以：
+
+- 将迁移逻辑与业务逻辑解耦，利于代码管理
+- 支持幂等执行、可追踪、易于测试和回滚
+- 利用领域事件/命令模式，使迁移过程更为规范
+
+**示例：**
 
 ```kotlin
-// 将历史记录转换为领域事件
-fun migrateHistoricalData(legacyOrders: List<LegacyOrder>) {
-    legacyOrders.forEach { order ->
-        // 创建初始事件
-        val createdEvent = OrderCreated(
-            orderId = order.id,
-            customerId = order.customerId,
-            items = order.items.map { /* 转换 */ },
-            createdAt = order.createdAt
-        )
-        
-        // 追加到事件存储
-        eventStore.append(
-            DomainEventStream(
-                aggregateId = AggregateId(order.id),
-                events = listOf(createdEvent)
-            )
+// 定义迁移专用命令
+@CreateAggregate
+data class MigrateLegacyOrder(
+    val legacyOrderId: String,
+    val customerId: String,
+    val items: List<OrderItem>,
+    val createdAt: Long
+)
+
+// 聚合根接收迁移命令并发布事件
+@AggregateRoot
+class Order(private val state: OrderState) {
+
+    @OnCommand
+    fun onMigrate(command: MigrateLegacyOrder): OrderCreated {
+        return OrderCreated(
+            orderId = command.legacyOrderId,
+            customerId = command.customerId,
+            items = command.items,
+            createdAt = command.createdAt
         )
     }
 }
 ```
+
+- 规范流程：通过命令及聚合根处理，迁移流程透明可管控。
+- 可回滚：如迁移异常可重试或回滚，数据一致性有保障。
 
 #### 快照初始化
 

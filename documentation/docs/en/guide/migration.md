@@ -70,32 +70,44 @@ flowchart LR
 
 ### Data Migration
 
-#### Historical Data Import
+#### Write Migration Commands (Recommended)
 
-For scenarios requiring historical data preservation, rebuild through events:
+For data migration, it is recommended to implement dedicated Migration Commands for each migration scenario, instead of performing data conversion logic directly in business services or scripts. Benefits include:
+
+- Decoupling migration logic from business logic for better code management
+- Idempotent execution, traceability, easy to test and rollback
+- Leverage domain events/command model for standardized migration
+
+**Example:**
 
 ```kotlin
-// Convert historical records to domain events
-fun migrateHistoricalData(legacyOrders: List<LegacyOrder>) {
-    legacyOrders.forEach { order ->
-        // Create initial event
-        val createdEvent = OrderCreated(
-            orderId = order.id,
-            customerId = order.customerId,
-            items = order.items.map { /* convert */ },
-            createdAt = order.createdAt
-        )
-        
-        // Append to event store
-        eventStore.append(
-            DomainEventStream(
-                aggregateId = AggregateId(order.id),
-                events = listOf(createdEvent)
-            )
+// Define a migration command
+@CreateAggregate
+data class MigrateLegacyOrder(
+    val legacyOrderId: String,
+    val customerId: String,
+    val items: List<OrderItem>,
+    val createdAt: Long
+)
+
+// Aggregate root handles migration command and emits events
+@AggregateRoot
+class Order(private val state: OrderState) {
+
+    @OnCommand
+    fun onMigrate(command: MigrateLegacyOrder): OrderCreated {
+        return OrderCreated(
+            orderId = command.legacyOrderId,
+            customerId = command.customerId,
+            items = command.items,
+            createdAt = command.createdAt
         )
     }
 }
 ```
+
+- Standardized process: Migration is fully controlled via command and aggregate.
+- Rollbackable: Any failures can be retried or rolled back; data consistency is ensured.
 
 #### Snapshot Initialization
 
