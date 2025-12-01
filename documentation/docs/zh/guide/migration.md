@@ -207,25 +207,18 @@ interface OrderRepository : JpaRepository<Order, String> {
 
 **迁移后的查询代码**：
 
+参考 [查询服务](query.md)
+
 ```kotlin
-@ProjectionProcessor
-class OrderListProjection(
-    private val orderViewRepository: OrderViewRepository
+class OrderService(
+    private val queryService: SnapshotQueryService<OrderState>
 ) {
-    
-    @OnEvent
-    fun onOrderCreated(event: OrderCreated, aggregateId: AggregateId) {
-        val view = OrderView(
-            id = aggregateId.id,
-            customerId = event.customerId,
-            status = OrderStatus.CREATED
-        )
-        orderViewRepository.save(view)
-    }
-    
-    @OnEvent
-    fun onOrderStatusUpdated(event: OrderStatusUpdated, aggregateId: AggregateId) {
-        orderViewRepository.updateStatus(aggregateId.id, event.status)
+    fun getById(id: String): Mono<OrderState> {
+        return singleQuery {
+            condition {
+                id(id)
+            }
+        }.query(queryService).toState().throwNotFoundIfEmpty()
     }
 }
 ```
