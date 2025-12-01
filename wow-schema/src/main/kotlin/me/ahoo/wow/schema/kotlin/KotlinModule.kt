@@ -15,6 +15,9 @@ package me.ahoo.wow.schema.kotlin
 
 import com.github.victools.jsonschema.generator.Module
 import com.github.victools.jsonschema.generator.SchemaGeneratorConfigBuilder
+import me.ahoo.wow.schema.kotlin.range.CharRangeDefinitionProvider
+import me.ahoo.wow.schema.kotlin.range.IntRangeDefinitionProvider
+import me.ahoo.wow.schema.kotlin.range.LongRangeDefinitionProvider
 
 class KotlinModule : Module {
     override fun applyToConfigBuilder(builder: SchemaGeneratorConfigBuilder) {
@@ -28,5 +31,8 @@ class KotlinModule : Module {
         methodConfigPart.withIgnoreCheck(KotlinMethodIgnoreCheck)
         val generalConfigPart = builder.forTypesInGeneral()
         generalConfigPart.withCustomDefinitionProvider(KotlinCustomDefinitionProvider)
+        generalConfigPart.withCustomDefinitionProvider(CharRangeDefinitionProvider)
+        generalConfigPart.withCustomDefinitionProvider(IntRangeDefinitionProvider)
+        generalConfigPart.withCustomDefinitionProvider(LongRangeDefinitionProvider)
     }
 }

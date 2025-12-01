@@ -91,6 +91,9 @@ class JsonSchemaGeneratorTest {
                 Arguments.of(CurrencyUnit::class.java, CurrencyUnit::class.java),
                 Arguments.of(Money::class.java, Money::class.java),
                 Arguments.of(DomainEventStream::class.java, AggregatedDomainEventStream::class.java),
+                Arguments.of(CharRange::class.java, CharRange::class.java),
+                Arguments.of(IntRange::class.java, IntRange::class.java),
+                Arguments.of(LongRange::class.java, LongRange::class.java),
             )
         }
 
