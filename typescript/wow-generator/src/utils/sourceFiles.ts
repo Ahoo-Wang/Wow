@@ -16,7 +16,7 @@ import { combineURLs } from '@ahoo-wang/fetcher';
 import { JSDocableNode, Project, SourceFile } from 'ts-morph';
 import { ModelInfo } from '../model';
 import { Reference, Schema } from '@ahoo-wang/fetcher-openapi';
-import * as path from 'node:path';
+import * as path from 'path';
 
 /** Default file name for model files */
 const MODEL_FILE_NAME = 'types.ts';

@@ -80,6 +80,8 @@ export class CodeGenerator {
     this.options.logger.info(
       'Starting code generation from OpenAPI specification',
     );
+    const currentWorkingDir = process.cwd();
+    this.options.logger.info(`Work directory: ${currentWorkingDir}`);
     this.options.logger.info(`Input path: ${this.options.inputPath}`);
     this.options.logger.info(`Output directory: ${this.options.outputDir}`);
 
