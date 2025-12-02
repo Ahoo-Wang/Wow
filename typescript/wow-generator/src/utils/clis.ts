@@ -14,6 +14,7 @@
 import { CodeGenerator } from '../index';
 import { GeneratorOptions } from '../types';
 import { ConsoleLogger } from './logger';
+import packageJson from '../../package.json';
 
 /**
  * Validates the input path or URL.
@@ -59,6 +60,7 @@ export async function generateAction(options: {
   }
 
   try {
+    logger.info(`Fetcher Generator v${packageJson.version}`);
     logger.info('Starting code generation...');
     const generatorOptions: GeneratorOptions = {
       inputPath: options.input,
