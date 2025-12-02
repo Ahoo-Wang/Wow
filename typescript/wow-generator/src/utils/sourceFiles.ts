@@ -12,11 +12,10 @@
  */
 
 import { combineURLs } from '@ahoo-wang/fetcher';
-
+import { join, relative, sep } from 'path';
 import { JSDocableNode, Project, SourceFile } from 'ts-morph';
 import { ModelInfo } from '../model';
 import { Reference, Schema } from '@ahoo-wang/fetcher-openapi';
-import * as path from 'path';
 
 /** Default file name for model files */
 const MODEL_FILE_NAME = 'types.ts';
@@ -103,11 +102,11 @@ export function addImportRefModel(
     return;
   }
   const sourceDir = sourceFile.getDirectoryPath();
-  const targetFilePath = path.join(outputDir, refModelInfo.path, MODEL_FILE_NAME);
-  let relativePath = path.relative(sourceDir, targetFilePath);
+  const targetFilePath = join(outputDir, refModelInfo.path, MODEL_FILE_NAME);
+  let relativePath = relative(sourceDir, targetFilePath);
   relativePath = relativePath.replace(/\.ts$/, '');
   // Normalize path separators to forward slashes for cross-platform compatibility
-  relativePath = relativePath.split(path.sep).join('/');
+  relativePath = relativePath.split(sep).join('/');
   if (!relativePath.startsWith('.')) {
     relativePath = './' + relativePath;
   }
