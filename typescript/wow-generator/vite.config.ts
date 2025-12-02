@@ -31,6 +31,20 @@ export default defineConfig({
         'fs',
         'path',
       ],
+      output: {
+        globals: {
+          '@ahoo-wang/fetcher': 'Fetcher',
+          '@ahoo-wang/fetcher-eventstream': 'FetcherEventStream',
+          '@ahoo-wang/fetcher-decorator': 'FetcherDecorator',
+          '@ahoo-wang/fetcher-openapi': 'FetcherOpenAPI',
+          '@ahoo-wang/fetcher-wow': 'FetcherWow',
+          'commander': 'Commander',
+          'ts-morph': 'ts-morph',
+          'yaml': 'yaml',
+          'fs': 'fs',
+          'path': 'path'
+        }
+      }
     },
   },
   plugins: [
