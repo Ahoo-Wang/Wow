@@ -41,7 +41,7 @@
     "test": "vitest run --coverage",
     "lint": "eslint . --fix",
     "clean": "rm -rf dist",
-    "generate": "pnpm dlx @ahoo-wang/fetcher-generator generate -i http://localhost:8080/v3/api-docs"
+    "generate": "pnpm exec fetcher-generator generate -i http://localhost:8080/v3/api-docs"
   },
   "dependencies": {
     "@ahoo-wang/fetcher": "workspace:^",
