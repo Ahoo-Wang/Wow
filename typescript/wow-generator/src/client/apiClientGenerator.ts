@@ -54,7 +54,7 @@ import {
 import {
   addApiMetadataCtor,
   addImportDecorator,
-  addImportEventStream,
+  addImportEventStream, addImportFetcher,
   createDecoratorClass,
   DEFAULT_RETURN_TYPE,
   MethodReturnType,
@@ -154,6 +154,7 @@ export class ApiClientGenerator implements Generator {
       `Generating API client class: ${modelInfo.name}ApiClient with ${operations.size} operations`,
     );
     const apiClientFile = this.createApiClientFile(modelInfo);
+    addImportFetcher(apiClientFile);
     addImportDecorator(apiClientFile);
     addImportEventStream(apiClientFile);
     const apiClientClass = createDecoratorClass(
@@ -462,13 +463,13 @@ export class ApiClientGenerator implements Generator {
     const returnType = this.resolveReturnType(sourceFile, operation.operation);
     const methodDecorator = returnType.metadata
       ? {
-          name: methodToDecorator(operation.method),
-          arguments: [`'${operation.path}'`, returnType.metadata],
-        }
+        name: methodToDecorator(operation.method),
+        arguments: [`'${operation.path}'`, returnType.metadata],
+      }
       : {
-          name: methodToDecorator(operation.method),
-          arguments: [`'${operation.path}'`],
-        };
+        name: methodToDecorator(operation.method),
+        arguments: [`'${operation.path}'`],
+      };
     this.context.logger.info(
       `Creating method with ${parameters.length} parameters, return type: ${returnType.type}`,
     );

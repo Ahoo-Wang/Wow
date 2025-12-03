@@ -20,6 +20,11 @@ import {
 } from 'ts-morph';
 import { addImport } from '../utils';
 
+export const FETCHER_MODULE_SPECIFIER = '@ahoo-wang/fetcher';
+export const FETCHER_NAMED_IMPORTS = [
+  'ResultExtractors'
+];
+
 /**
  * The module specifier for the fetcher-decorator package.
  */
@@ -67,6 +72,9 @@ export const STREAM_RESULT_EXTRACTOR_METADATA = `{
   resultExtractor: JsonEventStreamResultExtractor,
 }`;
 
+export function addImportFetcher(sourceFile: SourceFile) {
+  addImport(sourceFile, FETCHER_MODULE_SPECIFIER, FETCHER_NAMED_IMPORTS);
+}
 /**
  * Adds the necessary imports for decorator functionality to the source file.
  *
