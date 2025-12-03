@@ -13,7 +13,7 @@ importers:
         version: 3.3.6
       '@ahoo-wang/fetcher-cosec':
         specifier: ^3.3.6
-        version: 3.3.6(@ahoo-wang/fetcher-eventbus@3.3.6(@ahoo-wang/fetcher@3.3.6))(@ahoo-wang/fetcher-storage@3.3.6(@ahoo-wang/fetcher-eventbus@3.3.6(@ahoo-wang/fetcher@3.3.6)))(@ahoo-wang/fetcher@3.3.6)
+        version: 3.3.8(@ahoo-wang/fetcher-eventbus@3.3.6(@ahoo-wang/fetcher@3.3.6))(@ahoo-wang/fetcher-storage@3.3.6(@ahoo-wang/fetcher-eventbus@3.3.6(@ahoo-wang/fetcher@3.3.6)))(@ahoo-wang/fetcher@3.3.6)
       '@ahoo-wang/fetcher-decorator':
         specifier: ^3.3.6
         version: 3.3.6(@ahoo-wang/fetcher@3.3.6)
@@ -138,8 +138,8 @@ packages:
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
-  '@ahoo-wang/fetcher-cosec@3.3.6':
-    resolution: {integrity: sha512-PWMe6R0jcBkPMzuGSUcB3+gyvAVEqC1Nq4ZbzR3zmelq45WBSC411hw6+D0O1Dp8yFaH3LjhNa2BLyxwejhV4A==}
+  '@ahoo-wang/fetcher-cosec@3.3.8':
+    resolution: {integrity: sha512-zmWeil1jQJVHzLNoTnzUW6J0FBftlzshb5P4MhyrazbZnS1yHnncv1J0lqg8ObjmIlR5tzp+Q/UvxDu/QWxOVw==}
     peerDependencies:
       '@ahoo-wang/fetcher': ^3.0.0
       '@ahoo-wang/fetcher-eventbus': ^3.0.0
@@ -2357,7 +2357,7 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@ahoo-wang/fetcher-cosec@3.3.6(@ahoo-wang/fetcher-eventbus@3.3.6(@ahoo-wang/fetcher@3.3.6))(@ahoo-wang/fetcher-storage@3.3.6(@ahoo-wang/fetcher-eventbus@3.3.6(@ahoo-wang/fetcher@3.3.6)))(@ahoo-wang/fetcher@3.3.6)':
+  '@ahoo-wang/fetcher-cosec@3.3.8(@ahoo-wang/fetcher-eventbus@3.3.6(@ahoo-wang/fetcher@3.3.6))(@ahoo-wang/fetcher-storage@3.3.6(@ahoo-wang/fetcher-eventbus@3.3.6(@ahoo-wang/fetcher@3.3.6)))(@ahoo-wang/fetcher@3.3.6)':
     dependencies:
       '@ahoo-wang/fetcher': 3.3.6
       '@ahoo-wang/fetcher-eventbus': 3.3.6(@ahoo-wang/fetcher@3.3.6)
