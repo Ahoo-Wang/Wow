@@ -25,11 +25,11 @@
     "@ahoo-wang/fetcher-wow": "^3.3.5",
     "@ant-design/icons": "^6.1.0",
     "@monaco-editor/react": "4.7.0",
-    "antd": "^6.0.0",
+    "antd": "^6.0.1",
     "dayjs": "^1.11.19",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "react-router": "^7.9.6"
+    "react-router": "^7.10.0"
   },
   "devDependencies": {
     "@ahoo-wang/fetcher-generator": "^3.3.5",
@@ -54,7 +54,7 @@
     "typescript-eslint": "^8.48.1",
     "vite": "^7.2.6",
     "vite-bundle-analyzer": "^1.2.3",
-    "vitest": "^4.0.14",
+    "vitest": "^4.0.15",
     "vitest-browser-react": "^2.0.2"
   }
 }
