@@ -14,13 +14,14 @@
 package me.ahoo.wow.compensation.server.dashboard
 
 import org.springframework.boot.autoconfigure.web.WebProperties
+import org.springframework.core.io.Resource
+import org.springframework.core.io.ResourceLoader
 import org.springframework.http.ResponseEntity
 import org.springframework.stereotype.Controller
-import org.springframework.util.ResourceUtils
 import org.springframework.web.bind.annotation.GetMapping
 
 @Controller
-class DashboardConfiguration(private val webProperties: WebProperties) {
+class DashboardConfiguration(private val webProperties: WebProperties, private val resourceLoader: ResourceLoader) {
     companion object {
         const val HOME_FILE = "index.html"
         const val TO_RETRY_NAV = "/to-retry"
@@ -31,11 +32,12 @@ class DashboardConfiguration(private val webProperties: WebProperties) {
         const val UNRECOVERABLE_NAV = "/unrecoverable"
     }
 
-    private val homePageContent by lazy {
-        val indexFilePath = webProperties.resources.staticLocations.first() + HOME_FILE
-        val indexFile = ResourceUtils.getFile(indexFilePath)
-        check(indexFile.exists()) { "$HOME_FILE not found in ${indexFile.absolutePath}" }
-        indexFile.readBytes()
+    private val indexResource by lazy {
+        val location = webProperties.resources.staticLocations.first()
+        val resourcePath = "${location.removeSuffix("/")}/$HOME_FILE"
+        val resource = resourceLoader.getResource(resourcePath)
+        check(resource.exists()) { "$HOME_FILE not found in $resourcePath" }
+        resource
     }
 
     @GetMapping(
@@ -49,9 +51,9 @@ class DashboardConfiguration(private val webProperties: WebProperties) {
             UNRECOVERABLE_NAV,
         ],
     )
-    fun home(): ResponseEntity<ByteArray> {
+    fun home(): ResponseEntity<Resource> {
         return ResponseEntity.ok()
             .contentType(org.springframework.http.MediaType.TEXT_HTML)
-            .body(homePageContent)
+            .body(indexResource)
     }
 }
