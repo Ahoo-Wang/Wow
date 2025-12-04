@@ -114,9 +114,9 @@ flowchart LR
         P1["Partition 1"]
     end
     
-    M1 -->|hash(Order-001)| P0
-    M2 -->|hash(Order-002)| P1
-    M3 -->|hash(Order-001)| P0
+    M1 -->|"hash(Order-001)"| P0
+    M2 -->|"hash(Order-002)"| P1
+    M3 -->|"hash(Order-001)"| P0
 ```
 
 ## Producer Optimization

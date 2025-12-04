@@ -108,15 +108,15 @@ flowchart LR
         M2["Order-002 命令"]
         M3["Order-001 事件"]
     end
-    
+
     subgraph Partitions["分区"]
         P0["Partition 0"]
         P1["Partition 1"]
     end
-    
-    M1 -->|hash(Order-001)| P0
-    M2 -->|hash(Order-002)| P1
-    M3 -->|hash(Order-001)| P0
+
+    M1 -->|"hash(Order-001)"| P0
+    M2 -->|"hash(Order-002)"| P1
+    M3 -->|"hash(Order-001)"| P0
 ```
 
 ## 生产者优化
