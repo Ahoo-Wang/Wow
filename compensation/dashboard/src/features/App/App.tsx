@@ -71,16 +71,6 @@ export default function App({ navItems }: AppProps) {
   const menuItems: MenuItem[] = [
     // 导航菜单项
     ...navItems.map(createNavItem),
-    {
-      key: "spacer",
-      label: "|",
-      style: {
-        marginLeft: "auto",
-        cursor: "none",
-        background: "transparent",
-      },
-      disabled: true,
-    },
     // 外部链接菜单项
     createExternalLinkItem(
       "github",
