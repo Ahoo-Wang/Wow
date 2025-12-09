@@ -19,7 +19,7 @@ json-schema-validator = "1.5.9"
 # testing
 junit = "5.14.1"
 fluent-assert = "0.2.5"
-mockk = "1.14.6"
+mockk = "1.14.7"
 kotlin-compile-testing = "0.11.1"
 # plugins
 test-retry = "1.6.4"
