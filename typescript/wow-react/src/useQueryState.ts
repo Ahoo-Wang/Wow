@@ -13,17 +13,79 @@
 
 import { useCallback, useEffect, useRef } from 'react';
 
+/**
+ * Configuration options for the useQueryState hook
+ * @template Q - The type of the query parameters
+ */
 export interface UseQueryStateOptions<Q> {
+  /** The initial query parameters to be stored and managed */
   initialQuery: Q;
+  /** Whether to automatically execute the query when the query changes or on mount. Defaults to false */
   autoExecute?: boolean;
+  /** Function to execute with the current query parameters. Called when autoExecute is true */
   execute: (query: Q) => Promise<void>;
 }
 
+/**
+ * Return type of the useQueryState hook
+ * @template Q - The type of the query parameters
+ */
 export interface UseQueryStateReturn<Q> {
+  /** Function to retrieve the current query parameters */
   getQuery: () => Q;
+  /** Function to update the query parameters. Triggers execution if autoExecute is true */
   setQuery: (query: Q) => void;
 }
 
+/**
+ * A React hook for managing query state with automatic execution capabilities
+ *
+ * This hook provides a centralized way to manage query parameters, including
+ * getting and setting the current query, and optionally automatically executing
+ * queries when the query changes or on component mount.
+ *
+ * @template Q - The type of the query parameters
+ * @param options - Configuration options for the hook
+ * @returns An object containing getQuery and setQuery functions
+ *
+ * @example
+ * ```typescript
+ * interface UserQuery {
+ *   id: string;
+ *   name?: string;
+ * }
+ *
+ * function UserComponent() {
+ *   const executeQuery = async (query: UserQuery) => {
+ *     // Perform query execution logic here
+ *     console.log('Executing query:', query);
+ *   };
+ *
+ *   const { getQuery, setQuery } = useQueryState<UserQuery>({
+ *     initialQuery: { id: '1' },
+ *     autoExecute: true,
+ *     execute: executeQuery,
+ *   });
+ *
+ *   const handleQueryChange = (newQuery: UserQuery) => {
+ *     setQuery(newQuery); // Will automatically execute if autoExecute is true
+ *   };
+ *
+ *   const currentQuery = getQuery(); // Get current query parameters
+ *
+ *   return (
+ *     <div>
+ *       <button onClick={() => handleQueryChange({ id: '2', name: 'John' })}>
+ *         Update Query
+ *       </button>
+ *     </div>
+ *   );
+ * }
+ * ```
+ *
+ * @throws This hook does not throw exceptions directly, but the execute function
+ * may throw exceptions that should be handled by the caller.
+ */
 export function useQueryState<Q>(
   options: UseQueryStateOptions<Q>,
 ): UseQueryStateReturn<Q> {
