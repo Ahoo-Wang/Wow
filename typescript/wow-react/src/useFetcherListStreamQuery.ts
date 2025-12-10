@@ -38,6 +38,9 @@ export function useFetcherListStreamQuery<
 >(
   options: UseFetcherListStreamQueryOptions<R, FIELDS, E>,
 ): UseFetcherListStreamQueryReturn<R, FIELDS, E> {
-  options.resultExtractor = JsonEventStreamResultExtractor;
-  return useFetcherQuery<ListQuery<FIELDS>, ReadableStream<JsonServerSentEvent<R>>, E>(options);
+  const streamOptions = {
+    ...options,
+    resultExtractor: JsonEventStreamResultExtractor,
+  };
+  return useFetcherQuery<ListQuery<FIELDS>, ReadableStream<JsonServerSentEvent<R>>, E>(streamOptions);
 }
