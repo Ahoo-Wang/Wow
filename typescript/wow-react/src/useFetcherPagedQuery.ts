@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { PagedQuery } from '@ahoo-wang/fetcher-wow';
+import { PagedList, PagedQuery } from '@ahoo-wang/fetcher-wow';
 import { FetcherError } from '@ahoo-wang/fetcher';
 import { UseQueryReturn } from './useQuery';
 import { useFetcherQuery, UseFetcherQueryOptions } from './useFetcherQuery';
@@ -20,13 +20,15 @@ export interface UseFetcherPagedQueryOptions<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-> extends UseFetcherQueryOptions<PagedQuery<FIELDS>, R, E> {}
+> extends UseFetcherQueryOptions<PagedQuery<FIELDS>, PagedList<R>, E> {
+}
 
 export interface UseFetcherPagedQueryReturn<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-> extends UseQueryReturn<PagedQuery<FIELDS>, R, E> {}
+> extends UseQueryReturn<PagedQuery<FIELDS>, PagedList<R>, E> {
+}
 
 export function useFetcherPagedQuery<
   R,
@@ -35,5 +37,5 @@ export function useFetcherPagedQuery<
 >(
   options: UseFetcherPagedQueryOptions<R, FIELDS, E>,
 ): UseFetcherPagedQueryReturn<R, FIELDS, E> {
-  return useFetcherQuery<PagedQuery<FIELDS>, R, E>(options);
+  return useFetcherQuery<PagedQuery<FIELDS>, PagedList<R>, E>(options);
 }

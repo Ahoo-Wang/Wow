@@ -20,13 +20,13 @@ export interface UseFetcherListQueryOptions<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-> extends UseFetcherQueryOptions<ListQuery<FIELDS>, R, E> {}
+> extends UseFetcherQueryOptions<ListQuery<FIELDS>, R[], E> {}
 
 export interface UseFetcherListQueryReturn<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-> extends UseQueryReturn<ListQuery<FIELDS>, R, E> {}
+> extends UseQueryReturn<ListQuery<FIELDS>, R[], E> {}
 
 export function useFetcherListQuery<
   R,
@@ -35,5 +35,5 @@ export function useFetcherListQuery<
 >(
   options: UseFetcherListQueryOptions<R, FIELDS, E>,
 ): UseFetcherListQueryReturn<R, FIELDS, E> {
-  return useFetcherQuery<ListQuery<FIELDS>, R, E>(options);
+  return useFetcherQuery<ListQuery<FIELDS>, R[], E>(options);
 }

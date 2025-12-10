@@ -18,23 +18,23 @@ import { useFetcherQuery, UseFetcherQueryOptions } from './useFetcherQuery';
 import { Condition } from '@ahoo-wang/fetcher-wow';
 
 export interface UseFetcherCountQueryOptions<
-  R,
   FIELDS extends string = string,
   E = FetcherError,
-> extends UseFetcherQueryOptions<Condition<FIELDS>, R, E> {}
+> extends UseFetcherQueryOptions<Condition<FIELDS>, number, E> {
+}
 
 export interface UseFetcherCountQueryReturn<
-  R,
   FIELDS extends string = string,
   E = FetcherError,
-> extends UseQueryReturn<Condition<FIELDS>, R, E> {}
+> extends UseQueryReturn<Condition<FIELDS>, number, E> {
+}
 
 export function useFetcherCountQuery<
   R,
   FIELDS extends string = string,
   E = FetcherError,
 >(
-  options: UseFetcherCountQueryOptions<R, FIELDS, E>,
-): UseFetcherCountQueryReturn<R, FIELDS, E> {
-  return useFetcherQuery<Condition<FIELDS>, R, E>(options);
+  options: UseFetcherCountQueryOptions<FIELDS, E>,
+): UseFetcherCountQueryReturn<FIELDS, E> {
+  return useFetcherQuery<Condition<FIELDS>, number, E>(options);
 }
