@@ -18,9 +18,10 @@ import {
   UseExecutePromiseOptions,
   PromiseSupplier,
 } from '../core';
-import { useCallback, useMemo, useEffect, useRef } from 'react';
+import { useCallback, useMemo } from 'react';
 import { AttributesCapable, FetcherError } from '@ahoo-wang/fetcher';
 import { AutoExecuteCapable } from './types';
+import { useQueryState } from './useQueryState';
 
 /**
  * Configuration options for the useQuery hook
@@ -29,7 +30,8 @@ import { AutoExecuteCapable } from './types';
  * @template E - The type of the error value
  */
 export interface UseQueryOptions<Q, R, E = FetcherError>
-  extends UseExecutePromiseOptions<R, E>,
+  extends
+    UseExecutePromiseOptions<R, E>,
     AttributesCapable,
     AutoExecuteCapable {
   /** The initial query parameters */
@@ -49,8 +51,11 @@ export interface UseQueryOptions<Q, R, E = FetcherError>
  * @template R - The type of the result value
  * @template E - The type of the error value
  */
-export interface UseQueryReturn<Q, R, E = FetcherError>
-  extends UseExecutePromiseReturn<R, E> {
+export interface UseQueryReturn<
+  Q,
+  R,
+  E = FetcherError,
+> extends UseExecutePromiseReturn<R, E> {
   /**
    * Get the current query parameters
    */
@@ -121,40 +126,32 @@ export function useQuery<Q, R, E = FetcherError>(
     reset,
     abort,
   } = useExecutePromise<R, E>(latestOptions.current);
-  const queryRef = useRef(options.initialQuery);
 
-  const queryExecutor: PromiseSupplier<R> = useCallback(
-    async (abortController: AbortController): Promise<R> => {
-      return latestOptions.current.execute(
-        queryRef.current,
-        latestOptions.current.attributes,
-        abortController,
-      );
-    },
-    [queryRef, latestOptions],
-  );
-
-  const execute = useCallback(() => {
-    return promiseExecutor(queryExecutor);
-  }, [promiseExecutor, queryExecutor]);
-  const getQuery = useCallback(() => {
-    return queryRef.current;
-  }, [queryRef]);
-  const setQuery = useCallback(
+  const execute = useCallback(
     (query: Q) => {
-      queryRef.current = query;
-      if (latestOptions.current.autoExecute) {
-        execute();
-      }
+      const queryExecutor: PromiseSupplier<R> = async (
+        abortController: AbortController,
+      ): Promise<R> => {
+        return latestOptions.current.execute(
+          query,
+          latestOptions.current.attributes,
+          abortController,
+        );
+      };
+      return promiseExecutor(queryExecutor);
     },
-    [queryRef, latestOptions, execute],
+    [promiseExecutor, latestOptions],
   );
 
-  useEffect(() => {
-    if (latestOptions.current.autoExecute) {
-      execute();
-    }
-  }, [latestOptions, execute]);
+  const { getQuery, setQuery } = useQueryState({
+    initialQuery: options.initialQuery,
+    autoExecute: latestOptions.current.autoExecute,
+    execute,
+  });
+
+  const executeWrapper = useCallback(() => {
+    return execute(getQuery());
+  }, [execute, getQuery]);
 
   return useMemo(
     () => ({
@@ -162,12 +159,22 @@ export function useQuery<Q, R, E = FetcherError>(
       result,
       error,
       status,
-      execute,
+      execute: executeWrapper,
       reset,
       abort,
       getQuery,
       setQuery,
     }),
-    [loading, result, error, status, execute, reset, abort, getQuery, setQuery],
+    [
+      loading,
+      result,
+      error,
+      status,
+      executeWrapper,
+      reset,
+      abort,
+      getQuery,
+      setQuery,
+    ],
   );
 }

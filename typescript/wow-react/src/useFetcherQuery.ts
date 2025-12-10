@@ -14,15 +14,21 @@
 import { useFetcher, UseFetcherOptions, UseFetcherReturn } from '../fetcher';
 import { FetcherError, FetchRequest } from '@ahoo-wang/fetcher';
 import { useLatest } from '../core';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useMemo } from 'react';
 import { AutoExecuteCapable } from './types';
+import { useQueryState } from './useQueryState';
 
-export interface useFetcherQuery<Q, R, E = FetcherError> extends UseFetcherOptions<R, E>, AutoExecuteCapable {
+export interface useFetcherQuery<Q, R, E = FetcherError>
+  extends UseFetcherOptions<R, E>, AutoExecuteCapable {
   url: string;
   initialQuery: Q;
 }
 
-export interface UseFetcherQueryReturn<Q, R, E = FetcherError> extends UseFetcherReturn<R, E> {
+export interface UseFetcherQueryReturn<
+  Q,
+  R,
+  E = FetcherError,
+> extends UseFetcherReturn<R, E> {
   /**
    * Get the current query parameters
    */
@@ -46,46 +52,50 @@ export function useFetcherQuery<Q, R, E = FetcherError>(
     reset,
     abort,
   } = useFetcher<R, E>(latestOptions.current);
-  const queryRef = useRef(options.initialQuery);
-  const execute = useCallback(() => {
-    const fetcherRequest: FetchRequest = {
-      url: options.url,
-      method: 'POST',
-      body: queryRef.current as Record<string, any>,
-    };
-    return fetcherExecute(fetcherRequest);
-  }, [fetcherExecute]);
-
-  const getQuery = useCallback(() => {
-    return queryRef.current;
-  }, [queryRef]);
-  const setQuery = useCallback(
+  const execute = useCallback(
     (query: Q) => {
-      queryRef.current = query;
-      if (latestOptions.current.autoExecute) {
-        execute();
-      }
+      const fetcherRequest: FetchRequest = {
+        url: options.url,
+        method: 'POST',
+        body: query as Record<string, any>,
+      };
+      return fetcherExecute(fetcherRequest);
     },
-    [queryRef, latestOptions, execute],
+    [fetcherExecute, options.url],
   );
 
-  useEffect(() => {
-    if (latestOptions.current.autoExecute) {
-      execute();
-    }
-  }, [latestOptions, execute]);
+  const { getQuery, setQuery } = useQueryState({
+    initialQuery: options.initialQuery,
+    autoExecute: latestOptions.current.autoExecute,
+    execute,
+  });
+
+  const executeWrapper = useCallback(() => {
+    return execute(getQuery());
+  }, [execute, getQuery]);
+
   return useMemo(
     () => ({
       loading,
       result,
       error,
       status,
-      execute,
+      execute: executeWrapper,
       reset,
       abort,
       getQuery,
       setQuery,
     }),
-    [loading, result, error, status, execute, reset, abort, getQuery, setQuery],
+    [
+      loading,
+      result,
+      error,
+      status,
+      executeWrapper,
+      reset,
+      abort,
+      getQuery,
+      setQuery,
+    ],
   );
 }
