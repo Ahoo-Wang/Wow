@@ -16,18 +16,110 @@ import { FetcherError } from '@ahoo-wang/fetcher';
 import { UseQueryReturn } from './useQuery';
 import { useFetcherQuery, UseFetcherQueryOptions } from './useFetcherQuery';
 
+/**
+ * Options for the useFetcherListQuery hook.
+ * Extends UseFetcherQueryOptions to provide configuration for list queries.
+ *
+ * @template R - The type of individual items in the result array.
+ * @template FIELDS - The fields available for filtering, sorting, and pagination in the list query.
+ * @template E - The error type, defaults to FetcherError.
+ */
 export interface UseFetcherListQueryOptions<
   R,
   FIELDS extends string = string,
   E = FetcherError,
 > extends UseFetcherQueryOptions<ListQuery<FIELDS>, R[], E> {}
 
+/**
+ * Return type of the useFetcherListQuery hook.
+ * Extends UseQueryReturn to provide state and methods for list query operations.
+ *
+ * @template R - The type of individual items in the result array.
+ * @template FIELDS - The fields available for filtering, sorting, and pagination in the list query.
+ * @template E - The error type, defaults to FetcherError.
+ */
 export interface UseFetcherListQueryReturn<
   R,
   FIELDS extends string = string,
   E = FetcherError,
 > extends UseQueryReturn<ListQuery<FIELDS>, R[], E> {}
 
+/**
+ * A React hook for executing list queries using the fetcher library within the wow framework.
+ *
+ * This hook is designed for fetching lists of items with support for filtering, sorting, and pagination
+ * through the ListQuery type. It returns an array of results and integrates seamlessly with the fetcher
+ * library for HTTP requests.
+ *
+ * @template R - The type of individual items in the result array (e.g., User, Product).
+ * @template FIELDS - The fields available for filtering, sorting, and pagination (e.g., 'name', 'createdAt').
+ * @template E - The error type, defaults to FetcherError.
+ * @param options - Configuration options including URL, initial list query parameters, and execution settings.
+ * @returns An object containing loading state, result array, error state, and query management functions.
+ *
+ * @example
+ * ```typescript
+ * import { useFetcherListQuery } from '@ahoo-wang/fetcher-react/wow';
+ * import { ListQuery } from '@ahoo-wang/fetcher-wow';
+ *
+ * interface User {
+ *   id: string;
+ *   name: string;
+ *   email: string;
+ *   createdAt: string;
+ * }
+ *
+ * type UserFields = keyof User;
+ *
+ * function UserListComponent() {
+ *   const {
+ *     loading,
+ *     result: users,
+ *     error,
+ *     execute,
+ *     setQuery,
+ *     getQuery,
+ *   } = useFetcherListQuery<User, UserFields>({
+ *     url: '/api/users',
+ *     initialQuery: {
+ *       filter: { name: { $like: 'John%' } },
+ *       sort: [{ field: 'createdAt', order: 'desc' }],
+ *       page: { size: 10, number: 1 },
+ *     },
+ *     autoExecute: true,
+ *   });
+ *
+ *   const changePage = (pageNumber: number) => {
+ *     const currentQuery = getQuery();
+ *     setQuery({
+ *       ...currentQuery,
+ *       page: { ...currentQuery.page, number: pageNumber },
+ *     });
+ *   };
+ *
+ *   if (loading) return <div>Loading users...</div>;
+ *   if (error) return <div>Error: {error.message}</div>;
+ *
+ *   return (
+ *     <div>
+ *       <h2>Users ({users?.length || 0})</h2>
+ *       <ul>
+ *         {users?.map(user => (
+ *           <li key={user.id}>
+ *             {user.name} - {user.email}
+ *           </li>
+ *         ))}
+ *       </ul>
+ *       <button onClick={() => changePage(2)}>Go to page 2</button>
+ *       <button onClick={execute}>Refresh list</button>
+ *     </div>
+ *   );
+ * }
+ * ```
+ *
+ * @throws {FetcherError} When the HTTP request fails due to network issues, invalid responses, or server errors.
+ * @throws {Error} When invalid options are provided, such as malformed URLs or unsupported query parameters.
+ */
 export function useFetcherListQuery<
   R,
   FIELDS extends string = string,
