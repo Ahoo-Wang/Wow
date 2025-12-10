@@ -62,12 +62,12 @@ export interface UseFetcherCountQueryReturn<
  * @example
  * ```typescript
  * import { useFetcherCountQuery } from '@ahoo-wang/fetcher-react';
- * import { Condition } from '@ahoo-wang/fetcher-wow';
+ * import { all } from '@ahoo-wang/fetcher-wow';
  *
  * function UserCountComponent() {
  *   const { data: count, loading, error } = useFetcherCountQuery({
  *     fetcher: myFetcher,
- *     condition: { field: 'status', operator: 'eq', value: 'active' } as Condition<'status'>,
+ *     condition: all(),
  *     autoExecute: true,
  *   });
  *
