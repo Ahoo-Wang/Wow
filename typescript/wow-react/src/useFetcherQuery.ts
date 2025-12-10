@@ -12,7 +12,7 @@
  */
 
 import { useFetcher, UseFetcherOptions, UseFetcherReturn } from '../fetcher';
-import { FetcherError, FetchRequest } from '@ahoo-wang/fetcher';
+import { FetcherError, FetchRequest, JsonResultExtractor } from '@ahoo-wang/fetcher';
 import { useLatest } from '../core';
 import { useCallback, useMemo } from 'react';
 import { AutoExecuteCapable } from './types';
@@ -125,7 +125,11 @@ export interface UseFetcherQueryReturn<Q, R, E = FetcherError>
 export function useFetcherQuery<Q, R, E = FetcherError>(
   options: UseFetcherQueryOptions<Q, R, E>,
 ): UseFetcherQueryReturn<Q, R, E> {
-  const latestOptions = useLatest(options);
+  const useFetcherQueryOptions = {
+    resultExtractor: JsonResultExtractor,
+    ...options,
+  };
+  const latestOptionsRef = useLatest(useFetcherQueryOptions);
   const {
     loading,
     result,
@@ -134,22 +138,22 @@ export function useFetcherQuery<Q, R, E = FetcherError>(
     execute: fetcherExecute,
     reset,
     abort,
-  } = useFetcher<R, E>(latestOptions.current);
+  } = useFetcher<R, E>(useFetcherQueryOptions);
   const execute = useCallback(
     (query: Q) => {
       const fetcherRequest: FetchRequest = {
-        url: options.url,
+        url: latestOptionsRef.current.url,
         method: 'POST',
         body: query as Record<string, any>,
       };
       return fetcherExecute(fetcherRequest);
     },
-    [fetcherExecute, options.url],
+    [fetcherExecute, latestOptionsRef],
   );
 
   const { getQuery, setQuery } = useQueryState({
-    initialQuery: options.initialQuery,
-    autoExecute: latestOptions.current.autoExecute,
+    initialQuery: useFetcherQueryOptions.initialQuery,
+    autoExecute: useFetcherQueryOptions.autoExecute,
     execute,
   });
 

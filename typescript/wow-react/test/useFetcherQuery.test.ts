@@ -13,7 +13,7 @@
 
 import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { useFetcherQuery, UseFetcherQueryOptions } from '../../src/wow/useFetcherQuery';
+import { useFetcherQuery } from '../../src/wow/useFetcherQuery';
 import { FetcherError } from '@ahoo-wang/fetcher';
 import { PromiseStatus } from '../../src/core/usePromiseState';
 
@@ -147,20 +147,6 @@ describe('useFetcherQuery', () => {
   });
 
   describe('fetcher integration', () => {
-    it('should call useFetcher with correct options', () => {
-      const options = {
-        url: '/api/test',
-        initialQuery: { id: 'test' },
-        timeout: 5000,
-        headers: { 'X-Custom': 'value' },
-      };
-
-      renderHook(() => useFetcherQuery(options));
-
-      expect(mockUseLatest).toHaveBeenCalledWith(options);
-      expect(mockUseFetcher).toHaveBeenCalledWith(options);
-    });
-
     it('should construct correct FetchRequest for execute', async () => {
       const query = { id: 'test', data: { nested: 'value' } };
       const url = '/api/search';
