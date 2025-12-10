@@ -12,16 +12,15 @@
  */
 
 import { useCallback, useEffect, useRef } from 'react';
+import { AutoExecuteCapable } from './types';
 
 /**
  * Configuration options for the useQueryState hook
  * @template Q - The type of the query parameters
  */
-export interface UseQueryStateOptions<Q> {
+export interface UseQueryStateOptions<Q> extends AutoExecuteCapable {
   /** The initial query parameters to be stored and managed */
   initialQuery: Q;
-  /** Whether to automatically execute the query when the query changes or on mount. Defaults to false */
-  autoExecute?: boolean;
   /** Function to execute with the current query parameters. Called when autoExecute is true */
   execute: (query: Q) => Promise<void>;
 }
