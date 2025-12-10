@@ -14,6 +14,8 @@
 import type { ErrorDetails } from "../../../generated";
 import { Card, Typography } from "antd";
 import { Editor } from "@monaco-editor/react";
+import { useRef } from "react";
+import { Fullscreen } from "@ahoo-wang/fetcher-viewer";
 const { Text } = Typography;
 
 export interface ErrorDetailsProps {
@@ -21,6 +23,7 @@ export interface ErrorDetailsProps {
 }
 
 export function ErrorDetails({ error }: ErrorDetailsProps) {
+  const cardRef = useRef<HTMLDivElement>(null);
   const errorTitle = (
     <>
       <Text>Error Details </Text>
@@ -32,12 +35,18 @@ export function ErrorDetails({ error }: ErrorDetailsProps) {
   return (
     <>
       <Card
+        ref={cardRef}
         title={errorTitle}
         size="small"
-        styles={{ body: { padding: "0px" } }}
+        style={{
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+        }}
+        styles={{ body: { padding: "0px", flex: "auto" } }}
+        extra={<Fullscreen target={cardRef} size={"small"} type={"dashed"} />}
       >
         <Editor
-          height="80vh"
           defaultLanguage="java"
           defaultValue={error.stackTrace}
           theme="vs-dark"
