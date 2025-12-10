@@ -18,21 +18,110 @@ import { useCallback, useMemo } from 'react';
 import { AutoExecuteCapable } from './types';
 import { useQueryState, UseQueryStateReturn } from './useQueryState';
 
+/**
+ * Configuration options for the useFetcherQuery hook
+ * @template Q - The type of the query parameters
+ * @template R - The type of the result value
+ * @template E - The type of the error value
+ */
 export interface useFetcherQuery<Q, R, E = FetcherError>
   extends UseFetcherOptions<R, E>, AutoExecuteCapable {
+  /** The URL endpoint to send the POST request to */
   url: string;
+  /** The initial query parameters to be sent as the request body */
   initialQuery: Q;
 }
 
-export interface UseFetcherQueryReturn<
-  Q,
-  R,
-  E = FetcherError,
-> extends UseFetcherReturn<R, E>, UseQueryStateReturn<Q> {
+/**
+ * Return type of the useFetcherQuery hook
+ * @template Q - The type of the query parameters
+ * @template R - The type of the result value
+ * @template E - The type of the error value
+ */
+export interface UseFetcherQueryReturn<Q, R, E = FetcherError>
+  extends UseFetcherReturn<R, E>, UseQueryStateReturn<Q> {
   /** Function to execute the query with current parameters */
   execute: () => Promise<void>;
 }
 
+/**
+ * A React hook for managing query-based HTTP requests with automatic execution
+ *
+ * This hook combines the fetcher functionality with query state management to provide
+ * a convenient way to make POST requests where query parameters are sent as the request body.
+ * It supports automatic execution on mount and when query parameters change.
+ *
+ * @template Q - The type of the query parameters
+ * @template R - The type of the result value
+ * @template E - The type of the error value (defaults to FetcherError)
+ * @param options - Configuration options for the hook
+ * @returns An object containing fetcher state, query management functions, and execution controls
+ *
+ * @example
+ * ```typescript
+ * import { useFetcherQuery } from '@ahoo-wang/fetcher-react';
+ *
+ * interface SearchQuery {
+ *   keyword: string;
+ *   limit: number;
+ *   filters?: { category?: string };
+ * }
+ *
+ * interface SearchResult {
+ *   items: Array<{ id: string; title: string }>;
+ *   total: number;
+ * }
+ *
+ * function SearchComponent() {
+ *   const {
+ *     loading,
+ *     result,
+ *     error,
+ *     execute,
+ *     setQuery,
+ *     getQuery,
+ *   } = useFetcherQuery<SearchQuery, SearchResult>({
+ *     url: '/api/search',
+ *     initialQuery: { keyword: '', limit: 10 },
+ *     autoExecute: false, // Don't execute on mount
+ *   });
+ *
+ *   const handleSearch = (keyword: string) => {
+ *     setQuery({ keyword, limit: 10 }); // This will auto-execute if autoExecute was true
+ *   };
+ *
+ *   const handleManualSearch = () => {
+ *     execute(); // Manual execution with current query
+ *   };
+ *
+ *   if (loading) return <div>Searching...</div>;
+ *   if (error) return <div>Error: {error.message}</div>;
+ *
+ *   return (
+ *     <div>
+ *       <input
+ *         type="text"
+ *         onChange={(e) => handleSearch(e.target.value)}
+ *         placeholder="Search..."
+ *       />
+ *       <button onClick={handleManualSearch}>Search</button>
+ *       {result && (
+ *         <div>
+ *           Found {result.total} items:
+ *           {result.items.map(item => (
+ *             <div key={item.id}>{item.title}</div>
+ *           ))}
+ *         </div>
+ *       )}
+ *     </div>
+ *   );
+ * }
+ * ```
+ *
+ * @throws This hook may throw exceptions related to network requests, which should be
+ * handled by the caller. The execute function may throw FetcherError or other network-related errors.
+ * Invalid URL or malformed request options may also cause exceptions.
+ */
 export function useFetcherQuery<Q, R, E = FetcherError>(
   options: useFetcherQuery<Q, R, E>,
 ): UseFetcherQueryReturn<Q, R, E> {
