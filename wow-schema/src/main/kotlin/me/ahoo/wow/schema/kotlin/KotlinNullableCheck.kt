@@ -28,7 +28,10 @@ object KotlinNullableCheck : ConfigFunction<FieldScope, Boolean> {
         }
 
         val property = fieldScope.rawMember.kotlinProperty ?: return false
-        val schemaAnnotation = property.scanAnnotation<Schema>() ?: return property.returnType.isMarkedNullable
+        if (property.returnType.isMarkedNullable) {
+            return true
+        }
+        val schemaAnnotation = property.scanAnnotation<Schema>() ?: return false
         return schemaAnnotation.nullable
     }
 }
