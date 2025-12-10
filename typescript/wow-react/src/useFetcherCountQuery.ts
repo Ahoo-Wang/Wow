@@ -11,26 +11,74 @@
  * limitations under the License.
  */
 
-
 import { FetcherError } from '@ahoo-wang/fetcher';
 import { UseQueryReturn } from './useQuery';
 import { useFetcherQuery, UseFetcherQueryOptions } from './useFetcherQuery';
 import { Condition } from '@ahoo-wang/fetcher-wow';
 
+/**
+ * Options for configuring the useFetcherCountQuery hook.
+ *
+ * This interface extends UseFetcherQueryOptions and is specifically tailored for count queries
+ * that use a Condition object to filter results and return a numeric count.
+ *
+ * @template FIELDS - A string union type representing the fields that can be used in the condition.
+ * @template E - The type of error that may be thrown, defaults to FetcherError.
+ */
 export interface UseFetcherCountQueryOptions<
   FIELDS extends string = string,
   E = FetcherError,
-> extends UseFetcherQueryOptions<Condition<FIELDS>, number, E> {
-}
+> extends UseFetcherQueryOptions<Condition<FIELDS>, number, E> {}
 
+/**
+ * Return type for the useFetcherCountQuery hook.
+ *
+ * This interface extends UseQueryReturn and provides the structure for the hook's return value,
+ * including data (the count as a number), loading state, error state, and other query-related properties.
+ *
+ * @template FIELDS - A string union type representing the fields that can be used in the condition.
+ * @template E - The type of error that may be thrown, defaults to FetcherError.
+ */
 export interface UseFetcherCountQueryReturn<
   FIELDS extends string = string,
   E = FetcherError,
-> extends UseQueryReturn<Condition<FIELDS>, number, E> {
-}
+> extends UseQueryReturn<Condition<FIELDS>, number, E> {}
 
+/**
+ * A React hook for performing count queries using the Fetcher library.
+ *
+ * This hook is designed for scenarios where you need to retrieve the count of records
+ * that match a specific condition. It wraps the useFetcherQuery hook and specializes
+ * it for count operations, returning a number representing the count.
+ *
+ * @template FIELDS - A string union type representing the fields that can be used in the condition.
+ * @template E - The type of error that may be thrown, defaults to FetcherError.
+ *
+ * @param options - Configuration options for the count query, including the condition, fetcher instance, and other query settings.
+ * @returns An object containing the query result (count as a number), loading state, error state, and utility functions.
+ *
+ * @throws {E} Throws an error of type E if the query fails, which could be due to network issues, invalid conditions, or server errors.
+ *
+ * @example
+ * ```typescript
+ * import { useFetcherCountQuery } from '@ahoo-wang/fetcher-react';
+ * import { Condition } from '@ahoo-wang/fetcher-wow';
+ *
+ * function UserCountComponent() {
+ *   const { data: count, loading, error } = useFetcherCountQuery({
+ *     fetcher: myFetcher,
+ *     condition: { field: 'status', operator: 'eq', value: 'active' } as Condition<'status'>,
+ *     autoExecute: true,
+ *   });
+ *
+ *   if (loading) return <div>Loading...</div>;
+ *   if (error) return <div>Error: {error.message}</div>;
+ *
+ *   return <div>Total active users: {count}</div>;
+ * }
+ * ```
+ */
 export function useFetcherCountQuery<
-  R,
   FIELDS extends string = string,
   E = FetcherError,
 >(
