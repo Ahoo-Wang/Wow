@@ -216,7 +216,7 @@ export function FailedDetails({ state }: FailedDetailsProps) {
   ];
 
   return (
-    <Flex gap="small" vertical>
+    <Flex gap="small" vertical style={{ height: "100%" }}>
       <Descriptions bordered column={6} items={basicItems} size="small" />
       <Descriptions bordered column={4} items={functionItems} size="small" />
       <Descriptions bordered column={3} items={eventIdItems} size="small" />
