@@ -16,7 +16,7 @@ import { FetcherError, FetchRequest } from '@ahoo-wang/fetcher';
 import { useLatest } from '../core';
 import { useCallback, useMemo } from 'react';
 import { AutoExecuteCapable } from './types';
-import { useQueryState } from './useQueryState';
+import { useQueryState, UseQueryStateReturn } from './useQueryState';
 
 export interface useFetcherQuery<Q, R, E = FetcherError>
   extends UseFetcherOptions<R, E>, AutoExecuteCapable {
@@ -28,13 +28,7 @@ export interface UseFetcherQueryReturn<
   Q,
   R,
   E = FetcherError,
-> extends UseFetcherReturn<R, E> {
-  /**
-   * Get the current query parameters
-   */
-  getQuery: () => Q;
-  /** Function to update the query parameters */
-  setQuery: (query: Q) => void;
+> extends UseFetcherReturn<R, E>, UseQueryStateReturn<Q> {
   /** Function to execute the query with current parameters */
   execute: () => Promise<void>;
 }

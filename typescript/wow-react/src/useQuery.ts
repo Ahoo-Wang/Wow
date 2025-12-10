@@ -21,7 +21,7 @@ import {
 import { useCallback, useMemo } from 'react';
 import { AttributesCapable, FetcherError } from '@ahoo-wang/fetcher';
 import { AutoExecuteCapable } from './types';
-import { useQueryState } from './useQueryState';
+import { useQueryState, UseQueryStateReturn } from './useQueryState';
 
 /**
  * Configuration options for the useQuery hook
@@ -30,8 +30,7 @@ import { useQueryState } from './useQueryState';
  * @template E - The type of the error value
  */
 export interface UseQueryOptions<Q, R, E = FetcherError>
-  extends
-    UseExecutePromiseOptions<R, E>,
+  extends UseExecutePromiseOptions<R, E>,
     AttributesCapable,
     AutoExecuteCapable {
   /** The initial query parameters */
@@ -55,13 +54,7 @@ export interface UseQueryReturn<
   Q,
   R,
   E = FetcherError,
-> extends UseExecutePromiseReturn<R, E> {
-  /**
-   * Get the current query parameters
-   */
-  getQuery: () => Q;
-  /** Function to update the query parameters */
-  setQuery: (query: Q) => void;
+> extends UseExecutePromiseReturn<R, E>, UseQueryStateReturn<Q> {
   /** Function to execute the query with current parameters */
   execute: () => Promise<void>;
 }
