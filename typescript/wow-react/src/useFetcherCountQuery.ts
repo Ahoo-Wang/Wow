@@ -65,16 +65,21 @@ export interface UseFetcherCountQueryReturn<
  * import { all } from '@ahoo-wang/fetcher-wow';
  *
  * function UserCountComponent() {
- *   const { data: count, loading, error } = useFetcherCountQuery({
- *     fetcher: myFetcher,
- *     condition: all(),
+ *   const { data: count, loading, error, execute } = useFetcherCountQuery({
+ *     url: '/api/users/count',
+ *     initialQuery: all(),
  *     autoExecute: true,
  *   });
  *
  *   if (loading) return <div>Loading...</div>;
  *   if (error) return <div>Error: {error.message}</div>;
  *
- *   return <div>Total active users: {count}</div>;
+ *   return (
+ *     <div>
+ *       <div>Total active users: {count}</div>
+ *       <button onClick={execute}>Refresh Count</button>
+ *     </div>
+ *   );
  * }
  * ```
  */

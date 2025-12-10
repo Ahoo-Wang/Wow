@@ -59,8 +59,8 @@ export interface UseFetcherListQueryReturn<
  *
  * @example
  * ```typescript
- * import { useFetcherListQuery } from '@ahoo-wang/fetcher-react/wow';
- * import { ListQuery } from '@ahoo-wang/fetcher-wow';
+ * import { useFetcherListQuery } from '@ahoo-wang/fetcher-react';
+ * import { listQuery, contains, desc } from '@ahoo-wang/fetcher-wow';
  *
  * interface User {
  *   id: string;
@@ -68,8 +68,6 @@ export interface UseFetcherListQueryReturn<
  *   email: string;
  *   createdAt: string;
  * }
- *
- * type UserFields = keyof User;
  *
  * function UserListComponent() {
  *   const {
@@ -79,21 +77,21 @@ export interface UseFetcherListQueryReturn<
  *     execute,
  *     setQuery,
  *     getQuery,
- *   } = useFetcherListQuery<User, UserFields>({
- *     url: '/api/users',
- *     initialQuery: {
- *       filter: { name: { $like: 'John%' } },
- *       sort: [{ field: 'createdAt', order: 'desc' }],
- *       page: { size: 10, number: 1 },
- *     },
+ *   } = useFetcherListQuery<User, keyof User>({
+ *     url: '/api/users/list',
+ *     initialQuery: listQuery({
+ *       condition: contains('name', 'John'),
+ *       sort: [desc('createdAt')],
+ *       limit: 10,
+ *     }),
  *     autoExecute: true,
  *   });
  *
- *   const changePage = (pageNumber: number) => {
+ *   const loadMore = () => {
  *     const currentQuery = getQuery();
  *     setQuery({
  *       ...currentQuery,
- *       page: { ...currentQuery.page, number: pageNumber },
+ *       limit: (currentQuery.limit || 10) + 10,
  *     });
  *   };
  *
@@ -110,7 +108,7 @@ export interface UseFetcherListQueryReturn<
  *           </li>
  *         ))}
  *       </ul>
- *       <button onClick={() => changePage(2)}>Go to page 2</button>
+ *       <button onClick={loadMore}>Load More</button>
  *       <button onClick={execute}>Refresh list</button>
  *     </div>
  *   );

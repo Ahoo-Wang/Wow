@@ -52,7 +52,7 @@ export interface UseFetcherPagedQueryReturn<
  * A React hook for performing paged queries using the Fetcher library.
  *
  * This hook is designed for scenarios where you need to retrieve paginated data that matches a query condition.
- * It returns a PagedList containing the items for the current page along with pagination metadata such as total count, page size, and navigation information.
+ * It returns a PagedList containing the items for the current page along with pagination metadata such as total count and page information.
  *
  * @template R - The type of the resource or entity contained in each item of the paged list.
  * @template FIELDS - A string union type representing the fields that can be used in the paged query.
@@ -66,7 +66,7 @@ export interface UseFetcherPagedQueryReturn<
  * @example
  * ```typescript
  * import { useFetcherPagedQuery } from '@ahoo-wang/fetcher-react';
- * import { PagedQuery, PagedList } from '@ahoo-wang/fetcher-wow';
+ * import { pagedQuery, contains, pagination, desc } from '@ahoo-wang/fetcher-wow';
  *
  * interface User {
  *   id: number;
@@ -75,29 +75,55 @@ export interface UseFetcherPagedQueryReturn<
  * }
  *
  * function UserListComponent() {
- *   const { data: pagedList, loading, error } = useFetcherPagedQuery<User>({
- *     fetcher: myFetcher,
- *     query: {
- *       fields: ['id', 'name', 'email'],
- *       page: 1,
- *       size: 10,
- *       sort: [{ field: 'name', direction: 'asc' }]
- *     } as PagedQuery<'id' | 'name' | 'email'>,
- *     enabled: true,
+ *   const {
+ *     data: pagedList,
+ *     loading,
+ *     error,
+ *     execute,
+ *     setQuery,
+ *     getQuery
+ *   } = useFetcherPagedQuery<User, keyof User>({
+ *     url: '/api/users/paged',
+ *     initialQuery: pagedQuery({
+ *       condition: contains('name', 'John'),
+ *       sort: [desc('createdAt')],
+ *       pagination: pagination({ index: 1, size: 10 })
+ *     }),
+ *     autoExecute: true,
  *   });
+ *
+ *   const goToPage = (page: number) => {
+ *     const currentQuery = getQuery();
+ *     setQuery({
+ *       ...currentQuery,
+ *       pagination: { ...currentQuery.pagination, index: page }
+ *     });
+ *   };
  *
  *   if (loading) return <div>Loading...</div>;
  *   if (error) return <div>Error: {error.message}</div>;
  *
  *   return (
  *     <div>
- *       <h2>Users (Page {pagedList.page} of {pagedList.totalPages})</h2>
+ *       <h2>Users</h2>
  *       <ul>
- *         {pagedList.items.map(user => (
+ *         {pagedList.list.map(user => (
  *           <li key={user.id}>{user.name} - {user.email}</li>
  *         ))}
  *       </ul>
- *       <div>Total: {pagedList.totalItems} users</div>
+ *       <div>
+ *         <span>Total: {pagedList.total} users</span>
+ *         <button onClick={() => goToPage(1)} disabled={pagedList.pagination.index === 1}>
+ *           First
+ *         </button>
+ *         <button onClick={() => goToPage(pagedList.pagination.index - 1)} disabled={pagedList.pagination.index === 1}>
+ *           Previous
+ *         </button>
+ *         <span>Page {pagedList.pagination.index}</span>
+ *         <button onClick={() => goToPage(pagedList.pagination.index + 1)}>
+ *           Next
+ *         </button>
+ *       </div>
  *     </div>
  *   );
  * }

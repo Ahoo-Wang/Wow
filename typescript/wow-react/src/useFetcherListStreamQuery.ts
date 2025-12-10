@@ -79,8 +79,9 @@ export interface UseFetcherListStreamQueryReturn<
  * @example
  * ```typescript
  * import { useFetcherListStreamQuery } from '@ahoo-wang/fetcher-react';
- * import { ListQuery } from '@ahoo-wang/fetcher-wow';
+ * import { listQuery, contains } from '@ahoo-wang/fetcher-wow';
  * import { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
+ * import { useEffect, useRef } from 'react';
  *
  * interface User {
  *   id: number;
@@ -88,16 +89,17 @@ export interface UseFetcherListStreamQueryReturn<
  * }
  *
  * function UserStreamComponent() {
- *   const { data: stream, loading, error } = useFetcherListStreamQuery<User>({
- *     fetcher: myFetcher,
- *     query: { fields: ['id', 'name'], limit: 10 } as ListQuery<'id' | 'name'>,
+ *   const { data: stream, loading, error, execute } = useFetcherListStreamQuery<User, 'id' | 'name'>({
+ *     url: '/api/users/stream',
+ *     initialQuery: listQuery({
+ *       condition: contains('name', 'John'),
+ *       limit: 10,
+ *     }),
  *     autoExecute: true,
  *   });
  *
- *   if (loading) return <div>Loading...</div>;
- *   if (error) return <div>Error: {error.message}</div>;
+ *   const messagesRef = useRef<HTMLDivElement>(null);
  *
- *   // Handle the stream
  *   useEffect(() => {
  *     if (stream) {
  *       const reader = stream.getReader();
@@ -106,8 +108,13 @@ export interface UseFetcherListStreamQueryReturn<
  *           while (true) {
  *             const { done, value } = await reader.read();
  *             if (done) break;
- *             console.log('Received event:', value);
  *             // Process the JsonServerSentEvent<User>
+ *             const newUser = value.data;
+ *             if (messagesRef.current) {
+ *               const div = document.createElement('div');
+ *               div.textContent = `New user: ${newUser.name}`;
+ *               messagesRef.current.appendChild(div);
+ *             }
  *           }
  *         } catch (err) {
  *           console.error('Stream error:', err);
@@ -117,7 +124,15 @@ export interface UseFetcherListStreamQueryReturn<
  *     }
  *   }, [stream]);
  *
- *   return <div>Streaming users...</div>;
+ *   if (loading) return <div>Loading stream...</div>;
+ *   if (error) return <div>Error: {error.message}</div>;
+ *
+ *   return (
+ *     <div>
+ *       <div ref={messagesRef}></div>
+ *       <button onClick={execute}>Restart Stream</button>
+ *     </div>
+ *   );
  * }
  * ```
  */
