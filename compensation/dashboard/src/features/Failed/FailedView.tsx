@@ -25,8 +25,7 @@ import { useCallback, useEffect } from "react";
 import { useQueryParams } from "../../utils/useQueryParams.ts";
 import { useGlobalDrawer } from "../../components/GlobalDrawer";
 import { FetchingFailedDetails } from "./details/FetchingFailedDetails.tsx";
-import { executionFailedSnapshotQueryClient } from "../../services";
-import { usePagedQuery } from "@ahoo-wang/fetcher-react";
+import { useFetcherPagedQuery } from "@ahoo-wang/fetcher-react";
 import { App } from "antd";
 
 interface FailedViewProps {
@@ -50,17 +49,11 @@ export default function FailedView({ category }: FailedViewProps) {
   }, [queryIdParams, openDrawer]);
 
   const { loading, result, getQuery, setQuery, execute } =
-    usePagedQuery<ExecutionFailedState>({
+    useFetcherPagedQuery<ExecutionFailedState>({
+      url: "/execution_failed/snapshot/paged/state",
       initialQuery: pagedQuery({
         condition: RetryConditions.categoryToCondition(category),
       }),
-      execute: (query, attributes, abortController) => {
-        return executionFailedSnapshotQueryClient.pagedState(
-          query,
-          attributes,
-          abortController,
-        );
-      },
       autoExecute: true,
       onError: (error) => {
         notification.error({
