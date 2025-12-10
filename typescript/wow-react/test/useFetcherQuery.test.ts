@@ -13,7 +13,7 @@
 
 import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { useFetcherQuery } from '../../src/wow/useFetcherQuery';
+import { useFetcherQuery, UseFetcherQueryOptions } from '../../src/wow/useFetcherQuery';
 import { FetcherError } from '@ahoo-wang/fetcher';
 import { PromiseStatus } from '../../src/core/usePromiseState';
 

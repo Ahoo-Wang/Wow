@@ -24,7 +24,7 @@ import { useQueryState, UseQueryStateReturn } from './useQueryState';
  * @template R - The type of the result value
  * @template E - The type of the error value
  */
-export interface useFetcherQuery<Q, R, E = FetcherError>
+export interface UseFetcherQueryOptions<Q, R, E = FetcherError>
   extends UseFetcherOptions<R, E>, AutoExecuteCapable {
   /** The URL endpoint to send the POST request to */
   url: string;
@@ -123,7 +123,7 @@ export interface UseFetcherQueryReturn<Q, R, E = FetcherError>
  * Invalid URL or malformed request options may also cause exceptions.
  */
 export function useFetcherQuery<Q, R, E = FetcherError>(
-  options: useFetcherQuery<Q, R, E>,
+  options: UseFetcherQueryOptions<Q, R, E>,
 ): UseFetcherQueryReturn<Q, R, E> {
   const latestOptions = useLatest(options);
   const {
