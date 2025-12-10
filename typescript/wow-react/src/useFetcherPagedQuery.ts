@@ -16,20 +16,93 @@ import { FetcherError } from '@ahoo-wang/fetcher';
 import { UseQueryReturn } from './useQuery';
 import { useFetcherQuery, UseFetcherQueryOptions } from './useFetcherQuery';
 
+/**
+ * Options for configuring the useFetcherPagedQuery hook.
+ *
+ * This interface extends UseFetcherQueryOptions and is specifically tailored for paged queries
+ * that use a PagedQuery to filter and paginate results, returning a PagedList of items.
+ *
+ * @template R - The type of the resource or entity contained in each item of the paged list.
+ * @template FIELDS - A string union type representing the fields that can be used in the paged query.
+ * @template E - The type of error that may be thrown, defaults to FetcherError.
+ */
 export interface UseFetcherPagedQueryOptions<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-> extends UseFetcherQueryOptions<PagedQuery<FIELDS>, PagedList<R>, E> {
-}
+> extends UseFetcherQueryOptions<PagedQuery<FIELDS>, PagedList<R>, E> {}
 
+/**
+ * Return type for the useFetcherPagedQuery hook.
+ *
+ * This interface extends UseQueryReturn and provides the structure for the hook's return value,
+ * including data (a PagedList containing items and pagination metadata), loading state, error state, and other query-related properties.
+ *
+ * @template R - The type of the resource or entity contained in each item of the paged list.
+ * @template FIELDS - A string union type representing the fields that can be used in the paged query.
+ * @template E - The type of error that may be thrown, defaults to FetcherError.
+ */
 export interface UseFetcherPagedQueryReturn<
   R,
   FIELDS extends string = string,
   E = FetcherError,
-> extends UseQueryReturn<PagedQuery<FIELDS>, PagedList<R>, E> {
-}
+> extends UseQueryReturn<PagedQuery<FIELDS>, PagedList<R>, E> {}
 
+/**
+ * A React hook for performing paged queries using the Fetcher library.
+ *
+ * This hook is designed for scenarios where you need to retrieve paginated data that matches a query condition.
+ * It returns a PagedList containing the items for the current page along with pagination metadata such as total count, page size, and navigation information.
+ *
+ * @template R - The type of the resource or entity contained in each item of the paged list.
+ * @template FIELDS - A string union type representing the fields that can be used in the paged query.
+ * @template E - The type of error that may be thrown, defaults to FetcherError.
+ *
+ * @param options - Configuration options for the paged query, including the paged query parameters, fetcher instance, and other query settings.
+ * @returns An object containing the query result (a PagedList with items and pagination info), loading state, error state, and utility functions.
+ *
+ * @throws {E} Throws an error of type E if the query fails, which could be due to network issues, invalid queries, or server errors.
+ *
+ * @example
+ * ```typescript
+ * import { useFetcherPagedQuery } from '@ahoo-wang/fetcher-react';
+ * import { PagedQuery, PagedList } from '@ahoo-wang/fetcher-wow';
+ *
+ * interface User {
+ *   id: number;
+ *   name: string;
+ *   email: string;
+ * }
+ *
+ * function UserListComponent() {
+ *   const { data: pagedList, loading, error } = useFetcherPagedQuery<User>({
+ *     fetcher: myFetcher,
+ *     query: {
+ *       fields: ['id', 'name', 'email'],
+ *       page: 1,
+ *       size: 10,
+ *       sort: [{ field: 'name', direction: 'asc' }]
+ *     } as PagedQuery<'id' | 'name' | 'email'>,
+ *     enabled: true,
+ *   });
+ *
+ *   if (loading) return <div>Loading...</div>;
+ *   if (error) return <div>Error: {error.message}</div>;
+ *
+ *   return (
+ *     <div>
+ *       <h2>Users (Page {pagedList.page} of {pagedList.totalPages})</h2>
+ *       <ul>
+ *         {pagedList.items.map(user => (
+ *           <li key={user.id}>{user.name} - {user.email}</li>
+ *         ))}
+ *       </ul>
+ *       <div>Total: {pagedList.totalItems} users</div>
+ *     </div>
+ *   );
+ * }
+ * ```
+ */
 export function useFetcherPagedQuery<
   R,
   FIELDS extends string = string,
