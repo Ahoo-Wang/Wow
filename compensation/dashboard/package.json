@@ -16,7 +16,7 @@
   "dependencies": {
     "@ahoo-wang/fetcher": "^3.3.9",
     "@ahoo-wang/fetcher-cosec": "^3.3.9",
-    "@ahoo-wang/fetcher-decorator": "^3.3.8",
+    "@ahoo-wang/fetcher-decorator": "^3.3.9",
     "@ahoo-wang/fetcher-eventbus": "^3.3.9",
     "@ahoo-wang/fetcher-eventstream": "^3.3.9",
     "@ahoo-wang/fetcher-react": "^3.3.9",
