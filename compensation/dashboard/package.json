@@ -14,15 +14,15 @@
     "generate": "fetcher-generator generate -i http://compensation-service.dev.svc.cluster.local/v3/api-docs -o src/generated"
   },
   "dependencies": {
-    "@ahoo-wang/fetcher": "^3.4.5",
-    "@ahoo-wang/fetcher-cosec": "^3.4.5",
-    "@ahoo-wang/fetcher-decorator": "^3.4.5",
-    "@ahoo-wang/fetcher-eventbus": "^3.4.5",
-    "@ahoo-wang/fetcher-eventstream": "^3.4.5",
-    "@ahoo-wang/fetcher-react": "^3.4.5",
-    "@ahoo-wang/fetcher-storage": "^3.4.5",
-    "@ahoo-wang/fetcher-viewer": "^3.4.5",
-    "@ahoo-wang/fetcher-wow": "^3.4.5",
+    "@ahoo-wang/fetcher": "^3.4.6",
+    "@ahoo-wang/fetcher-cosec": "^3.4.6",
+    "@ahoo-wang/fetcher-decorator": "^3.4.6",
+    "@ahoo-wang/fetcher-eventbus": "^3.4.6",
+    "@ahoo-wang/fetcher-eventstream": "^3.4.6",
+    "@ahoo-wang/fetcher-react": "^3.4.6",
+    "@ahoo-wang/fetcher-storage": "^3.4.6",
+    "@ahoo-wang/fetcher-viewer": "^3.4.6",
+    "@ahoo-wang/fetcher-wow": "^3.4.6",
     "@ant-design/icons": "^6.1.0",
     "@monaco-editor/react": "4.7.0",
     "antd": "^6.1.0",
@@ -32,7 +32,7 @@
     "react-router": "^7.10.1"
   },
   "devDependencies": {
-    "@ahoo-wang/fetcher-generator": "^3.4.5",
+    "@ahoo-wang/fetcher-generator": "^3.4.6",
     "@eslint/js": "^9.39.1",
     "@tailwindcss/vite": "^4.1.17",
     "@testing-library/jest-dom": "^6.9.1",

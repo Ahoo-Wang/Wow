@@ -196,7 +196,9 @@ export function FailedDetails({ state }: FailedDetailsProps) {
           type="countdown"
           value={state.retryState.nextRetryAt}
           format="HH:mm:ss"
-          valueStyle={{ fontSize: "14px" }}
+          styles={{
+            content: { fontSize: "14px" },
+          }}
         />
       ),
       span: 2,
