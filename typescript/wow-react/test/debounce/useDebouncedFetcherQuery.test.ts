@@ -87,7 +87,7 @@ describe('useDebouncedFetcherQuery', () => {
       expect(result.current).toHaveProperty('reset', mockReset);
       expect(result.current).toHaveProperty('abort', mockAbort);
       expect(result.current).toHaveProperty('getQuery', mockGetQuery);
-      expect(result.current).toHaveProperty('setQuery', mockSetQuery);
+      expect(result.current).toHaveProperty('setQuery', expect.any(Function)); // setQuery function from useQueryState
       expect(result.current).toHaveProperty('run', mockDebouncedReturn.run);
       expect(result.current).toHaveProperty(
         'cancel',
@@ -110,7 +110,13 @@ describe('useDebouncedFetcherQuery', () => {
 
       renderHook(() => useDebouncedFetcherQuery(options));
 
-      expect(mockUseFetcherQuery).toHaveBeenCalledWith(options);
+      // useFetcherQuery is called with options including autoExecute: false (overridden)
+      expect(mockUseFetcherQuery).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ...options,
+          autoExecute: false, // overridden by the hook implementation
+        }),
+      );
       expect(mockUseDebouncedCallback).toHaveBeenCalledWith(
         mockExecute,
         options.debounce,
@@ -314,7 +320,8 @@ describe('useDebouncedFetcherQuery', () => {
       const { result } = renderHook(() => useDebouncedFetcherQuery(options));
 
       expect(result.current.getQuery).toBe(mockGetQuery);
-      expect(result.current.setQuery).toBe(mockSetQuery);
+      // setQuery is replaced with a new function in the hook implementation
+      expect(result.current.setQuery).toEqual(expect.any(Function));
     });
 
     it('should propagate control functions', () => {
@@ -394,7 +401,13 @@ describe('useDebouncedFetcherQuery', () => {
 
       renderHook(() => useDebouncedFetcherQuery(options));
 
-      expect(mockUseFetcherQuery).toHaveBeenCalledWith(options);
+      // useFetcherQuery is called with options including autoExecute: false (overridden)
+      expect(mockUseFetcherQuery).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ...options,
+          autoExecute: false, // overridden by the hook implementation
+        }),
+      );
     });
   });
 
@@ -527,9 +540,10 @@ describe('useDebouncedFetcherQuery', () => {
 
       renderHook(() => useDebouncedFetcherQuery(options));
 
+      // useFetcherQuery is called with options including autoExecute: false (overridden)
       expect(mockUseFetcherQuery).toHaveBeenCalledWith(
         expect.objectContaining({
-          autoExecute: true,
+          autoExecute: false, // overridden by the hook implementation
         }),
       );
     });

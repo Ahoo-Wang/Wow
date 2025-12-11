@@ -17,7 +17,7 @@ import {
   useDebouncedCallback,
   UseDebouncedCallbackReturn,
 } from '../../core';
-import { useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import {
   useFetcherQuery,
   UseFetcherQueryOptions,
@@ -25,7 +25,12 @@ import {
 } from '../useFetcherQuery';
 
 /**
- * Configuration options for the useDebouncedFetcherQuery hook
+ * Configuration options for the useDebouncedFetcherQuery hook.
+ *
+ * Extends UseFetcherQueryOptions with DebounceCapable to provide debouncing functionality.
+ * The hook will automatically debounce fetcher query executions to prevent excessive API calls.
+ * Note that autoExecute is overridden internally to false to ensure proper debouncing behavior.
+ *
  * @template Q - The type of the query parameters
  * @template R - The type of the result value
  * @template E - The type of the error value (defaults to FetcherError)
@@ -34,7 +39,12 @@ export interface UseDebouncedFetcherQueryOptions<Q, R, E = FetcherError>
   extends UseFetcherQueryOptions<Q, R, E>, DebounceCapable {}
 
 /**
- * Return type of the useDebouncedFetcherQuery hook
+ * Return type of the useDebouncedFetcherQuery hook.
+ *
+ * Omits the original 'execute' method from UseFetcherQueryReturn and replaces it with
+ * debounced execution methods from UseDebouncedCallbackReturn. Uses a custom setQuery function
+ * that respects the original autoExecute setting.
+ *
  * @template Q - The type of the query parameters
  * @template R - The type of the result value
  * @template E - The type of the error value (defaults to FetcherError)
@@ -45,19 +55,21 @@ export interface UseDebouncedFetcherQueryReturn<Q, R, E = FetcherError>
     UseDebouncedCallbackReturn<UseFetcherQueryReturn<Q, R, E>['execute']> {}
 
 /**
- * A React hook for managing debounced query-based HTTP requests with automatic execution
+ * A React hook for managing debounced query-based HTTP requests with automatic execution.
  *
- * This hook combines the fetcher query functionality with debouncing to provide
- * a convenient way to make POST requests where query parameters are sent as the request body,
- * with built-in debouncing to prevent excessive API calls during rapid user interactions.
+ * This hook combines fetcher query functionality with debouncing to provide a convenient way to
+ * make POST requests where query parameters are sent as the request body, while preventing
+ * excessive API calls during rapid user interactions.
  *
- * The hook supports automatic execution on mount and when query parameters change,
- * but wraps the execution in a debounced callback to optimize performance.
+ * The hook supports automatic execution on mount and when query parameters change, but wraps
+ * the execution in a debounced callback to optimize performance. Internally, it overrides
+ * autoExecute to false and implements custom logic to respect the original autoExecute setting.
+ * When autoExecute is enabled, queries triggered by setQuery will also be debounced.
  *
  * @template Q - The type of the query parameters
  * @template R - The type of the result value
  * @template E - The type of the error value (defaults to FetcherError)
- * @param options - Configuration options for the hook
+ * @param options - Configuration options for the hook, including url, initialQuery, and debounce settings
  * @returns An object containing fetcher state, query management functions, and debounced execution controls
  *
  * @example
@@ -138,6 +150,11 @@ export interface UseDebouncedFetcherQueryReturn<Q, R, E = FetcherError>
 export function useDebouncedFetcherQuery<Q, R, E = FetcherError>(
   options: UseDebouncedFetcherQueryOptions<Q, R, E>,
 ): UseDebouncedFetcherQueryReturn<Q, R, E> {
+  const debouncedExecuteOptions = {
+    ...options,
+    autoExecute: false,
+  };
+  const originalAutoExecute = options.autoExecute;
   const {
     loading,
     result,
@@ -148,11 +165,25 @@ export function useDebouncedFetcherQuery<Q, R, E = FetcherError>(
     abort,
     getQuery,
     setQuery,
-  } = useFetcherQuery(options);
+  } = useFetcherQuery(debouncedExecuteOptions);
   const { run, cancel, isPending } = useDebouncedCallback(
     execute,
     options.debounce,
   );
+  const setQueryFn = useCallback(
+    (query: Q) => {
+      setQuery(query);
+      if (originalAutoExecute) {
+        run();
+      }
+    },
+    [setQuery, run, originalAutoExecute],
+  );
+  useEffect(() => {
+    if (originalAutoExecute) {
+      run();
+    }
+  }, [run, originalAutoExecute]);
   return useMemo(
     () => ({
       loading,
@@ -162,7 +193,7 @@ export function useDebouncedFetcherQuery<Q, R, E = FetcherError>(
       reset,
       abort,
       getQuery,
-      setQuery,
+      setQuery: setQueryFn,
       run,
       cancel,
       isPending,
@@ -175,7 +206,7 @@ export function useDebouncedFetcherQuery<Q, R, E = FetcherError>(
       reset,
       abort,
       getQuery,
-      setQuery,
+      setQueryFn,
       run,
       cancel,
       isPending,
