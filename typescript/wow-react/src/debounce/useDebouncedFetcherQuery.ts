@@ -150,11 +150,11 @@ export interface UseDebouncedFetcherQueryReturn<Q, R, E = FetcherError>
 export function useDebouncedFetcherQuery<Q, R, E = FetcherError>(
   options: UseDebouncedFetcherQueryOptions<Q, R, E>,
 ): UseDebouncedFetcherQueryReturn<Q, R, E> {
+  const originalAutoExecute = options.autoExecute;
   const debouncedExecuteOptions = {
     ...options,
     autoExecute: false,
   };
-  const originalAutoExecute = options.autoExecute;
   const {
     loading,
     result,
