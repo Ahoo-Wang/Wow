@@ -43,6 +43,7 @@ describe('useDebouncedQuery', () => {
     status: 'idle',
     execute: mockExecute,
     reset: mockReset,
+    abort: vi.fn(), // abort function from useExecutePromise
     getQuery: mockGetQuery,
     setQuery: mockSetQuery,
   };
@@ -77,8 +78,9 @@ describe('useDebouncedQuery', () => {
     expect(result.current).toHaveProperty('error', null);
     expect(result.current).toHaveProperty('status', 'idle');
     expect(result.current).toHaveProperty('reset', mockReset);
+    expect(result.current).toHaveProperty('abort', expect.any(Function)); // abort function from useExecutePromise
     expect(result.current).toHaveProperty('getQuery', mockGetQuery);
-    expect(result.current).toHaveProperty('setQuery', mockSetQuery);
+    expect(result.current).toHaveProperty('setQuery', expect.any(Function)); // setQuery function from useQueryState
     expect(result.current).toHaveProperty('run', mockDebouncedReturn.run);
     expect(result.current).toHaveProperty('cancel', mockDebouncedReturn.cancel);
     expect(result.current).toHaveProperty(
@@ -97,7 +99,13 @@ describe('useDebouncedQuery', () => {
 
     renderHook(() => useDebouncedQuery(options));
 
-    expect(useQuery).toHaveBeenCalledWith(options);
+    // useQuery is called with options including autoExecute: false (default)
+    expect(useQuery).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ...options,
+        autoExecute: false, // default value is false when not specified
+      }),
+    );
     expect(useDebouncedCallback).toHaveBeenCalledWith(
       mockExecute,
       options.debounce,

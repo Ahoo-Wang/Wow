@@ -18,7 +18,7 @@ import {
   useDebouncedCallback,
   UseDebouncedCallbackReturn,
 } from '../../core';
-import { useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 
 /**
  * Configuration options for the useDebouncedQuery hook
@@ -27,7 +27,8 @@ import { useMemo } from 'react';
  * @template E - The type of the error value (defaults to FetcherError)
  */
 export interface UseDebouncedQueryOptions<Q, R, E = FetcherError>
-  extends UseQueryOptions<Q, R, E>, DebounceCapable {}
+  extends UseQueryOptions<Q, R, E>, DebounceCapable {
+}
 
 /**
  * Return type of the useDebouncedQuery hook
@@ -36,9 +37,9 @@ export interface UseDebouncedQueryOptions<Q, R, E = FetcherError>
  * @template E - The type of the error value (defaults to FetcherError)
  */
 export interface UseDebouncedQueryReturn<Q, R, E = FetcherError>
-  extends
-    Omit<UseQueryReturn<Q, R, E>, 'execute'>,
-    UseDebouncedCallbackReturn<UseQueryReturn<Q, R, E>['execute']> {}
+  extends Omit<UseQueryReturn<Q, R, E>, 'execute'>,
+    UseDebouncedCallbackReturn<UseQueryReturn<Q, R, E>['execute']> {
+}
 
 /**
  * A React hook for managing debounced query execution with automatic state management
@@ -92,7 +93,7 @@ export interface UseDebouncedQueryReturn<Q, R, E = FetcherError>
  *       return response.json();
  *     },
  *     debounce: { delay: 300 }, // Debounce for 300ms
- *     autoExecute: false, // Don't execute on mount
+ *     autoExecute: false,
  *   });
  *
  *   const handleSearch = (keyword: string) => {
@@ -141,6 +142,11 @@ export interface UseDebouncedQueryReturn<Q, R, E = FetcherError>
 export function useDebouncedQuery<Q, R, E = FetcherError>(
   options: UseDebouncedQueryOptions<Q, R, E>,
 ): UseDebouncedQueryReturn<Q, R, E> {
+  const debouncedExecuteOptions = {
+    ...options,
+    autoExecute: false,
+  };
+  const originalAutoExecute = options.autoExecute;
   const {
     loading,
     result,
@@ -151,11 +157,22 @@ export function useDebouncedQuery<Q, R, E = FetcherError>(
     abort,
     getQuery,
     setQuery,
-  } = useQuery(options);
+  } = useQuery(debouncedExecuteOptions);
   const { run, cancel, isPending } = useDebouncedCallback(
     execute,
     options.debounce,
   );
+  const setQueryFn = useCallback((query: Q) => {
+    setQuery(query);
+    if (originalAutoExecute) {
+      run();
+    }
+  }, [setQuery, run, originalAutoExecute]);
+  useEffect(() => {
+    if (originalAutoExecute) {
+      run();
+    }
+  }, [run, originalAutoExecute]);
   return useMemo(
     () => ({
       loading,
@@ -165,7 +182,7 @@ export function useDebouncedQuery<Q, R, E = FetcherError>(
       reset,
       abort,
       getQuery,
-      setQuery,
+      setQuery: setQueryFn,
       run,
       cancel,
       isPending,
@@ -178,7 +195,7 @@ export function useDebouncedQuery<Q, R, E = FetcherError>(
       reset,
       abort,
       getQuery,
-      setQuery,
+      setQueryFn,
       run,
       cancel,
       isPending,
