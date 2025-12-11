@@ -14,6 +14,7 @@ vi.mock("../../../components/GlobalDrawer", () => ({
 
 vi.mock("@ahoo-wang/fetcher-react", () => ({
   usePagedQuery: vi.fn(),
+  useDebouncedFetcherQuery: vi.fn(),
   PromiseStatus: {
     IDLE: "idle"
   },
@@ -85,14 +86,14 @@ vi.mock("antd", () => ({
 // Import mocks for manipulation
 import { useQueryParams } from "../../../utils/useQueryParams.ts";
 import { useGlobalDrawer } from "../../../components/GlobalDrawer";
-import { PromiseStatus, usePagedQuery } from "@ahoo-wang/fetcher-react";
+import { PromiseStatus, useDebouncedFetcherQuery } from "@ahoo-wang/fetcher-react";
 import { App } from "antd";
 import { Condition, eq, pagedList, type PagedList } from "@ahoo-wang/fetcher-wow";
 import type { ExecutionFailedState } from "../../../generated";
 
 const mockUseQueryParams = vi.mocked(useQueryParams);
 const mockUseGlobalDrawer = vi.mocked(useGlobalDrawer);
-const mockUsePagedQuery = vi.mocked(usePagedQuery);
+const mockUseDebouncedFetcherQuery = vi.mocked(useDebouncedFetcherQuery);
 const mockUseApp = vi.mocked(App.useApp);
 
 describe("FailedView", () => {
@@ -141,16 +142,14 @@ describe("FailedView", () => {
       message: mockMessage,
       modal: mockModal,
     });
-    mockUsePagedQuery.mockReturnValue({
+    mockUseDebouncedFetcherQuery.mockReturnValue({
       loading: false,
       result: { list: [], total: 0 },
       getQuery: mockGetQuery,
       setQuery: mockSetQuery,
-      execute: mockExecute,
-      reset: vi.fn(),
+      run: mockExecute,
       status: PromiseStatus.IDLE,
       error: null,
-      abort: vi.fn(),
     });
     mockGetQuery.mockReturnValue({ pagination: { index: 1, size: 10 } });
   });
@@ -182,16 +181,14 @@ describe("FailedView", () => {
   });
 
   it("passes loading state to FailedTable", () => {
-    mockUsePagedQuery.mockReturnValue({
+    mockUseDebouncedFetcherQuery.mockReturnValue({
       loading: true,
       result: pagedList(),
       getQuery: mockGetQuery,
       setQuery: mockSetQuery,
-      execute: mockExecute,
-      reset: vi.fn(),
+      run: mockExecute,
       status: PromiseStatus.IDLE,
       error: null,
-      abort: vi.fn(),
     });
 
     render(<FailedView category={FindCategory.All} />);
@@ -201,14 +198,12 @@ describe("FailedView", () => {
 
   it("passes pagedList result to FailedTable", () => {
     const mockResult = { list: [{ id: "1" }], total: 1 };
-    mockUsePagedQuery.mockReturnValue({
+    mockUseDebouncedFetcherQuery.mockReturnValue({
       loading: false,
       result: mockResult,
       getQuery: mockGetQuery,
       setQuery: mockSetQuery,
-      execute: mockExecute,
-      reset: vi.fn(),
-      abort: vi.fn(),
+      run: mockExecute,
       status: PromiseStatus.IDLE,
       error: null,
     });
