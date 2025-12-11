@@ -11,4 +11,5 @@
  * limitations under the License.
  */
 
+export * from './useDebouncedFetcherQuery';
 export * from './useDebouncedQuery';
