@@ -18,16 +18,123 @@ import {
   UseDebouncedCallbackReturn,
 } from '../../core';
 import { useMemo } from 'react';
-import { useFetcherQuery, UseFetcherQueryOptions, UseFetcherQueryReturn } from '../useFetcherQuery';
+import {
+  useFetcherQuery,
+  UseFetcherQueryOptions,
+  UseFetcherQueryReturn,
+} from '../useFetcherQuery';
 
+/**
+ * Configuration options for the useDebouncedFetcherQuery hook
+ * @template Q - The type of the query parameters
+ * @template R - The type of the result value
+ * @template E - The type of the error value (defaults to FetcherError)
+ */
 export interface UseDebouncedFetcherQueryOptions<Q, R, E = FetcherError>
-  extends UseFetcherQueryOptions<Q, R, E>,
-    DebounceCapable {}
+  extends UseFetcherQueryOptions<Q, R, E>, DebounceCapable {}
 
+/**
+ * Return type of the useDebouncedFetcherQuery hook
+ * @template Q - The type of the query parameters
+ * @template R - The type of the result value
+ * @template E - The type of the error value (defaults to FetcherError)
+ */
 export interface UseDebouncedFetcherQueryReturn<Q, R, E = FetcherError>
-  extends Omit<UseFetcherQueryReturn<Q, R, E>, 'execute'>,
+  extends
+    Omit<UseFetcherQueryReturn<Q, R, E>, 'execute'>,
     UseDebouncedCallbackReturn<UseFetcherQueryReturn<Q, R, E>['execute']> {}
 
+/**
+ * A React hook for managing debounced query-based HTTP requests with automatic execution
+ *
+ * This hook combines the fetcher query functionality with debouncing to provide
+ * a convenient way to make POST requests where query parameters are sent as the request body,
+ * with built-in debouncing to prevent excessive API calls during rapid user interactions.
+ *
+ * The hook supports automatic execution on mount and when query parameters change,
+ * but wraps the execution in a debounced callback to optimize performance.
+ *
+ * @template Q - The type of the query parameters
+ * @template R - The type of the result value
+ * @template E - The type of the error value (defaults to FetcherError)
+ * @param options - Configuration options for the hook
+ * @returns An object containing fetcher state, query management functions, and debounced execution controls
+ *
+ * @example
+ * ```typescript
+ * import { useDebouncedFetcherQuery } from '@ahoo-wang/fetcher-react';
+ *
+ * interface SearchQuery {
+ *   keyword: string;
+ *   limit: number;
+ *   filters?: { category?: string };
+ * }
+ *
+ * interface SearchResult {
+ *   items: Array<{ id: string; title: string }>;
+ *   total: number;
+ * }
+ *
+ * function SearchComponent() {
+ *   const {
+ *     loading,
+ *     result,
+ *     error,
+ *     run,
+ *     cancel,
+ *     isPending,
+ *     setQuery,
+ *     getQuery,
+ *   } = useDebouncedFetcherQuery<SearchQuery, SearchResult>({
+ *     url: '/api/search',
+ *     initialQuery: { keyword: '', limit: 10 },
+ *     debounce: { delay: 300 }, // Debounce for 300ms
+ *     autoExecute: false, // Don't execute on mount
+ *   });
+ *
+ *   const handleSearch = (keyword: string) => {
+ *     setQuery({ keyword, limit: 10 }); // This will trigger debounced execution if autoExecute was true
+ *   };
+ *
+ *   const handleManualSearch = () => {
+ *     run(); // Manual debounced execution with current query
+ *   };
+ *
+ *   const handleCancel = () => {
+ *     cancel(); // Cancel any pending debounced execution
+ *   };
+ *
+ *   if (loading) return <div>Searching...</div>;
+ *   if (error) return <div>Error: {error.message}</div>;
+ *
+ *   return (
+ *     <div>
+ *       <input
+ *         type="text"
+ *         onChange={(e) => handleSearch(e.target.value)}
+ *         placeholder="Search..."
+ *       />
+ *       <button onClick={handleManualSearch} disabled={isPending()}>
+ *         {isPending() ? 'Searching...' : 'Search'}
+ *       </button>
+ *       <button onClick={handleCancel}>Cancel</button>
+ *       {result && (
+ *         <div>
+ *           Found {result.total} items:
+ *           {result.items.map(item => (
+ *             <div key={item.id}>{item.title}</div>
+ *           ))}
+ *         </div>
+ *       )}
+ *     </div>
+ *   );
+ * }
+ * ```
+ *
+ * @throws This hook may throw exceptions related to network requests, which should be
+ * handled by the caller. The underlying fetcher may throw FetcherError or other network-related errors.
+ * Invalid URL or malformed request options may also cause exceptions.
+ */
 export function useDebouncedFetcherQuery<Q, R, E = FetcherError>(
   options: UseDebouncedFetcherQueryOptions<Q, R, E>,
 ): UseDebouncedFetcherQueryReturn<Q, R, E> {
