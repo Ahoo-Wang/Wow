@@ -23,8 +23,26 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 
+/**
+ * Pre-configured Jackson [ObjectMapper] for the Wow framework.
+ *
+ * This singleton provides a ready-to-use JSON serializer/deserializer with optimized settings
+ * for Kotlin classes and Wow-specific modules. It includes configurations for:
+ * - Field visibility set to ANY for all property accessors
+ * - Ignoring undefined JSON parser features
+ * - Disabling failure on unknown properties during deserialization
+ * - Kotlin module registration for better Kotlin support
+ * - Automatic registration of SPI-discovered Jackson modules
+ *
+ * Example usage:
+ * ```kotlin
+ * data class User(val name: String, val age: Int)
+ * val user = User("John", 30)
+ * val json = JsonSerializer.writeValueAsString(user)
+ * val deserialized = JsonSerializer.readValue(json, User::class.java)
+ * ```
+ */
 object JsonSerializer : ObjectMapper() {
-
     init {
         setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY)
         configure(JsonParser.Feature.IGNORE_UNDEFINED, true)
@@ -35,47 +53,220 @@ object JsonSerializer : ObjectMapper() {
     }
 }
 
-fun Any.toJsonString(): String {
-    return JsonSerializer.writeValueAsString(this)
-}
+/**
+ * Converts this object to its JSON string representation.
+ *
+ * Uses the pre-configured [JsonSerializer] to serialize the object.
+ *
+ * @receiver The object to serialize. Can be any type.
+ * @return The JSON string representation of the object.
+ * @throws com.fasterxml.jackson.core.JsonProcessingException if serialization fails.
+ *
+ * Example:
+ * ```kotlin
+ * val user = mapOf("name" to "John", "age" to 30)
+ * val json = user.toJsonString() // {"name":"John","age":30}
+ * ```
+ */
+fun Any.toJsonString(): String = JsonSerializer.writeValueAsString(this)
 
-fun Any.toPrettyJson(): String {
-    return JsonSerializer.writerWithDefaultPrettyPrinter().writeValueAsString(this)
-}
+/**
+ * Converts this object to a pretty-printed JSON string representation.
+ *
+ * Uses the pre-configured [JsonSerializer] with default pretty printer for formatted output.
+ *
+ * @receiver The object to serialize. Can be any type.
+ * @return The pretty-printed JSON string representation of the object.
+ * @throws com.fasterxml.jackson.core.JsonProcessingException if serialization fails.
+ *
+ * Example:
+ * ```kotlin
+ * val user = mapOf("name" to "John", "age" to 30)
+ * val json = user.toPrettyJson()
+ * // {
+ * //   "name" : "John",
+ * //   "age" : 30
+ * // }
+ * ```
+ */
+fun Any.toPrettyJson(): String = JsonSerializer.writerWithDefaultPrettyPrinter().writeValueAsString(this)
 
-fun <T : JsonNode> Any.toJsonNode(): T {
-    return JsonSerializer.valueToTree<T>(this)
-}
+/**
+ * Converts this object to a [JsonNode] representation.
+ *
+ * Uses the pre-configured [JsonSerializer] to convert the object to a tree structure.
+ *
+ * @param T The specific type of [JsonNode] to return (e.g., [ObjectNode], [ArrayNode]).
+ * @receiver The object to convert. Can be any type.
+ * @return The [JsonNode] representation of the object.
+ * @throws com.fasterxml.jackson.core.JsonProcessingException if conversion fails.
+ *
+ * Example:
+ * ```kotlin
+ * val user = mapOf("name" to "John", "age" to 30)
+ * val node = user.toJsonNode<ObjectNode>()
+ * val name = node["name"].asText() // "John"
+ * ```
+ */
+fun <T : JsonNode> Any.toJsonNode(): T = JsonSerializer.valueToTree<T>(this)
 
+/**
+ * Parses this JSON string into a [JsonNode] representation.
+ *
+ * Uses the pre-configured [JsonSerializer] to parse the JSON string.
+ *
+ * @param T The specific type of [JsonNode] to return (e.g., [ObjectNode], [ArrayNode]).
+ * @receiver The JSON string to parse.
+ * @return The parsed [JsonNode].
+ * @throws com.fasterxml.jackson.core.JsonProcessingException if parsing fails.
+ *
+ * Example:
+ * ```kotlin
+ * val json = """{"name":"John","age":30}"""
+ * val node = json.toJsonNode<ObjectNode>()
+ * val name = node["name"].asText() // "John"
+ * ```
+ */
 fun <T : JsonNode> String.toJsonNode(): T {
     @Suppress("UNCHECKED_CAST")
     return JsonSerializer.readTree(this) as T
 }
 
-fun String.toObjectNode(): ObjectNode {
-    return toJsonNode()
-}
+/**
+ * Parses this JSON string into an [ObjectNode].
+ *
+ * Convenience method that parses the string and casts to [ObjectNode].
+ *
+ * @receiver The JSON string to parse.
+ * @return The parsed [ObjectNode].
+ * @throws com.fasterxml.jackson.core.JsonProcessingException if parsing fails.
+ * @throws ClassCastException if the parsed JSON is not an object.
+ *
+ * Example:
+ * ```kotlin
+ * val json = """{"name":"John","age":30}"""
+ * val node = json.toObjectNode()
+ * val name = node["name"].asText() // "John"
+ * ```
+ */
+fun String.toObjectNode(): ObjectNode = toJsonNode()
 
-fun <T> String.toObject(objectType: JavaType): T {
-    return JsonSerializer.readValue(this, objectType)
-}
+/**
+ * Deserializes this JSON string into an object of the specified [JavaType].
+ *
+ * Uses the pre-configured [JsonSerializer] to read the value.
+ *
+ * @param T The type of object to deserialize to.
+ * @param objectType The [JavaType] representing the target type.
+ * @receiver The JSON string to deserialize.
+ * @return The deserialized object.
+ * @throws com.fasterxml.jackson.core.JsonProcessingException if deserialization fails.
+ *
+ * Example:
+ * ```kotlin
+ * val json = """["John","Jane"]"""
+ * val type = JsonSerializer.typeFactory.constructCollectionType(List::class.java, String::class.java)
+ * val list = json.toObject<List<String>>(type)
+ * ```
+ */
+fun <T> String.toObject(objectType: JavaType): T = JsonSerializer.readValue(this, objectType)
 
-fun <T> String.toObject(objectType: Class<T>): T {
-    return JsonSerializer.readValue(this, objectType)
-}
+/**
+ * Deserializes this JSON string into an object of the specified [Class].
+ *
+ * Uses the pre-configured [JsonSerializer] to read the value.
+ *
+ * @param T The type of object to deserialize to.
+ * @param objectType The [Class] representing the target type.
+ * @receiver The JSON string to deserialize.
+ * @return The deserialized object.
+ * @throws com.fasterxml.jackson.core.JsonProcessingException if deserialization fails.
+ *
+ * Example:
+ * ```kotlin
+ * data class User(val name: String, val age: Int)
+ * val json = """{"name":"John","age":30}"""
+ * val user = json.toObject<User>(User::class.java)
+ * ```
+ */
+fun <T> String.toObject(objectType: Class<T>): T = JsonSerializer.readValue(this, objectType)
 
-fun <T> JsonNode.toObject(objectType: Class<T>): T {
-    return JsonSerializer.treeToValue(this, objectType)
-}
+/**
+ * Converts this [JsonNode] into an object of the specified [Class].
+ *
+ * Uses the pre-configured [JsonSerializer] to convert the tree to value.
+ *
+ * @param T The type of object to convert to.
+ * @param objectType The [Class] representing the target type.
+ * @receiver The [JsonNode] to convert.
+ * @return The converted object.
+ * @throws com.fasterxml.jackson.core.JsonProcessingException if conversion fails.
+ *
+ * Example:
+ * ```kotlin
+ * val json = """{"name":"John","age":30}"""
+ * val node = json.toJsonNode<ObjectNode>()
+ * val user = node.toObject<User>(User::class.java)
+ * ```
+ */
+fun <T> JsonNode.toObject(objectType: Class<T>): T = JsonSerializer.treeToValue(this, objectType)
 
-inline fun <reified T> String.toObject(): T {
-    return toObject(T::class.java)
-}
+/**
+ * Deserializes this JSON string into an object using reified generics.
+ *
+ * Convenience method that uses the reified type parameter to avoid specifying the class explicitly.
+ *
+ * @param T The type of object to deserialize to, inferred from the call site.
+ * @receiver The JSON string to deserialize.
+ * @return The deserialized object.
+ * @throws com.fasterxml.jackson.core.JsonProcessingException if deserialization fails.
+ *
+ * Example:
+ * ```kotlin
+ * data class User(val name: String, val age: Int)
+ * val json = """{"name":"John","age":30}"""
+ * val user = json.toObject<User>()
+ * ```
+ */
+inline fun <reified T> String.toObject(): T = toObject(T::class.java)
 
-inline fun <reified T> JsonNode.toObject(): T {
-    return toObject(T::class.java)
-}
+/**
+ * Converts this [JsonNode] into an object using reified generics.
+ *
+ * Convenience method that uses the reified type parameter to avoid specifying the class explicitly.
+ *
+ * @param T The type of object to convert to, inferred from the call site.
+ * @receiver The [JsonNode] to convert.
+ * @return The converted object.
+ * @throws com.fasterxml.jackson.core.JsonProcessingException if conversion fails.
+ *
+ * Example:
+ * ```kotlin
+ * val json = """{"name":"John","age":30}"""
+ * val node = json.toJsonNode<ObjectNode>()
+ * val user = node.toObject<User>()
+ * ```
+ */
+inline fun <reified T> JsonNode.toObject(): T = toObject(T::class.java)
 
-fun <T : Any> T.deepCody(objectType: Class<T> = this.javaClass): T {
-    return this.toJsonString().toObject(objectType)
-}
+/**
+ * Creates a deep copy of this object by serializing to JSON and deserializing back.
+ *
+ * This method performs a deep copy by converting the object to JSON and then parsing it back,
+ * ensuring that all nested objects are also copied.
+ *
+ * @param T The type of the object being copied.
+ * @param objectType The [Class] representing the type to copy to. Defaults to the object's class.
+ * @receiver The object to deep copy.
+ * @return A deep copy of the object.
+ * @throws com.fasterxml.jackson.core.JsonProcessingException if serialization or deserialization fails.
+ *
+ * Example:
+ * ```kotlin
+ * data class User(val name: String, val address: Address)
+ * val original = User("John", Address("123 Main St"))
+ * val copy = original.deepCopy()
+ * // copy is a separate instance with copied nested objects
+ * ```
+ */
+fun <T : Any> T.deepCody(objectType: Class<T> = this.javaClass): T = this.toJsonString().toObject(objectType)
