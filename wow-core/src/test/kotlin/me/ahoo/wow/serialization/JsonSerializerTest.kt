@@ -164,6 +164,22 @@ internal class JsonSerializerTest {
     }
 
     @Test
+    fun anyToJsonNode() {
+        val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId()
+        val jsonNode = aggregateId.toJsonNode<ObjectNode>()
+        val input = jsonNode.toObject<AggregateId>()
+        input.assert().isEqualTo(aggregateId)
+    }
+
+    @Test
+    fun stringToJsonNode() {
+        val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId()
+        val jsonNode = aggregateId.toJsonString().toJsonNode<ObjectNode>()
+        val input = jsonNode.toObject<AggregateId>()
+        input.assert().isEqualTo(aggregateId)
+    }
+
+    @Test
     fun deepCody() {
         val mutableData = MutableData(generateGlobalId())
         val deepCopied = mutableData.deepCody()
