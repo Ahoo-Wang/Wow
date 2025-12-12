@@ -24,8 +24,35 @@ import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
 
+/**
+ * Jackson JSON serializer for [AggregateId] objects.
+ *
+ * This serializer converts an [AggregateId] instance into a JSON object containing
+ * the context name, aggregate name, aggregate ID, and tenant ID using predefined field names
+ * from [MessageRecords].
+ *
+ * Example usage:
+ * ```kotlin
+ * val aggregateId = MaterializedNamedAggregate("context", "aggregate").aggregateId("id", "tenant")
+ * val json = ObjectMapper().writeValueAsString(aggregateId)
+ * // Produces: {"contextName":"context","aggregateName":"aggregate","aggregateId":"id","tenantId":"tenant"}
+ * ```
+ */
 object AggregateIdJsonSerializer : StdSerializer<AggregateId>(AggregateId::class.java) {
-    override fun serialize(value: AggregateId, generator: JsonGenerator, provider: SerializerProvider) {
+    /**
+     * Serializes the given [AggregateId] to JSON.
+     *
+     * Writes a JSON object with fields for context name, aggregate name, aggregate ID, and tenant ID.
+     *
+     * @param value The [AggregateId] instance to serialize. Must not be null.
+     * @param generator The [JsonGenerator] used to write JSON output. Must not be null.
+     * @param provider The [SerializerProvider] for accessing serialization context. Must not be null.
+     */
+    override fun serialize(
+        value: AggregateId,
+        generator: JsonGenerator,
+        provider: SerializerProvider
+    ) {
         generator.writeStartObject()
         generator.writeStringField(MessageRecords.CONTEXT_NAME, value.contextName)
         generator.writeStringField(MessageRecords.AGGREGATE_NAME, value.aggregateName)
@@ -35,8 +62,34 @@ object AggregateIdJsonSerializer : StdSerializer<AggregateId>(AggregateId::class
     }
 }
 
+/**
+ * Jackson JSON deserializer for [AggregateId] objects.
+ *
+ * This deserializer converts a JSON object back into an [AggregateId] instance,
+ * extracting the context name, aggregate name, aggregate ID, and tenant ID from
+ * predefined field names in [MessageRecords].
+ *
+ * Example usage:
+ * ```kotlin
+ * val json = """{"contextName":"context","aggregateName":"aggregate","aggregateId":"id","tenantId":"tenant"}"""
+ * val aggregateId = ObjectMapper().readValue<AggregateId>(json)
+ * ```
+ */
 object AggregateIdJsonDeserializer : StdDeserializer<AggregateId>(AggregateId::class.java) {
-    override fun deserialize(p: JsonParser, ctxt: DeserializationContext): AggregateId {
+    /**
+     * Deserializes JSON into an [AggregateId] instance.
+     *
+     * Reads a JSON object and constructs an [AggregateId] using the extracted field values.
+     *
+     * @param p The [JsonParser] providing access to the JSON input. Must not be null.
+     * @param ctxt The [DeserializationContext] for accessing deserialization context. Must not be null.
+     * @return The deserialized [AggregateId] instance.
+     * @throws com.fasterxml.jackson.core.JsonProcessingException if the JSON is malformed or missing required fields.
+     */
+    override fun deserialize(
+        p: JsonParser,
+        ctxt: DeserializationContext
+    ): AggregateId {
         val aggregateIdRecord = p.codec.readTree<ObjectNode>(p)
         val contextName = aggregateIdRecord[MessageRecords.CONTEXT_NAME].asText()
         val aggregateName = aggregateIdRecord[MessageRecords.AGGREGATE_NAME].asText()
