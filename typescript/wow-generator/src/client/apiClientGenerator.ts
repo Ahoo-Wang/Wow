@@ -44,12 +44,12 @@ import {
   extractResponseJsonSchema,
   extractResponseWildcardSchema,
   extractSchema,
-  isArray,
+  isArray, isMap,
   isPrimitive,
   isReference,
   OperationEndpoint,
   resolvePathParameterType,
-  resolvePrimitiveType,
+  resolvePrimitiveType, toArrayType,
 } from '../utils';
 import {
   addApiMetadataCtor,
@@ -327,6 +327,34 @@ export class ApiClientGenerator implements Generator {
     return parameters;
   }
 
+  private resolveType(
+    sourceFile: SourceFile,
+    schema: Schema | Reference,
+  ): string {
+    if (isReference(schema)) {
+      const modelInfo = resolveReferenceModelInfo(schema);
+      addImportRefModel(sourceFile, this.context.outputDir, modelInfo);
+      return modelInfo.name;
+    }
+    if (isArray(schema)) {
+      const itemType = this.resolveType(sourceFile, schema.items);
+      return toArrayType(itemType);
+    }
+    if (isMap(schema)) {
+      const additionalProperties = schema.additionalProperties;
+      if (typeof additionalProperties === 'boolean') {
+        return 'Record<string, any>';
+      }
+      const valueType = this.resolveType(sourceFile, additionalProperties);
+      return `Record<string, ${valueType}>`;
+    }
+    if (schema.type && isPrimitive(schema.type)) {
+      return resolvePrimitiveType(schema.type);
+    }
+
+    return 'any';
+  }
+
   /**
    * Resolves the return type for a schema.
    * @param sourceFile - The source file to add imports to
@@ -337,33 +365,7 @@ export class ApiClientGenerator implements Generator {
     sourceFile: SourceFile,
     schema: Schema | Reference,
   ): string {
-    const schemaDefaultReturnType = `Promise<any>`;
-    if (isReference(schema)) {
-      const modelInfo = resolveReferenceModelInfo(schema);
-      this.context.logger.info(
-        `Adding import for response model: ${modelInfo.name} from ${modelInfo.path}`,
-      );
-      addImportRefModel(sourceFile, this.context.outputDir, modelInfo);
-      const returnType = `Promise<${modelInfo.name}>`;
-      this.context.logger.info(`Resolved reference return type: ${returnType}`);
-      return returnType;
-    }
-    if (!schema.type) {
-      this.context.logger.info(
-        `Schema has no type, using default return type: ${schemaDefaultReturnType}`,
-      );
-      return schemaDefaultReturnType;
-    }
-    if (isPrimitive(schema.type)) {
-      const primitiveType = resolvePrimitiveType(schema.type);
-      const returnType = `Promise<${primitiveType}>`;
-      this.context.logger.info(`Resolved primitive return type: ${returnType}`);
-      return returnType;
-    }
-    this.context.logger.info(
-      `Using default return type: ${schemaDefaultReturnType}`,
-    );
-    return schemaDefaultReturnType;
+    return `Promise<${this.resolveType(sourceFile, schema)}>`;
   }
 
   /**
