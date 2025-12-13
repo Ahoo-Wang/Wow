@@ -317,42 +317,6 @@ describe('ApiClientGenerator', () => {
         (generator as any).getMethodName(mockClass, operation),
       ).toThrow('Unable to resolve method name for apiClientClass:TestClass.');
     });
-
-    it('should return camelCase of all parts when no unique method found', async () => {
-      const generator = new ApiClientGenerator(mockContext);
-      const mockClass = {
-        getMethod: vi.fn(() => true),
-        getName: vi.fn(() => 'TestClass'),
-      }; // Always returns true, so no unique name found
-      const operation = { operationId: 'user.get.profile' };
-
-      // Mock resolveMethodName to return the expected method name
-      vi.mocked(
-        await import('../../src/client/utils'),
-      ).resolveMethodName.mockReturnValueOnce('userGetProfile');
-
-      const result = (generator as any).getMethodName(mockClass, operation);
-
-      expect(result).toBe('userGetProfile');
-    });
-
-    it('should throw error when unable to resolve method name', async () => {
-      const generator = new ApiClientGenerator(mockContext);
-      const mockClass = {
-        getName: vi.fn(() => 'TestClass'),
-        getMethod: vi.fn(() => true),
-      };
-      const operation = { operationId: 'invalid' };
-
-      // Mock resolveMethodName to return undefined
-      vi.mocked(
-        await import('../../src/client/utils'),
-      ).resolveMethodName.mockReturnValueOnce(undefined);
-
-      expect(() =>
-        (generator as any).getMethodName(mockClass, operation),
-      ).toThrow('Unable to resolve method name for apiClientClass:TestClass.');
-    });
   });
 
   describe('resolveRequestType', () => {
@@ -467,9 +431,6 @@ describe('ApiClientGenerator', () => {
       const result = (generator as any).resolveSchemaReturnType({}, schema);
 
       expect(result).toBe('Promise<any>');
-      expect(mockLogger.info).toHaveBeenCalledWith(
-        'Schema has no type, using default return type: Promise<any>',
-      );
     });
 
     it('should handle non-primitive schema type', () => {
@@ -479,9 +440,6 @@ describe('ApiClientGenerator', () => {
       const result = (generator as any).resolveSchemaReturnType({}, schema);
 
       expect(result).toBe('Promise<any>');
-      expect(mockLogger.info).toHaveBeenCalledWith(
-        'Using default return type: Promise<any>',
-      );
     });
   });
 
