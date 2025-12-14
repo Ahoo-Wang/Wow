@@ -13,7 +13,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useFetcherListQuery } from '../../src/wow/useFetcherListQuery';
+import { useFetcherListQuery } from '../../../src/wow/fetcher/useFetcherListQuery';
 import {
   ListQuery,
   SortDirection,
@@ -27,7 +27,7 @@ vi.mock('../../src/wow/useFetcherQuery', () => ({
   useFetcherQuery: vi.fn(),
 }));
 
-import { useFetcherQuery } from '../../src/fetcher/useFetcherQuery';
+import { useFetcherQuery } from '../../../src/fetcher/useFetcherQuery';
 
 describe('useFetcherListQuery', () => {
   const mockListQuery: ListQuery<string> = {

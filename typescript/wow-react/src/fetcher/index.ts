@@ -11,11 +11,8 @@
  * limitations under the License.
  */
 
-export * from './debounce';
-export * from './fetcher';
-export * from './useCountQuery';
-export * from './useListQuery';
-export * from './useListStreamQuery';
-export * from './usePagedQuery';
-export * from './useSingleQuery';
-
+export * from './useFetcherCountQuery';
+export * from './useFetcherListQuery';
+export * from './useFetcherListStreamQuery';
+export * from './useFetcherPagedQuery';
+export * from './useFetcherSingleQuery';

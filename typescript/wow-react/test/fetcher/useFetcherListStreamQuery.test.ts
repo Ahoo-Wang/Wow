@@ -13,29 +13,31 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import { useFetcherPagedQuery } from '../../src/wow/useFetcherPagedQuery';
+import { useFetcherListStreamQuery } from '../../../src/wow/fetcher/useFetcherListStreamQuery';
 import {
-  PagedQuery,
+  ListQuery,
   SortDirection,
   Operator,
   eq,
   contains,
-  pagination,
 } from '@ahoo-wang/fetcher-wow';
+import { JsonEventStreamResultExtractor } from '@ahoo-wang/fetcher-eventstream';
 
 // Mock the useFetcherQuery hook
 vi.mock('../../src/wow/useFetcherQuery', () => ({
   useFetcherQuery: vi.fn(),
 }));
 
-import { useFetcherQuery } from '../../src/fetcher/useFetcherQuery';
+import { useFetcherQuery } from '../../../src/fetcher/useFetcherQuery';
 
-describe('useFetcherPagedQuery', () => {
-  const mockPagedQuery: PagedQuery<string> = {
+describe('useFetcherListStreamQuery', () => {
+  const mockListQuery: ListQuery<string> = {
     condition: eq('status', 'active'),
     sort: [{ field: 'createdAt', direction: SortDirection.DESC }],
-    pagination: pagination({ index: 1, size: 10 }),
+    limit: 10,
   };
+
+  const mockStream = new ReadableStream();
 
   const mockQueryReturn = {
     loading: false,
@@ -54,25 +56,30 @@ describe('useFetcherPagedQuery', () => {
     (useFetcherQuery as any).mockReturnValue(mockQueryReturn);
   });
 
-  it('should call useFetcherQuery with correct parameters', () => {
+  it('should call useFetcherQuery with correct parameters including JsonEventStreamResultExtractor', () => {
     const options = {
-      url: '/api/paged',
-      initialQuery: mockPagedQuery,
+      url: '/api/list-stream',
+      initialQuery: mockListQuery,
       autoExecute: true,
     };
 
-    renderHook(() => useFetcherPagedQuery<any>(options));
+    renderHook(() => useFetcherListStreamQuery<any>(options));
 
-    expect(useFetcherQuery).toHaveBeenCalledWith(options);
+    expect(useFetcherQuery).toHaveBeenCalledWith({
+      ...options,
+      resultExtractor: JsonEventStreamResultExtractor,
+    });
   });
 
   it('should return the same interface as useFetcherQuery', () => {
     const options = {
-      url: '/api/paged',
-      initialQuery: mockPagedQuery,
+      url: '/api/list-stream',
+      initialQuery: mockListQuery,
     };
 
-    const { result } = renderHook(() => useFetcherPagedQuery<any>(options));
+    const { result } = renderHook(() =>
+      useFetcherListStreamQuery<any>(options),
+    );
 
     expect(result.current).toHaveProperty('execute');
     expect(result.current).toHaveProperty('setQuery');
@@ -85,22 +92,25 @@ describe('useFetcherPagedQuery', () => {
     expect(result.current).toHaveProperty('abort');
   });
 
-  it('should handle different paged query configurations', () => {
-    const complexPagedQuery: PagedQuery<'name' | 'age' | 'status'> = {
+  it('should handle different list stream query configurations', () => {
+    const complexListQuery: ListQuery<'name' | 'age' | 'status'> = {
       condition: contains('name', 'John'),
       sort: [{ field: 'age', direction: SortDirection.ASC }],
-      pagination: pagination({ index: 2, size: 20 }),
+      limit: 20,
     };
 
     const options = {
-      url: '/api/paged-complex',
-      initialQuery: complexPagedQuery,
+      url: '/api/list-stream-complex',
+      initialQuery: complexListQuery,
     };
 
     renderHook(() =>
-      useFetcherPagedQuery<any, 'name' | 'age' | 'status'>(options),
+      useFetcherListStreamQuery<any, 'name' | 'age' | 'status'>(options),
     );
 
-    expect(useFetcherQuery).toHaveBeenCalledWith(options);
+    expect(useFetcherQuery).toHaveBeenCalledWith({
+      ...options,
+      resultExtractor: JsonEventStreamResultExtractor,
+    });
   });
 });

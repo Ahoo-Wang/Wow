@@ -13,13 +13,14 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import { useFetcherSingleQuery } from '../../src/wow/useFetcherSingleQuery';
+import { useFetcherPagedQuery } from '../../../src/wow/fetcher/useFetcherPagedQuery';
 import {
-  SingleQuery,
+  PagedQuery,
   SortDirection,
   Operator,
   eq,
   contains,
+  pagination,
 } from '@ahoo-wang/fetcher-wow';
 
 // Mock the useFetcherQuery hook
@@ -27,12 +28,13 @@ vi.mock('../../src/wow/useFetcherQuery', () => ({
   useFetcherQuery: vi.fn(),
 }));
 
-import { useFetcherQuery } from '../../src/fetcher/useFetcherQuery';
+import { useFetcherQuery } from '../../../src/fetcher/useFetcherQuery';
 
-describe('useFetcherSingleQuery', () => {
-  const mockSingleQuery: SingleQuery<string> = {
-    condition: eq('id', '123'),
+describe('useFetcherPagedQuery', () => {
+  const mockPagedQuery: PagedQuery<string> = {
+    condition: eq('status', 'active'),
     sort: [{ field: 'createdAt', direction: SortDirection.DESC }],
+    pagination: pagination({ index: 1, size: 10 }),
   };
 
   const mockQueryReturn = {
@@ -54,23 +56,23 @@ describe('useFetcherSingleQuery', () => {
 
   it('should call useFetcherQuery with correct parameters', () => {
     const options = {
-      url: '/api/single',
-      initialQuery: mockSingleQuery,
+      url: '/api/paged',
+      initialQuery: mockPagedQuery,
       autoExecute: true,
     };
 
-    renderHook(() => useFetcherSingleQuery<any>(options));
+    renderHook(() => useFetcherPagedQuery<any>(options));
 
     expect(useFetcherQuery).toHaveBeenCalledWith(options);
   });
 
   it('should return the same interface as useFetcherQuery', () => {
     const options = {
-      url: '/api/single',
-      initialQuery: mockSingleQuery,
+      url: '/api/paged',
+      initialQuery: mockPagedQuery,
     };
 
-    const { result } = renderHook(() => useFetcherSingleQuery<any>(options));
+    const { result } = renderHook(() => useFetcherPagedQuery<any>(options));
 
     expect(result.current).toHaveProperty('execute');
     expect(result.current).toHaveProperty('setQuery');
@@ -83,19 +85,20 @@ describe('useFetcherSingleQuery', () => {
     expect(result.current).toHaveProperty('abort');
   });
 
-  it('should handle different single query configurations', () => {
-    const complexSingleQuery: SingleQuery<'name' | 'age' | 'status'> = {
+  it('should handle different paged query configurations', () => {
+    const complexPagedQuery: PagedQuery<'name' | 'age' | 'status'> = {
       condition: contains('name', 'John'),
       sort: [{ field: 'age', direction: SortDirection.ASC }],
+      pagination: pagination({ index: 2, size: 20 }),
     };
 
     const options = {
-      url: '/api/single-complex',
-      initialQuery: complexSingleQuery,
+      url: '/api/paged-complex',
+      initialQuery: complexPagedQuery,
     };
 
     renderHook(() =>
-      useFetcherSingleQuery<any, 'name' | 'age' | 'status'>(options),
+      useFetcherPagedQuery<any, 'name' | 'age' | 'status'>(options),
     );
 
     expect(useFetcherQuery).toHaveBeenCalledWith(options);

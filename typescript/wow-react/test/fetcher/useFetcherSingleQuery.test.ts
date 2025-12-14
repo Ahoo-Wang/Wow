@@ -13,31 +13,27 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import { useFetcherListStreamQuery } from '../../src/wow/useFetcherListStreamQuery';
+import { useFetcherSingleQuery } from '../../../src/wow/fetcher/useFetcherSingleQuery';
 import {
-  ListQuery,
+  SingleQuery,
   SortDirection,
   Operator,
   eq,
   contains,
 } from '@ahoo-wang/fetcher-wow';
-import { JsonEventStreamResultExtractor } from '@ahoo-wang/fetcher-eventstream';
 
 // Mock the useFetcherQuery hook
 vi.mock('../../src/wow/useFetcherQuery', () => ({
   useFetcherQuery: vi.fn(),
 }));
 
-import { useFetcherQuery } from '../../src/fetcher/useFetcherQuery';
+import { useFetcherQuery } from '../../../src/fetcher/useFetcherQuery';
 
-describe('useFetcherListStreamQuery', () => {
-  const mockListQuery: ListQuery<string> = {
-    condition: eq('status', 'active'),
+describe('useFetcherSingleQuery', () => {
+  const mockSingleQuery: SingleQuery<string> = {
+    condition: eq('id', '123'),
     sort: [{ field: 'createdAt', direction: SortDirection.DESC }],
-    limit: 10,
   };
-
-  const mockStream = new ReadableStream();
 
   const mockQueryReturn = {
     loading: false,
@@ -56,30 +52,25 @@ describe('useFetcherListStreamQuery', () => {
     (useFetcherQuery as any).mockReturnValue(mockQueryReturn);
   });
 
-  it('should call useFetcherQuery with correct parameters including JsonEventStreamResultExtractor', () => {
+  it('should call useFetcherQuery with correct parameters', () => {
     const options = {
-      url: '/api/list-stream',
-      initialQuery: mockListQuery,
+      url: '/api/single',
+      initialQuery: mockSingleQuery,
       autoExecute: true,
     };
 
-    renderHook(() => useFetcherListStreamQuery<any>(options));
+    renderHook(() => useFetcherSingleQuery<any>(options));
 
-    expect(useFetcherQuery).toHaveBeenCalledWith({
-      ...options,
-      resultExtractor: JsonEventStreamResultExtractor,
-    });
+    expect(useFetcherQuery).toHaveBeenCalledWith(options);
   });
 
   it('should return the same interface as useFetcherQuery', () => {
     const options = {
-      url: '/api/list-stream',
-      initialQuery: mockListQuery,
+      url: '/api/single',
+      initialQuery: mockSingleQuery,
     };
 
-    const { result } = renderHook(() =>
-      useFetcherListStreamQuery<any>(options),
-    );
+    const { result } = renderHook(() => useFetcherSingleQuery<any>(options));
 
     expect(result.current).toHaveProperty('execute');
     expect(result.current).toHaveProperty('setQuery');
@@ -92,25 +83,21 @@ describe('useFetcherListStreamQuery', () => {
     expect(result.current).toHaveProperty('abort');
   });
 
-  it('should handle different list stream query configurations', () => {
-    const complexListQuery: ListQuery<'name' | 'age' | 'status'> = {
+  it('should handle different single query configurations', () => {
+    const complexSingleQuery: SingleQuery<'name' | 'age' | 'status'> = {
       condition: contains('name', 'John'),
       sort: [{ field: 'age', direction: SortDirection.ASC }],
-      limit: 20,
     };
 
     const options = {
-      url: '/api/list-stream-complex',
-      initialQuery: complexListQuery,
+      url: '/api/single-complex',
+      initialQuery: complexSingleQuery,
     };
 
     renderHook(() =>
-      useFetcherListStreamQuery<any, 'name' | 'age' | 'status'>(options),
+      useFetcherSingleQuery<any, 'name' | 'age' | 'status'>(options),
     );
 
-    expect(useFetcherQuery).toHaveBeenCalledWith({
-      ...options,
-      resultExtractor: JsonEventStreamResultExtractor,
-    });
+    expect(useFetcherQuery).toHaveBeenCalledWith(options);
   });
 });
