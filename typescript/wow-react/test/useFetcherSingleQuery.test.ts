@@ -27,7 +27,7 @@ vi.mock('../../src/wow/useFetcherQuery', () => ({
   useFetcherQuery: vi.fn(),
 }));
 
-import { useFetcherQuery } from '../../src/wow/useFetcherQuery';
+import { useFetcherQuery } from '../../src/fetcher/useFetcherQuery';
 
 describe('useFetcherSingleQuery', () => {
   const mockSingleQuery: SingleQuery<string> = {

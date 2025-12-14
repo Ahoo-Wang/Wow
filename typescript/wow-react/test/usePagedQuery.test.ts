@@ -26,7 +26,7 @@ vi.mock('../../src/wow/useQuery', () => ({
   useQuery: vi.fn(),
 }));
 
-import { useQuery } from '../../src/wow/useQuery';
+import { useQuery } from '../../src/core/useQuery';
 
 describe('usePagedQuery', () => {
   const mockPagedList: PagedList<{ id: number; name: string }> = {

@@ -26,7 +26,7 @@ vi.mock('../../../src/core', () => ({
   useDebouncedCallback: vi.fn(),
 }));
 
-import { useFetcherQuery } from '../../../src/wow/useFetcherQuery';
+import { useFetcherQuery } from '../../../src/fetcher/useFetcherQuery';
 import { useDebouncedCallback } from '../../../src/core';
 
 const mockUseFetcherQuery = vi.mocked(useFetcherQuery);

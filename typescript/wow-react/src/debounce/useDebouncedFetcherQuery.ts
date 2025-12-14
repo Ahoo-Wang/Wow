@@ -22,7 +22,7 @@ import {
   useFetcherQuery,
   UseFetcherQueryOptions,
   UseFetcherQueryReturn,
-} from '../useFetcherQuery';
+} from '../../fetcher';
 
 /**
  * Configuration options for the useDebouncedFetcherQuery hook.

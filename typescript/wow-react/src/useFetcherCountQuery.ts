@@ -12,8 +12,8 @@
  */
 
 import { FetcherError } from '@ahoo-wang/fetcher';
-import { UseQueryReturn } from './useQuery';
-import { useFetcherQuery, UseFetcherQueryOptions } from './useFetcherQuery';
+import { UseQueryReturn } from '../core';
+import { useFetcherQuery, UseFetcherQueryOptions } from '../fetcher';
 import { Condition } from '@ahoo-wang/fetcher-wow';
 
 /**

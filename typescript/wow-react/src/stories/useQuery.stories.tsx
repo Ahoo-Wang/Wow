@@ -13,7 +13,7 @@
 
 import type { Meta, StoryObj } from '@storybook/react';
 import React from 'react';
-import { useQuery } from '../useQuery';
+import { useQuery } from '../../core/useQuery';
 import { Button, Card, Typography, Space, Alert, Input } from 'antd';
 
 const { Text } = Typography;

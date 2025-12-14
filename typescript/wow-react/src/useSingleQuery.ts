@@ -13,7 +13,7 @@
 
 import { SingleQuery } from '@ahoo-wang/fetcher-wow';
 import { FetcherError } from '@ahoo-wang/fetcher';
-import { useQuery, UseQueryOptions, UseQueryReturn } from './useQuery';
+import { useQuery, UseQueryOptions, UseQueryReturn } from '../core';
 
 /**
  * Options for the useSingleQuery hook.
