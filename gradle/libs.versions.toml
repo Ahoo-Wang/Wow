@@ -15,7 +15,7 @@ swagger = "2.2.41"
 springdoc = "2.8.14"
 jte = "3.2.1"
 jsonschema-generator = "4.38.0"
-json-schema-validator = "1.5.9"
+json-schema-validator = "3.0.0"
 # testing
 junit = "5.14.1"
 fluent-assert = "0.2.5"
