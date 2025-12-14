@@ -24,7 +24,7 @@ import {
 import { JsonEventStreamResultExtractor } from '@ahoo-wang/fetcher-eventstream';
 
 // Mock the useFetcherQuery hook
-vi.mock('../../src/wow/useFetcherQuery', () => ({
+vi.mock('../../../src/fetcher/useFetcherQuery', () => ({
   useFetcherQuery: vi.fn(),
 }));
 

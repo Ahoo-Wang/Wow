@@ -18,7 +18,7 @@ import { FetcherError } from '@ahoo-wang/fetcher';
 import { PromiseStatus } from '../../../src/core/usePromiseState';
 
 // Mock the dependencies
-vi.mock('../../../src/wow/useFetcherQuery', () => ({
+vi.mock('../../../src/fetcher/useFetcherQuery', () => ({
   useFetcherQuery: vi.fn(),
 }));
 

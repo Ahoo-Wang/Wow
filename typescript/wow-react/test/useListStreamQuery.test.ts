@@ -18,7 +18,7 @@ import { ListQuery, all, SortDirection } from '@ahoo-wang/fetcher-wow';
 import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
 
 // Mock useQuery
-vi.mock('../../src/wow/useQuery', () => ({
+vi.mock('../../src/core/useQuery', () => ({
   useQuery: vi.fn(),
 }));
 

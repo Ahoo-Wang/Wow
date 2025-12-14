@@ -24,7 +24,7 @@ import {
 } from '@ahoo-wang/fetcher-wow';
 
 // Mock the useFetcherQuery hook
-vi.mock('../../src/wow/useFetcherQuery', () => ({
+vi.mock('../../../src/fetcher/useFetcherQuery', () => ({
   useFetcherQuery: vi.fn(),
 }));
 

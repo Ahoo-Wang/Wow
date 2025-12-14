@@ -17,7 +17,7 @@ import { useSingleQuery } from '../../src';
 import { SingleQuery, all, SortDirection } from '@ahoo-wang/fetcher-wow';
 
 // Mock useQuery
-vi.mock('../../src/wow/useQuery', () => ({
+vi.mock('../../src/core/useQuery', () => ({
   useQuery: vi.fn(),
 }));
 

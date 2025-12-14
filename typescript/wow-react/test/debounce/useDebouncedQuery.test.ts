@@ -16,11 +16,11 @@ import { renderHook, act } from '@testing-library/react';
 import { useDebouncedQuery } from '../../../src';
 
 // Mock the dependencies
-vi.mock('../../../src/wow/useQuery', () => ({
+vi.mock('../../../src/core/useQuery', () => ({
   useQuery: vi.fn(),
 }));
 
-vi.mock('../../../src/core', () => ({
+vi.mock('../../../src/core/useDebouncedCallback', () => ({
   useDebouncedCallback: vi.fn(),
 }));
 

@@ -17,7 +17,7 @@ import { useCountQuery } from '../../src';
 import { Condition, all } from '@ahoo-wang/fetcher-wow';
 
 // Mock useQuery
-vi.mock('../../src/wow/useQuery', () => ({
+vi.mock('../../src/core/useQuery', () => ({
   useQuery: vi.fn(),
 }));
 

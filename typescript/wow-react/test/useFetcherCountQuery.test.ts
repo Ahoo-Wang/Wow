@@ -17,7 +17,7 @@ import { useFetcherCountQuery } from '../../src';
 import { Condition, contains, eq } from '@ahoo-wang/fetcher-wow';
 
 // Mock the useFetcherQuery hook
-vi.mock('../../src/wow/useFetcherQuery', () => ({
+vi.mock('../../src/fetcher/useFetcherQuery', () => ({
   useFetcherQuery: vi.fn(),
 }));
 
@@ -90,7 +90,9 @@ describe('useFetcherCountQuery', () => {
   });
 
   it('should handle different condition types', () => {
-    const complexCondition: Condition<'name' | 'age' | 'status'> = contains<'name' | 'age' | 'status'>('name', 'John');
+    const complexCondition: Condition<'name' | 'age' | 'status'> = contains<
+      'name' | 'age' | 'status'
+    >('name', 'John');
 
     const options = {
       url: '/api/count-complex',
