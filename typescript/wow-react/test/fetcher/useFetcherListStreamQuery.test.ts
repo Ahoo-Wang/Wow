@@ -37,8 +37,6 @@ describe('useFetcherListStreamQuery', () => {
     limit: 10,
   };
 
-  const mockStream = new ReadableStream();
-
   const mockQueryReturn = {
     loading: false,
     result: null,
