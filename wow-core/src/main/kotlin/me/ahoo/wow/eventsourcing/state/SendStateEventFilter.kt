@@ -22,7 +22,6 @@ import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterType
 import me.ahoo.wow.messaging.function.logErrorResume
 import me.ahoo.wow.messaging.handler.ExchangeFilter
-import me.ahoo.wow.messaging.handler.retryStrategy
 import me.ahoo.wow.modeling.command.CommandDispatcher
 import me.ahoo.wow.modeling.command.SendDomainEventStreamFilter
 import me.ahoo.wow.modeling.command.getCommandAggregate
@@ -43,7 +42,6 @@ class SendStateEventFilter(
 ) : ExchangeFilter<ServerCommandExchange<*>> {
     companion object {
         private val log = KotlinLogging.logger { }
-        private val retryStrategy = retryStrategy(logger = log)
     }
 
     /**
@@ -60,15 +58,22 @@ class SendStateEventFilter(
         next: FilterChain<ServerCommandExchange<*>>
     ): Mono<Void> {
         return Mono.defer {
-            val eventStream = exchange.getEventStream() ?: return@defer next.filter(exchange)
-            val state = exchange.getCommandAggregate<Any, Any>()?.state ?: return@defer next.filter(exchange)
+            val eventStream = exchange.getEventStream()
+            if (eventStream == null) {
+                log.info { "No event stream." }
+                return@defer next.filter(exchange)
+            }
+            val state = exchange.getCommandAggregate<Any, Any>()?.state
+            if (state == null) {
+                log.info { "No state." }
+                return@defer next.filter(exchange)
+            }
             if (!state.initialized) {
                 return@defer next.filter(exchange)
             }
             val stateEvent = eventStream.copy().toStateEvent(state)
             stateEventBus.send(stateEvent)
                 .checkpoint("Send Message[${eventStream.id}] [SendStateEventFilter]")
-                .retryWhen(retryStrategy)
                 .logErrorResume()
                 .then(next.filter(exchange))
         }
