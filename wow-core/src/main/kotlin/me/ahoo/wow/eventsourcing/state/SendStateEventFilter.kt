@@ -60,12 +60,12 @@ class SendStateEventFilter(
         return Mono.defer {
             val eventStream = exchange.getEventStream()
             if (eventStream == null) {
-                log.info { "No event stream." }
+                log.debug { "No event stream." }
                 return@defer next.filter(exchange)
             }
             val state = exchange.getCommandAggregate<Any, Any>()?.state
             if (state == null) {
-                log.info { "No state." }
+                log.debug { "No state." }
                 return@defer next.filter(exchange)
             }
             if (!state.initialized) {

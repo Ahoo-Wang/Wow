@@ -40,7 +40,7 @@ class SendDomainEventStreamFilter(
         return Mono.defer {
             val eventStream = exchange.getEventStream()
             if (eventStream == null) {
-                log.info { "No event stream." }
+                log.debug { "No event stream." }
                 return@defer next.filter(exchange)
             }
             domainEventBus.send(eventStream)
