@@ -22,7 +22,6 @@ import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterType
 import me.ahoo.wow.messaging.function.logErrorResume
 import me.ahoo.wow.messaging.handler.ExchangeFilter
-import me.ahoo.wow.messaging.handler.retryStrategy
 import reactor.core.publisher.Mono
 
 @FilterType(CommandDispatcher::class)
@@ -32,7 +31,6 @@ class SendDomainEventStreamFilter(
 ) : ExchangeFilter<ServerCommandExchange<*>> {
     companion object {
         private val log = KotlinLogging.logger {}
-        private val retryStrategy = retryStrategy(logger = log)
     }
 
     override fun filter(
@@ -40,10 +38,13 @@ class SendDomainEventStreamFilter(
         next: FilterChain<ServerCommandExchange<*>>
     ): Mono<Void> {
         return Mono.defer {
-            val eventStream = exchange.getEventStream() ?: return@defer next.filter(exchange)
+            val eventStream = exchange.getEventStream()
+            if (eventStream == null) {
+                log.info { "No event stream." }
+                return@defer next.filter(exchange)
+            }
             domainEventBus.send(eventStream)
                 .checkpoint("Send Message[${eventStream.id}] [SendDomainEventStreamFilter]")
-                .retryWhen(retryStrategy)
                 .logErrorResume()
                 .then(next.filter(exchange))
         }
