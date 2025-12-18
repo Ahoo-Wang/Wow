@@ -89,7 +89,7 @@ export default function FailedView({ category }: FailedViewProps) {
   );
   const onPaginationChange = useCallback(
     (page: number, pageSize: number) => {
-      setQuery({ ...getQuery(), pagination: { index: page, size: pageSize } });
+      setQuery({ ...getQuery()!, pagination: { index: page, size: pageSize } });
     },
     [getQuery, setQuery],
   );
