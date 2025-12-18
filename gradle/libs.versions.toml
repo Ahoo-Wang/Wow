@@ -18,7 +18,7 @@ jsonschema-generator = "4.38.0"
 json-schema-validator = "1.5.9"
 # testing
 junit = "6.0.1"
-fluent-assert = "0.2.5"
+fluent-assert = "0.2.6"
 mockk = "1.14.7"
 kotlin-compile-testing = "0.11.1"
 # plugins
