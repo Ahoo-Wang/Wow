@@ -17,14 +17,11 @@ import me.ahoo.wow.api.annotation.ORDER_DEFAULT
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.filter.FilterChain
-import me.ahoo.wow.filter.FilterType
 import me.ahoo.wow.messaging.handler.ExchangeAck.finallyAck
-import me.ahoo.wow.messaging.handler.ExchangeFilter
 import reactor.core.publisher.Mono
 
-@FilterType(CommandDispatcher::class)
 @Order(ORDER_DEFAULT)
-object AggregateProcessorFilter : ExchangeFilter<ServerCommandExchange<*>> {
+object AggregateProcessorFilter : CommandFilter {
     override fun filter(
         exchange: ServerCommandExchange<*>,
         next: FilterChain<ServerCommandExchange<*>>

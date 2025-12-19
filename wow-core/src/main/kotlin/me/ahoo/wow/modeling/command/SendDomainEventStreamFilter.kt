@@ -19,16 +19,13 @@ import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.filter.FilterChain
-import me.ahoo.wow.filter.FilterType
 import me.ahoo.wow.messaging.function.logErrorResume
-import me.ahoo.wow.messaging.handler.ExchangeFilter
 import reactor.core.publisher.Mono
 
-@FilterType(CommandDispatcher::class)
 @Order(ORDER_LAST, after = [AggregateProcessorFilter::class])
 class SendDomainEventStreamFilter(
     private val domainEventBus: DomainEventBus
-) : ExchangeFilter<ServerCommandExchange<*>> {
+) : CommandFilter {
     companion object {
         private val log = KotlinLogging.logger {}
     }
@@ -40,7 +37,7 @@ class SendDomainEventStreamFilter(
         return Mono.defer {
             val eventStream = exchange.getEventStream()
             if (eventStream == null) {
-                log.debug { "No event stream." }
+                log.warn { "No event stream." }
                 return@defer next.filter(exchange)
             }
             domainEventBus.send(eventStream)
