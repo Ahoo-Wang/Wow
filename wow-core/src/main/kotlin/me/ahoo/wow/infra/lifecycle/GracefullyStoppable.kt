@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.infra
+package me.ahoo.wow.infra.lifecycle
 
 import reactor.core.publisher.Mono
 import java.time.Duration
@@ -20,8 +20,8 @@ import java.time.Duration
  * Interface for components that support graceful shutdown.
  *
  * Implementations of this interface provide both synchronous and asynchronous
- * graceful close operations. The synchronous `close()` method blocks until
- * all ongoing operations complete, while `closeGracefully()` returns a reactive
+ * graceful stop operations. The synchronous `close()` method blocks until
+ * all ongoing operations complete, while `stopGracefully()` returns a reactive
  * stream that completes when shutdown is finished.
  *
  * This is particularly useful for message dispatchers, connection pools, and
@@ -29,10 +29,10 @@ import java.time.Duration
  *
  * Example usage:
  * ```kotlin
- * class MyDispatcher : GracefullyClosable {
+ * class MyDispatcher : GracefullyStoppable {
  *     private val activeOperations = mutableListOf<Mono<Void>>()
  *
- *     override fun closeGracefully(): Mono<Void> {
+ *     override fun stopGracefully(): Mono<Void> {
  *         // Cancel new operations and wait for active ones
  *         stopAcceptingNewOperations()
  *         return if (activeOperations.isNotEmpty()) {
@@ -51,7 +51,22 @@ import java.time.Duration
  *
  * @see AutoCloseable for the standard close contract
  */
-interface GracefullyClosable : AutoCloseable {
+interface GracefullyStoppable : AutoCloseable {
+    /**
+     * Closes this resource by performing a graceful shutdown.
+     *
+     * This method implements the [AutoCloseable] contract and delegates
+     * to the [stop] method to ensure all ongoing operations complete
+     * before the resource is closed.
+     *
+     * @throws Exception if an error occurs during shutdown
+     * @see AutoCloseable.close
+     * @see stop
+     */
+    override fun close() {
+        stop()
+    }
+
     /**
      * Synchronously closes this resource with graceful shutdown.
      *
@@ -63,10 +78,10 @@ interface GracefullyClosable : AutoCloseable {
      * contract while providing graceful shutdown behavior.
      *
      * @throws IllegalStateException if the underlying reactive stream fails
-     * @see closeGracefully for the asynchronous version
+     * @see stopGracefully for the asynchronous version
      */
-    override fun close() {
-        closeGracefully().block()
+    fun stop() {
+        stopGracefully().block()
     }
 
     /**
@@ -83,11 +98,11 @@ interface GracefullyClosable : AutoCloseable {
      *
      * @param timeout The maximum duration to wait for graceful shutdown to complete
      * @throws IllegalStateException if the underlying reactive stream fails
-     * @see closeGracefully for the asynchronous version
-     * @see close for the version without timeout
+     * @see stopGracefully for the asynchronous version
+     * @see stop for the version without timeout
      */
-    fun close(timeout: Duration) {
-        closeGracefully().block(timeout)
+    fun stop(timeout: Duration) {
+        stopGracefully().block(timeout)
     }
 
     /**
@@ -103,7 +118,7 @@ interface GracefullyClosable : AutoCloseable {
      * This method enables non-blocking shutdown in reactive applications.
      *
      * @return A `Mono<Void>` that completes when shutdown is finished
-     * @see close for the synchronous blocking version
+     * @see stop for the synchronous blocking version
      */
-    fun closeGracefully(): Mono<Void>
+    fun stopGracefully(): Mono<Void>
 }
