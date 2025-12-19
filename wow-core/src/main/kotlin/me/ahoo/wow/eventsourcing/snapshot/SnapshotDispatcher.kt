@@ -51,7 +51,7 @@ class SnapshotDispatcher(
     private val parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
     private val schedulerSupplier: AggregateSchedulerSupplier =
         DefaultAggregateSchedulerSupplier(SNAPSHOT_PROCESSOR_NAME)
-) : AbstractDispatcher<StateEventExchange<*>>(), MessageDispatcher {
+) : AbstractDispatcher<StateEventExchange<*>>() {
 
     override fun receiveMessage(namedAggregate: NamedAggregate): Flux<StateEventExchange<*>> {
         return stateEventBus
