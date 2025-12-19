@@ -21,9 +21,6 @@ import me.ahoo.wow.eventsourcing.state.StateEventExchange
 import me.ahoo.wow.messaging.MessageDispatcher
 import me.ahoo.wow.messaging.dispatcher.AggregateMessageDispatcher
 import me.ahoo.wow.messaging.dispatcher.SafeSubscriber
-import me.ahoo.wow.messaging.function.MessageFunction
-import me.ahoo.wow.messaging.function.MessageFunctionRegistrar
-import me.ahoo.wow.messaging.function.SimpleMessageFunctionRegistrar
 import me.ahoo.wow.messaging.writeReceiverGroup
 import me.ahoo.wow.metrics.Metrics.writeMetricsSubscriber
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
@@ -94,7 +91,9 @@ abstract class AbstractEventDispatcher<R : Mono<*>> : MessageDispatcher {
     private val domainEventDistributionSubscriber = DomainEventDistributionSubscriber()
     private val stateEventDistributionSubscriber = StateEventDistributionSubscriber()
     private val eventStreamFunctionRegistrar by lazy {
-        filterRegistrar(TopicKind.EVENT_STREAM)
+        functionRegistrar.filter {
+            it.functionKind.topicKind == TopicKind.EVENT_STREAM
+        }
     }
     private val eventStreamTopics by lazy {
         eventStreamFunctionRegistrar.functions
@@ -104,25 +103,15 @@ abstract class AbstractEventDispatcher<R : Mono<*>> : MessageDispatcher {
     }
 
     private val stateEventFunctionRegistrar by lazy {
-        filterRegistrar(TopicKind.STATE_EVENT)
+        functionRegistrar.filter {
+            it.functionKind.topicKind == TopicKind.STATE_EVENT
+        }
     }
     private val stateEventTopics by lazy {
         stateEventFunctionRegistrar.functions
             .flatMap {
                 it.supportedTopics
             }.toSet()
-    }
-
-    private fun filterRegistrar(topicKind: TopicKind): MessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>> {
-        val registrar =
-            SimpleMessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>>()
-        functionRegistrar.functions
-            .filter {
-                it.functionKind.topicKind == topicKind
-            }.forEach {
-                registrar.register(it)
-            }
-        return registrar
     }
 
     private fun receiveEventStream(namedAggregates: Set<NamedAggregate>): Flux<EventStreamExchange> =
@@ -231,7 +220,8 @@ abstract class AbstractEventDispatcher<R : Mono<*>> : MessageDispatcher {
      * @see EventStreamExchange
      * @see newAggregateEventDispatcher
      */
-    inner class DomainEventDistributionSubscriber : SafeSubscriber<GroupedFlux<MaterializedNamedAggregate, EventStreamExchange>>() {
+    inner class DomainEventDistributionSubscriber :
+        SafeSubscriber<GroupedFlux<MaterializedNamedAggregate, EventStreamExchange>>() {
         /**
          * The name of this subscriber for logging and identification.
          */
