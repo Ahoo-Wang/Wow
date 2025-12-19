@@ -13,17 +13,16 @@
 
 package me.ahoo.wow.saga.stateless
 
-import me.ahoo.wow.event.AbstractEventDispatcher
 import me.ahoo.wow.event.DomainEventBus
+import me.ahoo.wow.event.dispatcher.CompositeEventDispatcher
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
 import me.ahoo.wow.scheduler.DefaultAggregateSchedulerSupplier
-import reactor.core.publisher.Mono
 
 /**
  * Dispatcher for stateless sagas that handles domain events and coordinates command execution.
- * This dispatcher extends [AbstractEventDispatcher] to provide event-driven processing for sagas
+ * This dispatcher extends [CompositeEventDispatcher] to provide event-driven processing for sagas
  * that don't maintain state between events.
  *
  * @property name The name of the dispatcher, typically formatted as `applicationName.StatelessSagaDispatcher`.
@@ -38,12 +37,20 @@ class StatelessSagaDispatcher(
     /**
      * named like `applicationName.StatelessSagaDispatcher`
      */
-    override val name: String,
-    override val parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
-    override val domainEventBus: DomainEventBus,
-    override val stateEventBus: StateEventBus,
-    override val functionRegistrar: StatelessSagaFunctionRegistrar,
-    override val eventHandler: StatelessSagaHandler,
-    override val schedulerSupplier: AggregateSchedulerSupplier =
+    name: String,
+    parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
+    domainEventBus: DomainEventBus,
+    stateEventBus: StateEventBus,
+    functionRegistrar: StatelessSagaFunctionRegistrar,
+    eventHandler: StatelessSagaHandler,
+    schedulerSupplier: AggregateSchedulerSupplier =
         DefaultAggregateSchedulerSupplier("SagaDispatcher")
-) : AbstractEventDispatcher<Mono<*>>()
+) : CompositeEventDispatcher(
+    name = name,
+    parallelism = parallelism,
+    domainEventBus = domainEventBus,
+    stateEventBus = stateEventBus,
+    functionRegistrar = functionRegistrar,
+    eventHandler = eventHandler,
+    schedulerSupplier = schedulerSupplier
+)

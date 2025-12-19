@@ -10,13 +10,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.ahoo.wow.event
 
+package me.ahoo.wow.event.dispatcher
+
+import me.ahoo.wow.event.DomainEventBus
+import me.ahoo.wow.event.DomainEventFunctionRegistrar
+import me.ahoo.wow.event.DomainEventHandler
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
 import me.ahoo.wow.scheduler.DefaultAggregateSchedulerSupplier
-import reactor.core.publisher.Mono
 
 /**
  * Domain Event Dispatcher responsible for coordinating the processing of domain events.
@@ -34,42 +37,50 @@ import reactor.core.publisher.Mono
  * @property eventHandler The event handler for processing domain events
  * @property schedulerSupplier Supplier for creating schedulers for aggregate processing
  *
- * @see AbstractEventDispatcher
- * @see DomainEventBus
- * @see StateEventBus
- * @see DomainEventFunctionRegistrar
- * @see DomainEventHandler
+ * @see CompositeEventDispatcher
+ * @see me.ahoo.wow.event.DomainEventBus
+ * @see me.ahoo.wow.eventsourcing.state.StateEventBus
+ * @see me.ahoo.wow.event.DomainEventFunctionRegistrar
+ * @see me.ahoo.wow.event.DomainEventHandler
  */
 class DomainEventDispatcher(
     /**
      * The name of this dispatcher, typically formatted as `applicationName.DomainEventDispatcher`.
      */
-    override val name: String,
+    name: String,
     /**
      * The level of parallelism for processing events.
      * @default MessageParallelism.DEFAULT_PARALLELISM
      */
-    override val parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
+    parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
     /**
      * The domain event bus for publishing and subscribing to domain events.
      */
-    override val domainEventBus: DomainEventBus,
+    domainEventBus: DomainEventBus,
     /**
      * The state event bus for handling state-related events.
      */
-    override val stateEventBus: StateEventBus,
+    stateEventBus: StateEventBus,
     /**
      * The registrar for domain event handler functions.
      */
-    override val functionRegistrar: DomainEventFunctionRegistrar,
+    functionRegistrar: DomainEventFunctionRegistrar,
     /**
      * The event handler for processing domain events.
      */
-    override val eventHandler: DomainEventHandler,
+    eventHandler: DomainEventHandler,
     /**
      * Supplier for creating schedulers for aggregate processing.
      * @default DefaultAggregateSchedulerSupplier("EventDispatcher")
      */
-    override val schedulerSupplier: AggregateSchedulerSupplier =
+    schedulerSupplier: AggregateSchedulerSupplier =
         DefaultAggregateSchedulerSupplier("EventDispatcher")
-) : AbstractEventDispatcher<Mono<*>>()
+) : CompositeEventDispatcher(
+    name = name,
+    parallelism = parallelism,
+    domainEventBus = domainEventBus,
+    stateEventBus = stateEventBus,
+    functionRegistrar = functionRegistrar,
+    eventHandler = eventHandler,
+    schedulerSupplier = schedulerSupplier
+)

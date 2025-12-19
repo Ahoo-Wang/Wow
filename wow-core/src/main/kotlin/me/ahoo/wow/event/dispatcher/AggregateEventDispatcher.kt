@@ -11,11 +11,14 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.event
+package me.ahoo.wow.event.dispatcher
 
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.eventsourcing.state.StateEventExchange
+import me.ahoo.wow.event.DomainEventExchange
+import me.ahoo.wow.event.EventHandler
+import me.ahoo.wow.event.EventStreamExchange
+import me.ahoo.wow.event.SimpleDomainEventExchange
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.function.MessageFunctionRegistrar
@@ -25,56 +28,54 @@ import reactor.core.scheduler.Scheduler
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Dispatcher for processing state events within a specific aggregate context.
+ * Dispatcher for processing domain events within a specific aggregate context.
  *
- * This class handles the distribution and processing of state events for a particular
- * named aggregate. It extends AbstractAggregateEventDispatcher to provide concrete
- * implementation for state event processing, including access to aggregate state.
+ * This class handles the distribution and processing of domain event streams
+ * for a particular named aggregate. It extends AbstractAggregateEventDispatcher
+ * to provide concrete implementation for event stream processing.
  *
  * @property namedAggregate The named aggregate this dispatcher handles
  * @property name The name of this dispatcher (default: derived from aggregate name)
  * @property parallelism The level of parallelism for processing (default: DEFAULT_PARALLELISM)
- * @property messageFlux The flux of state event exchanges to process
+ * @property messageFlux The flux of event stream exchanges to process
  * @property functionRegistrar The registrar containing event processing functions
  * @property eventHandler The handler for processing individual events
  * @property scheduler The scheduler for managing event processing concurrency
  *
- * @constructor Creates a new AggregateStateEventDispatcher with the specified parameters
+ * @constructor Creates a new AggregateEventDispatcher with the specified parameters
  *
  * @see AbstractAggregateEventDispatcher
  * @see NamedAggregate
- * @see StateEventExchange
+ * @see me.ahoo.wow.event.EventStreamExchange
  * @see MessageFunctionRegistrar
- * @see EventHandler
+ * @see me.ahoo.wow.event.EventHandler
  * @see Scheduler
  */
 @Suppress("LongParameterList")
-class AggregateStateEventDispatcher(
+class AggregateEventDispatcher(
     override val namedAggregate: NamedAggregate,
     override val name: String =
-        "${namedAggregate.aggregateName}-${AggregateStateEventDispatcher::class.simpleName!!}",
+        "${namedAggregate.aggregateName}-${AggregateEventDispatcher::class.simpleName!!}",
     override val parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
-    override val messageFlux: Flux<StateEventExchange<*>>,
+    override val messageFlux: Flux<EventStreamExchange>,
     override val functionRegistrar: MessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>>,
     override val eventHandler: EventHandler,
     override val scheduler: Scheduler
-) : AbstractAggregateEventDispatcher<StateEventExchange<*>>() {
+) : AbstractAggregateEventDispatcher<EventStreamExchange>() {
     /**
-     * Creates a state domain event exchange from a state event exchange and domain event.
+     * Creates a domain event exchange from an event stream exchange and domain event.
      *
-     * This method wraps a domain event in a SimpleStateDomainEventExchange, providing
-     * access to the aggregate state and copying attributes from the parent exchange.
+     * This method wraps a domain event in a SimpleDomainEventExchange, copying
+     * attributes from the parent event stream exchange.
      *
      * @param event The domain event to create an exchange for
-     * @return A new SimpleStateDomainEventExchange containing the event and state
+     * @return A new SimpleDomainEventExchange containing the event
      *
-     * @see SimpleStateDomainEventExchange
+     * @see me.ahoo.wow.event.SimpleDomainEventExchange
      * @see DomainEvent
-     * @see ReadOnlyStateAggregate
      */
-    override fun StateEventExchange<*>.createEventExchange(event: DomainEvent<*>): DomainEventExchange<*> =
-        SimpleStateDomainEventExchange(
-            state = message,
+    override fun EventStreamExchange.createEventExchange(event: DomainEvent<*>): DomainEventExchange<*> =
+        SimpleDomainEventExchange(
             message = event,
             attributes = ConcurrentHashMap(attributes),
         )

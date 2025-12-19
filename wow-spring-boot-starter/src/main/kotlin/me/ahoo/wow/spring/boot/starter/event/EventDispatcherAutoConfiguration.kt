@@ -16,11 +16,11 @@ package me.ahoo.wow.spring.boot.starter.event
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.event.DefaultDomainEventHandler
 import me.ahoo.wow.event.DomainEventBus
-import me.ahoo.wow.event.DomainEventDispatcher
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.event.DomainEventFunctionFilter
 import me.ahoo.wow.event.DomainEventFunctionRegistrar
 import me.ahoo.wow.event.DomainEventHandler
+import me.ahoo.wow.event.dispatcher.DomainEventDispatcher
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.filter.FilterChain

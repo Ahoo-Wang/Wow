@@ -11,10 +11,13 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.event
+package me.ahoo.wow.event.dispatcher
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.event.DomainEvent
+import me.ahoo.wow.event.DomainEventExchange
+import me.ahoo.wow.event.DomainEventStream
+import me.ahoo.wow.event.EventHandler
 import me.ahoo.wow.messaging.compensation.CompensationMatcher.match
 import me.ahoo.wow.messaging.dispatcher.AggregateMessageDispatcher
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism.toGroupKey
@@ -40,9 +43,9 @@ import reactor.core.publisher.Mono
  *
  * @see AggregateMessageDispatcher
  * @see MessageExchange
- * @see DomainEventStream
+ * @see me.ahoo.wow.event.DomainEventStream
  * @see MessageFunctionRegistrar
- * @see EventHandler
+ * @see me.ahoo.wow.event.EventHandler
  */
 abstract class AbstractAggregateEventDispatcher<E : MessageExchange<*, DomainEventStream>> : AggregateMessageDispatcher<E>() {
     companion object {
