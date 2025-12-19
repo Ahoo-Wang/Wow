@@ -44,6 +44,8 @@ interface MessageFunctionRegistrar<F : MessageFunction<*, *, *>> {
      */
     fun unregister(function: F)
 
+    fun filter(predicate: (F) -> Boolean): MessageFunctionRegistrar<F>
+
     /**
      * Finds all functions that support processing the given message.
      *

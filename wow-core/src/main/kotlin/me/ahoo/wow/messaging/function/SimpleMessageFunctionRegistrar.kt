@@ -61,6 +61,13 @@ class SimpleMessageFunctionRegistrar<F : MessageFunction<*, *, *>> : MessageFunc
         registrar.remove(function)
     }
 
+    override fun filter(predicate: (F) -> Boolean): MessageFunctionRegistrar<F> {
+        val filteredRegistrar = SimpleMessageFunctionRegistrar<F>()
+        val filteredFunctions = registrar.filter(predicate)
+        filteredRegistrar.registrar.addAll(filteredFunctions)
+        return filteredRegistrar
+    }
+
     /**
      * Returns the set of registered functions.
      */
