@@ -16,9 +16,9 @@ package me.ahoo.wow.spring.boot.starter.event
 import io.mockk.mockk
 import me.ahoo.cosid.machine.HostAddressSupplier
 import me.ahoo.cosid.machine.LocalHostAddressSupplier
-import me.ahoo.wow.event.DomainEventDispatcher
 import me.ahoo.wow.event.DomainEventFunctionFilter
 import me.ahoo.wow.event.DomainEventFunctionRegistrar
+import me.ahoo.wow.event.dispatcher.DomainEventDispatcher
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventBus

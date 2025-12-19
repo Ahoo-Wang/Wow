@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.spring.event
 
-import me.ahoo.wow.event.DomainEventDispatcher
+import me.ahoo.wow.event.dispatcher.DomainEventDispatcher
 import me.ahoo.wow.spring.MessageDispatcherLauncher
 
 class DomainEventDispatcherLauncher(domainEventDispatcher: DomainEventDispatcher) :

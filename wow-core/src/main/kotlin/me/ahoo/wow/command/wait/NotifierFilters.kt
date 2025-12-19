@@ -22,8 +22,8 @@ import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.modeling.AggregateIdCapable
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.command.ServerCommandExchange
-import me.ahoo.wow.event.DomainEventDispatcher
 import me.ahoo.wow.event.DomainEventExchange
+import me.ahoo.wow.event.dispatcher.DomainEventDispatcher
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotDispatcher
 import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
