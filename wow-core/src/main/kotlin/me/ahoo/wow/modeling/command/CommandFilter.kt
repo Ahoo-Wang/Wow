@@ -18,4 +18,4 @@ import me.ahoo.wow.filter.FilterType
 import me.ahoo.wow.messaging.handler.ExchangeFilter
 
 @FilterType(CommandDispatcher::class)
-interface CommandFilter : ExchangeFilter<ServerCommandExchange<*>> 
+interface CommandFilter : ExchangeFilter<ServerCommandExchange<*>>
