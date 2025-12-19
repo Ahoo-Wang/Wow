@@ -19,10 +19,8 @@ import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.toStateEvent
 import me.ahoo.wow.filter.FilterChain
-import me.ahoo.wow.filter.FilterType
 import me.ahoo.wow.messaging.function.logErrorResume
-import me.ahoo.wow.messaging.handler.ExchangeFilter
-import me.ahoo.wow.modeling.command.CommandDispatcher
+import me.ahoo.wow.modeling.command.CommandFilter
 import me.ahoo.wow.modeling.command.SendDomainEventStreamFilter
 import me.ahoo.wow.modeling.command.getCommandAggregate
 import reactor.core.publisher.Mono
@@ -35,11 +33,10 @@ import reactor.core.publisher.Mono
  * The filter creates a state event by combining the domain event stream with the current aggregate state,
  * then publishes it to the configured state event bus.
  */
-@FilterType(CommandDispatcher::class)
 @Order(ORDER_LAST, after = [SendDomainEventStreamFilter::class])
 class SendStateEventFilter(
     private val stateEventBus: StateEventBus
-) : ExchangeFilter<ServerCommandExchange<*>> {
+) : CommandFilter {
     companion object {
         private val log = KotlinLogging.logger { }
     }
@@ -60,12 +57,12 @@ class SendStateEventFilter(
         return Mono.defer {
             val eventStream = exchange.getEventStream()
             if (eventStream == null) {
-                log.debug { "No event stream." }
+                log.warn { "No event stream." }
                 return@defer next.filter(exchange)
             }
             val state = exchange.getCommandAggregate<Any, Any>()?.state
             if (state == null) {
-                log.debug { "No state." }
+                log.warn { "No state." }
                 return@defer next.filter(exchange)
             }
             if (!state.initialized) {

@@ -24,8 +24,8 @@ import me.ahoo.wow.opentelemetry.messaging.MessageExchangeTextMapGetter
 
 object AggregateInstrumenter {
     private const val INSTRUMENTATION_NAME = "${INSTRUMENTATION_NAME_PREFIX}aggregate"
-    val INSTRUMENTER: Instrumenter<ServerCommandExchange<Any>, Unit> =
-        Instrumenter.builder<ServerCommandExchange<Any>, Unit>(
+    val INSTRUMENTER: Instrumenter<ServerCommandExchange<*>, Unit> =
+        Instrumenter.builder<ServerCommandExchange<*>, Unit>(
             GlobalOpenTelemetry.get(),
             INSTRUMENTATION_NAME,
             AggregateSpanNameExtractor,
@@ -34,8 +34,8 @@ object AggregateInstrumenter {
             .buildConsumerInstrumenter(MessageExchangeTextMapGetter())
 }
 
-object AggregateSpanNameExtractor : SpanNameExtractor<ServerCommandExchange<Any>> {
-    override fun extract(request: ServerCommandExchange<Any>): String {
+object AggregateSpanNameExtractor : SpanNameExtractor<ServerCommandExchange<*>> {
+    override fun extract(request: ServerCommandExchange<*>): String {
         return "${request.message.aggregateName}.${request.message.name}"
     }
 }

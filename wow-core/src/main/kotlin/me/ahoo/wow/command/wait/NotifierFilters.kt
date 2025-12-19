@@ -31,7 +31,7 @@ import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterType
 import me.ahoo.wow.messaging.handler.ExchangeFilter
 import me.ahoo.wow.messaging.handler.MessageExchange
-import me.ahoo.wow.modeling.command.CommandDispatcher
+import me.ahoo.wow.modeling.command.CommandFilter
 import me.ahoo.wow.projection.ProjectionDispatcher
 import me.ahoo.wow.saga.stateless.StatelessSagaDispatcher
 import reactor.core.publisher.Mono
@@ -63,11 +63,11 @@ abstract class AbstractNotifierFilter<T : MessageExchange<*, M>, M>(
  *
  * @param commandWaitNotifier The notifier for sending wait signals.
  */
-@FilterType(CommandDispatcher::class)
 @Order(ORDER_FIRST)
 class ProcessedNotifierFilter(
     commandWaitNotifier: CommandWaitNotifier
-) : AbstractNotifierFilter<ServerCommandExchange<*>, CommandMessage<*>>(CommandStage.PROCESSED, commandWaitNotifier)
+) : CommandFilter,
+    AbstractNotifierFilter<ServerCommandExchange<*>, CommandMessage<*>>(CommandStage.PROCESSED, commandWaitNotifier)
 
 /**
  * Filter that notifies wait strategies when aggregate snapshots are generated.
