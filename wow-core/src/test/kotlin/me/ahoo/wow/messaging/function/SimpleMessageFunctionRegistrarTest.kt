@@ -52,6 +52,10 @@ internal class SimpleMessageFunctionRegistrarTest {
         actual = registrar.supportedFunctions(message).toSet()
         actual.size.assert().isEqualTo(2)
         actual.assert().contains(function, anotherHandler)
+
+        val filteredRegistrar = registrar.filter { it != function }
+        filteredRegistrar.functions.size.assert().isOne()
+        filteredRegistrar.assert().isNotEqualTo(registrar)
     }
 
     @Test
