@@ -32,7 +32,7 @@ class StateEventDispatcher(
     override val functionRegistrar: MessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>>,
     override val eventHandler: EventHandler,
     override val schedulerSupplier: AggregateSchedulerSupplier
-) : EventDispatcher<StateEventExchange<*>, StateEventBus>() {
+) : AbstractEventDispatcher<StateEventExchange<*>, StateEventBus>() {
 
     override fun newAggregateDispatcher(
         namedAggregate: NamedAggregate,

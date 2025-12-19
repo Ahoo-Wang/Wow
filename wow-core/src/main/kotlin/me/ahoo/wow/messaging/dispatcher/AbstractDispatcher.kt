@@ -83,11 +83,11 @@ abstract class AbstractDispatcher<T : Any> : MessageDispatcher {
      */
     override fun run() {
         log.info {
-            "[$name] Run subscribe to namedAggregates:${namedAggregates.toJsonString()}."
+            "[$name][${this.javaClass.simpleName}] Run subscribe to namedAggregates:${namedAggregates.toJsonString()}."
         }
         if (namedAggregates.isEmpty()) {
             log.warn {
-                "[$name] Ignore start because namedAggregates is empty."
+                "[$name][${this.javaClass.simpleName}] Ignore start because namedAggregates is empty."
             }
             return
         }
@@ -101,7 +101,7 @@ abstract class AbstractDispatcher<T : Any> : MessageDispatcher {
      */
     override fun close() {
         log.info {
-            "[$name] Close."
+            "[$name][${this.javaClass.simpleName}] Close."
         }
         aggregateDispatchers.forEach { it.close() }
     }

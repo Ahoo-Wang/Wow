@@ -27,7 +27,7 @@ import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-abstract class EventDispatcher<E : MessageExchange<*, *>, BUS : MessageBus<*, E>> : AbstractDispatcher<E>() {
+abstract class AbstractEventDispatcher<E : MessageExchange<*, *>, BUS : MessageBus<*, E>> : AbstractDispatcher<E>() {
 
     /**
      * The level of parallelism for processing events.
