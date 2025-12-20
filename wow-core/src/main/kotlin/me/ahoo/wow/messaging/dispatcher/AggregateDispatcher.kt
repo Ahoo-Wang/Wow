@@ -123,27 +123,25 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> :
         }
         // Cancel the subscription first
         cancel()
-
-        // Wait for all active tasks to complete
-        return waitForActiveTasks()
-    }
-
-    private fun waitForActiveTasks(): Mono<Void> =
-        Mono.fromCallable {
-            activityTaskCounter.get()
-        }.flatMap { count ->
-            if (count <= 0) {
-                log.info {
-                    "[$name] No active tasks. Shutdown complete."
-                }
-                return@flatMap Mono.empty()
-            }
+        if (activityTaskCounter.get() <= 0) {
             log.info {
-                "[$name] Waiting for $count active tasks to complete."
+                "[$name] No active tasks. Shutdown complete."
             }
-            // Poll every 100ms to check if tasks are done
-            return@flatMap Mono
-                .delay(Duration.ofMillis(100))
-                .flatMap { waitForActiveTasks() }
-        }.subscribeOn(scheduler)
+            return Mono.empty()
+        }
+        // Wait for all active tasks to complete
+        return Flux.interval(Duration.ofMillis(100))
+            .takeUntil {
+                if (activityTaskCounter.get() <= 0) {
+                    log.info {
+                        "[$name] No active tasks. Shutdown complete."
+                    }
+                    return@takeUntil true
+                }
+                log.info {
+                    "[$name] Waiting for ${activityTaskCounter.get()} active tasks to complete."
+                }
+                return@takeUntil false
+            }.then()
+    }
 }
