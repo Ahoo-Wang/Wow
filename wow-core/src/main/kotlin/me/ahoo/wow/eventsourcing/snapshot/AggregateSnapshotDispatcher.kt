@@ -16,7 +16,7 @@ package me.ahoo.wow.eventsourcing.snapshot
 import me.ahoo.wow.api.messaging.processor.ProcessorInfo
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
-import me.ahoo.wow.messaging.dispatcher.AggregateMessageDispatcher
+import me.ahoo.wow.messaging.dispatcher.AggregateDispatcher
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism.toGroupKey
 import reactor.core.publisher.Flux
@@ -42,7 +42,7 @@ class AggregateSnapshotDispatcher(
     override val parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
     override val scheduler: Scheduler,
     override val messageFlux: Flux<StateEventExchange<*>>
-) : AggregateMessageDispatcher<StateEventExchange<*>>(),
+) : AggregateDispatcher<StateEventExchange<*>>(),
     ProcessorInfo {
     /**
      * The context name of the aggregate.

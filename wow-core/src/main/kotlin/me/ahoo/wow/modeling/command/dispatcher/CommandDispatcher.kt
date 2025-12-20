@@ -19,7 +19,7 @@ import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.configuration.requiredAggregateType
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.MessageDispatcher
-import me.ahoo.wow.messaging.dispatcher.AbstractDispatcher
+import me.ahoo.wow.messaging.dispatcher.MainDispatcher
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.messaging.writeReceiverGroup
 import me.ahoo.wow.metrics.Metrics.writeMetricsSubscriber
@@ -45,7 +45,7 @@ class CommandDispatcher(
     private val serviceProvider: ServiceProvider,
     private val schedulerSupplier: AggregateSchedulerSupplier =
         DefaultAggregateSchedulerSupplier("CommandDispatcher")
-) : AbstractDispatcher<ServerCommandExchange<*>>() {
+) : MainDispatcher<ServerCommandExchange<*>>() {
     override fun receiveMessage(namedAggregate: NamedAggregate): Flux<ServerCommandExchange<*>> {
         return commandBus
             .receive(setOf(namedAggregate))
