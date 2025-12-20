@@ -237,7 +237,7 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> :
         cancel()
         if (activityTaskCounter.get() <= 0) {
             log.info {
-                "[$name] No active tasks. Shutdown complete."
+                "[$name] No active tasks. Stop complete."
             }
             return Mono.empty()
         }
