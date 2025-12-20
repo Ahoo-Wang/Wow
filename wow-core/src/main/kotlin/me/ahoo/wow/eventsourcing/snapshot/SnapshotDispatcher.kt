@@ -25,8 +25,6 @@ import me.ahoo.wow.messaging.compensation.CompensationMatcher.match
 import me.ahoo.wow.messaging.dispatcher.MainDispatcher
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.messaging.handler.ExchangeAck.filterThenAck
-import me.ahoo.wow.messaging.writeReceiverGroup
-import me.ahoo.wow.metrics.Metrics.writeMetricsSubscriber
 import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
 import me.ahoo.wow.scheduler.DefaultAggregateSchedulerSupplier
 import reactor.core.publisher.Flux
@@ -56,8 +54,6 @@ class SnapshotDispatcher(
     override fun receiveMessage(namedAggregate: NamedAggregate): Flux<StateEventExchange<*>> {
         return stateEventBus
             .receive(setOf(namedAggregate))
-            .writeReceiverGroup(name)
-            .writeMetricsSubscriber(name)
             .filterThenAck {
                 it.message.match(SNAPSHOT_FUNCTION)
             }

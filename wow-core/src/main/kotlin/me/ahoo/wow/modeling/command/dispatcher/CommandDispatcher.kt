@@ -21,8 +21,7 @@ import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.MessageDispatcher
 import me.ahoo.wow.messaging.dispatcher.MainDispatcher
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
-import me.ahoo.wow.messaging.writeReceiverGroup
-import me.ahoo.wow.metrics.Metrics.writeMetricsSubscriber
+import me.ahoo.wow.messaging.handler.ExchangeAck.filterThenAck
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.command.AggregateProcessorFactory
 import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
@@ -49,11 +48,9 @@ class CommandDispatcher(
     override fun receiveMessage(namedAggregate: NamedAggregate): Flux<ServerCommandExchange<*>> {
         return commandBus
             .receive(setOf(namedAggregate))
-            .filter {
+            .filterThenAck {
                 !it.message.isVoid
             }
-            .writeReceiverGroup(name)
-            .writeMetricsSubscriber(name)
     }
 
     override fun newAggregateDispatcher(

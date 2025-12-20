@@ -20,8 +20,6 @@ import me.ahoo.wow.messaging.dispatcher.MainDispatcher
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.function.MessageFunctionRegistrar
 import me.ahoo.wow.messaging.handler.MessageExchange
-import me.ahoo.wow.messaging.writeReceiverGroup
-import me.ahoo.wow.metrics.Metrics.writeMetricsSubscriber
 import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -59,7 +57,5 @@ abstract class AbstractEventDispatcher<E : MessageExchange<*, *>, BUS : MessageB
 
     override fun receiveMessage(namedAggregate: NamedAggregate): Flux<E> {
         return messageBus.receive(setOf(namedAggregate))
-            .writeReceiverGroup(name)
-            .writeMetricsSubscriber(name)
     }
 }
