@@ -50,13 +50,12 @@ import java.util.concurrent.ConcurrentHashMap
  * @see EventHandler
  * @see Scheduler
  */
-@Suppress("LongParameterList")
 class AggregateStateEventDispatcher(
-    override val namedAggregate: NamedAggregate,
     override val name: String =
         "${namedAggregate.aggregateName}-${AggregateStateEventDispatcher::class.simpleName!!}",
-    override val parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
+    override val namedAggregate: NamedAggregate,
     override val messageFlux: Flux<StateEventExchange<*>>,
+    override val parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
     override val functionRegistrar: MessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>>,
     override val eventHandler: EventHandler,
     override val scheduler: Scheduler

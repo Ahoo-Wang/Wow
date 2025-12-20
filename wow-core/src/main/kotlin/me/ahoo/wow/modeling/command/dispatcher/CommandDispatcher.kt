@@ -31,7 +31,6 @@ import reactor.core.publisher.Flux
 
  * @author ahoo wang
  */
-@Suppress("LongParameterList")
 class CommandDispatcher(
     override val name: String = CommandDispatcher::class.simpleName!!,
     val parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
@@ -58,10 +57,10 @@ class CommandDispatcher(
             .aggregateMetadata<Any, Any>()
         return AggregateCommandDispatcher(
             aggregateMetadata = aggregateMetadata,
-            scheduler = schedulerSupplier.getOrInitialize(namedAggregate),
             messageFlux = messageFlux,
             parallelism = parallelism,
             commandHandler = commandHandler,
+            scheduler = schedulerSupplier.getOrInitialize(namedAggregate),
         )
     }
 }

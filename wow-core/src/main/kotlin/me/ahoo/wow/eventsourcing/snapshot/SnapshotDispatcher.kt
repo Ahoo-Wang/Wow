@@ -64,11 +64,11 @@ class SnapshotDispatcher(
         messageFlux: Flux<StateEventExchange<*>>
     ): MessageDispatcher {
         return AggregateSnapshotDispatcher(
-            snapshotHandler = snapshotHandler,
             namedAggregate = namedAggregate,
-            parallelism = parallelism,
-            scheduler = schedulerSupplier.getOrInitialize(namedAggregate),
             messageFlux = messageFlux,
+            parallelism = parallelism,
+            snapshotHandler = snapshotHandler,
+            scheduler = schedulerSupplier.getOrInitialize(namedAggregate),
         )
     }
 }
