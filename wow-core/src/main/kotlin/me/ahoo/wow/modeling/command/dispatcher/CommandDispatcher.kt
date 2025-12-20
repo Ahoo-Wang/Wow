@@ -22,7 +22,6 @@ import me.ahoo.wow.messaging.dispatcher.MainDispatcher
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.messaging.handler.ExchangeAck.filterThenAck
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
-import me.ahoo.wow.modeling.command.AggregateProcessorFactory
 import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
 import me.ahoo.wow.scheduler.DefaultAggregateSchedulerSupplier
 import reactor.core.publisher.Flux
@@ -38,7 +37,6 @@ class CommandDispatcher(
     val parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
     override val namedAggregates: Set<NamedAggregate> = MetadataSearcher.localAggregates,
     private val commandBus: CommandBus,
-    private val aggregateProcessorFactory: AggregateProcessorFactory,
     private val commandHandler: CommandHandler,
     private val schedulerSupplier: AggregateSchedulerSupplier =
         DefaultAggregateSchedulerSupplier("CommandDispatcher")
@@ -63,7 +61,6 @@ class CommandDispatcher(
             scheduler = schedulerSupplier.getOrInitialize(namedAggregate),
             messageFlux = messageFlux,
             parallelism = parallelism,
-            aggregateProcessorFactory = aggregateProcessorFactory,
             commandHandler = commandHandler,
         )
     }

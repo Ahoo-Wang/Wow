@@ -19,18 +19,26 @@ import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.handler.ExchangeAck.finallyAck
+import me.ahoo.wow.modeling.command.AggregateProcessorFactory
 import reactor.core.publisher.Mono
 
 @Order(ORDER_DEFAULT)
 class AggregateProcessorFilter(
     private val serviceProvider: ServiceProvider,
+    private val aggregateProcessorFactory: AggregateProcessorFactory,
 ) : CommandFilter {
     override fun filter(
         exchange: ServerCommandExchange<*>,
         next: FilterChain<ServerCommandExchange<*>>
     ): Mono<Void> {
         exchange.setServiceProvider(serviceProvider)
-        val aggregateProcessor = checkNotNull(exchange.getAggregateProcessor())
+        val aggregateMetadata = exchange.getAggregateMetadata()
+        checkNotNull(aggregateMetadata)
+        val aggregateProcessor = aggregateProcessorFactory.create(
+            aggregateId = exchange.message.aggregateId,
+            aggregateMetadata = aggregateMetadata
+        )
+        exchange.setAggregateProcessor(aggregateProcessor)
         return aggregateProcessor
             .process(exchange)
             .checkpoint(
