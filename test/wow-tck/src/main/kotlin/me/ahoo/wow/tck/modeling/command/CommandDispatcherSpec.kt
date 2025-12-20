@@ -143,7 +143,7 @@ abstract class CommandDispatcherSpec {
     @Test
     fun run() {
         val chain = FilterChainBuilder<ServerCommandExchange<*>>()
-            .addFilter(AggregateProcessorFilter(serviceProvider))
+            .addFilter(AggregateProcessorFilter(serviceProvider, aggregateProcessorFactory))
             .addFilter(SendDomainEventStreamFilter(domainEventBus))
             .addFilter(ProcessedNotifierFilter(LocalCommandWaitNotifier(waitStrategyRegistrar)))
             .build()
@@ -151,7 +151,6 @@ abstract class CommandDispatcherSpec {
         val commandDispatcher = CommandDispatcher(
             namedAggregates = setOf(aggregateMetadata.materialize()),
             commandBus = commandBus,
-            aggregateProcessorFactory = aggregateProcessorFactory,
             commandHandler = DefaultCommandHandler(chain).metrizable(),
         )
 

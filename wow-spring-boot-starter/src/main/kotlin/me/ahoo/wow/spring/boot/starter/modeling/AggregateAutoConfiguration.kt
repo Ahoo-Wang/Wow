@@ -88,8 +88,11 @@ class AggregateAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    fun aggregateProcessorFilter(serviceProvider: ServiceProvider): AggregateProcessorFilter {
-        return AggregateProcessorFilter(serviceProvider)
+    fun aggregateProcessorFilter(
+        serviceProvider: ServiceProvider,
+        aggregateProcessorFactory: AggregateProcessorFactory,
+    ): AggregateProcessorFilter {
+        return AggregateProcessorFilter(serviceProvider, aggregateProcessorFactory)
     }
 
     @Bean
@@ -136,13 +139,11 @@ class AggregateAutoConfiguration {
         @Qualifier(WowAutoConfiguration.WOW_CURRENT_BOUNDED_CONTEXT)
         namedBoundedContext: NamedBoundedContext,
         commandBus: CommandGateway,
-        aggregateProcessorFactory: AggregateProcessorFactory,
         commandHandler: CommandHandler,
     ): CommandDispatcher {
         return CommandDispatcher(
             name = "${namedBoundedContext.contextName}.${CommandDispatcher::class.simpleName}",
             commandBus = commandBus,
-            aggregateProcessorFactory = aggregateProcessorFactory,
             commandHandler = commandHandler,
         )
     }

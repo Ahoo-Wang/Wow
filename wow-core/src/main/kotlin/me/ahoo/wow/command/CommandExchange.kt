@@ -22,6 +22,7 @@ import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.modeling.command.AggregateProcessor
 import me.ahoo.wow.modeling.command.getCommandAggregate
+import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -74,6 +75,7 @@ class SimpleClientCommandExchange<C : Any>(
 
 const val COMMAND_INVOKE_RESULT_KEY = "__COMMAND_INVOKE_RESULT__"
 const val EVENT_STREAM_KEY = "__EVENT_STREAM__"
+const val AGGREGATE_METADATA_KEY = "__AGGREGATE_METADATA__"
 const val AGGREGATE_PROCESSOR_KEY = "__AGGREGATE_PROCESSOR__"
 const val AGGREGATE_VERSION_KEY = "__AGGREGATE_VERSION__"
 
@@ -90,6 +92,11 @@ const val AGGREGATE_VERSION_KEY = "__AGGREGATE_VERSION__"
  * @see DomainEventStream
  */
 interface ServerCommandExchange<C : Any> : CommandExchange<ServerCommandExchange<C>, C> {
+    fun setAggregateMetadata(aggregateMetadata: AggregateMetadata<*, *>): ServerCommandExchange<C> =
+        setAttribute(AGGREGATE_METADATA_KEY, aggregateMetadata)
+
+    fun getAggregateMetadata(): AggregateMetadata<*, *>? = getAttribute(AGGREGATE_METADATA_KEY)
+
     /**
      * Sets the aggregate processor responsible for handling this command.
      *
