@@ -22,7 +22,7 @@ import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
 import me.ahoo.wow.messaging.MessageDispatcher
 import me.ahoo.wow.messaging.compensation.CompensationMatcher.match
-import me.ahoo.wow.messaging.dispatcher.AbstractDispatcher
+import me.ahoo.wow.messaging.dispatcher.MainDispatcher
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.messaging.handler.ExchangeAck.filterThenAck
 import me.ahoo.wow.messaging.writeReceiverGroup
@@ -51,7 +51,7 @@ class SnapshotDispatcher(
     private val parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
     private val schedulerSupplier: AggregateSchedulerSupplier =
         DefaultAggregateSchedulerSupplier(SNAPSHOT_PROCESSOR_NAME)
-) : AbstractDispatcher<StateEventExchange<*>>() {
+) : MainDispatcher<StateEventExchange<*>>() {
 
     override fun receiveMessage(namedAggregate: NamedAggregate): Flux<StateEventExchange<*>> {
         return stateEventBus

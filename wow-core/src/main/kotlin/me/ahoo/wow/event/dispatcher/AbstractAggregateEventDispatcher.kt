@@ -18,7 +18,7 @@ import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.messaging.compensation.CompensationMatcher.match
-import me.ahoo.wow.messaging.dispatcher.AggregateMessageDispatcher
+import me.ahoo.wow.messaging.dispatcher.AggregateDispatcher
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism.toGroupKey
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.function.MessageFunctionRegistrar
@@ -40,13 +40,13 @@ import reactor.core.publisher.Mono
  * @property functionRegistrar The registrar containing event processing functions
  * @property eventHandler The handler responsible for processing individual events
  *
- * @see AggregateMessageDispatcher
+ * @see AggregateDispatcher
  * @see MessageExchange
  * @see me.ahoo.wow.event.DomainEventStream
  * @see MessageFunctionRegistrar
  * @see EventHandler
  */
-abstract class AbstractAggregateEventDispatcher<E : MessageExchange<*, DomainEventStream>> : AggregateMessageDispatcher<E>() {
+abstract class AbstractAggregateEventDispatcher<E : MessageExchange<*, DomainEventStream>> : AggregateDispatcher<E>() {
     companion object {
         private val log = KotlinLogging.logger {}
     }

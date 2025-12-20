@@ -32,7 +32,7 @@ import reactor.core.scheduler.Scheduler
  *
  * @param T The type of message exchange being handled
  */
-abstract class AggregateMessageDispatcher<T : MessageExchange<*, *>> :
+abstract class AggregateDispatcher<T : MessageExchange<*, *>> :
     SafeSubscriber<Void>(),
     MessageDispatcher,
     NamedAggregateDecorator {

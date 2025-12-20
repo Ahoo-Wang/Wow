@@ -15,7 +15,7 @@ package me.ahoo.wow.modeling.command.dispatcher
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.ioc.ServiceProvider
-import me.ahoo.wow.messaging.dispatcher.AggregateMessageDispatcher
+import me.ahoo.wow.messaging.dispatcher.AggregateDispatcher
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism.toGroupKey
 import me.ahoo.wow.modeling.command.AggregateProcessorFactory
@@ -58,7 +58,7 @@ class AggregateCommandDispatcher<C : Any, S : Any>(
     private val aggregateProcessorFactory: AggregateProcessorFactory,
     private val commandHandler: CommandHandler,
     private val serviceProvider: ServiceProvider
-) : AggregateMessageDispatcher<ServerCommandExchange<*>>() {
+) : AggregateDispatcher<ServerCommandExchange<*>>() {
     override val namedAggregate: NamedAggregate
         get() = aggregateMetadata.namedAggregate
 

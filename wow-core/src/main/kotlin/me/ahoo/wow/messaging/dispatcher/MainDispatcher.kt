@@ -29,7 +29,7 @@ import reactor.core.publisher.Flux
  *
  * @param T The type of message being dispatched
  */
-abstract class AbstractDispatcher<T : Any> : MessageDispatcher {
+abstract class MainDispatcher<T : Any> : MessageDispatcher {
     companion object {
         private val log = KotlinLogging.logger {}
     }

@@ -16,7 +16,7 @@ package me.ahoo.wow.event.dispatcher
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.messaging.MessageBus
-import me.ahoo.wow.messaging.dispatcher.AbstractDispatcher
+import me.ahoo.wow.messaging.dispatcher.MainDispatcher
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.function.MessageFunctionRegistrar
 import me.ahoo.wow.messaging.handler.MessageExchange
@@ -26,7 +26,7 @@ import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-abstract class AbstractEventDispatcher<E : MessageExchange<*, *>, BUS : MessageBus<*, E>> : AbstractDispatcher<E>() {
+abstract class AbstractEventDispatcher<E : MessageExchange<*, *>, BUS : MessageBus<*, E>> : MainDispatcher<E>() {
 
     /**
      * The level of parallelism for processing events.
