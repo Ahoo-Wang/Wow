@@ -17,7 +17,6 @@ import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.configuration.requiredAggregateType
-import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.MessageDispatcher
 import me.ahoo.wow.messaging.dispatcher.MainDispatcher
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
@@ -41,7 +40,6 @@ class CommandDispatcher(
     private val commandBus: CommandBus,
     private val aggregateProcessorFactory: AggregateProcessorFactory,
     private val commandHandler: CommandHandler,
-    private val serviceProvider: ServiceProvider,
     private val schedulerSupplier: AggregateSchedulerSupplier =
         DefaultAggregateSchedulerSupplier("CommandDispatcher")
 ) : MainDispatcher<ServerCommandExchange<*>>() {
@@ -67,7 +65,6 @@ class CommandDispatcher(
             parallelism = parallelism,
             aggregateProcessorFactory = aggregateProcessorFactory,
             commandHandler = commandHandler,
-            serviceProvider = serviceProvider,
         )
     }
 }

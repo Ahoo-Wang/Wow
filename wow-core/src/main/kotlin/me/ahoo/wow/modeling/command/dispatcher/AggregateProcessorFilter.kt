@@ -17,15 +17,19 @@ import me.ahoo.wow.api.annotation.ORDER_DEFAULT
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.filter.FilterChain
+import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.handler.ExchangeAck.finallyAck
 import reactor.core.publisher.Mono
 
 @Order(ORDER_DEFAULT)
-object AggregateProcessorFilter : CommandFilter {
+class AggregateProcessorFilter(
+    private val serviceProvider: ServiceProvider,
+) : CommandFilter {
     override fun filter(
         exchange: ServerCommandExchange<*>,
         next: FilterChain<ServerCommandExchange<*>>
     ): Mono<Void> {
+        exchange.setServiceProvider(serviceProvider)
         val aggregateProcessor = checkNotNull(exchange.getAggregateProcessor())
         return aggregateProcessor
             .process(exchange)

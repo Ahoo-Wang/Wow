@@ -14,7 +14,6 @@ package me.ahoo.wow.modeling.command.dispatcher
 
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.ServerCommandExchange
-import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.dispatcher.AggregateDispatcher
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism.toGroupKey
@@ -45,7 +44,6 @@ import reactor.core.scheduler.Scheduler
  * @param name The name of this dispatcher.
  * @param aggregateProcessorFactory Factory for creating aggregate processors.
  * @param commandHandler The command handler for processing commands.
- * @param serviceProvider Provider for accessing services.
  */
 @Suppress("LongParameterList")
 class AggregateCommandDispatcher<C : Any, S : Any>(
@@ -57,7 +55,6 @@ class AggregateCommandDispatcher<C : Any, S : Any>(
         "${aggregateMetadata.aggregateName}-${AggregateCommandDispatcher::class.simpleName!!}",
     private val aggregateProcessorFactory: AggregateProcessorFactory,
     private val commandHandler: CommandHandler,
-    private val serviceProvider: ServiceProvider
 ) : AggregateDispatcher<ServerCommandExchange<*>>() {
     override val namedAggregate: NamedAggregate
         get() = aggregateMetadata.namedAggregate
@@ -72,8 +69,7 @@ class AggregateCommandDispatcher<C : Any, S : Any>(
         val aggregateId = exchange.message.aggregateId
         val aggregateProcessor =
             aggregateProcessorFactory.create(aggregateId, aggregateMetadata)
-        exchange.setServiceProvider(serviceProvider)
-            .setAggregateProcessor(aggregateProcessor)
+        exchange.setAggregateProcessor(aggregateProcessor)
         return commandHandler.handle(exchange)
     }
 
