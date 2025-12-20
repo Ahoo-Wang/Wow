@@ -43,15 +43,14 @@ import reactor.core.scheduler.Scheduler
  * @param name The name of this dispatcher.
  * @param commandHandler The command handler for processing commands.
  */
-@Suppress("LongParameterList")
 class AggregateCommandDispatcher<C : Any, S : Any>(
-    val aggregateMetadata: AggregateMetadata<C, S>,
-    override val parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
-    override val scheduler: Scheduler,
-    override val messageFlux: Flux<ServerCommandExchange<*>>,
     override val name: String =
         "${aggregateMetadata.aggregateName}-${AggregateCommandDispatcher::class.simpleName!!}",
+    val aggregateMetadata: AggregateMetadata<C, S>,
+    override val messageFlux: Flux<ServerCommandExchange<*>>,
+    override val parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
     private val commandHandler: CommandHandler,
+    override val scheduler: Scheduler,
 ) : AggregateDispatcher<ServerCommandExchange<*>>() {
     override val namedAggregate: NamedAggregate
         get() = aggregateMetadata.namedAggregate

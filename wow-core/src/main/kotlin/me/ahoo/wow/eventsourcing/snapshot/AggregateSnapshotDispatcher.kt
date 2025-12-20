@@ -35,13 +35,13 @@ import reactor.core.scheduler.Scheduler
  * @param messageFlux the flux of state event exchanges to process
  */
 class AggregateSnapshotDispatcher(
-    private val snapshotHandler: SnapshotHandler,
-    override val namedAggregate: NamedAggregate,
     override val name: String =
         "${namedAggregate.aggregateName}-${AggregateSnapshotDispatcher::class.simpleName!!}",
+    override val namedAggregate: NamedAggregate,
+    override val messageFlux: Flux<StateEventExchange<*>>,
     override val parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
-    override val scheduler: Scheduler,
-    override val messageFlux: Flux<StateEventExchange<*>>
+    private val snapshotHandler: SnapshotHandler,
+    override val scheduler: Scheduler
 ) : AggregateDispatcher<StateEventExchange<*>>(),
     ProcessorInfo {
     /**

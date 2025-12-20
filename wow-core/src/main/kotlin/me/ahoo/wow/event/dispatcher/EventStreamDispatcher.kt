@@ -39,10 +39,10 @@ class EventStreamDispatcher(
     ): MessageDispatcher {
         return AggregateEventDispatcher(
             namedAggregate = namedAggregate,
-            parallelism = parallelism,
             messageFlux = messageFlux,
-            eventHandler = eventHandler,
+            parallelism = parallelism,
             functionRegistrar = functionRegistrar,
+            eventHandler = eventHandler,
             scheduler = schedulerSupplier.getOrInitialize(namedAggregate),
         )
     }
