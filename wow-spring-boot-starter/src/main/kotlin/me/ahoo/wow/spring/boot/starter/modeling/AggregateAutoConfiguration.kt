@@ -88,8 +88,8 @@ class AggregateAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    fun aggregateProcessorFilter(): AggregateProcessorFilter {
-        return AggregateProcessorFilter
+    fun aggregateProcessorFilter(serviceProvider: ServiceProvider): AggregateProcessorFilter {
+        return AggregateProcessorFilter(serviceProvider)
     }
 
     @Bean
@@ -138,14 +138,12 @@ class AggregateAutoConfiguration {
         commandBus: CommandGateway,
         aggregateProcessorFactory: AggregateProcessorFactory,
         commandHandler: CommandHandler,
-        serviceProvider: ServiceProvider
     ): CommandDispatcher {
         return CommandDispatcher(
             name = "${namedBoundedContext.contextName}.${CommandDispatcher::class.simpleName}",
             commandBus = commandBus,
             aggregateProcessorFactory = aggregateProcessorFactory,
             commandHandler = commandHandler,
-            serviceProvider = serviceProvider,
         )
     }
 
