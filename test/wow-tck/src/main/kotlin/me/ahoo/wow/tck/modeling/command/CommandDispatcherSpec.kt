@@ -92,7 +92,6 @@ abstract class CommandDispatcherSpec {
 
     @BeforeEach
     open fun setup() {
-//        Schedulers.enableMetrics()
         commandBus = createCommandBus().metrizable()
         commandGateway = DefaultCommandGateway(
             commandWaitEndpoint = SimpleCommandWaitEndpoint(""),
@@ -141,7 +140,7 @@ abstract class CommandDispatcherSpec {
     val aggregateCount: Int = 200
 
     @Test
-    fun run() {
+    fun start() {
         val chain = FilterChainBuilder<ServerCommandExchange<*>>()
             .addFilter(AggregateProcessorFilter(serviceProvider, aggregateProcessorFactory))
             .addFilter(SendDomainEventStreamFilter(domainEventBus))
