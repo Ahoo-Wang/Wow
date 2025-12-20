@@ -11,8 +11,9 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.event
+package me.ahoo.wow.event.dispatcher
 
+import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.filter.AbstractHandler
 import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.filter.FilterChain
@@ -23,7 +24,7 @@ import me.ahoo.wow.filter.LogResumeErrorHandler
  * Base interface for event handlers that process domain event exchanges.
  *
  * @see Handler
- * @see DomainEventExchange
+ * @see me.ahoo.wow.event.DomainEventExchange
  */
 interface EventHandler : Handler<DomainEventExchange<*>>
 

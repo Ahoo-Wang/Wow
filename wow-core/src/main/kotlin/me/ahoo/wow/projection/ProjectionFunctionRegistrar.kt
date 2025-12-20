@@ -13,8 +13,8 @@
 
 package me.ahoo.wow.projection
 
-import me.ahoo.wow.event.AbstractEventFunctionRegistrar
 import me.ahoo.wow.event.DomainEventExchange
+import me.ahoo.wow.event.dispatcher.AbstractEventFunctionRegistrar
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.function.MessageFunctionRegistrar
 import me.ahoo.wow.messaging.function.SimpleMessageFunctionRegistrar

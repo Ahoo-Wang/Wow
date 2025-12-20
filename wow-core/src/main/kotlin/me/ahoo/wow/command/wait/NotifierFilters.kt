@@ -31,7 +31,7 @@ import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterType
 import me.ahoo.wow.messaging.handler.ExchangeFilter
 import me.ahoo.wow.messaging.handler.MessageExchange
-import me.ahoo.wow.modeling.command.CommandFilter
+import me.ahoo.wow.modeling.command.dispatcher.CommandFilter
 import me.ahoo.wow.projection.ProjectionDispatcher
 import me.ahoo.wow.saga.stateless.StatelessSagaDispatcher
 import reactor.core.publisher.Mono

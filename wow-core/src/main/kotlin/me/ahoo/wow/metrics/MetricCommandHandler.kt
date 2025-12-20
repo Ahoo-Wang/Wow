@@ -16,7 +16,7 @@ package me.ahoo.wow.metrics
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.infra.Decorator
-import me.ahoo.wow.modeling.command.CommandHandler
+import me.ahoo.wow.modeling.command.dispatcher.CommandHandler
 import reactor.core.publisher.Mono
 
 /**

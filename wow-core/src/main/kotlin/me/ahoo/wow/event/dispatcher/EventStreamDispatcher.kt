@@ -16,7 +16,6 @@ package me.ahoo.wow.event.dispatcher
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.DomainEventExchange
-import me.ahoo.wow.event.EventHandler
 import me.ahoo.wow.event.EventStreamExchange
 import me.ahoo.wow.messaging.MessageDispatcher
 import me.ahoo.wow.messaging.function.MessageFunction

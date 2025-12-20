@@ -17,8 +17,8 @@ import me.ahoo.wow.api.annotation.ORDER_FIRST
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.filter.FilterType
-import me.ahoo.wow.modeling.command.CommandDispatcher
-import me.ahoo.wow.modeling.command.CommandFilter
+import me.ahoo.wow.modeling.command.dispatcher.CommandDispatcher
+import me.ahoo.wow.modeling.command.dispatcher.CommandFilter
 import me.ahoo.wow.opentelemetry.TraceFilter
 
 @FilterType(CommandDispatcher::class)

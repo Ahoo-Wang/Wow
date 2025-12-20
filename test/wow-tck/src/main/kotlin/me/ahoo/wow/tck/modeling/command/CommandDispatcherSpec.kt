@@ -42,13 +42,13 @@ import me.ahoo.wow.ioc.SimpleServiceProvider
 import me.ahoo.wow.metrics.Metrics.metrizable
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.command.AggregateProcessorFactory
-import me.ahoo.wow.modeling.command.AggregateProcessorFilter
 import me.ahoo.wow.modeling.command.CommandAggregateFactory
-import me.ahoo.wow.modeling.command.CommandDispatcher
-import me.ahoo.wow.modeling.command.DefaultCommandHandler
 import me.ahoo.wow.modeling.command.RetryableAggregateProcessorFactory
-import me.ahoo.wow.modeling.command.SendDomainEventStreamFilter
 import me.ahoo.wow.modeling.command.SimpleCommandAggregateFactory
+import me.ahoo.wow.modeling.command.dispatcher.AggregateProcessorFilter
+import me.ahoo.wow.modeling.command.dispatcher.CommandDispatcher
+import me.ahoo.wow.modeling.command.dispatcher.DefaultCommandHandler
+import me.ahoo.wow.modeling.command.dispatcher.SendDomainEventStreamFilter
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory

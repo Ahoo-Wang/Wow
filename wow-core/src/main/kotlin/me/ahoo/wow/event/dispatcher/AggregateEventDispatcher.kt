@@ -16,7 +16,6 @@ package me.ahoo.wow.event.dispatcher
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.event.DomainEventExchange
-import me.ahoo.wow.event.EventHandler
 import me.ahoo.wow.event.EventStreamExchange
 import me.ahoo.wow.event.SimpleDomainEventExchange
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
@@ -48,7 +47,7 @@ import java.util.concurrent.ConcurrentHashMap
  * @see NamedAggregate
  * @see me.ahoo.wow.event.EventStreamExchange
  * @see MessageFunctionRegistrar
- * @see me.ahoo.wow.event.EventHandler
+ * @see EventHandler
  * @see Scheduler
  */
 @Suppress("LongParameterList")
