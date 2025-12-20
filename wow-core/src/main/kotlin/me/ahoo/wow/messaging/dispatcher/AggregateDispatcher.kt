@@ -23,6 +23,8 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.GroupedFlux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
+import java.time.Duration
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Abstract dispatcher for handling message exchanges for a specific aggregate.
@@ -55,6 +57,8 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> :
      */
     abstract val messageFlux: Flux<T>
 
+    private val activityTaskCounter = AtomicInteger(0)
+
     /**
      * Starts the dispatcher by subscribing to the message flux.
      *
@@ -67,8 +71,8 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> :
         }
         messageFlux
             .groupBy { it.toGroupKey() }
-            .flatMap({
-                handleGroupedExchange(it)
+            .flatMap({ grouped ->
+                handleGroupedExchange(grouped)
             }, Int.MAX_VALUE, Int.MAX_VALUE)
             .subscribe(this)
     }
@@ -98,8 +102,12 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> :
             .tag("group.key", grouped.key().toString())
             .metrics()
             .publishOn(scheduler)
-            .concatMap { handleExchange(it) }
-            .then()
+            .concatMap { exchange ->
+                activityTaskCounter.incrementAndGet()
+                handleExchange(exchange).doFinally {
+                    activityTaskCounter.decrementAndGet()
+                }
+            }.then()
 
     /**
      * Handles a single message exchange.
@@ -111,10 +119,31 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> :
 
     override fun stopGracefully(): Mono<Void> {
         log.info {
-            "[$name] Stop gracefully."
+            "[$name] Stop gracefully. Active task count: ${activityTaskCounter.get()}"
         }
-        return Mono.fromRunnable {
-            cancel()
-        }
+        // Cancel the subscription first
+        cancel()
+
+        // Wait for all active tasks to complete
+        return waitForActiveTasks()
     }
+
+    private fun waitForActiveTasks(): Mono<Void> =
+        Mono.fromCallable {
+            activityTaskCounter.get()
+        }.flatMap { count ->
+            if (count <= 0) {
+                log.info {
+                    "[$name] No active tasks. Shutdown complete."
+                }
+                return@flatMap Mono.empty()
+            }
+            log.info {
+                "[$name] Waiting for $count active tasks to complete."
+            }
+            // Poll every 100ms to check if tasks are done
+            return@flatMap Mono
+                .delay(Duration.ofMillis(100))
+                .flatMap { waitForActiveTasks() }
+        }.subscribeOn(scheduler)
 }
