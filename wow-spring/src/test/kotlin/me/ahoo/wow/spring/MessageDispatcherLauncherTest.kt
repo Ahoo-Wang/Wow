@@ -15,7 +15,7 @@ class MessageDispatcherLauncherTest {
     fun start() {
         val messageDispatcher = mockk<MessageDispatcher> {
             every { start() } returns Unit
-            every { close() } returns Unit
+            every { stop(any()) } returns Unit
         }
         val messageDispatcherLauncher = MessageDispatcherLauncher(messageDispatcher, Duration.ofSeconds(60))
         messageDispatcherLauncher.start()
@@ -27,7 +27,7 @@ class MessageDispatcherLauncherTest {
         messageDispatcherLauncher.stop()
         messageDispatcherLauncher.stop()
         verify(exactly = 1) {
-            messageDispatcher.close()
+            messageDispatcher.stop(Duration.ofSeconds(60))
         }
         messageDispatcherLauncher.isRunning.assert().isFalse()
         confirmVerified(messageDispatcher)
