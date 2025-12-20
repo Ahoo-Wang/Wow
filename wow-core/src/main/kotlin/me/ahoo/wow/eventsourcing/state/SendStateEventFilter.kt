@@ -20,8 +20,8 @@ import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.toStateEvent
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.messaging.function.logErrorResume
-import me.ahoo.wow.modeling.command.CommandFilter
-import me.ahoo.wow.modeling.command.SendDomainEventStreamFilter
+import me.ahoo.wow.modeling.command.dispatcher.CommandFilter
+import me.ahoo.wow.modeling.command.dispatcher.SendDomainEventStreamFilter
 import me.ahoo.wow.modeling.command.getCommandAggregate
 import reactor.core.publisher.Mono
 

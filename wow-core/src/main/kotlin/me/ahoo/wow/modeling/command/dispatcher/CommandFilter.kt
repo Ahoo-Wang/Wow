@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.modeling.command
+package me.ahoo.wow.modeling.command.dispatcher
 
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.filter.FilterType

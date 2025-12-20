@@ -14,8 +14,6 @@
 package me.ahoo.wow.event.dispatcher
 
 import me.ahoo.wow.event.DomainEventBus
-import me.ahoo.wow.event.DomainEventFunctionRegistrar
-import me.ahoo.wow.event.DomainEventHandler
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
@@ -40,8 +38,8 @@ import me.ahoo.wow.scheduler.DefaultAggregateSchedulerSupplier
  * @see CompositeEventDispatcher
  * @see me.ahoo.wow.event.DomainEventBus
  * @see me.ahoo.wow.eventsourcing.state.StateEventBus
- * @see me.ahoo.wow.event.DomainEventFunctionRegistrar
- * @see me.ahoo.wow.event.DomainEventHandler
+ * @see DomainEventFunctionRegistrar
+ * @see DomainEventHandler
  */
 class DomainEventDispatcher(
     /**

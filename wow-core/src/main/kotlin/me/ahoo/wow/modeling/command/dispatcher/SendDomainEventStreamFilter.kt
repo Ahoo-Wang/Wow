@@ -11,28 +11,39 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.modeling.command
+package me.ahoo.wow.modeling.command.dispatcher
 
-import me.ahoo.wow.api.annotation.ORDER_DEFAULT
+import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.wow.api.annotation.ORDER_LAST
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.command.ServerCommandExchange
+import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.filter.FilterChain
-import me.ahoo.wow.messaging.handler.ExchangeAck.finallyAck
+import me.ahoo.wow.messaging.function.logErrorResume
 import reactor.core.publisher.Mono
 
-@Order(ORDER_DEFAULT)
-object AggregateProcessorFilter : CommandFilter {
+@Order(ORDER_LAST, after = [AggregateProcessorFilter::class])
+class SendDomainEventStreamFilter(
+    private val domainEventBus: DomainEventBus
+) : CommandFilter {
+    companion object {
+        private val log = KotlinLogging.logger {}
+    }
+
     override fun filter(
         exchange: ServerCommandExchange<*>,
         next: FilterChain<ServerCommandExchange<*>>
     ): Mono<Void> {
-        val aggregateProcessor = checkNotNull(exchange.getAggregateProcessor())
-        return aggregateProcessor
-            .process(exchange)
-            .checkpoint(
-                "[${aggregateProcessor.aggregateId}] Process Command[${exchange.message.id}] [AggregateProcessorFilter]"
-            )
-            .finallyAck(exchange)
-            .then(next.filter(exchange))
+        return Mono.defer {
+            val eventStream = exchange.getEventStream()
+            if (eventStream == null) {
+                log.warn { "No event stream." }
+                return@defer next.filter(exchange)
+            }
+            domainEventBus.send(eventStream)
+                .checkpoint("Send Message[${eventStream.id}] [SendDomainEventStreamFilter]")
+                .logErrorResume()
+                .then(next.filter(exchange))
+        }
     }
 }

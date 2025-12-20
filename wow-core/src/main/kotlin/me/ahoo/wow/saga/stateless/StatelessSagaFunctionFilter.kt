@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.saga.stateless
 
-import me.ahoo.wow.event.DomainEventFunctionFilter
+import me.ahoo.wow.event.dispatcher.DomainEventFunctionFilter
 import me.ahoo.wow.filter.FilterType
 import me.ahoo.wow.ioc.ServiceProvider
 

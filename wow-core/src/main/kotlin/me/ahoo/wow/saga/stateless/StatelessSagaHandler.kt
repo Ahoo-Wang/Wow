@@ -14,7 +14,7 @@
 package me.ahoo.wow.saga.stateless
 
 import me.ahoo.wow.event.DomainEventExchange
-import me.ahoo.wow.event.EventHandler
+import me.ahoo.wow.event.dispatcher.EventHandler
 import me.ahoo.wow.filter.AbstractHandler
 import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.filter.FilterChain

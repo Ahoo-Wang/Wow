@@ -11,8 +11,9 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.event
+package me.ahoo.wow.event.dispatcher
 
+import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.event.annotation.eventProcessorMetadata
 import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.messaging.function.MessageFunction

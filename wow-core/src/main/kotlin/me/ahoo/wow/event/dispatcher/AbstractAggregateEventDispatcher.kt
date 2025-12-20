@@ -17,7 +17,6 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.event.DomainEventStream
-import me.ahoo.wow.event.EventHandler
 import me.ahoo.wow.messaging.compensation.CompensationMatcher.match
 import me.ahoo.wow.messaging.dispatcher.AggregateMessageDispatcher
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism.toGroupKey
@@ -45,7 +44,7 @@ import reactor.core.publisher.Mono
  * @see MessageExchange
  * @see me.ahoo.wow.event.DomainEventStream
  * @see MessageFunctionRegistrar
- * @see me.ahoo.wow.event.EventHandler
+ * @see EventHandler
  */
 abstract class AbstractAggregateEventDispatcher<E : MessageExchange<*, DomainEventStream>> : AggregateMessageDispatcher<E>() {
     companion object {

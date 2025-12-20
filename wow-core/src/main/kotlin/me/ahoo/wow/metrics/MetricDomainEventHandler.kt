@@ -15,7 +15,7 @@ package me.ahoo.wow.metrics
 
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.event.DomainEventExchange
-import me.ahoo.wow.event.DomainEventHandler
+import me.ahoo.wow.event.dispatcher.DomainEventHandler
 import me.ahoo.wow.infra.Decorator
 import reactor.core.publisher.Mono
 
