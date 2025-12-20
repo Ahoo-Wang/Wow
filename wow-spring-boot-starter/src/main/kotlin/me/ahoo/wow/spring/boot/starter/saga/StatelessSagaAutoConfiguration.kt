@@ -32,6 +32,7 @@ import me.ahoo.wow.saga.stateless.StatelessSagaFunctionRegistrar
 import me.ahoo.wow.saga.stateless.StatelessSagaHandler
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
+import me.ahoo.wow.spring.boot.starter.WowProperties
 import me.ahoo.wow.spring.saga.StatelessSagaDispatcherLauncher
 import me.ahoo.wow.spring.saga.StatelessSagaProcessorAutoRegistrar
 import org.springframework.beans.factory.annotation.Qualifier
@@ -42,7 +43,7 @@ import org.springframework.context.annotation.Bean
 
 @AutoConfiguration
 @ConditionalOnWowEnabled
-class StatelessSagaAutoConfiguration {
+class StatelessSagaAutoConfiguration(private val wowProperties: WowProperties) {
 
     @Bean
     @ConditionalOnMissingBean
@@ -117,6 +118,6 @@ class StatelessSagaAutoConfiguration {
     fun statelessSagaDispatcherLauncher(
         statelessSagaDispatcher: StatelessSagaDispatcher
     ): StatelessSagaDispatcherLauncher {
-        return StatelessSagaDispatcherLauncher(statelessSagaDispatcher)
+        return StatelessSagaDispatcherLauncher(statelessSagaDispatcher, wowProperties.shutdownTimeout)
     }
 }

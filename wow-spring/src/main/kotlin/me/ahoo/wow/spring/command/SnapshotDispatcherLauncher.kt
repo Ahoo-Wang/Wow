@@ -15,5 +15,7 @@ package me.ahoo.wow.spring.command
 
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotDispatcher
 import me.ahoo.wow.spring.MessageDispatcherLauncher
+import java.time.Duration
 
-class SnapshotDispatcherLauncher(snapshotDispatcher: SnapshotDispatcher) : MessageDispatcherLauncher(snapshotDispatcher)
+class SnapshotDispatcherLauncher(snapshotDispatcher: SnapshotDispatcher, shutdownTimeout: Duration) :
+    MessageDispatcherLauncher(snapshotDispatcher, shutdownTimeout)

@@ -17,11 +17,14 @@ import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.naming.EnabledCapable
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.bind.DefaultValue
+import java.time.Duration
 
 const val ENABLED_SUFFIX_KEY = ".enabled"
 
 @ConfigurationProperties(prefix = Wow.WOW)
 class WowProperties(
     @DefaultValue("true") override var enabled: Boolean = true,
-    var contextName: String?
+    var contextName: String?,
+    @DefaultValue("60s")
+    var shutdownTimeout: Duration = Duration.ofSeconds(60)
 ) : EnabledCapable

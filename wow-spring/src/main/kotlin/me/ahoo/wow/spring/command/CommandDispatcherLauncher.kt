@@ -15,7 +15,9 @@ package me.ahoo.wow.spring.command
 
 import me.ahoo.wow.modeling.command.dispatcher.CommandDispatcher
 import me.ahoo.wow.spring.MessageDispatcherLauncher
+import java.time.Duration
 
-class CommandDispatcherLauncher(commandDispatcher: CommandDispatcher) : MessageDispatcherLauncher(
+class CommandDispatcherLauncher(commandDispatcher: CommandDispatcher, shutdownTimeout: Duration) : MessageDispatcherLauncher(
     commandDispatcher,
+    shutdownTimeout
 )

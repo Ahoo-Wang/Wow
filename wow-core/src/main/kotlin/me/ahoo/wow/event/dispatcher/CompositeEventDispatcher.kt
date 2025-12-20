@@ -78,13 +78,12 @@ open class CompositeEventDispatcher(
         )
     }
 
-    override fun run() {
-        eventStreamDispatcher.run()
-        stateEventDispatcher.run()
+    override fun start() {
+        eventStreamDispatcher.start()
+        stateEventDispatcher.start()
     }
 
-    override fun close() {
-        eventStreamDispatcher.close()
-        stateEventDispatcher.close()
+    override fun stopGracefully(): Mono<Void> {
+        return Mono.zip(eventStreamDispatcher.stopGracefully(), stateEventDispatcher.stopGracefully()).then()
     }
 }

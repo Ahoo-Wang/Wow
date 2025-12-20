@@ -15,6 +15,7 @@ package me.ahoo.wow.spring.saga
 
 import me.ahoo.wow.saga.stateless.StatelessSagaDispatcher
 import me.ahoo.wow.spring.MessageDispatcherLauncher
+import java.time.Duration
 
-class StatelessSagaDispatcherLauncher(statelessSagaDispatcher: StatelessSagaDispatcher) :
-    MessageDispatcherLauncher(statelessSagaDispatcher)
+class StatelessSagaDispatcherLauncher(statelessSagaDispatcher: StatelessSagaDispatcher, shutdownTimeout: Duration) :
+    MessageDispatcherLauncher(statelessSagaDispatcher, shutdownTimeout)

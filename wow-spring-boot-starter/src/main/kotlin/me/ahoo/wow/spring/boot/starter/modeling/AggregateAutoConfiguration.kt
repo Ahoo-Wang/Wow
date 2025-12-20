@@ -40,6 +40,7 @@ import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
+import me.ahoo.wow.spring.boot.starter.WowProperties
 import me.ahoo.wow.spring.command.CommandDispatcherLauncher
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
@@ -48,8 +49,7 @@ import org.springframework.context.annotation.Bean
 
 @AutoConfiguration
 @ConditionalOnWowEnabled
-class AggregateAutoConfiguration {
-
+class AggregateAutoConfiguration(private val wowProperties: WowProperties) {
     @Bean
     @ConditionalOnMissingBean
     fun stateAggregateFactory(): StateAggregateFactory {
@@ -151,6 +151,6 @@ class AggregateAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     fun aggregateDispatcherLauncher(commandDispatcher: CommandDispatcher): CommandDispatcherLauncher {
-        return CommandDispatcherLauncher(commandDispatcher)
+        return CommandDispatcherLauncher(commandDispatcher, wowProperties.shutdownTimeout)
     }
 }

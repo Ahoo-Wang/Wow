@@ -30,6 +30,7 @@ import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.messaging.handler.ExchangeFilter
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
+import me.ahoo.wow.spring.boot.starter.WowProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import me.ahoo.wow.spring.command.SnapshotDispatcherLauncher
 import org.springframework.beans.factory.annotation.Qualifier
@@ -43,7 +44,10 @@ import org.springframework.context.annotation.Bean
 @ConditionalOnWowEnabled
 @ConditionalOnSnapshotEnabled
 @EnableConfigurationProperties(SnapshotProperties::class)
-class SnapshotAutoConfiguration(private val snapshotProperties: SnapshotProperties) {
+class SnapshotAutoConfiguration(
+    private val wowProperties: WowProperties,
+    private val snapshotProperties: SnapshotProperties
+) {
 
     @Bean
     @ConditionalOnProperty(
@@ -122,6 +126,6 @@ class SnapshotAutoConfiguration(private val snapshotProperties: SnapshotProperti
 
     @Bean
     fun snapshotDispatcherLauncher(snapshotDispatcher: SnapshotDispatcher): SnapshotDispatcherLauncher {
-        return SnapshotDispatcherLauncher(snapshotDispatcher)
+        return SnapshotDispatcherLauncher(snapshotDispatcher, wowProperties.shutdownTimeout)
     }
 }

@@ -30,6 +30,7 @@ import me.ahoo.wow.projection.ProjectionFunctionRegistrar
 import me.ahoo.wow.projection.ProjectionHandler
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
+import me.ahoo.wow.spring.boot.starter.WowProperties
 import me.ahoo.wow.spring.projection.ProjectionDispatcherLauncher
 import me.ahoo.wow.spring.projection.ProjectionProcessorAutoRegistrar
 import org.springframework.beans.factory.annotation.Qualifier
@@ -40,7 +41,7 @@ import org.springframework.context.annotation.Bean
 
 @AutoConfiguration
 @ConditionalOnWowEnabled
-class ProjectionDispatcherAutoConfiguration {
+class ProjectionDispatcherAutoConfiguration(private val wowProperties: WowProperties) {
 
     @Bean
     @ConditionalOnMissingBean
@@ -111,6 +112,6 @@ class ProjectionDispatcherAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     fun projectionDispatcherLauncher(projectionDispatcher: ProjectionDispatcher): ProjectionDispatcherLauncher {
-        return ProjectionDispatcherLauncher(projectionDispatcher)
+        return ProjectionDispatcherLauncher(projectionDispatcher, wowProperties.shutdownTimeout)
     }
 }

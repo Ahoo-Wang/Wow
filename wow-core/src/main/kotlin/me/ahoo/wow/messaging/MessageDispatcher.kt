@@ -14,6 +14,7 @@
 package me.ahoo.wow.messaging
 
 import me.ahoo.wow.api.naming.Named
+import me.ahoo.wow.infra.lifecycle.Lifecycle
 
 /**
  * Represents a message dispatcher that can run and dispatch messages.
@@ -22,6 +23,5 @@ import me.ahoo.wow.api.naming.Named
  * being closable for resource management, and having a name for identification.
  */
 interface MessageDispatcher :
-    Runnable,
-    AutoCloseable,
+    Lifecycle,
     Named
