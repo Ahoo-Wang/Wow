@@ -68,7 +68,7 @@ abstract class ProjectionDispatcherSpec {
                 functionRegistrar = handlerRegistrar,
                 eventHandler = DefaultProjectionHandler(chain).metrizable(),
             )
-        projectionDispatcher.run()
+        projectionDispatcher.start()
 
         val eventStream = MockAggregateCreated(generateGlobalId()).toDomainEventStream(
             upstream = GivenInitializationCommand(aggregateMetadata.aggregateId(generateGlobalId())),

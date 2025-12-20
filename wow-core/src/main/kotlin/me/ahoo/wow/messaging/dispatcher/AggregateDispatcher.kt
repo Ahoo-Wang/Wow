@@ -61,9 +61,9 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> :
      * Groups messages by key for parallel processing and handles each group.
      * The result is subscribed to this dispatcher for error handling.
      */
-    override fun run() {
+    override fun start() {
         log.info {
-            "[$name] Run subscribe to $namedAggregate."
+            "[$name] Start subscribe to $namedAggregate."
         }
         messageFlux
             .groupBy { it.toGroupKey() }
@@ -109,15 +109,12 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> :
      */
     abstract fun handleExchange(exchange: T): Mono<Void>
 
-    /**
-     * Closes the dispatcher by canceling the subscription.
-     *
-     * Logs the closure and calls cancel to stop processing messages.
-     */
-    override fun close() {
+    override fun stopGracefully(): Mono<Void> {
         log.info {
-            "[$name] Close."
+            "[$name] Stop gracefully."
         }
-        cancel()
+        return Mono.fromRunnable {
+            cancel()
+        }
     }
 }

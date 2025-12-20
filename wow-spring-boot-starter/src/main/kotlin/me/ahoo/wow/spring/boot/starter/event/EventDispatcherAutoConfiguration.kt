@@ -31,6 +31,7 @@ import me.ahoo.wow.messaging.handler.ExchangeFilter
 import me.ahoo.wow.messaging.handler.RetryableFilter
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
+import me.ahoo.wow.spring.boot.starter.WowProperties
 import me.ahoo.wow.spring.event.DomainEventDispatcherLauncher
 import me.ahoo.wow.spring.event.EventProcessorAutoRegistrar
 import org.springframework.beans.factory.annotation.Qualifier
@@ -41,7 +42,7 @@ import org.springframework.context.annotation.Bean
 
 @AutoConfiguration
 @ConditionalOnWowEnabled
-class EventDispatcherAutoConfiguration {
+class EventDispatcherAutoConfiguration(private val wowProperties: WowProperties) {
 
     @Bean
     fun domainEventHandlerRegistrar(): DomainEventFunctionRegistrar {
@@ -114,6 +115,6 @@ class EventDispatcherAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     fun domainEventDispatcherLauncher(domainEventDispatcher: DomainEventDispatcher): DomainEventDispatcherLauncher {
-        return DomainEventDispatcherLauncher(domainEventDispatcher)
+        return DomainEventDispatcherLauncher(domainEventDispatcher, wowProperties.shutdownTimeout)
     }
 }

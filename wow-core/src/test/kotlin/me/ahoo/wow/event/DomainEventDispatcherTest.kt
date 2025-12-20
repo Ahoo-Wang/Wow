@@ -81,7 +81,7 @@ internal class DomainEventDispatcherTest {
                 functionRegistrar = functionRegistrar,
                 eventHandler = DefaultDomainEventHandler(chain).metrizable(),
             )
-        domainEventProcessor.run()
+        domainEventProcessor.start()
         val aggregateId = namedAggregate.aggregateId()
         val eventStream =
             MockAggregateCreated(

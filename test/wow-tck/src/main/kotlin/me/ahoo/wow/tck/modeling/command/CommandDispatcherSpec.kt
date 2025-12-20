@@ -155,7 +155,7 @@ abstract class CommandDispatcherSpec {
         )
 
         commandDispatcher.use {
-            it.run()
+            it.start()
             onCommandSeek().block()
             warmUp()
             orchestra()

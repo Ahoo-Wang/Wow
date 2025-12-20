@@ -7,20 +7,21 @@ import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.messaging.MessageDispatcher
 import org.junit.jupiter.api.Test
+import java.time.Duration
 
 class MessageDispatcherLauncherTest {
 
     @Test
     fun start() {
         val messageDispatcher = mockk<MessageDispatcher> {
-            every { run() } returns Unit
+            every { start() } returns Unit
             every { close() } returns Unit
         }
-        val messageDispatcherLauncher = MessageDispatcherLauncher(messageDispatcher)
+        val messageDispatcherLauncher = MessageDispatcherLauncher(messageDispatcher, Duration.ofSeconds(60))
         messageDispatcherLauncher.start()
         messageDispatcherLauncher.start()
         verify(exactly = 1) {
-            messageDispatcher.run()
+            messageDispatcher.start()
         }
         messageDispatcherLauncher.isRunning.assert().isTrue()
         messageDispatcherLauncher.stop()

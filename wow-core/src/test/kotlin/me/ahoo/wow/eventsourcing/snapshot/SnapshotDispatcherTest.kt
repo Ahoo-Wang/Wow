@@ -86,7 +86,7 @@ internal class SnapshotDispatcherTest {
                 snapshotHandler = handler,
                 stateEventBus = stateEventBus,
             )
-        snapshotDispatcher.run()
+        snapshotDispatcher.start()
         val aggregateId = aggregateMetadata.aggregateId()
         val createdEventStream = MockAggregateCreated(GlobalIdGenerator.generateAsString())
             .toDomainEventStream(GivenInitializationCommand(aggregateId), 0)

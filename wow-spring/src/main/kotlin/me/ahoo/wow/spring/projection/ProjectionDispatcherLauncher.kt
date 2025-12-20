@@ -15,6 +15,7 @@ package me.ahoo.wow.spring.projection
 
 import me.ahoo.wow.projection.ProjectionDispatcher
 import me.ahoo.wow.spring.MessageDispatcherLauncher
+import java.time.Duration
 
-class ProjectionDispatcherLauncher(projectionDispatcher: ProjectionDispatcher) :
-    MessageDispatcherLauncher(projectionDispatcher)
+class ProjectionDispatcherLauncher(projectionDispatcher: ProjectionDispatcher, shutdownTimeout: Duration) :
+    MessageDispatcherLauncher(projectionDispatcher, shutdownTimeout)

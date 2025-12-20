@@ -20,6 +20,7 @@ import me.ahoo.wow.messaging.writeReceiverGroup
 import me.ahoo.wow.metrics.Metrics.writeMetricsSubscriber
 import me.ahoo.wow.serialization.toJsonString
 import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 
 /**
  * Abstract base class for message dispatchers that manage multiple aggregate dispatchers.
@@ -81,9 +82,9 @@ abstract class MainDispatcher<T : Any> : MessageDispatcher {
      * Logs the named aggregates being subscribed to and starts each individual
      * aggregate dispatcher. If no aggregates are configured, logs a warning and returns.
      */
-    override fun run() {
+    override fun start() {
         log.info {
-            "[$name][${this.javaClass.simpleName}] Run subscribe to namedAggregates:${namedAggregates.toJsonString()}."
+            "[$name][${this.javaClass.simpleName}] Start subscribe to namedAggregates:${namedAggregates.toJsonString()}."
         }
         if (namedAggregates.isEmpty()) {
             log.warn {
@@ -91,7 +92,7 @@ abstract class MainDispatcher<T : Any> : MessageDispatcher {
             }
             return
         }
-        aggregateDispatchers.forEach { it.run() }
+        aggregateDispatchers.forEach { it.start() }
     }
 
     /**
@@ -99,10 +100,13 @@ abstract class MainDispatcher<T : Any> : MessageDispatcher {
      *
      * Logs the closure and calls close on each aggregate dispatcher.
      */
-    override fun close() {
+    override fun stopGracefully(): Mono<Void> {
         log.info {
-            "[$name][${this.javaClass.simpleName}] Close."
+            "[$name][${this.javaClass.simpleName}] Stop Gracefully."
         }
-        aggregateDispatchers.forEach { it.close() }
+        return Flux
+            .fromIterable(aggregateDispatchers)
+            .flatMap { it.stopGracefully() }
+            .then()
     }
 }
