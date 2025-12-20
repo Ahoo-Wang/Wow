@@ -159,6 +159,7 @@ abstract class CommandDispatcherSpec {
             warmUp()
             orchestra()
             commandBus.close()
+            it.stop()
         }
     }
 
