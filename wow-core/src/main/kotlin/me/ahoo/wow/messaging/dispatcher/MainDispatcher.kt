@@ -27,8 +27,40 @@ import reactor.core.publisher.Mono
  *
  * This class coordinates the dispatching of messages to multiple named aggregates by
  * creating individual dispatchers for each aggregate and managing their lifecycle.
+ * It provides a framework for implementing dispatchers that need to handle messages
+ * across different aggregates, ensuring proper initialization, starting, and graceful shutdown.
  *
- * @param T The type of message being dispatched
+ * Subclasses must implement the abstract methods to define how messages are received
+ * for each aggregate and how individual aggregate dispatchers are created.
+ *
+ * Example usage:
+ * ```
+ * class MyMainDispatcher : MainDispatcher<MyMessage>() {
+ *     override val namedAggregates = setOf(myAggregate1, myAggregate2)
+ *
+ *     override fun receiveMessage(namedAggregate: NamedAggregate): Flux<MyMessage> {
+ *         // Implementation to receive messages for the aggregate
+ *         return myMessageFlux
+ *     }
+ *
+ *     override fun newAggregateDispatcher(
+ *         namedAggregate: NamedAggregate,
+ *         messageFlux: Flux<MyMessage>
+ *     ): MessageDispatcher {
+ *         // Implementation to create dispatcher for the aggregate
+ *         return MyAggregateDispatcher(namedAggregate, messageFlux)
+ *     }
+ * }
+ *
+ * val dispatcher = MyMainDispatcher()
+ * dispatcher.start()
+ * // ... application logic ...
+ * dispatcher.stopGracefully().block()
+ * ```
+ *
+ * @param T The type of message being dispatched, must be a non-null type.
+ *
+ * @see MessageDispatcher
  */
 abstract class MainDispatcher<T : Any> : MessageDispatcher {
     companion object {
@@ -36,24 +68,40 @@ abstract class MainDispatcher<T : Any> : MessageDispatcher {
     }
 
     /**
-     * must be [me.ahoo.wow.modeling.MaterializedNamedAggregate]
+     * The set of named aggregates that this dispatcher will manage.
+     *
+     * Each aggregate in this set will have its own dedicated dispatcher created.
+     * Must be instances of [me.ahoo.wow.modeling.MaterializedNamedAggregate].
      */
     abstract val namedAggregates: Set<NamedAggregate>
 
     /**
      * Creates a flux of messages for the specified named aggregate.
      *
-     * @param namedAggregate The named aggregate to receive messages for
-     * @return A flux of messages for the aggregate
+     * This method should return a reactive stream of messages that are destined for the given aggregate.
+     * The implementation should handle message sourcing, filtering, and any necessary transformations.
+     *
+     * @param namedAggregate The named aggregate to receive messages for. Must not be null.
+     * @return A [Flux] of messages for the aggregate. May be empty if no messages are available.
+     *
+     * @throws IllegalArgumentException if the namedAggregate is invalid or unsupported.
+     * @throws RuntimeException if there are issues with message sourcing or connectivity.
      */
     abstract fun receiveMessage(namedAggregate: NamedAggregate): Flux<T>
 
     /**
      * Creates a new message dispatcher for a specific named aggregate.
      *
-     * @param namedAggregate The named aggregate for the dispatcher
-     * @param messageFlux The flux of messages for the aggregate
-     * @return A new message dispatcher instance
+     * This method is responsible for instantiating a dispatcher that will handle messages
+     * for a single aggregate. The dispatcher should process messages from the provided flux
+     * and manage the aggregate's state or behavior accordingly.
+     *
+     * @param namedAggregate The named aggregate for which the dispatcher is created. Must not be null.
+     * @param messageFlux The flux of messages for the aggregate. May be empty.
+     * @return A new [MessageDispatcher] instance configured for the specified aggregate.
+     *
+     * @throws IllegalArgumentException if the namedAggregate is invalid or if messageFlux is null.
+     * @throws RuntimeException if dispatcher creation fails due to configuration issues.
      */
     abstract fun newAggregateDispatcher(
         namedAggregate: NamedAggregate,
@@ -64,14 +112,16 @@ abstract class MainDispatcher<T : Any> : MessageDispatcher {
      * Lazily initialized list of aggregate dispatchers, one for each named aggregate.
      *
      * Each dispatcher is created with a message flux that includes receiver group
-     * and metrics context.
+     * and metrics context. This property is initialized on first access to avoid
+     * unnecessary resource allocation.
      */
     protected val aggregateDispatchers by lazy {
         namedAggregates
             .map {
-                val messageFlux = receiveMessage(it)
-                    .writeReceiverGroup(name)
-                    .writeMetricsSubscriber(name)
+                val messageFlux =
+                    receiveMessage(it)
+                        .writeReceiverGroup(name)
+                        .writeMetricsSubscriber(name)
                 newAggregateDispatcher(it, messageFlux)
             }
     }
@@ -81,6 +131,9 @@ abstract class MainDispatcher<T : Any> : MessageDispatcher {
      *
      * Logs the named aggregates being subscribed to and starts each individual
      * aggregate dispatcher. If no aggregates are configured, logs a warning and returns.
+     * This method should be called once during the application's startup phase.
+     *
+     * @throws RuntimeException if starting any aggregate dispatcher fails.
      */
     override fun start() {
         log.info {
@@ -96,9 +149,14 @@ abstract class MainDispatcher<T : Any> : MessageDispatcher {
     }
 
     /**
-     * Closes the dispatcher and all its aggregate dispatchers.
+     * Stops the dispatcher gracefully by shutting down all aggregate dispatchers.
      *
-     * Logs the closure and calls close on each aggregate dispatcher.
+     * Logs the closure and calls [MessageDispatcher.stopGracefully] on each aggregate dispatcher.
+     * This method waits for all dispatchers to complete their current operations before shutting down.
+     * It should be called during the application's shutdown phase.
+     *
+     * @return A [Mono] that completes when all aggregate dispatchers have stopped gracefully.
+     *         Completes with an error if any dispatcher fails to stop.
      */
     override fun stopGracefully(): Mono<Void> {
         log.info {
