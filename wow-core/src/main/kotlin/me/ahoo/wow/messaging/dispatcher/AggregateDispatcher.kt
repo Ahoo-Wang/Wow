@@ -242,8 +242,7 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> :
             return Mono.empty()
         }
         // Wait for all active tasks to complete
-        return Flux
-            .interval(Duration.ofMillis(100))
+        return Flux.interval(Duration.ofMillis(100))
             .takeUntil {
                 if (activityTaskCounter.get() <= 0) {
                     log.info {
