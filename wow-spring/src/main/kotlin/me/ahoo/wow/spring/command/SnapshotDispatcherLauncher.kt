@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.spring.command
 
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotDispatcher
+import me.ahoo.wow.eventsourcing.snapshot.dispatcher.SnapshotDispatcher
 import me.ahoo.wow.spring.MessageDispatcherLauncher
 import java.time.Duration
 

@@ -33,7 +33,7 @@ import me.ahoo.wow.compensation.api.RetrySpec.Companion.toSpec
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.event.EventExchange
 import me.ahoo.wow.event.dispatcher.DomainEventDispatcher
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotDispatcher
+import me.ahoo.wow.eventsourcing.snapshot.dispatcher.SnapshotDispatcher
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
 import me.ahoo.wow.exception.recoverable
 import me.ahoo.wow.exception.toErrorInfo

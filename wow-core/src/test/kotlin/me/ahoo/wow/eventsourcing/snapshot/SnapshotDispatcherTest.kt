@@ -16,6 +16,9 @@ package me.ahoo.wow.eventsourcing.snapshot
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.event.toDomainEventStream
+import me.ahoo.wow.eventsourcing.snapshot.dispatcher.DefaultSnapshotHandler
+import me.ahoo.wow.eventsourcing.snapshot.dispatcher.SnapshotDispatcher
+import me.ahoo.wow.eventsourcing.snapshot.dispatcher.SnapshotFunctionFilter
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.toStateEvent
 import me.ahoo.wow.eventsourcing.state.StateEventExchange

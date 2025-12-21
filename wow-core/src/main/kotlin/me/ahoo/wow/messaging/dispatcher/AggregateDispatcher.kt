@@ -16,7 +16,6 @@ package me.ahoo.wow.messaging.dispatcher
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.modeling.NamedAggregateDecorator
-import me.ahoo.wow.messaging.MessageDispatcher
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.metrics.Metrics
 import reactor.core.publisher.Flux

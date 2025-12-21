@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.spring
 
-import me.ahoo.wow.messaging.MessageDispatcher
+import me.ahoo.wow.messaging.dispatcher.MessageDispatcher
 import org.springframework.context.SmartLifecycle
 import java.time.Duration
 import java.util.concurrent.atomic.AtomicBoolean

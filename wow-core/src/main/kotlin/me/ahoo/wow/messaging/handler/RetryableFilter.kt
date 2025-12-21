@@ -16,7 +16,7 @@ package me.ahoo.wow.messaging.handler
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.api.exception.RecoverableType
 import me.ahoo.wow.event.dispatcher.DomainEventFunctionFilter
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotFunctionFilter
+import me.ahoo.wow.eventsourcing.snapshot.dispatcher.SnapshotFunctionFilter
 import me.ahoo.wow.exception.recoverable
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.modeling.command.dispatcher.AggregateProcessorFilter

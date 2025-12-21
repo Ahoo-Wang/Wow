@@ -5,7 +5,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.messaging.MessageDispatcher
+import me.ahoo.wow.messaging.dispatcher.MessageDispatcher
 import org.junit.jupiter.api.Test
 import java.time.Duration
 

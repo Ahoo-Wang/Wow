@@ -15,7 +15,6 @@ package me.ahoo.wow.messaging.dispatcher
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.messaging.MessageDispatcher
 import me.ahoo.wow.messaging.writeReceiverGroup
 import me.ahoo.wow.metrics.Metrics.writeMetricsSubscriber
 import me.ahoo.wow.serialization.toJsonString

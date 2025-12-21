@@ -14,7 +14,7 @@
 package me.ahoo.wow.metrics
 
 import me.ahoo.wow.api.Wow
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotHandler
+import me.ahoo.wow.eventsourcing.snapshot.dispatcher.SnapshotHandler
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
 import me.ahoo.wow.infra.Decorator
 import reactor.core.publisher.Mono
