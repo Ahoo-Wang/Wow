@@ -13,7 +13,7 @@
     - _Mac OS_:`~/Library/Application\ Support/JetBrains/<PRODUCT><VERSION/projectTemplates/`
     - _Linux_: `~/.config/JetBrains/<PRODUCT><VERSION>/projectTemplates/`
 - Place the template zip package in the _IDEA_ project template directory
-    - Template zip package: [wow-project-template.zip](https://github.com/Ahoo-Wang/wow-project-template/releases/download/v6.6.8/wow-project-template.zip)
+    - Template zip package: [wow-project-template.zip](https://github.com/Ahoo-Wang/wow-project-template/releases/download/v6.9.5/wow-project-template.zip)
 
 ## Create Project
 
