@@ -11,21 +11,17 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.eventsourcing.snapshot
+package me.ahoo.wow.messaging.dispatcher
 
-import me.ahoo.wow.eventsourcing.state.StateEventExchange
-import me.ahoo.wow.filter.AbstractHandler
-import me.ahoo.wow.filter.ErrorHandler
-import me.ahoo.wow.filter.FilterChain
-import me.ahoo.wow.filter.Handler
-import me.ahoo.wow.filter.LogResumeErrorHandler
+import me.ahoo.wow.api.naming.Named
+import me.ahoo.wow.infra.lifecycle.Lifecycle
 
-interface SnapshotHandler : Handler<StateEventExchange<*>>
-
-class DefaultSnapshotHandler(
-    chain: FilterChain<StateEventExchange<*>>,
-    errorHandler: ErrorHandler<StateEventExchange<*>> = LogResumeErrorHandler()
-) : SnapshotHandler, AbstractHandler<StateEventExchange<*>>(
-    chain,
-    errorHandler,
-)
+/**
+ * Represents a message dispatcher that can run and dispatch messages.
+ *
+ * This interface combines the capabilities of running a dispatch process,
+ * being closable for resource management, and having a name for identification.
+ */
+interface MessageDispatcher :
+    Lifecycle,
+    Named

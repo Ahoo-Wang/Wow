@@ -17,8 +17,8 @@ import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.configuration.requiredAggregateType
-import me.ahoo.wow.messaging.MessageDispatcher
 import me.ahoo.wow.messaging.dispatcher.MainDispatcher
+import me.ahoo.wow.messaging.dispatcher.MessageDispatcher
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.messaging.handler.ExchangeAck.filterThenAck
 import me.ahoo.wow.modeling.annotation.aggregateMetadata

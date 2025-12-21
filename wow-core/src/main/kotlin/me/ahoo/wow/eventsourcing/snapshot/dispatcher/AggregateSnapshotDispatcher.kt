@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.eventsourcing.snapshot
+package me.ahoo.wow.eventsourcing.snapshot.dispatcher
 
 import me.ahoo.wow.api.messaging.processor.ProcessorInfo
 import me.ahoo.wow.api.modeling.NamedAggregate

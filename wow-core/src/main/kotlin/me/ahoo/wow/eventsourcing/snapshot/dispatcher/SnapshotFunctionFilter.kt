@@ -11,10 +11,11 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.eventsourcing.snapshot
+package me.ahoo.wow.eventsourcing.snapshot.dispatcher
 
 import me.ahoo.wow.api.annotation.ORDER_DEFAULT
 import me.ahoo.wow.api.annotation.Order
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotStrategy
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterType

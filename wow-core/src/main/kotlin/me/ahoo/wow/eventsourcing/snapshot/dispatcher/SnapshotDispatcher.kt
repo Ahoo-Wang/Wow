@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.eventsourcing.snapshot
+package me.ahoo.wow.eventsourcing.snapshot.dispatcher
 
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.messaging.function.FunctionInfoData
@@ -20,9 +20,9 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
-import me.ahoo.wow.messaging.MessageDispatcher
 import me.ahoo.wow.messaging.compensation.CompensationMatcher.match
 import me.ahoo.wow.messaging.dispatcher.MainDispatcher
+import me.ahoo.wow.messaging.dispatcher.MessageDispatcher
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.messaging.handler.ExchangeAck.filterThenAck
 import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
