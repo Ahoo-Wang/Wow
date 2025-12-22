@@ -23,12 +23,14 @@ interface GlobalDrawerProviderProps {
 export function GlobalDrawerProvider({ children }: GlobalDrawerProviderProps) {
   const [drawerProps, setDrawerProps] = useState<DrawerProps>({
     open: false,
-    width: "80vw",
+    resizable:true,
+    defaultSize: "80vw",
   });
 
   const openDrawer = useCallback((config: DrawerProps) => {
     setDrawerProps({
-      width: "80vw",
+      resizable: true,
+      defaultSize: "80vw",
       ...config,
       open: true,
     });
