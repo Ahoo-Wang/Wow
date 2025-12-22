@@ -13,21 +13,21 @@
 
 import { CommandResult, StateCapable } from "@ahoo-wang/fetcher-wow";
 import type { ExecutionFailedState } from "../../generated";
-import { App, Dropdown } from "antd";
+import { App, Button, Dropdown, Space } from "antd";
 import { FailedDetails } from "./details/FailedDetails.tsx";
 import { useGlobalDrawer } from "../../components/GlobalDrawer";
 import type { ItemType } from "antd/es/menu/interface";
 import { executionFailedCommandClient } from "../../services";
 import { useExecutePromise } from "@ahoo-wang/fetcher-react";
 import { ExchangeError } from "@ahoo-wang/fetcher";
+import { EllipsisOutlined } from "@ant-design/icons";
 
 export interface OnChangedCapable {
   onChanged?: () => void;
 }
 
 export interface ActionsProps
-  extends StateCapable<ExecutionFailedState>,
-    OnChangedCapable {}
+  extends StateCapable<ExecutionFailedState>, OnChangedCapable {}
 
 export function Actions({ state, onChanged }: ActionsProps) {
   const { openDrawer } = useGlobalDrawer();
@@ -86,22 +86,21 @@ export function Actions({ state, onChanged }: ActionsProps) {
     },
   ];
   return (
-    <>
-      <Dropdown.Button
-        size="small"
-        type={"primary"}
+    <Space.Compact size={"small"}>
+      <Button
+        type="primary"
         onClick={() =>
           openDrawer({
             title: "Execution Failed Details",
             children: <FailedDetails state={state} />,
           })
         }
-        menu={{
-          items,
-        }}
       >
         Details
-      </Dropdown.Button>
-    </>
+      </Button>
+      <Dropdown menu={{ items }}>
+        <Button type="primary" icon={<EllipsisOutlined />} />
+      </Dropdown>
+    </Space.Compact>
   );
 }
