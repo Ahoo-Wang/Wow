@@ -48,8 +48,7 @@ object JsonSerializer : ObjectMapper() {
         configure(JsonParser.Feature.IGNORE_UNDEFINED, true)
         disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
         registerKotlinModule()
-        val spiModules = findModules(this.javaClass.classLoader)
-        registerModules(spiModules)
+        findAndRegisterModules()
     }
 }
 
@@ -269,4 +268,4 @@ inline fun <reified T> JsonNode.toObject(): T = toObject(T::class.java)
  * // copy is a separate instance with copied nested objects
  * ```
  */
-fun <T : Any> T.deepCody(objectType: Class<T> = this.javaClass): T = this.toJsonString().toObject(objectType)
+fun <T : Any> T.deepCody(objectType: Class<T> = this.javaClass): T = this.toJsonNode<JsonNode>().toObject(objectType)
