@@ -28,7 +28,7 @@ export interface FetchingFailedDetailsProps {
 }
 
 export function FetchingFailedDetails({ id }: FetchingFailedDetailsProps) {
-  const singleQueryState = useSingleQuery<
+  const { result, error } = useSingleQuery<
     ExecutionFailedState,
     ExecutionFailedAggregatedFields,
     FetcherError
@@ -37,19 +37,17 @@ export function FetchingFailedDetails({ id }: FetchingFailedDetailsProps) {
     execute: executionFailedSnapshotQueryClient.singleState.bind(
       executionFailedSnapshotQueryClient,
     ),
-    autoExecute: true,
   });
-  if (singleQueryState.error) {
+
+  if (error) {
     return (
       <Flex justify="center" align="center" style={{ minHeight: 100 }}>
-        <Text type="danger">
-          Failed to load data: {singleQueryState.error.message}
-        </Text>
+        <Text type="danger">Failed to load data: {error.message}</Text>
       </Flex>
     );
   }
 
-  if (!singleQueryState.result) {
+  if (!result) {
     return (
       <Flex gap="small" vertical>
         <Skeleton active />
@@ -58,5 +56,5 @@ export function FetchingFailedDetails({ id }: FetchingFailedDetailsProps) {
       </Flex>
     );
   }
-  return <FailedDetails state={singleQueryState.result} />;
+  return <FailedDetails state={result} />;
 }
