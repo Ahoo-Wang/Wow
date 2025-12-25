@@ -38,12 +38,12 @@ import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.eventsourcing.state.StateEventData
 import me.ahoo.wow.example.api.order.CreateOrder
 import me.ahoo.wow.example.api.order.OrderCreated
+import me.ahoo.wow.example.api.order.OrderStatus
 import me.ahoo.wow.example.domain.cart.Cart
 import me.ahoo.wow.example.domain.order.Order
 import me.ahoo.wow.modeling.DefaultAggregateId
 import me.ahoo.wow.modeling.state.SimpleStateAggregate
 import me.ahoo.wow.modeling.state.StateAggregate
-import me.ahoo.wow.models.common.EnumText
 import me.ahoo.wow.schema.JsonSchema.Companion.asJsonSchema
 import me.ahoo.wow.schema.kotlin.KotlinModule
 import me.ahoo.wow.schema.naming.SchemaNamingModule
@@ -382,7 +382,7 @@ class JsonSchemaGeneratorTest {
         @field:Schema(requiredMode = Schema.RequiredMode.REQUIRED)
         val requiredField: String?,
         val enumMap: Map<Operator, String>? = null,
-        val enum: StatusEnum? = null,
+        val enum: OrderStatus? = null,
     ) {
         @get:Schema(description = "getterDescription")
         val getter: String
@@ -421,7 +421,3 @@ class JsonSchemaGeneratorTest {
 
 @AggregateRoot
 class MockEmptyAggregate(override val id: String) : Identifier
-
-enum class StatusEnum(override val text: String) : EnumText {
-    CREATED("已创建"),
-}

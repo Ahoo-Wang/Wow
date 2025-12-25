@@ -10,13 +10,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.ahoo.wow.example.domain.order
+
+package me.ahoo.wow.example.api.order
+
+import me.ahoo.wow.models.common.EnumText
 
 /**
  * OrderStatus .
  *
  * @author ahoo wang
  */
-enum class OrderStatus {
-    CREATED, PAID, SHIPPED, RECEIVED
+enum class OrderStatus(override val text: String) : EnumText {
+    CREATED("已创建"), PAID("已支付"), SHIPPED("已发货"), RECEIVED("已收货")
 }

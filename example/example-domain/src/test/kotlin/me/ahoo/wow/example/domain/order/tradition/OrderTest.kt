@@ -28,6 +28,7 @@ import me.ahoo.wow.example.api.order.OrderPaid
 import me.ahoo.wow.example.api.order.OrderPayDuplicated
 import me.ahoo.wow.example.api.order.OrderReceived
 import me.ahoo.wow.example.api.order.OrderShipped
+import me.ahoo.wow.example.api.order.OrderStatus
 import me.ahoo.wow.example.api.order.PayOrder
 import me.ahoo.wow.example.api.order.ReceiptOrder
 import me.ahoo.wow.example.api.order.ShipOrder
@@ -39,7 +40,6 @@ import me.ahoo.wow.example.domain.order.DefaultCreateOrderSpec.PriceInconsistenc
 import me.ahoo.wow.example.domain.order.Order
 import me.ahoo.wow.example.domain.order.OrderFixture.SHIPPING_ADDRESS
 import me.ahoo.wow.example.domain.order.OrderState
-import me.ahoo.wow.example.domain.order.OrderStatus
 import me.ahoo.wow.example.domain.order.infra.InventoryService
 import me.ahoo.wow.example.domain.order.infra.PricingService
 import me.ahoo.wow.id.generateGlobalId
