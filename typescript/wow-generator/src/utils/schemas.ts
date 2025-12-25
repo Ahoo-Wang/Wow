@@ -146,6 +146,12 @@ export function isMap(schema: Schema): schema is MapSchema {
   );
 }
 
+const X_MAP_KEY_SCHEMA = 'x-map-key-schema';
+
+export function getMapKeySchema(schema: Schema): Schema | Reference | undefined {
+  return schema[X_MAP_KEY_SCHEMA];
+}
+
 /**
  * Checks if a schema represents an empty object.
  * @param schema - The schema to check

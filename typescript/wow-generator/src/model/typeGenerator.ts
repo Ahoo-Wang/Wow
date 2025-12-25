@@ -21,7 +21,7 @@ import {
   AllOfSchema,
   ArraySchema,
   CompositionSchema,
-  EnumSchema,
+  EnumSchema, getMapKeySchema,
   isAllOf,
   isArray,
   isComposition,
@@ -154,13 +154,27 @@ export class TypeGenerator implements Generator {
     return this.resolveType(schema.additionalProperties);
   }
 
+  private resolveMapKeyType(schema: Schema): string {
+    const mapKeySchema = getMapKeySchema(schema);
+    if (!mapKeySchema) {
+      return 'string';
+    }
+    return this.resolveType(mapKeySchema)
+  }
+
+  private resolveMapType(schema: MapSchema): string {
+    const keyType = this.resolveMapKeyType(schema);
+    const valueType = this.resolveMapValueType(schema);
+    return `Record<${keyType},${valueType}>`;
+  }
+
+
   resolveType(schema: Schema | Reference): string {
     if (isReference(schema)) {
       return this.resolveReference(schema).name;
     }
     if (isMap(schema)) {
-      const valueType = this.resolveMapValueType(schema);
-      return `Record<string,${valueType}>`;
+      return this.resolveMapType(schema);
     }
     if (schema.const) {
       return `'${schema.const}'`;

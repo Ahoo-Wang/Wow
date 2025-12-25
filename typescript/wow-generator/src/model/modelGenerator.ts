@@ -33,7 +33,8 @@ import { TypeGenerator } from './typeGenerator';
  * @property contextAggregates - Map of aggregate definitions
  */
 export class ModelGenerator implements Generator {
-  constructor(public readonly context: GenerateContext) {}
+  constructor(public readonly context: GenerateContext) {
+  }
 
   private getOrCreateSourceFile(modelInfo: ModelInfo): SourceFile {
     const fileName = getModelFileName(modelInfo);
@@ -97,14 +98,18 @@ export class ModelGenerator implements Generator {
       return false;
     }
 
+    if (schemaKey.startsWith('wow.api.query.Operator') &&
+      schemaKey.endsWith('Map')
+    ) {
+      return false;
+    }
+
     if (
       schemaKey.startsWith('wow.') ||
       schemaKey.endsWith('AggregatedCondition') ||
       schemaKey.endsWith('AggregatedDomainEventStream') ||
       schemaKey.endsWith('AggregatedDomainEventStreamPagedList') ||
-      schemaKey.endsWith(
-        'AggregatedDomainEventStreamServerSentEventNonNullData',
-      ) ||
+      schemaKey.endsWith('AggregatedDomainEventStreamServerSentEventNonNullData') ||
       schemaKey.endsWith('AggregatedListQuery') ||
       schemaKey.endsWith('AggregatedPagedQuery') ||
       schemaKey.endsWith('AggregatedSingleQuery')
