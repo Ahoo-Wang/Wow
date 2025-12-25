@@ -26,6 +26,7 @@ import me.ahoo.wow.api.annotation.Summary
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.command.SimpleCommandMessage
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.event.DomainEventStream
@@ -379,6 +380,7 @@ class JsonSchemaGeneratorTest {
         val writeOnlyField: String?,
         @field:Schema(requiredMode = Schema.RequiredMode.REQUIRED)
         val requiredField: String?,
+        val enumMap: Map<Operator, String>? = null
     ) {
         @get:Schema(description = "getterDescription")
         val getter: String
