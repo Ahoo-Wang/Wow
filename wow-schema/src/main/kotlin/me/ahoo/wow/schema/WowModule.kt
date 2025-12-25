@@ -23,6 +23,7 @@ import me.ahoo.wow.schema.typed.AggregatedFieldsDefinitionProvider
 import me.ahoo.wow.schema.typed.CommandDefinitionProvider
 import me.ahoo.wow.schema.typed.DomainEventDefinitionProvider
 import me.ahoo.wow.schema.typed.DomainEventStreamDefinitionProvider
+import me.ahoo.wow.schema.typed.EnumTextDefinitionProvider
 import me.ahoo.wow.schema.typed.MapDefinitionProvider
 import me.ahoo.wow.schema.typed.SnapshotDefinitionProvider
 import me.ahoo.wow.schema.typed.StateAggregateDefinitionProvider
@@ -60,6 +61,7 @@ class WowModule(
         generalConfigPart.withCustomDefinitionProvider(ServerSentEventCustomDefinitionProvider)
         generalConfigPart.withCustomDefinitionProvider(ConditionOptionsDefinitionProvider)
         generalConfigPart.withCustomDefinitionProvider(MapDefinitionProvider)
+        generalConfigPart.withCustomDefinitionProvider(EnumTextDefinitionProvider)
     }
 
     private fun ignoreCommandRouteVariable(configPart: SchemaGeneratorConfigPart<FieldScope>) {
