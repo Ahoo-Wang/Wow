@@ -43,6 +43,7 @@ import me.ahoo.wow.example.domain.order.Order
 import me.ahoo.wow.modeling.DefaultAggregateId
 import me.ahoo.wow.modeling.state.SimpleStateAggregate
 import me.ahoo.wow.modeling.state.StateAggregate
+import me.ahoo.wow.models.common.EnumText
 import me.ahoo.wow.schema.JsonSchema.Companion.asJsonSchema
 import me.ahoo.wow.schema.kotlin.KotlinModule
 import me.ahoo.wow.schema.naming.SchemaNamingModule
@@ -380,7 +381,8 @@ class JsonSchemaGeneratorTest {
         val writeOnlyField: String?,
         @field:Schema(requiredMode = Schema.RequiredMode.REQUIRED)
         val requiredField: String?,
-        val enumMap: Map<Operator, String>? = null
+        val enumMap: Map<Operator, String>? = null,
+        val enum: StatusEnum? = null,
     ) {
         @get:Schema(description = "getterDescription")
         val getter: String
@@ -419,3 +421,7 @@ class JsonSchemaGeneratorTest {
 
 @AggregateRoot
 class MockEmptyAggregate(override val id: String) : Identifier
+
+enum class StatusEnum(override val text: String) : EnumText {
+    CREATED("已创建"),
+}
