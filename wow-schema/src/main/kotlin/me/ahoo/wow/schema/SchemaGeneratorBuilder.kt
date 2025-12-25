@@ -111,6 +111,7 @@ class SchemaGeneratorBuilder {
             Option.SIMPLIFIED_ENUMS,
             Option.MAP_VALUES_AS_ADDITIONAL_PROPERTIES,
             Option.INLINE_NULLABLE_SCHEMAS,
+            Option.NULLABLE_ALWAYS_AS_ANYOF
         )
         private set
     var customizer: Consumer<SchemaGeneratorConfigBuilder>? =
