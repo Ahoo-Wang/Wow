@@ -21,6 +21,7 @@ import me.ahoo.wow.example.api.order.OrderItem
 import me.ahoo.wow.example.api.order.OrderPaid
 import me.ahoo.wow.example.api.order.OrderReceived
 import me.ahoo.wow.example.api.order.OrderShipped
+import me.ahoo.wow.example.api.order.OrderStatus
 import me.ahoo.wow.example.api.order.ShippingAddress
 import java.math.BigDecimal
 
