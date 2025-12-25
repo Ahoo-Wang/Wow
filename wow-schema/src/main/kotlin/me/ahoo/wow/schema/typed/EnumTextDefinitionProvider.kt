@@ -22,7 +22,7 @@ import me.ahoo.wow.schema.JsonSchema.Companion.asCustomDefinition
 import me.ahoo.wow.schema.JsonSchema.Companion.asJsonSchema
 
 object EnumTextDefinitionProvider : CustomDefinitionProviderV2 {
-    const val ENUM_KEY_TEXTS = "x-enum-text"
+    const val ENUM_TEXT_KEY_NAME = "x-enum-text"
     override fun provideCustomSchemaDefinition(
         javaType: ResolvedType,
         context: SchemaGenerationContext
@@ -37,7 +37,7 @@ object EnumTextDefinitionProvider : CustomDefinitionProviderV2 {
             it as EnumText
             enumTextsNode.put(it.name, it.text)
         }
-        rootSchema.set(ENUM_KEY_TEXTS, enumTextsNode)
+        rootSchema.set(ENUM_TEXT_KEY_NAME, enumTextsNode)
         return rootSchema.asCustomDefinition()
     }
 }
