@@ -21,7 +21,7 @@ import {
   AllOfSchema,
   ArraySchema,
   CompositionSchema,
-  EnumSchema, getMapKeySchema,
+  EnumSchema, getEnumText, getMapKeySchema,
   isAllOf,
   isArray,
   isComposition,
@@ -159,7 +159,7 @@ export class TypeGenerator implements Generator {
     if (!mapKeySchema) {
       return 'string';
     }
-    return this.resolveType(mapKeySchema)
+    return this.resolveType(mapKeySchema);
   }
 
   private resolveMapType(schema: MapSchema): string {
@@ -204,6 +204,19 @@ export class TypeGenerator implements Generator {
   }
 
   private processEnum(schema: EnumSchema): JSDocableNode | undefined {
+    const enumText = getEnumText(schema);
+    if (enumText) {
+      this.sourceFile.addEnum({
+        name: this.modelInfo.name + 'EnumText',
+        isExported: true,
+        members: Object.entries(enumText).map(([name, text]) => {
+          return {
+            name: resolveEnumMemberName(name),
+            initializer: `\`${text}\``,
+          };
+        }),
+      });
+    }
     return this.sourceFile.addEnum({
       name: this.modelInfo.name,
       isExported: true,

@@ -45,6 +45,13 @@ export function isEnum(schema: Schema): schema is EnumSchema {
   return Array.isArray(schema.enum) && schema.enum.length > 0;
 }
 
+export type EnumText = Record<string, string>
+const ENUM_TEXT_NAME = 'x-enum-text';
+
+export function getEnumText(schema: EnumSchema): EnumText | undefined {
+  return schema[ENUM_TEXT_NAME];
+}
+
 export type ObjectSchema = Schema & {
   type: 'object';
   properties: Record<string, Schema | Reference>;
