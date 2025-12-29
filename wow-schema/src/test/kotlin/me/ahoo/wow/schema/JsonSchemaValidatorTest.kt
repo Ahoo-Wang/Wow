@@ -1,7 +1,7 @@
 package me.ahoo.wow.schema
 
 import com.fasterxml.classmate.TypeResolver
-import com.networknt.schema.InputFormat
+import com.fasterxml.jackson.databind.JsonNode
 import com.networknt.schema.SchemaRegistry
 import com.networknt.schema.SpecificationVersion
 import me.ahoo.test.asserts.assert
@@ -26,7 +26,7 @@ import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory.toStateAggregate
 import me.ahoo.wow.modeling.state.StateAggregate
-import me.ahoo.wow.serialization.toPrettyJson
+import me.ahoo.wow.serialization.toJsonNode
 import me.ahoo.wow.tck.event.MockDomainEventStreams
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.params.ParameterizedTest
@@ -138,8 +138,8 @@ class JsonSchemaValidatorTest {
         val schemaRegistry = SchemaRegistry.withDefaultDialect(SpecificationVersion.DRAFT_2020_12)
         val schemaJsonNode = jsonSchemaGenerator.generateSchema(type)
         val jsonSchema = schemaRegistry.getSchema(schemaJsonNode)
-        val input = targetObject.toPrettyJson()
-        val assertions = jsonSchema.validate(input, InputFormat.JSON)
+        val input = targetObject.toJsonNode<JsonNode>()
+        val assertions = jsonSchema.validate(input)
         assertions.assert().isEmpty()
     }
 }
