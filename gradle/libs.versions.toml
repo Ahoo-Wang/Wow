@@ -15,7 +15,7 @@ swagger = "2.2.41"
 springdoc = "2.8.14"
 jte = "3.2.1"
 jsonschema-generator = "4.38.0"
-json-schema-validator = "1.5.9"
+json-schema-validator = "2.0.1"
 # testing
 junit = "6.0.1"
 fluent-assert = "0.2.6"
@@ -46,7 +46,7 @@ ksp-symbol-processing = { module = "com.google.devtools.ksp:symbol-processing", 
 kotlin-compile-testing = { module = "dev.zacsweers.kctfork:ksp", version.ref = "kotlin-compile-testing" }
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
 kotlin-logging = { module = "io.github.oshai:kotlin-logging-jvm", version.ref = "kotlin-logging" }
-swagger-annotations= { module = "io.swagger.core.v3:swagger-annotations-jakarta", version.ref = "swagger" }
+swagger-annotations = { module = "io.swagger.core.v3:swagger-annotations-jakarta", version.ref = "swagger" }
 swagger-core = { module = "io.swagger.core.v3:swagger-core-jakarta", version.ref = "swagger" }
 springdoc-bom = { module = "org.springdoc:springdoc-openapi-bom", version.ref = "springdoc" }
 jte = { module = "gg.jte:jte", version.ref = "jte" }
