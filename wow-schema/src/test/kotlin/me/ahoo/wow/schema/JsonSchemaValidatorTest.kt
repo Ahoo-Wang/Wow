@@ -2,11 +2,8 @@ package me.ahoo.wow.schema
 
 import com.fasterxml.classmate.TypeResolver
 import com.networknt.schema.InputFormat
-import com.networknt.schema.JsonSchema
-import com.networknt.schema.JsonSchemaFactory
-import com.networknt.schema.SchemaLocation
-import com.networknt.schema.SchemaValidatorsConfig
-import com.networknt.schema.SpecVersion.VersionFlag
+import com.networknt.schema.SchemaRegistry
+import com.networknt.schema.SpecificationVersion
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.event.DomainEvent
@@ -138,20 +135,11 @@ class JsonSchemaValidatorTest {
     @ParameterizedTest
     @MethodSource("parametersForValidate")
     fun validate(type: Type, targetObject: Any) {
-        val jsonSchemaFactory = JsonSchemaFactory.getInstance(VersionFlag.V202012) { builder ->
-            builder.schemaLoaders {
-                it.schemas {
-                    jsonSchemaGenerator.generateSchema(type).toPrettyString()
-                }
-            }
-        }
-        val builder = SchemaValidatorsConfig.builder()
-        val config = builder.build()
+        val schemaRegistry = SchemaRegistry.withDefaultDialect(SpecificationVersion.DRAFT_2020_12)
+        val schemaJsonNode = jsonSchemaGenerator.generateSchema(type)
+        val jsonSchema = schemaRegistry.getSchema(schemaJsonNode)
         val input = targetObject.toPrettyJson()
-        val schema: JsonSchema = jsonSchemaFactory.getSchema(SchemaLocation.of(type.toString()), config)
-        val assertions = schema.validate(input, InputFormat.JSON) { executionContext ->
-            executionContext.executionConfig.formatAssertionsEnabled = true
-        }
+        val assertions = jsonSchema.validate(input, InputFormat.JSON)
         assertions.assert().isEmpty()
     }
 }
