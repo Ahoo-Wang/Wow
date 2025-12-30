@@ -76,6 +76,14 @@ class MongoEventStore(private val database: MongoDatabase) : AbstractEventStore(
             }.then()
     }
 
+    private fun documentToDomainEventStream(aggregateId: AggregateId, document: Document): DomainEventStream {
+        val domainEventStream = document.replacePrimaryKeyToId().toJson().toObject<DomainEventStream>()
+        require(domainEventStream.aggregateId == aggregateId) {
+            "aggregateId is not match! aggregateId: $aggregateId, domainEventStream: ${domainEventStream.aggregateId}"
+        }
+        return domainEventStream
+    }
+
     private fun findStream(aggregateId: AggregateId, filter: Bson): Flux<DomainEventStream> {
         val eventStreamCollectionName = aggregateId.toEventStreamCollectionName()
         return database.getCollection(eventStreamCollectionName)
@@ -83,11 +91,7 @@ class MongoEventStore(private val database: MongoDatabase) : AbstractEventStore(
             .sort(Sorts.ascending(MessageRecords.VERSION))
             .toFlux()
             .map {
-                val domainEventStream = it.replacePrimaryKeyToId().toJson().toObject<DomainEventStream>()
-                require(domainEventStream.aggregateId == aggregateId) {
-                    "aggregateId is not match! aggregateId: $aggregateId, domainEventStream: ${domainEventStream.aggregateId}"
-                }
-                domainEventStream
+                documentToDomainEventStream(aggregateId, it)
             }
     }
 
@@ -115,5 +119,18 @@ class MongoEventStore(private val database: MongoDatabase) : AbstractEventStore(
                 Filters.lte(MessageRecords.CREATE_TIME, tailEventTime),
             )
         )
+    }
+
+    override fun last(aggregateId: AggregateId): Mono<DomainEventStream> {
+        val eventStreamCollectionName = aggregateId.toEventStreamCollectionName()
+        return database.getCollection(eventStreamCollectionName)
+            .find(Filters.eq(MessageRecords.AGGREGATE_ID, aggregateId.id))
+            .sort(Sorts.descending(MessageRecords.VERSION))
+            .limit(1)
+            .first()
+            .toMono()
+            .map {
+                documentToDomainEventStream(aggregateId, it)
+            }
     }
 }

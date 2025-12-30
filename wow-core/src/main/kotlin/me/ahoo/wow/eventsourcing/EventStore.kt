@@ -79,6 +79,11 @@ interface EventStore {
         return load(aggregateId, version, version).next()
     }
 
+    /**
+     *  Loads the last domain event stream for the specified aggregate.
+     */
+    fun last(aggregateId: AggregateId): Mono<DomainEventStream>
+
     companion object {
         /**
          * Default starting version for loading events (inclusive).

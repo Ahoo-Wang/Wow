@@ -90,4 +90,13 @@ class MetricEventStore(
             .tagSource()
             .tag(Metrics.AGGREGATE_KEY, aggregateId.aggregateName)
             .metrics()
+
+    override fun last(aggregateId: AggregateId): Mono<DomainEventStream> {
+        return delegate
+            .last(aggregateId)
+            .name(Wow.WOW_PREFIX + "eventstore.last")
+            .tagSource()
+            .tag(Metrics.AGGREGATE_KEY, aggregateId.aggregateName)
+            .metrics()
+    }
 }

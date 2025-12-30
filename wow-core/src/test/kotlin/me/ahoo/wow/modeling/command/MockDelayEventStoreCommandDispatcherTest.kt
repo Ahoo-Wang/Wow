@@ -40,4 +40,8 @@ internal class MockDelayEventStoreCommandDispatcherTest : CommandDispatcherSpec(
     override fun load(aggregateId: AggregateId, headEventTime: Long, tailEventTime: Long): Flux<DomainEventStream> {
         return delegate.load(aggregateId, headEventTime, tailEventTime).delaySubscription(delayDuration)
     }
+
+    override fun last(aggregateId: AggregateId): Mono<DomainEventStream> {
+        return delegate.last(aggregateId).delaySubscription(delayDuration)
+    }
 }

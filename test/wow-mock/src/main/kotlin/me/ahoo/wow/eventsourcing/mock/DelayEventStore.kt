@@ -38,4 +38,8 @@ class DelayEventStore(
     override fun load(aggregateId: AggregateId, headEventTime: Long, tailEventTime: Long): Flux<DomainEventStream> {
         return delegate.load(aggregateId, headEventTime, tailEventTime).delaySubscription(delaySupplier())
     }
+
+    override fun last(aggregateId: AggregateId): Mono<DomainEventStream> {
+        return delegate.last(aggregateId).delaySubscription(delaySupplier())
+    }
 }
