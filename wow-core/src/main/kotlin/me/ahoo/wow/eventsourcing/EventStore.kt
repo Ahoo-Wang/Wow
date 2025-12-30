@@ -58,13 +58,6 @@ interface EventStore {
     ): Flux<DomainEventStream>
 
     /**
-     *  Loads a single domain event stream for the specified aggregate at the given version.
-     */
-    fun single(aggregateId: AggregateId, version: Int): Mono<DomainEventStream> {
-        return load(aggregateId, version, version).next()
-    }
-
-    /**
      * Loads domain event streams for the specified aggregate within the given event time range.
      * The range is inclusive: [headEventTime, tailEventTime].
      *
@@ -78,6 +71,13 @@ interface EventStore {
         headEventTime: Long,
         tailEventTime: Long
     ): Flux<DomainEventStream>
+
+    /**
+     *  Loads a single domain event stream for the specified aggregate at the given version.
+     */
+    fun single(aggregateId: AggregateId, version: Int): Mono<DomainEventStream> {
+        return load(aggregateId, version, version).next()
+    }
 
     companion object {
         /**
