@@ -47,4 +47,12 @@ class TracingEventStore(override val delegate: EventStore) : EventStore, Decorat
             TraceFlux(parentContext, EventStoreInstrumenter.LOAD_INSTRUMENTER, aggregateId, source)
         }
     }
+
+    override fun last(aggregateId: AggregateId): Mono<DomainEventStream> {
+        return Mono.defer {
+            val parentContext = Context.current()
+            val source = delegate.last(aggregateId)
+            TraceMono(parentContext, EventStoreInstrumenter.LOAD_INSTRUMENTER, aggregateId, source)
+        }
+    }
 }

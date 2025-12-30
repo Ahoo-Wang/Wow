@@ -80,4 +80,13 @@ class RedisEventStore(
     ): Flux<DomainEventStream> {
         throw UnsupportedOperationException()
     }
+
+    override fun last(aggregateId: AggregateId): Mono<DomainEventStream> {
+        val key = EventStreamKeyConverter.convert(aggregateId)
+        val range = Range.closed<Long>(0, 0)
+        return redisTemplate.opsForZSet().reverseRange(key, range)
+            .map {
+                it.toObject<DomainEventStream>()
+            }.next()
+    }
 }

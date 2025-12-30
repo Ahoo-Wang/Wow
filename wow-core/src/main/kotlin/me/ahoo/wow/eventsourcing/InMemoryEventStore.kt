@@ -116,4 +116,11 @@ class InMemoryEventStore : AbstractEventStore() {
                 .toFlux()
         }
     }
+
+    override fun last(aggregateId: AggregateId): Mono<DomainEventStream> {
+        return Mono.fromSupplier {
+            val eventsOfAgg: CopyOnWriteArrayList<DomainEventStream> = events[aggregateId] ?: return@fromSupplier null
+            eventsOfAgg.lastOrNull()
+        }
+    }
 }

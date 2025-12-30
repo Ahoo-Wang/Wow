@@ -147,4 +147,11 @@ class R2dbcEventStore(
                 .bind(2, tailEventTime)
         }
     }
+
+    override fun last(aggregateId: AggregateId): Mono<DomainEventStream> {
+        return load(aggregateId) {
+            it.createStatement(eventStreamSchema.last(aggregateId))
+                .bind(0, aggregateId.id)
+        }.next()
+    }
 }

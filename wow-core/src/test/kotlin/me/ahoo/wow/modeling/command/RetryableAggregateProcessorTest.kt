@@ -151,5 +151,9 @@ internal class RetryableAggregateProcessorTest {
         ): Flux<DomainEventStream> {
             return eventStore.load(aggregateId, headEventTime, tailEventTime)
         }
+
+        override fun last(aggregateId: AggregateId): Mono<DomainEventStream> {
+            return eventStore.last(aggregateId)
+        }
     }
 }
