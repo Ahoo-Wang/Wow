@@ -60,7 +60,7 @@ interface EventStore {
     /**
      *  Loads a single domain event stream for the specified aggregate at the given version.
      */
-    fun load(aggregateId: AggregateId, version: Int): Mono<DomainEventStream> {
+    fun single(aggregateId: AggregateId, version: Int): Mono<DomainEventStream> {
         return load(aggregateId, version, version).next()
     }
 
