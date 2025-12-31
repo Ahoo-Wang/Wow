@@ -14,6 +14,7 @@ package me.ahoo.wow.modeling.command
 
 import com.google.common.base.Preconditions
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.annotation.AggregateId
 import me.ahoo.wow.api.annotation.AggregateVersion
 import me.ahoo.wow.api.annotation.CreateAggregate
@@ -178,6 +179,7 @@ internal class SimpleCommandAggregateTest {
 
         mockCommandAggregate.otherState().assert().isEqualTo(changeState.otherState)
         simpleStateAggregate.version.assert().isEqualTo(2)
+        simpleStateAggregate.state.version.assert().isEqualTo(simpleStateAggregate.version)
         eventStore.load(commandAggregate.aggregateId)
             .test()
             .expectNextCount(2)
@@ -200,7 +202,8 @@ internal class SimpleCommandAggregateTest {
 class MockCommandAggregate(private val id: String) : VersionAware {
     private var state: String? = null
     private var otherState: String? = null
-    override var version: Int = 0
+    override var version: Int = Version.UNINITIALIZED_VERSION
+
     fun id(): String {
         return id
     }
