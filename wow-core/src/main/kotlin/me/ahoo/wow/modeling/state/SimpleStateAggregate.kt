@@ -21,6 +21,7 @@ import me.ahoo.wow.api.event.OwnerTransferred
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.OwnerId
 import me.ahoo.wow.api.modeling.TypedAggregate
+import me.ahoo.wow.api.modeling.aware.VersionAware
 import me.ahoo.wow.command.CommandOperator.operator
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.SimpleDomainEventExchange
@@ -118,7 +119,14 @@ class SimpleStateAggregate<S : Any>(
             firstOperator = operator
             firstEventTime = eventTime
         }
+        processAware(eventStream)
         return this
+    }
+
+    private fun processAware(eventStream: DomainEventStream) {
+        if (state is VersionAware) {
+            state.version = eventStream.version
+        }
     }
 
     /**

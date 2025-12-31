@@ -18,6 +18,7 @@ import me.ahoo.wow.api.annotation.AggregateId
 import me.ahoo.wow.api.annotation.AggregateVersion
 import me.ahoo.wow.api.annotation.CreateAggregate
 import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.api.modeling.aware.VersionAware
 import me.ahoo.wow.command.SimpleServerCommandExchange
 import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.eventsourcing.EventStore
@@ -196,9 +197,10 @@ internal class SimpleCommandAggregateTest {
     }
 }
 
-class MockCommandAggregate(private val id: String) {
+class MockCommandAggregate(private val id: String) : VersionAware {
     private var state: String? = null
     private var otherState: String? = null
+    override var version: Int = 0
     fun id(): String {
         return id
     }
