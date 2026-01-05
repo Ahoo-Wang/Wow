@@ -30,7 +30,7 @@ spec:
           effect: "NoSchedule"
       containers:
         - name: wow-example
-          image: registry.cn-shanghai.aliyuncs.com/ahoo/wow-example-server:6.10.6
+          image: registry.cn-shanghai.aliyuncs.com/ahoo/wow-example-server:6.11.1
           env:
             - name: LANG
               value: C.utf8
@@ -73,10 +73,10 @@ spec:
             timeoutSeconds: 1
           resources:
             limits:
-              cpu: "15"
-              memory: 15Gi
+              cpu: "8"
+              memory: 14Gi
             requests:
-              cpu: '12'
+              cpu: '6'
               memory: 10Gi
           volumeMounts:
             - mountPath: /etc/localtime
