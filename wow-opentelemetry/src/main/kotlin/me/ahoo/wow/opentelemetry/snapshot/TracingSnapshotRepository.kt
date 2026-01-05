@@ -20,10 +20,12 @@ import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.opentelemetry.TraceMono
+import me.ahoo.wow.opentelemetry.Traced
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 class TracingSnapshotRepository(override val delegate: SnapshotRepository) :
+    Traced,
     SnapshotRepository,
     Decorator<SnapshotRepository> {
     override val name: String

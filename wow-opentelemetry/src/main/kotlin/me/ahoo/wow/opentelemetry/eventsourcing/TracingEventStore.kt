@@ -20,10 +20,11 @@ import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.opentelemetry.TraceFlux
 import me.ahoo.wow.opentelemetry.TraceMono
+import me.ahoo.wow.opentelemetry.Traced
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-class TracingEventStore(override val delegate: EventStore) : EventStore, Decorator<EventStore> {
+class TracingEventStore(override val delegate: EventStore) : Traced, EventStore, Decorator<EventStore> {
     override fun append(eventStream: DomainEventStream): Mono<Void> {
         return Mono.defer {
             val parentContext = Context.current()

@@ -13,9 +13,9 @@
 
 package me.ahoo.wow.opentelemetry
 
+import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.DistributedCommandBus
 import me.ahoo.wow.command.LocalCommandBus
-import me.ahoo.wow.command.wait.WaitStrategy
 import me.ahoo.wow.event.DistributedDomainEventBus
 import me.ahoo.wow.event.LocalDomainEventBus
 import me.ahoo.wow.eventsourcing.EventStore
@@ -29,9 +29,8 @@ import me.ahoo.wow.opentelemetry.messaging.TracingDistributedStateEventBus
 import me.ahoo.wow.opentelemetry.messaging.TracingLocalCommandBus
 import me.ahoo.wow.opentelemetry.messaging.TracingLocalEventBus
 import me.ahoo.wow.opentelemetry.messaging.TracingLocalStateEventBus
-import me.ahoo.wow.opentelemetry.messaging.TracingMessageBus
 import me.ahoo.wow.opentelemetry.snapshot.TracingSnapshotRepository
-import me.ahoo.wow.opentelemetry.wait.TracingWaitStrategy
+import me.ahoo.wow.opentelemetry.wait.TracingCommandGateway
 
 object Tracing {
 
@@ -83,9 +82,9 @@ object Tracing {
         }
     }
 
-    fun WaitStrategy.tracing(): WaitStrategy {
+    fun CommandGateway.tracing(): CommandGateway {
         return tracing {
-            TracingWaitStrategy(this)
+            TracingCommandGateway(this)
         }
     }
 
@@ -99,13 +98,13 @@ object Tracing {
             is SnapshotRepository -> tracing()
             is LocalStateEventBus -> tracing()
             is DistributedStateEventBus -> tracing()
-            is WaitStrategy -> tracing()
+            is CommandGateway -> tracing()
             else -> this
         }
     }
 
     inline fun <T> T.tracing(block: (T) -> T): T {
-        if (this is TracingMessageBus<*, *, *>) {
+        if (this is Traced) {
             return this
         }
         return block(this)
