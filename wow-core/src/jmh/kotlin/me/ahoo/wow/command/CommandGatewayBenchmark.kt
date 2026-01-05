@@ -13,10 +13,16 @@
 
 package me.ahoo.wow.command
 
+import me.ahoo.wow.command.wait.LocalCommandWaitNotifier
+import me.ahoo.wow.command.wait.SimpleCommandWaitEndpoint
+import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
 import me.ahoo.wow.id.generateGlobalId
+import me.ahoo.wow.infra.idempotency.DefaultAggregateIdempotencyCheckerProvider
+import me.ahoo.wow.infra.idempotency.NoOpIdempotencyChecker
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockCreateAggregate
+import me.ahoo.wow.test.validation.TestValidator
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
@@ -24,18 +30,28 @@ import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.annotations.TearDown
 
 @State(Scope.Benchmark)
-open class InMemoryCommandBusBenchmark {
-    private lateinit var commandBus: CommandBus
+open class CommandGatewayBenchmark {
+    private lateinit var commandGateway: CommandGateway
 
     @Setup
     fun setup() {
-        commandBus = InMemoryCommandBus()
-        commandBus.receive(setOf(MOCK_AGGREGATE_METADATA.namedAggregate.materialize())).subscribe()
+        val commandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar)
+        commandGateway = DefaultCommandGateway(
+            commandWaitEndpoint = SimpleCommandWaitEndpoint(""),
+            commandBus = InMemoryCommandBus(),
+            validator = TestValidator,
+            idempotencyCheckerProvider = DefaultAggregateIdempotencyCheckerProvider({
+                NoOpIdempotencyChecker
+            }),
+            waitStrategyRegistrar = SimpleWaitStrategyRegistrar,
+            commandWaitNotifier = commandWaitNotifier
+        )
+        commandGateway.receive(setOf(MOCK_AGGREGATE_METADATA.namedAggregate.materialize())).subscribe()
     }
 
     @TearDown
     fun tearDown() {
-        commandBus.close()
+        commandGateway.close()
     }
 
     @Benchmark
@@ -44,7 +60,7 @@ open class InMemoryCommandBusBenchmark {
             id = generateGlobalId(),
             data = generateGlobalId(),
         ).toCommandMessage()
-        commandBus.send(commandMessage).block()
+        commandGateway.send(commandMessage).block()
     }
 
 }

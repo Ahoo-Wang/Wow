@@ -9,7 +9,6 @@
       <module name="Wow.example.example-api.main" target="8" />
       <module name="Wow.example.example-api.test" target="8" />
       <module name="Wow.example.jmh" target="8" />
-      <module name="Wow.jmh" target="11" />
       <module name="Wow.saas.jmh" target="8" />
       <module name="Wow.saas.main" target="8" />
       <module name="Wow.saas.tenant-service.jmh" target="8" />
@@ -46,105 +45,136 @@
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
       <module name="Wow.example-api" options="-parameters" />
+      <module name="Wow.example-api.jmh" options="-parameters" />
       <module name="Wow.example-api.main" options="-parameters" />
       <module name="Wow.example-api.test" options="-parameters" />
       <module name="Wow.example-domain" options="-parameters" />
+      <module name="Wow.example-domain.jmh" options="-parameters" />
       <module name="Wow.example-domain.main" options="-parameters" />
       <module name="Wow.example-domain.test" options="-parameters" />
       <module name="Wow.example-server" options="-proc:none" />
       <module name="Wow.example-server.main" options="-proc:none" />
       <module name="Wow.example-server.test" options="-proc:none" />
       <module name="Wow.example-transfer-api" options="-parameters" />
+      <module name="Wow.example-transfer-api.jmh" options="-parameters" />
       <module name="Wow.example-transfer-api.main" options="-parameters" />
       <module name="Wow.example-transfer-api.test" options="-parameters" />
       <module name="Wow.example-transfer-domain" options="-parameters" />
+      <module name="Wow.example-transfer-domain.jmh" options="-parameters" />
       <module name="Wow.example-transfer-domain.main" options="-parameters" />
       <module name="Wow.example-transfer-domain.test" options="-parameters" />
       <module name="Wow.example-transfer-server" options="-proc:none" />
       <module name="Wow.example-transfer-server.main" options="-proc:none" />
       <module name="Wow.example-transfer-server.test" options="-proc:none" />
       <module name="Wow.wow-api" options="-parameters" />
+      <module name="Wow.wow-api.jmh" options="-parameters" />
       <module name="Wow.wow-api.main" options="-parameters" />
       <module name="Wow.wow-api.test" options="-parameters" />
       <module name="Wow.wow-apiclient" options="-parameters" />
+      <module name="Wow.wow-apiclient.jmh" options="-parameters" />
       <module name="Wow.wow-apiclient.main" options="-parameters" />
       <module name="Wow.wow-apiclient.test" options="-parameters" />
       <module name="Wow.wow-bi" options="-parameters" />
+      <module name="Wow.wow-bi.jmh" options="-parameters" />
       <module name="Wow.wow-bi.main" options="-parameters" />
       <module name="Wow.wow-bi.test" options="-parameters" />
       <module name="Wow.wow-cocache" options="-parameters" />
+      <module name="Wow.wow-cocache.jmh" options="-parameters" />
       <module name="Wow.wow-cocache.main" options="-parameters" />
       <module name="Wow.wow-cocache.test" options="-parameters" />
       <module name="Wow.wow-compensation-api" options="-parameters" />
+      <module name="Wow.wow-compensation-api.jmh" options="-parameters" />
       <module name="Wow.wow-compensation-api.main" options="-parameters" />
       <module name="Wow.wow-compensation-api.test" options="-parameters" />
       <module name="Wow.wow-compensation-core" options="-parameters" />
+      <module name="Wow.wow-compensation-core.jmh" options="-parameters" />
       <module name="Wow.wow-compensation-core.main" options="-parameters" />
       <module name="Wow.wow-compensation-core.test" options="-parameters" />
       <module name="Wow.wow-compensation-domain" options="-parameters" />
+      <module name="Wow.wow-compensation-domain.jmh" options="-parameters" />
       <module name="Wow.wow-compensation-domain.main" options="-parameters" />
       <module name="Wow.wow-compensation-domain.test" options="-parameters" />
       <module name="Wow.wow-compensation-server" options="-proc:none" />
       <module name="Wow.wow-compensation-server.main" options="-proc:none" />
       <module name="Wow.wow-compensation-server.test" options="-proc:none" />
       <module name="Wow.wow-compiler" options="-parameters" />
+      <module name="Wow.wow-compiler.jmh" options="-parameters" />
       <module name="Wow.wow-compiler.main" options="-parameters" />
       <module name="Wow.wow-compiler.test" options="-parameters" />
       <module name="Wow.wow-core" options="-parameters" />
+      <module name="Wow.wow-core.jmh" options="-parameters" />
       <module name="Wow.wow-core.main" options="-parameters" />
       <module name="Wow.wow-core.test" options="-parameters" />
       <module name="Wow.wow-cosec" options="-parameters" />
+      <module name="Wow.wow-cosec.jmh" options="-parameters" />
       <module name="Wow.wow-cosec.main" options="-parameters" />
       <module name="Wow.wow-cosec.test" options="-parameters" />
       <module name="Wow.wow-elasticsearch" options="-parameters" />
+      <module name="Wow.wow-elasticsearch.jmh" options="-parameters" />
       <module name="Wow.wow-elasticsearch.main" options="-parameters" />
       <module name="Wow.wow-elasticsearch.test" options="-parameters" />
       <module name="Wow.wow-it" options="-parameters" />
+      <module name="Wow.wow-it.jmh" options="-parameters" />
       <module name="Wow.wow-it.main" options="-parameters" />
       <module name="Wow.wow-it.test" options="-parameters" />
       <module name="Wow.wow-kafka" options="-parameters" />
+      <module name="Wow.wow-kafka.jmh" options="-parameters" />
       <module name="Wow.wow-kafka.main" options="-parameters" />
       <module name="Wow.wow-kafka.test" options="-parameters" />
       <module name="Wow.wow-mock" options="-parameters" />
+      <module name="Wow.wow-mock.jmh" options="-parameters" />
       <module name="Wow.wow-mock.main" options="-parameters" />
       <module name="Wow.wow-mock.test" options="-parameters" />
       <module name="Wow.wow-models" options="-parameters" />
+      <module name="Wow.wow-models.jmh" options="-parameters" />
       <module name="Wow.wow-models.main" options="-parameters" />
       <module name="Wow.wow-models.test" options="-parameters" />
       <module name="Wow.wow-mongo" options="-parameters" />
+      <module name="Wow.wow-mongo.jmh" options="-parameters" />
       <module name="Wow.wow-mongo.main" options="-parameters" />
       <module name="Wow.wow-mongo.test" options="-parameters" />
       <module name="Wow.wow-openapi" options="-parameters" />
+      <module name="Wow.wow-openapi.jmh" options="-parameters" />
       <module name="Wow.wow-openapi.main" options="-parameters" />
       <module name="Wow.wow-openapi.test" options="-parameters" />
       <module name="Wow.wow-opentelemetry" options="-parameters" />
+      <module name="Wow.wow-opentelemetry.jmh" options="-parameters" />
       <module name="Wow.wow-opentelemetry.main" options="-parameters" />
       <module name="Wow.wow-opentelemetry.test" options="-parameters" />
       <module name="Wow.wow-query" options="-parameters" />
+      <module name="Wow.wow-query.jmh" options="-parameters" />
       <module name="Wow.wow-query.main" options="-parameters" />
       <module name="Wow.wow-query.test" options="-parameters" />
       <module name="Wow.wow-r2dbc" options="-parameters" />
+      <module name="Wow.wow-r2dbc.jmh" options="-parameters" />
       <module name="Wow.wow-r2dbc.main" options="-parameters" />
       <module name="Wow.wow-r2dbc.test" options="-parameters" />
       <module name="Wow.wow-redis" options="-parameters" />
+      <module name="Wow.wow-redis.jmh" options="-parameters" />
       <module name="Wow.wow-redis.main" options="-parameters" />
       <module name="Wow.wow-redis.test" options="-parameters" />
       <module name="Wow.wow-schema" options="-parameters" />
+      <module name="Wow.wow-schema.jmh" options="-parameters" />
       <module name="Wow.wow-schema.main" options="-parameters" />
       <module name="Wow.wow-schema.test" options="-parameters" />
       <module name="Wow.wow-spring" options="-parameters" />
       <module name="Wow.wow-spring-boot-starter" options="-parameters -proc:none" />
+      <module name="Wow.wow-spring-boot-starter.jmh" options="-parameters -proc:none" />
       <module name="Wow.wow-spring-boot-starter.main" options="-parameters -proc:none" />
       <module name="Wow.wow-spring-boot-starter.test" options="-parameters -proc:none" />
+      <module name="Wow.wow-spring.jmh" options="-parameters" />
       <module name="Wow.wow-spring.main" options="-parameters" />
       <module name="Wow.wow-spring.test" options="-parameters" />
       <module name="Wow.wow-tck" options="-parameters" />
+      <module name="Wow.wow-tck.jmh" options="-parameters" />
       <module name="Wow.wow-tck.main" options="-parameters" />
       <module name="Wow.wow-tck.test" options="-parameters" />
       <module name="Wow.wow-test" options="-parameters" />
+      <module name="Wow.wow-test.jmh" options="-parameters" />
       <module name="Wow.wow-test.main" options="-parameters" />
       <module name="Wow.wow-test.test" options="-parameters" />
       <module name="Wow.wow-webflux" options="-parameters" />
+      <module name="Wow.wow-webflux.jmh" options="-parameters" />
       <module name="Wow.wow-webflux.main" options="-parameters" />
       <module name="Wow.wow-webflux.test" options="-parameters" />
     </option>
