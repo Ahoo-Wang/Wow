@@ -28,6 +28,7 @@ dokka = "2.1.0"
 kotlin = "2.2.21"
 ksp = "2.3.4"
 publish-plugin = "2.0.0"
+jmh-plugin = "0.7.3"
 
 [libraries]
 spring-boot-dependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }
@@ -64,4 +65,5 @@ kotlin = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-spring = { id = "org.jetbrains.kotlin.plugin.spring", version.ref = "kotlin" }
 kotlin-kapt = { id = "org.jetbrains.kotlin.kapt", version.ref = "kotlin" }
 publish = { id = "io.github.gradle-nexus.publish-plugin", version.ref = "publish-plugin" }
+jmh = { id = "me.champeau.jmh", version.ref = "jmh-plugin" }
 
