@@ -15,8 +15,12 @@ package me.ahoo.wow.scheduler
 
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.naming.Named
+import me.ahoo.wow.infra.lifecycle.GracefullyStoppable
+import me.ahoo.wow.messaging.dispatcher.ParallelismCapable
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.materialize
+import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
 import reactor.core.scheduler.Schedulers
 import java.util.concurrent.ConcurrentHashMap
@@ -34,7 +38,7 @@ import java.util.concurrent.ConcurrentHashMap
  * @see Scheduler
  * @see NamedAggregate
  */
-fun interface AggregateSchedulerSupplier {
+interface AggregateSchedulerSupplier : GracefullyStoppable {
     /**
      * Gets an existing scheduler for the named aggregate or creates a new one if none exists.
      *
@@ -92,8 +96,10 @@ fun interface AggregateSchedulerSupplier {
  * @see Schedulers.newParallel
  */
 class DefaultAggregateSchedulerSupplier(
-    override val name: String
+    override val name: String,
+    override val parallelism: Int = Schedulers.DEFAULT_POOL_SIZE
 ) : AggregateSchedulerSupplier,
+    ParallelismCapable,
     Named {
     /**
      * Thread-safe cache of schedulers keyed by materialized aggregate.
@@ -115,6 +121,17 @@ class DefaultAggregateSchedulerSupplier(
      */
     override fun getOrInitialize(namedAggregate: NamedAggregate): Scheduler =
         schedulers.computeIfAbsent(namedAggregate.materialize()) { _ ->
-            Schedulers.newParallel("$name-${namedAggregate.aggregateName}")
+            Schedulers.newParallel("$name-${namedAggregate.aggregateName}", parallelism)
         }
+
+    /**
+     * Stops all schedulers gracefully.
+     */
+    override fun stopGracefully(): Mono<Void> {
+        return Flux.fromIterable(schedulers.values).flatMap {
+            it.disposeGracefully()
+        }.then().doFinally {
+            schedulers.clear()
+        }
+    }
 }
