@@ -92,6 +92,13 @@ class LocalCommandWaitNotifier(
                 }
             }
         }
+
+    override fun notifyAndForget(
+        commandWaitEndpoint: String,
+        waitSignal: WaitSignal
+    ) {
+        notify(commandWaitEndpoint, waitSignal).subscribe()
+    }
 }
 
 /**
