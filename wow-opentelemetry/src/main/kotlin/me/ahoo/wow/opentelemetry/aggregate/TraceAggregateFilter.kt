@@ -20,7 +20,9 @@ import me.ahoo.wow.filter.FilterType
 import me.ahoo.wow.modeling.command.dispatcher.CommandDispatcher
 import me.ahoo.wow.modeling.command.dispatcher.CommandFilter
 import me.ahoo.wow.opentelemetry.TraceFilter
+import me.ahoo.wow.opentelemetry.Traced
 
 @FilterType(CommandDispatcher::class)
 @Order(ORDER_FIRST)
-object TraceAggregateFilter : CommandFilter, TraceFilter<ServerCommandExchange<*>>(AggregateInstrumenter.INSTRUMENTER)
+object TraceAggregateFilter : Traced, CommandFilter,
+    TraceFilter<ServerCommandExchange<*>>(AggregateInstrumenter.INSTRUMENTER)
