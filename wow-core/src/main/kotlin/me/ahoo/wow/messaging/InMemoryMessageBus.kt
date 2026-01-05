@@ -37,7 +37,7 @@ import java.util.concurrent.ConcurrentHashMap
  */
 @ThreadSafe
 abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBus<M, E>
-        where M : Message<*, *>, M : NamedAggregate {
+    where M : Message<*, *>, M : NamedAggregate {
     companion object {
         private val log = KotlinLogging.logger {}
     }
