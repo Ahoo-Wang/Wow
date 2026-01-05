@@ -16,12 +16,12 @@ package me.ahoo.wow.command
 import me.ahoo.wow.command.wait.LocalCommandWaitNotifier
 import me.ahoo.wow.command.wait.SimpleCommandWaitEndpoint
 import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
-import me.ahoo.wow.id.generateGlobalId
+import me.ahoo.wow.example.domain.cart.Cart
+import me.ahoo.wow.example.domain.cart.CartState
 import me.ahoo.wow.infra.idempotency.DefaultAggregateIdempotencyCheckerProvider
 import me.ahoo.wow.infra.idempotency.NoOpIdempotencyChecker
+import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.materialize
-import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
-import me.ahoo.wow.tck.mock.MockCreateAggregate
 import me.ahoo.wow.test.validation.TestValidator
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
@@ -46,7 +46,7 @@ open class CommandGatewayBenchmark {
             waitStrategyRegistrar = SimpleWaitStrategyRegistrar,
             commandWaitNotifier = commandWaitNotifier
         )
-        commandGateway.receive(setOf(MOCK_AGGREGATE_METADATA.namedAggregate.materialize())).subscribe()
+        commandGateway.receive(setOf(aggregateMetadata<Cart, CartState>().namedAggregate.materialize())).subscribe()
     }
 
     @TearDown
@@ -56,10 +56,7 @@ open class CommandGatewayBenchmark {
 
     @Benchmark
     fun send() {
-        val commandMessage = MockCreateAggregate(
-            id = generateGlobalId(),
-            data = generateGlobalId(),
-        ).toCommandMessage()
+        val commandMessage = createCommandMessage()
         commandGateway.send(commandMessage).block()
     }
 

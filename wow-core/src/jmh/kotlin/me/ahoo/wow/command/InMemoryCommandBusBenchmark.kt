@@ -13,10 +13,10 @@
 
 package me.ahoo.wow.command
 
-import me.ahoo.wow.id.generateGlobalId
+import me.ahoo.wow.example.domain.cart.Cart
+import me.ahoo.wow.example.domain.cart.CartState
+import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.materialize
-import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
-import me.ahoo.wow.tck.mock.MockCreateAggregate
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
@@ -30,7 +30,7 @@ open class InMemoryCommandBusBenchmark {
     @Setup
     fun setup() {
         commandBus = InMemoryCommandBus()
-        commandBus.receive(setOf(MOCK_AGGREGATE_METADATA.namedAggregate.materialize())).subscribe()
+        commandBus.receive(setOf(aggregateMetadata<Cart, CartState>().namedAggregate.materialize())).subscribe()
     }
 
     @TearDown
@@ -40,10 +40,7 @@ open class InMemoryCommandBusBenchmark {
 
     @Benchmark
     fun send() {
-        val commandMessage = MockCreateAggregate(
-            id = generateGlobalId(),
-            data = generateGlobalId(),
-        ).toCommandMessage()
+        val commandMessage = createCommandMessage()
         commandBus.send(commandMessage).block()
     }
 

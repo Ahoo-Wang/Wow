@@ -14,6 +14,6 @@ dependencies {
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
     compileOnly("io.swagger.core.v3:swagger-annotations-jakarta")
     testImplementation(project(":wow-tck"))
+    jmh(project(":example-domain"))
     jmh(project(":wow-test"))
-    jmh(project(":wow-tck"))
 }

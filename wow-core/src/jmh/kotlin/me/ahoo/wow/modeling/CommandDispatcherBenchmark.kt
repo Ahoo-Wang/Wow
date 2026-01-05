@@ -13,12 +13,11 @@
 
 package me.ahoo.wow.modeling
 
-import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.DefaultCommandGateway
 import me.ahoo.wow.command.InMemoryCommandBus
 import me.ahoo.wow.command.ServerCommandExchange
-import me.ahoo.wow.command.toCommandMessage
+import me.ahoo.wow.command.createCommandMessage
 import me.ahoo.wow.command.wait.CommandWaitNotifier
 import me.ahoo.wow.command.wait.LocalCommandWaitNotifier
 import me.ahoo.wow.command.wait.ProcessedNotifierFilter
@@ -31,7 +30,6 @@ import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotRepository
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.filter.FilterChainBuilder
-import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.infra.idempotency.DefaultAggregateIdempotencyCheckerProvider
 import me.ahoo.wow.infra.idempotency.NoOpIdempotencyChecker
 import me.ahoo.wow.ioc.SimpleServiceProvider
@@ -44,7 +42,6 @@ import me.ahoo.wow.modeling.command.dispatcher.DefaultCommandHandler
 import me.ahoo.wow.modeling.command.dispatcher.SendDomainEventStreamFilter
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
-import me.ahoo.wow.tck.mock.MockCreateAggregate
 import me.ahoo.wow.test.validation.TestValidator
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
@@ -103,28 +100,22 @@ open class CommandDispatcherBenchmark {
         commandDispatcher.stop()
     }
 
-    private fun newCommand(): CommandMessage<MockCreateAggregate> {
-        return MockCreateAggregate(
-            id = generateGlobalId(),
-            data = generateGlobalId(),
-        ).toCommandMessage()
-    }
 
     @Benchmark
     fun send(blackHole: Blackhole) {
-        val result = commandGateway.send(newCommand()).block()
+        val result = commandGateway.send(createCommandMessage()).block()
         blackHole.consume(result)
     }
 
     @Benchmark
     fun sendAndWaitForSent(blackHole: Blackhole) {
-        val result = commandGateway.sendAndWaitForSent(newCommand()).block()
+        val result = commandGateway.sendAndWaitForSent(createCommandMessage()).block()
         blackHole.consume(result)
     }
 
     @Benchmark
     fun sendAndWaitForProcessed(blackHole: Blackhole) {
-        val result = commandGateway.sendAndWaitForProcessed(newCommand()).block()
+        val result = commandGateway.sendAndWaitForProcessed(createCommandMessage()).block()
         blackHole.consume(result)
     }
 }
