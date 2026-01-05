@@ -20,6 +20,6 @@ object WaitStrategyInstrumenter {
 
 object WaitStrategySpaceNameExtractor : SpanNameExtractor<String> {
     override fun extract(request: String): String {
-        return request
+        return "command.${request}"
     }
 }
