@@ -49,12 +49,14 @@ abstract class MessageBusSpec<M : Message<*, *>, E : MessageExchange<*, M>, BUS 
     }
 
     open fun verify(block: BUS.() -> Unit) {
-        createMessageBus().metrizable().use { bus ->
+        val messageBus = createMessageBus()
+        messageBus.metrizable().use { bus ->
             if (bus.getOriginalDelegate() is TopicKindCapable) {
                 (bus.getOriginalDelegate() as TopicKindCapable).topicKind.assert().isEqualTo(topicKind)
             }
             block(bus)
         }
+        messageBus.close()
     }
 
     @Test

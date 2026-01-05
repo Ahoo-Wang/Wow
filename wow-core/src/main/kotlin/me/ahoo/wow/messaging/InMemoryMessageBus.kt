@@ -21,7 +21,6 @@ import me.ahoo.wow.modeling.materialize
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
-import reactor.core.scheduler.Schedulers
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -62,11 +61,6 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
         sinks.computeIfAbsent(namedAggregate.materialize()) { sinkSupplier(it) }
 
     /**
-     * Single-threaded scheduler for sending messages.
-     */
-    private val sender = Schedulers.newSingle(this::class.java.simpleName)
-
-    /**
      * Returns the number of subscribers for the specified named aggregate.
      *
      * @param namedAggregate The named aggregate to check
@@ -87,7 +81,7 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
      * @return A Mono that completes when the message has been sent
      */
     override fun send(message: M): Mono<Void> {
-        return Mono.fromRunnable<Void> {
+        return Mono.fromRunnable {
             val sink = computeSink(message)
             if (sink.currentSubscriberCount() == 0) {
                 log.debug {
@@ -100,7 +94,7 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
             }
             message.withReadOnly()
             sink.tryEmitNext(message).orThrow()
-        }.subscribeOn(sender)
+        }
     }
 
     /**
@@ -128,5 +122,15 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
         return Flux.merge(sources).map {
             it.createExchange()
         }
+    }
+
+    override fun close() {
+        sinks.forEach { (aggregate, many) ->
+            val emitResult = many.tryEmitComplete()
+            log.debug {
+                "Close [${aggregate.aggregateName}] sink - [$emitResult]."
+            }
+        }
+        sinks.clear()
     }
 }
