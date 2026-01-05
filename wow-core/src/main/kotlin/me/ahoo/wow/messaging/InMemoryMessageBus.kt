@@ -37,7 +37,7 @@ import java.util.concurrent.ConcurrentHashMap
  */
 @ThreadSafe
 abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBus<M, E>
-    where M : Message<*, *>, M : NamedAggregate {
+        where M : Message<*, *>, M : NamedAggregate {
     companion object {
         private val log = KotlinLogging.logger {}
     }
@@ -88,18 +88,15 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
     override fun send(message: M): Mono<Void> {
         return Mono.fromRunnable<Void> {
             val sink = computeSink(message)
-            val subscriberCount = sink.currentSubscriberCount()
-            if (subscriberCount == 0) {
+            message.withReadOnly()
+            val emitResult = sink.tryEmitNext(message)
+            if (emitResult == Sinks.EmitResult.FAIL_ZERO_SUBSCRIBER) {
                 log.debug {
-                    "No subscriber for [${message.aggregateName}]."
+                    "Send [$message], but no subscribers."
                 }
                 return@fromRunnable
             }
-            log.debug {
-                "Send to [$subscriberCount] \n $message."
-            }
-            message.withReadOnly()
-            sink.tryEmitNext(message).orThrow()
+            emitResult.orThrow()
         }.subscribeOn(sender)
     }
 
