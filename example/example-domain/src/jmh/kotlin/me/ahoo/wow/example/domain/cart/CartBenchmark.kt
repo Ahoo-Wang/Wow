@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.example.domain.cart
 
+import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.DefaultCommandGateway
 import me.ahoo.wow.command.InMemoryCommandBus
@@ -47,9 +48,12 @@ import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.test.validation.TestValidator
 import org.openjdk.jmh.annotations.Benchmark
+import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
+import org.openjdk.jmh.annotations.State
 
-class CartBenchmark {
+@State(Scope.Benchmark)
+open class CartBenchmark {
     private lateinit var commandWaitNotifier: CommandWaitNotifier
     private lateinit var commandGateway: CommandGateway
     private lateinit var eventStore: EventStore
@@ -93,21 +97,20 @@ class CartBenchmark {
         commandDispatcher.start()
     }
 
-    @Benchmark
-    fun sendAndWaitForSent() {
-        val command = AddCartItem(productId = generateGlobalId(), quantity = 1)
+    private fun newAddCartItemCommand(): CommandMessage<AddCartItem> {
+        return AddCartItem(productId = generateGlobalId(), quantity = 1)
             .commandBuilder()
             .aggregateId(generateGlobalId())
-            .toCommandMessage<AddCartItem>()
-        commandGateway.sendAndWaitForSent(command).block()
+            .toCommandMessage()
+    }
+
+    @Benchmark
+    fun sendAndWaitForSent() {
+        commandGateway.sendAndWaitForSent(newAddCartItemCommand()).block()
     }
 
     @Benchmark
     fun sendAndWaitForProcessed() {
-        val command = AddCartItem(productId = generateGlobalId(), quantity = 1)
-            .commandBuilder()
-            .aggregateId(generateGlobalId())
-            .toCommandMessage<AddCartItem>()
-        commandGateway.sendAndWaitForProcessed(command).block()
+        commandGateway.sendAndWaitForProcessed(newAddCartItemCommand()).block()
     }
 }
