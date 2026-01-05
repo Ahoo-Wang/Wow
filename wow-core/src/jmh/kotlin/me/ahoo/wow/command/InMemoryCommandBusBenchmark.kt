@@ -13,9 +13,6 @@
 
 package me.ahoo.wow.command
 
-import me.ahoo.wow.example.domain.cart.Cart
-import me.ahoo.wow.example.domain.cart.CartState
-import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.materialize
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
@@ -30,7 +27,7 @@ open class InMemoryCommandBusBenchmark {
     @Setup
     fun setup() {
         commandBus = InMemoryCommandBus()
-        commandBus.receive(setOf(aggregateMetadata<Cart, CartState>().namedAggregate.materialize())).subscribe()
+        commandBus.receive(setOf(mockAggregateMetadata.namedAggregate.materialize())).subscribe()
     }
 
     @TearDown
