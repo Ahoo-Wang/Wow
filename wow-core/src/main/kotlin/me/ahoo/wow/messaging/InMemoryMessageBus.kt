@@ -20,9 +20,7 @@ import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.modeling.materialize
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
-import reactor.core.publisher.SignalType
 import reactor.core.publisher.Sinks
-import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -40,8 +38,6 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
     companion object {
         private val log = KotlinLogging.logger {}
     }
-
-    open val busyLoopingDuration: Duration = Duration.ofMillis(100)
 
     /**
      * Supplier function that creates a sink for a given named aggregate.
@@ -75,20 +71,19 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
         return sink.currentSubscriberCount()
     }
 
-    private fun tryLoopEmitNext(
+    private fun safeEmitNext(
         sink: Sinks.Many<M>,
-        message: M,
-        failureHandler: Sinks.EmitFailureHandler = Sinks.EmitFailureHandler.busyLooping(busyLoopingDuration)
+        message: M
     ) {
-        while (true) {
+        val emitResult = sink.tryEmitNext(message)
+        if (emitResult.isSuccess) {
+            return
+        }
+        if (emitResult != Sinks.EmitResult.FAIL_NON_SERIALIZED) {
+            emitResult.orThrow()
+        }
+        synchronized(sink) {
             val emitResult = sink.tryEmitNext(message)
-            if (emitResult.isSuccess) {
-                return
-            }
-            val shouldRetry = failureHandler.onEmitFailure(SignalType.ON_NEXT, emitResult)
-            if (shouldRetry) {
-                continue
-            }
             emitResult.orThrow()
         }
     }
@@ -115,7 +110,7 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
                 "Send to [${sink.currentSubscriberCount()}] \n $message."
             }
             message.withReadOnly()
-            tryLoopEmitNext(sink, message)
+            safeEmitNext(sink, message)
         }
     }
 
