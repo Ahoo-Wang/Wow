@@ -168,6 +168,8 @@ configure(libraryProjects) {
         testImplementation("org.junit.jupiter:junit-jupiter-params")
         testRuntimeOnly("org.junit.platform:junit-platform-launcher")
         testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
+        jmh("org.openjdk.jmh:jmh-core")
+        jmh("org.openjdk.jmh:jmh-generator-annprocess")
     }
 }
 
