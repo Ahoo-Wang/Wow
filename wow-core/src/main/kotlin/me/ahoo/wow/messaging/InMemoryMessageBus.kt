@@ -20,7 +20,9 @@ import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.modeling.materialize
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import reactor.core.publisher.SignalType
 import reactor.core.publisher.Sinks
+import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -71,6 +73,24 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
         return sink.currentSubscriberCount()
     }
 
+    private fun tryLoopEmitNext(
+        sink: Sinks.Many<M>,
+        message: M,
+        failureHandler: Sinks.EmitFailureHandler = Sinks.EmitFailureHandler.busyLooping(Duration.ofMillis(10))
+    ) {
+        while (true) {
+            val emitResult = sink.tryEmitNext(message)
+            if (emitResult.isSuccess) {
+                return
+            }
+            val shouldRetry = failureHandler.onEmitFailure(SignalType.ON_NEXT, emitResult)
+            if (shouldRetry) {
+                continue
+            }
+            emitResult.orThrow()
+        }
+    }
+
     /**
      * Sends a message through the in-memory bus.
      *
@@ -93,7 +113,7 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
                 "Send to [${sink.currentSubscriberCount()}] \n $message."
             }
             message.withReadOnly()
-            sink.tryEmitNext(message).orThrow()
+            tryLoopEmitNext(sink, message)
         }
     }
 
