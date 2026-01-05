@@ -78,6 +78,7 @@ import java.util.concurrent.atomic.AtomicInteger
 abstract class AggregateDispatcher<T : MessageExchange<*, *>> :
     SafeSubscriber<Void>(),
     MessageDispatcher,
+    ParallelismCapable,
     NamedAggregateDecorator {
     companion object {
         private val log = KotlinLogging.logger {}
@@ -94,7 +95,7 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> :
      * Typical values range from 1 (sequential processing) to the number
      * of available CPU cores or higher for I/O-bound workloads.
      */
-    abstract val parallelism: Int
+    abstract override val parallelism: Int
 
     /**
      * The scheduler to use for processing message exchanges.

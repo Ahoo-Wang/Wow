@@ -42,3 +42,7 @@ object MessageParallelism {
      */
     fun AggregateIdCapable.toGroupKey(parallelism: Int = DEFAULT_PARALLELISM): Int = aggregateId.mod(parallelism)
 }
+
+interface ParallelismCapable {
+    val parallelism: Int
+}
