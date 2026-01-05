@@ -22,6 +22,7 @@ import me.ahoo.wow.messaging.handler.DEFAULT_RETRY_SPEC
 import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.client.WebClient
 import reactor.core.publisher.Mono
+import reactor.core.scheduler.Schedulers
 
 class WebClientCommandWaitNotifier(
     private val waitStrategyRegistrar: WaitStrategyRegistrar,
@@ -51,6 +52,7 @@ class WebClientCommandWaitNotifier(
                 .retrieve()
                 .bodyToMono(Void::class.java)
                 .retryWhen(DEFAULT_RETRY_SPEC)
+                .subscribeOn(Schedulers.boundedElastic())
         }
     }
 }
