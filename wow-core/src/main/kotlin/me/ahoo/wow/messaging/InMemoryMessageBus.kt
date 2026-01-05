@@ -22,6 +22,7 @@ import me.ahoo.wow.modeling.materialize
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
+import reactor.core.scheduler.Schedulers
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -40,6 +41,8 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
     companion object {
         private val log = KotlinLogging.logger {}
     }
+
+    private val sender = Schedulers.newSingle(this::class.java.simpleName)
 
     /**
      * Supplier function that creates a sink for a given named aggregate.
@@ -73,23 +76,6 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
         return sink.currentSubscriberCount()
     }
 
-    private fun safeEmitNext(
-        sink: Sinks.Many<M>,
-        message: M
-    ) {
-        val emitResult = sink.tryEmitNext(message)
-        if (emitResult.isSuccess) {
-            return
-        }
-        if (emitResult != Sinks.EmitResult.FAIL_NON_SERIALIZED) {
-            emitResult.orThrow()
-        }
-        synchronized(sink) {
-            val emitResult = sink.tryEmitNext(message)
-            emitResult.orThrow()
-        }
-    }
-
     /**
      * Sends a message through the in-memory bus.
      *
@@ -100,7 +86,7 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
      * @return A Mono that completes when the message has been sent
      */
     override fun send(message: M): Mono<Void> {
-        return Mono.fromRunnable {
+        return Mono.fromRunnable<Void> {
             val sink = computeSink(message)
             val subscriberCount = sink.currentSubscriberCount()
             if (subscriberCount == 0) {
@@ -113,8 +99,8 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
                 "Send to [$subscriberCount] \n $message."
             }
             message.withReadOnly()
-            safeEmitNext(sink, message)
-        }
+            sink.tryEmitNext(message).orThrow()
+        }.subscribeOn(sender)
     }
 
     /**
