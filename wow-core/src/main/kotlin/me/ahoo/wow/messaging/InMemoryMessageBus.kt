@@ -41,6 +41,8 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
         private val log = KotlinLogging.logger {}
     }
 
+    open val busyLoopingDuration: Duration = Duration.ofMillis(100)
+
     /**
      * Supplier function that creates a sink for a given named aggregate.
      *
@@ -76,7 +78,7 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
     private fun tryLoopEmitNext(
         sink: Sinks.Many<M>,
         message: M,
-        failureHandler: Sinks.EmitFailureHandler = Sinks.EmitFailureHandler.busyLooping(Duration.ofMillis(10))
+        failureHandler: Sinks.EmitFailureHandler = Sinks.EmitFailureHandler.busyLooping(busyLoopingDuration)
     ) {
         while (true) {
             val emitResult = sink.tryEmitNext(message)
