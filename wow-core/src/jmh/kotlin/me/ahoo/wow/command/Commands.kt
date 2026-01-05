@@ -13,17 +13,14 @@
 
 package me.ahoo.wow.command
 
-import org.openjdk.jmh.annotations.Benchmark
-import org.openjdk.jmh.annotations.Scope
-import org.openjdk.jmh.annotations.State
-import org.openjdk.jmh.infra.Blackhole
+import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.command.factory.CommandBuilder.Companion.commandBuilder
+import me.ahoo.wow.example.api.cart.AddCartItem
+import me.ahoo.wow.id.generateGlobalId
 
-@State(Scope.Benchmark)
-open class CommandFactoryBenchmark {
-
-    @Benchmark
-    fun send(blackhole: Blackhole) {
-        val commandMessage = createCommandMessage()
-        blackhole.consume(commandMessage)
-    }
+fun createCommandMessage(): CommandMessage<AddCartItem> {
+    return AddCartItem(productId = generateGlobalId(), quantity = 1)
+        .commandBuilder()
+        .aggregateId(generateGlobalId())
+        .toCommandMessage()
 }
