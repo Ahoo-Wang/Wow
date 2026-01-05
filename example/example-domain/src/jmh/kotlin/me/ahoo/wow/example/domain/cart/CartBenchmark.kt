@@ -105,6 +105,11 @@ open class CartBenchmark {
     }
 
     @Benchmark
+    fun send() {
+        commandGateway.send(newAddCartItemCommand()).block()
+    }
+
+    @Benchmark
     fun sendAndWaitForSent() {
         commandGateway.sendAndWaitForSent(newAddCartItemCommand()).block()
     }
