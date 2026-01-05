@@ -113,4 +113,9 @@ open class CartBenchmark {
     fun sendAndWaitForProcessed() {
         commandGateway.sendAndWaitForProcessed(newAddCartItemCommand()).block()
     }
+
+    @Benchmark
+    fun sendAndWaitForSnapshot() {
+        commandGateway.sendAndWaitForSnapshot(newAddCartItemCommand()).block()
+    }
 }
