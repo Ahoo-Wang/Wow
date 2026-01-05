@@ -15,6 +15,7 @@ package me.ahoo.wow.opentelemetry
 
 import me.ahoo.wow.command.DistributedCommandBus
 import me.ahoo.wow.command.LocalCommandBus
+import me.ahoo.wow.command.wait.WaitStrategy
 import me.ahoo.wow.event.DistributedDomainEventBus
 import me.ahoo.wow.event.LocalDomainEventBus
 import me.ahoo.wow.eventsourcing.EventStore
@@ -30,6 +31,7 @@ import me.ahoo.wow.opentelemetry.messaging.TracingLocalEventBus
 import me.ahoo.wow.opentelemetry.messaging.TracingLocalStateEventBus
 import me.ahoo.wow.opentelemetry.messaging.TracingMessageBus
 import me.ahoo.wow.opentelemetry.snapshot.TracingSnapshotRepository
+import me.ahoo.wow.opentelemetry.wait.TracingWaitStrategy
 
 object Tracing {
 
@@ -81,6 +83,12 @@ object Tracing {
         }
     }
 
+    fun WaitStrategy.tracing(): WaitStrategy {
+        return tracing {
+            TracingWaitStrategy(this)
+        }
+    }
+
     fun <T : Any> T.tracing(): Any {
         return when (this) {
             is LocalCommandBus -> tracing()
@@ -91,6 +99,7 @@ object Tracing {
             is SnapshotRepository -> tracing()
             is LocalStateEventBus -> tracing()
             is DistributedStateEventBus -> tracing()
+            is WaitStrategy -> tracing()
             else -> this
         }
     }
