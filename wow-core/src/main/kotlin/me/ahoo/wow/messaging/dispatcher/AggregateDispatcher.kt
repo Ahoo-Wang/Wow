@@ -146,7 +146,7 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> :
             .groupBy { it.toGroupKey() }
             .flatMap({ grouped ->
                 handleGroupedExchange(grouped)
-            }, Int.MAX_VALUE, Int.MAX_VALUE)
+            }, parallelism, parallelism)
             .subscribe(this)
     }
 

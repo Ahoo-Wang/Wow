@@ -108,12 +108,10 @@ abstract class AbstractAggregateEventDispatcher<E : MessageExchange<*, DomainEve
         exchange: E,
         event: DomainEvent<*>
     ): Mono<Void> {
-        val functions =
-            functionRegistrar
-                .supportedFunctions(event)
-                .filter {
-                    event.match(it)
-                }.toSet()
+        val functions = functionRegistrar.supportedFunctions(event)
+            .filter {
+                event.match(it)
+            }.toSet()
         if (functions.isEmpty()) {
             log.debug {
                 "Not find any functions.Ignore this event:[${event.toJsonString()}]."
@@ -123,10 +121,7 @@ abstract class AbstractAggregateEventDispatcher<E : MessageExchange<*, DomainEve
         return Flux
             .fromIterable(functions)
             .flatMap { function ->
-                val eventExchange =
-                    exchange
-                        .createEventExchange(event)
-                        .setFunction(function)
+                val eventExchange = exchange.createEventExchange(event).setFunction(function)
                 eventHandler.handle(eventExchange)
             }.then()
     }
