@@ -24,6 +24,7 @@ plugins {
     alias(libs.plugins.detekt)
     alias(libs.plugins.kotlin)
     alias(libs.plugins.dokka)
+    alias(libs.plugins.jmh)
     jacoco
 }
 
@@ -100,6 +101,42 @@ configure(libraryProjects) {
     }
     tasks.withType<JavaCompile> {
         options.compilerArgs.addAll(listOf("-parameters"))
+    }
+    apply<me.champeau.jmh.JMHPlugin>()
+    configure<me.champeau.jmh.JmhParameters> {
+        val delimiter = ',';
+        val jmhIncludesKey = "jmhIncludes"
+        val jmhExcludesKey = "jmhExcludes"
+        val jmhThreadsKey = "jmhThreads"
+        val jmhModeKey = "jmhMode"
+
+        if (project.hasProperty(jmhIncludesKey)) {
+            val jmhIncludes = project.properties[jmhIncludesKey].toString().split(delimiter)
+            includes.set(jmhIncludes)
+        }
+        if (project.hasProperty(jmhExcludesKey)) {
+            val jmhExcludes = project.properties[jmhExcludesKey].toString().split(delimiter)
+            excludes.set(jmhExcludes)
+        }
+
+        warmupIterations.set(1)
+        iterations.set(1)
+        resultFormat.set("json")
+
+        var jmhMode = listOf(
+            "thrpt"
+        )
+        if (project.hasProperty(jmhModeKey)) {
+            jmhMode = project.properties[jmhModeKey].toString().split(delimiter)
+        }
+        benchmarkMode.set(jmhMode)
+        var jmhThreads = 1
+        if (project.hasProperty(jmhThreadsKey)) {
+            jmhThreads = Integer.valueOf(project.properties[jmhThreadsKey].toString())
+        }
+        threads.set(jmhThreads)
+        fork.set(1)
+        jvmArgs.set(listOf("-Dlogback.configurationFile=${rootProject.rootDir}/config/logback-jmh.xml"))
     }
     apply<TestRetryPlugin>()
     tasks.withType<Test> {
