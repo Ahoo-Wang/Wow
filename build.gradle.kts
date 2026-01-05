@@ -130,7 +130,7 @@ configure(libraryProjects) {
             jmhMode = project.properties[jmhModeKey].toString().split(delimiter)
         }
         benchmarkMode.set(jmhMode)
-        var jmhThreads = 1
+        var jmhThreads = Runtime.getRuntime().availableProcessors()
         if (project.hasProperty(jmhThreadsKey)) {
             jmhThreads = Integer.valueOf(project.properties[jmhThreadsKey].toString())
         }
