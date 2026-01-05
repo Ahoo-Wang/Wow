@@ -48,11 +48,32 @@ import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.test.validation.TestValidator
 import org.openjdk.jmh.annotations.Benchmark
+import org.openjdk.jmh.annotations.BenchmarkMode
+import org.openjdk.jmh.annotations.Fork
+import org.openjdk.jmh.annotations.Measurement
+import org.openjdk.jmh.annotations.Mode
+import org.openjdk.jmh.annotations.OutputTimeUnit
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.annotations.TearDown
+import org.openjdk.jmh.annotations.Warmup
+import org.openjdk.jmh.infra.Blackhole
+import java.util.concurrent.TimeUnit
 
+@BenchmarkMode(Mode.Throughput, Mode.AverageTime)
+@OutputTimeUnit(TimeUnit.MICROSECONDS)
+@Warmup(iterations = 3, time = 10, timeUnit = TimeUnit.SECONDS)
+@Measurement(iterations = 5, time = 15, timeUnit = TimeUnit.SECONDS)
+@Fork(
+    value = 2,
+    jvmArgs = [
+        "-Xms2g",
+        "-Xmx2g",
+        "-XX: +UseG1GC",
+        "-XX:MaxGCPauseMillis=50"
+    ]
+)
 @State(Scope.Benchmark)
 open class CartBenchmark {
     private lateinit var commandWaitNotifier: CommandWaitNotifier
@@ -111,17 +132,25 @@ open class CartBenchmark {
     }
 
     @Benchmark
-    fun send() {
-        commandGateway.send(newAddCartItemCommand()).block()
+    fun createAddCartItemCommand(blackHole: Blackhole) {
+        blackHole.consume(newAddCartItemCommand())
     }
 
     @Benchmark
-    fun sendAndWaitForSent() {
-        commandGateway.sendAndWaitForSent(newAddCartItemCommand()).block()
+    fun send(blackHole: Blackhole) {
+        val result = commandGateway.send(newAddCartItemCommand()).block()
+        blackHole.consume(result)
     }
 
     @Benchmark
-    fun sendAndWaitForProcessed() {
-        commandGateway.sendAndWaitForProcessed(newAddCartItemCommand()).block()
+    fun sendAndWaitForSent(blackHole: Blackhole) {
+        val result = commandGateway.sendAndWaitForSent(newAddCartItemCommand()).block()
+        blackHole.consume(result)
+    }
+
+    @Benchmark
+    fun sendAndWaitForProcessed(blackHole: Blackhole) {
+        val result = commandGateway.sendAndWaitForProcessed(newAddCartItemCommand()).block()
+        blackHole.consume(result)
     }
 }
