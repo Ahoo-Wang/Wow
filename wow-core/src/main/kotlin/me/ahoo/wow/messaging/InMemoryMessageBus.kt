@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.messaging
 
+import com.google.errorprone.annotations.ThreadSafe
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.modeling.NamedAggregate
@@ -33,6 +34,7 @@ import java.util.concurrent.ConcurrentHashMap
  * @param M The type of message, must implement both Message and NamedAggregate
  * @param E The type of message exchange
  */
+@ThreadSafe
 abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBus<M, E>
     where M : Message<*, *>, M : NamedAggregate {
     companion object {
@@ -100,14 +102,15 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
     override fun send(message: M): Mono<Void> {
         return Mono.fromRunnable {
             val sink = computeSink(message)
-            if (sink.currentSubscriberCount() == 0) {
+            val subscriberCount = sink.currentSubscriberCount()
+            if (subscriberCount == 0) {
                 log.debug {
                     "No subscriber for [${message.aggregateName}]."
                 }
                 return@fromRunnable
             }
             log.debug {
-                "Send to [${sink.currentSubscriberCount()}] \n $message."
+                "Send to [$subscriberCount] \n $message."
             }
             message.withReadOnly()
             safeEmitNext(sink, message)
