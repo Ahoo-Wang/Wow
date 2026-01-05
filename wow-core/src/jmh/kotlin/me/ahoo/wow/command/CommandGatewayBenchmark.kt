@@ -16,11 +16,8 @@ package me.ahoo.wow.command
 import me.ahoo.wow.command.wait.LocalCommandWaitNotifier
 import me.ahoo.wow.command.wait.SimpleCommandWaitEndpoint
 import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
-import me.ahoo.wow.example.domain.cart.Cart
-import me.ahoo.wow.example.domain.cart.CartState
 import me.ahoo.wow.infra.idempotency.DefaultAggregateIdempotencyCheckerProvider
 import me.ahoo.wow.infra.idempotency.NoOpIdempotencyChecker
-import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.test.validation.TestValidator
 import org.openjdk.jmh.annotations.Benchmark
@@ -46,7 +43,7 @@ open class CommandGatewayBenchmark {
             waitStrategyRegistrar = SimpleWaitStrategyRegistrar,
             commandWaitNotifier = commandWaitNotifier
         )
-        commandGateway.receive(setOf(aggregateMetadata<Cart, CartState>().namedAggregate.materialize())).subscribe()
+        commandGateway.receive(setOf(mockAggregateMetadata.namedAggregate.materialize())).subscribe()
     }
 
     @TearDown
