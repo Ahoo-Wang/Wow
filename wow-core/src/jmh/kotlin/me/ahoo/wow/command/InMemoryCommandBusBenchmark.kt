@@ -19,6 +19,7 @@ import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
+import org.openjdk.jmh.annotations.TearDown
 
 @State(Scope.Benchmark)
 open class InMemoryCommandBusBenchmark {
@@ -29,6 +30,11 @@ open class InMemoryCommandBusBenchmark {
         commandBus = InMemoryCommandBus()
     }
 
+    @TearDown
+    fun tearDown() {
+        commandBus.close()
+    }
+
     @Benchmark
     fun send() {
         val commandMessage = MockCreateAggregate(
@@ -37,4 +43,5 @@ open class InMemoryCommandBusBenchmark {
         ).toCommandMessage()
         commandBus.send(commandMessage).block()
     }
+
 }
