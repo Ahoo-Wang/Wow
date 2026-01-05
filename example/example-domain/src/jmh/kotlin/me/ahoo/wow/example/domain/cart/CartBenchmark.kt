@@ -51,6 +51,7 @@ import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
+import org.openjdk.jmh.annotations.TearDown
 
 @State(Scope.Benchmark)
 open class CartBenchmark {
@@ -95,6 +96,11 @@ open class CartBenchmark {
             commandHandler = DefaultCommandHandler(chain)
         )
         commandDispatcher.start()
+    }
+
+    @TearDown
+    fun tearDown() {
+        commandDispatcher.stop()
     }
 
     private fun newAddCartItemCommand(): CommandMessage<AddCartItem> {
