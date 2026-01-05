@@ -16,7 +16,6 @@ package me.ahoo.wow.command.wait
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.id.GlobalIdGenerator
 import reactor.core.publisher.Mono
-import reactor.core.scheduler.Schedulers
 
 /**
  * Interface for notifying command wait endpoints about processing results.
@@ -49,9 +48,7 @@ interface CommandWaitNotifier {
         commandWaitEndpoint: String,
         waitSignal: WaitSignal
     ) {
-        notify(commandWaitEndpoint, waitSignal)
-            .subscribeOn(Schedulers.boundedElastic())
-            .subscribe()
+        notify(commandWaitEndpoint, waitSignal).subscribe()
     }
 }
 
@@ -92,13 +89,6 @@ class LocalCommandWaitNotifier(
                 }
             }
         }
-
-    override fun notifyAndForget(
-        commandWaitEndpoint: String,
-        waitSignal: WaitSignal
-    ) {
-        notify(commandWaitEndpoint, waitSignal).subscribe()
-    }
 }
 
 /**
