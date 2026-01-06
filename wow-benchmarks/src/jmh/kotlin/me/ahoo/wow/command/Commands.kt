@@ -13,11 +13,15 @@
 
 package me.ahoo.wow.command
 
+import com.google.common.hash.BloomFilter
+import com.google.common.hash.Funnels
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.example.api.cart.AddCartItem
 import me.ahoo.wow.example.domain.cart.Cart
 import me.ahoo.wow.example.domain.cart.CartState
+import me.ahoo.wow.infra.idempotency.BloomFilterIdempotencyChecker
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
+import java.time.Duration
 
 val cartAggregateMetadata = aggregateMetadata<Cart, CartState>()
 
@@ -25,4 +29,14 @@ fun createCommandMessage(): CommandMessage<AddCartItem> {
     return AddCartItem(
         productId = "productId"
     ).toCommandMessage()
+}
+
+fun createBloomFilterIdempotencyChecker(): BloomFilterIdempotencyChecker {
+    return BloomFilterIdempotencyChecker(Duration.ofMinutes(1)) {
+        BloomFilter.create(
+            Funnels.stringFunnel(Charsets.UTF_8),
+            1_000_000,
+            0.00001,
+        )
+    }
 }

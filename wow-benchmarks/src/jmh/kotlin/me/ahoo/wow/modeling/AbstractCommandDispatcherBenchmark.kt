@@ -15,6 +15,7 @@ package me.ahoo.wow.modeling
 
 import com.google.common.hash.BloomFilter
 import com.google.common.hash.Funnels
+import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.DefaultCommandGateway
 import me.ahoo.wow.command.InMemoryCommandBus
@@ -25,6 +26,7 @@ import me.ahoo.wow.command.wait.LocalCommandWaitNotifier
 import me.ahoo.wow.command.wait.ProcessedNotifierFilter
 import me.ahoo.wow.command.wait.SimpleCommandWaitEndpoint
 import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
+import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.InMemoryDomainEventBus
 import me.ahoo.wow.eventsourcing.EventSourcingStateAggregateRepository
 import me.ahoo.wow.eventsourcing.EventStore
@@ -32,7 +34,9 @@ import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotRepository
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
 import me.ahoo.wow.eventsourcing.state.SendStateEventFilter
+import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.filter.FilterChainBuilder
+import me.ahoo.wow.infra.idempotency.AggregateIdempotencyCheckerProvider
 import me.ahoo.wow.infra.idempotency.BloomFilterIdempotencyChecker
 import me.ahoo.wow.infra.idempotency.DefaultAggregateIdempotencyCheckerProvider
 import me.ahoo.wow.ioc.SimpleServiceProvider
@@ -62,23 +66,15 @@ abstract class AbstractCommandDispatcherBenchmark {
         commandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar)
         commandGateway = DefaultCommandGateway(
             commandWaitEndpoint = SimpleCommandWaitEndpoint(""),
-            commandBus = InMemoryCommandBus(),
+            commandBus = createCommandBus(),
             validator = TestValidator,
-            idempotencyCheckerProvider = DefaultAggregateIdempotencyCheckerProvider {
-                BloomFilterIdempotencyChecker(Duration.ofMinutes(1)) {
-                    BloomFilter.create(
-                        Funnels.stringFunnel(Charsets.UTF_8),
-                        10_000_000_000,
-                        0.0000001,
-                    )
-                }
-            },
+            idempotencyCheckerProvider = createIdempotencyCheckerProvider(),
             waitStrategyRegistrar = SimpleWaitStrategyRegistrar,
             commandWaitNotifier = commandWaitNotifier
         )
 
         eventStore = createEventStore()
-        snapshotRepository = InMemorySnapshotRepository()
+        snapshotRepository = createSnapshotRepository()
         stateAggregateRepository =
             EventSourcingStateAggregateRepository(
                 ConstructorStateAggregateFactory,
@@ -93,8 +89,8 @@ abstract class AbstractCommandDispatcherBenchmark {
 
         val chain = FilterChainBuilder<ServerCommandExchange<*>>()
             .addFilter(AggregateProcessorFilter(SimpleServiceProvider(), aggregateProcessorFactory))
-            .addFilter(SendDomainEventStreamFilter(InMemoryDomainEventBus()))
-            .addFilter(SendStateEventFilter(InMemoryStateEventBus()))
+            .addFilter(SendDomainEventStreamFilter(createDomainEventBus()))
+            .addFilter(SendStateEventFilter(createStateEventBus()))
             .addFilter(ProcessedNotifierFilter(commandWaitNotifier))
             .build()
         commandDispatcher = CommandDispatcher(
@@ -104,7 +100,35 @@ abstract class AbstractCommandDispatcherBenchmark {
         commandDispatcher.start()
     }
 
+    open fun createCommandBus(): CommandBus {
+        return InMemoryCommandBus()
+    }
+
+    open fun createDomainEventBus(): DomainEventBus {
+        return InMemoryDomainEventBus()
+    }
+
+    open fun createStateEventBus(): StateEventBus {
+        return InMemoryStateEventBus()
+    }
+
     abstract fun createEventStore(): EventStore
+
+    open fun createIdempotencyCheckerProvider(): AggregateIdempotencyCheckerProvider {
+        return DefaultAggregateIdempotencyCheckerProvider {
+            BloomFilterIdempotencyChecker(Duration.ofMinutes(1)) {
+                BloomFilter.create(
+                    Funnels.stringFunnel(Charsets.UTF_8),
+                    1_000_000,
+                    0.00001,
+                )
+            }
+        }
+    }
+
+    open fun createSnapshotRepository(): SnapshotRepository {
+        return InMemorySnapshotRepository()
+    }
 
     open fun destroy() {
         commandDispatcher.stop()
