@@ -35,7 +35,7 @@ fun createBloomFilterIdempotencyChecker(): BloomFilterIdempotencyChecker {
     return BloomFilterIdempotencyChecker(Duration.ofMinutes(1)) {
         BloomFilter.create(
             Funnels.stringFunnel(Charsets.UTF_8),
-            1_000_000,
+            10_000_000,
             0.00001,
         )
     }
