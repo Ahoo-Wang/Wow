@@ -5,8 +5,9 @@ plugins {
 }
 
 dependencies {
-    api(project(":example-domain"))
     ksp(project(":wow-compiler"))
+    implementation(project(":example-domain"))
+    implementation(project(":wow-mock"))
     testImplementation(project(":wow-test"))
     testImplementation("io.projectreactor:reactor-test")
     jmh(project(":wow-test"))

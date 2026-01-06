@@ -13,12 +13,13 @@
 
 package me.ahoo.wow.modeling
 
+import com.google.common.hash.BloomFilter
+import com.google.common.hash.Funnels
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.DefaultCommandGateway
 import me.ahoo.wow.command.InMemoryCommandBus
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.createCommandMessage
-import me.ahoo.wow.command.validation.NoOpValidator
 import me.ahoo.wow.command.wait.CommandWaitNotifier
 import me.ahoo.wow.command.wait.LocalCommandWaitNotifier
 import me.ahoo.wow.command.wait.ProcessedNotifierFilter
@@ -27,14 +28,13 @@ import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
 import me.ahoo.wow.event.InMemoryDomainEventBus
 import me.ahoo.wow.eventsourcing.EventSourcingStateAggregateRepository
 import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.eventsourcing.NoopEventStore
 import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotRepository
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
 import me.ahoo.wow.eventsourcing.state.SendStateEventFilter
 import me.ahoo.wow.filter.FilterChainBuilder
+import me.ahoo.wow.infra.idempotency.BloomFilterIdempotencyChecker
 import me.ahoo.wow.infra.idempotency.DefaultAggregateIdempotencyCheckerProvider
-import me.ahoo.wow.infra.idempotency.NoOpIdempotencyChecker
 import me.ahoo.wow.ioc.SimpleServiceProvider
 import me.ahoo.wow.modeling.command.AggregateProcessorFactory
 import me.ahoo.wow.modeling.command.RetryableAggregateProcessorFactory
@@ -45,15 +45,11 @@ import me.ahoo.wow.modeling.command.dispatcher.DefaultCommandHandler
 import me.ahoo.wow.modeling.command.dispatcher.SendDomainEventStreamFilter
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
-import org.openjdk.jmh.annotations.Benchmark
-import org.openjdk.jmh.annotations.Scope
-import org.openjdk.jmh.annotations.Setup
-import org.openjdk.jmh.annotations.State
-import org.openjdk.jmh.annotations.TearDown
+import me.ahoo.wow.test.validation.TestValidator
 import org.openjdk.jmh.infra.Blackhole
+import java.time.Duration
 
-@State(Scope.Benchmark)
-open class SlimCommandDispatcherBenchmark {
+abstract class AbstractCommandDispatcherBenchmark {
     private lateinit var commandWaitNotifier: CommandWaitNotifier
     private lateinit var commandGateway: CommandGateway
     private lateinit var eventStore: EventStore
@@ -62,23 +58,33 @@ open class SlimCommandDispatcherBenchmark {
     private lateinit var aggregateProcessorFactory: AggregateProcessorFactory
     private lateinit var commandDispatcher: CommandDispatcher
 
-    @Setup
-    fun setup() {
+    open fun setup() {
         commandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar)
         commandGateway = DefaultCommandGateway(
             commandWaitEndpoint = SimpleCommandWaitEndpoint(""),
             commandBus = InMemoryCommandBus(),
-            validator = NoOpValidator,
-            idempotencyCheckerProvider = DefaultAggregateIdempotencyCheckerProvider({
-                NoOpIdempotencyChecker
-            }),
+            validator = TestValidator,
+            idempotencyCheckerProvider = DefaultAggregateIdempotencyCheckerProvider {
+                BloomFilterIdempotencyChecker(Duration.ofMinutes(1)) {
+                    BloomFilter.create(
+                        Funnels.stringFunnel(Charsets.UTF_8),
+                        10_000_000_000,
+                        0.0000001,
+                    )
+                }
+            },
             waitStrategyRegistrar = SimpleWaitStrategyRegistrar,
             commandWaitNotifier = commandWaitNotifier
         )
-        eventStore = NoopEventStore
+
+        eventStore = createEventStore()
         snapshotRepository = InMemorySnapshotRepository()
         stateAggregateRepository =
-            EventSourcingStateAggregateRepository(ConstructorStateAggregateFactory, snapshotRepository, eventStore)
+            EventSourcingStateAggregateRepository(
+                ConstructorStateAggregateFactory,
+                snapshotRepository,
+                eventStore
+            )
         aggregateProcessorFactory = RetryableAggregateProcessorFactory(
             ConstructorStateAggregateFactory,
             stateAggregateRepository,
@@ -98,25 +104,24 @@ open class SlimCommandDispatcherBenchmark {
         commandDispatcher.start()
     }
 
-    @TearDown
-    fun tearDown() {
+    abstract fun createEventStore(): EventStore
+
+    open fun destroy() {
         commandDispatcher.stop()
     }
 
-    @Benchmark
-    fun send(blackHole: Blackhole) {
+
+    open fun send(blackHole: Blackhole) {
         val result = commandGateway.send(createCommandMessage()).block()
         blackHole.consume(result)
     }
 
-    @Benchmark
-    fun sendAndWaitForSent(blackHole: Blackhole) {
+    open fun sendAndWaitForSent(blackHole: Blackhole) {
         val result = commandGateway.sendAndWaitForSent(createCommandMessage()).block()
         blackHole.consume(result)
     }
 
-    @Benchmark
-    fun sendAndWaitForProcessed(blackHole: Blackhole) {
+    open fun sendAndWaitForProcessed(blackHole: Blackhole) {
         val result = commandGateway.sendAndWaitForProcessed(createCommandMessage()).block()
         blackHole.consume(result)
     }
