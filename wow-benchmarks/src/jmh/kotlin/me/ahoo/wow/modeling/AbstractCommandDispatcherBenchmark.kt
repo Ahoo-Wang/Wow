@@ -16,6 +16,7 @@ package me.ahoo.wow.modeling
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.DefaultCommandGateway
+import me.ahoo.wow.command.DuplicateRequestIdException
 import me.ahoo.wow.command.InMemoryCommandBus
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.createBloomFilterIdempotencyChecker
@@ -29,6 +30,7 @@ import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.InMemoryDomainEventBus
 import me.ahoo.wow.eventsourcing.EventSourcingStateAggregateRepository
 import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotRepository
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
@@ -109,7 +111,9 @@ abstract class AbstractCommandDispatcherBenchmark {
         return InMemoryStateEventBus()
     }
 
-    abstract fun createEventStore(): EventStore
+    open fun createEventStore(): EventStore {
+        return InMemoryEventStore()
+    }
 
     open fun createIdempotencyCheckerProvider(): AggregateIdempotencyCheckerProvider {
         return DefaultAggregateIdempotencyCheckerProvider {
@@ -125,19 +129,31 @@ abstract class AbstractCommandDispatcherBenchmark {
         commandDispatcher.stop()
     }
 
+    inline fun run(blackHole: Blackhole, block: () -> Any?) {
+        try {
+            val result = block()
+            blackHole.consume(result)
+        } catch (duplicateRequestIdException: DuplicateRequestIdException) {
+            blackHole.consume(duplicateRequestIdException)
+        }
+    }
 
     open fun send(blackHole: Blackhole) {
-        val result = commandGateway.send(createCommandMessage()).block()
-        blackHole.consume(result)
+        run(blackHole) {
+            commandGateway.send(createCommandMessage()).block()
+        }
     }
 
     open fun sendAndWaitForSent(blackHole: Blackhole) {
-        val result = commandGateway.sendAndWaitForSent(createCommandMessage()).block()
-        blackHole.consume(result)
+        run(blackHole) {
+            commandGateway.sendAndWaitForSent(createCommandMessage()).block()
+        }
+
     }
 
     open fun sendAndWaitForProcessed(blackHole: Blackhole) {
-        val result = commandGateway.sendAndWaitForProcessed(createCommandMessage()).block()
-        blackHole.consume(result)
+        run(blackHole) {
+            commandGateway.sendAndWaitForProcessed(createCommandMessage()).block()
+        }
     }
 }
