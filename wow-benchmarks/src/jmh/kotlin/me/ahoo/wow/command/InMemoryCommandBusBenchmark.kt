@@ -27,7 +27,7 @@ open class InMemoryCommandBusBenchmark {
     @Setup
     fun setup() {
         commandBus = InMemoryCommandBus()
-        commandBus.receive(setOf(mockAggregateMetadata.namedAggregate.materialize())).subscribe()
+        commandBus.receive(setOf(cartAggregateMetadata.namedAggregate.materialize())).subscribe()
     }
 
     @TearDown

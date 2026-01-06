@@ -43,7 +43,7 @@ open class CommandGatewayBenchmark {
             waitStrategyRegistrar = SimpleWaitStrategyRegistrar,
             commandWaitNotifier = commandWaitNotifier
         )
-        commandGateway.receive(setOf(mockAggregateMetadata.namedAggregate.materialize())).subscribe()
+        commandGateway.receive(setOf(cartAggregateMetadata.namedAggregate.materialize())).subscribe()
     }
 
     @TearDown

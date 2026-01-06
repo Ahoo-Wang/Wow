@@ -7,7 +7,6 @@ dependencies {
     ksp(project(":wow-compiler"))
     testImplementation(project(":wow-test"))
     testImplementation("io.projectreactor:reactor-test")
-    jmh(project(":wow-test"))
 }
 
 tasks.jacocoTestCoverageVerification {

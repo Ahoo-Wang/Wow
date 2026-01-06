@@ -74,6 +74,10 @@
       <module name="Wow.wow-apiclient.jmh" options="-parameters" />
       <module name="Wow.wow-apiclient.main" options="-parameters" />
       <module name="Wow.wow-apiclient.test" options="-parameters" />
+      <module name="Wow.wow-benchmarks" options="-parameters -proc:none" />
+      <module name="Wow.wow-benchmarks.jmh" options="-parameters -proc:none" />
+      <module name="Wow.wow-benchmarks.main" options="-parameters -proc:none" />
+      <module name="Wow.wow-benchmarks.test" options="-parameters -proc:none" />
       <module name="Wow.wow-bi" options="-parameters" />
       <module name="Wow.wow-bi.jmh" options="-parameters" />
       <module name="Wow.wow-bi.main" options="-parameters" />
@@ -102,7 +106,7 @@
       <module name="Wow.wow-compiler.main" options="-parameters" />
       <module name="Wow.wow-compiler.test" options="-parameters" />
       <module name="Wow.wow-core" options="-parameters" />
-      <module name="Wow.wow-core.jmh" options="-parameters" />
+      <module name="Wow.wow-core.jmh" options="-parameters -proc:none" />
       <module name="Wow.wow-core.main" options="-parameters" />
       <module name="Wow.wow-core.test" options="-parameters" />
       <module name="Wow.wow-cosec" options="-parameters" />

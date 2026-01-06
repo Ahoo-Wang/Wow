@@ -14,17 +14,15 @@
 package me.ahoo.wow.command
 
 import me.ahoo.wow.api.command.CommandMessage
-import me.ahoo.wow.id.generateGlobalId
+import me.ahoo.wow.example.api.cart.AddCartItem
+import me.ahoo.wow.example.domain.cart.Cart
+import me.ahoo.wow.example.domain.cart.CartState
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
-import me.ahoo.wow.tck.mock.MockCommandAggregate
-import me.ahoo.wow.tck.mock.MockCreateAggregate
-import me.ahoo.wow.tck.mock.MockStateAggregate
 
-val mockAggregateMetadata = aggregateMetadata<MockCommandAggregate, MockStateAggregate>()
+val cartAggregateMetadata = aggregateMetadata<Cart, CartState>()
 
-fun createCommandMessage(): CommandMessage<MockCreateAggregate> {
-    return MockCreateAggregate(
-        id = generateGlobalId(),
-        data = generateGlobalId(),
+fun createCommandMessage(): CommandMessage<AddCartItem> {
+    return AddCartItem(
+        productId = "productId"
     ).toCommandMessage()
 }
