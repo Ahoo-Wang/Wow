@@ -1,3 +1,8 @@
+server:
+  http2:
+    enabled: true
+  compression:
+    enabled: true
 management:
   endpoint:
     health:
