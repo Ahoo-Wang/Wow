@@ -14,7 +14,8 @@
 package me.ahoo.wow.modeling
 
 import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.eventsourcing.InMemoryEventStore
+import me.ahoo.wow.eventsourcing.NoopEventStore
+import me.ahoo.wow.eventsourcing.mock.DelayEventStore
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
@@ -23,10 +24,10 @@ import org.openjdk.jmh.annotations.TearDown
 import org.openjdk.jmh.infra.Blackhole
 
 @State(Scope.Benchmark)
-open class CommandDispatcherBenchmark : AbstractCommandDispatcherBenchmark() {
+open class DelayEventStoreCommandDispatcherBenchmark : AbstractCommandDispatcherBenchmark() {
 
     override fun createEventStore(): EventStore {
-        return InMemoryEventStore()
+        return DelayEventStore(delegate = NoopEventStore)
     }
 
     @Setup

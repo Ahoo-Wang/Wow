@@ -132,3 +132,89 @@ SlimCommandDispatcherBenchmark.send                     thrpt    4  529037.184 �
 SlimCommandDispatcherBenchmark.sendAndWaitForProcessed  thrpt    4  132218.938 ±   22188.495  ops/s
 SlimCommandDispatcherBenchmark.sendAndWaitForSent       thrpt    4  383182.471 ±  229221.357  ops/s
 ```
+
+##### Schedulers.immediate()
+
+```kotlin
+class DefaultAggregateSchedulerSupplier(
+    override val name: String,
+    override val parallelism: Int = Schedulers.DEFAULT_POOL_SIZE
+) : AggregateSchedulerSupplier,
+    ParallelismCapable,
+    Named {
+
+    private val schedulers: MutableMap<MaterializedNamedAggregate, Scheduler> = ConcurrentHashMap()
+
+    override fun getOrInitialize(namedAggregate: NamedAggregate): Scheduler =
+        schedulers.computeIfAbsent(namedAggregate.materialize()) { _ ->
+            Schedulers.immediate()
+        }
+}
+```
+
+```
+Benchmark                                                Mode  Cnt       Score       Error  Units
+CommandDispatcherBenchmark.send                         thrpt    4  164629.161 ± 99694.918  ops/s
+CommandDispatcherBenchmark.sendAndWaitForProcessed      thrpt    4  118616.058 ± 36672.040  ops/s
+CommandDispatcherBenchmark.sendAndWaitForSent           thrpt    4  116059.257 ± 75048.103  ops/s
+SlimCommandDispatcherBenchmark.send                     thrpt    4  237312.603 ±  5845.890  ops/s
+SlimCommandDispatcherBenchmark.sendAndWaitForProcessed  thrpt    4  161232.552 ±  7456.641  ops/s
+SlimCommandDispatcherBenchmark.sendAndWaitForSent       thrpt    4  167484.502 ±  4939.888  ops/s
+```
+
+#### Schedulers.single()
+
+```kotlin
+class DefaultAggregateSchedulerSupplier(
+    override val name: String,
+    override val parallelism: Int = Schedulers.DEFAULT_POOL_SIZE
+) : AggregateSchedulerSupplier,
+    ParallelismCapable,
+    Named {
+
+    private val schedulers: MutableMap<MaterializedNamedAggregate, Scheduler> = ConcurrentHashMap()
+
+    override fun getOrInitialize(namedAggregate: NamedAggregate): Scheduler =
+        schedulers.computeIfAbsent(namedAggregate.materialize()) { _ ->
+            Schedulers.single()
+        }
+}
+```
+```
+Benchmark                                                Mode  Cnt       Score         Error  Units
+CommandDispatcherBenchmark.send                         thrpt    4  165465.422 ± 1156388.827  ops/s
+CommandDispatcherBenchmark.sendAndWaitForProcessed      thrpt    4  143460.060 ±  156802.508  ops/s
+CommandDispatcherBenchmark.sendAndWaitForSent           thrpt    4  124674.055 ±  849633.058  ops/s
+SlimCommandDispatcherBenchmark.send                     thrpt    4  246935.861 ± 1737522.133  ops/s
+SlimCommandDispatcherBenchmark.sendAndWaitForProcessed  thrpt    4  197871.546 ±   54295.433  ops/s
+SlimCommandDispatcherBenchmark.sendAndWaitForSent       thrpt    4  362466.719 ±  891147.073  ops/s
+```
+
+#### Schedulers.parallel()
+
+```kotlin
+class DefaultAggregateSchedulerSupplier(
+    override val name: String,
+    override val parallelism: Int = Schedulers.DEFAULT_POOL_SIZE
+) : AggregateSchedulerSupplier,
+    ParallelismCapable,
+    Named {
+
+    private val schedulers: MutableMap<MaterializedNamedAggregate, Scheduler> = ConcurrentHashMap()
+
+    override fun getOrInitialize(namedAggregate: NamedAggregate): Scheduler =
+        schedulers.computeIfAbsent(namedAggregate.materialize()) { _ ->
+            Schedulers.parallel()
+        }
+}
+```
+
+```
+Benchmark                                                Mode  Cnt       Score        Error  Units
+CommandDispatcherBenchmark.send                         thrpt    4  128447.737 ± 887970.370  ops/s
+CommandDispatcherBenchmark.sendAndWaitForProcessed      thrpt    4  124049.619 ±  83570.214  ops/s
+CommandDispatcherBenchmark.sendAndWaitForSent           thrpt    4  103273.711 ± 528985.111  ops/s
+SlimCommandDispatcherBenchmark.send                     thrpt    4  580170.792 ± 186107.600  ops/s
+SlimCommandDispatcherBenchmark.sendAndWaitForProcessed  thrpt    4  151805.666 ±   5977.735  ops/s
+SlimCommandDispatcherBenchmark.sendAndWaitForSent       thrpt    4  435818.388 ±  50340.081  ops/s
+```
