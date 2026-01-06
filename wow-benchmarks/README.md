@@ -226,7 +226,7 @@ fun createBloomFilterIdempotencyChecker(): BloomFilterIdempotencyChecker {
     return BloomFilterIdempotencyChecker(Duration.ofMinutes(1)) {
         BloomFilter.create(
             Funnels.stringFunnel(Charsets.UTF_8),
-            1_000_000,
+            10_000_000,
             0.00001,
         )
     }
@@ -235,17 +235,17 @@ fun createBloomFilterIdempotencyChecker(): BloomFilterIdempotencyChecker {
 
 ```
 Benchmark                                      Mode  Cnt        Score         Error  Units
-BloomFilterIdempotencyCheckerBenchmark.check  thrpt    4  8193762.471 ± 4012764.252  ops/s
+BloomFilterIdempotencyCheckerBenchmark.check  thrpt    4  6074504.775 ± 2015643.464  ops/s
 ```
 
-```kotlin
-fun createBloomFilterIdempotencyChecker(): BloomFilterIdempotencyChecker {
-    return BloomFilterIdempotencyChecker(Duration.ofMinutes(1)) {
-        BloomFilter.create(
-            Funnels.stringFunnel(Charsets.UTF_8),
-            10_000_000,
-            0.00001,
-        )
-    }
-}
+```
+Benchmark                                                          Mode  Cnt       Score        Error  Units
+CommandDispatcherBenchmark.send                                   thrpt    4  156995.675 ± 693312.897  ops/s
+CommandDispatcherBenchmark.sendAndWaitForProcessed                thrpt    4  114086.392 ±  83846.301  ops/s
+CommandDispatcherBenchmark.sendAndWaitForSent                     thrpt    4  128184.049 ± 524142.456  ops/s
+NoopCommandDispatcherBenchmark.send                               thrpt    4  604527.328 ±  53027.253  ops/s
+NoopCommandDispatcherBenchmark.sendAndWaitForProcessed            thrpt    4  149031.681 ±   1283.521  ops/s
+NoopCommandDispatcherBenchmark.sendAndWaitForSent                 thrpt    4  393094.899 ± 100078.912  ops/s
+NoopEventStoreCommandDispatcherBenchmark.sendAndWaitForProcessed  thrpt    4  148913.790 ±   3219.593  ops/s
+NoopEventStoreCommandDispatcherBenchmark.sendAndWaitForSent       thrpt    3  326683.346 ± 747083.283  ops/s
 ```
