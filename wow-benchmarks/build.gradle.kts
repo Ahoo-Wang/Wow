@@ -17,8 +17,10 @@ dependencies {
 }
 
 jmh {
+    includes.set(listOf(".*CommandDispatcher.*"))
     warmupIterations.set(1)
     iterations.set(2)
     resultFormat.set("json")
+    threads.set(5)
     fork.set(2)
 }

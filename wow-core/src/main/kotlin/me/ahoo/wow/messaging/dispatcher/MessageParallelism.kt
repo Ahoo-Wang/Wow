@@ -27,10 +27,10 @@ object MessageParallelism {
      * Default parallelism level for message processing.
      *
      * Can be overridden by the "wow.parallelism" system property.
-     * Defaults to 100 times the number of available processors.
+     * Defaults to 64 times the number of available processors.
      */
     val DEFAULT_PARALLELISM = System.getProperty("wow.parallelism")?.toInt()
-        ?: (100 * Runtime.getRuntime().availableProcessors())
+        ?: (64 * Runtime.getRuntime().availableProcessors())
 
     /**
      * Computes a grouping key for parallel processing based on the aggregate ID.

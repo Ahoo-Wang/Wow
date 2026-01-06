@@ -24,11 +24,14 @@ import me.ahoo.wow.command.wait.LocalCommandWaitNotifier
 import me.ahoo.wow.command.wait.ProcessedNotifierFilter
 import me.ahoo.wow.command.wait.SimpleCommandWaitEndpoint
 import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
+import me.ahoo.wow.event.InMemoryDomainEventBus
 import me.ahoo.wow.eventsourcing.EventSourcingStateAggregateRepository
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.NoopEventStore
 import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotRepository
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
+import me.ahoo.wow.eventsourcing.state.SendStateEventFilter
 import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.infra.idempotency.DefaultAggregateIdempotencyCheckerProvider
 import me.ahoo.wow.infra.idempotency.NoOpIdempotencyChecker
@@ -39,21 +42,16 @@ import me.ahoo.wow.modeling.command.SimpleCommandAggregateFactory
 import me.ahoo.wow.modeling.command.dispatcher.AggregateProcessorFilter
 import me.ahoo.wow.modeling.command.dispatcher.CommandDispatcher
 import me.ahoo.wow.modeling.command.dispatcher.DefaultCommandHandler
+import me.ahoo.wow.modeling.command.dispatcher.SendDomainEventStreamFilter
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import org.openjdk.jmh.annotations.Benchmark
-import org.openjdk.jmh.annotations.Fork
-import org.openjdk.jmh.annotations.Measurement
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.annotations.TearDown
-import org.openjdk.jmh.annotations.Warmup
 import org.openjdk.jmh.infra.Blackhole
 
-@Warmup(iterations = 1)
-@Measurement(iterations = 2)
-@Fork(value = 2)
 @State(Scope.Benchmark)
 open class SlimCommandDispatcherBenchmark {
     private lateinit var commandWaitNotifier: CommandWaitNotifier
@@ -89,6 +87,8 @@ open class SlimCommandDispatcherBenchmark {
 
         val chain = FilterChainBuilder<ServerCommandExchange<*>>()
             .addFilter(AggregateProcessorFilter(SimpleServiceProvider(), aggregateProcessorFactory))
+            .addFilter(SendDomainEventStreamFilter(InMemoryDomainEventBus()))
+            .addFilter(SendStateEventFilter(InMemoryStateEventBus()))
             .addFilter(ProcessedNotifierFilter(commandWaitNotifier))
             .build()
         commandDispatcher = CommandDispatcher(

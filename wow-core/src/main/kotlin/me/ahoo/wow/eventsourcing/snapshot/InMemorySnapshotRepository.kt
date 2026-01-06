@@ -13,9 +13,10 @@
 
 package me.ahoo.wow.eventsourcing.snapshot
 
+import com.fasterxml.jackson.databind.node.ObjectNode
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.serialization.toJsonString
+import me.ahoo.wow.serialization.toJsonNode
 import me.ahoo.wow.serialization.toObject
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -43,7 +44,7 @@ class InMemorySnapshotRepository : SnapshotRepository {
     /**
      * Thread-safe storage for snapshots, keyed by aggregate ID.
      */
-    private val aggregateIdMapSnapshot = ConcurrentHashMap<AggregateId, String>()
+    private val aggregateIdMapSnapshot = ConcurrentHashMap<AggregateId, ObjectNode>()
 
     /**
      * Loads a snapshot from the in-memory map by deserializing the JSON string.
@@ -64,7 +65,7 @@ class InMemorySnapshotRepository : SnapshotRepository {
      */
     override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> =
         Mono.fromRunnable {
-            aggregateIdMapSnapshot[snapshot.aggregateId] = snapshot.toJsonString()
+            aggregateIdMapSnapshot[snapshot.aggregateId] = snapshot.toJsonNode()
         }
 
     /**
