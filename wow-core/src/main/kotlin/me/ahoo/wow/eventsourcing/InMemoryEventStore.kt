@@ -43,7 +43,7 @@ class InMemoryEventStore : AbstractEventStore() {
      * @throws DuplicateRequestIdException if the request ID is already used
      */
     public override fun appendStream(eventStream: DomainEventStream): Mono<Void> {
-        return Mono.fromRunnable {
+        return Mono.fromRunnable<Void> {
             events.compute(
                 eventStream.aggregateId,
             ) { _, value ->
