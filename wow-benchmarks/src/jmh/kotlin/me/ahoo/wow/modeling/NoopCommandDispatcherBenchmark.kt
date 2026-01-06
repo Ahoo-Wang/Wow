@@ -15,7 +15,9 @@ package me.ahoo.wow.modeling
 
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.NoopEventStore
-import me.ahoo.wow.eventsourcing.mock.DelayEventStore
+import me.ahoo.wow.infra.idempotency.AggregateIdempotencyCheckerProvider
+import me.ahoo.wow.infra.idempotency.DefaultAggregateIdempotencyCheckerProvider
+import me.ahoo.wow.infra.idempotency.NoOpIdempotencyChecker
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
@@ -24,10 +26,16 @@ import org.openjdk.jmh.annotations.TearDown
 import org.openjdk.jmh.infra.Blackhole
 
 @State(Scope.Benchmark)
-open class DelayEventStoreCommandDispatcherBenchmark : AbstractCommandDispatcherBenchmark() {
+open class NoopCommandDispatcherBenchmark : AbstractCommandDispatcherBenchmark() {
 
     override fun createEventStore(): EventStore {
-        return DelayEventStore(delegate = NoopEventStore)
+        return NoopEventStore
+    }
+
+    override fun createIdempotencyCheckerProvider(): AggregateIdempotencyCheckerProvider {
+        return DefaultAggregateIdempotencyCheckerProvider {
+            NoOpIdempotencyChecker
+        }
     }
 
     @Setup
