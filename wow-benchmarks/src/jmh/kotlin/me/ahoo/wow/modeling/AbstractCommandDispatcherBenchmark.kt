@@ -13,13 +13,12 @@
 
 package me.ahoo.wow.modeling
 
-import com.google.common.hash.BloomFilter
-import com.google.common.hash.Funnels
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.DefaultCommandGateway
 import me.ahoo.wow.command.InMemoryCommandBus
 import me.ahoo.wow.command.ServerCommandExchange
+import me.ahoo.wow.command.createBloomFilterIdempotencyChecker
 import me.ahoo.wow.command.createCommandMessage
 import me.ahoo.wow.command.wait.CommandWaitNotifier
 import me.ahoo.wow.command.wait.LocalCommandWaitNotifier
@@ -37,7 +36,6 @@ import me.ahoo.wow.eventsourcing.state.SendStateEventFilter
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.infra.idempotency.AggregateIdempotencyCheckerProvider
-import me.ahoo.wow.infra.idempotency.BloomFilterIdempotencyChecker
 import me.ahoo.wow.infra.idempotency.DefaultAggregateIdempotencyCheckerProvider
 import me.ahoo.wow.ioc.SimpleServiceProvider
 import me.ahoo.wow.modeling.command.AggregateProcessorFactory
@@ -51,7 +49,6 @@ import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.test.validation.TestValidator
 import org.openjdk.jmh.infra.Blackhole
-import java.time.Duration
 
 abstract class AbstractCommandDispatcherBenchmark {
     private lateinit var commandWaitNotifier: CommandWaitNotifier
@@ -116,13 +113,7 @@ abstract class AbstractCommandDispatcherBenchmark {
 
     open fun createIdempotencyCheckerProvider(): AggregateIdempotencyCheckerProvider {
         return DefaultAggregateIdempotencyCheckerProvider {
-            BloomFilterIdempotencyChecker(Duration.ofMinutes(1)) {
-                BloomFilter.create(
-                    Funnels.stringFunnel(Charsets.UTF_8),
-                    1_000_000,
-                    0.00001,
-                )
-            }
+            createBloomFilterIdempotencyChecker()
         }
     }
 

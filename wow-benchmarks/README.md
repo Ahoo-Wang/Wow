@@ -221,6 +221,31 @@ SlimCommandDispatcherBenchmark.sendAndWaitForSent       thrpt    4  435818.388 Â
 
 ---
 
+```kotlin
+fun createBloomFilterIdempotencyChecker(): BloomFilterIdempotencyChecker {
+    return BloomFilterIdempotencyChecker(Duration.ofMinutes(1)) {
+        BloomFilter.create(
+            Funnels.stringFunnel(Charsets.UTF_8),
+            1_000_000,
+            0.00001,
+        )
+    }
+}
 ```
 
+```
+Benchmark                                      Mode  Cnt        Score         Error  Units
+BloomFilterIdempotencyCheckerBenchmark.check  thrpt    4  8193762.471 Â± 4012764.252  ops/s
+```
+
+```kotlin
+fun createBloomFilterIdempotencyChecker(): BloomFilterIdempotencyChecker {
+    return BloomFilterIdempotencyChecker(Duration.ofMinutes(1)) {
+        BloomFilter.create(
+            Funnels.stringFunnel(Charsets.UTF_8),
+            10_000_000,
+            0.00001,
+        )
+    }
+}
 ```

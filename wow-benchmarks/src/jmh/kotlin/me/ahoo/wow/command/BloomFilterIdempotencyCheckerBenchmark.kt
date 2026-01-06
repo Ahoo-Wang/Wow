@@ -14,7 +14,7 @@
 package me.ahoo.wow.command
 
 import me.ahoo.wow.id.generateGlobalId
-import me.ahoo.wow.infra.idempotency.IdempotencyChecker
+import me.ahoo.wow.infra.idempotency.BloomFilterIdempotencyChecker
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Fork
 import org.openjdk.jmh.annotations.Measurement
@@ -31,7 +31,7 @@ import org.openjdk.jmh.infra.Blackhole
 @Threads(2)
 @State(Scope.Benchmark)
 open class BloomFilterIdempotencyCheckerBenchmark {
-    private lateinit var idempotencyChecker: IdempotencyChecker
+    private lateinit var idempotencyChecker: BloomFilterIdempotencyChecker
 
     @Setup
     fun setup() {
