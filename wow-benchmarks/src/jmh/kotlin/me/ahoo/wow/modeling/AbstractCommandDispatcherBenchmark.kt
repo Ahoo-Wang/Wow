@@ -16,7 +16,6 @@ package me.ahoo.wow.modeling
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.DefaultCommandGateway
-import me.ahoo.wow.command.DuplicateRequestIdException
 import me.ahoo.wow.command.InMemoryCommandBus
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.createBloomFilterIdempotencyChecker
@@ -36,6 +35,7 @@ import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
 import me.ahoo.wow.eventsourcing.state.SendStateEventFilter
 import me.ahoo.wow.eventsourcing.state.StateEventBus
+import me.ahoo.wow.exception.WowException
 import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.infra.idempotency.AggregateIdempotencyCheckerProvider
 import me.ahoo.wow.infra.idempotency.DefaultAggregateIdempotencyCheckerProvider
@@ -133,8 +133,8 @@ abstract class AbstractCommandDispatcherBenchmark {
         try {
             val result = block()
             blackHole.consume(result)
-        } catch (duplicateRequestIdException: DuplicateRequestIdException) {
-            blackHole.consume(duplicateRequestIdException)
+        } catch (wowException: WowException) {
+            blackHole.consume(wowException)
         }
     }
 
