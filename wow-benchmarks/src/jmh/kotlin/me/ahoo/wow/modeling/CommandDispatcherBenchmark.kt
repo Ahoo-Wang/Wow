@@ -29,6 +29,8 @@ import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotRepository
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
+import me.ahoo.wow.eventsourcing.state.SendStateEventFilter
 import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.infra.idempotency.DefaultAggregateIdempotencyCheckerProvider
 import me.ahoo.wow.infra.idempotency.NoOpIdempotencyChecker
@@ -86,6 +88,7 @@ open class CommandDispatcherBenchmark {
         val chain = FilterChainBuilder<ServerCommandExchange<*>>()
             .addFilter(AggregateProcessorFilter(SimpleServiceProvider(), aggregateProcessorFactory))
             .addFilter(SendDomainEventStreamFilter(InMemoryDomainEventBus()))
+            .addFilter(SendStateEventFilter(InMemoryStateEventBus()))
             .addFilter(ProcessedNotifierFilter(commandWaitNotifier))
             .build()
         commandDispatcher = CommandDispatcher(

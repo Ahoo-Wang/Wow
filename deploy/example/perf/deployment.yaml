@@ -30,7 +30,7 @@ spec:
           effect: "NoSchedule"
       containers:
         - name: wow-example
-          image: registry.cn-shanghai.aliyuncs.com/ahoo/wow-example-server:6.11.1
+          image: registry.cn-shanghai.aliyuncs.com/ahoo/wow-example-server:6.11.3
           env:
             - name: LANG
               value: C.utf8
