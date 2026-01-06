@@ -14,12 +14,13 @@
 package me.ahoo.wow.command.wait
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.wow.infra.sink.concurrent
 import reactor.core.Scannable
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.SignalType
 import reactor.core.publisher.Sinks
-import java.time.Duration
+import reactor.core.publisher.Sinks.EmitFailureHandler
 import java.util.concurrent.atomic.AtomicReference
 import java.util.function.Consumer
 
@@ -30,11 +31,11 @@ import java.util.function.Consumer
  */
 abstract class WaitingFor : WaitStrategy {
     companion object {
-        val DEFAULT_BUSY_LOOPING_DURATION: Duration = Duration.ofMillis(10)
         private val log = KotlinLogging.logger {}
     }
 
-    protected val waitSignalSink: Sinks.Many<WaitSignal> = Sinks.many().unicast().onBackpressureBuffer()
+    protected val waitSignalSink: Sinks.Many<WaitSignal> =
+        Sinks.unsafe().many().unicast().onBackpressureBuffer<WaitSignal>().concurrent()
     override val cancelled: Boolean
         get() = Scannable.from(waitSignalSink).scanOrDefault(Scannable.Attr.CANCELLED, false)
 
@@ -73,10 +74,6 @@ abstract class WaitingFor : WaitStrategy {
         }
     }
 
-    protected fun busyLooping(): Sinks.EmitFailureHandler = Sinks.EmitFailureHandler.busyLooping(
-        DEFAULT_BUSY_LOOPING_DURATION
-    )
-
     protected fun tryEmit(emit: () -> Unit): Boolean {
         if (completed) {
             log.warn {
@@ -100,7 +97,7 @@ abstract class WaitingFor : WaitStrategy {
 
     protected open fun nextSignal(signal: WaitSignal) {
         tryEmit {
-            waitSignalSink.emitNext(signal, busyLooping())
+            waitSignalSink.emitNext(signal, EmitFailureHandler.FAIL_FAST)
             /**
              * fail fast
              */
@@ -112,13 +109,13 @@ abstract class WaitingFor : WaitStrategy {
 
     override fun error(throwable: Throwable) {
         tryEmit {
-            waitSignalSink.emitError(throwable, busyLooping())
+            waitSignalSink.emitError(throwable, EmitFailureHandler.FAIL_FAST)
         }
     }
 
     override fun complete() {
         tryEmit {
-            waitSignalSink.emitComplete(busyLooping())
+            waitSignalSink.emitComplete(EmitFailureHandler.FAIL_FAST)
         }
     }
 
