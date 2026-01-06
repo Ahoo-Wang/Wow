@@ -62,42 +62,43 @@ import kotlin.concurrent.withLock
  *
  * @author ahoo wang
  */
-class ConcurrentManySink<T : Any>(override val delegate: Sinks.Many<T>) : Sinks.Many<T>,
+class ConcurrentManySink<T : Any>(override val delegate: Sinks.Many<T>) :
+    Sinks.Many<T>,
     Decorator<Sinks.Many<T>> {
     private val lock = ReentrantLock()
 
     override fun tryEmitNext(t: T): Sinks.EmitResult {
-         lock.withLock {
+        lock.withLock {
             return delegate.tryEmitNext(t)
         }
     }
 
     override fun tryEmitComplete(): Sinks.EmitResult {
-         lock.withLock {
+        lock.withLock {
             return delegate.tryEmitComplete()
         }
     }
 
     override fun tryEmitError(error: Throwable): Sinks.EmitResult {
-         lock.withLock {
+        lock.withLock {
             return delegate.tryEmitError(error)
         }
     }
 
     override fun emitNext(t: T, failureHandler: Sinks.EmitFailureHandler) {
-         lock.withLock {
+        lock.withLock {
             delegate.emitNext(t, failureHandler)
         }
     }
 
     override fun emitComplete(failureHandler: Sinks.EmitFailureHandler) {
-         lock.withLock {
+        lock.withLock {
             delegate.emitComplete(failureHandler)
         }
     }
 
     override fun emitError(error: Throwable, failureHandler: Sinks.EmitFailureHandler) {
-         lock.withLock {
+        lock.withLock {
             delegate.emitError(error, failureHandler)
         }
     }

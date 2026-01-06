@@ -17,12 +17,12 @@ import com.google.errorprone.annotations.ThreadSafe
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.infra.sink.concurrent
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.modeling.materialize
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
-import reactor.core.scheduler.Schedulers
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -41,8 +41,6 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
     companion object {
         private val log = KotlinLogging.logger {}
     }
-
-    private val sender = Schedulers.newSingle(this::class.java.simpleName)
 
     /**
      * Supplier function that creates a sink for a given named aggregate.
@@ -63,7 +61,7 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
      * @return The sink for the aggregate
      */
     private fun computeSink(namedAggregate: NamedAggregate): Sinks.Many<M> =
-        sinks.computeIfAbsent(namedAggregate.materialize()) { sinkSupplier(it) }
+        sinks.computeIfAbsent(namedAggregate.materialize()) { sinkSupplier(it).concurrent() }
 
     /**
      * Returns the number of subscribers for the specified named aggregate.
@@ -86,7 +84,7 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
      * @return A Mono that completes when the message has been sent
      */
     override fun send(message: M): Mono<Void> {
-        return Mono.fromRunnable<Void> {
+        return Mono.fromRunnable {
             val sink = computeSink(message)
             message.withReadOnly()
             val emitResult = sink.tryEmitNext(message)
@@ -97,7 +95,7 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
                 return@fromRunnable
             }
             emitResult.orThrow()
-        }.subscribeOn(sender)
+        }
     }
 
     /**
