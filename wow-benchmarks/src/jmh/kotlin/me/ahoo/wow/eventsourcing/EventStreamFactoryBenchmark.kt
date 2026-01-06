@@ -11,19 +11,22 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.command
+package me.ahoo.wow.eventsourcing
 
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.infra.Blackhole
 
+//@Warmup(iterations = 1)
+//@Measurement(iterations = 2)
+//@Fork(value = 2)
 @State(Scope.Benchmark)
-open class CommandFactoryBenchmark {
+open class EventStreamFactoryBenchmark {
 
     @Benchmark
-    fun send(blackhole: Blackhole) {
-        val commandMessage = createCommandMessage()
-        blackhole.consume(commandMessage)
+    fun createEventStream(blackhole: Blackhole) {
+        val eventStream = createEventStream()
+        blackhole.consume(eventStream)
     }
 }

@@ -38,6 +38,7 @@ include(":wow-query")
 include(":wow-models")
 include(":wow-schema")
 include(":wow-cosec")
+include(":wow-benchmarks")
 
 //region test
 include(":wow-test")

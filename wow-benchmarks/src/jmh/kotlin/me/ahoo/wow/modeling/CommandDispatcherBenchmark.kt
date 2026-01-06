@@ -18,7 +18,6 @@ import me.ahoo.wow.command.DefaultCommandGateway
 import me.ahoo.wow.command.InMemoryCommandBus
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.createCommandMessage
-import me.ahoo.wow.command.mockAggregateMetadata
 import me.ahoo.wow.command.wait.CommandWaitNotifier
 import me.ahoo.wow.command.wait.LocalCommandWaitNotifier
 import me.ahoo.wow.command.wait.ProcessedNotifierFilter
@@ -90,7 +89,6 @@ open class CommandDispatcherBenchmark {
             .addFilter(ProcessedNotifierFilter(commandWaitNotifier))
             .build()
         commandDispatcher = CommandDispatcher(
-            namedAggregates = setOf(mockAggregateMetadata),
             commandBus = commandGateway,
             commandHandler = DefaultCommandHandler(chain)
         )

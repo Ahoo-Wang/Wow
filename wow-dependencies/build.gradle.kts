@@ -31,7 +31,5 @@ dependencies {
         api(libs.swagger.core)
         api(libs.mockk)
         api(libs.detekt.formatting)
-        api(libs.jmh.core)
-        api(libs.jmh.generator.annprocess)
     }
 }

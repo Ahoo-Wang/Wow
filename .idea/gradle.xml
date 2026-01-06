@@ -25,6 +25,7 @@
             <option value="$PROJECT_DIR$/test/wow-test" />
             <option value="$PROJECT_DIR$/wow-api" />
             <option value="$PROJECT_DIR$/wow-apiclient" />
+            <option value="$PROJECT_DIR$/wow-benchmarks" />
             <option value="$PROJECT_DIR$/wow-bi" />
             <option value="$PROJECT_DIR$/wow-bom" />
             <option value="$PROJECT_DIR$/wow-cocache" />
