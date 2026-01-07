@@ -43,13 +43,12 @@ class InMemoryEventStore : AbstractEventStore() {
      * @throws DuplicateRequestIdException if the request ID is already used
      */
     public override fun appendStream(eventStream: DomainEventStream): Mono<Void> {
-        return Mono.fromRunnable<Void> {
+        return Mono.fromRunnable {
             events.compute(
                 eventStream.aggregateId,
             ) { _, value ->
                 val aggregateStream = value ?: CopyOnWriteArrayList()
-                val storedTailVersion =
-                    if (aggregateStream.isEmpty()) 0 else aggregateStream.last().version
+                val storedTailVersion = if (aggregateStream.isEmpty()) 0 else aggregateStream.last().version
                 if (eventStream.version <= storedTailVersion) {
                     throw EventVersionConflictException(
                         eventStream,
@@ -86,8 +85,9 @@ class InMemoryEventStore : AbstractEventStore() {
         tailVersion: Int
     ): Flux<DomainEventStream> {
         return Flux.defer {
-            val eventsOfAgg: CopyOnWriteArrayList<DomainEventStream> = events[aggregateId] ?: return@defer Flux.empty()
+            val eventsOfAgg = events[aggregateId] ?: return@defer Flux.empty()
             eventsOfAgg
+                .asSequence()
                 .filter { it.version in headVersion..tailVersion }
                 .map { it.copy() }
                 .toFlux()
@@ -109,8 +109,9 @@ class InMemoryEventStore : AbstractEventStore() {
         tailEventTime: Long
     ): Flux<DomainEventStream> {
         return Flux.defer {
-            val eventsOfAgg: CopyOnWriteArrayList<DomainEventStream> = events[aggregateId] ?: return@defer Flux.empty()
+            val eventsOfAgg = events[aggregateId] ?: return@defer Flux.empty()
             eventsOfAgg
+                .asSequence()
                 .filter { it.createTime in headEventTime..tailEventTime }
                 .map { it.copy() }
                 .toFlux()
@@ -119,7 +120,7 @@ class InMemoryEventStore : AbstractEventStore() {
 
     override fun last(aggregateId: AggregateId): Mono<DomainEventStream> {
         return Mono.fromSupplier {
-            val eventsOfAgg: CopyOnWriteArrayList<DomainEventStream> = events[aggregateId] ?: return@fromSupplier null
+            val eventsOfAgg = events[aggregateId] ?: return@fromSupplier null
             eventsOfAgg.lastOrNull()
         }
     }
