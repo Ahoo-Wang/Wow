@@ -34,7 +34,6 @@ NoopEventStoreCommandDispatcherBenchmark.sendAndWaitForProcessed  thrpt    4  14
 NoopEventStoreCommandDispatcherBenchmark.sendAndWaitForSent       thrpt    4  340881.654 ±  97695.782  ops/s
 ```
 
-
 ```
 Benchmark                                                                    Mode  Cnt       Score   Error   Units
 RedisCommandDispatcherBenchmark.send                                        thrpt    2  541853.070           ops/s

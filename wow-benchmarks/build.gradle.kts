@@ -9,6 +9,7 @@ dependencies {
     implementation(project(":wow-mock"))
     implementation(project(":wow-test"))
     implementation(project(":wow-redis"))
+    implementation(project(":wow-mongo"))
     jmh(libs.jmh.core)
     jmh(libs.jmh.generator.annprocess)
     jmh(libs.jmh.generator.bytecode)
@@ -16,7 +17,7 @@ dependencies {
 }
 
 jmh {
-    includes.set(listOf(".*RedisCommandDispatcherBenchmark.*"))
+    includes.set(listOf(".*MongoCommandDispatcherBenchmark.*"))
     warmup.set("2s")
     warmupIterations.set(1)
     iterations.set(2)
