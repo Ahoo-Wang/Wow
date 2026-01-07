@@ -6,7 +6,6 @@ plugins {
 
 dependencies {
     implementation(project(":example-domain"))
-    implementation(project(":wow-mock"))
     implementation(project(":wow-test"))
     implementation(project(":wow-redis"))
     implementation(project(":wow-mongo"))
@@ -15,8 +14,11 @@ dependencies {
     jmh(libs.jmh.generator.bytecode)
     kapt(libs.jmh.generator.annprocess)
 }
-
+tasks.named<Jar>("jmhJar") {
+    isZip64 = true
+}
 jmh {
+    zip64.set(true)
     includes.set(listOf(".*MongoCommandDispatcherBenchmark.*"))
     warmup.set("2s")
     warmupIterations.set(1)
@@ -26,13 +28,15 @@ jmh {
     threads.set(5)
     fork.set(1)
     failOnError.set(false)
-    jvmArgs.set(listOf(
-        "-Xmx4g",
-        "-Xms4g",
-        "-XX:+UseG1GC",
-        "-XX:+UnlockDiagnosticVMOptions",
-        "-XX:+DebugNonSafepoints"
-    ))
+    jvmArgs.set(
+        listOf(
+            "-Xmx4g",
+            "-Xms4g",
+            "-XX:+UseG1GC",
+            "-XX:+UnlockDiagnosticVMOptions",
+            "-XX:+DebugNonSafepoints"
+        )
+    )
     val asyncProfilerLib = file("/opt/async-profiler/lib/libasyncProfiler.dylib")
     val hasAsyncProfiler = asyncProfilerLib.exists()
     profilers.set(buildList {

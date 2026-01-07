@@ -16,7 +16,6 @@ package me.ahoo.wow.mongo
 import com.mongodb.reactivestreams.client.MongoClient
 import com.mongodb.reactivestreams.client.MongoClients
 import com.mongodb.reactivestreams.client.MongoDatabase
-import me.ahoo.cosid.test.container.MongoLauncher
 import me.ahoo.wow.command.cartAggregateMetadata
 
 class MongoInitializer : AutoCloseable {
@@ -24,7 +23,7 @@ class MongoInitializer : AutoCloseable {
     val database: MongoDatabase
 
     init {
-        client = MongoClients.create(MongoLauncher.getConnectionString())
+        client = MongoClients.create("mongodb://root:root@localhost")
         database = client.getDatabase("wow_db")
         EventStreamSchemaInitializer(database, true).initSchema(cartAggregateMetadata)
     }
