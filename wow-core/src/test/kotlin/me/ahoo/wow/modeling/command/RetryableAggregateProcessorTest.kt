@@ -71,9 +71,10 @@ internal class RetryableAggregateProcessorTest {
             .test()
             .expectNextCount(1)
             .verifyComplete()
-
+        val create2 = MockCreateAggregate(aggregateId.id, GlobalIdGenerator.generateAsString())
+            .toCommandMessage()
         retryableAggregateProcessor.process(
-            SimpleServerCommandExchange(create).setServiceProvider(serviceProvider),
+            SimpleServerCommandExchange(create2).setServiceProvider(serviceProvider),
         )
             .test()
             .consumeErrorWith {
