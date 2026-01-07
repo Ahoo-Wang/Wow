@@ -27,7 +27,6 @@ jmh {
     resultFormat.set("json")
     threads.set(5)
     fork.set(1)
-    failOnError.set(false)
     jvmArgs.set(
         listOf(
             "-Xmx4g",
