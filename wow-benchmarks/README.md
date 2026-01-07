@@ -34,7 +34,6 @@ NoopEventStoreCommandDispatcherBenchmark.sendAndWaitForProcessed  thrpt    4  14
 NoopEventStoreCommandDispatcherBenchmark.sendAndWaitForSent       thrpt    4  340881.654 ±  97695.782  ops/s
 ```
 
-
 ```
 Benchmark                                                                    Mode  Cnt       Score   Error   Units
 RedisCommandDispatcherBenchmark.send                                        thrpt    2  541853.070           ops/s
@@ -55,4 +54,26 @@ RedisCommandDispatcherBenchmark.sendAndWaitForSent:gc.alloc.rate            thrp
 RedisCommandDispatcherBenchmark.sendAndWaitForSent:gc.alloc.rate.norm       thrpt    2    7908.164            B/op
 RedisCommandDispatcherBenchmark.sendAndWaitForSent:gc.count                 thrpt    2      25.000          counts
 RedisCommandDispatcherBenchmark.sendAndWaitForSent:gc.time                  thrpt    2    2063.000              ms
+```
+
+```
+Benchmark                                                                    Mode  Cnt       Score   Error   Units
+MongoCommandDispatcherBenchmark.send                                        thrpt    2  435566.941           ops/s
+MongoCommandDispatcherBenchmark.send:async                                  thrpt              NaN             ---
+MongoCommandDispatcherBenchmark.send:gc.alloc.rate                          thrpt    2    2083.852          MB/sec
+MongoCommandDispatcherBenchmark.send:gc.alloc.rate.norm                     thrpt    2    5528.201            B/op
+MongoCommandDispatcherBenchmark.send:gc.count                               thrpt    2      17.000          counts
+MongoCommandDispatcherBenchmark.send:gc.time                                thrpt    2    1257.000              ms
+MongoCommandDispatcherBenchmark.sendAndWaitForProcessed                     thrpt    2    8163.650           ops/s
+MongoCommandDispatcherBenchmark.sendAndWaitForProcessed:async               thrpt              NaN             ---
+MongoCommandDispatcherBenchmark.sendAndWaitForProcessed:gc.alloc.rate       thrpt    2     542.246          MB/sec
+MongoCommandDispatcherBenchmark.sendAndWaitForProcessed:gc.alloc.rate.norm  thrpt    2   74865.353            B/op
+MongoCommandDispatcherBenchmark.sendAndWaitForProcessed:gc.count            thrpt    2       3.000          counts
+MongoCommandDispatcherBenchmark.sendAndWaitForProcessed:gc.time             thrpt    2      97.000              ms
+MongoCommandDispatcherBenchmark.sendAndWaitForSent                          thrpt    2  306472.694           ops/s
+MongoCommandDispatcherBenchmark.sendAndWaitForSent:async                    thrpt              NaN             ---
+MongoCommandDispatcherBenchmark.sendAndWaitForSent:gc.alloc.rate            thrpt    2    2544.236          MB/sec
+MongoCommandDispatcherBenchmark.sendAndWaitForSent:gc.alloc.rate.norm       thrpt    2    9730.032            B/op
+MongoCommandDispatcherBenchmark.sendAndWaitForSent:gc.count                 thrpt    2      18.000          counts
+MongoCommandDispatcherBenchmark.sendAndWaitForSent:gc.time                  thrpt    2    1298.000              ms
 ```
