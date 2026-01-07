@@ -19,7 +19,6 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toFlux
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.CopyOnWriteArrayList
 
 /**
  * In-memory implementation of EventStore for testing and development purposes.
@@ -31,7 +30,7 @@ class InMemoryEventStore : AbstractEventStore() {
     /**
      * Thread-safe storage for event streams, keyed by aggregate ID.
      */
-    private val events = ConcurrentHashMap<AggregateId, CopyOnWriteArrayList<DomainEventStream>>()
+    private val events = ConcurrentHashMap<AggregateId, ArrayList<DomainEventStream>>()
 
     /**
      * Appends an event stream to the in-memory storage.
@@ -47,7 +46,7 @@ class InMemoryEventStore : AbstractEventStore() {
             events.compute(
                 eventStream.aggregateId,
             ) { _, value ->
-                val aggregateStream = value ?: CopyOnWriteArrayList()
+                val aggregateStream = value ?: ArrayList()
                 val storedTailVersion = if (aggregateStream.isEmpty()) 0 else aggregateStream.last().version
                 if (eventStream.version <= storedTailVersion) {
                     throw EventVersionConflictException(
