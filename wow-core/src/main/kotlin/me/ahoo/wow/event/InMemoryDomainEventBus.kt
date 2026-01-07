@@ -13,6 +13,7 @@
 package me.ahoo.wow.event
 
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.infra.sink.concurrent
 import me.ahoo.wow.messaging.InMemoryMessageBus
 import reactor.core.publisher.Sinks
 import reactor.core.publisher.Sinks.Many
@@ -36,7 +37,7 @@ import reactor.core.publisher.Sinks.Many
  */
 class InMemoryDomainEventBus(
     override val sinkSupplier: (NamedAggregate) -> Many<DomainEventStream> = {
-        Sinks.many().multicast().onBackpressureBuffer()
+        Sinks.unsafe().many().multicast().onBackpressureBuffer<DomainEventStream>().concurrent()
     }
 ) : InMemoryMessageBus<DomainEventStream, EventStreamExchange>(),
     LocalDomainEventBus {
