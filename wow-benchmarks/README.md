@@ -33,3 +33,26 @@ NoopEventStoreCommandDispatcherBenchmark.send                     thrpt    4  54
 NoopEventStoreCommandDispatcherBenchmark.sendAndWaitForProcessed  thrpt    4  149703.118 ±   2681.636  ops/s
 NoopEventStoreCommandDispatcherBenchmark.sendAndWaitForSent       thrpt    4  340881.654 ±  97695.782  ops/s
 ```
+
+
+```
+Benchmark                                                                    Mode  Cnt       Score   Error   Units
+RedisCommandDispatcherBenchmark.send                                        thrpt    2  541853.070           ops/s
+RedisCommandDispatcherBenchmark.send:async                                  thrpt              NaN             ---
+RedisCommandDispatcherBenchmark.send:gc.alloc.rate                          thrpt    2    2075.027          MB/sec
+RedisCommandDispatcherBenchmark.send:gc.alloc.rate.norm                     thrpt    2    4317.386            B/op
+RedisCommandDispatcherBenchmark.send:gc.count                               thrpt    2      21.000          counts
+RedisCommandDispatcherBenchmark.send:gc.time                                thrpt    2    1278.000              ms
+RedisCommandDispatcherBenchmark.sendAndWaitForProcessed                     thrpt    2   13236.140           ops/s
+RedisCommandDispatcherBenchmark.sendAndWaitForProcessed:async               thrpt              NaN             ---
+RedisCommandDispatcherBenchmark.sendAndWaitForProcessed:gc.alloc.rate       thrpt    2     301.091          MB/sec
+RedisCommandDispatcherBenchmark.sendAndWaitForProcessed:gc.alloc.rate.norm  thrpt    2   25264.218            B/op
+RedisCommandDispatcherBenchmark.sendAndWaitForProcessed:gc.count            thrpt    2       3.000          counts
+RedisCommandDispatcherBenchmark.sendAndWaitForProcessed:gc.time             thrpt    2       7.000              ms
+RedisCommandDispatcherBenchmark.sendAndWaitForSent                          thrpt    2  385913.164           ops/s
+RedisCommandDispatcherBenchmark.sendAndWaitForSent:async                    thrpt              NaN             ---
+RedisCommandDispatcherBenchmark.sendAndWaitForSent:gc.alloc.rate            thrpt    2    2728.164          MB/sec
+RedisCommandDispatcherBenchmark.sendAndWaitForSent:gc.alloc.rate.norm       thrpt    2    7908.164            B/op
+RedisCommandDispatcherBenchmark.sendAndWaitForSent:gc.count                 thrpt    2      25.000          counts
+RedisCommandDispatcherBenchmark.sendAndWaitForSent:gc.time                  thrpt    2    2063.000              ms
+```
