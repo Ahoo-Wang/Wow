@@ -13,23 +13,17 @@
 
 package me.ahoo.wow.mongo
 
-import com.mongodb.ErrorCategory
 import com.mongodb.MongoWriteException
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Sorts
 import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.command.DuplicateRequestIdException
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.AbstractEventStore
-import me.ahoo.wow.eventsourcing.EventVersionConflictException
-import me.ahoo.wow.mongo.AggregateSchemaInitializer.AGGREGATE_ID_AND_VERSION_UNIQUE_INDEX_NAME
-import me.ahoo.wow.mongo.AggregateSchemaInitializer.REQUEST_ID_UNIQUE_INDEX_NAME
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toEventStreamCollectionName
-import me.ahoo.wow.mongo.Documents.replaceIdToPrimaryKey
 import me.ahoo.wow.mongo.Documents.replacePrimaryKeyToId
+import me.ahoo.wow.mongo.Documents.toDocument
 import me.ahoo.wow.serialization.MessageRecords
-import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
 import org.bson.Document
 import org.bson.conversions.Bson
@@ -39,16 +33,10 @@ import reactor.kotlin.core.publisher.toFlux
 import reactor.kotlin.core.publisher.toMono
 
 class MongoEventStore(private val database: MongoDatabase) : AbstractEventStore() {
-    companion object {
-        private const val SIZE_FIELD = "size"
-    }
 
     override fun appendStream(eventStream: DomainEventStream): Mono<Void> {
         val eventStreamCollectionName = eventStream.toEventStreamCollectionName()
-        val eventStreamJson = eventStream.toJsonString()
-        val document = Document.parse(eventStreamJson)
-            .replaceIdToPrimaryKey()
-            .append(SIZE_FIELD, eventStream.size)
+        val document = eventStream.toDocument()
 
         return database.getCollection(eventStreamCollectionName)
             .insertOne(document)
@@ -56,23 +44,7 @@ class MongoEventStore(private val database: MongoDatabase) : AbstractEventStore(
             .doOnNext {
                 check(it.wasAcknowledged())
             }.onErrorMap(MongoWriteException::class.java) {
-                if (ErrorCategory.fromErrorCode(it.code) != ErrorCategory.DUPLICATE_KEY) {
-                    return@onErrorMap it
-                }
-                if (it.message!!.contains(AGGREGATE_ID_AND_VERSION_UNIQUE_INDEX_NAME)) {
-                    return@onErrorMap EventVersionConflictException(
-                        eventStream = eventStream,
-                        cause = it,
-                    )
-                }
-                if (it.message!!.contains(REQUEST_ID_UNIQUE_INDEX_NAME)) {
-                    return@onErrorMap DuplicateRequestIdException(
-                        aggregateId = eventStream.aggregateId,
-                        requestId = eventStream.requestId,
-                        cause = it,
-                    )
-                }
-                it
+                it.error.toWowError(eventStream, it)
             }.then()
     }
 
