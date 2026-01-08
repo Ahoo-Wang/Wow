@@ -14,8 +14,9 @@
 package me.ahoo.wow.command.wait
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.wow.infra.sink.cancelled
 import me.ahoo.wow.infra.sink.concurrent
-import reactor.core.Scannable
+import me.ahoo.wow.infra.sink.terminated
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.SignalType
@@ -37,10 +38,10 @@ abstract class WaitingFor : WaitStrategy {
     protected val waitSignalSink: Sinks.Many<WaitSignal> =
         Sinks.unsafe().many().unicast().onBackpressureBuffer<WaitSignal>().concurrent()
     override val cancelled: Boolean
-        get() = Scannable.from(waitSignalSink).scanOrDefault(Scannable.Attr.CANCELLED, false)
+        get() = waitSignalSink.cancelled
 
     override val terminated: Boolean
-        get() = Scannable.from(waitSignalSink).scanOrDefault(Scannable.Attr.TERMINATED, false)
+        get() = waitSignalSink.terminated
 
     override val supportVoidCommand: Boolean = false
 
