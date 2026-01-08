@@ -114,3 +114,15 @@ m.a.w.redis.RedisCommandDispatcherBenchmark.sendAndWaitForSent:gc.alloc.rate.nor
 m.a.w.redis.RedisCommandDispatcherBenchmark.sendAndWaitForSent:gc.count                             thrpt    2      27.000          counts
 m.a.w.redis.RedisCommandDispatcherBenchmark.sendAndWaitForSent:gc.time                              thrpt    2    1561.000              ms
 ```
+
+
+
+```
+Benchmark                         Mode  Cnt      Score      Error  Units
+MongoEventStoreBenchmark.append  thrpt    4  17603.362 ± 2155.153  ops/s
+```
+
+```
+Benchmark                         Mode  Cnt      Score      Error  Units
+RedisEventStoreBenchmark.append  thrpt    4  17551.479 ± 1103.835  ops/s
+```
