@@ -15,9 +15,11 @@ package me.ahoo.wow.mongo
 
 import com.fasterxml.jackson.databind.JavaType
 import me.ahoo.wow.api.query.MaterializedSnapshot
+import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.mongo.Documents.replacePrimaryKeyToAggregateId
 import me.ahoo.wow.serialization.MessageRecords
+import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
 import org.bson.Document
 import reactor.core.publisher.Flux
@@ -25,7 +27,7 @@ import reactor.core.publisher.Mono
 
 object Documents {
     const val ID_FIELD = "_id"
-
+    const val SIZE_FIELD = "size"
     fun Document.replaceIdToPrimaryKey(): Document = replaceToPrimaryKey(MessageRecords.ID)
 
     fun Document.replacePrimaryKeyToId(): Document = replacePrimaryKeyTo(MessageRecords.ID)
@@ -46,6 +48,13 @@ object Documents {
         append(key, primaryKey)
         remove(ID_FIELD)
         return this
+    }
+
+    fun DomainEventStream.toDocument(): Document {
+        val eventStreamJson = toJsonString()
+        return Document.parse(eventStreamJson)
+            .replaceIdToPrimaryKey()
+            .append(SIZE_FIELD, size)
     }
 }
 
