@@ -11,31 +11,43 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.eventsourcing
+package me.ahoo.wow.redis
 
+
+import me.ahoo.wow.eventsourcing.AbstractEventStoreBenchmark
+import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.redis.eventsourcing.RedisEventStore
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Fork
 import org.openjdk.jmh.annotations.Measurement
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
+import org.openjdk.jmh.annotations.TearDown
 import org.openjdk.jmh.annotations.Threads
 import org.openjdk.jmh.annotations.Warmup
 
 @Warmup(iterations = 1)
-@Measurement(iterations = 1)
+@Measurement(iterations = 2)
 @Fork(value = 2)
-@Threads(2)
+@Threads(5)
 @State(Scope.Benchmark)
-open class InMemoryEventStoreBenchmark : AbstractEventStoreBenchmark() {
+open class RedisEventStoreBenchmark : AbstractEventStoreBenchmark() {
+    private lateinit var redisInitializer: RedisInitializer
 
     @Setup
     override fun setup() {
+        redisInitializer = RedisInitializer()
         super.setup()
     }
 
+    @TearDown
+    fun destroy() {
+        redisInitializer.close()
+    }
+
     override fun createEventStore(): EventStore {
-        return InMemoryEventStore()
+        return RedisEventStore(redisInitializer.redisTemplate)
     }
 
     @Benchmark

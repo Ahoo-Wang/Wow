@@ -24,10 +24,14 @@ import org.openjdk.jmh.annotations.Warmup
 @Measurement(iterations = 2)
 @Fork(value = 2)
 @State(Scope.Benchmark)
-open class NoopEventStoreBenchmark {
+open class NoopEventStoreBenchmark : AbstractEventStoreBenchmark() {
+    override fun createEventStore(): EventStore {
+        return NoopEventStore
+    }
+
+
     @Benchmark
-    fun append() {
-        val eventStream = createEventStream()
-        NoopEventStore.append(eventStream).block()
+    override fun append() {
+        super.setup()
     }
 }

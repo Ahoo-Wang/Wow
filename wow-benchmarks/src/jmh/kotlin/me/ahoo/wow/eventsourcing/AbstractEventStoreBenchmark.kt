@@ -13,17 +13,19 @@
 
 package me.ahoo.wow.eventsourcing
 
-import me.ahoo.wow.command.cartAggregateMetadata
-import me.ahoo.wow.event.DomainEventStream
-import me.ahoo.wow.event.toDomainEventStream
-import me.ahoo.wow.example.api.cart.CartItem
-import me.ahoo.wow.example.api.cart.CartItemAdded
-import me.ahoo.wow.modeling.aggregateId
-import me.ahoo.wow.test.aggregate.GivenInitializationCommand
+abstract class AbstractEventStoreBenchmark {
+    protected lateinit var eventStore: EventStore
 
-fun createEventStream(): DomainEventStream {
-    val event = CartItemAdded(CartItem("productId"))
-    return listOf<Any>(event).toDomainEventStream(
-        upstream = GivenInitializationCommand(cartAggregateMetadata.aggregateId()),
-    )
+    open fun setup() {
+        this.eventStore = createEventStore()
+    }
+
+    abstract fun createEventStore(): EventStore
+
+    open fun append() {
+        val eventStream = createEventStream()
+        eventStore.append(eventStream).block()
+    }
+
+
 }

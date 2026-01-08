@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.event
 
+import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.event.DEFAULT_EVENT_SEQUENCE
 import me.ahoo.wow.api.event.DomainEvent
@@ -75,7 +76,7 @@ fun Any.flatEvent(): Iterable<Any> =
  */
 fun Any.toDomainEventStream(
     upstream: CommandMessage<*>,
-    aggregateVersion: Int,
+    aggregateVersion: Int = Version.UNINITIALIZED_VERSION,
     stateOwnerId: String = OwnerId.DEFAULT_OWNER_ID,
     header: Header = DefaultHeader.empty(),
     createTime: Long = System.currentTimeMillis()
