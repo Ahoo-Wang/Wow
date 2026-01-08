@@ -133,6 +133,6 @@ open class CompositeEventDispatcher(
      * @return A [Mono] that completes when both dispatchers have stopped gracefully.
      */
     override fun stopGracefully(): Mono<Void> {
-        return Mono.zip(eventStreamDispatcher.stopGracefully(), stateEventDispatcher.stopGracefully()).then()
+        return Mono.`when`(eventStreamDispatcher.stopGracefully(), stateEventDispatcher.stopGracefully())
     }
 }
