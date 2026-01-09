@@ -20,7 +20,6 @@ import me.ahoo.wow.messaging.dispatcher.MessageParallelism.toGroupKey
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
-import reactor.core.scheduler.Scheduler
 
 /**
  * Aggregate command dispatcher grouped by named aggregate.
@@ -38,7 +37,6 @@ import reactor.core.scheduler.Scheduler
  * @param S The type of the state aggregate.
  * @property aggregateMetadata The metadata for the aggregate being dispatched.
  * @param parallelism The level of parallelism for message processing.
- * @param scheduler The scheduler for handling messages.
  * @param messageFlux The flux of command exchanges to process.
  * @param name The name of this dispatcher.
  * @param commandHandler The command handler for processing commands.
@@ -50,7 +48,6 @@ class AggregateCommandDispatcher<C : Any, S : Any>(
     override val messageFlux: Flux<ServerCommandExchange<*>>,
     override val parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
     private val commandHandler: CommandHandler,
-    override val scheduler: Scheduler,
 ) : AggregateDispatcher<ServerCommandExchange<*>>() {
     override val namedAggregate: NamedAggregate
         get() = aggregateMetadata.namedAggregate

@@ -17,8 +17,6 @@ import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.dispatcher.CompositeEventDispatcher
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
-import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
-import me.ahoo.wow.scheduler.DefaultAggregateSchedulerSupplier
 
 /**
  * Dispatcher for stateless sagas that handles domain events and coordinates command execution.
@@ -31,7 +29,6 @@ import me.ahoo.wow.scheduler.DefaultAggregateSchedulerSupplier
  * @property stateEventBus The bus for publishing state events.
  * @property functionRegistrar The registrar for stateless saga functions.
  * @property eventHandler The handler for processing domain events.
- * @property schedulerSupplier The supplier for aggregate schedulers (default: [DefaultAggregateSchedulerSupplier] with "SagaDispatcher" prefix).
  */
 class StatelessSagaDispatcher(
     /**
@@ -42,9 +39,7 @@ class StatelessSagaDispatcher(
     domainEventBus: DomainEventBus,
     stateEventBus: StateEventBus,
     functionRegistrar: StatelessSagaFunctionRegistrar,
-    eventHandler: StatelessSagaHandler,
-    schedulerSupplier: AggregateSchedulerSupplier =
-        DefaultAggregateSchedulerSupplier("SagaDispatcher")
+    eventHandler: StatelessSagaHandler
 ) : CompositeEventDispatcher(
     name = name,
     parallelism = parallelism,
@@ -52,5 +47,4 @@ class StatelessSagaDispatcher(
     stateEventBus = stateEventBus,
     functionRegistrar = functionRegistrar,
     eventHandler = eventHandler,
-    schedulerSupplier = schedulerSupplier
 )

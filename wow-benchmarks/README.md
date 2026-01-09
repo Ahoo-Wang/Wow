@@ -126,3 +126,71 @@ MongoEventStoreBenchmark.append  thrpt    4  17603.362 ± 2155.153  ops/s
 Benchmark                         Mode  Cnt      Score      Error  Units
 RedisEventStoreBenchmark.append  thrpt    4  17551.479 ± 1103.835  ops/s
 ```
+
+```
+Benchmark                                                                                            Mode  Cnt       Score        Error   Units
+m.a.w.modeling.InMemoryCommandDispatcherBenchmark.sendAndWaitForProcessed                           thrpt    4   81566.387 ± 135364.825   ops/s
+m.a.w.modeling.InMemoryCommandDispatcherBenchmark.sendAndWaitForProcessed:async                     thrpt              NaN                  ---
+m.a.w.modeling.InMemoryCommandDispatcherBenchmark.sendAndWaitForProcessed:gc.alloc.rate             thrpt    4    1413.925 ±   2432.540  MB/sec
+m.a.w.modeling.InMemoryCommandDispatcherBenchmark.sendAndWaitForProcessed:gc.alloc.rate.norm        thrpt    4   19063.307 ±    333.514    B/op
+m.a.w.modeling.InMemoryCommandDispatcherBenchmark.sendAndWaitForProcessed:gc.count                  thrpt    4      54.000               counts
+m.a.w.modeling.InMemoryCommandDispatcherBenchmark.sendAndWaitForProcessed:gc.time                   thrpt    4    5152.000                   ms
+m.a.w.modeling.NoopCommandDispatcherBenchmark.sendAndWaitForProcessed                               thrpt    4  115880.094 ±  49217.328   ops/s
+m.a.w.modeling.NoopCommandDispatcherBenchmark.sendAndWaitForProcessed:async                         thrpt              NaN                  ---
+m.a.w.modeling.NoopCommandDispatcherBenchmark.sendAndWaitForProcessed:gc.alloc.rate                 thrpt    4    1878.657 ±    920.858  MB/sec
+m.a.w.modeling.NoopCommandDispatcherBenchmark.sendAndWaitForProcessed:gc.alloc.rate.norm            thrpt    4   17893.769 ±    181.773    B/op
+m.a.w.modeling.NoopCommandDispatcherBenchmark.sendAndWaitForProcessed:gc.count                      thrpt    4      32.000               counts
+m.a.w.modeling.NoopCommandDispatcherBenchmark.sendAndWaitForProcessed:gc.time                       thrpt    4     141.000                   ms
+m.a.w.modeling.NoopEventStoreCommandDispatcherBenchmark.sendAndWaitForProcessed                     thrpt    4  106988.283 ±  98031.566   ops/s
+m.a.w.modeling.NoopEventStoreCommandDispatcherBenchmark.sendAndWaitForProcessed:async               thrpt              NaN                  ---
+m.a.w.modeling.NoopEventStoreCommandDispatcherBenchmark.sendAndWaitForProcessed:gc.alloc.rate       thrpt    4    1793.532 ±   1573.972  MB/sec
+m.a.w.modeling.NoopEventStoreCommandDispatcherBenchmark.sendAndWaitForProcessed:gc.alloc.rate.norm  thrpt    4   18517.753 ±    351.075    B/op
+m.a.w.modeling.NoopEventStoreCommandDispatcherBenchmark.sendAndWaitForProcessed:gc.count            thrpt    4      31.000               counts
+m.a.w.modeling.NoopEventStoreCommandDispatcherBenchmark.sendAndWaitForProcessed:gc.time             thrpt    4     144.000                   ms
+m.a.w.mongo.MongoCommandDispatcherBenchmark.sendAndWaitForProcessed                                 thrpt    4   11298.723 ±   4908.473   ops/s
+m.a.w.mongo.MongoCommandDispatcherBenchmark.sendAndWaitForProcessed:async                           thrpt              NaN                  ---
+m.a.w.mongo.MongoCommandDispatcherBenchmark.sendAndWaitForProcessed:gc.alloc.rate                   thrpt    4     771.038 ±   1179.250  MB/sec
+m.a.w.mongo.MongoCommandDispatcherBenchmark.sendAndWaitForProcessed:gc.alloc.rate.norm              thrpt    4   75066.628 ±  94723.625    B/op
+m.a.w.mongo.MongoCommandDispatcherBenchmark.sendAndWaitForProcessed:gc.count                        thrpt    4      15.000               counts
+m.a.w.mongo.MongoCommandDispatcherBenchmark.sendAndWaitForProcessed:gc.time                         thrpt    4      73.000                   ms
+m.a.w.redis.RedisCommandDispatcherBenchmark.sendAndWaitForProcessed                                 thrpt    4   18607.897 ±   7482.066   ops/s
+m.a.w.redis.RedisCommandDispatcherBenchmark.sendAndWaitForProcessed:async                           thrpt              NaN                  ---
+m.a.w.redis.RedisCommandDispatcherBenchmark.sendAndWaitForProcessed:gc.alloc.rate                   thrpt    4     428.985 ±   1448.394  MB/sec
+m.a.w.redis.RedisCommandDispatcherBenchmark.sendAndWaitForProcessed:gc.alloc.rate.norm              thrpt    4   25060.143 ±  78008.893    B/op
+m.a.w.redis.RedisCommandDispatcherBenchmark.sendAndWaitForProcessed:gc.count                        thrpt    4      12.000               counts
+m.a.w.redis.RedisCommandDispatcherBenchmark.sendAndWaitForProcessed:gc.time                         thrpt    4      91.000                   ms
+```
+
+```
+Benchmark                                                                                            Mode  Cnt       Score        Error   Units
+m.a.w.modeling.InMemoryCommandDispatcherBenchmark.sendAndWaitForProcessed                           thrpt    4   95147.678 ± 159025.508   ops/s
+m.a.w.modeling.InMemoryCommandDispatcherBenchmark.sendAndWaitForProcessed:async                     thrpt              NaN                  ---
+m.a.w.modeling.InMemoryCommandDispatcherBenchmark.sendAndWaitForProcessed:gc.alloc.rate             thrpt    4    1665.520 ±   2896.498  MB/sec
+m.a.w.modeling.InMemoryCommandDispatcherBenchmark.sendAndWaitForProcessed:gc.alloc.rate.norm        thrpt    4   19251.644 ±    168.551    B/op
+m.a.w.modeling.InMemoryCommandDispatcherBenchmark.sendAndWaitForProcessed:gc.count                  thrpt    4      70.000               counts
+m.a.w.modeling.InMemoryCommandDispatcherBenchmark.sendAndWaitForProcessed:gc.time                   thrpt    4    5276.000                   ms
+m.a.w.modeling.NoopCommandDispatcherBenchmark.sendAndWaitForProcessed                               thrpt    4  158474.214 ±  56980.191   ops/s
+m.a.w.modeling.NoopCommandDispatcherBenchmark.sendAndWaitForProcessed:async                         thrpt              NaN                  ---
+m.a.w.modeling.NoopCommandDispatcherBenchmark.sendAndWaitForProcessed:gc.alloc.rate                 thrpt    4    2610.101 ±   1088.094  MB/sec
+m.a.w.modeling.NoopCommandDispatcherBenchmark.sendAndWaitForProcessed:gc.alloc.rate.norm            thrpt    4   18167.602 ±    102.164    B/op
+m.a.w.modeling.NoopCommandDispatcherBenchmark.sendAndWaitForProcessed:gc.count                      thrpt    4      46.000               counts
+m.a.w.modeling.NoopCommandDispatcherBenchmark.sendAndWaitForProcessed:gc.time                       thrpt    4      98.000                   ms
+m.a.w.modeling.NoopEventStoreCommandDispatcherBenchmark.sendAndWaitForProcessed                     thrpt    4  156687.586 ±  41899.244   ops/s
+m.a.w.modeling.NoopEventStoreCommandDispatcherBenchmark.sendAndWaitForProcessed:async               thrpt              NaN                  ---
+m.a.w.modeling.NoopEventStoreCommandDispatcherBenchmark.sendAndWaitForProcessed:gc.alloc.rate       thrpt    4    2670.397 ±    804.506  MB/sec
+m.a.w.modeling.NoopEventStoreCommandDispatcherBenchmark.sendAndWaitForProcessed:gc.alloc.rate.norm  thrpt    4   18800.993 ±     76.361    B/op
+m.a.w.modeling.NoopEventStoreCommandDispatcherBenchmark.sendAndWaitForProcessed:gc.count            thrpt    4      46.000               counts
+m.a.w.modeling.NoopEventStoreCommandDispatcherBenchmark.sendAndWaitForProcessed:gc.time             thrpt    4     110.000                   ms
+m.a.w.mongo.MongoCommandDispatcherBenchmark.sendAndWaitForProcessed                                 thrpt    4   11477.121 ±    677.404   ops/s
+m.a.w.mongo.MongoCommandDispatcherBenchmark.sendAndWaitForProcessed:async                           thrpt              NaN                  ---
+m.a.w.mongo.MongoCommandDispatcherBenchmark.sendAndWaitForProcessed:gc.alloc.rate                   thrpt    4     788.320 ±   1282.248  MB/sec
+m.a.w.mongo.MongoCommandDispatcherBenchmark.sendAndWaitForProcessed:gc.alloc.rate.norm              thrpt    4   75242.578 ±  94418.820    B/op
+m.a.w.mongo.MongoCommandDispatcherBenchmark.sendAndWaitForProcessed:gc.count                        thrpt    4      16.000               counts
+m.a.w.mongo.MongoCommandDispatcherBenchmark.sendAndWaitForProcessed:gc.time                         thrpt    4     172.000                   ms
+m.a.w.redis.RedisCommandDispatcherBenchmark.sendAndWaitForProcessed                                 thrpt    4   21617.870 ±   6169.782   ops/s
+m.a.w.redis.RedisCommandDispatcherBenchmark.sendAndWaitForProcessed:async                           thrpt              NaN                  ---
+m.a.w.redis.RedisCommandDispatcherBenchmark.sendAndWaitForProcessed:gc.alloc.rate                   thrpt    4     497.741 ±   1585.235  MB/sec
+m.a.w.redis.RedisCommandDispatcherBenchmark.sendAndWaitForProcessed:gc.alloc.rate.norm              thrpt    4   25295.388 ±  78552.955    B/op
+m.a.w.redis.RedisCommandDispatcherBenchmark.sendAndWaitForProcessed:gc.count                        thrpt    4      14.000               counts
+m.a.w.redis.RedisCommandDispatcherBenchmark.sendAndWaitForProcessed:gc.time                         thrpt    4      64.000                   ms
+```

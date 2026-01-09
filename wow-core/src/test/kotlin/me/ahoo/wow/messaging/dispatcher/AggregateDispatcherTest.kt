@@ -21,7 +21,6 @@ import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.modeling.toNamedAggregate
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
-import reactor.core.scheduler.Schedulers
 import java.time.Duration
 import java.util.*
 
@@ -44,7 +43,6 @@ internal class AggregateDispatcherTest {
 
     abstract class TestBaseAggregateDispatcher : AggregateDispatcher<TestMessageExchange>() {
         override val parallelism: Int = 2
-        override val scheduler = Schedulers.boundedElastic()
         override val messageFlux =
             Mono
                 .just(Unit)
