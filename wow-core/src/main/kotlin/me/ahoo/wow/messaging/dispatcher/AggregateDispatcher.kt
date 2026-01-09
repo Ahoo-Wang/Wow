@@ -186,12 +186,12 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> :
      */
     private fun handleGroupedExchange(grouped: GroupedFlux<Int, T>): Mono<Void> =
         grouped
+            .publishOn(scheduler)
             .name(Wow.WOW_PREFIX + "dispatcher")
             .tag("dispatcher", name)
             .tag(Metrics.AGGREGATE_KEY, namedAggregate.aggregateName)
             .tag("group.key", grouped.key().toString())
             .metrics()
-            .publishOn(scheduler)
             .concatMap { exchange ->
                 activityTaskCounter.incrementAndGet()
                 handleExchange(exchange).doFinally {
