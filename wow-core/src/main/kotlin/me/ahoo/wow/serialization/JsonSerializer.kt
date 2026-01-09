@@ -268,7 +268,7 @@ inline fun <reified T> JsonNode.toObject(): T = toObject(T::class.java)
  * val dto = user.convert(UserDto::class.java)
  * ```
  */
-fun <T : Any> Any.convert(targetType: Class<T>): T = JsonSerializer.convertValue(this, targetType)
+fun <T> Any.convert(targetType: Class<T>): T = JsonSerializer.convertValue(this, targetType)
 
 /**
  * Converts this object to the specified target type.
@@ -289,7 +289,7 @@ fun <T : Any> Any.convert(targetType: Class<T>): T = JsonSerializer.convertValue
  * val map = node.convert<MutableMap<String, Any>>(type)
  * ```
  */
-fun <T : Any> Any.convert(targetType: JavaType): T = JsonSerializer.convertValue<T>(this, targetType)
+fun <T> Any.convert(targetType: JavaType): T = JsonSerializer.convertValue<T>(this, targetType)
 
 /**
  * Converts this object to the specified target type.
@@ -310,7 +310,7 @@ fun <T : Any> Any.convert(targetType: JavaType): T = JsonSerializer.convertValue
  * val converted = user.convert(typeRef)
  * ```
  */
-fun <T : Any> Any.convert(targetType: TypeReference<T>): T = JsonSerializer.convertValue<T>(this, targetType)
+fun <T> Any.convert(targetType: TypeReference<T>): T = JsonSerializer.convertValue<T>(this, targetType)
 
 /**
  * Converts this object to the specified target type using reified generics.
@@ -330,7 +330,7 @@ fun <T : Any> Any.convert(targetType: TypeReference<T>): T = JsonSerializer.conv
  * val dto = user.convert<UserDto>()
  * ```
  */
-inline fun <reified T : Any> Any.convert(): T = JsonSerializer.convertValue<T>(this, T::class.java)
+inline fun <reified T> Any.convert(): T = JsonSerializer.convertValue<T>(this, T::class.java)
 
 /**
  * Creates a deep copy of this object by serializing to JSON and deserializing back.

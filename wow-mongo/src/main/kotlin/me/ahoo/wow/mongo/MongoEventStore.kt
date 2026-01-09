@@ -21,8 +21,6 @@ import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.AbstractEventStore
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toEventStreamCollectionName
-import me.ahoo.wow.mongo.Documents.toDocument
-import me.ahoo.wow.mongo.Documents.toDomainEventStream
 import me.ahoo.wow.serialization.MessageRecords
 import org.bson.Document
 import org.bson.conversions.Bson

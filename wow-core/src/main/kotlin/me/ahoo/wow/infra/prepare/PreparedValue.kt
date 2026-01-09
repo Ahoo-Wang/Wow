@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.infra.prepare
 
+import com.fasterxml.jackson.annotation.JsonIgnore
+
 /**
  * Interface representing a value that has been prepared with optional time-to-live (TTL) support.
  * Prepared values can either be permanent (never expire) or temporary (expire after a certain time).
@@ -40,6 +42,7 @@ interface PreparedValue<V> {
      * Checks if this prepared value is permanent (never expires).
      * A value is considered permanent if its ttlAt is greater than or equal to TTL_FOREVER.
      */
+    @get:JsonIgnore
     val isForever: Boolean
         get() = isForever(ttlAt)
 
@@ -48,6 +51,7 @@ interface PreparedValue<V> {
      * Permanent values (isForever = true) never expire.
      * Temporary values expire when the current time exceeds ttlAt.
      */
+    @get:JsonIgnore
     val isExpired: Boolean
         get() =
             if (isForever) {
