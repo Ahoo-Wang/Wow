@@ -42,6 +42,8 @@ import com.fasterxml.jackson.module.kotlin.registerKotlinModule
  * val json = JsonSerializer.writeValueAsString(user)
  * val deserialized = JsonSerializer.readValue(json, User::class.java)
  * ```
+ *
+ * @see ObjectMapper for base Jackson functionality
  */
 object JsonSerializer : ObjectMapper() {
     init {
@@ -70,6 +72,8 @@ object JsonSerializer : ObjectMapper() {
  */
 fun Any.toJsonString(): String = JsonSerializer.writeValueAsString(this)
 
+private val DEFAULT_PRETTY_WRITER = JsonSerializer.writerWithDefaultPrettyPrinter()
+
 /**
  * Converts this object to a pretty-printed JSON string representation.
  *
@@ -89,7 +93,7 @@ fun Any.toJsonString(): String = JsonSerializer.writeValueAsString(this)
  * // }
  * ```
  */
-fun Any.toPrettyJson(): String = JsonSerializer.writerWithDefaultPrettyPrinter().writeValueAsString(this)
+fun Any.toPrettyJson(): String = DEFAULT_PRETTY_WRITER.writeValueAsString(this)
 
 /**
  * Converts this object to a [JsonNode] representation.
@@ -333,23 +337,29 @@ fun <T> Any.convert(targetType: TypeReference<T>): T = JsonSerializer.convertVal
 inline fun <reified T> Any.convert(): T = JsonSerializer.convertValue<T>(this, T::class.java)
 
 /**
- * Creates a deep copy of this object by serializing to JSON and deserializing back.
+ * Converts this object to an instance of the specified target type.
  *
- * This method performs a deep copy by converting the object to JSON and then parsing it back,
- * ensuring that all nested objects are also copied.
+ * Uses Jackson's [convertValue] to perform type conversion, which maps properties
+ * between the source and target objects. The target type must have compatible property
+ * names and types for successful conversion.
  *
- * @param T The type of the object being copied.
- * @param targetType The [Class] representing the type to copy to. Defaults to the object's class.
- * @receiver The object to deep copy.
- * @return A deep copy of the object.
- * @throws com.fasterxml.jackson.core.JsonProcessingException if serialization or deserialization fails.
+ * This method is useful for:
+ * - Converting between data classes with similar structures
+ * - Creating copies with a different type
+ * - Transforming object representations
+ *
+ * @param T The type of the object being converted.
+ * @param targetType The [Class] representing the target type. Defaults to the object's class.
+ * @receiver The object to convert.
+ * @return A new instance of the target type with mapped properties.
+ * @throws com.fasterxml.jackson.core.JsonProcessingException if conversion fails.
  *
  * Example:
  * ```kotlin
- * data class User(val name: String, val address: Address)
- * val original = User("John", Address("123 Main St"))
- * val copy = original.deepCopy()
- * // copy is a separate instance with copied nested objects
+ * data class User(val name: String, val age: Int)
+ * data class UserDto(val name: String, val age: Int)
+ * val user = User("John", 30)
+ * val dto = user.deepCopy<UserDto>()
  * ```
  */
 fun <T : Any> T.deepCopy(targetType: Class<T> = this.javaClass): T = this.convert(targetType)
