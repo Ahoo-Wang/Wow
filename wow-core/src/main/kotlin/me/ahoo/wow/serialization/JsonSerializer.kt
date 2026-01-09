@@ -16,6 +16,7 @@ package me.ahoo.wow.serialization
 import com.fasterxml.jackson.annotation.JsonAutoDetect
 import com.fasterxml.jackson.annotation.PropertyAccessor
 import com.fasterxml.jackson.core.JsonParser
+import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.JavaType
 import com.fasterxml.jackson.databind.JsonNode
@@ -248,6 +249,22 @@ inline fun <reified T> String.toObject(): T = toObject(T::class.java)
  */
 inline fun <reified T> JsonNode.toObject(): T = toObject(T::class.java)
 
+fun <T : Any> Any.convert(targetType: Class<T>): T {
+    return JsonSerializer.convertValue(this, targetType)
+}
+
+fun <T : Any> Any.convert(targetType: JavaType): T {
+    return JsonSerializer.convertValue<T>(this, targetType)
+}
+
+fun <T : Any> Any.convert(targetType: TypeReference<T>): T {
+    return JsonSerializer.convertValue<T>(this, targetType)
+}
+
+inline fun <reified T : Any> Any.convert(): T {
+    return JsonSerializer.convertValue<T>(this, T::class.java)
+}
+
 /**
  * Creates a deep copy of this object by serializing to JSON and deserializing back.
  *
@@ -255,7 +272,7 @@ inline fun <reified T> JsonNode.toObject(): T = toObject(T::class.java)
  * ensuring that all nested objects are also copied.
  *
  * @param T The type of the object being copied.
- * @param objectType The [Class] representing the type to copy to. Defaults to the object's class.
+ * @param targetType The [Class] representing the type to copy to. Defaults to the object's class.
  * @receiver The object to deep copy.
  * @return A deep copy of the object.
  * @throws com.fasterxml.jackson.core.JsonProcessingException if serialization or deserialization fails.
@@ -268,4 +285,12 @@ inline fun <reified T> JsonNode.toObject(): T = toObject(T::class.java)
  * // copy is a separate instance with copied nested objects
  * ```
  */
-fun <T : Any> T.deepCody(objectType: Class<T> = this.javaClass): T = this.toJsonNode<JsonNode>().toObject(objectType)
+fun <T : Any> T.deepCody(targetType: Class<T> = this.javaClass): T {
+    return this.convert(targetType)
+}
+
+private val MAP_TYPE_REF = object : TypeReference<LinkedHashMap<String, Any>>() {}
+
+fun <T : Any> T.toMap(): MutableMap<String, Any> {
+    return this.convert(MAP_TYPE_REF)
+}
