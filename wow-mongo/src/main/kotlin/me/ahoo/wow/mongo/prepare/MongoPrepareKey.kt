@@ -33,8 +33,8 @@ import me.ahoo.wow.mongo.Documents
 import me.ahoo.wow.mongo.prepare.PrepareRecords.TTL_AT_FIELD
 import me.ahoo.wow.mongo.prepare.PrepareRecords.toDocument
 import me.ahoo.wow.mongo.prepare.PrepareRecords.toPreparedValue
-import me.ahoo.wow.serialization.toJsonString
-import me.ahoo.wow.serialization.toObject
+import me.ahoo.wow.serialization.convert
+import me.ahoo.wow.serialization.toMap
 import org.bson.Document
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
@@ -166,11 +166,9 @@ object PrepareRecords {
     const val TTL_AT_FIELD = "ttlAt"
 
     fun <V> PreparedValue<V>.toDocument(): Document {
-        val jsonString = toJsonString()
-        val document = Document.parse(jsonString)
+        val valueMap = toMap()
+        val document = Document(valueMap)
         document.replace(TTL_AT_FIELD, Date(ttlAt))
-        document.remove("forever")
-        document.remove("expired")
         return document
     }
 
@@ -179,8 +177,7 @@ object PrepareRecords {
         val value = if (valueType.isInstance(rawValue)) {
             valueType.cast(rawValue)
         } else if (rawValue is Document) {
-            val rawValueString = rawValue.toJson()
-            rawValueString.toObject(valueType)
+            rawValue.convert(valueType)
         } else {
             @Suppress("UseRequire")
             throw IllegalArgumentException("valueType: $valueType is not assignable from rawValue: $rawValue")

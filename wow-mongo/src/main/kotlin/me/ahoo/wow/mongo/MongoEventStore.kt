@@ -21,10 +21,7 @@ import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.AbstractEventStore
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toEventStreamCollectionName
-import me.ahoo.wow.mongo.Documents.replacePrimaryKeyToId
-import me.ahoo.wow.mongo.Documents.toDocument
 import me.ahoo.wow.serialization.MessageRecords
-import me.ahoo.wow.serialization.toObject
 import org.bson.Document
 import org.bson.conversions.Bson
 import reactor.core.publisher.Flux
@@ -49,7 +46,7 @@ class MongoEventStore(private val database: MongoDatabase) : AbstractEventStore(
     }
 
     private fun documentToDomainEventStream(aggregateId: AggregateId, document: Document): DomainEventStream {
-        val domainEventStream = document.replacePrimaryKeyToId().toJson().toObject<DomainEventStream>()
+        val domainEventStream = document.toDomainEventStream()
         require(domainEventStream.aggregateId == aggregateId) {
             "aggregateId is not match! aggregateId: $aggregateId, domainEventStream: ${domainEventStream.aggregateId}"
         }

@@ -24,7 +24,7 @@ import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.modeling.state.StateAggregateFactory
-import me.ahoo.wow.serialization.deepCody
+import me.ahoo.wow.serialization.deepCopy
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
 
@@ -186,7 +186,7 @@ internal class DefaultVerifiedStage<C : Any, S : Any>(
     override fun fork(verifyError: Boolean): VerifiedStage<S> {
         verifyError(verifyError)
         val forkedStateAggregate = verifyStateAggregateSerializable(verifiedResult.stateAggregate)
-        val forkedEventStream = verifiedResult.domainEventStream?.deepCody(DomainEventStream::class.java)
+        val forkedEventStream = verifiedResult.domainEventStream?.deepCopy(DomainEventStream::class.java)
         val forkedResult = verifiedResult.copy(
             stateAggregate = forkedStateAggregate,
             domainEventStream = forkedEventStream,
