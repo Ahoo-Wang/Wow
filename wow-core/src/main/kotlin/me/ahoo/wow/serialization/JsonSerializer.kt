@@ -249,21 +249,88 @@ inline fun <reified T> String.toObject(): T = toObject(T::class.java)
  */
 inline fun <reified T> JsonNode.toObject(): T = toObject(T::class.java)
 
-fun <T : Any> Any.convert(targetType: Class<T>): T {
-    return JsonSerializer.convertValue(this, targetType)
-}
+/**
+ * Converts this object to the specified target type.
+ *
+ * Uses the pre-configured [JsonSerializer] to convert the object.
+ *
+ * @param T The type of object to convert to.
+ * @param targetType The [Class] representing the target type.
+ * @receiver The object to convert.
+ * @return The converted object.
+ * @throws com.fasterxml.jackson.core.JsonProcessingException if conversion fails.
+ *
+ * Example:
+ * ```kotlin
+ * data class User(val name: String, val age: Int)
+ * data class UserDto(val userName: String, val userAge: Int)
+ * val user = User("John", 30)
+ * val dto = user.convert(UserDto::class.java)
+ * ```
+ */
+fun <T : Any> Any.convert(targetType: Class<T>): T = JsonSerializer.convertValue(this, targetType)
 
-fun <T : Any> Any.convert(targetType: JavaType): T {
-    return JsonSerializer.convertValue<T>(this, targetType)
-}
+/**
+ * Converts this object to the specified target type.
+ *
+ * Uses the pre-configured [JsonSerializer] to convert the object.
+ *
+ * @param T The type of object to convert to.
+ * @param targetType The [JavaType] representing the target type.
+ * @receiver The object to convert.
+ * @return The converted object.
+ * @throws com.fasterxml.jackson.core.JsonProcessingException if conversion fails.
+ *
+ * Example:
+ * ```kotlin
+ * val json = """{"name":"John","age":30}"""
+ * val node = json.toJsonNode<ObjectNode>()
+ * val type = JsonSerializer.typeFactory.constructMapType(HashMap::class.java, String::class.java, Any::class.java)
+ * val map = node.convert<MutableMap<String, Any>>(type)
+ * ```
+ */
+fun <T : Any> Any.convert(targetType: JavaType): T = JsonSerializer.convertValue<T>(this, targetType)
 
-fun <T : Any> Any.convert(targetType: TypeReference<T>): T {
-    return JsonSerializer.convertValue<T>(this, targetType)
-}
+/**
+ * Converts this object to the specified target type.
+ *
+ * Uses the pre-configured [JsonSerializer] to convert the object.
+ *
+ * @param T The type of object to convert to.
+ * @param targetType The [TypeReference] representing the target type.
+ * @receiver The object to convert.
+ * @return The converted object.
+ * @throws com.fasterxml.jackson.core.JsonProcessingException if conversion fails.
+ *
+ * Example:
+ * ```kotlin
+ * data class User(val name: String, val addresses: List<Address>)
+ * val user = User("John", listOf(Address("123 Main St")))
+ * val typeRef = object : TypeReference<User>() {}
+ * val converted = user.convert(typeRef)
+ * ```
+ */
+fun <T : Any> Any.convert(targetType: TypeReference<T>): T = JsonSerializer.convertValue<T>(this, targetType)
 
-inline fun <reified T : Any> Any.convert(): T {
-    return JsonSerializer.convertValue<T>(this, T::class.java)
-}
+/**
+ * Converts this object to the specified target type using reified generics.
+ *
+ * Convenience method that uses the reified type parameter to avoid specifying the class explicitly.
+ *
+ * @param T The type of object to convert to, inferred from the call site.
+ * @receiver The object to convert.
+ * @return The converted object.
+ * @throws com.fasterxml.jackson.core.JsonProcessingException if conversion fails.
+ *
+ * Example:
+ * ```kotlin
+ * data class User(val name: String, val age: Int)
+ * data class UserDto(val userName: String, val userAge: Int)
+ * val user = User("John", 30)
+ * val dto = user.convert<UserDto>()
+ * ```
+ */
+inline fun <reified T : Any> Any.convert(): T = JsonSerializer.convertValue<T>(this, T::class.java)
 
 /**
  * Creates a deep copy of this object by serializing to JSON and deserializing back.
@@ -285,12 +352,28 @@ inline fun <reified T : Any> Any.convert(): T {
  * // copy is a separate instance with copied nested objects
  * ```
  */
-fun <T : Any> T.deepCody(targetType: Class<T> = this.javaClass): T {
-    return this.convert(targetType)
-}
+fun <T : Any> T.deepCopy(targetType: Class<T> = this.javaClass): T = this.convert(targetType)
 
 private val MAP_TYPE_REF = object : TypeReference<LinkedHashMap<String, Any>>() {}
 
-fun <T : Any> T.toMap(): MutableMap<String, Any> {
-    return this.convert(MAP_TYPE_REF)
-}
+/**
+ * Converts this object to a [MutableMap] representation.
+ *
+ * Uses the pre-configured [JsonSerializer] to convert the object to a map with [String] keys and [Any] values.
+ * This is useful for generic access to object properties or for serialization purposes.
+ *
+ * @param T The type of the object being converted.
+ * @receiver The object to convert to a map.
+ * @return A [MutableMap] containing all properties of the object with their string keys.
+ * @throws com.fasterxml.jackson.core.JsonProcessingException if conversion fails.
+ *
+ * Example:
+ * ```kotlin
+ * data class User(val name: String, val age: Int)
+ * val user = User("John", 30)
+ * val map = user.toMap()
+ * println(map["name"]) // "John"
+ * println(map["age"]) // 30
+ * ```
+ */
+fun <T : Any> T.toMap(): MutableMap<String, Any> = this.convert(MAP_TYPE_REF)
