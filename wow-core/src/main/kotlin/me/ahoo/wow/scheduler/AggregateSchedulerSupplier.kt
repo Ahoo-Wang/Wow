@@ -121,8 +121,7 @@ class DefaultAggregateSchedulerSupplier(
      */
     override fun getOrInitialize(namedAggregate: NamedAggregate): Scheduler =
         schedulers.computeIfAbsent(namedAggregate.materialize()) { _ ->
-            Schedulers.newSingle("$name-${namedAggregate.aggregateName}")
-//            Schedulers.newParallel("$name-${namedAggregate.aggregateName}", parallelism)
+            Schedulers.newParallel("$name-${namedAggregate.aggregateName}", parallelism)
         }
 
     /**

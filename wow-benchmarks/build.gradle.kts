@@ -19,7 +19,7 @@ tasks.named<Jar>("jmhJar") {
 }
 jmh {
     zip64.set(true)
-    includes.set(listOf("CommandDispatcherBenchmark.sendAndWaitForProcessed"))
+    includes.set(listOf("MongoCommandDispatcherBenchmark.sendAndWaitForProcessed"))
     warmup.set("2s")
     warmupIterations.set(1)
     iterations.set(2)
