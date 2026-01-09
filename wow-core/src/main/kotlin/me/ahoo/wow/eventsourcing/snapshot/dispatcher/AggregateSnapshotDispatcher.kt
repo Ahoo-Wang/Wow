@@ -21,6 +21,7 @@ import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism.toGroupKey
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import reactor.core.scheduler.Scheduler
 
 /**
  * Dispatcher for handling snapshot operations on state events for a specific aggregate.
@@ -30,6 +31,7 @@ import reactor.core.publisher.Mono
  * @param namedAggregate the named aggregate this dispatcher handles
  * @param name the name of this dispatcher (default: aggregateName-AggregateSnapshotDispatcher)
  * @param parallelism the number of parallel processing groups (default: MessageParallelism.DEFAULT_PARALLELISM)
+ * @param scheduler the scheduler for processing messages
  * @param messageFlux the flux of state event exchanges to process
  */
 class AggregateSnapshotDispatcher(
@@ -39,6 +41,7 @@ class AggregateSnapshotDispatcher(
     override val messageFlux: Flux<StateEventExchange<*>>,
     override val parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
     private val snapshotHandler: SnapshotHandler,
+    override val scheduler: Scheduler
 ) : AggregateDispatcher<StateEventExchange<*>>(),
     ProcessorInfo {
     /**

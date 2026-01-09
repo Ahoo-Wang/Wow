@@ -17,6 +17,8 @@ import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.dispatcher.CompositeEventDispatcher
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
+import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
+import me.ahoo.wow.scheduler.DefaultAggregateSchedulerSupplier
 
 /**
  * Dispatcher for projections that handles domain events and coordinates projection processing.
@@ -29,6 +31,7 @@ import me.ahoo.wow.messaging.dispatcher.MessageParallelism
  * @property stateEventBus The bus for publishing state events.
  * @property functionRegistrar The registrar for projection functions.
  * @property eventHandler The handler for processing domain events.
+ * @property schedulerSupplier The supplier for aggregate schedulers (default: [DefaultAggregateSchedulerSupplier] with "ProjectionDispatcher" prefix).
  */
 class ProjectionDispatcher(
     /**
@@ -39,7 +42,9 @@ class ProjectionDispatcher(
     domainEventBus: DomainEventBus,
     stateEventBus: StateEventBus,
     functionRegistrar: ProjectionFunctionRegistrar,
-    eventHandler: ProjectionHandler
+    eventHandler: ProjectionHandler,
+    schedulerSupplier: AggregateSchedulerSupplier =
+        DefaultAggregateSchedulerSupplier("ProjectionDispatcher")
 ) : CompositeEventDispatcher(
     name = name,
     parallelism = parallelism,
@@ -47,4 +52,5 @@ class ProjectionDispatcher(
     stateEventBus = stateEventBus,
     functionRegistrar = functionRegistrar,
     eventHandler = eventHandler,
+    schedulerSupplier = schedulerSupplier
 )

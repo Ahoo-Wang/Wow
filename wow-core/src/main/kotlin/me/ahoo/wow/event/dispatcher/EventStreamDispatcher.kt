@@ -20,6 +20,7 @@ import me.ahoo.wow.event.EventStreamExchange
 import me.ahoo.wow.messaging.dispatcher.MessageDispatcher
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.function.MessageFunctionRegistrar
+import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
@@ -29,6 +30,7 @@ class EventStreamDispatcher(
     override val messageBus: DomainEventBus,
     override val functionRegistrar: MessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>>,
     override val eventHandler: EventHandler,
+    override val schedulerSupplier: AggregateSchedulerSupplier
 ) : AbstractEventDispatcher<EventStreamExchange, DomainEventBus>() {
 
     override fun newAggregateDispatcher(
@@ -41,6 +43,7 @@ class EventStreamDispatcher(
             parallelism = parallelism,
             functionRegistrar = functionRegistrar,
             eventHandler = eventHandler,
+            scheduler = schedulerSupplier.getOrInitialize(namedAggregate),
         )
     }
 }

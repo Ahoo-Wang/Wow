@@ -23,6 +23,7 @@ import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.function.MessageFunctionRegistrar
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import reactor.core.scheduler.Scheduler
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -38,6 +39,7 @@ import java.util.concurrent.ConcurrentHashMap
  * @property messageFlux The flux of state event exchanges to process
  * @property functionRegistrar The registrar containing event processing functions
  * @property eventHandler The handler for processing individual events
+ * @property scheduler The scheduler for managing event processing concurrency
  *
  * @constructor Creates a new AggregateStateEventDispatcher with the specified parameters
  *
@@ -46,6 +48,7 @@ import java.util.concurrent.ConcurrentHashMap
  * @see StateEventExchange
  * @see MessageFunctionRegistrar
  * @see EventHandler
+ * @see Scheduler
  */
 class AggregateStateEventDispatcher(
     override val name: String =
@@ -55,6 +58,7 @@ class AggregateStateEventDispatcher(
     override val parallelism: Int = MessageParallelism.DEFAULT_PARALLELISM,
     override val functionRegistrar: MessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>>,
     override val eventHandler: EventHandler,
+    override val scheduler: Scheduler
 ) : AbstractAggregateEventDispatcher<StateEventExchange<*>>() {
     /**
      * Creates a state domain event exchange from a state event exchange and domain event.
