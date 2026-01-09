@@ -185,6 +185,7 @@ internal class JsonSerializerTest {
     fun deepCopy() {
         val mutableData = MutableData(generateGlobalId())
         val deepCopied = mutableData.deepCopy()
+        mutableData.assert().isNotSameAs(deepCopied)
         mutableData.assert().isEqualTo(deepCopied)
         mutableData.id = generateGlobalId()
         deepCopied.id = generateGlobalId()
