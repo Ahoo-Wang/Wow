@@ -16,6 +16,8 @@ package me.ahoo.wow.event.dispatcher
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
+import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
+import me.ahoo.wow.scheduler.DefaultAggregateSchedulerSupplier
 
 /**
  * Domain Event Dispatcher responsible for coordinating the processing of domain events.
@@ -31,6 +33,7 @@ import me.ahoo.wow.messaging.dispatcher.MessageParallelism
  * @property stateEventBus The state event bus for handling state-related events
  * @property functionRegistrar The registrar for domain event handler functions
  * @property eventHandler The event handler for processing domain events
+ * @property schedulerSupplier Supplier for creating schedulers for aggregate processing
  *
  * @see CompositeEventDispatcher
  * @see me.ahoo.wow.event.DomainEventBus
@@ -64,6 +67,12 @@ class DomainEventDispatcher(
      * The event handler for processing domain events.
      */
     eventHandler: DomainEventHandler,
+    /**
+     * Supplier for creating schedulers for aggregate processing.
+     * @default DefaultAggregateSchedulerSupplier("EventDispatcher")
+     */
+    schedulerSupplier: AggregateSchedulerSupplier =
+        DefaultAggregateSchedulerSupplier("EventDispatcher")
 ) : CompositeEventDispatcher(
     name = name,
     parallelism = parallelism,
@@ -71,4 +80,5 @@ class DomainEventDispatcher(
     stateEventBus = stateEventBus,
     functionRegistrar = functionRegistrar,
     eventHandler = eventHandler,
+    schedulerSupplier = schedulerSupplier
 )

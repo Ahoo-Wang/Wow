@@ -21,6 +21,7 @@ import me.ahoo.wow.messaging.dispatcher.MessageDispatcher
 import me.ahoo.wow.messaging.dispatcher.MessageParallelism
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.function.MessageFunctionRegistrar
+import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
 import reactor.core.publisher.Mono
 
 /**
@@ -86,6 +87,11 @@ open class CompositeEventDispatcher(
      * The event handler for processing domain events.
      */
     private val eventHandler: EventHandler,
+    /**
+     * Supplier for creating schedulers for aggregate processing.
+     * @default DefaultAggregateSchedulerSupplier("EventDispatcher")
+     */
+    private val schedulerSupplier: AggregateSchedulerSupplier
 ) : MessageDispatcher {
     private val eventStreamDispatcher by lazy {
         EventStreamDispatcher(
@@ -94,6 +100,7 @@ open class CompositeEventDispatcher(
             messageBus = domainEventBus,
             functionRegistrar = functionRegistrar.filter { it.functionKind == FunctionKind.EVENT },
             eventHandler = eventHandler,
+            schedulerSupplier = schedulerSupplier,
         )
     }
 
@@ -104,6 +111,7 @@ open class CompositeEventDispatcher(
             messageBus = stateEventBus,
             functionRegistrar = functionRegistrar.filter { it.functionKind == FunctionKind.STATE_EVENT },
             eventHandler = eventHandler,
+            schedulerSupplier = schedulerSupplier,
         )
     }
 
