@@ -21,7 +21,6 @@ import me.ahoo.wow.metrics.Metrics
 import reactor.core.publisher.Flux
 import reactor.core.publisher.GroupedFlux
 import reactor.core.publisher.Mono
-import reactor.core.scheduler.Scheduler
 import java.time.Duration
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -68,7 +67,6 @@ import java.util.concurrent.atomic.AtomicInteger
  *
  * @param T The type of message exchange being handled, must implement MessageExchange
  * @property parallelism The level of parallelism for processing grouped exchanges. Higher values allow more concurrent processing but may increase resource usage.
- * @property scheduler The scheduler used for processing message exchanges. Determines the thread pool and execution context.
  * @property messageFlux The reactive stream of message exchanges to be processed. This flux is subscribed to when start() is called.
  *
  * @see MessageDispatcher for the interface this class implements
@@ -96,20 +94,6 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> :
      * of available CPU cores or higher for I/O-bound workloads.
      */
     abstract override val parallelism: Int
-
-    /**
-     * The scheduler to use for processing message exchanges.
-     *
-     * The scheduler determines the thread pool and execution context
-     * where message processing occurs. Common choices include:
-     * - Schedulers.boundedElastic() for I/O-bound operations
-     * - Schedulers.parallel() for CPU-bound operations
-     * - Custom schedulers for specific resource management needs
-     *
-     * The scheduler is used via publishOn() to ensure message processing
-     * happens on the appropriate threads.
-     */
-    abstract val scheduler: Scheduler
 
     /**
      * The flux of message exchanges to be processed.
@@ -191,7 +175,6 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> :
             .tag(Metrics.AGGREGATE_KEY, namedAggregate.aggregateName)
             .tag("group.key", grouped.key().toString())
             .metrics()
-            .publishOn(scheduler)
             .concatMap { exchange ->
                 activityTaskCounter.incrementAndGet()
                 handleExchange(exchange).doFinally {

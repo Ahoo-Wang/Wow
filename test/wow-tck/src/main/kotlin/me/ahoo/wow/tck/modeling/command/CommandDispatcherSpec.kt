@@ -196,7 +196,6 @@ abstract class CommandDispatcherSpec {
         println("------------- CreateAggregate -------------")
         val createdDuration = creates
             .toFlux()
-            .subscribeOn(Schedulers.single())
             .metrics()
             .flatMap({
                 // 生成聚合

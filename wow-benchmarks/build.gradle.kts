@@ -19,21 +19,22 @@ tasks.named<Jar>("jmhJar") {
 }
 jmh {
     zip64.set(true)
-    includes.set(listOf(".*CommandDispatcherBenchmark.*"))
+    includes.set(listOf("CommandDispatcherBenchmark.sendAndWaitForProcessed"))
     warmup.set("2s")
     warmupIterations.set(1)
     iterations.set(2)
-    timeOnIteration.set("5s")
+    timeOnIteration.set("10s")
     resultFormat.set("json")
-    threads.set(5)
-    fork.set(1)
+    threads.set(12)
+    fork.set(2)
     jvmArgs.set(
         listOf(
             "-Xmx4g",
             "-Xms4g",
             "-XX:+UseG1GC",
             "-XX:+UnlockDiagnosticVMOptions",
-            "-XX:+DebugNonSafepoints"
+            "-XX:+DebugNonSafepoints",
+            "-XX:+AlwaysPreTouch",
         )
     )
     val asyncProfilerLib = file("/opt/async-profiler/lib/libasyncProfiler.dylib")

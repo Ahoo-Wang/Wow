@@ -21,7 +21,7 @@ import org.openjdk.jmh.annotations.TearDown
 import org.openjdk.jmh.infra.Blackhole
 
 @State(Scope.Benchmark)
-open class CommandDispatcherBenchmark : AbstractCommandDispatcherBenchmark() {
+open class InMemoryCommandDispatcherBenchmark : AbstractCommandDispatcherBenchmark() {
 
     @Setup
     override fun setup() {
