@@ -24,9 +24,7 @@ import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toSnapshotCollectionName
-import me.ahoo.wow.mongo.Documents.replaceAggregateIdToPrimaryKey
 import me.ahoo.wow.serialization.MessageRecords
-import me.ahoo.wow.serialization.toJsonString
 import org.bson.Document
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -80,9 +78,7 @@ class MongoSnapshotRepository(private val database: MongoDatabase) : SnapshotRep
 
     override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> {
         val snapshotCollectionName = snapshot.aggregateId.toSnapshotCollectionName()
-        val snapshotJsonString = snapshot.toJsonString()
-        val document = Document.parse(snapshotJsonString)
-            .replaceAggregateIdToPrimaryKey()
+        val document = snapshot.toDocument()
         return database.getCollection(snapshotCollectionName)
             .replaceOne(
                 Filters.eq(Documents.ID_FIELD, snapshot.aggregateId.id),

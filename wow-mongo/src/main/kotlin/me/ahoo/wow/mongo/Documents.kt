@@ -17,7 +17,11 @@ import com.fasterxml.jackson.databind.JavaType
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
+import me.ahoo.wow.mongo.Documents.SIZE_FIELD
+import me.ahoo.wow.mongo.Documents.replaceAggregateIdToPrimaryKey
+import me.ahoo.wow.mongo.Documents.replaceIdToPrimaryKey
 import me.ahoo.wow.mongo.Documents.replacePrimaryKeyToAggregateId
+import me.ahoo.wow.mongo.Documents.replacePrimaryKeyToId
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.convert
 import me.ahoo.wow.serialization.toMap
@@ -49,21 +53,27 @@ object Documents {
         remove(ID_FIELD)
         return this
     }
+}
 
-    fun DomainEventStream.toDocument(): Document {
-        val eventStreamMap = toMap()
-        return Document(eventStreamMap)
-            .replaceIdToPrimaryKey()
-            .append(SIZE_FIELD, size)
-    }
+fun DomainEventStream.toDocument(): Document {
+    val eventStreamMap = toMap()
+    return Document(eventStreamMap)
+        .replaceIdToPrimaryKey()
+        .append(SIZE_FIELD, size)
+}
 
-    fun Document.toDomainEventStream(): DomainEventStream {
-        return replacePrimaryKeyToId().convert(DomainEventStream::class.java)
-    }
+fun Document.toDomainEventStream(): DomainEventStream {
+    return replacePrimaryKeyToId().convert(DomainEventStream::class.java)
 }
 
 fun <S : Any> Document.toSnapshot(): Snapshot<S> {
     return replacePrimaryKeyToAggregateId().convert()
+}
+
+fun <S : Any> Snapshot<S>.toDocument(): Document {
+    val snapshotMap = toMap()
+    return Document(snapshotMap)
+        .replaceAggregateIdToPrimaryKey()
 }
 
 fun <S : Any> Document.toSnapshotState(): S {
