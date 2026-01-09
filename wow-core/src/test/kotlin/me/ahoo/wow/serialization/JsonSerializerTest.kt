@@ -77,6 +77,19 @@ internal class JsonSerializerTest {
     }
 
     @Test
+    fun eventStreamCopy() {
+        val namedAggregate = requiredNamedAggregate<MockCreateAggregate>()
+        val eventStream = MockDomainEventStreams.generateEventStream(
+            aggregateId = namedAggregate.aggregateId(tenantId = generateGlobalId()),
+            eventCount = 1,
+            ownerId = generateGlobalId(),
+        )
+        val copied = eventStream.deepCopy(DomainEventStream::class.java)
+        copied.assert().isNotSameAs(eventStream)
+        copied.assert().isEqualTo(eventStream)
+    }
+
+    @Test
     fun domainEvent() {
         val namedAggregate = requiredNamedAggregate<MockAggregateCreated>()
         val domainEvent = MockDomainEventStreams
@@ -214,6 +227,7 @@ internal class JsonSerializerTest {
             val name: String,
             val age: Int
         )
+
         val user = User("John", 30)
         val dto = user.convert(UserDto::class.java)
         dto.name.assert().isEqualTo("John")
@@ -243,6 +257,7 @@ internal class JsonSerializerTest {
             val name: String,
             val addresses: List<Address>
         )
+
         val user = User("John", listOf(Address("Beijing", "100000"), Address("Shanghai", "200000")))
         val typeRef = object : TypeReference<User>() {}
         val converted = user.convert(typeRef)
@@ -267,6 +282,7 @@ internal class JsonSerializerTest {
             val name: String,
             val age: Int
         )
+
         val user = User("John", 30)
         val dto = user.convert<UserDto>()
         dto.name.assert().isEqualTo("John")
@@ -279,6 +295,7 @@ internal class JsonSerializerTest {
             val name: String,
             val age: Int
         )
+
         val user = User("John", 30)
         val map = user.toMap()
         map["name"].assert().isEqualTo("John")
@@ -295,6 +312,7 @@ internal class JsonSerializerTest {
             val name: String,
             val address: Address
         )
+
         val user = User("John", Address("Beijing"))
         val map = user.toMap()
         map["name"].assert().isEqualTo("John")
@@ -320,6 +338,7 @@ internal class JsonSerializerTest {
             val name: String,
             val age: Int
         )
+
         val json = """{"name":"John","age":30}"""
         val user = json.toObject<User>()
         user.name.assert().isEqualTo("John")
@@ -340,6 +359,7 @@ internal class JsonSerializerTest {
             val name: String,
             val age: Int
         )
+
         val json = """{"name":"John","age":30}"""
         val node = json.toJsonNode<ObjectNode>()
         val user = node.toObject(User::class.java)
@@ -353,6 +373,7 @@ internal class JsonSerializerTest {
             val name: String,
             val age: Int
         )
+
         val json = """{"name":"John","age":30}"""
         val node = json.toJsonNode<ObjectNode>()
         val user = node.toObject<User>()
