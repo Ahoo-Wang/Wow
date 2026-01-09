@@ -16,7 +16,7 @@ package me.ahoo.wow.infra
 import com.fasterxml.jackson.databind.node.ObjectNode
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.createEventStream
-import me.ahoo.wow.serialization.deepCody
+import me.ahoo.wow.serialization.deepCopy
 import me.ahoo.wow.serialization.toJsonNode
 import me.ahoo.wow.serialization.toMap
 import me.ahoo.wow.serialization.toObject
@@ -44,7 +44,7 @@ open class DeepCopyBenchmark {
 
     @Benchmark
     fun convertValue(): DomainEventStream {
-        return eventStream.deepCody(DomainEventStream::class.java)
+        return eventStream.deepCopy(DomainEventStream::class.java)
     }
 
     @Benchmark
