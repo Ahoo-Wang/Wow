@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.serialization
 
+import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.node.ObjectNode
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.command.CommandMessage
@@ -67,7 +68,7 @@ internal class JsonSerializerTest {
         val eventStream = MockDomainEventStreams.generateEventStream(
             aggregateId = namedAggregate.aggregateId(tenantId = generateGlobalId()),
             eventCount = 1,
-            ownerId = generateGlobalId()
+            ownerId = generateGlobalId(),
         )
 
         val output = eventStream.toJsonString()
@@ -78,12 +79,13 @@ internal class JsonSerializerTest {
     @Test
     fun domainEvent() {
         val namedAggregate = requiredNamedAggregate<MockAggregateCreated>()
-        val domainEvent = MockDomainEventStreams.generateEventStream(
-            aggregateId = namedAggregate.aggregateId(tenantId = generateGlobalId()),
-            eventCount = 1,
-            ownerId = generateGlobalId(),
-            createdEventSupplier = { MockAggregateCreated(generateGlobalId()) },
-        ).first()
+        val domainEvent = MockDomainEventStreams
+            .generateEventStream(
+                aggregateId = namedAggregate.aggregateId(tenantId = generateGlobalId()),
+                eventCount = 1,
+                ownerId = generateGlobalId(),
+                createdEventSupplier = { MockAggregateCreated(generateGlobalId()) },
+            ).first()
 
         val output = domainEvent.toJsonString()
         val input = output.toObject<DomainEvent<*>>()
@@ -97,7 +99,7 @@ internal class JsonSerializerTest {
             .toDomainEvent(
                 aggregateId = namedAggregate.aggregateId(tenantId = generateGlobalId()),
                 commandId = generateGlobalId(),
-                ownerId = generateGlobalId()
+                ownerId = generateGlobalId(),
             )
         val mockEventJson = mockEvent.toJsonString()
         val mutableDomainEventRecord =
@@ -140,7 +142,7 @@ internal class JsonSerializerTest {
         val eventStream = MockDomainEventStreams.generateEventStream(
             aggregateId = namedAggregate.aggregateId(tenantId = generateGlobalId()),
             eventCount = 1,
-            ownerId = generateGlobalId()
+            ownerId = generateGlobalId(),
         )
         val stateRoot = MockStateAggregate(eventStream.aggregateId.id)
         val stateEvent = eventStream.toStateEvent(stateRoot)
@@ -188,8 +190,180 @@ internal class JsonSerializerTest {
         deepCopied.id = generateGlobalId()
         mutableData.assert().isNotEqualTo(deepCopied)
     }
+
+    @Test
+    fun toPrettyJson() {
+        val data = mapOf("name" to "John", "age" to 30)
+        val prettyJson = data.toPrettyJson()
+        prettyJson.assert().contains("\n")
+        prettyJson.assert().contains("  ")
+        val parsed = prettyJson.toObject<Map<String, Any>>()
+        parsed["name"].assert().isEqualTo("John")
+        parsed["age"].assert().isEqualTo(30)
+    }
+
+    @Test
+    fun convertWithClass() {
+        data class User(
+            val name: String,
+            val age: Int
+        )
+
+        data class UserDto(
+            val name: String,
+            val age: Int
+        )
+        val user = User("John", 30)
+        val dto = user.convert(UserDto::class.java)
+        dto.name.assert().isEqualTo("John")
+        dto.age.assert().isEqualTo(30)
+    }
+
+    @Test
+    fun convertWithJavaType() {
+        val json = """{"name":"John","age":30}"""
+        val node = json.toJsonNode<ObjectNode>()
+        val type = JsonSerializer.typeFactory.constructMapType(HashMap::class.java, String::class.java, Any::class.java)
+
+        @Suppress("UNCHECKED_CAST")
+        val map = node.convert<MutableMap<String, Any>>(type)
+        map["name"].assert().isEqualTo("John")
+        map["age"].assert().isEqualTo(30)
+    }
+
+    @Test
+    fun convertWithTypeReference() {
+        data class Address(
+            val city: String,
+            val zipCode: String
+        )
+
+        data class User(
+            val name: String,
+            val addresses: List<Address>
+        )
+        val user = User("John", listOf(Address("Beijing", "100000"), Address("Shanghai", "200000")))
+        val typeRef = object : TypeReference<User>() {}
+        val converted = user.convert(typeRef)
+        converted.name.assert().isEqualTo("John")
+        converted.addresses.size
+            .assert()
+            .isEqualTo(2)
+        converted.addresses[0]
+            .city
+            .assert()
+            .isEqualTo("Beijing")
+    }
+
+    @Test
+    fun convertWithReified() {
+        data class User(
+            val name: String,
+            val age: Int
+        )
+
+        data class UserDto(
+            val name: String,
+            val age: Int
+        )
+        val user = User("John", 30)
+        val dto = user.convert<UserDto>()
+        dto.name.assert().isEqualTo("John")
+        dto.age.assert().isEqualTo(30)
+    }
+
+    @Test
+    fun toMap() {
+        data class User(
+            val name: String,
+            val age: Int
+        )
+        val user = User("John", 30)
+        val map = user.toMap()
+        map["name"].assert().isEqualTo("John")
+        map["age"].assert().isEqualTo(30)
+    }
+
+    @Test
+    fun toMapWithNestedObject() {
+        data class Address(
+            val city: String
+        )
+
+        data class User(
+            val name: String,
+            val address: Address
+        )
+        val user = User("John", Address("Beijing"))
+        val map = user.toMap()
+        map["name"].assert().isEqualTo("John")
+        @Suppress("UNCHECKED_CAST")
+        val addressMap = map["address"] as Map<String, Any>
+        addressMap["city"].assert().isEqualTo("Beijing")
+    }
+
+    @Test
+    fun toObjectWithJavaType() {
+        val json = """["John","Jane","Bob"]"""
+        val type = JsonSerializer.typeFactory.constructCollectionType(List::class.java, String::class.java)
+        val list = json.toObject<List<String>>(type)
+        list.size.assert().isEqualTo(3)
+        list[0].assert().isEqualTo("John")
+        list[1].assert().isEqualTo("Jane")
+        list[2].assert().isEqualTo("Bob")
+    }
+
+    @Test
+    fun toObjectWithReified() {
+        data class User(
+            val name: String,
+            val age: Int
+        )
+        val json = """{"name":"John","age":30}"""
+        val user = json.toObject<User>()
+        user.name.assert().isEqualTo("John")
+        user.age.assert().isEqualTo(30)
+    }
+
+    @Test
+    fun stringToObjectNode() {
+        val json = """{"name":"John","age":30}"""
+        val node = json.toObjectNode()
+        node["name"].asText().assert().isEqualTo("John")
+        node["age"].asInt().assert().isEqualTo(30)
+    }
+
+    @Test
+    fun jsonNodeToObject() {
+        data class User(
+            val name: String,
+            val age: Int
+        )
+        val json = """{"name":"John","age":30}"""
+        val node = json.toJsonNode<ObjectNode>()
+        val user = node.toObject(User::class.java)
+        user.name.assert().isEqualTo("John")
+        user.age.assert().isEqualTo(30)
+    }
+
+    @Test
+    fun jsonNodeToObjectWithReified() {
+        data class User(
+            val name: String,
+            val age: Int
+        )
+        val json = """{"name":"John","age":30}"""
+        val node = json.toJsonNode<ObjectNode>()
+        val user = node.toObject<User>()
+        user.name.assert().isEqualTo("John")
+        user.age.assert().isEqualTo(30)
+    }
 }
 
-data class QueryById(val id: String)
+data class QueryById(
+    val id: String
+)
 
-data class MutableData(var id: String)
+data class MutableData(
+    var id: String
+)
