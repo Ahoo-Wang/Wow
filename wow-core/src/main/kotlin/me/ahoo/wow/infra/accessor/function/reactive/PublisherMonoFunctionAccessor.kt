@@ -15,7 +15,7 @@ package me.ahoo.wow.infra.accessor.function.reactive
 import me.ahoo.wow.infra.accessor.method.FastInvoke
 import org.reactivestreams.Publisher
 import reactor.core.publisher.Mono
-import reactor.kotlin.core.publisher.toMono
+import reactor.kotlin.core.publisher.toFlux
 import kotlin.reflect.KFunction
 
 /**
@@ -45,6 +45,7 @@ class PublisherMonoFunctionAccessor<T, D>(
         args: Array<Any?>
     ): Mono<D> =
         Mono.defer {
-            FastInvoke.safeInvoke<Publisher<D>>(method, target, args).toMono()
+            @Suppress("UNCHECKED_CAST")
+            FastInvoke.safeInvoke<Publisher<Any>>(method, target, args).toFlux().collectList() as Mono<D>
         }
 }
