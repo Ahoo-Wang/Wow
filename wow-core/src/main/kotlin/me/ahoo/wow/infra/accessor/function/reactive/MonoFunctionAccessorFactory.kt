@@ -12,6 +12,7 @@
  */
 package me.ahoo.wow.infra.accessor.function.reactive
 
+import kotlinx.coroutines.flow.Flow
 import me.ahoo.wow.api.annotation.Blocking
 import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
 import org.reactivestreams.Publisher
@@ -46,17 +47,34 @@ object MonoMethodAccessorFactory {
      */
     fun <T, D> create(function: KFunction<*>): MonoFunctionAccessor<T, Mono<D>> {
         val returnType = function.returnType.jvmErasure
-        val monoMethodAccessor =
-            if (returnType.isSubclassOf(Mono::class)) {
+
+        val monoMethodAccessor: MonoFunctionAccessor<T, Mono<D>> = when {
+            function.isSuspend -> {
+                SuspendMonoFunctionAccessor(function)
+            }
+
+            returnType.isSubclassOf(Flow::class) -> {
+                @Suppress("UNCHECKED_CAST")
+                FlowMonoFunctionAccessor<T, Any>(function) as MonoFunctionAccessor<T, Mono<D>>
+            }
+
+            returnType.isSubclassOf(Mono::class) -> {
                 SimpleMonoFunctionAccessor(function)
-            } else if (returnType.isSubclassOf(Flux::class)) {
+            }
+
+            returnType.isSubclassOf(Flux::class) -> {
                 @Suppress("UNCHECKED_CAST")
                 FluxMonoFunctionAccessor<T, Any>(function) as MonoFunctionAccessor<T, Mono<D>>
-            } else if (returnType.isSubclassOf(Publisher::class)) {
+            }
+
+            returnType.isSubclassOf(Publisher::class) -> {
                 PublisherMonoFunctionAccessor(function)
-            } else {
+            }
+
+            else -> {
                 SyncMonoFunctionAccessor(function)
             }
+        }
 
         return function.scanAnnotation<Blocking>()?.let {
             BlockingMonoFunctionAccessor(monoMethodAccessor)
