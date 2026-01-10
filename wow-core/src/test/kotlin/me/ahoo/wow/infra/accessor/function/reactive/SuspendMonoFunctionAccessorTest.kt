@@ -14,21 +14,22 @@
 package me.ahoo.wow.infra.accessor.function.reactive
 
 import me.ahoo.test.asserts.assert
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
 
 class SuspendMonoFunctionAccessorTest {
-    @Disabled("How to input kotlin.coroutines.Continuation")
     @Test
     fun invoke() {
-        val methodAccessor = ::suspendFunction.toMonoFunctionAccessor<SuspendMonoFunctionAccessorTest, String>()
+        val methodAccessor =
+            SuspendFunctionClass::suspendFunction.toMonoFunctionAccessor<SuspendFunctionClass, String>()
         methodAccessor.assert().isInstanceOf(SuspendMonoFunctionAccessor::class.java)
-        methodAccessor.invoke(this).test()
+        methodAccessor.invoke(SuspendFunctionClass()).test()
             .expectNext("suspend")
             .verifyComplete()
     }
+}
 
+class SuspendFunctionClass {
     @Suppress("FunctionOnlyReturningConstant")
     suspend fun suspendFunction(): String {
         return "suspend"

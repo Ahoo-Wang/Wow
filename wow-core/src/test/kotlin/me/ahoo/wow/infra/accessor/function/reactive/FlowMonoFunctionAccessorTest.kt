@@ -22,13 +22,16 @@ import reactor.kotlin.test.test
 class FlowMonoFunctionAccessorTest {
     @Test
     fun invoke() {
-        val methodAccessor = ::flowFunction.toMonoFunctionAccessor<FlowMonoFunctionAccessorTest, List<String>>()
+        val methodAccessor = FlowFunctionClass::flowFunction.toMonoFunctionAccessor<FlowFunctionClass, List<String>>()
         methodAccessor.assert().isInstanceOf(FlowMonoFunctionAccessor::class.java)
-        methodAccessor.invoke(this).test()
+        methodAccessor.invoke(FlowFunctionClass()).test()
             .expectNext(listOf("hi"))
             .verifyComplete()
     }
+}
 
+class FlowFunctionClass {
+    @Suppress("FunctionOnlyReturningConstant")
     fun flowFunction(): Flow<String> {
         return flow {
             emit("hi")
