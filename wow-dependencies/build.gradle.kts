@@ -13,6 +13,7 @@
 
 dependencies {
     api(platform(libs.spring.boot.dependencies))
+    api(platform(libs.kotlinx.coroutines.bom))
     api(platform(libs.jsonschema.generator.bom))
     api(platform(libs.cosid.bom))
     api(platform(libs.simba.bom))
