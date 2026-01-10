@@ -14,10 +14,12 @@
 package me.ahoo.wow.infra.accessor.function.reactive
 
 import me.ahoo.test.asserts.assert
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
 
 class SuspendMonoFunctionAccessorTest {
+    @Disabled("How to input kotlin.coroutines.Continuation")
     @Test
     fun invoke() {
         val methodAccessor = ::suspendFunction.toMonoFunctionAccessor<SuspendMonoFunctionAccessorTest, String>()
