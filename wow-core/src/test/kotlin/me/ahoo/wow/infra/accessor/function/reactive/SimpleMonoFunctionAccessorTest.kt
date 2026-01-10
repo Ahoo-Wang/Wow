@@ -31,5 +31,4 @@ class SimpleMonoFunctionAccessorTest {
     fun monoFunction(): Mono<String> {
         return Mono.just("hi")
     }
-
 }

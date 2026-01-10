@@ -31,5 +31,4 @@ class FluxMonoFunctionAccessorTest {
     fun fluxFunction(): Flux<String> {
         return Flux.just("hi")
     }
-
 }
