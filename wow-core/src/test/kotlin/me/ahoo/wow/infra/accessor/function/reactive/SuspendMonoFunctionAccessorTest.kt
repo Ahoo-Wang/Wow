@@ -29,6 +29,7 @@ class SuspendMonoFunctionAccessorTest {
             .verifyComplete()
     }
 
+    @Suppress("FunctionOnlyReturningConstant")
     suspend fun suspendFunction(): String {
         return "suspend"
     }
