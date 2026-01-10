@@ -12,7 +12,6 @@
  */
 package me.ahoo.wow.infra.accessor.function.reactive
 
-import me.ahoo.wow.infra.accessor.ensureAccessible
 import me.ahoo.wow.infra.accessor.method.FastInvoke
 import org.reactivestreams.Publisher
 import reactor.core.publisher.Mono
@@ -28,16 +27,9 @@ import kotlin.reflect.KFunction
  * @param D the type of data in the Publisher
  * @property function the Kotlin function that returns a Publisher
  */
-data class PublisherMonoFunctionAccessor<T, D>(
-    override val function: KFunction<*>
-) : MonoFunctionAccessor<T, Mono<D>> {
-    /**
-     * Initialization block that ensures the method is accessible for reflection.
-     * This automatically makes private, protected, or package-private methods accessible.
-     */
-    init {
-        method.ensureAccessible()
-    }
+class PublisherMonoFunctionAccessor<T, D>(
+    function: KFunction<*>
+) : AbstractMonoFunctionAccessor<T, Mono<D>>(function) {
 
     /**
      * Invokes the function that returns a Publisher and converts it to a Mono.

@@ -13,18 +13,16 @@
 
 package me.ahoo.wow.infra.accessor.function.reactive
 
-import kotlinx.coroutines.reactor.mono
+import me.ahoo.wow.infra.accessor.ensureAccessible
 import reactor.core.publisher.Mono
 import kotlin.reflect.KFunction
-import kotlin.reflect.full.callSuspend
 
-class SuspendMonoFunctionAccessor<T, D>(function: KFunction<*>) :
-    AbstractMonoFunctionAccessor<T, Mono<D>>(function) {
-
-    override operator fun invoke(target: T, args: Array<Any?>): Mono<D> {
-        return mono {
-            @Suppress("UNCHECKED_CAST")
-            function.callSuspend(target, *args) as D
-        }
+abstract class AbstractMonoFunctionAccessor<T, D : Mono<*>> (override val function: KFunction<*>) : MonoFunctionAccessor<T, D> {
+    /**
+     * Initialization block that ensures the method is accessible for reflection.
+     * This automatically makes private, protected, or package-private methods accessible.
+     */
+    init {
+        function.ensureAccessible()
     }
 }
