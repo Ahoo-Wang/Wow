@@ -12,7 +12,6 @@
  */
 package me.ahoo.wow.infra.accessor.function.reactive
 
-import me.ahoo.wow.infra.accessor.ensureAccessible
 import me.ahoo.wow.infra.accessor.method.FastInvoke
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -27,16 +26,9 @@ import kotlin.reflect.KFunction
  * @param D the type of individual items in the Flux
  * @property function the Kotlin function that returns a Flux
  */
-data class FluxMonoFunctionAccessor<T, D>(
-    override val function: KFunction<*>
-) : MonoFunctionAccessor<T, Mono<List<D>>> {
-    /**
-     * Initialization block that ensures the function is accessible for reflection.
-     * This automatically makes private, protected, or package-private functions accessible.
-     */
-    init {
-        function.ensureAccessible()
-    }
+class FluxMonoFunctionAccessor<T, D>(
+    function: KFunction<*>
+) : AbstractMonoFunctionAccessor<T, Mono<List<D>>>(function) {
 
     /**
      * Invokes the function that returns a Flux and collects all emitted items into a List.

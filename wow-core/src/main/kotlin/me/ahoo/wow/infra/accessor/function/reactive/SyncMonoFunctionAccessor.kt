@@ -12,7 +12,6 @@
  */
 package me.ahoo.wow.infra.accessor.function.reactive
 
-import me.ahoo.wow.infra.accessor.ensureAccessible
 import me.ahoo.wow.infra.accessor.method.FastInvoke
 import reactor.core.publisher.Mono
 import kotlin.reflect.KFunction
@@ -26,16 +25,9 @@ import kotlin.reflect.KFunction
  * @param D the type of data in the Mono
  * @property function the synchronous Kotlin function to be invoked
  */
-data class SyncMonoFunctionAccessor<T, D>(
-    override val function: KFunction<*>
-) : MonoFunctionAccessor<T, Mono<D>> {
-    /**
-     * Initialization block that ensures the function is accessible for reflection.
-     * This automatically makes private, protected, or package-private functions accessible.
-     */
-    init {
-        function.ensureAccessible()
-    }
+class SyncMonoFunctionAccessor<T, D>(
+    function: KFunction<*>
+) : AbstractMonoFunctionAccessor<T, Mono<D>>(function) {
 
     /**
      * Invokes the synchronous function and wraps the result in a Mono.

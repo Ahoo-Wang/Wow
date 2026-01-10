@@ -12,7 +12,6 @@
  */
 package me.ahoo.wow.infra.accessor.function.reactive
 
-import me.ahoo.wow.infra.accessor.ensureAccessible
 import reactor.core.publisher.Mono
 import kotlin.reflect.KFunction
 
@@ -25,16 +24,9 @@ import kotlin.reflect.KFunction
  * @param D the type of data in the Mono
  * @property function the Kotlin function that returns a Mono
  */
-data class SimpleMonoFunctionAccessor<T, D>(
-    override val function: KFunction<*>
-) : MonoFunctionAccessor<T, Mono<D>> {
-    /**
-     * Initialization block that ensures the underlying method is accessible for reflection.
-     * This automatically makes private, protected, or package-private methods accessible.
-     */
-    init {
-        method.ensureAccessible()
-    }
+class SimpleMonoFunctionAccessor<T, D>(
+    function: KFunction<*>
+) : AbstractMonoFunctionAccessor<T, Mono<D>>(function) {
 
     /**
      * Invokes the function and returns its Mono result, wrapped in Mono.defer for proper lazy evaluation.

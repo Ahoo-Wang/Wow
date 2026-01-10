@@ -16,15 +16,12 @@ package me.ahoo.wow.infra.accessor.function.reactive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.reactor.mono
-import me.ahoo.wow.infra.accessor.ensureAccessible
 import reactor.core.publisher.Mono
 import kotlin.reflect.KFunction
 import kotlin.reflect.full.callSuspend
 
-class FlowMonoFunctionAccessor<T, D>(override val function: KFunction<*>) : MonoFunctionAccessor<T, Mono<List<D>>> {
-    init {
-        function.ensureAccessible()
-    }
+class FlowMonoFunctionAccessor<T, D>(function: KFunction<*>) :
+    AbstractMonoFunctionAccessor<T, Mono<List<D>>>(function) {
 
     override operator fun invoke(
         target: T,
