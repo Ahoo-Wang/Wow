@@ -15,7 +15,7 @@ swagger = "2.2.41"
 springdoc = "2.8.15"
 jte = "3.2.1"
 jsonschema-generator = "4.38.0"
-json-schema-validator = "2.0.1"
+json-schema-validator = "3.0.0"
 kotlinx-coroutines = "1.10.2"
 # testing
 junit = "6.0.1"
