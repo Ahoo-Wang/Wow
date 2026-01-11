@@ -1,3 +1,0 @@
-
-CREATE DATABASE IF NOT EXISTS bi_db ON CLUSTER '{cluster}';
-CREATE DATABASE IF NOT EXISTS bi_db_consumer ON CLUSTER '{cluster}';
