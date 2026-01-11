@@ -37,9 +37,11 @@ object ScriptTemplateEngine {
             val commandDistributedTableName = namedAggregate.toDistributedTableName("command")
             appendLine("DROP TABLE IF EXISTS bi_db.$commandDistributedTableName ON CLUSTER '{cluster}' SYNC;")
             appendLine("DROP TABLE IF EXISTS bi_db.${commandDistributedTableName}_local ON CLUSTER '{cluster}' SYNC;")
-            appendLine("DROP TABLE IF EXISTS bi_db.${commandDistributedTableName}_queue ON CLUSTER '{cluster}' SYNC;")
             appendLine(
-                "DROP TABLE IF EXISTS bi_db.${commandDistributedTableName}_consumer ON CLUSTER '{cluster}' SYNC;"
+                "DROP TABLE IF EXISTS bi_db_consumer.${commandDistributedTableName}_queue ON CLUSTER '{cluster}' SYNC;"
+            )
+            appendLine(
+                "DROP TABLE IF EXISTS bi_db_consumer.${commandDistributedTableName}_consumer ON CLUSTER '{cluster}' SYNC;"
             )
             appendLine("------------------command------------------")
             appendLine("------------------state------------------")
@@ -47,15 +49,19 @@ object ScriptTemplateEngine {
             appendLine("DROP TABLE IF EXISTS bi_db.$stateDistributedTableName ON CLUSTER '{cluster}' SYNC;")
             appendLine("DROP TABLE IF EXISTS bi_db.${stateDistributedTableName}_event ON CLUSTER '{cluster}' SYNC;")
             appendLine("DROP TABLE IF EXISTS bi_db.${stateDistributedTableName}_local ON CLUSTER '{cluster}' SYNC;")
-            appendLine("DROP TABLE IF EXISTS bi_db.${stateDistributedTableName}_queue ON CLUSTER '{cluster}' SYNC;")
-            appendLine("DROP TABLE IF EXISTS bi_db.${stateDistributedTableName}_consumer ON CLUSTER '{cluster}' SYNC;")
+            appendLine(
+                "DROP TABLE IF EXISTS bi_db_consumer.${stateDistributedTableName}_queue ON CLUSTER '{cluster}' SYNC;"
+            )
+            appendLine(
+                "DROP TABLE IF EXISTS bi_db_consumer.${stateDistributedTableName}_consumer ON CLUSTER '{cluster}' SYNC;"
+            )
             appendLine("------------------state------------------")
             appendLine("------------------stateLast------------------")
             val stateLastDistributedTableName = namedAggregate.toDistributedTableName("state_last")
             appendLine("DROP TABLE IF EXISTS bi_db.$stateLastDistributedTableName ON CLUSTER '{cluster}' SYNC;")
             appendLine("DROP TABLE IF EXISTS bi_db.${stateLastDistributedTableName}_local ON CLUSTER '{cluster}' SYNC;")
             appendLine(
-                "DROP TABLE IF EXISTS bi_db.${stateLastDistributedTableName}_consumer ON CLUSTER '{cluster}' SYNC;"
+                "DROP TABLE IF EXISTS bi_db_consumer.${stateLastDistributedTableName}_consumer ON CLUSTER '{cluster}' SYNC;"
             )
             appendLine("------------------stateLast------------------")
             appendLine("------------------expansion------------------")
