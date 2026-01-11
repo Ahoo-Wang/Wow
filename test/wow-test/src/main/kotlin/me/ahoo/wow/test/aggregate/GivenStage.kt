@@ -51,6 +51,17 @@ interface GivenStage<S : Any> : InjectServiceCapable<GivenStage<S>> {
      * @param serviceType the KType of the service (auto-generated from class by default)
      * @return this GivenStage for method chaining
      */
+    @Deprecated(
+        "Use inject {} instead.",
+        replaceWith = ReplaceWith(
+            """
+        inject {
+            register<SERVICE>(service)
+        }
+    """,
+            "me.ahoo.wow.ioc.register"
+        )
+    )
     fun <SERVICE : Any> inject(
         service: SERVICE,
         serviceName: String = service.javaClass.toName(),
