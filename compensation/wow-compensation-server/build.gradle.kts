@@ -77,8 +77,6 @@ dependencies {
     implementation(project(":wow-mongo"))
     implementation(project(":wow-elasticsearch"))
     implementation(project(":wow-redis"))
-    implementation(libs.jte)
-    implementation(libs.jte.kotlin)
     implementation("me.ahoo.cosid:cosid-mongo")
     implementation("me.ahoo.cosid:cosid-spring-redis")
     implementation("me.ahoo.cosid:cosid-spring-boot-starter")

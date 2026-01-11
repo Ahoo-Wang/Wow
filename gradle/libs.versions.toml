@@ -13,7 +13,6 @@ guava = "33.5.0-jre"
 kotlin-logging = "7.0.14"
 swagger = "2.2.41"
 springdoc = "2.8.15"
-jte = "3.2.1"
 jsonschema-generator = "4.38.0"
 json-schema-validator = "2.0.1"
 kotlinx-coroutines = "1.10.2"
@@ -53,8 +52,6 @@ kotlin-logging = { module = "io.github.oshai:kotlin-logging-jvm", version.ref = 
 swagger-annotations = { module = "io.swagger.core.v3:swagger-annotations-jakarta", version.ref = "swagger" }
 swagger-core = { module = "io.swagger.core.v3:swagger-core-jakarta", version.ref = "swagger" }
 springdoc-bom = { module = "org.springdoc:springdoc-openapi-bom", version.ref = "springdoc" }
-jte = { module = "gg.jte:jte", version.ref = "jte" }
-jte-kotlin = { module = "gg.jte:jte-kotlin", version.ref = "jte" }
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
 fluent-assert-bom = { module = "me.ahoo.test:fluent-assert-bom", version.ref = "fluent-assert" }
 mockk = { module = "io.mockk:mockk", version.ref = "mockk" }

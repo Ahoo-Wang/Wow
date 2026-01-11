@@ -13,33 +13,50 @@
 
 package me.ahoo.wow.compensation.server.webhook
 
-import gg.jte.ContentType
-import gg.jte.TemplateEngine
-import gg.jte.output.StringOutput
-import gg.jte.resolve.ResourceCodeResolver
 import me.ahoo.wow.api.event.DomainEvent
+import me.ahoo.wow.api.exception.RecoverableType
+import me.ahoo.wow.compensation.api.CompensationPrepared
+import me.ahoo.wow.compensation.api.ExecutionFailedApplied
+import me.ahoo.wow.compensation.api.ExecutionFailedCreated
+import me.ahoo.wow.compensation.api.ExecutionFailedErrorInfo
+import me.ahoo.wow.compensation.api.ExecutionFailedStatus
+import me.ahoo.wow.compensation.api.ExecutionSuccessApplied
 import me.ahoo.wow.compensation.api.IExecutionFailedState
+import me.ahoo.wow.compensation.api.RecoverableMarked
+import me.ahoo.wow.compensation.server.webhook.QuickNavigation.toNavAsMarkdown
 import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 object TemplateEngine {
-    private const val TEMPLATE_ROOT = "jte"
-    const val TEMPLATE_SUFFIX = ".kte"
-    const val EVENT_PARAM = "event"
-    const val EVENT_STATE = "state"
-    const val HOST = "host"
-    private val engine: TemplateEngine by lazy {
-        val codeResolver = ResourceCodeResolver(TEMPLATE_ROOT)
-        TemplateEngine.create(codeResolver, ContentType.Plain)
-    }
+    fun title(event: DomainEvent<*>): String {
+        return when (event.body) {
+            is ExecutionFailedCreated -> {
+                "Execution Failed"
+            }
 
-    fun renderTemplate(template: String, params: Map<String, Any>): String {
-        val output = StringOutput()
-        engine.render(template, params, output)
-        return output.toString().trim()
-    }
+            is ExecutionFailedApplied -> {
+                "Execution Failed"
+            }
 
-    fun render(templateName: String, params: Map<String, Any>): String {
-        return renderTemplate(templateName + TEMPLATE_SUFFIX, params)
+            is CompensationPrepared -> {
+                "Compensation Prepared"
+            }
+
+            is ExecutionSuccessApplied -> {
+                "Execution Success"
+            }
+
+            is RecoverableMarked -> {
+                "Recoverable Marked"
+            }
+
+            else -> {
+                "N/A"
+            }
+        }
     }
 
     fun renderOnEvent(
@@ -47,11 +64,60 @@ object TemplateEngine {
         state: ReadOnlyStateAggregate<IExecutionFailedState>,
         host: String
     ): String {
-        val context = mapOf(
-            EVENT_PARAM to event,
-            EVENT_STATE to state,
-            HOST to host
-        )
-        return render(event.name, context)
+        val title = title(event)
+        val root = state.state
+        val function = root.function
+        val eventId = root.eventId
+        val retryState = root.retryState
+        val statusStyle = when (root.status) {
+            ExecutionFailedStatus.FAILED -> "warning"
+            ExecutionFailedStatus.PREPARED -> "comment"
+            ExecutionFailedStatus.SUCCEEDED -> "info"
+        }
+        val recoverableStyle = when (root.recoverable) {
+            RecoverableType.UNRECOVERABLE -> "warning"
+            RecoverableType.UNKNOWN -> "comment"
+            RecoverableType.RECOVERABLE -> "info"
+        }
+        val eventBody = event.body
+        val error = if (eventBody is ExecutionFailedErrorInfo) {
+            """
+## Error
+- Code: `${eventBody.error.errorCode}`
+- Message: ${eventBody.error.errorMsg}
+            """.trimIndent()
+        } else {
+            ""
+        }
+
+        return """
+# $title - ${retryState.retries}
+- Id：${root.toNavAsMarkdown(host)}
+- Processor: ${function.processorName}@${function.contextName}
+- Function: ${function.name}
+- ExecuteAt: ${
+            LocalDateTime.ofInstant(Instant.ofEpochMilli(root.executeAt), ZoneId.systemDefault())
+                .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+        }
+- Recoverable: <font color="$recoverableStyle">${root.recoverable}</font>
+## Event Id
+- Aggregate: ${eventId.aggregateId.aggregateName}@${eventId.aggregateId.contextName}
+- AggregateId: `${eventId.aggregateId.id}`
+- Id: `${eventId.id}`
+- Version: `${eventId.version}`
+## Retry State
+- Retries: ${retryState.retries}(${root.retrySpec.maxRetries})
+- RetryAt: ${
+            LocalDateTime.ofInstant(Instant.ofEpochMilli(retryState.retryAt), ZoneId.systemDefault())
+                .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+        }
+- NextRetryAt: ${
+            LocalDateTime.ofInstant(Instant.ofEpochMilli(retryState.nextRetryAt), ZoneId.systemDefault()).format(
+                DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+            )
+        }
+- Status: <font color="$statusStyle">${root.status}</font>
+$error
+        """.trimIndent()
     }
 }
