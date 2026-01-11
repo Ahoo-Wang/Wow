@@ -230,7 +230,7 @@ object ScriptTemplateEngine {
                    request_id,
                    version,
                    state,
-                   events.1                                    as event_sequence,
+                   events.1                                    AS event_sequence,
                    JSONExtract(events.2, 'id', 'String')       AS event_id,
                    JSONExtract(events.2, 'name', 'String')     AS event_name,
                    JSONExtract(events.2, 'revision', 'String') AS event_revision,
