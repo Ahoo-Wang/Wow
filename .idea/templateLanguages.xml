@@ -5,9 +5,5 @@
     <file url="file://$PROJECT_DIR$/compensation/wow-compensation-server/src/main/resources/jte/execution_failed_applied.kte" dialect="Markdown" />
     <file url="file://$PROJECT_DIR$/compensation/wow-compensation-server/src/main/resources/jte/execution_failed_created.kte" dialect="Markdown" />
     <file url="file://$PROJECT_DIR$/compensation/wow-compensation-server/src/main/resources/jte/execution_success_applied.kte" dialect="Markdown" />
-    <file url="file://$PROJECT_DIR$/wow-bi/src/main/resources/clickhouse/command.kte" dialect="ClickHouse" />
-    <file url="file://$PROJECT_DIR$/wow-bi/src/main/resources/clickhouse/global.kte" dialect="ClickHouse" />
-    <file url="file://$PROJECT_DIR$/wow-bi/src/main/resources/clickhouse/state-event.kte" dialect="ClickHouse" />
-    <file url="file://$PROJECT_DIR$/wow-bi/src/main/resources/clickhouse/state-last.kte" dialect="ClickHouse" />
   </component>
 </project>
