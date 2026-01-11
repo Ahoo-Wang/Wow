@@ -44,6 +44,17 @@ interface WhenStage<T : Any> : InjectServiceCapable<WhenStage<T>> {
      * @param serviceType The Kotlin type of the service (defaults to class default type).
      * @return The current stage for method chaining.
      */
+    @Deprecated(
+        "Use inject {} instead.",
+        replaceWith = ReplaceWith(
+            """
+        inject {
+            register<SERVICE>(service)
+        }
+    """,
+            "me.ahoo.wow.ioc.register"
+        )
+    )
     fun <SERVICE : Any> inject(
         service: SERVICE,
         serviceName: String = service.javaClass.toName(),
@@ -121,6 +132,6 @@ interface WhenStage<T : Any> : InjectServiceCapable<WhenStage<T>> {
     fun whenEvent(
         event: Any,
         state: Any? = null,
-        ownerId: String = OwnerId.Companion.DEFAULT_OWNER_ID
+        ownerId: String = OwnerId.DEFAULT_OWNER_ID
     ): ExpectStage<T>
 }
