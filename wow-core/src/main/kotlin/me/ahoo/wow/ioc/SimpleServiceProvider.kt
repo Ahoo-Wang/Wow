@@ -13,8 +13,8 @@
 package me.ahoo.wow.ioc
 
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.reflect.KClass
 import kotlin.reflect.KType
-import kotlin.reflect.full.defaultType
 import kotlin.reflect.full.isSubtypeOf
 
 /**
@@ -76,10 +76,22 @@ class SimpleServiceProvider : ServiceProvider {
         if (service != null) {
             return service
         }
-        return typedServices.values.firstOrNull {
-            val instanceType = it.javaClass.kotlin.defaultType
-            instanceType.isSubtypeOf(serviceType)
-        } as S?
+        for ((registeredType, registeredService) in typedServices) {
+            if (registeredType.isSubtypeOf(serviceType)) {
+                return registeredService as S
+            }
+        }
+        //  To fix bugs in the K2 implementation, such as issues with mocking types using the mockk library
+        val serviceClassifier = serviceType.classifier
+        if (serviceClassifier is KClass<*>) {
+            val serviceClass = serviceClassifier.java
+            for ((_, registeredService) in typedServices) {
+                if (serviceClass.isInstance(registeredService)) {
+                    return registeredService as S
+                }
+            }
+        }
+        return null
     }
 
     /**
