@@ -132,6 +132,10 @@ fun <S : Any> GivenStage<S>.whenCommand(
  * @param ownerId optional owner ID override (defaults to previously set owner)
  * @return an ExpectStage for defining expectations
  */
+@Deprecated(
+    "use whenCommand instead.",
+    replaceWith = ReplaceWith("whenCommand(command)", "me.ahoo.wow.test.aggregate.whenCommand")
+)
 fun <S : Any> GivenStage<S>.`when`(
     command: Any,
     header: Header = DefaultHeader.empty(),

@@ -102,10 +102,14 @@ interface WhenStage<T : Any> : InjectServiceCapable<WhenStage<T>> {
      * @param ownerId The owner ID for the event processing (defaults to default owner).
      * @return An expectation stage to define assertions on the saga results.
      */
+    @Deprecated(
+        "use whenEvent instead.",
+        replaceWith = ReplaceWith("whenEvent(event,state,ownerId)")
+    )
     fun `when`(
         event: Any,
         state: Any?,
-        ownerId: String = OwnerId.Companion.DEFAULT_OWNER_ID
+        ownerId: String = OwnerId.DEFAULT_OWNER_ID
     ): ExpectStage<T> = whenEvent(event = event, state = state, ownerId = ownerId)
 
     /**
@@ -116,6 +120,10 @@ interface WhenStage<T : Any> : InjectServiceCapable<WhenStage<T>> {
      * @param event The domain event that triggers the saga.
      * @return An expectation stage to define assertions on the saga results.
      */
+    @Deprecated(
+        "use whenEvent instead.",
+        replaceWith = ReplaceWith("whenEvent(event)")
+    )
     fun `when`(event: Any): ExpectStage<T> = whenEvent(event = event, state = null)
 
     /**

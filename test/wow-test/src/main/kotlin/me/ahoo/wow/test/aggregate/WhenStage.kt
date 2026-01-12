@@ -46,6 +46,10 @@ interface WhenStage<S : Any> {
      * @param header the command header to use
      * @return an ExpectStage for defining expectations on the results
      */
+    @Deprecated(
+        "use whenCommand instead.",
+        replaceWith = ReplaceWith("whenCommand(command,header)")
+    )
     fun `when`(
         command: Any,
         header: Header
@@ -57,8 +61,12 @@ interface WhenStage<S : Any> {
      * @param command the command to execute
      * @return an ExpectStage for defining expectations on the results
      */
+    @Deprecated(
+        "use whenCommand instead.",
+        replaceWith = ReplaceWith("whenCommand(command)")
+    )
     fun `when`(command: Any): ExpectStage<S> =
-        this.whenCommand(command = command, header = DefaultHeader.Companion.empty())
+        this.whenCommand(command = command, header = DefaultHeader.empty())
 
     /**
      * Executes a command with full parameter control.
