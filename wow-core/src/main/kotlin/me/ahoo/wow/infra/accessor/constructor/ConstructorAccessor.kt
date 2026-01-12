@@ -45,5 +45,5 @@ interface ConstructorAccessor<T : Any> {
      * val instance = accessor.invoke(arrayOf("initial value"))
      * ```
      */
-    fun invoke(args: Array<Any?> = emptyArray<Any?>()): T = FastInvoke.safeNewInstance(constructor, args)
+    fun invoke(args: Array<out Any?> = emptyArray<Any?>()): T = FastInvoke.safeNewInstance(constructor, args)
 }
