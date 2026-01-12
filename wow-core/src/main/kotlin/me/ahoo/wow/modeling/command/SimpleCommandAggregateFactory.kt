@@ -45,7 +45,7 @@ class SimpleCommandAggregateFactory(
     ): CommandAggregate<C, S> {
         var commandRoot: Any = stateAggregate.state
         if (metadata.isAggregationPattern) {
-            commandRoot = metadata.command.constructorAccessor.invoke(arrayOf(stateAggregate.state))
+            commandRoot = metadata.command.constructorAccessor.invoke(arrayOf<Any>(stateAggregate.state))
         }
         @Suppress("UNCHECKED_CAST")
         return SimpleCommandAggregate(
