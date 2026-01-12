@@ -1,5 +1,6 @@
 package me.ahoo.wow.ioc
 
+import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.annotation.Name
@@ -47,5 +48,15 @@ class SimpleServiceProviderTest {
         targetServiceProvider.getRequiredService<SimpleServiceProviderTest>(SERVICE_NAME).assert().isSameAs(this)
     }
 
+    @Test
+    fun getMockkService() {
+        val serviceProvider = SimpleServiceProvider()
+        val mockkService = mockk<MockkService>()
+        serviceProvider.register(mockkService)
+        serviceProvider.getService<MockkService>().assert().isNotNull()
+    }
+
     object MockService
+
+    interface MockkService
 }
