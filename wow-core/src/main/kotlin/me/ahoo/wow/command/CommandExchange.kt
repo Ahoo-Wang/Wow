@@ -206,9 +206,15 @@ interface ServerCommandExchange<C : Any> : CommandExchange<ServerCommandExchange
             return extracted
         }
         val commandAggregate = getCommandAggregate<Any, Any>()
-        if (type.isInstance(commandAggregate)) {
-            return type.cast(commandAggregate)
+        if (commandAggregate != null) {
+            if (type.isInstance(commandAggregate)) {
+                return type.cast(commandAggregate)
+            }
+            if (type.isInstance(commandAggregate.state)) {
+                return type.cast(commandAggregate.state)
+            }
         }
+
         val eventStream = getEventStream()
         if (type.isInstance(eventStream)) {
             return type.cast(eventStream)
