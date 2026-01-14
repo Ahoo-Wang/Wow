@@ -12,6 +12,8 @@
  */
 package me.ahoo.wow.api
 
+import me.ahoo.wow.api.modeling.StringIdCapable
+
 /**
  * Represents an identifiable entity with a unique identifier.
  *
@@ -30,7 +32,7 @@ package me.ahoo.wow.api
  * println(user.id) // Output: user-123
  * ```
  */
-interface Identifier {
+interface Identifier : StringIdCapable {
     /**
      * Represents a unique identifier for the implementing entity.
      *
@@ -51,5 +53,5 @@ interface Identifier {
      * @return A string representation of the unique identifier.
      *         The format and generation strategy depend on the implementing class.
      */
-    val id: String
+    override val id: String
 }
