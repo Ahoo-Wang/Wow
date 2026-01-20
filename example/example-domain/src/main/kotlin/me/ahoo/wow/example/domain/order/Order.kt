@@ -66,6 +66,41 @@ class Order(private val state: OrderState) {
      * [me.ahoo.wow.modeling.annotation.OnCommand] 注解是可选的,约定命令默认命令函数为名 `onCommand`
      *
      *
+     * ### Kotlin 协程 Style
+     * ```kotlin
+     *     suspend fun onCommand(
+     *         command: CommandMessage<CreateOrder>,
+     *         @Name("createOrderSpec") specification: CreateOrderSpec,
+     *         commandResultAccessor: CommandResultAccessor
+     *     ): OrderCreated {
+     *         val createOrder = command.body
+     *         require(createOrder.items.isNotEmpty()) {
+     *             "items can not be empty."
+     *         }
+     *         createOrder.items.asFlow().collect {
+     *             specification.require(it).awaitSingle()
+     *         }
+     *         val orderCreated = OrderCreated(
+     *             orderId = command.aggregateId.id,
+     *             items = createOrder.items.map {
+     *                 OrderItem(
+     *                     id = GlobalIdGenerator.generateAsString(),
+     *                     productId = it.productId,
+     *                     price = it.price,
+     *                     quantity = it.quantity,
+     *                 )
+     *             },
+     *             address = createOrder.address,
+     *             fromCart = createOrder.fromCart,
+     *         )
+     *         commandResultAccessor.setCommandResult(
+     *             OrderState::totalAmount.name,
+     *             orderCreated.items.sumOf { it.totalPrice }
+     *         )
+     *         return orderCreated
+     *     }
+     * ```
+     *
      * @param specification 该外部服务将会通过 IOC 容器自动注入进来
      */
     fun onCommand(
