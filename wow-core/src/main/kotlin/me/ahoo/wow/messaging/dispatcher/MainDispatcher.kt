@@ -125,6 +125,8 @@ abstract class MainDispatcher<T : Any> : MessageDispatcher {
             }
     }
 
+    private fun String.withNamePrefix(): String = "[$name][${this.javaClass.simpleName}] $this"
+
     /**
      * Starts the dispatcher by running all aggregate dispatchers.
      *
@@ -136,11 +138,11 @@ abstract class MainDispatcher<T : Any> : MessageDispatcher {
      */
     override fun start() {
         log.info {
-            "[$name][${this.javaClass.simpleName}] Start subscribe to namedAggregates:${namedAggregates.toJsonString()}."
+            "Start subscribe to namedAggregates:${namedAggregates.toJsonString()}.".withNamePrefix()
         }
         if (namedAggregates.isEmpty()) {
             log.warn {
-                "[$name][${this.javaClass.simpleName}] Ignore start because namedAggregates is empty."
+                "Ignore start because namedAggregates is empty.".withNamePrefix()
             }
             return
         }
@@ -159,7 +161,7 @@ abstract class MainDispatcher<T : Any> : MessageDispatcher {
      */
     override fun stopGracefully(): Mono<Void> {
         log.info {
-            "[$name][${this.javaClass.simpleName}] Stop Gracefully."
+            "Stop Gracefully.".withNamePrefix()
         }
         return Flux
             .fromIterable(aggregateDispatchers)

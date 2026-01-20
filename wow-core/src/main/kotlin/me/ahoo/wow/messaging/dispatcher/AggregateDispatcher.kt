@@ -17,6 +17,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.modeling.NamedAggregateDecorator
 import me.ahoo.wow.infra.lifecycle.TerminatedSignalCapable
+import me.ahoo.wow.infra.sink.terminated
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.metrics.Metrics
 import reactor.core.publisher.Flux
@@ -131,6 +132,12 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> :
     private val activeTaskCounter = AtomicInteger(0)
 
     private fun tryEmitTerminated() {
+        if (terminatedSink.terminated) {
+            return
+        }
+        log.info {
+            "[$name] Emitting terminated signal."
+        }
         val result = terminatedSink.tryEmitEmpty()
         if (result != Sinks.EmitResult.OK) {
             log.warn {
@@ -250,7 +257,7 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> :
      */
     override fun stopGracefully(): Mono<Void> {
         log.info {
-            "[$name] Stop gracefully. Active task count: ${activeTaskCounter.get()}"
+            "[$name] Stop gracefully. Active task count: ${activeTaskCounter.get()}."
         }
         cancel()
         if (activeTaskCounter.get() <= 0) {
