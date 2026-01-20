@@ -15,6 +15,7 @@ package me.ahoo.wow.infra.accessor.function.reactive
 
 import kotlinx.coroutines.reactor.mono
 import reactor.core.publisher.Mono
+import java.lang.reflect.InvocationTargetException
 import kotlin.reflect.KFunction
 import kotlin.reflect.full.callSuspend
 
@@ -23,8 +24,13 @@ class SuspendMonoFunctionAccessor<T, D>(function: KFunction<*>) :
 
     override operator fun invoke(target: T, args: Array<Any?>): Mono<D> {
         return mono {
-            @Suppress("UNCHECKED_CAST")
-            function.callSuspend(target, *args) as D
+            try {
+                @Suppress("UNCHECKED_CAST")
+                function.callSuspend(target, *args) as D
+            } catch (invocationTargetException: InvocationTargetException) {
+                throw invocationTargetException.cause ?: invocationTargetException
+            }
+
         }
     }
 }
