@@ -47,7 +47,7 @@ spring:
 logging:
   level:
     #    root: debug
-    me.ahoo.wow: WARN
+    me.ahoo.wow: INFO
 #springdoc:
 #  remove-broken-reference-definitions: false
 cosid:
