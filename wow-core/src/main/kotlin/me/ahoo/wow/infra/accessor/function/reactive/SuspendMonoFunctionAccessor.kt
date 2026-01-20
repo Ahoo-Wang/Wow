@@ -28,9 +28,8 @@ class SuspendMonoFunctionAccessor<T, D>(function: KFunction<*>) :
                 @Suppress("UNCHECKED_CAST")
                 function.callSuspend(target, *args) as D
             } catch (invocationTargetException: InvocationTargetException) {
-                throw invocationTargetException.cause ?: invocationTargetException
+                throw invocationTargetException.targetException
             }
-
         }
     }
 }
