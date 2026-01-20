@@ -130,6 +130,15 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> :
     override val terminatedSignal: Mono<Void> = terminatedSink.asMono()
     private val activeTaskCounter = AtomicInteger(0)
 
+    private fun tryEmitTerminated() {
+        val result = terminatedSink.tryEmitEmpty()
+        if (result != Sinks.EmitResult.OK) {
+            log.warn {
+                "[$name] Failed to emit terminated signal: $result."
+            }
+        }
+    }
+
     /**
      * Starts the dispatcher by subscribing to the message flux.
      *
@@ -205,7 +214,7 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> :
                         log.info {
                             "[$name] All active tasks completed after disposal."
                         }
-                        terminatedSink.tryEmitEmpty()
+                        tryEmitTerminated()
                     }
                 }
             }.then()
@@ -230,7 +239,6 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> :
      *
      * This method initiates shutdown by first cancelling the subscription to stop
      * accepting new messages, then waits for all currently active tasks to complete.
-     * The shutdown process polls every 100ms to check if active tasks have finished.
      *
      * The method returns a Mono that completes when shutdown is fully finished,
      * allowing for reactive shutdown coordination. This ensures no message
@@ -244,18 +252,16 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> :
         log.info {
             "[$name] Stop gracefully. Active task count: ${activeTaskCounter.get()}"
         }
-        // Cancel the subscription first
         cancel()
         if (activeTaskCounter.get() <= 0) {
             log.info {
                 "[$name] No active tasks. Stop complete."
             }
-            terminatedSink.tryEmitEmpty()
-            return Mono.empty()
+            tryEmitTerminated()
         }
         return terminatedSignal.doFinally {
             log.info {
-                "[$name] Graceful shutdown complete."
+                "[$name] [$it] Graceful shutdown complete."
             }
         }
     }
