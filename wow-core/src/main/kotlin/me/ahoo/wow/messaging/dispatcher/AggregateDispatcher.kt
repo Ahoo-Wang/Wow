@@ -16,13 +16,14 @@ package me.ahoo.wow.messaging.dispatcher
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.modeling.NamedAggregateDecorator
+import me.ahoo.wow.infra.lifecycle.TerminatedSignalCapable
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.metrics.Metrics
 import reactor.core.publisher.Flux
 import reactor.core.publisher.GroupedFlux
 import reactor.core.publisher.Mono
+import reactor.core.publisher.Sinks
 import reactor.core.scheduler.Scheduler
-import java.time.Duration
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -79,7 +80,8 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> :
     SafeSubscriber<Void>(),
     MessageDispatcher,
     ParallelismCapable,
-    NamedAggregateDecorator {
+    NamedAggregateDecorator,
+    TerminatedSignalCapable<Void> {
     companion object {
         private val log = KotlinLogging.logger {}
     }
@@ -123,7 +125,10 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> :
      */
     abstract val messageFlux: Flux<T>
 
-    private val activityTaskCounter = AtomicInteger(0)
+    private val terminatedSink = Sinks.empty<Void>()
+
+    override val terminatedSignal: Mono<Void> = terminatedSink.asMono()
+    private val activeTaskCounter = AtomicInteger(0)
 
     /**
      * Starts the dispatcher by subscribing to the message flux.
@@ -193,9 +198,15 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> :
             .tag("group.key", grouped.key().toString())
             .metrics()
             .concatMap { exchange ->
-                activityTaskCounter.incrementAndGet()
+                activeTaskCounter.incrementAndGet()
                 handleExchange(exchange).doFinally {
-                    activityTaskCounter.decrementAndGet()
+                    val remaining = activeTaskCounter.decrementAndGet()
+                    if (isDisposed && remaining <= 0) {
+                        log.info {
+                            "[$name] All active tasks completed after disposal."
+                        }
+                        terminatedSink.tryEmitEmpty()
+                    }
                 }
             }.then()
 
@@ -231,29 +242,21 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> :
      */
     override fun stopGracefully(): Mono<Void> {
         log.info {
-            "[$name] Stop gracefully. Active task count: ${activityTaskCounter.get()}"
+            "[$name] Stop gracefully. Active task count: ${activeTaskCounter.get()}"
         }
         // Cancel the subscription first
         cancel()
-        if (activityTaskCounter.get() <= 0) {
+        if (activeTaskCounter.get() <= 0) {
             log.info {
                 "[$name] No active tasks. Stop complete."
             }
+            terminatedSink.tryEmitEmpty()
             return Mono.empty()
         }
-        // Wait for all active tasks to complete
-        return Flux.interval(Duration.ofMillis(100))
-            .takeUntil {
-                if (activityTaskCounter.get() <= 0) {
-                    log.info {
-                        "[$name] No active tasks. Shutdown complete."
-                    }
-                    return@takeUntil true
-                }
-                log.info {
-                    "[$name] Waiting for ${activityTaskCounter.get()} active tasks to complete."
-                }
-                return@takeUntil false
-            }.then()
+        return terminatedSignal.doFinally {
+            log.info {
+                "[$name] Graceful shutdown complete."
+            }
+        }
     }
 }
