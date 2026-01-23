@@ -45,6 +45,7 @@ import me.ahoo.wow.api.query.Pagination
  * @see QueryableDsl
  * @see IPagedQuery
  */
+@QueryDslMarker
 class PagedQueryDsl : QueryableDsl<IPagedQuery>() {
     private var pagination: Pagination = Pagination.DEFAULT
 

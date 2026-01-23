@@ -31,6 +31,7 @@ import me.ahoo.wow.api.query.Sort
  * @see NestedFieldDsl
  * @see Sort
  */
+@QueryDslMarker
 class SortDsl : NestedFieldDsl() {
 
     private val sorts: MutableList<Sort> = mutableListOf()
