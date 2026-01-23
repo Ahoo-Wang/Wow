@@ -44,12 +44,12 @@ object AggregatedDomainEventStreamDefinitionProvider : CustomDefinitionProviderV
         if (!javaType.isInstanceOf(type)) {
             return null
         }
-
-        if (javaType.typeBindings.isEmpty) {
+        val commandAggregateType = javaType.typeBindings.getBoundType(0)?.erasedType
+        if (commandAggregateType == null || commandAggregateType == Any::class.java) {
             return domainEventStreamNode()
         }
         val schemaVersion = context.generatorConfig.schemaVersion
-        val eventMetadataSet = resolveEvents(javaType)
+        val eventMetadataSet = resolveEvents(commandAggregateType)
         if (eventMetadataSet.isEmpty()) {
             return domainEventStreamNode()
         }
@@ -90,8 +90,7 @@ object AggregatedDomainEventStreamDefinitionProvider : CustomDefinitionProviderV
         return CustomDefinition(WowSchemaLoader.load(DomainEventStream::class.java))
     }
 
-    private fun resolveEvents(javaType: ResolvedType): List<EventMetadata<*>> {
-        val commandAggregateType = javaType.typeBindings.getBoundType(0).erasedType
+    private fun resolveEvents(commandAggregateType: Class<*>): List<EventMetadata<*>> {
         val aggregateMetadata = commandAggregateType.aggregateMetadata<Any, Any>()
         val eventTypes = aggregateMetadata.state.sourcingFunctionRegistry.keys
         val metadataEventTypes = MetadataSearcher.getAggregate(aggregateMetadata.namedAggregate)?.events?.map {
