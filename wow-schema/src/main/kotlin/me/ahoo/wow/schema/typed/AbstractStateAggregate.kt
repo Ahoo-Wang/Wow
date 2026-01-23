@@ -37,18 +37,18 @@ abstract class AbstractStateAggregate<S : ReadOnlyStateAggregate<*>> :
         messageType.rawType as Class<S>
     }
 
-    open fun getStateType(javaType: ResolvedType): ResolvedType {
+    open fun getStateType(javaType: ResolvedType): ResolvedType? {
         return javaType.typeBindings.getBoundType(0)
     }
 
     override fun createCustomDefinition(javaType: ResolvedType, context: SchemaGenerationContext): CustomDefinition {
-        if (javaType.typeBindings.isEmpty) {
+        val stateType = getStateType(javaType)
+        if (stateType == null || stateType.erasedType == Any::class.java) {
             return super.createCustomDefinition(javaType, context)
         }
 
         val typedSchema = getTypedSchema().asJsonSchema()
         typedSchema.remove(SchemaKeyword.TAG_TITLE)
-        val stateType = getStateType(javaType)
         val propertiesNode = typedSchema.requiredGetProperties()
         val stateOriginalNode = propertiesNode[StateAggregateRecords.STATE] as ObjectNode
         val stateSchema = context.createStandardDefinition(stateType, this).asJsonSchema()
