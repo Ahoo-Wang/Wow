@@ -40,6 +40,7 @@ import me.ahoo.wow.api.query.Pagination
  * }
  * ```
  */
+@QueryDslMarker
 class ListQueryDsl : QueryableDsl<IListQuery>() {
     private var limit: Int = Pagination.DEFAULT.size
 

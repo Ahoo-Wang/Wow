@@ -75,6 +75,7 @@ import kotlin.reflect.KCallable
  * - `String.beforeToday(time: Any)`: Adds a condition to check if the field is before today at the specified time.
  * - `String.tomorrow(datePattern: Any? = null)`: Adds a condition to check if the field is tomorrow.
  */
+@QueryDslMarker
 class ConditionDsl : NestedFieldDsl() {
 
     private var conditions: MutableList<Condition> = mutableListOf()
