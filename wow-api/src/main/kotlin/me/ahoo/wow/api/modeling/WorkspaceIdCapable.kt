@@ -70,4 +70,8 @@ interface WorkspaceIdCapable {
      * @throws IllegalStateException if the workspaceId is accessed when the entity is in an invalid state
      */
     val workspaceId: WorkspaceId
+
+    companion object {
+        const val DEFAULT_WORKSPACE_ID: WorkspaceId = TenantId.DEFAULT_TENANT_ID
+    }
 }
