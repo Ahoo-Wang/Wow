@@ -57,7 +57,7 @@ interface AggregateRouteSpec : RouteSpec, OpenAPIComponentContextCapable {
     val appendTenantPath: Boolean
         get() = aggregateMetadata.staticTenantId.isNullOrBlank()
     val appendSpacePath: Boolean
-        get() = false
+        get() = aggregateRouteMetadata.spaced
     val appendOwnerPath: Boolean
         get() = aggregateRouteMetadata.owner != AggregateRoute.Owner.NEVER
     val appendIdPath: Boolean
