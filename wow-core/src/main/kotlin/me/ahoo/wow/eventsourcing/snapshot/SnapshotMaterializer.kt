@@ -30,6 +30,7 @@ fun <S : Any, D : Any> ReadOnlyStateAggregate<S>.toMedium(materialize: (S) -> D)
     return MediumMaterializedSnapshot(
         tenantId = aggregateId.tenantId,
         ownerId = ownerId,
+        spaceId = spaceId,
         version = version,
         eventId = eventId,
         firstOperator = firstOperator,

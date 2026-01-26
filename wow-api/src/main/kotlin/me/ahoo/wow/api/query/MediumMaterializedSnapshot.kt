@@ -20,6 +20,8 @@ import me.ahoo.wow.api.modeling.FirstEventTimeCapable
 import me.ahoo.wow.api.modeling.FirstOperatorCapable
 import me.ahoo.wow.api.modeling.OperatorCapable
 import me.ahoo.wow.api.modeling.OwnerId
+import me.ahoo.wow.api.modeling.SpaceId
+import me.ahoo.wow.api.modeling.SpaceIdCapable
 import me.ahoo.wow.api.modeling.TenantId
 
 /**
@@ -41,6 +43,7 @@ import me.ahoo.wow.api.modeling.TenantId
 data class MediumMaterializedSnapshot<S : Any>(
     override val tenantId: String,
     override val ownerId: String,
+    override val spaceId: SpaceId,
     override val version: Int,
     override val eventId: String,
     override val firstOperator: String,
@@ -51,6 +54,7 @@ data class MediumMaterializedSnapshot<S : Any>(
 ) : IMaterializedSnapshot<MediumMaterializedSnapshot<S>, S>,
     TenantId,
     OwnerId,
+    SpaceIdCapable,
     Version,
     EventIdCapable,
     FirstOperatorCapable,
@@ -66,6 +70,7 @@ fun <S : Any, D : Any> MaterializedSnapshot<S>.toMedium(materialize: (S) -> D): 
     return MediumMaterializedSnapshot(
         tenantId = tenantId,
         ownerId = ownerId,
+        spaceId = spaceId,
         version = version,
         eventId = eventId,
         firstOperator = firstOperator,

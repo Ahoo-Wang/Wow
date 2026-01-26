@@ -22,12 +22,14 @@ import me.ahoo.wow.api.modeling.FirstEventTimeCapable
 import me.ahoo.wow.api.modeling.FirstOperatorCapable
 import me.ahoo.wow.api.modeling.OperatorCapable
 import me.ahoo.wow.api.modeling.OwnerId
+import me.ahoo.wow.api.modeling.SpaceIdCapable
 import me.ahoo.wow.api.modeling.StateCapable
 
 interface ReadOnlyStateAggregate<S : Any> :
     AggregateIdCapable,
     StateCapable<S>,
     OwnerId,
+    SpaceIdCapable,
     Version,
     FirstOperatorCapable,
     OperatorCapable,

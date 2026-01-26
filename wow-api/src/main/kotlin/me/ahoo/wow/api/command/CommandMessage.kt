@@ -19,6 +19,7 @@ import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.AggregateIdCapable
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.modeling.OwnerId
+import me.ahoo.wow.api.modeling.SpaceIdCapable
 
 /**
  * Represents a complete command message that encapsulates a command to be executed against an aggregate in the Wow framework.
@@ -54,6 +55,7 @@ interface CommandMessage<C : Any> :
     AggregateIdCapable,
     NamedAggregate,
     OwnerId,
+    SpaceIdCapable,
     CommandId,
     RequestId,
     Copyable<CommandMessage<C>> {

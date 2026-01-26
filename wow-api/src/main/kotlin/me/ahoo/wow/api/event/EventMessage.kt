@@ -19,6 +19,7 @@ import me.ahoo.wow.api.messaging.NamedBoundedContextMessage
 import me.ahoo.wow.api.modeling.AggregateIdCapable
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.modeling.OwnerId
+import me.ahoo.wow.api.modeling.SpaceIdCapable
 
 interface EventMessage<SOURCE : EventMessage<SOURCE, T>, out T> :
     NamedBoundedContextMessage<SOURCE, T>,
@@ -26,4 +27,5 @@ interface EventMessage<SOURCE : EventMessage<SOURCE, T>, out T> :
     NamedAggregate,
     Version,
     AggregateIdCapable,
-    OwnerId
+    OwnerId,
+    SpaceIdCapable

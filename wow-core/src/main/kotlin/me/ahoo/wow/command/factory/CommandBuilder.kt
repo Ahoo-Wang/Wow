@@ -17,6 +17,8 @@ import me.ahoo.wow.api.Identifier
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.modeling.SpaceId
+import me.ahoo.wow.command.factory.CommandBuilder.Companion.builder
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.messaging.withLocalFirst
@@ -59,6 +61,7 @@ interface CommandBuilder : Identifier {
     val aggregateId: String?
     val tenantId: String?
     val ownerId: String?
+    val spaceId: SpaceId?
     val aggregateVersion: Int?
     val namedAggregate: NamedAggregate?
     val header: Header
@@ -152,6 +155,8 @@ interface CommandBuilder : Identifier {
      * @see me.ahoo.wow.api.modeling.AggregateId.ownerId
      */
     fun ownerId(ownerId: String?): CommandBuilder
+
+    fun spaceId(spaceId: SpaceId?): CommandBuilder
 
     /**
      * Sets the tenant ID only if it's not already set.
@@ -306,6 +311,8 @@ class MutableCommandBuilder(
         private set
     override var ownerId: String? = null
         private set
+    override var spaceId: SpaceId? = null
+        private set
     override var aggregateVersion: Int? = null
         private set
     override var namedAggregate: NamedAggregate? = null
@@ -346,6 +353,11 @@ class MutableCommandBuilder(
 
     override fun ownerId(ownerId: String?): CommandBuilder {
         this.ownerId = ownerId
+        return this
+    }
+
+    override fun spaceId(spaceId: SpaceId?): CommandBuilder {
+        this.spaceId = spaceId
         return this
     }
 

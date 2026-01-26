@@ -19,6 +19,8 @@ import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.modeling.OwnerId.Companion.orDefaultOwnerId
+import me.ahoo.wow.api.modeling.SpaceId
+import me.ahoo.wow.api.modeling.SpaceIdCapable.Companion.orDefaultSpaceId
 import me.ahoo.wow.api.modeling.TenantId.Companion.orDefaultTenantId
 import me.ahoo.wow.command.annotation.commandMetadata
 import me.ahoo.wow.command.factory.CommandBuilder
@@ -60,6 +62,7 @@ fun <C : Any> C.toCommandMessage(
     aggregateId: String? = null,
     tenantId: String? = null,
     ownerId: String? = null,
+    spaceId: SpaceId? = null,
     aggregateVersion: Int? = null,
     namedAggregate: NamedAggregate? = null,
     header: Header = DefaultHeader.empty(),
@@ -107,6 +110,7 @@ fun <C : Any> C.toCommandMessage(
         createTime = createTime,
         aggregateId = targetAggregateId,
         ownerId = finalOwnerId.orDefaultOwnerId(),
+        spaceId = spaceId.orDefaultSpaceId(),
         aggregateVersion = expectedAggregateVersion,
         name = metadata.name,
         isCreate = metadata.isCreate,
@@ -134,6 +138,7 @@ fun <C : Any> CommandBuilder.toCommandMessage(): CommandMessage<C> =
         aggregateId = aggregateId,
         tenantId = tenantId,
         ownerId = ownerId,
+        spaceId = spaceId,
         aggregateVersion = aggregateVersion,
         namedAggregate = namedAggregate,
         header = header,

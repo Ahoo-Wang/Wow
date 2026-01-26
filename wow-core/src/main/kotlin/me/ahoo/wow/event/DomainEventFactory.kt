@@ -19,6 +19,8 @@ import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.OwnerId
+import me.ahoo.wow.api.modeling.SpaceId
+import me.ahoo.wow.api.modeling.SpaceIdCapable
 import me.ahoo.wow.event.annotation.toEventMetadata
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.DefaultHeader
@@ -54,6 +56,7 @@ fun <T : Any> T.toDomainEvent(
     id: String = generateGlobalId(),
     version: Int = Version.INITIAL_VERSION,
     ownerId: String = OwnerId.DEFAULT_OWNER_ID,
+    spaceId: SpaceId = SpaceIdCapable.DEFAULT_SPACE_ID,
     sequence: Int = DEFAULT_EVENT_SEQUENCE,
     isLast: Boolean = true,
     header: Header = DefaultHeader.empty(),
@@ -67,6 +70,7 @@ fun <T : Any> T.toDomainEvent(
         revision = metadata.revision,
         aggregateId = aggregateId,
         ownerId = ownerId,
+        spaceId = spaceId,
         commandId = commandId,
         name = metadata.name,
         sequence = sequence,
@@ -108,6 +112,7 @@ fun <T : Any> T.toDomainEvent(
     tenantId: String,
     commandId: String,
     ownerId: String = OwnerId.DEFAULT_OWNER_ID,
+    spaceId: SpaceId = SpaceIdCapable.DEFAULT_SPACE_ID,
     id: String = generateGlobalId(),
     version: Int = Version.INITIAL_VERSION,
     sequence: Int = DEFAULT_EVENT_SEQUENCE,
@@ -124,6 +129,7 @@ fun <T : Any> T.toDomainEvent(
         revision = metadata.revision,
         aggregateId = namedAggregate.aggregateId(id = aggregateId, tenantId = tenantId),
         ownerId = ownerId,
+        spaceId = spaceId,
         commandId = commandId,
         name = metadata.name,
         sequence = sequence,

@@ -15,6 +15,7 @@ package me.ahoo.wow.api.query
 
 import com.fasterxml.jackson.annotation.JsonInclude
 import io.swagger.v3.oas.annotations.media.Schema
+import me.ahoo.wow.api.query.Condition.Companion.exists
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
@@ -664,6 +665,8 @@ data class Condition(
          * @return A new owner ID condition.
          */
         fun ownerId(value: String) = Condition(field = EMPTY_VALUE, operator = Operator.OWNER_ID, value = value)
+
+        fun spaceId(value: String) = Condition(field = EMPTY_VALUE, operator = Operator.SPACE_ID, value = value)
 
         /**
          * Creates a deletion state condition using a boolean value.
