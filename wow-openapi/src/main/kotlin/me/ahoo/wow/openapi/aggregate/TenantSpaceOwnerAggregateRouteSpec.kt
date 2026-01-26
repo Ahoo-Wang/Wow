@@ -18,22 +18,24 @@ import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 
-interface TenantOwnerAggregateRouteSpec : AggregateRouteSpec {
+interface TenantSpaceOwnerAggregateRouteSpec : AggregateRouteSpec {
     val operationSummary: String
     override val summary: String
-        get() = TenantOwnerRouteSummarySpec()
+        get() = TenantSpaceOwnerRouteSummarySpec()
             .operationSummary(operationSummary)
             .appendTenant(appendTenantPath)
+            .appendSpace(appendSpacePath)
             .appendOwner(appendOwnerPath)
             .build()
 }
 
-abstract class AbstractTenantOwnerAggregateRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
+abstract class AbstractTenantSpaceOwnerAggregateRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
 
     abstract fun createSpec(
         currentContext: NamedBoundedContext,
         aggregateRouteMetadata: AggregateRouteMetadata<*>,
         appendTenantPath: Boolean,
+        appendSpacePath: Boolean,
         appendOwnerPath: Boolean
     ): AggregateRouteSpec
 
@@ -45,6 +47,7 @@ abstract class AbstractTenantOwnerAggregateRouteSpecFactory : AbstractAggregateR
             currentContext = currentContext,
             aggregateRouteMetadata = aggregateRouteMetadata,
             appendTenantPath = false,
+            appendSpacePath = false,
             appendOwnerPath = false
         )
         return buildList {
@@ -55,6 +58,7 @@ abstract class AbstractTenantOwnerAggregateRouteSpecFactory : AbstractAggregateR
                     currentContext = currentContext,
                     aggregateRouteMetadata = aggregateRouteMetadata,
                     appendTenantPath = true,
+                    appendSpacePath = false,
                     appendOwnerPath = false
                 )
                 add(tenantRouteSpec)
@@ -65,6 +69,7 @@ abstract class AbstractTenantOwnerAggregateRouteSpecFactory : AbstractAggregateR
                     currentContext = currentContext,
                     aggregateRouteMetadata = aggregateRouteMetadata,
                     appendTenantPath = false,
+                    appendSpacePath = false,
                     appendOwnerPath = true
                 )
                 add(ownerRouteSpec)

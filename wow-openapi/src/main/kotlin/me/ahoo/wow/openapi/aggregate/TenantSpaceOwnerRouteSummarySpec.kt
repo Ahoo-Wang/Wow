@@ -13,23 +13,29 @@
 
 package me.ahoo.wow.openapi.aggregate
 
-class TenantOwnerRouteSummarySpec {
+class TenantSpaceOwnerRouteSummarySpec {
 
     private var operationSummary: String = ""
     private var appendTenant: Boolean = false
+    private var appendSpace: Boolean = false
     private var appendOwner: Boolean = false
 
-    fun operationSummary(operationSummary: String): TenantOwnerRouteSummarySpec {
+    fun operationSummary(operationSummary: String): TenantSpaceOwnerRouteSummarySpec {
         this.operationSummary = operationSummary
         return this
     }
 
-    fun appendTenant(tenant: Boolean): TenantOwnerRouteSummarySpec {
+    fun appendTenant(tenant: Boolean): TenantSpaceOwnerRouteSummarySpec {
         this.appendTenant = tenant
         return this
     }
 
-    fun appendOwner(owner: Boolean): TenantOwnerRouteSummarySpec {
+    fun appendSpace(space: Boolean): TenantSpaceOwnerRouteSummarySpec {
+        this.appendSpace = space
+        return this
+    }
+
+    fun appendOwner(owner: Boolean): TenantSpaceOwnerRouteSummarySpec {
         this.appendOwner = owner
         return this
     }
@@ -41,6 +47,9 @@ class TenantOwnerRouteSummarySpec {
                 append(" Within")
                 if (appendTenant) {
                     append(" Tenant")
+                }
+                if (appendSpace) {
+                    append(" Space")
                 }
                 if (appendOwner) {
                     append(" Owner")

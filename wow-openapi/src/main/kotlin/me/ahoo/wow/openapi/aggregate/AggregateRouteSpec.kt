@@ -23,6 +23,7 @@ import me.ahoo.wow.naming.getContextAlias
 import me.ahoo.wow.openapi.AbstractRouteSpecFactory
 import me.ahoo.wow.openapi.CommonComponent.Parameter.idPathParameter
 import me.ahoo.wow.openapi.CommonComponent.Parameter.ownerIdPathParameter
+import me.ahoo.wow.openapi.CommonComponent.Parameter.spaceIdPathParameter
 import me.ahoo.wow.openapi.CommonComponent.Parameter.tenantIdPathParameter
 import me.ahoo.wow.openapi.PathBuilder
 import me.ahoo.wow.openapi.RouteSpec
@@ -33,6 +34,8 @@ import me.ahoo.wow.serialization.MessageRecords
 
 const val TENANT_PATH_VARIABLE = "{${MessageRecords.TENANT_ID}}"
 const val TENANT_PATH_PREFIX = "tenant/$TENANT_PATH_VARIABLE"
+const val SPACE_PATH_VARIABLE = "{${MessageRecords.SPACE_ID}}"
+const val SPACE_PATH_PREFIX = "space/$SPACE_PATH_VARIABLE"
 const val OWNER_PATH_VARIABLE = "{${MessageRecords.OWNER_ID}}"
 const val OWNER_PATH_PREFIX = "owner/$OWNER_PATH_VARIABLE"
 const val ID_PATH_VARIABLE = "{${MessageRecords.ID}}"
@@ -53,6 +56,8 @@ interface AggregateRouteSpec : RouteSpec, OpenAPIComponentContextCapable {
         }
     val appendTenantPath: Boolean
         get() = aggregateMetadata.staticTenantId.isNullOrBlank()
+    val appendSpacePath: Boolean
+        get() = false
     val appendOwnerPath: Boolean
         get() = aggregateRouteMetadata.owner != AggregateRoute.Owner.NEVER
     val appendIdPath: Boolean
@@ -68,6 +73,9 @@ interface AggregateRouteSpec : RouteSpec, OpenAPIComponentContextCapable {
             }
             if (appendTenantPath) {
                 pathBuilder.append(TENANT_PATH_PREFIX)
+            }
+            if (appendSpacePath) {
+                pathBuilder.append(SPACE_PATH_PREFIX)
             }
             if (appendOwnerPath) {
                 pathBuilder.append(OWNER_PATH_PREFIX)
@@ -86,6 +94,9 @@ interface AggregateRouteSpec : RouteSpec, OpenAPIComponentContextCapable {
             return buildList {
                 if (appendTenantPath) {
                     add(componentContext.tenantIdPathParameter())
+                }
+                if (appendSpacePath) {
+                    add(componentContext.spaceIdPathParameter())
                 }
                 if (appendOwnerPath) {
                     add(componentContext.ownerIdPathParameter())

@@ -22,9 +22,9 @@ import me.ahoo.wow.openapi.CommonComponent.Header.errorCodeHeader
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.QueryComponent.RequestBody.aggregatedListQueryRequestBody
 import me.ahoo.wow.openapi.RouteIdSpec
-import me.ahoo.wow.openapi.aggregate.AbstractTenantOwnerAggregateRouteSpecFactory
+import me.ahoo.wow.openapi.aggregate.AbstractTenantSpaceOwnerAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.aggregate.AggregateRouteSpec
-import me.ahoo.wow.openapi.aggregate.TenantOwnerAggregateRouteSpec
+import me.ahoo.wow.openapi.aggregate.TenantSpaceOwnerAggregateRouteSpec
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 
@@ -32,9 +32,10 @@ class ListQuerySnapshotStateRouteSpec(
     override val currentContext: NamedBoundedContext,
     override val aggregateRouteMetadata: AggregateRouteMetadata<*>,
     override val appendTenantPath: Boolean,
+    override val appendSpacePath: Boolean,
     override val appendOwnerPath: Boolean,
     override val componentContext: OpenAPIComponentContext
-) : TenantOwnerAggregateRouteSpec {
+) : TenantSpaceOwnerAggregateRouteSpec {
     override val id: String
         get() = RouteIdSpec()
             .aggregate(aggregateMetadata)
@@ -65,17 +66,19 @@ class ListQuerySnapshotStateRouteSpec(
     }
 }
 
-class ListQuerySnapshotStateRouteSpecFactory : AbstractTenantOwnerAggregateRouteSpecFactory() {
+class ListQuerySnapshotStateRouteSpecFactory : AbstractTenantSpaceOwnerAggregateRouteSpecFactory() {
     override fun createSpec(
         currentContext: NamedBoundedContext,
         aggregateRouteMetadata: AggregateRouteMetadata<*>,
         appendTenantPath: Boolean,
+        appendSpacePath: Boolean,
         appendOwnerPath: Boolean
     ): AggregateRouteSpec {
         return ListQuerySnapshotStateRouteSpec(
             currentContext = currentContext,
             aggregateRouteMetadata = aggregateRouteMetadata,
             appendTenantPath = appendTenantPath,
+            appendSpacePath = appendSpacePath,
             appendOwnerPath = appendOwnerPath,
             componentContext = componentContext
         )
