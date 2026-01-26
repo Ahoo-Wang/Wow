@@ -20,7 +20,9 @@ import me.ahoo.wow.api.event.AggregateDeleted
 import me.ahoo.wow.api.event.AggregateRecovered
 import me.ahoo.wow.api.event.IgnoreSourcing
 import me.ahoo.wow.api.event.OwnerTransferred
+import me.ahoo.wow.api.event.SpaceTransferred
 import me.ahoo.wow.api.exception.ErrorInfo
+import me.ahoo.wow.api.modeling.SpaceId
 import me.ahoo.wow.command.CommandOperator.withOperator
 import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.id.generateGlobalId
@@ -277,6 +279,25 @@ internal class SimpleStateAggregateTest {
     }
 
     @Test
+    fun sourcingWithSpaceTransferred() {
+        val mockAggregate = MockStateAggregate(generateGlobalId())
+        val stateAggregate = aggregateMetadata.toStateAggregate(mockAggregate, 0)
+        val newSpaceId = generateGlobalId()
+        stateAggregate.ownerId.assert().isNotEqualTo(newSpaceId)
+
+        val transferredEvent = TestSpaceTransferred(newSpaceId)
+        val domainEventStream =
+            transferredEvent.toDomainEventStream(
+                upstream = GivenInitializationCommand(stateAggregate.aggregateId),
+                aggregateVersion = stateAggregate.version,
+            )
+
+        stateAggregate.onSourcing(domainEventStream)
+        stateAggregate.spaceId.assert().isEqualTo(newSpaceId)
+        stateAggregate.version.assert().isEqualTo(1)
+    }
+
+    @Test
     fun sourcingWithNormalEventHavingSourcingFunction() {
         val mockAggregate = MockStateAggregate(generateGlobalId())
         val stateAggregate = aggregateMetadata.toStateAggregate(mockAggregate, 0)
@@ -405,6 +426,10 @@ internal class SimpleStateAggregateTest {
     data class TestOwnerTransferred(
         override val toOwnerId: String
     ) : OwnerTransferred
+
+    data class TestSpaceTransferred(
+        override val toSpaceId: SpaceId
+    ) : SpaceTransferred
 
     data class TestNormalEvent(
         val value: String

@@ -18,6 +18,7 @@ import me.ahoo.wow.api.event.AggregateDeleted
 import me.ahoo.wow.api.event.AggregateRecovered
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.event.OwnerTransferred
+import me.ahoo.wow.api.event.SpaceTransferred
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.OwnerId
 import me.ahoo.wow.api.modeling.SpaceId
@@ -153,6 +154,9 @@ class SimpleStateAggregate<S : Any>(
         }
         if (domainEventBody is OwnerTransferred) {
             ownerId = domainEventBody.toOwnerId
+        }
+        if (domainEventBody is SpaceTransferred) {
+            spaceId = domainEventBody.toSpaceId
         }
         val sourcingFunction = sourcingRegistry[domainEvent.body.javaClass]
         if (sourcingFunction != null) {
