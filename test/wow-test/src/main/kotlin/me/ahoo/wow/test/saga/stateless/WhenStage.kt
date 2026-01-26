@@ -14,6 +14,8 @@
 package me.ahoo.wow.test.saga.stateless
 
 import me.ahoo.wow.api.modeling.OwnerId
+import me.ahoo.wow.api.modeling.SpaceId
+import me.ahoo.wow.api.modeling.SpaceIdCapable
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.naming.annotation.toName
 import me.ahoo.wow.test.dsl.InjectServiceCapable
@@ -140,6 +142,7 @@ interface WhenStage<T : Any> : InjectServiceCapable<WhenStage<T>> {
     fun whenEvent(
         event: Any,
         state: Any? = null,
-        ownerId: String = OwnerId.DEFAULT_OWNER_ID
+        ownerId: String = OwnerId.DEFAULT_OWNER_ID,
+        spaceId: SpaceId = SpaceIdCapable.DEFAULT_SPACE_ID
     ): ExpectStage<T>
 }

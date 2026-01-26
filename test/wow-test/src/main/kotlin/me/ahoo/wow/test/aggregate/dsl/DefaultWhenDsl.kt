@@ -14,6 +14,7 @@
 package me.ahoo.wow.test.aggregate.dsl
 
 import me.ahoo.wow.api.messaging.Header
+import me.ahoo.wow.api.modeling.SpaceId
 import me.ahoo.wow.api.naming.Named
 import me.ahoo.wow.test.aggregate.WhenStage
 import me.ahoo.wow.test.dsl.AbstractDynamicTestBuilder
@@ -67,9 +68,10 @@ class DefaultWhenDsl<S : Any>(
         command: Any,
         header: Header,
         ownerId: String,
+        spaceId: SpaceId,
         block: ExpectDsl<S>.() -> Unit
     ) {
-        val expectStage = delegate.whenCommand(command, header, ownerId)
+        val expectStage = delegate.whenCommand(command = command, header = header, ownerId = ownerId, spaceId = spaceId)
         val expectDsl = DefaultExpectDsl(context, expectStage)
         block(expectDsl)
         val displayName = buildString {

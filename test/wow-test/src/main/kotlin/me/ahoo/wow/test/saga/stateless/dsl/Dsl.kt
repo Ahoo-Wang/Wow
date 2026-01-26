@@ -14,6 +14,8 @@
 package me.ahoo.wow.test.saga.stateless.dsl
 
 import me.ahoo.wow.api.modeling.OwnerId
+import me.ahoo.wow.api.modeling.SpaceId
+import me.ahoo.wow.api.modeling.SpaceIdCapable
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.factory.CommandMessageFactory
 import me.ahoo.wow.command.factory.SimpleCommandBuilderRewriterRegistry
@@ -107,6 +109,7 @@ interface WhenDsl<T : Any> :
         event: Any,
         state: Any? = null,
         ownerId: String = OwnerId.DEFAULT_OWNER_ID,
+        spaceId: SpaceId = SpaceIdCapable.DEFAULT_SPACE_ID,
         block: ExpectDsl<T>.() -> Unit
     )
 }

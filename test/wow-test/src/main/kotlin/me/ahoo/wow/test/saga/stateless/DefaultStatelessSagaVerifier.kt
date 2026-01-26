@@ -15,6 +15,7 @@ package me.ahoo.wow.test.saga.stateless
 
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.messaging.function.FunctionKind
+import me.ahoo.wow.api.modeling.SpaceId
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.factory.CommandMessageFactory
@@ -77,7 +78,8 @@ internal class DefaultWhenStage<T : Any>(
      */
     private fun toDomainEvent(
         event: Any,
-        ownerId: String
+        ownerId: String,
+        spaceId: SpaceId
     ): DomainEvent<*> {
         if (event is DomainEvent<*>) {
             return event
@@ -87,6 +89,7 @@ internal class DefaultWhenStage<T : Any>(
             tenantId = TenantId.DEFAULT_TENANT_ID,
             commandId = STATELESS_SAGA_COMMAND_ID,
             ownerId = ownerId,
+            spaceId = spaceId
         )
     }
 
@@ -128,13 +131,14 @@ internal class DefaultWhenStage<T : Any>(
     override fun whenEvent(
         event: Any,
         state: Any?,
-        ownerId: String
+        ownerId: String,
+        spaceId: SpaceId
     ): ExpectStage<T> {
         val sagaCtor = sagaMetadata.processorType.constructors.first() as Constructor<T>
         val processor: T = InjectableObjectFactory(sagaCtor, serviceProvider).newInstance()
         val handlerRegistrar = StatelessSagaFunctionRegistrar(commandGateway, commandMessageFactory)
         handlerRegistrar.registerProcessor(processor)
-        val eventExchange = toEventExchange(event, state, ownerId)
+        val eventExchange = toEventExchange(event = event, state = state, ownerId = ownerId, spaceId = spaceId)
         val expectedResultMono =
             handlerRegistrar.supportedFunctions(eventExchange.message)
                 .filter {
@@ -189,9 +193,10 @@ internal class DefaultWhenStage<T : Any>(
     private fun toEventExchange(
         event: Any,
         state: Any?,
-        ownerId: String
+        ownerId: String,
+        spaceId: SpaceId
     ): DomainEventExchange<out Any> {
-        val domainEvent = toDomainEvent(event, ownerId)
+        val domainEvent = toDomainEvent(event = event, ownerId = ownerId, spaceId = spaceId)
         return if (state == null) {
             SimpleDomainEventExchange(message = domainEvent)
         } else {
