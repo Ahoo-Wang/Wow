@@ -102,6 +102,7 @@ abstract class AbstractCommandFunction<C : Any>(
                 upstream = exchange.message,
                 aggregateVersion = commandAggregate.version,
                 stateOwnerId = commandAggregate.state.ownerId,
+                stateSpaceId = commandAggregate.state.spaceId
             ).also { eventStream ->
                 exchange.setEventStream(eventStream)
             }
