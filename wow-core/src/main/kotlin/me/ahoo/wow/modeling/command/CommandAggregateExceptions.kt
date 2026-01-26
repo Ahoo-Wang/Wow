@@ -19,6 +19,7 @@ import me.ahoo.wow.api.modeling.AggregateIdCapable
 import me.ahoo.wow.exception.ErrorCodes.COMMAND_EXPECT_VERSION_CONFLICT
 import me.ahoo.wow.exception.ErrorCodes.ILLEGAL_ACCESS_DELETED_AGGREGATE
 import me.ahoo.wow.exception.ErrorCodes.ILLEGAL_ACCESS_OWNER_AGGREGATE
+import me.ahoo.wow.exception.ErrorCodes.ILLEGAL_ACCESS_SPACE_AGGREGATE
 import me.ahoo.wow.exception.WowException
 
 class CommandExpectVersionConflictException(
@@ -54,6 +55,15 @@ class IllegalAccessOwnerAggregateException(
     errorMsg: String = "Illegal access to a owner aggregate[${aggregateId.id}]."
 ) : WowException(
     errorCode = ILLEGAL_ACCESS_OWNER_AGGREGATE,
+    errorMsg = errorMsg,
+),
+    AggregateIdCapable
+
+class IllegalAccessSpaceAggregateException(
+    override val aggregateId: AggregateId,
+    errorMsg: String = "Illegal access to a space aggregate[${aggregateId.id}]."
+) : WowException(
+    errorCode = ILLEGAL_ACCESS_SPACE_AGGREGATE,
     errorMsg = errorMsg,
 ),
     AggregateIdCapable
