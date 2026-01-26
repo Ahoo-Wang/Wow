@@ -15,6 +15,8 @@ package me.ahoo.wow.test.aggregate.dsl
 
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.modeling.OwnerId
+import me.ahoo.wow.api.modeling.SpaceId
+import me.ahoo.wow.api.modeling.SpaceIdCapable
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
@@ -147,6 +149,8 @@ interface GivenDsl<S : Any> :
      */
     fun givenOwnerId(ownerId: String)
 
+    fun givenSpaceId(spaceId: SpaceId)
+
     /**
      * Initializes the aggregate by replaying a single domain event.
      *
@@ -219,6 +223,7 @@ interface WhenDsl<S : Any> :
         command: Any,
         header: Header = DefaultHeader.empty(),
         ownerId: String = OwnerId.DEFAULT_OWNER_ID,
+        spaceId: SpaceId = SpaceIdCapable.DEFAULT_SPACE_ID,
         block: ExpectDsl<S>.() -> Unit
     )
 }

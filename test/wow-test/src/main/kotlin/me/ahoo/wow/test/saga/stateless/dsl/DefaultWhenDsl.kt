@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.test.saga.stateless.dsl
 
+import me.ahoo.wow.api.modeling.SpaceId
 import me.ahoo.wow.api.naming.Named
 import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.ioc.ServiceProvider
@@ -88,9 +89,10 @@ class DefaultWhenDsl<T : Any>(
         event: Any,
         state: Any?,
         ownerId: String,
+        spaceId: SpaceId,
         block: ExpectDsl<T>.() -> Unit
     ) {
-        val expectStage = delegate.whenEvent(event, state, ownerId)
+        val expectStage = delegate.whenEvent(event = event, state = state, ownerId = ownerId, spaceId = spaceId)
         val expectDsl = DefaultExpectDsl(expectStage)
         block(expectDsl)
         val displayName = buildString {

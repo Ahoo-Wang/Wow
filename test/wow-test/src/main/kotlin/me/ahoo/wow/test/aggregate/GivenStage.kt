@@ -16,6 +16,8 @@ package me.ahoo.wow.test.aggregate
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.OwnerId
+import me.ahoo.wow.api.modeling.SpaceId
+import me.ahoo.wow.api.modeling.SpaceIdCapable
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.modeling.command.CommandAggregateFactory
@@ -83,6 +85,7 @@ interface GivenStage<S : Any> : InjectServiceCapable<GivenStage<S>> {
      * @return this GivenStage for method chaining
      */
     fun givenOwnerId(ownerId: String): GivenStage<S>
+    fun givenSpaceId(spaceId: SpaceId): GivenStage<S>
 
     /**
      * Sets up the aggregate by replaying the given domain events.
@@ -118,8 +121,9 @@ interface GivenStage<S : Any> : InjectServiceCapable<GivenStage<S>> {
 fun <S : Any> GivenStage<S>.whenCommand(
     command: Any,
     header: Header = DefaultHeader.empty(),
-    ownerId: String = OwnerId.DEFAULT_OWNER_ID
-): ExpectStage<S> = this.givenEvent().whenCommand(command, header, ownerId)
+    ownerId: String = OwnerId.DEFAULT_OWNER_ID,
+    spaceId: SpaceId = SpaceIdCapable.DEFAULT_SPACE_ID
+): ExpectStage<S> = this.givenEvent().whenCommand(command, header, ownerId, spaceId)
 
 /**
  * Alias for whenCommand, providing a more natural language interface.
@@ -169,6 +173,9 @@ internal abstract class AbstractGivenStage<C : Any, S : Any> : GivenStage<S> {
     protected var ownerId: String = OwnerId.DEFAULT_OWNER_ID
         private set
 
+    protected var spaceId: SpaceId = SpaceIdCapable.DEFAULT_SPACE_ID
+        private set
+
     /**
      * Injects services into the test context using a configuration block.
      *
@@ -191,6 +198,11 @@ internal abstract class AbstractGivenStage<C : Any, S : Any> : GivenStage<S> {
         return this
     }
 
+    override fun givenSpaceId(spaceId: SpaceId): GivenStage<S> {
+        this.spaceId = spaceId
+        return this
+    }
+
     /**
      * Sets up the aggregate by replaying the given domain events.
      *
@@ -204,6 +216,7 @@ internal abstract class AbstractGivenStage<C : Any, S : Any> : GivenStage<S> {
         DefaultWhenStage(
             aggregateId = aggregateId,
             ownerId = ownerId,
+            spaceId = spaceId,
             events = events,
             metadata = metadata,
             stateAggregateFactory = stateAggregateFactory,
@@ -227,6 +240,7 @@ internal abstract class AbstractGivenStage<C : Any, S : Any> : GivenStage<S> {
                 state = state,
                 version = version,
                 ownerId = ownerId,
+                spaceId = spaceId,
                 aggregateId = aggregateId.id,
                 tenantId = aggregateId.tenantId,
             )

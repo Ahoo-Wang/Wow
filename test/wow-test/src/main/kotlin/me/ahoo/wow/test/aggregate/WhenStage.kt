@@ -16,6 +16,8 @@ package me.ahoo.wow.test.aggregate
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.OwnerId
+import me.ahoo.wow.api.modeling.SpaceId
+import me.ahoo.wow.api.modeling.SpaceIdCapable
 import me.ahoo.wow.command.SimpleServerCommandExchange
 import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.event.toDomainEventStream
@@ -79,7 +81,8 @@ interface WhenStage<S : Any> {
     fun whenCommand(
         command: Any,
         header: Header = DefaultHeader.empty(),
-        ownerId: String = OwnerId.DEFAULT_OWNER_ID
+        ownerId: String = OwnerId.DEFAULT_OWNER_ID,
+        spaceId: SpaceId = SpaceIdCapable.DEFAULT_SPACE_ID
     ): ExpectStage<S>
 }
 
@@ -102,6 +105,7 @@ interface WhenStage<S : Any> {
 internal class DefaultWhenStage<C : Any, S : Any>(
     private val aggregateId: AggregateId,
     private val ownerId: String,
+    private val spaceId: SpaceId,
     private val events: Array<out Any>,
     private val metadata: AggregateMetadata<C, S>,
     private val stateAggregateFactory: StateAggregateFactory = ConstructorStateAggregateFactory,
@@ -112,13 +116,15 @@ internal class DefaultWhenStage<C : Any, S : Any>(
     override fun whenCommand(
         command: Any,
         header: Header,
-        ownerId: String
+        ownerId: String,
+        spaceId: SpaceId
     ): ExpectStage<S> {
         val commandMessage = command.toCommandMessage(
             aggregateId = aggregateId.id,
             namedAggregate = aggregateId.namedAggregate,
             tenantId = aggregateId.tenantId,
             ownerId = ownerId.ifBlank { this.ownerId },
+            spaceId = spaceId.ifBlank { this.spaceId },
             header = header,
         )
 
@@ -161,6 +167,7 @@ internal class DefaultWhenStage<C : Any, S : Any>(
                 val initializationCommand = GivenInitializationCommand(
                     aggregateId = commandAggregateId,
                     ownerId = this.ownerId,
+                    spaceId = this.spaceId,
                 )
 
                 val domainEventStream = events.toDomainEventStream(
@@ -232,13 +239,15 @@ internal class GivenStateWhenStage<C : Any, S : Any>(
     override fun whenCommand(
         command: Any,
         header: Header,
-        ownerId: String
+        ownerId: String,
+        spaceId: SpaceId
     ): ExpectStage<S> {
         val commandMessage = command.toCommandMessage(
             aggregateId = stateAggregate.aggregateId.id,
             namedAggregate = stateAggregate.aggregateId.namedAggregate,
             tenantId = stateAggregate.aggregateId.tenantId,
             ownerId = ownerId,
+            spaceId = spaceId,
             header = header,
         )
         val commandAggregate = commandAggregateFactory.create(metadata, stateAggregate)

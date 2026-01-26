@@ -14,6 +14,7 @@
 package me.ahoo.wow.test.aggregate.dsl
 
 import me.ahoo.wow.api.messaging.Header
+import me.ahoo.wow.api.modeling.SpaceId
 import me.ahoo.wow.api.naming.Named
 import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.ioc.ServiceProvider
@@ -80,6 +81,10 @@ abstract class AbstractGivenStageDsl<S : Any> :
      */
     override fun givenOwnerId(ownerId: String) {
         delegate.givenOwnerId(ownerId)
+    }
+
+    override fun givenSpaceId(spaceId: SpaceId) {
+        delegate.givenSpaceId(spaceId)
     }
 
     /**
@@ -172,11 +177,12 @@ abstract class AbstractGivenStageDsl<S : Any> :
         command: Any,
         header: Header,
         ownerId: String,
+        spaceId: SpaceId,
         block: ExpectDsl<S>.() -> Unit
     ) {
         val givenStage = delegate.givenEvent()
         val whenDsl = DefaultWhenDsl(context, givenStage)
-        whenDsl.whenCommand(command, header, ownerId, block)
+        whenDsl.whenCommand(command = command, header = header, ownerId = ownerId, spaceId = spaceId, block = block)
         val displayName = buildString {
             append("Given[Empty]")
             appendName(name)
