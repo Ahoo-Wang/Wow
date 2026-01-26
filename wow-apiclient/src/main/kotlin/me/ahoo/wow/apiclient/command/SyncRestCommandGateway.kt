@@ -48,6 +48,8 @@ interface SyncRestCommandGateway : RestCommandGateway<ResponseEntity<CommandResu
         tenantId: String?,
         @RequestHeader(CommandComponent.Header.OWNER_ID, required = false)
         ownerId: String?,
+        @RequestHeader(CommandComponent.Header.SPACE_ID, required = false)
+        spaceId: String?,
         @RequestHeader(CommandComponent.Header.AGGREGATE_ID, required = false)
         aggregateId: String?,
         @RequestHeader(CommandComponent.Header.AGGREGATE_VERSION, required = false)
@@ -73,7 +75,5 @@ interface SyncRestCommandGateway : RestCommandGateway<ResponseEntity<CommandResu
     override fun unwrapResponse(
         commandRequest: CommandRequest,
         response: ResponseEntity<CommandResult>
-    ): CommandResult {
-        return checkNotNull(response.body)
-    }
+    ): CommandResult = checkNotNull(response.body)
 }

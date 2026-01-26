@@ -14,6 +14,7 @@
 package me.ahoo.wow.apiclient.command
 
 import com.fasterxml.jackson.annotation.JsonIgnore
+import me.ahoo.wow.api.modeling.SpaceId
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.configuration.MetadataSearcher
 import java.net.URI
@@ -27,6 +28,7 @@ data class CommandRequest(
     val aggregateVersion: Int? = null,
     val tenantId: String? = null,
     val ownerId: String? = null,
+    val spaceId: SpaceId? = null,
     val requestId: String? = null,
     val localFirst: Boolean? = null,
     val context: String? = null,

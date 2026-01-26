@@ -53,6 +53,7 @@ object CommandComponent {
 
         const val TENANT_ID = "${COMMAND_HEADERS_PREFIX}Tenant-Id"
         const val OWNER_ID = "${COMMAND_HEADERS_PREFIX}Owner-Id"
+        const val SPACE_ID = "${COMMAND_HEADERS_PREFIX}Space-Id"
         const val AGGREGATE_ID = "${COMMAND_HEADERS_PREFIX}Aggregate-Id"
         const val AGGREGATE_VERSION = "${COMMAND_HEADERS_PREFIX}Aggregate-Version"
 
