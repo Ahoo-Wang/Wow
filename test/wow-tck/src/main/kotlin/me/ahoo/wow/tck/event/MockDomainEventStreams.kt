@@ -14,6 +14,8 @@ package me.ahoo.wow.tck.event
 
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.OwnerId
+import me.ahoo.wow.api.modeling.SpaceId
+import me.ahoo.wow.api.modeling.SpaceIdCapable
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.id.generateGlobalId
@@ -32,6 +34,7 @@ object MockDomainEventStreams {
         aggregateVersion: Int = DEFAULT_AGGREGATE_VERSION,
         eventCount: Int = DEFAULT_EVENT_COUNT,
         ownerId: String = OwnerId.DEFAULT_OWNER_ID,
+        spaceId: SpaceId = SpaceIdCapable.DEFAULT_SPACE_ID,
         createdEventSupplier: (AggregateId) -> Any = { _ -> MockAggregateCreated(generateGlobalId()) },
         changedEventSupplier: (AggregateId) -> Any = { _ -> MockAggregateChanged(generateGlobalId()) }
     ): DomainEventStream {
@@ -48,7 +51,8 @@ object MockDomainEventStreams {
         return events.toDomainEventStream(
             upstream = GivenInitializationCommand(
                 aggregateId = aggregateId,
-                ownerId = ownerId
+                ownerId = ownerId,
+                spaceId = spaceId
             ),
             aggregateVersion = aggregateVersion,
         )
