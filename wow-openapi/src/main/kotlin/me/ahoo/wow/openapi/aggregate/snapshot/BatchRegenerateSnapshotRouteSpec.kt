@@ -32,6 +32,7 @@ class BatchRegenerateSnapshotRouteSpec(
         get() = RouteIdSpec()
             .aggregate(aggregateMetadata)
             .appendTenant(appendTenantPath)
+            .appendSpace(appendSpacePath)
             .resourceName("snapshot")
             .operation("batch_regenerate").build()
     override val summary: String

@@ -38,6 +38,7 @@ class LoadEventStreamRouteSpec(
         get() = RouteIdSpec()
             .aggregate(aggregateMetadata)
             .appendTenant(appendTenantPath)
+            .appendSpace(appendSpacePath)
             .resourceName("event_stream")
             .operation("load").build()
     override val method: String

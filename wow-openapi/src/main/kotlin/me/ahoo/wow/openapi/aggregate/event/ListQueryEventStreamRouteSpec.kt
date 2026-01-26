@@ -38,6 +38,7 @@ class ListQueryEventStreamRouteSpec(
         get() = RouteIdSpec()
             .aggregate(aggregateMetadata)
             .appendTenant(appendTenantPath)
+            .appendSpace(appendSpacePath)
             .appendOwner(appendOwnerPath)
             .resourceName("event")
             .operation("list_query")

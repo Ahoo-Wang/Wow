@@ -36,6 +36,7 @@ class AggregateTracingRouteSpec(
         get() = RouteIdSpec()
             .aggregate(aggregateMetadata)
             .appendTenant(appendTenantPath)
+            .appendSpace(appendSpacePath)
             .resourceName("aggregate_tracing")
             .operation("get")
             .build()

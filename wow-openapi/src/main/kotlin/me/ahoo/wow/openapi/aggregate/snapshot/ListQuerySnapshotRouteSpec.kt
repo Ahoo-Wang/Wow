@@ -41,6 +41,7 @@ class ListQuerySnapshotRouteSpec(
         get() = RouteIdSpec()
             .aggregate(aggregateMetadata)
             .appendTenant(appendTenantPath)
+            .appendSpace(appendSpacePath)
             .appendOwner(appendOwnerPath)
             .resourceName("snapshot")
             .operation("list_query")

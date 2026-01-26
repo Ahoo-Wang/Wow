@@ -40,6 +40,7 @@ class CountSnapshotRouteSpec(
         get() = RouteIdSpec()
             .aggregate(aggregateMetadata)
             .appendTenant(appendTenantPath)
+            .appendSpace(appendSpacePath)
             .appendOwner(appendOwnerPath)
             .resourceName("snapshot")
             .operation("count")

@@ -38,6 +38,7 @@ class PagedQueryEventStreamRouteSpec(
         get() = RouteIdSpec()
             .aggregate(aggregateMetadata)
             .appendTenant(appendTenantPath)
+            .appendSpace(appendSpacePath)
             .appendOwner(appendOwnerPath)
             .resourceName("event")
             .operation("paged_query")
