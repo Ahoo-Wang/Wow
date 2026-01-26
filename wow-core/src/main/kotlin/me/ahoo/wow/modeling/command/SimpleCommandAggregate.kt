@@ -102,6 +102,9 @@ class SimpleCommandAggregate<C : Any, S : Any>(
             if (initialized && message.ownerId.isNotBlank() && message.ownerId != state.ownerId) {
                 return@defer IllegalAccessOwnerAggregateException(aggregateId).toMono()
             }
+            if (initialized && message.spaceId.isNotBlank() && message.spaceId != state.spaceId) {
+                return@defer IllegalAccessSpaceAggregateException(aggregateId).toMono()
+            }
             check(commandState == CommandState.STORED) {
                 "Failed to process command[${message.id}]: The current StateAggregate[${aggregateId.id}] is not stored."
             }
