@@ -13,6 +13,34 @@
 
 package me.ahoo.wow.api.modeling
 
+/**
+ * Base interface for entities that possess a unique identifier.
+ *
+ * This is the fundamental interface for identity management in the Wow framework's domain model.
+ * Any entity or aggregate that requires a unique identifier within the system should implement
+ * this interface to provide a standardized way of accessing its identity.
+ *
+ * The type parameter [ID] allows for flexible identity types, supporting various identification
+ * strategies from simple string UUIDs to complex composite identifiers.
+ *
+ * ## Type Alias
+ *
+ * For common string-based identifiers, use the pre-defined type alias:
+ * ```kotlin
+ * typealias StringIdCapable = IdCapable<String>
+ * ```
+ *
+ * @param ID The type of the identifier. Common implementations include [String] (UUID-based),
+ *           [Long] (sequence-based), or custom composite types for complex scenarios.
+ *
+ * @property id The unique identifier value for this entity. Must be non-null and should be
+ *              immutable once assigned. The format and generation strategy is implementation-dependent.
+ *
+ * @see AggregateIdCapable for aggregate-level identity with additional metadata
+ * @see me.ahoo.wow.api.modeling.NamedAggregate for named aggregate identity
+ *
+ * @since 1.0.0
+ */
 interface IdCapable<ID : Any> {
     /**
      * The unique identifier of this entity.
