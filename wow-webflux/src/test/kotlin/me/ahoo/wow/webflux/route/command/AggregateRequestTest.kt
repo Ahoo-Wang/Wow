@@ -53,6 +53,21 @@ class AggregateRequestTest {
     }
 
     @Test
+    fun getSpaceIdFromPathVariable() {
+        val spaceId = generateGlobalId()
+        val request = MockServerRequest.builder().pathVariable(MessageRecords.SPACE_ID, spaceId).build()
+
+        request.getSpaceId().assert().isEqualTo(spaceId)
+    }
+
+    @Test
+    fun getSpaceIdFromHeader() {
+        val spaceId = generateGlobalId()
+        val request = MockServerRequest.builder().header(CommandComponent.Header.SPACE_ID, spaceId).build()
+        request.getSpaceId().assert().isEqualTo(spaceId)
+    }
+
+    @Test
     fun getAggregateIdWithOwnerIdIsNullFromPathVariable() {
         val aggregateId = generateGlobalId()
         val request = MockServerRequest.builder()

@@ -16,6 +16,7 @@ package me.ahoo.wow.webflux.route.command
 import me.ahoo.wow.api.annotation.AggregateRoute
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.messaging.function.NamedFunctionInfoData
+import me.ahoo.wow.api.modeling.SpaceId
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.WaitStrategy
@@ -48,6 +49,16 @@ fun ServerRequest.getOwnerId(): String? {
         return it
     }
     headers().firstHeader(CommandComponent.Header.OWNER_ID).ifNotBlank<String> {
+        return it
+    }
+    return null
+}
+
+fun ServerRequest.getSpaceId(): SpaceId? {
+    pathVariables()[MessageRecords.SPACE_ID].ifNotBlank<String> {
+        return it
+    }
+    headers().firstHeader(CommandComponent.Header.SPACE_ID).ifNotBlank<String> {
         return it
     }
     return null

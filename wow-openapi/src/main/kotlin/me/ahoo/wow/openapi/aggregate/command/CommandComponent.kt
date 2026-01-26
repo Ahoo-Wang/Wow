@@ -34,6 +34,7 @@ import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.COMMAND_TYP
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.LOCAL_FIRST
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.OWNER_ID
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.REQUEST_ID
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.SPACE_ID
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.TENANT_ID
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.WAIT_CONTEXT
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Header.WAIT_FUNCTION
@@ -115,6 +116,14 @@ object CommandComponent {
                 schema = StringSchema()
                 `in`(ParameterIn.HEADER.toString())
                 description = "The owner ID of the aggregate resource"
+            }
+
+        fun OpenAPIComponentContext.spaceIdHeaderParameter(): io.swagger.v3.oas.models.parameters.Parameter =
+            parameter {
+                name = SPACE_ID
+                schema = StringSchema()
+                `in`(ParameterIn.HEADER.toString())
+                description = "The space ID of the aggregate"
             }
 
         fun OpenAPIComponentContext.aggregateIdHeaderParameter(): io.swagger.v3.oas.models.parameters.Parameter =
