@@ -25,6 +25,7 @@ import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.webflux.route.command.getAggregateId
 import me.ahoo.wow.webflux.route.command.getLocalFirst
 import me.ahoo.wow.webflux.route.command.getOwnerId
+import me.ahoo.wow.webflux.route.command.getSpaceId
 import me.ahoo.wow.webflux.route.command.getTenantId
 import org.springframework.web.reactive.function.server.ServerRequest
 import reactor.core.publisher.Mono
@@ -39,6 +40,7 @@ object DefaultCommandBuilderExtractor : CommandBuilderExtractor {
         val aggregateMetadata = aggregateRouteMetadata.aggregateMetadata
         val tenantId = request.getTenantId(aggregateMetadata)
         val ownerId = request.getOwnerId()
+        val spaceId = request.getSpaceId()
         val aggregateId = request.getAggregateId(aggregateRouteMetadata.owner, ownerId)
         val aggregateVersion = request.headers().firstHeader(AGGREGATE_VERSION)?.toIntOrNull()
         val requestId = request.headers().firstHeader(REQUEST_ID).ifNotBlank { it }
@@ -46,6 +48,7 @@ object DefaultCommandBuilderExtractor : CommandBuilderExtractor {
             .aggregateId(aggregateId)
             .tenantId(tenantId)
             .ownerId(ownerId)
+            .spaceId(spaceId)
             .aggregateVersion(aggregateVersion)
             .requestId(requestId)
             .namedAggregate(aggregateMetadata.namedAggregate)

@@ -29,6 +29,7 @@ import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.commandA
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.commandCommonHeaderParameters
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.commandTypeHeaderParameter
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.ownerIdHeaderParameter
+import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.spaceIdHeaderParameter
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Parameter.tenantIdHeaderParameter
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent.Response.commandResponses
 import me.ahoo.wow.openapi.aggregate.command.CommandFacadeRouteSpecFactory.Companion.PATH
@@ -54,6 +55,7 @@ class CommandFacadeRouteSpec(override val componentContext: OpenAPIComponentCont
         addAll(componentContext.commandCommonHeaderParameters())
         add(componentContext.tenantIdHeaderParameter())
         add(componentContext.ownerIdHeaderParameter())
+        add(componentContext.spaceIdHeaderParameter())
         add(componentContext.commandAggregateContextHeaderParameter())
         add(componentContext.commandAggregateNameHeaderParameter())
     }
