@@ -28,11 +28,15 @@ implementation 'me.ahoo.wow:wow-openapi'
 
 ## RESTful URL PATH Spec
 
-`[tenant/{tenantId}]/[owner/{ownerId}]/resource/[{resourceId}]/action`
+`[tenant/{tenantId}]/[space/{spaceId}]/[owner/{ownerId}]/resource/[{resourceId}]/action`
 
 ### Tenant Resources
 
 When an aggregate root is a tenant resource (not marked with static tenant ID), the automatically generated RESTful API will add the `tenant/{tenantId}` path prefix.
+
+### Space Resources
+
+When an aggregate root is marked with space ID, the automatically generated RESTful API will add the `space/{spaceId}` path prefix.
 
 ### Owner Resources
 
