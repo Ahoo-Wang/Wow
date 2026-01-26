@@ -149,6 +149,7 @@ object AggregatedFieldPaths {
                 MessageRecords.AGGREGATE_ID,
                 MessageRecords.TENANT_ID,
                 MessageRecords.OWNER_ID,
+                MessageRecords.SPACE_ID,
                 MessageRecords.VERSION,
                 StateAggregateRecords.EVENT_ID,
                 StateAggregateRecords.FIRST_OPERATOR,

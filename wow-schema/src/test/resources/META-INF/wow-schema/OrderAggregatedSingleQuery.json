@@ -13,7 +13,7 @@
         },
         "field" : {
           "type" : "string",
-          "enum" : [ "", "aggregateId", "tenantId", "ownerId", "version", "eventId", "firstOperator", "operator", "firstEventTime", "eventTime", "deleted", "state", "state.address", "state.address.city", "state.address.country", "state.address.detail", "state.address.district", "state.address.province", "state.id", "state.items", "state.items.id", "state.items.price", "state.items.productId", "state.items.quantity", "state.items.totalPrice", "state.paidAmount", "state.payable", "state.status", "state.totalAmount" ]
+          "enum" : [ "", "aggregateId", "tenantId", "ownerId", "spaceId", "version", "eventId", "firstOperator", "operator", "firstEventTime", "eventTime", "deleted", "state", "state.address", "state.address.city", "state.address.country", "state.address.detail", "state.address.district", "state.address.province", "state.id", "state.items", "state.items.id", "state.items.price", "state.items.productId", "state.items.quantity", "state.items.totalPrice", "state.paidAmount", "state.payable", "state.status", "state.totalAmount" ]
         },
         "operator" : {
           "$ref" : "#/$defs/wow.api.query.Operator",
@@ -72,7 +72,7 @@
     },
     "wow.api.query.Operator" : {
       "type" : "string",
-      "enum" : [ "AND", "OR", "NOR", "ID", "IDS", "AGGREGATE_ID", "AGGREGATE_IDS", "TENANT_ID", "OWNER_ID", "DELETED", "ALL", "EQ", "NE", "GT", "LT", "GTE", "LTE", "CONTAINS", "IN", "NOT_IN", "BETWEEN", "ALL_IN", "STARTS_WITH", "ENDS_WITH", "ELEM_MATCH", "NULL", "NOT_NULL", "TRUE", "FALSE", "EXISTS", "TODAY", "BEFORE_TODAY", "TOMORROW", "THIS_WEEK", "NEXT_WEEK", "LAST_WEEK", "THIS_MONTH", "LAST_MONTH", "RECENT_DAYS", "EARLIER_DAYS", "RAW" ]
+      "enum" : [ "AND", "OR", "NOR", "ID", "IDS", "AGGREGATE_ID", "AGGREGATE_IDS", "TENANT_ID", "OWNER_ID", "SPACE_ID", "DELETED", "ALL", "EQ", "NE", "GT", "LT", "GTE", "LTE", "CONTAINS", "IN", "NOT_IN", "BETWEEN", "ALL_IN", "STARTS_WITH", "ENDS_WITH", "ELEM_MATCH", "NULL", "NOT_NULL", "TRUE", "FALSE", "EXISTS", "TODAY", "BEFORE_TODAY", "TOMORROW", "THIS_WEEK", "NEXT_WEEK", "LAST_WEEK", "THIS_MONTH", "LAST_MONTH", "RECENT_DAYS", "EARLIER_DAYS", "RAW" ]
     }
   },
   "type" : "object",
