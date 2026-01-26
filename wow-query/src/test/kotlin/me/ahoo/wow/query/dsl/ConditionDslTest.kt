@@ -472,6 +472,14 @@ class ConditionDslTest {
     }
 
     @Test
+    fun spaceId() {
+        val condition = condition {
+            spaceId("spaceId")
+        }
+        condition.assert().isEqualTo(Condition.spaceId("spaceId"))
+    }
+
+    @Test
     fun today() {
         val condition = condition {
             QueryModel::id.today("yyyy-MM-dd")
