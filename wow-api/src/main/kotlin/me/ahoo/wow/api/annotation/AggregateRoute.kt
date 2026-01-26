@@ -59,6 +59,7 @@ import java.lang.annotation.Inherited
 annotation class AggregateRoute(
     val resourceName: String = "",
     val enabled: Boolean = true,
+    val spaced: Boolean = false,
     val owner: Owner = Owner.NEVER
 ) {
     /**

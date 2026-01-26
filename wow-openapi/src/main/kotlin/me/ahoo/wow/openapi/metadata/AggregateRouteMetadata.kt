@@ -21,6 +21,7 @@ data class AggregateRouteMetadata<C : Any>(
     override val enabled: Boolean,
     val aggregateMetadata: AggregateMetadata<C, *>,
     val resourceName: String,
+    val spaced: Boolean,
     val owner: AggregateRoute.Owner
 ) : EnabledCapable, me.ahoo.wow.metadata.Metadata {
 
