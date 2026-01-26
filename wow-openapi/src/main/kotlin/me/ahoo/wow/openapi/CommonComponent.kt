@@ -18,6 +18,7 @@ import io.swagger.v3.oas.models.media.IntegerSchema
 import io.swagger.v3.oas.models.media.StringSchema
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.exception.DefaultErrorInfo
+import me.ahoo.wow.api.modeling.SpaceIdCapable
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.exception.ErrorCodes
@@ -62,6 +63,13 @@ object CommonComponent {
             parameter {
                 name = MessageRecords.TENANT_ID
                 schema = StringSchema().description("aggregate tenant id").example(TenantId.DEFAULT_TENANT_ID)
+                `in`(ParameterIn.PATH.toString())
+            }
+
+        fun OpenAPIComponentContext.spaceIdPathParameter(): io.swagger.v3.oas.models.parameters.Parameter =
+            parameter {
+                name = MessageRecords.SPACE_ID
+                schema = StringSchema().description("aggregate space id").example(SpaceIdCapable.DEFAULT_SPACE_ID)
                 `in`(ParameterIn.PATH.toString())
             }
 
