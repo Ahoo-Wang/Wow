@@ -23,6 +23,7 @@ import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.messaging.NamedBoundedContextMessage
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.AggregateIdCapable
+import me.ahoo.wow.api.modeling.SpaceId
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.DefaultHeader
 
@@ -100,6 +101,7 @@ data class SimpleDomainEventStream(
     override val aggregateName: String
         get() = aggregateId.aggregateName
     override val ownerId: String
+    override val spaceId: SpaceId
     override val commandId: String
     override val version: Int
 
@@ -113,6 +115,7 @@ data class SimpleDomainEventStream(
         body.first().let {
             aggregateId = it.aggregateId
             ownerId = it.ownerId
+            spaceId = it.spaceId
             commandId = it.commandId
             version = it.version
             createTime = it.createTime

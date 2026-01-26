@@ -20,6 +20,8 @@ import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.OwnerId
+import me.ahoo.wow.api.modeling.SpaceId
+import me.ahoo.wow.api.modeling.SpaceIdCapable
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.messaging.propagation.MessagePropagatorProvider.propagate
@@ -78,6 +80,7 @@ fun Any.toDomainEventStream(
     upstream: CommandMessage<*>,
     aggregateVersion: Int = Version.UNINITIALIZED_VERSION,
     stateOwnerId: String = OwnerId.DEFAULT_OWNER_ID,
+    stateSpaceId: String = SpaceIdCapable.DEFAULT_SPACE_ID,
     header: Header = DefaultHeader.empty(),
     createTime: Long = System.currentTimeMillis()
 ): DomainEventStream {
@@ -88,12 +91,16 @@ fun Any.toDomainEventStream(
     val streamOwnerId = upstream.ownerId.ifBlank {
         stateOwnerId
     }
+    val streamSpaceId = upstream.spaceId.ifBlank {
+        stateSpaceId
+    }
     val events =
         flatEvent().toDomainEvents(
             streamVersion = streamVersion,
             aggregateId = aggregateId,
             command = upstream,
             ownerId = streamOwnerId,
+            spaceId = streamSpaceId,
             eventStreamHeader = header,
             createTime = createTime,
         )
@@ -131,6 +138,7 @@ private fun Iterable<*>.toDomainEvents(
     aggregateId: AggregateId,
     command: CommandMessage<*>,
     ownerId: String,
+    spaceId: SpaceId,
     eventStreamHeader: Header,
     createTime: Long
 ): List<DomainEvent<Any>> {
@@ -144,6 +152,7 @@ private fun Iterable<*>.toDomainEvents(
             isLast = sequence == eventCount,
             aggregateId = aggregateId,
             ownerId = ownerId,
+            spaceId = spaceId,
             commandId = command.commandId,
             header = eventStreamHeader.copy(),
             createTime = createTime,

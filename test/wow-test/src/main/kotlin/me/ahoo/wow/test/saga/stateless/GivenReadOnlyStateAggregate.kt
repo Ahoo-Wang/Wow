@@ -15,6 +15,7 @@ package me.ahoo.wow.test.saga.stateless
 
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.api.modeling.SpaceId
 import me.ahoo.wow.command.CommandOperator.operator
 import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
 
@@ -42,6 +43,7 @@ class GivenReadOnlyStateAggregate<S : Any>(
     override val state: S,
     override val version: Int,
     override val ownerId: String,
+    override val spaceId: SpaceId,
     override val deleted: Boolean,
     override val eventId: String,
     override val firstOperator: String,
@@ -77,6 +79,7 @@ class GivenReadOnlyStateAggregate<S : Any>(
                 state = this,
                 version = domainEvent.version,
                 ownerId = domainEvent.ownerId,
+                spaceId = domainEvent.spaceId,
                 deleted = false,
                 eventId = domainEvent.id,
                 firstOperator = firstOperator,

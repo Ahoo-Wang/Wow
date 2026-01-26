@@ -23,6 +23,8 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.modeling.OperatorCapable
 import me.ahoo.wow.api.modeling.OwnerId
 import me.ahoo.wow.api.modeling.SnapshotTimeCapable
+import me.ahoo.wow.api.modeling.SpaceId
+import me.ahoo.wow.api.modeling.SpaceIdCapable
 import me.ahoo.wow.api.modeling.StateCapable
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.api.naming.Materialized
@@ -80,6 +82,7 @@ data class MaterializedSnapshot<S : Any>(
     override val aggregateName: String,
     override val tenantId: String,
     override val ownerId: String = OwnerId.DEFAULT_OWNER_ID,
+    override val spaceId: SpaceId = SpaceIdCapable.DEFAULT_SPACE_ID,
     val aggregateId: String,
     override val version: Int,
     override val eventId: String,
@@ -94,6 +97,7 @@ data class MaterializedSnapshot<S : Any>(
     NamedAggregate,
     TenantId,
     OwnerId,
+    SpaceIdCapable,
     Version,
     EventIdCapable,
     FirstOperatorCapable,

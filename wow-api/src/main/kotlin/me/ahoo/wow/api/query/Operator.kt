@@ -75,6 +75,8 @@ enum class Operator {
      */
     OWNER_ID,
 
+    SPACE_ID,
+
     /**
      * Deletion state operator.
      * Matches documents where the 'deleted' field equals the specified value.

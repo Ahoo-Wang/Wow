@@ -37,6 +37,7 @@ object CommandJsonSerializer : MessageSerializer<CommandMessage<*>>(CommandMessa
         generator.writeStringField(MessageRecords.TENANT_ID, value.aggregateId.tenantId)
         generator.writeStringField(MessageRecords.AGGREGATE_ID, value.aggregateId.id)
         generator.writeStringField(MessageRecords.OWNER_ID, value.ownerId)
+        generator.writeStringField(MessageRecords.SPACE_ID, value.spaceId)
         generator.writeStringField(MessageRecords.REQUEST_ID, value.requestId)
         value.aggregateVersion?.let {
             generator.writeNumberField(AGGREGATE_VERSION, it)
@@ -64,6 +65,7 @@ object CommandJsonDeserializer : StdDeserializer<CommandMessage<*>>(CommandMessa
             body = commandRecord.body.toObject(bodyType),
             aggregateId = aggregateId,
             ownerId = commandRecord.ownerId,
+            spaceId = commandRecord.spaceId,
             requestId = commandRecord.requestId,
             aggregateVersion = commandRecord.aggregateVersion,
             name = commandRecord.name,

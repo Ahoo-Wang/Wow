@@ -20,6 +20,8 @@ import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.event.OwnerTransferred
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.OwnerId
+import me.ahoo.wow.api.modeling.SpaceId
+import me.ahoo.wow.api.modeling.SpaceIdCapable
 import me.ahoo.wow.api.modeling.TypedAggregate
 import me.ahoo.wow.api.modeling.aware.VersionAware
 import me.ahoo.wow.command.CommandOperator.operator
@@ -52,6 +54,7 @@ class SimpleStateAggregate<S : Any>(
     val metadata: StateAggregateMetadata<S>,
     override val state: S,
     override var ownerId: String = OwnerId.DEFAULT_OWNER_ID,
+    override var spaceId: SpaceId = SpaceIdCapable.DEFAULT_SPACE_ID,
     override var version: Int = Version.UNINITIALIZED_VERSION,
     override var eventId: String = "",
     override var firstOperator: String = "",
@@ -111,6 +114,9 @@ class SimpleStateAggregate<S : Any>(
         version = eventStream.version
         if (eventStream.ownerId.isNotBlank()) {
             ownerId = eventStream.ownerId
+        }
+        if (eventStream.spaceId.isNotBlank()) {
+            spaceId = eventStream.spaceId
         }
         eventId = eventStream.id
         operator = eventStream.header.operator.orEmpty()

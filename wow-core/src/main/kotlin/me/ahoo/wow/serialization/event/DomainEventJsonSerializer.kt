@@ -28,6 +28,7 @@ object DomainEventJsonSerializer : MessageSerializer<DomainEvent<*>>(DomainEvent
         generator.writeStringField(MessageRecords.TENANT_ID, value.aggregateId.tenantId)
         generator.writeStringField(MessageRecords.AGGREGATE_ID, value.aggregateId.id)
         generator.writeStringField(MessageRecords.OWNER_ID, value.ownerId)
+        generator.writeStringField(MessageRecords.SPACE_ID, value.spaceId)
         generator.writeStringField(MessageRecords.COMMAND_ID, value.commandId)
         generator.writeNumberField(MessageRecords.VERSION, value.version)
         generator.writeNumberField(DomainEventRecords.SEQUENCE, value.sequence)

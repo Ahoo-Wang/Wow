@@ -20,6 +20,8 @@ import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.modeling.OwnerId
+import me.ahoo.wow.api.modeling.SpaceId
+import me.ahoo.wow.api.modeling.SpaceIdCapable
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.naming.annotation.toName
@@ -57,6 +59,7 @@ data class SimpleDomainEvent<T : Any>(
     override val body: T,
     override val aggregateId: AggregateId,
     override val ownerId: String = OwnerId.DEFAULT_OWNER_ID,
+    override val spaceId: SpaceId = SpaceIdCapable.DEFAULT_SPACE_ID,
     override val version: Int,
     override val sequence: Int = DEFAULT_EVENT_SEQUENCE,
     override val revision: String = DEFAULT_REVISION,
