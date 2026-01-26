@@ -58,7 +58,7 @@ abstract class AbstractTenantSpaceOwnerAggregateRouteSpecFactory : AbstractAggre
                     currentContext = currentContext,
                     aggregateRouteMetadata = aggregateRouteMetadata,
                     appendTenantPath = true,
-                    appendSpacePath = false,
+                    appendSpacePath = aggregateRouteMetadata.spaced,
                     appendOwnerPath = false
                 )
                 add(tenantRouteSpec)
