@@ -79,7 +79,7 @@ class StatelessSagaFunction(
             .fromIterable(handleResult)
             .index()
             .flatMap {
-                toCommand(domainEvent = domainEvent, singleResult = it.t2, index = it.t1.toInt())
+                toCommand(domainEvent = domainEvent, singleResult = it.t2!!, index = it.t1.toInt())
             }
     }
 
@@ -96,6 +96,7 @@ class StatelessSagaFunction(
         commandBuilder
             .requestIdIfAbsent("${domainEvent.id}-$index")
             .tenantIdIfAbsent(domainEvent.aggregateId.tenantId)
+            .spaceIdIfAbsent(domainEvent.spaceId)
             .upstream(domainEvent)
             .header {
                 it.propagate(domainEvent)

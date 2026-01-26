@@ -175,6 +175,13 @@ interface CommandBuilder : Identifier {
         return this
     }
 
+    fun spaceIdIfAbsent(spaceId: SpaceId): CommandBuilder {
+        if (this.spaceId == null) {
+            spaceId(spaceId)
+        }
+        return this
+    }
+
     /**
      * Sets the expected aggregate version for optimistic concurrency control.
      *
