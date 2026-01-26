@@ -77,6 +77,10 @@ abstract class AbstractMongoConditionConverter : AbstractConditionConverter<Bson
         return Filters.eq(MessageRecords.OWNER_ID, condition.value)
     }
 
+    override fun spaceId(condition: Condition): Bson {
+        return Filters.eq(MessageRecords.SPACE_ID, condition.value)
+    }
+
     override fun all(condition: Condition): Bson = Filters.empty()
 
     override fun eq(condition: Condition): Bson {
