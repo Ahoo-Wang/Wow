@@ -81,6 +81,11 @@
       "description": "The owner ID of the aggregate resource",
       "default": ""
     },
+    "spaceId": {
+      "type": "string",
+      "description": "The space ID of the aggregate resource",
+      "default": ""
+    },
     "requestId": {
       "type": "string",
       "minLength": 1,
@@ -128,6 +133,7 @@
     "tenantId",
     "aggregateId",
     "ownerId",
+    "spaceId",
     "requestId",
     "isCreate",
     "isVoid",

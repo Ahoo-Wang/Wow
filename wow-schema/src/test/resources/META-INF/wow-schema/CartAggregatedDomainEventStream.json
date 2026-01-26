@@ -84,6 +84,11 @@
       "description" : "The owner ID of the aggregate resource",
       "default" : ""
     },
+    "spaceId" : {
+      "type" : "string",
+      "description" : "The space ID of the aggregate resource",
+      "default" : ""
+    },
     "commandId" : {
       "type" : "string",
       "minLength" : 1,
@@ -228,5 +233,5 @@
       "description" : "The time when the domain event stream was created"
     }
   },
-  "required" : [ "id", "contextName", "aggregateName", "tenantId", "aggregateId", "ownerId", "version", "body", "createTime" ]
+  "required" : [ "id", "contextName", "aggregateName", "tenantId", "aggregateId", "ownerId", "spaceId", "version", "body", "createTime" ]
 }

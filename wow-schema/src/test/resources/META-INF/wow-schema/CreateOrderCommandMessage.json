@@ -74,6 +74,11 @@
       "description" : "The owner ID of the aggregate resource",
       "default" : ""
     },
+    "spaceId" : {
+      "type" : "string",
+      "description" : "The space ID of the aggregate resource",
+      "default" : ""
+    },
     "requestId" : {
       "type" : "string",
       "minLength" : 1,
@@ -163,5 +168,5 @@
       "description" : "The time when the command message was created"
     }
   },
-  "required" : [ "id", "contextName", "aggregateName", "name", "tenantId", "aggregateId", "ownerId", "requestId", "isCreate", "isVoid", "allowCreate", "bodyType", "body", "createTime" ]
+  "required" : [ "id", "contextName", "aggregateName", "name", "tenantId", "aggregateId", "ownerId", "spaceId", "requestId", "isCreate", "isVoid", "allowCreate", "bodyType", "body", "createTime" ]
 }

@@ -27,6 +27,11 @@
       "description" : "The owner ID of the aggregate resource",
       "default" : ""
     },
+    "spaceId" : {
+      "type" : "string",
+      "description" : "The space ID of the aggregate resource",
+      "default" : ""
+    },
     "version" : {
       "type" : "integer",
       "format" : "int32",
@@ -68,5 +73,5 @@
       "description" : "Whether the aggregate has been deleted"
     }
   },
-  "required" : [ "contextName", "aggregateName", "tenantId", "aggregateId", "ownerId", "version", "eventId", "firstOperator", "operator", "firstEventTime", "state", "deleted" ]
+  "required" : [ "contextName", "aggregateName", "tenantId", "aggregateId", "ownerId", "spaceId", "version", "eventId", "firstOperator", "operator", "firstEventTime", "state", "deleted" ]
 }

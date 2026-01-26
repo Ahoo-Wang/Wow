@@ -81,6 +81,11 @@
       "description": "The owner ID of the aggregate resource",
       "default": ""
     },
+    "spaceId": {
+      "type": "string",
+      "description": "The space ID of the aggregate resource",
+      "default": ""
+    },
     "version": {
       "type": "integer",
       "format": "int32",
@@ -122,6 +127,7 @@
     "tenantId",
     "aggregateId",
     "ownerId",
+    "spaceId",
     "version",
     "sequence",
     "revision",
