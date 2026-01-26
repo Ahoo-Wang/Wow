@@ -15,7 +15,6 @@ package me.ahoo.wow.api.modeling
 
 import me.ahoo.wow.api.modeling.SpaceIdCapable.Companion.DEFAULT_SPACE_ID
 
-
 typealias SpaceId = String
 
 /**

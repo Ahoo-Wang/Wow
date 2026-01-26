@@ -14,7 +14,22 @@
 package me.ahoo.wow.api.modeling
 
 interface IdCapable<ID : Any> {
+    /**
+     * The unique identifier of this entity.
+     *
+     * @return A non-null identifier of type [ID] that uniquely identifies this entity within
+     *         its context. The value should be stable and not change during the entity's lifetime.
+     */
     val id: ID
 }
 
+/**
+ * Convenience type alias for entities with string-based identifiers.
+ *
+ * This is the most common case, typically using UUIDs or other string formats for identity.
+ * Example usage:
+ * ```kotlin
+ * data class User(override val id: String) : StringIdCapable
+ * ```
+ */
 typealias StringIdCapable = IdCapable<String>
