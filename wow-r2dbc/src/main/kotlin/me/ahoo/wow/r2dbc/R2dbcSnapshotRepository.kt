@@ -17,6 +17,7 @@ import io.r2dbc.spi.Readable
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.modeling.OwnerId.Companion.orDefaultOwnerId
+import me.ahoo.wow.api.modeling.SpaceIdCapable.Companion.orDefaultSpaceId
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
@@ -39,6 +40,7 @@ class R2dbcSnapshotRepository(
 
     override val name: String
         get() = NAME
+
     override fun <S : Any> load(
         aggregateId: AggregateId
     ): Mono<Snapshot<S>> {
@@ -75,6 +77,7 @@ class R2dbcSnapshotRepository(
             "The aggregated tenantId[${aggregateId.tenantId}] does not match the tenantId:[$tenantId] stored in the eventStore"
         }
         val ownerId = readable.get("owner_id", String::class.java).orDefaultOwnerId()
+        val spaceId = readable.get("space_id", String::class.java).orDefaultSpaceId()
         val actualVersion = checkNotNull(readable.get("version", Int::class.java))
         val eventId = readable.get("event_id", String::class.java).orEmpty()
         val firstOperator = readable.get("first_operator", String::class.java).orEmpty()
@@ -92,6 +95,7 @@ class R2dbcSnapshotRepository(
                 aggregateId = aggregateId,
                 state = stateRoot,
                 ownerId = ownerId,
+                spaceId = spaceId,
                 version = actualVersion,
                 eventId = eventId,
                 firstOperator = firstOperator,
@@ -112,16 +116,17 @@ class R2dbcSnapshotRepository(
                     .bind(0, snapshot.aggregateId.id)
                     .bind(1, snapshot.aggregateId.tenantId)
                     .bind(2, snapshot.ownerId)
-                    .bind(3, snapshot.version)
-                    .bind(4, snapshot.state.javaClass.name)
-                    .bind(5, snapshot.state.toJsonString())
-                    .bind(6, snapshot.eventId)
-                    .bind(7, snapshot.firstOperator)
-                    .bind(8, snapshot.operator)
-                    .bind(9, snapshot.firstEventTime)
-                    .bind(10, snapshot.eventTime)
-                    .bind(11, snapshot.snapshotTime)
-                    .bind(12, snapshot.deleted)
+                    .bind(3, snapshot.spaceId)
+                    .bind(4, snapshot.version)
+                    .bind(5, snapshot.state.javaClass.name)
+                    .bind(6, snapshot.state.toJsonString())
+                    .bind(7, snapshot.eventId)
+                    .bind(8, snapshot.firstOperator)
+                    .bind(9, snapshot.operator)
+                    .bind(10, snapshot.firstEventTime)
+                    .bind(11, snapshot.eventTime)
+                    .bind(12, snapshot.snapshotTime)
+                    .bind(13, snapshot.deleted)
                     .execute()
             },
             Connection::close,

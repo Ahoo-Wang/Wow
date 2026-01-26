@@ -46,9 +46,9 @@ object EventStreamStatementGenerator {
 
     private fun appendSql(tableName: String): String {
         return """
-        insert into $tableName (id,aggregate_id,tenant_id,owner_id,request_id,command_id,version,header,body,size,create_time) 
+        insert into $tableName (id,aggregate_id,tenant_id,owner_id,space_id,request_id,command_id,version,header,body,size,create_time) 
         values
-        (?,?,?,?,?,?,?,?,?,?,?)
+        (?,?,?,?,?,?,?,?,?,?,?,?)
     """.trim()
     }
 
