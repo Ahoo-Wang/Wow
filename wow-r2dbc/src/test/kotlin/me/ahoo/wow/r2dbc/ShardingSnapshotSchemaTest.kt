@@ -46,9 +46,9 @@ internal class ShardingSnapshotSchemaTest {
         snapshotSchema.save(namedAggregate.aggregateId("0TEC7cEx0001003")).assert().isEqualTo(
             """
      replace into test_snapshot_3
-     (aggregate_id,tenant_id,owner_id,version,state_type,state,event_id,first_operator,operator,first_event_time,event_time,snapshot_time,deleted)
+     (aggregate_id,tenant_id,owner_id,space_id,version,state_type,state,event_id,first_operator,operator,first_event_time,event_time,snapshot_time,deleted)
      values 
-     (?,?,?,?,?,?,?,?,?,?,?,?,?)
+     (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
      """.trim(),
         )
     }
