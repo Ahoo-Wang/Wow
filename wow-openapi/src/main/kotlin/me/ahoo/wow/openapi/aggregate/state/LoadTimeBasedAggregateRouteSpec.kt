@@ -38,6 +38,7 @@ class LoadTimeBasedAggregateRouteSpec(
         get() = RouteIdSpec()
             .aggregate(aggregateMetadata)
             .appendTenant(appendTenantPath)
+            .appendSpace(appendSpacePath)
             .resourceName("time_based_aggregate")
             .operation("load")
             .build()

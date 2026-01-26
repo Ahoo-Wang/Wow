@@ -33,6 +33,7 @@ class RegenerateSnapshotRouteSpec(
         get() = RouteIdSpec()
             .aggregate(aggregateMetadata)
             .appendTenant(appendTenantPath)
+            .appendSpace(appendSpacePath)
             .resourceName("snapshot")
             .operation("regenerate")
             .build()

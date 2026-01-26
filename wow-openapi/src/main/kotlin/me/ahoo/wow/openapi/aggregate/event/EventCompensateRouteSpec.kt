@@ -40,6 +40,7 @@ class EventCompensateRouteSpec(
         get() = RouteIdSpec()
             .aggregate(aggregateMetadata)
             .appendTenant(appendTenantPath)
+            .appendSpace(appendSpacePath)
             .operation("compensate").build()
 
     override val summary: String

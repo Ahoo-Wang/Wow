@@ -38,6 +38,7 @@ class LoadVersionedAggregateRouteSpec(
         get() = RouteIdSpec()
             .aggregate(aggregateMetadata)
             .appendTenant(appendTenantPath)
+            .appendSpace(appendSpacePath)
             .resourceName("versioned_aggregate")
             .operation("load")
             .build()

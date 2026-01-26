@@ -21,6 +21,7 @@ class RouteIdSpec {
 
     private var prefix: String = ""
     private var appendTenant: Boolean = false
+    private var appendSpace: Boolean = false
     private var appendOwner: Boolean = false
     private var resourceName: String = ""
     private var operation: String = ""
@@ -36,6 +37,11 @@ class RouteIdSpec {
 
     fun appendTenant(appendTenant: Boolean): RouteIdSpec {
         this.appendTenant = appendTenant
+        return this
+    }
+
+    fun appendSpace(appendSpace: Boolean): RouteIdSpec {
+        this.appendSpace = appendSpace
         return this
     }
 
@@ -62,6 +68,10 @@ class RouteIdSpec {
             if (appendTenant) {
                 append(NAMED_AGGREGATE_DELIMITER)
                 append("tenant")
+            }
+            if (appendSpace) {
+                append(NAMED_AGGREGATE_DELIMITER)
+                append("space")
             }
             if (appendOwner) {
                 append(NAMED_AGGREGATE_DELIMITER)
