@@ -55,6 +55,7 @@ import {
   ownerId,
   raw,
   recentDays,
+  spaceId,
   startsWith,
   tenantId,
   thisMonth,
@@ -321,6 +322,14 @@ describe('Condition', () => {
         expect(result).toEqual({
           operator: Operator.OWNER_ID,
           value: 'owner123',
+        });
+      });
+
+      it('should create space ID condition', () => {
+        const result = spaceId('space123');
+        expect(result).toEqual({
+          operator: Operator.SPACE_ID,
+          value: 'space123',
         });
       });
     });

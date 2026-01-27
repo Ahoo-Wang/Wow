@@ -23,6 +23,7 @@ export const zh_CN: OperatorLocale = {
   AGGREGATE_IDS: '聚合 ID 包含',
   TENANT_ID: '租户 ID 等于',
   OWNER_ID: '所有者 ID 等于',
+  SPACE_ID:' 空间 ID 等于',
   DELETED: '已删除',
   ALL: '全部',
   EQ: '等于',

@@ -19,7 +19,7 @@ import type {
   FirstOperatorCapable,
   Identifier,
   Named,
-  OwnerId,
+  OwnerId, SpaceIdCapable,
   StateCapable,
   Version,
 } from '../../types';
@@ -97,6 +97,7 @@ export interface DomainEventStream<DomainEventBody = any>
   extends Identifier,
     AggregateId,
     OwnerId,
+    SpaceIdCapable,
     CommandId,
     CreateTimeCapable,
     RequestId,
@@ -113,7 +114,8 @@ export interface StateEvent<DomainEventBody = any, S = any>
     StateCapable<S>,
     FirstOperatorCapable,
     FirstEventTimeCapable,
-    DeletedCapable {}
+    DeletedCapable {
+}
 
 /**
  * Provides field names for domain event stream metadata.
@@ -128,6 +130,7 @@ export class DomainEventStreamMetadataFields {
   static readonly AGGREGATE_ID = 'aggregateId';
   static readonly TENANT_ID = 'tenantId';
   static readonly OWNER_ID = 'ownerId';
+  static readonly SPACE_ID = 'spaceId';
   static readonly COMMAND_ID = 'commandId';
   static readonly REQUEST_ID = 'requestId';
   static readonly VERSION = 'version';

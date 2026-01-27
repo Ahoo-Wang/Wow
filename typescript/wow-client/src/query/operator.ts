@@ -57,6 +57,7 @@ export enum Operator {
    */
   OWNER_ID = 'OWNER_ID',
 
+  SPACE_ID = 'SPACE_ID',
   /**
    * Matches all documents where the `deleted` field value equals the specified value
    */

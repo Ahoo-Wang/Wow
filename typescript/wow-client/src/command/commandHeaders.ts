@@ -48,6 +48,8 @@ export class CommandHeaders {
    */
   static readonly OWNER_ID = `${CommandHeaders.COMMAND_HEADERS_PREFIX}Owner-Id`;
 
+  static readonly SPACE_ID = `${CommandHeaders.COMMAND_HEADERS_PREFIX}Space-Id`;
+
   /**
    * Aggregate identifier header
    * Used to identify the aggregate root for the command

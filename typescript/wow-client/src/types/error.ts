@@ -173,6 +173,7 @@ export class ErrorCodes {
   static readonly ILLEGAL_ACCESS_OWNER_AGGREGATE =
     'IllegalAccessOwnerAggregate';
 
+  static readonly ILLEGAL_ACCESS_SPACE_AGGREGATE = 'IllegalAccessSpaceAggregate';
   /**
    * Error code for internal server errors.
    */

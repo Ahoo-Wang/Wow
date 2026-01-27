@@ -23,6 +23,7 @@ export const en_US: OperatorLocale = {
   AGGREGATE_IDS: 'Aggregate ID In',
   TENANT_ID: 'Tenant ID Equals',
   OWNER_ID: 'Owner ID Equals',
+  SPACE_ID: 'SPACE ID Equals',
   DELETED: 'Deleted',
   ALL: 'All',
   EQ: 'Equals',

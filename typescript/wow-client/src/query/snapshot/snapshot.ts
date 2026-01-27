@@ -21,7 +21,7 @@ import type {
   NamedAggregate,
   OperatorCapable,
   OwnerId,
-  SnapshotTimeCapable,
+  SnapshotTimeCapable, SpaceIdCapable,
   StateCapable,
   TenantId,
   Version,
@@ -35,6 +35,7 @@ export interface MaterializedSnapshot<S>
     AggregateId,
     TenantId,
     OwnerId,
+    SpaceIdCapable,
     Version,
     EventIdCapable,
     FirstOperatorCapable,
@@ -42,7 +43,8 @@ export interface MaterializedSnapshot<S>
     FirstEventTimeCapable,
     EventTimeCapable,
     SnapshotTimeCapable,
-    DeletedCapable {}
+    DeletedCapable {
+}
 
 /**
  * Interface for materialized snapshots with medium capabilities.
@@ -57,12 +59,14 @@ export interface MediumMaterializedSnapshot<S>
     NamedAggregate,
     TenantId,
     OwnerId,
+    SpaceIdCapable,
     Version,
     EventIdCapable,
     FirstOperatorCapable,
     OperatorCapable,
     FirstEventTimeCapable,
-    EventTimeCapable {}
+    EventTimeCapable {
+}
 
 /**
  * Interface for simplified materialized snapshots with generic state.
@@ -73,7 +77,8 @@ export interface SmallMaterializedSnapshot<S>
   extends StateCapable<S>,
     NamedAggregate,
     Version,
-    FirstEventTimeCapable {}
+    FirstEventTimeCapable {
+}
 
 /**
  * Provides field names for snapshot metadata.
@@ -85,6 +90,7 @@ export class SnapshotMetadataFields {
   static readonly VERSION = 'version';
   static readonly TENANT_ID = 'tenantId';
   static readonly OWNER_ID = 'ownerId';
+  static readonly SPACE_ID = 'spaceId';
   static readonly EVENT_ID = 'eventId';
   static readonly FIRST_EVENT_TIME = 'firstEventTime';
   static readonly EVENT_TIME = 'eventTime';

@@ -46,6 +46,8 @@ export interface CommandRequestHeaders extends RequestHeaders {
    */
   [CommandHeaders.OWNER_ID]: string;
 
+  [CommandHeaders.SPACE_ID]: string;
+
   /**
    * Aggregate identifier header
    * Used to identify the aggregate root for the command

@@ -318,6 +318,12 @@ export function ownerId<FIELDS extends string = string>(
   return { operator: Operator.OWNER_ID, value: value };
 }
 
+export function spaceId<FIELDS extends string = string>(
+  value: string,
+): Condition<FIELDS> {
+  return { operator: Operator.SPACE_ID, value: value };
+}
+
 /**
  * Creates a DELETED condition with the specified value.
  *
