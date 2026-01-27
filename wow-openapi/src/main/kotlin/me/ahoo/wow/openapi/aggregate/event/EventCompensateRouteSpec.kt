@@ -47,6 +47,8 @@ class EventCompensateRouteSpec(
         get() = "Event Compensate"
     override val method: String
         get() = Https.Method.PUT
+    override val appendSpacePath: Boolean
+        get() = false
     override val appendOwnerPath: Boolean
         get() = false
     override val appendPathSuffix: String
