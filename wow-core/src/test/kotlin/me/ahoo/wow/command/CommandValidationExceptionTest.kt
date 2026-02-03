@@ -50,8 +50,8 @@ class CommandValidationExceptionTest {
         val exception =
             CommandValidationException(command, bindingErrors = listOf(BindingError("name", "name is blank")))
         exception.errorCode.assert().isEqualTo(COMMAND_VALIDATION)
-        exception.message.assert().isEqualTo("name is blank")
-        exception.errorMsg.assert().isEqualTo("name is blank")
+        exception.message.assert().isEqualTo("Command validation failed.")
+        exception.errorMsg.assert().isEqualTo("Command validation failed.")
 
         exception.bindingErrors.first().name.assert().isEqualTo(constraintViolation.propertyPath.toString())
         exception.bindingErrors.first().msg.assert().isEqualTo(constraintViolation.message)
