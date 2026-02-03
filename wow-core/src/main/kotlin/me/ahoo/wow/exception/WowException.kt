@@ -53,8 +53,12 @@ open class WowException(
         get() = errorMsg
     override val errorMsg: String
         get() {
+            val superMsg = super.message.orEmpty()
+            if (superMsg.isNotBlank()) {
+                return superMsg
+            }
             if (bindingErrors.isEmpty()) {
-                return super.message.orEmpty()
+                return superMsg
             }
             return bindingErrors.first().msg
         }
