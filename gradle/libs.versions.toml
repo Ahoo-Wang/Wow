@@ -19,7 +19,7 @@ kotlinx-coroutines = "1.10.2"
 # testing
 junit = "6.0.2"
 fluent-assert = "0.2.6"
-mockk = "1.14.7"
+mockk = "1.14.9"
 kotlin-compile-testing = "0.12.1"
 jmh = "1.37"
 # plugins
