@@ -22,6 +22,7 @@ import reactor.core.publisher.Mono
 
 object CoSecCommandBuilderExtractor : CommandBuilderExtractor {
     const val REQUEST_ID_KEY = "CoSec-Request-Id"
+    const val SPACE_ID_KEY = "CoSec-Space-Id"
     override fun extract(
         aggregateRouteMetadata: AggregateRouteMetadata<*>,
         commandBody: Any,
@@ -31,6 +32,9 @@ object CoSecCommandBuilderExtractor : CommandBuilderExtractor {
             .map { commandBuilder ->
                 request.headers().firstHeader(REQUEST_ID_KEY)?.let {
                     commandBuilder.requestIdIfAbsent(it)
+                }
+                request.headers().firstHeader(SPACE_ID_KEY)?.let {
+                    commandBuilder.spaceIdIfAbsent(it)
                 }
                 commandBuilder
             }
