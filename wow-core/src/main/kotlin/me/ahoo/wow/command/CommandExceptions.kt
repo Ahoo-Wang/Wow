@@ -89,7 +89,7 @@ class CommandResultException(
  */
 class CommandValidationException(
     val command: Any,
-    errorMsg: String = "Command validation failed.",
+    errorMsg: String = "",
     bindingErrors: List<BindingError> = emptyList(),
     cause: Throwable? = null
 ) : WowException(
@@ -107,7 +107,7 @@ class CommandValidationException(
 
         fun <T> Set<ConstraintViolation<T>>.toCommandValidationException(
             command: Any,
-            errorMsg: String = "Command validation failed."
+            errorMsg: String = ""
         ): CommandValidationException = CommandValidationException(
             command,
             errorMsg = errorMsg,
