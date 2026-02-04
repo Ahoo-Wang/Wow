@@ -9,6 +9,7 @@ import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
+import me.ahoo.wow.webflux.route.query.DefaultRewriteRequestCondition
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
@@ -21,6 +22,7 @@ class CountSnapshotHandlerFunctionTest {
     fun handle() {
         val handlerFunction = CountSnapshotHandlerFunctionFactory(
             MockQueryHandler.queryHandler,
+            DefaultRewriteRequestCondition,
             exceptionHandler = DefaultRequestExceptionHandler,
         ).create(
             CountSnapshotRouteSpec(

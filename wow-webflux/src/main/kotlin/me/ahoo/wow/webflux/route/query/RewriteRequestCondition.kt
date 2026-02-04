@@ -17,18 +17,40 @@ import me.ahoo.wow.api.query.RewritableCondition
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.webflux.route.command.getOwnerId
+import me.ahoo.wow.webflux.route.command.getSpaceId
 import me.ahoo.wow.webflux.route.command.getTenantId
 import org.springframework.web.reactive.function.server.ServerRequest
 
-internal class RewriteRequestCondition(
-    private val request: ServerRequest,
-    private val aggregateMetadata: AggregateMetadata<*, *>,
-) {
+interface RewriteRequestCondition {
+    fun <Q : RewritableCondition<Q>> rewrite(
+        aggregateMetadata: AggregateMetadata<*, *>,
+        request: ServerRequest,
+        rewritableCondition: Q
+    ): Q
+}
 
-    fun <Q : RewritableCondition<Q>> rewrite(rewritableCondition: Q): Q {
-        val tenantId = request.getTenantId(aggregateMetadata)
-        val ownerId = request.getOwnerId()
-        if (tenantId.isNullOrBlank() && ownerId.isNullOrBlank()) {
+abstract class AbstractRewriteRequestCondition : RewriteRequestCondition {
+    protected fun ServerRequest.resolveTenantId(aggregateMetadata: AggregateMetadata<*, *>): String? {
+        return getTenantId(aggregateMetadata)
+    }
+
+    protected fun ServerRequest.resolveOwnerId(aggregateMetadata: AggregateMetadata<*, *>): String? {
+        return getOwnerId()
+    }
+
+    protected fun ServerRequest.resolveSpaceId(aggregateMetadata: AggregateMetadata<*, *>): String? {
+        return getSpaceId()
+    }
+
+    override fun <Q : RewritableCondition<Q>> rewrite(
+        aggregateMetadata: AggregateMetadata<*, *>,
+        request: ServerRequest,
+        rewritableCondition: Q
+    ): Q {
+        val tenantId = request.resolveTenantId(aggregateMetadata)
+        val ownerId = request.resolveOwnerId(aggregateMetadata)
+        val spaceId = request.resolveSpaceId(aggregateMetadata)
+        if (tenantId.isNullOrBlank() && ownerId.isNullOrBlank() && spaceId.isNullOrBlank()) {
             return rewritableCondition
         }
         val appendCondition = condition {
@@ -37,6 +59,9 @@ internal class RewriteRequestCondition(
             }
             if (!ownerId.isNullOrBlank()) {
                 ownerId(ownerId)
+            }
+            if (!spaceId.isNullOrBlank()) {
+                spaceId(spaceId)
             }
         }
         return rewritableCondition.appendCondition(appendCondition)

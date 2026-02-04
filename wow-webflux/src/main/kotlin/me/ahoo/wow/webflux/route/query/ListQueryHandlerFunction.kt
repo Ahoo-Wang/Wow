@@ -31,6 +31,7 @@ import reactor.core.publisher.Mono
 class ListQueryHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val queryHandler: QueryHandler<*>,
+    private val rewriteRequestCondition: RewriteRequestCondition,
     private val exceptionHandler: RequestExceptionHandler,
     private val rewriteResult: (Flux<DynamicDocument>) -> Flux<DynamicDocument>
 ) : HandlerFunction<ServerResponse> {
@@ -38,7 +39,7 @@ class ListQueryHandlerFunction(
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         return request.bodyToMono(ListQuery::class.java)
             .flatMapMany {
-                val query = RewriteRequestCondition(request, aggregateMetadata).rewrite(it)
+                val query = rewriteRequestCondition.rewrite(aggregateMetadata, request, it)
                 val result = queryHandler.dynamicList(aggregateMetadata, query)
                 rewriteResult(result)
             }.toServerResponse(request, exceptionHandler).writeRawRequest(request)
@@ -48,6 +49,7 @@ class ListQueryHandlerFunction(
 open class ListQueryHandlerFunctionFactory<SPEC : AggregateRouteSpec>(
     override val supportedSpec: Class<SPEC>,
     private val queryHandler: QueryHandler<*>,
+    private val rewriteRequestCondition: RewriteRequestCondition,
     private val exceptionHandler: RequestExceptionHandler,
     private val rewriteResult: (Flux<DynamicDocument>) -> Flux<DynamicDocument> = { it }
 ) : RouteHandlerFunctionFactory<SPEC> {
@@ -56,6 +58,7 @@ open class ListQueryHandlerFunctionFactory<SPEC : AggregateRouteSpec>(
         return ListQueryHandlerFunction(
             aggregateMetadata = spec.aggregateMetadata,
             queryHandler = queryHandler,
+            rewriteRequestCondition = rewriteRequestCondition,
             exceptionHandler = exceptionHandler,
             rewriteResult = rewriteResult
         )
