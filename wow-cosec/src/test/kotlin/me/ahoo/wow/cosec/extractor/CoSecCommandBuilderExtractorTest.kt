@@ -16,6 +16,7 @@ package me.ahoo.wow.cosec.extractor
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.cosec.extractor.CoSecCommandBuilderExtractor.REQUEST_ID_KEY
+import me.ahoo.wow.cosec.extractor.CoSecCommandBuilderExtractor.SPACE_ID_KEY
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
@@ -35,6 +36,7 @@ class CoSecCommandBuilderExtractorTest {
             .header(CommandComponent.Header.WAIT_STAGE, CommandStage.SENT.toString())
             .header(CommandComponent.Header.LOCAL_FIRST, false.toString())
             .header(REQUEST_ID_KEY, generateGlobalId())
+            .header(SPACE_ID_KEY, generateGlobalId())
             .build()
         val commandBuilder = CoSecCommandBuilderExtractor.extract(
             aggregateRouteMetadata = MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata(),
@@ -46,5 +48,7 @@ class CoSecCommandBuilderExtractorTest {
         ).block()
         commandBuilder!!.requestId.assert()
             .isEqualTo(request.headers().firstHeader(REQUEST_ID_KEY))
+        commandBuilder.spaceId.assert()
+            .isEqualTo(request.headers().firstHeader(SPACE_ID_KEY))
     }
 }
