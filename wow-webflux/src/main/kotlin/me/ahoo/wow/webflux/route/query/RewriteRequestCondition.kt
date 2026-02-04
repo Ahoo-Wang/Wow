@@ -30,15 +30,15 @@ interface RewriteRequestCondition {
 }
 
 abstract class AbstractRewriteRequestCondition : RewriteRequestCondition {
-    protected fun ServerRequest.resolveTenantId(aggregateMetadata: AggregateMetadata<*, *>): String? {
+    protected open fun ServerRequest.resolveTenantId(aggregateMetadata: AggregateMetadata<*, *>): String? {
         return getTenantId(aggregateMetadata)
     }
 
-    protected fun ServerRequest.resolveOwnerId(aggregateMetadata: AggregateMetadata<*, *>): String? {
+    protected open fun ServerRequest.resolveOwnerId(aggregateMetadata: AggregateMetadata<*, *>): String? {
         return getOwnerId()
     }
 
-    protected fun ServerRequest.resolveSpaceId(aggregateMetadata: AggregateMetadata<*, *>): String? {
+    protected open fun ServerRequest.resolveSpaceId(aggregateMetadata: AggregateMetadata<*, *>): String? {
         return getSpaceId()
     }
 
