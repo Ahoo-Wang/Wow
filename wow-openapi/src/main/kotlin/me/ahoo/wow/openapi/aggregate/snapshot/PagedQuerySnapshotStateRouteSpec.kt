@@ -33,7 +33,6 @@ class PagedQuerySnapshotStateRouteSpec(
     override val currentContext: NamedBoundedContext,
     override val aggregateRouteMetadata: AggregateRouteMetadata<*>,
     override val appendTenantPath: Boolean,
-    override val appendSpacePath: Boolean,
     override val appendOwnerPath: Boolean,
     override val componentContext: OpenAPIComponentContext
 ) : TenantSpaceOwnerAggregateRouteSpec {
@@ -41,7 +40,6 @@ class PagedQuerySnapshotStateRouteSpec(
         get() = RouteIdSpec()
             .aggregate(aggregateMetadata)
             .appendTenant(appendTenantPath)
-            .appendSpace(appendSpacePath)
             .appendOwner(appendOwnerPath)
             .resourceName("snapshot_state")
             .operation("paged_query")
@@ -57,7 +55,7 @@ class PagedQuerySnapshotStateRouteSpec(
         get() = "Paged Query Snapshot State"
     override val requestBody: RequestBody = componentContext.aggregatedPagedQueryRequestBody(aggregateMetadata)
     override val responses: ApiResponses = ApiResponses().apply {
-        ApiResponseBuilder().header(CommonComponent.Header.WOW_ERROR_CODE, componentContext.errorCodeHeader())
+        ApiResponseBuilder().header(CommonComponent.Header.ERROR_CODE, componentContext.errorCodeHeader())
             .content(schema = componentContext.schema(PagedList::class.java, aggregateMetadata.state.aggregateType))
             .build()
             .let {
@@ -71,14 +69,12 @@ class PagedQuerySnapshotStateRouteSpecFactory : AbstractTenantSpaceOwnerAggregat
         currentContext: NamedBoundedContext,
         aggregateRouteMetadata: AggregateRouteMetadata<*>,
         appendTenantPath: Boolean,
-        appendSpacePath: Boolean,
         appendOwnerPath: Boolean
     ): AggregateRouteSpec {
         return PagedQuerySnapshotStateRouteSpec(
             currentContext = currentContext,
             aggregateRouteMetadata = aggregateRouteMetadata,
             appendTenantPath = appendTenantPath,
-            appendSpacePath = appendSpacePath,
             appendOwnerPath = appendOwnerPath,
             componentContext = componentContext
         )

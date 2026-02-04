@@ -38,7 +38,6 @@ class LoadSnapshotRouteSpec(
         get() = RouteIdSpec()
             .aggregate(aggregateMetadata)
             .appendTenant(appendTenantPath)
-            .appendSpace(appendSpacePath)
             .appendOwner(appendOwnerPath)
             .resourceName("snapshot")
             .operation("load")
@@ -55,7 +54,7 @@ class LoadSnapshotRouteSpec(
         get() = "Get Snapshot"
 
     override val responses: ApiResponses = ApiResponses().apply {
-        ApiResponseBuilder().header(CommonComponent.Header.WOW_ERROR_CODE, componentContext.errorCodeHeader())
+        ApiResponseBuilder().header(CommonComponent.Header.ERROR_CODE, componentContext.errorCodeHeader())
             .content(
                 schema = componentContext.schema(
                     Snapshot::class.java,

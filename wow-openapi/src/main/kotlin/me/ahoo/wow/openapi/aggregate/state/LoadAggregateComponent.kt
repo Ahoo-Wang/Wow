@@ -31,7 +31,7 @@ object LoadAggregateComponent {
         ): ApiResponses = ApiResponses().apply {
             ApiResponseBuilder()
                 .description(summary)
-                .header(Header.WOW_ERROR_CODE, errorCodeHeader())
+                .header(Header.ERROR_CODE, errorCodeHeader())
                 .content(schema = schema(aggregateMetadata.state.aggregateType))
                 .build()
                 .let {

@@ -22,7 +22,7 @@ import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.id.generateGlobalId
-import me.ahoo.wow.openapi.CommonComponent.Header.WOW_ERROR_CODE
+import me.ahoo.wow.openapi.CommonComponent.Header.ERROR_CODE
 import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpHeaders
@@ -65,7 +65,7 @@ class CommandResponsesTest {
             .consumeNextWith {
                 it.statusCode().assert().isEqualTo(HttpStatus.OK)
                 it.headers().contentType.assert().isEqualTo(MediaType.APPLICATION_JSON)
-                it.headers().getFirst(WOW_ERROR_CODE).assert().isEqualTo(ErrorInfo.SUCCEEDED)
+                it.headers().getFirst(ERROR_CODE).assert().isEqualTo(ErrorInfo.SUCCEEDED)
             }
             .verifyComplete()
     }
@@ -185,7 +185,7 @@ class CommandResponsesTest {
                 it.writeTo(serverWebExchange, responseContext).test().verifyComplete()
                 it.statusCode().assert().isEqualTo(HttpStatus.OK)
                 it.headers().contentType.assert().isEqualTo(MediaType.TEXT_EVENT_STREAM)
-                it.headers().getFirst(WOW_ERROR_CODE).assert().isEqualTo(ErrorInfo.SUCCEEDED)
+                it.headers().getFirst(ERROR_CODE).assert().isEqualTo(ErrorInfo.SUCCEEDED)
             }
             .verifyComplete()
     }

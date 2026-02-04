@@ -29,7 +29,6 @@ class ListQuerySnapshotHandlerFunctionTest {
                 MOCK_AGGREGATE_METADATA,
                 aggregateRouteMetadata = MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata(),
                 appendTenantPath = true,
-                appendSpacePath = true,
                 appendOwnerPath = false,
                 componentContext = OpenAPIComponentContext.default()
             )

@@ -48,7 +48,7 @@ interface RestCommandGateway<RW, RB> {
         tenantId: String? = null,
         @RequestHeader(CommandComponent.Header.OWNER_ID, required = false)
         ownerId: String?,
-        @RequestHeader(CommandComponent.Header.SPACE_ID, required = false)
+        @RequestHeader(CommonComponent.Header.SPACE_ID, required = false)
         spaceId: SpaceId?,
         @RequestHeader(CommandComponent.Header.AGGREGATE_ID, required = false)
         aggregateId: String? = null,
@@ -102,7 +102,7 @@ interface RestCommandGateway<RW, RB> {
         }
 
         fun WebClientResponseException.toException(request: CommandRequest): RestCommandGatewayException {
-            val errorCode = this.headers.getFirst(CommonComponent.Header.WOW_ERROR_CODE).orEmpty()
+            val errorCode = this.headers.getFirst(CommonComponent.Header.ERROR_CODE).orEmpty()
             val responseBody = this.responseBodyAsString
             if (responseBody.isBlank()) {
                 return RestCommandGatewayException(

@@ -40,15 +40,12 @@ class EventCompensateRouteSpec(
         get() = RouteIdSpec()
             .aggregate(aggregateMetadata)
             .appendTenant(appendTenantPath)
-            .appendSpace(appendSpacePath)
             .operation("compensate").build()
 
     override val summary: String
         get() = "Event Compensate"
     override val method: String
         get() = Https.Method.PUT
-    override val appendSpacePath: Boolean
-        get() = false
     override val appendOwnerPath: Boolean
         get() = false
     override val appendPathSuffix: String

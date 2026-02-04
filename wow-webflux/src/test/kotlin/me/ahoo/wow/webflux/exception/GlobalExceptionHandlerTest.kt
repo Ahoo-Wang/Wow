@@ -37,7 +37,7 @@ class GlobalExceptionHandlerTest {
 
         val response = mockk<ServerHttpResponse> {
             every { setStatusCode(any()) } returns true
-            every { headers.set(CommonComponent.Header.WOW_ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT) } returns Unit
+            every { headers.set(CommonComponent.Header.ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT) } returns Unit
             every { headers.contentType = MediaType.APPLICATION_JSON } returns Unit
             every { isCommitted } returns false
             every { bufferFactory() } returns DefaultDataBufferFactory()
@@ -55,7 +55,7 @@ class GlobalExceptionHandlerTest {
 
         verify {
             response.setStatusCode(HttpStatus.BAD_REQUEST)
-            response.headers.set(CommonComponent.Header.WOW_ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT)
+            response.headers.set(CommonComponent.Header.ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT)
             response.headers.contentType = MediaType.APPLICATION_JSON
             response.writeWith(any())
         }
@@ -91,7 +91,7 @@ class GlobalExceptionHandlerTest {
 
         val response = mockk<ServerHttpResponse> {
             every { setStatusCode(any()) } returns true
-            every { headers.set(CommonComponent.Header.WOW_ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT) } returns Unit
+            every { headers.set(CommonComponent.Header.ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT) } returns Unit
             every { headers.contentType = MediaType.APPLICATION_JSON } returns Unit
             every { isCommitted } returns false
             every { bufferFactory() } returns DefaultDataBufferFactory()
@@ -111,7 +111,7 @@ class GlobalExceptionHandlerTest {
 
         verify {
             response.setStatusCode(HttpStatus.BAD_REQUEST)
-            response.headers.set(CommonComponent.Header.WOW_ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT)
+            response.headers.set(CommonComponent.Header.ERROR_CODE, ErrorCodes.ILLEGAL_ARGUMENT)
             response.headers.contentType = MediaType.APPLICATION_JSON
             response.writeWith(any())
         }

@@ -77,7 +77,7 @@ object BatchComponent {
         fun OpenAPIComponentContext.batchResultResponse(): io.swagger.v3.oas.models.responses.ApiResponse =
             response("${Wow.WOW_PREFIX}BatchResult") {
                 description("Batch Result")
-                header(Header.WOW_ERROR_CODE, errorCodeHeader())
+                header(Header.ERROR_CODE, errorCodeHeader())
                 content(schema = batchResultSchema())
             }
     }
