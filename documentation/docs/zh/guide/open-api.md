@@ -31,9 +31,13 @@ implementation 'me.ahoo.wow:wow-openapi'
 
 ![Swagger-UI](../../public/images/compensation/open-api.png)
 
+## 聚合资源归属
+
+一个聚合根资源可以归属于租户、空间和拥有者中的一种或多种。
+
 ## RESTful URL PATH Spec
 
-`[tenant/{tenantId}]/[space/{spaceId}]/[owner/{ownerId}]/resource/[{resourceId}]/action`
+`[tenant/{tenantId}]/[owner/{ownerId}]/resource/[{resourceId}]/action`
 
 ### 租户资源
 
@@ -41,7 +45,7 @@ implementation 'me.ahoo.wow:wow-openapi'
 
 ### 空间资源
 
-当聚合根为空间资源时，自动生成的 RESTful API 会添加 `space/{spaceId}` 路径前缀。
+当聚合根为空间资源时，自动生成的 RESTful API 会添加 `Wow-Space-Id` 请求头前缀。
 
 ### 拥有者资源
 
