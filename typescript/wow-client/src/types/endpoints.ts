@@ -59,5 +59,4 @@ export enum ResourceAttributionPathSpec {
   TENANT = '/tenant/{tenantId}',
   OWNER = '/owner/{ownerId}',
   TENANT_OWNER = '/tenant/{tenantId}/owner/{ownerId}',
-  TENANT_SPACE_OWNER = '/tenant/{tenantId}/space/{spaceId}/owner/{ownerId}',
 }
