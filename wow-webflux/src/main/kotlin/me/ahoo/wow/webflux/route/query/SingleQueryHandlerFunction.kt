@@ -31,6 +31,7 @@ import reactor.core.publisher.Mono
 class SingleQueryHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val queryHandler: QueryHandler<*>,
+    private val rewriteRequestCondition: RewriteRequestCondition,
     private val exceptionHandler: RequestExceptionHandler,
     private val rewriteResult: (Mono<DynamicDocument>) -> Mono<DynamicDocument>
 ) : HandlerFunction<ServerResponse> {
@@ -38,7 +39,7 @@ class SingleQueryHandlerFunction(
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         return request.bodyToMono(SingleQuery::class.java)
             .flatMap {
-                val query = RewriteRequestCondition(request, aggregateMetadata).rewrite(it)
+                val query = rewriteRequestCondition.rewrite(aggregateMetadata, request, it)
                 val result = queryHandler.dynamicSingle(aggregateMetadata, query)
                 rewriteResult(result)
                     .writeRawRequest(request)
@@ -50,6 +51,7 @@ class SingleQueryHandlerFunction(
 open class SingleQueryHandlerFunctionFactory<SPEC : AggregateRouteSpec>(
     override val supportedSpec: Class<SPEC>,
     private val queryHandler: QueryHandler<*>,
+    private val rewriteRequestCondition: RewriteRequestCondition,
     private val exceptionHandler: RequestExceptionHandler,
     private val rewriteResult: (Mono<DynamicDocument>) -> Mono<DynamicDocument> = { it }
 ) : RouteHandlerFunctionFactory<SPEC> {
@@ -57,6 +59,7 @@ open class SingleQueryHandlerFunctionFactory<SPEC : AggregateRouteSpec>(
         return SingleQueryHandlerFunction(
             aggregateMetadata = spec.aggregateMetadata,
             queryHandler = queryHandler,
+            rewriteRequestCondition = rewriteRequestCondition,
             exceptionHandler = exceptionHandler,
             rewriteResult = rewriteResult
         )

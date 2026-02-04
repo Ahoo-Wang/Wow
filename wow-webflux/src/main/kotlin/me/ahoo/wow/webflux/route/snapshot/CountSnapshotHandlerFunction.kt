@@ -17,13 +17,16 @@ import me.ahoo.wow.openapi.aggregate.snapshot.CountSnapshotRouteSpec
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.query.CountQueryHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.query.RewriteRequestCondition
 
 class CountSnapshotHandlerFunctionFactory(
     snapshotQueryHandler: SnapshotQueryHandler,
+    rewriteRequestCondition: RewriteRequestCondition,
     exceptionHandler: RequestExceptionHandler
 ) : CountQueryHandlerFunctionFactory<CountSnapshotRouteSpec>(
     CountSnapshotRouteSpec::class.java,
     snapshotQueryHandler,
+    rewriteRequestCondition,
     exceptionHandler
 ) {
     override val supportedSpec: Class<CountSnapshotRouteSpec>

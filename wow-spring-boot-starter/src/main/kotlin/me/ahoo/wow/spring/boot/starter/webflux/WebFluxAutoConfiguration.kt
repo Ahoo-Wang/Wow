@@ -55,6 +55,8 @@ import me.ahoo.wow.webflux.route.event.state.ResendStateEventFunctionFactory
 import me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.global.GetWowMetadataHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.global.GlobalIdHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.query.DefaultRewriteRequestCondition
+import me.ahoo.wow.webflux.route.query.RewriteRequestCondition
 import me.ahoo.wow.webflux.route.snapshot.BatchRegenerateSnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.CountSnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.ListQuerySnapshotHandlerFunctionFactory
@@ -283,14 +285,22 @@ class WebFluxAutoConfiguration {
     }
 
     @Bean
+    @ConditionalOnMissingBean
+    fun rewriteRequestCondition(): RewriteRequestCondition {
+        return DefaultRewriteRequestCondition
+    }
+
+    @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE)
     @ConditionalOnMissingBean(name = [LIST_QUERY_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
     fun listQuerySnapshotHandlerFunctionFactory(
         snapshotQueryHandler: SnapshotQueryHandler,
+        rewriteRequestCondition: RewriteRequestCondition,
         exceptionHandler: RequestExceptionHandler
     ): ListQuerySnapshotHandlerFunctionFactory {
         return ListQuerySnapshotHandlerFunctionFactory(
             snapshotQueryHandler = snapshotQueryHandler,
+            rewriteRequestCondition = rewriteRequestCondition,
             exceptionHandler = exceptionHandler
         )
     }
@@ -300,10 +310,12 @@ class WebFluxAutoConfiguration {
     @ConditionalOnMissingBean(name = [LIST_QUERY_SNAPSHOT_STATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
     fun listQuerySnapshotStateHandlerFunctionFactory(
         snapshotQueryHandler: SnapshotQueryHandler,
+        rewriteRequestCondition: RewriteRequestCondition,
         exceptionHandler: RequestExceptionHandler
     ): ListQuerySnapshotStateHandlerFunctionFactory {
         return ListQuerySnapshotStateHandlerFunctionFactory(
             snapshotQueryHandler = snapshotQueryHandler,
+            rewriteRequestCondition = rewriteRequestCondition,
             exceptionHandler = exceptionHandler
         )
     }
@@ -313,10 +325,12 @@ class WebFluxAutoConfiguration {
     @ConditionalOnMissingBean(name = [PAGED_QUERY_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
     fun pagedQuerySnapshotHandlerFunctionFactory(
         snapshotQueryHandler: SnapshotQueryHandler,
+        rewriteRequestCondition: RewriteRequestCondition,
         exceptionHandler: RequestExceptionHandler
     ): PagedQuerySnapshotHandlerFunctionFactory {
         return PagedQuerySnapshotHandlerFunctionFactory(
             snapshotQueryHandler = snapshotQueryHandler,
+            rewriteRequestCondition = rewriteRequestCondition,
             exceptionHandler = exceptionHandler
         )
     }
@@ -326,10 +340,12 @@ class WebFluxAutoConfiguration {
     @ConditionalOnMissingBean(name = [PAGED_QUERY_SNAPSHOT_STATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
     fun pagedQuerySnapshotStateHandlerFunctionFactory(
         snapshotQueryHandler: SnapshotQueryHandler,
+        rewriteRequestCondition: RewriteRequestCondition,
         exceptionHandler: RequestExceptionHandler
     ): PagedQuerySnapshotStateHandlerFunctionFactory {
         return PagedQuerySnapshotStateHandlerFunctionFactory(
             snapshotQueryHandler = snapshotQueryHandler,
+            rewriteRequestCondition = rewriteRequestCondition,
             exceptionHandler = exceptionHandler
         )
     }
@@ -339,10 +355,12 @@ class WebFluxAutoConfiguration {
     @ConditionalOnMissingBean(name = [SINGLE_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
     fun singleSnapshotHandlerFunctionFactory(
         snapshotQueryHandler: SnapshotQueryHandler,
+        rewriteRequestCondition: RewriteRequestCondition,
         exceptionHandler: RequestExceptionHandler
     ): SingleSnapshotHandlerFunctionFactory {
         return SingleSnapshotHandlerFunctionFactory(
             snapshotQueryHandler = snapshotQueryHandler,
+            rewriteRequestCondition = rewriteRequestCondition,
             exceptionHandler = exceptionHandler
         )
     }
@@ -352,10 +370,12 @@ class WebFluxAutoConfiguration {
     @ConditionalOnMissingBean(name = [SINGLE_SNAPSHOT_STATE_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
     fun singleSnapshotStateHandlerFunctionFactory(
         snapshotQueryHandler: SnapshotQueryHandler,
+        rewriteRequestCondition: RewriteRequestCondition,
         exceptionHandler: RequestExceptionHandler
     ): SingleSnapshotStateHandlerFunctionFactory {
         return SingleSnapshotStateHandlerFunctionFactory(
             snapshotQueryHandler = snapshotQueryHandler,
+            rewriteRequestCondition = rewriteRequestCondition,
             exceptionHandler = exceptionHandler
         )
     }
@@ -365,10 +385,12 @@ class WebFluxAutoConfiguration {
     @ConditionalOnMissingBean(name = [COUNT_SNAPSHOT_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
     fun countSnapshotHandlerFunctionFactory(
         snapshotQueryHandler: SnapshotQueryHandler,
+        rewriteRequestCondition: RewriteRequestCondition,
         exceptionHandler: RequestExceptionHandler
     ): CountSnapshotHandlerFunctionFactory {
         return CountSnapshotHandlerFunctionFactory(
             snapshotQueryHandler = snapshotQueryHandler,
+            rewriteRequestCondition = rewriteRequestCondition,
             exceptionHandler = exceptionHandler
         )
     }
@@ -469,10 +491,12 @@ class WebFluxAutoConfiguration {
     @ConditionalOnMissingBean(name = [LIST_QUERY_EVENT_STREAM_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
     fun listQueryEventStreamHandlerFunctionFactory(
         eventStreamQueryHandler: EventStreamQueryHandler,
+        rewriteRequestCondition: RewriteRequestCondition,
         exceptionHandler: RequestExceptionHandler
     ): ListQueryEventStreamHandlerFunctionFactory {
         return ListQueryEventStreamHandlerFunctionFactory(
             eventStreamQueryHandler = eventStreamQueryHandler,
+            rewriteRequestCondition = rewriteRequestCondition,
             exceptionHandler = exceptionHandler
         )
     }
@@ -482,10 +506,12 @@ class WebFluxAutoConfiguration {
     @ConditionalOnMissingBean(name = [PAGED_QUERY_EVENT_STREAM_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
     fun pagedQueryEventStreamHandlerFunctionFactory(
         eventStreamQueryHandler: EventStreamQueryHandler,
+        rewriteRequestCondition: RewriteRequestCondition,
         exceptionHandler: RequestExceptionHandler
     ): PagedQueryEventStreamHandlerFunctionFactory {
         return PagedQueryEventStreamHandlerFunctionFactory(
             eventStreamQueryHandler = eventStreamQueryHandler,
+            rewriteRequestCondition = rewriteRequestCondition,
             exceptionHandler = exceptionHandler
         )
     }
@@ -495,10 +521,12 @@ class WebFluxAutoConfiguration {
     @ConditionalOnMissingBean(name = [COUNT_EVENT_STREAM_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
     fun countEventStreamHandlerFunctionFactory(
         queryHandler: EventStreamQueryHandler,
+        rewriteRequestCondition: RewriteRequestCondition,
         exceptionHandler: RequestExceptionHandler
     ): CountEventStreamHandlerFunctionFactory {
         return CountEventStreamHandlerFunctionFactory(
             eventStreamQueryHandler = queryHandler,
+            rewriteRequestCondition = rewriteRequestCondition,
             exceptionHandler = exceptionHandler
         )
     }

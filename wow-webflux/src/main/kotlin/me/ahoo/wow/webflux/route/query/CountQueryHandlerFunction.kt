@@ -29,13 +29,14 @@ import reactor.core.publisher.Mono
 class CountQueryHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val queryHandler: QueryHandler<*>,
-    private val exceptionHandler: RequestExceptionHandler
+    private val rewriteRequestCondition: RewriteRequestCondition,
+    private val exceptionHandler: RequestExceptionHandler,
 ) : HandlerFunction<ServerResponse> {
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         return request.bodyToMono(Condition::class.java)
             .flatMap {
-                val query = RewriteRequestCondition(request, aggregateMetadata).rewrite(it)
+                val query = rewriteRequestCondition.rewrite(aggregateMetadata, request, it)
                 queryHandler.count(aggregateMetadata, query)
                     .writeRawRequest(request)
             }.toServerResponse(request, exceptionHandler)
@@ -45,6 +46,7 @@ class CountQueryHandlerFunction(
 open class CountQueryHandlerFunctionFactory<SPEC : AggregateRouteSpec>(
     override val supportedSpec: Class<SPEC>,
     private val queryHandler: QueryHandler<*>,
+    private val rewriteRequestCondition: RewriteRequestCondition,
     private val exceptionHandler: RequestExceptionHandler
 ) : RouteHandlerFunctionFactory<SPEC> {
 
@@ -52,6 +54,7 @@ open class CountQueryHandlerFunctionFactory<SPEC : AggregateRouteSpec>(
         return CountQueryHandlerFunction(
             spec.aggregateMetadata,
             queryHandler,
+            rewriteRequestCondition,
             exceptionHandler
         )
     }
