@@ -32,7 +32,6 @@ class ResendStateEventRouteSpec(
         get() = RouteIdSpec()
             .aggregate(aggregateMetadata)
             .appendTenant(appendTenantPath)
-            .appendSpace(appendSpacePath)
             .resourceName("state_event")
             .operation("resend")
             .build()

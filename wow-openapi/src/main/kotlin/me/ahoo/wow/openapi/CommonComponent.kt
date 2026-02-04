@@ -30,10 +30,10 @@ import me.ahoo.wow.serialization.MessageRecords
 object CommonComponent {
 
     object Header {
-        const val WOW_ERROR_CODE = "Wow-Error-Code"
-
+        const val ERROR_CODE = "Wow-Error-Code"
+        const val SPACE_ID = "Wow-Space-Id"
         fun OpenAPIComponentContext.errorCodeHeader(): io.swagger.v3.oas.models.headers.Header =
-            header("${Wow.WOW_PREFIX}${WOW_ERROR_CODE}") {
+            header("${Wow.WOW_PREFIX}${ERROR_CODE}") {
                 schema = StringSchema().example(ErrorCodes.SUCCEEDED)
                 description = "Error code"
             }
@@ -45,6 +45,13 @@ object CommonComponent {
     }
 
     object Parameter {
+        fun OpenAPIComponentContext.spaceIdHeaderParameter(): io.swagger.v3.oas.models.parameters.Parameter =
+            parameter {
+                name = Header.SPACE_ID
+                schema = StringSchema().description("aggregate space id").example(SpaceIdCapable.DEFAULT_SPACE_ID)
+                `in`(ParameterIn.HEADER.toString())
+            }
+
         fun OpenAPIComponentContext.idPathParameter(): io.swagger.v3.oas.models.parameters.Parameter =
             parameter {
                 name = MessageRecords.ID
@@ -66,13 +73,6 @@ object CommonComponent {
                 `in`(ParameterIn.PATH.toString())
             }
 
-        fun OpenAPIComponentContext.spaceIdPathParameter(): io.swagger.v3.oas.models.parameters.Parameter =
-            parameter {
-                name = MessageRecords.SPACE_ID
-                schema = StringSchema().description("aggregate space id").example(SpaceIdCapable.DEFAULT_SPACE_ID)
-                `in`(ParameterIn.PATH.toString())
-            }
-
         fun OpenAPIComponentContext.versionPathParameter(): io.swagger.v3.oas.models.parameters.Parameter =
             parameter {
                 name = MessageRecords.VERSION
@@ -91,7 +91,7 @@ object CommonComponent {
     object Response {
 
         fun ApiResponseBuilder.withErrorCodeHeader(componentContext: OpenAPIComponentContext): ApiResponseBuilder {
-            return header(Header.WOW_ERROR_CODE, componentContext.errorCodeHeader())
+            return header(Header.ERROR_CODE, componentContext.errorCodeHeader())
         }
 
         fun OpenAPIComponentContext.badRequestResponse(): io.swagger.v3.oas.models.responses.ApiResponse =

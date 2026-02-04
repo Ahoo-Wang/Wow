@@ -23,8 +23,6 @@ import me.ahoo.wow.openapi.aggregate.AbstractAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.aggregate.AggregateRouteSpec
 
 interface BatchRouteSpec : AggregateRouteSpec {
-    override val appendSpacePath: Boolean
-        get() = false
     override val appendTenantPath: Boolean
         get() = false
 

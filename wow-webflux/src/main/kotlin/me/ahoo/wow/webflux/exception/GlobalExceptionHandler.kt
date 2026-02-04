@@ -48,7 +48,7 @@ object GlobalExceptionHandler : WebExceptionHandler, Ordered {
         val response = exchange.response
         response.statusCode = status
         response.headers.contentType = MediaType.APPLICATION_JSON
-        response.headers.set(CommonComponent.Header.WOW_ERROR_CODE, errorInfo.errorCode)
+        response.headers.set(CommonComponent.Header.ERROR_CODE, errorInfo.errorCode)
         return response.writeWith(Mono.just(response.bufferFactory().wrap(errorInfo.toJsonString().toByteArray())))
     }
 

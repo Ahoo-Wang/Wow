@@ -38,15 +38,12 @@ class LoadEventStreamRouteSpec(
         get() = RouteIdSpec()
             .aggregate(aggregateMetadata)
             .appendTenant(appendTenantPath)
-            .appendSpace(appendSpacePath)
             .resourceName("event_stream")
             .operation("load").build()
     override val method: String
         get() = Https.Method.GET
     override val accept: List<String>
         get() = listOf(Https.MediaType.APPLICATION_JSON, Https.MediaType.TEXT_EVENT_STREAM)
-    override val appendSpacePath: Boolean
-        get() = false
     override val appendOwnerPath: Boolean
         get() = false
     override val appendIdPath: Boolean

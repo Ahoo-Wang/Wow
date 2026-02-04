@@ -32,7 +32,6 @@ class ListQuerySnapshotStateRouteSpec(
     override val currentContext: NamedBoundedContext,
     override val aggregateRouteMetadata: AggregateRouteMetadata<*>,
     override val appendTenantPath: Boolean,
-    override val appendSpacePath: Boolean,
     override val appendOwnerPath: Boolean,
     override val componentContext: OpenAPIComponentContext
 ) : TenantSpaceOwnerAggregateRouteSpec {
@@ -40,7 +39,6 @@ class ListQuerySnapshotStateRouteSpec(
         get() = RouteIdSpec()
             .aggregate(aggregateMetadata)
             .appendTenant(appendTenantPath)
-            .appendSpace(appendSpacePath)
             .appendOwner(appendOwnerPath)
             .resourceName("snapshot_state")
             .operation("list_query")
@@ -58,7 +56,7 @@ class ListQuerySnapshotStateRouteSpec(
     override val requestBody: RequestBody = componentContext.aggregatedListQueryRequestBody(aggregateMetadata)
 
     override val responses: ApiResponses = ApiResponses().apply {
-        ApiResponseBuilder().header(CommonComponent.Header.WOW_ERROR_CODE, componentContext.errorCodeHeader())
+        ApiResponseBuilder().header(CommonComponent.Header.ERROR_CODE, componentContext.errorCodeHeader())
             .listContent(componentContext, aggregateMetadata.state.aggregateType)
             .build()
             .let {
@@ -72,14 +70,12 @@ class ListQuerySnapshotStateRouteSpecFactory : AbstractTenantSpaceOwnerAggregate
         currentContext: NamedBoundedContext,
         aggregateRouteMetadata: AggregateRouteMetadata<*>,
         appendTenantPath: Boolean,
-        appendSpacePath: Boolean,
         appendOwnerPath: Boolean
     ): AggregateRouteSpec {
         return ListQuerySnapshotStateRouteSpec(
             currentContext = currentContext,
             aggregateRouteMetadata = aggregateRouteMetadata,
             appendTenantPath = appendTenantPath,
-            appendSpacePath = appendSpacePath,
             appendOwnerPath = appendOwnerPath,
             componentContext = componentContext
         )

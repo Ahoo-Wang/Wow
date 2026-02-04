@@ -33,7 +33,6 @@ class RegenerateSnapshotRouteSpec(
         get() = RouteIdSpec()
             .aggregate(aggregateMetadata)
             .appendTenant(appendTenantPath)
-            .appendSpace(appendSpacePath)
             .resourceName("snapshot")
             .operation("regenerate")
             .build()
@@ -42,8 +41,6 @@ class RegenerateSnapshotRouteSpec(
         get() = Https.Method.PUT
     override val summary: String
         get() = "Regenerate Aggregate Snapshot"
-    override val appendSpacePath: Boolean
-        get() = false
     override val appendOwnerPath: Boolean
         get() = false
     override val appendIdPath: Boolean

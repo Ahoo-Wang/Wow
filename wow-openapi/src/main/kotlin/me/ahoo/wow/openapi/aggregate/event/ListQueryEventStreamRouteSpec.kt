@@ -30,7 +30,6 @@ class ListQueryEventStreamRouteSpec(
     override val currentContext: NamedBoundedContext,
     override val aggregateRouteMetadata: AggregateRouteMetadata<*>,
     override val appendTenantPath: Boolean,
-    override val appendSpacePath: Boolean,
     override val appendOwnerPath: Boolean,
     override val componentContext: OpenAPIComponentContext
 ) : TenantSpaceOwnerAggregateRouteSpec {
@@ -38,7 +37,6 @@ class ListQueryEventStreamRouteSpec(
         get() = RouteIdSpec()
             .aggregate(aggregateMetadata)
             .appendTenant(appendTenantPath)
-            .appendSpace(appendSpacePath)
             .appendOwner(appendOwnerPath)
             .resourceName("event")
             .operation("list_query")
@@ -64,14 +62,12 @@ class ListQueryEventStreamRouteSpecFactory : AbstractTenantSpaceOwnerAggregateRo
         currentContext: NamedBoundedContext,
         aggregateRouteMetadata: AggregateRouteMetadata<*>,
         appendTenantPath: Boolean,
-        appendSpacePath: Boolean,
         appendOwnerPath: Boolean
     ): AggregateRouteSpec {
         return ListQueryEventStreamRouteSpec(
             currentContext = currentContext,
             aggregateRouteMetadata = aggregateRouteMetadata,
             appendTenantPath = appendTenantPath,
-            appendSpacePath = appendSpacePath,
             appendOwnerPath = appendOwnerPath,
             componentContext = componentContext
         )

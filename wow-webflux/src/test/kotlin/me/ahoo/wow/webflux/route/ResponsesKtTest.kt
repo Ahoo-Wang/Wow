@@ -24,7 +24,7 @@ import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.exception.toErrorInfo
 import me.ahoo.wow.id.generateGlobalId
-import me.ahoo.wow.openapi.CommonComponent.Header.WOW_ERROR_CODE
+import me.ahoo.wow.openapi.CommonComponent.Header.ERROR_CODE
 import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpHeaders
@@ -47,7 +47,7 @@ class ResponsesKtTest {
             .toResponseEntity()
         responseEntity.statusCode.assert().isEqualTo(HttpStatus.BAD_REQUEST)
         responseEntity.headers.contentType.assert().isEqualTo(MediaType.APPLICATION_JSON)
-        responseEntity.headers.getFirst(WOW_ERROR_CODE).assert().isEqualTo(ErrorCodes.ILLEGAL_ARGUMENT)
+        responseEntity.headers.getFirst(ERROR_CODE).assert().isEqualTo(ErrorCodes.ILLEGAL_ARGUMENT)
     }
 
     @Test
@@ -59,7 +59,7 @@ class ResponsesKtTest {
             .consumeNextWith {
                 it.statusCode().assert().isEqualTo(HttpStatus.BAD_REQUEST)
                 it.headers().contentType.assert().isEqualTo(MediaType.APPLICATION_JSON)
-                it.headers().getFirst(WOW_ERROR_CODE).assert().isEqualTo(ErrorCodes.ILLEGAL_ARGUMENT)
+                it.headers().getFirst(ERROR_CODE).assert().isEqualTo(ErrorCodes.ILLEGAL_ARGUMENT)
             }
             .verifyComplete()
     }
@@ -89,7 +89,7 @@ class ResponsesKtTest {
             .consumeNextWith {
                 it.statusCode().assert().isEqualTo(HttpStatus.OK)
                 it.headers().contentType.assert().isEqualTo(MediaType.APPLICATION_JSON)
-                it.headers().getFirst(WOW_ERROR_CODE).assert().isEqualTo(ErrorInfo.SUCCEEDED)
+                it.headers().getFirst(ERROR_CODE).assert().isEqualTo(ErrorInfo.SUCCEEDED)
             }
             .verifyComplete()
     }
@@ -114,7 +114,7 @@ class ResponsesKtTest {
                 it.writeTo(serverWebExchange, responseContext).test().verifyComplete()
                 it.statusCode().assert().isEqualTo(HttpStatus.OK)
                 it.headers().contentType.assert().isEqualTo(MediaType.TEXT_EVENT_STREAM)
-                it.headers().getFirst(WOW_ERROR_CODE).assert().isEqualTo(ErrorInfo.SUCCEEDED)
+                it.headers().getFirst(ERROR_CODE).assert().isEqualTo(ErrorInfo.SUCCEEDED)
             }
             .verifyComplete()
     }
@@ -138,7 +138,7 @@ class ResponsesKtTest {
                 it.writeTo(serverWebExchange, responseContext).test().verifyComplete()
                 it.statusCode().assert().isEqualTo(HttpStatus.OK)
                 it.headers().contentType.assert().isEqualTo(MediaType.TEXT_EVENT_STREAM)
-                it.headers().getFirst(WOW_ERROR_CODE).assert().isEqualTo(ErrorInfo.SUCCEEDED)
+                it.headers().getFirst(ERROR_CODE).assert().isEqualTo(ErrorInfo.SUCCEEDED)
             }
             .verifyComplete()
     }

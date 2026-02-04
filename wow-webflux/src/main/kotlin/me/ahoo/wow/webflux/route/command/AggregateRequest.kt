@@ -24,6 +24,7 @@ import me.ahoo.wow.command.wait.chain.SimpleWaitingForChain
 import me.ahoo.wow.command.wait.stage.WaitingForStage
 import me.ahoo.wow.infra.ifNotBlank
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
+import me.ahoo.wow.openapi.CommonComponent
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.serialization.MessageRecords
 import org.springframework.http.MediaType
@@ -55,10 +56,7 @@ fun ServerRequest.getOwnerId(): String? {
 }
 
 fun ServerRequest.getSpaceId(): SpaceId? {
-    pathVariables()[MessageRecords.SPACE_ID].ifNotBlank<String> {
-        return it
-    }
-    headers().firstHeader(CommandComponent.Header.SPACE_ID).ifNotBlank<String> {
+    headers().firstHeader(CommonComponent.Header.SPACE_ID).ifNotBlank<String> {
         return it
     }
     return null

@@ -34,7 +34,6 @@ class SingleSnapshotRouteSpec(
     override val currentContext: NamedBoundedContext,
     override val aggregateRouteMetadata: AggregateRouteMetadata<*>,
     override val appendTenantPath: Boolean,
-    override val appendSpacePath: Boolean,
     override val appendOwnerPath: Boolean,
     override val componentContext: OpenAPIComponentContext
 ) : TenantSpaceOwnerAggregateRouteSpec {
@@ -42,7 +41,6 @@ class SingleSnapshotRouteSpec(
         get() = RouteIdSpec()
             .aggregate(aggregateMetadata)
             .appendTenant(appendTenantPath)
-            .appendSpace(appendSpacePath)
             .appendOwner(appendOwnerPath)
             .resourceName("snapshot")
             .operation("single")
@@ -59,7 +57,7 @@ class SingleSnapshotRouteSpec(
     override val requestBody: RequestBody = componentContext.aggregatedSingleQueryRequestBody(aggregateMetadata)
 
     override val responses: ApiResponses = ApiResponses().apply {
-        ApiResponseBuilder().header(CommonComponent.Header.WOW_ERROR_CODE, componentContext.errorCodeHeader())
+        ApiResponseBuilder().header(CommonComponent.Header.ERROR_CODE, componentContext.errorCodeHeader())
             .content(
                 schema = componentContext.schema(
                     MaterializedSnapshot::class.java,
@@ -79,14 +77,12 @@ class SingleSnapshotRouteSpecFactory : AbstractTenantSpaceOwnerAggregateRouteSpe
         currentContext: NamedBoundedContext,
         aggregateRouteMetadata: AggregateRouteMetadata<*>,
         appendTenantPath: Boolean,
-        appendSpacePath: Boolean,
         appendOwnerPath: Boolean
     ): AggregateRouteSpec {
         return SingleSnapshotRouteSpec(
             currentContext = currentContext,
             aggregateRouteMetadata = aggregateRouteMetadata,
             appendTenantPath = appendTenantPath,
-            appendSpacePath = appendSpacePath,
             appendOwnerPath = appendOwnerPath,
             componentContext = componentContext
         )

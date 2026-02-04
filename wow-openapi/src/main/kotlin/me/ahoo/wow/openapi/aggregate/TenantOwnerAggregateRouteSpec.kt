@@ -21,10 +21,9 @@ import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 interface TenantSpaceOwnerAggregateRouteSpec : AggregateRouteSpec {
     val operationSummary: String
     override val summary: String
-        get() = TenantSpaceOwnerRouteSummarySpec()
+        get() = TenantOwnerRouteSummarySpec()
             .operationSummary(operationSummary)
             .appendTenant(appendTenantPath)
-            .appendSpace(appendSpacePath)
             .appendOwner(appendOwnerPath)
             .build()
 }
@@ -35,7 +34,6 @@ abstract class AbstractTenantSpaceOwnerAggregateRouteSpecFactory : AbstractAggre
         currentContext: NamedBoundedContext,
         aggregateRouteMetadata: AggregateRouteMetadata<*>,
         appendTenantPath: Boolean,
-        appendSpacePath: Boolean,
         appendOwnerPath: Boolean
     ): AggregateRouteSpec
 
@@ -47,7 +45,6 @@ abstract class AbstractTenantSpaceOwnerAggregateRouteSpecFactory : AbstractAggre
             currentContext = currentContext,
             aggregateRouteMetadata = aggregateRouteMetadata,
             appendTenantPath = false,
-            appendSpacePath = false,
             appendOwnerPath = false
         )
         return buildList {
@@ -58,21 +55,9 @@ abstract class AbstractTenantSpaceOwnerAggregateRouteSpecFactory : AbstractAggre
                     currentContext = currentContext,
                     aggregateRouteMetadata = aggregateRouteMetadata,
                     appendTenantPath = true,
-                    appendSpacePath = false,
                     appendOwnerPath = false
                 )
                 add(tenantRouteSpec)
-
-                if (aggregateRouteMetadata.spaced) {
-                    val tenantRouteSpec = createSpec(
-                        currentContext = currentContext,
-                        aggregateRouteMetadata = aggregateRouteMetadata,
-                        appendTenantPath = true,
-                        appendSpacePath = true,
-                        appendOwnerPath = false
-                    )
-                    add(tenantRouteSpec)
-                }
             }
             val appendOwnerPath = aggregateRouteMetadata.owner != AggregateRoute.Owner.NEVER
             if (appendOwnerPath) {
@@ -80,7 +65,6 @@ abstract class AbstractTenantSpaceOwnerAggregateRouteSpecFactory : AbstractAggre
                     currentContext = currentContext,
                     aggregateRouteMetadata = aggregateRouteMetadata,
                     appendTenantPath = false,
-                    appendSpacePath = false,
                     appendOwnerPath = true
                 )
                 add(ownerRouteSpec)
