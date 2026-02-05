@@ -19,7 +19,7 @@ import reactor.util.context.ContextView
 object Contexts {
     private const val RAW_REQUEST_KEY = "__RAW_REQUEST___"
 
-    fun <T> Mono<T>.writeRawRequest(request: Any): Mono<T> {
+    fun <T : Any> Mono<T>.writeRawRequest(request: Any): Mono<T> {
         return this.contextWrite {
             it.put(RAW_REQUEST_KEY, request)
         }

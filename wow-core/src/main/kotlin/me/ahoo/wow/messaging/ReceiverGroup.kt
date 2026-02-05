@@ -48,7 +48,7 @@ fun Context.setReceiverGroup(receiverGroup: String): Context = this.put(RECEIVER
  * @param receiverGroup The receiver group to write to the context
  * @return A new Flux with the receiver group in its context
  */
-fun <T> Flux<T>.writeReceiverGroup(receiverGroup: String): Flux<T> =
+fun <T : Any> Flux<T>.writeReceiverGroup(receiverGroup: String): Flux<T> =
     contextWrite {
         it.setReceiverGroup(receiverGroup)
     }

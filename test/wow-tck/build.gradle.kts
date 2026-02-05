@@ -12,7 +12,7 @@ dependencies {
     implementation(kotlin("reflect"))
     implementation("org.testcontainers:testcontainers")
     implementation("org.testcontainers:junit-jupiter")
-    implementation("io.projectreactor.kafka:reactor-kafka")
+    implementation(libs.reactor.kafka)
     implementation("org.testcontainers:kafka")
     implementation("org.testcontainers:mongodb")
     implementation("org.testcontainers:elasticsearch")

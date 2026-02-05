@@ -199,7 +199,7 @@ object FunctionMetadataParser {
      *
      * @return Metadata for reactive function invocation
      */
-    fun <P, R> KFunction<*>.toMonoFunctionMetadata(): FunctionAccessorMetadata<P, Mono<R>> =
+    fun <P, R : Any> KFunction<*>.toMonoFunctionMetadata(): FunctionAccessorMetadata<P, Mono<R>> =
         this.toFunctionMetadata {
             it.toMonoFunctionAccessor()
         }

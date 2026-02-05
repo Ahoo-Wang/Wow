@@ -61,7 +61,7 @@ class NotFoundResourceException(
  * @param cause the underlying cause, if any
  * @return a Mono that signals NotFoundResourceException if empty
  */
-fun <T> Mono<T>.throwNotFoundIfEmpty(
+fun <T : Any> Mono<T>.throwNotFoundIfEmpty(
     errorMsg: String = ErrorCodes.NOT_FOUND_MESSAGE,
     cause: Throwable? = null
 ): Mono<T> =
@@ -86,7 +86,7 @@ fun <T> Mono<T>.throwNotFoundIfEmpty(
  * @param cause the underlying cause, if any
  * @return a Flux that signals NotFoundResourceException if empty
  */
-fun <T> Flux<T>.throwNotFoundIfEmpty(
+fun <T : Any> Flux<T>.throwNotFoundIfEmpty(
     errorMsg: String = ErrorCodes.NOT_FOUND_MESSAGE,
     cause: Throwable? = null
 ): Flux<T> =

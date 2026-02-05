@@ -24,7 +24,7 @@ import kotlin.reflect.KFunction
  * @param D the type of data in the Mono
  * @property function the Kotlin function that returns a Mono
  */
-class SimpleMonoFunctionAccessor<T, D>(
+class SimpleMonoFunctionAccessor<T, D : Any>(
     function: KFunction<*>
 ) : AbstractMonoFunctionAccessor<T, Mono<D>>(function) {
 
