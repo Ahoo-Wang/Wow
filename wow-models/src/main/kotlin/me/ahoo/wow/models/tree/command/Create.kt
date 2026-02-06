@@ -17,7 +17,7 @@ import me.ahoo.wow.api.annotation.AllowCreate
 import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.Summary
-import me.ahoo.wow.api.naming.Named
+import me.ahoo.wow.models.common.NotBlankNameCapable
 import me.ahoo.wow.models.tree.Flat
 
 @Summary("Create tree node")
@@ -28,7 +28,7 @@ import me.ahoo.wow.models.tree.Flat
     appendIdPath = CommandRoute.AppendPath.ALWAYS,
     action = "",
 )
-interface Create<E : Created> : Named {
+interface Create<E : Created> : NotBlankNameCapable {
     val parentCode: String
 
     fun toEvent(code: String, sortId: Int): E
