@@ -14,15 +14,15 @@
     "generate": "fetcher-generator generate -i http://compensation-service.dev.svc.cluster.local/v3/api-docs -o src/generated"
   },
   "dependencies": {
-    "@ahoo-wang/fetcher": "^3.10.0",
-    "@ahoo-wang/fetcher-cosec": "^3.10.0",
-    "@ahoo-wang/fetcher-decorator": "^3.10.0",
-    "@ahoo-wang/fetcher-eventbus": "^3.10.0",
-    "@ahoo-wang/fetcher-eventstream": "^3.10.0",
-    "@ahoo-wang/fetcher-react": "^3.10.0",
-    "@ahoo-wang/fetcher-storage": "^3.10.0",
-    "@ahoo-wang/fetcher-viewer": "^3.10.0",
-    "@ahoo-wang/fetcher-wow": "^3.10.0",
+    "@ahoo-wang/fetcher": "^3.10.3",
+    "@ahoo-wang/fetcher-cosec": "^3.10.3",
+    "@ahoo-wang/fetcher-decorator": "^3.10.3",
+    "@ahoo-wang/fetcher-eventbus": "^3.10.3",
+    "@ahoo-wang/fetcher-eventstream": "^3.10.3",
+    "@ahoo-wang/fetcher-react": "^3.10.3",
+    "@ahoo-wang/fetcher-storage": "^3.10.3",
+    "@ahoo-wang/fetcher-viewer": "^3.10.3",
+    "@ahoo-wang/fetcher-wow": "^3.10.3",
     "@ant-design/icons": "^6.1.0",
     "@monaco-editor/react": "4.7.0",
     "antd": "^6.2.3",
@@ -32,12 +32,12 @@
     "react-router": "^7.13.0"
   },
   "devDependencies": {
-    "@ahoo-wang/fetcher-generator": "^3.10.0",
+    "@ahoo-wang/fetcher-generator": "^3.10.3",
     "@eslint/js": "^9.39.2",
     "@tailwindcss/vite": "^4.1.18",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
-    "@types/react": "^19.2.10",
+    "@types/react": "^19.2.13",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.3",
     "@vitest/coverage-v8": "4.0.18",
@@ -53,7 +53,7 @@
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.54.0",
     "vite": "^7.3.1",
-    "vite-bundle-analyzer": "^1.3.5",
+    "vite-bundle-analyzer": "^1.3.6",
     "vitest": "^4.0.18",
     "vitest-browser-react": "^2.0.5"
   }
