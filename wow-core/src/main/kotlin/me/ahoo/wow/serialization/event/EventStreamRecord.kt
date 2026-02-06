@@ -164,4 +164,19 @@ class StreamDomainEventRecord(
     override fun toAggregateId(): AggregateId {
         return streamedAggregateId
     }
+
+    fun withActual(actual: ObjectNode): StreamDomainEventRecord {
+        return StreamDomainEventRecord(
+            actual = actual,
+            streamedAggregateId = streamedAggregateId,
+            streamedVersion = streamedVersion,
+            streamedOwnerId = streamedOwnerId,
+            streamedSpaceId = streamedSpaceId,
+            streamedHeader = streamedHeader,
+            streamedCommandId = streamedCommandId,
+            sequence = sequence,
+            isLast = isLast,
+            streamedCreateTime = streamedCreateTime,
+        )
+    }
 }

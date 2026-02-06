@@ -16,9 +16,11 @@ package me.ahoo.wow.event.upgrader
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.annotation.sortedByOrder
 import me.ahoo.wow.event.upgrader.EventNamedAggregate.Companion.toEventNamedAggregate
+import me.ahoo.wow.event.upgrader.EventUpgraderFactory.get
 import me.ahoo.wow.event.upgrader.MutableDomainEventRecord.Companion.toMutableDomainEventRecord
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.serialization.event.DomainEventRecord
+import me.ahoo.wow.serialization.event.StreamDomainEventRecord
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
@@ -112,6 +114,9 @@ object EventUpgraderFactory {
                 "Upgrade [${domainEventRecord.id}]@[$eventNamedAggregate] by $it."
             }
             mutableDomainEventRecord = it.upgrade(mutableDomainEventRecord).toMutableDomainEventRecord()
+        }
+        if (domainEventRecord is StreamDomainEventRecord) {
+            return domainEventRecord.withActual(mutableDomainEventRecord.actual)
         }
         return mutableDomainEventRecord
     }
