@@ -125,7 +125,7 @@ abstract class MainDispatcher<T : Any> : MessageDispatcher {
             }
     }
 
-    private fun String.withNamePrefix(): String = "[$name][${this.javaClass.simpleName}] $this"
+    private fun String.withNamePrefix(): String = "[$name][${this@MainDispatcher.javaClass.simpleName}] $this"
 
     /**
      * Starts the dispatcher by running all aggregate dispatchers.
