@@ -279,7 +279,7 @@ object ScriptTemplateEngine {
                 deleted          Bool
             ) ENGINE = ReplicatedReplacingMergeTree('/clickhouse/{installation}/{cluster}/tables/{shard}/{database}/{table}',
                                                     '{replica}', version)
-                  PARTITION BY sipHash64(aggregate_id) % 8
+                  PARTITION BY toYYYYMM(first_event_time)
                   ORDER BY (aggregate_id)
             ;
             
