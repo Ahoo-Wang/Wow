@@ -65,14 +65,14 @@ interface EventStreamRecord :
             StreamDomainEventRecord(
                 actual = eventNode as ObjectNode,
                 streamedAggregateId = aggregateId,
-                streamedVersion = version,
-                streamedOwnerId = ownerId,
-                streamedSpaceId = spaceId,
+                version = version,
+                ownerId = ownerId,
+                spaceId = spaceId,
                 streamedHeader = header,
-                streamedCommandId = commandId,
+                commandId = commandId,
                 sequence = sequence,
                 isLast = sequence == eventCount,
-                streamedCreateTime = createTime,
+                createTime = createTime,
             ).toDomainEvent()
         }.toList()
 
@@ -125,14 +125,14 @@ class FlatEventStreamRecord(
 class StreamDomainEventRecord(
     override val actual: ObjectNode,
     private val streamedAggregateId: AggregateId,
-    private val streamedVersion: Int,
-    private val streamedOwnerId: String,
-    private val streamedSpaceId: SpaceId,
+    override val version: Int,
+    override val ownerId: String,
+    override val spaceId: SpaceId,
     private val streamedHeader: Header,
-    private val streamedCommandId: String,
+    override val commandId: String,
     override val sequence: Int,
     override val isLast: Boolean,
-    private val streamedCreateTime: Long
+    override val createTime: Long
 ) : DomainEventRecord {
     override val contextName: String
         get() = streamedAggregateId.contextName
@@ -144,18 +144,6 @@ class StreamDomainEventRecord(
 
     override val tenantId: String
         get() = streamedAggregateId.tenantId
-
-    override val version: Int
-        get() = streamedVersion
-    override val ownerId: String
-        get() = streamedOwnerId
-    override val spaceId: SpaceId
-        get() = streamedSpaceId
-    override val commandId: String
-        get() = streamedCommandId
-
-    override val createTime: Long
-        get() = streamedCreateTime
 
     override fun toMessageHeader(): Header {
         return streamedHeader
@@ -169,14 +157,14 @@ class StreamDomainEventRecord(
         return StreamDomainEventRecord(
             actual = actual,
             streamedAggregateId = streamedAggregateId,
-            streamedVersion = streamedVersion,
-            streamedOwnerId = streamedOwnerId,
-            streamedSpaceId = streamedSpaceId,
+            version = version,
+            ownerId = ownerId,
+            spaceId = spaceId,
             streamedHeader = streamedHeader,
-            streamedCommandId = streamedCommandId,
+            commandId = commandId,
             sequence = sequence,
             isLast = isLast,
-            streamedCreateTime = streamedCreateTime,
+            createTime = createTime,
         )
     }
 }
