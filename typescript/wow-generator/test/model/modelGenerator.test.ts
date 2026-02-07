@@ -17,7 +17,13 @@ import { TypeGenerator } from '../../src/model/typeGenerator';
 import { KeySchema } from '../../src/utils';
 
 // Mock dependencies
-vi.mock('../../src/model/typeGenerator');
+vi.mock('../../src/model/typeGenerator', () => ({
+  TypeGenerator: class TypeGenerator {
+    generate = vi.fn();
+    generateKeyedSchema = vi.fn();
+    constructor() {}
+  },
+}));
 vi.mock('../../src/utils/sourceFiles', () => ({
   getOrCreateSourceFile: vi.fn(),
   getModelFileName: vi.fn().mockReturnValue('TestModel.ts'),
@@ -68,10 +74,6 @@ describe('ModelGenerator', () => {
       const generator = new ModelGenerator(mockContext as any);
       const mockSourceFile = {};
       mockGetOrCreateSourceFile.mockReturnValue(mockSourceFile);
-
-      // Mock TypeGenerator
-      const mockTypeGenerator = { generate: vi.fn() };
-      vi.mocked(TypeGenerator).mockReturnValue(mockTypeGenerator as any);
 
       generator.generate();
 
