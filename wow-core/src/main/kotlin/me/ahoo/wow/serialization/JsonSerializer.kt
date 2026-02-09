@@ -50,6 +50,7 @@ object JsonSerializer : ObjectMapper() {
         setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY)
         configure(JsonParser.Feature.IGNORE_UNDEFINED, true)
         disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+        enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS)
         registerKotlinModule()
         findAndRegisterModules()
     }
