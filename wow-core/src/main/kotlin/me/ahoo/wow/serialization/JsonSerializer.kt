@@ -365,7 +365,7 @@ inline fun <reified T> Any.convert(): T = JsonSerializer.convertValue<T>(this, T
  */
 fun <T : Any> T.deepCopy(targetType: Class<T> = this.javaClass): T = this.convert(targetType)
 
-private val MAP_TYPE_REF = object : TypeReference<LinkedHashMap<String, Any>>() {}
+private val LINKED_HASH_MAP_TYPE_REF = object : TypeReference<LinkedHashMap<String, Any>>() {}
 
 /**
  * Converts this object to a [MutableMap] representation.
@@ -387,4 +387,4 @@ private val MAP_TYPE_REF = object : TypeReference<LinkedHashMap<String, Any>>() 
  * println(map["age"]) // 30
  * ```
  */
-fun <T : Any> T.toLinkedHashMap(): LinkedHashMap<String, Any> = this.convert(MAP_TYPE_REF)
+fun <T : Any> T.toLinkedHashMap(): LinkedHashMap<String, Any> = this.convert(LINKED_HASH_MAP_TYPE_REF)
