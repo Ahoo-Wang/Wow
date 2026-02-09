@@ -395,7 +395,7 @@ internal class JsonSerializerTest {
     }
 
     @Test
-    fun condition() {
+    fun conditionBigDecimal() {
         val queryCondition = Condition.gt("amount", 100.55)
         val output = queryCondition.toJsonString()
         val input = output.toObject<Condition>()
@@ -404,6 +404,19 @@ internal class JsonSerializerTest {
         input.value.assert().isInstanceOf(BigDecimal::class.java)
         val amount = input.value as BigDecimal
         amount.assert().isEqualTo(BigDecimal.valueOf(100.55))
+    }
+
+    @Test
+    fun condition() {
+        val value = BigDecimal.valueOf(1000, 1)
+        val queryCondition = Condition.gt("amount", value)
+        val output = queryCondition.toJsonString()
+        val input = output.toObject<Condition>()
+        input.field.assert().isEqualTo("amount")
+        input.operator.assert().isEqualTo(Operator.GT)
+        input.value.assert().isInstanceOf(BigDecimal::class.java)
+        val amount = input.value as BigDecimal
+        amount.assert().isEqualTo(value)
     }
 }
 
