@@ -19,6 +19,8 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.configuration.requiredNamedAggregate
 import me.ahoo.wow.event.DomainEventStream
@@ -41,6 +43,7 @@ import me.ahoo.wow.tck.mock.MockAggregateCreated
 import me.ahoo.wow.tck.mock.MockCreateAggregate
 import me.ahoo.wow.tck.mock.MockStateAggregate
 import org.junit.jupiter.api.Test
+import java.math.BigDecimal
 import java.time.Clock
 
 internal class JsonSerializerTest {
@@ -389,6 +392,18 @@ internal class JsonSerializerTest {
         val user = node.toObject<User>()
         user.name.assert().isEqualTo("John")
         user.age.assert().isEqualTo(30)
+    }
+
+    @Test
+    fun condition() {
+        val queryCondition = Condition.gt("amount", 100.55)
+        val output = queryCondition.toJsonString()
+        val input = output.toObject<Condition>()
+        input.field.assert().isEqualTo("amount")
+        input.operator.assert().isEqualTo(Operator.GT)
+        input.value.assert().isInstanceOf(BigDecimal::class.java)
+        val amount = input.value as BigDecimal
+        amount.assert().isEqualTo(BigDecimal.valueOf(100.55))
     }
 }
 
