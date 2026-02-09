@@ -382,9 +382,9 @@ private val MAP_TYPE_REF = object : TypeReference<LinkedHashMap<String, Any>>() 
  * ```kotlin
  * data class User(val name: String, val age: Int)
  * val user = User("John", 30)
- * val map = user.toMap()
+ * val map = user.toLinkedHashMap()
  * println(map["name"]) // "John"
  * println(map["age"]) // 30
  * ```
  */
-fun <T : Any> T.toMap(): MutableMap<String, Any> = this.convert(MAP_TYPE_REF)
+fun <T : Any> T.toLinkedHashMap(): LinkedHashMap<String, Any> = this.convert(MAP_TYPE_REF)

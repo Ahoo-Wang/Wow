@@ -310,7 +310,7 @@ internal class JsonSerializerTest {
         )
 
         val user = User("John", 30)
-        val map = user.toMap()
+        val map = user.toLinkedHashMap()
         map["name"].assert().isEqualTo("John")
         map["age"].assert().isEqualTo(30)
     }
@@ -327,7 +327,7 @@ internal class JsonSerializerTest {
         )
 
         val user = User("John", Address("Beijing"))
-        val map = user.toMap()
+        val map = user.toLinkedHashMap()
         map["name"].assert().isEqualTo("John")
         @Suppress("UNCHECKED_CAST")
         val addressMap = map["address"] as Map<String, Any>
