@@ -108,10 +108,6 @@ class SimpleStateAggregate<S : Any>(
                 expectVersion = expectedNextVersion,
             )
         }
-
-        for (domainEvent in eventStream) {
-            sourcing(domainEvent)
-        }
         version = eventStream.version
         if (eventStream.ownerId.isNotBlank()) {
             ownerId = eventStream.ownerId
@@ -127,6 +123,10 @@ class SimpleStateAggregate<S : Any>(
             firstEventTime = eventTime
         }
         processAware(eventStream)
+
+        for (domainEvent in eventStream) {
+            sourcing(domainEvent)
+        }
         return this
     }
 

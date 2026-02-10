@@ -18,7 +18,7 @@ import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.createEventStream
 import me.ahoo.wow.serialization.deepCopy
 import me.ahoo.wow.serialization.toJsonNode
-import me.ahoo.wow.serialization.toMap
+import me.ahoo.wow.serialization.toLinkedHashMap
 import me.ahoo.wow.serialization.toObject
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Fork
@@ -49,7 +49,7 @@ open class DeepCopyBenchmark {
 
     @Benchmark
     fun convertValueToMap(): Map<String, Any> {
-        return eventStream.toMap()
+        return eventStream.toLinkedHashMap()
     }
 
 }

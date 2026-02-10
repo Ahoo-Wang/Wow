@@ -34,7 +34,7 @@ import me.ahoo.wow.mongo.prepare.PrepareRecords.TTL_AT_FIELD
 import me.ahoo.wow.mongo.prepare.PrepareRecords.toDocument
 import me.ahoo.wow.mongo.prepare.PrepareRecords.toPreparedValue
 import me.ahoo.wow.serialization.convert
-import me.ahoo.wow.serialization.toMap
+import me.ahoo.wow.serialization.toLinkedHashMap
 import org.bson.Document
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
@@ -166,7 +166,7 @@ object PrepareRecords {
     const val TTL_AT_FIELD = "ttlAt"
 
     fun <V> PreparedValue<V>.toDocument(): Document {
-        val valueMap = toMap()
+        val valueMap = toLinkedHashMap()
         val document = Document(valueMap)
         document.replace(TTL_AT_FIELD, Date(ttlAt))
         return document

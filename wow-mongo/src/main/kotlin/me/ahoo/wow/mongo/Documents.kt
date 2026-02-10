@@ -24,7 +24,7 @@ import me.ahoo.wow.mongo.Documents.replacePrimaryKeyToAggregateId
 import me.ahoo.wow.mongo.Documents.replacePrimaryKeyToId
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.convert
-import me.ahoo.wow.serialization.toMap
+import me.ahoo.wow.serialization.toLinkedHashMap
 import org.bson.Document
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -56,7 +56,7 @@ object Documents {
 }
 
 fun DomainEventStream.toDocument(): Document {
-    val eventStreamMap = toMap()
+    val eventStreamMap = toLinkedHashMap()
     return Document(eventStreamMap)
         .replaceIdToPrimaryKey()
         .append(SIZE_FIELD, size)
@@ -71,7 +71,7 @@ fun <S : Any> Document.toSnapshot(): Snapshot<S> {
 }
 
 fun <S : Any> Snapshot<S>.toDocument(): Document {
-    val snapshotMap = toMap()
+    val snapshotMap = toLinkedHashMap()
     return Document(snapshotMap)
         .replaceAggregateIdToPrimaryKey()
 }

@@ -50,6 +50,7 @@ object JsonSerializer : ObjectMapper() {
         setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY)
         configure(JsonParser.Feature.IGNORE_UNDEFINED, true)
         disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+        enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS)
         registerKotlinModule()
         findAndRegisterModules()
     }
@@ -364,7 +365,7 @@ inline fun <reified T> Any.convert(): T = JsonSerializer.convertValue<T>(this, T
  */
 fun <T : Any> T.deepCopy(targetType: Class<T> = this.javaClass): T = this.convert(targetType)
 
-private val MAP_TYPE_REF = object : TypeReference<LinkedHashMap<String, Any>>() {}
+private val LINKED_HASH_MAP_TYPE_REF = object : TypeReference<LinkedHashMap<String, Any>>() {}
 
 /**
  * Converts this object to a [MutableMap] representation.
@@ -381,9 +382,9 @@ private val MAP_TYPE_REF = object : TypeReference<LinkedHashMap<String, Any>>() 
  * ```kotlin
  * data class User(val name: String, val age: Int)
  * val user = User("John", 30)
- * val map = user.toMap()
+ * val map = user.toLinkedHashMap()
  * println(map["name"]) // "John"
  * println(map["age"]) // 30
  * ```
  */
-fun <T : Any> T.toMap(): MutableMap<String, Any> = this.convert(MAP_TYPE_REF)
+fun <T : Any> T.toLinkedHashMap(): LinkedHashMap<String, Any> = this.convert(LINKED_HASH_MAP_TYPE_REF)
