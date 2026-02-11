@@ -3,8 +3,9 @@ description = "Wow Symbol Processing"
 dependencies {
     implementation(project(":wow-core"))
     implementation(libs.ksp.symbol.processing.api)
+    implementation("com.fasterxml.jackson.core:jackson-databind")
     testImplementation(libs.kotlin.compile.testing)
-    testImplementation(libs.ksp.symbol.processing )
+    testImplementation(libs.ksp.symbol.processing)
     testImplementation(project(":wow-api"))
     testImplementation(project(":wow-apiclient"))
     testImplementation(project(":wow-core"))

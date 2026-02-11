@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.compiler.metadata
 
+import com.fasterxml.jackson.annotation.JsonAutoDetect
+import com.fasterxml.jackson.annotation.PropertyAccessor
 import com.google.devtools.ksp.processing.Dependencies
 import com.google.devtools.ksp.processing.Resolver
 import com.google.devtools.ksp.processing.SymbolProcessor
@@ -27,31 +29,44 @@ import me.ahoo.wow.compiler.AggregateRootResolver.toName
 import me.ahoo.wow.compiler.metadata.BoundedContextResolver.resolveBoundedContext
 import me.ahoo.wow.compiler.metadata.CommandAggregateRootResolver.resolveAggregateRoot
 import me.ahoo.wow.configuration.WOW_METADATA_RESOURCE_NAME
-import me.ahoo.wow.serialization.toPrettyJson
+import tools.jackson.core.StreamReadFeature
+import tools.jackson.databind.DeserializationFeature
+import tools.jackson.module.kotlin.jsonMapper
 
 /**
  * @see me.ahoo.wow.configuration.WowMetadata
  */
-class MetadataSymbolProcessor(environment: SymbolProcessorEnvironment) :
-    SymbolProcessor {
+class MetadataSymbolProcessor(
+    environment: SymbolProcessorEnvironment
+) : SymbolProcessor {
     companion object {
         val BOUNDED_CONTEXT_NAME = BoundedContext::class.qualifiedName!!
         const val WOW_METADATA_RESOURCE_PATH = WOW_METADATA_RESOURCE_NAME
+
+        private val KSP_SAFE_OBJECT_MAPPER = jsonMapper {
+            changeDefaultVisibility {
+                it.withVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY)
+            }
+            configure(StreamReadFeature.IGNORE_UNDEFINED, true)
+            disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+            enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS)
+        }
     }
 
     private var wowMetadataMerger: WowMetadataMerger = WowMetadataMerger()
 
     private val logger = environment.logger
     private val codeGenerator = environment.codeGenerator
+
     override fun process(resolver: Resolver): List<KSAnnotated> {
         logger.info("MetadataSymbolProcessor - process[$this]")
         val dependencyFiles = mutableSetOf<KSFile>()
-        resolver.getSymbolsWithAnnotation(BOUNDED_CONTEXT_NAME)
+        resolver
+            .getSymbolsWithAnnotation(BOUNDED_CONTEXT_NAME)
             .filterIsInstance<KSClassDeclaration>()
             .filter {
                 it.validate()
-            }
-            .forEach {
+            }.forEach {
                 it.containingFile?.let { file ->
                     dependencyFiles.add(file)
                 }
@@ -59,12 +74,12 @@ class MetadataSymbolProcessor(environment: SymbolProcessorEnvironment) :
                 wowMetadataMerger.merge(boundedContextMetadata)
             }
 
-        resolver.getSymbolsWithAnnotation(AGGREGATE_ROOT_NAME)
+        resolver
+            .getSymbolsWithAnnotation(AGGREGATE_ROOT_NAME)
             .filterIsInstance<KSClassDeclaration>()
             .filter {
                 it.validate()
-            }
-            .forEach {
+            }.forEach {
                 it.containingFile?.let { file ->
                     dependencyFiles.add(file)
                 }
@@ -76,14 +91,16 @@ class MetadataSymbolProcessor(environment: SymbolProcessorEnvironment) :
             return emptyList()
         }
         val dependencies = Dependencies(aggregating = true, sources = dependencyFiles.toTypedArray())
-        val file = codeGenerator
-            .createNewFile(
-                dependencies = dependencies,
-                packageName = "",
-                fileName = WOW_METADATA_RESOURCE_PATH,
-                extensionName = "",
-            )
-        val metadataJson = wowMetadataMerger.metadata.toPrettyJson()
+        val file =
+            codeGenerator
+                .createNewFile(
+                    dependencies = dependencies,
+                    packageName = "",
+                    fileName = WOW_METADATA_RESOURCE_PATH,
+                    extensionName = "",
+                )
+        val metadataJson = KSP_SAFE_OBJECT_MAPPER.writerWithDefaultPrettyPrinter()
+            .writeValueAsString(wowMetadataMerger.metadata)
         file.write(metadataJson.toByteArray())
         file.close()
         return emptyList()
