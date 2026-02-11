@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.spring.boot.starter.elasticsearch
 
-import co.elastic.clients.json.jackson.JacksonJsonpMapper
+import co.elastic.clients.json.jackson.Jackson3JsonpMapper
 import me.ahoo.wow.elasticsearch.IndexTemplateInitializer
 import me.ahoo.wow.elasticsearch.WowJsonpMapper
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchEventStore
@@ -32,8 +32,8 @@ import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreProperties
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
-import org.springframework.boot.autoconfigure.elasticsearch.ElasticsearchRestClientAutoConfiguration
 import org.springframework.boot.context.properties.EnableConfigurationProperties
+import org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchRestClientAutoConfiguration
 import org.springframework.context.annotation.Bean
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import org.springframework.data.elasticsearch.core.ReactiveElasticsearchOperations
@@ -45,7 +45,7 @@ import org.springframework.data.elasticsearch.core.ReactiveElasticsearchOperatio
 class ElasticsearchEventSourcingAutoConfiguration(private val elasticsearchProperties: ElasticsearchProperties) {
 
     @Bean
-    fun jacksonJsonpMapper(): JacksonJsonpMapper {
+    fun jackson3JsonpMapper(): Jackson3JsonpMapper {
         return WowJsonpMapper
     }
 
