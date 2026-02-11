@@ -14,7 +14,6 @@
 package me.ahoo.wow.schema.typed
 
 import com.fasterxml.classmate.ResolvedType
-import com.fasterxml.jackson.databind.node.ObjectNode
 import com.github.victools.jsonschema.generator.CustomDefinition
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
 import com.github.victools.jsonschema.generator.SchemaKeyword
@@ -25,6 +24,7 @@ import me.ahoo.wow.schema.JsonSchema.Companion.asCustomDefinition
 import me.ahoo.wow.schema.JsonSchema.Companion.asJsonSchema
 import me.ahoo.wow.schema.JsonSchema.Companion.toPropertyName
 import me.ahoo.wow.serialization.MessageRecords
+import tools.jackson.databind.node.ObjectNode
 import java.lang.reflect.ParameterizedType
 
 abstract class MessageDefinitionProvider<M : Message<*, *>> :

@@ -353,7 +353,7 @@ class JsonSchemaGeneratorTest {
         val isOwnerNode = schema.get("properties").get("isOwner")
         isOwnerNode.assert().isNotNull()
         val isMissingNode = schema.get("properties").get("isMissing")
-        isMissingNode.assert().isNull()
+        isMissingNode.assert().isNotNull()
     }
 
     @Suppress("UnusedPrivateProperty")
