@@ -16,11 +16,13 @@ package me.ahoo.wow.schema.openapi
 import com.fasterxml.classmate.ResolvedType
 import com.github.victools.jsonschema.generator.SchemaGenerator
 import com.github.victools.jsonschema.generator.TypeContext
+import io.swagger.v3.core.util.ObjectMapperFactory
 import io.swagger.v3.oas.models.media.Schema
 import me.ahoo.wow.schema.SchemaGeneratorBuilder
 import me.ahoo.wow.schema.naming.DefaultSchemaNamePrefixCapable
 import me.ahoo.wow.schema.naming.SchemaNamingModule
 import me.ahoo.wow.schema.openapi.SchemaMerger.mergeTo
+import me.ahoo.wow.serialization.toLinkedHashMap
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
 import java.lang.reflect.Type
@@ -43,9 +45,9 @@ class OpenAPISchemaBuilder(
         get() = schemaGenerator.config.shouldInlineAllSchemas()
     private val schemaBuilder = schemaGenerator.buildMultipleSchemaDefinitions()
     private val schemaReferences: MutableList<SchemaReference> = mutableListOf()
-
+    private val openAPIObjectMapper = ObjectMapperFactory.create(null, true)
     fun JsonNode.toSchema(): Schema<*> {
-        return schemaGenerator.config.objectMapper.treeToValue(this, Schema::class.java)
+        return openAPIObjectMapper.convertValue(this.toLinkedHashMap(), Schema::class.java)
     }
 
     fun resolveType(mainTargetType: Type, vararg typeParameters: Type): ResolvedType {

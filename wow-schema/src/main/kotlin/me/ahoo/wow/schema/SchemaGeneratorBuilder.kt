@@ -20,12 +20,11 @@ import com.github.victools.jsonschema.generator.SchemaGeneratorConfigBuilder
 import com.github.victools.jsonschema.generator.SchemaVersion
 import com.github.victools.jsonschema.generator.TypeContext
 import com.github.victools.jsonschema.generator.impl.TypeContextFactory
-import com.github.victools.jsonschema.module.jackson.JacksonModule
 import com.github.victools.jsonschema.module.jackson.JacksonOption
+import com.github.victools.jsonschema.module.jackson.JacksonSchemaModule
 import com.github.victools.jsonschema.module.jakarta.validation.JakartaValidationModule
 import com.github.victools.jsonschema.module.jakarta.validation.JakartaValidationOption
 import com.github.victools.jsonschema.module.swagger2.Swagger2Module
-import io.swagger.v3.core.util.ObjectMapperFactory
 import me.ahoo.wow.schema.jackson.WowJacksonModule
 import me.ahoo.wow.schema.joda.money.JodaMoneyModule
 import me.ahoo.wow.schema.kotlin.KotlinModule
@@ -78,7 +77,7 @@ class SchemaGeneratorBuilder {
         private set
 
     /** Jackson module for handling Jackson annotations in schema generation. */
-    var jacksonModule: JacksonModule? =
+    var jacksonModule: JacksonSchemaModule? =
         WowJacksonModule(
             JacksonOption.FLATTENED_ENUMS_FROM_JSONVALUE,
             JacksonOption.FLATTENED_ENUMS_FROM_JSONPROPERTY,
@@ -144,7 +143,7 @@ class SchemaGeneratorBuilder {
         return this
     }
 
-    fun jacksonModule(jacksonModule: JacksonModule?): SchemaGeneratorBuilder {
+    fun jacksonModule(jacksonModule: JacksonSchemaModule?): SchemaGeneratorBuilder {
         this.jacksonModule = jacksonModule
         return this
     }
@@ -194,9 +193,8 @@ class SchemaGeneratorBuilder {
      * This method must be called before accessing requiredTypeContent.
      */
     fun build(): SchemaGenerator {
-        val openAPIObjectMapper = ObjectMapperFactory.create(null, openapi31)
         val configBuilder =
-            SchemaGeneratorConfigBuilder(openAPIObjectMapper, schemaVersion, optionPreset)
+            SchemaGeneratorConfigBuilder(schemaVersion, optionPreset)
                 .withModule(jacksonModule)
                 .withModule(jakartaValidationModule)
                 .withModule(swagger2Module)

@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.openapi.metadata
 
-import com.fasterxml.jackson.databind.node.ObjectNode
 import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.naming.DescriptionCapable
 import me.ahoo.wow.api.naming.EnabledCapable
@@ -21,6 +20,7 @@ import me.ahoo.wow.api.naming.SummaryCapable
 import me.ahoo.wow.command.metadata.CommandMetadata
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.toObject
+import tools.jackson.databind.node.ObjectNode
 import java.lang.reflect.Field
 import java.lang.reflect.Type
 
@@ -63,8 +63,8 @@ data class CommandRouteMetadata<C>(
                 val fieldPath = metadata.fieldPath[i]
                 var nextFieldObject = fieldObject.get(fieldPath)
                 if (nextFieldObject == null) {
-                    nextFieldObject = ObjectNode(JsonSerializer.nodeFactory)
-                    fieldObject.set<ObjectNode>(fieldPath, nextFieldObject)
+                    nextFieldObject = JsonSerializer.createObjectNode()
+                    fieldObject.set(fieldPath, nextFieldObject)
                 }
                 fieldObject = nextFieldObject as ObjectNode
             }
