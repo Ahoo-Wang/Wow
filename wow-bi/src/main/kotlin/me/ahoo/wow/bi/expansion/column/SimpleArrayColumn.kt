@@ -15,7 +15,6 @@ package me.ahoo.wow.bi.expansion.column
 
 import tools.jackson.databind.JavaType
 
-
 class SimpleArrayColumn(override val name: String, override val type: JavaType, override val parent: Column?) : Column {
 
     override val isSimple: Boolean

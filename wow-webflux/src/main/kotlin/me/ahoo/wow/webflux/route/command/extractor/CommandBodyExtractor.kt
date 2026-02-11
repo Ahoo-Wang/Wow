@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.webflux.route.command.extractor
 
-import com.fasterxml.jackson.databind.node.ObjectNode
 import me.ahoo.wow.openapi.metadata.CommandRouteMetadata
 import me.ahoo.wow.serialization.JsonSerializer
 import org.springframework.http.ReactiveHttpInputMessage
@@ -23,6 +22,7 @@ import org.springframework.web.reactive.function.server.RouterFunctions
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.switchIfEmpty
 import reactor.kotlin.core.publisher.toMono
+import tools.jackson.databind.node.ObjectNode
 
 class CommandBodyExtractor<C : Any>(private val commandRouteMetadata: CommandRouteMetadata<C>) :
     BodyExtractor<Mono<C>, ReactiveHttpInputMessage> {
