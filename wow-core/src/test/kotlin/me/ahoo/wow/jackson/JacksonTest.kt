@@ -13,7 +13,6 @@
 package me.ahoo.wow.jackson
 
 import com.fasterxml.jackson.annotation.JsonProperty
-import com.fasterxml.jackson.databind.ObjectMapper
 import net.bytebuddy.ByteBuddy
 import net.bytebuddy.description.annotation.AnnotationDescription
 import net.bytebuddy.description.method.MethodDescription
@@ -23,6 +22,7 @@ import net.bytebuddy.implementation.attribute.AnnotationRetention
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
+import tools.jackson.databind.ObjectMapper
 
 /**
  * me.ahoo.wow.jackson.JacksonTest .

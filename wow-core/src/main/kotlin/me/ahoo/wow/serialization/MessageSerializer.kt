@@ -13,35 +13,35 @@
 
 package me.ahoo.wow.serialization
 
-import com.fasterxml.jackson.core.JsonGenerator
-import com.fasterxml.jackson.databind.SerializerProvider
-import com.fasterxml.jackson.databind.ser.std.StdSerializer
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.naming.Named
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.serialization.event.JsonDomainEvent
+import tools.jackson.core.JsonGenerator
+import tools.jackson.databind.SerializationContext
+import tools.jackson.databind.ser.std.StdSerializer
 
 abstract class MessageSerializer<M : Message<*, *>>(messageType: Class<M>) : StdSerializer<M>(messageType) {
 
-    override fun serialize(value: M, generator: JsonGenerator, provider: SerializerProvider) {
+    override fun serialize(value: M, generator: JsonGenerator, provider: SerializationContext) {
         generator.writeStartObject()
-        generator.writeStringField(MessageRecords.ID, value.id)
+        generator.writeStringProperty(MessageRecords.ID, value.id)
         if (value is NamedBoundedContext) {
-            generator.writeStringField(MessageRecords.CONTEXT_NAME, value.contextName)
+            generator.writeStringProperty(MessageRecords.CONTEXT_NAME, value.contextName)
         }
         if (value is NamedAggregate) {
-            generator.writeStringField(MessageRecords.AGGREGATE_NAME, value.aggregateName)
+            generator.writeStringProperty(MessageRecords.AGGREGATE_NAME, value.aggregateName)
         }
         if (value is Named) {
-            generator.writeStringField(MessageRecords.NAME, value.name)
+            generator.writeStringProperty(MessageRecords.NAME, value.name)
         }
         writeHeader(generator, value.header)
         writeExtendedInfo(generator, value)
         writeBodyType(generator, value)
         writeBody(generator, value)
-        generator.writeNumberField(MessageRecords.CREATE_TIME, value.createTime)
+        generator.writeNumberProperty(MessageRecords.CREATE_TIME, value.createTime)
         generator.writeEndObject()
     }
 
@@ -49,18 +49,18 @@ abstract class MessageSerializer<M : Message<*, *>>(messageType: Class<M>) : Std
     }
 
     open fun writeHeader(generator: JsonGenerator, value: Header) {
-        generator.writePOJOField(MessageRecords.HEADER, value)
+        generator.writePOJOProperty(MessageRecords.HEADER, value)
     }
 
     open fun writeBodyType(generator: JsonGenerator, value: M) {
         if (value is JsonDomainEvent) {
-            generator.writeStringField(MessageRecords.BODY_TYPE, value.bodyType)
+            generator.writeStringProperty(MessageRecords.BODY_TYPE, value.bodyType)
             return
         }
-        generator.writeStringField(MessageRecords.BODY_TYPE, value.body!!.javaClass.name)
+        generator.writeStringProperty(MessageRecords.BODY_TYPE, value.body!!.javaClass.name)
     }
 
     open fun writeBody(generator: JsonGenerator, value: M) {
-        generator.writePOJOField(MessageRecords.BODY, value.body)
+        generator.writePOJOProperty(MessageRecords.BODY, value.body)
     }
 }

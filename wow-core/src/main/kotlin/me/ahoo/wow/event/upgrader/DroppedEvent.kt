@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.event.upgrader
 
-import com.fasterxml.jackson.databind.node.ObjectNode
 import me.ahoo.wow.event.upgrader.MutableDomainEventRecord.Companion.toMutableDomainEventRecord
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.event.DomainEventRecord
@@ -50,7 +49,7 @@ object DroppedEvent {
         val mutableDomainEventRecord = toMutableDomainEventRecord()
         mutableDomainEventRecord.bodyType = TYPE
         mutableDomainEventRecord.name = NAME
-        mutableDomainEventRecord.body = ObjectNode(JsonSerializer.nodeFactory)
+        mutableDomainEventRecord.body = JsonSerializer.createObjectNode()
         return mutableDomainEventRecord
     }
 }

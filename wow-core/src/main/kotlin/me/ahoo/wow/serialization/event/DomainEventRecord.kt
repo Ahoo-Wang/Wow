@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.serialization.event
 
-import com.fasterxml.jackson.databind.node.ObjectNode
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.event.SimpleDomainEvent
@@ -33,6 +32,7 @@ import me.ahoo.wow.serialization.NamedBoundedContextMessageRecord
 import me.ahoo.wow.serialization.OwnerIdRecord
 import me.ahoo.wow.serialization.SpaceIdRecord
 import me.ahoo.wow.serialization.toObject
+import tools.jackson.databind.node.ObjectNode
 
 object DomainEventRecords {
     const val SEQUENCE = "sequence"

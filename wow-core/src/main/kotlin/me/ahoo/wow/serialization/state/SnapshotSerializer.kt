@@ -13,12 +13,12 @@
 
 package me.ahoo.wow.serialization.state
 
-import com.fasterxml.jackson.core.JsonGenerator
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.SerializerProvider
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
+import tools.jackson.core.JsonGenerator
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.SerializationContext
 
 object SnapshotRecords {
     const val SNAPSHOT_TIME: String = "snapshotTime"
@@ -26,8 +26,8 @@ object SnapshotRecords {
 
 object SnapshotSerializer : AbstractStateAggregateSerializer<Snapshot<*>>(Snapshot::class.java) {
 
-    override fun writeExtend(value: Snapshot<*>, generator: JsonGenerator, provider: SerializerProvider) {
-        generator.writeNumberField(SnapshotRecords.SNAPSHOT_TIME, value.snapshotTime)
+    override fun writeExtend(value: Snapshot<*>, generator: JsonGenerator, provider: SerializationContext) {
+        generator.writeNumberProperty(SnapshotRecords.SNAPSHOT_TIME, value.snapshotTime)
     }
 }
 

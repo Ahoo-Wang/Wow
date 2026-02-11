@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.serialization
 
-import com.fasterxml.jackson.databind.module.SimpleModule
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.modeling.AggregateId
@@ -33,6 +32,7 @@ import me.ahoo.wow.serialization.state.SnapshotDeserializer
 import me.ahoo.wow.serialization.state.SnapshotSerializer
 import me.ahoo.wow.serialization.state.StateAggregateDeserializer
 import me.ahoo.wow.serialization.state.StateAggregateSerializer
+import tools.jackson.databind.module.SimpleModule
 
 class WowModule : SimpleModule() {
     init {

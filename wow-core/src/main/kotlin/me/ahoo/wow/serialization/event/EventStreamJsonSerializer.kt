@@ -13,16 +13,16 @@
 
 package me.ahoo.wow.serialization.event
 
-import com.fasterxml.jackson.core.JsonParser
-import com.fasterxml.jackson.databind.DeserializationContext
-import com.fasterxml.jackson.databind.deser.std.StdDeserializer
-import com.fasterxml.jackson.databind.node.ObjectNode
 import me.ahoo.wow.event.DomainEventStream
+import tools.jackson.core.JsonParser
+import tools.jackson.databind.DeserializationContext
+import tools.jackson.databind.deser.std.StdDeserializer
+import tools.jackson.databind.node.ObjectNode
 
 object EventStreamJsonSerializer : AbstractEventStreamJsonSerializer<DomainEventStream>(DomainEventStream::class.java)
 
 object EventStreamJsonDeserializer : StdDeserializer<DomainEventStream>(DomainEventStream::class.java) {
     override fun deserialize(p: JsonParser, ctxt: DeserializationContext): DomainEventStream {
-        return p.codec.readTree<ObjectNode>(p).toEventStreamRecord().toDomainEventStream()
+        return p.objectReadContext().readTree<ObjectNode>(p).toEventStreamRecord().toDomainEventStream()
     }
 }

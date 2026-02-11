@@ -13,8 +13,6 @@
 
 package me.ahoo.wow.serialization.event
 
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.node.ObjectNode
 import me.ahoo.wow.api.event.DEFAULT_EVENT_SEQUENCE
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.modeling.AggregateId
@@ -31,6 +29,8 @@ import me.ahoo.wow.serialization.MessageVersionRecord
 import me.ahoo.wow.serialization.NamedBoundedContextMessageRecord
 import me.ahoo.wow.serialization.OwnerIdRecord
 import me.ahoo.wow.serialization.SpaceIdRecord
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.node.ObjectNode
 
 interface EventStreamRecord :
     NamedBoundedContextMessageRecord,

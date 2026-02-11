@@ -13,13 +13,6 @@
 
 package me.ahoo.wow.serialization.state
 
-import com.fasterxml.jackson.core.JsonGenerator
-import com.fasterxml.jackson.core.JsonParser
-import com.fasterxml.jackson.databind.DeserializationContext
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.SerializerProvider
-import com.fasterxml.jackson.databind.deser.std.StdDeserializer
-import com.fasterxml.jackson.databind.ser.std.StdSerializer
 import me.ahoo.wow.api.modeling.OwnerId.Companion.orDefaultOwnerId
 import me.ahoo.wow.api.modeling.SpaceIdCapable.Companion.orDefaultSpaceId
 import me.ahoo.wow.configuration.requiredAggregateType
@@ -32,6 +25,13 @@ import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.state.StateAggregateRecords.DELETED
 import me.ahoo.wow.serialization.state.StateAggregateRecords.STATE
 import me.ahoo.wow.serialization.toObject
+import tools.jackson.core.JsonGenerator
+import tools.jackson.core.JsonParser
+import tools.jackson.databind.DeserializationContext
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.SerializationContext
+import tools.jackson.databind.deser.std.StdDeserializer
+import tools.jackson.databind.ser.std.StdSerializer
 
 object StateAggregateRecords {
     const val STATE: String = "state"
@@ -45,53 +45,53 @@ object StateAggregateRecords {
 
 abstract class AbstractStateAggregateSerializer<T : ReadOnlyStateAggregate<*>>(stateAggregateType: Class<T>) :
     StdSerializer<T>(stateAggregateType) {
-    override fun serialize(value: T, generator: JsonGenerator, provider: SerializerProvider) {
+    override fun serialize(value: T, generator: JsonGenerator, provider: SerializationContext) {
         generator.writeStartObject()
-        generator.writeStringField(MessageRecords.CONTEXT_NAME, value.aggregateId.contextName)
-        generator.writeStringField(MessageRecords.AGGREGATE_NAME, value.aggregateId.aggregateName)
-        generator.writeStringField(MessageRecords.AGGREGATE_ID, value.aggregateId.id)
-        generator.writeStringField(MessageRecords.TENANT_ID, value.aggregateId.tenantId)
-        generator.writeStringField(MessageRecords.OWNER_ID, value.ownerId)
-        generator.writeStringField(MessageRecords.SPACE_ID, value.spaceId)
-        generator.writeNumberField(MessageRecords.VERSION, value.version)
-        generator.writeStringField(StateAggregateRecords.EVENT_ID, value.eventId)
-        generator.writeStringField(StateAggregateRecords.FIRST_OPERATOR, value.firstOperator)
-        generator.writeStringField(StateAggregateRecords.OPERATOR, value.operator)
-        generator.writeNumberField(StateAggregateRecords.FIRST_EVENT_TIME, value.firstEventTime)
-        generator.writeNumberField(StateAggregateRecords.EVENT_TIME, value.eventTime)
-        generator.writePOJOField(STATE, value.state)
+        generator.writeStringProperty(MessageRecords.CONTEXT_NAME, value.aggregateId.contextName)
+        generator.writeStringProperty(MessageRecords.AGGREGATE_NAME, value.aggregateId.aggregateName)
+        generator.writeStringProperty(MessageRecords.AGGREGATE_ID, value.aggregateId.id)
+        generator.writeStringProperty(MessageRecords.TENANT_ID, value.aggregateId.tenantId)
+        generator.writeStringProperty(MessageRecords.OWNER_ID, value.ownerId)
+        generator.writeStringProperty(MessageRecords.SPACE_ID, value.spaceId)
+        generator.writeNumberProperty(MessageRecords.VERSION, value.version)
+        generator.writeStringProperty(StateAggregateRecords.EVENT_ID, value.eventId)
+        generator.writeStringProperty(StateAggregateRecords.FIRST_OPERATOR, value.firstOperator)
+        generator.writeStringProperty(StateAggregateRecords.OPERATOR, value.operator)
+        generator.writeNumberProperty(StateAggregateRecords.FIRST_EVENT_TIME, value.firstEventTime)
+        generator.writeNumberProperty(StateAggregateRecords.EVENT_TIME, value.eventTime)
+        generator.writePOJOProperty(STATE, value.state)
         writeExtend(value, generator, provider)
-        generator.writeBooleanField(DELETED, value.deleted)
+        generator.writeBooleanProperty(DELETED, value.deleted)
         generator.writeEndObject()
     }
 
-    protected open fun writeExtend(value: T, generator: JsonGenerator, provider: SerializerProvider) = Unit
+    protected open fun writeExtend(value: T, generator: JsonGenerator, provider: SerializationContext) = Unit
 }
 
 abstract class AbstractStateAggregateDeserializer<T : ReadOnlyStateAggregate<*>>(stateAggregateType: Class<T>) :
     StdDeserializer<T>(stateAggregateType) {
     override fun deserialize(p: JsonParser, ctxt: DeserializationContext): T {
-        val stateRecord = p.codec.readTree<JsonNode>(p)
+        val stateRecord = p.objectReadContext().readTree<JsonNode>(p)
         val namedAggregate = MaterializedNamedAggregate(
-            stateRecord[MessageRecords.CONTEXT_NAME].asText(),
-            stateRecord[MessageRecords.AGGREGATE_NAME].asText(),
+            stateRecord[MessageRecords.CONTEXT_NAME].asString(),
+            stateRecord[MessageRecords.AGGREGATE_NAME].asString(),
         )
         val metadata = namedAggregate.requiredAggregateType<Any>()
             .aggregateMetadata<Any, Any>().state
         val version = stateRecord[MessageRecords.VERSION].asInt()
-        val ownerId = stateRecord[MessageRecords.OWNER_ID]?.asText().orDefaultOwnerId()
-        val spaceId = stateRecord[MessageRecords.SPACE_ID]?.asText().orDefaultSpaceId()
-        val eventId = stateRecord.get(StateAggregateRecords.EVENT_ID)?.asText().orEmpty()
-        val firstOperator = stateRecord.get(StateAggregateRecords.FIRST_OPERATOR)?.asText().orEmpty()
-        val operator = stateRecord.get(StateAggregateRecords.OPERATOR)?.asText().orEmpty()
+        val ownerId = stateRecord[MessageRecords.OWNER_ID]?.asString().orDefaultOwnerId()
+        val spaceId = stateRecord[MessageRecords.SPACE_ID]?.asString().orDefaultSpaceId()
+        val eventId = stateRecord.get(StateAggregateRecords.EVENT_ID)?.asString().orEmpty()
+        val firstOperator = stateRecord.get(StateAggregateRecords.FIRST_OPERATOR)?.asString().orEmpty()
+        val operator = stateRecord.get(StateAggregateRecords.OPERATOR)?.asString().orEmpty()
         val firstEventTime = stateRecord.get(StateAggregateRecords.FIRST_EVENT_TIME)?.asLong() ?: 0L
         val eventTime = stateRecord.get(StateAggregateRecords.EVENT_TIME)?.asLong() ?: 0L
         val deleted = stateRecord[DELETED].asBoolean()
         val stateRoot = stateRecord[STATE].toObject(metadata.aggregateType)
 
         val aggregateId = namedAggregate.aggregateId(
-            id = stateRecord[MessageRecords.AGGREGATE_ID].asText(),
-            tenantId = stateRecord[MessageRecords.TENANT_ID].asText(),
+            id = stateRecord[MessageRecords.AGGREGATE_ID].asString(),
+            tenantId = stateRecord[MessageRecords.TENANT_ID].asString(),
         )
         val stateAggregate =
             metadata.toStateAggregate(
