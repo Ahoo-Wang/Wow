@@ -14,8 +14,6 @@
 package me.ahoo.wow.schema.openapi
 
 import com.fasterxml.classmate.ResolvedType
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.node.ObjectNode
 import com.github.victools.jsonschema.generator.SchemaGenerator
 import com.github.victools.jsonschema.generator.TypeContext
 import io.swagger.v3.oas.models.media.Schema
@@ -23,6 +21,8 @@ import me.ahoo.wow.schema.SchemaGeneratorBuilder
 import me.ahoo.wow.schema.naming.DefaultSchemaNamePrefixCapable
 import me.ahoo.wow.schema.naming.SchemaNamingModule
 import me.ahoo.wow.schema.openapi.SchemaMerger.mergeTo
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.node.ObjectNode
 import java.lang.reflect.Type
 
 class OpenAPISchemaBuilder(

@@ -53,11 +53,11 @@ abstract class MessageDefinitionProvider<M : Message<*, *>> :
         bodyTypeNode.remove(typeKey)
         val constKey = SchemaKeyword.TAG_CONST.toPropertyName()
         bodyTypeNode.put(constKey, bodyType.erasedType.name)
-        val bodyOriginalNode = propertiesNode[MessageRecords.BODY] as ObjectNode
+        val bodyOriginalNode = propertiesNode[MessageRecords.BODY]
         val bodySchema = context.createStandardDefinition(bodyType, this).asJsonSchema()
         val descriptionKey = SchemaKeyword.TAG_DESCRIPTION.toPropertyName()
         bodySchema.set(SchemaKeyword.TAG_DESCRIPTION, bodyOriginalNode[descriptionKey])
-        propertiesNode.set<ObjectNode>(MessageRecords.BODY, bodySchema.actual)
+        propertiesNode.set(MessageRecords.BODY, bodySchema.actual)
         return typedSchema.asCustomDefinition()
     }
 }

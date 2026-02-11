@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.bi.expansion.column
 
-import com.fasterxml.jackson.databind.JavaType
+import tools.jackson.databind.JavaType
 
 class ArrayObjectColumn(
     override val name: String,

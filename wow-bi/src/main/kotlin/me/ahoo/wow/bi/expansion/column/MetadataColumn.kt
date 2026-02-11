@@ -13,8 +13,8 @@
 
 package me.ahoo.wow.bi.expansion.column
 
-import com.fasterxml.jackson.databind.JavaType
 import me.ahoo.wow.serialization.JsonSerializer
+import tools.jackson.databind.JavaType
 
 data class MetadataColumn(
     override val name: String,

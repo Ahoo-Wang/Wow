@@ -13,8 +13,8 @@
 
 package me.ahoo.wow.schema
 
-import com.fasterxml.jackson.databind.node.ObjectNode
 import me.ahoo.wow.serialization.toObject
+import tools.jackson.databind.node.ObjectNode
 
 object WowSchemaLoader {
     private const val WOW_SCHEMA_PATH_PREFIX = "META-INF/wow-schema/"

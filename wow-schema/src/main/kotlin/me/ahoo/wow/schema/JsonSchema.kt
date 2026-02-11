@@ -13,14 +13,14 @@
 
 package me.ahoo.wow.schema
 
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.node.ObjectNode
 import com.github.victools.jsonschema.generator.CustomDefinition
 import com.github.victools.jsonschema.generator.CustomDefinition.AttributeInclusion
 import com.github.victools.jsonschema.generator.CustomDefinition.DefinitionType
 import com.github.victools.jsonschema.generator.SchemaKeyword
 import com.github.victools.jsonschema.generator.SchemaVersion
 import me.ahoo.wow.serialization.JsonSerializer
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.node.ObjectNode
 
 class JsonSchema(
     val actual: ObjectNode,
@@ -76,7 +76,7 @@ class JsonSchema(
     }
 
     fun set(propertyName: String, value: JsonNode): JsonSchema {
-        actual.set<JsonNode>(propertyName, value)
+        actual.set(propertyName, value)
         return this
     }
 
@@ -92,7 +92,7 @@ class JsonSchema(
         }
 
         SchemaKeyword.TAG_TYPE.toPropertyName(schemaVersion)
-        actual.set<ObjectNode>(propertiesName, JsonSerializer.createObjectNode())
+        actual.set(propertiesName, JsonSerializer.createObjectNode())
         return this
     }
 }

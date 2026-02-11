@@ -17,6 +17,7 @@ import com.fasterxml.jackson.annotation.JsonAutoDetect
 import com.fasterxml.jackson.annotation.PropertyAccessor
 import tools.jackson.core.StreamReadFeature
 import tools.jackson.core.type.TypeReference
+import tools.jackson.databind.BeanDescription
 import tools.jackson.databind.DeserializationFeature
 import tools.jackson.databind.JavaType
 import tools.jackson.databind.JsonNode
@@ -24,6 +25,7 @@ import tools.jackson.databind.ObjectMapper
 import tools.jackson.databind.node.ObjectNode
 import tools.jackson.module.kotlin.jsonMapper
 import tools.jackson.module.kotlin.kotlinModule
+import java.lang.reflect.Type
 
 /**
  * Pre-configured Jackson [ObjectMapper] for the Wow framework.
@@ -389,3 +391,12 @@ private val LINKED_HASH_MAP_TYPE_REF = object : TypeReference<LinkedHashMap<Stri
  * ```
  */
 fun <T : Any> T.toLinkedHashMap(): LinkedHashMap<String, Any> = this.convert(LINKED_HASH_MAP_TYPE_REF)
+
+fun Type.toBeanDescription(): BeanDescription {
+    val javaType = JsonSerializer.typeFactory.constructType(this)
+    val classIntrospector = JsonSerializer.serializationConfig().classIntrospectorInstance()
+    return classIntrospector.introspectForSerialization(
+        javaType,
+        classIntrospector.introspectClassAnnotations(javaType)
+    )
+}

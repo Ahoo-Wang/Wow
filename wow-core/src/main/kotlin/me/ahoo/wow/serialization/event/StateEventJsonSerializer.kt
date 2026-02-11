@@ -44,7 +44,7 @@ object StateEventJsonDeserializer : StdDeserializer<StateEvent<*>>(StateEvent::c
         val stateEventRecord = p.objectReadContext().readTree<ObjectNode>(p)
         val eventStream = stateEventRecord.toEventStreamRecord()
             .toDomainEventStream()
-        val firstOperator = stateEventRecord.get(FIRST_OPERATOR)?.asText().orEmpty()
+        val firstOperator = stateEventRecord.get(FIRST_OPERATOR)?.asString().orEmpty()
         val firstEventTime = stateEventRecord.get(FIRST_EVENT_TIME)?.asLong() ?: 0L
         val deleted = stateEventRecord[DELETED].asBoolean()
         val stateRecord = stateEventRecord[STATE] as ObjectNode

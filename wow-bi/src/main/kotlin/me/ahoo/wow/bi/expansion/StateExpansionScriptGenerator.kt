@@ -25,6 +25,7 @@ import me.ahoo.wow.bi.expansion.column.StatePropertyColumn
 import me.ahoo.wow.configuration.requiredAggregateType
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.serialization.JsonSerializer
+import me.ahoo.wow.serialization.toBeanDescription
 import tools.jackson.databind.introspect.BeanPropertyDefinition
 
 class StateExpansionScriptGenerator(
@@ -118,8 +119,7 @@ class StateExpansionScriptGenerator(
     private fun build(): List<SqlBuilder> {
         val builders = mutableListOf<SqlBuilder>()
         start()
-        JsonSerializer.typeFactory.
-        val beanDescription = JsonSerializer.serializationConfig.introspect(column.type)
+        val beanDescription = column.type.toBeanDescription()
         beanDescription.findProperties().filter {
             !it.name.endsWith(KOTLIN_DURATION_SUFFIX)
         }.forEach {

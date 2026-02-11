@@ -13,7 +13,8 @@
 
 package me.ahoo.wow.bi.expansion.column
 
-import com.fasterxml.jackson.databind.JavaType
+import tools.jackson.databind.JavaType
+
 
 class ArrayJoinColumn(override val name: String, override val type: JavaType, override val parent: Column?) : Column {
 
