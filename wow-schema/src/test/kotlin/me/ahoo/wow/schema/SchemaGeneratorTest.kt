@@ -3,7 +3,6 @@ package me.ahoo.wow.schema
 import com.fasterxml.classmate.TypeResolver
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonProperty
-import com.fasterxml.jackson.databind.JsonNode
 import com.github.victools.jsonschema.generator.Module
 import com.github.victools.jsonschema.generator.Option
 import com.github.victools.jsonschema.generator.OptionPreset
@@ -11,8 +10,8 @@ import com.github.victools.jsonschema.generator.SchemaGenerator
 import com.github.victools.jsonschema.generator.SchemaGeneratorConfigBuilder
 import com.github.victools.jsonschema.generator.SchemaKeyword
 import com.github.victools.jsonschema.generator.SchemaVersion
-import com.github.victools.jsonschema.module.jackson.JacksonModule
 import com.github.victools.jsonschema.module.jackson.JacksonOption
+import com.github.victools.jsonschema.module.jackson.JacksonSchemaModule
 import com.github.victools.jsonschema.module.jakarta.validation.JakartaValidationModule
 import com.github.victools.jsonschema.module.swagger2.Swagger2Module
 import io.swagger.v3.oas.annotations.media.Schema
@@ -61,6 +60,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
+import tools.jackson.databind.JsonNode
 import java.util.stream.Stream
 
 class JsonSchemaGeneratorTest {
@@ -216,7 +216,7 @@ class JsonSchemaGeneratorTest {
 
     @Test
     fun openAPI() {
-        val jacksonModule: Module = JacksonModule(JacksonOption.RESPECT_JSONPROPERTY_REQUIRED)
+        val jacksonModule: Module = JacksonSchemaModule(JacksonOption.RESPECT_JSONPROPERTY_REQUIRED)
         val jakartaModule = JakartaValidationModule()
         val openApiModule: Module = Swagger2Module()
         val wowModule = WowModule()
@@ -338,7 +338,7 @@ class JsonSchemaGeneratorTest {
             .schemaVersion(SchemaVersion.DRAFT_2020_12)
             .optionPreset(OptionPreset.PLAIN_JSON)
             .jacksonModule(
-                JacksonModule(
+                JacksonSchemaModule(
                     JacksonOption.FLATTENED_ENUMS_FROM_JSONVALUE,
                     JacksonOption.FLATTENED_ENUMS_FROM_JSONPROPERTY,
                     JacksonOption.RESPECT_JSONPROPERTY_ORDER,

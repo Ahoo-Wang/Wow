@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.elasticsearch.eventsourcing
 
+import co.elastic.clients.elasticsearch._types.ElasticsearchException
 import co.elastic.clients.elasticsearch._types.OpType
 import co.elastic.clients.elasticsearch._types.Refresh
 import me.ahoo.wow.api.modeling.AggregateId
@@ -26,7 +27,6 @@ import me.ahoo.wow.eventsourcing.EventVersionConflictException
 import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.query.dsl.sort
 import me.ahoo.wow.serialization.MessageRecords
-import org.elasticsearch.client.ResponseException
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -42,36 +42,34 @@ class ElasticsearchEventStore(
         private const val DEFAULT_BATCH_SIZE = 10000
     }
 
-    private fun DomainEventStream.toDocId(): String {
-        return "${this.aggregateId.id}-${this.version}"
-    }
+    private fun DomainEventStream.toDocId(): String = "${this.aggregateId.id}-${this.version}"
 
     override fun appendStream(eventStream: DomainEventStream): Mono<Void> {
-        return elasticsearchClient.index {
-            it.index(eventStream.aggregateId.toEventStreamIndexName())
-                .id(eventStream.toDocId())
-                .document(eventStream)
-                .routing(eventStream.aggregateId.id)
-                .opType(OpType.Create)
-                .refresh(refreshPolicy)
-        }.onErrorResume {
-            if (it is ResponseException && it.response.statusLine.statusCode == VERSION_CONFLICT_CODE) {
-                return@onErrorResume EventVersionConflictException(
-                    eventStream = eventStream,
-                    cause = it,
-                ).toMono()
-            }
-            Mono.error(it)
-        }.then()
+        return elasticsearchClient
+            .index {
+                it
+                    .index(eventStream.aggregateId.toEventStreamIndexName())
+                    .id(eventStream.toDocId())
+                    .document(eventStream)
+                    .routing(eventStream.aggregateId.id)
+                    .opType(OpType.Create)
+                    .refresh(refreshPolicy)
+            }.onErrorResume {
+                if (it is ElasticsearchException && it.status() == VERSION_CONFLICT_CODE) {
+                    return@onErrorResume EventVersionConflictException(
+                        eventStream = eventStream,
+                        cause = it,
+                    ).toMono()
+                }
+                Mono.error(it)
+            }.then()
     }
 
     override fun loadStream(
         aggregateId: AggregateId,
         headVersion: Int,
         tailVersion: Int
-    ): Flux<DomainEventStream> {
-        return loopStream(aggregateId, headVersion, tailVersion)
-    }
+    ): Flux<DomainEventStream> = loopStream(aggregateId, headVersion, tailVersion)
 
     private fun loopStream(
         aggregateId: AggregateId,
@@ -102,11 +100,12 @@ class ElasticsearchEventStore(
         headVersion: Int,
         tailVersion: Int
     ): Mono<List<DomainEventStream>> {
-        val condition = condition {
-            tenantId(aggregateId.tenantId)
-            MessageRecords.AGGREGATE_ID eq aggregateId.id
-            MessageRecords.VERSION between headVersion to tailVersion
-        }
+        val condition =
+            condition {
+                tenantId(aggregateId.tenantId)
+                MessageRecords.AGGREGATE_ID eq aggregateId.id
+                MessageRecords.VERSION between headVersion to tailVersion
+            }
         val size = tailVersion - headVersion + 1
         return searchEventStream(aggregateId, condition, size)
     }
@@ -116,11 +115,12 @@ class ElasticsearchEventStore(
         headEventTime: Long,
         tailEventTime: Long
     ): Flux<DomainEventStream> {
-        val condition = condition {
-            tenantId(aggregateId.tenantId)
-            MessageRecords.AGGREGATE_ID eq aggregateId.id
-            MessageRecords.CREATE_TIME between headEventTime to tailEventTime
-        }
+        val condition =
+            condition {
+                tenantId(aggregateId.tenantId)
+                MessageRecords.AGGREGATE_ID eq aggregateId.id
+                MessageRecords.CREATE_TIME between headEventTime to tailEventTime
+            }
         return searchEventStream(aggregateId, condition).flatMapIterable {
             it
         }
@@ -133,31 +133,42 @@ class ElasticsearchEventStore(
     ): Mono<List<DomainEventStream>> {
         val query = EventStreamConditionConverter.convert(condition)
         val sort = sort { MessageRecords.VERSION.asc() }.toSortOptions()
-        return elasticsearchClient.search({
-            it.index(aggregateId.toEventStreamIndexName())
-                .query(query)
-                .size(size)
-                .routing(aggregateId.id)
-                .sort(sort)
-        }, DomainEventStream::class.java).map {
-            it.hits().hits().map { hit -> hit.source() as DomainEventStream }
-        }
+        return elasticsearchClient
+            .search({
+                it
+                    .index(aggregateId.toEventStreamIndexName())
+                    .query(query)
+                    .size(size)
+                    .routing(aggregateId.id)
+                    .sort(sort)
+            }, DomainEventStream::class.java)
+            .map {
+                it.hits().hits().map { hit -> hit.source() as DomainEventStream }
+            }
     }
 
     override fun last(aggregateId: AggregateId): Mono<DomainEventStream> {
-        val condition = condition {
-            tenantId(aggregateId.tenantId)
-            MessageRecords.AGGREGATE_ID eq aggregateId.id
-        }
+        val condition =
+            condition {
+                tenantId(aggregateId.tenantId)
+                MessageRecords.AGGREGATE_ID eq aggregateId.id
+            }
         val sort = sort { MessageRecords.VERSION.desc() }.toSortOptions()
-        return elasticsearchClient.search({
-            it.index(aggregateId.toEventStreamIndexName())
-                .query(EventStreamConditionConverter.convert(condition))
-                .size(1)
-                .routing(aggregateId.id)
-                .sort(sort)
-        }, DomainEventStream::class.java).mapNotNull {
-            it.hits().hits().firstOrNull()?.source()
-        }
+        return elasticsearchClient
+            .search({
+                it
+                    .index(aggregateId.toEventStreamIndexName())
+                    .query(EventStreamConditionConverter.convert(condition))
+                    .size(1)
+                    .routing(aggregateId.id)
+                    .sort(sort)
+            }, DomainEventStream::class.java)
+            .mapNotNull {
+                it
+                    .hits()
+                    .hits()
+                    .firstOrNull()
+                    ?.source()
+            }
     }
 }

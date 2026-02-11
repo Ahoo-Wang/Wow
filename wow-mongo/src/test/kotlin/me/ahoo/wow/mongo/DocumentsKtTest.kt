@@ -1,10 +1,10 @@
 package me.ahoo.wow.mongo
 
-import com.fasterxml.jackson.databind.type.TypeFactory
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
 import me.ahoo.wow.mongo.Documents.replacePrimaryKeyToAggregateId
+import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockStateAggregate
 import org.bson.Document
@@ -38,7 +38,7 @@ class DocumentsKtTest {
 
     val snapshotDocument = Document.parse(snapshotJsonString)
 
-    private val snapshotType = TypeFactory.defaultInstance()
+    private val snapshotType = JsonSerializer.typeFactory
         .constructParametricType(
             MaterializedSnapshot::class.java,
             MOCK_AGGREGATE_METADATA.state.aggregateType

@@ -1,7 +1,6 @@
 package me.ahoo.wow.schema
 
 import com.fasterxml.classmate.TypeResolver
-import com.fasterxml.jackson.databind.JsonNode
 import com.networknt.schema.SchemaRegistry
 import com.networknt.schema.SpecificationVersion
 import me.ahoo.test.asserts.assert
@@ -32,6 +31,7 @@ import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
+import tools.jackson.databind.JsonNode
 import java.lang.reflect.Type
 import java.math.BigDecimal
 import java.util.stream.Stream
