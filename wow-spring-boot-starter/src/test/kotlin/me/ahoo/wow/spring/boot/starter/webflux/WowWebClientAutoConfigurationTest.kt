@@ -19,9 +19,9 @@ import me.ahoo.wow.command.wait.WaitStrategyRegistrar
 import me.ahoo.wow.spring.boot.starter.enableWow
 import org.assertj.core.api.AssertionsForInterfaceTypes
 import org.junit.jupiter.api.Test
-import org.springframework.boot.autoconfigure.web.reactive.function.client.WebClientAutoConfiguration
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
+import org.springframework.boot.webclient.autoconfigure.WebClientAutoConfiguration
 
 class WowWebClientAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()

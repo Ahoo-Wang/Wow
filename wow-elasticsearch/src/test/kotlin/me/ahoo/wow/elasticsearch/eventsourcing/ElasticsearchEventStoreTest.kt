@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.elasticsearch.eventsourcing
 
-import co.elastic.clients.transport.rest_client.RestClientTransport
 import me.ahoo.wow.elasticsearch.TemplateInitializer.initEventStreamTemplate
 import me.ahoo.wow.elasticsearch.WowJsonpMapper
 import me.ahoo.wow.eventsourcing.EventStore
@@ -23,7 +22,6 @@ import me.ahoo.wow.tck.eventsourcing.EventStoreSpec
 import org.junit.jupiter.api.BeforeAll
 import org.springframework.data.elasticsearch.client.ClientConfiguration
 import org.springframework.data.elasticsearch.client.elc.ElasticsearchClients
-import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import java.time.Duration
 
 class ElasticsearchEventStoreTest : EventStoreSpec() {
@@ -43,9 +41,11 @@ class ElasticsearchEventStoreTest : EventStoreSpec() {
             .withSocketTimeout(Duration.ofSeconds(30))
             .withConnectTimeout(Duration.ofSeconds(5))
             .build()
-        val restClient = ElasticsearchClients.getRestClient(clientConfiguration)
-        val transport = RestClientTransport(restClient, WowJsonpMapper)
-        val elasticsearchClient = ReactiveElasticsearchClient(transport)
+        val elasticsearchClient = ElasticsearchClients.createReactive(
+            clientConfiguration,
+            null,
+            WowJsonpMapper
+        )
         elasticsearchClient.initEventStreamTemplate()
         return ElasticsearchEventStore(
             elasticsearchClient = elasticsearchClient
