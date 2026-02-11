@@ -48,7 +48,7 @@ class CartController(
     }
 
     @GetExchange("/cart/me/sync")
-    fun meSync(): Mono<CartData?> {
+    fun meSync(): Mono<CartData> {
         return Mono.fromCallable {
             singleQuery {
             }.queryState(cartQuerySyncClient)
