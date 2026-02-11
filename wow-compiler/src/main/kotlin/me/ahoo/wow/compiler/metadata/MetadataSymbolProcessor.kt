@@ -13,11 +13,6 @@
 
 package me.ahoo.wow.compiler.metadata
 
-import com.fasterxml.jackson.annotation.JsonAutoDetect
-import com.fasterxml.jackson.annotation.JsonInclude
-import com.fasterxml.jackson.annotation.PropertyAccessor
-import com.fasterxml.jackson.core.JsonParser
-import com.fasterxml.jackson.databind.ObjectMapper
 import com.google.devtools.ksp.processing.Dependencies
 import com.google.devtools.ksp.processing.Resolver
 import com.google.devtools.ksp.processing.SymbolProcessor
@@ -32,6 +27,7 @@ import me.ahoo.wow.compiler.AggregateRootResolver.toName
 import me.ahoo.wow.compiler.metadata.BoundedContextResolver.resolveBoundedContext
 import me.ahoo.wow.compiler.metadata.CommandAggregateRootResolver.resolveAggregateRoot
 import me.ahoo.wow.configuration.WOW_METADATA_RESOURCE_NAME
+import me.ahoo.wow.serialization.toPrettyJson
 
 /**
  * @see me.ahoo.wow.configuration.WowMetadata
@@ -41,12 +37,6 @@ class MetadataSymbolProcessor(environment: SymbolProcessorEnvironment) :
     companion object {
         val BOUNDED_CONTEXT_NAME = BoundedContext::class.qualifiedName!!
         const val WOW_METADATA_RESOURCE_PATH = WOW_METADATA_RESOURCE_NAME
-    }
-
-    private val objectMapper = ObjectMapper().apply {
-        setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY)
-        configure(JsonParser.Feature.IGNORE_UNDEFINED, true)
-        setSerializationInclusion(JsonInclude.Include.NON_EMPTY)
     }
 
     private var wowMetadataMerger: WowMetadataMerger = WowMetadataMerger()
@@ -93,7 +83,7 @@ class MetadataSymbolProcessor(environment: SymbolProcessorEnvironment) :
                 fileName = WOW_METADATA_RESOURCE_PATH,
                 extensionName = "",
             )
-        val metadataJson = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(wowMetadataMerger.metadata)
+        val metadataJson = wowMetadataMerger.metadata.toPrettyJson()
         file.write(metadataJson.toByteArray())
         file.close()
         return emptyList()

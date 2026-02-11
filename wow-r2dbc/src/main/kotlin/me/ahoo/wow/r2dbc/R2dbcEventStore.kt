@@ -12,7 +12,6 @@
  */
 package me.ahoo.wow.r2dbc
 
-import com.fasterxml.jackson.databind.node.ObjectNode
 import io.r2dbc.spi.Connection
 import io.r2dbc.spi.R2dbcDataIntegrityViolationException
 import io.r2dbc.spi.Statement
@@ -23,7 +22,6 @@ import me.ahoo.wow.command.DuplicateRequestIdException
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.AbstractEventStore
 import me.ahoo.wow.eventsourcing.EventVersionConflictException
-import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.event.FlatEventStreamRecord
 import me.ahoo.wow.serialization.event.toEventStreamRecord
 import me.ahoo.wow.serialization.toJsonNode
@@ -31,6 +29,7 @@ import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObjectNode
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import tools.jackson.databind.node.ObjectNode
 
 class R2dbcEventStore(
     private val database: Database,
@@ -42,7 +41,7 @@ class R2dbcEventStore(
             database.createConnection(eventStream.aggregateId),
             /* resourceClosure = */
             {
-                val eventStreamRecord = JsonSerializer.valueToTree<ObjectNode>(eventStream)
+                val eventStreamRecord = eventStream.toJsonNode<ObjectNode>()
                     .toEventStreamRecord()
                 it.createStatement(eventStreamSchema.append(eventStream.aggregateId))
                     .bind(0, eventStreamRecord.id)

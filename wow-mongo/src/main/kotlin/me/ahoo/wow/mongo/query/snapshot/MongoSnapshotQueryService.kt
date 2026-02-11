@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.mongo.query.snapshot
 
-import com.fasterxml.jackson.databind.type.TypeFactory
 import com.mongodb.reactivestreams.client.MongoCollection
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.DynamicDocument
@@ -31,6 +30,7 @@ import me.ahoo.wow.query.converter.ConditionConverter
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
 import org.bson.Document
 import org.bson.conversions.Bson
+import tools.jackson.databind.type.TypeFactory
 
 class MongoSnapshotQueryService<S : Any>(
     override val namedAggregate: NamedAggregate,

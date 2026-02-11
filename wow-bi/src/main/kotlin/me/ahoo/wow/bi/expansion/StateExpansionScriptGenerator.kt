@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.bi.expansion
 
-import com.fasterxml.jackson.databind.introspect.BeanPropertyDefinition
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.bi.expansion.SqlTypeMapping.isSimple
 import me.ahoo.wow.bi.expansion.TableNaming.toDistributedTableName
@@ -26,6 +25,7 @@ import me.ahoo.wow.bi.expansion.column.StatePropertyColumn
 import me.ahoo.wow.configuration.requiredAggregateType
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.serialization.JsonSerializer
+import tools.jackson.databind.introspect.BeanPropertyDefinition
 
 class StateExpansionScriptGenerator(
     private val column: Column,
@@ -118,6 +118,7 @@ class StateExpansionScriptGenerator(
     private fun build(): List<SqlBuilder> {
         val builders = mutableListOf<SqlBuilder>()
         start()
+        JsonSerializer.typeFactory.
         val beanDescription = JsonSerializer.serializationConfig.introspect(column.type)
         beanDescription.findProperties().filter {
             !it.name.endsWith(KOTLIN_DURATION_SUFFIX)
