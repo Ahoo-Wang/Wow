@@ -64,6 +64,7 @@ dependencies {
     "openapiSupportImplementation"("org.springdoc:springdoc-openapi-starter-common")
     api("org.springframework:spring-webflux")
     api("org.springframework.boot:spring-boot-starter")
+    api("org.springframework.boot:spring-boot-starter-jackson")
     kapt("org.springframework.boot:spring-boot-configuration-processor")
     kapt("org.springframework.boot:spring-boot-autoconfigure-processor")
     testImplementation(project(":wow-test"))

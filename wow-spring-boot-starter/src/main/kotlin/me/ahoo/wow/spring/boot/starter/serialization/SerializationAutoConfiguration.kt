@@ -17,7 +17,7 @@ import me.ahoo.wow.serialization.WowModule
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
-import org.springframework.boot.autoconfigure.jackson.JacksonAutoConfiguration
+import org.springframework.boot.jackson.autoconfigure.JacksonAutoConfiguration
 import org.springframework.context.annotation.Bean
 
 @ConditionalOnWowEnabled
