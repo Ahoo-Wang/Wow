@@ -34,13 +34,11 @@ spring:
     name: example-service
   autoconfigure:
     exclude:
-      - org.springframework.boot.autoconfigure.mongo.MongoReactiveAutoConfiguration
-      - org.springframework.boot.autoconfigure.elasticsearch.ElasticsearchClientAutoConfiguration
-      - org.springframework.boot.autoconfigure.elasticsearch.ElasticsearchRestClientAutoConfiguration
-      - org.springframework.boot.autoconfigure.elasticsearch.ReactiveElasticsearchClientAutoConfiguration
-  data:
-    mongodb:
-      uri: mongodb://root:root@localhost:27017/wow_example_db?authSource=admin&maxIdleTimeMS=60000
+      - org.springframework.boot.mongodb.autoconfigure.MongoReactiveAutoConfiguration
+      - org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchClientAutoConfiguration
+      - org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchRestClientAutoConfiguration
+  mongodb:
+    uri: mongodb://root:root@localhost:27017/wow_example_db?authSource=admin&maxIdleTimeMS=60000
 
 #  r2dbc:
 #    url: r2dbc:pool:mariadb://root:root@localhost:3306/wow_db?initialSize=8&maxSize=8&acquireRetry=3&maxLifeTime=PT30M
