@@ -26,6 +26,7 @@ import me.ahoo.wow.bi.expansion.column.StatePropertyColumn
 import me.ahoo.wow.configuration.requiredAggregateType
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.serialization.JsonSerializer
+import me.ahoo.wow.serialization.toBeanDescription
 
 class StateExpansionScriptGenerator(
     private val column: Column,
@@ -118,7 +119,7 @@ class StateExpansionScriptGenerator(
     private fun build(): List<SqlBuilder> {
         val builders = mutableListOf<SqlBuilder>()
         start()
-        val beanDescription = JsonSerializer.serializationConfig.introspect(column.type)
+        val beanDescription = column.type.toBeanDescription()
         beanDescription.findProperties().filter {
             !it.name.endsWith(KOTLIN_DURATION_SUFFIX)
         }.forEach {
