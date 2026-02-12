@@ -8,6 +8,7 @@ dependencies {
     testImplementation("me.ahoo.cosid:cosid-test")
     testImplementation("org.mariadb:r2dbc-mariadb")
     testImplementation("org.testcontainers:mariadb")
-    testImplementation("org.testcontainers:r2dbc")
+    testImplementation("org.testcontainers:testcontainers-r2dbc")
     testImplementation("org.mariadb.jdbc:mariadb-java-client")
+    testImplementation("commons-io:commons-io:2.15.1")
 }
