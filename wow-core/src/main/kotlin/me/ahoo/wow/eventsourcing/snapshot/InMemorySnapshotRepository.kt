@@ -13,41 +13,78 @@
 
 package me.ahoo.wow.eventsourcing.snapshot
 
+import com.fasterxml.jackson.databind.node.ObjectNode
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.serialization.toJsonString
+import me.ahoo.wow.serialization.toJsonNode
 import me.ahoo.wow.serialization.toObject
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toFlux
 import java.util.concurrent.ConcurrentHashMap
 
+/**
+ * In-memory implementation of SnapshotRepository for testing and development.
+ * Stores snapshots as JSON strings in a thread-safe map.
+ */
 class InMemorySnapshotRepository : SnapshotRepository {
     companion object {
+        /**
+         * The name of this repository.
+         */
         const val NAME = "in_memory"
     }
 
+    /**
+     * The name of this repository.
+     */
     override val name: String
         get() = NAME
-    private val aggregateIdMapSnapshot = ConcurrentHashMap<AggregateId, String>()
 
-    override fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>> {
-        return Mono.fromCallable {
+    /**
+     * Thread-safe storage for snapshots, keyed by aggregate ID.
+     */
+    private val aggregateIdMapSnapshot = ConcurrentHashMap<AggregateId, ObjectNode>()
+
+    /**
+     * Loads a snapshot from the in-memory map by deserializing the JSON string.
+     *
+     * @param aggregateId the ID of the aggregate
+     * @return a Mono emitting the snapshot or empty if not found
+     */
+    override fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>> =
+        Mono.fromCallable {
             aggregateIdMapSnapshot[aggregateId]?.toObject<Snapshot<S>>()
         }
-    }
 
-    override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> {
-        return Mono.fromRunnable {
-            aggregateIdMapSnapshot[snapshot.aggregateId] = snapshot.toJsonString()
+    /**
+     * Saves a snapshot to the in-memory map by serializing it to JSON.
+     *
+     * @param snapshot the snapshot to save
+     * @return a Mono that completes when the save operation is done
+     */
+    override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> =
+        Mono.fromRunnable {
+            aggregateIdMapSnapshot[snapshot.aggregateId] = snapshot.toJsonNode()
         }
-    }
 
-    override fun scanAggregateId(namedAggregate: NamedAggregate, afterId: String, limit: Int): Flux<AggregateId> {
-        return aggregateIdMapSnapshot.keys.sortedBy { it.id }.toFlux()
+    /**
+     * Scans aggregate IDs from the in-memory map, sorted and filtered by afterId and limit.
+     *
+     * @param namedAggregate the named aggregate (not used in this implementation)
+     * @param afterId the ID to start scanning after
+     * @param limit the maximum number of IDs to return
+     * @return a Flux of aggregate IDs
+     */
+    override fun scanAggregateId(
+        namedAggregate: NamedAggregate,
+        afterId: String,
+        limit: Int
+    ): Flux<AggregateId> =
+        aggregateIdMapSnapshot.keys
+            .sortedBy { it.id }
+            .toFlux()
             .filter {
                 it.id > afterId
-            }
-            .take(limit.toLong())
-    }
+            }.take(limit.toLong())
 }

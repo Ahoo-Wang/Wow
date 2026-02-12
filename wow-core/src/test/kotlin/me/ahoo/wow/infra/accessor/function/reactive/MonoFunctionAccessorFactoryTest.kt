@@ -14,7 +14,11 @@
 
 package me.ahoo.wow.infra.accessor.function.reactive
 
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.id.generateGlobalId
 import org.junit.jupiter.api.Test
 import org.reactivestreams.Publisher
 import reactor.core.publisher.Flux
@@ -61,6 +65,25 @@ internal class MonoFunctionAccessorFactoryTest {
         methodAccessor.assert().isInstanceOf(SyncMonoFunctionAccessor::class.java)
     }
 
+    @Test
+    fun createSuspend() {
+        val methodAccessor = MockAggregate::class.java.getDeclaredMethod(
+            "onCommand",
+            ChangeStateReturnSuspend::class.java,
+            kotlin.coroutines.Continuation::class.java
+        ).kotlinFunction!!.toMonoFunctionAccessor<MockAggregate, Any>()
+        methodAccessor.assert().isInstanceOf(SuspendMonoFunctionAccessor::class.java)
+    }
+
+    @Test
+    fun createFlow() {
+        val methodAccessor = MockAggregate::class.java.getDeclaredMethod(
+            "onCommand",
+            ChangeStateReturnFlow::class.java
+        ).kotlinFunction!!.toMonoFunctionAccessor<MockAggregate, Any>()
+        methodAccessor.assert().isInstanceOf(FlowMonoFunctionAccessor::class.java)
+    }
+
     @Suppress("FunctionOnlyReturningConstant")
     class MockAggregate(private val id: String) {
         private val state: String? = null
@@ -87,35 +110,29 @@ internal class MonoFunctionAccessorFactoryTest {
         fun onCommand(changeState: ChangeStateReturnSync?): StateChanged? {
             return null
         }
-    }
 
-    class ChangeStateReturnMono(private val state: String) {
-        fun state(): String {
-            return state
+        suspend fun onCommand(changeState: ChangeStateReturnSuspend?): StateChanged {
+            delay(1)
+            return StateChanged(generateGlobalId())
+        }
+
+        fun onCommand(changeState: ChangeStateReturnFlow): Flow<StateChanged> {
+            return flow {
+                emit(StateChanged(generateGlobalId()))
+            }
         }
     }
 
-    class ChangeStateReturnFlux(private val state: String) {
-        fun state(): String {
-            return state
-        }
-    }
+    data class ChangeStateReturnMono(val state: String)
 
-    class ChangeStateReturnPublisher(private val state: String) {
-        fun state(): String {
-            return state
-        }
-    }
+    data class ChangeStateReturnFlux(val state: String)
 
-    class ChangeStateReturnSync(private val state: String) {
-        fun state(): String {
-            return state
-        }
-    }
+    data class ChangeStateReturnPublisher(val state: String)
 
-    class StateChanged(private val state: String) {
-        fun state(): String {
-            return state
-        }
-    }
+    data class ChangeStateReturnSync(val state: String)
+
+    data class ChangeStateReturnSuspend(val state: String)
+    data class ChangeStateReturnFlow(val state: String)
+
+    data class StateChanged(val state: String)
 }

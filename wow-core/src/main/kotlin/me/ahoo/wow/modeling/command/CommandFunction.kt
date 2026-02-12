@@ -22,6 +22,19 @@ import me.ahoo.wow.modeling.command.after.AfterCommandFunction
 import me.ahoo.wow.modeling.materialize
 import reactor.core.publisher.Mono
 
+/**
+ * A concrete implementation of command function that wraps a delegate message function.
+ *
+ * This class provides command execution by delegating to an underlying message function,
+ * with support for after-command functions and proper checkpointing for debugging.
+ *
+ * @param C The type of the command aggregate.
+ * @property delegate The underlying message function that handles the command.
+ * @param commandAggregate The command aggregate instance.
+ * @param afterCommandFunctions List of after-command functions to execute.
+ *
+ * @constructor Creates a new CommandFunction with the specified delegate and configuration.
+ */
 class CommandFunction<C : Any>(
     override val delegate: MessageFunction<C, ServerCommandExchange<*>, Mono<*>>,
     commandAggregate: CommandAggregate<C, *>,
@@ -34,19 +47,21 @@ class CommandFunction<C : Any>(
     override val supportedTopics: Set<NamedAggregate> = setOf(commandAggregate.materialize())
     override val processor: C = delegate.processor
     override val functionKind: FunctionKind = delegate.functionKind
-    override fun <A : Annotation> getAnnotation(annotationClass: Class<A>): A? {
-        return delegate.getAnnotation(annotationClass)
-    }
 
-    override fun invokeCommand(exchange: ServerCommandExchange<*>): Mono<*> {
-        return delegate
+    override fun <A : Annotation> getAnnotation(annotationClass: Class<A>): A? = delegate.getAnnotation(annotationClass)
+
+    /**
+     * Invokes the delegate command function with checkpointing for debugging.
+     *
+     * @param exchange The server command exchange.
+     * @return A Mono containing the command result, with a checkpoint for reactive debugging.
+     */
+    override fun invokeCommand(exchange: ServerCommandExchange<*>): Mono<*> =
+        delegate
             .invoke(exchange)
             .checkpoint(
-                "[${commandAggregate.aggregateId}] Invoke $qualifiedName Command[${exchange.message.id}] [CommandFunction]"
+                "[${commandAggregate.aggregateId}] Invoke $qualifiedName Command[${exchange.message.id}] [CommandFunction]",
             )
-    }
 
-    override fun toString(): String {
-        return "CommandFunction(delegate=$delegate)"
-    }
+    override fun toString(): String = "CommandFunction(delegate=$delegate)"
 }

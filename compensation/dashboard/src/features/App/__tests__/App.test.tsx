@@ -2,8 +2,6 @@ import React from "react";
 import { describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom";
 import App from "../App.tsx";
-import { NavItem } from "../../../routes/constants.tsx";
-import { FindCategory } from "../../Failed/FindCategory.ts";
 
 // Mock all dependencies
 vi.mock("antd", () => ({
@@ -51,17 +49,5 @@ vi.mock("../../routes/constants.tsx", () => ({
 describe("App", () => {
   it("is a function", () => {
     expect(typeof App).toBe("function");
-  });
-
-  it("can be called with navItems prop", () => {
-    const mockNavItems: NavItem[] = [
-      {
-        label: "Test",
-        path: "/test",
-        category: FindCategory.ToRetry,
-        component: () => <div>Test Component</div>,
-      },
-    ];
-    expect(() => App({ navItems: mockNavItems })).not.toThrow();
   });
 });

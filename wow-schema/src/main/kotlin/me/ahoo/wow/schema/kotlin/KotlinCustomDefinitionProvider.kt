@@ -14,10 +14,13 @@
 package me.ahoo.wow.schema.kotlin
 
 import com.fasterxml.classmate.ResolvedType
+import com.fasterxml.classmate.members.ResolvedMethod
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.github.victools.jsonschema.generator.CustomDefinition
 import com.github.victools.jsonschema.generator.CustomDefinitionProviderV2
+import com.github.victools.jsonschema.generator.MemberScope.DeclarationDetails
+import com.github.victools.jsonschema.generator.MethodScope
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
 import com.github.victools.jsonschema.generator.SchemaKeyword
 import io.swagger.v3.oas.annotations.media.Schema
@@ -28,9 +31,11 @@ import me.ahoo.wow.schema.JsonSchema.Companion.toPropertyName
 import me.ahoo.wow.schema.Types.isKotlinElement
 import me.ahoo.wow.schema.Types.isStdType
 import me.ahoo.wow.schema.Types.isWowType
+import kotlin.reflect.KProperty1
 import kotlin.reflect.KVisibility
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.jvm.javaField
+import kotlin.reflect.jvm.javaGetter
 import kotlin.reflect.jvm.javaType
 
 object KotlinCustomDefinitionProvider : CustomDefinitionProviderV2 {
@@ -55,19 +60,58 @@ object KotlinCustomDefinitionProvider : CustomDefinitionProviderV2 {
         if (cachedTypes.contains(javaType)) {
             return null
         }
+        val declarationDetails = DeclarationDetails(javaType, context.typeContext.resolveWithMembers(javaType))
         cachedTypes.add(javaType)
         val rootSchema = context.createStandardDefinition(javaType, this).asJsonSchema()
         rootSchema.ensureProperties()
         val propertiesNode: ObjectNode = rootSchema.getProperties() ?: return null
         for (kotlinGetter in kotlinGettersIfNonFields) {
             if (propertiesNode.get(kotlinGetter.name) == null) {
-                val returnType = context.typeContext.resolve(kotlinGetter.returnType.javaType)
-                val getterNode = context.createDefinition(returnType)
+                val kotlinGetterMethod = declarationDetails.declaringTypeMembers.memberMethods.firstOrNull {
+                    it.name === kotlinGetter.javaGetter!!.name
+                } ?: continue
+                val resolvedMethod = copyResolvedMethod(kotlinGetter, kotlinGetterMethod, context)
+                val methodScope: MethodScope =
+                    context.typeContext.createMethodScope(resolvedMethod, declarationDetails)
+                val getterNode = createStandardDefinition(methodScope, context)
                 val readOnly = SchemaKeyword.TAG_READ_ONLY.toPropertyName()
                 getterNode.put(readOnly, true)
                 propertiesNode.set<ObjectNode>(kotlinGetter.name, getterNode)
             }
         }
         return rootSchema.asCustomDefinition()
+    }
+
+    private fun createStandardDefinition(
+        methodScope: MethodScope,
+        context: SchemaGenerationContext
+    ): ObjectNode {
+        return if (context.generatorConfig.shouldInlineAllSchemas()) {
+            context.createStandardDefinition(methodScope, null) as ObjectNode
+        } else {
+            context.createStandardDefinitionReference(methodScope, null) as ObjectNode
+        }
+    }
+
+    private fun copyResolvedMethod(
+        kotlinGetter: KProperty1<*, *>,
+        resolvedMethod: ResolvedMethod,
+        context: SchemaGenerationContext
+    ): ResolvedMethod {
+        val returnType = context.typeContext.resolve(kotlinGetter.returnType.javaType)
+        val argumentTypes: Array<ResolvedType> = Array(resolvedMethod.argumentCount) {
+            resolvedMethod.getArgumentType(it)
+        }
+        return ResolvedMethod(
+            resolvedMethod.declaringType,
+            resolvedMethod.annotations,
+            resolvedMethod.rawMember,
+            returnType,
+            argumentTypes
+        )
+    }
+
+    override fun resetAfterSchemaGenerationFinished() {
+        this.cachedTypes.clear()
     }
 }

@@ -16,6 +16,9 @@ package me.ahoo.wow.eventsourcing.snapshot
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.event.toDomainEventStream
+import me.ahoo.wow.eventsourcing.snapshot.dispatcher.DefaultSnapshotHandler
+import me.ahoo.wow.eventsourcing.snapshot.dispatcher.SnapshotDispatcher
+import me.ahoo.wow.eventsourcing.snapshot.dispatcher.SnapshotFunctionFilter
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.toStateEvent
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
@@ -86,7 +89,7 @@ internal class SnapshotDispatcherTest {
                 snapshotHandler = handler,
                 stateEventBus = stateEventBus,
             )
-        snapshotDispatcher.run()
+        snapshotDispatcher.start()
         val aggregateId = aggregateMetadata.aggregateId()
         val createdEventStream = MockAggregateCreated(GlobalIdGenerator.generateAsString())
             .toDomainEventStream(GivenInitializationCommand(aggregateId), 0)

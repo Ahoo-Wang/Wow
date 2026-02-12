@@ -31,6 +31,7 @@ import me.ahoo.wow.example.api.order.OrderPaid
 import me.ahoo.wow.example.api.order.OrderPayDuplicated
 import me.ahoo.wow.example.api.order.OrderReceived
 import me.ahoo.wow.example.api.order.OrderShipped
+import me.ahoo.wow.example.api.order.OrderStatus
 import me.ahoo.wow.example.api.order.PayOrder
 import me.ahoo.wow.example.api.order.ReceiptOrder
 import me.ahoo.wow.example.api.order.ShipOrder
@@ -52,7 +53,7 @@ import reactor.kotlin.core.publisher.toMono
  * @see me.ahoo.wow.modeling.state.StateAggregate
  */
 @AggregateRoot
-@AggregateRoute(resourceName = "sales-order", owner = AggregateRoute.Owner.ALWAYS)
+@AggregateRoute(resourceName = "sales-order", spaced = true, owner = AggregateRoute.Owner.ALWAYS)
 class Order(private val state: OrderState) {
     companion object {
         private val log = LoggerFactory.getLogger(Order::class.java)
@@ -64,6 +65,41 @@ class Order(private val state: OrderState) {
      *
      * [me.ahoo.wow.modeling.annotation.OnCommand] 注解是可选的,约定命令默认命令函数为名 `onCommand`
      *
+     *
+     * ### Kotlin 协程 Style
+     * ```kotlin
+     *     suspend fun onCommand(
+     *         command: CommandMessage<CreateOrder>,
+     *         @Name("createOrderSpec") specification: CreateOrderSpec,
+     *         commandResultAccessor: CommandResultAccessor
+     *     ): OrderCreated {
+     *         val createOrder = command.body
+     *         require(createOrder.items.isNotEmpty()) {
+     *             "items can not be empty."
+     *         }
+     *         createOrder.items.asFlow().collect {
+     *             specification.require(it).awaitSingle()
+     *         }
+     *         val orderCreated = OrderCreated(
+     *             orderId = command.aggregateId.id,
+     *             items = createOrder.items.map {
+     *                 OrderItem(
+     *                     id = GlobalIdGenerator.generateAsString(),
+     *                     productId = it.productId,
+     *                     price = it.price,
+     *                     quantity = it.quantity,
+     *                 )
+     *             },
+     *             address = createOrder.address,
+     *             fromCart = createOrder.fromCart,
+     *         )
+     *         commandResultAccessor.setCommandResult(
+     *             OrderState::totalAmount.name,
+     *             orderCreated.items.sumOf { it.totalPrice }
+     *         )
+     *         return orderCreated
+     *     }
+     * ```
      *
      * @param specification 该外部服务将会通过 IOC 容器自动注入进来
      */

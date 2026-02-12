@@ -16,13 +16,20 @@ package me.ahoo.wow.id
 import me.ahoo.cosid.cosid.CosIdGenerator
 
 /**
- * 全局 ID 生成器工厂.
+ * Factory interface for creating global ID generators.
  *
- * 主要用于[me.ahoo.wow.api.messaging.Message.id]
+ * Primarily used for generating IDs for [me.ahoo.wow.api.messaging.Message.id].
  *
  * @see me.ahoo.wow.api.messaging.Message.id
  * @see me.ahoo.wow.api.annotation.Order
  */
 fun interface GlobalIdGeneratorFactory {
+    /**
+     * Creates a global [CosIdGenerator] instance.
+     *
+     * Implementations should return a configured [CosIdGenerator] or null if they cannot provide one.
+     *
+     * @return the [CosIdGenerator] instance, or null if not available
+     */
     fun create(): CosIdGenerator?
 }

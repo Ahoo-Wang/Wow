@@ -23,6 +23,16 @@ import me.ahoo.wow.modeling.materialize
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
 
+/**
+ * Default implementation of delete aggregate command function.
+ *
+ * This function handles the DefaultDeleteAggregate command by generating a DefaultAggregateDeleted event.
+ * It provides a standard way to mark aggregates as deleted in the system.
+ *
+ * @param C The type of the command aggregate root.
+ * @param commandAggregate The command aggregate instance this function belongs to.
+ * @param afterCommandFunctions List of after-command functions to execute after deletion.
+ */
 class DefaultDeleteAggregateFunction<C : Any>(
     commandAggregate: CommandAggregate<C, *>,
     afterCommandFunctions: List<AfterCommandFunction<C>>
@@ -33,11 +43,14 @@ class DefaultDeleteAggregateFunction<C : Any>(
     override val processor: C = commandAggregate.commandRoot
     override val name: String = "${processor.javaClass.simpleName}.${supportedType.simpleName}"
     override val functionKind: FunctionKind = FunctionKind.COMMAND
-    override fun <A : Annotation> getAnnotation(annotationClass: Class<A>): A? {
-        return null
-    }
 
-    override fun invokeCommand(exchange: ServerCommandExchange<*>): Mono<*> {
-        return DefaultAggregateDeleted.toMono()
-    }
+    override fun <A : Annotation> getAnnotation(annotationClass: Class<A>): A? = null
+
+    /**
+     * Invokes the delete command by returning a DefaultAggregateDeleted event.
+     *
+     * @param exchange The server command exchange containing the delete command.
+     * @return A Mono containing the DefaultAggregateDeleted event.
+     */
+    override fun invokeCommand(exchange: ServerCommandExchange<*>): Mono<*> = DefaultAggregateDeleted.toMono()
 }

@@ -3,9 +3,11 @@ package me.ahoo.wow.spring.boot.starter.compensation
 import io.mockk.mockk
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.compensation.core.CompensationEventProcessor
-import me.ahoo.wow.compensation.core.CompensationFilter
+import me.ahoo.wow.compensation.core.DomainEventCompensationFilter
+import me.ahoo.wow.compensation.core.StateEventCompensationFilter
 import me.ahoo.wow.event.compensation.DomainEventCompensator
 import me.ahoo.wow.event.compensation.StateEventCompensator
+import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
 import me.ahoo.wow.spring.boot.starter.enableWow
 import org.assertj.core.api.AssertionsForInterfaceTypes
 import org.junit.jupiter.api.Test
@@ -27,7 +29,9 @@ class CompensationAutoConfigurationTest {
             )
             .run { context: AssertableApplicationContext ->
                 AssertionsForInterfaceTypes.assertThat(context)
-                    .hasSingleBean(CompensationFilter::class.java)
+                    .hasSingleBean(EventCompensateSupporter::class.java)
+                    .hasSingleBean(DomainEventCompensationFilter::class.java)
+                    .hasSingleBean(StateEventCompensationFilter::class.java)
                     .hasSingleBean(CompensationEventProcessor::class.java)
             }
     }

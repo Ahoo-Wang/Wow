@@ -13,38 +13,104 @@
 package me.ahoo.wow.ioc
 
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.reflect.KClass
 import kotlin.reflect.KType
-import kotlin.reflect.full.defaultType
 import kotlin.reflect.full.isSubtypeOf
 
+/**
+ * Simple implementation of ServiceProvider using thread-safe ConcurrentHashMap for storage.
+ * Provides basic service registration and retrieval functionality with support for both
+ * type-based and name-based lookups. Supports subtype matching for type-based lookups.
+ *
+ * This implementation is suitable for most use cases requiring a lightweight,
+ * thread-safe service provider.
+ */
 class SimpleServiceProvider : ServiceProvider {
+    /**
+     * Thread-safe map storing services keyed by their Kotlin type.
+     * Used for type-based service lookups.
+     */
     private val typedServices: ConcurrentHashMap<KType, Any> = ConcurrentHashMap<KType, Any>()
+
+    /**
+     * Thread-safe map storing services keyed by their registered name.
+     * Used for name-based service lookups.
+     */
     private val namedServices: ConcurrentHashMap<String, TypedService> = ConcurrentHashMap<String, TypedService>()
+
+    /**
+     * Set of all registered service names.
+     * Returns a view of the keys in the namedServices map.
+     */
     override val serviceNames: Set<String>
         get() = namedServices.keys
 
-    override fun register(service: Any, serviceName: String, serviceType: KType) {
+    /**
+     * Registers a service with the provider.
+     * Stores the service in both typed and named service maps for efficient lookup.
+     *
+     * @param service the service instance to register
+     * @param serviceName the name to register the service under
+     * @param serviceType the Kotlin type of the service
+     */
+    override fun register(
+        service: Any,
+        serviceName: String,
+        serviceType: KType
+    ) {
         typedServices[serviceType] = service
         namedServices[serviceName] = TypedService(serviceType, service)
     }
 
+    /**
+     * Retrieves a service by its Kotlin type.
+     * First tries exact type match, then falls back to subtype matching if no exact match is found.
+     *
+     * @param S the type of service to retrieve
+     * @param serviceType the Kotlin type to look up
+     * @return the service instance of type S, or null if not found
+     */
     @Suppress("UNCHECKED_CAST")
     override fun <S : Any> getService(serviceType: KType): S? {
         val service = typedServices[serviceType] as S?
         if (service != null) {
             return service
         }
-        return typedServices.values.firstOrNull {
-            val instanceType = it.javaClass.kotlin.defaultType
-            instanceType.isSubtypeOf(serviceType)
-        } as S?
+        for ((registeredType, registeredService) in typedServices) {
+            if (registeredType.isSubtypeOf(serviceType)) {
+                return registeredService as S
+            }
+        }
+        //  To fix bugs in the K2 implementation, such as issues with mocking types using the mockk library
+        val serviceClassifier = serviceType.classifier
+        if (serviceClassifier is KClass<*>) {
+            val serviceClass = serviceClassifier.java
+            for ((_, registeredService) in typedServices) {
+                if (serviceClass.isInstance(registeredService)) {
+                    return registeredService as S
+                }
+            }
+        }
+        return null
     }
 
+    /**
+     * Retrieves a service by its registered name.
+     * Performs a direct lookup in the named services map.
+     *
+     * @param S the type of service to retrieve
+     * @param serviceName the name of the service to look up
+     * @return the service instance of type S, or null if not found
+     */
     @Suppress("UNCHECKED_CAST")
-    override fun <S : Any> getService(serviceName: String): S? {
-        return namedServices[serviceName]?.service as S?
-    }
+    override fun <S : Any> getService(serviceName: String): S? = namedServices[serviceName]?.service as S?
 
+    /**
+     * Creates a shallow copy of this service provider.
+     * The copy contains references to the same service instances but in separate maps.
+     *
+     * @return a new SimpleServiceProvider instance with copied service registrations
+     */
     override fun copy(): SimpleServiceProvider {
         val copy = SimpleServiceProvider()
         copy.typedServices.putAll(typedServices)
@@ -52,11 +118,27 @@ class SimpleServiceProvider : ServiceProvider {
         return copy
     }
 
+    /**
+     * Copies all registered services from this provider to the target provider.
+     * Iterates through all named services and registers them with the target provider.
+     *
+     * @param target the provider to copy services to
+     */
     override fun copyTo(target: ServiceProvider) {
         namedServices.forEach { (serviceName, typedService) ->
             target.register(service = typedService.service, serviceName = serviceName, serviceType = typedService.type)
         }
     }
 
-    internal class TypedService(val type: KType, val service: Any)
+    /**
+     * Internal data class representing a typed service registration.
+     * Used to store both the service type and instance together for efficient copying operations.
+     *
+     * @property type the Kotlin type of the service
+     * @property service the service instance
+     */
+    internal class TypedService(
+        val type: KType,
+        val service: Any
+    )
 }

@@ -17,6 +17,19 @@ import jakarta.validation.Validator
 import me.ahoo.wow.command.CommandValidationException
 import me.ahoo.wow.command.CommandValidationException.Companion.toCommandValidationException
 
+/**
+ * Validates a command body using the validator.
+ *
+ * This extension function performs validation on the command body and throws
+ * a CommandValidationException if any constraint violations are found.
+ *
+ * @param C the type of the command body
+ * @param commandBody the command body to validate
+ * @return the validated command body (unchanged)
+ * @throws CommandValidationException if validation fails
+ * @see Validator.validate
+ * @see CommandValidationException
+ */
 @Throws(CommandValidationException::class)
 fun <C : Any> Validator.validateCommand(commandBody: C): C {
     val constraintViolations = validate(commandBody)

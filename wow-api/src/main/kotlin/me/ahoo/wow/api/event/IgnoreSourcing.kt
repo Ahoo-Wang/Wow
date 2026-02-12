@@ -14,23 +14,28 @@
 package me.ahoo.wow.api.event
 
 /**
- *  Ignore sourcing domain event to state aggregate.
+ * Marker interface indicating that a domain event should be ignored during state aggregation and event sourcing.
  *
- *  应用场景：执行聚合根命令时，业务校验失败需要生成失败事件以便下游订阅者处理。并且不需要溯源领域事件。
- *  触发条件：
- *  - 领域事件标记 [me.ahoo.wow.api.exception.ErrorInfo] ，标记该事件为失败事件
- *  - 领域事件标记 [IgnoreSourcing]
- *  - 领域事件版本=1
- *  ``` kotlin
- *  class ErrorIgnoreEvent(
- *     override val errorCode: String,
- *     override val errorMsg: String
- * ) : IgnoreSourcing, ErrorInfo
- *  ```
- *  ---
- *  影响：
- *  - [me.ahoo.wow.modeling.state.StateAggregate.onSourcing] 忽略该领域事件的溯源，且不会变更聚合版本。
- *  - [me.ahoo.wow.eventsourcing.state.SendStateEventFilter] 将忽略未初始化的状态聚合发送到状态事件总线。
- *  - 聚合快照处理器将无法接受到该状态事件，即不会存储到快照仓库。
+ * Events implementing this interface are excluded from the normal event sourcing process,
+ * meaning they do not modify the aggregate's state or version. This is useful for
+ * publishing events that serve only as notifications or error signals without affecting
+ * the domain model's persistent state.
+ *
+ * **Use Cases:**
+ * Publishing failure events when business validation fails during command processing,
+ * allowing downstream subscribers to react to errors without modifying aggregate state.
+ *
+ * **Trigger Conditions (all must be met):**
+ * - Event implements [me.ahoo.wow.api.exception.ErrorInfo] (marks as error event)
+ * - Event implements [IgnoreSourcing] (this interface)
+ * - Event version equals 1
+ *
+ * **Effects:**
+ * - [me.ahoo.wow.modeling.state.StateAggregate.onSourcing] skips sourcing this event and doesn't change aggregate version
+ * - [me.ahoo.wow.eventsourcing.state.SendStateEventFilter] ignores uninitialized state aggregates for state event bus
+ * - Aggregate snapshot processors cannot receive this state event (not stored in snapshot repository)
+ *
+ * @see me.ahoo.wow.api.exception.ErrorInfo for error event marking
+ * @see DomainEvent for regular domain events
  */
 interface IgnoreSourcing

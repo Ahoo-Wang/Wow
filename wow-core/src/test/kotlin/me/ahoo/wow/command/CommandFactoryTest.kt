@@ -129,4 +129,40 @@ internal class CommandFactoryTest {
             "The command[${Any().javaClass}] must be associated with a named aggregate!"
         )
     }
+
+    @Test
+    fun createWithOwnerIdSameAsAggregateId() {
+        val command = MockNamedCommand(generateGlobalId())
+        val commandMessage = command.toCommandMessage(ownerIdSameAsAggregateId = true)
+        commandMessage.body.assert().isEqualTo(command)
+        commandMessage.ownerId.assert().isEqualTo(commandMessage.aggregateId.id)
+    }
+
+    @Test
+    fun createWithOwnerIdSameAsAggregateIdAndExplicitOwnerId() {
+        val command = MockNamedCommand(generateGlobalId())
+        val ownerId = generateGlobalId()
+        val commandMessage = command.toCommandMessage(
+            ownerId = ownerId,
+            ownerIdSameAsAggregateId = true
+        )
+        commandMessage.body.assert().isEqualTo(command)
+        // When ownerId is explicitly provided and ownerIdSameAsAggregateId is true,
+        // the explicit ownerId should take precedence
+        commandMessage.ownerId.assert().isEqualTo(ownerId)
+        commandMessage.aggregateId.id.assert().isEqualTo(ownerId)
+    }
+
+    @Test
+    fun createWithOwnerIdSameAsAggregateIdAndExplicitOwnerIdBlank() {
+        val command = MockNamedCommand(generateGlobalId())
+        val commandMessage = command.toCommandMessage(
+            ownerId = "",
+            ownerIdSameAsAggregateId = true
+        )
+        commandMessage.body.assert().isEqualTo(command)
+        // When ownerId is blank and ownerIdSameAsAggregateId is true,
+        // the aggregateId should be used as ownerId
+        commandMessage.ownerId.assert().isEqualTo(commandMessage.aggregateId.id)
+    }
 }

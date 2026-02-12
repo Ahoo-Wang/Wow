@@ -16,16 +16,32 @@ package me.ahoo.wow.messaging.function
 import io.github.oshai.kotlinlogging.KotlinLogging
 import reactor.core.publisher.Mono
 
+/**
+ * Error handler that logs errors and resumes with an empty Mono.
+ *
+ * Useful for error-tolerant message processing where failures should be logged
+ * but not propagated.
+ */
 object LogResumeErrorMessageHandler {
     private val log = KotlinLogging.logger { }
-    fun <T : Any> handle(handled: Mono<T>): Mono<T> {
-        return handled.onErrorResume {
+
+    /**
+     * Handles errors in a Mono by logging them and returning an empty Mono.
+     *
+     * @param handled The Mono that might contain errors
+     * @return A Mono that logs errors and resumes with empty
+     */
+    fun <T : Any> handle(handled: Mono<T>): Mono<T> =
+        handled.onErrorResume {
             log.error(it) { it.message }
             Mono.empty()
         }
-    }
 }
 
-fun <T : Any> Mono<T>.logErrorResume(): Mono<T> {
-    return LogResumeErrorMessageHandler.handle(this)
-}
+/**
+ * Extension function to log errors and resume with empty Mono.
+ *
+ * @receiver The Mono that might contain errors
+ * @return A Mono that logs errors and resumes with empty
+ */
+fun <T : Any> Mono<T>.logErrorResume(): Mono<T> = LogResumeErrorMessageHandler.handle(this)

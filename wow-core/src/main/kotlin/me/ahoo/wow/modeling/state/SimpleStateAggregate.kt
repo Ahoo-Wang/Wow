@@ -17,36 +17,78 @@ import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.event.AggregateDeleted
 import me.ahoo.wow.api.event.AggregateRecovered
 import me.ahoo.wow.api.event.DomainEvent
+import me.ahoo.wow.api.event.OwnerTransferred
+import me.ahoo.wow.api.event.SpaceTransferred
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.OwnerId
+import me.ahoo.wow.api.modeling.SpaceId
+import me.ahoo.wow.api.modeling.SpaceIdCapable
 import me.ahoo.wow.api.modeling.TypedAggregate
+import me.ahoo.wow.api.modeling.aware.VersionAware
 import me.ahoo.wow.command.CommandOperator.operator
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.SimpleDomainEventExchange
 import me.ahoo.wow.event.ignoreSourcing
 import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
 
+/**
+ * A simple implementation of [StateAggregate] that manages aggregate state through event sourcing.
+ *
+ * This class applies domain events to update the aggregate's state, handles ownership transfers,
+ * deletion, and recovery events, and maintains versioning for consistency.
+ *
+ * @param S The type of the aggregate state.
+ * @property aggregateId The unique identifier of the aggregate.
+ * @property metadata Metadata describing the state aggregate, including sourcing functions.
+ * @property state The current state of the aggregate.
+ * @property ownerId The identifier of the current owner of the aggregate. Defaults to [OwnerId.DEFAULT_OWNER_ID].
+ * @property version The current version of the aggregate. Defaults to [Version.UNINITIALIZED_VERSION].
+ * @property eventId The ID of the last processed event. Defaults to an empty string.
+ * @property firstOperator The operator who initiated the first event. Defaults to an empty string.
+ * @property operator The operator who initiated the last event. Defaults to an empty string.
+ * @property firstEventTime The timestamp of the first event. Defaults to 0.
+ * @property eventTime The timestamp of the last event. Defaults to 0.
+ * @property deleted Indicates whether the aggregate has been deleted. Defaults to false.
+ */
 class SimpleStateAggregate<S : Any>(
     override val aggregateId: AggregateId,
     val metadata: StateAggregateMetadata<S>,
     override val state: S,
     override var ownerId: String = OwnerId.DEFAULT_OWNER_ID,
+    override var spaceId: SpaceId = SpaceIdCapable.DEFAULT_SPACE_ID,
     override var version: Int = Version.UNINITIALIZED_VERSION,
     override var eventId: String = "",
     override var firstOperator: String = "",
     override var operator: String = "",
     override var firstEventTime: Long = 0,
     override var eventTime: Long = 0,
-    override var deleted: Boolean = false,
+    override var deleted: Boolean = false
 ) : StateAggregate<S>,
     TypedAggregate<S> by metadata {
-
     private val sourcingRegistry = metadata.toMessageFunctionRegistry(state)
 
     companion object {
         private val log = KotlinLogging.logger {}
     }
 
+    /**
+     * Applies a stream of domain events to update the aggregate's state.
+     *
+     * This method validates the event stream against the current aggregate state, applies each event
+     * to the state using registered sourcing functions, and updates metadata such as version and ownership.
+     *
+     * @param eventStream The domain event stream to source from.
+     * @return This aggregate instance after sourcing.
+     * @throws IllegalArgumentException If the aggregate ID does not match the event stream's aggregate ID.
+     * @throws SourcingVersionConflictException If the expected next version does not match the event stream's version.
+     *
+     * Example usage:
+     * ```
+     * val aggregate = SimpleStateAggregate(...)
+     * val eventStream = DomainEventStream(...)
+     * aggregate.onSourcing(eventStream)
+     * ```
+     */
     override fun onSourcing(eventStream: DomainEventStream): StateAggregate<S> {
         log.debug {
             "onSourcing $eventStream."
@@ -66,13 +108,12 @@ class SimpleStateAggregate<S : Any>(
                 expectVersion = expectedNextVersion,
             )
         }
-
-        for (domainEvent in eventStream) {
-            sourcing(domainEvent)
-        }
         version = eventStream.version
         if (eventStream.ownerId.isNotBlank()) {
             ownerId = eventStream.ownerId
+        }
+        if (eventStream.spaceId.isNotBlank()) {
+            spaceId = eventStream.spaceId
         }
         eventId = eventStream.id
         operator = eventStream.header.operator.orEmpty()
@@ -81,15 +122,41 @@ class SimpleStateAggregate<S : Any>(
             firstOperator = operator
             firstEventTime = eventTime
         }
+        processAware(eventStream)
+
+        for (domainEvent in eventStream) {
+            sourcing(domainEvent)
+        }
         return this
     }
 
+    private fun processAware(eventStream: DomainEventStream) {
+        if (state is VersionAware) {
+            state.version = eventStream.version
+        }
+    }
+
+    /**
+     * Applies a single domain event to the aggregate's state.
+     *
+     * Handles special events like [AggregateDeleted], [AggregateRecovered], and [OwnerTransferred],
+     * and invokes registered sourcing functions for other events.
+     *
+     * @param domainEvent The domain event to apply.
+     */
     private fun sourcing(domainEvent: DomainEvent<*>) {
-        if (domainEvent.body is AggregateDeleted) {
+        val domainEventBody = domainEvent.body
+        if (domainEventBody is AggregateDeleted) {
             deleted = true
         }
-        if (domainEvent.body is AggregateRecovered) {
+        if (domainEventBody is AggregateRecovered) {
             deleted = false
+        }
+        if (domainEventBody is OwnerTransferred) {
+            ownerId = domainEventBody.toOwnerId
+        }
+        if (domainEventBody is SpaceTransferred) {
+            spaceId = domainEventBody.toSpaceId
         }
         val sourcingFunction = sourcingRegistry[domainEvent.body.javaClass]
         if (sourcingFunction != null) {
@@ -115,7 +182,5 @@ class SimpleStateAggregate<S : Any>(
         return result
     }
 
-    override fun toString(): String {
-        return "SimpleStateAggregate(aggregateId=$aggregateId, version=$version)"
-    }
+    override fun toString(): String = "SimpleStateAggregate(aggregateId=$aggregateId, version=$version)"
 }

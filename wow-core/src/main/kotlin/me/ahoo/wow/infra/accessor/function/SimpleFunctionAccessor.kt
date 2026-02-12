@@ -16,12 +16,23 @@ import me.ahoo.wow.infra.accessor.ensureAccessible
 import kotlin.reflect.KFunction
 
 /**
- * Simple Function Accessor .
+ * Simple implementation of FunctionAccessor that provides basic function invocation capabilities.
+ * This class automatically ensures the function is accessible during initialization,
+ * making it ready for reflection-based invocation.
  *
+ * @param T the type of the target object
+ * @param R the return type of the function
+ * @property function the Kotlin function to be accessed
  * @author ahoo wang
  */
-data class SimpleFunctionAccessor<T, R>(override val function: KFunction<*>) : FunctionAccessor<T, R> {
-
+data class SimpleFunctionAccessor<T, R>(
+    override val function: KFunction<*>
+) : FunctionAccessor<T, R> {
+    /**
+     * Initialization block that ensures the function is accessible for reflection.
+     * This automatically calls ensureAccessible() on the function to allow
+     * access to private, protected, or package-private functions.
+     */
     init {
         function.ensureAccessible()
     }

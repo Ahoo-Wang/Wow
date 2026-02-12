@@ -36,12 +36,12 @@ export function MarkRecoverable({
   const { notification } = App.useApp();
   const promiseState = useExecutePromise<CommandResult, FetcherError>({
     onSuccess: () => {
-      notification.success({ message: "Mark recoverable success." });
+      notification.success({ title: "Mark recoverable success." });
       onChanged?.();
     },
     onError: (error) => {
       notification.error({
-        message: "Mark recoverable failed.",
+        title: "Mark recoverable failed.",
         description: error.message,
       });
     },
@@ -52,9 +52,10 @@ export function MarkRecoverable({
     }),
   );
   const change = (recoverable: RecoverableType) => {
-    promiseState.execute(async () => {
+    promiseState.execute(async (abortController) => {
       return executionFailedCommandClient.markRecoverable(id, {
         body: { recoverable },
+        abortController,
       });
     });
   };

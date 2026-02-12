@@ -13,6 +13,20 @@
 
 package me.ahoo.wow.api.modeling
 
+/**
+ * Interface for objects that can materialize their state into a different representation.
+ *
+ * This interface provides a contract for transforming the current state of an object
+ * into a materialized form, which could be a different data structure, format, or view
+ * suitable for storage, transmission, or presentation.
+ *
+ * @param MATERIALIZED The type of the materialized representation.
+ */
 interface MaterializeState<MATERIALIZED> {
+    /**
+     * Materializes the current state into the target representation.
+     *
+     * @return The materialized representation of the current state.
+     */
     fun materialize(): MATERIALIZED
 }

@@ -14,19 +14,30 @@
 package me.ahoo.wow.saga.stateless
 
 import me.ahoo.wow.event.DomainEventExchange
-import me.ahoo.wow.event.EventHandler
+import me.ahoo.wow.event.dispatcher.EventHandler
 import me.ahoo.wow.filter.AbstractHandler
 import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.LogResumeErrorHandler
 
+/**
+ * Handler interface for stateless sagas that processes domain events.
+ * Implementations of this interface handle the execution of saga logic in response to domain events.
+ */
 interface StatelessSagaHandler : EventHandler
 
+/**
+ * Default implementation of [StatelessSagaHandler] that uses a filter chain for processing.
+ * This handler applies a series of filters to domain event exchanges and handles errors gracefully.
+ *
+ * @param chain The filter chain to apply to domain event exchanges.
+ * @param errorHandler The error handler for processing failures (default: [LogResumeErrorHandler]).
+ */
 class DefaultStatelessSagaHandler(
     chain: FilterChain<DomainEventExchange<*>>,
     errorHandler: ErrorHandler<DomainEventExchange<*>> = LogResumeErrorHandler()
-) : StatelessSagaHandler,
-    AbstractHandler<DomainEventExchange<*>>(
-        chain,
-        errorHandler,
-    )
+) : AbstractHandler<DomainEventExchange<*>>(
+    chain,
+    errorHandler,
+),
+    StatelessSagaHandler

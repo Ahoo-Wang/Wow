@@ -19,37 +19,58 @@ import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.toStateEvent
 import me.ahoo.wow.filter.FilterChain
-import me.ahoo.wow.filter.FilterType
 import me.ahoo.wow.messaging.function.logErrorResume
-import me.ahoo.wow.messaging.handler.ExchangeFilter
-import me.ahoo.wow.messaging.handler.retryStrategy
-import me.ahoo.wow.modeling.command.CommandDispatcher
-import me.ahoo.wow.modeling.command.SendDomainEventStreamFilter
+import me.ahoo.wow.modeling.command.dispatcher.CommandFilter
+import me.ahoo.wow.modeling.command.dispatcher.SendDomainEventStreamFilter
 import me.ahoo.wow.modeling.command.getCommandAggregate
 import reactor.core.publisher.Mono
 
-@FilterType(CommandDispatcher::class)
+/**
+ * Filter that sends state events to the state event bus after command processing.
+ * This filter runs after domain events are sent, ensuring that subscribers receive
+ * both the domain event and the updated aggregate state.
+ *
+ * The filter creates a state event by combining the domain event stream with the current aggregate state,
+ * then publishes it to the configured state event bus.
+ */
 @Order(ORDER_LAST, after = [SendDomainEventStreamFilter::class])
-class SendStateEventFilter(private val stateEventBus: StateEventBus) : ExchangeFilter<ServerCommandExchange<*>> {
+class SendStateEventFilter(
+    private val stateEventBus: StateEventBus
+) : CommandFilter {
     companion object {
         private val log = KotlinLogging.logger { }
-        private val retryStrategy = retryStrategy(logger = log)
     }
 
+    /**
+     * Filters the command exchange by sending a state event if applicable.
+     * Creates and sends a state event containing both the domain event and aggregate state,
+     * then continues the filter chain.
+     *
+     * @param exchange The server command exchange containing the command and resulting events.
+     * @param next The next filter in the chain.
+     * @return A Mono that completes when filtering is done.
+     */
     override fun filter(
         exchange: ServerCommandExchange<*>,
         next: FilterChain<ServerCommandExchange<*>>
     ): Mono<Void> {
         return Mono.defer {
-            val eventStream = exchange.getEventStream() ?: return@defer next.filter(exchange)
-            val state = exchange.getCommandAggregate<Any, Any>()?.state ?: return@defer next.filter(exchange)
+            val eventStream = exchange.getEventStream()
+            if (eventStream == null) {
+                log.warn { "No event stream." }
+                return@defer next.filter(exchange)
+            }
+            val state = exchange.getCommandAggregate<Any, Any>()?.state
+            if (state == null) {
+                log.warn { "No state." }
+                return@defer next.filter(exchange)
+            }
             if (!state.initialized) {
                 return@defer next.filter(exchange)
             }
             val stateEvent = eventStream.copy().toStateEvent(state)
             stateEventBus.send(stateEvent)
                 .checkpoint("Send Message[${eventStream.id}] [SendStateEventFilter]")
-                .retryWhen(retryStrategy)
                 .logErrorResume()
                 .then(next.filter(exchange))
         }

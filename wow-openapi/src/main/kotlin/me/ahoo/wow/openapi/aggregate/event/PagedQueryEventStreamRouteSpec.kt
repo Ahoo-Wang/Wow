@@ -20,9 +20,9 @@ import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.QueryComponent.RequestBody.pagedQueryRequestBody
 import me.ahoo.wow.openapi.QueryComponent.Response.pagedListEventStreamResponse
 import me.ahoo.wow.openapi.RouteIdSpec
-import me.ahoo.wow.openapi.aggregate.AbstractTenantOwnerAggregateRouteSpecFactory
+import me.ahoo.wow.openapi.aggregate.AbstractTenantSpaceOwnerAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.aggregate.AggregateRouteSpec
-import me.ahoo.wow.openapi.aggregate.TenantOwnerAggregateRouteSpec
+import me.ahoo.wow.openapi.aggregate.TenantSpaceOwnerAggregateRouteSpec
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 
@@ -32,7 +32,7 @@ class PagedQueryEventStreamRouteSpec(
     override val appendTenantPath: Boolean,
     override val appendOwnerPath: Boolean,
     override val componentContext: OpenAPIComponentContext
-) : TenantOwnerAggregateRouteSpec {
+) : TenantSpaceOwnerAggregateRouteSpec {
     override val id: String
         get() = RouteIdSpec()
             .aggregate(aggregateMetadata)
@@ -56,7 +56,7 @@ class PagedQueryEventStreamRouteSpec(
     }
 }
 
-class PagedQueryEventStreamRouteSpecFactory : AbstractTenantOwnerAggregateRouteSpecFactory() {
+class PagedQueryEventStreamRouteSpecFactory : AbstractTenantSpaceOwnerAggregateRouteSpecFactory() {
     override fun createSpec(
         currentContext: NamedBoundedContext,
         aggregateRouteMetadata: AggregateRouteMetadata<*>,

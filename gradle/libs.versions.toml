@@ -1,33 +1,35 @@
 [versions]
 # libraries
-spring-boot = "3.5.6"
-cosid = "2.13.3"
-simba = "2.9.6"
+spring-boot = "3.5.10"
+cosid = "2.15.2"
+simba = "2.9.8"
 coapi = "1.12.8"
-cocache = "3.10.3"
-testcontainers = "2.0.0"
-opentelemetry = "1.55.0"
-opentelemetry-instrumentation = "2.20.1"
+cocache = "3.10.5"
+testcontainers = "1.21.4"
+opentelemetry = "1.59.0"
+opentelemetry-instrumentation = "2.24.0"
 opentelemetry-semconv = "1.29.0-alpha"
 guava = "33.5.0-jre"
-kotlin-logging = "7.0.13"
-swagger = "2.2.39"
-springdoc = "2.8.13"
-jte = "3.2.1"
+kotlin-logging = "7.0.14"
+swagger = "2.2.42"
+springdoc = "2.8.15"
 jsonschema-generator = "4.38.0"
-json-schema-validator = "1.5.9"
+json-schema-validator = "2.0.1"
+kotlinx-coroutines = "1.10.2"
 # testing
-junit = "5.14.0"
-fluent-assert = "0.2.1"
-mockk = "1.14.6"
-kotlin-compile-testing = "0.10.1"
+junit = "6.0.2"
+fluent-assert = "0.2.6"
+mockk = "1.14.9"
+kotlin-compile-testing = "0.12.1"
+jmh = "1.37"
 # plugins
 test-retry = "1.6.4"
 detekt = "1.23.8"
 dokka = "2.1.0"
-kotlin = "2.2.20"
-ksp = "2.2.20-2.0.4"
+kotlin = "2.3.10"
+ksp = "2.3.5"
 publish-plugin = "2.0.0"
+jmh-plugin = "0.7.3"
 
 [libraries]
 spring-boot-dependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }
@@ -37,6 +39,7 @@ coapi-bom = { module = "me.ahoo.coapi:coapi-bom", version.ref = "coapi" }
 cocache-bom = { module = "me.ahoo.cocache:cocache-bom", version.ref = "cocache" }
 jsonschema-generator-bom = { module = "com.github.victools:jsonschema-generator-bom", version.ref = "jsonschema-generator" }
 json-schema-validator = { module = "com.networknt:json-schema-validator", version.ref = "json-schema-validator" }
+kotlinx-coroutines-bom= { module = "org.jetbrains.kotlinx:kotlinx-coroutines-bom", version.ref = "kotlinx-coroutines" }
 opentelemetry-bom = { module = "io.opentelemetry:opentelemetry-bom", version.ref = "opentelemetry" }
 opentelemetry-instrumentation-bom = { module = "io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom", version.ref = "opentelemetry-instrumentation" }
 opentelemetry-semconv = { module = "io.opentelemetry:opentelemetry-semconv", version.ref = "opentelemetry-semconv" }
@@ -46,15 +49,16 @@ ksp-symbol-processing = { module = "com.google.devtools.ksp:symbol-processing", 
 kotlin-compile-testing = { module = "dev.zacsweers.kctfork:ksp", version.ref = "kotlin-compile-testing" }
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
 kotlin-logging = { module = "io.github.oshai:kotlin-logging-jvm", version.ref = "kotlin-logging" }
-swagger-annotations= { module = "io.swagger.core.v3:swagger-annotations-jakarta", version.ref = "swagger" }
+swagger-annotations = { module = "io.swagger.core.v3:swagger-annotations-jakarta", version.ref = "swagger" }
 swagger-core = { module = "io.swagger.core.v3:swagger-core-jakarta", version.ref = "swagger" }
 springdoc-bom = { module = "org.springdoc:springdoc-openapi-bom", version.ref = "springdoc" }
-jte = { module = "gg.jte:jte", version.ref = "jte" }
-jte-kotlin = { module = "gg.jte:jte-kotlin", version.ref = "jte" }
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
 fluent-assert-bom = { module = "me.ahoo.test:fluent-assert-bom", version.ref = "fluent-assert" }
 mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
 detekt-formatting = { module = "io.gitlab.arturbosch.detekt:detekt-formatting", version.ref = "detekt" }
+jmh-core = { module = "org.openjdk.jmh:jmh-core", version.ref = "jmh" }
+jmh-generator-annprocess = { module = "org.openjdk.jmh:jmh-generator-annprocess", version.ref = "jmh" }
+jmh-generator-bytecode = { module = "org.openjdk.jmh:jmh-generator-bytecode", version.ref = "jmh" }
 [plugins]
 test-retry = { id = "org.gradle.test-retry", version.ref = "test-retry" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
@@ -62,6 +66,6 @@ detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
 dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
 kotlin = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-spring = { id = "org.jetbrains.kotlin.plugin.spring", version.ref = "kotlin" }
-kotlin-kapt = { id = "org.jetbrains.kotlin.kapt", version.ref = "kotlin" }
 publish = { id = "io.github.gradle-nexus.publish-plugin", version.ref = "publish-plugin" }
+jmh = { id = "me.champeau.jmh", version.ref = "jmh-plugin" }
 

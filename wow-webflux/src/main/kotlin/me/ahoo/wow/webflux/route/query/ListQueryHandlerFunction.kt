@@ -14,13 +14,13 @@
 package me.ahoo.wow.webflux.route.query
 
 import me.ahoo.wow.api.query.DynamicDocument
-import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
 import me.ahoo.wow.openapi.aggregate.AggregateRouteSpec
 import me.ahoo.wow.query.filter.Contexts.writeRawRequest
 import me.ahoo.wow.query.filter.QueryHandler
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.query.QueryBodyExtractor.Companion.LIST_QUERY_EXTRACTOR
 import me.ahoo.wow.webflux.route.toServerResponse
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -31,14 +31,15 @@ import reactor.core.publisher.Mono
 class ListQueryHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val queryHandler: QueryHandler<*>,
+    private val rewriteRequestCondition: RewriteRequestCondition,
     private val exceptionHandler: RequestExceptionHandler,
     private val rewriteResult: (Flux<DynamicDocument>) -> Flux<DynamicDocument>
 ) : HandlerFunction<ServerResponse> {
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
-        return request.bodyToMono(ListQuery::class.java)
+        return request.body(LIST_QUERY_EXTRACTOR)
             .flatMapMany {
-                val query = RewriteRequestCondition(request, aggregateMetadata).rewrite(it)
+                val query = rewriteRequestCondition.rewrite(aggregateMetadata, request, it)
                 val result = queryHandler.dynamicList(aggregateMetadata, query)
                 rewriteResult(result)
             }.toServerResponse(request, exceptionHandler).writeRawRequest(request)
@@ -48,6 +49,7 @@ class ListQueryHandlerFunction(
 open class ListQueryHandlerFunctionFactory<SPEC : AggregateRouteSpec>(
     override val supportedSpec: Class<SPEC>,
     private val queryHandler: QueryHandler<*>,
+    private val rewriteRequestCondition: RewriteRequestCondition,
     private val exceptionHandler: RequestExceptionHandler,
     private val rewriteResult: (Flux<DynamicDocument>) -> Flux<DynamicDocument> = { it }
 ) : RouteHandlerFunctionFactory<SPEC> {
@@ -56,6 +58,7 @@ open class ListQueryHandlerFunctionFactory<SPEC : AggregateRouteSpec>(
         return ListQueryHandlerFunction(
             aggregateMetadata = spec.aggregateMetadata,
             queryHandler = queryHandler,
+            rewriteRequestCondition = rewriteRequestCondition,
             exceptionHandler = exceptionHandler,
             rewriteResult = rewriteResult
         )

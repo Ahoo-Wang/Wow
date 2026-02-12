@@ -15,6 +15,7 @@ package me.ahoo.wow.apiclient.command
 
 import me.ahoo.wow.api.command.validation.CommandValidator
 import me.ahoo.wow.api.exception.DefaultErrorInfo
+import me.ahoo.wow.api.modeling.SpaceId
 import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.CommandResultException
 import me.ahoo.wow.command.wait.CommandStage
@@ -47,6 +48,8 @@ interface RestCommandGateway<RW, RB> {
         tenantId: String? = null,
         @RequestHeader(CommandComponent.Header.OWNER_ID, required = false)
         ownerId: String?,
+        @RequestHeader(CommonComponent.Header.SPACE_ID, required = false)
+        spaceId: SpaceId?,
         @RequestHeader(CommandComponent.Header.AGGREGATE_ID, required = false)
         aggregateId: String? = null,
         @RequestHeader(CommandComponent.Header.AGGREGATE_VERSION, required = false)
@@ -78,6 +81,7 @@ interface RestCommandGateway<RW, RB> {
             waitTimeout = commandRequest.waitStrategy.waitTimeout,
             tenantId = commandRequest.tenantId,
             ownerId = commandRequest.ownerId,
+            spaceId = commandRequest.spaceId,
             aggregateId = commandRequest.aggregateId,
             aggregateVersion = commandRequest.aggregateVersion,
             requestId = commandRequest.requestId,
@@ -98,13 +102,13 @@ interface RestCommandGateway<RW, RB> {
         }
 
         fun WebClientResponseException.toException(request: CommandRequest): RestCommandGatewayException {
-            val errorCode = this.headers.getFirst(CommonComponent.Header.WOW_ERROR_CODE).orEmpty()
+            val errorCode = this.headers.getFirst(CommonComponent.Header.ERROR_CODE).orEmpty()
             val responseBody = this.responseBodyAsString
             if (responseBody.isBlank()) {
                 return RestCommandGatewayException(
                     request = request,
                     errorCode = errorCode,
-                    errorMsg = this.message,
+                    errorMsg = this.message.orEmpty(),
                     cause = this
                 )
             }
@@ -140,7 +144,7 @@ interface RestCommandGateway<RW, RB> {
             return RestCommandGatewayException(
                 request = request,
                 errorCode = errorCode,
-                errorMsg = this.message,
+                errorMsg = this.message.orEmpty(),
                 cause = this
             )
         }

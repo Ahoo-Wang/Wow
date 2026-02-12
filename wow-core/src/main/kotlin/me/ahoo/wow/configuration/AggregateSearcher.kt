@@ -20,49 +20,76 @@ import me.ahoo.wow.modeling.materialize
 
 private val log = KotlinLogging.logger("me.ahoo.wow.configuration.AggregateSearcher")
 
+/**
+ * Interface for searching aggregates by different criteria.
+ * Provides a common contract for various aggregate search implementations.
+ */
 interface AggregateSearcher
 
 /**
- * aggregateType -> NamedAggregate
+ * Searcher that maps aggregate types (classes) to their corresponding named aggregates.
+ * Allows lookup of named aggregates by their runtime class type.
+ *
+ * @param source The underlying map from aggregate classes to named aggregates.
  */
-class TypeNamedAggregateSearcher(private val source: Map<Class<*>, NamedAggregate>) :
-    AggregateSearcher,
+class TypeNamedAggregateSearcher(
+    private val source: Map<Class<*>, NamedAggregate>
+) : AggregateSearcher,
     Map<Class<*>, NamedAggregate> by source
 
 /**
- * NamedAggregate -> aggregateType
+ * Searcher that maps named aggregates to their corresponding aggregate types (classes).
+ * Allows lookup of aggregate classes by their named aggregate identifiers.
+ *
+ * @param source The underlying map from materialized named aggregates to aggregate classes.
  */
-class NamedAggregateTypeSearcher(private val source: Map<MaterializedNamedAggregate, Class<*>>) :
-    AggregateSearcher,
+class NamedAggregateTypeSearcher(
+    private val source: Map<MaterializedNamedAggregate, Class<*>>
+) : AggregateSearcher,
     Map<MaterializedNamedAggregate, Class<*>> by source
 
+/**
+ * Converts WowMetadata to a TypeNamedAggregateSearcher.
+ * Scans all contexts and aggregates in the metadata to build a mapping from aggregate classes to named aggregates.
+ * Skips aggregates whose types cannot be found at runtime.
+ *
+ * @return A TypeNamedAggregateSearcher containing the mappings.
+ * @throws ClassNotFoundException if an aggregate type class cannot be loaded (logged as warning and skipped).
+ */
 fun WowMetadata.toTypeNamedAggregateSearcher(): TypeNamedAggregateSearcher {
-    val source = mutableMapOf<Class<*>, NamedAggregate>().apply {
-        contexts.forEach { contextEntry ->
-            val contextName = contextEntry.key
-            contextEntry
-                .value
-                .aggregates
-                .forEach aggregateForEach@{ aggregateEntry ->
-                    val aggregateName = aggregateEntry.key
-                    val aggregateTypeName = aggregateEntry.value.type
-                    if (aggregateTypeName.isNullOrBlank()) {
-                        return@aggregateForEach
-                    }
-                    try {
-                        val aggregateType = Class.forName(aggregateEntry.value.type)
-                        put(aggregateType, MaterializedNamedAggregate(contextName, aggregateName))
-                    } catch (e: ClassNotFoundException) {
-                        log.warn(e) {
-                            "Aggregate type[$aggregateTypeName] not found at current runtime, ignore the aggregate."
+    val source =
+        mutableMapOf<Class<*>, NamedAggregate>().apply {
+            contexts.forEach { contextEntry ->
+                val contextName = contextEntry.key
+                contextEntry
+                    .value
+                    .aggregates
+                    .forEach aggregateForEach@{ aggregateEntry ->
+                        val aggregateName = aggregateEntry.key
+                        val aggregateTypeName = aggregateEntry.value.type
+                        if (aggregateTypeName.isNullOrBlank()) {
+                            return@aggregateForEach
+                        }
+                        try {
+                            val aggregateType = Class.forName(aggregateEntry.value.type)
+                            put(aggregateType, MaterializedNamedAggregate(contextName, aggregateName))
+                        } catch (e: ClassNotFoundException) {
+                            log.warn(e) {
+                                "Aggregate type[$aggregateTypeName] not found at current runtime, ignore the aggregate."
+                            }
                         }
                     }
-                }
+            }
         }
-    }
     return TypeNamedAggregateSearcher(source)
 }
 
+/**
+ * Converts WowMetadata to a NamedAggregateTypeSearcher.
+ * Creates the reverse mapping from named aggregates to their types using the type searcher.
+ *
+ * @return A NamedAggregateTypeSearcher containing the reverse mappings.
+ */
 fun WowMetadata.toNamedAggregateTypeSearcher(): NamedAggregateTypeSearcher {
     val source = toTypeNamedAggregateSearcher().map {
         it.value.materialize() to it.key

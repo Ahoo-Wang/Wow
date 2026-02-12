@@ -18,31 +18,43 @@ import java.lang.annotation.Inherited
 const val DEFAULT_COMMAND_ACTION = "__{command_name}__"
 
 /**
- * Marks a class or annotation as a command route, defining the action, method, and other properties for handling commands.
+ * Configures routing and HTTP endpoint generation for command classes.
  *
- * @param action The name of the action or sub-resource. Defaults to [DEFAULT_COMMAND_ACTION].
- * @param enabled Whether the command route is enabled. Defaults to `true`.
- * @param method The HTTP method associated with the command. Defaults to [Method.DEFAULT].
- * @param prefix A prefix to be added to the command path. Defaults to an empty string.
- * @param appendIdPath Determines if the ID path should be appended. Defaults to [AppendPath.DEFAULT].
- * @param appendTenantPath Determines if the tenant path should be appended. Defaults to [AppendPath.DEFAULT].
- * @param appendOwnerPath Determines if the owner path should be appended. Defaults to [AppendPath.DEFAULT].
- * @param summary A deprecated field for providing a summary. Use @Summary instead. Defaults to an empty string.
- * @param description A deprecated field for providing a description. Use @Description instead. Defaults to an empty string.
+ * This annotation defines how commands are exposed as REST API endpoints, including
+ * the HTTP method, URL structure, and path parameters. It's essential for generating
+ * OpenAPI documentation and enabling HTTP-based command dispatching.
+ *
  *
  * Example usage:
  * ```kotlin
  * @CommandRoute(
  *     action = "create",
  *     method = CommandRoute.Method.POST,
- *     prefix = "/api/v1",
- *     appendIdPath = CommandRoute.AppendPath.ALWAYS,
- *     enabled = true
+ *     appendIdPath = CommandRoute.AppendPath.NEVER,  // No ID in path for creation
+ *     appendTenantPath = CommandRoute.AppendPath.ALWAYS
  * )
- * class CreateResourceCommand {
- *     // Command implementation
- * }
+ * data class CreateOrderCommand(
+ *     @TenantId
+ *     val tenantId: String,
+ *     val items: List<OrderItem>
+ * )
  * ```
+ * // Generates: POST /orders/tenant/{tenantId}/create
+ *
+ * @param action The action name or sub-resource identifier. Used in URL path generation.
+ *              Defaults to a dynamic action based on the command class name.
+ * @param enabled Whether this command route should be active. When false, no endpoint
+ *               will be generated. Defaults to true.
+ * @param method The HTTP method for the endpoint. Determines the REST operation type.
+ * @param prefix URL prefix to prepend to the generated path. Useful for API versioning.
+ * @param appendIdPath Whether to include the aggregate ID in the URL path.
+ * @param appendTenantPath Whether to include the tenant ID in the URL path for multi-tenant scenarios.
+ * @param appendOwnerPath Whether to include the owner ID in the URL path for ownership-based routing.
+ *
+ * @see Method for available HTTP methods
+ * @see AppendPath for path appending options
+ * @see Summary for current API documentation approach
+
  */
 @Target(AnnotationTarget.CLASS, AnnotationTarget.ANNOTATION_CLASS)
 @Inherited
@@ -57,24 +69,23 @@ annotation class CommandRoute(
     val prefix: String = "",
     val appendIdPath: AppendPath = AppendPath.DEFAULT,
     val appendTenantPath: AppendPath = AppendPath.DEFAULT,
-    val appendOwnerPath: AppendPath = AppendPath.DEFAULT,
-    @Deprecated(
-        message = "use @Summary instead.",
-        replaceWith = ReplaceWith("@Summary(summary)")
-    )
-    val summary: String = "",
-    @Deprecated(
-        message = "use @Description instead.",
-        replaceWith = ReplaceWith("@Description(description)")
-    )
-    val description: String = "",
+    val appendOwnerPath: AppendPath = AppendPath.DEFAULT
 ) {
-
+    /**
+     * Marks a command field as a path variable in the generated URL.
+     *
+     * Path variables are extracted from the URL path and injected into the command.
+     * This enables REST-style URLs with dynamic segments.
+     *
+     * @param name The name of the path variable. If empty, uses the field name.
+     * @param nestedPath Path to nested properties for complex objects (e.g., ["user", "id"]).
+     * @param required Whether this path variable is mandatory. Affects URL generation.
+     */
     @Target(
         AnnotationTarget.FIELD,
         AnnotationTarget.PROPERTY,
         AnnotationTarget.PROPERTY_GETTER,
-        AnnotationTarget.ANNOTATION_CLASS
+        AnnotationTarget.ANNOTATION_CLASS,
     )
     @Repeatable
     @Inherited
@@ -84,11 +95,21 @@ annotation class CommandRoute(
         val required: Boolean = true
     )
 
+    /**
+     * Marks a command field as a header variable in HTTP requests.
+     *
+     * Header variables are extracted from HTTP headers and injected into the command.
+     * This enables passing context information like authentication tokens or request metadata.
+     *
+     * @param name The name of the HTTP header. If empty, uses the field name.
+     * @param nestedPath Path to nested properties for complex objects.
+     * @param required Whether this header is mandatory for the request.
+     */
     @Target(
         AnnotationTarget.FIELD,
         AnnotationTarget.PROPERTY,
         AnnotationTarget.PROPERTY_GETTER,
-        AnnotationTarget.ANNOTATION_CLASS
+        AnnotationTarget.ANNOTATION_CLASS,
     )
     @Repeatable
     @Inherited
@@ -98,17 +119,37 @@ annotation class CommandRoute(
         val required: Boolean = true
     )
 
+    /**
+     * HTTP methods for command routing.
+     */
     enum class Method {
+        /** Create new resources */
         POST,
+
+        /** Update existing resources completely */
         PUT,
+
+        /** Delete resources */
         DELETE,
+
+        /** Partial updates to resources */
         PATCH,
+
+        /** Use framework default method based on command type */
         DEFAULT
     }
 
+    /**
+     * Controls whether IDs are appended to URL paths.
+     */
     enum class AppendPath {
+        /** Always append the ID to the path */
         ALWAYS,
+
+        /** Never append the ID to the path */
         NEVER,
+
+        /** Use framework default behavior based on command type */
         DEFAULT
     }
 }

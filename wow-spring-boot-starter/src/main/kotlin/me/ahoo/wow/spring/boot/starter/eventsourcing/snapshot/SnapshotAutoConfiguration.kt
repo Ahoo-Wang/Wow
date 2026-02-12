@@ -14,15 +14,15 @@
 package me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot
 
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.eventsourcing.snapshot.DefaultSnapshotHandler
 import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotRepository
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshotStrategy
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotDispatcher
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotFunctionFilter
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotHandler
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStrategy
 import me.ahoo.wow.eventsourcing.snapshot.VersionOffsetSnapshotStrategy
+import me.ahoo.wow.eventsourcing.snapshot.dispatcher.DefaultSnapshotHandler
+import me.ahoo.wow.eventsourcing.snapshot.dispatcher.SnapshotDispatcher
+import me.ahoo.wow.eventsourcing.snapshot.dispatcher.SnapshotFunctionFilter
+import me.ahoo.wow.eventsourcing.snapshot.dispatcher.SnapshotHandler
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
 import me.ahoo.wow.filter.FilterChain
@@ -30,6 +30,7 @@ import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.messaging.handler.ExchangeFilter
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
+import me.ahoo.wow.spring.boot.starter.WowProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import me.ahoo.wow.spring.command.SnapshotDispatcherLauncher
 import org.springframework.beans.factory.annotation.Qualifier
@@ -43,7 +44,10 @@ import org.springframework.context.annotation.Bean
 @ConditionalOnWowEnabled
 @ConditionalOnSnapshotEnabled
 @EnableConfigurationProperties(SnapshotProperties::class)
-class SnapshotAutoConfiguration(private val snapshotProperties: SnapshotProperties) {
+class SnapshotAutoConfiguration(
+    private val wowProperties: WowProperties,
+    private val snapshotProperties: SnapshotProperties
+) {
 
     @Bean
     @ConditionalOnProperty(
@@ -122,6 +126,6 @@ class SnapshotAutoConfiguration(private val snapshotProperties: SnapshotProperti
 
     @Bean
     fun snapshotDispatcherLauncher(snapshotDispatcher: SnapshotDispatcher): SnapshotDispatcherLauncher {
-        return SnapshotDispatcherLauncher(snapshotDispatcher)
+        return SnapshotDispatcherLauncher(snapshotDispatcher, wowProperties.shutdownTimeout)
     }
 }

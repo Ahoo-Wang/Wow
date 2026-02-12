@@ -44,13 +44,14 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
           server-id: github
+          cache: gradle
           settings-path: ${{ github.workspace }}
 
       - name: Build Code Coverage Report
         run: ./gradlew codeCoverageReport --stacktrace
 
       - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action@v2.20.0
+        uses: EnricoMi/publish-unit-test-result-action@v2.22.0
         if: always()
         with:
           ignore_runs: true

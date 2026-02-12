@@ -19,11 +19,18 @@ import me.ahoo.wow.command.wait.WaitSignal
 import me.ahoo.wow.command.wait.WaitStrategy
 import me.ahoo.wow.command.wait.isWaitingForFunction
 
-abstract class WaitingForFunction : WaitingForAfterProcessed(), NullableFunctionInfoCapable<NamedFunctionInfoData> {
+/**
+ * Abstract base class for wait strategies that wait for specific function execution within a processing stage.
+ * This class extends WaitingForAfterProcessed and adds function-based filtering capabilities.
+ * Subclasses can specify which functions within their stage they want to wait for.
+ */
+abstract class WaitingForFunction :
+    WaitingForAfterProcessed(),
+    NullableFunctionInfoCapable<NamedFunctionInfoData> {
     override val materialized: WaitStrategy.Materialized by lazy {
         Materialized(
             stage = stage,
-            function = function
+            function = function,
         )
     }
 

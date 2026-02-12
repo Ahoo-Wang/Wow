@@ -17,6 +17,7 @@ import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.node.ObjectNode
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.modeling.OwnerId.Companion.orDefaultOwnerId
+import me.ahoo.wow.api.modeling.SpaceIdCapable.Companion.orDefaultSpaceId
 import me.ahoo.wow.api.naming.Named
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.messaging.DefaultHeader
@@ -32,6 +33,7 @@ import me.ahoo.wow.serialization.MessageRecords.ID
 import me.ahoo.wow.serialization.MessageRecords.NAME
 import me.ahoo.wow.serialization.MessageRecords.OWNER_ID
 import me.ahoo.wow.serialization.MessageRecords.REQUEST_ID
+import me.ahoo.wow.serialization.MessageRecords.SPACE_ID
 import me.ahoo.wow.serialization.MessageRecords.TENANT_ID
 import me.ahoo.wow.serialization.MessageRecords.VERSION
 
@@ -53,6 +55,7 @@ object MessageRecords {
     const val AGGREGATE_ID = "aggregateId"
     const val TENANT_ID = "tenantId"
     const val OWNER_ID = "ownerId"
+    const val SPACE_ID = "spaceId"
     const val COMMAND_ID = "commandId"
     const val VERSION = "version"
 }
@@ -74,7 +77,7 @@ interface HeaderRecord : JsonRecord {
 
     fun toMessageHeader(): Header {
         val messageHeader = DefaultHeader.empty()
-        header.fields().forEach {
+        header.properties().forEach {
             messageHeader[it.key] = it.value.asText()
         }
         return messageHeader
@@ -157,4 +160,9 @@ interface MessageVersionRecord : JsonRecord {
 interface OwnerIdRecord : JsonRecord {
     val ownerId: String
         get() = actual[OWNER_ID]?.asText().orDefaultOwnerId()
+}
+
+interface SpaceIdRecord : JsonRecord {
+    val spaceId: String
+        get() = actual[SPACE_ID]?.asText().orDefaultSpaceId()
 }

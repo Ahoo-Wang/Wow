@@ -13,44 +13,82 @@
 
 package me.ahoo.wow.api.event
 
-import me.ahoo.wow.api.Version
-import me.ahoo.wow.api.command.CommandId
-import me.ahoo.wow.api.messaging.NamedMessage
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.api.modeling.AggregateIdCapable
-import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.api.modeling.OwnerId
+import me.ahoo.wow.api.naming.Named
 
 const val DEFAULT_EVENT_SEQUENCE = 1
 
 /**
- * DomainEvent .
+ * Represents a domain event published by an aggregate in response to a command.
  *
- * Events published when a command is processed by the aggregate
+ * Domain events capture significant business occurrences that have happened within
+ * an aggregate. They are immutable facts about past actions and serve as the
+ * primary mechanism for communicating state changes to other parts of the system.
  *
- * 由聚合发布的领域事件 .
+ * Domain events follow declarative design principles (idempotent, similar to
+ * Kubernetes apply or Docker image layers). During event sourcing, aggregates
+ * should simply apply domain events as overlay layers without complex logic
+ * or conditional checks, eliminating the need for explicit sourcing functions.
  *
- * 领域事件推荐使用声明式（Declarative）设计的方式（幂等，类似于 Kubernetes apply、Docker 镜像层）
- * 即聚合根在事件朔源时只需要简单的将领域事件作为覆盖层（onSourcing 只对状态赋值，没有逻辑判断），
- * 事件朔源将可以不需要显式定义朔源函数。
+ * Key characteristics:
+ * - **Immutable**: Events represent facts that cannot be changed
+ * - **Named**: Each event has a specific business meaning
+ * - **Versioned**: Events carry version information for compatibility
+ * - **Sequenced**: Events maintain order within an aggregate's lifecycle
+ *
+ * @param T The type of the event body payload
+ *
+ * @property aggregateId The identifier of the aggregate that published this event
+ * @property sequence The sequence number of this event within the aggregate's event stream
+ * @property revision The version of the aggregate when this event was published
+ * @property isLast Whether this is the final event in the current event stream
+ *
+ * @see me.ahoo.wow.api.messaging.NamedMessage for base messaging capabilities
+ * @see me.ahoo.wow.api.modeling.AggregateId for aggregate identification
+ * @see Revision for versioning information
+ *
  * @author ahoo wang
  */
 interface DomainEvent<T : Any> :
-    NamedMessage<DomainEvent<T>, T>,
-    AggregateIdCapable,
-    OwnerId,
-    CommandId,
-    NamedAggregate,
-    Version,
+    EventMessage<DomainEvent<T>, T>,
+    Named,
     Revision {
+    /**
+     * The unique identifier of the aggregate that published this domain event.
+     *
+     * This ID links the event to its originating aggregate and enables proper
+     * event routing, correlation, and state reconstruction during event sourcing.
+     */
     override val aggregateId: AggregateId
+
+    /**
+     * The sequence number of this event within the aggregate's event stream.
+     *
+     * Sequence numbers provide ordering guarantees and help detect missing or
+     * duplicate events. They start from 1 and increment for each event published
+     * by the aggregate. Defaults to [DEFAULT_EVENT_SEQUENCE] for single events.
+     */
     val sequence: Int
         get() = DEFAULT_EVENT_SEQUENCE
+
+    /**
+     * The revision/version of the aggregate when this event was published.
+     *
+     * The revision indicates the schema version of the aggregate at the time
+     * the event was created. This enables backward compatibility and proper
+     * event deserialization across different versions of the domain model.
+     * Defaults to [DEFAULT_REVISION].
+     */
     override val revision: String
         get() = DEFAULT_REVISION
 
     /**
-     * 是否为事件流的最后一个事件
+     * Indicates whether this is the last event in the current event stream.
+     *
+     * When `true`, this signals that no more events will be published in the
+     * current command processing cycle. This is useful for optimization and
+     * determining when event processing is complete. Defaults to `true` for
+     * single events or the last event in a batch.
      */
     val isLast: Boolean
         get() = true

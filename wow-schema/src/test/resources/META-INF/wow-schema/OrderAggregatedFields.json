@@ -1,5 +1,5 @@
 {
   "$schema" : "https://json-schema.org/draft/2020-12/schema",
   "type" : "string",
-  "enum" : [ "", "aggregateId", "tenantId", "ownerId", "version", "eventId", "firstOperator", "operator", "firstEventTime", "eventTime", "deleted", "state", "state.address", "state.address.city", "state.address.country", "state.address.detail", "state.address.district", "state.address.province", "state.id", "state.items", "state.items.id", "state.items.price", "state.items.productId", "state.items.quantity", "state.items.totalPrice", "state.paidAmount", "state.payable", "state.status", "state.totalAmount" ]
+  "enum" : [ "", "aggregateId", "tenantId", "ownerId", "spaceId", "version", "eventId", "firstOperator", "operator", "firstEventTime", "eventTime", "deleted", "state", "state.address", "state.address.city", "state.address.country", "state.address.detail", "state.address.district", "state.address.province", "state.id", "state.items", "state.items.id", "state.items.price", "state.items.productId", "state.items.quantity", "state.items.totalPrice", "state.paidAmount", "state.payable", "state.status", "state.totalAmount" ]
 }

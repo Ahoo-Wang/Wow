@@ -17,6 +17,8 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.OwnerId
+import me.ahoo.wow.api.modeling.SpaceId
+import me.ahoo.wow.api.modeling.SpaceIdCapable
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.configuration.requiredAggregateType
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
@@ -61,6 +63,7 @@ object ConstructorStateAggregateFactory : StateAggregateFactory {
         state: S,
         version: Int,
         ownerId: String = OwnerId.DEFAULT_OWNER_ID,
+        spaceId: SpaceId = SpaceIdCapable.DEFAULT_SPACE_ID,
         eventId: String = "",
         firstOperator: String = "",
         operator: String = "",
@@ -74,6 +77,7 @@ object ConstructorStateAggregateFactory : StateAggregateFactory {
         val stateAggregate = SimpleStateAggregate(
             aggregateId = aggregateId,
             ownerId = ownerId,
+            spaceId = spaceId,
             metadata = metadata,
             state = state,
             version = version,
@@ -109,6 +113,7 @@ object ConstructorStateAggregateFactory : StateAggregateFactory {
         state: S,
         version: Int,
         ownerId: String = OwnerId.DEFAULT_OWNER_ID,
+        spaceId: SpaceId = SpaceIdCapable.DEFAULT_SPACE_ID,
         eventId: String = "",
         firstOperator: String = "",
         operator: String = "",
@@ -122,6 +127,7 @@ object ConstructorStateAggregateFactory : StateAggregateFactory {
             state = state,
             version = version,
             ownerId = ownerId,
+            spaceId = spaceId,
             eventId = eventId,
             firstOperator = firstOperator,
             operator = operator,
@@ -136,6 +142,7 @@ object ConstructorStateAggregateFactory : StateAggregateFactory {
         state: S,
         version: Int,
         ownerId: String = OwnerId.DEFAULT_OWNER_ID,
+        spaceId: SpaceId = SpaceIdCapable.DEFAULT_SPACE_ID,
         eventId: String = "",
         firstOperator: String = "",
         operator: String = "",
@@ -151,6 +158,7 @@ object ConstructorStateAggregateFactory : StateAggregateFactory {
             state = state,
             version = version,
             ownerId = ownerId,
+            spaceId = spaceId,
             eventId = eventId,
             firstOperator = firstOperator,
             operator = operator,
@@ -169,6 +177,7 @@ object ConstructorStateAggregateFactory : StateAggregateFactory {
             state = state,
             version = version,
             ownerId = ownerId,
+            spaceId = spaceId,
             eventId = eventId,
             firstOperator = firstOperator,
             operator = operator,

@@ -23,8 +23,19 @@ import me.ahoo.wow.modeling.state.StateAggregateRepository
 import reactor.core.publisher.Mono
 
 /**
- * Event Sourcing State Aggregate Repository .
+ * Repository for loading state aggregates using event sourcing.
+ * This repository reconstructs the current state of an aggregate by combining snapshots
+ * (if available) with event streams from the event store. It supports loading aggregates
+ * up to a specific version or event time, enabling point-in-time state reconstruction.
  *
+ * The loading process works as follows:
+ * 1. If loading the latest version (tailVersion = Int.MAX_VALUE), attempt to load from snapshot first.
+ * 2. If no snapshot exists, create a new aggregate instance.
+ * 3. Apply events from the event store starting from the aggregate's expected next version.
+ *
+ * @param stateAggregateFactory Factory for creating new state aggregate instances.
+ * @param snapshotRepository Repository for loading and storing aggregate snapshots.
+ * @param eventStore Store for retrieving event streams associated with aggregates.
  * @author ahoo wang
  */
 class EventSourcingStateAggregateRepository(
@@ -35,6 +46,30 @@ class EventSourcingStateAggregateRepository(
     companion object {
         private val log = KotlinLogging.logger {}
     }
+
+    /**
+     * Loads a state aggregate by its ID up to a specified version.
+     *
+     * This method reconstructs the aggregate state by:
+     * - Loading from snapshot if tailVersion is Int.MAX_VALUE and a snapshot exists
+     * - Creating a new aggregate instance otherwise
+     * - Applying events from the event store up to the specified tailVersion
+     *
+     * @param S The type of the aggregate state.
+     * @param aggregateId The unique identifier of the aggregate to load.
+     * @param metadata Metadata describing the aggregate structure and behavior.
+     * @param tailVersion The maximum version to load events up to. Use Int.MAX_VALUE for latest version.
+     * @return A Mono emitting the reconstructed StateAggregate.
+     * @throws IllegalArgumentException if aggregateId or metadata is invalid.
+     * @throws RuntimeException if event sourcing fails due to event store errors.
+     *
+     * @sample
+     * ```
+     * val aggregateId = AggregateId("user", "123")
+     * val metadata = StateAggregateMetadata<UserState>(...)
+     * val aggregate = repository.load(aggregateId, metadata, Int.MAX_VALUE).block()
+     * ```
+     */
 
     override fun <S : Any> load(
         aggregateId: AggregateId,
@@ -69,6 +104,29 @@ class EventSourcingStateAggregateRepository(
             }
     }
 
+    /**
+     * Loads a state aggregate by its ID up to a specified event time.
+     *
+     * This method reconstructs the aggregate state by:
+     * - Creating a new aggregate instance
+     * - Applying events from the event store that occurred before or at the specified tailEventTime
+     *
+     * @param S The type of the aggregate state.
+     * @param aggregateId The unique identifier of the aggregate to load.
+     * @param metadata Metadata describing the aggregate structure and behavior.
+     * @param tailEventTime The maximum event timestamp (in milliseconds since epoch) to load events up to.
+     * @return A Mono emitting the reconstructed StateAggregate.
+     * @throws IllegalArgumentException if aggregateId or metadata is invalid.
+     * @throws RuntimeException if event sourcing fails due to event store errors.
+     *
+     * @sample
+     * ```
+     * val aggregateId = AggregateId("user", "123")
+     * val metadata = StateAggregateMetadata<UserState>(...)
+     * val eventTime = System.currentTimeMillis() - 86400000L // 1 day ago
+     * val aggregate = repository.load(aggregateId, metadata, eventTime).block()
+     * ```
+     */
     override fun <S : Any> load(
         aggregateId: AggregateId,
         metadata: StateAggregateMetadata<S>,

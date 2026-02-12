@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.dsl
 
+import me.ahoo.wow.api.modeling.SpaceId
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.DeletionState
 import kotlin.reflect.KCallable
@@ -75,6 +76,7 @@ import kotlin.reflect.KCallable
  * - `String.beforeToday(time: Any)`: Adds a condition to check if the field is before today at the specified time.
  * - `String.tomorrow(datePattern: Any? = null)`: Adds a condition to check if the field is tomorrow.
  */
+@QueryDslMarker
 class ConditionDsl : NestedFieldDsl() {
 
     private var conditions: MutableList<Condition> = mutableListOf()
@@ -163,6 +165,10 @@ class ConditionDsl : NestedFieldDsl() {
 
     fun ownerId(value: String) {
         condition(Condition.ownerId(value))
+    }
+
+    fun spaceId(value: SpaceId) {
+        condition(Condition.spaceId(value))
     }
 
     @Deprecated(message = "Use deleted(DeletionState) instead.", replaceWith = ReplaceWith("deleted(DeletionState)"))

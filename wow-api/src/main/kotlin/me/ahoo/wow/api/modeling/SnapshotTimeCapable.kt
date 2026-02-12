@@ -15,7 +15,18 @@ package me.ahoo.wow.api.modeling
 
 import io.swagger.v3.oas.annotations.media.Schema
 
+/**
+ * Interface for entities that track when their state was last snapshotted.
+ *
+ * This interface provides access to the timestamp when the aggregate's state was
+ * captured as a snapshot, which is useful for optimization in event-sourced systems.
+ */
 interface SnapshotTimeCapable {
+    /**
+     * The timestamp when this aggregate's state was last snapshotted, in milliseconds since the Unix epoch.
+     *
+     * @return The snapshot timestamp as a long value.
+     */
     @get:Schema(description = "The snapshot time of the aggregate, represented as a Unix timestamp in milliseconds.")
     val snapshotTime: Long
 }

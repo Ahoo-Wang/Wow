@@ -13,22 +13,34 @@
 
 package me.ahoo.wow.projection
 
-import me.ahoo.wow.event.AbstractEventFunctionRegistrar
 import me.ahoo.wow.event.DomainEventExchange
+import me.ahoo.wow.event.dispatcher.AbstractEventFunctionRegistrar
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.function.MessageFunctionRegistrar
 import me.ahoo.wow.messaging.function.SimpleMessageFunctionRegistrar
 import me.ahoo.wow.projection.annotation.projectionProcessorMetadata
 import reactor.core.publisher.Mono
 
+/**
+ * Registrar for projection functions that creates message functions from processors
+ * annotated with projection metadata.
+ *
+ * @property actual The underlying message function registrar (default: [SimpleMessageFunctionRegistrar]).
+ */
 class ProjectionFunctionRegistrar(
     actual: MessageFunctionRegistrar<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>> =
         SimpleMessageFunctionRegistrar()
 ) : AbstractEventFunctionRegistrar(actual) {
-
-    override fun resolveProcessor(processor: Any): Set<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>> {
-        return processor.javaClass
+    /**
+     * Resolves the processor by extracting projection metadata and creating message functions.
+     * This method parses the processor's class for projection annotations and creates
+     * corresponding message functions for event handling.
+     *
+     * @param processor The processor instance to resolve functions for.
+     * @return A set of message functions for the processor.
+     */
+    override fun resolveProcessor(processor: Any): Set<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>> =
+        processor.javaClass
             .projectionProcessorMetadata()
             .toMessageFunctionRegistry(processor)
-    }
 }

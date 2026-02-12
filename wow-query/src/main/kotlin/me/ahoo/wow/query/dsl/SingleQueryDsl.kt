@@ -40,6 +40,7 @@ import me.ahoo.wow.api.query.SingleQuery
  * @see QueryableDsl
  * @see ISingleQuery
  */
+@QueryDslMarker
 class SingleQueryDsl : QueryableDsl<ISingleQuery>() {
 
     override fun build(): ISingleQuery {

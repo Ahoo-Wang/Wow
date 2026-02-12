@@ -13,10 +13,30 @@
 
 package me.ahoo.wow.test.dsl
 
+/**
+ * Interface for specifying names in test specifications.
+ *
+ * Implementations of this interface allow setting descriptive names for test elements,
+ * which can be used for better test organization and reporting.
+ */
 interface NameSpecCapable {
+    /**
+     * Sets the name for this test element.
+     *
+     * @param name The descriptive name to assign to the test element.
+     */
     fun name(name: String)
 
     companion object {
+        /**
+         * Appends a formatted name to a [StringBuilder] if the name is not blank.
+         *
+         * This utility function formats the name by wrapping it in parentheses
+         * and appends it to the provided StringBuilder, useful for building
+         * descriptive test names or labels.
+         *
+         * @param name The name to append. If blank, nothing is appended.
+         */
         fun StringBuilder.appendName(name: String) {
             if (name.isBlank()) {
                 return

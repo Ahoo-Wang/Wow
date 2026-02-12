@@ -13,8 +13,28 @@
 
 package me.ahoo.wow.api.query
 
+/**
+ * Enumeration representing the possible states of deletion for entities in the system.
+ *
+ * This enum is used to filter and categorize entities based on their deletion status,
+ * allowing queries to target active, deleted, or all entities regardless of deletion state.
+ */
 enum class DeletionState {
+    /**
+     * Represents entities that are currently active and not deleted.
+     * These entities are fully functional and visible in normal operations.
+     */
     ACTIVE,
+
+    /**
+     * Represents entities that have been marked as deleted.
+     * These entities may be retained for audit purposes but are typically excluded from normal queries.
+     */
     DELETED,
+
+    /**
+     * Represents all entities regardless of their deletion state.
+     * This value is used when queries need to include both active and deleted entities.
+     */
     ALL
 }

@@ -26,6 +26,7 @@ import me.ahoo.wow.api.annotation.Summary
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.command.SimpleCommandMessage
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.event.DomainEventStream
@@ -37,6 +38,7 @@ import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.eventsourcing.state.StateEventData
 import me.ahoo.wow.example.api.order.CreateOrder
 import me.ahoo.wow.example.api.order.OrderCreated
+import me.ahoo.wow.example.api.order.OrderStatus
 import me.ahoo.wow.example.domain.cart.Cart
 import me.ahoo.wow.example.domain.order.Order
 import me.ahoo.wow.modeling.DefaultAggregateId
@@ -91,6 +93,9 @@ class JsonSchemaGeneratorTest {
                 Arguments.of(CurrencyUnit::class.java, CurrencyUnit::class.java),
                 Arguments.of(Money::class.java, Money::class.java),
                 Arguments.of(DomainEventStream::class.java, AggregatedDomainEventStream::class.java),
+                Arguments.of(CharRange::class.java, CharRange::class.java),
+                Arguments.of(IntRange::class.java, IntRange::class.java),
+                Arguments.of(LongRange::class.java, LongRange::class.java),
             )
         }
 
@@ -259,10 +264,10 @@ class JsonSchemaGeneratorTest {
     @Test
     fun kotlin() {
         val schema = jsonSchemaGenerator.generateSchema(KotlinData::class.java)
-        val nullableFieldType = schema.get("properties").get("nullableField").get("type")
-        nullableFieldType.isArray.assert().isTrue()
-        nullableFieldType.get(0).textValue().assert().isEqualTo("string")
-        nullableFieldType.get(1).textValue().assert().isEqualTo("null")
+        val nullableFieldAnyOfType = schema.get("properties").get("nullableField").get("anyOf")
+        nullableFieldAnyOfType.isArray.assert().isTrue()
+        nullableFieldAnyOfType.get(0).get("type").textValue().assert().isEqualTo("null")
+        nullableFieldAnyOfType.get(1).get("type").textValue().assert().isEqualTo("string")
         val readOnlyField = schema.get("properties").get("readOnlyField")
         readOnlyField.get("readOnly").booleanValue().assert().isTrue()
         val readOnlyGetter = schema.get("properties").get("readOnlyGetter")
@@ -297,10 +302,10 @@ class JsonSchemaGeneratorTest {
     fun schema() {
         val schema = jsonSchemaGenerator.generateSchema(SchemaData::class.java)
         val nullableFieldNode = schema.get("properties").get("nullableField")
-        val nullableFieldType = nullableFieldNode.get("type")
-        nullableFieldType.isArray.assert().isTrue()
-        nullableFieldType.get(0).textValue().assert().isEqualTo("string")
-        nullableFieldType.get(1).textValue().assert().isEqualTo("null")
+        val nullableFieldAnyOfType = schema.get("properties").get("nullableField").get("anyOf")
+        nullableFieldAnyOfType.isArray.assert().isTrue()
+        nullableFieldAnyOfType.get(0).get("type").textValue().assert().isEqualTo("null")
+        nullableFieldAnyOfType.get(1).get("type").textValue().assert().isEqualTo("string")
         nullableFieldNode.get("title").textValue().assert().isEqualTo("testSummary")
         nullableFieldNode.get("description").textValue().assert().isEqualTo("testDescription")
         val readOnlyField = schema.get("properties").get("readOnlyField")
@@ -311,6 +316,10 @@ class JsonSchemaGeneratorTest {
         required.get(1).textValue().assert().isEqualTo("requiredField")
         schema.get("properties").get("ignoreProperty").assert().isNull()
         schema.get("properties").get("ignoreSchemaProperty").assert().isNull()
+        val getterNode = schema.get("properties").get("getter")
+        getterNode.assert().isNotNull()
+        getterNode.get("readOnly").booleanValue().assert().isTrue()
+        getterNode.get("description").assert().isNotNull()
     }
 
     @Test
@@ -372,8 +381,10 @@ class JsonSchemaGeneratorTest {
         val writeOnlyField: String?,
         @field:Schema(requiredMode = Schema.RequiredMode.REQUIRED)
         val requiredField: String?,
-
+        val enumMap: Map<Operator, String>? = null,
+        val enum: OrderStatus? = null,
     ) {
+        @get:Schema(description = "getterDescription")
         val getter: String
             get() = ""
 

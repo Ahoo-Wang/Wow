@@ -16,15 +16,48 @@ package me.ahoo.wow.api.annotation
 import java.lang.annotation.Inherited
 
 /**
- * Expected Aggregate Version .
+ * Marks a field or property as containing the aggregate version for optimistic concurrency control.
  *
- * @author ahoo wang
+ * The aggregate version is used to ensure that commands are applied to the correct version
+ * of an aggregate, preventing concurrent modification conflicts. This is essential in
+ * distributed systems where multiple clients might attempt to modify the same aggregate
+ * simultaneously.
+ *
+ * The annotated field/property should contain an integer representing the current version
+ * of the aggregate. The framework automatically increments this version when events are applied.
+ *
+ * Example usage:
+ * ```kotlin
+ * @AggregateRoot
+ * class OrderAggregate(
+ *     @AggregateId
+ *     val orderId: String,
+ *
+ *     @AggregateVersion
+ *     var version: Int = 0
+ * ) {
+ *
+ *     @OnCommand
+ *     fun updateOrder(command: UpdateOrderCommand): OrderUpdated {
+ *         // Version will be checked automatically before applying changes
+ *         return OrderUpdated(orderId, command.updates)
+ *     }
+ *
+ *     @OnEvent
+ *     fun onUpdated(event: OrderUpdated) {
+ *         version++ // Version incremented after event application
+ *     }
+ * }
+ * ```
+ *
+ * @see AggregateId for marking aggregate identifiers
+ * @see AggregateVersionConflictException when version mismatches occur
  */
 @Target(
     AnnotationTarget.FIELD,
     AnnotationTarget.PROPERTY,
     AnnotationTarget.PROPERTY_GETTER,
-    AnnotationTarget.ANNOTATION_CLASS
+    AnnotationTarget.ANNOTATION_CLASS,
 )
 @Inherited
 @MustBeDocumented

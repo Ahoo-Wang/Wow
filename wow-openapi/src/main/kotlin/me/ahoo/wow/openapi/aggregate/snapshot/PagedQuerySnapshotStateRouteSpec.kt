@@ -23,9 +23,9 @@ import me.ahoo.wow.openapi.CommonComponent.Header.errorCodeHeader
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.QueryComponent.RequestBody.aggregatedPagedQueryRequestBody
 import me.ahoo.wow.openapi.RouteIdSpec
-import me.ahoo.wow.openapi.aggregate.AbstractTenantOwnerAggregateRouteSpecFactory
+import me.ahoo.wow.openapi.aggregate.AbstractTenantSpaceOwnerAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.aggregate.AggregateRouteSpec
-import me.ahoo.wow.openapi.aggregate.TenantOwnerAggregateRouteSpec
+import me.ahoo.wow.openapi.aggregate.TenantSpaceOwnerAggregateRouteSpec
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 
@@ -35,7 +35,7 @@ class PagedQuerySnapshotStateRouteSpec(
     override val appendTenantPath: Boolean,
     override val appendOwnerPath: Boolean,
     override val componentContext: OpenAPIComponentContext
-) : TenantOwnerAggregateRouteSpec {
+) : TenantSpaceOwnerAggregateRouteSpec {
     override val id: String
         get() = RouteIdSpec()
             .aggregate(aggregateMetadata)
@@ -55,7 +55,7 @@ class PagedQuerySnapshotStateRouteSpec(
         get() = "Paged Query Snapshot State"
     override val requestBody: RequestBody = componentContext.aggregatedPagedQueryRequestBody(aggregateMetadata)
     override val responses: ApiResponses = ApiResponses().apply {
-        ApiResponseBuilder().header(CommonComponent.Header.WOW_ERROR_CODE, componentContext.errorCodeHeader())
+        ApiResponseBuilder().header(CommonComponent.Header.ERROR_CODE, componentContext.errorCodeHeader())
             .content(schema = componentContext.schema(PagedList::class.java, aggregateMetadata.state.aggregateType))
             .build()
             .let {
@@ -64,7 +64,7 @@ class PagedQuerySnapshotStateRouteSpec(
     }
 }
 
-class PagedQuerySnapshotStateRouteSpecFactory : AbstractTenantOwnerAggregateRouteSpecFactory() {
+class PagedQuerySnapshotStateRouteSpecFactory : AbstractTenantSpaceOwnerAggregateRouteSpecFactory() {
     override fun createSpec(
         currentContext: NamedBoundedContext,
         aggregateRouteMetadata: AggregateRouteMetadata<*>,

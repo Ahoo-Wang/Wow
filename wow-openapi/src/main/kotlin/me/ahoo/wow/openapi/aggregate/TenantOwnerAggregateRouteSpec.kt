@@ -18,7 +18,7 @@ import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 
-interface TenantOwnerAggregateRouteSpec : AggregateRouteSpec {
+interface TenantSpaceOwnerAggregateRouteSpec : AggregateRouteSpec {
     val operationSummary: String
     override val summary: String
         get() = TenantOwnerRouteSummarySpec()
@@ -28,7 +28,7 @@ interface TenantOwnerAggregateRouteSpec : AggregateRouteSpec {
             .build()
 }
 
-abstract class AbstractTenantOwnerAggregateRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
+abstract class AbstractTenantSpaceOwnerAggregateRouteSpecFactory : AbstractAggregateRouteSpecFactory() {
 
     abstract fun createSpec(
         currentContext: NamedBoundedContext,

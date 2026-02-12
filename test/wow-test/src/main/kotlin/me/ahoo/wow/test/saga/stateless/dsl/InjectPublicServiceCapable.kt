@@ -16,9 +16,24 @@ package me.ahoo.wow.test.saga.stateless.dsl
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.test.dsl.InjectServiceCapable
 
+/**
+ * Interface for injecting services into a public service provider.
+ *
+ * This interface extends [InjectServiceCapable] and provides a dedicated
+ * [ServiceProvider] for public services that can be accessed during testing.
+ * Services injected here are available to the test environment.
+ */
 interface InjectPublicServiceCapable : InjectServiceCapable<Unit> {
+    /**
+     * The public service provider where services are registered.
+     */
     val publicServiceProvider: ServiceProvider
 
+    /**
+     * Injects services into the public service provider.
+     *
+     * @param inject A lambda function that configures services on the [ServiceProvider].
+     */
     override fun inject(inject: ServiceProvider.() -> Unit) {
         inject(publicServiceProvider)
     }

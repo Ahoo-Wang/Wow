@@ -17,12 +17,15 @@ import me.ahoo.wow.openapi.aggregate.snapshot.PagedQuerySnapshotRouteSpec
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.query.PagedQueryHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.query.RewriteRequestCondition
 
 class PagedQuerySnapshotHandlerFunctionFactory(
     snapshotQueryHandler: SnapshotQueryHandler,
+    rewriteRequestCondition: RewriteRequestCondition,
     exceptionHandler: RequestExceptionHandler
 ) : PagedQueryHandlerFunctionFactory<PagedQuerySnapshotRouteSpec>(
     PagedQuerySnapshotRouteSpec::class.java,
     snapshotQueryHandler,
+    rewriteRequestCondition,
     exceptionHandler
 )

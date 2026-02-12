@@ -19,60 +19,108 @@ import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.AggregateIdCapable
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.modeling.OwnerId
+import me.ahoo.wow.api.modeling.SpaceIdCapable
 
 /**
- * Represents a command message that can be sent to an aggregate. This interface extends several other interfaces to provide a comprehensive set of properties and methods for handling
- *  commands within a domain-driven design (DDD) context.
+ * Represents a complete command message that encapsulates a command to be executed against an aggregate in the Wow framework.
  *
- * The `CommandMessage` interface ensures that each command has a unique identifier, is associated with an aggregate, and can be copied. It also provides properties to manage the state and behavior of the
- *  command, such as whether it is a create command or if it allows the creation of a new aggregate.
+ * This interface combines multiple concerns for command handling in a domain-driven design (DDD) context:
+ * - Unique identification via [CommandId] and [RequestId]
+ * - Aggregate targeting via [AggregateIdCapable] and [NamedAggregate]
+ * - Message structure via [NamedMessage]
+ * - Ownership context via [OwnerId]
+ * - Copy capability for immutability patterns
  *
- * @param C the type of the command payload
+ * Command messages are the primary mechanism for initiating state changes in aggregates, supporting
+ * both creation and modification operations with proper versioning and idempotency guarantees.
+ *
+ * @param C The type of the command payload, which contains the specific data for the operation
+ *
+ * @see CommandId for command uniqueness
+ * @see AggregateId for aggregate targeting
+ * @see NamedMessage for message structure
+ *
+ * Example usage:
+ * ```kotlin
+ * data class CreateOrderCommand(
+ *     val customerId: String,
+ *     val items: List<OrderItem>
+ * ) : CommandMessage<CreateOrderCommand> {
+ *     // Implement required properties...
+ * }
+ * ```
  */
 interface CommandMessage<C : Any> :
     NamedMessage<CommandMessage<C>, C>,
     AggregateIdCapable,
     NamedAggregate,
     OwnerId,
+    SpaceIdCapable,
     CommandId,
     RequestId,
     Copyable<CommandMessage<C>> {
     /**
-     * Represents a unique identifier for a command. This identifier is crucial for ensuring that each command can be uniquely identified, which is particularly useful in scenarios
-     *  where idempotency of commands needs to be
-     *  guaranteed or when tracking and correlating commands across system boundaries.
+     * Unique identifier for this command instance, delegated from the message ID.
      *
-     * The `commandId` property delegates to the `id` property of the implementing class, ensuring that the command has a unique identifier.
+     * This property provides idempotency guarantees and enables command deduplication.
+     * The value is automatically derived from the [NamedMessage.id] property.
+     *
+     * @return A globally unique string identifier for the command
      */
     override val commandId: String
         get() = id
 
     /**
-     * Represents the unique identifier of the aggregate to which this command message is directed.
-     * This property is essential for identifying the specific aggregate that the command should be applied to, ensuring that commands are correctly routed and processed within the system.
+     * The target aggregate identifier for this command.
+     *
+     * Specifies which aggregate instance this command should be applied to.
+     * The aggregate ID includes both the aggregate type name and instance identifier.
+     *
+     * @return The [AggregateId] containing aggregate name and ID for routing
+     *
+     * @see AggregateId for the structure of aggregate identifiers
      */
     override val aggregateId: AggregateId
 
     /**
-     * Represents the version of the aggregate. This value is used to ensure that commands are applied to the correct version of an aggregate, which is essential for maintaining consistency and preventing
-     *  conflicts in concurrent environments. A `null` value indicates that the version is not specified or relevant.
+     * The expected version of the target aggregate for optimistic concurrency control.
+     *
+     * When specified, the command will only be applied if the aggregate's current version matches this value.
+     * This prevents concurrent modification conflicts and ensures data consistency.
+     *
+     * @return The expected aggregate version, or null if version checking is not required
+     *
+     * @see AggregateVersionConflictException when version mismatch occurs
      */
     val aggregateVersion: Int?
 
     /**
-     * Indicates whether the command is intended for creating a new aggregate. This property is crucial in determining the nature of the command, specifically if it's meant to initialize a new aggregate
-     *  instance.
+     * Indicates whether this command is intended to create a new aggregate instance.
+     *
+     * Create commands initialize new aggregates and may have different validation rules
+     * compared to commands that modify existing aggregates.
+     *
+     * @return true if this command creates a new aggregate, false for modification commands
      */
     val isCreate: Boolean
 
     /**
-     * Indicates whether the creation of a new aggregate is allowed by this command. This property is useful in scenarios where certain commands should only be applied to existing aggregates
-     *  or when there are specific conditions under which an aggregate can be created.
+     * Indicates whether this command permits the creation of a new aggregate if one doesn't exist.
+     *
+     * When true, the command can create an aggregate if the target doesn't exist.
+     * When false, the command will fail if the target aggregate is not found.
+     *
+     * @return true if aggregate creation is allowed, false otherwise
      */
     val allowCreate: Boolean
 
     /**
-     * Indicates whether the command message is a void command. A void command does not expect a return value and is typically used for operations that do not require a response.
+     * Indicates whether this command is a void command that doesn't expect a response.
+     *
+     * Void commands are typically used for fire-and-forget operations where the caller
+     * doesn't need to wait for or process the command result.
+     *
+     * @return true if this is a void command, false if a result is expected
      */
     val isVoid: Boolean
 }

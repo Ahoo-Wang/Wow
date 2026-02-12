@@ -14,19 +14,30 @@
 package me.ahoo.wow.projection
 
 import me.ahoo.wow.event.DomainEventExchange
-import me.ahoo.wow.event.EventHandler
+import me.ahoo.wow.event.dispatcher.EventHandler
 import me.ahoo.wow.filter.AbstractHandler
 import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.LogResumeErrorHandler
 
+/**
+ * Handler interface for projections that processes domain events.
+ * Implementations of this interface handle the execution of projection logic in response to domain events.
+ */
 interface ProjectionHandler : EventHandler
 
+/**
+ * Default implementation of [ProjectionHandler] that uses a filter chain for processing.
+ * This handler applies a series of filters to domain event exchanges and handles errors gracefully.
+ *
+ * @param chain The filter chain to apply to domain event exchanges.
+ * @param errorHandler The error handler for processing failures (default: [LogResumeErrorHandler]).
+ */
 class DefaultProjectionHandler(
     chain: FilterChain<DomainEventExchange<*>>,
     errorHandler: ErrorHandler<DomainEventExchange<*>> = LogResumeErrorHandler()
-) : ProjectionHandler,
-    AbstractHandler<DomainEventExchange<*>>(
-        chain,
-        errorHandler,
-    )
+) : AbstractHandler<DomainEventExchange<*>>(
+    chain,
+    errorHandler,
+),
+    ProjectionHandler

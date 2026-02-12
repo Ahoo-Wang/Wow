@@ -14,6 +14,7 @@
 package me.ahoo.wow.opentelemetry.messaging
 
 import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.event.DistributedDomainEventBus
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.EventStreamExchange
@@ -24,7 +25,11 @@ class TracingLocalEventBus(
     override val producerInstrumenter: Instrumenter<DomainEventStream, Unit> = EventProducerInstrumenter.INSTRUMENTER
 ) :
     TracingMessageBus<DomainEventStream, EventStreamExchange, LocalDomainEventBus>,
-    LocalDomainEventBus
+    LocalDomainEventBus {
+    override fun subscriberCount(namedAggregate: NamedAggregate): Int {
+        return delegate.subscriberCount(namedAggregate)
+    }
+}
 
 class TracingDistributedEventBus(
     override val delegate: DistributedDomainEventBus,

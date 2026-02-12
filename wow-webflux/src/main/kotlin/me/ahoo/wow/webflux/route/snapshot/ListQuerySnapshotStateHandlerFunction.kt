@@ -18,13 +18,16 @@ import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.query.snapshot.toStateDocument
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.query.ListQueryHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.query.RewriteRequestCondition
 
 class ListQuerySnapshotStateHandlerFunctionFactory(
     snapshotQueryHandler: SnapshotQueryHandler,
+    rewriteRequestCondition: RewriteRequestCondition,
     exceptionHandler: RequestExceptionHandler
 ) : ListQueryHandlerFunctionFactory<ListQuerySnapshotStateRouteSpec>(
     supportedSpec = ListQuerySnapshotStateRouteSpec::class.java,
     queryHandler = snapshotQueryHandler,
+    rewriteRequestCondition = rewriteRequestCondition,
     exceptionHandler = exceptionHandler,
     rewriteResult = { it.toStateDocument() }
 )

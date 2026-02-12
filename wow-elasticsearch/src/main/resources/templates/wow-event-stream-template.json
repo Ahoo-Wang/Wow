@@ -62,6 +62,9 @@
         "ownerId": {
           "type": "keyword"
         },
+        "spaceId": {
+          "type": "keyword"
+        },
         "version": {
           "type": "integer"
         }

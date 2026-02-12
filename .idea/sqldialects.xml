@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<project version="4">
-  <component name="SqlDialectMappings">
-    <file url="file://$PROJECT_DIR$/deploy/script/clickhouse.sql" dialect="ClickHouse" />
-    <file url="file://$PROJECT_DIR$/wow-bi/src/main/resources/clickhouse/global.kte" dialect="ClickHouse" />
-    <file url="file://$PROJECT_DIR$/wow-r2dbc/src/test/resources/init-schema-mysql.sql" dialect="MariaDB" />
-    <file url="PROJECT" dialect="ClickHouse" />
-  </component>
-</project>

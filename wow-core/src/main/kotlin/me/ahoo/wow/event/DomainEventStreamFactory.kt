@@ -13,19 +13,35 @@
 
 package me.ahoo.wow.event
 
+import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.event.DEFAULT_EVENT_SEQUENCE
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.OwnerId
+import me.ahoo.wow.api.modeling.SpaceId
+import me.ahoo.wow.api.modeling.SpaceIdCapable
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.messaging.propagation.MessagePropagatorProvider.propagate
 
+/**
+ * Flattens an object into an iterable of events.
+ *
+ * This extension function converts various types of objects into an iterable
+ * collection of events. It handles single objects, arrays, and iterables,
+ * normalizing them into a consistent Iterable<Any> format for event stream creation.
+ *
+ * @receiver The object to flatten into events
+ * @return An iterable collection of event objects
+ *
+ * @see Iterable
+ * @see Array
+ */
 @Suppress("UNCHECKED_CAST")
-fun Any.flatEvent(): Iterable<Any> {
-    return when (this) {
+fun Any.flatEvent(): Iterable<Any> =
+    when (this) {
         is Iterable<*> -> {
             this as Iterable<Any>
         }
@@ -38,12 +54,33 @@ fun Any.flatEvent(): Iterable<Any> {
             listOf(this)
         }
     }
-}
 
+/**
+ * Converts an object to a domain event stream based on a command message.
+ *
+ * This extension function creates a DomainEventStream from any object, using
+ * information from the upstream command message. The object is flattened into
+ * individual events, each converted to a domain event with proper sequencing
+ * and metadata.
+ *
+ * @receiver The object containing event data (can be single event, array, or iterable)
+ * @param upstream The command message that triggered these events
+ * @param aggregateVersion The current version of the aggregate
+ * @param stateOwnerId The owner ID from the current state (default: DEFAULT_OWNER_ID)
+ * @param header The header to propagate to the event stream (default: empty header)
+ * @param createTime The timestamp for event creation (default: current time)
+ * @return A new DomainEventStream containing the converted events
+ *
+ * @see DomainEventStream
+ * @see CommandMessage
+ * @see Header
+ * @see flatEvent
+ */
 fun Any.toDomainEventStream(
     upstream: CommandMessage<*>,
-    aggregateVersion: Int,
+    aggregateVersion: Int = Version.UNINITIALIZED_VERSION,
     stateOwnerId: String = OwnerId.DEFAULT_OWNER_ID,
+    stateSpaceId: String = SpaceIdCapable.DEFAULT_SPACE_ID,
     header: Header = DefaultHeader.empty(),
     createTime: Long = System.currentTimeMillis()
 ): DomainEventStream {
@@ -54,14 +91,19 @@ fun Any.toDomainEventStream(
     val streamOwnerId = upstream.ownerId.ifBlank {
         stateOwnerId
     }
-    val events = flatEvent().toDomainEvents(
-        streamVersion = streamVersion,
-        aggregateId = aggregateId,
-        command = upstream,
-        ownerId = streamOwnerId,
-        eventStreamHeader = header,
-        createTime = createTime
-    )
+    val streamSpaceId = upstream.spaceId.ifBlank {
+        stateSpaceId
+    }
+    val events =
+        flatEvent().toDomainEvents(
+            streamVersion = streamVersion,
+            aggregateId = aggregateId,
+            command = upstream,
+            ownerId = streamOwnerId,
+            spaceId = streamSpaceId,
+            eventStreamHeader = header,
+            createTime = createTime,
+        )
 
     return SimpleDomainEventStream(
         id = eventStreamId,
@@ -71,11 +113,32 @@ fun Any.toDomainEventStream(
     )
 }
 
+/**
+ * Converts an iterable of event objects to a list of domain events.
+ *
+ * This internal function processes a collection of event objects, converting each
+ * one to a DomainEvent with proper sequencing, versioning, and metadata. Events
+ * are numbered sequentially starting from DEFAULT_EVENT_SEQUENCE.
+ *
+ * @param streamVersion The version number for the event stream
+ * @param aggregateId The aggregate ID for all events
+ * @param command The command that triggered these events
+ * @param ownerId The owner ID for the events
+ * @param eventStreamHeader The header to attach to each event
+ * @param createTime The creation timestamp for all events
+ * @return A list of domain events with proper sequencing
+ *
+ * @see DomainEvent
+ * @see AggregateId
+ * @see CommandMessage
+ * @see DEFAULT_EVENT_SEQUENCE
+ */
 private fun Iterable<*>.toDomainEvents(
     streamVersion: Int,
     aggregateId: AggregateId,
     command: CommandMessage<*>,
     ownerId: String,
+    spaceId: SpaceId,
     eventStreamHeader: Header,
     createTime: Long
 ): List<DomainEvent<Any>> {
@@ -89,6 +152,7 @@ private fun Iterable<*>.toDomainEvents(
             isLast = sequence == eventCount,
             aggregateId = aggregateId,
             ownerId = ownerId,
+            spaceId = spaceId,
             commandId = command.commandId,
             header = eventStreamHeader.copy(),
             createTime = createTime,

@@ -21,17 +21,36 @@ import me.ahoo.cosid.provider.IdGeneratorProvider
 import me.ahoo.wow.api.annotation.ORDER_FIRST
 import me.ahoo.wow.api.annotation.Order
 
+/**
+ * Factory for creating global [CosIdGenerator] instances using the CosId library.
+ *
+ * This factory attempts to retrieve a [CosIdGenerator] from the [IdGeneratorProvider] using a predefined ID name.
+ * The ID name is determined by the system property "wow.cosid" or defaults to [CosId.COSID].
+ *
+ * The factory is ordered with [ORDER_FIRST] to prioritize it when loading global ID generators.
+ *
+ * @property idProvider the [IdGeneratorProvider] used to retrieve ID generators. Defaults to [DefaultIdGeneratorProvider.INSTANCE].
+ * @see GlobalIdGeneratorFactory
+ * @see CosIdGenerator
+ */
 @Order(ORDER_FIRST)
 class CosIdGlobalIdGeneratorFactory(
     private val idProvider: IdGeneratorProvider = DefaultIdGeneratorProvider.INSTANCE
-) :
-    GlobalIdGeneratorFactory {
+) : GlobalIdGeneratorFactory {
     companion object {
         private val log = KotlinLogging.logger {}
         const val ID_KEY = "wow.cosid"
         val ID_NAME: String = System.getProperty(ID_KEY, CosId.COSID)
     }
 
+    /**
+     * Creates a global [CosIdGenerator] instance.
+     *
+     * Attempts to retrieve a [CosIdGenerator] from the [idProvider] using the predefined [ID_NAME].
+     * If no generator is found, returns null. Otherwise, returns the found generator cast to [CosIdGenerator].
+     *
+     * @return the [CosIdGenerator] if found in the provider, null otherwise
+     */
     override fun create(): CosIdGenerator? {
         val idGenOp = idProvider.get(ID_NAME)
         if (idGenOp.isEmpty) {

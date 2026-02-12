@@ -15,6 +15,7 @@ package me.ahoo.wow.opentelemetry.messaging
 
 import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter
 import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.DistributedCommandBus
 import me.ahoo.wow.command.LocalCommandBus
 import me.ahoo.wow.command.ServerCommandExchange
@@ -23,7 +24,11 @@ class TracingLocalCommandBus(
     override val delegate: LocalCommandBus,
     override val producerInstrumenter: Instrumenter<CommandMessage<*>, Unit> = CommandProducerInstrumenter.INSTRUMENTER
 ) : TracingMessageBus<CommandMessage<*>, ServerCommandExchange<*>, LocalCommandBus>,
-    LocalCommandBus
+    LocalCommandBus {
+    override fun subscriberCount(namedAggregate: NamedAggregate): Int {
+        return delegate.subscriberCount(namedAggregate)
+    }
+}
 
 class TracingDistributedCommandBus(
     override val delegate: DistributedCommandBus,

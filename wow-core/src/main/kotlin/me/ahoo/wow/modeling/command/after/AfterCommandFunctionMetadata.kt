@@ -20,7 +20,23 @@ import me.ahoo.wow.messaging.function.FunctionAccessorMetadata
 import me.ahoo.wow.messaging.function.toMessageFunction
 import reactor.core.publisher.Mono
 
-data class AfterCommandFunctionMetadata<C : Any>(val function: FunctionAccessorMetadata<C, Mono<*>>) : Ordered {
+/**
+ * Metadata for an after-command function, containing configuration about which commands it applies to.
+ *
+ * This data class holds information about an after-command function's include/exclude rules and ordering,
+ * parsed from the [AfterCommand] annotation on the function.
+ *
+ * @param C The type of the command aggregate.
+ * @property function The underlying function accessor metadata.
+ * @property include Set of command classes that this function should execute for (empty means all).
+ * @property exclude Set of command classes that this function should not execute for.
+ * @property order The ordering information for this function.
+ *
+ * @constructor Creates metadata by parsing annotations from the function.
+ */
+data class AfterCommandFunctionMetadata<C : Any>(
+    val function: FunctionAccessorMetadata<C, Mono<*>>
+) : Ordered {
     val include: Set<Class<*>>
     val exclude: Set<Class<*>>
     override val order: Order
@@ -37,6 +53,15 @@ data class AfterCommandFunctionMetadata<C : Any>(val function: FunctionAccessorM
         order = function.accessor.method.getAnnotation(Order::class.java) ?: Order()
     }
 
+    /**
+     * Determines whether this after-command function should execute for the given command type.
+     *
+     * The function supports a command if it's not in the exclude set and either the include set is empty
+     * (meaning all commands) or the command is in the include set.
+     *
+     * @param commandType The command class to check.
+     * @return true if this function should execute for the command type.
+     */
     fun supportCommand(commandType: Class<*>): Boolean {
         if (exclude.contains(commandType)) {
             return false
@@ -49,12 +74,23 @@ data class AfterCommandFunctionMetadata<C : Any>(val function: FunctionAccessorM
     }
 
     companion object {
-        fun <C : Any> FunctionAccessorMetadata<C, Mono<*>>.toAfterCommandFunctionMetadata(): AfterCommandFunctionMetadata<C> {
-            return AfterCommandFunctionMetadata(this)
-        }
+        /**
+         * Converts a function accessor metadata into after-command function metadata.
+         *
+         * @param C The type of the command aggregate.
+         * @return The after-command function metadata.
+         */
+        fun <C : Any> FunctionAccessorMetadata<C, Mono<*>>.toAfterCommandFunctionMetadata(): AfterCommandFunctionMetadata<C> =
+            AfterCommandFunctionMetadata(this)
 
-        fun <C : Any> AfterCommandFunctionMetadata<C>.toAfterCommandFunction(commandRoot: C): AfterCommandFunction<C> {
-            return AfterCommandFunction(this, function.toMessageFunction(commandRoot))
-        }
+        /**
+         * Converts after-command function metadata into an executable after-command function.
+         *
+         * @param C The type of the command aggregate.
+         * @param commandRoot The command aggregate instance to bind the function to.
+         * @return The executable after-command function.
+         */
+        fun <C : Any> AfterCommandFunctionMetadata<C>.toAfterCommandFunction(commandRoot: C): AfterCommandFunction<C> =
+            AfterCommandFunction(this, function.toMessageFunction(commandRoot))
     }
 }

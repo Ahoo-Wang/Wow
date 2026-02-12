@@ -24,24 +24,38 @@ import me.ahoo.wow.command.wait.chain.WaitingChainTail.Companion.extractWaitingC
 import me.ahoo.wow.command.wait.extractWaitFunction
 import me.ahoo.wow.command.wait.propagateWaitFunction
 
+/**
+ * A simple waiting chain that waits for saga handling completion followed by a tail stage.
+ * This strategy combines waiting for saga processing with an additional stage/function criteria.
+ * The chain waits for SAGA_HANDLED stage with specific function matching, then waits for
+ * the tail stage/function combination.
+ *
+ * @param tail The tail stage and function to wait for after saga handling.
+ * @param function The function criteria for saga handling stage.
+ */
 class SimpleWaitingChain(
     val tail: WaitingChainTail,
-    override val function: NamedFunctionInfoData,
+    override val function: NamedFunctionInfoData
 ) : WaitStrategy.FunctionMaterialized {
     override val stage: CommandStage
         get() = CommandStage.SAGA_HANDLED
 
-    override fun shouldPropagate(upstream: Message<*, *>): Boolean {
-        return true
-    }
+    override fun shouldPropagate(upstream: Message<*, *>): Boolean = true
 
-    override fun propagate(commandWaitEndpoint: String, header: Header) {
-        header.propagateWaitFunction(function)
+    override fun propagate(
+        commandWaitEndpoint: String,
+        header: Header
+    ) {
+        header
+            .propagateWaitFunction(function)
             .propagateWaitChain(SIMPLE_CHAIN)
         tail.propagate(commandWaitEndpoint, header)
     }
 
-    override fun propagate(header: Header, upstream: Message<*, *>) {
+    override fun propagate(
+        header: Header,
+        upstream: Message<*, *>
+    ) {
         if (upstream is CommandMessage) {
             super.propagate(header, upstream)
         } else {
@@ -50,17 +64,37 @@ class SimpleWaitingChain(
     }
 
     companion object {
+        /**
+         * Header key for storing the wait chain type.
+         */
         const val COMMAND_WAIT_CHAIN = "${COMMAND_WAIT_PREFIX}chain"
+
+        /**
+         * Constant identifying a simple waiting chain.
+         */
         const val SIMPLE_CHAIN = "simple"
 
-        fun Header.propagateWaitChain(chain: String): Header {
-            return with(COMMAND_WAIT_CHAIN, chain)
-        }
+        /**
+         * Adds the wait chain type to the message header.
+         *
+         * @param chain The chain type identifier.
+         * @return A new Header instance with the chain type added.
+         */
+        fun Header.propagateWaitChain(chain: String): Header = with(COMMAND_WAIT_CHAIN, chain)
 
-        fun Header.extractWaitChain(): String? {
-            return this[COMMAND_WAIT_CHAIN]
-        }
+        /**
+         * Extracts the wait chain type from the message header.
+         *
+         * @return The chain type if present, null otherwise.
+         */
+        fun Header.extractWaitChain(): String? = this[COMMAND_WAIT_CHAIN]
 
+        /**
+         * Extracts a simple waiting chain from the message header.
+         * Attempts to extract both simple chain and tail configurations.
+         *
+         * @return A SimpleWaitingChain if all required components are found, null otherwise.
+         */
         fun Header.extractSimpleWaitingChain(): WaitStrategy.FunctionMaterialized? {
             if (extractWaitChain() != SIMPLE_CHAIN) {
                 return extractWaitingChainTail()

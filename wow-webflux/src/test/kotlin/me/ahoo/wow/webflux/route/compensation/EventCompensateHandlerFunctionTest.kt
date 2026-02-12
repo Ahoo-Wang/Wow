@@ -18,7 +18,7 @@ import me.ahoo.wow.event.InMemoryDomainEventBus
 import me.ahoo.wow.event.compensation.DomainEventCompensator
 import me.ahoo.wow.event.compensation.StateEventCompensator
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
-import me.ahoo.wow.eventsourcing.snapshot.SNAPSHOT_FUNCTION
+import me.ahoo.wow.eventsourcing.snapshot.dispatcher.SNAPSHOT_FUNCTION
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.compensation.CompensationTarget

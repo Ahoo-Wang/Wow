@@ -17,6 +17,7 @@ import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import org.gradle.testretry.TestRetryPlugin
 import org.jetbrains.dokka.gradle.DokkaPlugin
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     alias(libs.plugins.test.retry)
@@ -44,8 +45,9 @@ val exampleProjects =
 
 val testProject = project(":wow-test")
 val codeCoverageReportProject = project(":code-coverage-report")
-val publishProjects = subprojects - exampleProjects - codeCoverageReportProject
-val libraryProjects = publishProjects - bomProjects + exampleLibraries
+val benchmarksProject = project(":wow-benchmarks")
+val publishProjects = subprojects - exampleProjects - codeCoverageReportProject - benchmarksProject
+val libraryProjects = publishProjects - bomProjects + exampleLibraries + benchmarksProject
 val isInCI = !System.getenv("CI").isNullOrEmpty()
 ext.set("libraryProjects", libraryProjects)
 
@@ -92,7 +94,7 @@ configure(libraryProjects) {
     configure<KotlinJvmProjectExtension> {
         jvmToolchain(17)
     }
-    tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
+    tasks.withType<KotlinCompile> {
         compilerOptions {
             freeCompilerArgs = listOf("-Xjsr305=strict", "-Xjvm-default=all-compatibility")
             javaParameters = true
@@ -225,3 +227,22 @@ nexusPublishing {
 }
 
 fun getPropertyOf(name: String) = project.properties[name]?.toString()
+
+dependencies {
+    libraryProjects.forEach {
+        dokka(it)
+    }
+}
+
+dokka {
+    moduleName.set("Wow")
+    dokkaPublications.html {
+        suppressInheritedMembers.set(true)
+        failOnWarning.set(true)
+    }
+    pluginsConfiguration.html {
+        homepageLink.set(getPropertyOf("website")!!)
+        customAssets.from("documentation/docs/public/images/logo.svg")
+        footerMessage.set(getPropertyOf("website")!!)
+    }
+}

@@ -20,9 +20,28 @@ import me.ahoo.wow.metadata.Metadata
 import me.ahoo.wow.modeling.matedata.NamedAggregateGetter
 
 /**
- * Command Metadata .
+ * Metadata container for command classes.
  *
+ * CommandMetadata holds all the reflective information about a command class,
+ * including property getters for aggregate targeting, command characteristics,
+ * and naming information. This metadata is used by the command processing
+ * pipeline to properly route and handle commands.
+ *
+ * @param C the type of the command class
+ * @property commandType the Class object representing the command type
+ * @property namedAggregateGetter getter for the named aggregate information
+ * @property name the command name (typically the class name)
+ * @property isCreate whether this command creates new aggregates
+ * @property allowCreate whether this command allows creating aggregates if they don't exist
+ * @property isVoid whether this command returns no result (fire-and-forget)
+ * @property aggregateIdGetter property getter for the aggregate ID (can be null for create commands)
+ * @property tenantIdGetter property getter for the tenant ID
+ * @property ownerIdGetter property getter for the owner ID
+ * @property aggregateVersionGetter property getter for the expected aggregate version
  * @author ahoo wang
+ * @see Named
+ * @see Metadata
+ * @see PropertyGetter
  */
 data class CommandMetadata<C>(
     val commandType: Class<C>,
@@ -31,24 +50,32 @@ data class CommandMetadata<C>(
     val isCreate: Boolean,
     val allowCreate: Boolean,
     val isVoid: Boolean,
-    /**
-     * Aggregate ID can be null if it is a create aggregate command.
-     */
     val aggregateIdGetter: PropertyGetter<C, String>?,
     val tenantIdGetter: PropertyGetter<C, String>?,
     val ownerIdGetter: PropertyGetter<C, String>?,
     val aggregateVersionGetter: PropertyGetter<C, Int?>?
-) : Named, Metadata {
-
+) : Named,
+    Metadata {
+    /**
+     * Whether this command deletes aggregates.
+     *
+     * Determined by checking if the command type implements DeleteAggregate.
+     */
     val isDelete: Boolean
         get() = DeleteAggregate::class.java.isAssignableFrom(commandType)
 
+    /**
+     * The static tenant ID if the tenant ID getter is a static property getter.
+     *
+     * Returns null if the tenant ID is dynamic or not set.
+     */
     val staticTenantId: String?
-        get() = if (tenantIdGetter is StaticPropertyGetter) {
-            tenantIdGetter.value
-        } else {
-            null
-        }
+        get() =
+            if (tenantIdGetter is StaticPropertyGetter) {
+                tenantIdGetter.value
+            } else {
+                null
+            }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -57,11 +84,7 @@ data class CommandMetadata<C>(
         return commandType == other.commandType
     }
 
-    override fun hashCode(): Int {
-        return commandType.hashCode()
-    }
+    override fun hashCode(): Int = commandType.hashCode()
 
-    override fun toString(): String {
-        return "CommandMetadata(commandType=$commandType)"
-    }
+    override fun toString(): String = "CommandMetadata(commandType=$commandType)"
 }

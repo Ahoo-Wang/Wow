@@ -17,9 +17,19 @@ import me.ahoo.wow.api.messaging.function.FunctionKind
 import java.lang.annotation.Inherited
 
 /**
- * OnMessage .
+ * Base annotation for message handler functions.
  *
- * @author ahoo wang
+ * This annotation serves as a foundation for specific message handler annotations
+ * like @OnCommand, @OnEvent, and @OnSourcing. It provides common configuration
+ * for message processing functions.
+ *
+ * @param functionKind The type of message this handler processes (COMMAND, EVENT, etc.).
+ * @param defaultFunctionName The default naming convention for handler functions.
+ *
+ * @see OnCommand for command handlers
+ * @see OnEvent for event handlers
+ * @see OnSourcing for state sourcing handlers
+ * @see FunctionKind for available message types
  */
 @Target(AnnotationTarget.CLASS, AnnotationTarget.ANNOTATION_CLASS)
 @Inherited

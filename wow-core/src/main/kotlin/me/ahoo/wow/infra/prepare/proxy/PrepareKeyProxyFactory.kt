@@ -15,6 +15,21 @@ package me.ahoo.wow.infra.prepare.proxy
 
 import me.ahoo.wow.infra.prepare.PrepareKey
 
+/**
+ * Factory interface for creating proxy instances of PrepareKey implementations.
+ * This factory enables dynamic proxy creation for PrepareKey interfaces, allowing
+ * for interception and decoration of prepare operations.
+ *
+ * @see PrepareKeyMetadata
+ * @see DefaultPrepareKeyProxyFactory
+ */
 interface PrepareKeyProxyFactory {
+    /**
+     * Creates a proxy instance of the specified PrepareKey type using the provided metadata.
+     *
+     * @param P the PrepareKey interface type
+     * @param metadata the metadata containing proxy configuration
+     * @return a proxy instance implementing the PrepareKey interface
+     */
     fun <P : PrepareKey<*>> create(metadata: PrepareKeyMetadata<P>): P
 }

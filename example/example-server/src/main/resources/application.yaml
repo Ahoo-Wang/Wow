@@ -1,3 +1,8 @@
+server:
+  http2:
+    enabled: true
+  compression:
+    enabled: true
 management:
   endpoint:
     health:
@@ -42,7 +47,7 @@ spring:
 logging:
   level:
     #    root: debug
-    me.ahoo.wow: debug
+    me.ahoo.wow: INFO
 #springdoc:
 #  remove-broken-reference-definitions: false
 cosid:

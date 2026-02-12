@@ -15,12 +15,14 @@ package me.ahoo.wow.opentelemetry.eventprocessor
 
 import me.ahoo.wow.api.annotation.ORDER_FIRST
 import me.ahoo.wow.api.annotation.Order
-import me.ahoo.wow.event.DomainEventDispatcher
 import me.ahoo.wow.event.DomainEventExchange
+import me.ahoo.wow.event.dispatcher.DomainEventDispatcher
 import me.ahoo.wow.filter.FilterType
 import me.ahoo.wow.messaging.handler.RetryableFilter
 import me.ahoo.wow.opentelemetry.TraceFilter
+import me.ahoo.wow.opentelemetry.Traced
 
 @FilterType(DomainEventDispatcher::class)
 @Order(ORDER_FIRST, after = [RetryableFilter::class])
-object TraceEventProcessorFilter : TraceFilter<DomainEventExchange<Any>>(EventProcessorInstrumenter.INSTRUMENTER)
+object TraceEventProcessorFilter : Traced,
+    TraceFilter<DomainEventExchange<Any>>(EventProcessorInstrumenter.INSTRUMENTER)

@@ -16,8 +16,22 @@ import me.ahoo.wow.api.modeling.SnapshotTimeCapable
 import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
 
-interface Snapshot<S : Any> : ReadOnlyStateAggregate<S>, SnapshotTimeCapable
+/**
+ * Represents a snapshot of a state aggregate at a specific point in time.
+ * Snapshots are used to optimize loading by providing a starting point for event replay.
+ *
+ * @param S the type of the state
+ */
+interface Snapshot<S : Any> :
+    ReadOnlyStateAggregate<S>,
+    SnapshotTimeCapable
 
+/**
+ * Simple implementation of Snapshot that wraps a ReadOnlyStateAggregate with a snapshot time.
+ *
+ * @param delegate the state aggregate being snapshotted
+ * @param snapshotTime the time when the snapshot was taken (default: current time)
+ */
 data class SimpleSnapshot<S : Any>(
     override val delegate: ReadOnlyStateAggregate<S>,
     override val snapshotTime: Long = System.currentTimeMillis()

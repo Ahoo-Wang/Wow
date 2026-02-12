@@ -15,15 +15,46 @@ package me.ahoo.wow.api.annotation
 import java.lang.annotation.Inherited
 
 /**
- * Aggregate Name .
+ * Marks a field or property as containing the aggregate type name.
  *
- * @author ahoo wang
+ * The aggregate name identifies the type or category of aggregate, distinguishing between
+ * different kinds of aggregates in the system (e.g., "order", "user", "product").
+ *
+ * This annotation is used by the framework for:
+ * - Routing commands to the correct aggregate handlers
+ * - Generating event stream names
+ * - Providing context in logging and monitoring
+ * - Supporting multi-tenant aggregate isolation
+ *
+ * The annotated field/property should contain a string that uniquely identifies the
+ * aggregate type within the bounded context.
+ *
+ * Example usage:
+ * ```kotlin
+ * @AggregateRoot
+ * class OrderAggregate(
+ *     @AggregateId
+ *     val orderId: String,
+ *
+ *     @AggregateName
+ *     val aggregateName: String = "order"
+ * ) {
+ *
+ *     @OnCommand
+ *     fun create(command: CreateOrderCommand): OrderCreated {
+ *         // Order creation logic
+ *     }
+ * }
+ * ```
+ *
+ * @see AggregateId for marking aggregate instance identifiers
+ * @see NamedAggregate for interfaces that provide aggregate naming
  */
 @Target(
     AnnotationTarget.FIELD,
     AnnotationTarget.PROPERTY,
     AnnotationTarget.PROPERTY_GETTER,
-    AnnotationTarget.ANNOTATION_CLASS
+    AnnotationTarget.ANNOTATION_CLASS,
 )
 @Inherited
 annotation class AggregateName

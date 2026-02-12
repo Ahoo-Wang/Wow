@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.dsl
 
+@QueryDslMarker
 abstract class NestedFieldDsl {
     protected var nestedField: String = ""
         private set

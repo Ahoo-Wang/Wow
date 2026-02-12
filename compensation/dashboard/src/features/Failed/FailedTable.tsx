@@ -289,7 +289,9 @@ export function FailedTable({
               <Timer
                 type="countdown"
                 value={retryState.nextRetryAt}
-                valueStyle={{ fontSize: "14px" }}
+                styles={{
+                  content: { fontSize: "14px" },
+                }}
               />
             ),
             width: 100,

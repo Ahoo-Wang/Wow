@@ -13,8 +13,40 @@
 
 package me.ahoo.wow.exception
 
+/**
+ * Utility object for checking preconditions and throwing standardized exceptions.
+ *
+ * This object provides methods for validating conditions and throwing WowException
+ * with specific error codes when conditions are not met. It uses lazy evaluation
+ * for error messages to avoid unnecessary string construction.
+ *
+ * @see WowException
+ */
 object Preconditions {
-    inline fun check(value: Boolean, errorCode: String, lazyMessage: () -> String = { "" }) {
+    /**
+     * Checks a boolean condition and throws WowException if false.
+     *
+     * This method validates that the given condition is true. If the condition
+     * evaluates to false, it throws a WowException with the specified error code
+     * and message.
+     *
+     * Example usage:
+     * ```kotlin
+     * Preconditions.check(userId.isNotBlank(), ErrorCodes.ILLEGAL_ARGUMENT) {
+     *     "User ID cannot be blank"
+     * }
+     * ```
+     *
+     * @param value the condition to check
+     * @param errorCode the error code to use if the condition fails
+     * @param lazyMessage a lazy function that provides the error message
+     * @throws WowException if the condition is false
+     */
+    inline fun check(
+        value: Boolean,
+        errorCode: String,
+        lazyMessage: () -> String = { "" }
+    ) {
         if (!value) {
             val message = lazyMessage()
             throw WowException(errorCode, message)

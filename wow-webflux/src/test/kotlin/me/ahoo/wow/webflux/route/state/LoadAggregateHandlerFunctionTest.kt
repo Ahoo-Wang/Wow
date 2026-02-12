@@ -28,7 +28,7 @@ import me.ahoo.wow.openapi.aggregate.state.LoadAggregateRouteSpec
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.serialization.MessageRecords
-import me.ahoo.wow.test.aggregate.`when`
+import me.ahoo.wow.test.aggregate.whenCommand
 import me.ahoo.wow.test.aggregateVerifier
 import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
 import org.junit.jupiter.api.Test
@@ -50,7 +50,7 @@ class LoadAggregateHandlerFunctionTest {
         )
         aggregateVerifier<Cart, CartState>(customerId, eventStore = eventStore)
             .givenOwnerId(customerId)
-            .`when`(addCartItem)
+            .whenCommand(addCartItem)
             .expectNoError()
             .expectEventType(CartItemAdded::class.java)
             .expectState {

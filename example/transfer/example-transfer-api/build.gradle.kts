@@ -13,11 +13,3 @@ dependencies {
     api("jakarta.validation:jakarta.validation-api")
     ksp(project(":wow-compiler"))
 }
-
-ksp {
-//    TODO
-//    fix: [ksp] java.lang.ClassCastException: class ksp.com.intellij.psi.impl.source.PsiRecordComponentImpl
-//    cannot be cast to class ksp.com.intellij.psi.PsiJvmModifiersOwner (ksp.com.intellij.psi.impl.source.PsiRecordComponentImpl
-//    and ksp.com.intellij.psi.PsiJvmModifiersOwner are in unnamed module of loader java.net.URLClassLoader @6e1a421c)
-    useKsp2.set(false)
-}

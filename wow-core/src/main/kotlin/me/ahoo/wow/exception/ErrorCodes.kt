@@ -15,6 +15,18 @@ package me.ahoo.wow.exception
 
 import me.ahoo.wow.api.exception.ErrorInfo
 
+/**
+ * Centralized error code constants for the Wow framework.
+ *
+ * This object defines standardized error codes and messages used throughout the Wow framework
+ * for consistent error handling and reporting. Error codes are categorized by functional areas
+ * such as commands, event sourcing, and aggregates.
+ *
+ * Error codes follow a hierarchical structure and are used to identify specific error conditions
+ * that can occur during command processing, event sourcing, and other framework operations.
+ *
+ * @see ErrorInfo
+ */
 object ErrorCodes {
     const val SUCCEEDED = ErrorInfo.SUCCEEDED
     const val SUCCEEDED_MESSAGE = ErrorInfo.SUCCEEDED_MESSAGE
@@ -38,6 +50,7 @@ object ErrorCodes {
     const val ILLEGAL_STATE = "IllegalState"
 
     //region Command
+
     /**
      * @see java.util.concurrent.TimeoutException
      */
@@ -58,6 +71,7 @@ object ErrorCodes {
     const val SOURCING_VERSION_CONFLICT = "SourcingVersionConflict"
     const val ILLEGAL_ACCESS_DELETED_AGGREGATE = "IllegalAccessDeletedAggregate"
     const val ILLEGAL_ACCESS_OWNER_AGGREGATE = "IllegalAccessOwnerAggregate"
+    const val ILLEGAL_ACCESS_SPACE_AGGREGATE = "IllegalAccessSpaceAggregate"
     //endregion
 
     const val INTERNAL_SERVER_ERROR = "InternalServerError"

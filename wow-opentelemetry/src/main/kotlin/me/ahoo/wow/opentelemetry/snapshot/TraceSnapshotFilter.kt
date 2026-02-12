@@ -15,12 +15,13 @@ package me.ahoo.wow.opentelemetry.snapshot
 
 import me.ahoo.wow.api.annotation.ORDER_FIRST
 import me.ahoo.wow.api.annotation.Order
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotDispatcher
+import me.ahoo.wow.eventsourcing.snapshot.dispatcher.SnapshotDispatcher
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
 import me.ahoo.wow.filter.FilterType
 import me.ahoo.wow.messaging.handler.RetryableFilter
 import me.ahoo.wow.opentelemetry.TraceFilter
+import me.ahoo.wow.opentelemetry.Traced
 
 @FilterType(SnapshotDispatcher::class)
 @Order(ORDER_FIRST, after = [RetryableFilter::class])
-object TraceSnapshotFilter : TraceFilter<StateEventExchange<*>>(SnapshotInstrumenter.INSTRUMENTER)
+object TraceSnapshotFilter : Traced, TraceFilter<StateEventExchange<*>>(SnapshotInstrumenter.INSTRUMENTER)

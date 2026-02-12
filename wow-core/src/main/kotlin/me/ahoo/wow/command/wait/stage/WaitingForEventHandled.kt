@@ -16,6 +16,14 @@ package me.ahoo.wow.command.wait.stage
 import me.ahoo.wow.api.messaging.function.NamedFunctionInfoData
 import me.ahoo.wow.command.wait.CommandStage
 
+/**
+ * Wait strategy that waits for domain events to be handled by event processors.
+ * This strategy completes when both command processing and event handling are finished.
+ * Optionally filters by specific function criteria if provided.
+ *
+ * @param waitCommandId The unique identifier for this wait strategy.
+ * @param function Optional function criteria to match specific event handlers.
+ */
 class WaitingForEventHandled(
     override val waitCommandId: String,
     override val function: NamedFunctionInfoData? = null

@@ -21,40 +21,74 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 /**
- * Snapshot Repository.
+ * Repository for storing and retrieving snapshots of state aggregates.
+ * Snapshots optimize aggregate loading by providing a recent state checkpoint.
  */
-interface SnapshotRepository : Named, AggregateIdScanner {
-
+interface SnapshotRepository :
+    Named,
+    AggregateIdScanner {
+    /**
+     * Loads the latest snapshot for the specified aggregate.
+     *
+     * @param aggregateId the ID of the aggregate
+     * @return a Mono emitting the snapshot or empty if none exists
+     */
     fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>>
-    fun getVersion(aggregateId: AggregateId): Mono<Int> {
-        return load<Any>(aggregateId)
+
+    /**
+     * Gets the version of the latest snapshot for the specified aggregate.
+     * Returns UNINITIALIZED_VERSION if no snapshot exists.
+     *
+     * @param aggregateId the ID of the aggregate
+     * @return a Mono emitting the version
+     */
+    fun getVersion(aggregateId: AggregateId): Mono<Int> =
+        load<Any>(aggregateId)
             .map {
                 it.version
-            }
-            .defaultIfEmpty(Version.UNINITIALIZED_VERSION)
-    }
+            }.defaultIfEmpty(Version.UNINITIALIZED_VERSION)
 
+    /**
+     * Saves a snapshot to the repository.
+     *
+     * @param snapshot the snapshot to save
+     * @return a Mono that completes when the save operation is done
+     */
     fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void>
 }
 
+/**
+ * No-operation implementation of SnapshotRepository that does nothing.
+ * Useful for testing or when snapshots are not needed.
+ */
 object NoOpSnapshotRepository : SnapshotRepository {
+    /**
+     * The name of this repository.
+     */
     const val NAME = "no_op"
+
+    /**
+     * The name of this repository.
+     */
     override val name: String
         get() = NAME
 
-    override fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>> {
-        return Mono.empty()
-    }
+    /**
+     * Always returns empty, as this is a no-op repository.
+     */
+    override fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>> = Mono.empty()
 
-    override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> {
-        return Mono.empty()
-    }
+    /**
+     * Does nothing, as this is a no-op repository.
+     */
+    override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> = Mono.empty()
 
+    /**
+     * Always returns empty, as this is a no-op repository.
+     */
     override fun scanAggregateId(
         namedAggregate: NamedAggregate,
         afterId: String,
         limit: Int
-    ): Flux<AggregateId> {
-        return Flux.empty()
-    }
+    ): Flux<AggregateId> = Flux.empty()
 }

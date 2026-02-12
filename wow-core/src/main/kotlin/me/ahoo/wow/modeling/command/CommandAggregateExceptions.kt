@@ -19,6 +19,7 @@ import me.ahoo.wow.api.modeling.AggregateIdCapable
 import me.ahoo.wow.exception.ErrorCodes.COMMAND_EXPECT_VERSION_CONFLICT
 import me.ahoo.wow.exception.ErrorCodes.ILLEGAL_ACCESS_DELETED_AGGREGATE
 import me.ahoo.wow.exception.ErrorCodes.ILLEGAL_ACCESS_OWNER_AGGREGATE
+import me.ahoo.wow.exception.ErrorCodes.ILLEGAL_ACCESS_SPACE_AGGREGATE
 import me.ahoo.wow.exception.WowException
 
 class CommandExpectVersionConflictException(
@@ -41,12 +42,28 @@ class IllegalAccessDeletedAggregateException(
 )
 
 /**
- * 非法访问拥有者聚合根对象异常.
+ * Exception thrown when attempting to access an aggregate owned by another tenant or user.
+ *
+ * This exception enforces multi-tenancy and ownership boundaries, preventing unauthorized
+ * access to aggregates that belong to different owners.
+ *
+ * @param aggregateId The ID of the owner-restricted aggregate being accessed.
+ * @param errorMsg Custom error message describing the access violation.
  */
 class IllegalAccessOwnerAggregateException(
     override val aggregateId: AggregateId,
     errorMsg: String = "Illegal access to a owner aggregate[${aggregateId.id}]."
-) : AggregateIdCapable, WowException(
+) : WowException(
     errorCode = ILLEGAL_ACCESS_OWNER_AGGREGATE,
-    errorMsg = errorMsg
-)
+    errorMsg = errorMsg,
+),
+    AggregateIdCapable
+
+class IllegalAccessSpaceAggregateException(
+    override val aggregateId: AggregateId,
+    errorMsg: String = "Illegal access to a space aggregate[${aggregateId.id}]."
+) : WowException(
+    errorCode = ILLEGAL_ACCESS_SPACE_AGGREGATE,
+    errorMsg = errorMsg,
+),
+    AggregateIdCapable

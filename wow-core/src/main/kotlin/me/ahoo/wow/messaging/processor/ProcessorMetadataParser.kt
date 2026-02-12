@@ -27,12 +27,29 @@ import reactor.core.publisher.Mono
 import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
 
-class MessageAnnotationFunctionCondition(private vararg val onMessageAnnotations: KClass<out Annotation>) :
-    (KFunction<*>) -> Boolean {
-    private val defaultFunctionNames = onMessageAnnotations.mapNotNull {
-        it.scanAnnotation<OnMessage>()?.defaultFunctionName
-    }.toSet()
+/**
+ * Condition that checks if a function should be included based on message annotations.
+ *
+ * This condition checks for specific annotations or default function names
+ * to determine if a function should be processed as a message handler.
+ *
+ * @property onMessageAnnotations The annotation classes to check for
+ */
+class MessageAnnotationFunctionCondition(
+    private vararg val onMessageAnnotations: KClass<out Annotation>
+) : (KFunction<*>) -> Boolean {
+    private val defaultFunctionNames =
+        onMessageAnnotations
+            .mapNotNull {
+                it.scanAnnotation<OnMessage>()?.defaultFunctionName
+            }.toSet()
 
+    /**
+     * Checks if the function meets the condition for inclusion.
+     *
+     * @param function The function to check
+     * @return true if the function should be included, false otherwise
+     */
     override fun invoke(function: KFunction<*>): Boolean {
         if (function.parameters.isEmpty()) {
             return false
@@ -48,12 +65,24 @@ class MessageAnnotationFunctionCondition(private vararg val onMessageAnnotations
 }
 
 /**
- * sess [me.ahoo.wow.api.annotation.OnMessage]
+ * Parser for extracting processor metadata from classes.
+ *
+ * This parser visits class functions and creates metadata describing
+ * message processors and their handler functions.
+ *
+ * @param E The message exchange type
+ * @property functionCondition Condition to filter which functions to include
+ * @see me.ahoo.wow.api.annotation.OnMessage
  */
 open class ProcessorMetadataParser<E : MessageExchange<*, *>>(
     private val functionCondition: (KFunction<*>) -> Boolean = { true }
 ) : CacheableMetadataParser() {
-
+    /**
+     * Parses a processor class to extract its metadata.
+     *
+     * @param type The processor class to parse
+     * @return The metadata for the processor
+     */
     override fun <TYPE : Any, M : Metadata> parseToMetadata(type: Class<TYPE>): M {
         val visitor = ProcessorMetadataVisitor<TYPE, E>(type, functionCondition)
         type.kotlin.visit(visitor)
@@ -62,12 +91,25 @@ open class ProcessorMetadataParser<E : MessageExchange<*, *>>(
     }
 }
 
+/**
+ * Visitor that collects function metadata from a processor class.
+ *
+ * @param P The processor type
+ * @param E The message exchange type
+ * @property processorType The class being visited
+ * @property functionCondition Condition to filter functions
+ */
 internal class ProcessorMetadataVisitor<P : Any, E : MessageExchange<*, *>>(
     private val processorType: Class<P>,
     private val functionCondition: (KFunction<*>) -> Boolean
 ) : ClassVisitor<P, ProcessorMetadata<P, E>> {
     private val functionRegistry: MutableSet<FunctionAccessorMetadata<P, Mono<*>>> = mutableSetOf()
 
+    /**
+     * Visits a function and adds its metadata if it meets the condition.
+     *
+     * @param function The function to visit
+     */
     override fun visitFunction(function: KFunction<*>) {
         if (!functionCondition(function)) {
             return
@@ -77,12 +119,16 @@ internal class ProcessorMetadataVisitor<P : Any, E : MessageExchange<*, *>>(
         functionRegistry.add(handler)
     }
 
-    override fun toMetadata(): ProcessorMetadata<P, E> {
-        return ProcessorMetadata(
+    /**
+     * Creates the processor metadata from collected information.
+     *
+     * @return The processor metadata
+     */
+    override fun toMetadata(): ProcessorMetadata<P, E> =
+        ProcessorMetadata(
             namedBoundedContext = processorType.requiredNamedBoundedContext(),
             name = processorType.simpleName,
             processorType = processorType,
             functionRegistry = functionRegistry,
         )
-    }
 }

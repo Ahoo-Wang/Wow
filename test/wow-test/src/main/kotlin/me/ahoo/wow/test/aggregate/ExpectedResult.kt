@@ -17,6 +17,20 @@ import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.modeling.state.StateAggregate
 
+/**
+ * Encapsulates the complete result of an aggregate command execution for testing purposes.
+ *
+ * This data class holds all the information needed to validate the outcome of a command
+ * execution, including the command exchange, resulting aggregate state, generated events,
+ * and any errors that occurred.
+ *
+ * @param S the type of the aggregate state
+ * @property exchange the server command exchange containing command execution details
+ * @property stateAggregate the resulting state of the aggregate after command execution
+ * @property domainEventStream the stream of domain events produced by the command (null if error occurred)
+ * @property error any Throwable that occurred during command execution (null if successful)
+ * @property hasError convenience property indicating whether an error occurred
+ */
 data class ExpectedResult<S : Any>(
     val exchange: ServerCommandExchange<*>,
     val stateAggregate: StateAggregate<S>,

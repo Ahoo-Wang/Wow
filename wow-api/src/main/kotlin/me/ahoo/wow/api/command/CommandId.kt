@@ -14,15 +14,32 @@
 package me.ahoo.wow.api.command
 
 /**
- * Represents a unique identifier for a command. This interface is part of the command handling mechanism, ensuring that each command can be uniquely identified.
+ * Represents a unique identifier for a command within the Wow framework's command handling system.
  *
- * Implementations of this interface are expected to provide a `commandId` which should be unique and used to identify the specific command instance. This is particularly useful in scenarios
- *  where idempotency of commands needs to be guaranteed or when tracking and correlating commands across system boundaries.
+ * This interface ensures that each command can be uniquely identified, which is essential for:
+ * - Maintaining idempotency in command processing
+ * - Tracking and correlating commands across distributed systems
+ * - Preventing duplicate command execution
+ * - Debugging and auditing command flows
+ *
+ * @property commandId A unique string identifier for the command. Implementations should generate
+ *                     globally unique values, typically using UUIDs or similar mechanisms.
+ *
+ * @see CommandMessage for the complete command message interface that includes this identifier
+ *
+ * Example usage:
+ * ```kotlin
+ * class CreateUserCommand(override val commandId: String = UUID.randomUUID().toString()) : CommandId {
+ *     // command payload
+ * }
+ * ```
  */
 interface CommandId {
     /**
-     * Represents a unique identifier for a command. This identifier is crucial for ensuring that each command can be uniquely identified, which is particularly useful in scenarios where idempotency of commands needs to be
-     *  guaranteed or when tracking and correlating commands across system boundaries.
+     * A unique identifier for this command instance.
+     *
+     * @return A non-empty string that uniquely identifies this command. The format and generation
+     *         strategy is implementation-dependent but should ensure global uniqueness.
      */
     val commandId: String
 }

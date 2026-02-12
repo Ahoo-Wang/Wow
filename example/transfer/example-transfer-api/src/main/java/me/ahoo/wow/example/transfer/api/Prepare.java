@@ -16,11 +16,12 @@ package me.ahoo.wow.example.transfer.api;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Positive;
 import me.ahoo.wow.api.annotation.CommandRoute;
+import me.ahoo.wow.api.annotation.Summary;
 
+@Summary("准备转账")
 @CommandRoute(
         appendIdPath = CommandRoute.AppendPath.ALWAYS,
-        method = CommandRoute.Method.POST,
-        summary = "准备转账"
+        method = CommandRoute.Method.POST
 )
 public record Prepare(
         @NotBlank

@@ -17,7 +17,9 @@ import { type FindCategory, RetryConditions } from "./FindCategory.ts";
 import {
   and,
   type Condition,
+  PagedList,
   pagedList,
+  PagedQuery,
   pagedQuery,
 } from "@ahoo-wang/fetcher-wow";
 import { type ExecutionFailedState } from "../../generated";
@@ -25,8 +27,7 @@ import { useCallback, useEffect } from "react";
 import { useQueryParams } from "../../utils/useQueryParams.ts";
 import { useGlobalDrawer } from "../../components/GlobalDrawer";
 import { FetchingFailedDetails } from "./details/FetchingFailedDetails.tsx";
-import { executionFailedSnapshotQueryClient } from "../../services";
-import { usePagedQuery } from "@ahoo-wang/fetcher-react";
+import { useDebouncedFetcherQuery } from "@ahoo-wang/fetcher-react";
 import { App } from "antd";
 
 interface FailedViewProps {
@@ -49,22 +50,29 @@ export default function FailedView({ category }: FailedViewProps) {
     });
   }, [queryIdParams, openDrawer]);
 
-  const { loading, result, getQuery, setQuery, execute } =
-    usePagedQuery<ExecutionFailedState>({
-      initialQuery: pagedQuery({
-        condition: RetryConditions.categoryToCondition(category),
-      }),
-      execute: executionFailedSnapshotQueryClient.pagedState.bind(
-        executionFailedSnapshotQueryClient,
-      ),
-      autoExecute: true,
-      onError: (error) => {
-        notification.error({
-          message: "Search Error",
-          description: error.message,
-        });
-      },
-    });
+  const {
+    loading,
+    result,
+    getQuery,
+    setQuery,
+    run,
+  } = useDebouncedFetcherQuery<PagedQuery, PagedList<ExecutionFailedState>>({
+    url: "/execution_failed/snapshot/paged/state",
+    initialQuery: pagedQuery({
+      condition: RetryConditions.categoryToCondition(category),
+    }),
+    debounce: {
+      delay: 300,
+      leading: true,
+    },
+    autoExecute: true,
+    onError: (error) => {
+      notification.error({
+        title: "Search Error",
+        description: error.message,
+      });
+    },
+  });
 
   const onSearch = useCallback(
     (searchCondition: Condition) => {
@@ -81,17 +89,17 @@ export default function FailedView({ category }: FailedViewProps) {
   );
   const onPaginationChange = useCallback(
     (page: number, pageSize: number) => {
-      setQuery({ ...getQuery(), pagination: { index: page, size: pageSize } });
+      setQuery({ ...getQuery()!, pagination: { index: page, size: pageSize } });
     },
     [getQuery, setQuery],
   );
   const onRefresh = useCallback(() => {
-    execute();
-  }, [execute]);
+    run();
+  }, [run]);
 
   return (
     <>
-      <FailedSearch onSearch={onSearch}></FailedSearch>
+      <FailedSearch onSearch={onSearch} loading={loading}></FailedSearch>
       <FailedTable
         loading={loading}
         pagedList={result ?? pagedList()}

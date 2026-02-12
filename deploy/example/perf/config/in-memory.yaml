@@ -1,0 +1,48 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wow-example-config
+data:
+  application.yaml: >-
+    spring:
+      application:
+        name: example-service
+      autoconfigure:
+        exclude:
+          - org.springframework.boot.autoconfigure.mongo.MongoReactiveAutoConfiguration
+          - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+          - org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration
+          - org.springframework.boot.autoconfigure.mongo.MongoReactiveAutoConfiguration
+          - org.springframework.boot.autoconfigure.elasticsearch.ElasticsearchClientAutoConfiguration
+          - org.springframework.boot.autoconfigure.elasticsearch.ElasticsearchRestClientAutoConfiguration
+          - org.springframework.boot.autoconfigure.elasticsearch.ReactiveElasticsearchClientAutoConfiguration
+    logging:
+      level:
+        me.ahoo.wow: warn
+    
+    cosid:
+      machine:
+        enabled: true
+        distributor:
+          type: manual
+          manual:
+            machine-id: 1
+      generator:
+        enabled: true
+    wow:
+      command:
+        bus:
+          type: in_memory
+      event:
+        bus:
+          type: in_memory
+      kafka:
+        enabled: false
+      eventsourcing:
+        store:
+          storage: in_memory
+        snapshot:
+          storage: in_memory
+        state:
+          bus:
+            type: in_memory

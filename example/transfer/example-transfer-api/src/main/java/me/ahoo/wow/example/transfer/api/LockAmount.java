@@ -15,7 +15,9 @@ package me.ahoo.wow.example.transfer.api;
 
 import jakarta.validation.constraints.Positive;
 import me.ahoo.wow.api.annotation.CommandRoute;
+import me.ahoo.wow.api.annotation.Summary;
 
-@CommandRoute(summary = "锁定金额", appendIdPath = CommandRoute.AppendPath.ALWAYS)
+@Summary("锁定金额")
+@CommandRoute(appendIdPath = CommandRoute.AppendPath.ALWAYS)
 public record LockAmount(@Positive Long amount) {
 }

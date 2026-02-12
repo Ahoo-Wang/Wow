@@ -41,6 +41,7 @@ abstract class AbstractConditionConverter<T> : ConditionConverter<T> {
             Operator.AGGREGATE_IDS -> aggregateIds(condition)
             Operator.TENANT_ID -> tenantId(condition)
             Operator.OWNER_ID -> ownerId(condition)
+            Operator.SPACE_ID -> spaceId(condition)
             Operator.ALL -> all(condition)
             Operator.EQ -> eq(condition)
             Operator.NE -> ne(condition)
@@ -85,6 +86,7 @@ abstract class AbstractConditionConverter<T> : ConditionConverter<T> {
     abstract fun ids(condition: Condition): T
     abstract fun tenantId(condition: Condition): T
     abstract fun ownerId(condition: Condition): T
+    abstract fun spaceId(condition: Condition): T
     abstract fun all(condition: Condition): T
     abstract fun eq(condition: Condition): T
     abstract fun ne(condition: Condition): T

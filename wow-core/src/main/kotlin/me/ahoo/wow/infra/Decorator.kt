@@ -13,10 +13,34 @@
 
 package me.ahoo.wow.infra
 
+/**
+ * Interface for the Decorator design pattern implementation in the Wow framework.
+ * Decorators wrap objects to add additional functionality while maintaining the same interface.
+ * This interface provides a standard way to access the wrapped (decorated) object.
+ *
+ * @param C the type of the component being decorated
+ */
 interface Decorator<out C : Any> {
+    /**
+     * The original component being decorated.
+     * This provides access to the wrapped object for delegation or inspection.
+     */
     val delegate: C
 
     companion object {
+        /**
+         * Recursively unwraps decorators to find the original (non-decorated) component.
+         * This method traverses the decorator chain until it finds an object that is not a decorator.
+         *
+         * @param C the type of the component
+         * @return the original non-decorated component
+         *
+         * Example usage:
+         * ```
+         * val decoratedComponent = SomeDecorator(SomeDecorator(originalComponent))
+         * val original = decoratedComponent.getOriginalDelegate() // returns originalComponent
+         * ```
+         */
         @Suppress("UNCHECKED_CAST")
         @JvmStatic
         fun <C : Any> C.getOriginalDelegate(): C {

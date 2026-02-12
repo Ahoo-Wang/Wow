@@ -15,7 +15,16 @@ package me.ahoo.wow.command.wait.stage
 
 import me.ahoo.wow.command.wait.CommandStage
 
-class WaitingForProcessed(override val waitCommandId: String) : WaitingForStage() {
+/**
+ * Wait strategy that waits for command processing to complete.
+ * This is the most basic wait strategy that completes when the aggregate
+ * has finished processing the command and generated any domain events.
+ *
+ * @param waitCommandId The unique identifier for this wait strategy.
+ */
+class WaitingForProcessed(
+    override val waitCommandId: String
+) : WaitingForStage() {
     override val stage: CommandStage
         get() = CommandStage.PROCESSED
 }

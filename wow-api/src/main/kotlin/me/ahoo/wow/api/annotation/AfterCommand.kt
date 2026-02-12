@@ -20,12 +20,45 @@ import kotlin.reflect.KClass
 const val DEFAULT_AFTER_COMMAND_NAME = "afterCommand"
 
 /**
- * 在命令函数完成执行后执行的函数。
+ * Marks a function to be executed after a command function completes.
  *
- * - 当返回值不为空时将作为领域事件追加到事件流中。
+ * Functions annotated with @AfterCommand are invoked after command processing finishes.
+ * If the function returns a non-null value, it will be appended to the event stream as a domain event.
  *
- * @param include 需要监听的命令类型。
- * @param exclude 排除监听的命令类型。
+ * This annotation enables post-command processing such as:
+ * - Publishing additional domain events
+ * - Triggering side effects
+ * - Updating related aggregates
+ * - Sending notifications
+ *
+ * Example usage:
+ * ```kotlin
+ * @AggregateRoot
+ * class OrderAggregate {
+ *
+ *     @OnCommand
+ *     fun createOrder(command: CreateOrderCommand): OrderCreated {
+ *         // Create order logic
+ *         return OrderCreated(orderId, items)
+ *     }
+ *
+ *     @AfterCommand(include = [CreateOrderCommand::class])
+ *     fun afterCreateOrder(command: CreateOrderCommand): OrderNotificationSent? {
+ *         // Send notification after order creation
+ *         if (shouldSendNotification()) {
+ *             return OrderNotificationSent(orderId)
+ *         }
+ *         return null // No event if notification not needed
+ *     }
+ * }
+ * ```
+ *
+ * @param include Array of command types to listen for. Only commands of these types will trigger the function.
+ *                If empty, all commands are included by default.
+ * @param exclude Array of command types to exclude from listening. Commands of these types will not trigger the function.
+ *
+ * @see OnCommand for command handling functions
+ * @see FunctionKind.COMMAND for the function kind this annotation targets
  */
 @Target(AnnotationTarget.FUNCTION, AnnotationTarget.ANNOTATION_CLASS)
 @Inherited

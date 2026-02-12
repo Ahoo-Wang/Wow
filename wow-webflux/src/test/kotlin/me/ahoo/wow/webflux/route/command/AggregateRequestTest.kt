@@ -23,6 +23,7 @@ import me.ahoo.wow.command.wait.chain.SimpleWaitingChain
 import me.ahoo.wow.command.wait.chain.SimpleWaitingForChain
 import me.ahoo.wow.command.wait.stage.WaitingForStage
 import me.ahoo.wow.id.generateGlobalId
+import me.ahoo.wow.openapi.CommonComponent
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.serialization.MessageRecords
 import org.junit.jupiter.api.Test
@@ -50,6 +51,13 @@ class AggregateRequestTest {
         val ownerId = generateGlobalId()
         val request = MockServerRequest.builder().build()
         request.getAggregateId(AggregateRoute.Owner.AGGREGATE_ID, ownerId).assert().isEqualTo(ownerId)
+    }
+
+    @Test
+    fun getSpaceIdFromHeader() {
+        val spaceId = generateGlobalId()
+        val request = MockServerRequest.builder().header(CommonComponent.Header.SPACE_ID, spaceId).build()
+        request.getSpaceId().assert().isEqualTo(spaceId)
     }
 
     @Test

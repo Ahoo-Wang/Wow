@@ -15,9 +15,11 @@ package me.ahoo.wow.apiclient.command
 
 import me.ahoo.coapi.api.CoApi
 import me.ahoo.coapi.api.LoadBalanced
+import me.ahoo.wow.api.modeling.SpaceId
 import me.ahoo.wow.apiclient.command.RestCommandGateway.Companion.toException
 import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.wait.CommandStage
+import me.ahoo.wow.openapi.CommonComponent
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.RequestBody
@@ -50,6 +52,8 @@ interface ReactiveRestCommandGateway : RestCommandGateway<Mono<ResponseEntity<Co
         tenantId: String?,
         @RequestHeader(CommandComponent.Header.OWNER_ID, required = false)
         ownerId: String?,
+        @RequestHeader(CommonComponent.Header.SPACE_ID, required = false)
+        spaceId: SpaceId?,
         @RequestHeader(CommandComponent.Header.AGGREGATE_ID, required = false)
         aggregateId: String?,
         @RequestHeader(CommandComponent.Header.AGGREGATE_VERSION, required = false)

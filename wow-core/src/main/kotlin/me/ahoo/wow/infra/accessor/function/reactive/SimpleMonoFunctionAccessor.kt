@@ -12,19 +12,35 @@
  */
 package me.ahoo.wow.infra.accessor.function.reactive
 
-import me.ahoo.wow.infra.accessor.ensureAccessible
 import reactor.core.publisher.Mono
 import kotlin.reflect.KFunction
 
-data class SimpleMonoFunctionAccessor<T, D>(override val function: KFunction<*>) : MonoFunctionAccessor<T, Mono<D>> {
+/**
+ * Simple implementation of MonoFunctionAccessor for functions that already return Mono.
+ * This accessor defers the execution of the underlying function to ensure proper
+ * reactive stream behavior and lazy evaluation.
+ *
+ * @param T the type of the target object
+ * @param D the type of data in the Mono
+ * @property function the Kotlin function that returns a Mono
+ */
+class SimpleMonoFunctionAccessor<T, D>(
+    function: KFunction<*>
+) : AbstractMonoFunctionAccessor<T, Mono<D>>(function) {
 
-    init {
-        method.ensureAccessible()
-    }
-
-    override fun invoke(target: T, args: Array<Any?>): Mono<D> {
-        return Mono.defer {
+    /**
+     * Invokes the function and returns its Mono result, wrapped in Mono.defer for proper lazy evaluation.
+     * The defer operator ensures that the function is only executed when the Mono is subscribed to.
+     *
+     * @param target the object on which to invoke the function
+     * @param args the arguments to pass to the function
+     * @return a Mono containing the function result
+     */
+    override fun invoke(
+        target: T,
+        args: Array<Any?>
+    ): Mono<D> =
+        Mono.defer {
             super.invoke(target, args)
         }
-    }
 }

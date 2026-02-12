@@ -17,12 +17,32 @@ import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
 import reactor.core.publisher.Flux
 
+/**
+ * Interface for scanning aggregate IDs within a named aggregate.
+ * Provides functionality to retrieve aggregate IDs in a paginated manner.
+ */
 interface AggregateIdScanner {
     companion object {
+        /**
+         * Constant representing the first ID for scanning, used as the starting point.
+         */
         const val FIRST_ID = "(0)"
+
+        /**
+         * Constant representing the last possible ID, used for unbounded scanning.
+         */
         const val LAST_ID = "~"
     }
 
+    /**
+     * Scans for aggregate IDs within the specified named aggregate, starting after the given ID.
+     * Returns a limited number of aggregate IDs in lexicographical order.
+     *
+     * @param namedAggregate the named aggregate to scan within
+     * @param afterId the ID to start scanning after (default: FIRST_ID)
+     * @param limit the maximum number of aggregate IDs to return (default: 10)
+     * @return a Flux of aggregate IDs
+     */
     fun scanAggregateId(
         namedAggregate: NamedAggregate,
         afterId: String = FIRST_ID,

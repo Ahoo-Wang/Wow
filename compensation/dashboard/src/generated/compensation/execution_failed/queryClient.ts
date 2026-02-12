@@ -1,12 +1,23 @@
 import { QueryClientFactory, QueryClientOptions, ResourceAttributionPathSpec } from "@ahoo-wang/fetcher-wow";
 import { CompensationPrepared, ExecutionFailedAggregatedFields, ExecutionFailedApplied, ExecutionFailedCreated, ExecutionFailedState, ExecutionSuccessApplied, FunctionChanged, RecoverableMarked, RetrySpecApplied } from "./types";
+import { COMPENSATION_BOUNDED_CONTEXT_ALIAS } from "../boundedContext";
 
 const DEFAULT_QUERY_CLIENT_OPTIONS: QueryClientOptions = {
-    contextAlias: 'compensation',
+    contextAlias: COMPENSATION_BOUNDED_CONTEXT_ALIAS,
     aggregateName: 'execution_failed',
     resourceAttribution: ResourceAttributionPathSpec.NONE,
 };
 
-type DOMAIN_EVENT_TYPES = CompensationPrepared | ExecutionFailedApplied | ExecutionFailedCreated | ExecutionSuccessApplied | FunctionChanged | RecoverableMarked | RetrySpecApplied;
+export enum ExecutionFailedDomainEventTypeMapTitle {
+    compensation_prepared = 'compensation_prepared',
+    execution_failed_applied = 'execution_failed_applied',
+    execution_failed_created = 'execution_failed_created',
+    execution_success_applied = 'execution_success_applied',
+    function_changed = 'function_changed',
+    recoverable_marked = 'recoverable_marked',
+    retry_spec_applied = 'retry_spec_applied'
+}
 
-export const executionFailedQueryClientFactory = new QueryClientFactory<ExecutionFailedState, ExecutionFailedAggregatedFields | string, DOMAIN_EVENT_TYPES>(DEFAULT_QUERY_CLIENT_OPTIONS);
+export type ExecutionFailedDomainEventType = CompensationPrepared | ExecutionFailedApplied | ExecutionFailedCreated | ExecutionSuccessApplied | FunctionChanged | RecoverableMarked | RetrySpecApplied;
+
+export const executionFailedQueryClientFactory = new QueryClientFactory<ExecutionFailedState, ExecutionFailedAggregatedFields | string, ExecutionFailedDomainEventType>(DEFAULT_QUERY_CLIENT_OPTIONS);

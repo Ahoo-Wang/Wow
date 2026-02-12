@@ -19,8 +19,9 @@ import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.filter.FilterType
 import me.ahoo.wow.messaging.handler.RetryableFilter
 import me.ahoo.wow.opentelemetry.TraceFilter
+import me.ahoo.wow.opentelemetry.Traced
 import me.ahoo.wow.saga.stateless.StatelessSagaDispatcher
 
 @FilterType(StatelessSagaDispatcher::class)
 @Order(ORDER_FIRST, after = [RetryableFilter::class])
-object TraceStatelessSagaFilter : TraceFilter<DomainEventExchange<Any>>(StatelessSagaInstrumenter.INSTRUMENTER)
+object TraceStatelessSagaFilter : Traced, TraceFilter<DomainEventExchange<Any>>(StatelessSagaInstrumenter.INSTRUMENTER)

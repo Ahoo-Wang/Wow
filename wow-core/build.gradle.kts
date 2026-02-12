@@ -13,5 +13,7 @@ dependencies {
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
     compileOnly("io.swagger.core.v3:swagger-annotations-jakarta")
+    api("org.jetbrains.kotlinx:kotlinx-coroutines-core")
+    api("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
     testImplementation(project(":wow-tck"))
 }

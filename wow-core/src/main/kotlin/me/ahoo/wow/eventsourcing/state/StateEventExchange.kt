@@ -13,12 +13,25 @@
 
 package me.ahoo.wow.eventsourcing.state
 
-import me.ahoo.wow.messaging.handler.MessageExchange
+import me.ahoo.wow.event.EventExchange
 import java.util.concurrent.ConcurrentHashMap
 
-interface StateEventExchange<S : Any> :
-    MessageExchange<StateEventExchange<S>, StateEvent<S>>
+/**
+ * Exchange container for state events during message processing.
+ * Provides access to the state event message and allows attaching processing attributes.
+ *
+ * @param S The type of the state in the state event.
+ */
+interface StateEventExchange<S : Any> : EventExchange<StateEventExchange<S>, StateEvent<S>>
 
+/**
+ * Simple implementation of StateEventExchange using a concurrent hash map for attributes.
+ * Provides thread-safe attribute storage for message processing.
+ *
+ * @param S The type of the state in the state event.
+ * @param message The state event message being processed.
+ * @param attributes Mutable map for storing processing attributes (default: empty ConcurrentHashMap).
+ */
 class SimpleStateEventExchange<S : Any>(
     override val message: StateEvent<S>,
     override val attributes: MutableMap<String, Any> = ConcurrentHashMap()

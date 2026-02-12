@@ -21,7 +21,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.exception.BindingError
 import me.ahoo.wow.command.CommandValidationException.Companion.toBindingErrors
 import me.ahoo.wow.exception.ErrorCodes.COMMAND_VALIDATION
-import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.id.generateGlobalId
 import org.junit.jupiter.api.Test
 
 class CommandValidationExceptionTest {
@@ -39,7 +39,7 @@ class CommandValidationExceptionTest {
 
     @Test
     fun test() {
-        val command = MockCreateCommand(GlobalIdGenerator.generateAsString())
+        val command = MockCreateCommand(generateGlobalId())
         val path = mockk<Path>()
         every { path.toString() } returns "name"
         val constraintViolation = mockk<ConstraintViolation<MockCreateCommand>> {
@@ -59,8 +59,8 @@ class CommandValidationExceptionTest {
 
     @Test
     fun testIfEmpty() {
-        val command = MockCreateCommand(GlobalIdGenerator.generateAsString())
-        val exception = CommandValidationException(command)
+        val command = MockCreateCommand(generateGlobalId())
+        val exception = CommandValidationException(command, "Command validation failed.")
         exception.errorCode.assert().isEqualTo(COMMAND_VALIDATION)
         exception.message.assert().isEqualTo("Command validation failed.")
         exception.errorMsg.assert().isEqualTo("Command validation failed.")

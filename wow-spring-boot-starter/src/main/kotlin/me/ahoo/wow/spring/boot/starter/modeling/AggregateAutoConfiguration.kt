@@ -27,19 +27,20 @@ import me.ahoo.wow.filter.LogResumeErrorHandler
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.handler.ExchangeFilter
 import me.ahoo.wow.modeling.command.AggregateProcessorFactory
-import me.ahoo.wow.modeling.command.AggregateProcessorFilter
 import me.ahoo.wow.modeling.command.CommandAggregateFactory
-import me.ahoo.wow.modeling.command.CommandDispatcher
-import me.ahoo.wow.modeling.command.CommandHandler
-import me.ahoo.wow.modeling.command.DefaultCommandHandler
 import me.ahoo.wow.modeling.command.RetryableAggregateProcessorFactory
-import me.ahoo.wow.modeling.command.SendDomainEventStreamFilter
 import me.ahoo.wow.modeling.command.SimpleCommandAggregateFactory
+import me.ahoo.wow.modeling.command.dispatcher.AggregateProcessorFilter
+import me.ahoo.wow.modeling.command.dispatcher.CommandDispatcher
+import me.ahoo.wow.modeling.command.dispatcher.CommandHandler
+import me.ahoo.wow.modeling.command.dispatcher.DefaultCommandHandler
+import me.ahoo.wow.modeling.command.dispatcher.SendDomainEventStreamFilter
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
+import me.ahoo.wow.spring.boot.starter.WowProperties
 import me.ahoo.wow.spring.command.CommandDispatcherLauncher
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
@@ -48,8 +49,7 @@ import org.springframework.context.annotation.Bean
 
 @AutoConfiguration
 @ConditionalOnWowEnabled
-class AggregateAutoConfiguration {
-
+class AggregateAutoConfiguration(private val wowProperties: WowProperties) {
     @Bean
     @ConditionalOnMissingBean
     fun stateAggregateFactory(): StateAggregateFactory {
@@ -88,8 +88,11 @@ class AggregateAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    fun aggregateProcessorFilter(): AggregateProcessorFilter {
-        return AggregateProcessorFilter
+    fun aggregateProcessorFilter(
+        serviceProvider: ServiceProvider,
+        aggregateProcessorFactory: AggregateProcessorFactory,
+    ): AggregateProcessorFilter {
+        return AggregateProcessorFilter(serviceProvider, aggregateProcessorFactory)
     }
 
     @Bean
@@ -136,22 +139,18 @@ class AggregateAutoConfiguration {
         @Qualifier(WowAutoConfiguration.WOW_CURRENT_BOUNDED_CONTEXT)
         namedBoundedContext: NamedBoundedContext,
         commandBus: CommandGateway,
-        aggregateProcessorFactory: AggregateProcessorFactory,
         commandHandler: CommandHandler,
-        serviceProvider: ServiceProvider
     ): CommandDispatcher {
         return CommandDispatcher(
             name = "${namedBoundedContext.contextName}.${CommandDispatcher::class.simpleName}",
             commandBus = commandBus,
-            aggregateProcessorFactory = aggregateProcessorFactory,
             commandHandler = commandHandler,
-            serviceProvider = serviceProvider,
         )
     }
 
     @Bean
     @ConditionalOnMissingBean
     fun aggregateDispatcherLauncher(commandDispatcher: CommandDispatcher): CommandDispatcherLauncher {
-        return CommandDispatcherLauncher(commandDispatcher)
+        return CommandDispatcherLauncher(commandDispatcher, wowProperties.shutdownTimeout)
     }
 }

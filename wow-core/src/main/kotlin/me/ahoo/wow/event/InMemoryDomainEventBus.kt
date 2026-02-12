@@ -13,17 +13,42 @@
 package me.ahoo.wow.event
 
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.infra.sink.concurrent
 import me.ahoo.wow.messaging.InMemoryMessageBus
 import reactor.core.publisher.Sinks
 import reactor.core.publisher.Sinks.Many
 
+/**
+ * In-memory implementation of LocalDomainEventBus.
+ *
+ * This class provides an in-memory message bus for domain events, suitable for
+ * testing or single-process applications. It uses reactive sinks to handle
+ * event publishing and subscription within the same JVM instance.
+ *
+ * @property sinkSupplier Function to create reactive sinks for each named aggregate (default: multicast sink with buffer)
+ *
+ * @constructor Creates a new InMemoryDomainEventBus with the specified sink supplier
+ *
+ * @param sinkSupplier The function to create sinks for named aggregates
+ *
+ * @see LocalDomainEventBus
+ * @see InMemoryMessageBus
+ * @see Sinks.Many
+ */
 class InMemoryDomainEventBus(
     override val sinkSupplier: (NamedAggregate) -> Many<DomainEventStream> = {
-        Sinks.many().multicast().onBackpressureBuffer()
+        Sinks.unsafe().many().multicast().onBackpressureBuffer<DomainEventStream>().concurrent()
     }
-) : LocalDomainEventBus, InMemoryMessageBus<DomainEventStream, EventStreamExchange>() {
-
-    override fun DomainEventStream.createExchange(): EventStreamExchange {
-        return SimpleEventStreamExchange(this)
-    }
+) : InMemoryMessageBus<DomainEventStream, EventStreamExchange>(),
+    LocalDomainEventBus {
+    /**
+     * Creates an EventStreamExchange from a DomainEventStream.
+     *
+     * @param message The domain event stream to wrap
+     * @return A new SimpleEventStreamExchange containing the message
+     *
+     * @see EventStreamExchange
+     * @see SimpleEventStreamExchange
+     */
+    override fun DomainEventStream.createExchange(): EventStreamExchange = SimpleEventStreamExchange(this)
 }

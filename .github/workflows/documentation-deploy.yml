@@ -21,15 +21,30 @@ on:
     paths:
       - 'documentation/**'
   workflow_dispatch:
+
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: 'pages'
+  cancel-in-progress: false
 
 jobs:
   build-and-deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@master
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.2
 
       - name: Set up JDK 17
         uses: actions/setup-java@v5
@@ -37,52 +52,44 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
           server-id: github
+          cache: gradle
           settings-path: ${{ github.workspace }}
 
+      - name: Cache Gradle packages
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
       - name: Generate KotlinDoc
-        run: ./gradlew dokkaHtmlMultiModule
+        run: ./gradlew dokkaGenerateHtml
 
       - name: Copy To Documentation
-        run: cp -R build/dokka/htmlMultiModule documentation/docs/public/dokka
+        run: cp -R build/dokka/html documentation/docs/public/dokka
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: 22
-          cache-dependency-path: documentation/yarn.lock
-          cache: yarn
+          node-version: 24
+          cache-dependency-path: documentation/pnpm-lock.yaml
+          cache: 'pnpm'
 
       - name: Build VitePress site
         working-directory: documentation
-        run: yarn add -D vitepress && yarn run docs:build
+        run: pnpm install --shamefully-hoist && pnpm run docs:build
 
-      - name: Deploy to gh-pages
-        uses: crazy-max/ghaction-github-pages@v4
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v4
         with:
-          target_branch: gh-pages
-          build_dir: documentation/docs/.vitepress/dist/
-          fqdn: wow.ahoo.me
+          path: './documentation/docs/.vitepress/dist/'
 
-#      - name: Build VitePress site with SITE_BASE
-#        working-directory: documentation
-#        env:
-#          SITE_BASE: /wow/
-#        run: yarn add -D vitepress && yarn run docs:build
-#
-#      - name: Deploy to gh-pages-with-site-base
-#        uses: crazy-max/ghaction-github-pages@v4
-#        env:
-#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#        with:
-#          target_branch: gh-pages-with-site-base
-#          build_dir: documentation/docs/.vitepress/dist/
-#
-#      - name: Sync to Gitee
-#        uses: wearerequired/git-mirror-action@master
-#        env:
-#          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-#        with:
-#          source-repo: "git@github.com:Ahoo-Wang/Wow.git"
-#          destination-repo: "git@gitee.com:AhooWang/Wow.git"
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

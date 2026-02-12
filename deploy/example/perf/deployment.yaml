@@ -5,7 +5,7 @@ metadata:
   labels:
     app: wow-example
 spec:
-  replicas: 4
+  replicas: 1
   strategy:
     rollingUpdate:
       maxSurge: 25%
@@ -18,8 +18,8 @@ spec:
     metadata:
       labels:
         app: wow-example
-#      annotations:
-#        instrumentation.opentelemetry.io/inject-java: "true"
+      annotations:
+        instrumentation.opentelemetry.io/inject-java: "true"
     spec:
       nodeSelector:
         test: service
@@ -30,7 +30,7 @@ spec:
           effect: "NoSchedule"
       containers:
         - name: wow-example
-          image: registry.cn-shanghai.aliyuncs.com/ahoo/wow-example-server:3.5.3
+          image: registry.cn-shanghai.aliyuncs.com/ahoo/wow-example-server:6.11.3
           env:
             - name: LANG
               value: C.utf8
@@ -73,10 +73,10 @@ spec:
             timeoutSeconds: 1
           resources:
             limits:
-              cpu: "15"
+              cpu: "8"
               memory: 14Gi
             requests:
-              cpu: '15'
+              cpu: '6'
               memory: 10Gi
           volumeMounts:
             - mountPath: /etc/localtime

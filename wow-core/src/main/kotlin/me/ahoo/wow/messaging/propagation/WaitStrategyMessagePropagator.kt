@@ -17,8 +17,25 @@ import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.command.wait.extractWaitStrategy
 
+/**
+ * Propagator that handles wait strategy propagation from upstream messages.
+ *
+ * This propagator extracts wait strategy information from upstream headers
+ * and delegates the actual propagation to the wait strategy implementation.
+ */
 class WaitStrategyMessagePropagator : MessagePropagator {
-    override fun propagate(header: Header, upstream: Message<*, *>) {
+    /**
+     * Propagates wait strategy information from the upstream message.
+     *
+     * If no wait strategy is present in the upstream header, this method returns early.
+     *
+     * @param header The target header to propagate to
+     * @param upstream The upstream message to propagate from
+     */
+    override fun propagate(
+        header: Header,
+        upstream: Message<*, *>
+    ) {
         val upstreamHeader = upstream.header
         val waitStrategy = upstreamHeader.extractWaitStrategy() ?: return
         waitStrategy.propagate(header, upstream)

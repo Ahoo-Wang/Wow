@@ -15,18 +15,20 @@ package me.ahoo.wow.models.tree.command
 
 import me.ahoo.wow.api.annotation.AllowCreate
 import me.ahoo.wow.api.annotation.CommandRoute
-import me.ahoo.wow.api.naming.Named
+import me.ahoo.wow.api.annotation.Description
+import me.ahoo.wow.api.annotation.Summary
+import me.ahoo.wow.models.common.NotBlankNameCapable
 import me.ahoo.wow.models.tree.Flat
 
+@Summary("Create tree node")
+@Description("Id is the tenant ID.")
 @AllowCreate
 @CommandRoute(
     method = CommandRoute.Method.POST,
     appendIdPath = CommandRoute.AppendPath.ALWAYS,
     action = "",
-    summary = "Create tree node",
-    description = "Id is the tenant ID."
 )
-interface Create<E : Created> : Named {
+interface Create<E : Created> : NotBlankNameCapable {
     val parentCode: String
 
     fun toEvent(code: String, sortId: Int): E

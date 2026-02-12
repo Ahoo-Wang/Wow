@@ -20,14 +20,31 @@ import me.ahoo.wow.messaging.processor.MessageAnnotationFunctionCondition
 import me.ahoo.wow.messaging.processor.ProcessorMetadata
 import me.ahoo.wow.messaging.processor.ProcessorMetadataParser
 
+/**
+ * Parser for extracting metadata from stateless saga processors.
+ * This parser identifies functions annotated with [OnEvent] or [OnStateEvent] annotations
+ * to create processor metadata for domain event handling in stateless sagas.
+ *
+ * @property condition The condition used to filter functions based on annotations.
+ */
 object StatelessSagaMetadataParser : ProcessorMetadataParser<DomainEventExchange<*>>(
-    MessageAnnotationFunctionCondition(OnEvent::class, OnStateEvent::class)
+    MessageAnnotationFunctionCondition(OnEvent::class, OnStateEvent::class),
 )
 
-fun <P : Any> Class<out P>.statelessSagaMetadata(): ProcessorMetadata<P, DomainEventExchange<*>> {
-    return StatelessSagaMetadataParser.parse(this)
-}
+/**
+ * Parses the stateless saga metadata for the given processor class.
+ *
+ * @param P The type of the processor.
+ * @return The processor metadata containing information about annotated functions.
+ */
+fun <P : Any> Class<out P>.statelessSagaMetadata(): ProcessorMetadata<P, DomainEventExchange<*>> =
+    StatelessSagaMetadataParser.parse(this)
 
-inline fun <reified P : Any> statelessSagaMetadata(): ProcessorMetadata<P, DomainEventExchange<*>> {
-    return P::class.java.statelessSagaMetadata()
-}
+/**
+ * Parses the stateless saga metadata for the reified processor type.
+ *
+ * @param P The type of the processor.
+ * @return The processor metadata containing information about annotated functions.
+ */
+inline fun <reified P : Any> statelessSagaMetadata(): ProcessorMetadata<P, DomainEventExchange<*>> =
+    P::class.java.statelessSagaMetadata()

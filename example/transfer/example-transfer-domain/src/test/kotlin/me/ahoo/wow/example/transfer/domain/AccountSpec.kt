@@ -46,6 +46,7 @@ class AccountSpec : AggregateSpec<Account, AccountState>({
                 }
             }
             fork {
+                val stateRoot = stateRoot
                 givenEvent(AccountFrozen("")) {
                     whenCommand(Prepare("to", 100)) {
                         expectError<IllegalStateException> {

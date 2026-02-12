@@ -14,8 +14,10 @@
 package me.ahoo.wow.example.transfer.api;
 
 import me.ahoo.wow.api.annotation.CommandRoute;
+import me.ahoo.wow.api.annotation.Summary;
 
-@CommandRoute(summary = "入账", appendIdPath = CommandRoute.AppendPath.ALWAYS)
+@Summary("入账")
+@CommandRoute(appendIdPath = CommandRoute.AppendPath.ALWAYS)
 public record Entry(@CommandRoute.PathVariable String id, String sourceId, Long amount) {
 }
 

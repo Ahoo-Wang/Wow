@@ -13,24 +13,28 @@
 
 package me.ahoo.wow.spring
 
-import me.ahoo.wow.messaging.MessageDispatcher
+import me.ahoo.wow.messaging.dispatcher.MessageDispatcher
 import org.springframework.context.SmartLifecycle
+import java.time.Duration
 import java.util.concurrent.atomic.AtomicBoolean
 
-open class MessageDispatcherLauncher(private val messageDispatcher: MessageDispatcher) : SmartLifecycle {
+open class MessageDispatcherLauncher(
+    private val messageDispatcher: MessageDispatcher,
+    private val shutdownTimeout: Duration
+) : SmartLifecycle {
     private val running = AtomicBoolean(false)
     override fun start() {
         if (!running.compareAndSet(false, true)) {
             return
         }
-        messageDispatcher.run()
+        messageDispatcher.start()
     }
 
     override fun stop() {
         if (!running.compareAndSet(true, false)) {
             return
         }
-        messageDispatcher.close()
+        messageDispatcher.stop(shutdownTimeout)
     }
 
     override fun isRunning(): Boolean {

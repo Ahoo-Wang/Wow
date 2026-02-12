@@ -17,14 +17,17 @@ import me.ahoo.wow.openapi.aggregate.snapshot.SingleSnapshotStateRouteSpec
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.query.snapshot.toStateDocument
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
+import me.ahoo.wow.webflux.route.query.RewriteRequestCondition
 import me.ahoo.wow.webflux.route.query.SingleQueryHandlerFunctionFactory
 
 class SingleSnapshotStateHandlerFunctionFactory(
     snapshotQueryHandler: SnapshotQueryHandler,
+    rewriteRequestCondition: RewriteRequestCondition,
     exceptionHandler: RequestExceptionHandler
 ) : SingleQueryHandlerFunctionFactory<SingleSnapshotStateRouteSpec>(
     supportedSpec = SingleSnapshotStateRouteSpec::class.java,
     queryHandler = snapshotQueryHandler,
+    rewriteRequestCondition = rewriteRequestCondition,
     exceptionHandler = exceptionHandler,
     rewriteResult = { it.toStateDocument() }
 )

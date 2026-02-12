@@ -20,10 +20,36 @@ import me.ahoo.wow.ioc.SimpleServiceProvider
 import me.ahoo.wow.test.SagaVerifier.sagaVerifier
 import me.ahoo.wow.test.dsl.AbstractDynamicTestBuilder
 
-class DefaultStatelessSagaDsl<T : Any>(private val processorType: Class<T>) : StatelessSagaDsl<T>,
-    AbstractDynamicTestBuilder() {
+/**
+ * Default implementation of [StatelessSagaDsl] for creating dynamic saga tests.
+ *
+ * This class provides the entry point for configuring and executing stateless saga tests
+ * with customizable service providers, command gateways, and message factories.
+ * It creates dynamic test nodes that can be executed by JUnit 5.
+ *
+ * @param T The type of the saga being tested.
+ * @property processorType The class of the saga processor.
+ * @property publicServiceProvider A service provider for public services accessible during testing.
+ */
+class DefaultStatelessSagaDsl<T : Any>(
+    private val processorType: Class<T>
+) : AbstractDynamicTestBuilder(),
+    StatelessSagaDsl<T> {
     override val publicServiceProvider: ServiceProvider = SimpleServiceProvider()
 
+    /**
+     * Configures and executes a test scenario with the provided components.
+     *
+     * This method sets up the test environment by copying public services to the
+     * provided service provider, creating a saga verifier, and executing the
+     * test block that defines the "when" conditions and expectations.
+     * The resulting dynamic test nodes are collected for JUnit 5 execution.
+     *
+     * @param serviceProvider The service provider for dependency injection.
+     * @param commandGateway The command gateway for sending commands.
+     * @param commandMessageFactory The factory for creating command messages.
+     * @param block The test specification block defining the scenario.
+     */
     override fun on(
         serviceProvider: ServiceProvider,
         commandGateway: CommandGateway,

@@ -33,6 +33,7 @@ import me.ahoo.wow.api.query.Pagination
  *
  * @see Pagination
  */
+@QueryDslMarker
 class PaginationDsl {
 
     private var index = Pagination.DEFAULT.index

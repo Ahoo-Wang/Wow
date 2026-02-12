@@ -41,9 +41,9 @@ internal class SimpleSnapshotSchemaTest {
         streamSchema.save(namedAggregate.aggregateId("")).assert().isEqualTo(
             """
      replace into test_snapshot
-     (aggregate_id,tenant_id,owner_id,version,state_type,state,event_id,first_operator,operator,first_event_time,event_time,snapshot_time,deleted)
+     (aggregate_id,tenant_id,owner_id,space_id,version,state_type,state,event_id,first_operator,operator,first_event_time,event_time,snapshot_time,deleted)
      values 
-     (?,?,?,?,?,?,?,?,?,?,?,?,?)
+     (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
      """.trim(),
         )
     }

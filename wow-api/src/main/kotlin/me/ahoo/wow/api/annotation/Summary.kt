@@ -15,11 +15,43 @@ package me.ahoo.wow.api.annotation
 
 import java.lang.annotation.Inherited
 
+/**
+ * Provides a concise summary for annotated elements.
+ *
+ * This annotation offers brief descriptions that are suitable for:
+ * - API documentation summaries
+ * - UI tooltips and help text
+ * - Logging and monitoring labels
+ * - Code generation metadata
+ * - Administrative interfaces
+ *
+ * The summary should be brief (1-2 sentences) and focus on the most important
+ * aspect of the annotated element. For more detailed descriptions, use @Description.
+ *
+ * Example usage:
+ * ```kotlin
+ * @Summary("Manages customer orders and fulfillment")
+ * class OrderService {
+ *
+ *     @Summary("Creates a new order for a customer")
+ *     fun createOrder(request: CreateOrderRequest): OrderId {
+ *         // Implementation
+ *     }
+ *
+ *     @Summary("Current status of the order")
+ *     val status: OrderStatus
+ * }
+ * ```
+ *
+ * @param value The summary text. Should be concise and descriptive.
+ *
+ * @see Description for longer, more detailed descriptions
+ */
 @Target(
     AnnotationTarget.CLASS,
     AnnotationTarget.ANNOTATION_CLASS,
     AnnotationTarget.PROPERTY,
-    AnnotationTarget.FIELD
+    AnnotationTarget.FIELD,
 )
 @Inherited
 @MustBeDocumented

@@ -15,17 +15,23 @@ package me.ahoo.wow.mongo
 
 import com.fasterxml.jackson.databind.JavaType
 import me.ahoo.wow.api.query.MaterializedSnapshot
+import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
+import me.ahoo.wow.mongo.Documents.SIZE_FIELD
+import me.ahoo.wow.mongo.Documents.replaceAggregateIdToPrimaryKey
+import me.ahoo.wow.mongo.Documents.replaceIdToPrimaryKey
 import me.ahoo.wow.mongo.Documents.replacePrimaryKeyToAggregateId
+import me.ahoo.wow.mongo.Documents.replacePrimaryKeyToId
 import me.ahoo.wow.serialization.MessageRecords
-import me.ahoo.wow.serialization.toObject
+import me.ahoo.wow.serialization.convert
+import me.ahoo.wow.serialization.toLinkedHashMap
 import org.bson.Document
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 object Documents {
     const val ID_FIELD = "_id"
-
+    const val SIZE_FIELD = "size"
     fun Document.replaceIdToPrimaryKey(): Document = replaceToPrimaryKey(MessageRecords.ID)
 
     fun Document.replacePrimaryKeyToId(): Document = replacePrimaryKeyTo(MessageRecords.ID)
@@ -49,9 +55,25 @@ object Documents {
     }
 }
 
+fun DomainEventStream.toDocument(): Document {
+    val eventStreamMap = toLinkedHashMap()
+    return Document(eventStreamMap)
+        .replaceIdToPrimaryKey()
+        .append(SIZE_FIELD, size)
+}
+
+fun Document.toDomainEventStream(): DomainEventStream {
+    return replacePrimaryKeyToId().convert(DomainEventStream::class.java)
+}
+
 fun <S : Any> Document.toSnapshot(): Snapshot<S> {
-    val snapshotJsonString = this.replacePrimaryKeyToAggregateId().toJson()
-    return snapshotJsonString.toObject()
+    return replacePrimaryKeyToAggregateId().convert()
+}
+
+fun <S : Any> Snapshot<S>.toDocument(): Document {
+    val snapshotMap = toLinkedHashMap()
+    return Document(snapshotMap)
+        .replaceAggregateIdToPrimaryKey()
 }
 
 fun <S : Any> Document.toSnapshotState(): S {
@@ -83,8 +105,7 @@ fun <S : Any> Flux<Document>.toSnapshotState(): Flux<S> {
 }
 
 fun <S : Any> Document.toMaterializedSnapshot(snapshotType: JavaType): MaterializedSnapshot<S> {
-    val snapshotJsonString = this.replacePrimaryKeyToAggregateId().toJson()
-    return snapshotJsonString.toObject(snapshotType)
+    return replacePrimaryKeyToAggregateId().convert(snapshotType)
 }
 
 fun <S : Any> Mono<Document>.toMaterializedSnapshot(snapshotType: JavaType): Mono<MaterializedSnapshot<S>> {

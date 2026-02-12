@@ -1,12 +1,9 @@
 package me.ahoo.wow.schema
 
 import com.fasterxml.classmate.TypeResolver
-import com.networknt.schema.InputFormat
-import com.networknt.schema.JsonSchema
-import com.networknt.schema.JsonSchemaFactory
-import com.networknt.schema.SchemaLocation
-import com.networknt.schema.SchemaValidatorsConfig
-import com.networknt.schema.SpecVersion.VersionFlag
+import com.fasterxml.jackson.databind.JsonNode
+import com.networknt.schema.SchemaRegistry
+import com.networknt.schema.SpecificationVersion
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.event.DomainEvent
@@ -29,7 +26,7 @@ import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory.toStateAggregate
 import me.ahoo.wow.modeling.state.StateAggregate
-import me.ahoo.wow.serialization.toPrettyJson
+import me.ahoo.wow.serialization.toJsonNode
 import me.ahoo.wow.tck.event.MockDomainEventStreams
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.params.ParameterizedTest
@@ -138,20 +135,11 @@ class JsonSchemaValidatorTest {
     @ParameterizedTest
     @MethodSource("parametersForValidate")
     fun validate(type: Type, targetObject: Any) {
-        val jsonSchemaFactory = JsonSchemaFactory.getInstance(VersionFlag.V202012) { builder ->
-            builder.schemaLoaders {
-                it.schemas {
-                    jsonSchemaGenerator.generateSchema(type).toPrettyString()
-                }
-            }
-        }
-        val builder = SchemaValidatorsConfig.builder()
-        val config = builder.build()
-        val input = targetObject.toPrettyJson()
-        val schema: JsonSchema = jsonSchemaFactory.getSchema(SchemaLocation.of(type.toString()), config)
-        val assertions = schema.validate(input, InputFormat.JSON) { executionContext ->
-            executionContext.executionConfig.formatAssertionsEnabled = true
-        }
+        val schemaRegistry = SchemaRegistry.withDefaultDialect(SpecificationVersion.DRAFT_2020_12)
+        val schemaJsonNode = jsonSchemaGenerator.generateSchema(type)
+        val jsonSchema = schemaRegistry.getSchema(schemaJsonNode)
+        val input = targetObject.toJsonNode<JsonNode>()
+        val assertions = jsonSchema.validate(input)
         assertions.assert().isEmpty()
     }
 }

@@ -21,12 +21,24 @@ import me.ahoo.wow.command.wait.WaitStrategy
 import me.ahoo.wow.command.wait.propagateCommandWaitEndpoint
 import me.ahoo.wow.infra.ifNotBlank
 
+/**
+ * Represents the tail (final) stage in a waiting chain.
+ * This class encapsulates the final stage and function criteria that a waiting chain
+ * should wait for after completing the main processing stages.
+ *
+ * @param stage The command processing stage to wait for.
+ * @param function The function criteria for the stage (may be empty for non-function stages).
+ */
 class WaitingChainTail(
     override val stage: CommandStage,
     override val function: NamedFunctionInfoData
 ) : WaitStrategy.FunctionMaterialized {
-    override fun propagate(commandWaitEndpoint: String, header: Header) {
-        header.propagateCommandWaitEndpoint(commandWaitEndpoint)
+    override fun propagate(
+        commandWaitEndpoint: String,
+        header: Header
+    ) {
+        header
+            .propagateCommandWaitEndpoint(commandWaitEndpoint)
             .with(COMMAND_WAIT_TAIL_STAGE, stage.name)
         function.contextName.ifNotBlank {
             header.with(COMMAND_WAIT_TAIL_CONTEXT, it)
@@ -40,11 +52,36 @@ class WaitingChainTail(
     }
 
     companion object {
+        /**
+         * Prefix for all waiting chain tail header keys.
+         */
         const val COMMAND_WAIT_TAIL_PREFIX = "${COMMAND_WAIT_PREFIX}tail_"
+
+        /**
+         * Header key for storing the tail stage.
+         */
         const val COMMAND_WAIT_TAIL_STAGE = "${COMMAND_WAIT_TAIL_PREFIX}stage"
+
+        /**
+         * Header key for storing the tail context name.
+         */
         const val COMMAND_WAIT_TAIL_CONTEXT = "${COMMAND_WAIT_TAIL_PREFIX}context"
+
+        /**
+         * Header key for storing the tail processor name.
+         */
         const val COMMAND_WAIT_TAIL_PROCESSOR = "${COMMAND_WAIT_TAIL_PREFIX}processor"
+
+        /**
+         * Header key for storing the tail function name.
+         */
         const val COMMAND_WAIT_TAIL_FUNCTION = "${COMMAND_WAIT_TAIL_PREFIX}function"
+
+        /**
+         * Extracts a waiting chain tail from the message header.
+         *
+         * @return A WaitingChainTail if the tail stage is found, null otherwise.
+         */
         fun Header.extractWaitingChainTail(): WaitingChainTail? {
             val stage = this[COMMAND_WAIT_TAIL_STAGE] ?: return null
             val context = this[COMMAND_WAIT_TAIL_CONTEXT].orEmpty()
@@ -52,25 +89,49 @@ class WaitingChainTail(
             val function = this[COMMAND_WAIT_TAIL_FUNCTION].orEmpty()
             return WaitingChainTail(
                 stage = CommandStage.valueOf(stage),
-                function = NamedFunctionInfoData(
+                function =
+                NamedFunctionInfoData(
                     contextName = context,
                     processorName = processor,
-                    name = function
-                )
+                    name = function,
+                ),
             )
         }
 
-        fun CommandStage.toWaitingChainTail(function: NamedFunctionInfoData = NamedFunctionInfoData.EMPTY): WaitingChainTail {
+        /**
+         * Converts a CommandStage to a WaitingChainTail with optional function criteria.
+         * For stages that require function waiting, the provided function is used.
+         * For stages that don't require function waiting, an empty function is used.
+         *
+         * @param function The function criteria for stages that require it. Defaults to empty.
+         * @return A WaitingChainTail for this stage.
+         */
+        fun CommandStage.toWaitingChainTail(
+            function: NamedFunctionInfoData = NamedFunctionInfoData.EMPTY
+        ): WaitingChainTail {
             if (shouldWaitFunction) {
                 return WaitingChainTail(
                     stage = this,
-                    function = function
+                    function = function,
                 )
             }
             return WaitingChainTail(
                 stage = this,
-                function = NamedFunctionInfoData.EMPTY
+                function = NamedFunctionInfoData.EMPTY,
             )
         }
+    }
+
+    fun CommandStage.toWaitingChainTail(function: NamedFunctionInfoData = NamedFunctionInfoData.EMPTY): WaitingChainTail {
+        if (shouldWaitFunction) {
+            return WaitingChainTail(
+                stage = this,
+                function = function,
+            )
+        }
+        return WaitingChainTail(
+            stage = this,
+            function = NamedFunctionInfoData.EMPTY,
+        )
     }
 }

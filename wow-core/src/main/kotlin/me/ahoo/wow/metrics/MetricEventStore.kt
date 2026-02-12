@@ -20,26 +20,81 @@ import me.ahoo.wow.eventsourcing.EventStore
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-class MetricEventStore(delegate: EventStore) : EventStore, AbstractMetricDecorator<EventStore>(delegate), Metrizable {
-    override fun append(eventStream: DomainEventStream): Mono<Void> {
-        return delegate.append(eventStream)
+/**
+ * Metric decorator for event stores that collects metrics on event storage and retrieval operations.
+ * This class wraps an EventStore implementation and adds metrics collection with tags for
+ * aggregate name and source identification to track event store performance.
+ *
+ * @property delegate the underlying event store implementation
+ */
+class MetricEventStore(
+    delegate: EventStore
+) : AbstractMetricDecorator<EventStore>(delegate),
+    EventStore,
+    Metrizable {
+    /**
+     * Appends a domain event stream to the event store and collects metrics on the operation.
+     * Metrics collected include timing, success/failure rates, and tags for aggregate identification.
+     *
+     * @param eventStream the domain event stream to append
+     * @return a Mono that completes when the event stream is appended
+     */
+    override fun append(eventStream: DomainEventStream): Mono<Void> =
+        delegate
+            .append(eventStream)
             .name(Wow.WOW_PREFIX + "eventstore.append")
             .tagSource()
             .tag(Metrics.AGGREGATE_KEY, eventStream.aggregateName)
             .metrics()
-    }
 
-    override fun load(aggregateId: AggregateId, headVersion: Int, tailVersion: Int): Flux<DomainEventStream> {
-        return delegate.load(aggregateId, headVersion, tailVersion)
+    /**
+     * Loads domain event streams for the specified aggregate ID within the given version range
+     * and collects metrics on the operation.
+     * Metrics collected include timing and tags for aggregate identification.
+     *
+     * @param aggregateId the aggregate ID to load events for
+     * @param headVersion the starting version number (inclusive)
+     * @param tailVersion the ending version number (inclusive)
+     * @return a Flux of domain event streams
+     */
+    override fun load(
+        aggregateId: AggregateId,
+        headVersion: Int,
+        tailVersion: Int
+    ): Flux<DomainEventStream> =
+        delegate
+            .load(aggregateId, headVersion, tailVersion)
             .name(Wow.WOW_PREFIX + "eventstore.load")
             .tagSource()
             .tag(Metrics.AGGREGATE_KEY, aggregateId.aggregateName)
             .metrics()
-    }
 
-    override fun load(aggregateId: AggregateId, headEventTime: Long, tailEventTime: Long): Flux<DomainEventStream> {
-        return delegate.load(aggregateId, headEventTime, tailEventTime)
+    /**
+     * Loads domain event streams for the specified aggregate ID within the given time range
+     * and collects metrics on the operation.
+     * Metrics collected include timing and tags for aggregate identification.
+     *
+     * @param aggregateId the aggregate ID to load events for
+     * @param headEventTime the starting event time (inclusive) in milliseconds since epoch
+     * @param tailEventTime the ending event time (inclusive) in milliseconds since epoch
+     * @return a Flux of domain event streams
+     */
+    override fun load(
+        aggregateId: AggregateId,
+        headEventTime: Long,
+        tailEventTime: Long
+    ): Flux<DomainEventStream> =
+        delegate
+            .load(aggregateId, headEventTime, tailEventTime)
             .name(Wow.WOW_PREFIX + "eventstore.load")
+            .tagSource()
+            .tag(Metrics.AGGREGATE_KEY, aggregateId.aggregateName)
+            .metrics()
+
+    override fun last(aggregateId: AggregateId): Mono<DomainEventStream> {
+        return delegate
+            .last(aggregateId)
+            .name(Wow.WOW_PREFIX + "eventstore.last")
             .tagSource()
             .tag(Metrics.AGGREGATE_KEY, aggregateId.aggregateName)
             .metrics()

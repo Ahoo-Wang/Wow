@@ -196,7 +196,9 @@ export function FailedDetails({ state }: FailedDetailsProps) {
           type="countdown"
           value={state.retryState.nextRetryAt}
           format="HH:mm:ss"
-          valueStyle={{ fontSize: "14px" }}
+          styles={{
+            content: { fontSize: "14px" },
+          }}
         />
       ),
       span: 2,
@@ -216,7 +218,7 @@ export function FailedDetails({ state }: FailedDetailsProps) {
   ];
 
   return (
-    <Flex gap="small" vertical>
+    <Flex gap="small" vertical style={{ height: "100%" }}>
       <Descriptions bordered column={6} items={basicItems} size="small" />
       <Descriptions bordered column={4} items={functionItems} size="small" />
       <Descriptions bordered column={3} items={eventIdItems} size="small" />

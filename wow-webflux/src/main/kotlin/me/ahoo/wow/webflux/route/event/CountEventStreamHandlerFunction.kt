@@ -17,12 +17,15 @@ import me.ahoo.wow.openapi.aggregate.event.CountEventStreamRouteSpec
 import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.query.CountQueryHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.query.RewriteRequestCondition
 
 class CountEventStreamHandlerFunctionFactory(
     eventStreamQueryHandler: EventStreamQueryHandler,
+    rewriteRequestCondition: RewriteRequestCondition,
     exceptionHandler: RequestExceptionHandler
 ) : CountQueryHandlerFunctionFactory<CountEventStreamRouteSpec>(
     CountEventStreamRouteSpec::class.java,
     eventStreamQueryHandler,
+    rewriteRequestCondition,
     exceptionHandler
 )

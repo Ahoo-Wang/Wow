@@ -18,8 +18,23 @@ import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.command.CommandOperator.operator
 import me.ahoo.wow.command.CommandOperator.withOperator
 
+/**
+ * Propagator that copies command operator information from upstream messages.
+ *
+ * This propagator ensures that operator context (who initiated the command)
+ * is maintained across message boundaries.
+ */
 class CommandOperatorMessagePropagator : MessagePropagator {
-    override fun propagate(header: Header, upstream: Message<*, *>) {
+    /**
+     * Propagates the operator information from the upstream message header.
+     *
+     * @param header The target header to propagate to
+     * @param upstream The upstream message to propagate from
+     */
+    override fun propagate(
+        header: Header,
+        upstream: Message<*, *>
+    ) {
         upstream.header.operator?.let {
             header.withOperator(it)
         }

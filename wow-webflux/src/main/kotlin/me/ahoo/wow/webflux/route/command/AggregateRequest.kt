@@ -16,6 +16,7 @@ package me.ahoo.wow.webflux.route.command
 import me.ahoo.wow.api.annotation.AggregateRoute
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.messaging.function.NamedFunctionInfoData
+import me.ahoo.wow.api.modeling.SpaceId
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.WaitStrategy
@@ -23,6 +24,7 @@ import me.ahoo.wow.command.wait.chain.SimpleWaitingForChain
 import me.ahoo.wow.command.wait.stage.WaitingForStage
 import me.ahoo.wow.infra.ifNotBlank
 import me.ahoo.wow.modeling.matedata.AggregateMetadata
+import me.ahoo.wow.openapi.CommonComponent
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.serialization.MessageRecords
 import org.springframework.http.MediaType
@@ -48,6 +50,13 @@ fun ServerRequest.getOwnerId(): String? {
         return it
     }
     headers().firstHeader(CommandComponent.Header.OWNER_ID).ifNotBlank<String> {
+        return it
+    }
+    return null
+}
+
+fun ServerRequest.getSpaceId(): SpaceId? {
+    headers().firstHeader(CommonComponent.Header.SPACE_ID).ifNotBlank<String> {
         return it
     }
     return null

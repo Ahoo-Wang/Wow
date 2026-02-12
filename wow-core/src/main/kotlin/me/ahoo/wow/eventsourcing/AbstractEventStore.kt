@@ -19,11 +19,24 @@ import me.ahoo.wow.event.DomainEventStream
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
+/**
+ * Abstract base implementation of EventStore that provides common functionality for event storage and retrieval.
+ * This class handles logging, validation, and error mapping for event stream operations.
+ */
 abstract class AbstractEventStore : EventStore {
     private companion object {
         private val log = KotlinLogging.logger {}
     }
 
+    /**
+     * Appends a domain event stream to the event store.
+     * Logs the operation and maps version conflicts to appropriate exceptions.
+     *
+     * @param eventStream the domain event stream to append
+     * @return a Mono that completes when the append operation is done
+     * @throws DuplicateAggregateIdException if the aggregate ID already exists (for initial version)
+     * @throws EventVersionConflictException if there's a version conflict
+     */
     override fun append(eventStream: DomainEventStream): Mono<Void> {
         log.debug {
             "Append ${eventStream.aggregateId} - version[${eventStream.version}]"
@@ -38,7 +51,25 @@ abstract class AbstractEventStore : EventStore {
             }
     }
 
+    /**
+     * Abstract method to append the event stream to the underlying storage.
+     * Implementations should handle the actual persistence logic.
+     *
+     * @param eventStream the domain event stream to append
+     * @return a Mono that completes when the append operation is done
+     */
     protected abstract fun appendStream(eventStream: DomainEventStream): Mono<Void>
+
+    /**
+     * Loads domain event streams for the specified aggregate within the given version range.
+     * Validates that headVersion is non-negative and tailVersion is greater than or equal to headVersion.
+     *
+     * @param aggregateId the ID of the aggregate to load events for
+     * @param headVersion the starting version (inclusive, must be >= 0)
+     * @param tailVersion the ending version (inclusive, must be >= headVersion)
+     * @return a Flux of domain event streams
+     * @throws IllegalArgumentException if headVersion < 0 or tailVersion < headVersion
+     */
     override fun load(
         aggregateId: AggregateId,
         headVersion: Int,
@@ -56,6 +87,16 @@ abstract class AbstractEventStore : EventStore {
         return loadStream(aggregateId, headVersion, tailVersion)
     }
 
+    /**
+     * Loads domain event streams for the specified aggregate within the given event time range.
+     * Validates that tailEventTime is greater than or equal to headEventTime.
+     *
+     * @param aggregateId the ID of the aggregate to load events for
+     * @param headEventTime the starting event time (inclusive)
+     * @param tailEventTime the ending event time (inclusive, must be >= headEventTime)
+     * @return a Flux of domain event streams
+     * @throws IllegalArgumentException if tailEventTime < headEventTime
+     */
     override fun load(
         aggregateId: AggregateId,
         headEventTime: Long,
@@ -67,12 +108,30 @@ abstract class AbstractEventStore : EventStore {
         return loadStream(aggregateId, headEventTime, tailEventTime)
     }
 
+    /**
+     * Abstract method to load event streams by version range from the underlying storage.
+     * Implementations should handle the actual retrieval logic.
+     *
+     * @param aggregateId the ID of the aggregate
+     * @param headVersion the starting version
+     * @param tailVersion the ending version
+     * @return a Flux of domain event streams
+     */
     protected abstract fun loadStream(
         aggregateId: AggregateId,
         headVersion: Int,
         tailVersion: Int
     ): Flux<DomainEventStream>
 
+    /**
+     * Abstract method to load event streams by event time range from the underlying storage.
+     * Implementations should handle the actual retrieval logic.
+     *
+     * @param aggregateId the ID of the aggregate
+     * @param headEventTime the starting event time
+     * @param tailEventTime the ending event time
+     * @return a Flux of domain event streams
+     */
     protected abstract fun loadStream(
         aggregateId: AggregateId,
         headEventTime: Long,

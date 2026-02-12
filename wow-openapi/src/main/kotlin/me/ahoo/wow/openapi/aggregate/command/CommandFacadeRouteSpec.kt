@@ -20,6 +20,7 @@ import io.swagger.v3.oas.models.responses.ApiResponses
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.openapi.AbstractRouteSpecFactory
+import me.ahoo.wow.openapi.CommonComponent.Parameter.spaceIdHeaderParameter
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.RequestBodyBuilder
 import me.ahoo.wow.openapi.RouteIdSpec
@@ -53,6 +54,7 @@ class CommandFacadeRouteSpec(override val componentContext: OpenAPIComponentCont
         add(componentContext.commandTypeHeaderParameter())
         addAll(componentContext.commandCommonHeaderParameters())
         add(componentContext.tenantIdHeaderParameter())
+        add(componentContext.spaceIdHeaderParameter())
         add(componentContext.ownerIdHeaderParameter())
         add(componentContext.commandAggregateContextHeaderParameter())
         add(componentContext.commandAggregateNameHeaderParameter())

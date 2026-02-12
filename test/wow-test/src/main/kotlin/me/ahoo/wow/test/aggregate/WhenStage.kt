@@ -16,6 +16,8 @@ package me.ahoo.wow.test.aggregate
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.OwnerId
+import me.ahoo.wow.api.modeling.SpaceId
+import me.ahoo.wow.api.modeling.SpaceIdCapable
 import me.ahoo.wow.command.SimpleServerCommandExchange
 import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.event.toDomainEventStream
@@ -30,28 +32,80 @@ import me.ahoo.wow.test.validation.validate
 import reactor.kotlin.core.publisher.switchIfEmpty
 import reactor.kotlin.core.publisher.toMono
 
+/**
+ * Defines the stage for specifying commands to execute in aggregate testing.
+ *
+ * This interface provides methods to execute commands on aggregates that have been
+ * set up in the Given stage, transitioning to the Expect stage for result validation.
+ *
+ * @param S the type of the aggregate state
+ */
 interface WhenStage<S : Any> {
     /**
-     * 2. 接收并执行命令.
+     * Executes a command with a custom header.
+     *
+     * @param command the command to execute
+     * @param header the command header to use
+     * @return an ExpectStage for defining expectations on the results
      */
-    fun `when`(command: Any, header: Header): ExpectStage<S> {
-        return this.whenCommand(command = command, header = header)
-    }
+    @Deprecated(
+        "use whenCommand instead.",
+        replaceWith = ReplaceWith("whenCommand(command,header)")
+    )
+    fun `when`(
+        command: Any,
+        header: Header
+    ): ExpectStage<S> = this.whenCommand(command = command, header = header)
 
-    fun `when`(command: Any): ExpectStage<S> {
-        return this.whenCommand(command = command, header = DefaultHeader.Companion.empty())
-    }
+    /**
+     * Executes a command with default header.
+     *
+     * @param command the command to execute
+     * @return an ExpectStage for defining expectations on the results
+     */
+    @Deprecated(
+        "use whenCommand instead.",
+        replaceWith = ReplaceWith("whenCommand(command)")
+    )
+    fun `when`(command: Any): ExpectStage<S> =
+        this.whenCommand(command = command, header = DefaultHeader.empty())
 
+    /**
+     * Executes a command with full parameter control.
+     *
+     * @param command the command to execute
+     * @param header optional command header (defaults to empty)
+     * @param ownerId optional owner ID override (defaults to previously set owner)
+     * @return an ExpectStage for defining expectations on the results
+     */
     fun whenCommand(
         command: Any,
         header: Header = DefaultHeader.empty(),
-        ownerId: String = OwnerId.DEFAULT_OWNER_ID
+        ownerId: String = OwnerId.DEFAULT_OWNER_ID,
+        spaceId: SpaceId = SpaceIdCapable.DEFAULT_SPACE_ID
     ): ExpectStage<S>
 }
 
+/**
+ * Default implementation of WhenStage that executes commands on aggregates.
+ *
+ * This class handles the command execution phase, setting up the aggregate state
+ * (either from events or initial state) and processing the command to produce results.
+ *
+ * @param C the type of the command aggregate
+ * @param S the type of the aggregate state
+ * @property aggregateId the aggregate identifier
+ * @property ownerId the owner ID for the command
+ * @property events the events to replay for state setup
+ * @property metadata aggregate metadata
+ * @property stateAggregateFactory factory for creating state aggregates
+ * @property commandAggregateFactory factory for creating command aggregates
+ * @property serviceProvider provider for service dependencies
+ */
 internal class DefaultWhenStage<C : Any, S : Any>(
     private val aggregateId: AggregateId,
     private val ownerId: String,
+    private val spaceId: SpaceId,
     private val events: Array<out Any>,
     private val metadata: AggregateMetadata<C, S>,
     private val stateAggregateFactory: StateAggregateFactory = ConstructorStateAggregateFactory,
@@ -59,12 +113,18 @@ internal class DefaultWhenStage<C : Any, S : Any>(
     private val serviceProvider: ServiceProvider
 ) : WhenStage<S> {
     @Suppress("UseRequire", "LongMethod")
-    override fun whenCommand(command: Any, header: Header, ownerId: String): ExpectStage<S> {
+    override fun whenCommand(
+        command: Any,
+        header: Header,
+        ownerId: String,
+        spaceId: SpaceId
+    ): ExpectStage<S> {
         val commandMessage = command.toCommandMessage(
             aggregateId = aggregateId.id,
             namedAggregate = aggregateId.namedAggregate,
             tenantId = aggregateId.tenantId,
             ownerId = ownerId.ifBlank { this.ownerId },
+            spaceId = spaceId.ifBlank { this.spaceId },
             header = header,
         )
 
@@ -76,65 +136,67 @@ internal class DefaultWhenStage<C : Any, S : Any>(
         )
         serverCommandExchange.setServiceProvider(serviceProvider)
         val commandAggregateId = commandMessage.aggregateId
-        val expectedResultMono = stateAggregateFactory.createAsMono(
-            metadata.state,
-            commandAggregateId,
-        ).map {
-            try {
-                commandMessage.body.validate()
-            } catch (throwable: Throwable) {
-                return@map ExpectedResult(exchange = serverCommandExchange, stateAggregate = it, error = throwable)
-            }
+        val expectedResultMono = stateAggregateFactory
+            .createAsMono(
+                metadata.state,
+                commandAggregateId,
+            ).map {
+                try {
+                    commandMessage.body.validate()
+                } catch (throwable: Throwable) {
+                    return@map ExpectedResult(exchange = serverCommandExchange, stateAggregate = it, error = throwable)
+                }
 
-            if (commandMessage.isCreate) {
-                return@map ExpectedResult(exchange = serverCommandExchange, stateAggregate = it)
-            }
-
-            if (events.isEmpty()) {
-                if (it.initialized || commandMessage.allowCreate) {
+                if (commandMessage.isCreate) {
                     return@map ExpectedResult(exchange = serverCommandExchange, stateAggregate = it)
                 }
-                return@map ExpectedResult(
-                    exchange = serverCommandExchange,
-                    stateAggregate = it,
-                    error = IllegalArgumentException(
-                        "Non-create aggregate command[$command] given at least one sourcing event.",
-                    ),
-                )
-            }
 
-            val initializationCommand =
-                GivenInitializationCommand(
+                if (events.isEmpty()) {
+                    if (it.initialized || commandMessage.allowCreate) {
+                        return@map ExpectedResult(exchange = serverCommandExchange, stateAggregate = it)
+                    }
+                    return@map ExpectedResult(
+                        exchange = serverCommandExchange,
+                        stateAggregate = it,
+                        error = IllegalArgumentException(
+                            "Non-create aggregate command[$command] given at least one sourcing event.",
+                        ),
+                    )
+                }
+
+                val initializationCommand = GivenInitializationCommand(
                     aggregateId = commandAggregateId,
-                    ownerId = this.ownerId
+                    ownerId = this.ownerId,
+                    spaceId = this.spaceId,
                 )
 
-            val domainEventStream = events.toDomainEventStream(
-                upstream = initializationCommand,
-                aggregateVersion = it.version,
-            )
-            try {
-                it.onSourcing(domainEventStream)
-            } catch (throwable: Throwable) {
-                return@map ExpectedResult(exchange = serverCommandExchange, stateAggregate = it, error = throwable)
-            }
-            ExpectedResult(exchange = serverCommandExchange, stateAggregate = it)
-        }.flatMap { expectedResult ->
-            if (expectedResult.hasError) {
-                return@flatMap expectedResult.toMono()
-            }
-            val commandAggregate = commandAggregateFactory.create(metadata, expectedResult.stateAggregate)
-            commandAggregate.process(serverCommandExchange).map {
-                expectedResult.copy(
-                    domainEventStream = serverCommandExchange.getEventStream(),
-                    error = serverCommandExchange.getError(),
+                val domainEventStream = events.toDomainEventStream(
+                    upstream = initializationCommand,
+                    aggregateVersion = it.version,
                 )
-            }.onErrorResume {
-                expectedResult.copy(error = it).toMono()
+                try {
+                    it.onSourcing(domainEventStream)
+                } catch (throwable: Throwable) {
+                    return@map ExpectedResult(exchange = serverCommandExchange, stateAggregate = it, error = throwable)
+                }
+                ExpectedResult(exchange = serverCommandExchange, stateAggregate = it)
+            }.flatMap { expectedResult ->
+                if (expectedResult.hasError) {
+                    return@flatMap expectedResult.toMono()
+                }
+                val commandAggregate = commandAggregateFactory.create(metadata, expectedResult.stateAggregate)
+                commandAggregate.process(serverCommandExchange)
+                    .map {
+                        expectedResult.copy(
+                            domainEventStream = serverCommandExchange.getEventStream(),
+                            error = serverCommandExchange.getError(),
+                        )
+                    }.onErrorResume {
+                        expectedResult.copy(error = it).toMono()
+                    }
+            }.switchIfEmpty {
+                IllegalArgumentException("A command generates at least one event.").toMono()
             }
-        }.switchIfEmpty {
-            IllegalArgumentException("A command generates at least one event.").toMono()
-        }
         return DefaultExpectStage(
             metadata = metadata,
             commandAggregateFactory = commandAggregateFactory,
@@ -144,23 +206,48 @@ internal class DefaultWhenStage<C : Any, S : Any>(
     }
 }
 
+/**
+ * WhenStage implementation that uses a pre-existing StateAggregate.
+ *
+ * This class is used when testing commands on aggregates that have already been
+ * initialized with specific state, bypassing the event replay process.
+ *
+ * @param C the type of the command aggregate
+ * @param S the type of the aggregate state
+ * @property metadata aggregate metadata
+ * @property stateAggregate the pre-initialized state aggregate
+ * @property commandAggregateFactory factory for creating command aggregates
+ * @property serviceProvider provider for service dependencies
+ */
 internal class GivenStateWhenStage<C : Any, S : Any>(
     private val metadata: AggregateMetadata<C, S>,
     private val stateAggregate: StateAggregate<S>,
     private val commandAggregateFactory: CommandAggregateFactory,
     private val serviceProvider: ServiceProvider
 ) : WhenStage<S> {
-
+    /**
+     * Executes a command on the pre-existing state aggregate.
+     *
+     * This method creates a command message, processes it through the command aggregate,
+     * and returns the results wrapped in an ExpectStage for validation.
+     *
+     * @param command the command to execute
+     * @param header the command header
+     * @param ownerId the owner ID for the command
+     * @return an ExpectStage containing the execution results
+     */
     override fun whenCommand(
         command: Any,
         header: Header,
-        ownerId: String
+        ownerId: String,
+        spaceId: SpaceId
     ): ExpectStage<S> {
         val commandMessage = command.toCommandMessage(
             aggregateId = stateAggregate.aggregateId.id,
             namedAggregate = stateAggregate.aggregateId.namedAggregate,
             tenantId = stateAggregate.aggregateId.tenantId,
             ownerId = ownerId,
+            spaceId = spaceId,
             header = header,
         )
         val commandAggregate = commandAggregateFactory.create(metadata, stateAggregate)
@@ -168,21 +255,22 @@ internal class GivenStateWhenStage<C : Any, S : Any>(
             message = commandMessage,
         ).setServiceProvider(serviceProvider)
 
-        val expectedResultMono = commandAggregate.process(serverCommandExchange).map {
-            ExpectedResult(
-                exchange = serverCommandExchange,
-                stateAggregate = stateAggregate,
-                domainEventStream = serverCommandExchange.getEventStream(),
-                error = serverCommandExchange.getError(),
-            )
-        }.onErrorResume {
-            ExpectedResult(
-                exchange = serverCommandExchange,
-                stateAggregate = stateAggregate,
-                domainEventStream = serverCommandExchange.getEventStream(),
-                error = it,
-            ).toMono()
-        }
+        val expectedResultMono = commandAggregate.process(serverCommandExchange)
+            .map {
+                ExpectedResult(
+                    exchange = serverCommandExchange,
+                    stateAggregate = stateAggregate,
+                    domainEventStream = serverCommandExchange.getEventStream(),
+                    error = serverCommandExchange.getError(),
+                )
+            }.onErrorResume {
+                ExpectedResult(
+                    exchange = serverCommandExchange,
+                    stateAggregate = stateAggregate,
+                    domainEventStream = serverCommandExchange.getEventStream(),
+                    error = it,
+                ).toMono()
+            }
         return DefaultExpectStage(
             metadata = metadata,
             commandAggregateFactory = commandAggregateFactory,

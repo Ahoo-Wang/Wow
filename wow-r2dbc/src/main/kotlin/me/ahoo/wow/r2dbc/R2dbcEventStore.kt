@@ -18,6 +18,7 @@ import io.r2dbc.spi.R2dbcDataIntegrityViolationException
 import io.r2dbc.spi.Statement
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.OwnerId.Companion.orDefaultOwnerId
+import me.ahoo.wow.api.modeling.SpaceIdCapable.Companion.orDefaultSpaceId
 import me.ahoo.wow.command.DuplicateRequestIdException
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.AbstractEventStore
@@ -48,13 +49,14 @@ class R2dbcEventStore(
                     .bind(1, eventStream.aggregateId.id)
                     .bind(2, eventStream.aggregateId.tenantId)
                     .bind(3, eventStream.ownerId)
-                    .bind(4, eventStreamRecord.requestId)
-                    .bind(5, eventStreamRecord.commandId)
-                    .bind(6, eventStreamRecord.version)
-                    .bind(7, eventStreamRecord.header.toJsonString())
-                    .bind(8, eventStreamRecord.body.toJsonString())
-                    .bind(9, eventStream.size)
-                    .bind(10, eventStreamRecord.createTime)
+                    .bind(4, eventStream.spaceId)
+                    .bind(5, eventStreamRecord.requestId)
+                    .bind(6, eventStreamRecord.commandId)
+                    .bind(7, eventStreamRecord.version)
+                    .bind(8, eventStreamRecord.header.toJsonString())
+                    .bind(9, eventStreamRecord.body.toJsonString())
+                    .bind(10, eventStream.size)
+                    .bind(11, eventStreamRecord.createTime)
                     .execute()
             },
             /* asyncCleanup = */
@@ -102,6 +104,7 @@ class R2dbcEventStore(
                     "The aggregated tenantId[${aggregateId.tenantId}] does not match the tenantId:[$tenantId] stored in the eventStore"
                 }
                 val ownerId = readable.get("owner_id", String::class.java).orDefaultOwnerId()
+                val spaceId = readable.get("space_id", String::class.java).orDefaultSpaceId()
                 val commandId = checkNotNull(readable.get("command_id", String::class.java))
                 val version = checkNotNull(readable.get("version", Int::class.java))
                 val header = checkNotNull(readable.get("header", String::class.java))
@@ -111,6 +114,7 @@ class R2dbcEventStore(
                     id = id,
                     rawAggregateId = aggregateId,
                     ownerId = ownerId,
+                    spaceId = spaceId,
                     header = header.toObjectNode(),
                     body = body.toJsonNode(),
                     commandId = commandId,
@@ -146,5 +150,12 @@ class R2dbcEventStore(
                 .bind(1, headEventTime)
                 .bind(2, tailEventTime)
         }
+    }
+
+    override fun last(aggregateId: AggregateId): Mono<DomainEventStream> {
+        return load(aggregateId) {
+            it.createStatement(eventStreamSchema.last(aggregateId))
+                .bind(0, aggregateId.id)
+        }.next()
     }
 }

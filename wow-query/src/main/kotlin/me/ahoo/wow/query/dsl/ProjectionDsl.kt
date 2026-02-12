@@ -32,6 +32,7 @@ import me.ahoo.wow.api.query.Projection
  * @see NestedFieldDsl
  * @see Projection
  */
+@QueryDslMarker
 class ProjectionDsl : NestedFieldDsl() {
 
     private val include = mutableListOf<String>()

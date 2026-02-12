@@ -18,6 +18,7 @@ import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.modeling.SpaceId
 
 data class JsonDomainEvent(
     override val id: String,
@@ -26,6 +27,7 @@ data class JsonDomainEvent(
     override val body: JsonNode,
     override val aggregateId: AggregateId,
     override val ownerId: String,
+    override val spaceId: SpaceId,
     override val version: Int,
     override val sequence: Int,
     override val revision: String,

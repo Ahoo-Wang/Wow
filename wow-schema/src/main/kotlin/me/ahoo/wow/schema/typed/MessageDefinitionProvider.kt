@@ -36,17 +36,17 @@ abstract class MessageDefinitionProvider<M : Message<*, *>> :
         messageType.rawType as Class<M>
     }
 
-    open fun getBodyType(javaType: ResolvedType): ResolvedType {
+    open fun getBodyType(javaType: ResolvedType): ResolvedType? {
         return javaType.typeBindings.getBoundType(0)
     }
 
     override fun createCustomDefinition(javaType: ResolvedType, context: SchemaGenerationContext): CustomDefinition {
-        if (javaType.typeBindings.isEmpty) {
+        val bodyType = getBodyType(javaType)
+        if (bodyType == null || bodyType.erasedType == Any::class.java) {
             return super.createCustomDefinition(javaType, context)
         }
 
         val typedSchema = getTypedSchema().asJsonSchema()
-        val bodyType = getBodyType(javaType)
         val propertiesNode = typedSchema.requiredGetProperties()
         val bodyTypeNode = propertiesNode[MessageRecords.BODY_TYPE] as ObjectNode
         val typeKey = SchemaKeyword.TAG_TYPE.toPropertyName()

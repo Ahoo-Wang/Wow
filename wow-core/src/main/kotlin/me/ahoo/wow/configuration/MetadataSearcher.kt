@@ -19,10 +19,24 @@ import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.serialization.JsonSerializer
 
+/**
+ * The resource name for Wow metadata JSON files.
+ * Metadata files are loaded from this classpath resource location.
+ */
 const val WOW_METADATA_RESOURCE_NAME = "META-INF/wow-metadata.json"
 
+/**
+ * Central searcher for Wow metadata and aggregate configurations.
+ * Loads and caches metadata from classpath resources, providing various search capabilities
+ * for bounded contexts, aggregates, and their mappings.
+ */
 object MetadataSearcher {
     private val log = KotlinLogging.logger {}
+
+    /**
+     * Lazily loaded Wow metadata aggregated from all classpath resources.
+     * Merges metadata from multiple sources found at WOW_METADATA_RESOURCE_NAME.
+     */
     val metadata: WowMetadata by lazy {
         var current = WowMetadata()
         ClassLoader.getSystemResources(WOW_METADATA_RESOURCE_NAME)
@@ -44,69 +58,140 @@ object MetadataSearcher {
         current
     }
 
+    /**
+     * Lazily loaded searcher for finding named aggregates by their type classes.
+     */
     val typeNamedAggregate: TypeNamedAggregateSearcher by lazy {
         metadata.toTypeNamedAggregateSearcher()
     }
+
+    /**
+     * Lazily loaded searcher for finding aggregate types by their named aggregates.
+     */
     val namedAggregateType: NamedAggregateTypeSearcher by lazy {
         metadata.toNamedAggregateTypeSearcher()
     }
+
+    /**
+     * Lazily loaded searcher for finding bounded contexts by package scopes.
+     */
     val scopeContext: ScopeContextSearcher by lazy {
         metadata.toScopeContextSearcher()
     }
+
+    /**
+     * Lazily loaded searcher for finding named aggregates by package scopes.
+     */
     val scopeNamedAggregate: ScopeNamedAggregateSearcher by lazy {
         metadata.toScopeNamedAggregateSearcher()
     }
 
+    /**
+     * Lazily loaded set of all local aggregates available at runtime.
+     */
     val localAggregates: Set<NamedAggregate> by lazy {
         namedAggregateType.keys.map { it.materialize() }.toSet()
     }
 
-    fun NamedAggregate.isLocal(): Boolean {
-        return localAggregates.contains(this.materialize())
-    }
+    /**
+     * Checks if the named aggregate is available locally at runtime.
+     *
+     * @return true if the aggregate is local, false otherwise.
+     */
+    fun NamedAggregate.isLocal(): Boolean = localAggregates.contains(this.materialize())
 
-    fun getAggregate(namedAggregate: NamedAggregate): Aggregate? {
-        return metadata.contexts[namedAggregate.contextName]?.aggregates?.get(namedAggregate.aggregateName)
-    }
+    /**
+     * Retrieves the aggregate configuration for the given named aggregate.
+     *
+     * @param namedAggregate The named aggregate to look up.
+     * @return The aggregate configuration or null if not found.
+     */
+    fun getAggregate(namedAggregate: NamedAggregate): Aggregate? =
+        metadata.contexts[namedAggregate.contextName]?.aggregates?.get(namedAggregate.aggregateName)
 
-    fun requiredAggregate(namedAggregate: NamedAggregate): Aggregate {
-        return requireNotNull(getAggregate(namedAggregate)) {
+    /**
+     * Retrieves the aggregate configuration for the given named aggregate, throwing an exception if not found.
+     *
+     * @param namedAggregate The named aggregate to look up.
+     * @return The aggregate configuration.
+     * @throws IllegalArgumentException if the named aggregate configuration is not found.
+     */
+    fun requiredAggregate(namedAggregate: NamedAggregate): Aggregate =
+        requireNotNull(getAggregate(namedAggregate)) {
             "NamedAggregate configuration [$namedAggregate] not found."
         }
-    }
 }
 
-fun <T> Class<T>.namedBoundedContext(): NamedBoundedContext? {
-    return MetadataSearcher.scopeContext.search(name)
-}
+/**
+ * Finds the named bounded context associated with this class based on its package scope.
+ *
+ * @param T The type of the class.
+ * @return The named bounded context or null if not found.
+ */
+fun <T> Class<T>.namedBoundedContext(): NamedBoundedContext? = MetadataSearcher.scopeContext.search(name)
 
-fun <T> Class<T>.requiredNamedBoundedContext(): NamedBoundedContext {
-    return MetadataSearcher.scopeContext.requiredSearch(name)
-}
+/**
+ * Finds the named bounded context associated with this class, throwing an exception if not found.
+ *
+ * @param T The type of the class.
+ * @return The named bounded context.
+ * @throws IllegalStateException if no matching bounded context is found.
+ */
+fun <T> Class<T>.requiredNamedBoundedContext(): NamedBoundedContext = MetadataSearcher.scopeContext.requiredSearch(name)
 
-fun <T> Class<T>.namedAggregate(): NamedAggregate? {
-    return MetadataSearcher.scopeNamedAggregate.search(name)
-}
+/**
+ * Finds the named aggregate associated with this class based on its package scope.
+ *
+ * @param T The type of the class.
+ * @return The named aggregate or null if not found.
+ */
+fun <T> Class<T>.namedAggregate(): NamedAggregate? = MetadataSearcher.scopeNamedAggregate.search(name)
 
-fun <T> Class<T>.requiredNamedAggregate(): NamedAggregate {
-    return MetadataSearcher.scopeNamedAggregate.requiredSearch(name)
-}
+/**
+ * Finds the named aggregate associated with this class, throwing an exception if not found.
+ *
+ * @param T The type of the class.
+ * @return The named aggregate.
+ * @throws IllegalStateException if no matching named aggregate is found.
+ */
+fun <T> Class<T>.requiredNamedAggregate(): NamedAggregate = MetadataSearcher.scopeNamedAggregate.requiredSearch(name)
 
+/**
+ * Finds the aggregate type class associated with this named aggregate.
+ *
+ * @param T The expected type of the aggregate class.
+ * @return The aggregate class or null if not found.
+ */
 fun <T> NamedAggregate.aggregateType(): Class<T>? {
     @Suppress("UNCHECKED_CAST")
     return MetadataSearcher.namedAggregateType[this.materialize()] as Class<T>?
 }
 
-fun <T> NamedAggregate.requiredAggregateType(): Class<T> {
-    return checkNotNull(aggregateType()) {
+/**
+ * Finds the aggregate type class associated with this named aggregate, throwing an exception if not found.
+ *
+ * @param T The expected type of the aggregate class.
+ * @return The aggregate class.
+ * @throws IllegalStateException if the aggregate type is not found.
+ */
+fun <T> NamedAggregate.requiredAggregateType(): Class<T> =
+    checkNotNull(aggregateType()) {
         "NamedAggregate [$this] not found."
     }
-}
 
-inline fun <reified T> namedAggregate(): NamedAggregate? {
-    return T::class.java.namedAggregate()
-}
+/**
+ * Finds the named aggregate for the reified type T.
+ *
+ * @param T The type to find the named aggregate for.
+ * @return The named aggregate or null if not found.
+ */
+inline fun <reified T> namedAggregate(): NamedAggregate? = T::class.java.namedAggregate()
 
-inline fun <reified T> requiredNamedAggregate(): NamedAggregate {
-    return T::class.java.requiredNamedAggregate()
-}
+/**
+ * Finds the named aggregate for the reified type T, throwing an exception if not found.
+ *
+ * @param T The type to find the named aggregate for.
+ * @return The named aggregate.
+ * @throws IllegalStateException if no matching named aggregate is found.
+ */
+inline fun <reified T> requiredNamedAggregate(): NamedAggregate = T::class.java.requiredNamedAggregate()

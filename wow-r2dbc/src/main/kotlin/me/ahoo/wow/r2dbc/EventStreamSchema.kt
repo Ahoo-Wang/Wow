@@ -24,7 +24,8 @@ const val EVENT_STREAM_LOGIC_NAME_PREFIX = EVENT_STREAM_TABLE + "_"
 data class EventStreamStatement(
     val load: String,
     val loadByEventTime: String,
-    val append: String
+    val append: String,
+    val last: String
 )
 
 object EventStreamStatementGenerator {
@@ -45,10 +46,14 @@ object EventStreamStatementGenerator {
 
     private fun appendSql(tableName: String): String {
         return """
-        insert into $tableName (id,aggregate_id,tenant_id,owner_id,request_id,command_id,version,header,body,size,create_time) 
+        insert into $tableName (id,aggregate_id,tenant_id,owner_id,space_id,request_id,command_id,version,header,body,size,create_time) 
         values
-        (?,?,?,?,?,?,?,?,?,?,?)
+        (?,?,?,?,?,?,?,?,?,?,?,?)
     """.trim()
+    }
+
+    private fun lastSql(tableName: String): String {
+        return "select * from $tableName where aggregate_id=? order by version desc limit 1"
     }
 
     fun generate(tableName: String): EventStreamStatement {
@@ -56,7 +61,8 @@ object EventStreamStatementGenerator {
             EventStreamStatement(
                 load = loadByVersionSql(tableName),
                 loadByEventTime = loadByEventTimeSql(tableName),
-                append = appendSql(tableName)
+                append = appendSql(tableName),
+                last = lastSql(tableName)
             )
         }
     }
@@ -72,6 +78,8 @@ interface EventStreamSchema {
     fun loadByEventTime(aggregateId: AggregateId): String
 
     fun append(aggregateId: AggregateId): String
+
+    fun last(aggregateId: AggregateId): String
 }
 
 class SimpleEventStreamSchema : EventStreamSchema {
@@ -85,6 +93,9 @@ class SimpleEventStreamSchema : EventStreamSchema {
 
     override fun append(aggregateId: AggregateId): String =
         EventStreamStatementGenerator.generate(aggregateId).append
+
+    override fun last(aggregateId: AggregateId): String =
+        EventStreamStatementGenerator.generate(aggregateId).last
 }
 
 class ShardingEventStreamSchema(private val sharding: AggregateIdSharding) :
@@ -103,5 +114,10 @@ class ShardingEventStreamSchema(private val sharding: AggregateIdSharding) :
     override fun append(aggregateId: AggregateId): String {
         val tableName = sharding.sharding(aggregateId)
         return EventStreamStatementGenerator.generate(tableName).append
+    }
+
+    override fun last(aggregateId: AggregateId): String {
+        val tableName = sharding.sharding(aggregateId)
+        return EventStreamStatementGenerator.generate(tableName).last
     }
 }

@@ -71,7 +71,6 @@ export default function App({ navItems }: AppProps) {
   const menuItems: MenuItem[] = [
     // 导航菜单项
     ...navItems.map(createNavItem),
-
     // 外部链接菜单项
     createExternalLinkItem(
       "github",

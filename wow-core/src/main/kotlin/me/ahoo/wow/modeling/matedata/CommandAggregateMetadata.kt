@@ -36,6 +36,24 @@ import me.ahoo.wow.modeling.command.after.AfterCommandFunctionMetadata
 import me.ahoo.wow.modeling.command.after.AfterCommandFunctionMetadata.Companion.toAfterCommandFunction
 import reactor.core.publisher.Mono
 
+/**
+ * Represents the metadata for a command aggregate, containing all information needed to process commands.
+ *
+ * This data class holds the configuration and function registries for a command aggregate, including
+ * constructor accessors, command handlers, error handlers, and after-command functions. It provides
+ * utilities to convert these into executable message functions.
+ *
+ * @param C The type of the command aggregate.
+ * @property aggregateType The class of the command aggregate.
+ * @property namedAggregate The named aggregate that this command aggregate belongs to.
+ * @property constructorAccessor The accessor for creating command aggregate instances.
+ * @property mountedCommands Set of command types that are mounted on this aggregate.
+ * @property commandFunctionRegistry Map of command types to their function metadata for command handling.
+ * @property errorFunctionRegistry Map of error types to their function metadata for error handling.
+ * @property afterCommandFunctionRegistry List of after-command function metadata.
+ *
+ * @constructor Creates a new CommandAggregateMetadata with the specified properties.
+ */
 data class CommandAggregateMetadata<C : Any>(
     override val aggregateType: Class<C>,
     override val namedAggregate: NamedAggregate,
@@ -44,24 +62,51 @@ data class CommandAggregateMetadata<C : Any>(
     val commandFunctionRegistry: Map<Class<*>, FunctionAccessorMetadata<C, Mono<*>>>,
     val errorFunctionRegistry: Map<Class<*>, FunctionAccessorMetadata<C, Mono<*>>>,
     val afterCommandFunctionRegistry: List<AfterCommandFunctionMetadata<C>> = emptyList()
-) : NamedTypedAggregate<C>, NamedAggregateDecorator, Metadata, ProcessorInfo {
+) : NamedTypedAggregate<C>,
+    NamedAggregateDecorator,
+    Metadata,
+    ProcessorInfo {
+    /**
+     * The name of this processor, used for identification in processing contexts.
+     */
     override val processorName: String = aggregateType.simpleName
+
+    /**
+     * Indicates whether delete aggregate functionality is registered for this command aggregate.
+     *
+     * @return true if any command in the registry is assignable from [DeleteAggregate].
+     */
     val registeredDeleteAggregate: Boolean =
         commandFunctionRegistry.keys.any {
             DeleteAggregate::class.java.isAssignableFrom(it)
         }
+
+    /**
+     * Indicates whether recover aggregate functionality is registered for this command aggregate.
+     *
+     * @return true if any command in the registry is assignable from [RecoverAggregate].
+     */
     val registeredRecoverAggregate: Boolean =
         commandFunctionRegistry.keys.any {
             RecoverAggregate::class.java.isAssignableFrom(it)
         }
+
+    /**
+     * The list of all registered commands for this aggregate, including both function-registered and mounted commands.
+     *
+     * Commands are sorted by their order annotation for consistent processing.
+     */
     val registeredCommands: List<Class<*>> by lazy {
         (commandFunctionRegistry.keys.toList() + mountedCommands).sortedByOrder()
     }
 
-    fun toCommandFunctionRegistry(commandAggregate: CommandAggregate<C, *>): Map<Class<*>, MessageFunction<C, ServerCommandExchange<*>, Mono<DomainEventStream>>> {
-        val allAfterCommandFunction = afterCommandFunctionRegistry.map {
-            it.toAfterCommandFunction(commandAggregate.commandRoot)
-        }
+    fun toCommandFunctionRegistry(
+        commandAggregate: CommandAggregate<C, *>
+    ): Map<Class<*>, MessageFunction<C, ServerCommandExchange<*>, Mono<DomainEventStream>>> {
+        val allAfterCommandFunction =
+            afterCommandFunctionRegistry.map {
+                it.toAfterCommandFunction(commandAggregate.commandRoot)
+            }
 
         return buildMap {
             commandFunctionRegistry
@@ -80,7 +125,7 @@ data class CommandAggregateMetadata<C : Any>(
                     .filter { function -> function.metadata.supportCommand(DefaultRecoverAggregate::class.java) }
                 put(
                     DefaultRecoverAggregate::class.java,
-                    DefaultRecoverAggregateFunction(commandAggregate, afterCommandFunctions)
+                    DefaultRecoverAggregateFunction(commandAggregate, afterCommandFunctions),
                 )
             }
             if (!registeredDeleteAggregate) {
@@ -88,21 +133,29 @@ data class CommandAggregateMetadata<C : Any>(
                     .filter { function -> function.metadata.supportCommand(DefaultDeleteAggregate::class.java) }
                 put(
                     DefaultDeleteAggregate::class.java,
-                    DefaultDeleteAggregateFunction(commandAggregate, afterCommandFunctions)
+                    DefaultDeleteAggregateFunction(commandAggregate, afterCommandFunctions),
                 )
             }
         }
     }
 
-    fun toErrorFunctionRegistry(commandAggregate: CommandAggregate<C, *>): Map<Class<*>, MessageFunction<C, ServerCommandExchange<*>, Mono<*>>> {
-        return errorFunctionRegistry
+    /**
+     * Converts the error function registry into executable message functions.
+     *
+     * This method creates a map of error types to their corresponding message functions for error handling.
+     *
+     * @param commandAggregate The command aggregate instance to bind functions to.
+     * @return A map of error classes to their message functions.
+     */
+    fun toErrorFunctionRegistry(
+        commandAggregate: CommandAggregate<C, *>
+    ): Map<Class<*>, MessageFunction<C, ServerCommandExchange<*>, Mono<*>>> =
+        errorFunctionRegistry
             .map {
                 val actualMessageFunction = it.value
                     .toMessageFunction<C, ServerCommandExchange<*>, Mono<*>>(commandAggregate.commandRoot)
                 it.key to actualMessageFunction
-            }
-            .toMap()
-    }
+            }.toMap()
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -111,11 +164,7 @@ data class CommandAggregateMetadata<C : Any>(
         return aggregateType == other.aggregateType
     }
 
-    override fun hashCode(): Int {
-        return aggregateType.hashCode()
-    }
+    override fun hashCode(): Int = aggregateType.hashCode()
 
-    override fun toString(): String {
-        return "CommandAggregateMetadata(aggregateType=$aggregateType)"
-    }
+    override fun toString(): String = "CommandAggregateMetadata(aggregateType=$aggregateType)"
 }

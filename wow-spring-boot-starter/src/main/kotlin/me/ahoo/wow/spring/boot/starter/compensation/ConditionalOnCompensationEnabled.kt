@@ -24,5 +24,5 @@ const val ENABLED_KEY: String = CompensationProperties.PREFIX + ENABLED_SUFFIX_K
     havingValue = "true",
     matchIfMissing = true,
 )
-@ConditionalOnClass(name = ["me.ahoo.wow.compensation.core.CompensationFilter"])
+@ConditionalOnClass(name = ["me.ahoo.wow.compensation.core.EventCompensationFilter"])
 annotation class ConditionalOnCompensationEnabled

@@ -71,9 +71,10 @@ internal class RetryableAggregateProcessorTest {
             .test()
             .expectNextCount(1)
             .verifyComplete()
-
+        val create2 = MockCreateAggregate(aggregateId.id, GlobalIdGenerator.generateAsString())
+            .toCommandMessage()
         retryableAggregateProcessor.process(
-            SimpleServerCommandExchange(create).setServiceProvider(serviceProvider),
+            SimpleServerCommandExchange(create2).setServiceProvider(serviceProvider),
         )
             .test()
             .consumeErrorWith {
@@ -150,6 +151,10 @@ internal class RetryableAggregateProcessorTest {
             tailEventTime: Long
         ): Flux<DomainEventStream> {
             return eventStore.load(aggregateId, headEventTime, tailEventTime)
+        }
+
+        override fun last(aggregateId: AggregateId): Mono<DomainEventStream> {
+            return eventStore.last(aggregateId)
         }
     }
 }

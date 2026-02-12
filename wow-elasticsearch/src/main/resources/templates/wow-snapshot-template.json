@@ -30,6 +30,9 @@
         "ownerId": {
           "type": "keyword"
         },
+        "spaceId": {
+          "type": "keyword"
+        },
         "firstOperator": {
           "type": "keyword"
         },

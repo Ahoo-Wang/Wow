@@ -44,12 +44,31 @@ import kotlin.reflect.KType
 import kotlin.reflect.jvm.jvmErasure
 
 /**
- * Command Metadata Parser .
+ * Parser for extracting command metadata from command classes.
+ *
+ * This parser analyzes command classes to extract metadata such as aggregate information,
+ * property getters for IDs and versions, and command characteristics like create commands
+ * or void commands.
  *
  * @author ahoo wang
+ * @see CommandMetadata
+ * @see CacheableMetadataParser
  */
 object CommandMetadataParser : CacheableMetadataParser() {
-
+    /**
+     * Parses the given command class to extract command metadata.
+     *
+     * This method uses reflection to analyze the command class and its properties,
+     * extracting information about aggregate targeting, property accessors, and
+     * command characteristics.
+     *
+     * @param TYPE the type of the command class
+     * @param M the metadata type (should be CommandMetadata)
+     * @param type the Class object representing the command type
+     * @return the parsed CommandMetadata for the command class
+     * @see CommandMetadata
+     * @see CommandMetadataVisitor
+     */
     override fun <TYPE : Any, M : Metadata> parseToMetadata(type: Class<TYPE>): M {
         val visitor = CommandMetadataVisitor(type)
         type.kotlin.visit(visitor)
@@ -58,7 +77,21 @@ object CommandMetadataParser : CacheableMetadataParser() {
     }
 }
 
-internal class CommandMetadataVisitor<C>(private val commandType: Class<C>) : ClassVisitor<C, CommandMetadata<C>> {
+/**
+ * Visitor class for extracting command metadata during class reflection.
+ *
+ * This internal class implements the visitor pattern to analyze command classes
+ * and extract relevant metadata such as property getters and command characteristics.
+ *
+ * @param C the type of the command class being visited
+ * @property commandType the Class object of the command type
+ * @author ahoo wang
+ * @see ClassVisitor
+ * @see CommandMetadata
+ */
+internal class CommandMetadataVisitor<C>(
+    private val commandType: Class<C>
+) : ClassVisitor<C, CommandMetadata<C>> {
     private val commandName: String = commandType.toName()
     private val isCreate = commandType.isAnnotationPresent(CreateAggregate::class.java)
     private val isVoid = commandType.isAnnotationPresent(VoidCommand::class.java)
@@ -140,15 +173,32 @@ internal class CommandMetadataVisitor<C>(private val commandType: Class<C>) : Cl
             aggregateIdGetter = aggregateIdGetter,
             aggregateVersionGetter = aggregateVersionGetter,
             tenantIdGetter = tenantIdGetter,
-            ownerIdGetter = ownerIdGetter
+            ownerIdGetter = ownerIdGetter,
         )
     }
 }
 
-fun <C> Class<out C>.commandMetadata(): CommandMetadata<C> {
-    return CommandMetadataParser.parse(this)
-}
+/**
+ * Extension function to get command metadata for a command class.
+ *
+ * This convenience function allows easy access to command metadata parsing
+ * directly on Class objects.
+ *
+ * @param C the type of the command class
+ * @return the CommandMetadata for this command class
+ * @see CommandMetadataParser
+ * @see CommandMetadata
+ */
+fun <C> Class<out C>.commandMetadata(): CommandMetadata<C> = CommandMetadataParser.parse(this)
 
-inline fun <reified C> commandMetadata(): CommandMetadata<C> {
-    return C::class.java.commandMetadata()
-}
+/**
+ * Inline function to get command metadata for a reified command type.
+ *
+ * This convenience function provides type-safe access to command metadata
+ * using Kotlin's reified generics.
+ *
+ * @param C the reified type of the command class
+ * @return the CommandMetadata for the command type
+ * @see commandMetadata extension function
+ */
+inline fun <reified C> commandMetadata(): CommandMetadata<C> = C::class.java.commandMetadata()

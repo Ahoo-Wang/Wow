@@ -4,8 +4,6 @@
 
 # Wow : Modern Reactive CQRS Architecture Microservice development framework based on DDD and EventSourcing
 
-> [中文文档](https://wow.ahoo.me/)
-
 [![License](https://img.shields.io/badge/license-Apache%202-4EB1BA.svg)](https://github.com/Ahoo-Wang/Wow/blob/main/LICENSE)
 [![GitHub release](https://img.shields.io/github/release/Ahoo-Wang/Wow.svg)](https://github.com/Ahoo-Wang/Wow/releases)
 [![Maven Central Version](https://img.shields.io/maven-central/v/me.ahoo.wow/wow-core)](https://central.sonatype.com/artifact/me.ahoo.wow/wow-core)
@@ -16,6 +14,8 @@
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/Ahoo-Wang/Wow)
 
 **Domain-Driven** | **Event-Driven** | **Test-Driven** | **Declarative-Design** | **Reactive Programming** | **Command Query Responsibility Segregation** | **Event Sourcing**
+
+> [中文文档](https://wow.ahoo.me/zh/) | [English Document](https://wow.ahoo.me/)
 
 ## Quick Start
 

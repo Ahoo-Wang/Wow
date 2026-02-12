@@ -21,7 +21,9 @@ import me.ahoo.wow.example.api.order.OrderItem
 import me.ahoo.wow.example.api.order.OrderPaid
 import me.ahoo.wow.example.api.order.OrderReceived
 import me.ahoo.wow.example.api.order.OrderShipped
+import me.ahoo.wow.example.api.order.OrderStatus
 import me.ahoo.wow.example.api.order.ShippingAddress
+import me.ahoo.wow.models.common.StatusCapable
 import java.math.BigDecimal
 
 /**
@@ -36,7 +38,7 @@ class OrderState(
      * [me.ahoo.wow.api.annotation.AggregateId] 注解是可选的，约定默认使用字段名为 `id` 为聚合ID.
      */
     val id: String
-) {
+) : StatusCapable<OrderStatus> {
 
     /**
      * unmodifiable.
@@ -49,7 +51,7 @@ class OrderState(
         private set
     var paidAmount: BigDecimal = BigDecimal.ZERO
         private set
-    var status = OrderStatus.CREATED
+    override var status = OrderStatus.CREATED
         private set
 
     /**

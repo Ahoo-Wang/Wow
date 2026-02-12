@@ -23,6 +23,7 @@ import me.ahoo.wow.naming.getContextAlias
 import me.ahoo.wow.openapi.AbstractRouteSpecFactory
 import me.ahoo.wow.openapi.CommonComponent.Parameter.idPathParameter
 import me.ahoo.wow.openapi.CommonComponent.Parameter.ownerIdPathParameter
+import me.ahoo.wow.openapi.CommonComponent.Parameter.spaceIdHeaderParameter
 import me.ahoo.wow.openapi.CommonComponent.Parameter.tenantIdPathParameter
 import me.ahoo.wow.openapi.PathBuilder
 import me.ahoo.wow.openapi.RouteSpec
@@ -92,6 +93,10 @@ interface AggregateRouteSpec : RouteSpec, OpenAPIComponentContextCapable {
                 }
                 if (appendIdPath) {
                     add(componentContext.idPathParameter())
+                }
+
+                if (aggregateRouteMetadata.spaced) {
+                    add(componentContext.spaceIdHeaderParameter())
                 }
             }
         }

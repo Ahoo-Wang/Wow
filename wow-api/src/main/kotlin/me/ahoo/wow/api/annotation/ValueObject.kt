@@ -15,11 +15,47 @@ package me.ahoo.wow.api.annotation
 import java.lang.annotation.Inherited
 
 /**
- * ValueObject annotation is used to mark a class or an annotation as a value object. A value object represents a domain concept that is defined by its data and does not have a distinct identity. This annotation can
- *  be applied to classes and annotation classes.
+ * Marks a class as a value object in domain-driven design (DDD).
  *
- * The `@ValueObject` annotation is intended to convey the design intent that the annotated class should be treated as a value object, which typically means it should be immutable and compared
- *  based on its content rather than its identity.
+ * Value objects represent descriptive aspects of the domain that have no conceptual identity.
+ * They are defined entirely by their values and should be immutable. Two value objects
+ * with the same values are considered equal and interchangeable.
+ *
+ * Key characteristics of value objects:
+ * - No identity - equality based on values, not identity
+ * - Immutable - state cannot be changed after creation
+ * - Self-contained - all data needed for behavior is encapsulated
+ * - Replaceable - can be replaced with another instance having same values
+ * - Side-effect free - operations don't modify external state
+ *
+ * Example usage:
+ * ```kotlin
+ * @ValueObject
+ * data class Money(
+ *     val amount: BigDecimal,
+ *     val currency: Currency
+ * ) {
+ *
+ *     operator fun plus(other: Money): Money {
+ *         require(currency == other.currency) { "Currency mismatch" }
+ *         return Money(amount + other.amount, currency)
+ *     }
+ *
+ *     companion object {
+ *         val ZERO = Money(BigDecimal.ZERO, Currency.USD)
+ *     }
+ * }
+ *
+ * @ValueObject
+ * data class Address(
+ *     val street: String,
+ *     val city: String,
+ *     val postalCode: String,
+ *     val country: String
+ * )
+ * ```
+ * @see EntityObject for objects with identity
+ * @see AggregateRoot for aggregate root entities
  */
 @Target(AnnotationTarget.CLASS, AnnotationTarget.ANNOTATION_CLASS)
 @Inherited

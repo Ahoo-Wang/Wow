@@ -14,13 +14,13 @@
 package me.ahoo.wow.spring.boot.starter.event
 
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.event.DefaultDomainEventHandler
 import me.ahoo.wow.event.DomainEventBus
-import me.ahoo.wow.event.DomainEventDispatcher
 import me.ahoo.wow.event.DomainEventExchange
-import me.ahoo.wow.event.DomainEventFunctionFilter
-import me.ahoo.wow.event.DomainEventFunctionRegistrar
-import me.ahoo.wow.event.DomainEventHandler
+import me.ahoo.wow.event.dispatcher.DefaultDomainEventHandler
+import me.ahoo.wow.event.dispatcher.DomainEventDispatcher
+import me.ahoo.wow.event.dispatcher.DomainEventFunctionFilter
+import me.ahoo.wow.event.dispatcher.DomainEventFunctionRegistrar
+import me.ahoo.wow.event.dispatcher.DomainEventHandler
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.filter.FilterChain
@@ -31,6 +31,7 @@ import me.ahoo.wow.messaging.handler.ExchangeFilter
 import me.ahoo.wow.messaging.handler.RetryableFilter
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
+import me.ahoo.wow.spring.boot.starter.WowProperties
 import me.ahoo.wow.spring.event.DomainEventDispatcherLauncher
 import me.ahoo.wow.spring.event.EventProcessorAutoRegistrar
 import org.springframework.beans.factory.annotation.Qualifier
@@ -41,7 +42,7 @@ import org.springframework.context.annotation.Bean
 
 @AutoConfiguration
 @ConditionalOnWowEnabled
-class EventDispatcherAutoConfiguration {
+class EventDispatcherAutoConfiguration(private val wowProperties: WowProperties) {
 
     @Bean
     fun domainEventHandlerRegistrar(): DomainEventFunctionRegistrar {
@@ -114,6 +115,6 @@ class EventDispatcherAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     fun domainEventDispatcherLauncher(domainEventDispatcher: DomainEventDispatcher): DomainEventDispatcherLauncher {
-        return DomainEventDispatcherLauncher(domainEventDispatcher)
+        return DomainEventDispatcherLauncher(domainEventDispatcher, wowProperties.shutdownTimeout)
     }
 }

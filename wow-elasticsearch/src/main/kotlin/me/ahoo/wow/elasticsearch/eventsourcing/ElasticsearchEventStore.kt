@@ -133,14 +133,31 @@ class ElasticsearchEventStore(
     ): Mono<List<DomainEventStream>> {
         val query = EventStreamConditionConverter.convert(condition)
         val sort = sort { MessageRecords.VERSION.asc() }.toSortOptions()
-        return elasticsearchClient.search<DomainEventStream>({
+        return elasticsearchClient.search({
             it.index(aggregateId.toEventStreamIndexName())
                 .query(query)
                 .size(size)
                 .routing(aggregateId.id)
                 .sort(sort)
-        }, DomainEventStream::class.java).map<List<DomainEventStream>> {
+        }, DomainEventStream::class.java).map {
             it.hits().hits().map { hit -> hit.source() as DomainEventStream }
+        }
+    }
+
+    override fun last(aggregateId: AggregateId): Mono<DomainEventStream> {
+        val condition = condition {
+            tenantId(aggregateId.tenantId)
+            MessageRecords.AGGREGATE_ID eq aggregateId.id
+        }
+        val sort = sort { MessageRecords.VERSION.desc() }.toSortOptions()
+        return elasticsearchClient.search({
+            it.index(aggregateId.toEventStreamIndexName())
+                .query(EventStreamConditionConverter.convert(condition))
+                .size(1)
+                .routing(aggregateId.id)
+                .sort(sort)
+        }, DomainEventStream::class.java).mapNotNull {
+            it.hits().hits().firstOrNull()?.source()
         }
     }
 }

@@ -15,14 +15,16 @@ package me.ahoo.wow.models.tree.command
 
 import me.ahoo.wow.api.annotation.AllowCreate
 import me.ahoo.wow.api.annotation.CommandRoute
+import me.ahoo.wow.api.annotation.Description
+import me.ahoo.wow.api.annotation.Summary
 
+@Summary("添加树节点")
+@Description("Id 为租户ID.")
 @AllowCreate
 @CommandRoute(
     method = CommandRoute.Method.POST,
     appendIdPath = CommandRoute.AppendPath.ALWAYS,
-    action = "",
-    summary = "添加树节点",
-    description = "Id 为租户ID."
+    action = ""
 )
 data class CreateCategory(override val name: String, override val parentCode: String) : Create<CategoryCreated> {
 

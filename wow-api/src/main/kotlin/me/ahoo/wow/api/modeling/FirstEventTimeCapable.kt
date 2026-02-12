@@ -15,7 +15,18 @@ package me.ahoo.wow.api.modeling
 
 import io.swagger.v3.oas.annotations.media.Schema
 
+/**
+ * Interface for entities that track the timestamp of their first processed event.
+ *
+ * This interface provides access to the time when the initial event was applied
+ * to the aggregate's state, marking the beginning of the aggregate's lifecycle.
+ */
 interface FirstEventTimeCapable {
+    /**
+     * The timestamp of the first event processed by this aggregate, in milliseconds since the Unix epoch.
+     *
+     * @return The first event timestamp as a long value.
+     */
     @get:Schema(description = "The first event time of the aggregate, represented as a Unix timestamp in milliseconds.")
     val firstEventTime: Long
 }

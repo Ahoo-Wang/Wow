@@ -54,7 +54,7 @@ class AggregateTracingRouteSpec(
     override val responses: ApiResponses = ApiResponses().apply {
         ApiResponseBuilder()
             .description(summary)
-            .header(Header.WOW_ERROR_CODE, componentContext.errorCodeHeader())
+            .header(Header.ERROR_CODE, componentContext.errorCodeHeader())
             .content(
                 schema = componentContext.arraySchema(
                     StateEvent::class.java,

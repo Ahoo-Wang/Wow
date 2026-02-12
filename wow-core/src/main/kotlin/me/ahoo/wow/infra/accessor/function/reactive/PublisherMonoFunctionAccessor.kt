@@ -12,22 +12,40 @@
  */
 package me.ahoo.wow.infra.accessor.function.reactive
 
-import me.ahoo.wow.infra.accessor.ensureAccessible
 import me.ahoo.wow.infra.accessor.method.FastInvoke
 import org.reactivestreams.Publisher
 import reactor.core.publisher.Mono
-import reactor.kotlin.core.publisher.toMono
+import reactor.kotlin.core.publisher.toFlux
 import kotlin.reflect.KFunction
 
-data class PublisherMonoFunctionAccessor<T, D>(override val function: KFunction<*>) : MonoFunctionAccessor<T, Mono<D>> {
+/**
+ * MonoFunctionAccessor for functions that return Publisher streams.
+ * This accessor converts Publisher results to Mono<D> by taking the first emitted item,
+ * providing compatibility with the Reactive Streams specification.
+ *
+ * @param T the type of the target object
+ * @param D the type of data in the Publisher
+ * @property function the Kotlin function that returns a Publisher
+ */
+class PublisherMonoFunctionAccessor<T, D>(
+    function: KFunction<*>
+) : AbstractMonoFunctionAccessor<T, Mono<D>>(function) {
 
-    init {
-        method.ensureAccessible()
-    }
-
-    override operator fun invoke(target: T, args: Array<Any?>): Mono<D> {
-        return Mono.defer {
-            FastInvoke.safeInvoke<Publisher<D>>(method, target, args).toMono()
+    /**
+     * Invokes the function that returns a Publisher and converts it to a Mono.
+     * Uses Mono.defer for lazy evaluation and toMono() to convert the Publisher
+     * to a Mono that emits the first item.
+     *
+     * @param target the object on which to invoke the function
+     * @param args the arguments to pass to the function
+     * @return a Mono containing the first item emitted by the Publisher
+     */
+    override operator fun invoke(
+        target: T,
+        args: Array<Any?>
+    ): Mono<D> =
+        Mono.defer {
+            @Suppress("UNCHECKED_CAST")
+            FastInvoke.safeInvoke<Publisher<Any>>(method, target, args).toFlux().collectList() as Mono<D>
         }
-    }
 }

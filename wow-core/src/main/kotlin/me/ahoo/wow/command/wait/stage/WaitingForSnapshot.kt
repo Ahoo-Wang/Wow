@@ -15,7 +15,16 @@ package me.ahoo.wow.command.wait.stage
 
 import me.ahoo.wow.command.wait.CommandStage
 
-class WaitingForSnapshot(override val waitCommandId: String) : WaitingForAfterProcessed() {
+/**
+ * Wait strategy that waits for aggregate snapshots to be generated.
+ * This strategy completes when both command processing and snapshot creation are finished.
+ * Snapshots are used for performance optimization in high-throughput scenarios.
+ *
+ * @param waitCommandId The unique identifier for this wait strategy.
+ */
+class WaitingForSnapshot(
+    override val waitCommandId: String
+) : WaitingForAfterProcessed() {
     override val stage: CommandStage
         get() = CommandStage.SNAPSHOT
 }

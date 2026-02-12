@@ -13,6 +13,17 @@
 
 package me.ahoo.wow.api.naming
 
+/**
+ * Interface for entities that can be enabled or disabled.
+ *
+ * This interface provides a standard way to control whether an entity is active
+ * and available for use, or inactive and unavailable.
+ */
 interface EnabledCapable {
+    /**
+     * Indicates whether the entity is enabled and available for use.
+     *
+     * @return true if the entity is enabled, false if disabled.
+     */
     val enabled: Boolean
 }

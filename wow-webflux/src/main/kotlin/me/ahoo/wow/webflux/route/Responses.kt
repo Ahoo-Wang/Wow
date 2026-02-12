@@ -16,7 +16,7 @@ package me.ahoo.wow.webflux.route
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.exception.toErrorInfo
 import me.ahoo.wow.id.generateGlobalId
-import me.ahoo.wow.openapi.CommonComponent.Header.WOW_ERROR_CODE
+import me.ahoo.wow.openapi.CommonComponent.Header.ERROR_CODE
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.webflux.exception.ErrorHttpStatusMapping.toHttpStatus
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
@@ -38,7 +38,7 @@ fun Throwable.toResponseEntity(): ResponseEntity<ErrorInfo> {
     val status = errorInfo.toHttpStatus()
     return ResponseEntity.status(status)
         .contentType(MediaType.APPLICATION_JSON)
-        .header(WOW_ERROR_CODE, errorInfo.errorCode)
+        .header(ERROR_CODE, errorInfo.errorCode)
         .body(errorInfo)
 }
 
@@ -46,7 +46,7 @@ fun ErrorInfo.toServerResponse(): Mono<ServerResponse> {
     val status = toHttpStatus()
     return ServerResponse.status(status)
         .contentType(MediaType.APPLICATION_JSON)
-        .header(WOW_ERROR_CODE, errorCode)
+        .header(ERROR_CODE, errorCode)
         .bodyValue(this.toJsonString())
 }
 
@@ -60,7 +60,7 @@ fun Mono<*>.toServerResponse(
         }
         ServerResponse.ok()
             .contentType(MediaType.APPLICATION_JSON)
-            .header(WOW_ERROR_CODE, ErrorInfo.SUCCEEDED)
+            .header(ERROR_CODE, ErrorInfo.SUCCEEDED)
             .bodyValue(it.toJsonString())
     }.onErrorResume {
         exceptionHandler.handle(request, it)
@@ -88,7 +88,7 @@ fun Flux<ServerSentEvent<String>>.toEventStreamResponse(
     val eventStream = this.errorResume(request, exceptionHandler)
     return ServerResponse.ok()
         .contentType(MediaType.TEXT_EVENT_STREAM)
-        .header(WOW_ERROR_CODE, ErrorInfo.SUCCEEDED)
+        .header(ERROR_CODE, ErrorInfo.SUCCEEDED)
         .body(eventStream, StringServerSentEventType)
 }
 

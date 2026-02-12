@@ -36,14 +36,14 @@ export function ApplyRetrySpec({
   const { closeDrawer } = useGlobalDrawer();
   const promiseState = useExecutePromise<CommandResult, ExchangeError>({
     onSuccess: () => {
-      notification.info({ message: "Apply Retry Spec Successfully" });
+      notification.info({ title: "Apply Retry Spec Successfully" });
       onChanged?.();
       closeDrawer();
     },
     onError: async (error) => {
       const commandResult = await error.exchange.extractResult<CommandResult>();
       notification.error({
-        message: "Failed to Apply Retry Spec",
+        title: "Failed to Apply Retry Spec",
         description: commandResult.errorMsg,
       });
     },
@@ -55,13 +55,19 @@ export function ApplyRetrySpec({
       minBackoff: retrySpec.minBackoff,
       executionTimeout: retrySpec.executionTimeout,
     });
-  }, [form, id, retrySpec.executionTimeout, retrySpec.maxRetries, retrySpec.minBackoff]);
+  }, [
+    form,
+    id,
+    retrySpec.executionTimeout,
+    retrySpec.maxRetries,
+    retrySpec.minBackoff,
+  ]);
 
   const handleOk = () => {
     form.validateFields().then((values) => {
-      promiseState.execute(
-        executionFailedCommandClient.applyRetrySpec(id, {
-          body: values,
+      promiseState.execute((abortController) =>
+        executionFailedCommandClient.applyRetrySpec(values, {
+          abortController,
         }),
       );
     });

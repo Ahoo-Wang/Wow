@@ -22,10 +22,10 @@ import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotRepository
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.modeling.command.AggregateProcessorFactory
-import me.ahoo.wow.modeling.command.AggregateProcessorFilter
 import me.ahoo.wow.modeling.command.CommandAggregateFactory
-import me.ahoo.wow.modeling.command.CommandHandler
-import me.ahoo.wow.modeling.command.SendDomainEventStreamFilter
+import me.ahoo.wow.modeling.command.dispatcher.AggregateProcessorFilter
+import me.ahoo.wow.modeling.command.dispatcher.CommandHandler
+import me.ahoo.wow.modeling.command.dispatcher.SendDomainEventStreamFilter
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository

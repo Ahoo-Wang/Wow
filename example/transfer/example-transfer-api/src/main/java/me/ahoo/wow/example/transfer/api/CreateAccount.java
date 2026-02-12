@@ -16,9 +16,11 @@ package me.ahoo.wow.example.transfer.api;
 import jakarta.validation.constraints.PositiveOrZero;
 import me.ahoo.wow.api.annotation.CommandRoute;
 import me.ahoo.wow.api.annotation.CreateAggregate;
+import me.ahoo.wow.api.annotation.Summary;
 
 @CreateAggregate
-@CommandRoute(summary = "开户")
+@Summary("开户")
+@CommandRoute
 public record CreateAccount(
         String name,
         @PositiveOrZero

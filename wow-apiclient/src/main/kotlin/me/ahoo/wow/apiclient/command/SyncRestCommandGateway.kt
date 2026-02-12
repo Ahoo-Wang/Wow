@@ -18,6 +18,7 @@ import me.ahoo.coapi.api.LoadBalanced
 import me.ahoo.wow.apiclient.command.RestCommandGateway.Companion.toException
 import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.wait.CommandStage
+import me.ahoo.wow.openapi.CommonComponent
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.RequestBody
@@ -48,6 +49,8 @@ interface SyncRestCommandGateway : RestCommandGateway<ResponseEntity<CommandResu
         tenantId: String?,
         @RequestHeader(CommandComponent.Header.OWNER_ID, required = false)
         ownerId: String?,
+        @RequestHeader(CommonComponent.Header.SPACE_ID, required = false)
+        spaceId: String?,
         @RequestHeader(CommandComponent.Header.AGGREGATE_ID, required = false)
         aggregateId: String?,
         @RequestHeader(CommandComponent.Header.AGGREGATE_VERSION, required = false)
@@ -73,7 +76,5 @@ interface SyncRestCommandGateway : RestCommandGateway<ResponseEntity<CommandResu
     override fun unwrapResponse(
         commandRequest: CommandRequest,
         response: ResponseEntity<CommandResult>
-    ): CommandResult {
-        return checkNotNull(response.body)
-    }
+    ): CommandResult = checkNotNull(response.body)
 }

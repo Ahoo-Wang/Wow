@@ -23,6 +23,8 @@ import me.ahoo.wow.schema.typed.AggregatedFieldsDefinitionProvider
 import me.ahoo.wow.schema.typed.CommandDefinitionProvider
 import me.ahoo.wow.schema.typed.DomainEventDefinitionProvider
 import me.ahoo.wow.schema.typed.DomainEventStreamDefinitionProvider
+import me.ahoo.wow.schema.typed.EnumTextDefinitionProvider
+import me.ahoo.wow.schema.typed.MapDefinitionProvider
 import me.ahoo.wow.schema.typed.SnapshotDefinitionProvider
 import me.ahoo.wow.schema.typed.StateAggregateDefinitionProvider
 import me.ahoo.wow.schema.typed.StateEventDefinitionProvider
@@ -38,10 +40,12 @@ class WowModule(
     Module {
     override fun applyToConfigBuilder(builder: SchemaGeneratorConfigBuilder) {
         val fieldConfigPart = builder.forFields()
-        fieldConfigPart.withTitleResolver(SummaryTitleResolver)
-        fieldConfigPart.withDescriptionResolver(DescriptionResolver)
+        fieldConfigPart.withTitleResolver(SummaryTitleFieldResolver)
+        fieldConfigPart.withDescriptionResolver(DescriptionFieldResolver)
         ignoreCommandRouteVariable(fieldConfigPart)
         val generalConfigPart = builder.forTypesInGeneral()
+        generalConfigPart.withTitleResolver(SummaryTitleTypeResolver)
+        generalConfigPart.withDescriptionResolver(DescriptionTypeResolver)
         generalConfigPart.withCustomDefinitionProvider(AggregateIdDefinitionProvider)
         generalConfigPart.withCustomDefinitionProvider(CommandDefinitionProvider)
         generalConfigPart.withCustomDefinitionProvider(DomainEventDefinitionProvider)
@@ -56,6 +60,8 @@ class WowModule(
         generalConfigPart.withCustomDefinitionProvider(StateEventDefinitionProvider)
         generalConfigPart.withCustomDefinitionProvider(ServerSentEventCustomDefinitionProvider)
         generalConfigPart.withCustomDefinitionProvider(ConditionOptionsDefinitionProvider)
+        generalConfigPart.withCustomDefinitionProvider(MapDefinitionProvider)
+        generalConfigPart.withCustomDefinitionProvider(EnumTextDefinitionProvider)
     }
 
     private fun ignoreCommandRouteVariable(configPart: SchemaGeneratorConfigPart<FieldScope>) {

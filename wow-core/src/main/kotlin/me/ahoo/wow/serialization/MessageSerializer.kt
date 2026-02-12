@@ -18,8 +18,8 @@ import com.fasterxml.jackson.databind.SerializerProvider
 import com.fasterxml.jackson.databind.ser.std.StdSerializer
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.messaging.Message
-import me.ahoo.wow.api.messaging.NamedMessage
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.naming.Named
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.serialization.event.JsonDomainEvent
 
@@ -34,7 +34,7 @@ abstract class MessageSerializer<M : Message<*, *>>(messageType: Class<M>) : Std
         if (value is NamedAggregate) {
             generator.writeStringField(MessageRecords.AGGREGATE_NAME, value.aggregateName)
         }
-        if (value is NamedMessage<*, *>) {
+        if (value is Named) {
             generator.writeStringField(MessageRecords.NAME, value.name)
         }
         writeHeader(generator, value.header)
