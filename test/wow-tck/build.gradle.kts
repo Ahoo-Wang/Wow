@@ -11,9 +11,9 @@ dependencies {
     implementation("io.micrometer:micrometer-core")
     implementation(kotlin("reflect"))
     implementation("org.testcontainers:testcontainers")
-    implementation("org.testcontainers:junit-jupiter")
+    implementation("org.testcontainers:testcontainers-junit-jupiter")
     implementation("io.projectreactor.kafka:reactor-kafka")
-    implementation("org.testcontainers:kafka")
-    implementation("org.testcontainers:mongodb")
-    implementation("org.testcontainers:elasticsearch")
+    implementation("org.testcontainers:testcontainers-kafka")
+    implementation("org.testcontainers:testcontainers-mongodb")
+    implementation("org.testcontainers:testcontainers-elasticsearch")
 }
