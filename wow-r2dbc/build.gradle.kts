@@ -7,7 +7,7 @@ dependencies {
     testImplementation(project(":wow-tck"))
     testImplementation("me.ahoo.cosid:cosid-test")
     testImplementation("org.mariadb:r2dbc-mariadb")
-    testImplementation("org.testcontainers:mariadb")
+    testImplementation("org.testcontainers:testcontainers-mariadb")
     testImplementation("org.testcontainers:testcontainers-r2dbc")
     testImplementation("org.mariadb.jdbc:mariadb-java-client")
 }
