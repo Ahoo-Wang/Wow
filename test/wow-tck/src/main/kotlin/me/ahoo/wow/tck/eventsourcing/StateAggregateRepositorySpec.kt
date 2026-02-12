@@ -61,6 +61,7 @@ abstract class StateAggregateRepositorySpec {
         val domainEventMessage = eventStream.iterator().next() as DomainEvent<MockAggregateChanged>
         stateAggregate.version.assert().isEqualTo(domainEventMessage.version)
         stateAggregate.state.data.assert().isEqualTo(domainEventMessage.body.data)
+
         val stateAggregate1 = aggregateRepository.load<MockStateAggregate>(aggregateId, tailVersion = 1).block()!!
         stateAggregate1.version.assert().isEqualTo(domainEventMessage.version)
     }
@@ -76,7 +77,7 @@ abstract class StateAggregateRepositorySpec {
         val eventStream = stateChanged.toDomainEventStream(upstream = command, aggregateVersion = 0)
         TEST_EVENT_STORE.append(eventStream).block()
         val stateAggregate = aggregateRepository.load(aggregateId, aggregateMetadata.state).block()!!
-        stateAggregate.assert().isNotNull()
+        stateAggregate.version.assert().isNotNull()
         stateAggregate.aggregateId.assert().isEqualTo(aggregateId)
         val domainEventMessage = eventStream.iterator().next() as DomainEvent<MockAggregateChanged>
         stateAggregate.version.assert().isEqualTo(domainEventMessage.version)
