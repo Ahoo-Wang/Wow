@@ -13,16 +13,16 @@
 
 package me.ahoo.wow.serialization
 
-import com.fasterxml.jackson.core.JsonGenerator
-import com.fasterxml.jackson.core.JsonParser
-import com.fasterxml.jackson.databind.DeserializationContext
-import com.fasterxml.jackson.databind.SerializerProvider
-import com.fasterxml.jackson.databind.deser.std.StdDeserializer
-import com.fasterxml.jackson.databind.node.ObjectNode
-import com.fasterxml.jackson.databind.ser.std.StdSerializer
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
+import tools.jackson.core.JsonGenerator
+import tools.jackson.core.JsonParser
+import tools.jackson.databind.DeserializationContext
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.SerializationContext
+import tools.jackson.databind.deser.std.StdDeserializer
+import tools.jackson.databind.ser.std.StdSerializer
 
 /**
  * Jackson JSON serializer for [AggregateId] objects.
@@ -51,13 +51,13 @@ object AggregateIdJsonSerializer : StdSerializer<AggregateId>(AggregateId::class
     override fun serialize(
         value: AggregateId,
         generator: JsonGenerator,
-        provider: SerializerProvider
+        provider: SerializationContext
     ) {
         generator.writeStartObject()
-        generator.writeStringField(MessageRecords.CONTEXT_NAME, value.contextName)
-        generator.writeStringField(MessageRecords.AGGREGATE_NAME, value.aggregateName)
-        generator.writeStringField(MessageRecords.AGGREGATE_ID, value.id)
-        generator.writeStringField(MessageRecords.TENANT_ID, value.tenantId)
+        generator.writeStringProperty(MessageRecords.CONTEXT_NAME, value.contextName)
+        generator.writeStringProperty(MessageRecords.AGGREGATE_NAME, value.aggregateName)
+        generator.writeStringProperty(MessageRecords.AGGREGATE_ID, value.id)
+        generator.writeStringProperty(MessageRecords.TENANT_ID, value.tenantId)
         generator.writeEndObject()
     }
 }
@@ -90,13 +90,13 @@ object AggregateIdJsonDeserializer : StdDeserializer<AggregateId>(AggregateId::c
         p: JsonParser,
         ctxt: DeserializationContext
     ): AggregateId {
-        val aggregateIdRecord = p.codec.readTree<ObjectNode>(p)
-        val contextName = aggregateIdRecord[MessageRecords.CONTEXT_NAME].asText()
-        val aggregateName = aggregateIdRecord[MessageRecords.AGGREGATE_NAME].asText()
+        val aggregateIdRecord = p.objectReadContext().readTree<JsonNode>(p)
+        val contextName = aggregateIdRecord[MessageRecords.CONTEXT_NAME].asString()
+        val aggregateName = aggregateIdRecord[MessageRecords.AGGREGATE_NAME].asString()
         return MaterializedNamedAggregate(contextName, aggregateName)
             .aggregateId(
-                id = aggregateIdRecord[MessageRecords.AGGREGATE_ID].asText(),
-                tenantId = aggregateIdRecord[MessageRecords.TENANT_ID].asText(),
+                id = aggregateIdRecord[MessageRecords.AGGREGATE_ID].asString(),
+                tenantId = aggregateIdRecord[MessageRecords.TENANT_ID].asString(),
             )
     }
 }

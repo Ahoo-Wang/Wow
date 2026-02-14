@@ -15,15 +15,16 @@ package me.ahoo.wow.serialization
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect
 import com.fasterxml.jackson.annotation.PropertyAccessor
-import com.fasterxml.jackson.core.JsonParser
-import com.fasterxml.jackson.core.type.TypeReference
-import com.fasterxml.jackson.databind.BeanDescription
-import com.fasterxml.jackson.databind.DeserializationFeature
-import com.fasterxml.jackson.databind.JavaType
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.databind.node.ObjectNode
-import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import tools.jackson.core.StreamReadFeature
+import tools.jackson.core.type.TypeReference
+import tools.jackson.databind.BeanDescription
+import tools.jackson.databind.DeserializationFeature
+import tools.jackson.databind.JavaType
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.ObjectMapper
+import tools.jackson.databind.node.ObjectNode
+import tools.jackson.module.kotlin.jsonMapper
+import tools.jackson.module.kotlin.kotlinModule
 import java.lang.reflect.Type
 
 /**
@@ -47,15 +48,15 @@ import java.lang.reflect.Type
  *
  * @see ObjectMapper for base Jackson functionality
  */
-object JsonSerializer : ObjectMapper() {
-    init {
-        setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY)
-        configure(JsonParser.Feature.IGNORE_UNDEFINED, true)
-        disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
-        enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS)
-        registerKotlinModule()
-        findAndRegisterModules()
+val JsonSerializer = jsonMapper {
+    changeDefaultVisibility {
+        it.withVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY)
     }
+    configure(StreamReadFeature.IGNORE_UNDEFINED, true)
+    disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+    enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS)
+    addModule(kotlinModule())
+    findAndAddModules()
 }
 
 /**
@@ -393,5 +394,9 @@ fun <T : Any> T.toLinkedHashMap(): LinkedHashMap<String, Any> = this.convert(LIN
 
 fun Type.toBeanDescription(): BeanDescription {
     val javaType = JsonSerializer.typeFactory.constructType(this)
-    return JsonSerializer.serializationConfig.introspect(javaType)
+    val classIntrospector = JsonSerializer.serializationConfig().classIntrospectorInstance()
+    return classIntrospector.introspectForSerialization(
+        javaType,
+        classIntrospector.introspectClassAnnotations(javaType)
+    )
 }

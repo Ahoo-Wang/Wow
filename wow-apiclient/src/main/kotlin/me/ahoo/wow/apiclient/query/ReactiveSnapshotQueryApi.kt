@@ -22,7 +22,7 @@ interface ReactiveSnapshotQueryApi<S : Any> :
     ReactiveSnapshotPagedQueryApi<S>,
     ReactiveSnapshotCountQueryApi
 
-fun <T> Mono<T>.switchNotFoundToEmpty(): Mono<T> {
+fun <T : Any> Mono<T>.switchNotFoundToEmpty(): Mono<T> {
     return onErrorResume(WebClientResponseException.NotFound::class.java) {
         Mono.empty()
     }

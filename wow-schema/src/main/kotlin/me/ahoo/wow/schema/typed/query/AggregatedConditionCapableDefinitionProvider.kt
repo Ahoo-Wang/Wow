@@ -14,7 +14,6 @@
 package me.ahoo.wow.schema.typed.query
 
 import com.fasterxml.classmate.ResolvedType
-import com.fasterxml.jackson.databind.node.ObjectNode
 import com.github.victools.jsonschema.generator.CustomDefinition
 import com.github.victools.jsonschema.generator.CustomDefinitionProviderV2
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
@@ -42,7 +41,7 @@ abstract class AggregatedConditionCapableDefinitionProvider : CustomDefinitionPr
         val conditionType =
             context.typeContext.resolve(AggregatedCondition::class.java, commandAggregateType)
         val aggregateConditionNode = context.createDefinitionReference(conditionType)
-        rootSchema.requiredGetProperties().set<ObjectNode>(ConditionCapable<*>::condition.name, aggregateConditionNode)
+        rootSchema.requiredGetProperties().set(ConditionCapable<*>::condition.name, aggregateConditionNode)
         return rootSchema.asCustomDefinition()
     }
 }

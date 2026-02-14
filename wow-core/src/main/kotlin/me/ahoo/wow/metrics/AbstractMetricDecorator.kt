@@ -42,7 +42,7 @@ abstract class AbstractMetricDecorator<T : Any>(
      * @param M the type of elements in the Mono
      * @return the tagged Mono publisher
      */
-    fun <M> Mono<M>.tagSource(): Mono<M> = this.tagSource(source)
+    fun <M : Any> Mono<M>.tagSource(): Mono<M> = this.tagSource(source)
 
     /**
      * Extension function to tag a Flux publisher with the current source identifier.
@@ -51,7 +51,7 @@ abstract class AbstractMetricDecorator<T : Any>(
      * @param M the type of elements in the Flux
      * @return the tagged Flux publisher
      */
-    fun <M> Flux<M>.tagSource(): Flux<M> = this.tagSource(source)
+    fun <M : Any> Flux<M>.tagSource(): Flux<M> = this.tagSource(source)
 
     companion object {
         /**
@@ -62,7 +62,7 @@ abstract class AbstractMetricDecorator<T : Any>(
          * @param source the source identifier to tag the metrics with
          * @return the tagged Mono publisher
          */
-        fun <M> Mono<M>.tagSource(source: String): Mono<M> = this.tag(Metrics.SOURCE_KEY, source)
+        fun <M : Any> Mono<M>.tagSource(source: String): Mono<M> = this.tag(Metrics.SOURCE_KEY, source)
 
         /**
          * Static extension function to tag a Flux publisher with a specified source identifier.
@@ -72,6 +72,6 @@ abstract class AbstractMetricDecorator<T : Any>(
          * @param source the source identifier to tag the metrics with
          * @return the tagged Flux publisher
          */
-        fun <M> Flux<M>.tagSource(source: String): Flux<M> = this.tag(Metrics.SOURCE_KEY, source)
+        fun <M : Any> Flux<M>.tagSource(source: String): Flux<M> = this.tag(Metrics.SOURCE_KEY, source)
     }
 }

@@ -14,8 +14,6 @@
 package me.ahoo.wow.schema.typed
 
 import com.fasterxml.classmate.ResolvedType
-import com.fasterxml.jackson.databind.node.ArrayNode
-import com.fasterxml.jackson.databind.node.ObjectNode
 import com.github.victools.jsonschema.generator.CustomDefinition
 import com.github.victools.jsonschema.generator.CustomDefinitionProviderV2
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
@@ -32,6 +30,8 @@ import me.ahoo.wow.schema.JsonSchema.Companion.asJsonSchema
 import me.ahoo.wow.schema.JsonSchema.Companion.toPropertyName
 import me.ahoo.wow.schema.WowSchemaLoader
 import me.ahoo.wow.serialization.MessageRecords
+import tools.jackson.databind.node.ArrayNode
+import tools.jackson.databind.node.ObjectNode
 
 object AggregatedDomainEventStreamDefinitionProvider : CustomDefinitionProviderV2 {
     private const val DOMAIN_EVENT_STREAM_BODY_RESOURCE_NAME = "DomainEventStreamBody"
@@ -69,7 +69,7 @@ object AggregatedDomainEventStreamDefinitionProvider : CustomDefinitionProviderV
             val eventBodyTypeNode = eventBodyPropertiesNode[MessageRecords.BODY_TYPE] as ObjectNode
             eventBodyTypeNode.put(SchemaKeyword.TAG_CONST.toPropertyName(), eventMetadata.eventType.name)
             val eventNode = createEventTypeDefinition(eventMetadata, context)
-            eventBodyPropertiesNode.set<ObjectNode>(MessageRecords.BODY, eventNode)
+            eventBodyPropertiesNode.set(MessageRecords.BODY, eventNode)
             itemsAnyOfNode.add(eventBodySchema.actual)
         }
 

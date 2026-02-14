@@ -16,7 +16,6 @@ package me.ahoo.wow.schema.kotlin
 import com.fasterxml.classmate.ResolvedType
 import com.fasterxml.classmate.members.ResolvedMethod
 import com.fasterxml.jackson.annotation.JsonIgnore
-import com.fasterxml.jackson.databind.node.ObjectNode
 import com.github.victools.jsonschema.generator.CustomDefinition
 import com.github.victools.jsonschema.generator.CustomDefinitionProviderV2
 import com.github.victools.jsonschema.generator.MemberScope.DeclarationDetails
@@ -31,6 +30,7 @@ import me.ahoo.wow.schema.JsonSchema.Companion.toPropertyName
 import me.ahoo.wow.schema.Types.isKotlinElement
 import me.ahoo.wow.schema.Types.isStdType
 import me.ahoo.wow.schema.Types.isWowType
+import tools.jackson.databind.node.ObjectNode
 import kotlin.reflect.KProperty1
 import kotlin.reflect.KVisibility
 import kotlin.reflect.full.memberProperties
@@ -76,7 +76,7 @@ object KotlinCustomDefinitionProvider : CustomDefinitionProviderV2 {
                 val getterNode = createStandardDefinition(methodScope, context)
                 val readOnly = SchemaKeyword.TAG_READ_ONLY.toPropertyName()
                 getterNode.put(readOnly, true)
-                propertiesNode.set<ObjectNode>(kotlinGetter.name, getterNode)
+                propertiesNode.set(kotlinGetter.name, getterNode)
             }
         }
         return rootSchema.asCustomDefinition()

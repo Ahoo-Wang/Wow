@@ -16,15 +16,15 @@ package me.ahoo.wow.schema.jackson
 import com.fasterxml.jackson.annotation.JacksonAnnotationsInside
 import com.fasterxml.jackson.annotation.JsonBackReference
 import com.fasterxml.jackson.annotation.JsonUnwrapped
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.databind.introspect.BeanPropertyDefinition
 import com.github.victools.jsonschema.generator.FieldScope
 import com.github.victools.jsonschema.generator.SchemaGeneratorConfigBuilder
-import com.github.victools.jsonschema.module.jackson.JacksonModule
 import com.github.victools.jsonschema.module.jackson.JacksonOption
+import com.github.victools.jsonschema.module.jackson.JacksonSchemaModule
 import me.ahoo.wow.schema.Types.isKotlinElement
+import tools.jackson.databind.ObjectMapper
+import tools.jackson.databind.introspect.BeanPropertyDefinition
 
-class WowJacksonModule(vararg options: JacksonOption) : JacksonModule(*options) {
+class WowJacksonModule(vararg options: JacksonOption) : JacksonSchemaModule(*options) {
     companion object {
         val NESTED_ANNOTATION_CHECK: (Annotation) -> Boolean = { annotation ->
             annotation.javaClass.isAnnotationPresent(JacksonAnnotationsInside::class.java)
@@ -62,7 +62,7 @@ class WowJacksonModule(vararg options: JacksonOption) : JacksonModule(*options) 
         val beanDescription = this.getBeanDescriptionForClass(topMostHierarchyType.type)
 
         // some kinds of field ignorals are only available via an annotation introspector
-        val ignoredProperties = this.objectMapper.serializationConfig.annotationIntrospector
+        val ignoredProperties = this.objectMapper.serializationConfig().annotationIntrospector
             .findPropertyIgnoralByName(null, beanDescription.classInfo).ignored
         val declaredName = field.declaredName
         if (ignoredProperties.contains(declaredName)) {

@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.webflux.route.query
 
-import com.fasterxml.jackson.databind.node.ObjectNode
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedQuery
@@ -23,8 +22,9 @@ import org.springframework.http.ReactiveHttpInputMessage
 import org.springframework.web.reactive.function.BodyExtractor
 import org.springframework.web.reactive.function.BodyExtractors
 import reactor.core.publisher.Mono
+import tools.jackson.databind.node.ObjectNode
 
-class QueryBodyExtractor<Q>(private val queryType: Class<Q>) : BodyExtractor<Mono<Q>, ReactiveHttpInputMessage> {
+class QueryBodyExtractor<Q : Any>(private val queryType: Class<Q>) : BodyExtractor<Mono<Q>, ReactiveHttpInputMessage> {
     companion object {
         val CONDITION_EXTRACTOR = QueryBodyExtractor(Condition::class.java)
         val LIST_QUERY_EXTRACTOR = QueryBodyExtractor(ListQuery::class.java)

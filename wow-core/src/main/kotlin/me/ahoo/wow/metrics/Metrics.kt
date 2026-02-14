@@ -97,7 +97,7 @@ object Metrics {
      * @param metricsSubscriber the subscriber identifier to write to context
      * @return the Flux with updated context
      */
-    fun <T> Flux<T>.writeMetricsSubscriber(metricsSubscriber: String): Flux<T> =
+    fun <T : Any> Flux<T>.writeMetricsSubscriber(metricsSubscriber: String): Flux<T> =
         contextWrite {
             it.setMetricsSubscriber(metricsSubscriber)
         }
@@ -109,7 +109,7 @@ object Metrics {
      * @param T the type of elements in the Flux
      * @return the tagged Flux stream
      */
-    fun <T> Flux<T>.tagMetricsSubscriber(): Flux<T> {
+    fun <T : Any> Flux<T>.tagMetricsSubscriber(): Flux<T> {
         return Flux.deferContextual {
             val metricsSubscriber = it.getMetricsSubscriber() ?: return@deferContextual this.metrics()
             tag(SUBSCRIBER_KEY, metricsSubscriber).metrics()

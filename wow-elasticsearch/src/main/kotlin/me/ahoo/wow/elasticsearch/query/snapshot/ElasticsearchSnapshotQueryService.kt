@@ -14,7 +14,6 @@
 package me.ahoo.wow.elasticsearch.query.snapshot
 
 import co.elastic.clients.elasticsearch._types.query_dsl.Query
-import com.fasterxml.jackson.databind.type.TypeFactory
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.api.query.MaterializedSnapshot
@@ -25,8 +24,8 @@ import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchQueryService
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.query.converter.ConditionConverter
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
-import me.ahoo.wow.serialization.toJsonString
-import me.ahoo.wow.serialization.toObject
+import me.ahoo.wow.serialization.JsonSerializer
+import me.ahoo.wow.serialization.convert
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 
 class ElasticsearchSnapshotQueryService<S : Any>(
@@ -37,13 +36,13 @@ class ElasticsearchSnapshotQueryService<S : Any>(
     override val name: String
         get() = ElasticsearchSnapshotRepository.NAME
     override val indexName: String = namedAggregate.toSnapshotIndexName()
-    private val snapshotType = TypeFactory.defaultInstance()
+    private val snapshotType = JsonSerializer.typeFactory
         .constructParametricType(
             MaterializedSnapshot::class.java,
             namedAggregate.requiredAggregateType<Any>().aggregateMetadata<Any, S>().state.aggregateType
         )
 
     override fun toTypedResult(document: DynamicDocument): MaterializedSnapshot<S> {
-        return document.toJsonString().toObject(snapshotType)
+        return document.convert(snapshotType)
     }
 }

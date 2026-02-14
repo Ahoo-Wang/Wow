@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.mongo.query.snapshot
 
-import com.fasterxml.jackson.databind.type.TypeFactory
 import com.mongodb.reactivestreams.client.MongoCollection
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.DynamicDocument
@@ -29,6 +28,7 @@ import me.ahoo.wow.mongo.query.MongoSortConverter
 import me.ahoo.wow.mongo.toMaterializedSnapshot
 import me.ahoo.wow.query.converter.ConditionConverter
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
+import me.ahoo.wow.serialization.JsonSerializer
 import org.bson.Document
 import org.bson.conversions.Bson
 
@@ -41,7 +41,7 @@ class MongoSnapshotQueryService<S : Any>(
         get() = MongoSnapshotRepository.NAME
     override val projectionConverter: MongoProjectionConverter = MongoProjectionConverter(SnapshotFieldConverter)
     override val sortConverter: MongoSortConverter = MongoSortConverter(SnapshotFieldConverter)
-    private val snapshotType = TypeFactory.defaultInstance()
+    private val snapshotType = JsonSerializer.typeFactory
         .constructParametricType(
             MaterializedSnapshot::class.java,
             namedAggregate.requiredAggregateType<Any>().aggregateMetadata<Any, S>().state.aggregateType

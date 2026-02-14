@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.webflux.route.command.extractor
 
-import com.fasterxml.jackson.databind.node.ObjectNode
 import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
@@ -41,7 +40,7 @@ class CommandBodyExtractorTest {
         val commandBodyExtractor = CommandBodyExtractor(commandRouteMetadata)
         val messageReader = mockk<HttpMessageReader<*>> {
             every { canRead(any(), any()) } returns true
-            every { readMono(any(), any(), any()) } returns Mono.just(ObjectNode(JsonSerializer.nodeFactory))
+            every { readMono(any(), any(), any()) } returns Mono.just(JsonSerializer.createObjectNode())
         }
         val context = mockk<BodyExtractor.Context> {
             every { hints()[RouterFunctions.URI_TEMPLATE_VARIABLES_ATTRIBUTE] } returns emptyMap<String, String>()

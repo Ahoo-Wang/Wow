@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.serialization.command
 
-import com.fasterxml.jackson.databind.node.ObjectNode
 import me.ahoo.wow.serialization.MessageAggregateIdRecord
 import me.ahoo.wow.serialization.MessageAggregateNameRecord
 import me.ahoo.wow.serialization.MessageBodyTypeRecord
@@ -22,6 +21,7 @@ import me.ahoo.wow.serialization.MessageRequestIdRecord
 import me.ahoo.wow.serialization.NamedBoundedContextMessageRecord
 import me.ahoo.wow.serialization.OwnerIdRecord
 import me.ahoo.wow.serialization.SpaceIdRecord
+import tools.jackson.databind.node.ObjectNode
 
 object CommandRecords {
     const val AGGREGATE_VERSION = "aggregateVersion"

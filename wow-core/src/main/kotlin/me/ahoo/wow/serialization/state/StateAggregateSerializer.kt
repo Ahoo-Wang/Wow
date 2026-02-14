@@ -13,10 +13,10 @@
 
 package me.ahoo.wow.serialization.state
 
-import com.fasterxml.jackson.databind.JsonNode
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory.toStateAggregate
 import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
 import me.ahoo.wow.modeling.state.StateAggregate
+import tools.jackson.databind.JsonNode
 
 object StateAggregateSerializer : AbstractStateAggregateSerializer<StateAggregate<*>>(StateAggregate::class.java)
 

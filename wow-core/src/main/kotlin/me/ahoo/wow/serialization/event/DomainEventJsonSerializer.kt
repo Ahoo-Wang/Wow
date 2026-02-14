@@ -13,33 +13,33 @@
 
 package me.ahoo.wow.serialization.event
 
-import com.fasterxml.jackson.core.JsonGenerator
-import com.fasterxml.jackson.core.JsonParser
-import com.fasterxml.jackson.databind.DeserializationContext
-import com.fasterxml.jackson.databind.deser.std.StdDeserializer
-import com.fasterxml.jackson.databind.node.ObjectNode
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.MessageSerializer
+import tools.jackson.core.JsonGenerator
+import tools.jackson.core.JsonParser
+import tools.jackson.databind.DeserializationContext
+import tools.jackson.databind.deser.std.StdDeserializer
+import tools.jackson.databind.node.ObjectNode
 
 object DomainEventJsonSerializer : MessageSerializer<DomainEvent<*>>(DomainEvent::class.java) {
 
     override fun writeExtendedInfo(generator: JsonGenerator, value: DomainEvent<*>) {
-        generator.writeStringField(MessageRecords.TENANT_ID, value.aggregateId.tenantId)
-        generator.writeStringField(MessageRecords.AGGREGATE_ID, value.aggregateId.id)
-        generator.writeStringField(MessageRecords.OWNER_ID, value.ownerId)
-        generator.writeStringField(MessageRecords.SPACE_ID, value.spaceId)
-        generator.writeStringField(MessageRecords.COMMAND_ID, value.commandId)
-        generator.writeNumberField(MessageRecords.VERSION, value.version)
-        generator.writeNumberField(DomainEventRecords.SEQUENCE, value.sequence)
-        generator.writeStringField(DomainEventRecords.REVISION, value.revision)
-        generator.writeBooleanField(DomainEventRecords.IS_LAST, value.isLast)
+        generator.writeStringProperty(MessageRecords.TENANT_ID, value.aggregateId.tenantId)
+        generator.writeStringProperty(MessageRecords.AGGREGATE_ID, value.aggregateId.id)
+        generator.writeStringProperty(MessageRecords.OWNER_ID, value.ownerId)
+        generator.writeStringProperty(MessageRecords.SPACE_ID, value.spaceId)
+        generator.writeStringProperty(MessageRecords.COMMAND_ID, value.commandId)
+        generator.writeNumberProperty(MessageRecords.VERSION, value.version)
+        generator.writeNumberProperty(DomainEventRecords.SEQUENCE, value.sequence)
+        generator.writeStringProperty(DomainEventRecords.REVISION, value.revision)
+        generator.writeBooleanProperty(DomainEventRecords.IS_LAST, value.isLast)
     }
 }
 
 object DomainEventJsonDeserializer : StdDeserializer<DomainEvent<*>>(DomainEvent::class.java) {
     override fun deserialize(p: JsonParser, ctxt: DeserializationContext): DomainEvent<*> {
-        return p.codec.readTree<ObjectNode>(p).toDomainEventRecord()
+        return p.objectReadContext().readTree<ObjectNode>(p).toDomainEventRecord()
             .toDomainEvent()
     }
 }

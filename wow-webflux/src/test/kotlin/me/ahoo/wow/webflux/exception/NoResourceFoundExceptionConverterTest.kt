@@ -18,11 +18,12 @@ import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.exception.toErrorInfo
 import org.junit.jupiter.api.Test
 import org.springframework.web.reactive.resource.NoResourceFoundException
+import java.net.URI
 
 class NoResourceFoundExceptionConverterTest {
     @Test
     fun convert() {
-        val error = NoResourceFoundException("resourcePath")
+        val error = NoResourceFoundException(URI.create(""), "resourcePath")
         val errorInfo = error.toErrorInfo()
         errorInfo.errorCode.assert().isEqualTo(ErrorCodes.NOT_FOUND)
         errorInfo.errorMsg.assert().isEqualTo(error.message)

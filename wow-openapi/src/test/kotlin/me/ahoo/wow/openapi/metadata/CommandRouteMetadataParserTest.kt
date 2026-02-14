@@ -14,7 +14,6 @@
 package me.ahoo.wow.openapi.metadata
 
 import com.fasterxml.jackson.annotation.JsonProperty
-import com.fasterxml.jackson.databind.node.ObjectNode
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.annotation.CommandRoute
@@ -65,7 +64,7 @@ class CommandRouteMetadataParserTest {
     fun decode() {
         val commandRouteMetadata = commandRouteMetadata<MockCommandRoute>()
         val command = commandRouteMetadata.decode(
-            ObjectNode(JsonSerializer.nodeFactory),
+            JsonSerializer.createObjectNode(),
             {
                 mapOf(
                     "id" to "id",
@@ -83,7 +82,7 @@ class CommandRouteMetadataParserTest {
         command.header.assert().isEqualTo("header-value")
         assertThrownBy<IllegalArgumentException> {
             commandRouteMetadata.decode(
-                ObjectNode(JsonSerializer.nodeFactory),
+                JsonSerializer.createObjectNode(),
                 {
                     mapOf(
                         "id" to "id",
@@ -100,7 +99,7 @@ class CommandRouteMetadataParserTest {
     fun decodeNotRequired() {
         val commandRouteMetadata = commandRouteMetadata<MockCommandRouteNotRequired>()
         val command = commandRouteMetadata.decode(
-            ObjectNode(JsonSerializer.nodeFactory),
+            JsonSerializer.createObjectNode(),
             {
                 mapOf(
                     "id" to "id",
@@ -119,7 +118,7 @@ class CommandRouteMetadataParserTest {
         command.header.assert().isEqualTo("header-value")
 
         val commandWithDefault = commandRouteMetadata.decode(
-            ObjectNode(JsonSerializer.nodeFactory),
+            JsonSerializer.createObjectNode(),
             {
                 mapOf(
                     "id" to "id",
@@ -150,7 +149,7 @@ class CommandRouteMetadataParserTest {
         customerNamePathVariable.variableType.assert().isEqualTo(String::class.java)
 
         val command = commandRouteMetadata.decode(
-            ObjectNode(JsonSerializer.nodeFactory),
+            JsonSerializer.createObjectNode(),
             {
                 mapOf(
                     "id" to "id",
@@ -178,7 +177,7 @@ class CommandRouteMetadataParserTest {
         customerIdPathVariable.fieldPath.assert().contains("customer", "id")
         customerIdPathVariable.variableType.assert().isEqualTo(String::class.java)
         val command = commandRouteMetadata.decode(
-            ObjectNode(JsonSerializer.nodeFactory),
+            JsonSerializer.createObjectNode(),
             {
                 mapOf(
                     "id" to "id",

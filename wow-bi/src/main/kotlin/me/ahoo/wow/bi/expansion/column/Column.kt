@@ -13,10 +13,10 @@
 
 package me.ahoo.wow.bi.expansion.column
 
-import com.fasterxml.jackson.databind.JavaType
 import me.ahoo.wow.bi.expansion.SqlTypeMapping.isSimple
 import me.ahoo.wow.bi.expansion.SqlTypeMapping.toSqlType
 import me.ahoo.wow.naming.NamingConverter
+import tools.jackson.databind.JavaType
 
 interface Column {
     /**

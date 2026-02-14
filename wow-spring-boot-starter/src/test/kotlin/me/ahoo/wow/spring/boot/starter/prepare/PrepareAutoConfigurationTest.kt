@@ -155,7 +155,7 @@ class PrepareAutoConfigurationTest {
         CommandGatewayAutoConfiguration::class,
         WowOpenTelemetryAutoConfiguration::class,
         R2dbcAutoConfiguration::class,
-        org.springframework.boot.autoconfigure.r2dbc.R2dbcAutoConfiguration::class,
+        org.springframework.boot.r2dbc.autoconfigure.R2dbcAutoConfiguration::class,
         OpenAPIAutoConfiguration::class,
         WebFluxAutoConfiguration::class,
         WowWebClientAutoConfiguration::class,

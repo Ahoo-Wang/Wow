@@ -18,7 +18,7 @@ import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter
 import reactor.core.CoreSubscriber
 import reactor.core.publisher.Mono
 
-class TraceMono<T : Any, O>(
+class TraceMono<T : Any, O : Any>(
     private val parentContext: Context,
     private val instrumenter: Instrumenter<T, Unit>,
     private val request: T,

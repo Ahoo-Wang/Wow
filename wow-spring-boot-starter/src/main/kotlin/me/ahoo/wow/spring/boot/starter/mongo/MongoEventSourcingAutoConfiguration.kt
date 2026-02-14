@@ -40,10 +40,9 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
-import org.springframework.boot.autoconfigure.mongo.MongoReactiveAutoConfiguration
 import org.springframework.boot.context.properties.EnableConfigurationProperties
+import org.springframework.boot.mongodb.autoconfigure.MongoReactiveAutoConfiguration
 import org.springframework.context.annotation.Bean
-import org.springframework.lang.Nullable
 
 @AutoConfiguration(after = [MongoReactiveAutoConfiguration::class])
 @ConditionalOnWowEnabled
@@ -60,7 +59,7 @@ class MongoEventSourcingAutoConfiguration(private val mongoProperties: MongoProp
     )
     fun mongoEventStore(
         mongoClient: MongoClient,
-        @Nullable dataMongoProperties: org.springframework.boot.autoconfigure.mongo.MongoProperties?
+        dataMongoProperties: org.springframework.boot.mongodb.autoconfigure.MongoProperties?
     ): EventStore {
         val eventStoreDatabase = getEventStreamDatabase(dataMongoProperties, mongoClient)
         if (mongoProperties.autoInitSchema) {
@@ -77,14 +76,14 @@ class MongoEventSourcingAutoConfiguration(private val mongoProperties: MongoProp
     )
     fun mongoEventStreamQueryServiceFactory(
         mongoClient: MongoClient,
-        @Nullable dataMongoProperties: org.springframework.boot.autoconfigure.mongo.MongoProperties?
+        dataMongoProperties: org.springframework.boot.mongodb.autoconfigure.MongoProperties?
     ): EventStreamQueryServiceFactory {
         val eventStoreDatabase = getEventStreamDatabase(dataMongoProperties, mongoClient)
         return MongoEventStreamQueryServiceFactory(eventStoreDatabase)
     }
 
     private fun getEventStreamDatabase(
-        dataMongoProperties: org.springframework.boot.autoconfigure.mongo.MongoProperties?,
+        dataMongoProperties: org.springframework.boot.mongodb.autoconfigure.MongoProperties?,
         mongoClient: MongoClient
     ): MongoDatabase {
         val eventStoreDatabaseName = mongoProperties.eventStreamDatabase ?: dataMongoProperties?.mongoClientDatabase
@@ -104,7 +103,7 @@ class MongoEventSourcingAutoConfiguration(private val mongoProperties: MongoProp
     )
     fun mongoSnapshotRepository(
         mongoClient: MongoClient,
-        @Nullable dataMongoProperties: org.springframework.boot.autoconfigure.mongo.MongoProperties?
+        dataMongoProperties: org.springframework.boot.mongodb.autoconfigure.MongoProperties?
     ): SnapshotRepository {
         val snapshotDatabase = getMongoSnapshotDatabase(dataMongoProperties, mongoClient)
         if (mongoProperties.autoInitSchema) {
@@ -122,14 +121,14 @@ class MongoEventSourcingAutoConfiguration(private val mongoProperties: MongoProp
     )
     fun mongoSnapshotQueryServiceFactory(
         mongoClient: MongoClient,
-        @Nullable dataMongoProperties: org.springframework.boot.autoconfigure.mongo.MongoProperties?
+        dataMongoProperties: org.springframework.boot.mongodb.autoconfigure.MongoProperties?
     ): SnapshotQueryServiceFactory {
         val snapshotDatabase = getMongoSnapshotDatabase(dataMongoProperties, mongoClient)
         return MongoSnapshotQueryServiceFactory(snapshotDatabase)
     }
 
     private fun getMongoSnapshotDatabase(
-        dataMongoProperties: org.springframework.boot.autoconfigure.mongo.MongoProperties?,
+        dataMongoProperties: org.springframework.boot.mongodb.autoconfigure.MongoProperties?,
         mongoClient: MongoClient
     ): MongoDatabase {
         val snapshotDatabaseName = mongoProperties.snapshotDatabase ?: dataMongoProperties?.mongoClientDatabase
@@ -151,7 +150,7 @@ class MongoEventSourcingAutoConfiguration(private val mongoProperties: MongoProp
     @ConditionalOnMissingBean
     fun mongoPrepareKeyFactory(
         mongoClient: MongoClient,
-        @Nullable dataMongoProperties: org.springframework.boot.autoconfigure.mongo.MongoProperties?
+        dataMongoProperties: org.springframework.boot.mongodb.autoconfigure.MongoProperties?
     ): PrepareKeyFactory {
         val prepareDatabaseName = mongoProperties.prepareDatabase ?: dataMongoProperties?.mongoClientDatabase
         requireNotNull(prepareDatabaseName) {

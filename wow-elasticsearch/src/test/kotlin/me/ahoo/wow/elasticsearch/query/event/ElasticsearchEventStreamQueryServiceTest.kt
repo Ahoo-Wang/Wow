@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.elasticsearch.query.event
 
-import co.elastic.clients.transport.rest_client.RestClientTransport
 import me.ahoo.wow.elasticsearch.TemplateInitializer.initEventStreamTemplate
 import me.ahoo.wow.elasticsearch.WowJsonpMapper
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchEventStore
@@ -45,9 +44,11 @@ class ElasticsearchEventStreamQueryServiceTest : EventStreamQueryServiceSpec() {
             .usingSsl(ElasticsearchLauncher.ELASTICSEARCH_CONTAINER.createSslContextFromCa())
             .withBasicAuth("elastic", ElasticsearchLauncher.ELASTIC_PWD)
             .build()
-        val restClient = ElasticsearchClients.getRestClient(clientConfiguration)
-        val transport = RestClientTransport(restClient, WowJsonpMapper)
-        elasticsearchClient = ReactiveElasticsearchClient(transport)
+        val elasticsearchClient = ElasticsearchClients.createReactive(
+            clientConfiguration,
+            null,
+            WowJsonpMapper
+        )
         elasticsearchClient.initEventStreamTemplate()
         super.setup()
     }

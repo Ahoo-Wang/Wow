@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.mongo
 
-import com.fasterxml.jackson.databind.JavaType
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
@@ -28,6 +27,7 @@ import me.ahoo.wow.serialization.toLinkedHashMap
 import org.bson.Document
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import tools.jackson.databind.JavaType
 
 object Documents {
     const val ID_FIELD = "_id"

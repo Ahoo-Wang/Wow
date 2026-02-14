@@ -187,7 +187,9 @@ abstract class AbstractElasticsearchConditionConverter : AbstractConditionConver
     }
 
     override fun allIn(condition: Condition): Query {
-        val values = condition.valueAs<List<String>>()
+        val values = condition.valueAs<List<Any>>().map {
+            FieldValue.of(it)
+        }
         return termsSet { builder ->
             builder.field(condition.field)
                 .terms(values)

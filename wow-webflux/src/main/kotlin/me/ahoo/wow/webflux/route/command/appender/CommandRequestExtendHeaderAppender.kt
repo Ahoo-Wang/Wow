@@ -19,11 +19,11 @@ import org.springframework.web.reactive.function.server.ServerRequest
 
 object CommandRequestExtendHeaderAppender : CommandRequestHeaderAppender {
     override fun append(request: ServerRequest, header: Header) {
-        val extendedHeaders = request.headers().asHttpHeaders()
+        val extendedHeaders = request.headers().asHttpHeaders().headerSet()
             .filter { (key, _) -> key.startsWith(CommandComponent.Header.COMMAND_HEADER_X_PREFIX) }
             .map { (key, value) ->
                 key.substring(CommandComponent.Header.COMMAND_HEADER_X_PREFIX.length) to value.firstOrNull<String>().orEmpty()
-            }.toMap<String, String>()
+            }.toMap()
         if (extendedHeaders.isEmpty()) {
             return
         }

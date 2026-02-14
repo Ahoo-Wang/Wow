@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.infra
 
-import com.fasterxml.jackson.databind.node.ObjectNode
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.createEventStream
 import me.ahoo.wow.serialization.deepCopy
@@ -27,6 +26,7 @@ import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.annotations.Threads
 import org.openjdk.jmh.annotations.Warmup
+import tools.jackson.databind.node.ObjectNode
 
 @Warmup(iterations = 1, time = 5)
 @Measurement(iterations = 2, time = 5)

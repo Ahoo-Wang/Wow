@@ -45,7 +45,7 @@ object MonoMethodAccessorFactory {
      * @param function the Kotlin function to create an accessor for
      * @return a MonoFunctionAccessor appropriate for the function's return type
      */
-    fun <T, D> create(function: KFunction<*>): MonoFunctionAccessor<T, Mono<D>> {
+    fun <T, D : Any> create(function: KFunction<*>): MonoFunctionAccessor<T, Mono<D>> {
         val returnType = function.returnType.jvmErasure
 
         val monoMethodAccessor: MonoFunctionAccessor<T, Mono<D>> = when {
@@ -90,7 +90,7 @@ object MonoMethodAccessorFactory {
  * @param D the type of data in the Mono
  * @return a MonoFunctionAccessor for this function
  */
-fun <T, D> KFunction<*>.toMonoFunctionAccessor(): MonoFunctionAccessor<T, Mono<D>> =
+fun <T, D : Any> KFunction<*>.toMonoFunctionAccessor(): MonoFunctionAccessor<T, Mono<D>> =
     MonoMethodAccessorFactory.create(
         this,
     )

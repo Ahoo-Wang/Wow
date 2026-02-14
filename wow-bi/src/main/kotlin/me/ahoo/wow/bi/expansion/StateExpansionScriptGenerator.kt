@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.bi.expansion
 
-import com.fasterxml.jackson.databind.introspect.BeanPropertyDefinition
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.bi.expansion.SqlTypeMapping.isSimple
 import me.ahoo.wow.bi.expansion.TableNaming.toDistributedTableName
@@ -27,6 +26,7 @@ import me.ahoo.wow.configuration.requiredAggregateType
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.toBeanDescription
+import tools.jackson.databind.introspect.BeanPropertyDefinition
 
 class StateExpansionScriptGenerator(
     private val column: Column,

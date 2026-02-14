@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.event.upgrader
 
-import com.fasterxml.jackson.databind.node.ObjectNode
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.SpaceId
@@ -22,6 +21,7 @@ import me.ahoo.wow.serialization.MessageRecords.BODY_TYPE
 import me.ahoo.wow.serialization.MessageRecords.NAME
 import me.ahoo.wow.serialization.event.DomainEventRecord
 import me.ahoo.wow.serialization.event.DomainEventRecords.REVISION
+import tools.jackson.databind.node.ObjectNode
 
 /**
  * Mutable wrapper for domain event records.
@@ -96,7 +96,7 @@ class MutableDomainEventRecord(
     override var body: ObjectNode
         get() = super.body as ObjectNode
         set(value) {
-            actual.set<ObjectNode>(BODY, value)
+            actual.set(BODY, value)
         }
 
     override fun toMessageHeader(): Header {

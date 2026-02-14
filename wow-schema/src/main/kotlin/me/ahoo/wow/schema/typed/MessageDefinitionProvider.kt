@@ -14,7 +14,6 @@
 package me.ahoo.wow.schema.typed
 
 import com.fasterxml.classmate.ResolvedType
-import com.fasterxml.jackson.databind.node.ObjectNode
 import com.github.victools.jsonschema.generator.CustomDefinition
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
 import com.github.victools.jsonschema.generator.SchemaKeyword
@@ -25,6 +24,7 @@ import me.ahoo.wow.schema.JsonSchema.Companion.asCustomDefinition
 import me.ahoo.wow.schema.JsonSchema.Companion.asJsonSchema
 import me.ahoo.wow.schema.JsonSchema.Companion.toPropertyName
 import me.ahoo.wow.serialization.MessageRecords
+import tools.jackson.databind.node.ObjectNode
 import java.lang.reflect.ParameterizedType
 
 abstract class MessageDefinitionProvider<M : Message<*, *>> :
@@ -53,11 +53,11 @@ abstract class MessageDefinitionProvider<M : Message<*, *>> :
         bodyTypeNode.remove(typeKey)
         val constKey = SchemaKeyword.TAG_CONST.toPropertyName()
         bodyTypeNode.put(constKey, bodyType.erasedType.name)
-        val bodyOriginalNode = propertiesNode[MessageRecords.BODY] as ObjectNode
+        val bodyOriginalNode = propertiesNode[MessageRecords.BODY]
         val bodySchema = context.createStandardDefinition(bodyType, this).asJsonSchema()
         val descriptionKey = SchemaKeyword.TAG_DESCRIPTION.toPropertyName()
         bodySchema.set(SchemaKeyword.TAG_DESCRIPTION, bodyOriginalNode[descriptionKey])
-        propertiesNode.set<ObjectNode>(MessageRecords.BODY, bodySchema.actual)
+        propertiesNode.set(MessageRecords.BODY, bodySchema.actual)
         return typedSchema.asCustomDefinition()
     }
 }

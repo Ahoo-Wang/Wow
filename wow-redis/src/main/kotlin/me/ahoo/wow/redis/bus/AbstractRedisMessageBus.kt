@@ -86,12 +86,15 @@ abstract class AbstractRedisMessageBus<M, E>(
 
     private fun receive(
         topic: String,
-        options: StreamReceiverOptions<String, MapRecord<String, String, String>>?,
+        options: StreamReceiverOptions<String, MapRecord<String, String, String>>,
         consumer: Consumer,
         group: String
     ): Flux<E> {
         val streamOffset = StreamOffset.create(topic, ReadOffset.lastConsumed())
-        return StreamReceiver.create(redisTemplate.connectionFactory, options)
+        return StreamReceiver.create(
+            redisTemplate.connectionFactory,
+            options
+        )
             .receive(consumer, streamOffset).map {
                 val message = requireNotNull(it.value[MESSAGE_FIELD]).toObject(messageType)
                 message.withReadOnly()

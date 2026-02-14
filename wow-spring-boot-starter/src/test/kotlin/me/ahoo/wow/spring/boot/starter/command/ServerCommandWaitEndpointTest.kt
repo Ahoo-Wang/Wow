@@ -19,7 +19,7 @@ import me.ahoo.cosid.machine.HostAddressSupplier
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.openapi.global.CommandWaitRouteSpecFactory
 import org.junit.jupiter.api.Test
-import org.springframework.boot.web.context.WebServerInitializedEvent
+import org.springframework.boot.web.server.context.WebServerInitializedEvent
 
 class ServerCommandWaitEndpointTest {
 

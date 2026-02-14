@@ -14,7 +14,6 @@
 package me.ahoo.wow.schema.typed
 
 import com.fasterxml.classmate.ResolvedType
-import com.fasterxml.jackson.databind.node.ObjectNode
 import com.github.victools.jsonschema.generator.CustomDefinition
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
 import com.github.victools.jsonschema.generator.SchemaKeyword
@@ -50,11 +49,11 @@ abstract class AbstractStateAggregate<S : ReadOnlyStateAggregate<*>> :
         val typedSchema = getTypedSchema().asJsonSchema()
         typedSchema.remove(SchemaKeyword.TAG_TITLE)
         val propertiesNode = typedSchema.requiredGetProperties()
-        val stateOriginalNode = propertiesNode[StateAggregateRecords.STATE] as ObjectNode
+        val stateOriginalNode = propertiesNode[StateAggregateRecords.STATE]
         val stateSchema = context.createStandardDefinition(stateType, this).asJsonSchema()
         val descriptionKey = SchemaKeyword.TAG_DESCRIPTION.toPropertyName()
         stateSchema.set(SchemaKeyword.TAG_DESCRIPTION, stateOriginalNode[descriptionKey])
-        propertiesNode.set<ObjectNode>(StateAggregateRecords.STATE, stateSchema.actual)
+        propertiesNode.set(StateAggregateRecords.STATE, stateSchema.actual)
         return typedSchema.asCustomDefinition()
     }
 }

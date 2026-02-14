@@ -96,7 +96,7 @@ configure(libraryProjects) {
     }
     tasks.withType<KotlinCompile> {
         compilerOptions {
-            freeCompilerArgs = listOf("-Xjsr305=strict", "-Xjvm-default=all-compatibility")
+            freeCompilerArgs.addAll("-Xjsr305=strict", "-Xannotation-default-target=param-property")
             javaParameters = true
         }
     }

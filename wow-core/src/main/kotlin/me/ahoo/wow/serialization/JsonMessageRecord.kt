@@ -13,8 +13,6 @@
 
 package me.ahoo.wow.serialization
 
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.node.ObjectNode
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.modeling.OwnerId.Companion.orDefaultOwnerId
 import me.ahoo.wow.api.modeling.SpaceIdCapable.Companion.orDefaultSpaceId
@@ -36,6 +34,8 @@ import me.ahoo.wow.serialization.MessageRecords.REQUEST_ID
 import me.ahoo.wow.serialization.MessageRecords.SPACE_ID
 import me.ahoo.wow.serialization.MessageRecords.TENANT_ID
 import me.ahoo.wow.serialization.MessageRecords.VERSION
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.node.ObjectNode
 
 object MessageRecords {
     //region common
@@ -66,7 +66,7 @@ interface JsonRecord {
 
 interface MessageIdRecord : JsonRecord {
     val id: String
-        get() = actual[ID].asText()
+        get() = actual[ID].asString()
 }
 
 interface HeaderRecord : JsonRecord {
@@ -78,7 +78,7 @@ interface HeaderRecord : JsonRecord {
     fun toMessageHeader(): Header {
         val messageHeader = DefaultHeader.empty()
         header.properties().forEach {
-            messageHeader[it.key] = it.value.asText()
+            messageHeader[it.key] = it.value.asString()
         }
         return messageHeader
     }
@@ -86,7 +86,7 @@ interface HeaderRecord : JsonRecord {
 
 interface MessageBodyTypeRecord : JsonRecord {
     val bodyType: String
-        get() = actual[BODY_TYPE].asText()
+        get() = actual[BODY_TYPE].asString()
 }
 
 interface MessageBodyRecord : JsonRecord {
@@ -101,29 +101,29 @@ interface MessageCreateTimeRecord : JsonRecord {
 
 interface MessageNameRecord : JsonRecord, Named {
     override val name: String
-        get() = actual[NAME].asText()
+        get() = actual[NAME].asString()
 }
 
 interface MessageRequestIdRecord : JsonRecord {
     val requestId: String
-        get() = actual[REQUEST_ID].asText()
+        get() = actual[REQUEST_ID].asString()
 }
 
 interface MessageNamedBoundedContextRecord : JsonRecord, NamedBoundedContext {
     override val contextName: String
-        get() = actual[CONTEXT_NAME].asText()
+        get() = actual[CONTEXT_NAME].asString()
 }
 
 interface MessageAggregateNameRecord : JsonRecord {
     val aggregateName: String
-        get() = actual[AGGREGATE_NAME].asText()
+        get() = actual[AGGREGATE_NAME].asString()
 }
 
 interface MessageAggregateIdRecord : JsonRecord {
     val aggregateId: String
-        get() = actual[AGGREGATE_ID].asText()
+        get() = actual[AGGREGATE_ID].asString()
     val tenantId: String
-        get() = actual[TENANT_ID].asText()
+        get() = actual[TENANT_ID].asString()
 }
 
 interface MessageRecord : MessageIdRecord, HeaderRecord, MessageBodyRecord, MessageCreateTimeRecord
@@ -149,7 +149,7 @@ fun ObjectNode.toBoundedContextMessageRecord(): NamedBoundedContextMessageRecord
 
 interface MessageCommandIdRecord : JsonRecord {
     val commandId: String
-        get() = actual[COMMAND_ID].asText()
+        get() = actual[COMMAND_ID].asString()
 }
 
 interface MessageVersionRecord : JsonRecord {
@@ -159,10 +159,10 @@ interface MessageVersionRecord : JsonRecord {
 
 interface OwnerIdRecord : JsonRecord {
     val ownerId: String
-        get() = actual[OWNER_ID]?.asText().orDefaultOwnerId()
+        get() = actual[OWNER_ID]?.asString().orDefaultOwnerId()
 }
 
 interface SpaceIdRecord : JsonRecord {
     val spaceId: String
-        get() = actual[SPACE_ID]?.asText().orDefaultSpaceId()
+        get() = actual[SPACE_ID]?.asString().orDefaultSpaceId()
 }

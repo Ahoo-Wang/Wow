@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.eventsourcing.snapshot
 
-import com.fasterxml.jackson.databind.node.ObjectNode
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.serialization.toJsonNode
@@ -21,6 +20,7 @@ import me.ahoo.wow.serialization.toObject
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toFlux
+import tools.jackson.databind.node.ObjectNode
 import java.util.concurrent.ConcurrentHashMap
 
 /**

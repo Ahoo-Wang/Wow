@@ -13,11 +13,6 @@
 
 package me.ahoo.wow.serialization.event
 
-import com.fasterxml.jackson.core.JsonGenerator
-import com.fasterxml.jackson.core.JsonParser
-import com.fasterxml.jackson.databind.DeserializationContext
-import com.fasterxml.jackson.databind.deser.std.StdDeserializer
-import com.fasterxml.jackson.databind.node.ObjectNode
 import me.ahoo.wow.configuration.aggregateType
 import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.toStateEvent
@@ -27,24 +22,29 @@ import me.ahoo.wow.serialization.state.StateAggregateRecords.FIRST_EVENT_TIME
 import me.ahoo.wow.serialization.state.StateAggregateRecords.FIRST_OPERATOR
 import me.ahoo.wow.serialization.state.StateAggregateRecords.STATE
 import me.ahoo.wow.serialization.toObject
+import tools.jackson.core.JsonGenerator
+import tools.jackson.core.JsonParser
+import tools.jackson.databind.DeserializationContext
+import tools.jackson.databind.deser.std.StdDeserializer
+import tools.jackson.databind.node.ObjectNode
 
 object StateEventJsonSerializer :
     AbstractEventStreamJsonSerializer<StateEvent<*>>(StateEvent::class.java) {
     override fun writeExtendedInfo(generator: JsonGenerator, value: StateEvent<*>) {
         super.writeExtendedInfo(generator, value)
-        generator.writeStringField(FIRST_OPERATOR, value.firstOperator)
-        generator.writeNumberField(FIRST_EVENT_TIME, value.firstEventTime)
-        generator.writePOJOField(STATE, value.state)
-        generator.writeBooleanField(DELETED, value.deleted)
+        generator.writeStringProperty(FIRST_OPERATOR, value.firstOperator)
+        generator.writeNumberProperty(FIRST_EVENT_TIME, value.firstEventTime)
+        generator.writePOJOProperty(STATE, value.state)
+        generator.writeBooleanProperty(DELETED, value.deleted)
     }
 }
 
 object StateEventJsonDeserializer : StdDeserializer<StateEvent<*>>(StateEvent::class.java) {
     override fun deserialize(p: JsonParser, ctxt: DeserializationContext): StateEvent<*> {
-        val stateEventRecord = p.codec.readTree<ObjectNode>(p)
+        val stateEventRecord = p.objectReadContext().readTree<ObjectNode>(p)
         val eventStream = stateEventRecord.toEventStreamRecord()
             .toDomainEventStream()
-        val firstOperator = stateEventRecord.get(FIRST_OPERATOR)?.asText().orEmpty()
+        val firstOperator = stateEventRecord.get(FIRST_OPERATOR)?.asString().orEmpty()
         val firstEventTime = stateEventRecord.get(FIRST_EVENT_TIME)?.asLong() ?: 0L
         val deleted = stateEventRecord[DELETED].asBoolean()
         val stateRecord = stateEventRecord[STATE] as ObjectNode

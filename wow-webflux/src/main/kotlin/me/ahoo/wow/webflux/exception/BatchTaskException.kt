@@ -24,6 +24,6 @@ class BatchTaskException(val aggregateId: AggregateId, cause: Throwable? = null)
     }
 }
 
-fun <T> Mono<T>.onErrorMapBatchTaskException(aggregateId: AggregateId): Mono<T> {
+fun <T : Any> Mono<T>.onErrorMapBatchTaskException(aggregateId: AggregateId): Mono<T> {
     return this.onErrorMap { BatchTaskException(aggregateId, it) }
 }

@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.webflux.route.command.extractor
 
-import com.fasterxml.jackson.databind.node.ObjectNode
 import me.ahoo.wow.configuration.requiredAggregateType
 import me.ahoo.wow.configuration.requiredNamedAggregate
 import me.ahoo.wow.infra.TypeNameMapper.toType
@@ -28,6 +27,7 @@ import org.springframework.web.reactive.function.BodyExtractors
 import reactor.core.publisher.Mono
 import reactor.util.function.Tuple2
 import reactor.util.function.Tuples
+import tools.jackson.databind.node.ObjectNode
 
 object CommandFacadeBodyExtractor :
     BodyExtractor<Mono<Tuple2<Any, AggregateRouteMetadata<Any>>>, ReactiveHttpInputMessage> {

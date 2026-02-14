@@ -323,7 +323,7 @@ interface PrepareKey<V : Any> : Named {
      *
      * @see usingPrepare(String, PreparedValue, (Boolean) -> Mono) for TTL support
      */
-    fun <R> usingPrepare(
+    fun <R : Any> usingPrepare(
         key: String,
         value: V,
         then: (Boolean) -> Mono<R>
@@ -345,7 +345,7 @@ interface PrepareKey<V : Any> : Named {
      *
      * @throws Exception if the operation fails after successful preparation (rollback attempted)
      */
-    fun <R> usingPrepare(
+    fun <R : Any> usingPrepare(
         key: String,
         value: PreparedValue<V>,
         then: (Boolean) -> Mono<R>

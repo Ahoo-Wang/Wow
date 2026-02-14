@@ -1,21 +1,22 @@
 [versions]
 # libraries
-spring-boot = "3.5.10"
-cosid = "2.15.2"
-simba = "2.9.8"
-coapi = "1.12.8"
-cocache = "3.10.5"
-testcontainers = "2.0.0"
+spring-boot = "4.0.2"
+cosid = "3.0.2"
+simba = "3.0.0"
+coapi = "2.0.1"
+cocache = "4.0.1"
+testcontainers = "2.0.3"
 opentelemetry = "1.59.0"
 opentelemetry-instrumentation = "2.24.0"
 opentelemetry-semconv = "1.29.0-alpha"
 guava = "33.5.0-jre"
 kotlin-logging = "7.0.14"
 swagger = "2.2.42"
-springdoc = "2.8.15"
-jsonschema-generator = "4.38.0"
-json-schema-validator = "2.0.1"
+springdoc = "3.0.1"
+jsonschema-generator = "5.0.0"
+json-schema-validator = "3.0.0"
 kotlinx-coroutines = "1.10.2"
+reactor-kafka = "1.3.25"
 # testing
 junit = "6.0.2"
 fluent-assert = "0.2.6"
@@ -37,9 +38,10 @@ cosid-bom = { module = "me.ahoo.cosid:cosid-bom", version.ref = "cosid" }
 simba-bom = { module = "me.ahoo.simba:simba-bom", version.ref = "simba" }
 coapi-bom = { module = "me.ahoo.coapi:coapi-bom", version.ref = "coapi" }
 cocache-bom = { module = "me.ahoo.cocache:cocache-bom", version.ref = "cocache" }
+reactor-kafka = { module = "io.projectreactor.kafka:reactor-kafka", version.ref = "reactor-kafka" }
 jsonschema-generator-bom = { module = "com.github.victools:jsonschema-generator-bom", version.ref = "jsonschema-generator" }
 json-schema-validator = { module = "com.networknt:json-schema-validator", version.ref = "json-schema-validator" }
-kotlinx-coroutines-bom= { module = "org.jetbrains.kotlinx:kotlinx-coroutines-bom", version.ref = "kotlinx-coroutines" }
+kotlinx-coroutines-bom = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-bom", version.ref = "kotlinx-coroutines" }
 opentelemetry-bom = { module = "io.opentelemetry:opentelemetry-bom", version.ref = "opentelemetry" }
 opentelemetry-instrumentation-bom = { module = "io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom", version.ref = "opentelemetry-instrumentation" }
 opentelemetry-semconv = { module = "io.opentelemetry:opentelemetry-semconv", version.ref = "opentelemetry-semconv" }

@@ -19,7 +19,7 @@ import java.lang.reflect.InvocationTargetException
 import kotlin.reflect.KFunction
 import kotlin.reflect.full.callSuspend
 
-class SuspendMonoFunctionAccessor<T, D>(function: KFunction<*>) :
+class SuspendMonoFunctionAccessor<T, D : Any>(function: KFunction<*>) :
     AbstractMonoFunctionAccessor<T, Mono<D>>(function) {
 
     override operator fun invoke(target: T, args: Array<Any?>): Mono<D> {

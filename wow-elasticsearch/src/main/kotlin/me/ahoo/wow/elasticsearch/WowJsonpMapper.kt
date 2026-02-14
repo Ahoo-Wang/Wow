@@ -15,4 +15,4 @@ package me.ahoo.wow.elasticsearch
 
 import me.ahoo.wow.serialization.JsonSerializer
 
-val WowJsonpMapper = co.elastic.clients.json.jackson.JacksonJsonpMapper(JsonSerializer)
+val WowJsonpMapper = co.elastic.clients.json.jackson.Jackson3JsonpMapper(JsonSerializer)

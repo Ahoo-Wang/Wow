@@ -34,7 +34,7 @@ class SpringServiceProvider(override val delegate: ConfigurableBeanFactory) :
 
     override fun <S : Any> getService(serviceType: KType): S? {
         val resolvableType = ResolvableType.forType(serviceType.javaType)
-        return delegate.getBeanProvider<S>(resolvableType).getIfAvailable { null }
+        return delegate.getBeanProvider<S>(resolvableType).getIfAvailable()
     }
 
     @Suppress("UNCHECKED_CAST")

@@ -13,9 +13,9 @@
 
 package me.ahoo.wow.serialization.event
 
-import com.fasterxml.jackson.databind.node.ObjectNode
 import me.ahoo.wow.serialization.JsonRecord
 import me.ahoo.wow.serialization.toObject
+import tools.jackson.databind.node.ObjectNode
 
 interface StateRecord : JsonRecord {
     fun <S> toState(stateType: Class<S>): S

@@ -14,7 +14,6 @@
 package me.ahoo.wow.schema.typed
 
 import com.fasterxml.classmate.ResolvedType
-import com.fasterxml.jackson.databind.node.ObjectNode
 import com.github.victools.jsonschema.generator.CustomDefinition
 import com.github.victools.jsonschema.generator.CustomDefinitionProviderV2
 import com.github.victools.jsonschema.generator.SchemaGenerationContext
@@ -40,7 +39,7 @@ object MapDefinitionProvider : CustomDefinitionProviderV2 {
             return null
         }
         val rootSchema = context.createStandardDefinition(javaType, this).asJsonSchema()
-        val keySchema = context.createStandardDefinitionReference(mapKeyType, null) as ObjectNode
+        val keySchema = context.createStandardDefinitionReference(mapKeyType, null)
         rootSchema.set(MAP_KEY_NAME, keySchema)
         return rootSchema.asCustomDefinition()
     }

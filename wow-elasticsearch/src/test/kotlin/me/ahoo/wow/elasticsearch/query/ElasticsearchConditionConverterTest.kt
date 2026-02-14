@@ -396,7 +396,7 @@ class ElasticsearchConditionConverterTest {
             query,
             termsSet { builder ->
                 builder.field("field")
-                    .terms(listOf("value1", "value2"))
+                    .terms("value1", "value2")
                     .minimumShouldMatch("2")
             }
         )

@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.elasticsearch
 
-import com.fasterxml.jackson.databind.JsonNode
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.messaging.dispatcher.SafeSubscriber
 import me.ahoo.wow.serialization.JsonSerializer
@@ -24,6 +23,7 @@ import org.springframework.data.elasticsearch.core.document.Document
 import org.springframework.data.elasticsearch.core.index.PutIndexTemplateRequest
 import org.springframework.data.elasticsearch.core.mapping.IndexCoordinates
 import reactor.core.publisher.Mono
+import tools.jackson.databind.JsonNode
 
 class IndexTemplateInitializer(private val elasticsearchOperations: ReactiveElasticsearchOperations) {
     companion object {

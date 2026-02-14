@@ -1,7 +1,6 @@
 package me.ahoo.wow.schema
 
 import com.fasterxml.classmate.TypeResolver
-import com.fasterxml.jackson.databind.node.ObjectNode
 import com.github.victools.jsonschema.generator.SchemaVersion
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
@@ -12,6 +11,7 @@ import me.ahoo.wow.schema.JsonSchema.Companion.asJsonSchema
 import me.ahoo.wow.serialization.toObject
 import org.junit.jupiter.api.Test
 import org.springframework.http.codec.ServerSentEvent
+import tools.jackson.databind.node.ObjectNode
 
 class JsonSchemaTest {
     private val jsonSchemaGenerator = SchemaGeneratorBuilder().schemaVersion(
