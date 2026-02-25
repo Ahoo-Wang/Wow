@@ -38,6 +38,7 @@ const config: StorybookConfig = {
 
     config.esbuild = {
       legalComments: 'none',
+      jsx: 'automatic',
     };
 
     config.plugins = config.plugins || [];
