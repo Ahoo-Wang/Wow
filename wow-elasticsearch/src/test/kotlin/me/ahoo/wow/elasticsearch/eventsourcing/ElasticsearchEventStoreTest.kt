@@ -34,26 +34,26 @@ class ElasticsearchEventStoreTest : EventStoreSpec() {
     }
 
     override fun createEventStore(): EventStore {
-        val clientConfiguration = ClientConfiguration.builder()
-            .connectedTo(ElasticsearchLauncher.ELASTICSEARCH_CONTAINER.httpHostAddress)
-            .usingSsl(ElasticsearchLauncher.ELASTICSEARCH_CONTAINER.createSslContextFromCa())
-            .withBasicAuth("elastic", ELASTIC_PWD)
-            .withSocketTimeout(Duration.ofSeconds(30))
-            .withConnectTimeout(Duration.ofSeconds(5))
-            .build()
-        val elasticsearchClient = ElasticsearchClients.createReactive(
-            clientConfiguration,
-            null,
-            WowJsonpMapper
-        )
+        val clientConfiguration =
+            ClientConfiguration
+                .builder()
+                .connectedTo(ElasticsearchLauncher.ELASTICSEARCH_CONTAINER.httpHostAddress)
+                .usingSsl(ElasticsearchLauncher.ELASTICSEARCH_CONTAINER.createSslContextFromCa())
+                .withBasicAuth("elastic", ELASTIC_PWD)
+                .withSocketTimeout(Duration.ofSeconds(30))
+                .withConnectTimeout(Duration.ofSeconds(5))
+                .build()
+        val elasticsearchClient =
+            ElasticsearchClients.createReactive(
+                clientConfiguration,
+                null,
+                WowJsonpMapper,
+            )
         elasticsearchClient.initEventStreamTemplate()
         return ElasticsearchEventStore(
-            elasticsearchClient = elasticsearchClient
+            elasticsearchClient = elasticsearchClient,
         )
     }
 
-    /**
-     * TODO
-     */
     override fun appendEventStreamWhenDuplicateRequestIdException() = Unit
 }
