@@ -27,7 +27,7 @@ object ReactiveElasticsearchClients {
         val httpHeaders = HttpHeaders()
 //        httpHeaders["X-Elastic-Product"] = listOf("Elasticsearch")
 //        httpHeaders["Content-Type"] = listOf("application/json")
-//        httpHeaders["Accept"] = listOf("application/json")
+//        httpHeaders["Accept"] = listOf("application/vnd.elasticsearch+json; compatible-with=8")
         val clientConfiguration =
             ClientConfiguration
                 .builder()
