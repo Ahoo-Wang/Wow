@@ -37,7 +37,7 @@ class ElasticsearchEventStreamQueryServiceTest : EventStreamQueryServiceSpec() {
 
     @BeforeEach
     override fun setup() {
-        val elasticsearchClient = ReactiveElasticsearchClients.createReactiveElasticsearchClient()
+        elasticsearchClient = ReactiveElasticsearchClients.createReactiveElasticsearchClient()
         elasticsearchClient.initEventStreamTemplate()
         super.setup()
     }

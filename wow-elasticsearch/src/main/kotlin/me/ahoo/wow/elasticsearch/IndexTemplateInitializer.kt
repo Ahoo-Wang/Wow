@@ -57,7 +57,7 @@ class IndexTemplateInitializer(private val elasticsearchOperations: ReactiveElas
             "initTemplate - name:$name ."
         }
         val indexPatterns = template.get(INDEX_PATTERNS_KEY).map {
-            it.asText()
+            it.asString()
         }.toList().toTypedArray()
         val mappings = template.get(TEMPLATE_KEY).get(MAPPINGS_KEY).toJsonString().let {
             Document.parse(it)

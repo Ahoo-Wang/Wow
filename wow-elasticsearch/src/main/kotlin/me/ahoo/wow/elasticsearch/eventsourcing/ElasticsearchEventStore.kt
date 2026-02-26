@@ -27,6 +27,7 @@ import me.ahoo.wow.eventsourcing.EventVersionConflictException
 import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.query.dsl.sort
 import me.ahoo.wow.serialization.MessageRecords
+import me.ahoo.wow.serialization.toLinkedHashMap
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -50,7 +51,7 @@ class ElasticsearchEventStore(
                 it
                     .index(eventStream.aggregateId.toEventStreamIndexName())
                     .id(eventStream.toDocId())
-                    .document(eventStream)
+                    .document(eventStream.toLinkedHashMap())
                     .routing(eventStream.aggregateId.id)
                     .opType(OpType.Create)
                     .refresh(refreshPolicy)

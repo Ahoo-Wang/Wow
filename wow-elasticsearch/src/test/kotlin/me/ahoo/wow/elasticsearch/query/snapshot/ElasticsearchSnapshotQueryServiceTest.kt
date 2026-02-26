@@ -37,7 +37,7 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
 
     @BeforeEach
     override fun setup() {
-        val elasticsearchClient = ReactiveElasticsearchClients.createReactiveElasticsearchClient()
+        elasticsearchClient = ReactiveElasticsearchClients.createReactiveElasticsearchClient()
         elasticsearchClient.initSnapshotTemplate()
         super.setup()
     }

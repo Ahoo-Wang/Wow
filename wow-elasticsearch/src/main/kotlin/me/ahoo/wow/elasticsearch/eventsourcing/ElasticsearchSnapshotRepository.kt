@@ -22,6 +22,7 @@ import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.serialization.MessageRecords
+import me.ahoo.wow.serialization.toLinkedHashMap
 import org.springframework.data.elasticsearch.RestStatusException
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import reactor.core.publisher.Flux
@@ -63,7 +64,7 @@ class ElasticsearchSnapshotRepository(
         return elasticsearchClient.index {
             it.index(snapshot.aggregateId.toSnapshotIndexName())
                 .id(snapshot.aggregateId.id)
-                .document(snapshot)
+                .document(snapshot.toLinkedHashMap())
                 .refresh(refreshPolicy)
         }.then()
     }
