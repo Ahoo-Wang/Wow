@@ -25,7 +25,7 @@ import java.time.Duration
 object ReactiveElasticsearchClients {
     fun createReactiveElasticsearchClient(): ReactiveElasticsearchClient {
         val httpHeaders = HttpHeaders()
-        httpHeaders.put("X-Elastic-Product", listOf("Elasticsearch"))
+//        httpHeaders["X-Elastic-Product"] = listOf("Elasticsearch")
 //        httpHeaders["Content-Type"] = listOf("application/json")
 //        httpHeaders["Accept"] = listOf("application/json")
         val clientConfiguration =
