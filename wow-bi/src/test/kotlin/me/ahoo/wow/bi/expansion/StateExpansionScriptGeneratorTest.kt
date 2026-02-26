@@ -31,15 +31,15 @@ class StateExpansionMetadataVisitorTest {
     fun build() {
         val biAggregateMetadata = aggregateMetadata<BIAggregate, BIAggregateState>()
         val scriptGenerator = biAggregateMetadata.toScriptGenerator()
-        val sql = scriptGenerator.toString()
+        val sql = scriptGenerator.toString().trim()
         sql.assert().isEqualTo(expectedBiAggregateScript)
         scriptGenerator.targetTables.assert().containsExactly(
             "bi_aggregate_state_last_root",
             "bi_aggregate_state_last_root_items",
-            "bi_aggregate_state_last_root_set",
             "bi_aggregate_state_last_root_like_list_item",
             "bi_aggregate_state_last_root_nested_list",
-            "bi_aggregate_state_last_root_nested_list_list"
+            "bi_aggregate_state_last_root_nested_list_list",
+            "bi_aggregate_state_last_root_set"
         )
     }
 
