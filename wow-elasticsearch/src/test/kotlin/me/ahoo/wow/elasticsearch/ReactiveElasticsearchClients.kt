@@ -19,10 +19,14 @@ import org.springframework.data.elasticsearch.client.ClientConfiguration
 import org.springframework.data.elasticsearch.client.elc.ElasticsearchClients
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 import org.springframework.data.elasticsearch.client.elc.rest5_client.Rest5Clients
+import org.springframework.data.elasticsearch.support.HttpHeaders
 import java.time.Duration
 
 object ReactiveElasticsearchClients {
     fun createReactiveElasticsearchClient(): ReactiveElasticsearchClient {
+        val httpHeaders = HttpHeaders()
+        httpHeaders["Content-Type"] = listOf("application/json")
+        httpHeaders["Accept"] = listOf("application/json")
         val clientConfiguration =
             ClientConfiguration
                 .builder()
@@ -31,6 +35,7 @@ object ReactiveElasticsearchClients {
                 .withBasicAuth("elastic", ELASTIC_PWD)
                 .withSocketTimeout(Duration.ofSeconds(30))
                 .withConnectTimeout(Duration.ofSeconds(5))
+                .withDefaultHeaders(httpHeaders)
                 .build()
         val rest5Client = Rest5Clients.getRest5Client(clientConfiguration)
         val elasticsearchClient =
