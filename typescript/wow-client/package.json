@@ -1,6 +1,6 @@
 {
   "name": "@ahoo-wang/fetcher-wow",
-  "version": "3.11.1",
+  "version": "3.11.2",
   "description": "Support for Wow(https://github.com/Ahoo-Wang/Wow) in Fetcher",
   "keywords": [
     "fetch",
