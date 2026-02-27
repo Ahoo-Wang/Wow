@@ -1,7 +1,7 @@
 {
   "name": "wow-compensation-dashboard",
   "private": true,
-  "version": "6.10.1",
+  "version": "6.18.9",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -14,15 +14,15 @@
     "generate": "fetcher-generator generate -i http://compensation-service.dev.svc.cluster.local/v3/api-docs -o src/generated"
   },
   "dependencies": {
-    "@ahoo-wang/fetcher": "^3.11.1",
-    "@ahoo-wang/fetcher-cosec": "^3.11.1",
-    "@ahoo-wang/fetcher-decorator": "^3.11.1",
-    "@ahoo-wang/fetcher-eventbus": "^3.11.1",
-    "@ahoo-wang/fetcher-eventstream": "^3.11.1",
-    "@ahoo-wang/fetcher-react": "^3.11.1",
-    "@ahoo-wang/fetcher-storage": "^3.11.1",
-    "@ahoo-wang/fetcher-viewer": "^3.11.1",
-    "@ahoo-wang/fetcher-wow": "^3.11.1",
+    "@ahoo-wang/fetcher": "^3.11.8",
+    "@ahoo-wang/fetcher-cosec": "^3.11.8",
+    "@ahoo-wang/fetcher-decorator": "^3.11.8",
+    "@ahoo-wang/fetcher-eventbus": "^3.11.8",
+    "@ahoo-wang/fetcher-eventstream": "^3.11.8",
+    "@ahoo-wang/fetcher-react": "^3.11.8",
+    "@ahoo-wang/fetcher-storage": "^3.11.8",
+    "@ahoo-wang/fetcher-viewer": "^3.11.8",
+    "@ahoo-wang/fetcher-wow": "^3.11.8",
     "@ant-design/icons": "^6.1.0",
     "@monaco-editor/react": "4.7.0",
     "antd": "^6.3.1",
@@ -32,7 +32,7 @@
     "react-router": "^7.13.1"
   },
   "devDependencies": {
-    "@ahoo-wang/fetcher-generator": "^3.11.1",
+    "@ahoo-wang/fetcher-generator": "^3.11.8",
     "@eslint/js": "^10.0.1",
     "@tailwindcss/vite": "^4.2.1",
     "@testing-library/jest-dom": "^6.9.1",
