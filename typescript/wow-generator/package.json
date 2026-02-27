@@ -1,6 +1,6 @@
 {
   "name": "@ahoo-wang/fetcher-generator",
-  "version": "3.11.9",
+  "version": "3.11.10",
   "description": "A powerful TypeScript code generation tool that automatically generates type-safe API client code based on OpenAPI specifications. It is designed for general use cases and is also deeply optimized for the [Wow](https://github.com/Ahoo-Wang/Wow) Domain-Driven Design framework, providing native support for the CQRS architectural pattern.",
   "keywords": [
     "fetch",
