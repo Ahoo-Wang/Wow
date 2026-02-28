@@ -24,7 +24,6 @@ import tools.jackson.databind.JsonNode
 import tools.jackson.databind.ObjectMapper
 import tools.jackson.databind.node.ObjectNode
 import tools.jackson.module.kotlin.jsonMapper
-import tools.jackson.module.kotlin.kotlinModule
 import java.lang.reflect.Type
 
 /**
@@ -55,7 +54,6 @@ val JsonSerializer = jsonMapper {
     configure(StreamReadFeature.IGNORE_UNDEFINED, true)
     disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
     enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS)
-    addModule(kotlinModule())
     findAndAddModules()
 }
 
@@ -107,7 +105,7 @@ fun Any.toPrettyJson(): String = DEFAULT_PRETTY_WRITER.writeValueAsString(this)
  * @param T The specific type of [JsonNode] to return (e.g., [ObjectNode], [ArrayNode]).
  * @receiver The object to convert. Can be any type.
  * @return The [JsonNode] representation of the object.
- * @throws com.fasterxml.jackson.core.JsonProcessingException if conversion fails.
+
  *
  * Example:
  * ```kotlin
@@ -168,7 +166,7 @@ fun String.toObjectNode(): ObjectNode = toJsonNode()
  * @param objectType The [JavaType] representing the target type.
  * @receiver The JSON string to deserialize.
  * @return The deserialized object.
- * @throws com.fasterxml.jackson.core.JsonProcessingException if deserialization fails.
+
  *
  * Example:
  * ```kotlin
@@ -188,7 +186,7 @@ fun <T> String.toObject(objectType: JavaType): T = JsonSerializer.readValue(this
  * @param objectType The [Class] representing the target type.
  * @receiver The JSON string to deserialize.
  * @return The deserialized object.
- * @throws com.fasterxml.jackson.core.JsonProcessingException if deserialization fails.
+
  *
  * Example:
  * ```kotlin
@@ -208,7 +206,7 @@ fun <T> String.toObject(objectType: Class<T>): T = JsonSerializer.readValue(this
  * @param objectType The [Class] representing the target type.
  * @receiver The [JsonNode] to convert.
  * @return The converted object.
- * @throws com.fasterxml.jackson.core.JsonProcessingException if conversion fails.
+
  *
  * Example:
  * ```kotlin
@@ -227,7 +225,7 @@ fun <T> JsonNode.toObject(objectType: Class<T>): T = JsonSerializer.treeToValue(
  * @param T The type of object to deserialize to, inferred from the call site.
  * @receiver The JSON string to deserialize.
  * @return The deserialized object.
- * @throws com.fasterxml.jackson.core.JsonProcessingException if deserialization fails.
+
  *
  * Example:
  * ```kotlin
@@ -246,7 +244,7 @@ inline fun <reified T> String.toObject(): T = toObject(T::class.java)
  * @param T The type of object to convert to, inferred from the call site.
  * @receiver The [JsonNode] to convert.
  * @return The converted object.
- * @throws com.fasterxml.jackson.core.JsonProcessingException if conversion fails.
+
  *
  * Example:
  * ```kotlin
@@ -266,7 +264,7 @@ inline fun <reified T> JsonNode.toObject(): T = toObject(T::class.java)
  * @param targetType The [Class] representing the target type.
  * @receiver The object to convert.
  * @return The converted object.
- * @throws com.fasterxml.jackson.core.JsonProcessingException if conversion fails.
+
  *
  * Example:
  * ```kotlin
@@ -287,7 +285,7 @@ fun <T> Any.convert(targetType: Class<T>): T = JsonSerializer.convertValue(this,
  * @param targetType The [JavaType] representing the target type.
  * @receiver The object to convert.
  * @return The converted object.
- * @throws com.fasterxml.jackson.core.JsonProcessingException if conversion fails.
+
  *
  * Example:
  * ```kotlin
@@ -308,7 +306,7 @@ fun <T> Any.convert(targetType: JavaType): T = JsonSerializer.convertValue<T>(th
  * @param targetType The [TypeReference] representing the target type.
  * @receiver The object to convert.
  * @return The converted object.
- * @throws com.fasterxml.jackson.core.JsonProcessingException if conversion fails.
+
  *
  * Example:
  * ```kotlin
@@ -328,7 +326,7 @@ fun <T> Any.convert(targetType: TypeReference<T>): T = JsonSerializer.convertVal
  * @param T The type of object to convert to, inferred from the call site.
  * @receiver The object to convert.
  * @return The converted object.
- * @throws com.fasterxml.jackson.core.JsonProcessingException if conversion fails.
+
  *
  * Example:
  * ```kotlin
@@ -356,7 +354,7 @@ inline fun <reified T> Any.convert(): T = JsonSerializer.convertValue<T>(this, T
  * @param targetType The [Class] representing the target type. Defaults to the object's class.
  * @receiver The object to convert.
  * @return A new instance of the target type with mapped properties.
- * @throws com.fasterxml.jackson.core.JsonProcessingException if conversion fails.
+
  *
  * Example:
  * ```kotlin
@@ -379,7 +377,6 @@ private val LINKED_HASH_MAP_TYPE_REF = object : TypeReference<LinkedHashMap<Stri
  * @param T The type of the object being converted.
  * @receiver The object to convert to a map.
  * @return A [MutableMap] containing all properties of the object with their string keys.
- * @throws com.fasterxml.jackson.core.JsonProcessingException if conversion fails.
  *
  * Example:
  * ```kotlin
