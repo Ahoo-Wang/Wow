@@ -38,6 +38,7 @@ data:
             write-dates-as-timestamps: true
       autoconfigure:
         exclude:
+          - org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration
           - org.springframework.boot.mongodb.autoconfigure.MongoReactiveAutoConfiguration
       elasticsearch:
         username: elastic

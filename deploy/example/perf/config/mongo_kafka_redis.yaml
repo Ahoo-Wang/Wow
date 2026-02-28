@@ -11,9 +11,9 @@ data:
     spring:
       application:
         name: example-service
+      mongodb:
+        uri: mongodb://root:QYE4XbfFl9uAGw@mongodb-test-mongodb-sharded.test.svc.cluster.local:27017/wow_example_db?authSource=admin&maxIdleTimeMS=60000
       data:
-        mongodb:
-          uri: mongodb://root:QYE4XbfFl9uAGw@mongodb-test-mongodb-sharded.test.svc.cluster.local:27017/wow_example_db?authSource=admin&maxIdleTimeMS=60000
         redis:
           cluster:
             max-redirects: 3
