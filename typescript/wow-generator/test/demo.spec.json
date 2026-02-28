@@ -678,6 +678,9 @@
             "$ref": "#/components/parameters/wow.Command-Tenant-Id"
           },
           {
+            "$ref": "#/components/parameters/wow.Wow-Space-Id"
+          },
+          {
             "$ref": "#/components/parameters/wow.Command-Owner-Id"
           },
           {
@@ -801,101 +804,6 @@
         }
       }
     },
-    "/tenant/{tenantId}/sales-order/{id}/package": {
-      "summary": "发货",
-      "description": "",
-      "post": {
-        "tags": [
-          "example.order"
-        ],
-        "summary": "发货",
-        "description": "",
-        "operationId": "example.order.ship_order",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/wow.tenantId"
-          },
-          {
-            "$ref": "#/components/parameters/wow.id"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Wait-Stage"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Wait-Context"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Wait-Processor"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Wait-Function"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Wait-Timout"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Stage"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Context"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Processor"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Function"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Aggregate-Id"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Aggregate-Version"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Request-Id"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Local-First"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Accept"
-          }
-        ],
-        "requestBody": {
-          "description": "发货",
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/example.order.ShipOrder"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "$ref": "#/components/responses/wow.CommandOk"
-          },
-          "400": {
-            "$ref": "#/components/responses/wow.CommandBadRequest"
-          },
-          "404": {
-            "$ref": "#/components/responses/wow.CommandNotFound"
-          },
-          "409": {
-            "$ref": "#/components/responses/wow.CommandVersionConflict"
-          },
-          "429": {
-            "$ref": "#/components/responses/wow.CommandTooManyRequests"
-          },
-          "408": {
-            "$ref": "#/components/responses/wow.CommandRequestTimeout"
-          },
-          "410": {
-            "$ref": "#/components/responses/wow.CommandIllegalAccessDeletedAggregate"
-          }
-        }
-      }
-    },
     "/tenant/{tenantId}/sales-order/{id}/pay": {
       "summary": "pay_order",
       "description": "",
@@ -912,6 +820,9 @@
           },
           {
             "$ref": "#/components/parameters/wow.id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Wow-Space-Id"
           },
           {
             "$ref": "#/components/parameters/wow.Command-Wait-Stage"
@@ -991,6 +902,104 @@
         }
       }
     },
+    "/tenant/{tenantId}/sales-order/{id}/package": {
+      "summary": "发货",
+      "description": "",
+      "post": {
+        "tags": [
+          "example.order"
+        ],
+        "summary": "发货",
+        "description": "",
+        "operationId": "example.order.ship_order",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/wow.tenantId"
+          },
+          {
+            "$ref": "#/components/parameters/wow.id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Wow-Space-Id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Stage"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Context"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Processor"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Function"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Timout"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Stage"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Context"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Processor"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Function"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Aggregate-Id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Aggregate-Version"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Request-Id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Local-First"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Accept"
+          }
+        ],
+        "requestBody": {
+          "description": "发货",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/example.order.ShipOrder"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/wow.CommandOk"
+          },
+          "400": {
+            "$ref": "#/components/responses/wow.CommandBadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/wow.CommandNotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/wow.CommandVersionConflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/wow.CommandTooManyRequests"
+          },
+          "408": {
+            "$ref": "#/components/responses/wow.CommandRequestTimeout"
+          },
+          "410": {
+            "$ref": "#/components/responses/wow.CommandIllegalAccessDeletedAggregate"
+          }
+        }
+      }
+    },
     "/tenant/{tenantId}/owner/{ownerId}/sales-order": {
       "summary": "下单",
       "description": "",
@@ -1007,6 +1016,9 @@
           },
           {
             "$ref": "#/components/parameters/wow.ownerId"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Wow-Space-Id"
           },
           {
             "$ref": "#/components/parameters/wow.Command-Wait-Stage"
@@ -1107,6 +1119,9 @@
             "$ref": "#/components/parameters/wow.id"
           },
           {
+            "$ref": "#/components/parameters/wow.Wow-Space-Id"
+          },
+          {
             "$ref": "#/components/parameters/wow.Command-Wait-Stage"
           },
           {
@@ -1203,6 +1218,9 @@
           },
           {
             "$ref": "#/components/parameters/wow.id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Wow-Space-Id"
           },
           {
             "$ref": "#/components/parameters/wow.Command-Wait-Stage"
@@ -1303,6 +1321,9 @@
             "$ref": "#/components/parameters/wow.id"
           },
           {
+            "$ref": "#/components/parameters/wow.Wow-Space-Id"
+          },
+          {
             "$ref": "#/components/parameters/wow.Command-Wait-Stage"
           },
           {
@@ -1401,6 +1422,9 @@
             "$ref": "#/components/parameters/wow.id"
           },
           {
+            "$ref": "#/components/parameters/wow.Wow-Space-Id"
+          },
+          {
             "$ref": "#/components/parameters/wow.Command-Wait-Stage"
           },
           {
@@ -1494,6 +1518,9 @@
           },
           {
             "$ref": "#/components/parameters/wow.id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Wow-Space-Id"
           }
         ],
         "responses": {
@@ -1537,6 +1564,9 @@
           },
           {
             "$ref": "#/components/parameters/wow.id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Wow-Space-Id"
           }
         ],
         "responses": {
@@ -1583,6 +1613,9 @@
           },
           {
             "$ref": "#/components/parameters/wow.id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Wow-Space-Id"
           },
           {
             "$ref": "#/components/parameters/wow.version"
@@ -1634,6 +1667,9 @@
             "$ref": "#/components/parameters/wow.id"
           },
           {
+            "$ref": "#/components/parameters/wow.Wow-Space-Id"
+          },
+          {
             "$ref": "#/components/parameters/wow.createTime"
           }
         ],
@@ -1681,6 +1717,9 @@
           },
           {
             "$ref": "#/components/parameters/wow.id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Wow-Space-Id"
           }
         ],
         "responses": {
@@ -1720,6 +1759,9 @@
           },
           {
             "$ref": "#/components/parameters/wow.id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Wow-Space-Id"
           }
         ],
         "responses": {
@@ -1743,6 +1785,9 @@
         "description": "",
         "operationId": "example.order.snapshot.batch_regenerate",
         "parameters": [
+          {
+            "$ref": "#/components/parameters/wow.Wow-Space-Id"
+          },
           {
             "$ref": "#/components/parameters/wow.afterId"
           },
@@ -1770,7 +1815,11 @@
         "summary": "Count Snapshot",
         "description": "",
         "operationId": "example.order.snapshot.count",
-        "parameters": [],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/wow.Wow-Space-Id"
+          }
+        ],
         "requestBody": {
           "$ref": "#/components/requestBodies/example.order.CountQuery"
         },
@@ -1800,6 +1849,9 @@
         "parameters": [
           {
             "$ref": "#/components/parameters/wow.tenantId"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Wow-Space-Id"
           }
         ],
         "requestBody": {
@@ -1831,6 +1883,9 @@
         "parameters": [
           {
             "$ref": "#/components/parameters/wow.ownerId"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Wow-Space-Id"
           }
         ],
         "requestBody": {
@@ -1859,7 +1914,11 @@
         "summary": "List Query Snapshot",
         "description": "",
         "operationId": "example.order.snapshot.list_query",
-        "parameters": [],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/wow.Wow-Space-Id"
+          }
+        ],
         "requestBody": {
           "$ref": "#/components/requestBodies/example.order.ListQuery"
         },
@@ -1905,6 +1964,9 @@
         "parameters": [
           {
             "$ref": "#/components/parameters/wow.tenantId"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Wow-Space-Id"
           }
         ],
         "requestBody": {
@@ -1952,6 +2014,9 @@
         "parameters": [
           {
             "$ref": "#/components/parameters/wow.ownerId"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Wow-Space-Id"
           }
         ],
         "requestBody": {
@@ -1996,7 +2061,11 @@
         "summary": "List Query Snapshot State",
         "description": "",
         "operationId": "example.order.snapshot_state.list_query",
-        "parameters": [],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/wow.Wow-Space-Id"
+          }
+        ],
         "requestBody": {
           "$ref": "#/components/requestBodies/example.order.ListQuery"
         },
@@ -2042,6 +2111,9 @@
         "parameters": [
           {
             "$ref": "#/components/parameters/wow.tenantId"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Wow-Space-Id"
           }
         ],
         "requestBody": {
@@ -2089,6 +2161,9 @@
         "parameters": [
           {
             "$ref": "#/components/parameters/wow.ownerId"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Wow-Space-Id"
           }
         ],
         "requestBody": {
@@ -2133,7 +2208,11 @@
         "summary": "Paged Query Snapshot",
         "description": "",
         "operationId": "example.order.snapshot.paged_query",
-        "parameters": [],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/wow.Wow-Space-Id"
+          }
+        ],
         "requestBody": {
           "$ref": "#/components/requestBodies/example.order.PagedQuery"
         },
@@ -2168,6 +2247,9 @@
         "parameters": [
           {
             "$ref": "#/components/parameters/wow.tenantId"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Wow-Space-Id"
           }
         ],
         "requestBody": {
@@ -2204,6 +2286,9 @@
         "parameters": [
           {
             "$ref": "#/components/parameters/wow.ownerId"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Wow-Space-Id"
           }
         ],
         "requestBody": {
@@ -2237,7 +2322,11 @@
         "summary": "Paged Query Snapshot State",
         "description": "",
         "operationId": "example.order.snapshot_state.paged_query",
-        "parameters": [],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/wow.Wow-Space-Id"
+          }
+        ],
         "requestBody": {
           "$ref": "#/components/requestBodies/example.order.PagedQuery"
         },
@@ -2272,6 +2361,9 @@
         "parameters": [
           {
             "$ref": "#/components/parameters/wow.tenantId"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Wow-Space-Id"
           }
         ],
         "requestBody": {
@@ -2308,6 +2400,9 @@
         "parameters": [
           {
             "$ref": "#/components/parameters/wow.ownerId"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Wow-Space-Id"
           }
         ],
         "requestBody": {
@@ -2341,7 +2436,11 @@
         "summary": "Single Snapshot",
         "description": "",
         "operationId": "example.order.snapshot.single",
-        "parameters": [],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/wow.Wow-Space-Id"
+          }
+        ],
         "requestBody": {
           "$ref": "#/components/requestBodies/example.order.SingleQuery"
         },
@@ -2379,6 +2478,9 @@
         "parameters": [
           {
             "$ref": "#/components/parameters/wow.tenantId"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Wow-Space-Id"
           }
         ],
         "requestBody": {
@@ -2418,6 +2520,9 @@
         "parameters": [
           {
             "$ref": "#/components/parameters/wow.ownerId"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Wow-Space-Id"
           }
         ],
         "requestBody": {
@@ -2454,7 +2559,11 @@
         "summary": "Single Snapshot State",
         "description": "",
         "operationId": "example.order.snapshot_state.single",
-        "parameters": [],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/wow.Wow-Space-Id"
+          }
+        ],
         "requestBody": {
           "$ref": "#/components/requestBodies/example.order.SingleQuery"
         },
@@ -2492,6 +2601,9 @@
         "parameters": [
           {
             "$ref": "#/components/parameters/wow.tenantId"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Wow-Space-Id"
           }
         ],
         "requestBody": {
@@ -2531,6 +2643,9 @@
         "parameters": [
           {
             "$ref": "#/components/parameters/wow.ownerId"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Wow-Space-Id"
           }
         ],
         "requestBody": {
@@ -2573,6 +2688,9 @@
           },
           {
             "$ref": "#/components/parameters/wow.id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Wow-Space-Id"
           },
           {
             "$ref": "#/components/parameters/wow.headVersion"
@@ -2620,7 +2738,11 @@
         "summary": "List Query Event Stream",
         "description": "",
         "operationId": "example.order.event.list_query",
-        "parameters": [],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/wow.Wow-Space-Id"
+          }
+        ],
         "requestBody": {
           "$ref": "#/components/requestBodies/wow.ListQuery"
         },
@@ -2666,6 +2788,9 @@
         "parameters": [
           {
             "$ref": "#/components/parameters/wow.tenantId"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Wow-Space-Id"
           }
         ],
         "requestBody": {
@@ -2713,6 +2838,9 @@
         "parameters": [
           {
             "$ref": "#/components/parameters/wow.ownerId"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Wow-Space-Id"
           }
         ],
         "requestBody": {
@@ -2757,7 +2885,11 @@
         "summary": "Paged Query Event Stream",
         "description": "",
         "operationId": "example.order.event.paged_query",
-        "parameters": [],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/wow.Wow-Space-Id"
+          }
+        ],
         "requestBody": {
           "$ref": "#/components/requestBodies/wow.PagedQuery"
         },
@@ -2792,6 +2924,9 @@
         "parameters": [
           {
             "$ref": "#/components/parameters/wow.tenantId"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Wow-Space-Id"
           }
         ],
         "requestBody": {
@@ -2828,6 +2963,9 @@
         "parameters": [
           {
             "$ref": "#/components/parameters/wow.ownerId"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Wow-Space-Id"
           }
         ],
         "requestBody": {
@@ -2861,7 +2999,11 @@
         "summary": "Count Event Stream",
         "description": "",
         "operationId": "example.order.event.count",
-        "parameters": [],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/wow.Wow-Space-Id"
+          }
+        ],
         "requestBody": {
           "$ref": "#/components/requestBodies/wow.CountQuery"
         },
@@ -2885,6 +3027,9 @@
         "parameters": [
           {
             "$ref": "#/components/parameters/wow.tenantId"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Wow-Space-Id"
           }
         ],
         "requestBody": {
@@ -2910,6 +3055,9 @@
         "parameters": [
           {
             "$ref": "#/components/parameters/wow.ownerId"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Wow-Space-Id"
           }
         ],
         "requestBody": {
@@ -2940,6 +3088,9 @@
             "$ref": "#/components/parameters/wow.id"
           },
           {
+            "$ref": "#/components/parameters/wow.Wow-Space-Id"
+          },
+          {
             "$ref": "#/components/parameters/wow.version"
           }
         ],
@@ -2967,6 +3118,9 @@
         "description": "",
         "operationId": "example.order.state_event.resend",
         "parameters": [
+          {
+            "$ref": "#/components/parameters/wow.Wow-Space-Id"
+          },
           {
             "$ref": "#/components/parameters/wow.afterId"
           },
@@ -5195,6 +5349,11 @@
             "default": "",
             "description": "The owner ID of the aggregate resource"
           },
+          "spaceId": {
+            "type": "string",
+            "default": "",
+            "description": "The space ID of the aggregate resource"
+          },
           "commandId": {
             "type": "string",
             "description": "The ID of the command message.",
@@ -5347,6 +5506,7 @@
           "createTime",
           "id",
           "ownerId",
+          "spaceId",
           "tenantId",
           "version"
         ]
@@ -5419,6 +5579,7 @@
           "aggregateId",
           "tenantId",
           "ownerId",
+          "spaceId",
           "version",
           "eventId",
           "firstOperator",
@@ -5626,6 +5787,9 @@
             "format": "int64",
             "description": "The snapshot time of the aggregate, represented as a Unix timestamp in milliseconds."
           },
+          "spaceId": {
+            "type": "string"
+          },
           "state": {
             "$ref": "#/components/schemas/example.cart.CartState",
             "description": "The state of the aggregate."
@@ -5805,6 +5969,11 @@
             "default": "",
             "description": "The owner ID of the aggregate resource"
           },
+          "spaceId": {
+            "type": "string",
+            "default": "",
+            "description": "The space ID of the aggregate resource"
+          },
           "version": {
             "type": "integer",
             "format": "int32",
@@ -5867,6 +6036,7 @@
           "operator",
           "ownerId",
           "snapshotTime",
+          "spaceId",
           "state",
           "tenantId",
           "version"
@@ -5949,6 +6119,11 @@
             "type": "string",
             "default": "",
             "description": "The owner ID of the aggregate resource"
+          },
+          "spaceId": {
+            "type": "string",
+            "default": "",
+            "description": "The space ID of the aggregate resource"
           },
           "commandId": {
             "type": "string",
@@ -6053,6 +6228,7 @@
           "firstOperator",
           "id",
           "ownerId",
+          "spaceId",
           "state",
           "tenantId",
           "version"
@@ -6286,6 +6462,11 @@
             "default": "",
             "description": "The owner ID of the aggregate resource"
           },
+          "spaceId": {
+            "type": "string",
+            "default": "",
+            "description": "The space ID of the aggregate resource"
+          },
           "commandId": {
             "type": "string",
             "description": "The ID of the command message.",
@@ -6514,6 +6695,7 @@
           "createTime",
           "id",
           "ownerId",
+          "spaceId",
           "tenantId",
           "version"
         ]
@@ -6586,6 +6768,7 @@
           "aggregateId",
           "tenantId",
           "ownerId",
+          "spaceId",
           "version",
           "eventId",
           "firstOperator",
@@ -6874,6 +7057,9 @@
             "format": "int64",
             "description": "The snapshot time of the aggregate, represented as a Unix timestamp in milliseconds."
           },
+          "spaceId": {
+            "type": "string"
+          },
           "state": {
             "$ref": "#/components/schemas/example.order.WowExampleOrderState",
             "description": "The state of the aggregate."
@@ -7053,6 +7239,11 @@
             "default": "",
             "description": "The owner ID of the aggregate resource"
           },
+          "spaceId": {
+            "type": "string",
+            "default": "",
+            "description": "The space ID of the aggregate resource"
+          },
           "version": {
             "type": "integer",
             "format": "int32",
@@ -7130,6 +7321,7 @@
           "operator",
           "ownerId",
           "snapshotTime",
+          "spaceId",
           "state",
           "tenantId",
           "version"
@@ -7212,6 +7404,11 @@
             "type": "string",
             "default": "",
             "description": "The owner ID of the aggregate resource"
+          },
+          "spaceId": {
+            "type": "string",
+            "default": "",
+            "description": "The space ID of the aggregate resource"
           },
           "commandId": {
             "type": "string",
@@ -7331,6 +7528,7 @@
           "firstOperator",
           "id",
           "ownerId",
+          "spaceId",
           "state",
           "tenantId",
           "version"
@@ -7539,6 +7737,7 @@
           "AGGREGATE_IDS",
           "TENANT_ID",
           "OWNER_ID",
+          "SPACE_ID",
           "DELETED",
           "ALL",
           "EQ",
@@ -8242,6 +8441,15 @@
         "description": "The tenant ID of the aggregate",
         "schema": {
           "type": "string"
+        }
+      },
+      "wow.Wow-Space-Id": {
+        "name": "Wow-Space-Id",
+        "in": "header",
+        "schema": {
+          "type": "string",
+          "description": "aggregate space id",
+          "example": ""
         }
       },
       "wow.Command-Owner-Id": {
