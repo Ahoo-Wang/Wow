@@ -13,7 +13,7 @@ guava = "33.5.0-jre"
 kotlin-logging = "7.0.14"
 swagger = "2.2.43"
 springdoc = "2.8.15"
-jsonschema-generator = "4.38.0"
+jsonschema-generator = "5.0.0"
 json-schema-validator = "2.0.1"
 kotlinx-coroutines = "1.10.2"
 # testing
