@@ -11,9 +11,8 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.elasticsearch.query
+package me.ahoo.wow.elasticsearch
 
-import co.elastic.clients.json.jackson.Jackson3JsonpMapper
 import me.ahoo.wow.serialization.JsonSerializer
 
-val WowJsonpMapper = Jackson3JsonpMapper(JsonSerializer)
+val WowJsonpMapper = co.elastic.clients.json.jackson.Jackson3JsonpMapper(JsonSerializer)

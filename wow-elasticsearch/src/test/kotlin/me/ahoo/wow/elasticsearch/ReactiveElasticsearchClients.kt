@@ -42,6 +42,8 @@ object ReactiveElasticsearchClients {
         val elasticsearchClient =
             ElasticsearchClients.createReactive(
                 rest5Client,
+                null,
+                WowJsonpMapper,
             )
 
         return elasticsearchClient
