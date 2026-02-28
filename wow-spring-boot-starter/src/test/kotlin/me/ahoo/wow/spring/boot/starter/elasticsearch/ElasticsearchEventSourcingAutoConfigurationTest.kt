@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.spring.boot.starter.elasticsearch
 
-import co.elastic.clients.json.jackson.Jackson3JsonpMapper
 import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.wow.elasticsearch.IndexTemplateInitializer
@@ -61,7 +60,6 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
             )
             .run { context: AssertableApplicationContext ->
                 AssertionsForInterfaceTypes.assertThat(context)
-                    .hasSingleBean(Jackson3JsonpMapper::class.java)
                     .hasSingleBean(ElasticsearchEventStore::class.java)
                     .hasSingleBean(ElasticsearchEventStreamQueryServiceFactory::class.java)
                     .hasSingleBean(IndexTemplateInitializer::class.java)
