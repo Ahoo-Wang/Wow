@@ -73,4 +73,8 @@ interface WhenStage<T : Any> : InjectServiceCapable<WhenStage<T>> {
         ownerId: String = OwnerId.DEFAULT_OWNER_ID,
         spaceId: SpaceId = SpaceIdCapable.DEFAULT_SPACE_ID
     ): ExpectStage<T>
+
+    fun whenEvent(event: Any): ExpectStage<T> {
+        return whenEvent(event, null, OwnerId.DEFAULT_OWNER_ID, SpaceIdCapable.DEFAULT_SPACE_ID)
+    }
 }

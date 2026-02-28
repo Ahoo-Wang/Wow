@@ -26,7 +26,7 @@ class AccountTest {
     void createAccount() {
         aggregateVerifier(Account.class, AccountState.class)
                 .given()
-                .when(new CreateAccount("name", 100L))
+                .whenCommand(new CreateAccount("name", 100L))
                 .expectEventType(AccountCreated.class)
                 .expectEventIterator(eventIterator -> {
                     assertThat(eventIterator.hasNext()).isTrue();

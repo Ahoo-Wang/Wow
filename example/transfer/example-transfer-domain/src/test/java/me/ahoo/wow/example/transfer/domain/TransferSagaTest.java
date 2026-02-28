@@ -26,7 +26,7 @@ public class TransferSagaTest {
     void onPrepared() {
         var event = new Prepared("to", 1L);
         sagaVerifier(TransferSaga.class)
-                .when(event)
+                .whenEvent(event)
                 .expectCommandBody((Entry entry) -> {
                     assertThat(entry.id()).isEqualTo(event.to());
                     assertThat(entry.amount()).isEqualTo(event.amount());

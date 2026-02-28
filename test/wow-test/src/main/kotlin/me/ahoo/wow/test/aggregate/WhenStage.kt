@@ -55,6 +55,12 @@ interface WhenStage<S : Any> {
         ownerId: String = OwnerId.DEFAULT_OWNER_ID,
         spaceId: SpaceId = SpaceIdCapable.DEFAULT_SPACE_ID
     ): ExpectStage<S>
+
+    fun whenCommand(
+        command: Any,
+    ): ExpectStage<S> {
+        return whenCommand(command, DefaultHeader.empty(), OwnerId.DEFAULT_OWNER_ID, SpaceIdCapable.DEFAULT_SPACE_ID)
+    }
 }
 
 /**
