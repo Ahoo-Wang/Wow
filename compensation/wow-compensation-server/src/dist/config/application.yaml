@@ -28,14 +28,14 @@ spring:
     resources:
       static-locations: file:./ui/
   jackson:
-    serialization:
-      write-durations-as-timestamps: true
-      write-dates-as-timestamps: true
     mapper:
       accept-case-insensitive-enums: true
-  data:
-    mongodb:
-      uri: mongodb://root:root@localhost:27017/compensation_db?authSource=admin&maxIdleTimeMS=60000
+    datatype:
+      datetime:
+        write-durations-as-timestamps: true
+        write-dates-as-timestamps: true
+  mongodb:
+    uri: mongodb://root:root@localhost:27017/compensation_db?authSource=admin&maxIdleTimeMS=60000
 
 cosid:
   machine:
