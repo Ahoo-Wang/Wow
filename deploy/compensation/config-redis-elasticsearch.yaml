@@ -38,15 +38,16 @@ data:
             write-dates-as-timestamps: true
         autoconfigure:
           exclude:
+            - org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration
             - org.springframework.boot.mongodb.autoconfigure.MongoReactiveAutoConfiguration
       elasticsearch:
         username: elastic
         password: elastic
         uris: dev-es-default.dev.svc.cluster.local:9200
+      mongodb:
+        uri: mongodb://root:root@localhost:27017/?authSource=admin&maxIdleTimeMS=60000
+        database: compensation_db
       data:
-        mongodb:
-          uri: mongodb://root:root@localhost:27017/?authSource=admin&maxIdleTimeMS=60000
-          database: compensation_db
         redis:
           cluster:
             max-redirects: 3

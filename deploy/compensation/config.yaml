@@ -40,10 +40,10 @@ data:
           exclude:
             - org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchClientAutoConfiguration
             - org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchRestClientAutoConfiguration
+      mongodb:
+        uri: mongodb://root:root@localhost:27017/?authSource=admin&maxIdleTimeMS=60000
+        database: compensation_db
       data:
-        mongodb:
-          uri: mongodb://root:root@localhost:27017/?authSource=admin&maxIdleTimeMS=60000
-          database: compensation_db
         redis:
           cluster:
             max-redirects: 3
