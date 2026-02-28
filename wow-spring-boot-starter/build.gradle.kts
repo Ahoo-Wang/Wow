@@ -69,7 +69,7 @@ dependencies {
     api("org.springframework:spring-webflux")
     api("org.springframework.boot:spring-boot-starter")
     api("org.springframework.boot:spring-boot-starter-jackson")
-    api("org.springframework.boot:spring-boot-starter-web")
+    api("org.springframework.boot:spring-boot-starter-webflux")
     api("org.springframework.boot:spring-boot-starter-webclient")
     kapt("org.springframework.boot:spring-boot-configuration-processor")
     kapt("org.springframework.boot:spring-boot-autoconfigure-processor")
