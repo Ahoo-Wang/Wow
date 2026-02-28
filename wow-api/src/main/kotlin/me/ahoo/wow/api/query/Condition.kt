@@ -669,23 +669,6 @@ data class Condition(
         fun spaceId(value: String) = Condition(field = EMPTY_VALUE, operator = Operator.SPACE_ID, value = value)
 
         /**
-         * Creates a deletion state condition using a boolean value.
-         * Matches documents based on their deletion state.
-         *
-         * @param value true for deleted documents, false for active documents.
-         * @return A new deletion state condition.
-         */
-        fun deleted(value: Boolean): Condition {
-            val deletionState =
-                if (value) {
-                    DeletionState.DELETED
-                } else {
-                    DeletionState.ACTIVE
-                }
-            return deleted(deletionState)
-        }
-
-        /**
          * Creates a deletion state condition using a DeletionState enum.
          * Matches documents based on their deletion state.
          *

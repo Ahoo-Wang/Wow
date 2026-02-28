@@ -29,8 +29,10 @@ class CompensationEventProcessorTest {
             every { eventId.aggregateId } returns "test.not_local".toNamedAggregate().aggregateId()
         }
         sagaVerifier<CompensationEventProcessor>()
-            .inject(mockk<EventCompensateSupporter>())
-            .`when`(compensationPrepared)
+            .inject {
+                register(mockk<EventCompensateSupporter>())
+            }
+            .whenEvent(compensationPrepared)
             .expectNoCommand()
             .verify()
     }
@@ -50,8 +52,10 @@ class CompensationEventProcessorTest {
             } returns Mono.empty()
         }
         sagaVerifier<CompensationEventProcessor>()
-            .inject(eventCompensateSupporter)
-            .`when`(compensationPrepared)
+            .inject {
+                register(eventCompensateSupporter)
+            }
+            .whenEvent(compensationPrepared)
             .expectNoCommand()
             .verify()
 

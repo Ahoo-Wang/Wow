@@ -53,6 +53,7 @@ object ErrorConverterRegistrar {
      * @param factory the factory to create the converter from
      * @return the previously registered converter for this exception type, or null if none existed
      */
+    @Suppress("UNCHECKED_CAST")
     fun register(factory: ErrorConverterFactory<out Throwable>): ErrorConverter<Throwable>? =
         register(factory.supportedType, factory.create() as ErrorConverter<Throwable>)
 

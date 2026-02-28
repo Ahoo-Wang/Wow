@@ -266,16 +266,16 @@ class JsonSchemaGeneratorTest {
         val schema = jsonSchemaGenerator.generateSchema(KotlinData::class.java)
         val nullableFieldAnyOfType = schema.get("properties").get("nullableField").get("anyOf")
         nullableFieldAnyOfType.isArray.assert().isTrue()
-        nullableFieldAnyOfType.get(0).get("type").textValue().assert().isEqualTo("null")
-        nullableFieldAnyOfType.get(1).get("type").textValue().assert().isEqualTo("string")
+        nullableFieldAnyOfType.get(0).get("type").stringValue().assert().isEqualTo("null")
+        nullableFieldAnyOfType.get(1).get("type").stringValue().assert().isEqualTo("string")
         val readOnlyField = schema.get("properties").get("readOnlyField")
         readOnlyField.get("readOnly").booleanValue().assert().isTrue()
         val readOnlyGetter = schema.get("properties").get("readOnlyGetter")
         readOnlyGetter.get("readOnly").booleanValue().assert().isTrue
         val required = schema.get("required")
         required.isArray.assert().isTrue()
-        required.get(0).textValue().assert().isEqualTo("field")
-        required.get(1).textValue().assert().isEqualTo("nullableField")
+        required.get(0).stringValue().assert().isEqualTo("field")
+        required.get(1).stringValue().assert().isEqualTo("nullableField")
     }
 
     @Test
@@ -295,7 +295,7 @@ class JsonSchemaGeneratorTest {
         val jsonSchemaGenerator = SchemaGeneratorBuilder().build()
         val arrayType = TypeResolver().arrayType(SchemaData::class.java)
         val arrayTypeSchema = jsonSchemaGenerator.generateSchema(arrayType)
-        arrayTypeSchema.get("type").asText().assert().isEqualTo("array")
+        arrayTypeSchema.get("type").asString().assert().isEqualTo("array")
     }
 
     @Test
@@ -304,16 +304,16 @@ class JsonSchemaGeneratorTest {
         val nullableFieldNode = schema.get("properties").get("nullableField")
         val nullableFieldAnyOfType = schema.get("properties").get("nullableField").get("anyOf")
         nullableFieldAnyOfType.isArray.assert().isTrue()
-        nullableFieldAnyOfType.get(0).get("type").textValue().assert().isEqualTo("null")
-        nullableFieldAnyOfType.get(1).get("type").textValue().assert().isEqualTo("string")
-        nullableFieldNode.get("title").textValue().assert().isEqualTo("testSummary")
-        nullableFieldNode.get("description").textValue().assert().isEqualTo("testDescription")
+        nullableFieldAnyOfType.get(0).get("type").stringValue().assert().isEqualTo("null")
+        nullableFieldAnyOfType.get(1).get("type").stringValue().assert().isEqualTo("string")
+        nullableFieldNode.get("title").stringValue().assert().isEqualTo("testSummary")
+        nullableFieldNode.get("description").stringValue().assert().isEqualTo("testDescription")
         val readOnlyField = schema.get("properties").get("readOnlyField")
         readOnlyField.get("readOnly").booleanValue().assert().isTrue()
         val required = schema.get("required")
         required.isArray.assert().isTrue()
-        required.get(0).textValue().assert().isEqualTo("nullableField")
-        required.get(1).textValue().assert().isEqualTo("requiredField")
+        required.get(0).stringValue().assert().isEqualTo("nullableField")
+        required.get(1).stringValue().assert().isEqualTo("requiredField")
         schema.get("properties").get("ignoreProperty").assert().isNull()
         schema.get("properties").get("ignoreSchemaProperty").assert().isNull()
         val getterNode = schema.get("properties").get("getter")

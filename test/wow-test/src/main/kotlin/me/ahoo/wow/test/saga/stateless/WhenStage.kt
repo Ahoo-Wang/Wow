@@ -17,10 +17,7 @@ import me.ahoo.wow.api.modeling.OwnerId
 import me.ahoo.wow.api.modeling.SpaceId
 import me.ahoo.wow.api.modeling.SpaceIdCapable
 import me.ahoo.wow.messaging.function.MessageFunction
-import me.ahoo.wow.naming.annotation.toName
 import me.ahoo.wow.test.dsl.InjectServiceCapable
-import kotlin.reflect.KType
-import kotlin.reflect.full.defaultType
 
 /**
  * Represents the "when" stage in stateless saga testing.
@@ -33,40 +30,6 @@ import kotlin.reflect.full.defaultType
  * @param T The type of the saga being tested.
  */
 interface WhenStage<T : Any> : InjectServiceCapable<WhenStage<T>> {
-    /**
-     * Injects a service instance into the test context.
-     *
-     * This method registers a service that can be used during saga processing.
-     * The service name and type are automatically derived from the service instance
-     * but can be overridden if needed.
-     *
-     * @param SERVICE The type of the service to inject.
-     * @param service The service instance to register.
-     * @param serviceName The name to register the service under (defaults to class name).
-     * @param serviceType The Kotlin type of the service (defaults to class default type).
-     * @return The current stage for method chaining.
-     */
-    @Deprecated(
-        "Use inject {} instead.",
-        replaceWith = ReplaceWith(
-            """
-        inject {
-            register<SERVICE>(service)
-        }
-    """,
-            "me.ahoo.wow.ioc.register"
-        )
-    )
-    fun <SERVICE : Any> inject(
-        service: SERVICE,
-        serviceName: String = service.javaClass.toName(),
-        serviceType: KType = service.javaClass.kotlin.defaultType
-    ): WhenStage<T> {
-        inject {
-            register(service, serviceName, serviceType)
-        }
-        return this
-    }
 
     /**
      * Sets a filter for message functions to be considered during testing.
@@ -92,41 +55,6 @@ interface WhenStage<T : Any> : InjectServiceCapable<WhenStage<T>> {
         functionFilter {
             it.name == functionName
         }
-
-    /**
-     * Triggers saga processing with a domain event and optional state.
-     *
-     * This method simulates receiving a domain event and processes it through
-     * the saga, returning an expectation stage to verify the results.
-     *
-     * @param event The domain event that triggers the saga.
-     * @param state Optional state aggregate to provide to the saga processing.
-     * @param ownerId The owner ID for the event processing (defaults to default owner).
-     * @return An expectation stage to define assertions on the saga results.
-     */
-    @Deprecated(
-        "use whenEvent instead.",
-        replaceWith = ReplaceWith("whenEvent(event,state,ownerId)")
-    )
-    fun `when`(
-        event: Any,
-        state: Any?,
-        ownerId: String = OwnerId.DEFAULT_OWNER_ID
-    ): ExpectStage<T> = whenEvent(event = event, state = state, ownerId = ownerId)
-
-    /**
-     * Triggers saga processing with a domain event.
-     *
-     * This is a convenience overload that processes an event without providing state.
-     *
-     * @param event The domain event that triggers the saga.
-     * @return An expectation stage to define assertions on the saga results.
-     */
-    @Deprecated(
-        "use whenEvent instead.",
-        replaceWith = ReplaceWith("whenEvent(event)")
-    )
-    fun `when`(event: Any): ExpectStage<T> = whenEvent(event = event, state = null)
 
     /**
      * Triggers saga processing with a domain event and optional parameters.

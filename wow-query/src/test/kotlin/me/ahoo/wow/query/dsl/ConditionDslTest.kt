@@ -31,7 +31,6 @@ class ConditionDslTest {
     @Test
     fun test() {
         val condition = condition {
-            deleted(false)
             deleted(DeletionState.ACTIVE)
             and {
                 tenantId("tenantId")
@@ -101,7 +100,6 @@ class ConditionDslTest {
         condition.assert().isEqualTo(
             Condition.and(
                 listOf(
-                    Condition.deleted(false),
                     Condition.deleted(DeletionState.ACTIVE),
                     Condition.and(Condition.tenantId("tenantId")),
                     Condition.nor(Condition.all()),
@@ -262,14 +260,6 @@ class ConditionDslTest {
     fun deleted() {
         val condition = condition {
             deleted(DeletionState.DELETED)
-        }
-        condition.deletionState().assert().isEqualTo(DeletionState.DELETED)
-    }
-
-    @Test
-    fun deletedWithBool() {
-        val condition = condition {
-            deleted(true)
         }
         condition.deletionState().assert().isEqualTo(DeletionState.DELETED)
     }

@@ -171,11 +171,6 @@ class ConditionDsl : NestedFieldDsl() {
         condition(Condition.spaceId(value))
     }
 
-    @Deprecated(message = "Use deleted(DeletionState) instead.", replaceWith = ReplaceWith("deleted(DeletionState)"))
-    fun deleted(value: Boolean) {
-        condition(Condition.deleted(value))
-    }
-
     fun deleted(value: DeletionState) {
         condition(Condition.deleted(value))
     }

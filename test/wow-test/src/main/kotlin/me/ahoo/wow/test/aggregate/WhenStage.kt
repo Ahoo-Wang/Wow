@@ -42,35 +42,6 @@ import reactor.kotlin.core.publisher.toMono
  */
 interface WhenStage<S : Any> {
     /**
-     * Executes a command with a custom header.
-     *
-     * @param command the command to execute
-     * @param header the command header to use
-     * @return an ExpectStage for defining expectations on the results
-     */
-    @Deprecated(
-        "use whenCommand instead.",
-        replaceWith = ReplaceWith("whenCommand(command,header)")
-    )
-    fun `when`(
-        command: Any,
-        header: Header
-    ): ExpectStage<S> = this.whenCommand(command = command, header = header)
-
-    /**
-     * Executes a command with default header.
-     *
-     * @param command the command to execute
-     * @return an ExpectStage for defining expectations on the results
-     */
-    @Deprecated(
-        "use whenCommand instead.",
-        replaceWith = ReplaceWith("whenCommand(command)")
-    )
-    fun `when`(command: Any): ExpectStage<S> =
-        this.whenCommand(command = command, header = DefaultHeader.empty())
-
-    /**
      * Executes a command with full parameter control.
      *
      * @param command the command to execute

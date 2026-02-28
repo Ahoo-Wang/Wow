@@ -4,6 +4,7 @@ import com.mongodb.client.model.Filters
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.mongo.Documents
 import me.ahoo.wow.mongo.query.snapshot.SnapshotConditionConverter
@@ -381,7 +382,7 @@ class SnapshotConditionConverterTest {
         fun toMongoFilterParameters(): Stream<Arguments> {
             return Stream.of(
                 Arguments.of(Condition.eq(MessageRecords.AGGREGATE_ID, "1"), Filters.eq(Documents.ID_FIELD, "1")),
-                Arguments.of(Condition.deleted(false), Filters.eq("deleted", false)),
+                Arguments.of(Condition.deleted(DeletionState.ACTIVE), Filters.eq("deleted", false)),
                 Arguments.of(Condition.tenantId("tenantId"), Filters.eq("tenantId", "tenantId")),
                 Arguments.of(Condition.ownerId("ownerId"), Filters.eq("ownerId", "ownerId")),
                 Arguments.of(Condition.nor(Condition.all()), Filters.nor(Filters.empty())),

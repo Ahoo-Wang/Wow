@@ -26,10 +26,7 @@ import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory.toStateAggregate
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.modeling.state.StateAggregateFactory
-import me.ahoo.wow.naming.annotation.toName
 import me.ahoo.wow.test.dsl.InjectServiceCapable
-import kotlin.reflect.KType
-import kotlin.reflect.full.defaultType
 
 /**
  * Defines the stage for setting up test preconditions in aggregate testing.
@@ -41,39 +38,6 @@ import kotlin.reflect.full.defaultType
  * @param S the type of the aggregate state
  */
 interface GivenStage<S : Any> : InjectServiceCapable<GivenStage<S>> {
-    /**
-     * Injects a service instance into the test context.
-     *
-     * This method allows registering mock or test implementations of services
-     * that the aggregate depends on during command execution.
-     *
-     * @param SERVICE the type of the service
-     * @param service the service instance to inject
-     * @param serviceName the name to register the service under (auto-generated from class name by default)
-     * @param serviceType the KType of the service (auto-generated from class by default)
-     * @return this GivenStage for method chaining
-     */
-    @Deprecated(
-        "Use inject {} instead.",
-        replaceWith = ReplaceWith(
-            """
-        inject {
-            register<SERVICE>(service)
-        }
-    """,
-            "me.ahoo.wow.ioc.register"
-        )
-    )
-    fun <SERVICE : Any> inject(
-        service: SERVICE,
-        serviceName: String = service.javaClass.toName(),
-        serviceType: KType = service.javaClass.kotlin.defaultType
-    ): GivenStage<S> {
-        inject {
-            register(service, serviceName, serviceType)
-        }
-        return this
-    }
 
     /**
      * Sets the owner ID for the aggregate in this test.
@@ -124,27 +88,6 @@ fun <S : Any> GivenStage<S>.whenCommand(
     ownerId: String = OwnerId.DEFAULT_OWNER_ID,
     spaceId: SpaceId = SpaceIdCapable.DEFAULT_SPACE_ID
 ): ExpectStage<S> = this.givenEvent().whenCommand(command, header, ownerId, spaceId)
-
-/**
- * Alias for whenCommand, providing a more natural language interface.
- *
- * This method is equivalent to whenCommand but uses the keyword 'when' which
- * reads more naturally in test specifications.
- *
- * @param command the command to execute
- * @param header optional command header (defaults to empty)
- * @param ownerId optional owner ID override (defaults to previously set owner)
- * @return an ExpectStage for defining expectations
- */
-@Deprecated(
-    "use whenCommand instead.",
-    replaceWith = ReplaceWith("whenCommand(command)", "me.ahoo.wow.test.aggregate.whenCommand")
-)
-fun <S : Any> GivenStage<S>.`when`(
-    command: Any,
-    header: Header = DefaultHeader.empty(),
-    ownerId: String = OwnerId.DEFAULT_OWNER_ID
-): ExpectStage<S> = this.whenCommand(command, header, ownerId)
 
 /**
  * Abstract base class for GivenStage implementations.

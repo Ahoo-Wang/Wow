@@ -564,28 +564,6 @@ class ElasticsearchConditionConverterTest {
     }
 
     @Test
-    fun `deleted condition to Query`() {
-        val query = condition {
-            deleted(true)
-        }.let {
-            SnapshotConditionConverter.convert(it)
-        }
-        query.term().field().assert().isEqualTo(StateAggregateRecords.DELETED)
-        query.term().value().booleanValue().assert().isTrue()
-    }
-
-    @Test
-    fun `not deleted condition to Query`() {
-        val query = condition {
-            deleted(false)
-        }.let {
-            SnapshotConditionConverter.convert(it)
-        }
-        query.term().field().assert().isEqualTo(StateAggregateRecords.DELETED)
-        query.term().value().booleanValue().assert().isFalse()
-    }
-
-    @Test
     fun `deleted condition to Query By ALL`() {
         val query = condition {
             deleted(DeletionState.ALL)
