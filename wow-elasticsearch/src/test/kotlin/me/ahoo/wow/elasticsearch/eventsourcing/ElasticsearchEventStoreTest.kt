@@ -37,5 +37,8 @@ class ElasticsearchEventStoreTest : EventStoreSpec() {
         )
     }
 
+    /**
+     * TODO
+     */
     override fun appendEventStreamWhenDuplicateRequestIdException() = Unit
 }
