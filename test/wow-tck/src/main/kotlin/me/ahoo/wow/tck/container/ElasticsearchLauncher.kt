@@ -26,7 +26,6 @@ object ElasticsearchLauncher {
     )
         .withPassword(ELASTIC_PWD)
         .withNetworkAliases("elasticsearch")
-        .withReuse(true)
         .withStartupTimeout(Duration.ofMinutes(5))
 
     init {
