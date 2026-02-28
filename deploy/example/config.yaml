@@ -14,13 +14,10 @@ data:
         name: example-service
       autoconfigure:
         exclude:
-          - org.springframework.boot.autoconfigure.mongo.MongoReactiveAutoConfiguration
-          - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
-          - org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration
-          - org.springframework.boot.autoconfigure.mongo.MongoReactiveAutoConfiguration
-          - org.springframework.boot.autoconfigure.elasticsearch.ElasticsearchClientAutoConfiguration
-          - org.springframework.boot.autoconfigure.elasticsearch.ElasticsearchRestClientAutoConfiguration
-          - org.springframework.boot.autoconfigure.elasticsearch.ReactiveElasticsearchClientAutoConfiguration
+          - org.springframework.boot.mongodb.autoconfigure.MongoReactiveAutoConfiguration
+          - org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchClientAutoConfiguration
+          - org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchRestClientAutoConfiguration
+          - org.springframework.boot.data.redis.autoconfigure.DataRedisReactiveAutoConfiguration
     logging:
       level:
         me.ahoo.wow: warn

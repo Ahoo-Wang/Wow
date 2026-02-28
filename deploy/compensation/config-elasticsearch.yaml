@@ -30,14 +30,15 @@ data:
         resources:
           static-locations: file:./browser/
       jackson:
-        serialization:
-          write-durations-as-timestamps: true
-          write-dates-as-timestamps: true
         mapper:
           accept-case-insensitive-enums: true
+        datatype:
+          datetime:
+            write-durations-as-timestamps: true
+            write-dates-as-timestamps: true
       autoconfigure:
         exclude:
-          - org.springframework.boot.autoconfigure.mongo.MongoReactiveAutoConfiguration
+          - org.springframework.boot.mongodb.autoconfigure.MongoReactiveAutoConfiguration
       elasticsearch:
         username: elastic
         password: elastic

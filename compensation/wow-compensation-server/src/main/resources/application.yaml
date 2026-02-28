@@ -32,23 +32,22 @@ spring:
   web:
     resources:
       static-locations: file:./compensation/dashboard/dist/
-
   jackson:
-    serialization:
-      write-durations-as-timestamps: true
-      write-dates-as-timestamps: true
     mapper:
       accept-case-insensitive-enums: true
+    datatype:
+      datetime:
+        write-durations-as-timestamps: true
+        write-dates-as-timestamps: true
   autoconfigure:
     exclude:
-#      - org.springframework.boot.autoconfigure.mongo.MongoReactiveAutoConfiguration
-      - org.springframework.boot.autoconfigure.elasticsearch.ElasticsearchClientAutoConfiguration
-      - org.springframework.boot.autoconfigure.elasticsearch.ElasticsearchRestClientAutoConfiguration
-      - org.springframework.boot.autoconfigure.elasticsearch.ReactiveElasticsearchClientAutoConfiguration
-  data:
-    mongodb:
-      uri: mongodb://root:root@mongodb-dev-mongodb-sharded.dev.svc.cluster.local:27017/compensation_db?authSource=admin&maxIdleTimeMS=60000
-      database: compensation_db
+#      - org.springframework.boot.mongodb.autoconfigure.MongoReactiveAutoConfiguration
+      - org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchClientAutoConfiguration
+      - org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchRestClientAutoConfiguration
+      - org.springframework.boot.data.redis.autoconfigure.DataRedisReactiveAutoConfiguration
+  mongodb:
+    uri: mongodb://root:root@mongodb-dev-mongodb-sharded.dev.svc.cluster.local:27017/compensation_db?authSource=admin&maxIdleTimeMS=60000
+    database: compensation_db
   elasticsearch:
     username: elastic
     password: elastic

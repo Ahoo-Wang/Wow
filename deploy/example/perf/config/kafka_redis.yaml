@@ -13,7 +13,9 @@ data:
         name: example-service
       autoconfigure:
         exclude:
-          - org.springframework.boot.autoconfigure.mongo.MongoReactiveAutoConfiguration
+          - org.springframework.boot.mongodb.autoconfigure.MongoReactiveAutoConfiguration
+          - org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchClientAutoConfiguration
+          - org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchRestClientAutoConfiguration
       data:
         redis:
           cluster:
