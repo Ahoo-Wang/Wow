@@ -2,7 +2,7 @@
 # libraries
 spring-boot = "4.0.3"
 cosid = "3.0.2"
-simba = "3.0.0"
+simba = "3.0.1"
 coapi = "2.0.1"
 cocache = "4.0.1"
 testcontainers = "2.0.3"
