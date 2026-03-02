@@ -21,6 +21,7 @@ import tools.jackson.databind.BeanDescription
 import tools.jackson.databind.DeserializationFeature
 import tools.jackson.databind.JavaType
 import tools.jackson.databind.JsonNode
+import tools.jackson.databind.MapperFeature
 import tools.jackson.databind.ObjectMapper
 import tools.jackson.databind.node.ObjectNode
 import tools.jackson.module.kotlin.jsonMapper
@@ -52,6 +53,7 @@ val JsonSerializer = jsonMapper {
         it.withVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY)
     }
     configure(StreamReadFeature.IGNORE_UNDEFINED, true)
+    configure(MapperFeature.ALLOW_FINAL_FIELDS_AS_MUTATORS, true)
     disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
     enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS)
     findAndAddModules()
