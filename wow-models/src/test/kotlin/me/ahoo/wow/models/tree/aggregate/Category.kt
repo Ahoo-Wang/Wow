@@ -14,7 +14,7 @@
 package me.ahoo.wow.models.tree.aggregate
 
 import me.ahoo.wow.api.annotation.AggregateRoot
-import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.models.tree.command.CreateCategory
 import me.ahoo.wow.models.tree.command.DeleteCategory
 import me.ahoo.wow.models.tree.command.MoveCategory
@@ -24,7 +24,7 @@ import me.ahoo.wow.models.tree.command.UpdateCategory
 class Category(state: CategoryState) :
     Tree<CategoryState, CreateCategory, UpdateCategory, DeleteCategory, MoveCategory>(state) {
     override fun generateCode(): String {
-        return GlobalIdGenerator.generateAsString()
+        return generateGlobalId()
     }
 
     override fun maxLevel(): Int {
