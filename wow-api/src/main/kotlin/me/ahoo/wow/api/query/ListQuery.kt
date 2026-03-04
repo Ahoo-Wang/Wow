@@ -55,7 +55,7 @@ data class ListQuery(
     override val condition: Condition,
     override val projection: Projection = Projection.ALL,
     override val sort: List<Sort> = emptyList(),
-    override val limit: Int = Pagination.DEFAULT.size
+    override val limit: Int = 0
 ) : IListQuery {
     /**
      * Creates a new ListQuery with the specified condition.
