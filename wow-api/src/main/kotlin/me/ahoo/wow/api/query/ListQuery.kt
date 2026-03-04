@@ -24,9 +24,9 @@ import io.swagger.v3.oas.annotations.media.Schema
 interface IListQuery : Queryable<IListQuery> {
     /**
      * The maximum number of items to return in the query result.
-     * This limits the size of the result set.
+     * Must be >= 0. If set to 0, the query will return unlimited results.
      */
-    @get:Schema(defaultValue = "10")
+    @get:Schema(defaultValue = "0")
     val limit: Int
 }
 
@@ -55,7 +55,7 @@ data class ListQuery(
     override val condition: Condition,
     override val projection: Projection = Projection.ALL,
     override val sort: List<Sort> = emptyList(),
-    override val limit: Int = Pagination.DEFAULT.size
+    override val limit: Int = 0
 ) : IListQuery {
     /**
      * Creates a new ListQuery with the specified condition.
