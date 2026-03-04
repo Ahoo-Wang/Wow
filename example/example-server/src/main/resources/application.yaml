@@ -41,8 +41,8 @@ spring:
         write-dates-as-timestamps: true
   autoconfigure:
     exclude:
-      - org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration
-      - org.springframework.boot.mongodb.autoconfigure.MongoReactiveAutoConfiguration
+#      - org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration
+#      - org.springframework.boot.mongodb.autoconfigure.MongoReactiveAutoConfiguration
       - org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchClientAutoConfiguration
       - org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchRestClientAutoConfiguration
   mongodb:
@@ -87,9 +87,9 @@ wow:
 
   eventsourcing:
     store:
-      storage: in_memory
+      storage: mongo
     snapshot:
-      storage: in_memory
+      storage: mongo
     state:
       bus:
         type: in_memory
