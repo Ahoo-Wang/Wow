@@ -64,7 +64,7 @@ abstract class AbstractElasticsearchQueryService<R : Any> : QueryService<R> {
                 condition = listQuery.condition,
                 projection = listQuery.projection,
                 sort = listQuery.sort,
-                pagination = Pagination(index = 1, size = listQuery.limit)
+                pagination = Pagination(index = 1, size = listQuery.limit.searchSize())
             )
         return dynamicPaged(pagedQuery).flatMapIterable { it.list }
     }
