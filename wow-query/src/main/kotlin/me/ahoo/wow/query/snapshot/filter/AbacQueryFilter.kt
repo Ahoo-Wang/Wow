@@ -27,6 +27,7 @@ import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.serialization.state.StateAggregateRecords.TAGS
 import reactor.core.publisher.Mono
+import reactor.kotlin.core.publisher.toMono
 import reactor.util.context.ContextView
 
 /**
@@ -66,6 +67,7 @@ abstract class AbacQueryFilter : SnapshotQueryFilter {
                 } else {
                     or {
                         key.exists(false)
+                        key eq listOf<String>()
                         key isIn value
                     }
                 }
@@ -94,7 +96,7 @@ abstract class AbacQueryFilter : SnapshotQueryFilter {
      * @param context 查询上下文，可用于提取标签来源（如请求头、用户信息等）
      * @return 主体的标签映射
      */
-    abstract fun ContextView.getPrincipalTags(context: QueryContext<*, *>): AbacTags
+    abstract fun ContextView.getPrincipalTags(context: QueryContext<*, *>): Mono<AbacTags>
 
     /**
      * 从当前上下文解析 ABAC 查询条件。
@@ -103,27 +105,29 @@ abstract class AbacQueryFilter : SnapshotQueryFilter {
      * @return 若主体无标签，返回全匹配（不过滤）；
      *         否则返回所有标签的 AND 条件
      */
-    open fun ContextView.resolveCondition(context: QueryContext<*, *>): Condition {
-        val principalTags = getPrincipalTags(context)
-        if (principalTags.isEmpty()) {
-            return Condition.all()
-        }
-        return principalTags.toCondition()
+    open fun ContextView.resolveCondition(context: QueryContext<*, *>): Mono<Condition> {
+        return getPrincipalTags(context).map {
+            if (it.isEmpty()) {
+                return@map Condition.all()
+            }
+            return@map it.toCondition()
+        }.switchIfEmpty(Condition.all().toMono())
     }
 
     override fun filter(
         context: QueryContext<*, *>,
         next: FilterChain<QueryContext<*, *>>
     ): Mono<Void> {
-        return Mono.deferContextual {
-            val abacCondition = it.resolveCondition(context)
-            if (abacCondition.operator == Operator.ALL) {
-                return@deferContextual next.filter(context)
+        return Mono.deferContextual { contextView ->
+            contextView.resolveCondition(context).flatMap { abacCondition ->
+                if (abacCondition.operator == Operator.ALL) {
+                    return@flatMap next.filter(context)
+                }
+                context.asRewritableQuery().rewriteQuery { query ->
+                    query.appendCondition(abacCondition)
+                }
+                next.filter(context)
             }
-            context.asRewritableQuery().rewriteQuery { query ->
-                query.appendCondition(abacCondition)
-            }
-            next.filter(context)
         }
     }
 }
