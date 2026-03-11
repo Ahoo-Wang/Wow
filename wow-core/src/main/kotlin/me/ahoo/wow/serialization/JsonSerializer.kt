@@ -218,6 +218,10 @@ fun <T> String.toObject(objectType: Class<T>): T = JsonSerializer.readValue(this
  */
 fun <T> JsonNode.toObject(objectType: Class<T>): T = JsonSerializer.treeToValue(this, objectType)
 
+fun <T> JsonNode.toObject(targetType: JavaType): T = JsonSerializer.treeToValue(this, targetType)
+
+fun <T> JsonNode.toObject(targetType: TypeReference<T>): T = JsonSerializer.treeToValue(this, targetType)
+
 /**
  * Deserializes this JSON string into an object using reified generics.
  *
