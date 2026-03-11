@@ -52,18 +52,7 @@
           "type": "boolean"
         },
         "tags": {
-          "type": "object",
-          "dynamic_templates": [
-            {
-              "tag_values_as_keyword": {
-                "match": "*",
-                "match_mapping_type": "string",
-                "mapping": {
-                  "type": "keyword"
-                }
-              }
-            }
-          ]
+          "type": "flattened"
         },
         "state": {
           "properties": {

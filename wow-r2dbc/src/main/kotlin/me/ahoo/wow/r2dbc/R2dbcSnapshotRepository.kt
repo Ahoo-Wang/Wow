@@ -25,7 +25,7 @@ import me.ahoo.wow.infra.TypeNameMapper.toType
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.annotation.stateAggregateMetadata
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory.toStateAggregate
-import me.ahoo.wow.serialization.state.RBAC_TAGS_TYPE_REF
+import me.ahoo.wow.serialization.state.ABAC_TAGS_TYPE_REF
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
 import reactor.core.publisher.Flux
@@ -91,7 +91,7 @@ class R2dbcSnapshotRepository(
         val state = checkNotNull(readable.get("state", String::class.java))
         val stateRoot = state.toObject(metadata.aggregateType)
         val tags = checkNotNull(readable.get("tags", String::class.java))
-        val rbacTags = tags.toObject(RBAC_TAGS_TYPE_REF)
+        val abacTags = tags.toObject(ABAC_TAGS_TYPE_REF)
         val deleted = checkNotNull(readable.get("deleted", Boolean::class.java))
         return SimpleSnapshot(
             delegate = metadata.toStateAggregate(
@@ -105,7 +105,7 @@ class R2dbcSnapshotRepository(
                 operator = operator,
                 firstEventTime = firstEventTime,
                 eventTime = eventTime,
-                tags = rbacTags,
+                tags = abacTags,
                 deleted = deleted,
             ),
             snapshotTime = snapshotTime,
