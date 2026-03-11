@@ -62,6 +62,8 @@ typealias AbacTagValue = List<String>
  */
 typealias AbacTags = Map<AbacTagKey, AbacTagValue>
 
+val EMPTY_ABAC_TAGS = emptyMap<AbacTagKey, AbacTagValue>()
+
 /**
  * 可标记 ABAC 标签的接口。
  *
@@ -123,11 +125,11 @@ interface AbacTaggable {
  * 用于从状态聚合根（StateAggregate）中动态提取标签，而非硬编码。
  * @see AbacTaggable
  */
-interface AbacTagsExtractor {
+interface AbacTagsExtractor<in SOURCE : Any> {
     /**
      * 提取 ABAC 标签。
      *
      * @return 标签映射
      */
-    fun extract(): AbacTags
+    fun extract(source: SOURCE): AbacTags
 }
