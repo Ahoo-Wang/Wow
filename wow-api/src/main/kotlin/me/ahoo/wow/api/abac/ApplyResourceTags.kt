@@ -16,6 +16,7 @@ package me.ahoo.wow.api.abac
 import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.annotation.Summary
 
+@Summary("Apply ABAC Resource Tags")
 interface ApplyResourceTags : ApplyAbacTags
 
 interface ResourceTagsApplied : AbacTagsApplied
@@ -25,7 +26,6 @@ interface ResourceTagsApplied : AbacTagsApplied
  *
  * @property tags 标签映射
  */
-@Summary("Apply ABAC Resource Tags")
 @CommandRoute(action = "tags", method = CommandRoute.Method.PUT, appendIdPath = CommandRoute.AppendPath.ALWAYS)
 data class DefaultApplyResourceTags(
     override val tags: AbacTags
