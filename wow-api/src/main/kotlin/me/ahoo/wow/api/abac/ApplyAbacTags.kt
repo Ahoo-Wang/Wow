@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.api.abac
 
-import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.annotation.Event
 import me.ahoo.wow.api.annotation.Summary
 import me.ahoo.wow.api.command.validation.CommandValidator
@@ -42,16 +41,6 @@ interface ApplyAbacTags :
 }
 
 /**
- * 应用 ABAC 标签的默认实现。
- *
- * @property tags 标签映射
- */
-@CommandRoute(action = "tags", method = CommandRoute.Method.PUT, appendIdPath = CommandRoute.AppendPath.ALWAYS)
-data class DefaultApplyAbacTags(
-    override val tags: AbacTags
-) : ApplyAbacTags
-
-/**
  * ABAC 标签已应用的事件。
  *
  * 在标签成功应用后发布，表明实体的标签权限已变更。
@@ -61,12 +50,3 @@ data class DefaultApplyAbacTags(
  */
 @Event
 interface AbacTagsApplied : AbacTaggable
-
-/**
- * ABAC 标签已应用事件的默认实现。
- *
- * @property tags 标签映射
- */
-data class DefaultAbacTagsApplied(
-    override val tags: AbacTags
-) : AbacTagsApplied

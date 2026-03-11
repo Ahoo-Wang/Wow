@@ -13,8 +13,8 @@
 package me.ahoo.wow.modeling.matedata
 
 import me.ahoo.wow.annotation.sortedByOrder
-import me.ahoo.wow.api.abac.ApplyAbacTags
-import me.ahoo.wow.api.abac.DefaultApplyAbacTags
+import me.ahoo.wow.api.abac.ApplyResourceTags
+import me.ahoo.wow.api.abac.DefaultApplyResourceTags
 import me.ahoo.wow.api.command.DefaultDeleteAggregate
 import me.ahoo.wow.api.command.DefaultRecoverAggregate
 import me.ahoo.wow.api.command.DeleteAggregate
@@ -32,7 +32,7 @@ import me.ahoo.wow.messaging.function.toMessageFunction
 import me.ahoo.wow.metadata.Metadata
 import me.ahoo.wow.modeling.command.CommandAggregate
 import me.ahoo.wow.modeling.command.CommandFunction
-import me.ahoo.wow.modeling.command.DefaultApplyAbacTagsFunction
+import me.ahoo.wow.modeling.command.DefaultApplyResourceTagsFunction
 import me.ahoo.wow.modeling.command.DefaultDeleteAggregateFunction
 import me.ahoo.wow.modeling.command.DefaultRecoverAggregateFunction
 import me.ahoo.wow.modeling.command.after.AfterCommandFunctionMetadata
@@ -94,9 +94,9 @@ data class CommandAggregateMetadata<C : Any>(
             RecoverAggregate::class.java.isAssignableFrom(it)
         }
 
-    val registeredApplyAbacTags: Boolean =
+    val registeredApplyResourceTags: Boolean =
         commandFunctionRegistry.keys.any {
-            ApplyAbacTags::class.java.isAssignableFrom(it)
+            ApplyResourceTags::class.java.isAssignableFrom(it)
         }
 
     /**
@@ -144,12 +144,12 @@ data class CommandAggregateMetadata<C : Any>(
                     DefaultDeleteAggregateFunction(commandAggregate, afterCommandFunctions),
                 )
             }
-            if (!registeredApplyAbacTags) {
+            if (!registeredApplyResourceTags) {
                 val afterCommandFunctions = allAfterCommandFunction
-                    .filter { function -> function.metadata.supportCommand(DefaultApplyAbacTags::class.java) }
+                    .filter { function -> function.metadata.supportCommand(DefaultApplyResourceTags::class.java) }
                 put(
-                    DefaultApplyAbacTags::class.java,
-                    DefaultApplyAbacTagsFunction(commandAggregate, afterCommandFunctions),
+                    DefaultApplyResourceTags::class.java,
+                    DefaultApplyResourceTagsFunction(commandAggregate, afterCommandFunctions),
                 )
             }
         }

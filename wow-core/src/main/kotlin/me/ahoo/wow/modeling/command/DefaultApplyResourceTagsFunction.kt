@@ -13,21 +13,21 @@
 
 package me.ahoo.wow.modeling.command
 
-import me.ahoo.wow.api.abac.DefaultAbacTagsApplied
-import me.ahoo.wow.api.abac.DefaultApplyAbacTags
+import me.ahoo.wow.api.abac.DefaultApplyResourceTags
+import me.ahoo.wow.api.abac.DefaultResourceTagsApplied
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.modeling.command.after.AfterCommandFunction
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
 
-class DefaultApplyAbacTagsFunction<C : Any>(
+class DefaultApplyResourceTagsFunction<C : Any>(
     commandAggregate: CommandAggregate<C, *>,
     afterCommandFunctions: List<AfterCommandFunction<C>>
 ) : InternalCommandFunction<C>(commandAggregate, afterCommandFunctions) {
-    override val supportedType: Class<*> = DefaultApplyAbacTags::class.java
+    override val supportedType: Class<*> = DefaultApplyResourceTags::class.java
 
     override fun invokeCommand(exchange: ServerCommandExchange<*>): Mono<*> {
-        val applyAbacTags = exchange.message.body as DefaultApplyAbacTags
-        return DefaultAbacTagsApplied(applyAbacTags.tags).toMono()
+        val applyAbacTags = exchange.message.body as DefaultApplyResourceTags
+        return DefaultResourceTagsApplied(applyAbacTags.tags).toMono()
     }
 }
