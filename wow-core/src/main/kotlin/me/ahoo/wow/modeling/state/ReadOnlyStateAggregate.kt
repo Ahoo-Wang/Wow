@@ -13,6 +13,7 @@
 package me.ahoo.wow.modeling.state
 
 import me.ahoo.wow.api.Version
+import me.ahoo.wow.api.abac.AbacTaggable
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.AggregateIdCapable
 import me.ahoo.wow.api.modeling.DeletedCapable
@@ -61,6 +62,7 @@ interface ReadOnlyStateAggregate<S : Any> :
     FirstEventTimeCapable,
     EventTimeCapable,
     EventIdCapable,
+    AbacTaggable,
     DeletedCapable {
     /**
      * The unique identifier of this aggregate.

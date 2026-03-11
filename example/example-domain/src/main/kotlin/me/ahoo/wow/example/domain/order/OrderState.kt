@@ -15,6 +15,8 @@
 package me.ahoo.wow.example.domain.order
 
 import io.swagger.v3.oas.annotations.media.Schema
+import me.ahoo.wow.api.abac.AbacTags
+import me.ahoo.wow.api.abac.merge
 import me.ahoo.wow.example.api.order.AddressChanged
 import me.ahoo.wow.example.api.order.OrderCreated
 import me.ahoo.wow.example.api.order.OrderItem
@@ -23,6 +25,8 @@ import me.ahoo.wow.example.api.order.OrderReceived
 import me.ahoo.wow.example.api.order.OrderShipped
 import me.ahoo.wow.example.api.order.OrderStatus
 import me.ahoo.wow.example.api.order.ShippingAddress
+import me.ahoo.wow.modeling.state.ReadOnlyStateAggregate
+import me.ahoo.wow.modeling.state.StateAggregateTagsExtractor
 import me.ahoo.wow.models.common.StatusCapable
 import java.math.BigDecimal
 
@@ -38,7 +42,7 @@ class OrderState(
      * [me.ahoo.wow.api.annotation.AggregateId] 注解是可选的，约定默认使用字段名为 `id` 为聚合ID.
      */
     val id: String
-) : StatusCapable<OrderStatus> {
+) : StatusCapable<OrderStatus>, StateAggregateTagsExtractor<OrderState> {
 
     /**
      * unmodifiable.
@@ -102,5 +106,13 @@ class OrderState(
 
     fun onSourcing(orderReceived: OrderReceived) {
         status = OrderStatus.RECEIVED
+    }
+
+    override fun extract(source: ReadOnlyStateAggregate<OrderState>): AbacTags {
+        val tags = mapOf(
+            "address-country" to listOf(address.country),
+            "address-province" to listOf(address.province),
+        )
+        return tags.merge(source.tags)
     }
 }

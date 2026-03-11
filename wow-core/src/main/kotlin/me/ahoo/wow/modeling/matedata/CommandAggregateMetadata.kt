@@ -13,6 +13,8 @@
 package me.ahoo.wow.modeling.matedata
 
 import me.ahoo.wow.annotation.sortedByOrder
+import me.ahoo.wow.api.abac.ApplyResourceTags
+import me.ahoo.wow.api.abac.DefaultApplyResourceTags
 import me.ahoo.wow.api.command.DefaultDeleteAggregate
 import me.ahoo.wow.api.command.DefaultRecoverAggregate
 import me.ahoo.wow.api.command.DeleteAggregate
@@ -30,6 +32,7 @@ import me.ahoo.wow.messaging.function.toMessageFunction
 import me.ahoo.wow.metadata.Metadata
 import me.ahoo.wow.modeling.command.CommandAggregate
 import me.ahoo.wow.modeling.command.CommandFunction
+import me.ahoo.wow.modeling.command.DefaultApplyResourceTagsFunction
 import me.ahoo.wow.modeling.command.DefaultDeleteAggregateFunction
 import me.ahoo.wow.modeling.command.DefaultRecoverAggregateFunction
 import me.ahoo.wow.modeling.command.after.AfterCommandFunctionMetadata
@@ -91,6 +94,11 @@ data class CommandAggregateMetadata<C : Any>(
             RecoverAggregate::class.java.isAssignableFrom(it)
         }
 
+    val registeredApplyResourceTags: Boolean =
+        commandFunctionRegistry.keys.any {
+            ApplyResourceTags::class.java.isAssignableFrom(it)
+        }
+
     /**
      * The list of all registered commands for this aggregate, including both function-registered and mounted commands.
      *
@@ -134,6 +142,14 @@ data class CommandAggregateMetadata<C : Any>(
                 put(
                     DefaultDeleteAggregate::class.java,
                     DefaultDeleteAggregateFunction(commandAggregate, afterCommandFunctions),
+                )
+            }
+            if (!registeredApplyResourceTags) {
+                val afterCommandFunctions = allAfterCommandFunction
+                    .filter { function -> function.metadata.supportCommand(DefaultApplyResourceTags::class.java) }
+                put(
+                    DefaultApplyResourceTags::class.java,
+                    DefaultApplyResourceTagsFunction(commandAggregate, afterCommandFunctions),
                 )
             }
         }

@@ -41,9 +41,9 @@ object SnapshotStatementGenerator {
             val loadByVersionStatement = "select * from $tableName where aggregate_id=? and version=?"
             val saveStatement = """
      replace into $tableName
-     (aggregate_id,tenant_id,owner_id,space_id,version,state_type,state,event_id,first_operator,operator,first_event_time,event_time,snapshot_time,deleted)
+     (aggregate_id,tenant_id,owner_id,space_id,version,state_type,state,event_id,first_operator,operator,first_event_time,event_time,snapshot_time,tags,deleted)
      values 
-     (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+     (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
      """.trim()
             val scanStatement =
                 "select aggregate_id,tenant_id from $tableName where aggregate_id > ? order by aggregate_id asc limit ?"

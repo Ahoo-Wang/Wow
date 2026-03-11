@@ -150,6 +150,16 @@
       "required" : [ "id" ],
       "description" : "The state data of the aggregate"
     },
+    "tags" : {
+      "type" : "object",
+      "description" : "The ABAC tags of the aggregate",
+      "additionalProperties" : {
+        "type" : "array",
+        "items" : {
+          "type" : "string"
+        }
+      }
+    },
     "deleted" : {
       "type" : "boolean",
       "description" : "Whether the aggregate has been deleted"

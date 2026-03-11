@@ -156,6 +156,7 @@ object AggregatedFieldPaths {
                 StateAggregateRecords.OPERATOR,
                 StateAggregateRecords.FIRST_EVENT_TIME,
                 StateAggregateRecords.EVENT_TIME,
+                StateAggregateRecords.TAGS,
                 StateAggregateRecords.DELETED,
                 StateAggregateRecords.STATE
             )

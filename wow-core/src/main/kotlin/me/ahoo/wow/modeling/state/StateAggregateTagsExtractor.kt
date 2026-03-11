@@ -11,27 +11,8 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.serialization
+package me.ahoo.wow.modeling.state
 
-import me.ahoo.test.asserts.assert
-import org.junit.jupiter.api.Test
+import me.ahoo.wow.api.abac.AbacTagsExtractor
 
-class JacksonTest {
-
-    @Test
-    fun test() {
-        val state = State()
-        state.onAdd("1")
-        val json = state.toJsonString()
-        val state2 = json.toObject<State>()
-        state2.data.assert().isEqualTo(state.data)
-    }
-
-    class State {
-        val data: MutableList<String> = mutableListOf()
-
-        fun onAdd(item: String) {
-            this.data.add(item)
-        }
-    }
-}
+interface StateAggregateTagsExtractor<S : Any> : AbacTagsExtractor<ReadOnlyStateAggregate<S>>
