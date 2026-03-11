@@ -31,6 +31,7 @@ import me.ahoo.wow.query.snapshot.filter.AbacQueryFilter.Companion.toCondition
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
+import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
 import reactor.util.context.ContextView
 
@@ -140,17 +141,17 @@ class AbacQueryFilterTest {
     }
 
     object EmptyAbacQueryFilter : AbacQueryFilter() {
-        override fun ContextView.getPrincipalTags(context: QueryContext<*, *>): AbacTags {
-            return EMPTY_ABAC_TAGS
+        override fun ContextView.getPrincipalTags(context: QueryContext<*, *>): Mono<AbacTags> {
+            return EMPTY_ABAC_TAGS.toMono()
         }
     }
 
     object MockAbacQueryFilter : AbacQueryFilter() {
-        override fun ContextView.getPrincipalTags(context: QueryContext<*, *>): AbacTags {
+        override fun ContextView.getPrincipalTags(context: QueryContext<*, *>): Mono<AbacTags> {
             return mapOf(
                 "dept" to listOf("eng"),
                 "role" to listOf("admin"),
-            )
+            ).toMono()
         }
     }
 }
