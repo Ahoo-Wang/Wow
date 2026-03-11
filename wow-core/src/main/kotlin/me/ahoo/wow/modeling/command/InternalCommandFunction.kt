@@ -13,21 +13,22 @@
 
 package me.ahoo.wow.modeling.command
 
-import me.ahoo.wow.api.abac.DefaultAbacTagsApplied
-import me.ahoo.wow.api.abac.DefaultApplyAbacTags
-import me.ahoo.wow.command.ServerCommandExchange
+import me.ahoo.wow.api.messaging.function.FunctionKind
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.modeling.command.after.AfterCommandFunction
-import reactor.core.publisher.Mono
-import reactor.kotlin.core.publisher.toMono
+import me.ahoo.wow.modeling.materialize
 
-class DefaultApplyAbacTagsFunction<C : Any>(
+abstract class InternalCommandFunction<C : Any>(
     commandAggregate: CommandAggregate<C, *>,
     afterCommandFunctions: List<AfterCommandFunction<C>>
-) : InternalCommandFunction<C>(commandAggregate, afterCommandFunctions) {
-    override val supportedType: Class<*> = DefaultApplyAbacTags::class.java
-
-    override fun invokeCommand(exchange: ServerCommandExchange<*>): Mono<*> {
-        val applyAbacTags = exchange.message.body as DefaultApplyAbacTags
-        return DefaultAbacTagsApplied(applyAbacTags.tags).toMono()
+) : AbstractCommandFunction<C>(commandAggregate, afterCommandFunctions) {
+    override val contextName: String = commandAggregate.contextName
+    override val supportedTopics: Set<NamedAggregate> = setOf(commandAggregate.materialize())
+    override val processor: C = commandAggregate.commandRoot
+    override val name: String by lazy {
+        "${processor.javaClass.simpleName}.${supportedType.simpleName}"
     }
+    override val functionKind: FunctionKind = FunctionKind.COMMAND
+
+    override fun <A : Annotation> getAnnotation(annotationClass: Class<A>): A? = null
 }
