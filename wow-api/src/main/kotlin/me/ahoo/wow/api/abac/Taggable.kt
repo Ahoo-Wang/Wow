@@ -137,9 +137,11 @@ val EMPTY_ABAC_TAGS = emptyMap<AbacTagKey, AbacTagValue>()
 /**
  * 判断是否为通配符值。
  *
- * `["*"]` 表示该标签键允许匹配任何值。
+ * 用于权限匹配：`["*"]` 表示该标签键允许匹配任何值。
+ * 当 wildcard 为 true 时，在查询条件中生成 [Operator.EXISTS] 操作符。
  *
- * @return 若列表仅包含单个元素 "*"，则返回 true
+ * @return 若列表中包含 "*"，则返回 true
+ * @see Operator.EXISTS
  */
 val AbacTagValue.wildcard: Boolean
     get() = this.contains("*")
