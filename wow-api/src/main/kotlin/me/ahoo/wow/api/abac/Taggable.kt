@@ -62,8 +62,6 @@ typealias AbacTagValue = List<String>
  */
 typealias AbacTags = Map<AbacTagKey, AbacTagValue>
 
-val EMPTY_ABAC_TAGS = emptyMap<AbacTagKey, AbacTagValue>()
-
 /**
  * 可标记 ABAC 标签的接口。
  *
@@ -133,3 +131,15 @@ interface AbacTagsExtractor<in SOURCE : Any> {
      */
     fun extract(source: SOURCE): AbacTags
 }
+
+val EMPTY_ABAC_TAGS = emptyMap<AbacTagKey, AbacTagValue>()
+
+/**
+ * 判断是否为通配符值。
+ *
+ * `["*"]` 表示该标签键允许匹配任何值。
+ *
+ * @return 若列表仅包含单个元素 "*"，则返回 true
+ */
+val AbacTagValue.wildcard: Boolean
+    get() = this.contains("*")
