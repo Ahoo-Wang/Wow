@@ -13,10 +13,14 @@
 
 package me.ahoo.wow.api.abac
 
+import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.annotation.Event
+import me.ahoo.wow.api.annotation.Summary
 
 interface ApplyAbacTags : AbacTaggable
 
+@Summary("Apply ABAC Tags")
+@CommandRoute(action = "tags", method = CommandRoute.Method.PUT, appendIdPath = CommandRoute.AppendPath.ALWAYS)
 data class DefaultApplyAbacTags(
     override val tags: AbacTags
 ) : ApplyAbacTags
