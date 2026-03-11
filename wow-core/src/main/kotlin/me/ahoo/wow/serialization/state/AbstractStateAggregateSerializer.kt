@@ -15,11 +15,16 @@ package me.ahoo.wow.serialization.state
 
 import com.fasterxml.jackson.core.JsonGenerator
 import com.fasterxml.jackson.core.JsonParser
+import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.DeserializationContext
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.SerializerProvider
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer
 import com.fasterxml.jackson.databind.ser.std.StdSerializer
+import me.ahoo.wow.api.abac.AbacTagKey
+import me.ahoo.wow.api.abac.AbacTagValue
+import me.ahoo.wow.api.abac.AbacTags
+import me.ahoo.wow.api.abac.EMPTY_ABAC_TAGS
 import me.ahoo.wow.api.modeling.OwnerId.Companion.orDefaultOwnerId
 import me.ahoo.wow.api.modeling.SpaceIdCapable.Companion.orDefaultSpaceId
 import me.ahoo.wow.configuration.requiredAggregateType
@@ -40,8 +45,14 @@ object StateAggregateRecords {
     const val OPERATOR: String = "operator"
     const val FIRST_EVENT_TIME: String = "firstEventTime"
     const val EVENT_TIME: String = "eventTime"
+    const val TAGS: String = "tags"
     const val DELETED: String = "deleted"
 }
+
+val RBAC_TAGS_TYPE_REF = object : TypeReference<LinkedHashMap<AbacTagKey, AbacTagValue>>() {}
+
+fun JsonNode.abacTags(): AbacTags =
+    get(StateAggregateRecords.TAGS)?.toObject(RBAC_TAGS_TYPE_REF) ?: EMPTY_ABAC_TAGS
 
 abstract class AbstractStateAggregateSerializer<T : ReadOnlyStateAggregate<*>>(stateAggregateType: Class<T>) :
     StdSerializer<T>(stateAggregateType) {
@@ -61,6 +72,7 @@ abstract class AbstractStateAggregateSerializer<T : ReadOnlyStateAggregate<*>>(s
         generator.writeNumberField(StateAggregateRecords.EVENT_TIME, value.eventTime)
         generator.writePOJOField(STATE, value.state)
         writeExtend(value, generator, provider)
+        generator.writePOJOField(StateAggregateRecords.TAGS, value.tags)
         generator.writeBooleanField(DELETED, value.deleted)
         generator.writeEndObject()
     }
@@ -86,6 +98,7 @@ abstract class AbstractStateAggregateDeserializer<T : ReadOnlyStateAggregate<*>>
         val operator = stateRecord.get(StateAggregateRecords.OPERATOR)?.asText().orEmpty()
         val firstEventTime = stateRecord.get(StateAggregateRecords.FIRST_EVENT_TIME)?.asLong() ?: 0L
         val eventTime = stateRecord.get(StateAggregateRecords.EVENT_TIME)?.asLong() ?: 0L
+        val tags = stateRecord.abacTags()
         val deleted = stateRecord[DELETED].asBoolean()
         val stateRoot = stateRecord[STATE].toObject(metadata.aggregateType)
 
@@ -105,6 +118,7 @@ abstract class AbstractStateAggregateDeserializer<T : ReadOnlyStateAggregate<*>>
                 operator = operator,
                 firstEventTime = firstEventTime,
                 eventTime = eventTime,
+                tags = tags,
                 deleted = deleted,
             )
         return createStateAggregate(stateRecord, stateAggregate)
