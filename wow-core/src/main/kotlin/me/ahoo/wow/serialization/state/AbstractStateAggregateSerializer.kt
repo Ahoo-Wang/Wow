@@ -49,10 +49,10 @@ object StateAggregateRecords {
     const val DELETED: String = "deleted"
 }
 
-val RBAC_TAGS_TYPE_REF = object : TypeReference<LinkedHashMap<AbacTagKey, AbacTagValue>>() {}
+val ABAC_TAGS_TYPE_REF = object : TypeReference<LinkedHashMap<AbacTagKey, AbacTagValue>>() {}
 
 fun JsonNode.abacTags(): AbacTags =
-    get(StateAggregateRecords.TAGS)?.toObject(RBAC_TAGS_TYPE_REF) ?: EMPTY_ABAC_TAGS
+    get(StateAggregateRecords.TAGS)?.toObject(ABAC_TAGS_TYPE_REF) ?: EMPTY_ABAC_TAGS
 
 abstract class AbstractStateAggregateSerializer<T : ReadOnlyStateAggregate<*>>(stateAggregateType: Class<T>) :
     StdSerializer<T>(stateAggregateType) {
