@@ -108,6 +108,7 @@ create table if not exists mock_aggregate_snapshot
     first_event_time bigint unsigned not null default 0,
     event_time       bigint unsigned not null default 0,
     snapshot_time    bigint unsigned not null,
+    tags            longtext        not null comment 'aggregate tags',
     deleted          tinyint(1)      not null default 0,
     key idx_tenant_id (tenant_id)
 )
@@ -305,6 +306,7 @@ create table if not exists modeling_command_mock_aggregate_snapshot
     first_event_time bigint unsigned not null default 0,
     event_time       bigint unsigned not null default 0,
     create_time      bigint unsigned not null,
+    tags            longtext        not null comment 'aggregate tags',
     deleted          tinyint(1)      not null default 0,
     key idx_tenant_id (tenant_id)
 )
@@ -435,6 +437,7 @@ create table if not exists order_snapshot
     first_event_time bigint unsigned not null default 0,
     event_time       bigint unsigned not null default 0,
     snapshot_time    bigint unsigned not null,
+    tags            longtext        not null comment 'aggregate tags',
     deleted          tinyint(1)      not null default 0,
     key idx_tenant_id (tenant_id)
 )
@@ -455,6 +458,7 @@ create table if not exists order_snapshot_0
     first_event_time bigint unsigned not null default 0,
     event_time       bigint unsigned not null default 0,
     snapshot_time    bigint unsigned not null,
+    tags            longtext        not null comment 'aggregate tags',
     deleted          tinyint(1)      not null default 0,
     key idx_tenant_id (tenant_id)
 )
@@ -475,6 +479,7 @@ create table if not exists order_snapshot_1
     first_event_time bigint unsigned not null default 0,
     event_time       bigint unsigned not null default 0,
     snapshot_time    bigint unsigned not null,
+    tags            longtext        not null comment 'aggregate tags',
     deleted          tinyint(1)      not null default 0,
     key idx_tenant_id (tenant_id)
 )
@@ -495,6 +500,7 @@ create table if not exists order_snapshot_2
     first_event_time bigint unsigned not null default 0,
     event_time       bigint unsigned not null default 0,
     snapshot_time    bigint unsigned not null,
+    tags            longtext        not null comment 'aggregate tags',
     deleted          tinyint(1)      not null default 0,
     key idx_tenant_id (tenant_id)
 )
@@ -515,6 +521,7 @@ create table if not exists order_snapshot_3
     first_event_time bigint unsigned not null default 0,
     event_time       bigint unsigned not null default 0,
     snapshot_time    bigint unsigned not null,
+    tags            longtext        not null comment 'aggregate tags',
     deleted          tinyint(1)      not null default 0,
     key idx_tenant_id (tenant_id)
 )

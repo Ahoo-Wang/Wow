@@ -198,6 +198,8 @@ fun <T> String.toObject(objectType: JavaType): T = JsonSerializer.readValue(this
  */
 fun <T> String.toObject(objectType: Class<T>): T = JsonSerializer.readValue(this, objectType)
 
+fun <T> String.toObject(targetType: TypeReference<T>): T = JsonSerializer.readValue(this, targetType)
+
 /**
  * Converts this [JsonNode] into an object of the specified [Class].
  *
