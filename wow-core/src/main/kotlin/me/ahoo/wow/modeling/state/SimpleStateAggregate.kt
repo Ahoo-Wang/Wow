@@ -15,8 +15,8 @@ package me.ahoo.wow.modeling.state
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.abac.AbacTags
-import me.ahoo.wow.api.abac.AbacTagsApplied
 import me.ahoo.wow.api.abac.EMPTY_ABAC_TAGS
+import me.ahoo.wow.api.abac.ResourceTagsApplied
 import me.ahoo.wow.api.event.AggregateDeleted
 import me.ahoo.wow.api.event.AggregateRecovered
 import me.ahoo.wow.api.event.DomainEvent
@@ -168,7 +168,7 @@ class SimpleStateAggregate<S : Any>(
         if (domainEventBody is SpaceTransferred) {
             spaceId = domainEventBody.toSpaceId
         }
-        if (domainEventBody is AbacTagsApplied) {
+        if (domainEventBody is ResourceTagsApplied) {
             tags = domainEventBody.tags
         }
         val sourcingFunction = sourcingRegistry[domainEvent.body.javaClass]
