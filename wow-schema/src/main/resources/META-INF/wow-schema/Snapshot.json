@@ -59,6 +59,10 @@
       "type": "object",
       "description": "The state data of the aggregate"
     },
+    "tags": {
+      "type": "object",
+      "description": "The ABAC tags of the aggregate"
+    },
     "deleted": {
       "type": "boolean",
       "description": "Whether the aggregate has been deleted"
