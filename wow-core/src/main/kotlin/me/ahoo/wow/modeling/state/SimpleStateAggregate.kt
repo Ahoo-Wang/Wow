@@ -14,6 +14,9 @@ package me.ahoo.wow.modeling.state
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.Version
+import me.ahoo.wow.api.abac.AbacTags
+import me.ahoo.wow.api.abac.AbacTagsApplied
+import me.ahoo.wow.api.abac.EMPTY_ABAC_TAGS
 import me.ahoo.wow.api.event.AggregateDeleted
 import me.ahoo.wow.api.event.AggregateRecovered
 import me.ahoo.wow.api.event.DomainEvent
@@ -62,6 +65,7 @@ class SimpleStateAggregate<S : Any>(
     override var operator: String = "",
     override var firstEventTime: Long = 0,
     override var eventTime: Long = 0,
+    override var tags: AbacTags = EMPTY_ABAC_TAGS,
     override var deleted: Boolean = false
 ) : StateAggregate<S>,
     TypedAggregate<S> by metadata {
@@ -127,6 +131,12 @@ class SimpleStateAggregate<S : Any>(
         for (domainEvent in eventStream) {
             sourcing(domainEvent)
         }
+
+        if (state is StateAggregateTagsExtractor<*>) {
+            @Suppress("UNCHECKED_CAST")
+            val extractor = state as StateAggregateTagsExtractor<S>
+            tags = extractor.extract(this)
+        }
         return this
     }
 
@@ -157,6 +167,9 @@ class SimpleStateAggregate<S : Any>(
         }
         if (domainEventBody is SpaceTransferred) {
             spaceId = domainEventBody.toSpaceId
+        }
+        if (domainEventBody is AbacTagsApplied) {
+            tags = domainEventBody.tags
         }
         val sourcingFunction = sourcingRegistry[domainEvent.body.javaClass]
         if (sourcingFunction != null) {
