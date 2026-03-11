@@ -16,10 +16,17 @@ package me.ahoo.wow.api.abac
 import me.ahoo.wow.api.annotation.CommandRoute
 import me.ahoo.wow.api.annotation.Event
 import me.ahoo.wow.api.annotation.Summary
-
-interface ApplyAbacTags : AbacTaggable
+import me.ahoo.wow.api.command.validation.CommandValidator
 
 @Summary("Apply ABAC Tags")
+interface ApplyAbacTags : AbacTaggable, CommandValidator {
+    override fun validate() {
+        require(!tags.keys.any { it.isBlank() }) {
+            "Tags can not contain blank keys!"
+        }
+    }
+}
+
 @CommandRoute(action = "tags", method = CommandRoute.Method.PUT, appendIdPath = CommandRoute.AppendPath.ALWAYS)
 data class DefaultApplyAbacTags(
     override val tags: AbacTags
