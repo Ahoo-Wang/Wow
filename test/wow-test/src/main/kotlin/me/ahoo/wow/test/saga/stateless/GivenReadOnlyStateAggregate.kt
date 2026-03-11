@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.test.saga.stateless
 
+import me.ahoo.wow.api.abac.AbacTags
+import me.ahoo.wow.api.abac.EMPTY_ABAC_TAGS
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.SpaceId
@@ -49,7 +51,8 @@ class GivenReadOnlyStateAggregate<S : Any>(
     override val firstOperator: String,
     override val operator: String,
     override val firstEventTime: Long,
-    override val eventTime: Long
+    override val eventTime: Long,
+    override val tags: AbacTags = EMPTY_ABAC_TAGS
 ) : ReadOnlyStateAggregate<S> {
     companion object {
         /**

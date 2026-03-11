@@ -15,6 +15,8 @@ package me.ahoo.wow.modeling.state
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.Version
+import me.ahoo.wow.api.abac.AbacTags
+import me.ahoo.wow.api.abac.EMPTY_ABAC_TAGS
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.OwnerId
 import me.ahoo.wow.api.modeling.SpaceId
@@ -69,6 +71,7 @@ object ConstructorStateAggregateFactory : StateAggregateFactory {
         operator: String = "",
         firstEventTime: Long = 0,
         eventTime: Long = 0,
+        tags: AbacTags = EMPTY_ABAC_TAGS,
         deleted: Boolean = false
     ): StateAggregate<S> {
         log.debug {
@@ -86,6 +89,7 @@ object ConstructorStateAggregateFactory : StateAggregateFactory {
             operator = operator,
             firstEventTime = firstEventTime,
             eventTime = eventTime,
+            tags = tags,
             deleted = deleted,
         )
         if (state is ReadOnlyStateAggregateAware<*>) {
@@ -119,6 +123,7 @@ object ConstructorStateAggregateFactory : StateAggregateFactory {
         operator: String = "",
         firstEventTime: Long = 0,
         eventTime: Long = 0,
+        tags: AbacTags = EMPTY_ABAC_TAGS,
         deleted: Boolean = false
     ): StateAggregate<S> {
         return create(
@@ -133,6 +138,7 @@ object ConstructorStateAggregateFactory : StateAggregateFactory {
             operator = operator,
             firstEventTime = firstEventTime,
             eventTime = eventTime,
+            tags = tags,
             deleted = deleted
         )
     }
@@ -148,6 +154,7 @@ object ConstructorStateAggregateFactory : StateAggregateFactory {
         operator: String = "",
         firstEventTime: Long = 0,
         eventTime: Long = 0,
+        tags: AbacTags = EMPTY_ABAC_TAGS,
         deleted: Boolean = false,
         aggregateId: String = "",
         tenantId: String = TenantId.DEFAULT_TENANT_ID
@@ -164,6 +171,7 @@ object ConstructorStateAggregateFactory : StateAggregateFactory {
             operator = operator,
             firstEventTime = firstEventTime,
             eventTime = eventTime,
+            tags = tags,
             deleted = deleted,
         )
     }
@@ -183,6 +191,7 @@ object ConstructorStateAggregateFactory : StateAggregateFactory {
             operator = operator,
             firstEventTime = firstEventTime,
             eventTime = eventTime,
+            tags = tags,
             deleted = deleted,
         )
     }

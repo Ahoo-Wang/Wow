@@ -21,6 +21,8 @@ import me.ahoo.wow.serialization.state.StateAggregateRecords.DELETED
 import me.ahoo.wow.serialization.state.StateAggregateRecords.FIRST_EVENT_TIME
 import me.ahoo.wow.serialization.state.StateAggregateRecords.FIRST_OPERATOR
 import me.ahoo.wow.serialization.state.StateAggregateRecords.STATE
+import me.ahoo.wow.serialization.state.StateAggregateRecords.TAGS
+import me.ahoo.wow.serialization.state.abacTags
 import me.ahoo.wow.serialization.toObject
 import tools.jackson.core.JsonGenerator
 import tools.jackson.core.JsonParser
@@ -35,6 +37,7 @@ object StateEventJsonSerializer :
         generator.writeStringProperty(FIRST_OPERATOR, value.firstOperator)
         generator.writeNumberProperty(FIRST_EVENT_TIME, value.firstEventTime)
         generator.writePOJOProperty(STATE, value.state)
+        generator.writePOJOProperty(TAGS, value.tags)
         generator.writeBooleanProperty(DELETED, value.deleted)
     }
 }
@@ -46,6 +49,7 @@ object StateEventJsonDeserializer : StdDeserializer<StateEvent<*>>(StateEvent::c
             .toDomainEventStream()
         val firstOperator = stateEventRecord.get(FIRST_OPERATOR)?.asString().orEmpty()
         val firstEventTime = stateEventRecord.get(FIRST_EVENT_TIME)?.asLong() ?: 0L
+        val tags = stateEventRecord.abacTags()
         val deleted = stateEventRecord[DELETED].asBoolean()
         val stateRecord = stateEventRecord[STATE] as ObjectNode
         val aggregateType = eventStream.aggregateType<Any>()
@@ -59,6 +63,7 @@ object StateEventJsonDeserializer : StdDeserializer<StateEvent<*>>(StateEvent::c
             state = stateRoot,
             firstOperator = firstOperator,
             firstEventTime = firstEventTime,
+            tags = tags,
             deleted = deleted
         )
     }

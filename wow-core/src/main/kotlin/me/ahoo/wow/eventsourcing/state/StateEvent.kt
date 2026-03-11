@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.eventsourcing.state
 
+import me.ahoo.wow.api.abac.AbacTags
+import me.ahoo.wow.api.abac.EMPTY_ABAC_TAGS
 import me.ahoo.wow.command.CommandOperator.operator
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.infra.Decorator
@@ -66,6 +68,7 @@ interface StateEvent<S : Any> :
             state: S,
             firstOperator: String = header.operator.orEmpty(),
             firstEventTime: Long = createTime,
+            tags: AbacTags = EMPTY_ABAC_TAGS,
             deleted: Boolean = false
         ): StateEvent<S> =
             StateEventData(
@@ -73,6 +76,7 @@ interface StateEvent<S : Any> :
                 state = state,
                 firstOperator = firstOperator,
                 firstEventTime = firstEventTime,
+                tags = tags,
                 deleted = deleted,
             )
 
@@ -88,6 +92,7 @@ interface StateEvent<S : Any> :
                 state = stateAggregate.state,
                 firstOperator = stateAggregate.firstOperator,
                 firstEventTime = stateAggregate.firstEventTime,
+                tags = stateAggregate.tags,
                 deleted = stateAggregate.deleted,
             )
     }
@@ -107,6 +112,7 @@ data class StateEventData<S : Any>(
     override val state: S,
     override val firstOperator: String = delegate.header.operator.orEmpty(),
     override val firstEventTime: Long = delegate.createTime,
+    override val tags: AbacTags = EMPTY_ABAC_TAGS,
     override val deleted: Boolean = false
 ) : StateEvent<S>,
     Decorator<DomainEventStream>,
