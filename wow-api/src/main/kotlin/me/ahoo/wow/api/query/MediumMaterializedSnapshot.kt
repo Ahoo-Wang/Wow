@@ -14,6 +14,9 @@
 package me.ahoo.wow.api.query
 
 import me.ahoo.wow.api.Version
+import me.ahoo.wow.api.abac.AbacTaggable
+import me.ahoo.wow.api.abac.AbacTags
+import me.ahoo.wow.api.abac.EMPTY_ABAC_TAGS
 import me.ahoo.wow.api.modeling.EventIdCapable
 import me.ahoo.wow.api.modeling.EventTimeCapable
 import me.ahoo.wow.api.modeling.FirstEventTimeCapable
@@ -50,7 +53,8 @@ data class MediumMaterializedSnapshot<S : Any>(
     override val operator: String,
     override val firstEventTime: Long,
     override val eventTime: Long,
-    override val state: S
+    override val state: S,
+    override val tags: AbacTags = EMPTY_ABAC_TAGS
 ) : IMaterializedSnapshot<MediumMaterializedSnapshot<S>, S>,
     TenantId,
     OwnerId,
@@ -60,7 +64,8 @@ data class MediumMaterializedSnapshot<S : Any>(
     FirstOperatorCapable,
     OperatorCapable,
     FirstEventTimeCapable,
-    EventTimeCapable {
+    EventTimeCapable,
+    AbacTaggable {
     override fun withState(state: S): MediumMaterializedSnapshot<S> {
         return copy(state = state)
     }
@@ -77,6 +82,7 @@ fun <S : Any, D : Any> MaterializedSnapshot<S>.toMedium(materialize: (S) -> D): 
         operator = operator,
         firstEventTime = firstEventTime,
         eventTime = eventTime,
-        state = materialize(state)
+        state = materialize(state),
+        tags = tags
     )
 }
