@@ -24,6 +24,7 @@ export const WOW_TYPE_MAPPING = {
   'wow.api.RecoverableType': 'RecoverableType',
   'wow.api.command.DefaultDeleteAggregate': 'DeleteAggregate',
   'wow.api.command.DefaultRecoverAggregate': 'RecoverAggregate',
+  'wow.api.abac.DefaultApplyResourceTags': 'ApplyResourceTags',
   'wow.api.messaging.FunctionInfoData': 'FunctionInfo',
   'wow.api.messaging.FunctionKind': 'FunctionKind',
   'wow.api.modeling.AggregateId': 'AggregateId',

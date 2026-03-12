@@ -785,11 +785,7 @@
         "summary": "Generate BI Sync Script",
         "description": "",
         "operationId": "wow.bi_script.generate",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/wow.Wow-BI-Header-Sql-Type"
-          }
-        ],
+        "parameters": [],
         "responses": {
           "200": {
             "description": "The generated BI synchronization script.",
@@ -804,19 +800,22 @@
         }
       }
     },
-    "/tenant/{tenantId}/sales-order/{id}/pay": {
-      "summary": "pay_order",
+    "/tenant/{tenantId}/owner/{ownerId}/sales-order/{id}/package": {
+      "summary": "收货",
       "description": "",
-      "post": {
+      "patch": {
         "tags": [
           "example.order"
         ],
-        "summary": "pay_order",
+        "summary": "收货",
         "description": "",
-        "operationId": "example.order.pay_order",
+        "operationId": "example.order.receipt_order",
         "parameters": [
           {
             "$ref": "#/components/parameters/wow.tenantId"
+          },
+          {
+            "$ref": "#/components/parameters/wow.ownerId"
           },
           {
             "$ref": "#/components/parameters/wow.id"
@@ -868,11 +867,11 @@
           }
         ],
         "requestBody": {
-          "description": "pay_order",
+          "description": "收货",
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/example.order.PayOrder"
+                "$ref": "#/components/schemas/example.order.ReceiptOrder"
               }
             }
           }
@@ -971,6 +970,104 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/example.order.ShipOrder"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/wow.CommandOk"
+          },
+          "400": {
+            "$ref": "#/components/responses/wow.CommandBadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/wow.CommandNotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/wow.CommandVersionConflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/wow.CommandTooManyRequests"
+          },
+          "408": {
+            "$ref": "#/components/responses/wow.CommandRequestTimeout"
+          },
+          "410": {
+            "$ref": "#/components/responses/wow.CommandIllegalAccessDeletedAggregate"
+          }
+        }
+      }
+    },
+    "/tenant/{tenantId}/sales-order/{id}/pay": {
+      "summary": "pay_order",
+      "description": "",
+      "post": {
+        "tags": [
+          "example.order"
+        ],
+        "summary": "pay_order",
+        "description": "",
+        "operationId": "example.order.pay_order",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/wow.tenantId"
+          },
+          {
+            "$ref": "#/components/parameters/wow.id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Wow-Space-Id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Stage"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Context"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Processor"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Function"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Timout"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Stage"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Context"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Processor"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Function"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Aggregate-Id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Aggregate-Version"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Request-Id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Local-First"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Accept"
+          }
+        ],
+        "requestBody": {
+          "description": "pay_order",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/example.order.PayOrder"
               }
             }
           }
@@ -1199,107 +1296,6 @@
         }
       }
     },
-    "/tenant/{tenantId}/owner/{ownerId}/sales-order/{id}/package": {
-      "summary": "收货",
-      "description": "",
-      "patch": {
-        "tags": [
-          "example.order"
-        ],
-        "summary": "收货",
-        "description": "",
-        "operationId": "example.order.receipt_order",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/wow.tenantId"
-          },
-          {
-            "$ref": "#/components/parameters/wow.ownerId"
-          },
-          {
-            "$ref": "#/components/parameters/wow.id"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Wow-Space-Id"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Wait-Stage"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Wait-Context"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Wait-Processor"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Wait-Function"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Wait-Timout"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Stage"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Context"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Processor"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Function"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Aggregate-Id"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Aggregate-Version"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Request-Id"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Command-Local-First"
-          },
-          {
-            "$ref": "#/components/parameters/wow.Accept"
-          }
-        ],
-        "requestBody": {
-          "description": "收货",
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/example.order.ReceiptOrder"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "$ref": "#/components/responses/wow.CommandOk"
-          },
-          "400": {
-            "$ref": "#/components/responses/wow.CommandBadRequest"
-          },
-          "404": {
-            "$ref": "#/components/responses/wow.CommandNotFound"
-          },
-          "409": {
-            "$ref": "#/components/responses/wow.CommandVersionConflict"
-          },
-          "429": {
-            "$ref": "#/components/responses/wow.CommandTooManyRequests"
-          },
-          "408": {
-            "$ref": "#/components/responses/wow.CommandRequestTimeout"
-          },
-          "410": {
-            "$ref": "#/components/responses/wow.CommandIllegalAccessDeletedAggregate"
-          }
-        }
-      }
-    },
     "/tenant/{tenantId}/owner/{ownerId}/sales-order/{id}": {
       "summary": "Delete aggregate",
       "description": "",
@@ -1473,6 +1469,107 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/wow.api.command.DefaultRecoverAggregate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/wow.CommandOk"
+          },
+          "400": {
+            "$ref": "#/components/responses/wow.CommandBadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/wow.CommandNotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/wow.CommandVersionConflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/wow.CommandTooManyRequests"
+          },
+          "408": {
+            "$ref": "#/components/responses/wow.CommandRequestTimeout"
+          },
+          "410": {
+            "$ref": "#/components/responses/wow.CommandIllegalAccessDeletedAggregate"
+          }
+        }
+      }
+    },
+    "/tenant/{tenantId}/owner/{ownerId}/sales-order/{id}/tags": {
+      "summary": "Apply ABAC Resource Tags",
+      "description": "",
+      "put": {
+        "tags": [
+          "example.order"
+        ],
+        "summary": "Apply ABAC Resource Tags",
+        "description": "",
+        "operationId": "example.order.default_apply_resource_tags",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/wow.tenantId"
+          },
+          {
+            "$ref": "#/components/parameters/wow.ownerId"
+          },
+          {
+            "$ref": "#/components/parameters/wow.id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Wow-Space-Id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Stage"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Context"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Processor"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Function"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Timout"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Stage"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Context"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Processor"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Function"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Aggregate-Id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Aggregate-Version"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Request-Id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Local-First"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Accept"
+          }
+        ],
+        "requestBody": {
+          "description": "Apply ABAC Resource Tags",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/wow.api.abac.DefaultApplyResourceTags"
               }
             }
           }
@@ -3926,6 +4023,99 @@
         }
       }
     },
+    "/owner/{ownerId}/cart/tags": {
+      "summary": "Apply ABAC Resource Tags",
+      "description": "",
+      "put": {
+        "tags": [
+          "example.cart",
+          "customer"
+        ],
+        "summary": "Apply ABAC Resource Tags",
+        "description": "",
+        "operationId": "example.cart.default_apply_resource_tags",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/wow.ownerId"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Stage"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Context"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Processor"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Function"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Timout"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Stage"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Context"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Processor"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Wait-Tail-Function"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Aggregate-Id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Aggregate-Version"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Request-Id"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Command-Local-First"
+          },
+          {
+            "$ref": "#/components/parameters/wow.Accept"
+          }
+        ],
+        "requestBody": {
+          "description": "Apply ABAC Resource Tags",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/wow.api.abac.DefaultApplyResourceTags"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/wow.CommandOk"
+          },
+          "400": {
+            "$ref": "#/components/responses/wow.CommandBadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/wow.CommandNotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/wow.CommandVersionConflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/wow.CommandTooManyRequests"
+          },
+          "408": {
+            "$ref": "#/components/responses/wow.CommandRequestTimeout"
+          },
+          "410": {
+            "$ref": "#/components/responses/wow.CommandIllegalAccessDeletedAggregate"
+          }
+        }
+      }
+    },
     "/cart/{id}/state/tracing": {
       "summary": "Get Aggregate Tracing",
       "description": "",
@@ -5219,6 +5409,15 @@
       "example.StringObjectMap": {
         "type": "object"
       },
+      "example.StringStringListMap": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
       "example.WebServerNamespace": {
         "type": "object",
         "properties": {
@@ -5586,6 +5785,7 @@
           "operator",
           "firstEventTime",
           "eventTime",
+          "tags",
           "deleted",
           "state",
           "state.id",
@@ -5604,7 +5804,7 @@
           "limit": {
             "type": "integer",
             "format": "int32",
-            "default": "10"
+            "default": "0"
           },
           "projection": {
             "$ref": "#/components/schemas/wow.api.query.Projection"
@@ -6015,6 +6215,16 @@
               "id"
             ]
           },
+          "tags": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "description": "The ABAC tags of the aggregate"
+          },
           "deleted": {
             "type": "boolean",
             "description": "Whether the aggregate has been deleted"
@@ -6211,6 +6421,16 @@
             "required": [
               "id"
             ]
+          },
+          "tags": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "description": "The ABAC tags of the aggregate"
           },
           "deleted": {
             "type": "boolean",
@@ -6775,6 +6995,7 @@
           "operator",
           "firstEventTime",
           "eventTime",
+          "tags",
           "deleted",
           "state",
           "state.address",
@@ -6805,7 +7026,7 @@
           "limit": {
             "type": "integer",
             "format": "int32",
-            "default": "10"
+            "default": "0"
           },
           "projection": {
             "$ref": "#/components/schemas/wow.api.query.Projection"
@@ -7300,6 +7521,16 @@
               "id"
             ]
           },
+          "tags": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "description": "The ABAC tags of the aggregate"
+          },
           "deleted": {
             "type": "boolean",
             "description": "Whether the aggregate has been deleted"
@@ -7512,6 +7743,16 @@
               "id"
             ]
           },
+          "tags": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "description": "The ABAC tags of the aggregate"
+          },
           "deleted": {
             "type": "boolean",
             "description": "Whether the aggregate has been deleted"
@@ -7532,13 +7773,6 @@
           "state",
           "tenantId",
           "version"
-        ]
-      },
-      "wow.MessageHeaderSqlType": {
-        "type": "string",
-        "enum": [
-          "MAP",
-          "STRING"
         ]
       },
       "wow.api.BindingError": {
@@ -7579,6 +7813,18 @@
         "required": [
           "errorCode"
         ]
+      },
+      "wow.api.abac.DefaultApplyResourceTags": {
+        "type": "object",
+        "properties": {
+          "tags": {
+            "$ref": "#/components/schemas/example.StringStringListMap"
+          }
+        },
+        "required": [
+          "tags"
+        ],
+        "title": "Apply ABAC Resource Tags"
       },
       "wow.api.command.DefaultDeleteAggregate": {
         "type": "object",
@@ -7708,7 +7954,7 @@
           "limit": {
             "type": "integer",
             "format": "int32",
-            "default": "10"
+            "default": "0"
           },
           "projection": {
             "$ref": "#/components/schemas/wow.api.query.Projection"
@@ -8476,14 +8722,6 @@
           "type": "string"
         }
       },
-      "wow.Wow-BI-Header-Sql-Type": {
-        "name": "Wow-BI-Header-Sql-Type",
-        "in": "header",
-        "description": "The type of BI Message header.",
-        "schema": {
-          "$ref": "#/components/schemas/wow.MessageHeaderSqlType"
-        }
-      },
       "wow.tenantId": {
         "name": "tenantId",
         "in": "path",
@@ -8494,15 +8732,6 @@
           "example": "(0)"
         }
       },
-      "wow.id": {
-        "name": "id",
-        "in": "path",
-        "required": true,
-        "schema": {
-          "type": "string",
-          "description": "aggregate id"
-        }
-      },
       "wow.ownerId": {
         "name": "ownerId",
         "in": "path",
@@ -8510,6 +8739,15 @@
         "schema": {
           "type": "string",
           "description": "aggregate owner id"
+        }
+      },
+      "wow.id": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "description": "aggregate id"
         }
       },
       "wow.version": {

@@ -12,6 +12,7 @@
  */
 
 import type {
+  AbacTaggable,
   AggregateId,
   DeletedCapable,
   EventIdCapable,
@@ -43,6 +44,7 @@ export interface MaterializedSnapshot<S>
     FirstEventTimeCapable,
     EventTimeCapable,
     SnapshotTimeCapable,
+    AbacTaggable,
     DeletedCapable {
 }
 
@@ -65,7 +67,7 @@ export interface MediumMaterializedSnapshot<S>
     FirstOperatorCapable,
     OperatorCapable,
     FirstEventTimeCapable,
-    EventTimeCapable {
+    EventTimeCapable, AbacTaggable {
 }
 
 /**
@@ -97,6 +99,7 @@ export class SnapshotMetadataFields {
   static readonly FIRST_OPERATOR = 'firstOperator';
   static readonly OPERATOR = 'operator';
   static readonly SNAPSHOT_TIME = 'snapshotTime';
+  static readonly TAGS = 'tags';
   static readonly DELETED = 'deleted';
   static readonly STATE = 'state';
 }

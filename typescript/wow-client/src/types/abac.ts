@@ -10,13 +10,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+export type AbacTagKey = string;
+export type AbacTagValue = string[];
+export type AbacTags = Record<AbacTagKey, AbacTagValue>;
+export const EMPTY_ABAC_TAGS: AbacTags = {};
+export const WILDCARD_ABAC_TAG_VALUES = ['*'];
 
-export * from './abac';
-export * from './common';
-export * from './endpoints';
-export * from './error';
-export * from './function';
-export * from './messaging';
-export * from './modeling';
-export * from './naming';
-export * from './bi';
+export interface AbacTaggable {
+  tags: AbacTags;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface ApplyAbacTags extends AbacTaggable {
+}
+
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface AbacTagsApplied extends AbacTaggable {
+}

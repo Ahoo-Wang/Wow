@@ -85,12 +85,14 @@ describe('SnapshotMetadataFields', () => {
     expect(SnapshotMetadataFields.VERSION).toBe('version');
     expect(SnapshotMetadataFields.TENANT_ID).toBe('tenantId');
     expect(SnapshotMetadataFields.OWNER_ID).toBe('ownerId');
+    expect(SnapshotMetadataFields.SPACE_ID).toBe('spaceId');
     expect(SnapshotMetadataFields.EVENT_ID).toBe('eventId');
     expect(SnapshotMetadataFields.FIRST_EVENT_TIME).toBe('firstEventTime');
     expect(SnapshotMetadataFields.EVENT_TIME).toBe('eventTime');
     expect(SnapshotMetadataFields.FIRST_OPERATOR).toBe('firstOperator');
     expect(SnapshotMetadataFields.OPERATOR).toBe('operator');
     expect(SnapshotMetadataFields.SNAPSHOT_TIME).toBe('snapshotTime');
+    expect(SnapshotMetadataFields.TAGS).toBe('tags');
     expect(SnapshotMetadataFields.DELETED).toBe('deleted');
     expect(SnapshotMetadataFields.STATE).toBe('state');
   });
