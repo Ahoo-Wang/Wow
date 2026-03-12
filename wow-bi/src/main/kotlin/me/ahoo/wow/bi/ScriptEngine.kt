@@ -22,8 +22,7 @@ object ScriptEngine {
     fun generate(
         namedAggregates: Set<NamedAggregate>,
         kafkaBootstrapServers: String = ScriptTemplateEngine.DEFAULT_KAFKA_BOOTSTRAP_SERVERS,
-        topicPrefix: String = ScriptTemplateEngine.DEFAULT_TOPIC_PREFIX,
-        headerType: MessageHeaderSqlType = ScriptTemplateEngine.DEFAULT_MESSAGE_HEADER_SQL_TYPE
+        topicPrefix: String = ScriptTemplateEngine.DEFAULT_TOPIC_PREFIX
     ): String {
         val scriptGenerators = buildMap {
             namedAggregates.forEach { namedAggregate ->
@@ -54,7 +53,6 @@ object ScriptEngine {
                         namedAggregate = namedAggregate,
                         kafkaBootstrapServers = kafkaBootstrapServers,
                         topicPrefix = topicPrefix,
-                        headerType = headerType
                     )
                 )
                 appendLine("-- ${namedAggregate.toStringWithAlias()}.command --")
@@ -64,7 +62,6 @@ object ScriptEngine {
                         namedAggregate = namedAggregate,
                         kafkaBootstrapServers = kafkaBootstrapServers,
                         topicPrefix = topicPrefix,
-                        headerType = headerType
                     )
                 )
                 appendLine("-- ${namedAggregate.toStringWithAlias()}.stateEvent --")
@@ -72,7 +69,6 @@ object ScriptEngine {
                 appendLine(
                     ScriptTemplateEngine.renderStateLast(
                         namedAggregate = namedAggregate,
-                        headerType = headerType
                     )
                 )
                 appendLine("-- ${namedAggregate.toStringWithAlias()}.stateLast --")
