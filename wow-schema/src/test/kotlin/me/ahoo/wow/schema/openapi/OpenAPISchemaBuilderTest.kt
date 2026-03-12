@@ -44,7 +44,7 @@ class OpenAPISchemaBuilderTest {
         val componentsSchemas = openAPISchemaBuilder.build()
         createOderSchema.`$ref`.assert().isNotNull()
         addCartItemSchema.`$ref`.assert().isNotNull()
-        componentsSchemas.assert().hasSize(9)
+        componentsSchemas.assert().hasSize(10)
     }
 
     @Test
