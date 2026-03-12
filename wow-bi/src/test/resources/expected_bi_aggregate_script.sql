@@ -59,6 +59,7 @@ version AS __version,
 first_operator AS __first_operator,
 first_event_time AS __first_event_time,
 create_time AS __create_time,
+tags AS __tags,
 deleted AS __deleted
 FROM bi_db.bi_aggregate_state_last;
 
@@ -122,6 +123,7 @@ version AS __version,
 first_operator AS __first_operator,
 first_event_time AS __first_event_time,
 create_time AS __create_time,
+tags AS __tags,
 deleted AS __deleted
 FROM bi_db.bi_aggregate_state_last;
 
@@ -185,6 +187,7 @@ version AS __version,
 first_operator AS __first_operator,
 first_event_time AS __first_event_time,
 create_time AS __create_time,
+tags AS __tags,
 deleted AS __deleted
 FROM bi_db.bi_aggregate_state_last;
 
@@ -248,6 +251,7 @@ version AS __version,
 first_operator AS __first_operator,
 first_event_time AS __first_event_time,
 create_time AS __create_time,
+tags AS __tags,
 deleted AS __deleted
 FROM bi_db.bi_aggregate_state_last;
 
@@ -312,6 +316,7 @@ version AS __version,
 first_operator AS __first_operator,
 first_event_time AS __first_event_time,
 create_time AS __create_time,
+tags AS __tags,
 deleted AS __deleted
 FROM bi_db.bi_aggregate_state_last;
 
@@ -381,5 +386,6 @@ version AS __version,
 first_operator AS __first_operator,
 first_event_time AS __first_event_time,
 create_time AS __create_time,
+tags AS __tags,
 deleted AS __deleted
 FROM bi_db.bi_aggregate_state_last;

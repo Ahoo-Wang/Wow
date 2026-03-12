@@ -15,6 +15,7 @@ package me.ahoo.wow.bi.expansion.column
 
 import com.fasterxml.jackson.databind.JavaType
 import me.ahoo.wow.serialization.JsonSerializer
+import me.ahoo.wow.serialization.state.ABAC_TAGS_TYPE_REF
 
 data class MetadataColumn(
     override val name: String,
@@ -33,6 +34,7 @@ data class MetadataColumn(
         private val INT_JAVA_TYPE = JsonSerializer.constructType(Int::class.java)
         private val LONG_JAVA_TYPE = JsonSerializer.constructType(Long::class.java)
         private val BOOLEAN_JAVA_TYPE = JsonSerializer.constructType(Boolean::class.java)
+        private val ABAC_TAGS_TYPE = JsonSerializer.constructType(ABAC_TAGS_TYPE_REF)
         val ID_COLUMN = MetadataColumn("id", STRING_JAVA_TYPE, "String")
         val AGGREGATE_ID_COLUMN = MetadataColumn("aggregate_id", STRING_JAVA_TYPE, "String")
         val TENANT_ID_COLUMN = MetadataColumn("tenant_id", STRING_JAVA_TYPE, "String")
@@ -43,6 +45,7 @@ data class MetadataColumn(
         val FIRST_OPERATOR_COLUMN = MetadataColumn("first_operator", STRING_JAVA_TYPE, "String")
         val FIRST_EVENT_TIME_COLUMN = MetadataColumn("first_event_time", LONG_JAVA_TYPE, "DateTime('Asia/Shanghai')")
         val CREATE_TIME_COLUMN = MetadataColumn("create_time", LONG_JAVA_TYPE, "DateTime('Asia/Shanghai')")
+        val TAGS_COLUMN = MetadataColumn("tags", ABAC_TAGS_TYPE, "Map(String, Array(String))")
         val DELETED_COLUMN = MetadataColumn("deleted", BOOLEAN_JAVA_TYPE, "Bool")
     }
 }

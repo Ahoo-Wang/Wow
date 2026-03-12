@@ -175,6 +175,7 @@ object ScriptTemplateEngine {
                 first_operator   String,
                 first_event_time DateTime('Asia/Shanghai'),
                 create_time      DateTime('Asia/Shanghai'),
+                tags             Map(String, Array(String)),
                 deleted          Bool
             ) ENGINE = ReplicatedReplacingMergeTree('/clickhouse/{installation}/{cluster}/tables/{shard}/{database}/{table}',
                                                     '{replica}', version)
@@ -213,6 +214,7 @@ object ScriptTemplateEngine {
                        , 3, 'Asia/Shanghai')                          AS first_event_time,
                    toDateTime64(JSONExtractUInt(data, 'createTime') / 1000.0
                        , 3, 'Asia/Shanghai')                          AS create_time,
+                   JSONExtract(data, 'tags', 'Map(String, Array(String))') AS tags,
                    JSONExtractBool(data, 'deleted')                   AS deleted
             FROM bi_db_consumer."$queueTableName"
             ;
@@ -241,6 +243,7 @@ object ScriptTemplateEngine {
                    first_operator,
                    first_event_time,
                    create_time,
+                   tags,
                    deleted
             FROM bi_db."$distributedTableName";
         """.trimIndent()
@@ -272,6 +275,7 @@ object ScriptTemplateEngine {
                 first_operator   String,
                 first_event_time DateTime('Asia/Shanghai'),
                 create_time      DateTime('Asia/Shanghai'),
+                tags             Map(String, Array(String)),
                 deleted          Bool
             ) ENGINE = ReplicatedReplacingMergeTree('/clickhouse/{installation}/{cluster}/tables/{shard}/{database}/{table}',
                                                     '{replica}', version)
