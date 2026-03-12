@@ -17,8 +17,7 @@ class ScriptEngineTest {
         val syncScript = ScriptEngine.generate(
             MetadataSearcher.localAggregates,
             "kafkaBootstrapServers",
-            "topicPrefix",
-            MessageHeaderSqlType.STRING
+            "topicPrefix"
         )
         syncScript.assert().isNotNull()
     }

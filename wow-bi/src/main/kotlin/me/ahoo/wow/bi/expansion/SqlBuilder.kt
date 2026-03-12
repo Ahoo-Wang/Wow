@@ -42,6 +42,7 @@ class SqlBuilder(
             MetadataColumn.FIRST_OPERATOR_COLUMN,
             MetadataColumn.FIRST_EVENT_TIME_COLUMN,
             MetadataColumn.CREATE_TIME_COLUMN,
+            MetadataColumn.TAGS_COLUMN,
             MetadataColumn.DELETED_COLUMN
         )
     }
