@@ -61,6 +61,8 @@ class MongoPrepareKey<V : Any>(
                 Indexes.ascending(TTL_AT_FIELD),
                 IndexOptions().expireAfter(0, TimeUnit.SECONDS),
             ).toMono().toBlockable().block()
+            prepareCollection.createIndex(Indexes.hashed(Documents.ID_FIELD))
+                .toMono().toBlockable().block()
         }
     }
 
