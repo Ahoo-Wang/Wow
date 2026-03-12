@@ -14,6 +14,9 @@
 package me.ahoo.wow.api.query
 
 import me.ahoo.wow.api.Version
+import me.ahoo.wow.api.abac.AbacTaggable
+import me.ahoo.wow.api.abac.AbacTags
+import me.ahoo.wow.api.abac.EMPTY_ABAC_TAGS
 import me.ahoo.wow.api.modeling.DeletedCapable
 import me.ahoo.wow.api.modeling.EventIdCapable
 import me.ahoo.wow.api.modeling.EventTimeCapable
@@ -92,6 +95,7 @@ data class MaterializedSnapshot<S : Any>(
     override val eventTime: Long,
     override val state: S,
     override val snapshotTime: Long,
+    override val tags: AbacTags = EMPTY_ABAC_TAGS,
     override val deleted: Boolean
 ) : IMaterializedSnapshot<MaterializedSnapshot<S>, S>,
     NamedAggregate,
@@ -105,6 +109,7 @@ data class MaterializedSnapshot<S : Any>(
     FirstEventTimeCapable,
     EventTimeCapable,
     SnapshotTimeCapable,
+    AbacTaggable,
     DeletedCapable {
     /**
      * Creates a new MaterializedSnapshot with the specified state.

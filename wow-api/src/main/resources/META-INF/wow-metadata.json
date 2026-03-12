@@ -6,6 +6,12 @@
         "me.ahoo.wow.api"
       ]
     },
+    "wow.api.abac": {
+      "alias": "wow.api.abac",
+      "scopes": [
+        "me.ahoo.wow.api.abac"
+      ]
+    },
     "wow.api.command": {
       "alias": "wow.api.command",
       "scopes": [
