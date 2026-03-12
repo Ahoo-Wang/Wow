@@ -1,10 +1,8 @@
 package me.ahoo.wow.webflux.route.bi
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.bi.MessageHeaderSqlType
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.global.GenerateBIScriptRouteSpec
-import me.ahoo.wow.openapi.global.GenerateBIScriptRouteSpecFactory.Companion.BI_HEADER_TYPE_HEADER
 import me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunctionFactory
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
@@ -20,7 +18,6 @@ class GenerateBIScriptHandlerFunctionTest {
             )
         )
         val request = MockServerRequest.builder()
-            .header(BI_HEADER_TYPE_HEADER, MessageHeaderSqlType.STRING.name)
             .build()
 
         handlerFunction.handle(request)

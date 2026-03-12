@@ -22,7 +22,6 @@ import me.ahoo.wow.bi.expansion.TableNaming.toTopicName
 object ScriptTemplateEngine {
     const val DEFAULT_KAFKA_BOOTSTRAP_SERVERS = "localhost:9093"
     const val DEFAULT_TOPIC_PREFIX = Wow.WOW_PREFIX
-    val DEFAULT_MESSAGE_HEADER_SQL_TYPE = MessageHeaderSqlType.MAP
 
     fun renderGlobal(): String {
         return """
@@ -76,7 +75,6 @@ object ScriptTemplateEngine {
         namedAggregate: NamedAggregate,
         kafkaBootstrapServers: String = DEFAULT_KAFKA_BOOTSTRAP_SERVERS,
         topicPrefix: String = DEFAULT_TOPIC_PREFIX,
-        headerType: MessageHeaderSqlType = DEFAULT_MESSAGE_HEADER_SQL_TYPE
     ): String {
         val suffix = "command"
         val topic = namedAggregate.toTopicName(topicPrefix, suffix)
@@ -91,7 +89,7 @@ object ScriptTemplateEngine {
                 context_name   String,
                 aggregate_name String,
                 name           String,
-                header         ${headerType.sqlType},
+                header         Map(String, String),
                 aggregate_id   String,
                 tenant_id      String,
                 owner_id       String,
@@ -126,7 +124,7 @@ object ScriptTemplateEngine {
                    JSONExtractString(data, 'contextName')   AS context_name,
                    JSONExtractString(data, 'aggregateName') AS aggregate_name,
                    JSONExtractString(data, 'name')          AS name,
-                   JSONExtract(data, 'header','${headerType.sqlType}')        AS header,
+                   JSONExtract(data, 'header','Map(String, String)')        AS header,
                    JSONExtractString(data, 'aggregateId')   AS aggregate_id,
                    JSONExtractString(data, 'tenantId')      AS tenant_id,
                    JSONExtractString(data, 'ownerId')       AS owner_id,
@@ -150,7 +148,6 @@ object ScriptTemplateEngine {
         namedAggregate: NamedAggregate,
         kafkaBootstrapServers: String = DEFAULT_KAFKA_BOOTSTRAP_SERVERS,
         topicPrefix: String = DEFAULT_TOPIC_PREFIX,
-        headerType: MessageHeaderSqlType = DEFAULT_MESSAGE_HEADER_SQL_TYPE
     ): String {
         val suffix = "state"
         val topic = namedAggregate.toTopicName(topicPrefix, suffix)
@@ -165,7 +162,7 @@ object ScriptTemplateEngine {
                 id               String,
                 context_name     String,
                 aggregate_name   String,
-                header           ${headerType.sqlType},
+                header           Map(String, String),
                 aggregate_id     String,
                 tenant_id        String,
                 owner_id         String,
@@ -201,7 +198,7 @@ object ScriptTemplateEngine {
             SELECT JSONExtractString(data, 'id')                      AS id,
                    JSONExtractString(data, 'contextName')             AS context_name,
                    JSONExtractString(data, 'aggregateName')           AS aggregate_name,
-                   JSONExtract(data, 'header', '${headerType.sqlType}') AS header,
+                   JSONExtract(data, 'header', 'Map(String, String)') AS header,
                    JSONExtractString(data, 'aggregateId')             AS aggregate_id,
                    JSONExtractString(data, 'tenantId')                AS tenant_id,
                    JSONExtractString(data, 'ownerId')                 AS owner_id,
@@ -251,7 +248,6 @@ object ScriptTemplateEngine {
 
     fun renderStateLast(
         namedAggregate: NamedAggregate,
-        headerType: MessageHeaderSqlType = DEFAULT_MESSAGE_HEADER_SQL_TYPE
     ): String {
         val stateDistributedTableName = namedAggregate.toDistributedTableName("state")
         val distributedTableName = namedAggregate.toDistributedTableName("state_last")
@@ -263,7 +259,7 @@ object ScriptTemplateEngine {
                 id               String,
                 context_name     String,
                 aggregate_name   String,
-                header           ${headerType.sqlType},
+                header           Map(String, String),
                 aggregate_id     String,
                 tenant_id        String,
                 owner_id         String,

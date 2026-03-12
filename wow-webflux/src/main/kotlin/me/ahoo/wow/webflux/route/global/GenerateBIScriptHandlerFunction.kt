@@ -13,35 +13,26 @@
 
 package me.ahoo.wow.webflux.route.global
 
-import me.ahoo.wow.bi.MessageHeaderSqlType
 import me.ahoo.wow.bi.ScriptEngine
 import me.ahoo.wow.bi.ScriptTemplateEngine
 import me.ahoo.wow.configuration.MetadataSearcher
-import me.ahoo.wow.infra.ifNotBlank
 import me.ahoo.wow.openapi.global.GenerateBIScriptRouteSpec
-import me.ahoo.wow.openapi.global.GenerateBIScriptRouteSpecFactory.Companion.BI_HEADER_TYPE_HEADER
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
-import java.util.*
 
 private val APPLICATION_SQL_MEDIA_TYPE = MediaType.parseMediaType("application/sql")
 
 class GenerateBIScriptHandlerFunction(private val kafkaBootstrapServers: String, private val topicPrefix: String) :
     HandlerFunction<ServerResponse> {
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
-        val headerType = request.headers().firstHeader(BI_HEADER_TYPE_HEADER).ifNotBlank { stage ->
-            MessageHeaderSqlType.valueOf(stage.uppercase(Locale.getDefault()))
-        } ?: MessageHeaderSqlType.MAP
-
         val script = ScriptEngine.generate(
             namedAggregates = MetadataSearcher.localAggregates,
             kafkaBootstrapServers = kafkaBootstrapServers,
-            topicPrefix = topicPrefix,
-            headerType = headerType
+            topicPrefix = topicPrefix
         )
 
         return ServerResponse
