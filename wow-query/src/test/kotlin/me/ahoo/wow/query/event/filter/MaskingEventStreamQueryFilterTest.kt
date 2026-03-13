@@ -93,7 +93,7 @@ object MockEventStreamQueryService : EventStreamQueryService {
         get() = MOCK_AGGREGATE_METADATA
     private val eventStream = generateEventStream(MOCK_AGGREGATE_METADATA.aggregateId(generateGlobalId()))
 
-    private val dynamicDocument = eventStream.toJsonString().toObject<MutableMap<String, Any>>().toDynamicDocument()
+    private val dynamicDocument = eventStream.toJsonString().toObject<MutableMap<String, Any?>>().toDynamicDocument()
     override fun single(singleQuery: ISingleQuery): Mono<DomainEventStream> {
         return Mono.just(eventStream)
     }
