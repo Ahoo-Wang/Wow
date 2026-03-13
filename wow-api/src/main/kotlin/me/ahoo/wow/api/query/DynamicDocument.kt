@@ -104,6 +104,8 @@ class SimpleDynamicDocument(
          * @return A new SimpleDynamicDocument wrapping the map.
          */
         @Suppress("UNCHECKED_CAST")
-        fun MutableMap<String, *>.toDynamicDocument(): SimpleDynamicDocument = SimpleDynamicDocument(this as MutableMap<String, Any?>)
+        fun MutableMap<String, *>.toDynamicDocument(): SimpleDynamicDocument = SimpleDynamicDocument(
+            this as MutableMap<String, Any?>
+        )
     }
 }
