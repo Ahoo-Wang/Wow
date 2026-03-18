@@ -24,6 +24,7 @@
     "@ahoo-wang/fetcher-viewer": "^3.13.10",
     "@ahoo-wang/fetcher-wow": "^3.13.10",
     "@ant-design/icons": "^6.1.0",
+    "@monaco-editor/loader": "^1.7.0",
     "@monaco-editor/react": "4.7.0",
     "antd": "^6.3.3",
     "dayjs": "^1.11.20",

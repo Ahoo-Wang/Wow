@@ -13,9 +13,15 @@
 
 import type { ErrorDetails } from "../../../generated";
 import { Card, Typography } from "antd";
-import { Editor } from "@monaco-editor/react";
+import { loader, Editor } from "@monaco-editor/react";
 import { useRef } from "react";
 import { Fullscreen } from "@ahoo-wang/fetcher-viewer";
+
+loader.config({
+  paths: {
+    vs: "/monaco-editor/min/vs",
+  },
+});
 const { Text } = Typography;
 
 export interface ErrorDetailsProps {

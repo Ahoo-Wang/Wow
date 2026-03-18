@@ -7,6 +7,9 @@ import type { ErrorDetails as ErrorDetailsType } from "../../../generated";
 // Mock the Monaco Editor component since it's not easily testable in a jsdom environment
 vi.mock("@monaco-editor/react", () => ({
   Editor: () => <div data-testid="monaco-editor">Monaco Editor</div>,
+  loader: {
+    config: vi.fn(),
+  },
 }));
 
 describe("ErrorDetails", () => {
