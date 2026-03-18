@@ -9,11 +9,15 @@ export default defineConfig({
     react({
       babel: {
         parserOpts: {
-          plugins: ['decorators-legacy'],
+          plugins: ["decorators-legacy"],
         },
         plugins: ["babel-plugin-react-compiler"],
       },
     }),
     tailwindcss(),
   ],
+  optimizeDeps: {
+    include: ["monaco-editor"],
+    exclude: ["@monaco-editor/react"],
+  },
 });

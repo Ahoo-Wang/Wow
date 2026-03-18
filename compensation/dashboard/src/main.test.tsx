@@ -26,6 +26,7 @@ vi.mock("antd", () => ({
 vi.mock("./components/GlobalDrawer", () => ({
   GlobalDrawerProvider: ({ children }: { children: React.ReactNode }) => <div data-testid="global-drawer-provider">{children}</div>,
 }));
+vi.mock("./monacoConfig", () => ({}));
 
 describe("main.tsx", () => {
   it("renders without crashing", async () => {

@@ -7,6 +7,7 @@ import { AppRouter } from "./routes/Routes.tsx";
 import { App } from "antd";
 import { GlobalDrawerProvider } from "./components/GlobalDrawer";
 import "./services/compensationFetcher";
+import "./monacoConfig";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
