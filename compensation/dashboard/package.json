@@ -27,6 +27,7 @@
     "@monaco-editor/react": "4.7.0",
     "antd": "^6.3.3",
     "dayjs": "^1.11.20",
+    "monaco-editor": "^0.55.1",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-router": "^7.13.1"
