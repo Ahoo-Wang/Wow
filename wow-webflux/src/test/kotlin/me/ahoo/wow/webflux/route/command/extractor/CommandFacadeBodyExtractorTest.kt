@@ -22,8 +22,8 @@ import me.ahoo.wow.configuration.requiredNamedAggregate
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
+import me.ahoo.wow.serialization.toJsonNode
 import me.ahoo.wow.serialization.toJsonString
-import me.ahoo.wow.serialization.toObject
 import me.ahoo.wow.tck.mock.MockCommandAggregate
 import me.ahoo.wow.tck.mock.MockCreateAggregate
 import me.ahoo.wow.tck.mock.MockStateAggregate
@@ -48,7 +48,7 @@ class CommandFacadeBodyExtractorTest {
         val commandBodyExtractor = CommandFacadeBodyExtractor
         val messageReader = mockk<HttpMessageReader<*>> {
             every { canRead(any(), any()) } returns true
-            every { readMono(any(), any(), any()) } returns Mono.just(command.toJsonString().toObject<ObjectNode>())
+            every { readMono(any(), any(), any()) } returns Mono.just(command.toJsonNode<ObjectNode>())
         }
         val context = mockk<BodyExtractor.Context> {
             every { hints()[RouterFunctions.URI_TEMPLATE_VARIABLES_ATTRIBUTE] } returns emptyMap<String, String>()
@@ -116,7 +116,7 @@ class CommandFacadeBodyExtractorTest {
         val commandBodyExtractor = CommandFacadeBodyExtractor
         val messageReader = mockk<HttpMessageReader<*>> {
             every { canRead(any(), any()) } returns true
-            every { readMono(any(), any(), any()) } returns Mono.just(command.toJsonString().toObject<ObjectNode>())
+            every { readMono(any(), any(), any()) } returns Mono.just(command.toJsonNode<ObjectNode>())
         }
         val context = mockk<BodyExtractor.Context> {
             every { hints()[RouterFunctions.URI_TEMPLATE_VARIABLES_ATTRIBUTE] } returns emptyMap<String, String>()

@@ -21,8 +21,7 @@ import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchQueryService
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.query.converter.ConditionConverter
 import me.ahoo.wow.query.event.EventStreamQueryService
-import me.ahoo.wow.serialization.toJsonString
-import me.ahoo.wow.serialization.toObject
+import me.ahoo.wow.serialization.convert
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 
 class ElasticsearchEventStreamQueryService(
@@ -33,6 +32,6 @@ class ElasticsearchEventStreamQueryService(
     override val indexName: String = namedAggregate.toEventStreamIndexName()
 
     override fun toTypedResult(document: DynamicDocument): DomainEventStream {
-        return document.toJsonString().toObject<DomainEventStream>()
+        return document.convert<DomainEventStream>()
     }
 }

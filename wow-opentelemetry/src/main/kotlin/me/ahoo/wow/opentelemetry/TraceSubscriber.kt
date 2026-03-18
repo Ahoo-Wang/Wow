@@ -18,7 +18,7 @@ import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter
 import org.reactivestreams.Subscription
 import reactor.core.CoreSubscriber
 
-open class TraceSubscriber<T : Any, O>(
+open class TraceSubscriber<T : Any, O : Any>(
     private val instrumenter: Instrumenter<T, Unit>,
     private val otelContext: Context,
     private val request: T,

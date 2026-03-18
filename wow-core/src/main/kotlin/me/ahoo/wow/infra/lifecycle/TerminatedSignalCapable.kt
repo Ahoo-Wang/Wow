@@ -15,6 +15,6 @@ package me.ahoo.wow.infra.lifecycle
 
 import reactor.core.publisher.Mono
 
-interface TerminatedSignalCapable<V> {
+interface TerminatedSignalCapable<V : Any> {
     val terminatedSignal: Mono<V>
 }

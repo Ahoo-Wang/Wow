@@ -45,7 +45,7 @@ import reactor.core.publisher.Mono
  * @see Mono.then
  * @see Mono.defer
  */
-fun <R> Mono<*>.thenDefer(defer: () -> Mono<R>): Mono<R> = this.then(Mono.defer { defer() })
+fun <R : Any> Mono<*>.thenDefer(defer: () -> Mono<R>): Mono<R> = this.then(Mono.defer { defer() })
 
 /**
  * Executes a runnable after this Mono completes successfully.

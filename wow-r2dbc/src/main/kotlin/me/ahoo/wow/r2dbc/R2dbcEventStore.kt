@@ -23,7 +23,6 @@ import me.ahoo.wow.command.DuplicateRequestIdException
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.AbstractEventStore
 import me.ahoo.wow.eventsourcing.EventVersionConflictException
-import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.event.FlatEventStreamRecord
 import me.ahoo.wow.serialization.event.toEventStreamRecord
 import me.ahoo.wow.serialization.toJsonNode
@@ -42,7 +41,7 @@ class R2dbcEventStore(
             database.createConnection(eventStream.aggregateId),
             /* resourceClosure = */
             {
-                val eventStreamRecord = JsonSerializer.valueToTree<ObjectNode>(eventStream)
+                val eventStreamRecord = eventStream.toJsonNode<ObjectNode>()
                     .toEventStreamRecord()
                 it.createStatement(eventStreamSchema.append(eventStream.aggregateId))
                     .bind(0, eventStreamRecord.id)

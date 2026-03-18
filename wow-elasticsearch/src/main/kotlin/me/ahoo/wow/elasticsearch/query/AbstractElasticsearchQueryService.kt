@@ -102,7 +102,7 @@ abstract class AbstractElasticsearchQueryService<R : Any> : QueryService<R> {
             .mapNotNull<PagedList<DynamicDocument>> { result ->
                 val list = result.hits()?.hits()?.map { hit ->
                     hit.source()?.let {
-                        (it as MutableMap<String, Any>).toDynamicDocument()
+                        (it as MutableMap<String, Any?>).toDynamicDocument()
                     }
                 } as List<DynamicDocument>? ?: emptyList()
                 PagedList(result.hits()?.total()?.value() ?: 0, list)

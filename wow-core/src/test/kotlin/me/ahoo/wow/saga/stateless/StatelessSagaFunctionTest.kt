@@ -42,7 +42,7 @@ class StatelessSagaFunctionTest {
     @Test
     fun multipleCommand() {
         sagaVerifier<MockSaga>()
-            .`when`(MockAggregateCreated("data"))
+            .whenEvent(MockAggregateCreated("data"))
             .expectNoError()
             .expectCommandCount(2)
             .verify()
@@ -51,7 +51,7 @@ class StatelessSagaFunctionTest {
     @Test
     fun fluxCommand() {
         sagaVerifier<MockPublisherSaga>()
-            .`when`(MockAggregateCreated("data"))
+            .whenEvent(MockAggregateCreated("data"))
             .expectNoError()
             .expectCommandCount(2)
             .verify()
@@ -60,7 +60,7 @@ class StatelessSagaFunctionTest {
     @Test
     fun returnCommandMessage() {
         sagaVerifier<MockReturnCommandMessageSaga>()
-            .`when`(MockAggregateCreated("data"))
+            .whenEvent(MockAggregateCreated("data"))
             .expectNoError()
             .expectCommand<MockCreateAggregate> {
                 requestId.assert().isEqualTo(id)
@@ -71,7 +71,7 @@ class StatelessSagaFunctionTest {
     @Test
     fun returnCommandBuilder() {
         sagaVerifier<MockReturnBuilderMessageSaga>()
-            .`when`(MockAggregateCreated("data"))
+            .whenEvent(MockAggregateCreated("data"))
             .expectNoError()
             .expectCommand<MockCreateAggregate> {
                 requestId.assert().isNotEqualTo(id)
