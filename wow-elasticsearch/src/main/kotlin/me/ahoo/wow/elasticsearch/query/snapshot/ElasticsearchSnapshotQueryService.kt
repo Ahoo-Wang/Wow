@@ -25,8 +25,7 @@ import me.ahoo.wow.elasticsearch.query.AbstractElasticsearchQueryService
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.query.converter.ConditionConverter
 import me.ahoo.wow.query.snapshot.SnapshotQueryService
-import me.ahoo.wow.serialization.toJsonString
-import me.ahoo.wow.serialization.toObject
+import me.ahoo.wow.serialization.convert
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 
 class ElasticsearchSnapshotQueryService<S : Any>(
@@ -44,6 +43,6 @@ class ElasticsearchSnapshotQueryService<S : Any>(
         )
 
     override fun toTypedResult(document: DynamicDocument): MaterializedSnapshot<S> {
-        return document.toJsonString().toObject(snapshotType)
+        return document.convert(snapshotType)
     }
 }

@@ -29,7 +29,7 @@ import kotlin.reflect.KFunction
  * @property monoFunctionAccessor the underlying mono function accessor
  * @property scheduler the scheduler to use for blocking operations (defaults to bounded elastic)
  */
-class BlockingMonoFunctionAccessor<T, D>(
+class BlockingMonoFunctionAccessor<T, D : Any>(
     private val monoFunctionAccessor: MonoFunctionAccessor<T, Mono<D>>,
     private val scheduler: Scheduler = Schedulers.boundedElastic()
 ) : MonoFunctionAccessor<T, Mono<D>> {
@@ -62,7 +62,7 @@ class BlockingMonoFunctionAccessor<T, D>(
  * @param scheduler the scheduler to use for blocking operations (defaults to bounded elastic)
  * @return a Mono that will execute on an appropriate thread for blocking operations
  */
-fun <T> Mono<T>.toBlockable(scheduler: Scheduler = Schedulers.boundedElastic()): Mono<T> {
+fun <T : Any> Mono<T>.toBlockable(scheduler: Scheduler = Schedulers.boundedElastic()): Mono<T> {
     if (Schedulers.isInNonBlockingThread()) {
         return this.subscribeOn(scheduler)
     }

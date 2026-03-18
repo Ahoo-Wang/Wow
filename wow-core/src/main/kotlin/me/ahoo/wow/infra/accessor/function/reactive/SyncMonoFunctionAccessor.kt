@@ -25,7 +25,7 @@ import kotlin.reflect.KFunction
  * @param D the type of data in the Mono
  * @property function the synchronous Kotlin function to be invoked
  */
-class SyncMonoFunctionAccessor<T, D>(
+class SyncMonoFunctionAccessor<T, D : Any>(
     function: KFunction<*>
 ) : AbstractMonoFunctionAccessor<T, Mono<D>>(function) {
 

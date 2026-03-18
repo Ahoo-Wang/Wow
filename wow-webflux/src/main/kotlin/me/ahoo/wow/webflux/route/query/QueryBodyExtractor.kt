@@ -24,7 +24,7 @@ import org.springframework.web.reactive.function.BodyExtractor
 import org.springframework.web.reactive.function.BodyExtractors
 import reactor.core.publisher.Mono
 
-class QueryBodyExtractor<Q>(private val queryType: Class<Q>) : BodyExtractor<Mono<Q>, ReactiveHttpInputMessage> {
+class QueryBodyExtractor<Q : Any>(private val queryType: Class<Q>) : BodyExtractor<Mono<Q>, ReactiveHttpInputMessage> {
     companion object {
         val CONDITION_EXTRACTOR = QueryBodyExtractor(Condition::class.java)
         val LIST_QUERY_EXTRACTOR = QueryBodyExtractor(ListQuery::class.java)

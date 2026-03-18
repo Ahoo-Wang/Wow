@@ -20,7 +20,7 @@ package me.ahoo.wow.api.query
  * type-safe value retrieval and nested document access. It's designed for working with
  * dynamic data structures where the schema is not known at compile time.
  */
-interface DynamicDocument : MutableMap<String, Any> {
+interface DynamicDocument : MutableMap<String, Any?> {
     /**
      * Retrieves a value from the document with type casting.
      *
@@ -34,7 +34,9 @@ interface DynamicDocument : MutableMap<String, Any> {
      * @throws NoSuchElementException if the key is not present in the document.
      */
     @Suppress("UNCHECKED_CAST")
-    fun <V> getValue(key: String): V = get(key) as V
+    fun <V> getValue(key: String): V =
+        get(key) as? V
+            ?: throw NoSuchElementException("Key not found: $key")
 
     /**
      * Retrieves a nested document from the current document.
@@ -60,9 +62,9 @@ interface DynamicDocument : MutableMap<String, Any> {
  * @property delegation The underlying mutable map that stores the document data.
  */
 class SimpleDynamicDocument(
-    val delegation: MutableMap<String, Any>
+    val delegation: MutableMap<String, Any?>
 ) : DynamicDocument,
-    MutableMap<String, Any> by delegation {
+    MutableMap<String, Any?> by delegation {
     /**
      * Retrieves a nested document, converting it to a DynamicDocument if necessary.
      *
@@ -74,7 +76,23 @@ class SimpleDynamicDocument(
      * @throws NoSuchElementException if the key is not present.
      * @throws ClassCastException if the value cannot be converted to a DynamicDocument.
      */
-    override fun getNestedDocument(key: String): DynamicDocument = getValue<DynamicDocument>(key).toDynamicDocument()
+    override fun getNestedDocument(key: String): DynamicDocument {
+        val value = get(key) ?: throw NoSuchElementException("Key not found: $key")
+        return when (value) {
+            is DynamicDocument -> {
+                value
+            }
+
+            is MutableMap<*, *> -> {
+                @Suppress("UNCHECKED_CAST")
+                (value as MutableMap<String, Any?>).toDynamicDocument()
+            }
+
+            else -> {
+                throw ClassCastException("Value [$value] is not a DynamicDocument or MutableMap")
+            }
+        }
+    }
 
     companion object {
         /**
@@ -85,6 +103,9 @@ class SimpleDynamicDocument(
          * @receiver The mutable map to convert.
          * @return A new SimpleDynamicDocument wrapping the map.
          */
-        fun MutableMap<String, Any>.toDynamicDocument(): SimpleDynamicDocument = SimpleDynamicDocument(this)
+        @Suppress("UNCHECKED_CAST")
+        fun MutableMap<String, *>.toDynamicDocument(): SimpleDynamicDocument = SimpleDynamicDocument(
+            this as MutableMap<String, Any?>
+        )
     }
 }

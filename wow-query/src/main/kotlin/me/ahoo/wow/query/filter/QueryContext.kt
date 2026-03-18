@@ -69,15 +69,15 @@ interface QueryContext<Q : Any, R : Any> {
         return attributes[key] as V?
     }
 
-    fun <E> asSingleQuery(): QueryContext<ISingleQuery, Mono<E>> {
+    fun <E : Any> asSingleQuery(): QueryContext<ISingleQuery, Mono<E>> {
         return this as QueryContext<ISingleQuery, Mono<E>>
     }
 
-    fun <E> asListQuery(): QueryContext<IListQuery, Flux<E>> {
+    fun <E : Any> asListQuery(): QueryContext<IListQuery, Flux<E>> {
         return this as QueryContext<IListQuery, Flux<E>>
     }
 
-    fun <E> asPagedQuery(): QueryContext<IPagedQuery, Mono<PagedList<E>>> {
+    fun <E : Any> asPagedQuery(): QueryContext<IPagedQuery, Mono<PagedList<E>>> {
         return this as QueryContext<IPagedQuery, Mono<PagedList<E>>>
     }
 

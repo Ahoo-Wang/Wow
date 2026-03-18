@@ -28,7 +28,7 @@ fun <S : Any> S.tryMask(): S {
     return this
 }
 
-fun <SOURCE : IMaterializedSnapshot<SOURCE, S>, S> SOURCE.tryMask(): SOURCE {
+fun <SOURCE : IMaterializedSnapshot<SOURCE, S>, S : Any> SOURCE.tryMask(): SOURCE {
     val state = this.state
     if (state !is DataMasking<*>) {
         return this
@@ -38,7 +38,7 @@ fun <SOURCE : IMaterializedSnapshot<SOURCE, S>, S> SOURCE.tryMask(): SOURCE {
     return this.withState(maskedState)
 }
 
-fun <SOURCE : IMaterializedSnapshot<SOURCE, S>, S> PagedList<SOURCE>.tryMask(): PagedList<SOURCE> {
+fun <SOURCE : IMaterializedSnapshot<SOURCE, S>, S : Any> PagedList<SOURCE>.tryMask(): PagedList<SOURCE> {
     if (list.isEmpty()) {
         return this
     }

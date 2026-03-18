@@ -86,7 +86,7 @@ abstract class AbstractRedisMessageBus<M, E>(
 
     private fun receive(
         topic: String,
-        options: StreamReceiverOptions<String, MapRecord<String, String, String>>?,
+        options: StreamReceiverOptions<String, MapRecord<String, String, String>>,
         consumer: Consumer,
         group: String
     ): Flux<E> {
