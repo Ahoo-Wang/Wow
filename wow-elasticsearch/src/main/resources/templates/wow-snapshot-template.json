@@ -51,6 +51,9 @@
         "deleted": {
           "type": "boolean"
         },
+        "tags": {
+          "type": "flattened"
+        },
         "state": {
           "properties": {
             "id": {
