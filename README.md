@@ -17,6 +17,12 @@
 
 > [中文文档](https://wow.ahoo.me/zh/) | [English Document](https://wow.ahoo.me/)
 
+## Spring Boot Version Compatibility
+
+> **Wow 6.x** supports Spring Boot 3.x , base Java 17
+>
+> **Wow 8.x** supports Spring Boot 4.x , base Java 17
+
 ## Quick Start
 
 Use [Wow Project Template](https://github.com/Ahoo-Wang/wow-project-template) to quickly create a DDD project based on the Wow framework.
