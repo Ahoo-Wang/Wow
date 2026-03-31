@@ -26,7 +26,7 @@ jmh = "1.37"
 # plugins
 test-retry = "1.6.4"
 detekt = "1.23.8"
-dokka = "2.1.0"
+dokka = "2.2.0"
 kotlin = "2.3.20"
 ksp = "2.3.6"
 publish-plugin = "2.0.0"
