@@ -273,11 +273,12 @@ enum class Operator {
 
     /**
      * Full-text match operator.
-     * Matches documents where the specified field contains the given search keywords.
-     * Uses database-native full-text search capabilities.
+     * Performs a full-text search for the given keywords using database-native capabilities.
+     * The exact matching behavior (such as which fields are searched) is backend-specific.
      *
-     * For MongoDB: Uses [Filters.text] which performs full-text search on indexed fields.
-     * For Elasticsearch: Uses [QueryBuilders.match] for standard full-text search.
+     * For MongoDB: Uses `Filters.text`, which runs a full-text search over the configured text index
+     * and is not restricted to a single field.
+     * For Elasticsearch: Uses `QueryBuilders.match` for standard full-text search on the specified field.
      */
     MATCH,
 
