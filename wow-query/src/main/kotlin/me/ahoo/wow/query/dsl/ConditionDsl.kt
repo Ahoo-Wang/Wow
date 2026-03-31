@@ -299,6 +299,14 @@ class ConditionDsl : NestedFieldDsl() {
         name endsWith value
     }
 
+    infix fun String.match(value: String) {
+        condition(Condition.match(this.withNestedField(), value))
+    }
+
+    infix fun KCallable<*>.match(value: String) {
+        name match value
+    }
+
     infix fun String.elemMatch(block: ConditionDsl.() -> Unit) {
         val nestedDsl = ConditionDsl()
         nestedDsl.block()

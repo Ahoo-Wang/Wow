@@ -18,6 +18,7 @@ import co.elastic.clients.elasticsearch._types.query_dsl.Query
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.bool
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.exists
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.ids
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.match
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchAll
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchPhrase
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.nested
@@ -430,6 +431,22 @@ class ElasticsearchConditionConverterTest {
             wildcard {
                 it.field("field")
                     .value("*value")
+            }
+        )
+    }
+
+    @Test
+    fun `match condition to Query`() {
+        val query = condition {
+            "field" match "value"
+        }.let {
+            SnapshotConditionConverter.convert(it)
+        }
+        assertConvert(
+            query,
+            match {
+                it.field("field")
+                    .query("value")
             }
         )
     }

@@ -27,6 +27,7 @@ import org.bson.conversions.Bson
 
 abstract class AbstractMongoConditionConverter : AbstractConditionConverter<Bson>() {
     protected abstract val fieldConverter: FieldConverter
+
     protected open fun convertCondition(condition: Condition): Condition {
         val convertedField = fieldConverter.convert(condition.field)
         if (convertedField == condition.field) {
@@ -61,58 +62,39 @@ abstract class AbstractMongoConditionConverter : AbstractConditionConverter<Bson
         return Filters.nor(condition.children.map { internalConvert(it) })
     }
 
-    override fun id(condition: Condition): Bson {
-        return Filters.eq(condition.value)
-    }
+    override fun id(condition: Condition): Bson = Filters.eq(condition.value)
 
-    override fun ids(condition: Condition): Bson {
-        return Filters.`in`(Documents.ID_FIELD, condition.valueAs<Iterable<String>>())
-    }
+    override fun ids(condition: Condition): Bson = Filters.`in`(
+        Documents.ID_FIELD,
+        condition.valueAs<Iterable<String>>()
+    )
 
-    override fun tenantId(condition: Condition): Bson {
-        return Filters.eq(MessageRecords.TENANT_ID, condition.value)
-    }
+    override fun tenantId(condition: Condition): Bson = Filters.eq(MessageRecords.TENANT_ID, condition.value)
 
-    override fun ownerId(condition: Condition): Bson {
-        return Filters.eq(MessageRecords.OWNER_ID, condition.value)
-    }
+    override fun ownerId(condition: Condition): Bson = Filters.eq(MessageRecords.OWNER_ID, condition.value)
 
-    override fun spaceId(condition: Condition): Bson {
-        return Filters.eq(MessageRecords.SPACE_ID, condition.value)
-    }
+    override fun spaceId(condition: Condition): Bson = Filters.eq(MessageRecords.SPACE_ID, condition.value)
 
     override fun all(condition: Condition): Bson = Filters.empty()
 
-    override fun eq(condition: Condition): Bson {
-        return Filters.eq(condition.field, condition.value)
-    }
+    override fun eq(condition: Condition): Bson = Filters.eq(condition.field, condition.value)
 
-    override fun ne(condition: Condition): Bson {
-        return Filters.ne(condition.field, condition.value)
-    }
+    override fun ne(condition: Condition): Bson = Filters.ne(condition.field, condition.value)
 
-    override fun gt(condition: Condition): Bson {
-        return Filters.gt(condition.field, condition.value)
-    }
+    override fun gt(condition: Condition): Bson = Filters.gt(condition.field, condition.value)
 
-    override fun lt(condition: Condition): Bson {
-        return Filters.lt(condition.field, condition.value)
-    }
+    override fun lt(condition: Condition): Bson = Filters.lt(condition.field, condition.value)
 
-    override fun gte(condition: Condition): Bson {
-        return Filters.gte(condition.field, condition.value)
-    }
+    override fun gte(condition: Condition): Bson = Filters.gte(condition.field, condition.value)
 
-    override fun lte(condition: Condition): Bson {
-        return Filters.lte(condition.field, condition.value)
-    }
+    override fun lte(condition: Condition): Bson = Filters.lte(condition.field, condition.value)
 
     /**
      * Escape special characters in regular expressions
      * @return Escaped string
      */
-    private fun String.escapeRegex(): String {
-        return replace("\\", "\\\\")
+    private fun String.escapeRegex(): String =
+        replace("\\", "\\\\")
             .replace("^", "\\^")
             .replace("$", "\\$")
             .replace(".", "\\.")
@@ -126,35 +108,32 @@ abstract class AbstractMongoConditionConverter : AbstractConditionConverter<Bson
             .replace("]", "\\]")
             .replace("{", "\\{")
             .replace("}", "\\}")
-    }
 
-    private fun regex(field: String, value: String, ignoreCase: Boolean?): Bson {
-        return if (ignoreCase == true) {
+    private fun regex(
+        field: String,
+        value: String,
+        ignoreCase: Boolean?
+    ): Bson =
+        if (ignoreCase == true) {
             Filters.regex(field, value, "i")
         } else {
             Filters.regex(field, value)
         }
-    }
 
-    override fun contains(condition: Condition): Bson {
-        return regex(condition.field, condition.valueAs<String>().escapeRegex(), condition.ignoreCase())
-    }
+    override fun contains(condition: Condition): Bson =
+        regex(condition.field, condition.valueAs<String>().escapeRegex(), condition.ignoreCase())
 
-    override fun startsWith(condition: Condition): Bson {
-        return regex(condition.field, "^${condition.valueAs<String>().escapeRegex()}", condition.ignoreCase())
-    }
+    override fun match(condition: Condition): Bson = Filters.text(condition.valueAs())
 
-    override fun endsWith(condition: Condition): Bson {
-        return regex(condition.field, "${condition.valueAs<String>().escapeRegex()}$", condition.ignoreCase())
-    }
+    override fun startsWith(condition: Condition): Bson =
+        regex(condition.field, "^${condition.valueAs<String>().escapeRegex()}", condition.ignoreCase())
 
-    override fun isIn(condition: Condition): Bson {
-        return Filters.`in`(condition.field, condition.valueAs<Iterable<*>>())
-    }
+    override fun endsWith(condition: Condition): Bson =
+        regex(condition.field, "${condition.valueAs<String>().escapeRegex()}$", condition.ignoreCase())
 
-    override fun notIn(condition: Condition): Bson {
-        return Filters.nin(condition.field, condition.valueAs<Iterable<*>>())
-    }
+    override fun isIn(condition: Condition): Bson = Filters.`in`(condition.field, condition.valueAs<Iterable<*>>())
+
+    override fun notIn(condition: Condition): Bson = Filters.nin(condition.field, condition.valueAs<Iterable<*>>())
 
     override fun between(condition: Condition): Bson {
         val valueIterable = condition.valueAs<Iterable<Any>>()
@@ -170,39 +149,26 @@ abstract class AbstractMongoConditionConverter : AbstractConditionConverter<Bson
         return Filters.and(Filters.gte(condition.field, first), Filters.lte(condition.field, second))
     }
 
-    override fun allIn(condition: Condition): Bson {
-        return Filters.all(condition.field, condition.valueAs<Iterable<*>>())
-    }
+    override fun allIn(condition: Condition): Bson = Filters.all(condition.field, condition.valueAs<Iterable<*>>())
 
-    override fun elemMatch(condition: Condition): Bson {
-        return Filters.elemMatch(
+    override fun elemMatch(condition: Condition): Bson =
+        Filters.elemMatch(
             condition.field,
-            condition.children.first().let { internalConvert(it) }
+            condition.children.first().let { internalConvert(it) },
         )
-    }
 
-    override fun isNull(condition: Condition): Bson {
-        return Filters.eq(condition.field, null)
-    }
+    override fun isNull(condition: Condition): Bson = Filters.eq(condition.field, null)
 
-    override fun notNull(condition: Condition): Bson {
-        return Filters.ne(condition.field, null)
-    }
+    override fun notNull(condition: Condition): Bson = Filters.ne(condition.field, null)
 
-    override fun isTrue(condition: Condition): Bson {
-        return Filters.eq(condition.field, true)
-    }
+    override fun isTrue(condition: Condition): Bson = Filters.eq(condition.field, true)
 
-    override fun isFalse(condition: Condition): Bson {
-        return Filters.eq(condition.field, false)
-    }
+    override fun isFalse(condition: Condition): Bson = Filters.eq(condition.field, false)
 
-    override fun exists(condition: Condition): Bson {
-        return Filters.exists(condition.field, condition.valueAs())
-    }
+    override fun exists(condition: Condition): Bson = Filters.exists(condition.field, condition.valueAs())
 
-    override fun deleted(condition: Condition): Bson {
-        return when (condition.deletionState()) {
+    override fun deleted(condition: Condition): Bson =
+        when (condition.deletionState()) {
             DeletionState.ACTIVE -> {
                 Filters.eq(StateAggregateRecords.DELETED, false)
             }
@@ -215,10 +181,9 @@ abstract class AbstractMongoConditionConverter : AbstractConditionConverter<Bson
                 Filters.empty()
             }
         }
-    }
 
-    override fun raw(condition: Condition): Bson {
-        return when (condition.value) {
+    override fun raw(condition: Condition): Bson =
+        when (condition.value) {
             is Bson -> {
                 condition.valueAs()
             }
@@ -236,5 +201,4 @@ abstract class AbstractMongoConditionConverter : AbstractConditionConverter<Bson
                 Document.parse(conditionValueJson)
             }
         }
-    }
 }

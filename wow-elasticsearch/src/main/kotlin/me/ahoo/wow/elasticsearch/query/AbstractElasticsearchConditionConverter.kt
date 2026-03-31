@@ -18,6 +18,7 @@ import co.elastic.clients.elasticsearch._types.query_dsl.Query
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.bool
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.exists
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.ids
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.match
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchAll
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchPhrase
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.nested
@@ -148,6 +149,13 @@ abstract class AbstractElasticsearchConditionConverter : AbstractConditionConver
                 .query(condition.valueAs<String>())
         }
     }
+
+    override fun match(condition: Condition): Query =
+        match {
+            it
+                .field(condition.field)
+                .query(condition.valueAs<String>())
+        }
 
     override fun isIn(condition: Condition): Query {
         return terms {
