@@ -382,6 +382,7 @@ class SnapshotConditionConverterTest {
             return Stream.of(
                 Arguments.of(Condition.eq(MessageRecords.AGGREGATE_ID, "1"), Filters.eq(Documents.ID_FIELD, "1")),
                 Arguments.of(Condition.deleted(false), Filters.eq("deleted", false)),
+                Arguments.of(Condition.match("", "search text"), Filters.text("search text")),
                 Arguments.of(Condition.tenantId("tenantId"), Filters.eq("tenantId", "tenantId")),
                 Arguments.of(Condition.ownerId("ownerId"), Filters.eq("ownerId", "ownerId")),
                 Arguments.of(Condition.nor(Condition.all()), Filters.nor(Filters.empty())),

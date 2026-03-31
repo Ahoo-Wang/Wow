@@ -443,6 +443,19 @@ data class Condition(
         ) = Condition(field, Operator.CONTAINS, value, options = ignoreCaseOptions(ignoreCase))
 
         /**
+         * Creates a full-text match condition for text fields.
+         * Matches documents where the specified field contains the given search keywords.
+         *
+         * @param field The field name to search.
+         * @param value The search keywords.
+         * @return A new full-text match condition.
+         */
+        fun match(
+            field: String,
+            value: String
+        ) = Condition(field, Operator.MATCH, value)
+
+        /**
          * Creates a starts-with condition for string fields.
          * Matches documents where the specified field starts with the given prefix.
          *

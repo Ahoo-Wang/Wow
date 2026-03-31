@@ -97,6 +97,7 @@ class ConditionDslTest {
                 nested("")
                 "field30" eq "value30"
             }
+            "field31" match "value31"
         }
         condition.assert().isEqualTo(
             Condition.and(
@@ -160,6 +161,7 @@ class ConditionDslTest {
                     Condition.eq("state.field28", "value28"),
                     Condition.eq("state.child.field29", "value29"),
                     Condition.eq("field30", "value30"),
+                    Condition.match("field31", "value31")
                 )
             )
         )
