@@ -18,6 +18,7 @@ import co.elastic.clients.elasticsearch._types.query_dsl.Query
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.bool
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.exists
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.ids
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.match
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchAll
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.matchPhrase
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.nested
@@ -37,134 +38,136 @@ import me.ahoo.wow.serialization.toJsonString
 import java.io.StringReader
 
 abstract class AbstractElasticsearchConditionConverter : AbstractConditionConverter<Query>() {
-    override fun and(condition: Condition): Query {
-        return bool { builder ->
+    override fun and(condition: Condition): Query =
+        bool { builder ->
             builder.filter(condition.children.map { internalConvert(it) })
         }
-    }
 
-    override fun or(condition: Condition): Query {
-        return bool { builder ->
-            builder.should(condition.children.map { internalConvert(it) })
+    override fun or(condition: Condition): Query =
+        bool { builder ->
+            builder
+                .should(condition.children.map { internalConvert(it) })
                 .minimumShouldMatch("1")
         }
-    }
 
-    override fun nor(condition: Condition): Query {
-        return bool { builder ->
+    override fun nor(condition: Condition): Query =
+        bool { builder ->
             builder.mustNot(condition.children.map { internalConvert(it) })
         }
-    }
 
-    override fun id(condition: Condition): Query {
-        return ids {
+    override fun id(condition: Condition): Query =
+        ids {
             it.values(condition.valueAs<String>())
         }
-    }
 
-    override fun ids(condition: Condition): Query {
-        return ids {
+    override fun ids(condition: Condition): Query =
+        ids {
             it.values(condition.valueAs<List<String>>())
         }
-    }
 
-    override fun tenantId(condition: Condition): Query {
-        return term {
-            it.field(MessageRecords.TENANT_ID)
+    override fun tenantId(condition: Condition): Query =
+        term {
+            it
+                .field(MessageRecords.TENANT_ID)
                 .value(FieldValue.of(condition.value))
         }
-    }
 
-    override fun ownerId(condition: Condition): Query {
-        return term {
-            it.field(MessageRecords.OWNER_ID)
+    override fun ownerId(condition: Condition): Query =
+        term {
+            it
+                .field(MessageRecords.OWNER_ID)
                 .value(FieldValue.of(condition.value))
         }
-    }
 
-    override fun spaceId(condition: Condition): Query {
-        return term {
-            it.field(MessageRecords.SPACE_ID)
+    override fun spaceId(condition: Condition): Query =
+        term {
+            it
+                .field(MessageRecords.SPACE_ID)
                 .value(FieldValue.of(condition.value))
         }
-    }
 
-    override fun all(condition: Condition): Query {
-        return matchAll { it }
-    }
+    override fun all(condition: Condition): Query = matchAll { it }
 
-    override fun eq(condition: Condition): Query {
-        return term {
-            it.field(condition.field)
+    override fun eq(condition: Condition): Query =
+        term {
+            it
+                .field(condition.field)
                 .value(FieldValue.of(condition.value))
         }
-    }
 
-    override fun ne(condition: Condition): Query {
-        return bool { builder ->
+    override fun ne(condition: Condition): Query =
+        bool { builder ->
             builder.mustNot(eq(condition))
         }
-    }
 
-    override fun gt(condition: Condition): Query {
-        return range {
+    override fun gt(condition: Condition): Query =
+        range {
             it.untyped {
-                it.field(condition.field)
+                it
+                    .field(condition.field)
                     .gt(JsonData.of(condition.value))
             }
         }
-    }
 
-    override fun lt(condition: Condition): Query {
-        return range {
+    override fun lt(condition: Condition): Query =
+        range {
             it.untyped {
-                it.field(condition.field)
+                it
+                    .field(condition.field)
                     .lt(JsonData.of(condition.value))
             }
         }
-    }
 
-    override fun gte(condition: Condition): Query {
-        return range {
+    override fun gte(condition: Condition): Query =
+        range {
             it.untyped {
-                it.field(condition.field)
+                it
+                    .field(condition.field)
                     .gte(JsonData.of(condition.value))
             }
         }
-    }
 
-    override fun lte(condition: Condition): Query {
-        return range {
+    override fun lte(condition: Condition): Query =
+        range {
             it.untyped {
-                it.field(condition.field)
+                it
+                    .field(condition.field)
                     .lte(JsonData.of(condition.value))
             }
         }
-    }
 
-    override fun contains(condition: Condition): Query {
-        return matchPhrase {
-            it.field(condition.field)
+    override fun contains(condition: Condition): Query =
+        matchPhrase {
+            it
+                .field(condition.field)
                 .query(condition.valueAs<String>())
         }
-    }
 
-    override fun isIn(condition: Condition): Query {
-        return terms {
-            it.field(condition.field)
+    override fun match(condition: Condition): Query =
+        match {
+            it
+                .field(condition.field)
+                .query(condition.valueAs<String>())
+        }
+
+    override fun isIn(condition: Condition): Query =
+        terms {
+            it
+                .field(condition.field)
                 .terms { builder ->
-                    condition.valueAs<List<Any>>().map {
-                        FieldValue.of(it)
-                    }.toList().let { builder.value(it) }
+                    condition
+                        .valueAs<List<Any>>()
+                        .map {
+                            FieldValue.of(it)
+                        }.toList()
+                        .let { builder.value(it) }
                 }
         }
-    }
 
-    override fun notIn(condition: Condition): Query {
-        return bool { builder ->
+    override fun notIn(condition: Condition): Query =
+        bool { builder ->
             builder.mustNot(isIn(condition))
         }
-    }
 
     override fun between(condition: Condition): Query {
         val valueIterable = condition.valueAs<Iterable<Any>>()
@@ -179,7 +182,8 @@ abstract class AbstractElasticsearchConditionConverter : AbstractConditionConver
         val second = ite.next()
         return range {
             it.untyped {
-                it.field(condition.field)
+                it
+                    .field(condition.field)
                     .gte(JsonData.of(first))
                     .lte(JsonData.of(second))
             }
@@ -189,69 +193,70 @@ abstract class AbstractElasticsearchConditionConverter : AbstractConditionConver
     override fun allIn(condition: Condition): Query {
         val values = condition.valueAs<List<String>>()
         return termsSet { builder ->
-            builder.field(condition.field)
+            builder
+                .field(condition.field)
                 .terms(values)
                 .minimumShouldMatch(values.size.toString())
         }
     }
 
-    override fun startsWith(condition: Condition): Query {
-        return prefix {
-            it.field(condition.field)
+    override fun startsWith(condition: Condition): Query =
+        prefix {
+            it
+                .field(condition.field)
                 .value(condition.valueAs<String>())
         }
-    }
 
-    override fun endsWith(condition: Condition): Query {
-        return wildcard {
-            it.field(condition.field)
+    override fun endsWith(condition: Condition): Query =
+        wildcard {
+            it
+                .field(condition.field)
                 .value("*${condition.valueAs<String>()}")
         }
-    }
 
-    override fun elemMatch(condition: Condition): Query {
-        return nested {
-            it.path(condition.field)
+    override fun elemMatch(condition: Condition): Query =
+        nested {
+            it
+                .path(condition.field)
                 .query(
                     bool { builder ->
                         builder.filter(condition.children.map { internalConvert(it) })
-                    }
+                    },
                 )
         }
-    }
 
-    override fun isNull(condition: Condition): Query {
-        return term {
-            it.field(condition.field)
+    override fun isNull(condition: Condition): Query =
+        term {
+            it
+                .field(condition.field)
                 .value(FieldValue.NULL)
         }
-    }
 
-    override fun notNull(condition: Condition): Query {
-        return bool {
+    override fun notNull(condition: Condition): Query =
+        bool {
             it.mustNot(isNull(condition))
         }
-    }
 
-    override fun isTrue(condition: Condition): Query {
-        return term {
-            it.field(condition.field)
+    override fun isTrue(condition: Condition): Query =
+        term {
+            it
+                .field(condition.field)
                 .value(FieldValue.TRUE)
         }
-    }
 
-    override fun isFalse(condition: Condition): Query {
-        return term {
-            it.field(condition.field)
+    override fun isFalse(condition: Condition): Query =
+        term {
+            it
+                .field(condition.field)
                 .value(FieldValue.FALSE)
         }
-    }
 
     override fun exists(condition: Condition): Query {
         val exists = condition.valueAs<Boolean>()
-        val existsQuery = exists {
-            it.field(condition.field)
-        }
+        val existsQuery =
+            exists {
+                it.field(condition.field)
+            }
         if (exists) {
             return existsQuery
         }
@@ -260,18 +265,20 @@ abstract class AbstractElasticsearchConditionConverter : AbstractConditionConver
         }
     }
 
-    override fun deleted(condition: Condition): Query {
-        return when (condition.deletionState()) {
+    override fun deleted(condition: Condition): Query =
+        when (condition.deletionState()) {
             DeletionState.ACTIVE -> {
                 term {
-                    it.field(StateAggregateRecords.DELETED)
+                    it
+                        .field(StateAggregateRecords.DELETED)
                         .value(false)
                 }
             }
 
             DeletionState.DELETED -> {
                 term {
-                    it.field(StateAggregateRecords.DELETED)
+                    it
+                        .field(StateAggregateRecords.DELETED)
                         .value(true)
                 }
             }
@@ -282,10 +289,9 @@ abstract class AbstractElasticsearchConditionConverter : AbstractConditionConver
                 }
             }
         }
-    }
 
-    override fun raw(condition: Condition): Query {
-        return when (condition.value) {
+    override fun raw(condition: Condition): Query =
+        when (condition.value) {
             is Query -> {
                 condition.valueAs<Query>()
             }
@@ -298,9 +304,6 @@ abstract class AbstractElasticsearchConditionConverter : AbstractConditionConver
                 condition.value.toJsonString().toQuery()
             }
         }
-    }
 
-    private fun String.toQuery(): Query {
-        return Query.Builder().withJson(StringReader(this)).build()
-    }
+    private fun String.toQuery(): Query = Query.Builder().withJson(StringReader(this)).build()
 }

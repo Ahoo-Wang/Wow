@@ -272,6 +272,16 @@ enum class Operator {
     EARLIER_DAYS,
 
     /**
+     * Full-text match operator.
+     * Matches documents where the specified field contains the given search keywords.
+     * Uses database-native full-text search capabilities.
+     *
+     * For MongoDB: Uses [Filters.text] which performs full-text search on indexed fields.
+     * For Elasticsearch: Uses [QueryBuilders.match] for standard full-text search.
+     */
+    MATCH,
+
+    /**
      * Raw operator.
      * Uses the condition value directly as a raw database query condition without any processing.
      */

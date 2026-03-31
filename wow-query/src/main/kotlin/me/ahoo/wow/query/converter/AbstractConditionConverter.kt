@@ -30,8 +30,8 @@ abstract class AbstractConditionConverter<T> : ConditionConverter<T> {
     }
 
     @Suppress("CyclomaticComplexMethod")
-    protected fun internalConvert(condition: Condition): T {
-        return when (condition.operator) {
+    protected fun internalConvert(condition: Condition): T =
+        when (condition.operator) {
             Operator.AND -> and(condition)
             Operator.OR -> or(condition)
             Operator.NOR -> nor(condition)
@@ -73,41 +73,74 @@ abstract class AbstractConditionConverter<T> : ConditionConverter<T> {
             Operator.LAST_MONTH -> lastMonth(condition)
             Operator.RECENT_DAYS -> recentDays(condition)
             Operator.EARLIER_DAYS -> earlierDays(condition)
+            Operator.MATCH -> match(condition)
             Operator.RAW -> raw(condition)
         }
-    }
 
     abstract fun and(condition: Condition): T
+
     abstract fun or(condition: Condition): T
+
     abstract fun nor(condition: Condition): T
+
     abstract fun id(condition: Condition): T
+
     abstract fun aggregateId(condition: Condition): T
+
     abstract fun aggregateIds(condition: Condition): T
+
     abstract fun ids(condition: Condition): T
+
     abstract fun tenantId(condition: Condition): T
+
     abstract fun ownerId(condition: Condition): T
+
     abstract fun spaceId(condition: Condition): T
+
     abstract fun all(condition: Condition): T
+
     abstract fun eq(condition: Condition): T
+
     abstract fun ne(condition: Condition): T
+
     abstract fun gt(condition: Condition): T
+
     abstract fun lt(condition: Condition): T
+
     abstract fun gte(condition: Condition): T
+
     abstract fun lte(condition: Condition): T
+
     abstract fun contains(condition: Condition): T
+
+    abstract fun match(condition: Condition): T
+
     abstract fun isIn(condition: Condition): T
+
     abstract fun notIn(condition: Condition): T
+
     abstract fun between(condition: Condition): T
+
     abstract fun allIn(condition: Condition): T
+
     abstract fun startsWith(condition: Condition): T
+
     abstract fun endsWith(condition: Condition): T
+
     abstract fun elemMatch(condition: Condition): T
+
     abstract fun isNull(condition: Condition): T
+
     abstract fun notNull(condition: Condition): T
+
     abstract fun isTrue(condition: Condition): T
+
     abstract fun isFalse(condition: Condition): T
+
     abstract fun exists(condition: Condition): T
+
     abstract fun deleted(condition: Condition): T
+
     abstract fun raw(condition: Condition): T
 
     private fun now(condition: Condition): OffsetDateTime {
@@ -115,13 +148,15 @@ abstract class AbstractConditionConverter<T> : ConditionConverter<T> {
         return OffsetDateTime.now(zoneId)
     }
 
-    private fun toDate(time: OffsetDateTime, datePattern: DateTimeFormatter?): Any {
-        return if (datePattern != null) {
+    private fun toDate(
+        time: OffsetDateTime,
+        datePattern: DateTimeFormatter?
+    ): Any =
+        if (datePattern != null) {
             time.format(datePattern)
         } else {
             time.toInstant().toEpochMilli()
         }
-    }
 
     protected fun today(condition: Condition): T {
         val now = now(condition)
@@ -131,19 +166,29 @@ abstract class AbstractConditionConverter<T> : ConditionConverter<T> {
             field = condition.field,
             from = startOfDay,
             to = endOfDay,
-            datePattern = condition.datePattern()
+            datePattern = condition.datePattern(),
         )
     }
 
     protected fun beforeToday(condition: Condition): T {
-        val time = when (val conditionValue = condition.value) {
-            is Number -> LocalTime.ofSecondOfDay(conditionValue.toLong())
-            is String -> LocalTime.parse(conditionValue)
-            is LocalTime -> conditionValue
-            else -> {
-                throw IllegalArgumentException("Unsupported condition value type:${conditionValue::class.java}")
+        val time =
+            when (val conditionValue = condition.value) {
+                is Number -> {
+                    LocalTime.ofSecondOfDay(conditionValue.toLong())
+                }
+
+                is String -> {
+                    LocalTime.parse(conditionValue)
+                }
+
+                is LocalTime -> {
+                    conditionValue
+                }
+
+                else -> {
+                    throw IllegalArgumentException("Unsupported condition value type:${conditionValue::class.java}")
+                }
             }
-        }
         val now = now(condition).with(time)
         val ltDate = toDate(now, condition.datePattern())
         val ltCondition = Condition.lt(condition.field, ltDate)
@@ -158,7 +203,7 @@ abstract class AbstractConditionConverter<T> : ConditionConverter<T> {
             field = condition.field,
             from = startOfTomorrow,
             to = endOfTomorrow,
-            datePattern = condition.datePattern()
+            datePattern = condition.datePattern(),
         )
     }
 
@@ -171,33 +216,39 @@ abstract class AbstractConditionConverter<T> : ConditionConverter<T> {
             field = condition.field,
             from = startOfWeek,
             to = endOfWeek,
-            datePattern = condition.datePattern()
+            datePattern = condition.datePattern(),
         )
     }
 
     protected fun nextWeek(condition: Condition): T {
         val now = now(condition)
-        val startOfNextWeek = now.plusWeeks(1).with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-            .with(LocalTime.MIN)
+        val startOfNextWeek =
+            now
+                .plusWeeks(1)
+                .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+                .with(LocalTime.MIN)
         val endOfNextWeek = now.plusWeeks(1).with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY)).with(LocalTime.MAX)
         return timeRange(
             field = condition.field,
             from = startOfNextWeek,
             to = endOfNextWeek,
-            datePattern = condition.datePattern()
+            datePattern = condition.datePattern(),
         )
     }
 
     protected fun lastWeek(condition: Condition): T {
         val now = now(condition)
-        val startOfLastWeek = now.minusWeeks(1).with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-            .with(LocalTime.MIN)
+        val startOfLastWeek =
+            now
+                .minusWeeks(1)
+                .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+                .with(LocalTime.MIN)
         val endOfLastWeek = now.minusWeeks(1).with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY)).with(LocalTime.MAX)
         return timeRange(
             field = condition.field,
             from = startOfLastWeek,
             to = endOfLastWeek,
-            datePattern = condition.datePattern()
+            datePattern = condition.datePattern(),
         )
     }
 
@@ -209,7 +260,7 @@ abstract class AbstractConditionConverter<T> : ConditionConverter<T> {
             field = condition.field,
             from = startOfMonth,
             to = endOfMonth,
-            datePattern = condition.datePattern()
+            datePattern = condition.datePattern(),
         )
     }
 
@@ -221,7 +272,7 @@ abstract class AbstractConditionConverter<T> : ConditionConverter<T> {
             field = condition.field,
             from = startOfLastMonth,
             to = endOfLastMonth,
-            datePattern = condition.datePattern()
+            datePattern = condition.datePattern(),
         )
     }
 
@@ -234,7 +285,7 @@ abstract class AbstractConditionConverter<T> : ConditionConverter<T> {
             field = condition.field,
             from = startOfRecentDays,
             to = endOfRecentDays,
-            datePattern = condition.datePattern()
+            datePattern = condition.datePattern(),
         )
     }
 
