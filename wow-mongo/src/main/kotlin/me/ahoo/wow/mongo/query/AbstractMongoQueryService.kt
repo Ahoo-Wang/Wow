@@ -80,7 +80,7 @@ abstract class AbstractMongoQueryService<R : Any> : QueryService<R> {
         }
     }
 
-    private fun <T> pagedDocument(
+    private fun <T : Any> pagedDocument(
         pagedQuery: IPagedQuery,
         documentMapper: (Document) -> T
     ): Mono<PagedList<T>> {
