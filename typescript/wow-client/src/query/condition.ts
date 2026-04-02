@@ -534,6 +534,13 @@ export function startsWith<FIELDS extends string = string>(
   return { field, operator: Operator.STARTS_WITH, value, options };
 }
 
+export function match<FIELDS extends string = string>(
+  field: FIELDS,
+  value: string,
+): Condition<FIELDS> {
+  return { field, operator: Operator.MATCH, value };
+}
+
 /**
  * Creates an ENDS_WITH condition with the specified field and value.
  *
