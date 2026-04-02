@@ -39,6 +39,7 @@ export const en_US: OperatorLocale = {
   ALL_IN: 'All In',
   STARTS_WITH: 'Starts With',
   ENDS_WITH: 'Ends With',
+  MATCH: 'Match',
   ELEM_MATCH: 'Element Match',
   NULL: 'Is Null',
   NOT_NULL: 'Is Not Null',

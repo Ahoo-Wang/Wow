@@ -85,6 +85,10 @@ describe('Operator', () => {
   it('should have raw operator', () => {
     expect(Operator.RAW).toBe('RAW');
   });
+
+  it('should have match operator', () => {
+    expect(Operator.MATCH).toBe('MATCH');
+  });
 });
 
 describe('LOGICAL_OPERATORS', () => {

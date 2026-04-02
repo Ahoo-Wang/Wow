@@ -45,6 +45,7 @@ import {
   lastWeek,
   lt,
   lte,
+  match,
   ne,
   nextWeek,
   nor,
@@ -463,6 +464,15 @@ describe('Condition', () => {
           operator: Operator.ENDS_WITH,
           value: 'test',
           options: { ignoreCase: false },
+        });
+      });
+
+      it('should create MATCH condition', () => {
+        const result = match('name', 'test keyword');
+        expect(result).toEqual({
+          field: 'name',
+          operator: Operator.MATCH,
+          value: 'test keyword',
         });
       });
     });

@@ -534,6 +534,13 @@ export function startsWith<FIELDS extends string = string>(
   return { field, operator: Operator.STARTS_WITH, value, options };
 }
 
+/**
+ * Creates a MATCH condition for full-text search.
+ *
+ * @param field - The field name to search
+ * @param value - The search keywords
+ * @returns A condition with MATCH operator
+ */
 export function match<FIELDS extends string = string>(
   field: FIELDS,
   value: string,

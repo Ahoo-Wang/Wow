@@ -39,6 +39,7 @@ export const zh_CN: OperatorLocale = {
   ALL_IN: '全部包含',
   STARTS_WITH: '以...开头',
   ENDS_WITH: '以...结尾',
+  MATCH: '匹配',
   ELEM_MATCH: '元素匹配',
   NULL: '为空',
   NOT_NULL: '不为空',
