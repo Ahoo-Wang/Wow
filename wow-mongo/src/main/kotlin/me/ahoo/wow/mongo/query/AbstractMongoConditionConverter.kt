@@ -26,6 +26,10 @@ import org.bson.Document
 import org.bson.conversions.Bson
 
 abstract class AbstractMongoConditionConverter : AbstractConditionConverter<Bson>() {
+    companion object {
+        private val ESCAPE_CHARS = setOf('\\', '^', '$', '.', '|', '?', '*', '+', '(', ')', '[', ']', '{', '}')
+    }
+
     protected abstract val fieldConverter: FieldConverter
 
     protected open fun convertCondition(condition: Condition): Condition {
@@ -64,10 +68,11 @@ abstract class AbstractMongoConditionConverter : AbstractConditionConverter<Bson
 
     override fun id(condition: Condition): Bson = Filters.eq(condition.value)
 
-    override fun ids(condition: Condition): Bson = Filters.`in`(
-        Documents.ID_FIELD,
-        condition.valueAs<Iterable<String>>()
-    )
+    override fun ids(condition: Condition): Bson =
+        Filters.`in`(
+            Documents.ID_FIELD,
+            condition.valueAs<Iterable<String>>(),
+        )
 
     override fun tenantId(condition: Condition): Bson = Filters.eq(MessageRecords.TENANT_ID, condition.value)
 
@@ -89,25 +94,16 @@ abstract class AbstractMongoConditionConverter : AbstractConditionConverter<Bson
 
     override fun lte(condition: Condition): Bson = Filters.lte(condition.field, condition.value)
 
-    /**
-     * Escape special characters in regular expressions
-     * @return Escaped string
-     */
-    private fun String.escapeRegex(): String =
-        replace("\\", "\\\\")
-            .replace("^", "\\^")
-            .replace("$", "\\$")
-            .replace(".", "\\.")
-            .replace("|", "\\|")
-            .replace("?", "\\?")
-            .replace("*", "\\*")
-            .replace("+", "\\+")
-            .replace("(", "\\(")
-            .replace(")", "\\)")
-            .replace("[", "\\[")
-            .replace("]", "\\]")
-            .replace("{", "\\{")
-            .replace("}", "\\}")
+    private fun String.escapeRegex(): String {
+        val sb = StringBuilder(length + 16)
+        for (char in this) {
+            if (char in ESCAPE_CHARS) {
+                sb.append('\\')
+            }
+            sb.append(char)
+        }
+        return sb.toString()
+    }
 
     private fun regex(
         field: String,
