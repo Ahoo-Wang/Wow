@@ -73,7 +73,9 @@ internal class OrderTest {
             }
         }
         return aggregateVerifier<Order, OrderState>(tenantId = tenantId)
-            .inject(DefaultCreateOrderSpec(inventoryService, pricingService))
+            .inject {
+                register(DefaultCreateOrderSpec(inventoryService, pricingService))
+            }
             .given()
             .whenCommand(CreateOrder(orderItems, SHIPPING_ADDRESS, false))
             .expectEventType(OrderCreated::class)
@@ -135,7 +137,9 @@ internal class OrderTest {
             }
         }
         aggregateVerifier<Order, OrderState>()
-            .inject(DefaultCreateOrderSpec(inventoryService, pricingService))
+            .inject {
+                register(DefaultCreateOrderSpec(inventoryService, pricingService))
+            }
             .given()
             .whenCommand(CreateOrder(orderItems, ShippingAddress("US", "US", "US", "US", ""), false))
             .expectErrorType(IllegalArgumentException::class)
@@ -150,7 +154,9 @@ internal class OrderTest {
     @Test
     fun createOrderGivenEmptyItems() {
         aggregateVerifier<Order, OrderState>()
-            .inject(mockk<CreateOrderSpec>(), "createOrderSpec")
+            .inject {
+                register(mockk<CreateOrderSpec>(), "createOrderSpec")
+            }
             .given()
             .whenCommand(CreateOrder(listOf(), SHIPPING_ADDRESS, false))
             .expectErrorType(CommandValidationException::class)
@@ -189,7 +195,9 @@ internal class OrderTest {
         }
 
         aggregateVerifier<Order, OrderState>()
-            .inject(DefaultCreateOrderSpec(inventoryService, pricingService))
+            .inject {
+                register(DefaultCreateOrderSpec(inventoryService, pricingService))
+            }
             .given()
             .whenCommand(CreateOrder(orderItems, SHIPPING_ADDRESS, false))
             /*
@@ -230,7 +238,9 @@ internal class OrderTest {
             }
         }
         aggregateVerifier<Order, OrderState>()
-            .inject(DefaultCreateOrderSpec(inventoryService, pricingService))
+            .inject {
+                register(DefaultCreateOrderSpec(inventoryService, pricingService))
+            }
             .given()
             .whenCommand(CreateOrder(orderItems, SHIPPING_ADDRESS, false))
             /*

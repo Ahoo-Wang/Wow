@@ -61,7 +61,9 @@ class OrchestrationTest {
             }
         }
         aggregateVerifier<Order, OrderState>(tenantId = tenantId)
-            .inject(DefaultCreateOrderSpec(inventoryService, pricingService))
+            .inject {
+                register(DefaultCreateOrderSpec(inventoryService, pricingService))
+            }
             .whenCommand(CreateOrder(orderItems, SHIPPING_ADDRESS, false))
             .expectEventType(OrderCreated::class)
             .expectStateAggregate {
