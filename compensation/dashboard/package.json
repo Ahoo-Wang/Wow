@@ -30,7 +30,7 @@
     "monaco-editor": "^0.55.1",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
-    "react-router": "^7.13.2"
+    "react-router": "^7.14.0"
   },
   "devDependencies": {
     "@ahoo-wang/fetcher-generator": "^3.13.15",
