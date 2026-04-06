@@ -125,7 +125,7 @@ importers:
         version: 7.3.1(jiti@2.6.1)(lightningcss@1.32.0)(yaml@2.8.3)
       vite-bundle-analyzer:
         specifier: ^1.3.6
-        version: 1.3.6
+        version: 1.3.7
       vitest:
         specifier: ^4.1.2
         version: 4.1.2(@vitest/ui@4.0.18)(jsdom@28.1.0)(vite@7.3.1(jiti@2.6.1)(lightningcss@1.32.0)(yaml@2.8.3))
@@ -2170,8 +2170,8 @@ packages:
   uri-js@4.4.1:
     resolution: {integrity: sha512-7rKUyy33Q1yc98pQ1DAmLtwX109F7TIfWlW1Ydo8Wl1ii1SeHieeh0HHfPeL2fMXK6z0s8ecKs9frCuLJvndBg==}
 
-  vite-bundle-analyzer@1.3.6:
-    resolution: {integrity: sha512-elFXkF9oGy4CJEeOdP1DSEHRDKWfmaEDfT9/GuF4jmyfmUF6nC//iN+ythqMEVvrtchOEHGKLumZwnu1NjoI0w==}
+  vite-bundle-analyzer@1.3.7:
+    resolution: {integrity: sha512-dYlW6iM0Gq7+uSEfXytDC+UjruUMgEKhXwQUbw4cJUgHA6FdEhpLgIrL5OZEyabrzVen0mZyfOSESyZ7nGyT8g==}
     hasBin: true
 
   vite@7.3.1:
@@ -4338,7 +4338,7 @@ snapshots:
     dependencies:
       punycode: 2.3.1
 
-  vite-bundle-analyzer@1.3.6: {}
+  vite-bundle-analyzer@1.3.7: {}
 
   vite@7.3.1(jiti@2.6.1)(lightningcss@1.32.0)(yaml@2.8.3):
     dependencies:
