@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.cache.refresh
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.modeling.NamedAggregateDecorator
 import me.ahoo.wow.event.DomainEventExchange
@@ -31,7 +32,7 @@ abstract class StateCacheRefresher<S : Any, D, M : DomainEventExchange<*>>(
     NamedAggregateDecorator,
     MessageFunction<StateCacheRefresher<S, D, M>, M, Mono<Void>> {
     companion object {
-        private val log = org.slf4j.LoggerFactory.getLogger(StateCacheRefresher::class.java)
+        private val logger = KotlinLogging.logger { }
     }
 
     override val name: String = StateCacheRefresher<*, *, *>::invoke.name
@@ -46,8 +47,8 @@ abstract class StateCacheRefresher<S : Any, D, M : DomainEventExchange<*>>(
 
     override fun invoke(exchange: M): Mono<Void> {
         return Mono.fromRunnable<Void> {
-            if (log.isDebugEnabled) {
-                log.debug("[${this.javaClass.simpleName}] Refresh {} Cache.", exchange.message.aggregateId)
+            logger.debug {
+                "[${this.javaClass.simpleName}] Refresh [${exchange.message.aggregateId}] Cache."
             }
             refresh(exchange)
         }.subscribeOn(Schedulers.boundedElastic())
