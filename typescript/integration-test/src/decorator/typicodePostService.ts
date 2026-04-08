@@ -24,7 +24,7 @@ import {
   query,
 } from '@ahoo-wang/fetcher-decorator';
 import { typicodeFetcher } from '../fetcher';
-import { Post } from '../types';
+import { type Post } from '../types';
 
 @api('/posts', { fetcher: typicodeFetcher })
 export class TypicodePostService {

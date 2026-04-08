@@ -15,14 +15,14 @@ import {
   type SnapshotQueryApi,
   SnapshotQueryEndpointPaths,
 } from './snapshotQueryApi';
-import { aggregateId, aggregateIds, Condition } from '../condition';
+import { aggregateId, aggregateIds, type Condition } from '../condition';
 import {
   listQuery,
-  ListQuery,
-  PagedList,
-  PagedQuery,
+  type ListQuery,
+  type PagedList,
+  type PagedQuery,
   singleQuery,
-  SingleQuery,
+  type SingleQuery,
 } from '../queryable';
 import type { MaterializedSnapshot } from './snapshot';
 import {
@@ -117,12 +117,12 @@ import {
  */
 @api()
 export class SnapshotQueryClient<S, FIELDS extends string = string>
-  implements SnapshotQueryApi<S, FIELDS>, ApiMetadataCapable
-{
+  implements SnapshotQueryApi<S, FIELDS>, ApiMetadataCapable {
   /**
    * Creates a new SnapshotQueryClient instance.
    */
-  constructor(public readonly apiMetadata?: ApiMetadata) {}
+  constructor(public readonly apiMetadata?: ApiMetadata) {
+  }
 
   /**
    * Counts the number of snapshots that match the given condition.
