@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { DescriptionCapable } from '../types';
+import type { DescriptionCapable } from '../types';
 
 export interface ScopesCapable {
   scopes: string[];

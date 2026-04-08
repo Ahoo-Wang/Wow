@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { Identifier, Version } from '../../src';
+import type { Identifier, Version } from '../../src';
 
 describe('Common Types', () => {
   describe('Identifier', () => {

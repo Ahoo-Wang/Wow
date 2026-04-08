@@ -12,9 +12,10 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
+import type {
+  QueryClientOptions} from '../../src';
 import {
   QueryClientFactory,
-  QueryClientOptions,
   createQueryApiMetadata,
 } from '../../src';
 import {

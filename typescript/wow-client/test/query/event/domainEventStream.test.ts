@@ -12,9 +12,10 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import {
+import type {
   DomainEvent,
-  DomainEventStream,
+  DomainEventStream} from '../../../src';
+import {
   DomainEventStreamMetadataFields,
 } from '../../../src';
 

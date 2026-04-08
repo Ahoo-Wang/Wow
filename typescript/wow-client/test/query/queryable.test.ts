@@ -12,9 +12,10 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { all, asc, eq, FieldSort, projection } from '../../src';
+import type { FieldSort} from '../../src';
+import { all, asc, eq, projection } from '../../src';
 import { singleQuery, listQuery, pagedQuery, pagedList } from '../../src';
-import { Projection } from '../../src';
+import type { Projection } from '../../src';
 import { DEFAULT_PAGINATION } from '../../src';
 
 describe('queryable', () => {

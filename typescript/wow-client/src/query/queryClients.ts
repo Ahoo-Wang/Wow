@@ -11,10 +11,11 @@
  * limitations under the License.
  */
 
-import { combineURLs, PartialBy } from '@ahoo-wang/fetcher';
-import { ApiMetadata } from '@ahoo-wang/fetcher-decorator';
-import { AggregateNameCapable, AliasBoundedContext } from '../types';
-import { ResourceAttributionPathSpec } from '../types';
+import type { PartialBy } from '@ahoo-wang/fetcher';
+import { combineURLs } from '@ahoo-wang/fetcher';
+import type { ApiMetadata } from '@ahoo-wang/fetcher-decorator';
+import type { AggregateNameCapable, AliasBoundedContext } from '../types';
+import type { ResourceAttributionPathSpec } from '../types';
 import { SnapshotQueryClient } from './snapshot';
 import { EventStreamQueryClient } from './event';
 import { LoadStateAggregateClient } from './state';

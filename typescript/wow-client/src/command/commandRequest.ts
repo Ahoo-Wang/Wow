@@ -12,10 +12,10 @@
  */
 
 import type { RequestHeaders, UrlParams } from '@ahoo-wang/fetcher';
-import { CommandHeaders } from './commandHeaders';
+import type { CommandHeaders } from './commandHeaders';
 import { type UrlPathParams } from '../types';
-import { ParameterRequest } from '@ahoo-wang/fetcher-decorator';
-import { CommandBody } from './types';
+import type { ParameterRequest } from '@ahoo-wang/fetcher-decorator';
+import type { CommandBody } from './types';
 
 /**
  * Command Request Headers Interface

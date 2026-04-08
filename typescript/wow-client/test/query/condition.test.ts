@@ -12,6 +12,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import type {
+  Condition} from '../../src';
 import {
   active,
   aggregateId,
@@ -21,7 +23,6 @@ import {
   and,
   beforeToday,
   between,
-  Condition,
   ConditionOptionKey,
   contains,
   dateOptions,

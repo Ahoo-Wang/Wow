@@ -12,7 +12,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { ResourceAttributionPathSpec, UrlPathParams } from '../../src';
+import type { UrlPathParams } from '../../src';
+import { ResourceAttributionPathSpec } from '../../src';
 
 describe('endpoints', () => {
   describe('ResourceAttributionPathSpec', () => {

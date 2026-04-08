@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { Operator } from '../operator';
+import type { Operator } from '../operator';
 
 export type OperatorLocale = {
   [K in Operator]: string;

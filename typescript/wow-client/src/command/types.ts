@@ -11,8 +11,8 @@
  * limitations under the License.
  */
 
-import { ApplyAbacTags, ErrorInfo, FunctionInfoCapable, Identifier } from '../types';
-import { PartialBy, RemoveReadonlyFields } from '@ahoo-wang/fetcher';
+import type { ApplyAbacTags, ErrorInfo, FunctionInfoCapable, Identifier } from '../types';
+import type { PartialBy, RemoveReadonlyFields } from '@ahoo-wang/fetcher';
 
 /**
  * Command identifier interface

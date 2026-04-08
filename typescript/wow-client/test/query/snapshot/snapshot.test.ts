@@ -12,9 +12,10 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import {
+import type {
   MaterializedSnapshot,
-  SmallMaterializedSnapshot,
+  SmallMaterializedSnapshot} from '../../../src';
+import {
   SnapshotMetadataFields,
 } from '../../../src';
 

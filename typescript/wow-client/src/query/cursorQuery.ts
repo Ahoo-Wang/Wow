@@ -11,9 +11,11 @@
  * limitations under the License.
  */
 
-import { FieldSort, SortDirection } from './sort';
-import { ListQuery } from './queryable';
-import { and, Condition, gt, lt } from './condition';
+import type { FieldSort} from './sort';
+import { SortDirection } from './sort';
+import type { ListQuery } from './queryable';
+import type { Condition} from './condition';
+import { and, gt, lt } from './condition';
 
 /**
  * Represents a cursor-based pagination query configuration.

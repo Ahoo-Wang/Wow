@@ -14,7 +14,7 @@
 import { describe, expect, it } from 'vitest';
 import { zh_CN } from '../../../src/query/locale/zh_CN';
 import { Operator } from '../../../src';
-import { OperatorLocale } from '../../../src';
+import type { OperatorLocale } from '../../../src';
 
 describe('zh_CN locale', () => {
   it('should be a valid OperatorLocale', () => {
