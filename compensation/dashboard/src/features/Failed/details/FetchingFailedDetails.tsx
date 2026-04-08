@@ -11,8 +11,9 @@
  * limitations under the License.
  */
 
+import type {
+  ExecutionFailedAggregatedFields} from "../../../generated";
 import {
-  ExecutionFailedAggregatedFields,
   type ExecutionFailedState,
 } from "../../../generated";
 import { aggregateId, singleQuery } from "@ahoo-wang/fetcher-wow";
@@ -21,7 +22,7 @@ const { Text } = Typography;
 import { FailedDetails } from "./FailedDetails.tsx";
 import { executionFailedSnapshotQueryClient } from "../../../services";
 import { useSingleQuery } from "@ahoo-wang/fetcher-react";
-import { FetcherError } from "@ahoo-wang/fetcher";
+import type { FetcherError } from "@ahoo-wang/fetcher";
 
 export interface FetchingFailedDetailsProps {
   id: string;

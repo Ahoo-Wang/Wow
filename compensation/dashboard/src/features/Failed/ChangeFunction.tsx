@@ -12,8 +12,9 @@
  */
 
 import { App, Button, Form, Input, Select } from "antd";
+import type {
+  CommandResult} from "@ahoo-wang/fetcher-wow";
 import {
-  CommandResult,
   type FunctionInfo,
   type Identifier,
 } from "@ahoo-wang/fetcher-wow";
@@ -21,7 +22,7 @@ import { executionFailedCommandClient } from "../../services";
 import type { OnChangedCapable } from "./Actions.tsx";
 import { useGlobalDrawer } from "../../components/GlobalDrawer";
 import { useExecutePromise } from "@ahoo-wang/fetcher-react";
-import { ExchangeError } from "@ahoo-wang/fetcher";
+import type { ExchangeError } from "@ahoo-wang/fetcher";
 import { useEffect } from "react";
 
 export interface ChangeFunctionProps extends OnChangedCapable {

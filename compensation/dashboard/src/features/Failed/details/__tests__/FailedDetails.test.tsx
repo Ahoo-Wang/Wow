@@ -1,12 +1,14 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { FailedDetails } from "../FailedDetails.tsx";
+import type {
+  ExecutionFailedState} from "../../../../generated";
 import {
-  ExecutionFailedState,
   ExecutionFailedStatus,
 } from "../../../../generated";
+import type {
+  ErrorInfo} from "@ahoo-wang/fetcher-wow";
 import {
-  ErrorInfo,
   FunctionKind,
   RecoverableType,
 } from "@ahoo-wang/fetcher-wow";
