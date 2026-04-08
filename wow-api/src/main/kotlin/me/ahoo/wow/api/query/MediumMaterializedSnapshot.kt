@@ -45,8 +45,8 @@ import me.ahoo.wow.api.modeling.TenantId
  */
 data class MediumMaterializedSnapshot<S : Any>(
     override val tenantId: String,
-    override val ownerId: String,
-    override val spaceId: SpaceId,
+    override val ownerId: String = OwnerId.DEFAULT_OWNER_ID,
+    override val spaceId: SpaceId = SpaceIdCapable.DEFAULT_SPACE_ID,
     override val version: Int,
     override val eventId: String,
     override val firstOperator: String,
