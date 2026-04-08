@@ -1,5 +1,6 @@
-import { QueryClientFactory, QueryClientOptions, ResourceAttributionPathSpec } from "@ahoo-wang/fetcher-wow";
-import { CartAggregatedFields, CartItemAdded, CartItemRemoved, CartQuantityChanged, CartState } from "./types";
+import type { QueryClientOptions} from "@ahoo-wang/fetcher-wow";
+import { QueryClientFactory, ResourceAttributionPathSpec } from "@ahoo-wang/fetcher-wow";
+import type { CartAggregatedFields, CartItemAdded, CartItemRemoved, CartQuantityChanged, CartState } from "./types";
 import { EXAMPLE_BOUNDED_CONTEXT_ALIAS } from "../boundedContext";
 
 const DEFAULT_QUERY_CLIENT_OPTIONS: QueryClientOptions = {

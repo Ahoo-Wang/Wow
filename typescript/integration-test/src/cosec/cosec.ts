@@ -11,14 +11,15 @@
  * limitations under the License.
  */
 
-import {
+import type {
   CompositeToken,
   CoSecOptions,
+  TokenRefresher} from '@ahoo-wang/fetcher-cosec';
+import {
   CoSecRequestInterceptor,
   AuthorizationResponseInterceptor,
   DeviceIdStorage,
   JwtTokenManager,
-  TokenRefresher,
   TokenStorage,
   ResourceAttributionRequestInterceptor,
 } from '@ahoo-wang/fetcher-cosec';

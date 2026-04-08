@@ -12,7 +12,7 @@
  */
 
 import { exampleFetcher } from '../exampleFetcher';
-import { ApiMetadata } from '@ahoo-wang/fetcher-decorator';
+import type { ApiMetadata } from '@ahoo-wang/fetcher-decorator';
 
 const aggregateBasePath = 'owner/{ownerId}/cart';
 export const cartClientOptions: ApiMetadata = {

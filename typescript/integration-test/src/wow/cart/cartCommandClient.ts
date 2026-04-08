@@ -11,9 +11,10 @@
  * limitations under the License.
  */
 
-import { CommandClient, CommandRequest } from '@ahoo-wang/fetcher-wow';
+import type { CommandRequest } from '@ahoo-wang/fetcher-wow';
+import { CommandClient } from '@ahoo-wang/fetcher-wow';
 import { cartClientOptions } from './cartClientOptions';
-import { AddCartItem } from '../../generated';
+import type { AddCartItem } from '../../generated';
 
 export class CartCommandEndpoints {
   static readonly addCartItem = 'add_cart_item';

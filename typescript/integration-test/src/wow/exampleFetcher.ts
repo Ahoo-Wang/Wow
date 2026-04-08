@@ -11,10 +11,11 @@
  * limitations under the License.
  */
 
+import type {
+  FetchExchange,
+  RequestInterceptor} from '@ahoo-wang/fetcher';
 import {
   Fetcher,
-  FetchExchange,
-  RequestInterceptor,
   URL_RESOLVE_INTERCEPTOR_ORDER,
 } from '@ahoo-wang/fetcher';
 import { idGenerator } from '@ahoo-wang/fetcher-cosec';
