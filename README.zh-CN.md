@@ -17,6 +17,12 @@
 
 > [中文文档](https://wow.ahoo.me/zh/) | [English Document](https://wow.ahoo.me/)
 
+## Spring Boot 版本兼容性
+
+> **Wow 6.x** 支持 Spring Boot 3.x , 基于 Java 17
+>
+> **Wow 8.x** 支持 Spring Boot 4.x , 基于 Java 17
+
 ## 简介
 
 _Wow_ 是一个基于领域驱动设计和事件溯源的现代响应式 _CQRS_ 微服务开发框架，历经多年生产环境验证。
