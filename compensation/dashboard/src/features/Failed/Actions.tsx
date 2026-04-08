@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { CommandResult, StateCapable } from "@ahoo-wang/fetcher-wow";
+import type { CommandResult, StateCapable } from "@ahoo-wang/fetcher-wow";
 import type { ExecutionFailedState } from "../../generated";
 import { App, Button, Dropdown, Space } from "antd";
 import { FailedDetails } from "./details/FailedDetails.tsx";
@@ -19,7 +19,7 @@ import { useGlobalDrawer } from "../../components/GlobalDrawer";
 import type { ItemType } from "antd/es/menu/interface";
 import { executionFailedCommandClient } from "../../services";
 import { useExecutePromise } from "@ahoo-wang/fetcher-react";
-import { ExchangeError } from "@ahoo-wang/fetcher";
+import type { ExchangeError } from "@ahoo-wang/fetcher";
 import { EllipsisOutlined } from "@ant-design/icons";
 
 export interface OnChangedCapable {

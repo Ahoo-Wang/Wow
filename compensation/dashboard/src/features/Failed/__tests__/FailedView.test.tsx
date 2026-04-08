@@ -91,8 +91,9 @@ import {
   useDebouncedFetcherQuery,
 } from "@ahoo-wang/fetcher-react";
 import { App } from "antd";
+import type {
+  Condition} from "@ahoo-wang/fetcher-wow";
 import {
-  Condition,
   eq,
   pagedList,
   type PagedList,

@@ -13,7 +13,8 @@
 
 import { type Condition } from "@ahoo-wang/fetcher-wow";
 
-import { ActiveFilter, FilterPanel } from "@ahoo-wang/fetcher-viewer";
+import type { ActiveFilter} from "@ahoo-wang/fetcher-viewer";
+import { FilterPanel } from "@ahoo-wang/fetcher-viewer";
 
 interface FailedSearchProps {
   onSearch?: (condition: Condition) => void;

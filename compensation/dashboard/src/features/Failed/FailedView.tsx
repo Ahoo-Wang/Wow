@@ -14,12 +14,13 @@
 import { FailedSearch } from "./FailedSearch.tsx";
 import { FailedTable } from "./FailedTable.tsx";
 import { type FindCategory, RetryConditions } from "./FindCategory.ts";
+import type {
+  PagedList,
+  PagedQuery} from "@ahoo-wang/fetcher-wow";
 import {
   and,
   type Condition,
-  PagedList,
   pagedList,
-  PagedQuery,
   pagedQuery,
 } from "@ahoo-wang/fetcher-wow";
 import { type ExecutionFailedState } from "../../generated";
