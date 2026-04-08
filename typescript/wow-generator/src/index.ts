@@ -11,12 +11,13 @@
  * limitations under the License.
  */
 
-import { Directory, Project, SourceFile } from 'ts-morph';
+import type { Directory, SourceFile } from 'ts-morph';
+import { Project } from 'ts-morph';
 import { AggregateResolver } from './aggregate';
 import { ClientGenerator } from './client';
 import { GenerateContext } from './generateContext';
 import { ModelGenerator } from './model';
-import { GeneratorConfiguration, GeneratorOptions } from './types';
+import type { GeneratorConfiguration, GeneratorOptions } from './types';
 import { parseConfiguration, parseOpenAPI } from './utils';
 
 /**

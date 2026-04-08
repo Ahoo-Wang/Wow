@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import {
+import type {
   Components,
   Parameter,
   Reference,

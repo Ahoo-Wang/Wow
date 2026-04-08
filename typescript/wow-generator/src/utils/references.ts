@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { Reference } from '@ahoo-wang/fetcher-openapi';
+import type { Reference } from '@ahoo-wang/fetcher-openapi';
 
 export function isReference(schema: any): schema is Reference {
   return !!(schema && typeof schema === 'object' && '$ref' in schema);

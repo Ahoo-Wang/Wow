@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { Logger } from '../types';
+import type { Logger } from '../types';
 
 /**
  * Default console-based logger implementation.

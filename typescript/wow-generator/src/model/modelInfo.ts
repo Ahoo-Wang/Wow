@@ -11,8 +11,8 @@
  * limitations under the License.
  */
 
-import { Reference } from '@ahoo-wang/fetcher-openapi';
-import { Named } from '@ahoo-wang/fetcher-wow';
+import type { Reference } from '@ahoo-wang/fetcher-openapi';
+import type { Named } from '@ahoo-wang/fetcher-wow';
 import { extractComponentKey, pascalCase, upperSnakeCase } from '../utils';
 import { IMPORT_WOW_PATH, WOW_TYPE_MAPPING } from './wowTypeMapping';
 

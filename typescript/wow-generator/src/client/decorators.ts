@@ -11,12 +11,13 @@
  * limitations under the License.
  */
 
-import {
+import type {
   ClassDeclaration,
   OptionalKind,
   ParameterDeclarationStructure,
-  Scope,
-  SourceFile,
+  SourceFile} from 'ts-morph';
+import {
+  Scope
 } from 'ts-morph';
 import { addImport } from '../utils';
 

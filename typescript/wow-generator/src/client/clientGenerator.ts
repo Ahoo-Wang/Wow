@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { GenerateContext, Generator } from '../generateContext';
+import type { GenerateContext, Generator } from '../generateContext';
 import { ApiClientGenerator } from './apiClientGenerator';
 import { CommandClientGenerator } from './commandClientGenerator';
 import { QueryClientGenerator } from './queryClientGenerator';

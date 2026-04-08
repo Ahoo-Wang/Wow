@@ -11,13 +11,15 @@
  * limitations under the License.
  */
 
-import { Schema } from '@ahoo-wang/fetcher-openapi';
-import { SourceFile } from 'ts-morph';
+import type { Schema } from '@ahoo-wang/fetcher-openapi';
+import type { SourceFile } from 'ts-morph';
 
-import { GenerateContext, Generator } from '../generateContext';
-import { getModelFileName, KeySchema, pascalCase } from '../utils';
+import type { GenerateContext, Generator } from '../generateContext';
+import type { KeySchema} from '../utils';
+import { getModelFileName, pascalCase } from '../utils';
+import type {
+  ModelInfo} from './modelInfo';
 import {
-  ModelInfo,
   resolveContextDeclarationName,
   resolveModelInfo,
 } from './modelInfo';

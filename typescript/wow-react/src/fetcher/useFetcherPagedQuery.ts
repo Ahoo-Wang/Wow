@@ -11,10 +11,11 @@
  * limitations under the License.
  */
 
-import { PagedList, PagedQuery } from '@ahoo-wang/fetcher-wow';
-import { FetcherError } from '@ahoo-wang/fetcher';
-import { UseQueryReturn } from '../../core';
-import { useFetcherQuery, UseFetcherQueryOptions } from '../../fetcher';
+import type { PagedList, PagedQuery } from '@ahoo-wang/fetcher-wow';
+import type { FetcherError } from '@ahoo-wang/fetcher';
+import type { UseQueryReturn } from '../../core';
+import type { UseFetcherQueryOptions } from '../../fetcher';
+import { useFetcherQuery } from '../../fetcher';
 
 /**
  * Options for configuring the useFetcherPagedQuery hook.

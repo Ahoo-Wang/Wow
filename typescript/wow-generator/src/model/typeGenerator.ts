@@ -11,17 +11,22 @@
  * limitations under the License.
  */
 
-import { ModelInfo, resolveReferenceModelInfo } from './modelInfo';
-import { InterfaceDeclaration, JSDocableNode, SourceFile } from 'ts-morph';
-import { Reference, Schema } from '@ahoo-wang/fetcher-openapi';
-import {
-  addImportModelInfo,
-  addMainSchemaJSDoc,
-  addSchemaJSDoc,
+import type { ModelInfo} from './modelInfo';
+import { resolveReferenceModelInfo } from './modelInfo';
+import type { InterfaceDeclaration, JSDocableNode, SourceFile } from 'ts-morph';
+import type { Reference, Schema } from '@ahoo-wang/fetcher-openapi';
+import type {
   AllOfSchema,
   ArraySchema,
   CompositionSchema,
-  EnumSchema, getEnumText, getMapKeySchema,
+  EnumSchema,
+  KeySchema,
+  MapSchema,
+  ObjectSchema} from '../utils';
+import {
+  addImportModelInfo,
+  addMainSchemaJSDoc,
+  addSchemaJSDoc, getEnumText, getMapKeySchema,
   isAllOf,
   isArray,
   isComposition,
@@ -30,15 +35,12 @@ import {
   isObject,
   isReadOnly,
   isReference,
-  jsDoc,
-  KeySchema,
-  MapSchema,
-  ObjectSchema, resolveEnumMemberName,
+  jsDoc, resolveEnumMemberName,
   resolvePrimitiveType, resolvePropertyName,
   schemaJSDoc,
   toArrayType,
 } from '../utils';
-import { Generator } from '../generateContext';
+import type { Generator } from '../generateContext';
 
 export class TypeGenerator implements Generator {
   constructor(

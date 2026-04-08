@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { Reference, Schema } from '@ahoo-wang/fetcher-openapi';
+import type { Reference, Schema } from '@ahoo-wang/fetcher-openapi';
 
 /**
  * Schema definition for event streams containing domain events.

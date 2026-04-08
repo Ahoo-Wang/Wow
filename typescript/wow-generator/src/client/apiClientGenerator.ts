@@ -12,26 +12,29 @@
  */
 
 import { combineURLs } from '@ahoo-wang/fetcher';
-import {
+import type {
   Operation,
   Reference,
   RequestBody,
   Schema,
   Tag,
 } from '@ahoo-wang/fetcher-openapi';
-import {
+import type {
   ClassDeclaration,
   OptionalKind,
   ParameterDeclarationStructure,
   SourceFile,
 } from 'ts-morph';
-import { GenerateContext, Generator } from '../generateContext';
+import type { GenerateContext, Generator } from '../generateContext';
+import type {
+  ModelInfo} from '../model';
 import {
-  ModelInfo,
   resolveContextDeclarationName,
   resolveModelInfo,
   resolveReferenceModelInfo,
 } from '../model';
+import type {
+  OperationEndpoint} from '../utils';
 import {
   addImportRefModel,
   addJSDoc,
@@ -47,17 +50,17 @@ import {
   isArray, isMap,
   isPrimitive,
   isReference,
-  OperationEndpoint,
   resolvePathParameterType,
   resolvePrimitiveType, toArrayType,
 } from '../utils';
+import type {
+  MethodReturnType} from './decorators';
 import {
   addApiMetadataCtor,
   addImportDecorator,
   addImportEventStream, addImportFetcher,
   createDecoratorClass,
   DEFAULT_RETURN_TYPE,
-  MethodReturnType,
   STREAM_RESULT_EXTRACTOR_METADATA,
   STRING_RETURN_TYPE,
 } from './decorators';

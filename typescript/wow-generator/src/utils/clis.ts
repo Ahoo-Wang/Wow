@@ -12,7 +12,7 @@
  */
 
 import { CodeGenerator } from '../index';
-import { GeneratorOptions } from '../types';
+import type { GeneratorOptions } from '../types';
 import { ConsoleLogger } from './logger';
 import packageJson from '../../package.json';
 

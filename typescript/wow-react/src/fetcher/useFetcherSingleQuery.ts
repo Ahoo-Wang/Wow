@@ -11,10 +11,11 @@
  * limitations under the License.
  */
 
-import { SingleQuery } from '@ahoo-wang/fetcher-wow';
-import { FetcherError } from '@ahoo-wang/fetcher';
-import { UseQueryReturn } from '../../core';
-import { useFetcherQuery, UseFetcherQueryOptions } from '../../fetcher';
+import type { SingleQuery } from '@ahoo-wang/fetcher-wow';
+import type { FetcherError } from '@ahoo-wang/fetcher';
+import type { UseQueryReturn } from '../../core';
+import type { UseFetcherQueryOptions } from '../../fetcher';
+import { useFetcherQuery } from '../../fetcher';
 
 /**
  * Configuration options for the useFetcherSingleQuery hook.

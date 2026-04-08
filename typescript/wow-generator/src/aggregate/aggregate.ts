@@ -11,14 +11,14 @@
  * limitations under the License.
  */
 
-import {
+import type {
   HTTPMethod,
   Operation,
   Parameter,
   Tag,
 } from '@ahoo-wang/fetcher-openapi';
-import { AliasAggregate, Named } from '@ahoo-wang/fetcher-wow';
-import { KeySchema } from '../utils';
+import type { AliasAggregate, Named } from '@ahoo-wang/fetcher-wow';
+import type { KeySchema } from '../utils';
 
 export interface CommandDefinition extends Named {
   /**

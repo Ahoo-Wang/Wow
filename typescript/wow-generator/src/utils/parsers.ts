@@ -11,9 +11,9 @@
  * limitations under the License.
  */
 
-import { OpenAPI } from '@ahoo-wang/fetcher-openapi';
+import type { OpenAPI } from '@ahoo-wang/fetcher-openapi';
 import { parse } from 'yaml';
-import { GeneratorConfiguration } from '../types';
+import type { GeneratorConfiguration } from '../types';
 import { loadResource } from './resources';
 
 /**

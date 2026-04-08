@@ -11,13 +11,15 @@
  * limitations under the License.
  */
 
-import { ListQuery } from '@ahoo-wang/fetcher-wow';
-import { FetcherError } from '@ahoo-wang/fetcher';
-import { UseQueryReturn } from '../../core';
-import { useFetcherQuery, UseFetcherQueryOptions } from '../../fetcher';
+import type { ListQuery } from '@ahoo-wang/fetcher-wow';
+import type { FetcherError } from '@ahoo-wang/fetcher';
+import type { UseQueryReturn } from '../../core';
+import type { UseFetcherQueryOptions } from '../../fetcher';
+import { useFetcherQuery } from '../../fetcher';
+import type {
+  JsonServerSentEvent} from '@ahoo-wang/fetcher-eventstream';
 import {
-  JsonEventStreamResultExtractor,
-  JsonServerSentEvent,
+  JsonEventStreamResultExtractor
 } from '@ahoo-wang/fetcher-eventstream';
 
 /**

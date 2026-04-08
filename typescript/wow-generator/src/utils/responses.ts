@@ -12,7 +12,7 @@
  */
 
 import { ContentTypeValues } from '@ahoo-wang/fetcher';
-import { Reference, Response, Schema } from '@ahoo-wang/fetcher-openapi';
+import type { Reference, Response, Schema } from '@ahoo-wang/fetcher-openapi';
 import { isReference } from './references';
 
 export function extractResponseSchema(

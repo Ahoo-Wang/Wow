@@ -11,23 +11,25 @@
  * limitations under the License.
  */
 
-import { Tag } from '@ahoo-wang/fetcher-openapi';
-import {
+import type { Tag } from '@ahoo-wang/fetcher-openapi';
+import type {
   ClassDeclaration,
   OptionalKind,
   ParameterDeclarationStructure,
-  SourceFile,
+  SourceFile} from 'ts-morph';
+import {
   VariableDeclarationKind,
 } from 'ts-morph';
-import {
+import type {
   AggregateDefinition,
   CommandDefinition,
   TagAliasAggregate,
 } from '../aggregate';
-import { GenerateContext, Generator } from '../generateContext';
+import type { GenerateContext, Generator } from '../generateContext';
+import type {
+  ModelInfo} from '../model';
 import {
   IMPORT_WOW_PATH,
-  ModelInfo,
   resolveContextDeclarationName,
   resolveModelInfo,
 } from '../model';

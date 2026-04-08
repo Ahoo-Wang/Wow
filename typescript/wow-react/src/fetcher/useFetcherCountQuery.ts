@@ -11,10 +11,11 @@
  * limitations under the License.
  */
 
-import { FetcherError } from '@ahoo-wang/fetcher';
-import { UseQueryReturn } from '../../core';
-import { useFetcherQuery, UseFetcherQueryOptions } from '../../fetcher';
-import { Condition } from '@ahoo-wang/fetcher-wow';
+import type { FetcherError } from '@ahoo-wang/fetcher';
+import type { UseQueryReturn } from '../../core';
+import type { UseFetcherQueryOptions } from '../../fetcher';
+import { useFetcherQuery } from '../../fetcher';
+import type { Condition } from '@ahoo-wang/fetcher-wow';
 
 /**
  * Options for configuring the useFetcherCountQuery hook.

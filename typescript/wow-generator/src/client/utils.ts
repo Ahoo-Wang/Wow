@@ -12,15 +12,15 @@
  */
 
 import { ResourceAttributionPathSpec } from '@ahoo-wang/fetcher-wow';
-import { Project, SourceFile } from 'ts-morph';
-import { AggregateDefinition, TagAliasAggregate } from '../aggregate';
+import type { Project, SourceFile } from 'ts-morph';
+import type { AggregateDefinition, TagAliasAggregate } from '../aggregate';
 import {
   camelCase,
   getOrCreateSourceFile,
   pascalCase,
   splitName,
 } from '../utils';
-import { Operation } from '@ahoo-wang/fetcher-openapi';
+import type { Operation } from '@ahoo-wang/fetcher-openapi';
 
 /**
  * Infers the appropriate resource attribution path specification type based on command paths in an aggregate definition.

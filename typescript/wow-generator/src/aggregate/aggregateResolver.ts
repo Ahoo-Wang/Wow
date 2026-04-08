@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import {
+import type {
   OpenAPI,
   Operation,
   Parameter,
@@ -19,14 +19,17 @@ import {
   RequestBody,
   Schema,
 } from '@ahoo-wang/fetcher-openapi';
-import {
+import type {
   AggregateDefinition,
   BoundedContextAggregates,
   CommandDefinition,
   EventDefinition,
 } from './aggregate';
 
-import { ContentTypeValues, PartialBy } from '@ahoo-wang/fetcher';
+import type { PartialBy } from '@ahoo-wang/fetcher';
+import { ContentTypeValues } from '@ahoo-wang/fetcher';
+import type {
+  MethodOperation} from '../utils';
 import {
   extractOkResponse,
   extractOperationEndpoints,
@@ -35,10 +38,9 @@ import {
   extractRequestBody,
   extractSchema,
   isReference,
-  keySchema,
-  MethodOperation,
+  keySchema
 } from '../utils';
-import { EventStreamSchema } from './types';
+import type { EventStreamSchema } from './types';
 import { operationIdToCommandName, tagsToAggregates } from './utils';
 
 const CommandOkResponseRef = '#/components/responses/wow.CommandOk';

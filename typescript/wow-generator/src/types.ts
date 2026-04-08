@@ -11,9 +11,9 @@
  * limitations under the License.
  */
 
-import { OpenAPI } from '@ahoo-wang/fetcher-openapi';
-import { Project, ProjectOptions } from 'ts-morph';
-import { BoundedContextAggregates } from './aggregate';
+import type { OpenAPI } from '@ahoo-wang/fetcher-openapi';
+import type { Project, ProjectOptions } from 'ts-morph';
+import type { BoundedContextAggregates } from './aggregate';
 
 /**
  * Configuration options for the code generator.
