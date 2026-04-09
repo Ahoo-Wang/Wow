@@ -71,6 +71,22 @@ export type StringLinkMap = Record<string, Link>;
  * ```
  */
 export type StringObjectMap = Record<string, any>;
+/**
+ * - key: compensation.StringStringListMap
+ * - schema: 
+ * ```json
+ * {
+ *   "type": "object",
+ *   "additionalProperties": {
+ *     "type": "array",
+ *     "items": {
+ *       "type": "string"
+ *     }
+ *   }
+ * }
+ * ```
+ */
+export type StringStringListMap = Record<string, string[]>;
 
 /**
  * - key: compensation.WebServerNamespace
