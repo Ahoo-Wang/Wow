@@ -86,7 +86,7 @@ jobs:
         run: pnpm install --shamefully-hoist && pnpm run docs:build
 
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-pages-artifact@v5
         with:
           path: './documentation/docs/.vitepress/dist/'
 
