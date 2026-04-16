@@ -163,11 +163,41 @@ import {
   ne,
   gt,
   lt,
+  gte,
+  lte,
   contains,
   isIn,
+  notIn,
   between,
+  allIn,
+  startsWith,
+  endsWith,
+  match,
+  elemMatch,
+  isNull,
+  notNull,
+  isTrue,
+  isFalse,
+  exists,
+  raw,
   today,
+  beforeToday,
+  tomorrow,
+  thisWeek,
+  nextWeek,
+  lastWeek,
+  thisMonth,
+  lastMonth,
+  recentDays,
+  earlierDays,
   active,
+  all,
+  id,
+  ids,
+  aggregateId,
+  aggregateIds,
+  tenantId,
+  ownerId,
 } from '@ahoo-wang/fetcher-wow';
 
 // 简单条件
@@ -176,6 +206,47 @@ const simpleConditions = [
   ne('status', 'inactive'),
   gt('age', 18),
   lt('score', 100),
+  gte('rating', 4.0),
+  lte('price', 100),
+];
+
+// 字符串条件
+const stringConditions = [
+  contains('email', '@company.com'),
+  startsWith('username', 'j'),
+  endsWith('domain', '.com'),
+  isIn('status', 'active', 'pending'),
+  notIn('role', 'guest', 'banned'),
+  match('description', 'search keywords'),
+];
+
+// 空值检查
+const nullConditions = [
+  isNull('deletedAt'),
+  notNull('email'),
+  isTrue('isActive'),
+  isFalse('isDeleted'),
+  exists('phoneNumber'),
+];
+
+// 数组条件
+const arrayConditions = [
+  allIn('tags', 'react', 'typescript'),
+  elemMatch('items', eq('quantity', 0)),
+];
+
+// 日期条件
+const dateConditions = [
+  today('createdAt'),
+  beforeToday('lastLogin', 7), // 7天前（即过去7天内）
+  tomorrow('scheduledDate'),
+  thisWeek('updatedAt'),
+  nextWeek('startDate'),
+  lastWeek('endDate'),
+  thisMonth('createdDate'),
+  lastMonth('expirationDate'),
+  recentDays('createdAt', 5), // 最近5天，包括今天
+  earlierDays('createdAt', 3), // 3天之前
 ];
 
 // 复杂条件
@@ -190,14 +261,23 @@ const complexCondition = and(
   active(),
 );
 
-// 日期条件
-const dateConditions = [
-  today('createdAt'),
-  beforeToday('lastLogin', 7), // 最近7天内
-  thisWeek('updatedAt'),
-  lastMonth('createdDate'),
-];
+// 高级用法的原始条件
+const rawCondition = raw({ $text: { $search: 'keywords' } });
 ```
+
+**操作符参考：**
+
+| 类别 | 操作符 |
+|----------|-----------|
+| 逻辑 | `and`, `or`, `nor` |
+| 比较 | `eq`, `ne`, `gt`, `lt`, `gte`, `lte` |
+| 字符串 | `contains`, `startsWith`, `endsWith`, `match` |
+| 集合 | `isIn`, `notIn`, `allIn`, `elemMatch` |
+| 空值/布尔 | `isNull`, `notNull`, `isTrue`, `isFalse`, `exists` |
+| 日期 | `today`, `beforeToday(days)`, `tomorrow`, `thisWeek`, `nextWeek`, `lastWeek`, `thisMonth`, `lastMonth`, `recentDays(days)`, `earlierDays(days)` |
+| ID | `id`, `ids`, `aggregateId`, `aggregateIds`, `tenantId`, `ownerId` |
+| 状态 | `active`, `all`, `deleted` |
+| 特殊 | `raw`（用于高级数据库特定查询）
 
 #### SnapshotQueryClient
 
@@ -315,6 +395,52 @@ const singleState = await cartSnapshotQueryClient.singleState(singleQuery);
 - `pagedState(pagedQuery: PagedQuery): Promise<PagedList<Partial<S>>>` - 检索快照状态的分页列表。
 - `single(singleQuery: SingleQuery): Promise<Partial<MaterializedSnapshot<S>>>` - 检索单个物化快照。
 - `singleState(singleQuery: SingleQuery): Promise<Partial<S>>` - 检索单个快照状态。
+
+#### QueryClientFactory
+
+用于创建预配置查询客户端的工厂。当您需要具有共享配置的多个客户端时，这非常有用。
+
+```typescript
+import {
+  QueryClientFactory,
+  ResourceAttributionPathSpec,
+  all,
+} from '@ahoo-wang/fetcher-wow';
+import { idGenerator } from '@ahoo-wang/fetcher-cosec';
+
+// 使用默认选项创建工厂
+const factory = new QueryClientFactory({
+  contextAlias: 'example',
+  aggregateName: 'cart',
+  resourceAttribution: ResourceAttributionPathSpec.OWNER,
+  fetcher: exampleFetcher,
+});
+
+// 创建快照查询客户端
+const snapshotClient = factory.createSnapshotQueryClient({
+  aggregateName: 'cart',
+});
+const carts = await snapshotClient.listState({ condition: all() });
+
+// 创建状态聚合客户端
+const stateClient = factory.createLoadStateAggregateClient({
+  aggregateName: 'cart',
+});
+const cart = await stateClient.load('cart-123');
+
+// 创建事件流查询客户端
+const eventClient = factory.createEventStreamQueryClient({
+  aggregateName: 'cart',
+});
+const events = await eventClient.list({ condition: all() });
+```
+
+**方法：**
+
+- `createSnapshotQueryClient(options?: QueryClientOptions): SnapshotQueryClient` - 创建用于查询快照的客户端。
+- `createLoadStateAggregateClient(options?: QueryClientOptions): LoadStateAggregateClient` - 创建用于按 ID 加载聚合状态的客户端。
+- `createOwnerLoadStateAggregateClient(options?: QueryClientOptions): LoadOwnerStateAggregateClient` - 创建用于加载当前所有者聚合状态的客户端。
+- `createEventStreamQueryClient(options?: QueryClientOptions): EventStreamQueryClient` - 创建用于查询事件流的客户端。
 
 #### EventStreamQueryClient
 

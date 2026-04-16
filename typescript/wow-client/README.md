@@ -171,11 +171,41 @@ import {
   ne,
   gt,
   lt,
+  gte,
+  lte,
   contains,
   isIn,
+  notIn,
   between,
+  allIn,
+  startsWith,
+  endsWith,
+  match,
+  elemMatch,
+  isNull,
+  notNull,
+  isTrue,
+  isFalse,
+  exists,
+  raw,
   today,
+  beforeToday,
+  tomorrow,
+  thisWeek,
+  nextWeek,
+  lastWeek,
+  thisMonth,
+  lastMonth,
+  recentDays,
+  earlierDays,
   active,
+  all,
+  id,
+  ids,
+  aggregateId,
+  aggregateIds,
+  tenantId,
+  ownerId,
 } from '@ahoo-wang/fetcher-wow';
 
 // Simple conditions
@@ -184,6 +214,47 @@ const simpleConditions = [
   ne('status', 'inactive'),
   gt('age', 18),
   lt('score', 100),
+  gte('rating', 4.0),
+  lte('price', 100),
+];
+
+// String conditions
+const stringConditions = [
+  contains('email', '@company.com'),
+  startsWith('username', 'j'),
+  endsWith('domain', '.com'),
+  isIn('status', 'active', 'pending'),
+  notIn('role', 'guest', 'banned'),
+  match('description', 'search keywords'),
+];
+
+// Null checks
+const nullConditions = [
+  isNull('deletedAt'),
+  notNull('email'),
+  isTrue('isActive'),
+  isFalse('isDeleted'),
+  exists('phoneNumber'),
+];
+
+// Array conditions
+const arrayConditions = [
+  allIn('tags', 'react', 'typescript'),
+  elemMatch('items', eq('quantity', 0)),
+];
+
+// Date conditions
+const dateConditions = [
+  today('createdAt'),
+  beforeToday('lastLogin', 7), // 7 days before today (i.e., within last 7 days)
+  tomorrow('scheduledDate'),
+  thisWeek('updatedAt'),
+  nextWeek('startDate'),
+  lastWeek('endDate'),
+  thisMonth('createdDate'),
+  lastMonth('expirationDate'),
+  recentDays('createdAt', 5), // Last 5 days including today
+  earlierDays('createdAt', 3), // More than 3 days ago
 ];
 
 // Complex conditions
@@ -198,14 +269,23 @@ const complexCondition = and(
   active(),
 );
 
-// Date conditions
-const dateConditions = [
-  today('createdAt'),
-  beforeToday('lastLogin', 7), // Within last 7 days
-  thisWeek('updatedAt'),
-  lastMonth('createdDate'),
-];
+// Raw condition for advanced use cases
+const rawCondition = raw({ $text: { $search: 'keywords' } });
 ```
+
+**Operator Reference:**
+
+| Category | Operators |
+|----------|-----------|
+| Logical | `and`, `or`, `nor` |
+| Comparison | `eq`, `ne`, `gt`, `lt`, `gte`, `lte` |
+| String | `contains`, `startsWith`, `endsWith`, `match` |
+| Collection | `isIn`, `notIn`, `allIn`, `elemMatch` |
+| Null/Boolean | `isNull`, `notNull`, `isTrue`, `isFalse`, `exists` |
+| Date | `today`, `beforeToday(days)`, `tomorrow`, `thisWeek`, `nextWeek`, `lastWeek`, `thisMonth`, `lastMonth`, `recentDays(days)`, `earlierDays(days)` |
+| ID | `id`, `ids`, `aggregateId`, `aggregateIds`, `tenantId`, `ownerId` |
+| State | `active`, `all`, `deleted` |
+| Special | `raw` (for advanced database-specific queries) |
 
 #### SnapshotQueryClient
 
@@ -326,6 +406,52 @@ const singleState = await cartSnapshotQueryClient.singleState(singleQuery);
 - `single(singleQuery: SingleQuery): Promise<Partial<MaterializedSnapshot<S>>>` - Retrieves a single materialized
   snapshot.
 - `singleState(singleQuery: SingleQuery): Promise<Partial<S>>` - Retrieves a single snapshot state.
+
+#### QueryClientFactory
+
+Factory for creating pre-configured query clients. Useful when you need multiple clients with shared configuration.
+
+```typescript
+import {
+  QueryClientFactory,
+  ResourceAttributionPathSpec,
+  all,
+} from '@ahoo-wang/fetcher-wow';
+import { idGenerator } from '@ahoo-wang/fetcher-cosec';
+
+// Create a factory with default options
+const factory = new QueryClientFactory({
+  contextAlias: 'example',
+  aggregateName: 'cart',
+  resourceAttribution: ResourceAttributionPathSpec.OWNER,
+  fetcher: exampleFetcher,
+});
+
+// Create a snapshot query client
+const snapshotClient = factory.createSnapshotQueryClient({
+  aggregateName: 'cart',
+});
+const carts = await snapshotClient.listState({ condition: all() });
+
+// Create a state aggregate client
+const stateClient = factory.createLoadStateAggregateClient({
+  aggregateName: 'cart',
+});
+const cart = await stateClient.load('cart-123');
+
+// Create an event stream query client
+const eventClient = factory.createEventStreamQueryClient({
+  aggregateName: 'cart',
+});
+const events = await eventClient.list({ condition: all() });
+```
+
+**Methods:**
+
+- `createSnapshotQueryClient(options?: QueryClientOptions): SnapshotQueryClient` - Creates a client for querying snapshots.
+- `createLoadStateAggregateClient(options?: QueryClientOptions): LoadStateAggregateClient` - Creates a client for loading aggregate state by ID.
+- `createOwnerLoadStateAggregateClient(options?: QueryClientOptions): LoadOwnerStateAggregateClient` - Creates a client for loading the current owner's aggregate state.
+- `createEventStreamQueryClient(options?: QueryClientOptions): EventStreamQueryClient` - Creates a client for querying event streams.
 
 #### EventStreamQueryClient
 
