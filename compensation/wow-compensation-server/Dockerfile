@@ -1,7 +1,7 @@
 ARG APP_NAME=wow-compensation-server
 ARG WORK_HOME=/opt/${APP_NAME}
 
-FROM dragonwell-registry.cn-hangzhou.cr.aliyuncs.com/dragonwell/dragonwell:21-ubuntu AS base
+FROM dragonwell-registry.cn-hangzhou.cr.aliyuncs.com/dragonwell/dragonwell:25-ubuntu AS base
 
 FROM base AS build
 ARG WORK_HOME
