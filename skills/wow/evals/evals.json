@@ -1,0 +1,30 @@
+{
+  "skill_name": "wow",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Create a Cart aggregate using Simple Aggregation Pattern for an e-commerce shopping cart. The cart should:\n1. Have a maximum capacity of 10 items\n2. Handle AddCartItem command that emits CartItemAdded or CartQuantityChanged events\n3. Handle RemoveCartItem command that emits CartItemRemoved event\n4. CartItem has productId and quantity fields\n\nWrite CartState.kt and Cart.kt files following Wow conventions.",
+      "expected_output": "Two Kotlin files:\n- CartState.kt: State aggregate with onCartItemAdded, onCartItemRemoved, onCartQuantityChanged sourcing handlers\n- Cart.kt: Command aggregate with @AggregateRoot annotation and onCommand handlers returning appropriate events"
+    },
+    {
+      "id": 2,
+      "prompt": "Write a TransferSaga for a bank transfer scenario. The saga should:\n1. When it receives a Prepared event, return an Entry command to deposit to target account\n2. When it receives AmountEntered event, return a Confirm command to confirm the transfer\n3. When it receives EntryFailed event, return an UnlockAmount command to unlock the source account\n\nUse @StatelessSaga annotation and onEvent handlers.",
+      "expected_output": "TransferSaga.kt with @StatelessSaga annotation and three onEvent handlers returning Entry, Confirm, and UnlockAmount commands respectively."
+    },
+    {
+      "id": 3,
+      "prompt": "Write unit tests for a Cart aggregate using AggregateSpec. Test the following scenarios:\n1. Adding an item to empty cart - should emit CartItemAdded\n2. Adding same product twice - should emit CartQuantityChanged\n3. Removing an item - should emit CartItemRemoved\n4. Adding more than 10 items - should throw error\n\nUse fork() for branching test scenarios, and verify state changes with expectState {}.",
+      "expected_output": "CartSpec.kt extending AggregateSpec<Cart, CartState> with Given-When-Expect tests using fork() for branching scenarios, expectState {} for state verification, and expectEventType {} for event assertions."
+    },
+    {
+      "id": 4,
+      "prompt": "Create an Order projection processor using @ProjectionProcessor. It should:\n1. Handle OrderCreated event to create initial order summary\n2. Handle OrderPaid event to update order status to PAID\n3. Use @Blocking annotation for the email notification handler\n\nThe projection updates an OrderSummaryRepository.",
+      "expected_output": "OrderProjector.kt with @ProjectionProcessor annotation, @OnEvent handlers for OrderCreated and OrderPaid, and a @Blocking handler for notifications."
+    },
+    {
+      "id": 5,
+      "prompt": "Write a query using Wow Query DSL to find all active orders for a specific tenant. The query should:\n1. Use pagedQuery with pagination\n2. Filter by tenantId and status=ACTIVE\n3. Sort by createdAt descending\n4. Project only id, status, and totalAmount fields",
+      "expected_output": "Kotlin code using pagedQuery { where { ... } page(...) projection { ... } } DSL to query orders by tenant and status."
+    }
+  ]
+}
