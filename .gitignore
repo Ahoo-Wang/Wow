@@ -1,4 +1,6 @@
 .gradle
+.gradle/
+**/.gradle/
 /build/
 **/build/
 
@@ -11,13 +13,13 @@ gradle-app.setting
 # Cache of project
 .gradletasknamecache
 
-# # Work around https://youtrack.jetbrains.com/issue/IDEA-116898
-# gradle/wrapper/gradle-wrapper.properties
+# Kotlin daemon
+.kotlin/
 
 # 忽略 .DS_Store 文件
 .DS_Store
+**/.DS_Store
 
-# 其他忽略规则（如果已有其他内容，请保留）
+# IDE
+/.idea/
 /.vscode/
-/jte-classes/
-/.kotlin/
