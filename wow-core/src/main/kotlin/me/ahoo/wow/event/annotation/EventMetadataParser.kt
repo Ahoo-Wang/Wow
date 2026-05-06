@@ -24,7 +24,7 @@ import me.ahoo.wow.infra.reflection.ClassMetadata.visit
 import me.ahoo.wow.infra.reflection.ClassVisitor
 import me.ahoo.wow.metadata.CacheableMetadataParser
 import me.ahoo.wow.metadata.Metadata
-import me.ahoo.wow.modeling.matedata.toNamedAggregateGetter
+import me.ahoo.wow.modeling.metadata.toNamedAggregateGetter
 import me.ahoo.wow.naming.annotation.toName
 import kotlin.reflect.KProperty1
 

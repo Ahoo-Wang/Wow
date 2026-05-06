@@ -15,7 +15,7 @@ package me.ahoo.wow.eventsourcing
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
-import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
+import me.ahoo.wow.modeling.metadata.StateAggregateMetadata
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory.toStateAggregate
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.modeling.state.StateAggregateFactory

@@ -18,7 +18,7 @@ import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
-import me.ahoo.wow.modeling.matedata.AggregateMetadata
+import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.tck.mock.MockCommandAggregate

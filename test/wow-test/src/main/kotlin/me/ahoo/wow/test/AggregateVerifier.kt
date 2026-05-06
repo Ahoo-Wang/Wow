@@ -21,7 +21,7 @@ import me.ahoo.wow.ioc.SimpleServiceProvider
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.command.SimpleCommandAggregateFactory
-import me.ahoo.wow.modeling.matedata.AggregateMetadata
+import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.test.AggregateVerifier.aggregateVerifier

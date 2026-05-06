@@ -20,7 +20,7 @@ import me.ahoo.wow.event.compensation.StateEventCompensator
 import me.ahoo.wow.eventsourcing.EventStore.Companion.DEFAULT_HEAD_VERSION
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.messaging.compensation.CompensationTarget
-import me.ahoo.wow.modeling.matedata.AggregateMetadata
+import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.BatchResult
 import me.ahoo.wow.webflux.exception.onErrorMapBatchTaskException
 import me.ahoo.wow.webflux.route.toBatchResult

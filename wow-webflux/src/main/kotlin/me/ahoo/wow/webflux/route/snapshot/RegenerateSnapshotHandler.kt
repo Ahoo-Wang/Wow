@@ -18,7 +18,7 @@ import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
-import me.ahoo.wow.modeling.matedata.AggregateMetadata
+import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import reactor.core.publisher.Mono
 

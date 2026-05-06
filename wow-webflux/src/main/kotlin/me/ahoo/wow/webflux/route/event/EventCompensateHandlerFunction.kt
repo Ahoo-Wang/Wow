@@ -16,7 +16,7 @@ package me.ahoo.wow.webflux.route.event
 import me.ahoo.wow.messaging.compensation.CompensationTarget
 import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
 import me.ahoo.wow.modeling.aggregateId
-import me.ahoo.wow.modeling.matedata.AggregateMetadata
+import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.aggregate.event.EventCompensateRouteSpec
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler

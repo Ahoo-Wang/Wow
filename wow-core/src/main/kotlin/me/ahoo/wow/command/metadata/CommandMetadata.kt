@@ -17,7 +17,7 @@ import me.ahoo.wow.api.naming.Named
 import me.ahoo.wow.infra.accessor.property.PropertyGetter
 import me.ahoo.wow.infra.accessor.property.StaticPropertyGetter
 import me.ahoo.wow.metadata.Metadata
-import me.ahoo.wow.modeling.matedata.NamedAggregateGetter
+import me.ahoo.wow.modeling.metadata.NamedAggregateGetter
 
 /**
  * Metadata container for command classes.
