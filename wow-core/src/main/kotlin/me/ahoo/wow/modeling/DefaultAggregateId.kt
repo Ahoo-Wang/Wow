@@ -19,7 +19,7 @@ import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.api.modeling.equalTo
 import me.ahoo.wow.api.modeling.hash
 import me.ahoo.wow.id.generateId
-import me.ahoo.wow.modeling.matedata.AggregateMetadata
+import me.ahoo.wow.modeling.metadata.AggregateMetadata
 
 /**
  * Represents a default implementation of [AggregateId], which uniquely identifies an aggregate instance within a bounded context.

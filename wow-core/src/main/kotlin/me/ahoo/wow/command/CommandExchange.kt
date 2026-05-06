@@ -22,7 +22,7 @@ import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.messaging.handler.MessageExchange
 import me.ahoo.wow.modeling.command.AggregateProcessor
 import me.ahoo.wow.modeling.command.getCommandAggregate
-import me.ahoo.wow.modeling.matedata.AggregateMetadata
+import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import java.util.concurrent.ConcurrentHashMap
 
 /**
