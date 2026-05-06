@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.modeling.matedata
+package me.ahoo.wow.modeling.metadata
 
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.configuration.namedAggregate

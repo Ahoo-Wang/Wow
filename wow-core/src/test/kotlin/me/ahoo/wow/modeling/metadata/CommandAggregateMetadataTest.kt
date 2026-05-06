@@ -1,4 +1,4 @@
-package me.ahoo.wow.modeling.matedata
+package me.ahoo.wow.modeling.metadata
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.modeling.annotation.MockAggregate

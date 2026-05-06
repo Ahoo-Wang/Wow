@@ -15,7 +15,7 @@ package me.ahoo.wow.webflux.route.event.state
 
 import me.ahoo.wow.event.compensation.StateEventCompensator
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
-import me.ahoo.wow.modeling.matedata.AggregateMetadata
+import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.BatchComponent
 import me.ahoo.wow.openapi.aggregate.event.state.ResendStateEventRouteSpec
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler

@@ -15,7 +15,7 @@ package me.ahoo.wow.test.aggregate
 
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.modeling.command.CommandAggregateFactory
-import me.ahoo.wow.modeling.matedata.AggregateMetadata
+import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import org.assertj.core.error.MultipleAssertionsError
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test

@@ -21,7 +21,7 @@ import me.ahoo.wow.api.modeling.SpaceIdCapable
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.modeling.command.CommandAggregateFactory
-import me.ahoo.wow.modeling.matedata.AggregateMetadata
+import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory.toStateAggregate
 import me.ahoo.wow.modeling.state.StateAggregate

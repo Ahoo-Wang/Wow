@@ -24,8 +24,8 @@ import me.ahoo.wow.api.modeling.SpaceIdCapable
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.configuration.requiredAggregateType
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
-import me.ahoo.wow.modeling.matedata.AggregateMetadata
-import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
+import me.ahoo.wow.modeling.metadata.AggregateMetadata
+import me.ahoo.wow.modeling.metadata.StateAggregateMetadata
 import reactor.core.publisher.Mono
 
 /**

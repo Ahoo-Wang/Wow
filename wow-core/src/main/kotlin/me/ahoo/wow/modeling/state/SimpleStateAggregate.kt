@@ -32,7 +32,7 @@ import me.ahoo.wow.command.CommandOperator.operator
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.SimpleDomainEventExchange
 import me.ahoo.wow.event.ignoreSourcing
-import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
+import me.ahoo.wow.modeling.metadata.StateAggregateMetadata
 
 /**
  * A simple implementation of [StateAggregate] that manages aggregate state through event sourcing.

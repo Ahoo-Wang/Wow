@@ -15,7 +15,7 @@ package me.ahoo.wow.openapi.metadata
 
 import me.ahoo.wow.api.annotation.AggregateRoute
 import me.ahoo.wow.api.naming.EnabledCapable
-import me.ahoo.wow.modeling.matedata.AggregateMetadata
+import me.ahoo.wow.modeling.metadata.AggregateMetadata
 
 data class AggregateRouteMetadata<C : Any>(
     override val enabled: Boolean,

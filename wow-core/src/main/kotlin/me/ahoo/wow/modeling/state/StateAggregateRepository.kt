@@ -15,7 +15,7 @@ package me.ahoo.wow.modeling.state
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.configuration.requiredAggregateType
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
-import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
+import me.ahoo.wow.modeling.metadata.StateAggregateMetadata
 import reactor.core.publisher.Mono
 
 /**

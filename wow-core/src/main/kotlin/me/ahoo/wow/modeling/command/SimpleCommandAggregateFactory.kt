@@ -13,7 +13,7 @@
 package me.ahoo.wow.modeling.command
 
 import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.modeling.matedata.AggregateMetadata
+import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregate
 
 /**
