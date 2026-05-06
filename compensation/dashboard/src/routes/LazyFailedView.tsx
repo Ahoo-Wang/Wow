@@ -11,16 +11,8 @@
  * limitations under the License.
  */
 
-import { executionFailedQueryClientFactory } from "../generated";
-import type {
-  QueryClientOptions,
-} from "@ahoo-wang/fetcher-wow";
+import { lazy } from "react";
 
-export const executionFailedQueryClientOptions: QueryClientOptions = {
-  contextAlias: "",
-};
+const LazyFailedView = lazy(() => import("../features/Failed/FailedView.tsx"));
 
-export const executionFailedSnapshotQueryClient =
-  executionFailedQueryClientFactory.createSnapshotQueryClient(
-    executionFailedQueryClientOptions,
-  );
+export default LazyFailedView;

@@ -11,11 +11,9 @@
  * limitations under the License.
  */
 
-import * as React from "react";
-import { lazy } from "react";
+import type * as React from "react";
 import { FindCategory } from "../features/Failed/FindCategory.ts";
-
-const FailedView = lazy(() => import("../features/Failed/FailedView.tsx"));
+import LazyFailedView from "./LazyFailedView.tsx";
 
 export const NavItemPaths = {
   ToRetry: "/to-retry",
@@ -39,36 +37,36 @@ export const NavItems: NavItem[] = [
     label: "To Retry",
     path: NavItemPaths.ToRetry,
     category: FindCategory.ToRetry,
-    component: FailedView,
+    component: LazyFailedView,
   },
   {
     label: "Executing",
     path: NavItemPaths.Executing,
     category: FindCategory.Executing,
-    component: FailedView,
+    component: LazyFailedView,
   },
   {
     label: "NextRetry",
     path: NavItemPaths.NextRetry,
     category: FindCategory.NextRetry,
-    component: FailedView,
+    component: LazyFailedView,
   },
   {
     label: "NonRetryable",
     path: NavItemPaths.NonRetryable,
     category: FindCategory.NonRetryable,
-    component: FailedView,
+    component: LazyFailedView,
   },
   {
     label: "Succeeded",
     path: NavItemPaths.Succeeded,
     category: FindCategory.Succeeded,
-    component: FailedView,
+    component: LazyFailedView,
   },
   {
     label: "Unrecoverable",
     path: NavItemPaths.Unrecoverable,
     category: FindCategory.Unrecoverable,
-    component: FailedView,
+    component: LazyFailedView,
   },
 ];
