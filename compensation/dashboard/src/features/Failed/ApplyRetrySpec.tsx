@@ -17,8 +17,8 @@ import { executionFailedCommandClient } from "../../services";
 import { useGlobalDrawer } from "../../components/GlobalDrawer";
 import type { OnChangedCapable } from "./Actions.tsx";
 import { useExecutePromise } from "@ahoo-wang/fetcher-react";
-import { CommandResult } from "@ahoo-wang/fetcher-wow";
-import { ExchangeError } from "@ahoo-wang/fetcher";
+import type { CommandResult } from "@ahoo-wang/fetcher-wow";
+import type { ExchangeError } from "@ahoo-wang/fetcher";
 import { useEffect } from "react";
 
 export interface ApplyRetrySpecProps extends OnChangedCapable {
