@@ -17,7 +17,7 @@ import io.swagger.v3.oas.models.parameters.Parameter
 import io.swagger.v3.oas.models.tags.Tag
 import me.ahoo.wow.api.annotation.AggregateRoute
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.modeling.matedata.AggregateMetadata
+import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.naming.getContextAlias
 import me.ahoo.wow.openapi.AbstractRouteSpecFactory

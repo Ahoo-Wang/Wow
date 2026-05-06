@@ -22,7 +22,7 @@ import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.exception.NotFoundResourceException
-import me.ahoo.wow.modeling.matedata.CommandAggregateMetadata
+import me.ahoo.wow.modeling.metadata.CommandAggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregate
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono

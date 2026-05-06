@@ -23,7 +23,7 @@ import me.ahoo.wow.command.wait.WaitStrategy
 import me.ahoo.wow.command.wait.chain.SimpleWaitingForChain
 import me.ahoo.wow.command.wait.stage.WaitingForStage
 import me.ahoo.wow.infra.ifNotBlank
-import me.ahoo.wow.modeling.matedata.AggregateMetadata
+import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.CommonComponent
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.serialization.MessageRecords

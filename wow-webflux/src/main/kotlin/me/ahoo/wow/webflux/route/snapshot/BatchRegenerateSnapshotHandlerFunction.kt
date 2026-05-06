@@ -15,7 +15,7 @@ package me.ahoo.wow.webflux.route.snapshot
 
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
-import me.ahoo.wow.modeling.matedata.AggregateMetadata
+import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.openapi.BatchComponent
 import me.ahoo.wow.openapi.aggregate.snapshot.BatchRegenerateSnapshotRouteSpec

@@ -14,7 +14,7 @@
 package me.ahoo.wow.openapi.aggregate.state
 
 import io.swagger.v3.oas.models.responses.ApiResponses
-import me.ahoo.wow.modeling.matedata.AggregateMetadata
+import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.ApiResponseBuilder
 import me.ahoo.wow.openapi.CommonComponent.Header
 import me.ahoo.wow.openapi.CommonComponent.Header.errorCodeHeader

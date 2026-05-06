@@ -26,7 +26,7 @@ import me.ahoo.wow.messaging.function.FunctionAccessorMetadata
 import me.ahoo.wow.messaging.function.FunctionMetadataParser.toFunctionMetadata
 import me.ahoo.wow.metadata.CacheableMetadataParser
 import me.ahoo.wow.metadata.Metadata
-import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
+import me.ahoo.wow.modeling.metadata.StateAggregateMetadata
 import java.lang.reflect.Constructor
 import kotlin.reflect.KFunction
 import kotlin.reflect.KProperty1

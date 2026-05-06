@@ -35,9 +35,9 @@ import me.ahoo.wow.metadata.CacheableMetadataParser
 import me.ahoo.wow.metadata.Metadata
 import me.ahoo.wow.modeling.command.after.AfterCommandFunctionMetadata
 import me.ahoo.wow.modeling.command.after.AfterCommandFunctionMetadata.Companion.toAfterCommandFunctionMetadata
-import me.ahoo.wow.modeling.matedata.AggregateMetadata
-import me.ahoo.wow.modeling.matedata.CommandAggregateMetadata
-import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
+import me.ahoo.wow.modeling.metadata.AggregateMetadata
+import me.ahoo.wow.modeling.metadata.CommandAggregateMetadata
+import me.ahoo.wow.modeling.metadata.StateAggregateMetadata
 import reactor.core.publisher.Mono
 import java.lang.reflect.Constructor
 import kotlin.reflect.KFunction

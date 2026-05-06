@@ -19,8 +19,8 @@ import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.toStateEvent
 import me.ahoo.wow.modeling.aggregateId
-import me.ahoo.wow.modeling.matedata.AggregateMetadata
-import me.ahoo.wow.modeling.matedata.StateAggregateMetadata
+import me.ahoo.wow.modeling.metadata.AggregateMetadata
+import me.ahoo.wow.modeling.metadata.StateAggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.openapi.aggregate.state.AggregateTracingRouteSpec
 import me.ahoo.wow.serialization.MessageRecords

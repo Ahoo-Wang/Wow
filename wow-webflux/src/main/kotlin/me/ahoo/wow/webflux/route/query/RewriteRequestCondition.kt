@@ -14,7 +14,7 @@
 package me.ahoo.wow.webflux.route.query
 
 import me.ahoo.wow.api.query.RewritableCondition
-import me.ahoo.wow.modeling.matedata.AggregateMetadata
+import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.webflux.route.command.getOwnerId
 import me.ahoo.wow.webflux.route.command.getSpaceId
