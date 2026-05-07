@@ -29,6 +29,7 @@ internal class RetryFilterTest {
     fun retryStrategyWithDefaults() {
         val logger = mockk<KLogger>()
         every { logger.warn(any<Throwable>(), any<() -> Any?>()) } returns Unit
+        every { logger.info(any<() -> Any?>()) } returns Unit
 
         val retry = retryStrategy(logger = logger)
 
@@ -42,6 +43,7 @@ internal class RetryFilterTest {
     fun retryStrategyWithCustomValues() {
         val logger = mockk<KLogger>()
         every { logger.warn(any<Throwable>(), any<() -> Any?>()) } returns Unit
+        every { logger.info(any<() -> Any?>()) } returns Unit
         val maxAttempts = 3L
         val minBackoff = Duration.ofMillis(100)
 
@@ -64,6 +66,7 @@ internal class RetryFilterTest {
     fun retryStrategyWithSuccessAfterRetry() {
         val logger = mockk<KLogger>()
         every { logger.warn(any<Throwable>(), any<() -> Any?>()) } returns Unit
+        every { logger.info(any<() -> Any?>()) } returns Unit
 
         val retry = retryStrategy(maxAttempts = 5, logger = logger)
         val counter = AtomicInteger(0)
