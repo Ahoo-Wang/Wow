@@ -48,6 +48,7 @@
     "README.md",
     "README.zh-CN.md"
   ],
+  "sideEffects": false,
   "scripts": {
     "build": "vite build",
     "test:ui": "vitest --ui",

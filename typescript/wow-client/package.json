@@ -50,6 +50,7 @@
   "files": [
     "dist"
   ],
+  "sideEffects": false,
   "scripts": {
     "build": "vite build",
     "test:ui": "vitest --ui",
