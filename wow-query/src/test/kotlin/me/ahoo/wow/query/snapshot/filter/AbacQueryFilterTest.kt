@@ -141,13 +141,13 @@ class AbacQueryFilterTest {
     }
 
     object EmptyAbacQueryFilter : AbacQueryFilter() {
-        override fun ContextView.getPrincipalTags(context: QueryContext<*, *>): Mono<AbacTags> {
+        override fun getPrincipalTags(contextView: ContextView, context: QueryContext<*, *>): Mono<AbacTags> {
             return EMPTY_ABAC_TAGS.toMono()
         }
     }
 
     object MockAbacQueryFilter : AbacQueryFilter() {
-        override fun ContextView.getPrincipalTags(context: QueryContext<*, *>): Mono<AbacTags> {
+        override fun getPrincipalTags(contextView: ContextView, context: QueryContext<*, *>): Mono<AbacTags> {
             return mapOf(
                 "dept" to listOf("eng"),
                 "role" to listOf("admin"),
