@@ -93,20 +93,22 @@ abstract class AbacQueryFilter : SnapshotQueryFilter {
     /**
      * 从当前上下文获取主体的 ABAC 标签。
      *
+     * @param contextView 上下文视图
      * @param context 查询上下文，可用于提取标签来源（如请求头、用户信息等）
      * @return 主体的标签映射
      */
-    abstract fun ContextView.getPrincipalTags(context: QueryContext<*, *>): Mono<AbacTags>
+    abstract fun getPrincipalTags(contextView: ContextView, context: QueryContext<*, *>): Mono<AbacTags>
 
     /**
      * 从当前上下文解析 ABAC 查询条件。
      *
+     * @param contextView 上下文视图
      * @param context 查询上下文
      * @return 若主体无标签，返回全匹配（不过滤）；
      *         否则返回所有标签的 AND 条件
      */
-    open fun ContextView.resolveCondition(context: QueryContext<*, *>): Mono<Condition> {
-        return getPrincipalTags(context).map {
+    open fun resolveCondition(contextView: ContextView, context: QueryContext<*, *>): Mono<Condition> {
+        return getPrincipalTags(contextView, context).map {
             if (it.isEmpty()) {
                 return@map Condition.all()
             }
@@ -119,7 +121,7 @@ abstract class AbacQueryFilter : SnapshotQueryFilter {
         next: FilterChain<QueryContext<*, *>>
     ): Mono<Void> {
         return Mono.deferContextual { contextView ->
-            contextView.resolveCondition(context).flatMap { abacCondition ->
+            resolveCondition(contextView, context).flatMap { abacCondition ->
                 if (abacCondition.operator == Operator.ALL) {
                     return@flatMap next.filter(context)
                 }
