@@ -51,7 +51,9 @@ object MetadataSearcher {
                         val next = JsonSerializer.readValue(it, WowMetadata::class.java)
                         current = current.merge(next)
                     } catch (e: Throwable) {
-                        log.error(e) { e.message }
+                        log.error(e) {
+                            "Failed to load metadata from [$resource]."
+                        }
                     }
                 }
             }
