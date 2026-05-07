@@ -12,12 +12,8 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import type {
-  QueryClientOptions} from '../../src';
-import {
-  QueryClientFactory,
-  createQueryApiMetadata,
-} from '../../src';
+import type { QueryClientOptions } from '../../src';
+import { QueryClientFactory, createQueryApiMetadata } from '../../src';
 import {
   LoadStateAggregateClient,
   LoadOwnerStateAggregateClient,

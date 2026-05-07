@@ -38,13 +38,13 @@ export default defineConfig({
           '@ahoo-wang/fetcher-decorator': 'FetcherDecorator',
           '@ahoo-wang/fetcher-openapi': 'FetcherOpenAPI',
           '@ahoo-wang/fetcher-wow': 'FetcherWow',
-          'commander': 'Commander',
+          commander: 'Commander',
           'ts-morph': 'ts-morph',
-          'yaml': 'yaml',
-          'fs': 'fs',
-          'path': 'path'
-        }
-      }
+          yaml: 'yaml',
+          fs: 'fs',
+          path: 'path',
+        },
+      },
     },
   },
   plugins: [

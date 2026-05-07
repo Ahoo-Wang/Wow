@@ -25,16 +25,14 @@ import {
   type SingleQuery,
 } from '../queryable';
 import type { MaterializedSnapshot } from './snapshot';
-import type {
-  JsonServerSentEvent} from '@ahoo-wang/fetcher-eventstream';
-import {
-  JsonEventStreamResultExtractor
-} from '@ahoo-wang/fetcher-eventstream';
+import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
+import { JsonEventStreamResultExtractor } from '@ahoo-wang/fetcher-eventstream';
 import { ContentTypeValues } from '@ahoo-wang/fetcher';
 import '@ahoo-wang/fetcher-eventstream';
 import type {
   ApiMetadata,
-  ApiMetadataCapable} from '@ahoo-wang/fetcher-decorator';
+  ApiMetadataCapable,
+} from '@ahoo-wang/fetcher-decorator';
 import {
   api,
   attribute,
@@ -119,12 +117,12 @@ import {
  */
 @api()
 export class SnapshotQueryClient<S, FIELDS extends string = string>
-  implements SnapshotQueryApi<S, FIELDS>, ApiMetadataCapable {
+  implements SnapshotQueryApi<S, FIELDS>, ApiMetadataCapable
+{
   /**
    * Creates a new SnapshotQueryClient instance.
    */
-  constructor(public readonly apiMetadata?: ApiMetadata) {
-  }
+  constructor(public readonly apiMetadata?: ApiMetadata) {}
 
   /**
    * Counts the number of snapshots that match the given condition.

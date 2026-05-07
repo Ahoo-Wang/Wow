@@ -45,7 +45,7 @@ export function isEnum(schema: Schema): schema is EnumSchema {
   return Array.isArray(schema.enum) && schema.enum.length > 0;
 }
 
-export type EnumText = Record<string, string>
+export type EnumText = Record<string, string>;
 const ENUM_TEXT_NAME = 'x-enum-text';
 
 export function getEnumText(schema: EnumSchema): EnumText | undefined {
@@ -155,7 +155,9 @@ export function isMap(schema: Schema): schema is MapSchema {
 
 const X_MAP_KEY_SCHEMA = 'x-map-key-schema';
 
-export function getMapKeySchema(schema: Schema): Schema | Reference | undefined {
+export function getMapKeySchema(
+  schema: Schema,
+): Schema | Reference | undefined {
   return schema[X_MAP_KEY_SCHEMA];
 }
 

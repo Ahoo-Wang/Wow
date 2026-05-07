@@ -16,18 +16,16 @@ import type {
   ClassDeclaration,
   OptionalKind,
   ParameterDeclarationStructure,
-  SourceFile} from 'ts-morph';
-import {
-  VariableDeclarationKind,
+  SourceFile,
 } from 'ts-morph';
+import { VariableDeclarationKind } from 'ts-morph';
 import type {
   AggregateDefinition,
   CommandDefinition,
   TagAliasAggregate,
 } from '../aggregate';
 import type { GenerateContext, Generator } from '../generateContext';
-import type {
-  ModelInfo} from '../model';
+import type { ModelInfo } from '../model';
 import {
   IMPORT_WOW_PATH,
   resolveContextDeclarationName,

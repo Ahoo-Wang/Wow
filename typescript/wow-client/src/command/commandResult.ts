@@ -50,7 +50,8 @@ import { type JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
  * - FunctionInfoCapable: Provides information about the function that processed the command
  */
 export interface WaitSignal
-  extends Identifier,
+  extends
+    Identifier,
     WaitCommandIdCapable,
     CommandId,
     AggregateIdCapable,
@@ -71,7 +72,8 @@ export interface WaitSignal
  * - Version tracking (aggregateVersion)
  */
 export interface CommandResult
-  extends Identifier,
+  extends
+    Identifier,
     WaitCommandIdCapable,
     CommandStageCapable,
     NamedBoundedContext,

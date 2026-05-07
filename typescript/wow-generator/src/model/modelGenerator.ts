@@ -15,14 +15,10 @@ import type { Schema } from '@ahoo-wang/fetcher-openapi';
 import type { SourceFile } from 'ts-morph';
 
 import type { GenerateContext, Generator } from '../generateContext';
-import type { KeySchema} from '../utils';
+import type { KeySchema } from '../utils';
 import { getModelFileName, pascalCase } from '../utils';
-import type {
-  ModelInfo} from './modelInfo';
-import {
-  resolveContextDeclarationName,
-  resolveModelInfo,
-} from './modelInfo';
+import type { ModelInfo } from './modelInfo';
+import { resolveContextDeclarationName, resolveModelInfo } from './modelInfo';
 import { TypeGenerator } from './typeGenerator';
 
 /**
@@ -35,8 +31,7 @@ import { TypeGenerator } from './typeGenerator';
  * @property contextAggregates - Map of aggregate definitions
  */
 export class ModelGenerator implements Generator {
-  constructor(public readonly context: GenerateContext) {
-  }
+  constructor(public readonly context: GenerateContext) {}
 
   private getOrCreateSourceFile(modelInfo: ModelInfo): SourceFile {
     const fileName = getModelFileName(modelInfo);
@@ -100,7 +95,8 @@ export class ModelGenerator implements Generator {
       return false;
     }
 
-    if (schemaKey.startsWith('wow.api.query.Operator') &&
+    if (
+      schemaKey.startsWith('wow.api.query.Operator') &&
       schemaKey.endsWith('Map')
     ) {
       return false;
@@ -111,7 +107,9 @@ export class ModelGenerator implements Generator {
       schemaKey.endsWith('AggregatedCondition') ||
       schemaKey.endsWith('AggregatedDomainEventStream') ||
       schemaKey.endsWith('AggregatedDomainEventStreamPagedList') ||
-      schemaKey.endsWith('AggregatedDomainEventStreamServerSentEventNonNullData') ||
+      schemaKey.endsWith(
+        'AggregatedDomainEventStreamServerSentEventNonNullData',
+      ) ||
       schemaKey.endsWith('AggregatedListQuery') ||
       schemaKey.endsWith('AggregatedPagedQuery') ||
       schemaKey.endsWith('AggregatedSingleQuery')

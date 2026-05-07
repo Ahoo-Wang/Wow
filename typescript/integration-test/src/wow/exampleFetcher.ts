@@ -11,13 +11,8 @@
  * limitations under the License.
  */
 
-import type {
-  FetchExchange,
-  RequestInterceptor} from '@ahoo-wang/fetcher';
-import {
-  Fetcher,
-  URL_RESOLVE_INTERCEPTOR_ORDER,
-} from '@ahoo-wang/fetcher';
+import type { FetchExchange, RequestInterceptor } from '@ahoo-wang/fetcher';
+import { Fetcher, URL_RESOLVE_INTERCEPTOR_ORDER } from '@ahoo-wang/fetcher';
 import { idGenerator } from '@ahoo-wang/fetcher-cosec';
 
 export const exampleFetcher = new Fetcher({

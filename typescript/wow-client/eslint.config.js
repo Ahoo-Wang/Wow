@@ -18,12 +18,12 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-expressions': 'off',
       '@typescript-eslint/no-unused-vars': 'off',
       '@typescript-eslint/no-unsafe-function-type': 'off',
-      "@typescript-eslint/consistent-type-imports": [
-        "error",
+      '@typescript-eslint/consistent-type-imports': [
+        'error',
         {
-          "prefer": "type-imports"
-        }
-      ]
+          prefer: 'type-imports',
+        },
+      ],
     },
   },
 );

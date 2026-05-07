@@ -19,7 +19,8 @@ import type {
   FirstOperatorCapable,
   Identifier,
   Named,
-  OwnerId, SpaceIdCapable,
+  OwnerId,
+  SpaceIdCapable,
   StateCapable,
   Version,
 } from '../../types';
@@ -34,9 +35,7 @@ import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
  * @template BODY - The type of the event content for this domain event
  */
 export interface DomainEvent<BODY>
-  extends Identifier,
-    Named,
-    BodyCapable<BODY> {
+  extends Identifier, Named, BodyCapable<BODY> {
   /**
    * The type of the event content.
    */
@@ -94,7 +93,8 @@ export interface DomainEventStreamHeader {
  * versioning, and the actual event data.
  */
 export interface DomainEventStream<DomainEventBody = any>
-  extends Identifier,
+  extends
+    Identifier,
     AggregateId,
     OwnerId,
     SpaceIdCapable,
@@ -110,12 +110,12 @@ export interface DomainEventStream<DomainEventBody = any>
 }
 
 export interface StateEvent<DomainEventBody = any, S = any>
-  extends DomainEventStream<DomainEventBody>,
+  extends
+    DomainEventStream<DomainEventBody>,
     StateCapable<S>,
     FirstOperatorCapable,
     FirstEventTimeCapable,
-    DeletedCapable {
-}
+    DeletedCapable {}
 
 /**
  * Provides field names for domain event stream metadata.

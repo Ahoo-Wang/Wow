@@ -21,7 +21,8 @@ import { JsonEventStreamResultExtractor } from '@ahoo-wang/fetcher-eventstream';
 
 import type {
   ApiMetadata,
-  ApiMetadataCapable} from '@ahoo-wang/fetcher-decorator';
+  ApiMetadataCapable,
+} from '@ahoo-wang/fetcher-decorator';
 import {
   api,
   attribute,
@@ -73,9 +74,9 @@ import {
  * ```
  */
 @api()
-export class CommandClient<C extends object = object>
-  implements ApiMetadataCapable
-{
+export class CommandClient<
+  C extends object = object,
+> implements ApiMetadataCapable {
   constructor(public readonly apiMetadata?: ApiMetadata) {}
 
   /**

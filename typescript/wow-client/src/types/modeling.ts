@@ -87,14 +87,10 @@ export interface AggregateNameCapable {
  * Interface for named aggregates that belong to a bounded context.
  */
 export interface NamedAggregate
-  extends NamedBoundedContext,
-    AggregateNameCapable {
-}
+  extends NamedBoundedContext, AggregateNameCapable {}
 
 export interface AliasAggregate
-  extends AliasBoundedContext,
-    AggregateNameCapable {
-}
+  extends AliasBoundedContext, AggregateNameCapable {}
 
 /**
  * Interface for aggregate IDs that combine tenant and named aggregate information.

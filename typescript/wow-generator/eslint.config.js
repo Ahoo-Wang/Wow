@@ -34,12 +34,12 @@ export default tseslint.config(
     },
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
-      "@typescript-eslint/consistent-type-imports": [
-        "error",
+      '@typescript-eslint/consistent-type-imports': [
+        'error',
         {
-          "prefer": "type-imports"
-        }
-      ]
+          prefer: 'type-imports',
+        },
+      ],
     },
   },
 );

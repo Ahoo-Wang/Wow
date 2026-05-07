@@ -11,7 +11,12 @@
  * limitations under the License.
  */
 
-import type { ApplyAbacTags, ErrorInfo, FunctionInfoCapable, Identifier } from '../types';
+import type {
+  ApplyAbacTags,
+  ErrorInfo,
+  FunctionInfoCapable,
+  Identifier,
+} from '../types';
 import type { PartialBy, RemoveReadonlyFields } from '@ahoo-wang/fetcher';
 
 /**
@@ -128,9 +133,7 @@ export interface NullableAggregateVersionCapable {
  * targets typically represent entities that can have operations reversed or corrected.
  */
 export interface CompensationTarget
-  extends PartialBy<Identifier, 'id'>,
-    FunctionInfoCapable {
-}
+  extends PartialBy<Identifier, 'id'>, FunctionInfoCapable {}
 
 /**
  * Represents a command to delete an aggregate.
@@ -140,8 +143,7 @@ export interface CompensationTarget
  * command processing workflow.
  */
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface DeleteAggregate {
-}
+export interface DeleteAggregate {}
 
 export type CommandBody<C> = RemoveReadonlyFields<C>;
 
@@ -155,14 +157,12 @@ export type DeleteAggregateCommand = CommandBody<DeleteAggregate>;
  * or recovered from an error condition.
  */
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface RecoverAggregate {
-}
+export interface RecoverAggregate {}
 
 export type RecoverAggregateCommand = CommandBody<RecoverAggregate>;
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface ApplyResourceTags extends ApplyAbacTags {
-}
+export interface ApplyResourceTags extends ApplyAbacTags {}
 
 export type ApplyResourceTagsCommand = CommandBody<ApplyResourceTags>;
 

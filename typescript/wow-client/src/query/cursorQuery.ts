@@ -11,10 +11,10 @@
  * limitations under the License.
  */
 
-import type { FieldSort} from './sort';
+import type { FieldSort } from './sort';
 import { SortDirection } from './sort';
 import type { ListQuery } from './queryable';
-import type { Condition} from './condition';
+import type { Condition } from './condition';
 import { and, gt, lt } from './condition';
 
 /**

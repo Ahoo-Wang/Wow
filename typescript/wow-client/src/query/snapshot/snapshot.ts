@@ -22,7 +22,8 @@ import type {
   NamedAggregate,
   OperatorCapable,
   OwnerId,
-  SnapshotTimeCapable, SpaceIdCapable,
+  SnapshotTimeCapable,
+  SpaceIdCapable,
   StateCapable,
   TenantId,
   Version,
@@ -32,7 +33,8 @@ import type {
  * Interface for materialized snapshots with full capabilities.
  */
 export interface MaterializedSnapshot<S>
-  extends StateCapable<S>,
+  extends
+    StateCapable<S>,
     AggregateId,
     TenantId,
     OwnerId,
@@ -45,8 +47,7 @@ export interface MaterializedSnapshot<S>
     EventTimeCapable,
     SnapshotTimeCapable,
     AbacTaggable,
-    DeletedCapable {
-}
+    DeletedCapable {}
 
 /**
  * Interface for materialized snapshots with medium capabilities.
@@ -57,7 +58,8 @@ export interface MaterializedSnapshot<S>
  * and records information such as event IDs and operation times to support tracing and auditing.
  */
 export interface MediumMaterializedSnapshot<S>
-  extends StateCapable<S>,
+  extends
+    StateCapable<S>,
     NamedAggregate,
     TenantId,
     OwnerId,
@@ -67,8 +69,8 @@ export interface MediumMaterializedSnapshot<S>
     FirstOperatorCapable,
     OperatorCapable,
     FirstEventTimeCapable,
-    EventTimeCapable, AbacTaggable {
-}
+    EventTimeCapable,
+    AbacTaggable {}
 
 /**
  * Interface for simplified materialized snapshots with generic state.
@@ -76,11 +78,7 @@ export interface MediumMaterializedSnapshot<S>
  * This interface implements multiple interfaces to provide version, materialization, first event time, and state information.
  */
 export interface SmallMaterializedSnapshot<S>
-  extends StateCapable<S>,
-    NamedAggregate,
-    Version,
-    FirstEventTimeCapable {
-}
+  extends StateCapable<S>, NamedAggregate, Version, FirstEventTimeCapable {}
 
 /**
  * Provides field names for snapshot metadata.

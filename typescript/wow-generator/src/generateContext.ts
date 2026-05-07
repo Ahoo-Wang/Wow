@@ -14,7 +14,11 @@
 import type { OpenAPI } from '@ahoo-wang/fetcher-openapi';
 import type { Project, SourceFile } from 'ts-morph';
 import type { BoundedContextAggregates } from './aggregate';
-import type { GenerateContextInit, GeneratorConfiguration, Logger } from './types';
+import type {
+  GenerateContextInit,
+  GeneratorConfiguration,
+  Logger,
+} from './types';
 import { getOrCreateSourceFile } from './utils';
 
 export class GenerateContext implements GenerateContextInit {

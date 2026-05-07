@@ -65,7 +65,4 @@ describe('E2E Test', () => {
   //     tsConfigFilePath: `${OUT_PUT_DIR}/tsconfig.json`,
   //   });
   // }, 150000);
-
-
-
 });

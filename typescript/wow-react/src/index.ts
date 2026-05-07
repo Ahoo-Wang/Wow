@@ -17,4 +17,3 @@ export * from './useListQuery';
 export * from './useListStreamQuery';
 export * from './usePagedQuery';
 export * from './useSingleQuery';
-

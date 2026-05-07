@@ -11,12 +11,11 @@
  * limitations under the License.
  */
 
-import type { SourceFile} from 'ts-morph';
+import type { SourceFile } from 'ts-morph';
 import { VariableDeclarationKind } from 'ts-morph';
 import type { AggregateDefinition, TagAliasAggregate } from '../aggregate';
 import type { GenerateContext, Generator } from '../generateContext';
-import type {
-  ModelInfo} from '../model';
+import type { ModelInfo } from '../model';
 import {
   IMPORT_WOW_PATH,
   resolveContextDeclarationName,

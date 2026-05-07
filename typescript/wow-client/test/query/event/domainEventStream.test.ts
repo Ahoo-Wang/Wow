@@ -12,12 +12,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type {
-  DomainEvent,
-  DomainEventStream} from '../../../src';
-import {
-  DomainEventStreamMetadataFields,
-} from '../../../src';
+import type { DomainEvent, DomainEventStream } from '../../../src';
+import { DomainEventStreamMetadataFields } from '../../../src';
 
 interface TestEventBody {
   message: string;

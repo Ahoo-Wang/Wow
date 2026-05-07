@@ -110,12 +110,22 @@ describe('ClientGenerator', () => {
     };
 
     // For class mocks, we can access instances through the mock
-    const queryInstance = Object.assign(Object.create(QueryClientGeneratorMock.prototype), mockQueryClientGenerator);
-    const commandInstance = Object.assign(Object.create(CommandClientGeneratorMock.prototype), mockCommandClientGenerator);
+    const queryInstance = Object.assign(
+      Object.create(QueryClientGeneratorMock.prototype),
+      mockQueryClientGenerator,
+    );
+    const commandInstance = Object.assign(
+      Object.create(CommandClientGeneratorMock.prototype),
+      mockCommandClientGenerator,
+    );
 
     // Override the constructor to return our instances
-    Object.assign(QueryClientGeneratorMock.prototype, { constructor: () => queryInstance });
-    Object.assign(CommandClientGeneratorMock.prototype, { constructor: () => commandInstance });
+    Object.assign(QueryClientGeneratorMock.prototype, {
+      constructor: () => queryInstance,
+    });
+    Object.assign(CommandClientGeneratorMock.prototype, {
+      constructor: () => commandInstance,
+    });
 
     getOrCreateSourceFileMock.mockReturnValue({
       addStatements: vi.fn(),

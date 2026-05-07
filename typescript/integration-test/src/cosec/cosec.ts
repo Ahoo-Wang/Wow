@@ -14,7 +14,8 @@
 import type {
   CompositeToken,
   CoSecOptions,
-  TokenRefresher} from '@ahoo-wang/fetcher-cosec';
+  TokenRefresher,
+} from '@ahoo-wang/fetcher-cosec';
 import {
   CoSecRequestInterceptor,
   AuthorizationResponseInterceptor,

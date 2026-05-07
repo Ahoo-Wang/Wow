@@ -1,6 +1,6 @@
 /**
  * - key: example.ApiVersion
- * - schema: 
+ * - schema:
  * ```json
  * {
  *   "type": "string",
@@ -12,13 +12,13 @@
  * ```
  */
 export enum ApiVersion {
-    V2 = `V2`,
-    V3 = `V3`
+  V2 = `V2`,
+  V3 = `V3`,
 }
 
 /**
  * - key: example.Link
- * - schema: 
+ * - schema:
  * ```json
  * {
  *   "type": "object",
@@ -34,13 +34,13 @@ export enum ApiVersion {
  * ```
  */
 export interface Link {
-    href: string;
-    templated: boolean;
+  href: string;
+  templated: boolean;
 }
 
 /**
  * - key: example.SecurityContext
- * - schema: 
+ * - schema:
  * ```json
  * {
  *   "type": "object"
@@ -50,7 +50,7 @@ export interface Link {
 export type SecurityContext = Record<string, any>;
 /**
  * - key: example.StringLinkMap
- * - schema: 
+ * - schema:
  * ```json
  * {
  *   "type": "object",
@@ -63,7 +63,7 @@ export type SecurityContext = Record<string, any>;
 export type StringLinkMap = Record<string, Link>;
 /**
  * - key: example.StringObjectMap
- * - schema: 
+ * - schema:
  * ```json
  * {
  *   "type": "object"
@@ -74,7 +74,7 @@ export type StringObjectMap = Record<string, any>;
 
 /**
  * - key: example.WebServerNamespace
- * - schema: 
+ * - schema:
  * ```json
  * {
  *   "type": "object",
@@ -87,5 +87,5 @@ export type StringObjectMap = Record<string, any>;
  * ```
  */
 export interface WebServerNamespace {
-    value: string;
+  value: string;
 }

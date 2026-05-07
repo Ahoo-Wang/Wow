@@ -26,15 +26,13 @@ import type {
   SourceFile,
 } from 'ts-morph';
 import type { GenerateContext, Generator } from '../generateContext';
-import type {
-  ModelInfo} from '../model';
+import type { ModelInfo } from '../model';
 import {
   resolveContextDeclarationName,
   resolveModelInfo,
   resolveReferenceModelInfo,
 } from '../model';
-import type {
-  OperationEndpoint} from '../utils';
+import type { OperationEndpoint } from '../utils';
 import {
   addImportRefModel,
   addJSDoc,
@@ -47,18 +45,20 @@ import {
   extractResponseJsonSchema,
   extractResponseWildcardSchema,
   extractSchema,
-  isArray, isMap,
+  isArray,
+  isMap,
   isPrimitive,
   isReference,
   resolvePathParameterType,
-  resolvePrimitiveType, toArrayType,
+  resolvePrimitiveType,
+  toArrayType,
 } from '../utils';
-import type {
-  MethodReturnType} from './decorators';
+import type { MethodReturnType } from './decorators';
 import {
   addApiMetadataCtor,
   addImportDecorator,
-  addImportEventStream, addImportFetcher,
+  addImportEventStream,
+  addImportFetcher,
   createDecoratorClass,
   DEFAULT_RETURN_TYPE,
   STREAM_RESULT_EXTRACTOR_METADATA,
@@ -468,13 +468,13 @@ export class ApiClientGenerator implements Generator {
     const returnType = this.resolveReturnType(sourceFile, operation.operation);
     const methodDecorator = returnType.metadata
       ? {
-        name: methodToDecorator(operation.method),
-        arguments: [`'${operation.path}'`, returnType.metadata],
-      }
+          name: methodToDecorator(operation.method),
+          arguments: [`'${operation.path}'`, returnType.metadata],
+        }
       : {
-        name: methodToDecorator(operation.method),
-        arguments: [`'${operation.path}'`],
-      };
+          name: methodToDecorator(operation.method),
+          arguments: [`'${operation.path}'`],
+        };
     this.context.logger.info(
       `Creating method with ${parameters.length} parameters, return type: ${returnType.type}`,
     );

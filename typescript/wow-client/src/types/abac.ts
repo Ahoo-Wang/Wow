@@ -21,9 +21,7 @@ export interface AbacTaggable {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface ApplyAbacTags extends AbacTaggable {
-}
+export interface ApplyAbacTags extends AbacTaggable {}
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface AbacTagsApplied extends AbacTaggable {
-}
+export interface AbacTagsApplied extends AbacTaggable {}

@@ -18,16 +18,14 @@ import {
 import type { Condition } from '../condition';
 import type { ListQuery, PagedList, PagedQuery } from '../queryable';
 import type { DomainEventStream } from './domainEventStream';
-import type {
-  JsonServerSentEvent} from '@ahoo-wang/fetcher-eventstream';
-import {
-  JsonEventStreamResultExtractor
-} from '@ahoo-wang/fetcher-eventstream';
+import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
+import { JsonEventStreamResultExtractor } from '@ahoo-wang/fetcher-eventstream';
 
 import { ContentTypeValues } from '@ahoo-wang/fetcher';
 import type {
   ApiMetadata,
-  ApiMetadataCapable} from '@ahoo-wang/fetcher-decorator';
+  ApiMetadataCapable,
+} from '@ahoo-wang/fetcher-decorator';
 import {
   api,
   attribute,
@@ -78,9 +76,9 @@ import {
  */
 @api()
 export class EventStreamQueryClient<
-    DomainEventBody = any,
-    FIELDS extends string = string,
-  >
+  DomainEventBody = any,
+  FIELDS extends string = string,
+>
   implements EventStreamQueryApi<DomainEventBody, FIELDS>, ApiMetadataCapable
 {
   /**
@@ -148,9 +146,8 @@ export class EventStreamQueryClient<
    */
   @post(EventStreamQueryEndpointPaths.LIST)
   list<
-    T extends Partial<
-      DomainEventStream<DomainEventBody>
-    > = DomainEventStream<DomainEventBody>,
+    T extends Partial<DomainEventStream<DomainEventBody>> =
+      DomainEventStream<DomainEventBody>,
   >(
     @body() listQuery: ListQuery<FIELDS>,
     @attribute() attributes?: Record<string, any>,
@@ -193,9 +190,8 @@ export class EventStreamQueryClient<
     resultExtractor: JsonEventStreamResultExtractor,
   })
   listStream<
-    T extends Partial<
-      DomainEventStream<DomainEventBody>
-    > = DomainEventStream<DomainEventBody>,
+    T extends Partial<DomainEventStream<DomainEventBody>> =
+      DomainEventStream<DomainEventBody>,
   >(
     @body() listQuery: ListQuery<FIELDS>,
     @attribute() attributes?: Record<string, any>,
@@ -236,9 +232,8 @@ export class EventStreamQueryClient<
    */
   @post(EventStreamQueryEndpointPaths.PAGED)
   paged<
-    T extends Partial<
-      DomainEventStream<DomainEventBody>
-    > = DomainEventStream<DomainEventBody>,
+    T extends Partial<DomainEventStream<DomainEventBody>> =
+      DomainEventStream<DomainEventBody>,
   >(
     @body() pagedQuery: PagedQuery<FIELDS>,
     @attribute() attributes?: Record<string, any>,

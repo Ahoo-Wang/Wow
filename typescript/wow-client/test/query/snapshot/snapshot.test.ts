@@ -14,10 +14,9 @@
 import { describe, expect, it } from 'vitest';
 import type {
   MaterializedSnapshot,
-  SmallMaterializedSnapshot} from '../../../src';
-import {
-  SnapshotMetadataFields,
+  SmallMaterializedSnapshot,
 } from '../../../src';
+import { SnapshotMetadataFields } from '../../../src';
 
 interface TestState {
   name: string;

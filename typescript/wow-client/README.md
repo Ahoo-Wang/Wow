@@ -275,17 +275,17 @@ const rawCondition = raw({ $text: { $search: 'keywords' } });
 
 **Operator Reference:**
 
-| Category | Operators |
-|----------|-----------|
-| Logical | `and`, `or`, `nor` |
-| Comparison | `eq`, `ne`, `gt`, `lt`, `gte`, `lte` |
-| String | `contains`, `startsWith`, `endsWith`, `match` |
-| Collection | `isIn`, `notIn`, `allIn`, `elemMatch` |
-| Null/Boolean | `isNull`, `notNull`, `isTrue`, `isFalse`, `exists` |
-| Date | `today`, `beforeToday(days)`, `tomorrow`, `thisWeek`, `nextWeek`, `lastWeek`, `thisMonth`, `lastMonth`, `recentDays(days)`, `earlierDays(days)` |
-| ID | `id`, `ids`, `aggregateId`, `aggregateIds`, `tenantId`, `ownerId` |
-| State | `active`, `all`, `deleted` |
-| Special | `raw` (for advanced database-specific queries) |
+| Category     | Operators                                                                                                                                       |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Logical      | `and`, `or`, `nor`                                                                                                                              |
+| Comparison   | `eq`, `ne`, `gt`, `lt`, `gte`, `lte`                                                                                                            |
+| String       | `contains`, `startsWith`, `endsWith`, `match`                                                                                                   |
+| Collection   | `isIn`, `notIn`, `allIn`, `elemMatch`                                                                                                           |
+| Null/Boolean | `isNull`, `notNull`, `isTrue`, `isFalse`, `exists`                                                                                              |
+| Date         | `today`, `beforeToday(days)`, `tomorrow`, `thisWeek`, `nextWeek`, `lastWeek`, `thisMonth`, `lastMonth`, `recentDays(days)`, `earlierDays(days)` |
+| ID           | `id`, `ids`, `aggregateId`, `aggregateIds`, `tenantId`, `ownerId`                                                                               |
+| State        | `active`, `all`, `deleted`                                                                                                                      |
+| Special      | `raw` (for advanced database-specific queries)                                                                                                  |
 
 #### SnapshotQueryClient
 

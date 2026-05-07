@@ -13,7 +13,8 @@
 
 import type {
   ApiMetadata,
-  ApiMetadataCapable} from '@ahoo-wang/fetcher-decorator';
+  ApiMetadataCapable,
+} from '@ahoo-wang/fetcher-decorator';
 import {
   api,
   attribute,

@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { CommandResult} from '../../src';
+import type { CommandResult } from '../../src';
 import { CommandStage } from '../../src';
 import { FunctionKind } from '../../src';
 

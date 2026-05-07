@@ -29,7 +29,8 @@ import { LoadOwnerStateAggregateClient } from './state';
  * resource attribution path specifications.
  */
 export interface QueryClientOptions
-  extends PartialBy<ApiMetadata, 'basePath'>,
+  extends
+    PartialBy<ApiMetadata, 'basePath'>,
     Partial<AliasBoundedContext>,
     Partial<AggregateNameCapable> {
   contextAlias?: string;

@@ -16,11 +16,8 @@ import type { FetcherError } from '@ahoo-wang/fetcher';
 import type { UseQueryReturn } from '../../core';
 import type { UseFetcherQueryOptions } from '../../fetcher';
 import { useFetcherQuery } from '../../fetcher';
-import type {
-  JsonServerSentEvent} from '@ahoo-wang/fetcher-eventstream';
-import {
-  JsonEventStreamResultExtractor
-} from '@ahoo-wang/fetcher-eventstream';
+import type { JsonServerSentEvent } from '@ahoo-wang/fetcher-eventstream';
+import { JsonEventStreamResultExtractor } from '@ahoo-wang/fetcher-eventstream';
 
 /**
  * Options for configuring the useFetcherListStreamQuery hook.

@@ -15,16 +15,13 @@ import type {
   ClassDeclaration,
   OptionalKind,
   ParameterDeclarationStructure,
-  SourceFile} from 'ts-morph';
-import {
-  Scope
+  SourceFile,
 } from 'ts-morph';
+import { Scope } from 'ts-morph';
 import { addImport } from '../utils';
 
 export const FETCHER_MODULE_SPECIFIER = '@ahoo-wang/fetcher';
-export const FETCHER_NAMED_IMPORTS = [
-  'ResultExtractors'
-];
+export const FETCHER_NAMED_IMPORTS = ['ResultExtractors'];
 
 /**
  * The module specifier for the fetcher-decorator package.

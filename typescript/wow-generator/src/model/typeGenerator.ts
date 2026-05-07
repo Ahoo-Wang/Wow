@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { ModelInfo} from './modelInfo';
+import type { ModelInfo } from './modelInfo';
 import { resolveReferenceModelInfo } from './modelInfo';
 import type { InterfaceDeclaration, JSDocableNode, SourceFile } from 'ts-morph';
 import type { Reference, Schema } from '@ahoo-wang/fetcher-openapi';
@@ -22,11 +22,14 @@ import type {
   EnumSchema,
   KeySchema,
   MapSchema,
-  ObjectSchema} from '../utils';
+  ObjectSchema,
+} from '../utils';
 import {
   addImportModelInfo,
   addMainSchemaJSDoc,
-  addSchemaJSDoc, getEnumText, getMapKeySchema,
+  addSchemaJSDoc,
+  getEnumText,
+  getMapKeySchema,
   isAllOf,
   isArray,
   isComposition,
@@ -35,8 +38,10 @@ import {
   isObject,
   isReadOnly,
   isReference,
-  jsDoc, resolveEnumMemberName,
-  resolvePrimitiveType, resolvePropertyName,
+  jsDoc,
+  resolveEnumMemberName,
+  resolvePrimitiveType,
+  resolvePropertyName,
   schemaJSDoc,
   toArrayType,
 } from '../utils';
@@ -48,8 +53,7 @@ export class TypeGenerator implements Generator {
     private readonly sourceFile: SourceFile,
     private readonly keySchema: KeySchema,
     private readonly outputDir: string,
-  ) {
-  }
+  ) {}
 
   generate(): void {
     const node = this.process();
@@ -169,7 +173,6 @@ export class TypeGenerator implements Generator {
     const valueType = this.resolveMapValueType(schema);
     return `Record<${keyType},${valueType}>`;
   }
-
 
   resolveType(schema: Schema | Reference): string {
     if (isReference(schema)) {

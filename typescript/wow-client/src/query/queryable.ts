@@ -20,7 +20,8 @@ import { type ProjectionCapable } from './projection';
  * Interface for queryable objects that support conditions, projection, and sorting.
  */
 export interface Queryable<FIELDS extends string = string>
-  extends ConditionCapable<FIELDS>,
+  extends
+    ConditionCapable<FIELDS>,
     ProjectionCapable<FIELDS>,
     SortCapable<FIELDS> {}
 
@@ -28,8 +29,9 @@ export interface Queryable<FIELDS extends string = string>
  * Interface for single query objects.
  */
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface SingleQuery<FIELDS extends string = string>
-  extends Queryable<FIELDS> {}
+export interface SingleQuery<
+  FIELDS extends string = string,
+> extends Queryable<FIELDS> {}
 
 /**
  * Creates a SingleQuery object with the provided parameters.
@@ -60,8 +62,9 @@ export function singleQuery<FIELDS extends string = string>({
  *
  * Limit the number of results. Default: DEFAULT_PAGINATION.size
  */
-export interface ListQuery<FIELDS extends string = string>
-  extends Queryable<FIELDS> {
+export interface ListQuery<
+  FIELDS extends string = string,
+> extends Queryable<FIELDS> {
   limit?: number;
 }
 
@@ -96,8 +99,9 @@ export function listQuery<FIELDS extends string = string>({
 /**
  * Interface for paged query objects.
  */
-export interface PagedQuery<FIELDS extends string = string>
-  extends Queryable<FIELDS> {
+export interface PagedQuery<
+  FIELDS extends string = string,
+> extends Queryable<FIELDS> {
   pagination?: Pagination;
 }
 

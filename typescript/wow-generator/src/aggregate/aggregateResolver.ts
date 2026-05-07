@@ -28,8 +28,7 @@ import type {
 
 import type { PartialBy } from '@ahoo-wang/fetcher';
 import { ContentTypeValues } from '@ahoo-wang/fetcher';
-import type {
-  MethodOperation} from '../utils';
+import type { MethodOperation } from '../utils';
 import {
   extractOkResponse,
   extractOperationEndpoints,
@@ -38,7 +37,7 @@ import {
   extractRequestBody,
   extractSchema,
   isReference,
-  keySchema
+  keySchema,
 } from '../utils';
 import type { EventStreamSchema } from './types';
 import { operationIdToCommandName, tagsToAggregates } from './utils';

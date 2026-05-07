@@ -12,8 +12,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type {
-  Condition} from '../../src';
+import type { Condition } from '../../src';
 import {
   active,
   aggregateId,

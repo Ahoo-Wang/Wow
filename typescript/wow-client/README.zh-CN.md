@@ -267,17 +267,17 @@ const rawCondition = raw({ $text: { $search: 'keywords' } });
 
 **操作符参考：**
 
-| 类别 | 操作符 |
-|----------|-----------|
-| 逻辑 | `and`, `or`, `nor` |
-| 比较 | `eq`, `ne`, `gt`, `lt`, `gte`, `lte` |
-| 字符串 | `contains`, `startsWith`, `endsWith`, `match` |
-| 集合 | `isIn`, `notIn`, `allIn`, `elemMatch` |
-| 空值/布尔 | `isNull`, `notNull`, `isTrue`, `isFalse`, `exists` |
-| 日期 | `today`, `beforeToday(days)`, `tomorrow`, `thisWeek`, `nextWeek`, `lastWeek`, `thisMonth`, `lastMonth`, `recentDays(days)`, `earlierDays(days)` |
-| ID | `id`, `ids`, `aggregateId`, `aggregateIds`, `tenantId`, `ownerId` |
-| 状态 | `active`, `all`, `deleted` |
-| 特殊 | `raw`（用于高级数据库特定查询）
+| 类别      | 操作符                                                                                                                                          |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| 逻辑      | `and`, `or`, `nor`                                                                                                                              |
+| 比较      | `eq`, `ne`, `gt`, `lt`, `gte`, `lte`                                                                                                            |
+| 字符串    | `contains`, `startsWith`, `endsWith`, `match`                                                                                                   |
+| 集合      | `isIn`, `notIn`, `allIn`, `elemMatch`                                                                                                           |
+| 空值/布尔 | `isNull`, `notNull`, `isTrue`, `isFalse`, `exists`                                                                                              |
+| 日期      | `today`, `beforeToday(days)`, `tomorrow`, `thisWeek`, `nextWeek`, `lastWeek`, `thisMonth`, `lastMonth`, `recentDays(days)`, `earlierDays(days)` |
+| ID        | `id`, `ids`, `aggregateId`, `aggregateIds`, `tenantId`, `ownerId`                                                                               |
+| 状态      | `active`, `all`, `deleted`                                                                                                                      |
+| 特殊      | `raw`（用于高级数据库特定查询）                                                                                                                 |
 
 #### SnapshotQueryClient
 

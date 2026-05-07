@@ -11274,7 +11274,7 @@ paths:
                 "usage_metrics": null,
                 "shared_with_openai": false
               }
-                    
+
           - title: Validation file
             request:
               curl: |
@@ -21164,7 +21164,7 @@ paths:
                 },
                 "user": null,
                 "metadata": {}
-              }      
+              }
           - title: Streaming
             request:
               curl: |
@@ -22219,7 +22219,7 @@ paths:
               const client = new OpenAI();
 
               const response = await client.responses.cancel("resp_123");
-              console.log(response);  
+              console.log(response);
             python: |-
               from openai import OpenAI
 
@@ -31570,7 +31570,7 @@ webhooks:
         '200':
           description: |
             Return a 200 status code to acknowledge receipt of the event. Non-200 
-            status codes will be retried. 
+            status codes will be retried.
   eval_run_failed:
     post:
       requestBody:
@@ -31583,7 +31583,7 @@ webhooks:
         '200':
           description: |
             Return a 200 status code to acknowledge receipt of the event. Non-200 
-            status codes will be retried. 
+            status codes will be retried.
   eval_run_succeeded:
     post:
       requestBody:
@@ -31596,7 +31596,7 @@ webhooks:
         '200':
           description: |
             Return a 200 status code to acknowledge receipt of the event. Non-200 
-            status codes will be retried. 
+            status codes will be retried.
   fine_tuning_job_cancelled:
     post:
       requestBody:
@@ -31609,7 +31609,7 @@ webhooks:
         '200':
           description: |
             Return a 200 status code to acknowledge receipt of the event. Non-200 
-            status codes will be retried. 
+            status codes will be retried.
   fine_tuning_job_failed:
     post:
       requestBody:
@@ -31622,7 +31622,7 @@ webhooks:
         '200':
           description: |
             Return a 200 status code to acknowledge receipt of the event. Non-200 
-            status codes will be retried. 
+            status codes will be retried.
   fine_tuning_job_succeeded:
     post:
       requestBody:
@@ -31635,7 +31635,7 @@ webhooks:
         '200':
           description: |
             Return a 200 status code to acknowledge receipt of the event. Non-200 
-            status codes will be retried. 
+            status codes will be retried.
   realtime_call_incoming:
     post:
       requestBody:
@@ -31674,7 +31674,7 @@ webhooks:
         '200':
           description: |
             Return a 200 status code to acknowledge receipt of the event. Non-200 
-            status codes will be retried. 
+            status codes will be retried.
   response_failed:
     post:
       requestBody:
@@ -36575,7 +36575,7 @@ components:
               items:
                 type: string
                 default: ''
-                example: '[''This is a test.'']'
+                example: "['This is a test.']"
             - type: array
               title: Array of tokens
               description: The array of integers that will be turned into an embedding.
@@ -36875,7 +36875,7 @@ components:
       type: object
       title: JsonlRunDataSource
       description: |
-        A JsonlRunDataSource object with that specifies a JSONL file that matches the eval 
+        A JsonlRunDataSource object with that specifies a JSONL file that matches the eval
       properties:
         type:
           type: string
@@ -47307,7 +47307,7 @@ components:
         is not text in the context that hasn't been heard by the user.
 
         If successful, the server will respond with a `conversation.item.truncated` 
-        event. 
+        event.
       properties:
         event_id:
           type: string
@@ -50063,7 +50063,7 @@ components:
         is not text in the context that hasn't been heard by the user.
 
         If successful, the server will respond with a `conversation.item.truncated` 
-        event. 
+        event.
       properties:
         event_id:
           type: string
@@ -58715,7 +58715,7 @@ components:
             The dataset item provided to the grader. This will be used to populate 
 
             the `item` namespace. See [the guide](https://platform.openai.com/docs/guides/graders) for more
-            details. 
+            details.
         model_sample:
           type: string
           description: >
@@ -58727,7 +58727,7 @@ components:
             The `output_json` variable will be populated if the model sample is a 
 
             valid JSON string.
-             
+
       required:
         - grader
         - model_sample
@@ -60865,7 +60865,7 @@ components:
             loudness and then uses voice activity detection (VAD) to choose boundaries. `server_vad` object
             can be provided to tweak VAD detection parameters manually. If unset, the audio is transcribed as
             a single block. Required when using `gpt-4o-transcribe-diarize` for inputs longer than 30
-            seconds. 
+            seconds.
           anyOf:
             - type: string
               enum:
@@ -62974,7 +62974,7 @@ components:
             "data": {
               "id": "evalrun_abc123"
             }
-          } 
+          }
     WebhookEvalRunFailed:
       type: object
       title: eval.run.failed
@@ -63030,7 +63030,7 @@ components:
             "data": {
               "id": "evalrun_abc123"
             }
-          } 
+          }
     WebhookEvalRunSucceeded:
       type: object
       title: eval.run.succeeded
@@ -63086,7 +63086,7 @@ components:
             "data": {
               "id": "evalrun_abc123"
             }
-          } 
+          }
     WebhookFineTuningJobCancelled:
       type: object
       title: fine_tuning.job.cancelled
@@ -63142,7 +63142,7 @@ components:
             "data": {
               "id": "ftjob_abc123"
             }
-          } 
+          }
     WebhookFineTuningJobFailed:
       type: object
       title: fine_tuning.job.failed
@@ -63198,7 +63198,7 @@ components:
             "data": {
               "id": "ftjob_abc123"
             }
-          } 
+          }
     WebhookFineTuningJobSucceeded:
       type: object
       title: fine_tuning.job.succeeded
@@ -63254,7 +63254,7 @@ components:
             "data": {
               "id": "ftjob_abc123"
             }
-          } 
+          }
     WebhookRealtimeCallIncoming:
       type: object
       title: realtime.call.incoming

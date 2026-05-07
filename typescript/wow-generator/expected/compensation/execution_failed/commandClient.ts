@@ -48,9 +48,9 @@ const DEFAULT_COMMAND_CLIENT_OPTIONS: ApiMetadata = {
 };
 
 @api()
-export class ExecutionFailedCommandClient<R = CommandResult>
-  implements ApiMetadataCapable
-{
+export class ExecutionFailedCommandClient<
+  R = CommandResult,
+> implements ApiMetadataCapable {
   constructor(
     public readonly apiMetadata: ApiMetadata = DEFAULT_COMMAND_CLIENT_OPTIONS,
   ) {}

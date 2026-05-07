@@ -87,7 +87,10 @@ describe('generateAction', () => {
   });
 
   it('should generate code successfully', async () => {
-    await generateAction({ input: 'http://example.com', output: '/tmp/test-output' });
+    await generateAction({
+      input: 'http://example.com',
+      output: '/tmp/test-output',
+    });
     expect(true).toBe(true);
   });
 

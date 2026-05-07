@@ -12,7 +12,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import type { FieldSort} from '../../src';
+import type { FieldSort } from '../../src';
 import { all, asc, eq, projection } from '../../src';
 import { singleQuery, listQuery, pagedQuery, pagedList } from '../../src';
 import type { Projection } from '../../src';
