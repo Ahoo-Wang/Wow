@@ -57,30 +57,26 @@ export const navbarEn: DefaultTheme.NavItem[] = [
                 text: 'Fluent Kotlin Assertion Library',
                 link: 'https://github.com/Ahoo-Wang/FluentAssert'
             },
+            { text: '-' },
             {
-                text: 'Open source projects - Microservice governance',
-                items: [
-                    {
-                        text: 'CosId - Universal, flexible, high-performance distributed ID generator',
-                        link: 'https://github.com/Ahoo-Wang/CosId'
-                    },
-                    {
-                        text: 'CoSky - High-performance, low-cost microservice governance platform',
-                        link: 'https://github.com/Ahoo-Wang/CoSky'
-                    },
-                    {
-                        text: 'CoSec - Multi-tenant responsive security framework based on RBAC and policies',
-                        link: 'https://github.com/Ahoo-Wang/CoSec'
-                    },
-                    {
-                        text: 'CoCache - Distributed consistent secondary cache framework',
-                        link: 'https://github.com/Ahoo-Wang/CoCache'
-                    },
-                    {
-                        text: 'Simba - Easy-to-use, flexible distributed lock service',
-                        link: 'https://github.com/Ahoo-Wang/Simba'
-                    }
-                ]
+                text: 'CosId - Distributed ID Generator',
+                link: 'https://github.com/Ahoo-Wang/CosId'
+            },
+            {
+                text: 'CoSky - Microservice Governance',
+                link: 'https://github.com/Ahoo-Wang/CoSky'
+            },
+            {
+                text: 'CoSec - Reactive Security Framework',
+                link: 'https://github.com/Ahoo-Wang/CoSec'
+            },
+            {
+                text: 'CoCache - Distributed Cache',
+                link: 'https://github.com/Ahoo-Wang/CoCache'
+            },
+            {
+                text: 'Simba - Distributed Lock',
+                link: 'https://github.com/Ahoo-Wang/Simba'
             }
         ]
     },

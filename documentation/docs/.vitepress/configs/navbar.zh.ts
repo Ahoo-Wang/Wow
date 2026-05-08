@@ -57,30 +57,26 @@ export const navbarZh: DefaultTheme.NavItem[] = [
                 text: '流畅的 Kotlin 断言库',
                 link: 'https://github.com/Ahoo-Wang/FluentAssert'
             },
+            { text: '-' },
             {
-                text: '开源项目 - 微服务治理',
-                items: [
-                    {
-                        text: 'CosId - 通用、灵活、高性能的分布式 ID 生成器',
-                        link: 'https://github.com/Ahoo-Wang/CosId'
-                    },
-                    {
-                        text: 'CoSky - 高性能、低成本微服务治理平台',
-                        link: 'https://github.com/Ahoo-Wang/CoSky'
-                    },
-                    {
-                        text: 'CoSec - 基于 RBAC 和策略的多租户响应式安全框架',
-                        link: 'https://github.com/Ahoo-Wang/CoSec'
-                    },
-                    {
-                        text: 'CoCache - 分布式一致性二级缓存框架',
-                        link: 'https://github.com/Ahoo-Wang/CoCache'
-                    },
-                    {
-                        text: 'Simba - 易用、灵活的分布式锁服务',
-                        link: 'https://github.com/Ahoo-Wang/Simba'
-                    }
-                ]
+                text: 'CosId - 分布式 ID 生成器',
+                link: 'https://github.com/Ahoo-Wang/CosId'
+            },
+            {
+                text: 'CoSky - 微服务治理',
+                link: 'https://github.com/Ahoo-Wang/CoSky'
+            },
+            {
+                text: 'CoSec - 响应式安全框架',
+                link: 'https://github.com/Ahoo-Wang/CoSec'
+            },
+            {
+                text: 'CoCache - 分布式缓存',
+                link: 'https://github.com/Ahoo-Wang/CoCache'
+            },
+            {
+                text: 'Simba - 分布式锁',
+                link: 'https://github.com/Ahoo-Wang/Simba'
             }
         ]
     },
