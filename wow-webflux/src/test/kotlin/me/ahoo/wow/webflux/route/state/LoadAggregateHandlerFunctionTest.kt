@@ -41,7 +41,7 @@ import java.net.URI
 class LoadAggregateHandlerFunctionTest {
 
     @Test
-    fun handle() {
+    fun `should handle load aggregate request`() {
         val eventStore = InMemoryEventStore()
         val customerId = generateGlobalId()
         val addCartItem = AddCartItem(

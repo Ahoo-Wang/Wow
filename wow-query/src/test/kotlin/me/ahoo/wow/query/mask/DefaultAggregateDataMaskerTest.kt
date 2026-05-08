@@ -23,7 +23,7 @@ import org.junit.jupiter.api.Test
 
 class DefaultAggregateDataMaskerTest {
     @Test
-    fun main() {
+    fun `should add and remove masker`() {
         val mockStateDataMasker = MockStateDataMasker(MOCK_AGGREGATE_METADATA)
         val aggregateDataMasker = DefaultAggregateDataMasker.empty<StateDynamicDocumentMasker>()
             .addMasker(mockStateDataMasker)
@@ -36,7 +36,7 @@ class DefaultAggregateDataMaskerTest {
     }
 
     @Test
-    fun maskEmptyPagedList() {
+    fun `should return same paged list when empty`() {
         val pagedList = PagedList(0, emptyList<DynamicDocument>())
         val maskedPagedList = DefaultAggregateDataMasker.empty<StateDynamicDocumentMasker>()
             .mask(pagedList)
@@ -44,7 +44,7 @@ class DefaultAggregateDataMaskerTest {
     }
 
     @Test
-    fun maskPagedListEmptyMasker() {
+    fun `should return same paged list when no maskers`() {
         val pagedList = PagedList(1, listOf<DynamicDocument>(mutableMapOf<String, Any>().toDynamicDocument()))
         val maskedPagedList = DefaultAggregateDataMasker.empty<StateDynamicDocumentMasker>()
             .mask(pagedList)
@@ -52,7 +52,7 @@ class DefaultAggregateDataMaskerTest {
     }
 
     @Test
-    fun maskPagedList() {
+    fun `should mask paged list items with masker`() {
         val mockStateDataMasker = MockStateDataMasker(MOCK_AGGREGATE_METADATA)
         val aggregateDataMasker = DefaultAggregateDataMasker.empty<StateDynamicDocumentMasker>()
             .addMasker(mockStateDataMasker)

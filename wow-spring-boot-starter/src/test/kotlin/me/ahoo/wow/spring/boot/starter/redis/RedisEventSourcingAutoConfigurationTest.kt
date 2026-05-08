@@ -23,7 +23,7 @@ import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreProperties
 import me.ahoo.wow.spring.boot.starter.prepare.PrepareProperties
 import me.ahoo.wow.spring.boot.starter.prepare.PrepareStorage
-import org.assertj.core.api.AssertionsForInterfaceTypes
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
@@ -33,7 +33,7 @@ class RedisEventSourcingAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
 
     @Test
-    fun contextLoads() {
+    fun `should load context with redis event sourcing beans`() {
         contextRunner
             .enableWow()
             .withPropertyValues(
@@ -48,7 +48,7 @@ class RedisEventSourcingAutoConfigurationTest {
                 RedisEventSourcingAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
-                AssertionsForInterfaceTypes.assertThat(context)
+                context.assert()
                     .hasSingleBean(RedisEventStore::class.java)
                     .hasSingleBean(RedisSnapshotRepository::class.java)
                     .hasSingleBean(RedisPrepareKeyFactory::class.java)

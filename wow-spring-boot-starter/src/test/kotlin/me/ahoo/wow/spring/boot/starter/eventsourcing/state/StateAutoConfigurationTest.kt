@@ -13,7 +13,7 @@ import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.spring.boot.starter.BusType
 import me.ahoo.wow.spring.boot.starter.enableWow
-import org.assertj.core.api.AssertionsForInterfaceTypes
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
@@ -23,7 +23,7 @@ class StateAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
 
     @Test
-    fun contextLoads() {
+    fun `should load context when in-memory state event bus`() {
         contextRunner
             .enableWow()
             .withPropertyValues(
@@ -35,7 +35,7 @@ class StateAutoConfigurationTest {
                 StateAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
-                AssertionsForInterfaceTypes.assertThat(context)
+                context.assert()
                     .hasSingleBean(InMemoryStateEventBus::class.java)
                     .hasSingleBean(StateEventCompensator::class.java)
                     .hasSingleBean(SendStateEventFilter::class.java)
@@ -44,7 +44,7 @@ class StateAutoConfigurationTest {
     }
 
     @Test
-    fun contextLoadsIfLocalFirst() {
+    fun `should load context when local-first state event bus`() {
         contextRunner
             .enableWow()
             .withBean(DistributedStateEventBus::class.java, { mockk() })
@@ -57,7 +57,7 @@ class StateAutoConfigurationTest {
                 StateAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
-                AssertionsForInterfaceTypes.assertThat(context)
+                context.assert()
                     .hasSingleBean(LocalStateEventBus::class.java)
                     .hasSingleBean(LocalFirstStateEventBus::class.java)
             }

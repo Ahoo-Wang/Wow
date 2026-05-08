@@ -23,13 +23,13 @@ internal class LowerDotCaseStrategyTest {
     }
 
     @Test
-    fun segment() {
+    fun `should segment`() {
         val actual = LowerDotCaseStrategy.segment(PHRASE)
         actual.assert().isEqualTo(WORDS)
     }
 
     @Test
-    fun transform() {
+    fun `should transform`() {
         val actual = LowerDotCaseStrategy.transform(WORDS)
         actual.assert().isEqualTo(PHRASE)
     }

@@ -27,7 +27,7 @@ import kotlin.reflect.jvm.kotlinFunction
 
 internal class MonoFunctionAccessorFactoryTest {
     @Test
-    fun createMono() {
+    fun `should create mono function accessor`() {
         val methodAccessor = MockAggregate::class.java.getDeclaredMethod(
             "onCommand",
             ChangeStateReturnMono::class.java,
@@ -36,7 +36,7 @@ internal class MonoFunctionAccessorFactoryTest {
     }
 
     @Test
-    fun createFlux() {
+    fun `should create flux function accessor`() {
         val methodAccessor =
             MockAggregate::class.java.getDeclaredMethod(
                 "onCommand",
@@ -46,7 +46,7 @@ internal class MonoFunctionAccessorFactoryTest {
     }
 
     @Test
-    fun createPublisher() {
+    fun `should create publisher function accessor`() {
         val methodAccessor =
             MockAggregate::class.java.getDeclaredMethod(
                 "onCommand",
@@ -56,7 +56,7 @@ internal class MonoFunctionAccessorFactoryTest {
     }
 
     @Test
-    fun createSync() {
+    fun `should create sync function accessor`() {
         val methodAccessor =
             MockAggregate::class.java.getDeclaredMethod(
                 "onCommand",
@@ -66,7 +66,7 @@ internal class MonoFunctionAccessorFactoryTest {
     }
 
     @Test
-    fun createSuspend() {
+    fun `should create suspend function accessor`() {
         val methodAccessor = MockAggregate::class.java.getDeclaredMethod(
             "onCommand",
             ChangeStateReturnSuspend::class.java,
@@ -76,7 +76,7 @@ internal class MonoFunctionAccessorFactoryTest {
     }
 
     @Test
-    fun createFlow() {
+    fun `should create flow function accessor`() {
         val methodAccessor = MockAggregate::class.java.getDeclaredMethod(
             "onCommand",
             ChangeStateReturnFlow::class.java

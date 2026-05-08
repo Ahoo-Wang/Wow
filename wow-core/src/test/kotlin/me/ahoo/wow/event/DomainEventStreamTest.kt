@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test
 class DomainEventStreamTest {
 
     @Test
-    fun ignoreSourcingIfNotInitialVersion() {
+    fun `should ignore sourcing if not initial version`() {
         val eventStream = MockNamedEvent().toDomainEvent(
             aggregateId = generateGlobalId(),
             tenantId = generateGlobalId(),
@@ -22,7 +22,7 @@ class DomainEventStreamTest {
     }
 
     @Test
-    fun ignoreSourcing() {
+    fun `should ignore sourcing`() {
         val eventStream = MockNamedEvent().toDomainEvent(
             aggregateId = generateGlobalId(),
             tenantId = generateGlobalId(),
@@ -36,7 +36,7 @@ class DomainEventStreamTest {
     }
 
     @Test
-    fun ignoreSourcingIfErrorEvent() {
+    fun `should ignore sourcing if error event`() {
         val eventStream = ErrorIgnoreEvent(
             errorCode = generateGlobalId(),
             errorMsg = generateGlobalId()

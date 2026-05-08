@@ -21,7 +21,7 @@ import org.junit.jupiter.api.Test
 class DataMaskingKtTest {
 
     @Test
-    fun tryMask() {
+    fun `should return same snapshot when state is not maskable`() {
         val snapshot = MaterializedSnapshot(
             contextName = "contextName",
             aggregateName = "aggregateName",
@@ -42,7 +42,7 @@ class DataMaskingKtTest {
     }
 
     @Test
-    fun tryMaskIfMaskable() {
+    fun `should mask snapshot state when maskable`() {
         val snapshot = MaterializedSnapshot(
             contextName = "contextName",
             aggregateName = "aggregateName",
@@ -63,7 +63,7 @@ class DataMaskingKtTest {
     }
 
     @Test
-    fun pagedListTryMask() {
+    fun `should return same paged list when state is not maskable`() {
         val snapshot = MaterializedSnapshot(
             contextName = "contextName",
             aggregateName = "aggregateName",
@@ -85,7 +85,7 @@ class DataMaskingKtTest {
     }
 
     @Test
-    fun pagedListTryMaskIfMaskable() {
+    fun `should mask paged list items when maskable`() {
         val snapshot = MaterializedSnapshot(
             contextName = "contextName",
             aggregateName = "aggregateName",
@@ -107,14 +107,14 @@ class DataMaskingKtTest {
     }
 
     @Test
-    fun tryMaskState() {
+    fun `should mask data masking state`() {
         val state = MockMaskingData("pwd")
         val masked = state.tryMask()
         masked.pwd.assert().isEqualTo("******")
     }
 
     @Test
-    fun tryMaskAnyState() {
+    fun `should return same object when state is not data masking`() {
         val source = Any()
         val masked = source.tryMask()
         masked.assert().isSameAs(source)

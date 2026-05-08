@@ -19,7 +19,7 @@ import reactor.core.publisher.Sinks.EmitResult
 
 class ConcurrentManySinkTest {
     @Test
-    fun concurrent() {
+    fun `should emit concurrently`() {
         val sink = Sinks.many().unicast().onBackpressureBuffer<Int>().concurrent().concurrent()
         val result = sink.tryEmitNext(42)
         result.assert().isEqualTo(EmitResult.OK)

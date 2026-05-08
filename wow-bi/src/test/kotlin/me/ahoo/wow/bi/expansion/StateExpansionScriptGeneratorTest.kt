@@ -28,7 +28,7 @@ class StateExpansionMetadataVisitorTest {
         this.javaClass.classLoader.getResource("expected_bi_aggregate_script.sql")?.readText()
 
     @Test
-    fun build() {
+    fun `should build expansion script`() {
         val biAggregateMetadata = aggregateMetadata<BIAggregate, BIAggregateState>()
         val scriptGenerator = biAggregateMetadata.toScriptGenerator()
         val sql = scriptGenerator.toString().trim()
@@ -44,7 +44,7 @@ class StateExpansionMetadataVisitorTest {
     }
 
     @Test
-    fun toJson() {
+    fun `should convert expansion to JSON`() {
         val state = BIAggregateState(UUID.randomUUID().toString())
         val json = state.toJsonString()
         val stateObj = json.toObject<BIAggregateState>()

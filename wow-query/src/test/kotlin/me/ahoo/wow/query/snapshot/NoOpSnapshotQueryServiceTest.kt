@@ -25,17 +25,17 @@ class NoOpSnapshotQueryServiceTest {
     private val queryService = NoOpSnapshotQueryServiceFactory.create<Any>("test.test".toNamedAggregate())
 
     @Test
-    fun name() {
+    fun `should return no op name`() {
         queryService.name.assert().isEqualTo("no_op")
     }
 
     @Test
-    fun aggregate() {
+    fun `should return named aggregate`() {
         queryService.namedAggregate.assert().isEqualTo("test.test".toNamedAggregate())
     }
 
     @Test
-    fun singleQuery() {
+    fun `should execute single query`() {
         me.ahoo.wow.query.dsl.singleQuery {
             condition {
                 "test" eq "test"
@@ -46,7 +46,7 @@ class NoOpSnapshotQueryServiceTest {
     }
 
     @Test
-    fun singleDynamicQuery() {
+    fun `should execute single dynamic query`() {
         me.ahoo.wow.query.dsl.singleQuery {
             condition {
                 "test" eq "test"
@@ -57,7 +57,7 @@ class NoOpSnapshotQueryServiceTest {
     }
 
     @Test
-    fun query() {
+    fun `should execute list query`() {
         listQuery {
             condition {
                 "test" eq "test"
@@ -68,7 +68,7 @@ class NoOpSnapshotQueryServiceTest {
     }
 
     @Test
-    fun listDynamicQuery() {
+    fun `should execute list dynamic query`() {
         listQuery {
             condition {
                 "test" eq "test"
@@ -79,7 +79,7 @@ class NoOpSnapshotQueryServiceTest {
     }
 
     @Test
-    fun paged() {
+    fun `should execute paged query`() {
         pagedQuery {
             condition {
                 "test" eq "test"
@@ -93,7 +93,7 @@ class NoOpSnapshotQueryServiceTest {
     }
 
     @Test
-    fun pagedDynamicQuery() {
+    fun `should execute paged dynamic query`() {
         pagedQuery {
             condition {
                 "test" eq "test"
@@ -107,7 +107,7 @@ class NoOpSnapshotQueryServiceTest {
     }
 
     @Test
-    fun count() {
+    fun `should return zero count`() {
         condition {
             "test" eq "test"
         }.count(queryService)

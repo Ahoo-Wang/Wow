@@ -20,7 +20,7 @@ import reactor.kotlin.test.test
 class SingleSnapshotStateHandlerFunctionTest {
 
     @Test
-    fun handle() {
+    fun `should handle single snapshot state query`() {
         val handlerFunction = SingleSnapshotStateHandlerFunctionFactory(
             MockQueryHandler.queryHandler,
             DefaultRewriteRequestCondition,

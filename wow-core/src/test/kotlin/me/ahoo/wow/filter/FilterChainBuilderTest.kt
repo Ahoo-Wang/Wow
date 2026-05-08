@@ -27,7 +27,7 @@ import reactor.kotlin.test.test
 internal class ExchangeFilterChainBuilderTest {
     @Suppress("ThrowsCount")
     @Test
-    fun build() {
+    fun `should build`() {
         val chain = FilterChainBuilder<ServerCommandExchange<Any>>()
             .addFilter(MockLastFilter())
             .addFilter(MockFirstFilter())

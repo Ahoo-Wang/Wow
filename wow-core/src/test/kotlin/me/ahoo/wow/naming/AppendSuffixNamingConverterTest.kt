@@ -24,7 +24,7 @@ internal class AppendSuffixNamingConverterTest {
     }
 
     @Test
-    fun convert() {
+    fun `should convert`() {
         CONVERTER.suffix.assert().isEqualTo(SUFFIX)
         val phrase = "wow"
         val actual = CONVERTER.convert(phrase)

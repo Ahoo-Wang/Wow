@@ -23,21 +23,21 @@ internal class SimpleSnapshotSchemaTest {
     private val streamSchema = SimpleSnapshotSchema()
 
     @Test
-    fun load() {
+    fun `should load snapshot`() {
         streamSchema.load(namedAggregate.aggregateId("")).assert().isEqualTo(
             "select * from test_snapshot where aggregate_id=? order by version desc limit 1"
         )
     }
 
     @Test
-    fun loadVersion() {
+    fun `should load snapshot version`() {
         streamSchema.loadByVersion(namedAggregate.aggregateId("")).assert().isEqualTo(
             "select * from test_snapshot where aggregate_id=? and version=?"
         )
     }
 
     @Test
-    fun save() {
+    fun `should save snapshot`() {
         streamSchema.save(namedAggregate.aggregateId("")).assert().isEqualTo(
             """
      replace into test_snapshot

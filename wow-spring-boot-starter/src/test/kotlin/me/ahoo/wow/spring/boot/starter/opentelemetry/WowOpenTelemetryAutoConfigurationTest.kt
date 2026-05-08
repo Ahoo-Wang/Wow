@@ -19,7 +19,7 @@ import me.ahoo.wow.opentelemetry.projection.TraceProjectionFilter
 import me.ahoo.wow.opentelemetry.saga.TraceStatelessSagaFilter
 import me.ahoo.wow.opentelemetry.snapshot.TraceSnapshotFilter
 import me.ahoo.wow.spring.boot.starter.enableWow
-import org.assertj.core.api.AssertionsForInterfaceTypes
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
@@ -28,14 +28,14 @@ internal class WowOpenTelemetryAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
 
     @Test
-    fun contextLoads() {
+    fun `should load context with open telemetry trace beans`() {
         contextRunner
             .enableWow()
             .withUserConfiguration(
                 WowOpenTelemetryAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
-                AssertionsForInterfaceTypes.assertThat(context)
+                context.assert()
                     .hasSingleBean(TraceAggregateFilter::class.java)
                     .hasSingleBean(TraceProjectionFilter::class.java)
                     .hasSingleBean(TraceSnapshotFilter::class.java)

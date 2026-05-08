@@ -53,7 +53,7 @@ internal class RetryableAggregateProcessorTest {
         )
 
     @Test
-    fun process() {
+    fun `should process`() {
         val aggregateId = aggregateMetadata.aggregateId()
 
         val retryableAggregateProcessor = RetryableAggregateProcessor(
@@ -107,7 +107,7 @@ internal class RetryableAggregateProcessorTest {
     }
 
     @Test
-    fun processWithRetry() {
+    fun `should process with retry`() {
         val aggregateId = aggregateMetadata.aggregateId()
 
         val retryableAggregateProcessor = RetryableAggregateProcessor(

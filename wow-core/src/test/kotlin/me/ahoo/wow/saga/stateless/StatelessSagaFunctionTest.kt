@@ -23,7 +23,7 @@ import reactor.core.publisher.Mono
 class StatelessSagaFunctionTest {
 
     @Test
-    fun getAnnotation() {
+    fun `should get annotation`() {
         val delegate = mockk<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>> {
             every { getAnnotation(Retry::class.java) } returns null
             every { name } returns "test"
@@ -40,7 +40,7 @@ class StatelessSagaFunctionTest {
     }
 
     @Test
-    fun multipleCommand() {
+    fun `should multiple command`() {
         sagaVerifier<MockSaga>()
             .whenEvent(MockAggregateCreated("data"))
             .expectNoError()
@@ -49,7 +49,7 @@ class StatelessSagaFunctionTest {
     }
 
     @Test
-    fun fluxCommand() {
+    fun `should flux command`() {
         sagaVerifier<MockPublisherSaga>()
             .whenEvent(MockAggregateCreated("data"))
             .expectNoError()
@@ -58,7 +58,7 @@ class StatelessSagaFunctionTest {
     }
 
     @Test
-    fun returnCommandMessage() {
+    fun `should return command message`() {
         sagaVerifier<MockReturnCommandMessageSaga>()
             .whenEvent(MockAggregateCreated("data"))
             .expectNoError()
@@ -69,7 +69,7 @@ class StatelessSagaFunctionTest {
     }
 
     @Test
-    fun returnCommandBuilder() {
+    fun `should return command builder`() {
         sagaVerifier<MockReturnBuilderMessageSaga>()
             .whenEvent(MockAggregateCreated("data"))
             .expectNoError()

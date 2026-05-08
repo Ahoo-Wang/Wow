@@ -24,19 +24,19 @@ class EventStreamKeyConverterTest {
     private val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId("id", "tenantId")
 
     @Test
-    fun toKeyPrefix() {
+    fun `should convert to key prefix`() {
         val actual = aggregateId.toKeyPrefix()
         actual.assert().isEqualTo("tck.mock_aggregate:es:")
     }
 
     @Test
-    fun toAggregateIdKey() {
+    fun `should convert to aggregate id key`() {
         val actual = aggregateId.toKey()
         actual.assert().isEqualTo("{id@tenantId}")
     }
 
     @Test
-    fun converter() {
+    fun `should convert event stream key`() {
         val actual = EventStreamKeyConverter.convert(aggregateId)
         actual.assert().isEqualTo("tck.mock_aggregate:es:{id@tenantId}")
     }

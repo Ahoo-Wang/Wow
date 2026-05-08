@@ -35,7 +35,7 @@ import java.net.URI
 class LoadVersionedAggregateHandlerFunctionTest {
 
     @Test
-    fun handle() {
+    fun `should handle load versioned aggregate request`() {
         val handlerFunction = LoadVersionedAggregateHandlerFunctionFactory(
             stateAggregateRepository = EventSourcingStateAggregateRepository(
                 stateAggregateFactory = ConstructorStateAggregateFactory,

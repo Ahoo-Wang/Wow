@@ -29,7 +29,7 @@ import reactor.kotlin.test.test
 class BatchRegenerateSnapshotHandlerFunctionTest {
 
     @Test
-    fun handle() {
+    fun `should handle batch regenerate snapshot request`() {
         val handlerFunction = BatchRegenerateSnapshotHandlerFunction(
             aggregateMetadata = MOCK_AGGREGATE_METADATA,
             stateAggregateFactory = ConstructorStateAggregateFactory,

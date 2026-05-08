@@ -10,7 +10,7 @@ import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.query.snapshot.filter.TailSnapshotQueryFilter
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
-import org.assertj.core.api.AssertionsForInterfaceTypes
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
@@ -19,7 +19,7 @@ class QueryAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
 
     @Test
-    fun contextLoads() {
+    fun `should load context with query handler beans`() {
         contextRunner
             .enableWow()
             .withUserConfiguration(QueryAutoConfiguration::class.java)
@@ -34,7 +34,7 @@ class QueryAutoConfigurationTest {
                 }
             })
             .run { context: AssertableApplicationContext ->
-                AssertionsForInterfaceTypes.assertThat(context)
+                context.assert()
                     .hasBean(ExistsBeanName.SNAPSHOT_QUERY_SERVICE)
                     .hasSingleBean(MaskingSnapshotQueryFilter::class.java)
                     .hasSingleBean(TailSnapshotQueryFilter::class.java)
@@ -48,13 +48,13 @@ class QueryAutoConfigurationTest {
     }
 
     @Test
-    fun contextLoadsWhensExists() {
+    fun `should load context when snapshot query service bean already exists`() {
         contextRunner
             .enableWow()
             .withUserConfiguration(QueryAutoConfiguration::class.java)
             .withBean(ExistsBeanName.SNAPSHOT_QUERY_SERVICE, ExistsBeanName::class.java)
             .run { context: AssertableApplicationContext ->
-                AssertionsForInterfaceTypes.assertThat(context)
+                context.assert()
                     .hasBean("example.order.SnapshotQueryService")
                     .hasSingleBean(ExistsBeanName::class.java)
             }

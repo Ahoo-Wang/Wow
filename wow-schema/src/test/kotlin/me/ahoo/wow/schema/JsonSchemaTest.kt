@@ -19,14 +19,14 @@ class JsonSchemaTest {
     ).wowModule(WowModule(setOf(WowOption.IGNORE_COMMAND_ROUTE_VARIABLE))).build()
 
     @Test
-    fun get() {
+    fun `should get schema properties`() {
         val schema = jsonSchemaGenerator.generateSchema(CreateOrder::class.java)
             .asJsonSchema(schemaVersion = SchemaVersion.DRAFT_2020_12)
         schema.getProperties().assert().isNotNull()
     }
 
     @Test
-    fun serverSentEvent() {
+    fun `should generate schema for server sent event`() {
         val resolvedType = TypeResolver().resolve(ServerSentEvent::class.java)
         val schema = jsonSchemaGenerator.generateSchema(resolvedType)
             .asJsonSchema(schemaVersion = SchemaVersion.DRAFT_2020_12)
@@ -34,7 +34,7 @@ class JsonSchemaTest {
     }
 
     @Test
-    fun serverSentEventData() {
+    fun `should generate schema for parameterized server sent event`() {
         val resolvedType =
             TypeResolver().resolve(ServerSentEvent::class.java, AggregatedFieldPathsTest.DemoState::class.java)
         val schema = jsonSchemaGenerator.generateSchema(resolvedType)
@@ -43,7 +43,7 @@ class JsonSchemaTest {
     }
 
     @Test
-    fun requiredGetPropertiesIfEmpty() {
+    fun `should throw when getting required properties on empty schema`() {
         val emptySchema = "{}".toObject<ObjectNode>().asJsonSchema()
         assertThrownBy<IllegalArgumentException> {
             emptySchema.requiredGetProperties()
@@ -51,7 +51,7 @@ class JsonSchemaTest {
     }
 
     @Test
-    fun smallMaterializedSnapshot() {
+    fun `should generate schema for small materialized snapshot`() {
         val schema = jsonSchemaGenerator.generateSchema(
             SmallMaterializedSnapshot::class.java,
             String::class.java

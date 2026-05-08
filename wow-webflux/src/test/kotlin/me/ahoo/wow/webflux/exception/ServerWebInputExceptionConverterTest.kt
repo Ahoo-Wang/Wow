@@ -22,7 +22,7 @@ import org.springframework.web.server.ServerWebInputException
 
 class ServerWebInputExceptionConverterTest {
     @Test
-    fun convert() {
+    fun `should convert server web input exception to error info`() {
         val error = ServerWebInputException(
             "input decode error",
             null,

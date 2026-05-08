@@ -26,7 +26,7 @@ import java.util.concurrent.atomic.AtomicInteger
 internal class RetryFilterTest {
 
     @Test
-    fun retryStrategyWithDefaults() {
+    fun `should retry strategy with defaults`() {
         val logger = mockk<KLogger>()
         every { logger.warn(any<Throwable>(), any<() -> Any?>()) } returns Unit
         every { logger.info(any<() -> Any?>()) } returns Unit
@@ -40,7 +40,7 @@ internal class RetryFilterTest {
     }
 
     @Test
-    fun retryStrategyWithCustomValues() {
+    fun `should retry strategy with custom values`() {
         val logger = mockk<KLogger>()
         every { logger.warn(any<Throwable>(), any<() -> Any?>()) } returns Unit
         every { logger.info(any<() -> Any?>()) } returns Unit
@@ -63,7 +63,7 @@ internal class RetryFilterTest {
     }
 
     @Test
-    fun retryStrategyWithSuccessAfterRetry() {
+    fun `should retry strategy with success after retry`() {
         val logger = mockk<KLogger>()
         every { logger.warn(any<Throwable>(), any<() -> Any?>()) } returns Unit
         every { logger.info(any<() -> Any?>()) } returns Unit

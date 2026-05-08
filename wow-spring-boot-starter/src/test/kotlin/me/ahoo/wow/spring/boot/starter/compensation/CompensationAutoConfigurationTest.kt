@@ -9,7 +9,7 @@ import me.ahoo.wow.event.compensation.DomainEventCompensator
 import me.ahoo.wow.event.compensation.StateEventCompensator
 import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
 import me.ahoo.wow.spring.boot.starter.enableWow
-import org.assertj.core.api.AssertionsForInterfaceTypes
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
@@ -18,7 +18,7 @@ class CompensationAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
 
     @Test
-    fun contextLoads() {
+    fun `should load context with compensation beans`() {
         contextRunner
             .enableWow()
             .withBean(CommandGateway::class.java, { mockk() })
@@ -28,7 +28,7 @@ class CompensationAutoConfigurationTest {
                 CompensationAutoConfiguration::class.java
             )
             .run { context: AssertableApplicationContext ->
-                AssertionsForInterfaceTypes.assertThat(context)
+                context.assert()
                     .hasSingleBean(EventCompensateSupporter::class.java)
                     .hasSingleBean(DomainEventCompensationFilter::class.java)
                     .hasSingleBean(StateEventCompensationFilter::class.java)

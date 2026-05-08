@@ -20,7 +20,7 @@ import org.junit.jupiter.api.Test
 internal class AggregateIdGeneratorRegistrarTest {
 
     @Test
-    fun generateId() {
+    fun `should generate id`() {
         val namedAggregate = MaterializedNamedAggregate("test", "test")
         val id = namedAggregate.generateId()
         id.assert().isNotNull()

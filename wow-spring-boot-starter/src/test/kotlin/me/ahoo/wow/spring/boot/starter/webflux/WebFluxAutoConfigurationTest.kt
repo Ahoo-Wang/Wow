@@ -45,7 +45,7 @@ import me.ahoo.wow.webflux.exception.GlobalExceptionHandler
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.command.appender.CommandRequestRemoteIpHeaderAppender
 import me.ahoo.wow.webflux.route.command.appender.CommandRequestUserAgentHeaderAppender
-import org.assertj.core.api.AssertionsForInterfaceTypes
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
@@ -54,7 +54,7 @@ internal class WebFluxAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
 
     @Test
-    fun contextLoads() {
+    fun `should load context with webflux command route and exception handler`() {
         contextRunner
             .enableWow()
             .withBean(CommandWaitNotifier::class.java, { mockk() })
@@ -77,7 +77,7 @@ internal class WebFluxAutoConfigurationTest {
                 WebFluxAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
-                AssertionsForInterfaceTypes.assertThat(context)
+                context.assert()
                     .hasSingleBean(GlobalExceptionHandler::class.java)
                     .hasBean("commandRouterFunction")
                     .hasSingleBean(RequestExceptionHandler::class.java)
@@ -85,7 +85,7 @@ internal class WebFluxAutoConfigurationTest {
     }
 
     @Test
-    fun contextLoadsDisableAgentAppender() {
+    fun `should not load agent appender beans when disabled`() {
         contextRunner
             .enableWow()
             .withPropertyValues(
@@ -112,14 +112,14 @@ internal class WebFluxAutoConfigurationTest {
                 WebFluxAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
-                AssertionsForInterfaceTypes.assertThat(context)
+                context.assert()
                     .doesNotHaveBean(CommandRequestUserAgentHeaderAppender::class.java)
                     .doesNotHaveBean(CommandRequestRemoteIpHeaderAppender::class.java)
             }
     }
 
     @Test
-    fun contextLoadsWithKafkaProperties() {
+    fun `should not load global exception handler when global error disabled`() {
         contextRunner
             .enableWow()
             .withPropertyValues(
@@ -148,7 +148,7 @@ internal class WebFluxAutoConfigurationTest {
                 WebFluxAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
-                AssertionsForInterfaceTypes.assertThat(context)
+                context.assert()
                     .doesNotHaveBean(GlobalExceptionHandler::class.java)
                     .hasBean("commandRouterFunction")
                     .hasSingleBean(RequestExceptionHandler::class.java)

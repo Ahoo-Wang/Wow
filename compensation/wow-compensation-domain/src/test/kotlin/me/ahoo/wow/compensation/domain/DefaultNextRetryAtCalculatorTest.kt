@@ -14,25 +14,25 @@ class DefaultNextRetryAtCalculatorTest {
     }
 
     @Test
-    fun nextRetryAt0() {
+    fun `should calculate next retry at given retry count 0`() {
         val nextRetryAt = DefaultNextRetryAtCalculator.nextRetryAt(testRetrySpec.minBackoff, 0, 0)
         nextRetryAt.assert().isEqualTo(testRetrySpec.minBackoff * 1000L)
     }
 
     @Test
-    fun nextRetryAt1() {
+    fun `should calculate next retry at given retry count 1`() {
         val nextRetryAt = DefaultNextRetryAtCalculator.nextRetryAt(testRetrySpec.minBackoff, 1, 0)
         nextRetryAt.assert().isEqualTo(testRetrySpec.minBackoff * 1000L * 2)
     }
 
     @Test
-    fun nextRetryAt2() {
+    fun `should calculate next retry at given retry count 2`() {
         val nextRetryAt = DefaultNextRetryAtCalculator.nextRetryAt(testRetrySpec.minBackoff, 2, 0)
         nextRetryAt.assert().isEqualTo(testRetrySpec.minBackoff * 1000L * 4)
     }
 
     @Test
-    fun nextRetryState() {
+    fun `should calculate next retry state`() {
         val retryState = DefaultNextRetryAtCalculator.nextRetryState(testRetrySpec, 1, 0)
         retryState.retries.assert().isEqualTo(1)
         retryState.retryAt.assert().isEqualTo(0)

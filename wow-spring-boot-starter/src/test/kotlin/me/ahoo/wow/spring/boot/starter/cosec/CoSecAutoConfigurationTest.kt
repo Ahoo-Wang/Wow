@@ -17,7 +17,7 @@ import me.ahoo.wow.cosec.appender.CoSecCommandRequestHeaderAppender
 import me.ahoo.wow.cosec.extractor.CoSecCommandBuilderExtractor
 import me.ahoo.wow.cosec.query.CoSecRewriteRequestCondition
 import me.ahoo.wow.spring.boot.starter.enableWow
-import org.assertj.core.api.AssertionsForInterfaceTypes
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
@@ -26,12 +26,12 @@ class CoSecAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
 
     @Test
-    fun contextLoads() {
+    fun `should load context with cosec beans`() {
         contextRunner
             .enableWow()
             .withUserConfiguration(CoSecAutoConfiguration::class.java)
             .run { context: AssertableApplicationContext ->
-                AssertionsForInterfaceTypes.assertThat(context)
+                context.assert()
                     .hasSingleBean(CoSecCommandRequestHeaderAppender::class.java)
                     .hasSingleBean(CoSecCommandBuilderExtractor::class.java)
                     .hasSingleBean(CoSecRewriteRequestCondition::class.java)

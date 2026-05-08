@@ -28,7 +28,7 @@ import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.opentelemetry.WowOpenTelemetryAutoConfiguration
 import me.ahoo.wow.spring.event.DomainEventDispatcherLauncher
 import me.ahoo.wow.spring.event.EventProcessorAutoRegistrar
-import org.assertj.core.api.AssertionsForInterfaceTypes
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
@@ -39,7 +39,7 @@ internal class EventDispatcherAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
 
     @Test
-    fun contextLoads() {
+    fun `should load context with event dispatcher beans`() {
         contextRunner
             .enableWow()
             .withPropertyValues("${EventProperties.BUS_TYPE}=${BusType.IN_MEMORY_NAME}")
@@ -53,7 +53,7 @@ internal class EventDispatcherAutoConfigurationTest {
                 EventDispatcherAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
-                AssertionsForInterfaceTypes.assertThat(context)
+                context.assert()
                     .hasSingleBean(DomainEventFunctionRegistrar::class.java)
                     .hasSingleBean(EventProcessorAutoRegistrar::class.java)
                     .hasSingleBean(RetryableFilter::class.java)

@@ -21,7 +21,7 @@ import org.junit.jupiter.api.Test
 
 class JavaTypeResolverTest {
     @Test
-    fun stringToResolvedType() {
+    fun `should resolve string type`() {
         val resolvedType = TypeFactory.defaultInstance().constructType(String::class.java)
             .toResolvedType()
         resolvedType.erasedType.assert().isEqualTo(String::class.java)
@@ -29,7 +29,7 @@ class JavaTypeResolverTest {
     }
 
     @Test
-    fun listToResolvedType() {
+    fun `should resolve list type with type parameter`() {
         val resolvedType = TypeFactory.defaultInstance().constructCollectionLikeType(
             List::class.java,
             String::class.java
@@ -39,7 +39,7 @@ class JavaTypeResolverTest {
     }
 
     @Test
-    fun mapToResolvedType() {
+    fun `should resolve map type with two type parameters`() {
         val resolvedType = TypeFactory.defaultInstance().constructMapLikeType(
             Map::class.java,
             String::class.java,
@@ -50,7 +50,7 @@ class JavaTypeResolverTest {
     }
 
     @Test
-    fun arrayToResolvedType() {
+    fun `should resolve array type`() {
         val resolvedType = TypeFactory.defaultInstance().constructArrayType(String::class.java)
             .toResolvedType() as ResolvedArrayType
         resolvedType.isArray.assert().isTrue()

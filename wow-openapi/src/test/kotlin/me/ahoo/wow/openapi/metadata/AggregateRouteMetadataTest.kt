@@ -20,26 +20,26 @@ import org.junit.jupiter.api.Test
 
 class AggregateRouteMetadataTest {
     @Test
-    fun equalTo() {
+    fun `should be equal to same aggregate route metadata`() {
         val aggregateRouteMetadata = aggregateRouteMetadata<Cart>()
         aggregateRouteMetadata.assert().isEqualTo(aggregateRouteMetadata)
     }
 
     @Test
-    fun equalToAny() {
+    fun `should not be equal to arbitrary object`() {
         val aggregateRouteMetadata = aggregateRouteMetadata<Cart>()
         aggregateRouteMetadata.assert().isNotEqualTo(Any())
     }
 
     @Test
-    fun equalToOther() {
+    fun `should not be equal to different aggregate route metadata`() {
         val aggregateRouteMetadata = aggregateRouteMetadata<Cart>()
         val other = aggregateRouteMetadata<Order>()
         aggregateRouteMetadata.assert().isNotEqualTo(other)
     }
 
     @Test
-    fun testHashCode() {
+    fun `should have hash code matching aggregate metadata`() {
         val aggregateRouteMetadata = aggregateRouteMetadata<Cart>()
         aggregateRouteMetadata.hashCode().assert().isEqualTo(aggregateRouteMetadata.aggregateMetadata.hashCode())
     }

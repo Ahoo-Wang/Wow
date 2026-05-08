@@ -10,7 +10,7 @@ import reactor.kotlin.test.test
 class BlockingCommandBuilderRewriterTest {
 
     @Test
-    fun rewrite() {
+    fun `should rewrite`() {
         val commandBuilder = MutableCommandBuilder(Any())
         val commandBuilderRewriter = BlockingCommandBuilderRewriter(
             MockBlockingCommandBuilderRewriter()

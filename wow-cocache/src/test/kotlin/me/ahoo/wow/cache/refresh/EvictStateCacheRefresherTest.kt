@@ -19,17 +19,17 @@ class EvictStateCacheRefresherTest {
     )
 
     @Test
-    fun getFunctionKind() {
+    fun `should get function kind`() {
         stateCacheRefresher.functionKind.assert().isEqualTo(FunctionKind.EVENT)
     }
 
     @Test
-    fun getCache() {
+    fun `should get cache`() {
         stateCacheRefresher.cache.assert().isInstanceOf(MapClientSideCache::class.java)
     }
 
     @Test
-    fun invoke() {
+    fun `should invoke cache refresh`() {
         val exchange = spyk<DomainEventExchange<Any>> {
             every { message.aggregateId } returns MOCK_AGGREGATE_METADATA.aggregateId()
         }

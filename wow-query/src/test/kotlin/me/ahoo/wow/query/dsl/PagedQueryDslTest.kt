@@ -22,7 +22,7 @@ class PagedQueryDslTest {
 
     @Suppress("LongMethod")
     @Test
-    fun build() {
+    fun `should build paged query with all components`() {
         val pagedQuery = pagedQuery {
             pagination {
                 index(1)

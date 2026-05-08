@@ -27,14 +27,14 @@ import org.junit.jupiter.api.Test
 
 class EventUpgraderFactoryTest {
     @Test
-    fun getWhenEmpty() {
+    fun `should get when empty`() {
         val eventNamedAggregate = requiredNamedAggregate<MockNamedEvent>()
             .toEventNamedAggregate("MockNamedEvent")
         EventUpgraderFactory.get(eventNamedAggregate).assert().isEmpty()
     }
 
     @Test
-    fun get() {
+    fun `should get`() {
         EventUpgraderFactory.get(MockEventToDroppedUpgrader.EVENT_NAMED_AGGREGATE).assert().hasSize(2)
 
         EventUpgraderFactory.get(MockEventToDroppedUpgrader.EVENT_NAMED_AGGREGATE).first().assert().isInstanceOf(
@@ -47,7 +47,7 @@ class EventUpgraderFactoryTest {
     }
 
     @Test
-    fun asDomainEvent() {
+    fun `should as domain event`() {
         val aggregateId =
             MockEventToDroppedUpgrader.EVENT_NAMED_AGGREGATE.aggregateId(GlobalIdGenerator.generateAsString())
         val mockEventJson = MockNamedEvent()

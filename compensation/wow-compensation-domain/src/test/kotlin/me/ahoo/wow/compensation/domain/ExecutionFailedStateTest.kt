@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test
 
 class ExecutionFailedStateTest {
     @Test
-    fun ctor() {
+    fun `should throw when accessing uninitialized properties`() {
         val state = ExecutionFailedState(generateGlobalId())
         assertThrownBy<UninitializedPropertyAccessException> {
             state.eventId

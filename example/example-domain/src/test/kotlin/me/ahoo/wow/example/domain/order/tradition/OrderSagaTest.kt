@@ -33,7 +33,7 @@ class OrderSagaTest {
     )
 
     @Test
-    fun onOrderCreated() {
+    fun `should handle order created event in saga`() {
         SagaVerifier.sagaVerifier<OrderSaga>()
             .whenEvent(
                 mockk<OrderCreated> {
@@ -50,7 +50,7 @@ class OrderSagaTest {
     }
 
     @Test
-    fun onOrderCreatedWithOrderState() {
+    fun `should handle order created event with state in saga`() {
         SagaVerifier.sagaVerifier<OrderSaga>()
             .whenEvent(
                 event = mockk<OrderCreated> {

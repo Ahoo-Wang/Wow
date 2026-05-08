@@ -31,7 +31,7 @@ import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreProperties
 import me.ahoo.wow.spring.command.SnapshotDispatcherLauncher
-import org.assertj.core.api.AssertionsForInterfaceTypes
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
@@ -41,7 +41,7 @@ internal class SnapshotAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
 
     @Test
-    fun contextLoads() {
+    fun `should load context with snapshot beans`() {
         contextRunner
             .enableWow()
             .withBean(StateAggregateFactory::class.java, { ConstructorStateAggregateFactory })
@@ -57,7 +57,7 @@ internal class SnapshotAutoConfigurationTest {
                 SnapshotAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
-                AssertionsForInterfaceTypes.assertThat(context)
+                context.assert()
                     .hasSingleBean(InMemorySnapshotRepository::class.java)
                     .hasSingleBean(SimpleSnapshotStrategy::class.java)
                     .hasSingleBean(SnapshotFunctionFilter::class.java)
@@ -69,7 +69,7 @@ internal class SnapshotAutoConfigurationTest {
     }
 
     @Test
-    fun versionOffset() {
+    fun `should load context when version offset snapshot strategy`() {
         contextRunner
             .enableWow()
             .withBean(StateAggregateFactory::class.java, { ConstructorStateAggregateFactory })
@@ -86,7 +86,7 @@ internal class SnapshotAutoConfigurationTest {
                 SnapshotAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
-                AssertionsForInterfaceTypes.assertThat(context)
+                context.assert()
                     .hasSingleBean(InMemorySnapshotRepository::class.java)
                     .hasSingleBean(VersionOffsetSnapshotStrategy::class.java)
                     .hasSingleBean(SnapshotFunctionFilter::class.java)

@@ -12,7 +12,7 @@ import kotlin.reflect.typeOf
 class SpringServiceProviderTest {
 
     @Test
-    fun register() {
+    fun `should register service provider`() {
         val beanFactory = DefaultListableBeanFactory()
         val serviceProvider = SpringServiceProvider(beanFactory)
         serviceProvider.getService<SpringServiceProviderTest>().assert().isNull()

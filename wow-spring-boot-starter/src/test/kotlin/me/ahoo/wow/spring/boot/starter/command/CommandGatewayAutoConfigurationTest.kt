@@ -10,7 +10,7 @@ import me.ahoo.wow.infra.idempotency.AggregateIdempotencyCheckerProvider
 import me.ahoo.wow.spring.boot.starter.BusType
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
-import org.assertj.core.api.AssertionsForInterfaceTypes
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
@@ -20,7 +20,7 @@ class CommandGatewayAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
 
     @Test
-    fun contextLoads() {
+    fun `should load context with command gateway and idempotency checker`() {
         contextRunner
             .enableWow()
             .withBean(CommandWaitNotifier::class.java, { mockk<CommandWaitNotifier>() })
@@ -31,7 +31,7 @@ class CommandGatewayAutoConfigurationTest {
                 CommandGatewayAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
-                AssertionsForInterfaceTypes.assertThat(context)
+                context.assert()
                     .hasSingleBean(AggregateIdempotencyCheckerProvider::class.java)
                     .hasSingleBean(CommandGateway::class.java)
 

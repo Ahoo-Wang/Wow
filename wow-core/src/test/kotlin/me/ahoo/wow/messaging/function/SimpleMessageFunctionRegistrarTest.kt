@@ -29,7 +29,7 @@ internal class SimpleMessageFunctionRegistrarTest {
     }
 
     @Test
-    fun register() {
+    fun `should register`() {
         val function = MockFunction::onEvent.toFunctionMetadata<Any, Any>()
             .toMessageFunction<Any, DomainEventExchange<*>, Any>(MockFunction())
         val registrar = SimpleMessageFunctionRegistrar<MessageFunction<*, *, *>>()
@@ -59,7 +59,7 @@ internal class SimpleMessageFunctionRegistrarTest {
     }
 
     @Test
-    fun unregister() {
+    fun `should unregister`() {
         val handler = MockFunction::onEvent
             .toFunctionMetadata<Any, Any>()
             .toMessageFunction<Any, DomainEventExchange<*>, Any>(MockFunction())

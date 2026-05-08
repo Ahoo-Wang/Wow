@@ -12,7 +12,7 @@ import java.time.Duration
 class MessageDispatcherLauncherTest {
 
     @Test
-    fun start() {
+    fun `should start message dispatcher`() {
         val messageDispatcher = mockk<MessageDispatcher> {
             every { start() } returns Unit
             every { stop(any()) } returns Unit

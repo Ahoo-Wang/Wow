@@ -25,7 +25,7 @@ class SchedulerTest {
     }
 
     @Test
-    fun test() {
+    fun `should test`() {
         val firstScheduler = Schedulers.newSingle("firstScheduler")
         val secondScheduler = Schedulers.newSingle("secondScheduler")
         val thirdScheduler = Schedulers.newSingle("thirdScheduler")

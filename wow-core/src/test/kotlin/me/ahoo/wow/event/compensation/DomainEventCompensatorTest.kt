@@ -26,7 +26,7 @@ import reactor.kotlin.test.test
 
 class DomainEventCompensatorTest {
     @Test
-    fun resend() {
+    fun `should resend`() {
         val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId()
         val eventStore = InMemoryEventStore()
         val eventStream = generateEventStream(aggregateId)

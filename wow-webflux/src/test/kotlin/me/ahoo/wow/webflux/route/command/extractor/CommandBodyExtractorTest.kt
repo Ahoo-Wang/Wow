@@ -35,7 +35,7 @@ import java.util.*
 class CommandBodyExtractorTest {
 
     @Test
-    fun extract() {
+    fun `should extract command body from request`() {
         val commandRouteMetadata = commandRouteMetadata<DefaultDeleteAggregate>()
         val commandBodyExtractor = CommandBodyExtractor(commandRouteMetadata)
         val messageReader = mockk<HttpMessageReader<*>> {
@@ -63,7 +63,7 @@ class CommandBodyExtractorTest {
     }
 
     @Test
-    fun extractIfEmpty() {
+    fun `should extract default command when body is empty`() {
         val commandRouteMetadata = commandRouteMetadata<DefaultDeleteAggregate>()
         val commandBodyExtractor = CommandBodyExtractor(commandRouteMetadata)
         val messageReader = mockk<HttpMessageReader<*>> {

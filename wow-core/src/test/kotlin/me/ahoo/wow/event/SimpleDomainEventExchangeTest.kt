@@ -13,7 +13,7 @@ import reactor.core.publisher.Mono
 class SimpleDomainEventExchangeTest {
 
     @Test
-    fun main() {
+    fun `should main`() {
         val exchange = SimpleDomainEventExchange(
             mockk<DomainEvent<Any>> {
                 every { version } returns 1

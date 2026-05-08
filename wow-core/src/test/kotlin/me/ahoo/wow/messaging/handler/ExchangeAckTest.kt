@@ -13,7 +13,7 @@ import reactor.kotlin.test.test
 class ExchangeAckTest {
 
     @Test
-    fun monoFinallyAck() {
+    fun `should mono finally ack`() {
         val exchange = mockk<MessageExchange<*, *>> {
             every { acknowledge() } returns Mono.empty()
         }
@@ -28,7 +28,7 @@ class ExchangeAckTest {
     }
 
     @Test
-    fun monoFinallyAckIfError() {
+    fun `should mono finally ack if error`() {
         val exchange = mockk<MessageExchange<*, *>> {
             every { acknowledge() } returns Mono.empty()
         }
@@ -44,7 +44,7 @@ class ExchangeAckTest {
     }
 
     @Test
-    fun fluxFinallyAck() {
+    fun `should flux finally ack`() {
         val exchange = mockk<MessageExchange<*, *>> {
             every { acknowledge() } returns Mono.empty()
         }
@@ -59,7 +59,7 @@ class ExchangeAckTest {
     }
 
     @Test
-    fun fluxFinallyAckIfError() {
+    fun `should flux finally ack if error`() {
         val exchange = mockk<MessageExchange<*, *>> {
             every { acknowledge() } returns Mono.empty()
         }
@@ -75,7 +75,7 @@ class ExchangeAckTest {
     }
 
     @Test
-    fun filterThenAckIfTrue() {
+    fun `should filter then ack if true`() {
         val exchange = mockk<MessageExchange<*, *>>()
         Flux.just(exchange)
             .filterThenAck {
@@ -87,7 +87,7 @@ class ExchangeAckTest {
     }
 
     @Test
-    fun filterThenAckIfFalse() {
+    fun `should filter then ack if false`() {
         val exchange = mockk<MessageExchange<*, *>> {
             every { acknowledge() } returns Mono.empty()
         }

@@ -23,31 +23,31 @@ import kotlin.reflect.full.primaryConstructor
 class MergedAnnotationTest {
 
     @Test
-    fun getElement() {
+    fun `should get element`() {
         val mergedAnnotation = MockClass::class.toMergedAnnotation()
         mergedAnnotation.element.assert().isEqualTo(MockClass::class)
     }
 
     @Test
-    fun getInheritedAnnotations() {
+    fun `should get inherited annotations`() {
         val mergedAnnotation = MockClass::class.toMergedAnnotation()
         mergedAnnotation.mergedAnnotations.isEmpty().assert().isEqualTo(true)
     }
 
     @Test
-    fun getInheritedAnnotationsIfProperty() {
+    fun `should get inherited annotations if property`() {
         val mergedAnnotation = MockClass::property.toMergedAnnotation()
         mergedAnnotation.mergedAnnotations.first().assert().isEqualTo(MockAnnotation())
     }
 
     @Test
-    fun getInheritedAnnotationsIfCtor() {
+    fun `should get inherited annotations if ctor`() {
         val mergedAnnotation = MockClass::class.primaryConstructor!!.parameters.first().toMergedAnnotation()
         mergedAnnotation.mergedAnnotations.isEmpty().assert().isEqualTo(true)
     }
 
     @Test
-    fun getInheritedAnnotationsIfFunctionNotSame() {
+    fun `should get inherited annotations if function not same`() {
         val mergedAnnotation = MockClass::class.declaredFunctions.first {
             it.name == "interfaceFunction" &&
                 it.parameters.last().type.classifier == String::class
@@ -56,7 +56,7 @@ class MergedAnnotationTest {
     }
 
     @Test
-    fun getInheritedAnnotationsIfFunctionNotSame2() {
+    fun `should get inherited annotations if function not same2`() {
         val mergedAnnotation = MockClass::class.declaredFunctions.first {
             it.name == "interfaceFunction" &&
                 it.parameters.size == 3

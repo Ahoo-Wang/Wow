@@ -16,7 +16,7 @@ package me.ahoo.wow.spring.boot.starter.eventsourcing
 import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotRepository
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.ConditionalOnSnapshotEnabled
-import org.assertj.core.api.AssertionsForInterfaceTypes
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
@@ -26,7 +26,7 @@ internal class EventSourcingAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
 
     @Test
-    fun contextLoads() {
+    fun `should load context when snapshot disabled`() {
         contextRunner
             .enableWow()
             .withPropertyValues(
@@ -36,7 +36,7 @@ internal class EventSourcingAutoConfigurationTest {
                 EventSourcingAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
-                AssertionsForInterfaceTypes.assertThat(context)
+                context.assert()
                     .hasSingleBean(NoOpSnapshotRepository::class.java)
             }
     }

@@ -47,7 +47,7 @@ class TemplateEngineTest {
     }
 
     @Test
-    fun renderExecutionFailedCreated() {
+    fun `should render execution failed created template`() {
         val eventBody = mockk<ExecutionFailedCreated> {
             every { error } returns ErrorDetails("errorCode", "errorMsg", "stackTrace")
         }
@@ -61,7 +61,7 @@ class TemplateEngineTest {
     }
 
     @Test
-    fun renderExecutionFailedApplied() {
+    fun `should render execution failed applied template`() {
         val eventBody = mockk<ExecutionFailedApplied> {
             every { error } returns ErrorDetails("errorCode", "errorMsg", "stackTrace")
         }
@@ -75,7 +75,7 @@ class TemplateEngineTest {
     }
 
     @Test
-    fun renderExecutionSuccessApplied() {
+    fun `should render execution success applied template`() {
         val eventBody = mockk<ExecutionSuccessApplied>()
         val domainEvent = mockk<me.ahoo.wow.api.event.DomainEvent<ExecutionSuccessApplied>> {
             every { name } returns ExecutionSuccessApplied::class.java.toName()
@@ -87,7 +87,7 @@ class TemplateEngineTest {
     }
 
     @Test
-    fun renderCompensationPrepared() {
+    fun `should render compensation prepared template`() {
         val eventBody = mockk<CompensationPrepared>()
         val domainEvent = mockk<me.ahoo.wow.api.event.DomainEvent<CompensationPrepared>> {
             every { name } returns CompensationPrepared::class.java.toName()
@@ -99,7 +99,7 @@ class TemplateEngineTest {
     }
 
     @Test
-    fun renderRecoverableMarked() {
+    fun `should render recoverable marked template`() {
         val eventBody = mockk<RecoverableMarked>()
         val domainEvent = mockk<me.ahoo.wow.api.event.DomainEvent<RecoverableMarked>> {
             every { name } returns RecoverableMarked::class.java.toName()
@@ -111,7 +111,7 @@ class TemplateEngineTest {
     }
 
     @Test
-    fun toNavAsMarkdown() {
+    fun `should convert state to navigation markdown`() {
         val emptyHostNav = stateAggregate.state.toNavAsMarkdown("")
         emptyHostNav.assert().isEqualTo("`${executionFailedState.id}`")
         val hostNav = stateAggregate.state.toNavAsMarkdown(host)

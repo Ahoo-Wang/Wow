@@ -26,7 +26,7 @@ class BloomFilterIdempotencyCheckerTest {
     }
 
     @Test
-    fun check() {
+    fun `should check idempotency with bloom filter`() {
         idempotencyChecker.check("hi").block().assert().isTrue()
         idempotencyChecker.check("hi").block().assert().isFalse()
     }

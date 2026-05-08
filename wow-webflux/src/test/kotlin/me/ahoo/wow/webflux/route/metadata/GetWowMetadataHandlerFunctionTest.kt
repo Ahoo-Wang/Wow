@@ -11,7 +11,7 @@ import reactor.kotlin.test.test
 
 class GetWowMetadataHandlerFunctionTest {
     @Test
-    fun handle() {
+    fun `should handle get wow metadata request`() {
         val handlerFunction = GetWowMetadataHandlerFunctionFactory().create(
             GetWowMetadataRouteSpec(
                 componentContext = OpenAPIComponentContext.default()

@@ -32,7 +32,7 @@ import reactor.kotlin.test.test
 class ResendStateEventHandlerFunctionTest {
 
     @Test
-    fun handle() {
+    fun `should handle resend state event request`() {
         val eventStore = InMemoryEventStore()
         val handlerFunction = ResendStateEventFunction(
             aggregateMetadata = MOCK_AGGREGATE_METADATA,

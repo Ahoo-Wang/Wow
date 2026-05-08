@@ -17,28 +17,28 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.spyk
 import me.ahoo.cache.DefaultCacheValue
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.MaterializedSnapshot
-import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
 
 class QueryApiCacheSourceTest {
     @Test
-    fun load() {
+    fun `should load cache value from source`() {
         val queryApiCacheSource = spyk<QueryApiCacheSource<String>> {
             every { getById(any()) } returns mockk<MaterializedSnapshot<String>> {
                 every { state } returns "test"
             }.toMono()
         }
 
-        assertThat(queryApiCacheSource.loadCacheSourceConfiguration).isEqualTo(LoadCacheSourceConfiguration.DEFAULT)
+        queryApiCacheSource.loadCacheSourceConfiguration.assert().isEqualTo(LoadCacheSourceConfiguration.DEFAULT)
         val cacheValue = queryApiCacheSource.loadCacheValue("test")
-        assertThat(cacheValue).isEqualTo(DefaultCacheValue.forever("test"))
+        cacheValue.assert().isEqualTo(DefaultCacheValue.forever("test"))
     }
 
     @Test
-    fun loadWithTtl() {
+    fun `should load cache value with custom TTL`() {
         val queryApiCacheSource = spyk<QueryApiCacheSource<String>> {
             every {
                 loadCacheSourceConfiguration
@@ -47,20 +47,20 @@ class QueryApiCacheSourceTest {
                 every { state } returns "test"
             }.toMono()
         }
-        assertThat(
-            queryApiCacheSource.loadCacheSourceConfiguration
-        ).isEqualTo(LoadCacheSourceConfiguration(ttl = 1000, ttlAmplitude = 0))
+        queryApiCacheSource.loadCacheSourceConfiguration.assert().isEqualTo(
+            LoadCacheSourceConfiguration(ttl = 1000, ttlAmplitude = 0)
+        )
         val cacheValue = queryApiCacheSource.loadCacheValue("test")
-        assertThat(cacheValue).isEqualTo(DefaultCacheValue.ttlAt("test", 1000))
+        cacheValue.assert().isEqualTo(DefaultCacheValue.ttlAt("test", 1000))
     }
 
     @Test
-    fun loadWithNull() {
+    fun `should return null when source returns empty`() {
         val queryApiCacheSource = spyk<QueryApiCacheSource<String>> {
             every { getById(any()) } returns Mono.empty()
         }
 
         val cacheValue = queryApiCacheSource.loadCacheValue("test")
-        assertThat(cacheValue).isNull()
+        cacheValue.assert().isNull()
     }
 }

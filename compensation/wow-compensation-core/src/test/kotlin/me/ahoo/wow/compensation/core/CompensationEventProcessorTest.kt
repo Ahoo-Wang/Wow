@@ -24,7 +24,7 @@ class CompensationEventProcessorTest {
     }
 
     @Test
-    fun onCompensationPreparedWhenNotLocal() {
+    fun `should ignore compensation when aggregate is not local`() {
         val compensationPrepared = mockk<CompensationPrepared> {
             every { eventId.aggregateId } returns "test.not_local".toNamedAggregate().aggregateId()
         }
@@ -38,7 +38,7 @@ class CompensationEventProcessorTest {
     }
 
     @Test
-    fun onCompensationPrepared() {
+    fun `should compensate when aggregate is local`() {
         val eventId = EventId(GlobalIdGenerator.generateAsString(), LOCAL_AGGREGATE.aggregateId(), 1)
         val function = FunctionInfoData(FunctionKind.EVENT, "context", "processor", "function")
         val compensationPrepared = CompensationPrepared(eventId, function, mockk())

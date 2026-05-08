@@ -10,13 +10,21 @@ class CommandStageTest {
 
     @ParameterizedTest
     @MethodSource("shouldNotifyArgsProvider")
-    fun shouldNotify(commandStage: CommandStage, processingStage: CommandStage, expected: Boolean) {
+    fun `should notify given command and processing stages`(
+        commandStage: CommandStage,
+        processingStage: CommandStage,
+        expected: Boolean
+    ) {
         commandStage.shouldNotify(processingStage).assert().isEqualTo(expected)
     }
 
     @ParameterizedTest
     @MethodSource("isAfterArgsProvider")
-    fun isAfter(commandStage: CommandStage, processingStage: CommandStage, expected: Boolean) {
+    fun `should determine if stage is previous`(
+        commandStage: CommandStage,
+        processingStage: CommandStage,
+        expected: Boolean
+    ) {
         commandStage.isPrevious(processingStage).assert().isEqualTo(expected)
     }
 

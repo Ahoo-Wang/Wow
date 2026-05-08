@@ -26,7 +26,7 @@ import reactor.kotlin.test.test
 internal class ProcessedNotifierFilterTest {
 
     @Test
-    fun filter() {
+    fun `should filter`() {
         val processedNotifierFilter = ProcessedNotifierFilter(LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar))
         val command = MockCreateAggregate(GlobalIdGenerator.generateAsString(), GlobalIdGenerator.generateAsString())
             .toCommandMessage() as CommandMessage<*>

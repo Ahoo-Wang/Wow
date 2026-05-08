@@ -7,13 +7,13 @@ import org.junit.jupiter.api.Test
 class ScriptEngineTest {
 
     @Test
-    fun generate() {
+    fun `should generate script`() {
         val syncScript = ScriptEngine.generate(MetadataSearcher.localAggregates)
         syncScript.assert().isNotNull()
     }
 
     @Test
-    fun generateUseCustomParameters() {
+    fun `should generate script with custom parameters`() {
         val syncScript = ScriptEngine.generate(
             MetadataSearcher.localAggregates,
             "kafkaBootstrapServers",

@@ -11,7 +11,7 @@ import java.net.URI
 class DefaultExceptionHandlerTest {
 
     @Test
-    fun handle() {
+    fun `should handle exception and return bad request`() {
         val request = MockServerRequest.builder()
             .method(HttpMethod.GET)
             .uri(URI.create("http://localhost"))

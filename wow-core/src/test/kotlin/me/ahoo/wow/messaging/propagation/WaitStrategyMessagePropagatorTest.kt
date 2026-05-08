@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test
 class WaitStrategyMessagePropagatorTest {
 
     @Test
-    fun propagate() {
+    fun `should propagate`() {
         val upstreamMessage =
             MockCreateAggregate(generateGlobalId(), generateGlobalId())
                 .toCommandMessage()
@@ -36,7 +36,7 @@ class WaitStrategyMessagePropagatorTest {
     }
 
     @Test
-    fun propagateIfBlank() {
+    fun `should propagate if blank`() {
         val header = DefaultHeader.empty()
         val upstreamMessage =
             MockCreateAggregate(generateGlobalId(), generateGlobalId())
@@ -51,7 +51,7 @@ class WaitStrategyMessagePropagatorTest {
     }
 
     @Test
-    fun propagateIfDomainEvent() {
+    fun `should propagate if domain event`() {
         val header = DefaultHeader.empty()
         val upstreamMessage =
             MockAggregateCreated(generateGlobalId())

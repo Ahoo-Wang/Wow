@@ -16,7 +16,7 @@ package me.ahoo.wow.spring.boot.starter.eventsourcing.store
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
-import org.assertj.core.api.AssertionsForInterfaceTypes
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
@@ -25,7 +25,7 @@ class EventStoreAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
 
     @Test
-    fun contextLoads() {
+    fun `should load context with in-memory event store`() {
         contextRunner
             .enableWow()
             .withPropertyValues(
@@ -35,7 +35,7 @@ class EventStoreAutoConfigurationTest {
                 EventStoreAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
-                AssertionsForInterfaceTypes.assertThat(context)
+                context.assert()
                     .hasSingleBean(InMemoryEventStore::class.java)
             }
     }

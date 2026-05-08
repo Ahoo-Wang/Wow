@@ -23,21 +23,21 @@ import org.junit.jupiter.api.Test
 class DeleteConditionGuardTest {
 
     @Test
-    fun guardAll() {
+    fun `should guard empty condition to active`() {
         val condition = condition { }
         val converted = condition.guard()
         converted.assert().isEqualTo(Condition.ACTIVE)
     }
 
     @Test
-    fun guardDeleted() {
+    fun `should keep deleted condition unchanged`() {
         val condition = condition { deleted(DeletionState.DELETED) }
         val converted = condition.guard()
         converted.assert().isEqualTo(condition)
     }
 
     @Test
-    fun guardAndWithDeleted() {
+    fun `should keep and condition with deleted unchanged`() {
         val condition = condition {
             deleted(DeletionState.DELETED)
             "field" eq "hi"
@@ -47,7 +47,7 @@ class DeleteConditionGuardTest {
     }
 
     @Test
-    fun guardAndWithOutDeleted() {
+    fun `should inject active condition when and has no deleted`() {
         val condition = condition {
             "field1" eq "hi"
             "field2" eq "hi"
@@ -57,7 +57,7 @@ class DeleteConditionGuardTest {
     }
 
     @Test
-    fun guardEq() {
+    fun `should inject active condition for eq condition`() {
         val condition = condition {
             "field" eq "hi"
         }

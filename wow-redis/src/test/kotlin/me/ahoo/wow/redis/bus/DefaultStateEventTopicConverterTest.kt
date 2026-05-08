@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test
 class DefaultStateEventTopicConverterTest {
 
     @Test
-    fun convert() {
+    fun `should convert state event topic`() {
         val actual = DefaultStateEventTopicConverter.convert(MOCK_AGGREGATE_METADATA)
         actual.assert().isEqualTo("tck.mock_aggregate:state")
     }

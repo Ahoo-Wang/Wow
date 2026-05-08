@@ -23,14 +23,14 @@ internal class SimpleEventStreamSchemaTest {
     private val eventStreamSchema = SimpleEventStreamSchema()
 
     @Test
-    fun loadEventStream() {
+    fun `should load event stream`() {
         eventStreamSchema.load(namedAggregate.aggregateId("")).assert().isEqualTo(
             "select * from test_event_stream where aggregate_id=? and version between ? and ? order by version"
         )
     }
 
     @Test
-    fun appendEventStream() {
+    fun `should append event stream`() {
         eventStreamSchema.append(namedAggregate.aggregateId("")).assert().isEqualTo(
             """
         insert into test_event_stream (id,aggregate_id,tenant_id,owner_id,space_id,request_id,command_id,version,header,body,size,create_time) 

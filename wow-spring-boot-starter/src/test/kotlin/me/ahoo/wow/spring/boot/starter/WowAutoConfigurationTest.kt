@@ -20,7 +20,7 @@ import me.ahoo.wow.exception.ErrorConverterFactory
 import me.ahoo.wow.exception.ErrorConverterRegistrar
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration.Companion.SPRING_APPLICATION_NAME
-import org.assertj.core.api.AssertionsForInterfaceTypes
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
@@ -29,7 +29,7 @@ internal class WowAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
 
     @Test
-    fun contextLoads() {
+    fun `should load context with default configuration`() {
         contextRunner
             .enableWow()
             .withBean(ErrorConverterFactory::class.java, {
@@ -43,7 +43,7 @@ internal class WowAutoConfigurationTest {
                 }
             })
             .run { context: AssertableApplicationContext ->
-                AssertionsForInterfaceTypes.assertThat(context)
+                context.assert()
                     .hasSingleBean(WowProperties::class.java)
                     .hasSingleBean(ServiceProvider::class.java)
                     .hasSingleBean(NamedBoundedContext::class.java)
@@ -52,12 +52,12 @@ internal class WowAutoConfigurationTest {
     }
 
     @Test
-    fun contextLoadsIfContextNull() {
+    fun `should load context when context name is null`() {
         contextRunner
             .withPropertyValues("$SPRING_APPLICATION_NAME=wow-spring-boot-starter-test")
             .withUserConfiguration(WowAutoConfiguration::class.java)
             .run { context: AssertableApplicationContext ->
-                AssertionsForInterfaceTypes.assertThat(context)
+                context.assert()
                     .hasSingleBean(WowProperties::class.java)
                     .hasSingleBean(ServiceProvider::class.java)
                     .hasSingleBean(NamedBoundedContext::class.java)

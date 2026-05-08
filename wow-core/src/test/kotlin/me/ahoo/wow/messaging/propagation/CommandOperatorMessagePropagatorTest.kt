@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test
 class CommandOperatorMessagePropagatorTest {
 
     @Test
-    fun propagate() {
+    fun `should propagate`() {
         val header = DefaultHeader.empty()
         val upstreamMessage =
             MockCreateAggregate(GlobalIdGenerator.generateAsString(), GlobalIdGenerator.generateAsString())
@@ -23,7 +23,7 @@ class CommandOperatorMessagePropagatorTest {
     }
 
     @Test
-    fun propagateIfNull() {
+    fun `should propagate if null`() {
         val header = DefaultHeader.empty()
         val upstreamMessage =
             MockCreateAggregate(GlobalIdGenerator.generateAsString(), GlobalIdGenerator.generateAsString())

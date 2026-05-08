@@ -30,7 +30,7 @@ class DefaultPrepareKeyProxyFactoryTest {
     }
 
     @Test
-    fun create() {
+    fun `should create prepare key proxy`() {
         val proxyFactory = DefaultPrepareKeyProxyFactory(MockPrepareKeyFactory)
         val prepareKey = proxyFactory.create(prepareKeyMetadata<PrepareKeyMetadataParserTest.NameNotEmpty>())
         prepareKey.assert().isInstanceOf(PrepareKeyMetadataParserTest.NameNotEmpty::class.java)

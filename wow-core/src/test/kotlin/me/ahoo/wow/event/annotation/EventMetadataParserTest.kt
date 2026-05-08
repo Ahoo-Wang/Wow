@@ -24,7 +24,7 @@ import org.junit.jupiter.api.Test
 
 internal class EventMetadataParserTest {
     @Test
-    fun parse() {
+    fun `should parse`() {
         val eventMetadata = eventMetadata<MockAggregateCreated>()
         eventMetadata.assert().isNotNull()
         eventMetadata.eventType.assert().isEqualTo(MockAggregateCreated::class.java)
@@ -34,7 +34,7 @@ internal class EventMetadataParserTest {
     }
 
     @Test
-    fun parseWhenNamed() {
+    fun `should parse when named`() {
         val eventMetadata = eventMetadata<MockNamedEvent>()
         eventMetadata.assert().isNotNull()
         eventMetadata.eventType.assert().isEqualTo(MockNamedEvent::class.java)
@@ -43,7 +43,7 @@ internal class EventMetadataParserTest {
     }
 
     @Test
-    fun parseWhenNamedEmpty() {
+    fun `should parse when named empty`() {
         val eventMetadata = eventMetadata<MockNamedEmptyEvent>()
         eventMetadata.assert().isNotNull()
         eventMetadata.eventType.assert().isEqualTo(MockNamedEmptyEvent::class.java)
@@ -51,7 +51,7 @@ internal class EventMetadataParserTest {
     }
 
     @Test
-    fun parseWhenNamedAndRevised() {
+    fun `should parse when named and revised`() {
         val eventMetadata = eventMetadata<MockNamedAndRevisedEvent>()
         eventMetadata.assert().isNotNull()
         eventMetadata.eventType.assert().isEqualTo(MockNamedAndRevisedEvent::class.java)
@@ -60,7 +60,7 @@ internal class EventMetadataParserTest {
     }
 
     @Test
-    fun eq() {
+    fun `should eq`() {
         val eventMetadata = eventMetadata<MockAggregateCreated>()
         eventMetadata.assert().isEqualTo(eventMetadata)
         eventMetadata.assert().isNotEqualTo(Any())

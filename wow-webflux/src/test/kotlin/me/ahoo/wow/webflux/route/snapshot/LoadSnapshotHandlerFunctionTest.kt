@@ -20,7 +20,7 @@ import java.net.URI
 class LoadSnapshotHandlerFunctionTest {
 
     @Test
-    fun handle() {
+    fun `should handle load snapshot request`() {
         val handlerFunction = LoadSnapshotHandlerFunctionFactory(
             snapshotQueryHandler = MockQueryHandler.queryHandler,
             exceptionHandler = DefaultRequestExceptionHandler,

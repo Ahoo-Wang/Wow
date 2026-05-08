@@ -25,7 +25,7 @@ import org.springframework.mock.web.reactive.function.server.MockServerRequest
 class CoSecRewriteRequestConditionTest {
 
     @Test
-    fun resolveSpaceId() {
+    fun `should resolve space id from request condition`() {
         val spaceId = generateGlobalId()
         val request = MockServerRequest.builder().header(SPACE_ID_KEY, spaceId).build()
         val condition = CoSecRewriteRequestCondition.rewrite(MOCK_AGGREGATE_METADATA, request, condition { })

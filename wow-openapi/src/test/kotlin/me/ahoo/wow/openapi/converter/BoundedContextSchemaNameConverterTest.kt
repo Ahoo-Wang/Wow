@@ -22,7 +22,7 @@ import org.junit.jupiter.api.Test
 class BoundedContextSchemaNameConverterTest {
 
     @Test
-    fun resolveNameForStringJavaType() {
+    fun `should not resolve name for string java type`() {
         val type = TypeFactory.defaultInstance().constructType(String::class.java)
         val annotatedType = AnnotatedType(type)
         annotatedType.resolveName()
@@ -30,14 +30,14 @@ class BoundedContextSchemaNameConverterTest {
     }
 
     @Test
-    fun resolveNameForStringClass() {
+    fun `should not resolve name for string class`() {
         val annotatedType = AnnotatedType(String::class.java)
         annotatedType.resolveName()
         annotatedType.name.assert().isNull()
     }
 
     @Test
-    fun resolveNameIfNameNotBlank() {
+    fun `should keep existing name when not blank`() {
         val annotatedType = AnnotatedType(String::class.java)
         annotatedType.name = "test"
         annotatedType.resolveName()
@@ -45,7 +45,7 @@ class BoundedContextSchemaNameConverterTest {
     }
 
     @Test
-    fun resolveNameForListJavaType() {
+    fun `should resolve name for list java type`() {
         val type = TypeFactory.defaultInstance().constructCollectionLikeType(List::class.java, String::class.java)
         val annotatedType = AnnotatedType(type)
         annotatedType.resolveName()

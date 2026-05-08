@@ -21,7 +21,7 @@ class SnapshotFindNextRetryTest {
     }
 
     @Test
-    fun testCondition() {
+    fun `should build correct find next retry condition`() {
         val currentTime = System.currentTimeMillis()
         val originalCondition = condition {
             RECOVERABLE_FIELD ne RecoverableType.UNRECOVERABLE.name

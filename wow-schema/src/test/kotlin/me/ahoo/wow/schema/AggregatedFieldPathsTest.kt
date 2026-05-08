@@ -31,14 +31,14 @@ import org.junit.jupiter.api.Test
 
 class AggregatedFieldPathsTest {
     @Test
-    fun allFieldPathsForCondition() {
+    fun `should list all field paths for condition type`() {
         Condition::class.allFieldPaths().forEach {
             println(it)
         }
     }
 
     @Test
-    fun allFieldPaths() {
+    fun `should list all field paths for demo state`() {
         val allFieldPaths = DemoState::class.allFieldPaths(parentName = "state")
         allFieldPaths.assert().contains("state.address")
             .doesNotContain("addresses")
@@ -47,14 +47,14 @@ class AggregatedFieldPathsTest {
     }
 
     @Test
-    fun allFieldPathsForPolymorphic() {
+    fun `should list all field paths for polymorphic config`() {
         PolymorphicConfig::class.allFieldPaths().forEach {
             println(it)
         }
     }
 
     @Test
-    fun commandAggregatedFieldPaths() {
+    fun `should list command aggregated field paths`() {
         Order::class.commandAggregatedFieldPaths().forEach {
             println(it)
         }

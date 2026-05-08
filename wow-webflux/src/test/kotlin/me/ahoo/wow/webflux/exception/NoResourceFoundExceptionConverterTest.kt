@@ -22,7 +22,7 @@ import java.net.URI
 
 class NoResourceFoundExceptionConverterTest {
     @Test
-    fun convert() {
+    fun `should convert no resource found exception to error info`() {
         val error = NoResourceFoundException(URI.create(""), "resourcePath")
         val errorInfo = error.toErrorInfo()
         errorInfo.errorCode.assert().isEqualTo(ErrorCodes.NOT_FOUND)

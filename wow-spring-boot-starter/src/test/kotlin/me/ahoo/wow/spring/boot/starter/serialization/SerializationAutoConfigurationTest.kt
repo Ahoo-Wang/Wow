@@ -15,7 +15,7 @@ package me.ahoo.wow.spring.boot.starter.serialization
 
 import me.ahoo.wow.serialization.WowModule
 import me.ahoo.wow.spring.boot.starter.enableWow
-import org.assertj.core.api.AssertionsForInterfaceTypes.assertThat
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 
@@ -23,12 +23,12 @@ internal class SerializationAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
 
     @Test
-    fun contextLoads() {
+    fun `should load context with wow serialization module`() {
         contextRunner
             .enableWow()
             .withUserConfiguration(SerializationAutoConfiguration::class.java)
             .run { context ->
-                assertThat(context)
+                context.assert()
                     .hasSingleBean(WowModule::class.java)
             }
     }

@@ -21,7 +21,7 @@ import reactor.kotlin.test.test
 class ListQuerySnapshotStateHandlerFunctionTest {
 
     @Test
-    fun handle() {
+    fun `should handle list query snapshot state request`() {
         val handlerFunction = ListQuerySnapshotStateHandlerFunctionFactory(
             MockQueryHandler.queryHandler,
             rewriteRequestCondition = DefaultRewriteRequestCondition,

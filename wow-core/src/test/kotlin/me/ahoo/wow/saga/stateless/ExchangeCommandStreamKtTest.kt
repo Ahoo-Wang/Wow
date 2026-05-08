@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test
 class ExchangeCommandStreamKtTest {
 
     @Test
-    fun setCommandStream() {
+    fun `should set command stream`() {
         val exchange = SimpleDomainEventExchange(mockk<DomainEvent<Any>>())
         exchange.setCommandStream(mockk()).getCommandStream().assert().isNotNull()
     }

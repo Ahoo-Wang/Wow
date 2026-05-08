@@ -20,7 +20,7 @@ import reactor.kotlin.test.test
 class PagedQuerySnapshotStateHandlerFunctionFactoryTest {
 
     @Test
-    fun handle() {
+    fun `should handle paged query snapshot state request`() {
         val handlerFunction = PagedQuerySnapshotStateHandlerFunctionFactory(
             MockQueryHandler.queryHandler,
             DefaultRewriteRequestCondition,

@@ -11,43 +11,43 @@ import kotlin.reflect.jvm.kotlinProperty
 class IntimateAnnotationElementTest {
 
     @Test
-    fun getElement() {
+    fun `should get element`() {
         val element = Data::property.toIntimateAnnotationElement()
         element.element.assert().isEqualTo(Data::property)
     }
 
     @Test
-    fun getDeclaringClass() {
+    fun `should get declaring class`() {
         val element = Data::fieldProperty.toIntimateAnnotationElement()
         element.declaringClass.assert().isEqualTo(Data::class)
     }
 
     @Test
-    fun getProperty() {
+    fun `should get property`() {
         val element = Data::fieldProperty.toIntimateAnnotationElement()
         element.property.assert().isEqualTo(Data::fieldProperty)
     }
 
     @Test
-    fun getGetter() {
+    fun `should get getter`() {
         val element = Data::fieldProperty.toIntimateAnnotationElement()
         element.getter.assert().isEqualTo(Data::fieldProperty.getter)
     }
 
     @Test
-    fun getSetter() {
+    fun `should get setter`() {
         val element = Data::setProperty.toIntimateAnnotationElement()
         element.setter.assert().isEqualTo(Data::setProperty.setter)
     }
 
     @Test
-    fun getField() {
+    fun `should get field`() {
         val element = Data::fieldProperty.toIntimateAnnotationElement()
         element.javaField.assert().isEqualTo(Data::fieldProperty.javaField)
     }
 
     @Test
-    fun getIntimatedAnnotations() {
+    fun `should get intimated annotations`() {
         val element = Data::property.toIntimateAnnotationElement()
 
         element.intimatedAnnotations.assert().isEqualTo(
@@ -56,7 +56,7 @@ class IntimateAnnotationElementTest {
     }
 
     @Test
-    fun getMergedAnnotations() {
+    fun `should get merged annotations`() {
         val element = Data::fieldProperty.toIntimateAnnotationElement()
 
         element.inheritedAnnotations.assert().isEqualTo(
@@ -65,13 +65,13 @@ class IntimateAnnotationElementTest {
     }
 
     @Test
-    fun getIntimatedAnnotationsRepeatable() {
+    fun `should get intimated annotations when repeatable`() {
         val element = Data::repeatable.toIntimateAnnotationElement()
         element.intimatedAnnotations.assert().isEqualTo(linkedSetOf(MockAnnotation(), MockAnnotation()))
     }
 
     @Test
-    fun getJvmIntimatedAnnotationsRepeatable() {
+    fun `should get jvm intimated annotations when repeatable`() {
         val element = Data::jvmRepeatable.toIntimateAnnotationElement()
 
         element.intimatedAnnotations.assert().isEqualTo(
@@ -87,7 +87,7 @@ class IntimateAnnotationElementTest {
     }
 
     @Test
-    fun getJvm2IntimatedAnnotationsRepeatable() {
+    fun `should get jvm2 intimated annotations when repeatable`() {
         val element = Data::jvmRepeatable2.toIntimateAnnotationElement()
 
         element.intimatedAnnotations.assert().isEqualTo(
@@ -103,7 +103,7 @@ class IntimateAnnotationElementTest {
     }
 
     @Test
-    fun getJvmClassIntimatedAnnotationsRepeatable() {
+    fun `should get jvm class intimated annotations when repeatable`() {
         val element =
             MockRepeatableClass::class.java.getDeclaredField("field").kotlinProperty!!.toIntimateAnnotationElement()
 
@@ -120,7 +120,7 @@ class IntimateAnnotationElementTest {
     }
 
     @Test
-    fun getJvmClassIntimatedAnnotationsRepeatable2() {
+    fun `should get jvm class intimated annotations when repeatable 2`() {
         val element =
             MockRepeatableClass::class.java.getDeclaredField("field2").kotlinProperty!!.toIntimateAnnotationElement()
         element.intimatedAnnotations.assert().isEqualTo(

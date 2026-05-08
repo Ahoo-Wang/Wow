@@ -33,7 +33,7 @@ import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.opentelemetry.WowOpenTelemetryAutoConfiguration
 import me.ahoo.wow.spring.command.CommandDispatcherLauncher
 import me.ahoo.wow.test.SagaVerifier
-import org.assertj.core.api.AssertionsForInterfaceTypes
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
@@ -43,7 +43,7 @@ internal class AggregateAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
 
     @Test
-    fun contextLoads() {
+    fun `should load context with aggregate processing beans`() {
         contextRunner
             .enableWow()
             .withBean(StateAggregateFactory::class.java, { ConstructorStateAggregateFactory })
@@ -56,7 +56,7 @@ internal class AggregateAutoConfigurationTest {
                 AggregateAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
-                AssertionsForInterfaceTypes.assertThat(context)
+                context.assert()
                     .hasSingleBean(StateAggregateFactory::class.java)
                     .hasSingleBean(StateAggregateRepository::class.java)
                     .hasSingleBean(CommandAggregateFactory::class.java)

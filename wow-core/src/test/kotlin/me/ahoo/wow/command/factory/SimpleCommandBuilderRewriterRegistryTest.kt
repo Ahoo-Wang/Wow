@@ -8,7 +8,7 @@ import reactor.core.publisher.Mono
 class SimpleCommandBuilderRewriterRegistryTest {
 
     @Test
-    fun register() {
+    fun `should register`() {
         val registry = SimpleCommandBuilderRewriterRegistry()
         registry.register(MockCommandBuilderRewriter())
         registry.getRewriter(MockCreateCommand::class.java).assert().isNotNull()
@@ -17,7 +17,7 @@ class SimpleCommandBuilderRewriterRegistryTest {
     }
 
     @Test
-    fun registerBlocked() {
+    fun `should register blocked`() {
         val registry = SimpleCommandBuilderRewriterRegistry()
         registry.register(MockBlockingCommandBuilderRewriter())
         registry.getRewriter(

@@ -18,13 +18,13 @@ class CompositeAggregateIdShardingTest {
     )
 
     @Test
-    fun sharding() {
+    fun `should return correct sharding`() {
         val actual = sharding.sharding(MOCK_AGGREGATE_METADATA.aggregateId("0TEDamtj0001001"))
         actual.assert().isEqualTo("sharding_1")
     }
 
     @Test
-    fun shardingIfMissing() {
+    fun `should throw exception when sharding is missing`() {
         val aggregateId = MaterializedNamedAggregate("test", "test").aggregateId()
         assertThrownBy<IllegalStateException> {
             sharding.sharding(aggregateId)

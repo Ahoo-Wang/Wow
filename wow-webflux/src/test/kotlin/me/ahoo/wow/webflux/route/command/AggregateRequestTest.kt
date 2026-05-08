@@ -32,7 +32,7 @@ import java.time.Duration
 
 class AggregateRequestTest {
     @Test
-    fun getOwnerIdFromPathVariable() {
+    fun `should get owner id from path variable`() {
         val ownerId = generateGlobalId()
         val request = MockServerRequest.builder().pathVariable(MessageRecords.OWNER_ID, ownerId).build()
 
@@ -40,28 +40,28 @@ class AggregateRequestTest {
     }
 
     @Test
-    fun getOwnerIdFromHeader() {
+    fun `should get owner id from header`() {
         val ownerId = generateGlobalId()
         val request = MockServerRequest.builder().header(CommandComponent.Header.OWNER_ID, ownerId).build()
         request.getOwnerId().assert().isEqualTo(ownerId)
     }
 
     @Test
-    fun getAggregateIdWithOwnerIdFromPathVariable() {
+    fun `should get aggregate id from owner id path variable`() {
         val ownerId = generateGlobalId()
         val request = MockServerRequest.builder().build()
         request.getAggregateId(AggregateRoute.Owner.AGGREGATE_ID, ownerId).assert().isEqualTo(ownerId)
     }
 
     @Test
-    fun getSpaceIdFromHeader() {
+    fun `should get space id from header`() {
         val spaceId = generateGlobalId()
         val request = MockServerRequest.builder().header(CommonComponent.Header.SPACE_ID, spaceId).build()
         request.getSpaceId().assert().isEqualTo(spaceId)
     }
 
     @Test
-    fun getAggregateIdWithOwnerIdIsNullFromPathVariable() {
+    fun `should get aggregate id from path when owner id is null`() {
         val aggregateId = generateGlobalId()
         val request = MockServerRequest.builder()
             .pathVariable(MessageRecords.ID, aggregateId)
@@ -71,82 +71,82 @@ class AggregateRequestTest {
     }
 
     @Test
-    fun getAggregateIdWithOwner() {
+    fun `should get aggregate id with owner id`() {
         val ownerId = generateGlobalId()
         val request = MockServerRequest.builder().pathVariable(MessageRecords.OWNER_ID, ownerId).build()
         request.getAggregateId(AggregateRoute.Owner.AGGREGATE_ID).assert().isEqualTo(ownerId)
     }
 
     @Test
-    fun getCommandStage() {
+    fun `should get wait stage from header`() {
         val request = MockServerRequest.builder()
             .header(CommandComponent.Header.WAIT_STAGE, CommandStage.SENT.name).build()
         request.getWaitStage().assert().isEqualTo(CommandStage.SENT)
     }
 
     @Test
-    fun getCommandStageIfNull() {
+    fun `should default to processed stage when header is null`() {
         val request = MockServerRequest.builder().build()
         request.getWaitStage().assert().isEqualTo(CommandStage.PROCESSED)
     }
 
     @Test
-    fun getWaitContext() {
+    fun `should get wait context from header`() {
         val request = MockServerRequest.builder()
             .header(CommandComponent.Header.WAIT_CONTEXT, "test").build()
         request.getWaitContext().assert().isEqualTo("test")
     }
 
     @Test
-    fun getWaitProcessor() {
+    fun `should get wait processor from header`() {
         val request = MockServerRequest.builder()
             .header(CommandComponent.Header.WAIT_PROCESSOR, "test").build()
         request.getWaitProcessor().assert().isEqualTo("test")
     }
 
     @Test
-    fun getWaitFunction() {
+    fun `should get wait function from header`() {
         val request = MockServerRequest.builder()
             .header(CommandComponent.Header.WAIT_FUNCTION, "test").build()
         request.getWaitFunction().assert().isEqualTo("test")
     }
 
     @Test
-    fun getWaitTailStage() {
+    fun `should get wait tail stage from header`() {
         val request = MockServerRequest.builder()
             .header(CommandComponent.Header.WAIT_TAIL_STAGE, CommandStage.SENT.name).build()
         request.getWaitTailStage().assert().isEqualTo(CommandStage.SENT)
     }
 
     @Test
-    fun getWaitTailStageIfNull() {
+    fun `should return null when wait tail stage header is missing`() {
         val request = MockServerRequest.builder().build()
         request.getWaitTailStage().assert().isNull()
     }
 
     @Test
-    fun getWaitTailContext() {
+    fun `should get wait tail context from header`() {
         val request = MockServerRequest.builder()
             .header(CommandComponent.Header.WAIT_TAIL_CONTEXT, "test").build()
         request.getWaitTailContext().assert().isEqualTo("test")
     }
 
     @Test
-    fun getWaitTailProcessor() {
+    fun `should get wait tail processor from header`() {
         val request = MockServerRequest.builder()
             .header(CommandComponent.Header.WAIT_TAIL_PROCESSOR, "test").build()
         request.getWaitTailProcessor().assert().isEqualTo("test")
     }
 
     @Test
-    fun getWaitTailFunction() {
+    fun `should get wait tail function from header`() {
         val request = MockServerRequest.builder()
             .header(CommandComponent.Header.WAIT_TAIL_FUNCTION, "test").build()
         request.getWaitTailFunction().assert().isEqualTo("test")
     }
 
     @Test
-    fun getTenantId() {
+    fun `should get tenant id from header`() {
         val tenantId = generateGlobalId()
         val request = MockServerRequest.builder()
             .header(CommandComponent.Header.TENANT_ID, tenantId)
@@ -156,7 +156,7 @@ class AggregateRequestTest {
     }
 
     @Test
-    fun getAggregateId() {
+    fun `should get aggregate id from header`() {
         val aggregateId = generateGlobalId()
         val request = MockServerRequest.builder()
             .header(CommandComponent.Header.AGGREGATE_ID, aggregateId)
@@ -165,7 +165,7 @@ class AggregateRequestTest {
     }
 
     @Test
-    fun getLocalFirst() {
+    fun `should get local first flag from header`() {
         val request = MockServerRequest.builder()
             .header(CommandComponent.Header.LOCAL_FIRST, "true")
             .build()
@@ -173,7 +173,7 @@ class AggregateRequestTest {
     }
 
     @Test
-    fun isSse() {
+    fun `should detect sse from accept header`() {
         val request = MockServerRequest.builder()
             .header("Accept", "text/event-stream")
             .build()
@@ -181,7 +181,7 @@ class AggregateRequestTest {
     }
 
     @Test
-    fun getWaitTimeout() {
+    fun `should get wait timeout from header`() {
         val request = MockServerRequest.builder()
             .header(CommandComponent.Header.WAIT_TIME_OUT, "5000")
             .build()
@@ -189,13 +189,13 @@ class AggregateRequestTest {
     }
 
     @Test
-    fun getWaitTimeoutWithDefault() {
+    fun `should use default wait timeout when header is missing`() {
         val request = MockServerRequest.builder().build()
         request.getWaitTimeout(Duration.ofSeconds(10)).assert().isEqualTo(Duration.ofSeconds(10))
     }
 
     @Test
-    fun getTenantIdFromPath() {
+    fun `should get tenant id from path variable`() {
         val tenantId = generateGlobalId()
         val request = MockServerRequest.builder()
             .pathVariable(MessageRecords.TENANT_ID, tenantId)
@@ -205,7 +205,7 @@ class AggregateRequestTest {
     }
 
     @Test
-    fun getAggregateIdFromPath() {
+    fun `should get aggregate id from path variable`() {
         val aggregateId = generateGlobalId()
         val request = MockServerRequest.builder()
             .pathVariable(MessageRecords.ID, aggregateId)
@@ -214,7 +214,7 @@ class AggregateRequestTest {
     }
 
     @Test
-    fun extractWaitingForStage() {
+    fun `should extract waiting for stage wait strategy`() {
         val commandMessage = mockk<CommandMessage<Any>> {
             every { commandId } returns generateGlobalId()
             every { contextName } returns generateGlobalId()
@@ -233,7 +233,7 @@ class AggregateRequestTest {
     }
 
     @Test
-    fun extractSimpleWaitingForChain() {
+    fun `should extract simple waiting for chain strategy`() {
         val commandMessage = mockk<CommandMessage<Any>> {
             every { commandId } returns generateGlobalId()
             every { contextName } returns generateGlobalId()

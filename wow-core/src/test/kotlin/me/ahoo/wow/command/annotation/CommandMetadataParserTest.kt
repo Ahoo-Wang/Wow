@@ -34,12 +34,12 @@ import org.junit.jupiter.api.Test
 internal class CommandMetadataParserTest {
 
     @Test
-    fun parseCreateWithoutTargetAggregateId() {
+    fun `should parse create without target aggregate id`() {
         commandMetadata<MockCreateCommandWithoutAggregateId>()
     }
 
     @Test
-    fun parseWithDefaultNamedId() {
+    fun `should parse with default named id`() {
         val metadata = commandMetadata<MockCommandWithDefaultNamedId>()
         metadata.isCreate.assert().isEqualTo(false)
         metadata.staticTenantId.assert().isNull()
@@ -47,21 +47,21 @@ internal class CommandMetadataParserTest {
     }
 
     @Test
-    fun parseWithAllowCreate() {
+    fun `should parse with allow create`() {
         val metadata = commandMetadata<MockCommandWithAllowCreate>()
         metadata.allowCreate.assert().isEqualTo(true)
         metadata.aggregateIdGetter.assert().isNotNull()
     }
 
     @Test
-    fun parseWithoutTargetAggregateId() {
+    fun `should parse without target aggregate id`() {
         val metadata = commandMetadata<MockCommandWithoutTargetAggregateId>()
         metadata.isCreate.assert().isEqualTo(false)
         metadata.aggregateIdGetter.assert().isNull()
     }
 
     @Test
-    fun parseWithVersion() {
+    fun `should parse with version`() {
         val metadata = commandMetadata<MockCommandWithExpectedAggregateVersion>()
         metadata.assert().isNotNull()
         metadata.commandType.assert().isEqualTo(MockCommandWithExpectedAggregateVersion::class.java,)
@@ -75,7 +75,7 @@ internal class CommandMetadataParserTest {
     }
 
     @Test
-    fun parseWithCreateAggregate() {
+    fun `should parse with create aggregate`() {
         val metadata = commandMetadata<MockCreateCommand>()
         metadata.assert().isNotNull()
         metadata.commandType.assert().isEqualTo(MockCreateCommand::class.java,)
@@ -85,7 +85,7 @@ internal class CommandMetadataParserTest {
     }
 
     @Test
-    fun parseWithCommandName() {
+    fun `should parse with command name`() {
         val metadata = commandMetadata<MockNamedCommand>()
         metadata.assert().isNotNull()
         metadata.commandType.assert().isEqualTo(MockNamedCommand::class.java,)
@@ -96,7 +96,7 @@ internal class CommandMetadataParserTest {
     }
 
     @Test
-    fun parseWithStatic() {
+    fun `should parse with static`() {
         val metadata = commandMetadata<MockStaticCommand>()
         metadata.assert().isNotNull()
         metadata.staticTenantId.assert().isEqualTo(TenantId.DEFAULT_TENANT_ID)
@@ -106,7 +106,7 @@ internal class CommandMetadataParserTest {
     }
 
     @Test
-    fun parseWithInheritStatic() {
+    fun `should parse with inherit static`() {
         val metadata = commandMetadata<MockInheritStaticCommand>()
         metadata.assert().isNotNull()
         metadata.commandType.assert().isEqualTo(MockInheritStaticCommand::class.java,)

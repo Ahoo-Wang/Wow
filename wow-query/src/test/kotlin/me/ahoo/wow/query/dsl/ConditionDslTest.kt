@@ -29,7 +29,7 @@ class ConditionDslTest {
 
     @Suppress("LongMethod")
     @Test
-    fun test() {
+    fun `should build complex condition with all operators`() {
         val condition = condition {
             deleted(DeletionState.ACTIVE)
             and {
@@ -166,7 +166,7 @@ class ConditionDslTest {
     }
 
     @Test
-    fun nested() {
+    fun `should build nested condition using property reference`() {
         val condition = condition {
             QueryModel::id nested {
                 QueryModel::id eq "value"
@@ -176,7 +176,7 @@ class ConditionDslTest {
     }
 
     @Test
-    fun and() {
+    fun `should build and condition with nested scope`() {
         val condition = condition {
             nested("state")
             and {
@@ -205,7 +205,7 @@ class ConditionDslTest {
     }
 
     @Test
-    fun andEmpty() {
+    fun `should return all condition when and is empty`() {
         val condition = condition {
             and {
             }
@@ -214,7 +214,7 @@ class ConditionDslTest {
     }
 
     @Test
-    fun or() {
+    fun `should build or condition with nested state`() {
         val condition = condition {
             nestedState()
             or {
@@ -233,7 +233,7 @@ class ConditionDslTest {
     }
 
     @Test
-    fun nor() {
+    fun `should return all condition when nor is empty`() {
         val condition = condition {
             nor {
             }
@@ -242,7 +242,7 @@ class ConditionDslTest {
     }
 
     @Test
-    fun orEmpty() {
+    fun `should return all condition when or is empty`() {
         val condition = condition {
             or {
             }
@@ -251,7 +251,7 @@ class ConditionDslTest {
     }
 
     @Test
-    fun empty() {
+    fun `should return all condition`() {
         val condition = condition {
             all()
         }
@@ -259,7 +259,7 @@ class ConditionDslTest {
     }
 
     @Test
-    fun deleted() {
+    fun `should set deletion state on condition`() {
         val condition = condition {
             deleted(DeletionState.DELETED)
         }
@@ -267,13 +267,13 @@ class ConditionDslTest {
     }
 
     @Test
-    fun deletedWithString() {
+    fun `should parse deletion state from string value`() {
         val condition = Condition(operator = Operator.DELETED, value = "DELETED")
         condition.deletionState().assert().isEqualTo(DeletionState.DELETED)
     }
 
     @Test
-    fun eq() {
+    fun `should build eq condition using property reference`() {
         val condition = condition {
             QueryModel::id eq "value"
         }
@@ -281,7 +281,7 @@ class ConditionDslTest {
     }
 
     @Test
-    fun ne() {
+    fun `should build ne condition using property reference`() {
         val condition = condition {
             QueryModel::id ne "value"
         }
@@ -289,7 +289,7 @@ class ConditionDslTest {
     }
 
     @Test
-    fun gt() {
+    fun `should build gt condition using property reference`() {
         val condition = condition {
             QueryModel::id gt 1
         }
@@ -297,7 +297,7 @@ class ConditionDslTest {
     }
 
     @Test
-    fun lt() {
+    fun `should build lt condition using property reference`() {
         val condition = condition {
             QueryModel::id lt 1
         }
@@ -305,7 +305,7 @@ class ConditionDslTest {
     }
 
     @Test
-    fun gte() {
+    fun `should build gte condition using property reference`() {
         val condition = condition {
             QueryModel::id gte 1
         }
@@ -313,7 +313,7 @@ class ConditionDslTest {
     }
 
     @Test
-    fun lte() {
+    fun `should build lte condition using property reference`() {
         val condition = condition {
             QueryModel::id lte 1
         }
@@ -321,7 +321,7 @@ class ConditionDslTest {
     }
 
     @Test
-    fun like() {
+    fun `should build contains condition using property reference`() {
         val condition = condition {
             QueryModel::id contains "value1"
         }
@@ -329,7 +329,7 @@ class ConditionDslTest {
     }
 
     @Test
-    fun isIn() {
+    fun `should build isIn condition using property reference`() {
         val condition = condition {
             QueryModel::id isIn listOf("value1")
         }
@@ -337,7 +337,7 @@ class ConditionDslTest {
     }
 
     @Test
-    fun notIn() {
+    fun `should build notIn condition using property reference`() {
         val condition = condition {
             QueryModel::id notIn listOf("value1")
         }
@@ -345,7 +345,7 @@ class ConditionDslTest {
     }
 
     @Test
-    fun between() {
+    fun `should build between condition using property reference`() {
         val condition = condition {
             QueryModel::id between 1 to 2
         }
@@ -353,7 +353,7 @@ class ConditionDslTest {
     }
 
     @Test
-    fun all() {
+    fun `should build all condition using property reference`() {
         val condition = condition {
             QueryModel::id all listOf("value1")
         }
@@ -361,7 +361,7 @@ class ConditionDslTest {
     }
 
     @Test
-    fun contains() {
+    fun `should build contains condition`() {
         val condition = condition {
             QueryModel::id contains "value1"
         }
@@ -369,7 +369,7 @@ class ConditionDslTest {
     }
 
     @Test
-    fun startsWith() {
+    fun `should build startsWith condition using property reference`() {
         val condition = condition {
             QueryModel::id startsWith "value1"
         }
@@ -377,7 +377,7 @@ class ConditionDslTest {
     }
 
     @Test
-    fun endsWith() {
+    fun `should build endsWith condition using property reference`() {
         val condition = condition {
             QueryModel::id endsWith "value1"
         }
@@ -385,7 +385,7 @@ class ConditionDslTest {
     }
 
     @Test
-    fun elemMatch() {
+    fun `should build elemMatch condition using property reference`() {
         val condition = condition {
             QueryModel::id elemMatch {
                 "field2" eq "value2"
@@ -400,7 +400,7 @@ class ConditionDslTest {
     }
 
     @Test
-    fun isNull() {
+    fun `should build isNull condition using property reference`() {
         val condition = condition {
             QueryModel::id.isNull()
         }
@@ -408,7 +408,7 @@ class ConditionDslTest {
     }
 
     @Test
-    fun notNull() {
+    fun `should build notNull condition using property reference`() {
         val condition = condition {
             QueryModel::id.notNull()
         }
@@ -416,7 +416,7 @@ class ConditionDslTest {
     }
 
     @Test
-    fun isTrue() {
+    fun `should build isTrue condition using property reference`() {
         val condition = condition {
             QueryModel::id.isTrue()
         }
@@ -424,7 +424,7 @@ class ConditionDslTest {
     }
 
     @Test
-    fun isFalse() {
+    fun `should build isFalse condition using property reference`() {
         val condition = condition {
             QueryModel::id.isFalse()
         }
@@ -432,7 +432,7 @@ class ConditionDslTest {
     }
 
     @Test
-    fun exists() {
+    fun `should build exists condition using property reference`() {
         val condition = condition {
             QueryModel::id.exists()
         }
@@ -440,7 +440,7 @@ class ConditionDslTest {
     }
 
     @Test
-    fun notExists() {
+    fun `should build not exists condition using property reference`() {
         val condition = condition {
             QueryModel::id.exists(false)
         }
@@ -448,7 +448,7 @@ class ConditionDslTest {
     }
 
     @Test
-    fun tenantId() {
+    fun `should build tenantId condition`() {
         val condition = condition {
             tenantId("tenantId")
         }
@@ -456,7 +456,7 @@ class ConditionDslTest {
     }
 
     @Test
-    fun ownerId() {
+    fun `should build ownerId condition`() {
         val condition = condition {
             ownerId("ownerId")
         }
@@ -464,7 +464,7 @@ class ConditionDslTest {
     }
 
     @Test
-    fun spaceId() {
+    fun `should build spaceId condition`() {
         val condition = condition {
             spaceId("spaceId")
         }
@@ -472,7 +472,7 @@ class ConditionDslTest {
     }
 
     @Test
-    fun today() {
+    fun `should build today condition using property reference`() {
         val condition = condition {
             QueryModel::id.today("yyyy-MM-dd")
         }
@@ -480,7 +480,7 @@ class ConditionDslTest {
     }
 
     @Test
-    fun tomorrow() {
+    fun `should build tomorrow condition using property reference`() {
         val condition = condition {
             QueryModel::id.tomorrow()
         }
@@ -488,7 +488,7 @@ class ConditionDslTest {
     }
 
     @Test
-    fun thisWeek() {
+    fun `should build thisWeek condition using property reference`() {
         val condition = condition {
             QueryModel::id.thisWeek()
         }
@@ -496,7 +496,7 @@ class ConditionDslTest {
     }
 
     @Test
-    fun nextWeek() {
+    fun `should build nextWeek condition using property reference`() {
         val condition = condition {
             QueryModel::id.nextWeek()
         }
@@ -504,7 +504,7 @@ class ConditionDslTest {
     }
 
     @Test
-    fun lastWeek() {
+    fun `should build lastWeek condition using property reference`() {
         val condition = condition {
             QueryModel::id.lastWeek()
         }
@@ -512,7 +512,7 @@ class ConditionDslTest {
     }
 
     @Test
-    fun thisMonth() {
+    fun `should build thisMonth condition using property reference`() {
         val condition = condition {
             QueryModel::id.thisMonth()
         }
@@ -520,7 +520,7 @@ class ConditionDslTest {
     }
 
     @Test
-    fun lastMonth() {
+    fun `should build lastMonth condition using property reference`() {
         val condition = condition {
             QueryModel::id.lastMonth()
         }
@@ -528,7 +528,7 @@ class ConditionDslTest {
     }
 
     @Test
-    fun recentDays() {
+    fun `should build recentDays condition using property reference`() {
         val condition = condition {
             QueryModel::id recentDays 1
         }
@@ -536,7 +536,7 @@ class ConditionDslTest {
     }
 
     @Test
-    fun earlierDays() {
+    fun `should build earlierDays condition using property reference`() {
         val condition = condition {
             QueryModel::id.name.earlierDays(1)
         }
@@ -545,7 +545,7 @@ class ConditionDslTest {
 
     @ParameterizedTest
     @MethodSource("buildParameters")
-    fun build(condition: Condition, expected: Condition) {
+    fun `should build condition matching expected`(condition: Condition, expected: Condition) {
         condition.assert().isEqualTo(expected)
     }
 

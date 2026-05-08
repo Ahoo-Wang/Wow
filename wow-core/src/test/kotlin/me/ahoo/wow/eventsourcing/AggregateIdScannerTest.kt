@@ -18,12 +18,12 @@ import org.junit.jupiter.api.Test
 
 class AggregateIdScannerTest {
     @Test
-    fun firstId() {
+    fun `should return first id`() {
         AggregateIdScanner.FIRST_ID.assert().isEqualTo("(0)")
     }
 
     @Test
-    fun lastId() {
+    fun `should return last id`() {
         AggregateIdScanner.LAST_ID.assert().isEqualTo("~")
     }
 }

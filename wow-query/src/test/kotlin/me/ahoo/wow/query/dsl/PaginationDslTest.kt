@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test
 class PaginationDslTest {
 
     @Test
-    fun build() {
+    fun `should build pagination with index and size`() {
         val pagination = pagination {
             index(1)
             size(1)

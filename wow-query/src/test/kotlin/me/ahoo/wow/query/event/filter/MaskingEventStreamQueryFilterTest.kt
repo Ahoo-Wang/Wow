@@ -61,7 +61,7 @@ class MaskingEventStreamQueryFilterTest {
     }
 
     @Test
-    fun filter() {
+    fun `should mask dynamic event stream list results`() {
         val query = listQuery { }
         queryHandler.dynamicList(MOCK_AGGREGATE_METADATA, query)
             .test()

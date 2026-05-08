@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test
 class ErrorInfoConverterRegistrarTest {
 
     @Test
-    fun register() {
+    fun `should register`() {
         CustomException().toErrorInfo().errorCode.assert().isEqualTo("CUSTOM_EXCEPTION")
         ErrorConverterRegistrar.unregister(CustomException::class.java).assert()
             .isEqualTo(CustomExceptionErrorConverter)
@@ -23,7 +23,7 @@ class ErrorInfoConverterRegistrarTest {
     }
 
     @Test
-    fun commandResultExceptionToErrorInfo() {
+    fun `should command result exception to error info`() {
         val commandResult = CommandResult(
             id = generateGlobalId(),
             waitCommandId = generateGlobalId(),

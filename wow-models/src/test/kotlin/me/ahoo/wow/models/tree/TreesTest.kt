@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test
 class TreesTest {
 
     @Test
-    fun toTree() {
+    fun `should convert flat list to tree`() {
         val l1 = FlatCategory("l1", "l1", 0)
         val l11 = FlatCategory("l11", "l11", 1)
         val l111 = FlatCategory("l111", "l111", 2)
@@ -22,7 +22,7 @@ class TreesTest {
     }
 
     @Test
-    fun parentCode() {
+    fun `should resolve parent code`() {
         ROOT_CODE.parentCode().assert().isEqualTo(ROOT_CODE)
         "l1-l2-l3".parentCode().assert().isEqualTo("l1-l2")
     }

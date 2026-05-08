@@ -22,7 +22,7 @@ import org.junit.jupiter.api.Test
 class AggregatedConditionTest {
 
     @Test
-    fun ctor() {
+    fun `should construct aggregated condition`() {
         val condition = AggregatedCondition(
             field = object : AggregatedFields<Order> {},
             operator = Operator.EQ,

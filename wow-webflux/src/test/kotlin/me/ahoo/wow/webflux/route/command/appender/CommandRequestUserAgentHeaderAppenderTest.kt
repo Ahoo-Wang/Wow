@@ -22,7 +22,7 @@ import org.springframework.mock.web.reactive.function.server.MockServerRequest
 
 class CommandRequestUserAgentHeaderAppenderTest {
     @Test
-    fun append() {
+    fun `should append user agent header from request`() {
         val userAgent = "test"
         val request = MockServerRequest.builder()
             .header(HttpHeaders.USER_AGENT, userAgent)
@@ -34,7 +34,7 @@ class CommandRequestUserAgentHeaderAppenderTest {
     }
 
     @Test
-    fun appendIfNull() {
+    fun `should not append user agent when header is missing`() {
         val request = MockServerRequest.builder().build()
         val commandHeader = DefaultHeader.empty()
         CommandRequestUserAgentHeaderAppender.append(request, commandHeader)

@@ -10,7 +10,7 @@ import me.ahoo.wow.spring.boot.starter.command.CommandProperties
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.event.EventProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.state.StateProperties
-import org.assertj.core.api.AssertionsForInterfaceTypes
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
@@ -20,7 +20,7 @@ class RedisMessageBusAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
 
     @Test
-    fun contextLoads() {
+    fun `should load context with redis message bus beans`() {
         contextRunner
             .enableWow()
             .withPropertyValues(
@@ -37,7 +37,7 @@ class RedisMessageBusAutoConfigurationTest {
                 RedisMessageBusAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
-                AssertionsForInterfaceTypes.assertThat(context)
+                context.assert()
                     .hasSingleBean(RedisCommandBus::class.java)
                     .hasSingleBean(RedisDomainEventBus::class.java)
                     .hasSingleBean(RedisStateEventBus::class.java)

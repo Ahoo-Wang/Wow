@@ -15,7 +15,7 @@ class RouterSpecsTest {
     val materializedNamedBoundedContext = MaterializedNamedBoundedContext(ExampleService.SERVICE_NAME)
 
     @Test
-    fun mergeIfNotFoundContextName() {
+    fun `should merge open api when context name not found`() {
         val openAPI = OpenAPI()
         val materializedNamedBoundedContext = MaterializedNamedBoundedContext(generateGlobalId())
         val routerSpecs = RouterSpecs(materializedNamedBoundedContext).build()
@@ -24,7 +24,7 @@ class RouterSpecsTest {
     }
 
     @Test
-    fun mergeOpenAPI() {
+    fun `should merge router specs into open api`() {
         val openAPI = OpenAPI()
         RouterSpecs(materializedNamedBoundedContext).build()
             .mergeOpenAPI(openAPI)
@@ -33,7 +33,7 @@ class RouterSpecsTest {
     }
 
     @Test
-    fun mergeOpenAPIWithInfo() {
+    fun `should keep existing info when merging`() {
         val info = Info()
         val openAPI = OpenAPI().info(info)
         RouterSpecs(materializedNamedBoundedContext).build()
@@ -43,7 +43,7 @@ class RouterSpecsTest {
     }
 
     @Test
-    fun mergeOpenAPIWithInfoDefault() {
+    fun `should replace default info title when merging`() {
         val info = Info().title(DEFAULT_OPENAPI_INFO_TITLE).description("hello")
         val openAPI = OpenAPI().info(info)
         RouterSpecs(materializedNamedBoundedContext).build()
@@ -53,7 +53,7 @@ class RouterSpecsTest {
     }
 
     @Test
-    fun mergeOpenAPIWithInfoTitle() {
+    fun `should keep custom info title when merging`() {
         val info = Info().title(generateGlobalId())
         val openAPI = OpenAPI().info(info)
         RouterSpecs(materializedNamedBoundedContext).build()
@@ -63,7 +63,7 @@ class RouterSpecsTest {
     }
 
     @Test
-    fun mergeOpenAPIWithNotNull() {
+    fun `should merge into existing open api with all components`() {
         val info = Info()
         val paths = Paths()
         val components = Components()

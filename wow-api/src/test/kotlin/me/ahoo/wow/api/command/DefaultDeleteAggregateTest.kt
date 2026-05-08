@@ -18,7 +18,7 @@ import org.junit.jupiter.api.Test
 
 class DefaultDeleteAggregateTest {
     @Test
-    fun isAssignableFrom() {
+    fun `should be assignable from delete aggregate command`() {
         DeleteAggregate::class.java.isAssignableFrom(DefaultDeleteAggregate::class.java).assert().isTrue()
     }
 }

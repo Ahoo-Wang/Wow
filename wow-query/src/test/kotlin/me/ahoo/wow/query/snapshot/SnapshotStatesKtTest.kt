@@ -29,7 +29,7 @@ import reactor.kotlin.test.test
 class SnapshotStatesKtTest {
 
     @Test
-    fun toState() {
+    fun `should extract state from snapshot mono`() {
         val snapshot = mockk<MaterializedSnapshot<String>> {
             every { state } returns "state"
         }
@@ -37,7 +37,7 @@ class SnapshotStatesKtTest {
     }
 
     @Test
-    fun dyToState() {
+    fun `should extract dynamic state document from mono`() {
         val snapshot = SimpleDynamicDocument(mutableMapOf("state" to SimpleDynamicDocument(mutableMapOf("id" to "id"))))
         snapshot.toMono().toStateDocument().test().consumeNextWith {
             it.getValue<String>("id").assert().isEqualTo("id")
@@ -45,7 +45,7 @@ class SnapshotStatesKtTest {
     }
 
     @Test
-    fun fluxToState() {
+    fun `should extract state from snapshot flux`() {
         val snapshot = mockk<MaterializedSnapshot<String>> {
             every { state } returns "state"
         }
@@ -53,7 +53,7 @@ class SnapshotStatesKtTest {
     }
 
     @Test
-    fun dyFluxToState() {
+    fun `should extract dynamic state document from flux`() {
         val snapshot = SimpleDynamicDocument(mutableMapOf("state" to SimpleDynamicDocument(mutableMapOf("id" to "id"))))
         Flux.just(snapshot).toStateDocument().test().consumeNextWith {
             it.getValue<String>("id").assert().isEqualTo("id")
@@ -61,7 +61,7 @@ class SnapshotStatesKtTest {
     }
 
     @Test
-    fun toStatePagedList() {
+    fun `should extract state from paged snapshot list`() {
         val snapshot = mockk<MaterializedSnapshot<String>> {
             every { state } returns "state"
         }
@@ -72,7 +72,7 @@ class SnapshotStatesKtTest {
     }
 
     @Test
-    fun dyToStatePagedList() {
+    fun `should extract dynamic state from paged list`() {
         val snapshot = SimpleDynamicDocument(
             mutableMapOf("state" to SimpleDynamicDocument(mutableMapOf("id" to "id")))
         ) as DynamicDocument

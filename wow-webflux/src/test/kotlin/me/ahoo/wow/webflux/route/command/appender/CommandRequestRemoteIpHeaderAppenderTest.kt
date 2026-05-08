@@ -24,7 +24,7 @@ import java.net.InetSocketAddress
 class CommandRequestRemoteIpHeaderAppenderTest {
 
     @Test
-    fun append() {
+    fun `should append remote ip from request`() {
         val hostName = "test"
         val request = MockServerRequest.builder()
             .remoteAddress(InetSocketAddress(hostName, 8080))
@@ -37,7 +37,7 @@ class CommandRequestRemoteIpHeaderAppenderTest {
     }
 
     @Test
-    fun appendForwardedFor() {
+    fun `should append remote ip from forwarded for header`() {
         val hostName = "test"
         val request = MockServerRequest.builder().header(X_FORWARDED_FOR, hostName).build()
         val commandHeader = DefaultHeader.empty()
@@ -47,7 +47,7 @@ class CommandRequestRemoteIpHeaderAppenderTest {
     }
 
     @Test
-    fun appendEmptyForwardedFor() {
+    fun `should fallback to remote address when forwarded for is empty`() {
         val hostName = "test"
         val request = MockServerRequest.builder()
             .header(X_FORWARDED_FOR, ",")
