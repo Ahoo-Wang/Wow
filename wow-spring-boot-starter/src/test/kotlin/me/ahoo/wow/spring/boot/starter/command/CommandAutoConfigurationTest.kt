@@ -14,6 +14,7 @@
 package me.ahoo.wow.spring.boot.starter.command
 
 import io.mockk.mockk
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.command.DistributedCommandBus
 import me.ahoo.wow.command.InMemoryCommandBus
 import me.ahoo.wow.command.LocalCommandBus
@@ -25,7 +26,6 @@ import me.ahoo.wow.command.factory.CommandMessageFactory
 import me.ahoo.wow.spring.boot.starter.BusType
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.tck.mock.MockChangeAggregate
-import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner

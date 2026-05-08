@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spring.boot.starter.modeling
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.InMemoryDomainEventBus
@@ -33,7 +34,6 @@ import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.opentelemetry.WowOpenTelemetryAutoConfiguration
 import me.ahoo.wow.spring.command.CommandDispatcherLauncher
 import me.ahoo.wow.test.SagaVerifier
-import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner

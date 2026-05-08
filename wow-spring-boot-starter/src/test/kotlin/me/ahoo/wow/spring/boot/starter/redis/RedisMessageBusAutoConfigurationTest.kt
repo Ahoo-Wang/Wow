@@ -2,6 +2,7 @@ package me.ahoo.wow.spring.boot.starter.redis
 
 import io.mockk.every
 import io.mockk.mockk
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.redis.bus.RedisCommandBus
 import me.ahoo.wow.redis.bus.RedisDomainEventBus
 import me.ahoo.wow.redis.bus.RedisStateEventBus
@@ -10,7 +11,6 @@ import me.ahoo.wow.spring.boot.starter.command.CommandProperties
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.event.EventProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.state.StateProperties
-import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner

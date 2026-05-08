@@ -13,12 +13,12 @@
 
 package me.ahoo.wow.spring.boot.starter.kafka
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.kafka.ReceiverOptionsCustomizer
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.opentelemetry.WowOpenTelemetryAutoConfiguration
-import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner

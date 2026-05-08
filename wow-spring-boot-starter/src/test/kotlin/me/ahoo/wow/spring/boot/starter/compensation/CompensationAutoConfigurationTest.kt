@@ -1,6 +1,7 @@
 package me.ahoo.wow.spring.boot.starter.compensation
 
 import io.mockk.mockk
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.compensation.core.CompensationEventProcessor
 import me.ahoo.wow.compensation.core.DomainEventCompensationFilter
@@ -9,7 +10,6 @@ import me.ahoo.wow.event.compensation.DomainEventCompensator
 import me.ahoo.wow.event.compensation.StateEventCompensator
 import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
 import me.ahoo.wow.spring.boot.starter.enableWow
-import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner

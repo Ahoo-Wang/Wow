@@ -13,13 +13,13 @@
 
 package me.ahoo.wow.spring.boot.starter.opentelemetry
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.opentelemetry.aggregate.TraceAggregateFilter
 import me.ahoo.wow.opentelemetry.eventprocessor.TraceEventProcessorFilter
 import me.ahoo.wow.opentelemetry.projection.TraceProjectionFilter
 import me.ahoo.wow.opentelemetry.saga.TraceStatelessSagaFilter
 import me.ahoo.wow.opentelemetry.snapshot.TraceSnapshotFilter
 import me.ahoo.wow.spring.boot.starter.enableWow
-import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
