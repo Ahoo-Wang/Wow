@@ -1,3 +1,8 @@
+---
+title: Wow Compiler
+description: KSP compiler generating metadata for aggregate roots, commands, and domain events.
+---
+
 # Wow Compiler
 
 The _Wow_ compiler is responsible for:

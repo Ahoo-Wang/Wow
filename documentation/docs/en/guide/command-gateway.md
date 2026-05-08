@@ -1,3 +1,8 @@
+---
+title: Command Gateway
+description: The command gateway is the core component for receiving and sending commands, handling idempotency, waiting strategies, and validation.
+---
+
 # Command Gateway
 
 The command gateway is the core component in the system for receiving and sending commands, serving as the entry point for commands.

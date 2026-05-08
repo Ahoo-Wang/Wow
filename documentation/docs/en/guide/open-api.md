@@ -1,3 +1,8 @@
+---
+title: OpenAPI
+description: The Wow OpenAPI module provides API interfaces based on the OpenAPI specification.
+---
+
 # OpenAPI
 
 > The Wow OpenAPI module provides API interfaces based on the [OpenAPI](https://swagger.io/specification/) specification.

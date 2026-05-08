@@ -1,3 +1,8 @@
+---
+title: Troubleshooting Guide
+description: Diagnostics and solutions for common issues with the Wow framework.
+---
+
 # Troubleshooting Guide
 
 This guide provides diagnostics and solutions for common issues with the Wow framework.

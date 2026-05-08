@@ -1,3 +1,8 @@
+---
+title: Introduction
+description: Wow is a modern reactive CQRS microservice development framework based on DDD and Event Sourcing, validated in production environments.
+---
+
 # Introduction
 
 <center>

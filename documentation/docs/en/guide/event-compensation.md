@@ -1,3 +1,8 @@
+---
+title: Event Compensation
+description: Event compensation handles and recovers from data inconsistencies caused by event processing failures in event-driven architecture.
+---
+
 # Event Compensation
 
 > The role of *event compensation* in event-driven architecture is to handle and recover from data inconsistencies or error states caused by event processing failures.

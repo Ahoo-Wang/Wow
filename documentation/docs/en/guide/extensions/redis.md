@@ -1,3 +1,8 @@
+---
+title: Redis
+description: Redis extension providing high-performance and low-latency event store and snapshot storage.
+---
+
 # Redis
 
 The _Redis_ extension provides support for Redis, suitable for scenarios requiring high performance and low latency. It implements the following interfaces:

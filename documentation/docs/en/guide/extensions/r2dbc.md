@@ -1,3 +1,8 @@
+---
+title: R2DBC
+description: R2DBC extension for reactive relational database event storage and snapshot storage.
+---
+
 # R2DBC
 
 The _R2DBC_ extension provides support for relational databases using reactive programming, implementing `EventStore` and `SnapshotRepository`.

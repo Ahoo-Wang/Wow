@@ -1,3 +1,8 @@
+---
+title: Architecture
+description: Overall architecture design, core component relationships, and processing flows of the Wow framework.
+---
+
 # Architecture
 
 This document provides a detailed introduction to the overall architecture design, core component relationships, and processing flows of the Wow framework.

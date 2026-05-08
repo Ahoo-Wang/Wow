@@ -1,3 +1,8 @@
+---
+title: Prepare Key
+description: Application-level key uniqueness mechanism for the EventSourcing architecture.
+---
+
 # Prepare Key
 
 Compared to traditional databases, developers can add uniqueness constraints by setting `UNIQUE KEY` for fields.

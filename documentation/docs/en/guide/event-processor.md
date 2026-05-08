@@ -1,3 +1,8 @@
+---
+title: Event Processor
+description: The event processor handles domain events published by aggregates for cross-aggregate operations and read model updates.
+---
+
 # Event Processor
 
 The *event processor* is a core component in the Wow framework for handling domain events published by aggregates. It enables cross-aggregate operations, read model updates, notifications, and external system integrations.

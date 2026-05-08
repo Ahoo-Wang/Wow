@@ -1,3 +1,8 @@
+---
+title: Configuration
+description: Comprehensive configuration options through Spring Boot configuration properties mechanism.
+---
+
 # Configuration
 
 The Wow framework provides comprehensive configuration options through Spring Boot's configuration properties mechanism. This guide covers all available configuration options and how to configure them effectively.

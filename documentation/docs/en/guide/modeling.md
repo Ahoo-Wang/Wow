@@ -1,3 +1,8 @@
+---
+title: Aggregate Root Modeling
+description: Learn how to model aggregate roots in the Wow framework using the Aggregate Pattern.
+---
+
 # Aggregate Root Modeling
 
 ## Patterns

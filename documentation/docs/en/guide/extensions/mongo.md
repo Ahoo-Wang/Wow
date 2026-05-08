@@ -1,3 +1,8 @@
+---
+title: Mongo
+description: MongoDB extension providing EventStore and SnapshotRepository for production environments.
+---
+
 # Mongo
 
 The _Mongo_ extension provides support for MongoDB and is the recommended event store and snapshot storage implementation for production environments. It implements the following interfaces:

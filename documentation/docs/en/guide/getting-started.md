@@ -1,3 +1,8 @@
+---
+title: Getting Started
+description: Get started with the Wow framework using the project template to quickly create a DDD project.
+---
+
 # Getting Started
 
 > Use the [Wow Project Template](https://github.com/Ahoo-Wang/wow-project-template) to quickly create a DDD project based on the _Wow_ framework.

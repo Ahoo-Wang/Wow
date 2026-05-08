@@ -1,3 +1,8 @@
+---
+title: Kafka
+description: Apache Kafka extension implementing CommandBus, DomainEventBus, and StateEventBus for production environments.
+---
+
 # Kafka
 
 The _Kafka_ extension provides support for Apache Kafka, implementing `CommandBus`, `DomainEventBus`, and `StateEventBus`. It is the recommended message bus implementation for production environments.

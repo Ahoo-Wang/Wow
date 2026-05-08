@@ -1,3 +1,8 @@
+---
+title: Aggregate Scheduler
+description: Dedicated Reactor Scheduler for each aggregate to control concurrent execution and resource allocation.
+---
+
 # Aggregate Scheduler
 
 The aggregate scheduler provides a dedicated Reactor Scheduler for each aggregate, used to control concurrent execution and resource allocation.
