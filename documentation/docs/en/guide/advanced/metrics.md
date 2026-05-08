@@ -156,7 +156,7 @@ scrape_configs:
 
 ### Common Queries
 
-```promql
+```yaml
 # Command processing latency
 histogram_quantile(0.95, rate(wow_command_handler_duration_seconds_bucket[5m]))
 

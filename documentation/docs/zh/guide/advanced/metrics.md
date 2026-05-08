@@ -155,7 +155,7 @@ scrape_configs:
 
 ### 常用查询
 
-```promql
+```yaml
 # 命令处理延迟
 histogram_quantile(0.95, rate(wow_command_handler_duration_seconds_bucket[5m]))
 
