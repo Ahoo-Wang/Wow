@@ -1,3 +1,8 @@
+---
+title: Mongo
+description: MongoDB 扩展，提供推荐的事件存储和快照存储实现。
+---
+
 # Mongo
 
 _Mongo_ 扩展提供了对 MongoDB 的支持，是生产环境推荐的事件存储和快照存储实现。它实现了以下接口：

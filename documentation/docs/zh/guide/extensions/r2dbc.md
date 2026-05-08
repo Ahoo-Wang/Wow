@@ -1,3 +1,8 @@
+---
+title: R2DBC
+description: R2DBC 扩展，提供响应式关系数据库的事件存储和快照存储支持。
+---
+
 # R2DBC
 
 _R2DBC_ 扩展提供了使用响应式编程的方式对关系型数据库的支持，实现了 `EventStore` 和 `SnapshotRepository` 。

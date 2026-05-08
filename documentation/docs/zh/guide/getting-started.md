@@ -1,3 +1,8 @@
+---
+title: 快速上手
+description: 使用 Wow 项目模板快速创建基于 DDD 的微服务项目。
+---
+
 # 快速上手
 
 > 使用 [Wow 项目模板](https://github.com/Ahoo-Wang/wow-project-template) 快速创建基于 _Wow_ 框架的 _DDD_ 项目。

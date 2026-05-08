@@ -1,3 +1,8 @@
+---
+title: WebFlux
+description: Spring WebFlux 扩展，自动注册命令路由处理函数。
+---
+
 # WebFlux
 
 _WebFlux_ 扩展提供了对 _Spring WebFlux_ 的支持，依赖 `wow-openapi` 模块生成的路由规范，自动注册命令路由处理函数，实现声明式的 REST API。

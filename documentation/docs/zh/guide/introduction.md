@@ -1,3 +1,8 @@
+---
+title: 简介
+description: Wow 是一个基于 DDD 和 Event Sourcing 的现代响应式 CQRS 微服务开发框架，经过多年生产环境验证。
+---
+
 # 简介
 
 <center>
