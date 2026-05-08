@@ -196,6 +196,48 @@ class Cart(private val state: CartState) {
 }
 ```
 
+### AfterCommand Hook
+
+The `@AfterCommand` annotation defines a post-processing hook that executes after the main command handler completes. If the method returns a non-null value, it is appended as an additional domain event to the event stream.
+
+```kotlin
+class OrderAggregate(val id: String) {
+    @OnCommand
+    fun onCreateOrder(command: CreateOrder): OrderCreated {
+        return OrderCreated(...)
+    }
+
+    @AfterCommand
+    fun afterCreateOrder(exchange: ServerCommandExchange<*>): OrderConfirmed? {
+        val result = exchange.getCommandInvokeResult<OrderCreated>()
+        // Perform post-processing, optionally return additional events
+        return null
+    }
+}
+```
+
+You can filter which commands trigger the hook using `include` and `exclude`:
+
+```kotlin
+@AfterCommand(include = [CreateOrder::class], exclude = [CancelOrder::class])
+fun onAfterCommand(exchange: ServerCommandExchange<*>): AdditionalEvent? {
+    return null
+}
+```
+
+Multiple `@AfterCommand` functions are supported, with execution order controlled by `@Order`.
+
+### Error Handling with OnError
+
+The `@OnError` annotation defines an error handler that executes when command processing fails:
+
+```kotlin
+@OnError
+fun onError(command: CreateOrder, error: Throwable) {
+    // Handle the error, e.g., log or publish error event
+}
+```
+
 ### State Aggregate Root
 
 The state aggregate root defines aggregate state data and sourcing functions.

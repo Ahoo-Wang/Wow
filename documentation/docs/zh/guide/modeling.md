@@ -196,6 +196,48 @@ class Cart(private val state: CartState) {
 }
 ```
 
+### AfterCommand 钩子
+
+`@AfterCommand` 注解定义命令处理完成后的后置钩子函数。如果方法返回非空值，该值将作为额外的领域事件追加到事件流中。
+
+```kotlin
+class OrderAggregate(val id: String) {
+    @OnCommand
+    fun onCreateOrder(command: CreateOrder): OrderCreated {
+        return OrderCreated(...)
+    }
+
+    @AfterCommand
+    fun afterCreateOrder(exchange: ServerCommandExchange<*>): OrderConfirmed? {
+        val result = exchange.getCommandInvokeResult<OrderCreated>()
+        // 执行后置处理，可选择返回额外事件
+        return null
+    }
+}
+```
+
+可以使用 `include` 和 `exclude` 过滤触发钩子的命令类型：
+
+```kotlin
+@AfterCommand(include = [CreateOrder::class], exclude = [CancelOrder::class])
+fun onAfterCommand(exchange: ServerCommandExchange<*>): AdditionalEvent? {
+    return null
+}
+```
+
+支持多个 `@AfterCommand` 函数，通过 `@Order` 控制执行顺序。
+
+### 错误处理 OnError
+
+`@OnError` 注解定义命令处理失败时的错误处理函数：
+
+```kotlin
+@OnError
+fun onError(command: CreateOrder, error: Throwable) {
+    // 处理错误，例如记录日志或发布错误事件
+}
+```
+
 ### 状态聚合根
 
 状态聚合根定义了聚合状态数据以及溯源函数。

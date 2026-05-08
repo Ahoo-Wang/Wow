@@ -318,22 +318,27 @@ class AnalyticsEventProcessor(
 
 ### 4. 测试
 
+事件处理器可以使用标准的单元测试方式，配合 MockK 进行测试：
+
 ```kotlin
-class OrderEventProcessorSpec : EventProcessorSpec<OrderEventProcessor>({
-    on {
-        val event = mockk<OrderCreated> {
-            every { orderId } returns "order-001"
-            every { customerId } returns "customer-001"
-            every { items } returns listOf(
-                OrderItem(productId = "prod-001", quantity = 2)
-            )
-        }
-        whenEvent(event) {
-            expectNoError()
-            expectNext Void::class.java
-        }
+class OrderEventProcessorTest {
+    private val orderQueryService = mockk<OrderQueryService>()
+    private val processor = OrderEventProcessor(orderQueryService)
+
+    @Test
+    fun `on OrderCreated should create order`() {
+        val event = OrderCreated(
+            orderId = "order-001",
+            customerId = "customer-001",
+            items = listOf(OrderItem(productId = "prod-001", quantity = 2))
+        )
+        every { orderQueryService.create(any()) } returns Mono.empty()
+
+        val result = processor.onOrderCreated(event).block()
+
+        verify(exactly = 1) { orderQueryService.create(any()) }
     }
-})
+}
 ```
 
 ## 配置
