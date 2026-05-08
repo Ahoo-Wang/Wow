@@ -19,9 +19,7 @@ CoSec 集成提供三个核心组件：
 
 添加 `wow-cosec` 依赖，并在 Spring Boot Starter 中启用 `cosec-support` 能力：
 
-=== "Gradle (Kotlin)"
-
-```kotlin
+```kotlin [Gradle(Kotlin)]
 implementation("me.ahoo.wow:wow-spring-boot-starter") {
     capabilities { requireCapability("cosec-support") }
 }
