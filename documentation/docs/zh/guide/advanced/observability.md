@@ -1,3 +1,8 @@
+---
+title: 可观测性
+description: Wow 框架的端到端可观测性集成。
+---
+
 # 可观测性
 
 ![可观测性](../../../public/images/observability/observability.png)

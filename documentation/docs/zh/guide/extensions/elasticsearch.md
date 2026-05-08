@@ -1,3 +1,8 @@
+---
+title: Elasticsearch
+description: Elasticsearch 扩展，支持全文搜索和复杂查询场景。
+---
+
 # Elasticsearch
 
 _Elasticsearch_ 扩展提供了对 _Elasticsearch_ 的支持，适用于需要全文搜索和复杂查询的场景。它实现了以下接口：

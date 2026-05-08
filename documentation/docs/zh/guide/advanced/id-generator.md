@@ -1,3 +1,8 @@
+---
+title: ID 生成器
+description: 基于 CosId 的消息 ID 和聚合根 ID 生成机制。
+---
+
 # ID 生成器
 
 Wow 框架的*消息ID*、*聚合根ID*生成依赖于 [CosId](https://github.com/Ahoo-Wang/CosId) 提供的强大支持。

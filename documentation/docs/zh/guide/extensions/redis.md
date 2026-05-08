@@ -1,3 +1,8 @@
+---
+title: Redis
+description: Redis 扩展，提供高性能低延迟的事件存储和快照存储。
+---
+
 # Redis
 
 _Redis_ 扩展提供了对 Redis 的支持，适用于需要高性能和低延迟的场景。它实现了以下接口：

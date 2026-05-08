@@ -1,3 +1,8 @@
+---
+title: OpenAPI
+description: Wow OpenAPI 模块提供基于 OpenAPI 规范的 API 接口。
+---
+
 # OpenAPI
 
 > Wow OpenAPI 模块提供了基于 [OpenAPI](https://swagger.io/specification/) 规范的 API 接口。

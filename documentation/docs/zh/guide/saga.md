@@ -1,3 +1,8 @@
+---
+title: 分布式事务 (Saga)
+description: Wow 提供基于编排模式的无状态 Saga 实现，用于处理分布式事务。
+---
+
 # 分布式事务 (Saga)
 
 _Wow_ 框架提供了基于*流程编排(Orchestration)模式*的无状态的 _Saga_ 实现，可以用于处理分布式事务。

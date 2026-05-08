@@ -1,3 +1,8 @@
+---
+title: OpenTelemetry
+description: OpenTelemetry 集成，提供厂商中立的分布式追踪和监控能力。
+---
+
 # OpenTelemetry
 
 OpenTelemetry 是一个厂商中立的开源项目，旨在为跟踪和监控分布式应用程序提供标准 API、工具和库。

@@ -1,3 +1,8 @@
+---
+title: Kafka
+description: Apache Kafka 扩展，实现 CommandBus、DomainEventBus 和 StateEventBus，适用于生产环境。
+---
+
 # Kafka
 
 _Kafka_ 扩展提供了对 Apache Kafka 的支持，实现了 `CommandBus`、`DomainEventBus` 和 `StateEventBus`，是生产环境推荐的消息总线实现。
