@@ -39,7 +39,7 @@ wow:
         local-first:
           enabled: true
     store:
-      storage: mongo               # 事件存储类型: mongo, r2dbc, redis, elasticsearch
+      storage: mongo               # 事件存储类型: mongo, r2dbc, redis, elasticsearch, in_memory, delay
     snapshot:
       enabled: true
       strategy: all                # all, version_offset
@@ -173,7 +173,7 @@ wow:
 wow:
   eventsourcing:
     store:
-      storage: mongo    # mongo, r2dbc, redis, elasticsearch
+      storage: mongo    # mongo, r2dbc, redis, elasticsearch, in_memory, delay
 ```
 
 ### 快照配置
