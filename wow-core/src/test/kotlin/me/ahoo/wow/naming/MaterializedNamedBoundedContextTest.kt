@@ -20,39 +20,39 @@ import org.junit.jupiter.api.Test
 internal class MaterializedNamedBoundedContextTest {
 
     @Test
-    fun isSameBoundedContext() {
+    fun `should is same bounded context`() {
         val context = "test-context".toNamedBoundedContext()
         context.contextName.assert().isEqualTo("test-context")
         context.isSameBoundedContext("test-context".toNamedBoundedContext()).assert().isEqualTo(true)
     }
 
     @Test
-    fun notSameBoundedContext() {
+    fun `should not same bounded context`() {
         val actual = "test-context".toNamedBoundedContext()
             .isSameBoundedContext("test-context-other".toNamedBoundedContext())
         actual.assert().isEqualTo(false)
     }
 
     @Test
-    fun getContextAlias() {
+    fun `should get context alias`() {
         val actual = "test-context".toNamedBoundedContext().getContextAlias()
         actual.assert().isEqualTo("test-context")
     }
 
     @Test
-    fun getContextAliasIfNull() {
+    fun `should get context alias if null`() {
         val actual = "test-context".toNamedBoundedContext().getContextAlias(BoundedContext())
         actual.assert().isEqualTo("test-context")
     }
 
     @Test
-    fun getContextAliasIfEmpty() {
+    fun `should get context alias if empty`() {
         val actual = "test-context".toNamedBoundedContext().getContextAlias(BoundedContext(""))
         actual.assert().isEqualTo("test-context")
     }
 
     @Test
-    fun getContextAliasIfNotEmpty() {
+    fun `should get context alias if not empty`() {
         val actual = "test-context".toNamedBoundedContext().getContextAlias(BoundedContext("alias"))
         actual.assert().isEqualTo("alias")
     }

@@ -23,7 +23,7 @@ import org.junit.jupiter.api.Test
 
 class EventStreamConditionConverterTest {
     @Test
-    fun aggregateId() {
+    fun `should convert aggregate id condition`() {
         val condition = condition { aggregateId("aggregateId") }
         val actual = EventStreamConditionConverter.convert(condition)
         val expected = term {
@@ -34,7 +34,7 @@ class EventStreamConditionConverterTest {
     }
 
     @Test
-    fun aggregateIds() {
+    fun `should convert aggregate ids condition`() {
         val condition = condition { aggregateIds("aggregateIds") }
         val actual = EventStreamConditionConverter.convert(condition)
         val expected = terms {

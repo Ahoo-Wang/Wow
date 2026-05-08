@@ -25,7 +25,7 @@ import me.ahoo.wow.command.factory.CommandMessageFactory
 import me.ahoo.wow.spring.boot.starter.BusType
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.tck.mock.MockChangeAggregate
-import org.assertj.core.api.AssertionsForInterfaceTypes
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
@@ -37,7 +37,7 @@ internal class CommandAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
 
     @Test
-    fun contextLoads() {
+    fun `should load context when in-memory bus type`() {
         contextRunner
             .enableWow()
             .withPropertyValues("${CommandProperties.BUS_TYPE}=${BusType.IN_MEMORY_NAME}")
@@ -46,7 +46,7 @@ internal class CommandAutoConfigurationTest {
                 CommandAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
-                AssertionsForInterfaceTypes.assertThat(context)
+                context.assert()
                     .hasSingleBean(InMemoryCommandBus::class.java)
                     .hasSingleBean(CommandBuilderRewriterRegistry::class.java)
                     .hasSingleBean(CommandMessageFactory::class.java)
@@ -54,7 +54,7 @@ internal class CommandAutoConfigurationTest {
     }
 
     @Test
-    fun contextLoadsIfLocalFirst() {
+    fun `should load context when local-first command bus`() {
         contextRunner
             .enableWow()
             .withBean(DistributedCommandBus::class.java, { mockk() })
@@ -62,7 +62,7 @@ internal class CommandAutoConfigurationTest {
                 CommandAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
-                AssertionsForInterfaceTypes.assertThat(context)
+                context.assert()
                     .hasSingleBean(LocalCommandBus::class.java)
                     .hasSingleBean(LocalFirstCommandBus::class.java)
             }

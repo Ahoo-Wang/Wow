@@ -25,7 +25,7 @@ import org.springframework.mock.web.reactive.function.server.MockServerRequest
 
 class CoSecCommandRequestHeaderAppenderTest {
     @Test
-    fun append() {
+    fun `should append security headers to command request`() {
         val request = MockServerRequest.builder()
             .header(APP_ID_KEY, generateGlobalId())
             .header(DEVICE_ID_KEY, generateGlobalId())
@@ -37,7 +37,7 @@ class CoSecCommandRequestHeaderAppenderTest {
     }
 
     @Test
-    fun appendEmpty() {
+    fun `should append empty headers when no security context`() {
         val request = MockServerRequest.builder()
             .build()
         val commandHeader = DefaultHeader.empty()

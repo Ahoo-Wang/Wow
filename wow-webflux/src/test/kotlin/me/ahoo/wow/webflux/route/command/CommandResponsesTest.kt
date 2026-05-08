@@ -40,7 +40,7 @@ import java.util.concurrent.TimeoutException
 
 class CommandResponsesTest {
     @Test
-    fun toCommandResponse() {
+    fun `should convert command result to command response`() {
         val serverRequest = MockServerRequest.builder().build()
         CommandResult(
             id = generateGlobalId(),
@@ -71,7 +71,7 @@ class CommandResponsesTest {
     }
 
     @Test
-    fun toStreamCommandResponse() {
+    fun `should convert command result to sse stream response`() {
         val serverRequest = MockServerRequest.builder()
             .header(HttpHeaders.ACCEPT, MediaType.TEXT_EVENT_STREAM_VALUE)
             .build()
@@ -109,7 +109,7 @@ class CommandResponsesTest {
     }
 
     @Test
-    fun toStreamCommandResponseTimeout() {
+    fun `should handle timeout when streaming command response`() {
         val serverRequest = MockServerRequest.builder()
             .header(HttpHeaders.ACCEPT, MediaType.TEXT_EVENT_STREAM_VALUE)
             .build()

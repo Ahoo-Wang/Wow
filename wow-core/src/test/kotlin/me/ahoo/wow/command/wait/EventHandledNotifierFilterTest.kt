@@ -14,7 +14,7 @@ import reactor.kotlin.test.test
 class EventHandledNotifierFilterTest {
 
     @Test
-    fun filter() {
+    fun `should filter`() {
         val notifierFilter = EventHandledNotifierFilter(LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar))
         val domainEvent = mockk<DomainEvent<Any>>()
         every { domainEvent.header } returns DefaultHeader.empty()

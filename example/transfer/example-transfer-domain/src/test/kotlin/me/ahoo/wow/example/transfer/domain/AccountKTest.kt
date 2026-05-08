@@ -32,12 +32,11 @@ import me.ahoo.wow.example.transfer.api.UnfreezeAccount
 import me.ahoo.wow.example.transfer.api.UnlockAmount
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.test.aggregateVerifier
-import org.assertj.core.api.Assertions.*
 import org.junit.jupiter.api.Test
 
 internal class AccountKTest {
     @Test
-    fun createAccount() {
+    fun `should create account successfully`() {
         aggregateVerifier<Account, AccountState>()
             .given()
             .whenCommand(CreateAccount("name", 100))
@@ -50,7 +49,7 @@ internal class AccountKTest {
     }
 
     @Test
-    fun prepare() {
+    fun `should prepare transfer and lock amount`() {
         aggregateVerifier<Account, AccountState>()
             .given(AccountCreated("name", 100))
             .whenCommand(Prepare("name", 100))
@@ -63,12 +62,12 @@ internal class AccountKTest {
     }
 
     @Test
-    fun prepareGivenFrozen() {
+    fun `should reject prepare when account is frozen`() {
         aggregateVerifier<Account, AccountState>()
             .given(AccountCreated("name", 100), AccountFrozen(""))
             .whenCommand(Prepare("name", 100))
             .expectError<IllegalStateException> {
-                assertThat(this).hasMessage("账号已冻结无法转账.")
+                this.assert().hasMessage("账号已冻结无法转账.")
             }
             .expectState {
                 name.assert().isEqualTo("name")
@@ -79,12 +78,12 @@ internal class AccountKTest {
     }
 
     @Test
-    fun prepareGivenBalanceInsufficient() {
+    fun `should reject prepare when balance is insufficient`() {
         aggregateVerifier<Account, AccountState>()
             .given(AccountCreated("name", 100))
             .whenCommand(Prepare("name", 200))
             .expectError<IllegalStateException> {
-                assertThat(this).hasMessage("账号余额不足.")
+                this.assert().hasMessage("账号余额不足.")
             }
             .expectState {
                 name.assert().isEqualTo("name")
@@ -94,7 +93,7 @@ internal class AccountKTest {
     }
 
     @Test
-    fun entry() {
+    fun `should enter amount successfully`() {
         val aggregateId = GlobalIdGenerator.generateAsString()
         aggregateVerifier<Account, AccountState>(aggregateId)
             .given(AccountCreated("name", 100))
@@ -108,7 +107,7 @@ internal class AccountKTest {
     }
 
     @Test
-    fun entryGivenFrozen() {
+    fun `should fail entry when account is frozen`() {
         val aggregateId = GlobalIdGenerator.generateAsString()
         aggregateVerifier<Account, AccountState>(aggregateId)
             .given(AccountCreated("name", 100), AccountFrozen(""))
@@ -123,7 +122,7 @@ internal class AccountKTest {
     }
 
     @Test
-    fun confirm() {
+    fun `should confirm and deduct locked amount`() {
         val aggregateId = GlobalIdGenerator.generateAsString()
         aggregateVerifier<Account, AccountState>(aggregateId)
             .given(AccountCreated("name", 100), AmountLocked(100))
@@ -139,7 +138,7 @@ internal class AccountKTest {
     }
 
     @Test
-    fun unlockAmount() {
+    fun `should unlock amount successfully`() {
         val aggregateId = GlobalIdGenerator.generateAsString()
         aggregateVerifier<Account, AccountState>(aggregateId)
             .given(AccountCreated("name", 100), AmountLocked(100))
@@ -155,7 +154,7 @@ internal class AccountKTest {
     }
 
     @Test
-    fun freezeAccount() {
+    fun `should freeze account successfully`() {
         val aggregateId = GlobalIdGenerator.generateAsString()
         aggregateVerifier<Account, AccountState>(aggregateId)
             .given(AccountCreated("name", 100))
@@ -171,13 +170,13 @@ internal class AccountKTest {
     }
 
     @Test
-    fun freezeAccountGivenFrozen() {
+    fun `should reject freeze when already frozen`() {
         val aggregateId = GlobalIdGenerator.generateAsString()
         aggregateVerifier<Account, AccountState>(aggregateId)
             .given(AccountCreated("name", 100), AccountFrozen(""))
             .whenCommand(FreezeAccount(""))
             .expectError<IllegalStateException> {
-                assertThat(this).hasMessage("账号已冻结无需再次冻结.")
+                this.assert().hasMessage("账号已冻结无需再次冻结.")
             }
             .expectState {
                 name.assert().isEqualTo("name")
@@ -189,7 +188,7 @@ internal class AccountKTest {
     }
 
     @Test
-    fun unfreezeAccount() {
+    fun `should unfreeze account successfully`() {
         val aggregateId = GlobalIdGenerator.generateAsString()
         aggregateVerifier<Account, AccountState>(aggregateId)
             .given(AccountCreated("name", 100), AccountFrozen(""))
@@ -204,7 +203,7 @@ internal class AccountKTest {
     }
 
     @Test
-    fun unfreezeAccountGivenUnfrozen() {
+    fun `should handle unfreeze when already unfrozen`() {
         val aggregateId = GlobalIdGenerator.generateAsString()
         aggregateVerifier<Account, AccountState>(aggregateId)
             .given(AccountCreated("name", 100), AccountUnfrozen(""))
@@ -219,7 +218,7 @@ internal class AccountKTest {
     }
 
     @Test
-    fun lockAmount() {
+    fun `should lock amount and adjust balance`() {
         val aggregateId = GlobalIdGenerator.generateAsString()
         aggregateVerifier<Account, AccountState>(aggregateId)
             .given(AccountCreated("name", 100L))

@@ -13,12 +13,12 @@ class MessageTextMapSetterTest {
     private val value = "value"
 
     @Test
-    fun setIfNull() {
+    fun `should handle null carrier`() {
         textMapSetter.set(null, key, value)
     }
 
     @Test
-    fun set() {
+    fun `should set value on message header`() {
         val command = MockCreateAggregate(
             GlobalIdGenerator.generateAsString(),
             GlobalIdGenerator.generateAsString(),
@@ -29,7 +29,7 @@ class MessageTextMapSetterTest {
     }
 
     @Test
-    fun setIfReadyOnly() {
+    fun `should not set value when message is read only`() {
         val command = MockCreateAggregate(
             GlobalIdGenerator.generateAsString(),
             GlobalIdGenerator.generateAsString(),

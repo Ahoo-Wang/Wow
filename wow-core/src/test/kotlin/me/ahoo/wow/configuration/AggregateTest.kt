@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test
 
 internal class AggregateTest {
     @Test
-    fun merge() {
+    fun `should merge aggregates`() {
         val current = Aggregate(linkedSetOf("1", "2"), null)
         val other = Aggregate(linkedSetOf("1", "3"), "")
         val merged = current.merge(other)
@@ -28,21 +28,21 @@ internal class AggregateTest {
     }
 
     @Test
-    fun mergeEmpty() {
+    fun `should merge empty aggregates`() {
         val current = Aggregate(linkedSetOf(), "")
         val other = Aggregate(linkedSetOf(), "")
         current.merge(other)
     }
 
     @Test
-    fun mergeEmptyNull() {
+    fun `should merge empty with null aggregate`() {
         val current = Aggregate(linkedSetOf(), "")
         val other = Aggregate(linkedSetOf(), null)
         current.merge(other)
     }
 
     @Test
-    fun mergeIfConflict() {
+    fun `should throw exception when merge conflicts`() {
         assertThrownBy<IllegalStateException> {
             Aggregate(type = "Conflict").merge(Aggregate(type = "other"))
         }

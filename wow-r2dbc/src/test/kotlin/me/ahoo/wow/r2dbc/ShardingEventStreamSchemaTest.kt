@@ -29,14 +29,14 @@ internal class ShardingEventStreamSchemaTest {
     private val eventStreamSchema = ShardingEventStreamSchema(eventStreamSharding)
 
     @Test
-    fun load() {
+    fun `should load event stream`() {
         eventStreamSchema.load(namedAggregate.aggregateId("0TEC7cEx0001001")).assert().isEqualTo(
             "select * from test_event_stream_1 where aggregate_id=? and version between ? and ? order by version"
         )
     }
 
     @Test
-    fun append() {
+    fun `should append event stream`() {
         eventStreamSchema.append(namedAggregate.aggregateId("0TEC7cEx0001002")).assert().isEqualTo(
             """
         insert into test_event_stream_2 (id,aggregate_id,tenant_id,owner_id,space_id,request_id,command_id,version,header,body,size,create_time) 

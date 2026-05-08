@@ -21,7 +21,7 @@ import org.junit.jupiter.api.Test
 class SingleQueryDslTest {
 
     @Test
-    fun query() {
+    fun `should build single query with sort and condition`() {
         val query = singleQuery {
             sort {
                 "field1".asc()

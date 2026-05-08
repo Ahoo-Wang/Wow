@@ -23,7 +23,7 @@ import reactor.kotlin.test.test
 class ContextsTest {
 
     @Test
-    fun writeRawRequest() {
+    fun `should write and read raw request from context`() {
         Mono.deferContextual {
             it.getRawRequest<ContextsTest>().assert().isEqualTo(this)
             Mono.empty<Void>()

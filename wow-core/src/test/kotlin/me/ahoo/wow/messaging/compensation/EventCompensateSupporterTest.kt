@@ -13,7 +13,7 @@ import reactor.kotlin.test.test
 class EventCompensateSupporterTest {
 
     @Test
-    fun compensateEvent() {
+    fun `should compensate event`() {
         val domainEventCompensator = mockk<DomainEventCompensator> {
             every { compensate(any(), any(), any()) } returns Mono.just(1)
         }
@@ -30,7 +30,7 @@ class EventCompensateSupporterTest {
     }
 
     @Test
-    fun compensateStateEvent() {
+    fun `should compensate state event`() {
         val stateEventCompensator = mockk<StateEventCompensator> {
             every { compensate(any(), any(), any()) } returns Mono.just(1)
         }
@@ -47,7 +47,7 @@ class EventCompensateSupporterTest {
     }
 
     @Test
-    fun compensateIfWrongFunctionKind() {
+    fun `should compensate if wrong function kind`() {
         val eventCompensateSupporter = EventCompensateSupporter(mockk(), mockk())
         eventCompensateSupporter.compensate(
             mockk(),

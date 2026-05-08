@@ -40,7 +40,7 @@ internal class ShardingDatabaseTest {
     )
 
     @Test
-    fun create() {
+    fun `should create sharding database`() {
         shardingDatabase.createConnection(namedAggregate.aggregateId("0TEpCw9e0001001")).toMono()
             .test()
             .consumeNextWith {

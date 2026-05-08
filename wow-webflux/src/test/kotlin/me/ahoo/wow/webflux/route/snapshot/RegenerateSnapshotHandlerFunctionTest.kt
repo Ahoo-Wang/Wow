@@ -29,7 +29,7 @@ import reactor.kotlin.test.test
 class RegenerateSnapshotHandlerFunctionTest {
 
     @Test
-    fun handle() {
+    fun `should handle regenerate snapshot request`() {
         val handlerFunction = RegenerateSnapshotHandlerFunction(
             MOCK_AGGREGATE_METADATA,
             ConstructorStateAggregateFactory,

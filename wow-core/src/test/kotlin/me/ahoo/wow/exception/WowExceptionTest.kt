@@ -27,14 +27,14 @@ import java.util.stream.Stream
 class WowExceptionTest {
     @ParameterizedTest
     @MethodSource("argsProvider")
-    fun toErrorInfo(throwable: Throwable, errorCode: String) {
+    fun `should convert throwable to error info`(throwable: Throwable, errorCode: String) {
         val actual = throwable.toErrorInfo()
         actual.errorCode.assert().isEqualTo(errorCode)
         actual.errorMsg.assert().isEqualTo(throwable.message)
     }
 
     @Test
-    fun recoverable() {
+    fun `should recoverable`() {
         null.recoverable(TimeoutException::class.java).assert().isEqualTo(RecoverableType.RECOVERABLE)
         Retry().recoverable(TimeoutException::class.java).assert().isEqualTo(RecoverableType.RECOVERABLE)
         Retry(recoverable = arrayOf(IllegalStateException::class)).recoverable(IllegalStateException::class.java)

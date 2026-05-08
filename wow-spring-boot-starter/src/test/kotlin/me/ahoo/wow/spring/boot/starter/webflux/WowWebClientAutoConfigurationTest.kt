@@ -17,7 +17,7 @@ import me.ahoo.wow.command.wait.CommandWaitNotifier
 import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
 import me.ahoo.wow.command.wait.WaitStrategyRegistrar
 import me.ahoo.wow.spring.boot.starter.enableWow
-import org.assertj.core.api.AssertionsForInterfaceTypes
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
@@ -27,7 +27,7 @@ class WowWebClientAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
 
     @Test
-    fun contextLoads() {
+    fun `should load context with command wait notifier`() {
         contextRunner
             .enableWow()
             .withBean(WaitStrategyRegistrar::class.java, { SimpleWaitStrategyRegistrar })
@@ -36,7 +36,7 @@ class WowWebClientAutoConfigurationTest {
                 WowWebClientAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
-                AssertionsForInterfaceTypes.assertThat(context)
+                context.assert()
                     .hasSingleBean(CommandWaitNotifier::class.java)
             }
     }

@@ -20,7 +20,7 @@ import reactor.kotlin.test.test
 class ListQueryEventStreamHandlerFunctionTest {
 
     @Test
-    fun handle() {
+    fun `should handle list query event stream request`() {
         val handlerFunction =
             ListQueryEventStreamHandlerFunctionFactory(
                 eventStreamQueryHandler = MockQueryHandler.queryHandler,

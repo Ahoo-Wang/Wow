@@ -36,7 +36,7 @@ import org.junit.jupiter.api.Test
 class CartTest {
 
     @Test
-    fun addCartItem() {
+    fun `should add cart item`() {
         val ownerId = generateGlobalId()
         val addCartItem = AddCartItem(
             productId = "productId",
@@ -57,7 +57,7 @@ class CartTest {
     }
 
     @Test
-    fun givenStateWhenAdd() {
+    fun `should add cart item given existing state`() {
         val addCartItem = AddCartItem(
             productId = "productId",
             quantity = 1,
@@ -75,7 +75,7 @@ class CartTest {
     }
 
     @Test
-    fun addCartItemIfSameProduct() {
+    fun `should change quantity when adding same product`() {
         val addCartItem = AddCartItem(
             productId = "productId",
             quantity = 1,
@@ -101,7 +101,7 @@ class CartTest {
     }
 
     @Test
-    fun addCartItemIfUnCreated() {
+    fun `should add cart item when cart not created`() {
         val addCartItem = AddCartItem(
             productId = "productId",
             quantity = 1,
@@ -121,7 +121,7 @@ class CartTest {
     }
 
     @Test
-    fun addCartItemGivenMax() {
+    fun `should reject add when cart is full`() {
         val events = buildList {
             for (i in 0..99) {
                 add(
@@ -150,7 +150,7 @@ class CartTest {
     }
 
     @Test
-    fun removeCartItem() {
+    fun `should remove cart item`() {
         val removeCartItem = RemoveCartItem(
             productIds = setOf("productId"),
         )
@@ -174,7 +174,7 @@ class CartTest {
     }
 
     @Test
-    fun changeQuantity() {
+    fun `should change cart item quantity`() {
         val changeQuantity = ChangeQuantity(
             productId = "productId",
             quantity = 2,
@@ -199,7 +199,7 @@ class CartTest {
     }
 
     @Test
-    fun onCreateThenDeleteThenRecover() {
+    fun `should handle create then delete then recover lifecycle`() {
         val addCartItem = AddCartItem(
             productId = "productId",
             quantity = 1,

@@ -32,7 +32,7 @@ import reactor.kotlin.test.test
 class DefaultCommandMessageExtractorTest {
 
     @Test
-    fun parse() {
+    fun `should extract command message from request`() {
         val request = MockServerRequest.builder()
             .pathVariable(MessageRecords.TENANT_ID, generateGlobalId())
             .pathVariable(MessageRecords.OWNER_ID, generateGlobalId())
@@ -61,7 +61,7 @@ class DefaultCommandMessageExtractorTest {
     }
 
     @Test
-    fun injectExtensionHeaders() {
+    fun `should inject extension headers into command message`() {
         val headerKey = "app"
         val key = CommandComponent.Header.COMMAND_HEADER_X_PREFIX + headerKey
         val value = "oms"

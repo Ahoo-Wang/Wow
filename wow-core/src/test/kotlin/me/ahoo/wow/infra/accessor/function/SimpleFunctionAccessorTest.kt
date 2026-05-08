@@ -13,9 +13,9 @@
 package me.ahoo.wow.infra.accessor.function
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.infra.accessor.ensureAccessible
 import me.ahoo.wow.infra.accessor.method.FastInvoke
-import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import java.lang.reflect.Method
 import kotlin.reflect.KFunction
@@ -23,18 +23,18 @@ import kotlin.reflect.jvm.isAccessible
 
 internal class SimpleFunctionAccessorTest {
     @Test
-    fun invoke() {
+    fun `should invoke function successfully`() {
         val methodAccessor = SimpleFunctionAccessor<MockMethod, Unit>(MockMethod.INVOKE_FUNCTION)
         methodAccessor.invoke(MockMethod())
         methodAccessor.method.declaringClass.assert().isEqualTo(MockMethod::class.java)
     }
 
     @Test
-    fun invokeWhenIllegalAccessException() {
+    fun `should throw IllegalAccessException when function is not accessible`() {
         val methodAccessor =
             SimpleFunctionAccessor<MockMethodWhenIllegalAccess, Unit>(MockMethodWhenIllegalAccess.INVOKE_FUNCTION)
         MockMethodWhenIllegalAccess.INVOKE_FUNCTION.isAccessible = false
-        Assertions.assertThrows(IllegalAccessException::class.java) {
+        assertThrownBy<IllegalAccessException> {
             methodAccessor.invoke(
                 MockMethodWhenIllegalAccess(),
             )
@@ -42,11 +42,11 @@ internal class SimpleFunctionAccessorTest {
     }
 
     @Test
-    fun invokeWhenIllegalStateException() {
+    fun `should throw IllegalStateException when function throws`() {
         val methodAccessor = SimpleFunctionAccessor<MockMethodWhenIllegalStateException, Unit>(
             MockMethodWhenIllegalStateException.INVOKE_FUNCTION,
         )
-        Assertions.assertThrows(IllegalStateException::class.java) {
+        assertThrownBy<IllegalStateException> {
             methodAccessor.invoke(
                 MockMethodWhenIllegalStateException(),
             )
@@ -54,13 +54,13 @@ internal class SimpleFunctionAccessorTest {
     }
 
     @Test
-    fun staticInvoke() {
+    fun `should invoke static method safely`() {
         MockMethod.STATIC_METHOD.ensureAccessible()
         FastInvoke.safeInvoke<Void>(MockMethod.STATIC_METHOD, null, kotlin.emptyArray<Any>())
     }
 
     @Test
-    fun invokeWithArg() {
+    fun `should invoke function with arguments`() {
         val methodAccessor = SimpleFunctionAccessor<MockMethodWithArg, Unit>(MockMethodWithArg.INVOKE_FUNCTION)
         val arrayArg: Array<Any?> = Array(2) {
             "arg"

@@ -45,7 +45,7 @@ class RetryTest {
     }
 
     @Test
-    fun retry() {
+    fun `should retry`() {
         val retryStrategy = getRetryStrategy()
         Mono.error<String>(TimeoutException("test"))
             .retryWhen(retryStrategy)
@@ -65,7 +65,7 @@ class RetryTest {
     }
 
     @Test
-    fun retry2() {
+    fun `should retry2`() {
         val retryStrategy = getRetryStrategy()
         val counter = AtomicInteger(0)
         Mono.fromRunnable<Void> {

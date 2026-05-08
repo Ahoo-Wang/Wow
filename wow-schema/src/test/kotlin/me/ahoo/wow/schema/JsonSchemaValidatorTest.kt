@@ -134,7 +134,7 @@ class JsonSchemaValidatorTest {
 
     @ParameterizedTest
     @MethodSource("parametersForValidate")
-    fun validate(type: Type, targetObject: Any) {
+    fun `should validate object against schema`(type: Type, targetObject: Any) {
         val schemaRegistry = SchemaRegistry.withDefaultDialect(SpecificationVersion.DRAFT_2020_12)
         val schemaJsonNode = jsonSchemaGenerator.generateSchema(type)
         val jsonSchema = schemaRegistry.getSchema(schemaJsonNode)

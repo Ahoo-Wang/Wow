@@ -22,7 +22,7 @@ import org.junit.jupiter.api.Test
 class ListQueryDslTest {
 
     @Test
-    fun query() {
+    fun `should build list query with all components`() {
         val query = listQuery {
             limit(1)
             sort {

@@ -18,7 +18,7 @@ class LocalFirstDomainEventBusTest : DomainEventBusSpec() {
     }
 
     @Test
-    fun sendMessageWhenNoSubscribers() {
+    fun `should send message when no subscribers`() {
         val messageBus = LocalFirstDomainEventBus(
             MockDistributedDomainEventBus(),
             localBus = InMemoryDomainEventBus(sinkSupplier = {
@@ -32,7 +32,7 @@ class LocalFirstDomainEventBusTest : DomainEventBusSpec() {
     }
 
     @Test
-    fun sendMessageWhenError() {
+    fun `should send message when error`() {
         val messageBus = LocalFirstDomainEventBus(
             MockDistributedDomainEventBus(),
             localBus = InMemoryDomainEventBus(sinkSupplier = {

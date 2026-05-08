@@ -30,7 +30,7 @@ import java.util.function.Consumer
 class SchemaGeneratorBuilderTest {
 
     @Test
-    fun build() {
+    fun `should build schema generator with all modules`() {
         val jacksonModule = WowJacksonModule()
         val jakartaValidationModule = JakartaValidationModule()
         val swagger2Module = Swagger2Module()

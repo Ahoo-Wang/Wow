@@ -38,7 +38,7 @@ import java.time.Duration
 class CommandHandlerTest {
 
     @Test
-    fun handleSent() {
+    fun `should handle command with sent wait stage`() {
         val request = MockServerRequest.builder()
             .header(CommandComponent.Header.WAIT_STAGE, CommandStage.SENT.name)
             .header(CommandComponent.Header.WAIT_CONTEXT, "test")
@@ -71,7 +71,7 @@ class CommandHandlerTest {
     }
 
     @Test
-    fun handleProcessed() {
+    fun `should handle command with processed wait stage`() {
         val request = MockServerRequest.builder()
             .header(CommandComponent.Header.WAIT_STAGE, CommandStage.PROCESSED.name)
             .header(CommandComponent.Header.WAIT_CONTEXT, "test")
@@ -103,7 +103,7 @@ class CommandHandlerTest {
     }
 
     @Test
-    fun handleEventStream() {
+    fun `should handle command with event stream response`() {
         val request = MockServerRequest.builder()
             .header(CommandComponent.Header.WAIT_STAGE, CommandStage.PROCESSED.name)
             .header(CommandComponent.Header.WAIT_CONTEXT, "test")

@@ -60,7 +60,7 @@ class MaskingSnapshotQueryFilterTest {
     }
 
     @Test
-    fun single() {
+    fun `should mask single snapshot result`() {
         val query = singleQuery { }
         queryHandler.single(MockSnapshotQueryService.namedAggregate, query)
             .test()
@@ -72,7 +72,7 @@ class MaskingSnapshotQueryFilterTest {
     }
 
     @Test
-    fun dynamicSingle() {
+    fun `should mask dynamic single snapshot result`() {
         val query = singleQuery { }
         queryHandler.dynamicSingle(MockSnapshotQueryService.namedAggregate, query)
             .test()
@@ -83,7 +83,7 @@ class MaskingSnapshotQueryFilterTest {
     }
 
     @Test
-    fun list() {
+    fun `should mask list snapshot results`() {
         val query = listQuery { }
         queryHandler.list(MockSnapshotQueryService.namedAggregate, query)
             .test()
@@ -95,7 +95,7 @@ class MaskingSnapshotQueryFilterTest {
     }
 
     @Test
-    fun dynamicList() {
+    fun `should mask dynamic list snapshot results`() {
         val query = listQuery { }
         queryHandler.dynamicList(MockSnapshotQueryService.namedAggregate, query)
             .test()
@@ -106,7 +106,7 @@ class MaskingSnapshotQueryFilterTest {
     }
 
     @Test
-    fun pagedQuery() {
+    fun `should mask paged snapshot results`() {
         val pagedQuery = me.ahoo.wow.query.dsl.pagedQuery { }
         queryHandler.paged(MockSnapshotQueryService.namedAggregate, pagedQuery)
             .test()
@@ -119,7 +119,7 @@ class MaskingSnapshotQueryFilterTest {
     }
 
     @Test
-    fun dynamicPaged() {
+    fun `should mask dynamic paged snapshot results`() {
         val pagedQuery = me.ahoo.wow.query.dsl.pagedQuery { }
         queryHandler.dynamicPaged(MockSnapshotQueryService.namedAggregate, pagedQuery)
             .test()
@@ -131,7 +131,7 @@ class MaskingSnapshotQueryFilterTest {
     }
 
     @Test
-    fun count() {
+    fun `should return count without masking`() {
         queryHandler.count(MockSnapshotQueryService.namedAggregate, Condition.ALL)
             .test()
             .consumeNextWith {

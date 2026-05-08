@@ -14,6 +14,7 @@ package me.ahoo.wow.modeling.command
 
 import com.google.common.base.Preconditions
 import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.annotation.AggregateId
 import me.ahoo.wow.api.annotation.AggregateVersion
@@ -37,7 +38,6 @@ import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory.toStateAggregate
 import me.ahoo.wow.test.aggregate.whenCommand
 import me.ahoo.wow.test.aggregateVerifier
-import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
 
@@ -47,7 +47,7 @@ internal class SimpleCommandAggregateTest {
     private val eventStore: EventStore = InMemoryEventStore()
 
     @Test
-    fun process() {
+    fun `should process create command and update state`() {
         val mockCommandAggregate = MockCommandAggregate(generateGlobalId())
         val simpleStateAggregate = aggregateMetadata.toStateAggregate(mockCommandAggregate, 0)
         val commandAggregate = SimpleCommandAggregate(
@@ -72,7 +72,7 @@ internal class SimpleCommandAggregateTest {
     }
 
     @Test
-    fun processGivenExpectedVersion() {
+    fun `should process command given expected version`() {
         val mockCommandAggregate = MockCommandAggregate(generateGlobalId())
         val simpleStateAggregate = aggregateMetadata.toStateAggregate(mockCommandAggregate, 0)
         val commandAggregate = SimpleCommandAggregate(
@@ -99,7 +99,7 @@ internal class SimpleCommandAggregateTest {
     }
 
     @Test
-    fun handleGivenExpectedVersionExpectFail() {
+    fun `should throw CommandExpectVersionConflictException when expected version does not match`() {
         val mockCommandAggregate = MockCommandAggregate(generateGlobalId())
         val simpleStateAggregate = aggregateMetadata.toStateAggregate(mockCommandAggregate, 0)
         val commandAggregate = SimpleCommandAggregate(
@@ -131,7 +131,7 @@ internal class SimpleCommandAggregateTest {
     }
 
     @Test
-    fun processGivenOwnerId() {
+    fun `should throw IllegalAccessOwnerAggregateException when owner id does not match`() {
         val mockCommandAggregate = MockCommandAggregate(generateGlobalId())
         val simpleStateAggregate = aggregateMetadata.toStateAggregate(mockCommandAggregate, 0)
         val commandAggregate = SimpleCommandAggregate(
@@ -149,7 +149,7 @@ internal class SimpleCommandAggregateTest {
 
         val changeState = ChangeStateGivenExpectedVersion(mockCommandAggregate.id(), "change", 1)
         val commandMessage = changeState.toCommandMessage(generateGlobalId(), ownerId = generateGlobalId())
-        Assertions.assertThrows(IllegalAccessOwnerAggregateException::class.java) {
+        assertThrownBy<IllegalAccessOwnerAggregateException> {
             commandAggregate.process(
                 SimpleServerCommandExchange(commandMessage).setServiceProvider(serviceProvider)
             ).block()
@@ -157,7 +157,7 @@ internal class SimpleCommandAggregateTest {
     }
 
     @Test
-    fun handleWithExternalService() {
+    fun `should process command with external service dependency`() {
         serviceProvider.register(ExternalService())
         val mockCommandAggregate = MockCommandAggregate(generateGlobalId())
         val simpleStateAggregate = aggregateMetadata.toStateAggregate(mockCommandAggregate, 0)
@@ -187,7 +187,7 @@ internal class SimpleCommandAggregateTest {
     }
 
     @Test
-    fun handleWithAfterCommand() {
+    fun `should handle after command events`() {
         aggregateVerifier<MockAfterCommandAggregate, MockAfterCommandAggregate>()
             .whenCommand(CreateCmd)
             .expectEventType(CmdCreated::class.java, CmdAfter::class.java, CmdAfter::class.java, CmdAfter::class.java)

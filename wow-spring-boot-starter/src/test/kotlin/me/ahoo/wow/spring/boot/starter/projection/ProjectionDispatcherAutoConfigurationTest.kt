@@ -25,7 +25,7 @@ import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.opentelemetry.WowOpenTelemetryAutoConfiguration
 import me.ahoo.wow.spring.projection.ProjectionDispatcherLauncher
 import me.ahoo.wow.spring.projection.ProjectionProcessorAutoRegistrar
-import org.assertj.core.api.AssertionsForInterfaceTypes
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
@@ -34,7 +34,7 @@ internal class ProjectionDispatcherAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
 
     @Test
-    fun contextLoads() {
+    fun `should load context with projection dispatcher beans`() {
         contextRunner
             .enableWow()
             .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
@@ -44,7 +44,7 @@ internal class ProjectionDispatcherAutoConfigurationTest {
                 ProjectionDispatcherAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
-                AssertionsForInterfaceTypes.assertThat(context)
+                context.assert()
                     .hasSingleBean(ProjectionFunctionRegistrar::class.java)
                     .hasSingleBean(ProjectionProcessorAutoRegistrar::class.java)
                     .hasSingleBean(ProjectionFunctionFilter::class.java)

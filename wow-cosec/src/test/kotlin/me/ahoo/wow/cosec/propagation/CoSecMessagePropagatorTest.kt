@@ -28,7 +28,7 @@ class CoSecMessagePropagatorTest {
     val coSecMessagePropagator = CoSecMessagePropagator()
 
     @Test
-    fun propagate() {
+    fun `should propagate security context to message`() {
         val injectedHeader = DefaultHeader.empty()
         val upstreamMessage = MockCreateAggregate(generateGlobalId(), generateGlobalId())
             .toCommandMessage()
@@ -39,7 +39,7 @@ class CoSecMessagePropagatorTest {
     }
 
     @Test
-    fun propagateIfNull() {
+    fun `should not propagate when context is null`() {
         val injectedHeader = DefaultHeader.empty()
         val upstreamMessage =
             MockCreateAggregate(generateGlobalId(), generateGlobalId())

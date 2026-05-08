@@ -5,7 +5,7 @@ import org.junit.jupiter.api.Test
 
 class PagedListTest {
     @Test
-    fun empty() {
+    fun `should return empty paged list`() {
         PagedList.empty<String>().assert().isSameAs(PagedList.empty<String>())
     }
 }

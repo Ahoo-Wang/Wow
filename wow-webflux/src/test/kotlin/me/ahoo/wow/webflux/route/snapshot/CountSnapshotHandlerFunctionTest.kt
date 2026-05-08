@@ -19,7 +19,7 @@ import reactor.kotlin.test.test
 class CountSnapshotHandlerFunctionTest {
 
     @Test
-    fun handle() {
+    fun `should handle count snapshot query`() {
         val handlerFunction = CountSnapshotHandlerFunctionFactory(
             MockQueryHandler.queryHandler,
             DefaultRewriteRequestCondition,

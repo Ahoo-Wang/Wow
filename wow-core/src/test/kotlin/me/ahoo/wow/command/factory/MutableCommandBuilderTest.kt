@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test
 
 class MutableCommandBuilderTest {
     @Test
-    fun default() {
+    fun `should default`() {
         val commandBuilder = this.commandBuilder()
         commandBuilder.body.assert().isSameAs(this)
         commandBuilder.id.assert().isNotNull()
@@ -25,7 +25,7 @@ class MutableCommandBuilderTest {
     }
 
     @Test
-    fun customize() {
+    fun `should customize`() {
         val newBody = Any()
         val commandBuilder = this.commandBuilder()
             .id("id")

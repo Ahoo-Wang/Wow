@@ -11,7 +11,7 @@ import reactor.kotlin.test.test
 
 class GenerateBIScriptHandlerFunctionTest {
     @Test
-    fun handle() {
+    fun `should handle generate bi script request`() {
         val handlerFunction = GenerateBIScriptHandlerFunctionFactory().create(
             GenerateBIScriptRouteSpec(
                 OpenAPIComponentContext.default()
@@ -28,7 +28,7 @@ class GenerateBIScriptHandlerFunctionTest {
     }
 
     @Test
-    fun handleEmpty() {
+    fun `should handle generate bi script when empty`() {
         val handlerFunction =
             GenerateBIScriptHandlerFunctionFactory().create(
                 GenerateBIScriptRouteSpec(OpenAPIComponentContext.default())

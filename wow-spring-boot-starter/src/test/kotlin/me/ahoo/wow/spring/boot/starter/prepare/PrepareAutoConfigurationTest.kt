@@ -42,7 +42,6 @@ import me.ahoo.wow.spring.boot.starter.r2dbc.R2dbcAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.saga.StatelessSagaAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.webflux.WebFluxAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.webflux.WowWebClientAutoConfiguration
-import org.assertj.core.api.AssertionsForInterfaceTypes
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.getBean
 import org.springframework.boot.autoconfigure.SpringBootApplication
@@ -53,7 +52,7 @@ class PrepareAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
 
     @Test
-    fun contextLoads() {
+    fun `should load context with prepare key beans`() {
         contextRunner
             .enableWow()
             .withBean(PrepareKeyFactory::class.java, {
@@ -61,7 +60,7 @@ class PrepareAutoConfigurationTest {
             })
             .withUserConfiguration(PrepareAutoConfiguration::class.java)
             .run { context: AssertableApplicationContext ->
-                AssertionsForInterfaceTypes.assertThat(context)
+                context.assert()
                     .hasSingleBean(PrepareKeyProxyFactory::class.java)
                     .hasSingleBean(PrepareProperties::class.java)
                     .hasSingleBean(PrepareKeyInitializer::class.java)
@@ -69,7 +68,7 @@ class PrepareAutoConfigurationTest {
     }
 
     @Test
-    fun contextLoadsWithAutoConfiguration() {
+    fun `should load context with auto-configured prepare key`() {
         val prepareKeyFactory = object : PrepareKeyFactory {
             override fun <V : Any> create(
                 name: String,
@@ -91,7 +90,7 @@ class PrepareAutoConfigurationTest {
             .withUserConfiguration(PrepareAutoConfiguration::class.java)
             .withClassLoader(this.javaClass.classLoader)
             .run { context: AssertableApplicationContext ->
-                AssertionsForInterfaceTypes.assertThat(context)
+                context.assert()
                     .hasSingleBean(PrepareKeyProxyFactory::class.java)
                     .hasSingleBean(PrepareProperties::class.java)
                     .hasSingleBean(PrepareKeyInitializer::class.java)
@@ -102,7 +101,7 @@ class PrepareAutoConfigurationTest {
     }
 
     @Test
-    fun contextLoadsWithAutoConfigurationArray() {
+    fun `should load context with auto-configured prepare key array`() {
         val prepareKeyFactory = object : PrepareKeyFactory {
             override fun <V : Any> create(
                 name: String,
@@ -126,7 +125,7 @@ class PrepareAutoConfigurationTest {
             .withUserConfiguration(PrepareAutoConfiguration::class.java)
             .withClassLoader(this.javaClass.classLoader)
             .run { context: AssertableApplicationContext ->
-                AssertionsForInterfaceTypes.assertThat(context)
+                context.assert()
                     .hasSingleBean(PrepareKeyProxyFactory::class.java)
                     .hasSingleBean(PrepareProperties::class.java)
                     .hasSingleBean(PrepareKeyInitializer::class.java)

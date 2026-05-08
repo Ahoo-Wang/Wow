@@ -62,7 +62,7 @@ class SimpleWaitingForChainTest {
     }
 
     @Test
-    fun constructor() {
+    fun `should constructor`() {
         val waitCommandId = generateGlobalId()
         val function = NamedFunctionInfoData("context", "processor", "function")
         val tail = WaitingChainTail(CommandStage.PROCESSED, function)
@@ -74,7 +74,7 @@ class SimpleWaitingForChainTest {
     }
 
     @Test
-    fun isPreviousSignal() {
+    fun `should is previous signal`() {
         val waitCommandId = generateGlobalId()
         val function = NamedFunctionInfoData("context", "processor", "function")
         val tail = WaitingChainTail(CommandStage.PROCESSED, function)
@@ -86,7 +86,7 @@ class SimpleWaitingForChainTest {
     }
 
     @Test
-    fun waiting() {
+    fun `should waiting`() {
         val waitCommandId = generateGlobalId()
         val function = NamedFunctionInfoData("context", "processor", "function")
         val tail = WaitingChainTail(CommandStage.PROCESSED, function)
@@ -102,7 +102,7 @@ class SimpleWaitingForChainTest {
     }
 
     @Test
-    fun waitingLast() {
+    fun `should waiting last`() {
         val waitCommandId = generateGlobalId()
         val function = NamedFunctionInfoData("context", "processor", "function")
         val tail = WaitingChainTail(CommandStage.PROCESSED, function)
@@ -128,7 +128,7 @@ class SimpleWaitingForChainTest {
     }
 
     @Test
-    fun waitingLastEmpty() {
+    fun `should waiting last empty`() {
         val waitCommandId = generateGlobalId()
         val function = NamedFunctionInfoData("context", "processor", "function")
         val tail = WaitingChainTail(CommandStage.PROCESSED, function)
@@ -144,7 +144,7 @@ class SimpleWaitingForChainTest {
     }
 
     @Test
-    fun nextWithMainSignal() {
+    fun `should next with main signal`() {
         val waitCommandId = generateGlobalId()
         val function = NamedFunctionInfoData("context", "processor", "function")
         val tail = WaitingChainTail(CommandStage.PROCESSED, function)
@@ -168,7 +168,7 @@ class SimpleWaitingForChainTest {
     }
 
     @Test
-    fun nextWithMainErrorSignal() {
+    fun `should next with main error signal`() {
         val waitCommandId = generateGlobalId()
         val function = NamedFunctionInfoData("context", "processor", "function")
         val tail = WaitingChainTail(CommandStage.PROCESSED, function)
@@ -192,7 +192,7 @@ class SimpleWaitingForChainTest {
     }
 
     @Test
-    fun nextWithTailSignal() {
+    fun `should next with tail signal`() {
         val waitCommandId = generateGlobalId()
         val function = NamedFunctionInfoData("context", "processor", "function")
         val tail = WaitingChainTail(CommandStage.PROCESSED, function)
@@ -239,7 +239,7 @@ class SimpleWaitingForChainTest {
     }
 
     @Test
-    fun nextWithTailErrorSignal() {
+    fun `should next with tail error signal`() {
         val waitCommandId = generateGlobalId()
         val function = NamedFunctionInfoData("context", "processor", "function")
         val tail = WaitingChainTail(CommandStage.PROCESSED, function)
@@ -287,7 +287,7 @@ class SimpleWaitingForChainTest {
     }
 
     @Test
-    fun chain() {
+    fun `should chain`() {
         val waitCommandId = generateGlobalId()
         val function = NamedFunctionInfoData("context", "processor", "function")
         val tailStage = CommandStage.PROCESSED
@@ -307,7 +307,7 @@ class SimpleWaitingForChainTest {
     }
 
     @Test
-    fun tailWaitingCompletedWhenMainWaitingSignalIsNull() {
+    fun `should tail waiting completed when main waiting signal is null`() {
         val waitCommandId = generateGlobalId()
         val function = NamedFunctionInfoData("context", "processor", "function")
         val tail = WaitingChainTail(CommandStage.PROCESSED, function)

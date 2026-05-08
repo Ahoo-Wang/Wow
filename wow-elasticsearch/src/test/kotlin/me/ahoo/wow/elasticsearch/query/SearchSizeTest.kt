@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test
 class SearchSizeTest {
 
     @Test
-    fun searchSize() {
+    fun `should calculate search size`() {
         0.searchSize().assert().isEqualTo(UNLIMITED_SIZE)
         1.searchSize().assert().isOne()
     }

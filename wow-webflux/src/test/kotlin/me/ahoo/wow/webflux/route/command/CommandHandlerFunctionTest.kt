@@ -43,7 +43,7 @@ import reactor.kotlin.test.test
 class CommandHandlerFunctionTest {
 
     @Test
-    fun handle() {
+    fun `should handle command request and send to gateway`() {
         val commandGateway = spyk<CommandGateway>(SagaVerifier.defaultCommandGateway())
         val commandRouteMetadata = commandRouteMetadata<MockCreateAggregate>()
         val handlerFunction = CommandHandlerFunction(

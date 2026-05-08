@@ -25,7 +25,7 @@ import reactor.kotlin.test.test
 class AggregateTracingHandlerFunctionTest {
 
     @Test
-    fun handle() {
+    fun `should handle aggregate tracing request`() {
         val eventStore = InMemoryEventStore()
         val addCartItem = AddCartItem(
             productId = "productId",

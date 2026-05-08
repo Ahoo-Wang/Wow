@@ -26,12 +26,12 @@ class NoOpSnapshotQueryServiceFactoryTest {
     private val queryService = NoOpEventStreamQueryServiceFactory.create("test.test".toNamedAggregate())
 
     @Test
-    fun aggregate() {
+    fun `should return named aggregate`() {
         queryService.namedAggregate.assert().isEqualTo("test.test".toNamedAggregate())
     }
 
     @Test
-    fun single() {
+    fun `should execute single query`() {
         singleQuery {
             condition {
                 "test" eq "test"
@@ -42,7 +42,7 @@ class NoOpSnapshotQueryServiceFactoryTest {
     }
 
     @Test
-    fun dynamicSingle() {
+    fun `should execute dynamic single query`() {
         singleQuery {
             condition {
                 "test" eq "test"
@@ -53,7 +53,7 @@ class NoOpSnapshotQueryServiceFactoryTest {
     }
 
     @Test
-    fun list() {
+    fun `should execute list query`() {
         listQuery {
             condition {
                 "test" eq "test"
@@ -64,7 +64,7 @@ class NoOpSnapshotQueryServiceFactoryTest {
     }
 
     @Test
-    fun dynamicList() {
+    fun `should execute dynamic list query`() {
         listQuery {
             condition {
                 "test" eq "test"
@@ -75,7 +75,7 @@ class NoOpSnapshotQueryServiceFactoryTest {
     }
 
     @Test
-    fun paged() {
+    fun `should execute paged query`() {
         pagedQuery {
             condition {
                 "test" eq "test"
@@ -89,7 +89,7 @@ class NoOpSnapshotQueryServiceFactoryTest {
     }
 
     @Test
-    fun dynamicPaged() {
+    fun `should execute dynamic paged query`() {
         pagedQuery {
             condition {
                 "test" eq "test"
@@ -103,7 +103,7 @@ class NoOpSnapshotQueryServiceFactoryTest {
     }
 
     @Test
-    fun count() {
+    fun `should return zero count`() {
         condition {
             "test" eq "test"
         }.count(queryService)

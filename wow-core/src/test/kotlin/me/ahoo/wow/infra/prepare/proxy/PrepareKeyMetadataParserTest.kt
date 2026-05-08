@@ -20,7 +20,7 @@ import org.junit.jupiter.api.Test
 
 class PrepareKeyMetadataParserTest {
     @Test
-    fun parseToMetadataIfNameEmpty() {
+    fun `should parse metadata when name is empty`() {
         val metadata = prepareKeyMetadata<NameEmpty>()
         metadata.name.assert().isEqualTo("NameEmpty")
         metadata.proxyInterface.assert().isEqualTo(NameEmpty::class)
@@ -28,7 +28,7 @@ class PrepareKeyMetadataParserTest {
     }
 
     @Test
-    fun parseToMetadataIfNameNotEmpty() {
+    fun `should parse metadata when name is not empty`() {
         val metadata = prepareKeyMetadata<NameNotEmpty>()
         metadata.name.assert().isEqualTo("name")
         metadata.proxyInterface.assert().isEqualTo(NameNotEmpty::class)

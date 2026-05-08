@@ -14,6 +14,7 @@
 package me.ahoo.wow.command.wait.stage
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.messaging.function.FunctionInfoData
 import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.command.wait.COMMAND_WAIT_ENDPOINT
@@ -24,7 +25,6 @@ import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
-import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
 import java.time.Duration
@@ -39,7 +39,7 @@ internal class WaitingForStageTest {
     )
 
     @Test
-    fun processedInject() {
+    fun `should propagate projected stage info into header`() {
         val waitStrategy = WaitingForStage.projected(generateGlobalId(), "content", "processor", "function")
         val header = DefaultHeader()
         waitStrategy.propagate("endpoint", header)
@@ -52,20 +52,20 @@ internal class WaitingForStageTest {
     }
 
     @Test
-    fun extractWaitingForStageIfNotExistEndpoint() {
+    fun `should return null when extracting waiting for stage and endpoint not exist`() {
         val header = DefaultHeader()
         header.extractWaitingForStage().assert().isNull()
     }
 
     @Test
-    fun extractWaitingForStageIfNotExistStage() {
+    fun `should return null when extracting waiting for stage and stage not exist`() {
         val header = DefaultHeader()
         header[COMMAND_WAIT_ENDPOINT] = "endpoint"
         header.extractWaitingForStage().assert().isNull()
     }
 
     @Test
-    fun processed() {
+    fun `should complete when processed stage received`() {
         val waitStrategy = WaitingForStage.stage(generateGlobalId(), "PROCESSED", contextName)
         waitStrategy.cancelled.assert().isEqualTo(false)
         waitStrategy.terminated.assert().isEqualTo(false)
@@ -88,7 +88,7 @@ internal class WaitingForStageTest {
     }
 
     @Test
-    fun waitingLastEmpty() {
+    fun `should complete with empty when waiting last without signal`() {
         val waitStrategy = WaitingForStage.stage(generateGlobalId(), "PROCESSED", contextName)
         waitStrategy.cancelled.assert().isEqualTo(false)
         waitStrategy.terminated.assert().isEqualTo(false)
@@ -101,7 +101,7 @@ internal class WaitingForStageTest {
     }
 
     @Test
-    fun processedIfSnapshot() {
+    fun `should cancel when processed stage receives snapshot signal`() {
         val waitStrategy = WaitingForStage.stage(generateGlobalId(), "PROCESSED", contextName)
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
@@ -122,7 +122,7 @@ internal class WaitingForStageTest {
     }
 
     @Test
-    fun snapshot() {
+    fun `should complete when snapshot stage receives snapshot signal after processed`() {
         val waitStrategy = WaitingForStage.stage(generateGlobalId(), "SNAPSHOT", contextName)
         val processedSignal = SimpleWaitSignal(
             id = generateGlobalId(),
@@ -153,7 +153,7 @@ internal class WaitingForStageTest {
     }
 
     @Test
-    fun snapshotFailFast() {
+    fun `should fail fast when snapshot stage receives error signal`() {
         val waitStrategy = WaitingForStage.snapshot(generateGlobalId())
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
@@ -174,7 +174,7 @@ internal class WaitingForStageTest {
     }
 
     @Test
-    fun projected() {
+    fun `should complete when projected stage receives projected signal after processed`() {
         val waitStrategy = WaitingForStage.stage(generateGlobalId(), "PROJECTED", contextName)
         val processedSignal = SimpleWaitSignal(
             id = generateGlobalId(),
@@ -204,7 +204,7 @@ internal class WaitingForStageTest {
     }
 
     @Test
-    fun waitingForProjectedProcessor() {
+    fun `should complete when waiting for specific projected processor`() {
         val waitStrategy = WaitingForStage.projected(generateGlobalId(), contextName, "processor")
         val processedSignal = SimpleWaitSignal(
             id = generateGlobalId(),
@@ -234,7 +234,7 @@ internal class WaitingForStageTest {
     }
 
     @Test
-    fun waitingForProjectedProcessorNotEq() {
+    fun `should timeout when projected processor does not match`() {
         val waitStrategy = WaitingForStage.projected(generateGlobalId(), "processor")
         val processedSignal = SimpleWaitSignal(
             id = generateGlobalId(),
@@ -263,7 +263,7 @@ internal class WaitingForStageTest {
     }
 
     @Test
-    fun waitingForProjectedFunction() {
+    fun `should complete when waiting for specific projected function`() {
         val waitStrategy = WaitingForStage.projected(generateGlobalId(), contextName, "processor", "function")
         val processedSignal = SimpleWaitSignal(
             id = generateGlobalId(),
@@ -297,7 +297,7 @@ internal class WaitingForStageTest {
     }
 
     @Test
-    fun waitingForProjectedWhenNotLast() {
+    fun `should timeout when projected signal is not last`() {
         val waitStrategy = WaitingForStage.projected(generateGlobalId(), contextName)
         val processedSignal = SimpleWaitSignal(
             id = generateGlobalId(),
@@ -328,7 +328,7 @@ internal class WaitingForStageTest {
     }
 
     @Test
-    fun waitingForEventHandled() {
+    fun `should complete when waiting for event handled stage`() {
         val waitStrategy = WaitingForStage.stage(generateGlobalId(), "EVENT_HANDLED", contextName)
         val processedSignal = SimpleWaitSignal(
             id = generateGlobalId(),
@@ -358,7 +358,7 @@ internal class WaitingForStageTest {
     }
 
     @Test
-    fun waitingForSagaHandled() {
+    fun `should complete when waiting for saga handled stage`() {
         val waitStrategy = WaitingForStage.stage(generateGlobalId(), "SAGA_HANDLED", contextName)
         val processedSignal = SimpleWaitSignal(
             id = generateGlobalId(),
@@ -387,7 +387,7 @@ internal class WaitingForStageTest {
     }
 
     @Test
-    fun waitingWhenNoMatchedContext() {
+    fun `should timeout when waiting with no matched context`() {
         val waitStrategy = WaitingForStage.projected(generateGlobalId(), contextName)
         waitStrategy.waitingLast()
             .test()
@@ -409,7 +409,7 @@ internal class WaitingForStageTest {
     }
 
     @Test
-    fun waitingWhenError() {
+    fun `should propagate error when waiting`() {
         val waitStrategy = WaitingForStage.projected(generateGlobalId(), contextName)
         waitStrategy.error(IllegalArgumentException())
         waitStrategy.waitingLast()
@@ -419,7 +419,7 @@ internal class WaitingForStageTest {
     }
 
     @Test
-    fun waitingForSent() {
+    fun `should propagate error when waiting for sent stage`() {
         val waitStrategy = WaitingForStage.stage(generateGlobalId(), "SENT", contextName)
         waitStrategy.error(IllegalArgumentException())
         waitStrategy.waitingLast()
@@ -429,7 +429,7 @@ internal class WaitingForStageTest {
     }
 
     @Test
-    fun doFinallyError() {
+    fun `should handle error in doFinally callback`() {
         val waitStrategy = WaitingForStage.projected(generateGlobalId(), contextName)
         waitStrategy.onFinally {
             throw IllegalArgumentException()
@@ -442,11 +442,11 @@ internal class WaitingForStageTest {
     }
 
     @Test
-    fun doFinallySetTwice() {
+    fun `should throw IllegalStateException when setting doFinally twice`() {
         val waitStrategy = WaitingForStage.projected(generateGlobalId(), contextName)
         waitStrategy.onFinally {
         }
-        Assertions.assertThrows(IllegalStateException::class.java) {
+        assertThrownBy<IllegalStateException> {
             waitStrategy.onFinally {
             }
         }

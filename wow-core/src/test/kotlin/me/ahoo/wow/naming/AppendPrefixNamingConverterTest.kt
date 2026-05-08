@@ -23,7 +23,7 @@ internal class AppendPrefixNamingConverterTest {
     }
 
     @Test
-    fun convert() {
+    fun `should convert`() {
         CONVERTER.prefix.assert().isEqualTo(PREFIX)
         val phrase = "wow"
         val actual = CONVERTER.convert(phrase)

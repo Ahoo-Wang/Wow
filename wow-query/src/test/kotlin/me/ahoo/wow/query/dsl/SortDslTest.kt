@@ -20,7 +20,7 @@ import org.junit.jupiter.api.Test
 class SortDslTest {
 
     @Test
-    fun sort() {
+    fun `should build sort with asc and desc directions`() {
         val sort = sort {
             "field1".asc()
             "field2".desc()

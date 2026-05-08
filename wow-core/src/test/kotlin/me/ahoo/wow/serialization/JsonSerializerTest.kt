@@ -48,7 +48,7 @@ import java.time.Clock
 
 internal class JsonSerializerTest {
     @Test
-    fun aggregateId() {
+    fun `should serialize and deserialize aggregate id`() {
         val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId()
         val output = aggregateId.toJsonString()
         val input = output.toObject<AggregateId>()
@@ -56,7 +56,7 @@ internal class JsonSerializerTest {
     }
 
     @Test
-    fun command() {
+    fun `should serialize and deserialize command`() {
         val command =
             MockCreateAggregate(generateGlobalId(), generateGlobalId())
                 .toCommandMessage(
@@ -70,7 +70,7 @@ internal class JsonSerializerTest {
     }
 
     @Test
-    fun eventStream() {
+    fun `should serialize and deserialize event stream`() {
         val namedAggregate = requiredNamedAggregate<MockCreateAggregate>()
         val eventStream = MockDomainEventStreams.generateEventStream(
             aggregateId = namedAggregate.aggregateId(tenantId = generateGlobalId()),
@@ -85,7 +85,7 @@ internal class JsonSerializerTest {
     }
 
     @Test
-    fun eventStreamCopy() {
+    fun `should deep copy event stream`() {
         val namedAggregate = requiredNamedAggregate<MockCreateAggregate>()
         val eventStream = MockDomainEventStreams.generateEventStream(
             aggregateId = namedAggregate.aggregateId(tenantId = generateGlobalId()),
@@ -99,7 +99,7 @@ internal class JsonSerializerTest {
     }
 
     @Test
-    fun domainEvent() {
+    fun `should serialize and deserialize domain event`() {
         val namedAggregate = requiredNamedAggregate<MockAggregateCreated>()
         val domainEvent = MockDomainEventStreams
             .generateEventStream(
@@ -116,7 +116,7 @@ internal class JsonSerializerTest {
     }
 
     @Test
-    fun asDomainEventWhenNotFoundClass() {
+    fun `should deserialize as json domain event when class not found`() {
         val namedAggregate = requiredNamedAggregate<MockAggregateCreated>()
         val mockEvent = MockAggregateCreated(generateGlobalId())
             .toDomainEvent(
@@ -148,7 +148,7 @@ internal class JsonSerializerTest {
     }
 
     @Test
-    fun snapshot() {
+    fun `should serialize and deserialize snapshot`() {
         val aggregateMetadata = MOCK_AGGREGATE_METADATA
         val aggregateId = aggregateMetadata.aggregateId(
             generateGlobalId(),
@@ -162,7 +162,7 @@ internal class JsonSerializerTest {
     }
 
     @Test
-    fun stateEventStream() {
+    fun `should serialize and deserialize state event stream`() {
         val namedAggregate = requiredNamedAggregate<MockCreateAggregate>()
         val eventStream = MockDomainEventStreams.generateEventStream(
             aggregateId = namedAggregate.aggregateId(tenantId = generateGlobalId()),
@@ -178,7 +178,7 @@ internal class JsonSerializerTest {
     }
 
     @Test
-    fun stateEventStreamIfNotFound() {
+    fun `should serialize state event stream as json record when type not found`() {
         val namedAggregate = "not.found".toNamedAggregate(generateGlobalId())
         val eventStream = MockDomainEventStreams.generateEventStream(
             aggregateId = namedAggregate.aggregateId(tenantId = generateGlobalId()),
@@ -192,7 +192,7 @@ internal class JsonSerializerTest {
     }
 
     @Test
-    fun anyToJsonNode() {
+    fun `should convert any to json node`() {
         val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId()
         val jsonNode = aggregateId.toJsonNode<ObjectNode>()
         val input = jsonNode.toObject<AggregateId>()
@@ -200,7 +200,7 @@ internal class JsonSerializerTest {
     }
 
     @Test
-    fun stringToJsonNode() {
+    fun `should convert string to json node`() {
         val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId()
         val jsonNode = aggregateId.toJsonString().toJsonNode<ObjectNode>()
         val input = jsonNode.toObject<AggregateId>()
@@ -208,7 +208,7 @@ internal class JsonSerializerTest {
     }
 
     @Test
-    fun deepCopy() {
+    fun `should deep copy object`() {
         val mutableData = MutableData(generateGlobalId())
         val deepCopied = mutableData.deepCopy()
         mutableData.assert().isNotSameAs(deepCopied)
@@ -219,7 +219,7 @@ internal class JsonSerializerTest {
     }
 
     @Test
-    fun toPrettyJson() {
+    fun `should convert to pretty json`() {
         val data = mapOf("name" to "John", "age" to 30)
         val prettyJson = data.toPrettyJson()
         prettyJson.assert().contains("\n")
@@ -230,7 +230,7 @@ internal class JsonSerializerTest {
     }
 
     @Test
-    fun convertWithClass() {
+    fun `should convert with class type`() {
         data class User(
             val name: String,
             val age: Int
@@ -248,7 +248,7 @@ internal class JsonSerializerTest {
     }
 
     @Test
-    fun convertWithJavaType() {
+    fun `should convert with java type`() {
         val json = """{"name":"John","age":30}"""
         val node = json.toJsonNode<ObjectNode>()
         val type = JsonSerializer.typeFactory.constructMapType(HashMap::class.java, String::class.java, Any::class.java)
@@ -260,7 +260,7 @@ internal class JsonSerializerTest {
     }
 
     @Test
-    fun convertWithTypeReference() {
+    fun `should_convert_with_type_reference`() {
         data class Address(
             val city: String,
             val zipCode: String
@@ -285,7 +285,7 @@ internal class JsonSerializerTest {
     }
 
     @Test
-    fun convertWithReified() {
+    fun `should convert with reified type`() {
         data class User(
             val name: String,
             val age: Int
@@ -303,7 +303,7 @@ internal class JsonSerializerTest {
     }
 
     @Test
-    fun toMap() {
+    fun `should convert to map`() {
         data class User(
             val name: String,
             val age: Int
@@ -316,7 +316,7 @@ internal class JsonSerializerTest {
     }
 
     @Test
-    fun toMapWithNestedObject() {
+    fun `should convert to map with nested object`() {
         data class Address(
             val city: String
         )
@@ -335,7 +335,7 @@ internal class JsonSerializerTest {
     }
 
     @Test
-    fun toObjectWithJavaType() {
+    fun `should convert to object with java type`() {
         val json = """["John","Jane","Bob"]"""
         val type = JsonSerializer.typeFactory.constructCollectionType(List::class.java, String::class.java)
         val list = json.toObject<List<String>>(type)
@@ -346,7 +346,7 @@ internal class JsonSerializerTest {
     }
 
     @Test
-    fun toObjectWithReified() {
+    fun `should convert to object with reified type`() {
         data class User(
             val name: String,
             val age: Int
@@ -359,7 +359,7 @@ internal class JsonSerializerTest {
     }
 
     @Test
-    fun stringToObjectNode() {
+    fun `should convert string to object node`() {
         val json = """{"name":"John","age":30}"""
         val node = json.toObjectNode()
         node["name"].asText().assert().isEqualTo("John")
@@ -367,7 +367,7 @@ internal class JsonSerializerTest {
     }
 
     @Test
-    fun jsonNodeToObject() {
+    fun `should convert json node to object`() {
         data class User(
             val name: String,
             val age: Int
@@ -381,7 +381,7 @@ internal class JsonSerializerTest {
     }
 
     @Test
-    fun jsonNodeToObjectWithReified() {
+    fun `should convert json node to object with reified type`() {
         data class User(
             val name: String,
             val age: Int
@@ -395,7 +395,7 @@ internal class JsonSerializerTest {
     }
 
     @Test
-    fun conditionBigDecimal() {
+    fun `should serialize condition with big decimal`() {
         val queryCondition = Condition.gt("amount", 100.55)
         val output = queryCondition.toJsonString()
         val input = output.toObject<Condition>()
@@ -407,7 +407,7 @@ internal class JsonSerializerTest {
     }
 
     @Test
-    fun condition() {
+    fun `should serialize and deserialize condition`() {
         val value = BigDecimal.valueOf(1000, 1)
         val queryCondition = Condition.gt("amount", value)
         val output = queryCondition.toJsonString()

@@ -40,7 +40,7 @@ import reactor.kotlin.test.test
 class EventCompensateHandlerFunctionTest {
 
     @Test
-    fun handle() {
+    fun `should handle event compensate request`() {
         val eventStore = InMemoryEventStore()
         val handlerFunction = EventCompensateHandlerFunctionFactory(
             eventCompensateSupporter = EventCompensateSupporter(

@@ -28,21 +28,21 @@ internal class ShardingSnapshotSchemaTest {
     private val snapshotSchema = ShardingSnapshotSchema(snapshotSharding)
 
     @Test
-    fun load() {
+    fun `should load snapshot`() {
         snapshotSchema.load(namedAggregate.aggregateId("0TEC7cEx0001001")).assert().isEqualTo(
             "select * from test_snapshot_1 where aggregate_id=? order by version desc limit 1"
         )
     }
 
     @Test
-    fun loadVersion() {
+    fun `should load snapshot version`() {
         snapshotSchema.loadByVersion(namedAggregate.aggregateId("0TEC7cEx0001002")).assert().isEqualTo(
             "select * from test_snapshot_2 where aggregate_id=? and version=?"
         )
     }
 
     @Test
-    fun save() {
+    fun `should save snapshot`() {
         snapshotSchema.save(namedAggregate.aggregateId("0TEC7cEx0001003")).assert().isEqualTo(
             """
      replace into test_snapshot_3

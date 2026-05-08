@@ -25,7 +25,7 @@ class StateAggregatesTest {
     private val aggregateMetadata = MOCK_AGGREGATE_METADATA
 
     @Test
-    fun toStateAggregate() {
+    fun `should to state aggregate`() {
         val state = MockStateAggregate(generateGlobalId())
         val stateAggregate = aggregateMetadata.toStateAggregate(
             state = state,
@@ -48,7 +48,7 @@ class StateAggregatesTest {
     }
 
     @Test
-    fun toStateAggregateGivenAggregateId() {
+    fun `should to state aggregate given aggregate id`() {
         val state = MockStateAggregate(generateGlobalId())
         val stateAggregate = aggregateMetadata.state.toStateAggregate(
             aggregateId = aggregateMetadata.aggregateId(state.id),
@@ -72,7 +72,7 @@ class StateAggregatesTest {
     }
 
     @Test
-    fun toStateAggregateGivenReadOnly() {
+    fun `should to state aggregate given read only`() {
         val state = MockStateAggregate(generateGlobalId())
         val stateAggregate = aggregateMetadata.state.toStateAggregate(
             aggregateId = aggregateMetadata.aggregateId(state.id),

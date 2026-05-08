@@ -28,7 +28,7 @@ import java.math.BigDecimal
 class CartSagaTest {
 
     @Test
-    fun onOrderCreated() {
+    fun `should remove cart items when order created from cart`() {
         val ownerId = generateGlobalId()
         val orderItem = OrderItem(
             id = generateGlobalId(),
@@ -58,7 +58,7 @@ class CartSagaTest {
     }
 
     @Test
-    fun onOrderCreatedWhenNotFromCart() {
+    fun `should not remove cart items when order not from cart`() {
         val orderItem = OrderItem(
             id = generateGlobalId(),
             productId = generateGlobalId(),

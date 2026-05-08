@@ -40,7 +40,7 @@ import java.net.URI
 
 class LoadTimeBasedAggregateHandlerFunctionTest {
     @Test
-    fun handle() {
+    fun `should handle load time-based aggregate request`() {
         val eventStore = InMemoryEventStore()
         val customerId = generateGlobalId()
         val addCartItem = AddCartItem(

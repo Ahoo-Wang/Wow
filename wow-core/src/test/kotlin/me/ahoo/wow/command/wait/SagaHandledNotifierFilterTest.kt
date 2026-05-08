@@ -21,7 +21,7 @@ class SagaHandledNotifierFilterTest {
 
     @Suppress("UNCHECKED_CAST")
     @Test
-    fun filter() {
+    fun `should filter`() {
         val notifierFilter = SagaHandledNotifierFilter(LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar))
         val domainEvent = MockAggregateCreated(generateGlobalId()).toDomainEvent(
             MOCK_AGGREGATE_METADATA.aggregateId(),

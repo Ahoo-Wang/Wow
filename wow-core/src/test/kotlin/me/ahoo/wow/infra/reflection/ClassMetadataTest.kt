@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test
 class ClassMetadataTest {
 
     @Test
-    fun visit() {
+    fun `should visit`() {
         val visitor = object :
             ClassVisitor<MockClass, Metadata> {
             override fun toMetadata(): Metadata {

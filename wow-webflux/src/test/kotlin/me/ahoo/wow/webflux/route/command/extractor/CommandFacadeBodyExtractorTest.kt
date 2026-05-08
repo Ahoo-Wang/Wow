@@ -43,7 +43,7 @@ import java.util.*
 class CommandFacadeBodyExtractorTest {
 
     @Test
-    fun extract() {
+    fun `should extract command and route metadata from facade request`() {
         val command = MockCreateAggregate("id", "data")
         val commandBodyExtractor = CommandFacadeBodyExtractor
         val messageReader = mockk<HttpMessageReader<*>> {
@@ -79,7 +79,7 @@ class CommandFacadeBodyExtractorTest {
     }
 
     @Test
-    fun extractIfEmpty() {
+    fun `should extract default delete command when body is empty`() {
         val aggregateMetadata = aggregateMetadata<MockCommandAggregate, MockStateAggregate>()
         val commandBodyExtractor = CommandFacadeBodyExtractor
         val messageReader = mockk<HttpMessageReader<*>> {
@@ -111,7 +111,7 @@ class CommandFacadeBodyExtractorTest {
     }
 
     @Test
-    fun extractIfSetAggregate() {
+    fun `should extract command with explicit aggregate headers`() {
         val command = MockCreateAggregate("id", "data")
         val commandBodyExtractor = CommandFacadeBodyExtractor
         val messageReader = mockk<HttpMessageReader<*>> {

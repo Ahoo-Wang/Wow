@@ -20,7 +20,7 @@ import org.junit.jupiter.api.Test
 internal class WowTest {
 
     @Test
-    fun test() {
+    fun `should assert wow constants`() {
         Wow.WOW.assert().isEqualTo("wow")
         Wow.WOW_PREFIX.assert().isEqualTo("wow.")
     }

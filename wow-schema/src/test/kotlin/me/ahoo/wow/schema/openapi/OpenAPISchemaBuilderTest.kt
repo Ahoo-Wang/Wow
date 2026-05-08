@@ -19,7 +19,7 @@ import org.springframework.http.codec.ServerSentEvent
 class OpenAPISchemaBuilderTest {
 
     @Test
-    fun build() {
+    fun `should build open api schema with component references`() {
         val openAPISchemaBuilder = OpenAPISchemaBuilder()
         openAPISchemaBuilder.inline.assert().isFalse()
         val stringSchema = openAPISchemaBuilder.generateSchema(String::class.java)
@@ -48,7 +48,7 @@ class OpenAPISchemaBuilderTest {
     }
 
     @Test
-    fun buildInline() {
+    fun `should build inline schema without component references`() {
         val openAPISchemaBuilder = OpenAPISchemaBuilder(
             schemaGeneratorBuilder = SchemaGeneratorBuilder().customizer {
                 it.with(Option.INLINE_ALL_SCHEMAS)
@@ -77,7 +77,7 @@ class OpenAPISchemaBuilderTest {
     }
 
     @Test
-    fun serverSentEvent() {
+    fun `should generate schema for server sent event type`() {
         val openAPISchemaBuilder = OpenAPISchemaBuilder(
             schemaGeneratorBuilder = SchemaGeneratorBuilder().customizer {
                 it.with(Option.INLINE_ALL_SCHEMAS)
@@ -91,7 +91,7 @@ class OpenAPISchemaBuilderTest {
     }
 
     @Test
-    fun buildIn() {
+    fun `should build schema for wait signal`() {
         val openAPISchemaBuilder = OpenAPISchemaBuilder()
         openAPISchemaBuilder.inline.assert().isFalse()
         openAPISchemaBuilder.generateSchema(SimpleWaitSignal::class.java)
@@ -100,7 +100,7 @@ class OpenAPISchemaBuilderTest {
     }
 
     @Test
-    fun condition() {
+    fun `should build condition schema with recursive ref`() {
         val definitionPath = "${'$'}defs"
         val openAPISchemaBuilder = OpenAPISchemaBuilder(definitionPath = definitionPath)
         openAPISchemaBuilder.generateSchema(Condition::class.java)
@@ -112,7 +112,7 @@ class OpenAPISchemaBuilderTest {
     }
 
     @Test
-    fun leafCategory() {
+    fun `should build leaf category schema with children items`() {
         val openAPISchemaBuilder = OpenAPISchemaBuilder()
         openAPISchemaBuilder.generateSchema(LeafCategory::class.java)
         val componentsSchemas = openAPISchemaBuilder.build()
@@ -122,7 +122,7 @@ class OpenAPISchemaBuilderTest {
     }
 
     @Test
-    fun arrayType() {
+    fun `should generate schema for array type`() {
         val openAPISchemaBuilder = OpenAPISchemaBuilder()
         val arrayType = TypeResolver().arrayType(SchemaData::class.java)
         val arrayTypeSchema = openAPISchemaBuilder.generateSchema(arrayType)

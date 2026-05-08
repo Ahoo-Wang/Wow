@@ -19,7 +19,7 @@ import reactor.kotlin.test.test
 class WebClientCommandWaitNotifierTest {
 
     @Test
-    fun notifyLocal() {
+    fun `should notify local wait signal`() {
         val webClient = mockk<WebClient>()
         val commandWaitNotifier = WebClientCommandWaitNotifier(SimpleWaitStrategyRegistrar, webClient)
         val commandWaitEndpoint = "http://localhost:8080/command/wait"
@@ -42,7 +42,7 @@ class WebClientCommandWaitNotifierTest {
     }
 
     @Test
-    fun notifyRemote() {
+    fun `should notify remote wait signal`() {
         val commandWaitEndpoint = "http://localhost:8080/command/wait"
         val webClient = mockk<WebClient> {
             every {

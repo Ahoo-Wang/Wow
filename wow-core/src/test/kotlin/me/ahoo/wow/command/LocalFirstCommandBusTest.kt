@@ -21,7 +21,7 @@ class LocalFirstCommandBusTest : CommandBusSpec() {
     }
 
     @Test
-    fun sendNotLocalFirst() {
+    fun `should send not local first`() {
         verify {
             val onReady = Sinks.empty<Void>()
             val message = createMessage()
@@ -45,7 +45,7 @@ class LocalFirstCommandBusTest : CommandBusSpec() {
     }
 
     @Test
-    fun sendVoidCommand() {
+    fun `should send void command`() {
         verify {
             val onReady = Sinks.empty<Void>()
             val message = MockVoidCommand(generateGlobalId()).toCommandMessage()

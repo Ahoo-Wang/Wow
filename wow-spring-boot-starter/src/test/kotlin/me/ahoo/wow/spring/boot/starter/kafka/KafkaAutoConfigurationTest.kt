@@ -18,7 +18,7 @@ import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.kafka.ReceiverOptionsCustomizer
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.opentelemetry.WowOpenTelemetryAutoConfiguration
-import org.assertj.core.api.AssertionsForInterfaceTypes
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
@@ -27,7 +27,7 @@ internal class KafkaAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
 
     @Test
-    fun contextLoads() {
+    fun `should load context with kafka command bus and event bus`() {
         contextRunner
             .enableWow()
             .withPropertyValues("${KafkaProperties.PREFIX}.bootstrap-servers=kafka")
@@ -36,7 +36,7 @@ internal class KafkaAutoConfigurationTest {
                 KafkaAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
-                AssertionsForInterfaceTypes.assertThat(context)
+                context.assert()
                     .hasSingleBean(ReceiverOptionsCustomizer::class.java)
                     .hasSingleBean(CommandBus::class.java)
                     .hasSingleBean(DomainEventBus::class.java)

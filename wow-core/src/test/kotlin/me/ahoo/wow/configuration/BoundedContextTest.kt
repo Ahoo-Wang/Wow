@@ -1,27 +1,27 @@
 package me.ahoo.wow.configuration
 
 import me.ahoo.test.asserts.assert
-import org.junit.jupiter.api.Assertions
+import me.ahoo.test.asserts.assertThrownBy
 import org.junit.jupiter.api.Test
 
 class BoundedContextTest {
 
     @Test
-    fun merge() {
+    fun `should merge two empty bounded contexts`() {
         val mergedContext = BoundedContext().merge(BoundedContext())
         mergedContext.alias.assert().isNull()
         mergedContext.description.assert().isEmpty()
     }
 
     @Test
-    fun mergeEmpty() {
+    fun `should merge two bounded contexts with empty strings`() {
         val mergedContext = BoundedContext("").merge(BoundedContext(""))
         mergedContext.alias.assert().isEmpty()
         mergedContext.description.assert().isEmpty()
     }
 
     @Test
-    fun mergeIfFirstNotEmpty() {
+    fun `should use first context when merging with empty second`() {
         val alias = "alias"
         val description = "desc"
         val mergedContext = BoundedContext(alias, description).merge(BoundedContext())
@@ -30,7 +30,7 @@ class BoundedContextTest {
     }
 
     @Test
-    fun mergeIfSecondNotEmpty() {
+    fun `should use second context when merging with empty first`() {
         val alias = "alias"
         val description = "desc"
         val mergedContext = BoundedContext().merge(BoundedContext(alias, description))
@@ -39,14 +39,14 @@ class BoundedContextTest {
     }
 
     @Test
-    fun mergeIfConflict() {
-        Assertions.assertThrows(IllegalStateException::class.java) {
+    fun `should throw IllegalStateException when merging with conflicting aliases`() {
+        assertThrownBy<IllegalStateException> {
             BoundedContext("Conflict").merge(BoundedContext("other"))
         }
     }
 
     @Test
-    fun mergeIfNotConflict() {
+    fun `should succeed when merging with same alias`() {
         BoundedContext("alias").merge(BoundedContext("alias"))
     }
 }

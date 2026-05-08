@@ -24,12 +24,12 @@ import java.net.URI
 class GlobalExceptionHandlerTest {
 
     @Test
-    fun getOrder() {
+    fun `should get handler order`() {
         GlobalExceptionHandler.order.assert().isEqualTo(-2)
     }
 
     @Test
-    fun handle() {
+    fun `should handle exception and write error response`() {
         val request = mockk<ServerHttpRequest> {
             every { method } returns HttpMethod.GET
             every { uri } returns URI.create("http://localhost:8080")
@@ -62,7 +62,7 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    fun handleReadOnlyHeaders() {
+    fun `should handle exception when response is already committed`() {
         val request = mockk<ServerHttpRequest> {
             every { method } returns HttpMethod.GET
             every { uri } returns URI.create("http://localhost:8080")
@@ -83,7 +83,7 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    fun handleIfBindingError() {
+    fun `should handle binding exception with field errors`() {
         val request = mockk<ServerHttpRequest> {
             every { method } returns HttpMethod.GET
             every { uri } returns URI.create("http://localhost:8080")

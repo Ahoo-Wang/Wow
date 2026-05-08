@@ -22,7 +22,7 @@ class MaterializedSnapshotTest {
     )
 
     @Test
-    fun toSmall() {
+    fun `should convert to small snapshot`() {
         val slimSnapshot = snapshot.toSmall { it }
         slimSnapshot.version.assert().isEqualTo(snapshot.version)
         slimSnapshot.firstEventTime.assert().isEqualTo(snapshot.firstEventTime)
@@ -30,7 +30,7 @@ class MaterializedSnapshotTest {
     }
 
     @Test
-    fun toMedium() {
+    fun `should convert to medium snapshot`() {
         val mediumSnapshot = snapshot.toMedium { it }
         mediumSnapshot.tenantId.assert().isEqualTo(snapshot.tenantId)
         mediumSnapshot.ownerId.assert().isEqualTo(snapshot.ownerId)

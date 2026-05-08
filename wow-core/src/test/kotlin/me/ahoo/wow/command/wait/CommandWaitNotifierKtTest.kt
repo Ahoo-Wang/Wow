@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Test
 class CommandWaitNotifierKtTest {
 
     @Test
-    fun isLocalCommandIfBlank() {
+    fun `should is local command if blank`() {
         isLocalWaitStrategy("").assert().isFalse()
     }
 }

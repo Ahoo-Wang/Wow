@@ -1,21 +1,21 @@
 package me.ahoo.wow.command.validation
 
 import jakarta.validation.constraints.Positive
+import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.command.CommandValidationException
 import me.ahoo.wow.test.validation.TestValidator
-import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 
 class ValidatorsKtTest {
 
     @Test
-    fun validateCommand() {
+    fun `should validate valid command`() {
         TestValidator.validateCommand(MockCommandBody(qty = 1))
     }
 
     @Test
-    fun validateCommandError() {
-        Assertions.assertThrows(CommandValidationException::class.java) {
+    fun `should throw CommandValidationException when validation fails`() {
+        assertThrownBy<CommandValidationException> {
             TestValidator.validateCommand(MockCommandBody(qty = -1))
         }
     }

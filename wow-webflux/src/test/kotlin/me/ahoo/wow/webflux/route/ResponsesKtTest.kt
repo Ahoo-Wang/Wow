@@ -42,7 +42,7 @@ import reactor.kotlin.test.test
 class ResponsesKtTest {
 
     @Test
-    fun toResponseEntity() {
+    fun `should convert exception to response entity`() {
         val responseEntity = IllegalArgumentException()
             .toResponseEntity()
         responseEntity.statusCode.assert().isEqualTo(HttpStatus.BAD_REQUEST)
@@ -51,7 +51,7 @@ class ResponsesKtTest {
     }
 
     @Test
-    fun toServerResponse() {
+    fun `should convert error info to server response`() {
         IllegalArgumentException()
             .toErrorInfo()
             .toServerResponse()
@@ -65,7 +65,7 @@ class ResponsesKtTest {
     }
 
     @Test
-    fun commandResultToServerResponse() {
+    fun `should convert command result to server response`() {
         CommandResult(
             id = generateGlobalId(),
             waitCommandId = generateGlobalId(),

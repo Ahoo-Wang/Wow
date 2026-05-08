@@ -30,13 +30,13 @@ class WaitingForsTest {
     }
 
     @Test
-    fun isWaitingForFunctionWhenNull() {
+    fun `should is waiting for function when null`() {
         val waitingFor: NamedFunctionInfo? = null
         waitingFor.isWaitingForFunction(testFunctionInfo).assert().isTrue()
     }
 
     @Test
-    fun isWaitingForFunctionWithAllEmpty() {
+    fun `should is waiting for function with all empty`() {
         val waitingFor = NamedFunctionInfoData(
             contextName = "",
             processorName = "",
@@ -46,7 +46,7 @@ class WaitingForsTest {
     }
 
     @Test
-    fun isWaitingForFunctionWithOnlyContext() {
+    fun `should is waiting for function with only context`() {
         val waitingFor = NamedFunctionInfoData(
             contextName = "test-context",
             processorName = "",
@@ -63,7 +63,7 @@ class WaitingForsTest {
     }
 
     @Test
-    fun isWaitingForFunctionWithOnlyProcessor() {
+    fun `should is waiting for function with only processor`() {
         val waitingFor = NamedFunctionInfoData(
             contextName = "",
             processorName = "test-processor",
@@ -80,7 +80,7 @@ class WaitingForsTest {
     }
 
     @Test
-    fun isWaitingForFunctionWithOnlyName() {
+    fun `should is waiting for function with only name`() {
         val waitingFor = NamedFunctionInfoData(
             contextName = "",
             processorName = "",
@@ -97,7 +97,7 @@ class WaitingForsTest {
     }
 
     @Test
-    fun isWaitingForFunctionWithAllFields() {
+    fun `should is waiting for function with all fields`() {
         val waitingFor = NamedFunctionInfoData(
             contextName = "test-context",
             processorName = "test-processor",
@@ -114,7 +114,7 @@ class WaitingForsTest {
     }
 
     @Test
-    fun isWaitingForFunctionWithPartialMatch() {
+    fun `should is waiting for function with partial match`() {
         val waitingFor = NamedFunctionInfoData(
             contextName = "test-context",
             processorName = "test-processor",

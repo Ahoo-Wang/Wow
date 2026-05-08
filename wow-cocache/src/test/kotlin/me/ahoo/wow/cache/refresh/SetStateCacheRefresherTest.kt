@@ -17,6 +17,7 @@ import io.mockk.every
 import io.mockk.spyk
 import me.ahoo.cache.api.annotation.CoCache
 import me.ahoo.cache.client.MapClientSideCache
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.event.StateDomainEventExchange
@@ -25,7 +26,6 @@ import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockStateAggregate
-import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
 
@@ -39,57 +39,57 @@ class SetStateCacheRefresherTest {
     )
 
     @Test
-    fun getFunctionKind() {
-        assertThat(stateCacheRefresher.functionKind).isEqualTo(FunctionKind.STATE_EVENT)
+    fun `should return STATE_EVENT as function kind`() {
+        stateCacheRefresher.functionKind.assert().isEqualTo(FunctionKind.STATE_EVENT)
     }
 
     @Test
-    fun getName() {
-        assertThat(stateCacheRefresher.name).isEqualTo(StateCacheRefresher<*, *, *>::invoke.name)
+    fun `should return invoke function name`() {
+        stateCacheRefresher.name.assert().isEqualTo(StateCacheRefresher<*, *, *>::invoke.name)
     }
 
     @Test
-    fun getProcessor() {
-        assertThat(stateCacheRefresher.processor).isEqualTo(stateCacheRefresher)
+    fun `should return itself as processor`() {
+        stateCacheRefresher.processor.assert().isEqualTo(stateCacheRefresher)
     }
 
     @Test
-    fun getSupportedTopics() {
-        assertThat(stateCacheRefresher.supportedTopics).contains(MOCK_AGGREGATE_METADATA.materialize())
+    fun `should contain named aggregate in supported topics`() {
+        stateCacheRefresher.supportedTopics.assert().contains(MOCK_AGGREGATE_METADATA.materialize())
     }
 
     @Test
-    fun getSupportedType() {
-        assertThat(stateCacheRefresher.supportedType).isEqualTo(Any::class.java)
+    fun `should return Any class as supported type`() {
+        stateCacheRefresher.supportedType.assert().isEqualTo(Any::class.java)
     }
 
     @Test
-    fun getAnnotation() {
-        assertThat(stateCacheRefresher.getAnnotation(OnEvent::class.java)).isNull()
+    fun `should return null for OnEvent annotation`() {
+        stateCacheRefresher.getAnnotation(OnEvent::class.java).assert().isNull()
     }
 
     @Test
-    fun getNamedAggregate() {
-        assertThat(stateCacheRefresher.namedAggregate).isEqualTo(MOCK_AGGREGATE_METADATA)
+    fun `should return mock aggregate metadata as named aggregate`() {
+        stateCacheRefresher.namedAggregate.assert().isEqualTo(MOCK_AGGREGATE_METADATA)
     }
 
     @Test
-    fun getCache() {
-        assertThat(stateCacheRefresher.cache).isInstanceOf(MapClientSideCache::class.java)
+    fun `should return MapClientSideCache instance`() {
+        stateCacheRefresher.cache.assert().isInstanceOf(MapClientSideCache::class.java)
     }
 
     @Test
-    fun getTtl() {
-        assertThat(stateCacheRefresher.ttl).isEqualTo(CoCache.DEFAULT_TTL)
+    fun `should return default TTL`() {
+        stateCacheRefresher.ttl.assert().isEqualTo(CoCache.DEFAULT_TTL)
     }
 
     @Test
-    fun getAmplitude() {
-        assertThat(stateCacheRefresher.ttlAmplitude).isEqualTo(CoCache.DEFAULT_TTL_AMPLITUDE)
+    fun `should return default TTL amplitude`() {
+        stateCacheRefresher.ttlAmplitude.assert().isEqualTo(CoCache.DEFAULT_TTL_AMPLITUDE)
     }
 
     @Test
-    fun invoke() {
+    fun `should complete when invoking with non-deleted state`() {
         val exchange = spyk<StateDomainEventExchange<MockStateAggregate, Any>> {
             every { state.state } returns MockStateAggregate(generateGlobalId())
             every { message.aggregateId } returns MOCK_AGGREGATE_METADATA.aggregateId()
@@ -100,7 +100,7 @@ class SetStateCacheRefresherTest {
     }
 
     @Test
-    fun invokeIfDeleted() {
+    fun `should complete when invoking with deleted state`() {
         val exchange = spyk<StateDomainEventExchange<MockStateAggregate, Any>> {
             every { message.aggregateId } returns MOCK_AGGREGATE_METADATA.aggregateId()
             every { state.deleted } returns true
@@ -110,7 +110,7 @@ class SetStateCacheRefresherTest {
     }
 
     @Test
-    fun invokeIfWithTtl() {
+    fun `should complete when invoking with custom TTL`() {
         val stateCacheRefresher = SetStateCacheRefresher<String, MockStateAggregate, MockStateAggregate>(
             namedAggregate = MOCK_AGGREGATE_METADATA,
             stateToCacheDataConverter = {

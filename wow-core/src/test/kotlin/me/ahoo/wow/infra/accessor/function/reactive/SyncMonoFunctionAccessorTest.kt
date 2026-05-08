@@ -19,7 +19,7 @@ import reactor.kotlin.test.test
 
 class SyncMonoFunctionAccessorTest {
     @Test
-    fun invoke() {
+    fun `should invoke`() {
         val methodAccessor = ::syncFunction.toMonoFunctionAccessor<SyncMonoFunctionAccessorTest, String>()
         methodAccessor.assert().isInstanceOf(SyncMonoFunctionAccessor::class.java)
         methodAccessor.invoke(this).test()

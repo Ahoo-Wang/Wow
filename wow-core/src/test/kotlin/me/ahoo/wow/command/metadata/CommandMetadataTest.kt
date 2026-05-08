@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test
 
 internal class CommandMetadataTest {
     @Test
-    fun whenEquals() {
+    fun `should when equals`() {
         val commandMetadata = commandMetadata<MockCreateAggregate>()
         commandMetadata.assert().isNotEqualTo(Any())
         val otherCommandMetadata = commandMetadata.copy()

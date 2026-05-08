@@ -22,7 +22,7 @@ import org.junit.jupiter.api.Test
 class StateDataMaskerRegistryTest {
 
     @Test
-    fun main() {
+    fun `should register and unregister maskers`() {
         val stateDataMaskerRegistry = StateDataMaskerRegistry()
         val masker = MockStateDataMasker(MOCK_AGGREGATE_METADATA)
         stateDataMaskerRegistry.unregister(masker)
@@ -39,7 +39,7 @@ class StateDataMaskerRegistryTest {
     }
 
     @Test
-    fun getEmpty() {
+    fun `should return empty masker for unknown aggregate`() {
         val stateDataMaskerRegistry = StateDataMaskerRegistry()
         val namedAggregate = "${generateGlobalId()}.${generateGlobalId()}".toNamedAggregate()
         val aggregateDataMasker = stateDataMaskerRegistry.getAggregateDataMasker(namedAggregate)

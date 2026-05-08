@@ -22,7 +22,7 @@ import org.junit.jupiter.api.Test
 
 class EventStreamConditionConverterTest {
     @Test
-    fun id() {
+    fun `should convert id condition`() {
         val condition = condition { MessageRecords.ID.eq("test") }
         val actual = EventStreamConditionConverter.convert(condition)
         val expected = Filters.eq(Documents.ID_FIELD, condition.valueAs<String>())
@@ -30,7 +30,7 @@ class EventStreamConditionConverterTest {
     }
 
     @Test
-    fun aggregateId() {
+    fun `should convert aggregate id condition`() {
         val condition = condition { aggregateId("aggregateId") }
         val actual = EventStreamConditionConverter.convert(condition)
         val expected = Filters.eq(MessageRecords.AGGREGATE_ID, condition.valueAs<String>())
@@ -38,7 +38,7 @@ class EventStreamConditionConverterTest {
     }
 
     @Test
-    fun aggregateIds() {
+    fun `should convert aggregate ids condition`() {
         val condition = condition { aggregateIds("aggregateIds") }
         val actual = EventStreamConditionConverter.convert(condition)
         val expected = Filters.`in`(MessageRecords.AGGREGATE_ID, condition.valueAs<Iterable<String>>())

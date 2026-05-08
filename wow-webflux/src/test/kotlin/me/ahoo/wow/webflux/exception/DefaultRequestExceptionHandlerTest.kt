@@ -20,7 +20,7 @@ import reactor.kotlin.test.test
 
 class DefaultRequestExceptionHandlerTest {
     @Test
-    fun handle() {
+    fun `should handle request exception`() {
         val request = MockServerRequest.builder().build()
         val ex = IllegalArgumentException()
         DefaultRequestExceptionHandler.handle(request, ex)

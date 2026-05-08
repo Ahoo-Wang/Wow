@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Test
 class TraceMessagePropagatorTest {
 
     @Test
-    fun propagate() {
+    fun `should propagate`() {
         val injectedHeader = DefaultHeader.empty()
         val upstreamMessage =
             MockCreateAggregate(GlobalIdGenerator.generateAsString(), GlobalIdGenerator.generateAsString())
@@ -30,7 +30,7 @@ class TraceMessagePropagatorTest {
     }
 
     @Test
-    fun propagateIfNotNamed() {
+    fun `should propagate if not named`() {
         val injectedHeader = DefaultHeader.empty()
         val upstreamMessage = mockk<Message<*, *>> {
             every { id } returns generateGlobalId()

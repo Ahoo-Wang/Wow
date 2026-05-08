@@ -37,7 +37,7 @@ class DefaultSnapshotQueryHandlerTest {
     )
 
     @Test
-    fun single() {
+    fun `should execute single query`() {
         val query = singleQuery {
         }
 
@@ -46,7 +46,7 @@ class DefaultSnapshotQueryHandlerTest {
     }
 
     @Test
-    fun dynamicSingle() {
+    fun `should execute dynamic single query`() {
         val query = singleQuery {
         }
 
@@ -55,21 +55,21 @@ class DefaultSnapshotQueryHandlerTest {
     }
 
     @Test
-    fun query() {
+    fun `should execute list query`() {
         val query = listQuery { }
         queryHandler.list(MOCK_AGGREGATE_METADATA, query)
             .test().verifyComplete()
     }
 
     @Test
-    fun dynamicList() {
+    fun `should execute dynamic list query`() {
         val query = listQuery { }
         queryHandler.dynamicList(MOCK_AGGREGATE_METADATA, query)
             .test().verifyComplete()
     }
 
     @Test
-    fun pagedQuery() {
+    fun `should execute paged query`() {
         val pagedQuery = me.ahoo.wow.query.dsl.pagedQuery { }
         queryHandler.paged(MOCK_AGGREGATE_METADATA, pagedQuery)
             .test()
@@ -80,7 +80,7 @@ class DefaultSnapshotQueryHandlerTest {
     }
 
     @Test
-    fun dynamicPaged() {
+    fun `should execute dynamic paged query`() {
         val pagedQuery = me.ahoo.wow.query.dsl.pagedQuery { }
         queryHandler.dynamicPaged(MOCK_AGGREGATE_METADATA, pagedQuery)
             .test()
@@ -91,7 +91,7 @@ class DefaultSnapshotQueryHandlerTest {
     }
 
     @Test
-    fun count() {
+    fun `should execute count query`() {
         val condition = condition {
             id("1")
         }

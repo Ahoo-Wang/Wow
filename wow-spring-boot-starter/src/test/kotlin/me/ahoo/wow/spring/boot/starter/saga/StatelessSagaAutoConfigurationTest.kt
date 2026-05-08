@@ -28,7 +28,7 @@ import me.ahoo.wow.saga.stateless.StatelessSagaHandler
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.saga.StatelessSagaDispatcherLauncher
 import me.ahoo.wow.spring.saga.StatelessSagaProcessorAutoRegistrar
-import org.assertj.core.api.AssertionsForInterfaceTypes
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
@@ -37,7 +37,7 @@ internal class StatelessSagaAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
 
     @Test
-    fun contextLoads() {
+    fun `should load context with stateless saga dispatcher beans`() {
         contextRunner
             .enableWow()
             .withBean(CommandGateway::class.java, { mockk() })
@@ -49,7 +49,7 @@ internal class StatelessSagaAutoConfigurationTest {
                 StatelessSagaAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
-                AssertionsForInterfaceTypes.assertThat(context)
+                context.assert()
                     .hasSingleBean(StatelessSagaFunctionRegistrar::class.java)
                     .hasSingleBean(StatelessSagaProcessorAutoRegistrar::class.java)
                     .hasSingleBean(StatelessSagaFunctionFilter::class.java)

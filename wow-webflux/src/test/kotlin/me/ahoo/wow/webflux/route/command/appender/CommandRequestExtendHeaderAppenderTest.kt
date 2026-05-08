@@ -21,7 +21,7 @@ import org.springframework.mock.web.reactive.function.server.MockServerRequest
 
 class CommandRequestExtendHeaderAppenderTest {
     @Test
-    fun append() {
+    fun `should append extend headers from request`() {
         val headerKey = "app"
         val key = CommandComponent.Header.COMMAND_HEADER_X_PREFIX + headerKey
         val value = "oms"
@@ -35,7 +35,7 @@ class CommandRequestExtendHeaderAppenderTest {
     }
 
     @Test
-    fun appendEmpty() {
+    fun `should not append when no extend headers present`() {
         val request = MockServerRequest.builder()
             .build()
         val commandHeader = DefaultHeader.empty()

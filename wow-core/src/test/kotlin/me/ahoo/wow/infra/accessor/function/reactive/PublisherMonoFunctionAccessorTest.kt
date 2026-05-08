@@ -22,7 +22,7 @@ import reactor.kotlin.test.test
 
 class PublisherMonoFunctionAccessorTest {
     @Test
-    fun invokeList() {
+    fun `should invoke publisher list function`() {
         val methodAccessor =
             ::publisherListFunction.toMonoFunctionAccessor<PublisherMonoFunctionAccessorTest, List<String>>()
         methodAccessor.assert().isInstanceOf(PublisherMonoFunctionAccessor::class.java)
@@ -32,7 +32,7 @@ class PublisherMonoFunctionAccessorTest {
     }
 
     @Test
-    fun invokeSingle() {
+    fun `should invoke publisher single function`() {
         val methodAccessor =
             ::publisherSingleFunction.toMonoFunctionAccessor<PublisherMonoFunctionAccessorTest, List<String>>()
         methodAccessor.assert().isInstanceOf(PublisherMonoFunctionAccessor::class.java)

@@ -20,7 +20,7 @@ import me.ahoo.wow.mongo.MongoSnapshotRepository
 import me.ahoo.wow.mongo.prepare.MongoPrepareKeyFactory
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.tck.container.MongoLauncher
-import org.assertj.core.api.AssertionsForInterfaceTypes
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
@@ -29,7 +29,7 @@ class MongoEventSourcingAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
 
     @Test
-    fun contextLoads() {
+    fun `should load context with mongo event sourcing beans`() {
         contextRunner
             .enableWow()
             .withPropertyValues(
@@ -45,7 +45,7 @@ class MongoEventSourcingAutoConfigurationTest {
                 MongoEventSourcingAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
-                AssertionsForInterfaceTypes.assertThat(context)
+                context.assert()
                     .hasSingleBean(MongoEventStore::class.java)
                     .hasSingleBean(MongoSnapshotRepository::class.java)
                     .hasSingleBean(MongoPrepareKeyFactory::class.java)

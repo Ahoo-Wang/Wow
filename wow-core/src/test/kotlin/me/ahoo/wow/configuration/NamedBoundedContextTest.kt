@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test
 internal class NamedBoundedContextTest {
 
     @Test
-    fun merge() {
+    fun `should merge bounded contexts`() {
         val currentAggregates = mapOf("a1" to Aggregate(linkedSetOf("1"), null))
         val current = BoundedContext(scopes = linkedSetOf("1", "2"), aggregates = currentAggregates)
 

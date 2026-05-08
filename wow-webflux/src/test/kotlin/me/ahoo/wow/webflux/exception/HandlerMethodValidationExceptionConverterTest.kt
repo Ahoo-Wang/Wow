@@ -29,7 +29,7 @@ import org.springframework.web.method.annotation.HandlerMethodValidationExceptio
 
 class HandlerMethodValidationExceptionConverterTest {
     @Test
-    fun convert() {
+    fun `should convert handler method validation exception to error info`() {
         val method = HandlerMethodValidationExceptionConverterTest::class.java.declaredMethods.first {
             it.name == "mockMethod"
         }

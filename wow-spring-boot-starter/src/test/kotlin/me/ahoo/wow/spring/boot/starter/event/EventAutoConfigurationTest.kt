@@ -24,7 +24,7 @@ import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.spring.boot.starter.BusType
 import me.ahoo.wow.spring.boot.starter.enableWow
-import org.assertj.core.api.AssertionsForInterfaceTypes
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
@@ -33,7 +33,7 @@ class EventAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
 
     @Test
-    fun contextLoads() {
+    fun `should load context when in-memory event bus`() {
         contextRunner
             .enableWow()
             .withPropertyValues("${EventProperties.BUS_TYPE}=${BusType.IN_MEMORY_NAME}")
@@ -42,14 +42,14 @@ class EventAutoConfigurationTest {
                 EventAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
-                AssertionsForInterfaceTypes.assertThat(context)
+                context.assert()
                     .hasSingleBean(InMemoryDomainEventBus::class.java)
                     .hasSingleBean(DomainEventCompensator::class.java)
             }
     }
 
     @Test
-    fun contextLoadsIfNoOp() {
+    fun `should load context when no-op event bus`() {
         contextRunner
             .enableWow()
             .withPropertyValues("${EventProperties.BUS_TYPE}=${BusType.NO_OP}")
@@ -58,14 +58,14 @@ class EventAutoConfigurationTest {
                 EventAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
-                AssertionsForInterfaceTypes.assertThat(context)
+                context.assert()
                     .hasSingleBean(NoOpDomainEventBus::class.java)
                     .hasSingleBean(DomainEventCompensator::class.java)
             }
     }
 
     @Test
-    fun contextLoadsIfLocalFirst() {
+    fun `should load context when local-first event bus`() {
         contextRunner
             .enableWow()
             .withBean(EventStore::class.java, { mockk() })
@@ -74,7 +74,7 @@ class EventAutoConfigurationTest {
                 EventAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
-                AssertionsForInterfaceTypes.assertThat(context)
+                context.assert()
                     .hasSingleBean(LocalDomainEventBus::class.java)
                     .hasSingleBean(LocalFirstDomainEventBus::class.java)
             }

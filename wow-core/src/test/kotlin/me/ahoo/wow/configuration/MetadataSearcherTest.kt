@@ -14,31 +14,31 @@
 package me.ahoo.wow.configuration
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.naming.getContextAlias
 import me.ahoo.wow.naming.toNamedBoundedContext
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
-import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 
 internal class MetadataSearcherTest {
     @Test
-    fun getMetadata() {
+    fun `should get metadata from searcher`() {
         val metadata = MetadataSearcher.metadata
         metadata.assert().isNotNull()
     }
 
     @Test
-    fun getContextAlias() {
+    fun `should get context alias from aggregate metadata`() {
         MOCK_AGGREGATE_METADATA.getContextAlias().assert().isEqualTo("tck")
     }
 
     @Test
-    fun getContextAliasIfNofFound() {
+    fun `should get context alias as name when not found`() {
         "not-found".toNamedBoundedContext().getContextAlias().assert().isEqualTo("not-found")
     }
 
     @Test
-    fun aliasConflictDetection() {
+    fun `should allow non-conflicting aliases`() {
         WowMetadata(
             mapOf(
                 "cart-service" to BoundedContext(alias = "cart"),
@@ -48,7 +48,7 @@ internal class MetadataSearcherTest {
     }
 
     @Test
-    fun aliasConflictDetectionIfEmpty() {
+    fun `should allow empty aliases without conflict`() {
         WowMetadata(
             mapOf(
                 "cart-service" to BoundedContext(),
@@ -58,8 +58,8 @@ internal class MetadataSearcherTest {
     }
 
     @Test
-    fun aliasConflictDetectionIfDuplicate() {
-        Assertions.assertThrows(IllegalStateException::class.java) {
+    fun `should throw IllegalStateException when aliases are duplicate`() {
+        assertThrownBy<IllegalStateException> {
             WowMetadata(
                 mapOf(
                     "cart-service" to BoundedContext(alias = "order"),

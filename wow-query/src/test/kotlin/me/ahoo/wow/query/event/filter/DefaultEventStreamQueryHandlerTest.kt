@@ -37,7 +37,7 @@ class DefaultEventStreamQueryHandlerTest {
     )
 
     @Test
-    fun single() {
+    fun `should execute single event stream query`() {
         val query = singleQuery {
         }
 
@@ -46,7 +46,7 @@ class DefaultEventStreamQueryHandlerTest {
     }
 
     @Test
-    fun dynamicSingle() {
+    fun `should execute dynamic single event stream query`() {
         val query = singleQuery {
         }
 
@@ -55,21 +55,21 @@ class DefaultEventStreamQueryHandlerTest {
     }
 
     @Test
-    fun query() {
+    fun `should execute list event stream query`() {
         val query = listQuery { }
         queryHandler.list(MOCK_AGGREGATE_METADATA, query)
             .test().verifyComplete()
     }
 
     @Test
-    fun dynamicList() {
+    fun `should execute dynamic list event stream query`() {
         val query = listQuery { }
         queryHandler.dynamicList(MOCK_AGGREGATE_METADATA, query)
             .test().verifyComplete()
     }
 
     @Test
-    fun pagedQuery() {
+    fun `should execute paged event stream query`() {
         val pagedQuery = me.ahoo.wow.query.dsl.pagedQuery { }
         queryHandler.paged(MOCK_AGGREGATE_METADATA, pagedQuery)
             .test()
@@ -80,7 +80,7 @@ class DefaultEventStreamQueryHandlerTest {
     }
 
     @Test
-    fun dynamicPaged() {
+    fun `should execute dynamic paged event stream query`() {
         val pagedQuery = me.ahoo.wow.query.dsl.pagedQuery { }
         queryHandler.dynamicPaged(MOCK_AGGREGATE_METADATA, pagedQuery)
             .test()
@@ -91,7 +91,7 @@ class DefaultEventStreamQueryHandlerTest {
     }
 
     @Test
-    fun count() {
+    fun `should execute count event stream query`() {
         val condition = condition {
             id("1")
         }

@@ -13,7 +13,7 @@ import reactor.core.publisher.Mono
 class CommandFunctionTest {
 
     @Test
-    fun getAnnotation() {
+    fun `should get annotation`() {
         val delegate = mockk<MessageFunction<Any, ServerCommandExchange<*>, Mono<*>>> {
             every { getAnnotation(Retry::class.java) } returns null
             every { supportedType } returns Any::class.java

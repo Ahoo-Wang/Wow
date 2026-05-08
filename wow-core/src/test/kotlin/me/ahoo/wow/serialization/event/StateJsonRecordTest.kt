@@ -13,21 +13,21 @@
 
 package me.ahoo.wow.serialization.event
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.Identifier
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObjectNode
-import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
 class StateJsonRecordTest {
     @Test
-    fun toState() {
+    fun `should convert state json record to state`() {
         val state = MockState()
         val stateNode = state.toJsonString().toObjectNode()
         val stateJsonRecord = StateJsonRecord(stateNode)
-        assertThat(stateJsonRecord.state<MockState>()).isEqualTo(state)
-        assertThat(stateJsonRecord.actual).isEqualTo(stateNode)
+        stateJsonRecord.state<MockState>().assert().isEqualTo(state)
+        stateJsonRecord.actual.assert().isEqualTo(stateNode)
     }
 
     data class MockState(override val id: String = generateGlobalId()) : Identifier

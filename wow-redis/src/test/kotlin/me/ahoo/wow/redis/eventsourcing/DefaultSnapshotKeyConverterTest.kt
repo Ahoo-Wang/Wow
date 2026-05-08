@@ -21,14 +21,14 @@ import org.junit.jupiter.api.Test
 class DefaultSnapshotKeyConverterTest {
 
     @Test
-    fun convert() {
+    fun `should convert snapshot key`() {
         val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId("id", "tenantId")
         val actual = DefaultSnapshotKeyConverter.convert(aggregateId)
         actual.assert().isEqualTo("tck.mock_aggregate:snapshot:{id@tenantId}")
     }
 
     @Test
-    fun toAggregateId() {
+    fun `should extract aggregate id from snapshot key`() {
         val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId("id", "tenantId")
         val actual = DefaultSnapshotKeyConverter.toAggregateId(
             MOCK_AGGREGATE_METADATA,

@@ -111,7 +111,7 @@ internal class OrderTest {
      * 创建订单
      */
     @Test
-    fun createOrder() {
+    fun `should create order`() {
         mockCreateOrder()
     }
 
@@ -119,7 +119,7 @@ internal class OrderTest {
      * 创建订单-非中国的收货地址
      */
     @Test
-    fun createOrderGivenNonChinaAddress() {
+    fun `should reject order given non-China address`() {
         val orderItem = CreateOrder.Item(
             productId = generateGlobalId(),
             price = BigDecimal.valueOf(10),
@@ -152,7 +152,7 @@ internal class OrderTest {
      * 创建订单-空订单项
      */
     @Test
-    fun createOrderGivenEmptyItems() {
+    fun `should reject order given empty items`() {
         aggregateVerifier<Order, OrderState>()
             .inject {
                 register(mockk<CreateOrderSpec>(), "createOrderSpec")
@@ -172,7 +172,7 @@ internal class OrderTest {
      * 创建订单-库存不足
      */
     @Test
-    fun createOrderWhenInventoryShortage() {
+    fun `should reject order when inventory shortage`() {
         val orderItem = CreateOrder.Item(
             productId = generateGlobalId(),
             price = BigDecimal.valueOf(10),
@@ -216,7 +216,7 @@ internal class OrderTest {
      * 创建订单-下单价格与当前价格不一致
      */
     @Test
-    fun createOrderWhenPriceInconsistency() {
+    fun `should reject order when price inconsistency`() {
         val orderItem = CreateOrder.Item(
             productId = generateGlobalId(),
             price = BigDecimal.valueOf(10),
@@ -296,7 +296,7 @@ internal class OrderTest {
      * 支付订单
      */
     @Test
-    fun payOrder() {
+    fun `should pay order`() {
         mockPayOrder()
     }
 
@@ -304,7 +304,7 @@ internal class OrderTest {
      * 重复支付订单
      */
     @Test
-    fun payOrderWhenDuplicated() {
+    fun `should reject duplicate payment`() {
         val verifiedStage = mockPayOrder()
         val previousState = verifiedStage.stateRoot
         val payOrder = PayOrder(
@@ -327,7 +327,7 @@ internal class OrderTest {
      * 支付订单-超付
      */
     @Test
-    fun payOrderWhenOverPay() {
+    fun `should handle over payment`() {
         val verifiedStage = mockCreateOrder()
         val previousState = verifiedStage.stateRoot
         val payOrder = PayOrder(
@@ -386,12 +386,12 @@ internal class OrderTest {
      * 发货
      */
     @Test
-    fun ship() {
+    fun `should ship order`() {
         mockShip()
     }
 
     @Test
-    fun receiptOrder() {
+    fun `should receive order`() {
         val verifiedStage = mockShip()
         verifiedStage.then().given()
             .whenCommand(ReceiptOrder(id = verifiedStage.stateRoot.id))
@@ -404,7 +404,7 @@ internal class OrderTest {
     }
 
     @Test
-    fun shipGivenUnpaid() {
+    fun `should reject shipping given unpaid order`() {
         val verifiedStage = mockCreateOrder()
         val shipOrder = ShipOrder(verifiedStage.stateRoot.id)
         verifiedStage.then().given()
@@ -421,7 +421,7 @@ internal class OrderTest {
     }
 
     @Test
-    fun changeAddress() {
+    fun `should change shipping address`() {
         val verifiedStage = mockCreateOrder()
         val changeAddress = ChangeAddress(
             shippingAddress = ShippingAddress("上海市", "上海市", "浦东新区", "张江高科", ""),
@@ -446,12 +446,12 @@ internal class OrderTest {
     }
 
     @Test
-    fun deleteOrder() {
+    fun `should delete order`() {
         mockDeleteOrder()
     }
 
     @Test
-    fun deleteGivenDeleted() {
+    fun `should reject delete given already deleted`() {
         val verifiedStageAfterDelete = mockDeleteOrder()
         verifiedStageAfterDelete.then().given()
             .whenCommand(DefaultDeleteAggregate)

@@ -27,7 +27,7 @@ import org.junit.jupiter.api.Test
 
 class CommandSortTest {
     @Test
-    fun sort() {
+    fun `should sort commands in correct order`() {
         val aggregateMetadata = aggregateMetadata<ExecutionFailed, ExecutionFailedState>()
         val sortedCommands = aggregateMetadata.command.registeredCommands
         sortedCommands.assert().containsExactly(

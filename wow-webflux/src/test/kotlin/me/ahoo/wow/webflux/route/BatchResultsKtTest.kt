@@ -27,7 +27,7 @@ import reactor.kotlin.test.test
 class BatchResultsKtTest {
 
     @Test
-    fun toBatchResult() {
+    fun `should convert flux to batch result`() {
         // Arrange
         val flux = Flux.just(
             MOCK_AGGREGATE_METADATA.aggregateId("id1"),
@@ -43,7 +43,7 @@ class BatchResultsKtTest {
     }
 
     @Test
-    fun toBatchResultWhenError() {
+    fun `should convert flux to batch result when error occurs`() {
         val flux = Flux.create<AggregateId> { sink ->
             sink.next(MOCK_AGGREGATE_METADATA.aggregateId("id1"))
             sink.next(MOCK_AGGREGATE_METADATA.aggregateId("id2"))

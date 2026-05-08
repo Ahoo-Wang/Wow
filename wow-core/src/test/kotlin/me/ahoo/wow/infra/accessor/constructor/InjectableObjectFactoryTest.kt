@@ -20,14 +20,14 @@ import org.junit.jupiter.api.Test
 internal class InjectableObjectFactoryTest {
 
     @Test
-    fun newInstance() {
+    fun `should create new instance`() {
         val injectableObjectFactory =
             InjectableObjectFactory(MockServiceWithoutParameter::class.java.getConstructor(), SimpleServiceProvider())
         injectableObjectFactory.newInstance().assert().isNotNull()
     }
 
     @Test
-    fun newInstanceWithInject() {
+    fun `should create new instance with inject`() {
         val serviceProvider = SimpleServiceProvider()
         val injectService = InjectService()
         serviceProvider.register(injectService)

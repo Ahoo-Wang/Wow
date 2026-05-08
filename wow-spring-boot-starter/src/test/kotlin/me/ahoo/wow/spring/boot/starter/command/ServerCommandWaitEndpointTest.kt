@@ -24,7 +24,7 @@ import org.springframework.boot.web.server.context.WebServerInitializedEvent
 class ServerCommandWaitEndpointTest {
 
     @Test
-    fun endpoint() {
+    fun `should return correct command wait endpoint`() {
         val hostAddress = "127.0.0.1"
         val serverCommandWaitEndpoint = ServerCommandWaitEndpoint(object : HostAddressSupplier {
             override fun getHostAddress(): String? {

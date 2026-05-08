@@ -17,7 +17,7 @@ import reactor.kotlin.test.test
 class LoadEventStreamHandlerFunctionTest {
 
     @Test
-    fun handle() {
+    fun `should handle load event stream request`() {
         val handlerFunction = LoadEventStreamHandlerFunctionFactory(
             eventStreamQueryHandler = MockQueryHandler.queryHandler,
             DefaultRequestExceptionHandler

@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test
 class CommandAggregateMetadataTest {
 
     @Test
-    fun testEquals() {
+    fun `should test equals`() {
         val aggregateMetadata =
             aggregateMetadata<MockAggregate, MockAggregate>()
         val commandAggregateMetadata = aggregateMetadata.command

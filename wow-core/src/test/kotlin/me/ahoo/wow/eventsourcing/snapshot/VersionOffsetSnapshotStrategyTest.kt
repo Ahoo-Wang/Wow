@@ -20,7 +20,7 @@ class VersionOffsetSnapshotStrategyTest : SnapshotStrategySpec() {
     }
 
     @Test
-    fun onEventWhenSave() {
+    fun `should save on event`() {
         val aggregateId = aggregateMetadata.aggregateId()
         val createdEventStream =
             MockAggregateCreated(GlobalIdGenerator.generateAsString())

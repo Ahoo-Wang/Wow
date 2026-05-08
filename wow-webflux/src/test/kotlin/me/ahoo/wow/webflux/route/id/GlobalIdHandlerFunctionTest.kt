@@ -11,7 +11,7 @@ import reactor.kotlin.test.test
 
 class GlobalIdHandlerFunctionTest {
     @Test
-    fun handle() {
+    fun `should handle generate global id request`() {
         val handlerFunction = GlobalIdHandlerFunctionFactory().create(
             GenerateGlobalIdRouteSpec(
                 componentContext = OpenAPIComponentContext.default()

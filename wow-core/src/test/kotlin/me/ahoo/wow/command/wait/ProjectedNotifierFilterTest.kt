@@ -27,7 +27,7 @@ import reactor.kotlin.test.test
 internal class ProjectedNotifierFilterTest {
 
     @Test
-    fun filter() {
+    fun `should filter`() {
         val projectedNotifierFilter = ProjectedNotifierFilter(LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar))
         val domainEvent = mockk<DomainEvent<Any>>()
         every { domainEvent.header } returns DefaultHeader.empty()

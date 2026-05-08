@@ -24,7 +24,7 @@ class SnapshotMaterializerTest {
     val snapshot = SimpleSnapshot(stateAggregate)
 
     @Test
-    fun materialize() {
+    fun `should materialize snapshot`() {
         val materializedSnapshot = snapshot.materialize {
             it
         }
@@ -44,7 +44,7 @@ class SnapshotMaterializerTest {
     }
 
     @Test
-    fun toSmall() {
+    fun `should convert to small snapshot`() {
         val smallSnapshot = snapshot.toSmall { it }
         smallSnapshot.version.assert().isEqualTo(snapshot.version)
         smallSnapshot.firstEventTime.assert().isEqualTo(snapshot.firstEventTime)
@@ -52,7 +52,7 @@ class SnapshotMaterializerTest {
     }
 
     @Test
-    fun toMedium() {
+    fun `should convert to medium snapshot`() {
         val mediumSnapshot = snapshot.toMedium { it }
         mediumSnapshot.tenantId.assert().isEqualTo(snapshot.aggregateId.tenantId)
         mediumSnapshot.ownerId.assert().isEqualTo(snapshot.ownerId)

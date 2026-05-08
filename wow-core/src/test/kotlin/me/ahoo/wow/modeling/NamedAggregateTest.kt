@@ -113,7 +113,7 @@ internal class NamedAggregateTest {
     }
 
     @Test
-    fun toNamedAggregateString() {
+    fun `should convert to named aggregate string`() {
         val context = generateGlobalId()
         val aggregateName = generateGlobalId()
         val namedAggregate = MaterializedNamedAggregate(context, aggregateName)
@@ -122,7 +122,7 @@ internal class NamedAggregateTest {
     }
 
     @Test
-    fun toStringWithAlias() {
+    fun `should convert to string with alias`() {
         val context = generateGlobalId()
         val aggregateName = generateGlobalId()
         val namedAggregate = MaterializedNamedAggregate(context, aggregateName)

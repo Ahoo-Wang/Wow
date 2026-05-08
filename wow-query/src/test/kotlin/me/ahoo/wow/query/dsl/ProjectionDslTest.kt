@@ -21,7 +21,7 @@ import org.junit.jupiter.api.Test
 class ProjectionDslTest {
 
     @Test
-    fun build() {
+    fun `should build projection with include and exclude`() {
         val projection = projection {
             include("field1")
             exclude("field2")
@@ -35,7 +35,7 @@ class ProjectionDslTest {
     }
 
     @Test
-    fun buildWithState() {
+    fun `should build projection with nested state prefix`() {
         val projection = projection {
             nestedState()
             include("field1")

@@ -34,7 +34,7 @@ class SnapshotConditionConverterTest {
     }
 
     @Test
-    fun toMongoFilterBetweenError() {
+    fun `should throw error when between filter has invalid values`() {
         assertThrownBy<IllegalArgumentException> {
             Condition("id", Operator.BETWEEN, listOf<Int>())
                 .let {
@@ -50,7 +50,7 @@ class SnapshotConditionConverterTest {
     }
 
     @Test
-    fun toMongoFilterAndError() {
+    fun `should throw error when and filter is empty`() {
         assertThrownBy<IllegalArgumentException> {
             Condition("", Operator.AND, "")
                 .let {
@@ -60,7 +60,7 @@ class SnapshotConditionConverterTest {
     }
 
     @Test
-    fun toMongoFilterOrError() {
+    fun `should throw error when or filter is empty`() {
         assertThrownBy<IllegalArgumentException> {
             Condition("", Operator.OR, "")
                 .let {
@@ -70,7 +70,7 @@ class SnapshotConditionConverterTest {
     }
 
     @Test
-    fun toMongoFilterNorError() {
+    fun `should throw error when nor filter is empty`() {
         assertThrownBy<IllegalArgumentException> {
             Condition("", Operator.NOR, "")
                 .let {
@@ -80,7 +80,7 @@ class SnapshotConditionConverterTest {
     }
 
     @Test
-    fun today() {
+    fun `should convert today condition`() {
         val actual = Condition.today("field").let {
             SnapshotConditionConverter.convert(it)
         }
@@ -92,7 +92,7 @@ class SnapshotConditionConverterTest {
     }
 
     @Test
-    fun todayUTC() {
+    fun `should convert today condition with UTC timezone`() {
         val actual = Condition.today("field").copy(
             options = mapOf(
                 Condition.ZONE_ID_OPTION_KEY to "UTC"
@@ -108,7 +108,7 @@ class SnapshotConditionConverterTest {
     }
 
     @Test
-    fun beforeToday() {
+    fun `should convert before today condition`() {
         val actual = Condition.beforeToday("field", LocalTime.NOON).let {
             SnapshotConditionConverter.convert(it)
         }
@@ -120,7 +120,7 @@ class SnapshotConditionConverterTest {
     }
 
     @Test
-    fun beforeTodayStringValue() {
+    fun `should convert before today condition given string value`() {
         val actual = Condition.beforeToday("field", "12:00").let {
             SnapshotConditionConverter.convert(it)
         }
@@ -132,7 +132,7 @@ class SnapshotConditionConverterTest {
     }
 
     @Test
-    fun beforeTodayLongValue() {
+    fun `should convert before today condition given long value`() {
         val actual = Condition.beforeToday("field", 0).let {
             SnapshotConditionConverter.convert(it)
         }
@@ -144,7 +144,7 @@ class SnapshotConditionConverterTest {
     }
 
     @Test
-    fun beforeTodayWrongValue() {
+    fun `should throw error when before today has wrong value type`() {
         assertThrownBy<IllegalArgumentException> {
             Condition.beforeToday("field", Any()).let {
                 SnapshotConditionConverter.convert(it)
@@ -153,7 +153,7 @@ class SnapshotConditionConverterTest {
     }
 
     @Test
-    fun beforeTodayDateTimeFormatter() {
+    fun `should throw error when before today has wrong formatter`() {
         assertThrownBy<IllegalArgumentException> {
             Condition.beforeToday("field", 0, Any()).let {
                 SnapshotConditionConverter.convert(it)
@@ -162,7 +162,7 @@ class SnapshotConditionConverterTest {
     }
 
     @Test
-    fun tomorrow() {
+    fun `should convert tomorrow condition`() {
         val actual = Condition.tomorrow("field").let {
             SnapshotConditionConverter.convert(it)
         }
@@ -180,7 +180,7 @@ class SnapshotConditionConverterTest {
     }
 
     @Test
-    fun tomorrowDateTimeFormatter() {
+    fun `should convert tomorrow condition with date time formatter`() {
         val dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
         val actual = Condition.tomorrow("field", dateTimeFormatter).let {
             SnapshotConditionConverter.convert(it)
@@ -199,7 +199,7 @@ class SnapshotConditionConverterTest {
     }
 
     @Test
-    fun thisWeek() {
+    fun `should convert this week condition`() {
         val actual = Condition.thisWeek("field").let {
             SnapshotConditionConverter.convert(it)
         }
@@ -219,7 +219,7 @@ class SnapshotConditionConverterTest {
     }
 
     @Test
-    fun nextWeek() {
+    fun `should convert next week condition`() {
         val actual = Condition.nextWeek("field").let {
             SnapshotConditionConverter.convert(it)
         }
@@ -239,7 +239,7 @@ class SnapshotConditionConverterTest {
     }
 
     @Test
-    fun lastWeek() {
+    fun `should convert last week condition`() {
         val actual = Condition.lastWeek("field").let {
             SnapshotConditionConverter.convert(it)
         }
@@ -259,7 +259,7 @@ class SnapshotConditionConverterTest {
     }
 
     @Test
-    fun thisMonth() {
+    fun `should convert this month condition`() {
         val actual = Condition.thisMonth("field").let {
             SnapshotConditionConverter.convert(it)
         }
@@ -278,7 +278,7 @@ class SnapshotConditionConverterTest {
     }
 
     @Test
-    fun lastMonth() {
+    fun `should convert last month condition`() {
         val actual = Condition.lastMonth("field").let {
             SnapshotConditionConverter.convert(it)
         }
@@ -298,7 +298,7 @@ class SnapshotConditionConverterTest {
     }
 
     @Test
-    fun recentDays() {
+    fun `should convert recent days condition`() {
         val actual = Condition.recentDays("field", 2).let {
             SnapshotConditionConverter.convert(it)
         }
@@ -313,7 +313,7 @@ class SnapshotConditionConverterTest {
     }
 
     @Test
-    fun earlierDays() {
+    fun `should convert earlier days condition`() {
         val actual = Condition.earlierDays("field", 2).let {
             SnapshotConditionConverter.convert(it)
         }
@@ -325,7 +325,7 @@ class SnapshotConditionConverterTest {
     }
 
     @Test
-    fun rawBson() {
+    fun `should convert raw bson condition`() {
         val expected = Filters.eq("id", "id")
         val actual = Condition.raw(expected).let {
             SnapshotConditionConverter.convert(it)
@@ -334,7 +334,7 @@ class SnapshotConditionConverterTest {
     }
 
     @Test
-    fun rawString() {
+    fun `should convert raw string condition`() {
         val actual = Condition.raw("{\"id\":\"id\"}").let {
             SnapshotConditionConverter.convert(it)
         }.toBsonDocument()
@@ -343,7 +343,7 @@ class SnapshotConditionConverterTest {
     }
 
     @Test
-    fun rawMap() {
+    fun `should convert raw map condition`() {
         val actual = Condition.raw(mapOf("id" to "id")).let {
             SnapshotConditionConverter.convert(it)
         }.toBsonDocument()
@@ -355,7 +355,7 @@ class SnapshotConditionConverterTest {
     data class RawObj(val id: String)
 
     @Test
-    fun rawObject() {
+    fun `should convert raw object condition`() {
         val actual = Condition.raw(RawObj("id")).let {
             SnapshotConditionConverter.convert(it)
         }.toBsonDocument()
@@ -365,7 +365,7 @@ class SnapshotConditionConverterTest {
 
     @ParameterizedTest
     @MethodSource("toMongoFilterParameters")
-    fun toMongoFilter(condition: Condition, expected: Bson) {
+    fun `should convert condition to mongo filter`(condition: Condition, expected: Bson) {
         val actual = condition.let {
             SnapshotConditionConverter.convert(it)
         }.toBsonDocument()

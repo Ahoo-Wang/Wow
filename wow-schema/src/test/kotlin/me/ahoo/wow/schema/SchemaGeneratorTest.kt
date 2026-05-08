@@ -148,46 +148,50 @@ class JsonSchemaGeneratorTest {
 
     @ParameterizedTest
     @MethodSource("parametersForGenerate")
-    fun generate(interfaceType: Class<*>, implType: Class<*>) {
+    fun `should generate schema matching expected`(interfaceType: Class<*>, implType: Class<*>) {
         val schema = jsonSchemaGenerator.generateSchema(implType)
         schema.assert().isEqualTo(WowSchemaLoader.load(interfaceType))
     }
 
     @ParameterizedTest
     @MethodSource("parametersForGenerateTypeParameter")
-    fun generateTypeParameter(interfaceType: Class<*>, typeParameter: Class<*>, resourceName: String) {
+    fun `should generate type parameterized schema`(
+        interfaceType: Class<*>,
+        typeParameter: Class<*>,
+        resourceName: String
+    ) {
         val schema = jsonSchemaGenerator.generateSchema(interfaceType, typeParameter)
         schema.toPrettyString().assert().isEqualTo(WowSchemaLoader.loadAsString(resourceName))
     }
 
     @Test
-    fun ignoreCommandPathRouteVariable() {
+    fun `should ignore command path route variable in schema`() {
         val schema = jsonSchemaGenerator.generateSchema(Patch::class.java).asJsonSchema()
         schema.getProperties().assert().isNull()
     }
 
     @Test
-    fun ignoreCommandHeaderRouteVariable() {
+    fun `should ignore command header route variable in schema`() {
         val schema = jsonSchemaGenerator.generateSchema(Header::class.java).asJsonSchema()
         schema.getProperties().assert().isNull()
     }
 
     @Test
-    fun notIgnoreCommandPathRouteVariable() {
+    fun `should not ignore path route variable when wow module is empty`() {
         val jsonSchemaGenerator = SchemaGeneratorBuilder().wowModule(WowModule(setOf())).build()
         val schema = jsonSchemaGenerator.generateSchema(Patch::class.java).asJsonSchema()
         schema.getProperties().assert().isNotNull()
     }
 
     @Test
-    fun enum() {
+    fun `should generate enum schema without properties`() {
         val jsonSchemaGenerator = SchemaGeneratorBuilder().build()
         val schema = jsonSchemaGenerator.generateSchema(CommandStage::class.java).asJsonSchema()
         schema.getProperties().assert().isNull()
     }
 
     @Test
-    fun aggregatedCondition() {
+    fun `should generate aggregated condition schema for order`() {
         val jsonSchemaGenerator = SchemaGeneratorBuilder().build()
         val schema = jsonSchemaGenerator.generateSchema(
             AggregatedCondition::class.java,
@@ -197,7 +201,7 @@ class JsonSchemaGeneratorTest {
     }
 
     @Test
-    fun aggregatedConditionForAny() {
+    fun `should generate aggregated condition schema for any type`() {
         val jsonSchemaGenerator = SchemaGeneratorBuilder().build()
         val schema = jsonSchemaGenerator.generateSchema(
             AggregatedCondition::class.java
@@ -206,7 +210,7 @@ class JsonSchemaGeneratorTest {
     }
 
     @Test
-    fun aggregatedListQueryForAny() {
+    fun `should generate aggregated list query schema for any type`() {
         val jsonSchemaGenerator = SchemaGeneratorBuilder().build()
         val schema = jsonSchemaGenerator.generateSchema(
             AggregatedListQuery::class.java
@@ -215,7 +219,7 @@ class JsonSchemaGeneratorTest {
     }
 
     @Test
-    fun openAPI() {
+    fun `should generate open api schema with component definitions`() {
         val jacksonModule: Module = JacksonSchemaModule(JacksonOption.RESPECT_JSONPROPERTY_REQUIRED)
         val jakartaModule = JakartaValidationModule()
         val openApiModule: Module = Swagger2Module()
@@ -262,7 +266,7 @@ class JsonSchemaGeneratorTest {
     )
 
     @Test
-    fun kotlin() {
+    fun `should generate kotlin data class schema with nullable and readonly fields`() {
         val schema = jsonSchemaGenerator.generateSchema(KotlinData::class.java)
         val nullableFieldAnyOfType = schema.get("properties").get("nullableField").get("anyOf")
         nullableFieldAnyOfType.isArray.assert().isTrue()
@@ -279,19 +283,19 @@ class JsonSchemaGeneratorTest {
     }
 
     @Test
-    fun schemaPolymorphic() {
+    fun `should generate polymorphic schema with anyOf`() {
         val schema = jsonSchemaGenerator.generateSchema(PolymorphicConfig::class.java)
         schema.get("anyOf").assert().isNotNull()
     }
 
     @Test
-    fun javaType() {
+    fun `should generate schema for java type`() {
         val jsonSchemaGenerator = SchemaGeneratorBuilder().build()
         jsonSchemaGenerator.generateSchema(CosIdGeneratorStat::class.java)
     }
 
     @Test
-    fun arrayType() {
+    fun `should generate schema for array type`() {
         val jsonSchemaGenerator = SchemaGeneratorBuilder().build()
         val arrayType = TypeResolver().arrayType(SchemaData::class.java)
         val arrayTypeSchema = jsonSchemaGenerator.generateSchema(arrayType)
@@ -299,7 +303,7 @@ class JsonSchemaGeneratorTest {
     }
 
     @Test
-    fun schema() {
+    fun `should generate schema with annotations`() {
         val schema = jsonSchemaGenerator.generateSchema(SchemaData::class.java)
         val nullableFieldNode = schema.get("properties").get("nullableField")
         val nullableFieldAnyOfType = schema.get("properties").get("nullableField").get("anyOf")
@@ -323,7 +327,7 @@ class JsonSchemaGeneratorTest {
     }
 
     @Test
-    fun schemaStartIsFieldUseWowJackson() {
+    fun `should handle is-prefixed properties with wow jackson module`() {
         val schema = jsonSchemaGenerator.generateSchema(StartIsProperty::class.java)
         val isOwnerNode = schema.get("properties").get("isOwner")
         isOwnerNode.assert().isNotNull()
@@ -332,7 +336,7 @@ class JsonSchemaGeneratorTest {
     }
 
     @Test
-    fun schemaStartIsFieldUseJackson() {
+    fun `should handle is-prefixed properties with standard jackson module`() {
         val jsonSchemaGenerator = SchemaGeneratorBuilder()
             .openapi31(true)
             .schemaVersion(SchemaVersion.DRAFT_2020_12)

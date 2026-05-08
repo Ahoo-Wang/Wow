@@ -19,7 +19,7 @@ import reactor.kotlin.test.test
 class CommandWaitHandlerFunctionTest {
 
     @Test
-    fun handle() {
+    fun `should handle wait signal request`() {
         val commandWaitHandlerFunction = CommandWaitHandlerFunction(SimpleWaitStrategyRegistrar)
         val request = mockk<ServerRequest> {
             every { bodyToMono(SimpleWaitSignal::class.java) } returns SimpleWaitSignal(

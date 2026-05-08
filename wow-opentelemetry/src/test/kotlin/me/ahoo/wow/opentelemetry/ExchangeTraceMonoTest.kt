@@ -55,7 +55,7 @@ class ExchangeTraceMonoTest {
     }
 
     @Test
-    fun traceEventProcessor() {
+    fun `should trace event processor`() {
         val exchange = mockk<DomainEventExchange<Any>> {
             every { message.id } returns generateGlobalId()
             every { message.header } returns DefaultHeader.empty()
@@ -76,7 +76,7 @@ class ExchangeTraceMonoTest {
     }
 
     @Test
-    fun traceEventProcessorWithTraceId() {
+    fun `should trace event processor with trace id`() {
         val exchange = mockk<DomainEventExchange<Any>> {
             every { message.id } returns generateGlobalId()
             every { message.header } returns DefaultHeader.empty().withTraceId(generateGlobalId())
@@ -97,7 +97,7 @@ class ExchangeTraceMonoTest {
     }
 
     @Test
-    fun traceSagaProcessor() {
+    fun `should trace saga processor`() {
         val exchange = mockk<DomainEventExchange<Any>> {
             every { message.id } returns generateGlobalId()
             every { message.header } returns DefaultHeader.empty()
@@ -119,7 +119,7 @@ class ExchangeTraceMonoTest {
     }
 
     @Test
-    fun traceProjectionProcessor() {
+    fun `should trace projection processor`() {
         val exchange = mockk<DomainEventExchange<Any>> {
             every { message.id } returns generateGlobalId()
             every { message.header } returns DefaultHeader.empty()
@@ -141,7 +141,7 @@ class ExchangeTraceMonoTest {
     }
 
     @Test
-    fun traceSnapshotProcessor() {
+    fun `should trace snapshot processor`() {
         val exchange = mockk<StateEventExchange<*>> {
             every { message.id } returns generateGlobalId()
             every { message.requestId } returns generateGlobalId()

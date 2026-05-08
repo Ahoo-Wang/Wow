@@ -26,7 +26,7 @@ import java.time.Duration
 class DomainEventCompensationFilterTest {
 
     @Test
-    fun filterSuccessAndExecutionIdIsNull() {
+    fun `should pass through when no execution id`() {
         val commandBus = InMemoryCommandBus()
         val compensationFilter = DomainEventCompensationFilter(commandBus)
         val exchange = mockk<DomainEventExchange<*>> {
@@ -42,7 +42,7 @@ class DomainEventCompensationFilterTest {
     }
 
     @Test
-    fun filterSuccessAndExecutionIdNotNull() {
+    fun `should pass through when execution id is present`() {
         val commandBus = InMemoryCommandBus()
         val compensationFilter = DomainEventCompensationFilter(commandBus)
         val exchange = mockk<DomainEventExchange<*>> {
@@ -59,7 +59,7 @@ class DomainEventCompensationFilterTest {
     }
 
     @Test
-    fun filterErrorAndEventFunctionIsNull() {
+    fun `should propagate error when event function is null`() {
         val commandBus = InMemoryCommandBus()
         val compensationFilter = DomainEventCompensationFilter(commandBus)
         val exchange = mockk<DomainEventExchange<*>> {
@@ -77,7 +77,7 @@ class DomainEventCompensationFilterTest {
     }
 
     @Test
-    fun filterError() {
+    fun `should propagate error from filter chain`() {
         val commandBus = InMemoryCommandBus()
         val compensationFilter = DomainEventCompensationFilter(commandBus)
         val eventFunction = mockk<MessageFunction<Any, DomainEventExchange<*>, Mono<*>>> {
@@ -105,7 +105,7 @@ class DomainEventCompensationFilterTest {
     }
 
     @Test
-    fun filterErrorExecutionIdNotNull() {
+    fun `should send compensation command on error with execution id`() {
         val commandBus = InMemoryCommandBus()
         val compensationFilter = DomainEventCompensationFilter(commandBus)
         val sink = Sinks.empty<Void>()
@@ -142,7 +142,7 @@ class DomainEventCompensationFilterTest {
     }
 
     @Test
-    fun filterErrorRetryDisable() {
+    fun `should not retry when retry is disabled`() {
         val commandBus = InMemoryCommandBus()
         val sink = Sinks.empty<Void>()
         commandBus.receive(setOf(CompensationEventProcessorTest.LOCAL_AGGREGATE.materialize()))
@@ -180,7 +180,7 @@ class DomainEventCompensationFilterTest {
     }
 
     @Test
-    fun getRetryFunctionInfoData() {
+    fun `should return null retry for unknown function`() {
         val functionInfo = FunctionInfoData.unknown(FunctionKind.EVENT, "contextName")
         functionInfo.getRetry().assert().isNull()
     }

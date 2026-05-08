@@ -24,7 +24,7 @@ import org.junit.jupiter.api.Test
 class CountSnapshotQueryContextTest {
 
     @Test
-    fun rewriteQuery() {
+    fun `should rewrite query with tenant id`() {
         val context = DefaultQueryContext<Condition, Any>(
             queryType = QueryType.COUNT,
             MOCK_AGGREGATE_METADATA

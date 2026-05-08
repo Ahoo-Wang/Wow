@@ -16,6 +16,7 @@ package me.ahoo.wow.command
 import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.command.validation.CommandValidator
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.LocalCommandWaitNotifier
@@ -27,7 +28,6 @@ import me.ahoo.wow.infra.idempotency.DefaultAggregateIdempotencyCheckerProvider
 import me.ahoo.wow.tck.command.CommandGatewaySpec
 import me.ahoo.wow.tck.mock.MockVoidCommand
 import me.ahoo.wow.test.validation.TestValidator
-import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
@@ -39,16 +39,16 @@ internal class DefaultCommandGatewayTest : CommandGatewaySpec() {
     }
 
     @Test
-    fun sendVoidCommand() {
+    fun `should throw when sending void command with waiting for stage`() {
         val messageGateway = createMessageBus()
         val message = MockVoidCommand(generateGlobalId()).toCommandMessage()
-        Assertions.assertThrows(IllegalArgumentException::class.java) {
+        assertThrownBy<IllegalArgumentException> {
             messageGateway.send(message, WaitingForStage.stage(message.commandId, CommandStage.PROCESSED, "", ""))
         }
     }
 
     @Test
-    fun validateCommandBody() {
+    fun `should validate command body`() {
         val message = MockCommandBody().toCommandMessage()
         verify {
             sendAndWaitForSent(message)
@@ -61,7 +61,7 @@ internal class DefaultCommandGatewayTest : CommandGatewaySpec() {
     }
 
     @Test
-    fun validateCancel() {
+    fun `should remove wait strategy when cancelled`() {
         val message = createMessage()
         verify {
             sendAndWaitForSent(message)
@@ -75,7 +75,7 @@ internal class DefaultCommandGatewayTest : CommandGatewaySpec() {
     }
 
     @Test
-    fun validateCommandBodyWhenValidateError() {
+    fun `should handle command validation error from command bus`() {
         val commandBus = mockk<CommandBus> {
             every { send(any()) } returns IllegalArgumentException().toMono()
         }

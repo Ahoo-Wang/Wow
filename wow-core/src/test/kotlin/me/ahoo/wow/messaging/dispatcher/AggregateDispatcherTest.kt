@@ -27,7 +27,7 @@ import java.util.*
 
 internal class AggregateDispatcherTest {
     @Test
-    fun stopGracefully() {
+    fun `should stop gracefully`() {
         val testDispatcher = TestAggregateDispatcher()
         testDispatcher.start()
 

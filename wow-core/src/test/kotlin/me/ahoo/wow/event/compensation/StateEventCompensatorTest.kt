@@ -27,7 +27,7 @@ import reactor.kotlin.test.test
 
 class StateEventCompensatorTest {
     @Test
-    fun resend() {
+    fun `should resend`() {
         val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId()
         val eventStore = InMemoryEventStore()
         val eventStream = generateEventStream(aggregateId)

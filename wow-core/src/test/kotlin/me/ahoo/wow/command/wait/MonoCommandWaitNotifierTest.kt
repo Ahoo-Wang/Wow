@@ -27,7 +27,7 @@ import reactor.kotlin.test.test
 internal class MonoCommandWaitNotifierTest {
 
     @Test
-    fun notifyAndForgetWrapNotInjectWaitStrategy() {
+    fun `should notify and forget wrap not inject wait strategy`() {
         val commandExchange = SimpleServerCommandExchange(MockCreateCommand("").toCommandMessage())
         val commandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar)
         Mono.empty<Void>()
@@ -41,7 +41,7 @@ internal class MonoCommandWaitNotifierTest {
     }
 
     @Test
-    fun notifyAndForgetWrap() {
+    fun `should notify and forget wrap`() {
         val command = MockCreateCommand("").toCommandMessage()
         WaitingForStage.processed(command.commandId).propagate("", command.header)
 
@@ -62,7 +62,7 @@ internal class MonoCommandWaitNotifierTest {
     }
 
     @Test
-    fun notifyAndForgetWrapError() {
+    fun `should notify and forget wrap error`() {
         val command = MockCreateCommand("").toCommandMessage()
         WaitingForStage.processed(command.commandId).propagate("", command.header)
         val commandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar)
@@ -78,7 +78,7 @@ internal class MonoCommandWaitNotifierTest {
     }
 
     @Test
-    fun notifyAndForgetWrapAndStageIsEarly() {
+    fun `should notify and forget wrap and stage is early`() {
         val command = MockCreateCommand("").toCommandMessage()
         WaitingForStage.processed(command.commandId).propagate("", command.header)
         val commandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar)

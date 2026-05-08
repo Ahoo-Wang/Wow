@@ -41,7 +41,7 @@ class OrchestrationTest {
 
     @Suppress("LongMethod")
     @Test
-    fun main() {
+    fun `should orchestrate order lifecycle`() {
         val tenantId = generateGlobalId()
 
         val orderItem = CreateOrder.Item(

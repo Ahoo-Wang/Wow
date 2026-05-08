@@ -18,7 +18,7 @@ import org.junit.jupiter.api.Test
 
 internal class NamingConverterTest {
     @Test
-    fun convert() {
+    fun `should convert`() {
         val actual = NamingConverter.PASCAL_TO_SNAKE.convert(PascalCaseStrategyTest.PHRASE)
         actual.assert().isEqualTo(SnakeCaseStrategyTest.PHRASE)
     }

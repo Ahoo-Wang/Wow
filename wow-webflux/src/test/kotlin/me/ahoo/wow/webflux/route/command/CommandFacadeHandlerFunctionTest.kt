@@ -32,7 +32,7 @@ import reactor.util.function.Tuples
 class CommandFacadeHandlerFunctionTest {
 
     @Test
-    fun handle() {
+    fun `should handle command facade request`() {
         val commandGateway = spyk<CommandGateway>(SagaVerifier.defaultCommandGateway())
 
         val handlerFunction = CommandFacadeHandlerFunctionFactory(

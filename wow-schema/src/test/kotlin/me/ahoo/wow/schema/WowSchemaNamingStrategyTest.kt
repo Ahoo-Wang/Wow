@@ -115,7 +115,7 @@ class WowSchemaNamingStrategyTest {
 
     @ParameterizedTest
     @MethodSource("parametersForToSchemaName")
-    fun toSchemaName(type: ResolvedType, expectedSchemaName: String) {
+    fun `should resolve schema name from type`(type: ResolvedType, expectedSchemaName: String) {
         val schemaName = type.toSchemaName(defaultSchemaNamePrefix)
         schemaName.assert().isEqualTo(expectedSchemaName)
     }

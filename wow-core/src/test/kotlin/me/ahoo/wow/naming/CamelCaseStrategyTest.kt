@@ -23,13 +23,13 @@ internal class CamelCaseStrategyTest {
     }
 
     @Test
-    fun segment() {
+    fun `should segment`() {
         val actual = CamelCaseStrategy.segment(PHRASE)
         actual.assert().isEqualTo(WORDS)
     }
 
     @Test
-    fun transform() {
+    fun `should transform`() {
         val actual = CamelCaseStrategy.transform(WORDS)
         actual.assert().isEqualTo(PHRASE)
     }

@@ -6,8 +6,8 @@ import org.junit.jupiter.api.Test
 class FunctionAccessorKtTest {
 
     @Test
-    fun getDeclaringClass() {
-        FunctionAccessorKtTest::getDeclaringClass.declaringClass.java.assert().isSameAs(
+    fun `should get declaring class`() {
+        FunctionAccessorKtTest::`should get declaring class`.declaringClass.java.assert().isSameAs(
             FunctionAccessorKtTest::class.java
         )
         FunctionAccessorKtTest::extensionFunction.declaringClass.java.assert().isSameAs(

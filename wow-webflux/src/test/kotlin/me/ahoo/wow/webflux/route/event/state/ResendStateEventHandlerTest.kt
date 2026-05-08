@@ -23,7 +23,7 @@ import java.time.Clock
 class ResendStateEventHandlerTest {
 
     @Test
-    fun handle() {
+    fun `should resend state events for aggregate`() {
         val snapshotRepository = InMemorySnapshotRepository()
         val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(generateGlobalId())
         val stateAggregate =

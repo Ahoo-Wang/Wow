@@ -45,25 +45,25 @@ class DocumentsKtTest {
         )
 
     @Test
-    fun toDynamicDocument() {
+    fun `should convert document to dynamic document`() {
         val dynamicDocument = snapshotDocument.replacePrimaryKeyToAggregateId().toDynamicDocument()
         dynamicDocument.getNestedDocument("state").getValue<String>("id").assert().isEqualTo(aggregateId)
     }
 
     @Test
-    fun toSnapshot() {
+    fun `should convert document to snapshot`() {
         val snapshot = snapshotDocument.toSnapshot<MockStateAggregate>()
         snapshot.aggregateId.id.assert().isEqualTo(aggregateId)
     }
 
     @Test
-    fun toSnapshotState() {
+    fun `should convert document to snapshot state`() {
         val state = snapshotDocument.toSnapshotState<MockStateAggregate>()
         state.id.assert().isEqualTo(aggregateId)
     }
 
     @Test
-    fun monoToSnapshot() {
+    fun `should convert mono to snapshot`() {
         Mono.just(snapshotDocument)
             .toSnapshot<MockStateAggregate>()
             .test().consumeNextWith {
@@ -72,7 +72,7 @@ class DocumentsKtTest {
     }
 
     @Test
-    fun monoToSnapshotState() {
+    fun `should convert mono to snapshot state`() {
         Mono.just(snapshotDocument)
             .toSnapshotState<MockStateAggregate>()
             .test().consumeNextWith {
@@ -81,7 +81,7 @@ class DocumentsKtTest {
     }
 
     @Test
-    fun fluxToSnapshot() {
+    fun `should convert flux to snapshot`() {
         Flux.just(snapshotDocument)
             .toSnapshot<MockStateAggregate>()
             .test().consumeNextWith {
@@ -90,7 +90,7 @@ class DocumentsKtTest {
     }
 
     @Test
-    fun fluxToSnapshotState() {
+    fun `should convert flux to snapshot state`() {
         Flux.just(snapshotDocument)
             .toSnapshotState<MockStateAggregate>()
             .test().consumeNextWith {
@@ -99,13 +99,13 @@ class DocumentsKtTest {
     }
 
     @Test
-    fun toMaterializedSnapshot() {
+    fun `should convert document to materialized snapshot`() {
         val materializedSnapshot = snapshotDocument.toMaterializedSnapshot<MockStateAggregate>(snapshotType)
         materializedSnapshot.aggregateId.assert().isEqualTo(aggregateId)
     }
 
     @Test
-    fun monoToMaterializedSnapshot() {
+    fun `should convert mono to materialized snapshot`() {
         Mono.just(snapshotDocument)
             .toMaterializedSnapshot<MockStateAggregate>(snapshotType)
             .test()
@@ -115,7 +115,7 @@ class DocumentsKtTest {
     }
 
     @Test
-    fun fluxToMaterializedSnapshot() {
+    fun `should convert flux to materialized snapshot`() {
         Flux.just(snapshotDocument)
             .toMaterializedSnapshot<MockStateAggregate>(snapshotType)
             .test()

@@ -25,7 +25,7 @@ import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreProperties
-import org.assertj.core.api.AssertionsForInterfaceTypes
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.mock
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
@@ -40,7 +40,7 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
 
     @Test
-    fun contextLoads() {
+    fun `should load context with elasticsearch event sourcing beans`() {
         val elasticsearchTemplate = mockk<ReactiveElasticsearchOperations> {
             every { indexOps(any<IndexCoordinates>()) } returns mockk<ReactiveIndexOperations> {
                 every { putIndexTemplate(any()) } returns true.toMono()
@@ -60,7 +60,7 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
                 ElasticsearchEventSourcingAutoConfiguration::class.java,
             )
             .run { context: AssertableApplicationContext ->
-                AssertionsForInterfaceTypes.assertThat(context)
+                context.assert()
                     .hasSingleBean(Jackson3JsonpMapper::class.java)
                     .hasSingleBean(ElasticsearchEventStore::class.java)
                     .hasSingleBean(ElasticsearchEventStreamQueryServiceFactory::class.java)

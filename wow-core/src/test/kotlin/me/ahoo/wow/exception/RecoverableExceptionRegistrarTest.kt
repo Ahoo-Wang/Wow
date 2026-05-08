@@ -10,7 +10,7 @@ import java.util.concurrent.TimeoutException
 class RecoverableExceptionRegistrarTest {
 
     @Test
-    fun recoverable() {
+    fun `should recoverable`() {
         register(IllegalArgumentException::class.java, RecoverableType.UNRECOVERABLE)
         IllegalArgumentException::class.java.recoverable.assert().isEqualTo(RecoverableType.UNRECOVERABLE)
         unregister(IllegalArgumentException::class.java)

@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test
 class DefaultDeleteAggregateFunctionTest {
 
     @Test
-    fun getAnnotation() {
+    fun `should get annotation`() {
         val commandAggregate = mockk<CommandAggregate<Any, Any>> {
             every { contextName } returns "context"
             every { aggregateName } returns "aggregate"

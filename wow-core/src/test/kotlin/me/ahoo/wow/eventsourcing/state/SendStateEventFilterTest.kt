@@ -22,7 +22,7 @@ import reactor.kotlin.test.test
 class SendStateEventFilterTest {
 
     @Test
-    fun filterIfEventStreamIsNull() {
+    fun `should filter when event stream is null`() {
         val stateEventBus = mockk<StateEventBus> {
             every { send(any()) } returns Mono.empty()
         }
@@ -44,7 +44,7 @@ class SendStateEventFilterTest {
     }
 
     @Test
-    fun filterIfCommandAggregateIsNull() {
+    fun `should filter when command aggregate is null`() {
         val stateEventBus = mockk<StateEventBus> {
             every { send(any()) } returns Mono.empty()
         }
@@ -67,7 +67,7 @@ class SendStateEventFilterTest {
     }
 
     @Test
-    fun filterIfStateNotInitialized() {
+    fun `should filter when state is not initialized`() {
         val stateEventBus = mockk<StateEventBus> {
             every { send(any()) } returns Mono.empty()
         }
@@ -95,7 +95,7 @@ class SendStateEventFilterTest {
 
     @Suppress("UNCHECKED_CAST")
     @Test
-    fun filter() {
+    fun `should send state event and filter`() {
         val stateEventBus = mockk<StateEventBus> {
             every { send(any()) } returns Mono.empty()
         }

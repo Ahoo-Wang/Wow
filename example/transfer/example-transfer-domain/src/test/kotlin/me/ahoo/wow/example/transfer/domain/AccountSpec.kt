@@ -24,7 +24,6 @@ import me.ahoo.wow.example.transfer.api.EntryFailed
 import me.ahoo.wow.example.transfer.api.Prepare
 import me.ahoo.wow.example.transfer.api.Prepared
 import me.ahoo.wow.test.AggregateSpec
-import org.assertj.core.api.Assertions.*
 
 class AccountSpec : AggregateSpec<Account, AccountState>({
 
@@ -50,7 +49,7 @@ class AccountSpec : AggregateSpec<Account, AccountState>({
                 givenEvent(AccountFrozen("")) {
                     whenCommand(Prepare("to", 100)) {
                         expectError<IllegalStateException> {
-                            assertThat(this).hasMessage("账号已冻结无法转账.")
+                            this.assert().hasMessage("账号已冻结无法转账.")
                         }
                         expectState {
                             name.assert().isEqualTo(createAccount.name)

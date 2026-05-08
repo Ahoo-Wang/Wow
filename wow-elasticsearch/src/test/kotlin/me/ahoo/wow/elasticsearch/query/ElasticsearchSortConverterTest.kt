@@ -18,13 +18,12 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.elasticsearch.query.ElasticsearchSortConverter.toSortOptions
 import me.ahoo.wow.query.dsl.sort
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class ElasticsearchSortConverterTest {
 
     @Test
-    fun `toSortOptions - should convert Sort to SortOptions`() {
+    fun `should convert Sort to SortOptions`() {
         val sort = sort {
             "field1".asc()
             "field2".desc()
@@ -43,11 +42,11 @@ class ElasticsearchSortConverterTest {
     }
 
     @Test
-    fun `toSortOptions - should convert empty Sort to empty SortOptions`() {
+    fun `should convert empty Sort to empty SortOptions`() {
         val sort = emptyList<Sort>()
 
         val actual = sort.toSortOptions()
 
-        assertTrue(actual.isEmpty())
+        actual.isEmpty().assert().isTrue()
     }
 }
