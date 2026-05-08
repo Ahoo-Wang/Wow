@@ -23,3 +23,6 @@ gradle-app.setting
 # IDE
 /.idea/
 /.vscode/
+
+# Superpowers
+docs/superpowers/
