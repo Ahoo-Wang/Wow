@@ -41,7 +41,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
         }, {
             base: '/zh/guide/extensions/',
             text: '扩展',
-            collapsed: false,
+            collapsed: true,
             items: [
                 {text: 'Kafka', link: 'kafka'},
                 {text: 'Mongo', link: 'mongo'},
@@ -56,7 +56,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
         }, {
             base: '/zh/guide/advanced/',
             text: '深入',
-            collapsed: false,
+            collapsed: true,
             items: [
                 {text: '架构', link: 'architecture'},
                 {text: 'Id 生成器', link: 'id-generator'},
@@ -69,7 +69,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
         }, {
             text: '参考',
             base: '/zh/reference/',
-            collapsed: false,
+            collapsed: true,
             items: [
                 {text: '配置', link: 'config/basic'},
                 {text: '示例', link: 'example/transfer'},
