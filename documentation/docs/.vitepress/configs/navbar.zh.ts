@@ -57,7 +57,6 @@ export const navbarZh: DefaultTheme.NavItem[] = [
                 text: '流畅的 Kotlin 断言库',
                 link: 'https://github.com/Ahoo-Wang/FluentAssert'
             },
-            { text: '-' },
             {
                 text: 'CosId - 分布式 ID 生成器',
                 link: 'https://github.com/Ahoo-Wang/CosId'

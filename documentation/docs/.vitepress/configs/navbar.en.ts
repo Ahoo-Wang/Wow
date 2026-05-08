@@ -57,7 +57,6 @@ export const navbarEn: DefaultTheme.NavItem[] = [
                 text: 'Fluent Kotlin Assertion Library',
                 link: 'https://github.com/Ahoo-Wang/FluentAssert'
             },
-            { text: '-' },
             {
                 text: 'CosId - Distributed ID Generator',
                 link: 'https://github.com/Ahoo-Wang/CosId'
