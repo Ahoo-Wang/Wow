@@ -41,7 +41,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
         }, {
             base: '/guide/extensions/',
             text: 'Extensions',
-            collapsed: false,
+            collapsed: true,
             items: [
                 {text: 'Kafka', link: 'kafka'},
                 {text: 'Mongo', link: 'mongo'},
@@ -56,7 +56,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
         }, {
             base: '/guide/advanced/',
             text: 'Advanced',
-            collapsed: false,
+            collapsed: true,
             items: [
                 {text: 'Architecture', link: 'architecture'},
                 {text: 'ID Generator', link: 'id-generator'},
@@ -69,7 +69,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
         }, {
             text: 'Reference',
             base: '/reference/',
-            collapsed: false,
+            collapsed: true,
             items: [
                 {text: 'Configuration', link: 'config/basic'},
                 {text: 'Examples', link: 'example/transfer'},
