@@ -294,13 +294,14 @@ class OrderSpec : AggregateSpec<Order, OrderState>({
 - `name(name: String)`：设置此测试场景的名称
 - `inject(block: ServiceProvider.() -> Unit)`：注入服务或依赖项
 - `givenOwnerId(ownerId: String)`：为聚合设置所有者 ID
+- `givenSpaceId(spaceId: SpaceId)`：为多租户隔离设置空间 ID
 - `givenEvent(event: Any, block: WhenDsl<S>.() -> Unit)`：使用领域事件初始化
 - `givenEvent(events: Array<out Any>, block: WhenDsl<S>.() -> Unit)`：使用多个事件初始化
 - `givenState(state: S, version: Int, block: WhenDsl<S>.() -> Unit)`：使用直接状态初始化
 
 #### WhenDsl
 - `name(name: String)`：设置此测试场景的名称
-- `whenCommand(command: Any, header: Header, ownerId: String, block: ExpectDsl<S>.() -> Unit)`：执行命令
+- `whenCommand(command: Any, header: Header, ownerId: String, spaceId: SpaceId, block: ExpectDsl<S>.() -> Unit)`：执行命令
 
 #### ExpectDsl
 - `expect(expected: ExpectedResult<S>.() -> Unit)`：定义对完整测试结果的期望
@@ -346,9 +347,17 @@ class OrderSpec : AggregateSpec<Order, OrderState>({
 - `name(name: String)`：设置此测试场景的名称
 - `functionFilter(filter: (MessageFunction<*, *, *>) -> Boolean)`：过滤消息函数
 - `functionName(functionName: String)`：按函数名称过滤
-- `whenEvent(event: Any, state: Any?, ownerId: String, block: ExpectDsl<T>.() -> Unit)`：使用事件触发 Saga
+- `whenEvent(event: Any, state: Any?, ownerId: String, spaceId: SpaceId, block: ExpectDsl<T>.() -> Unit)`：使用事件触发 Saga
 
 #### Saga ExpectDsl
 - `expectCommandType(commandType: KClass<out Any>)`：断言发送的命令类型
 - `expectCommand(block: CommandMessage<*>.() -> Unit)`：验证命令内容
+- `expectCommandBody(block: C.() -> Unit)`：验证命令体内容
+- `expectCommandCount(expected: Int)`：断言发送的命令数量
+- `expectCommandStream(block: CommandStream.() -> Unit)`：定义对完整命令流的期望
+- `expectCommandIterator(block: CommandIterator.() -> Unit)`：定义对迭代命令的期望
 - `expectNoCommand()`：断言未发送命令
+- `expectNoError()`：断言未发生错误
+- `expectError()`：断言发生了错误
+- `expectError(block: E.() -> Unit)`：定义对特定错误的期望
+- `expectErrorType(errorType: KClass<out Throwable>)`：断言特定错误类型

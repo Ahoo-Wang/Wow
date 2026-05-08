@@ -294,13 +294,14 @@ Specification class for testing stateless Sagas:
 - `name(name: String)`: Set the name for this test scenario
 - `inject(block: ServiceProvider.() -> Unit)`: Inject services or dependencies
 - `givenOwnerId(ownerId: String)`: Set owner ID for the aggregate
+- `givenSpaceId(spaceId: SpaceId)`: Set space ID for multi-tenancy isolation
 - `givenEvent(event: Any, block: WhenDsl<S>.() -> Unit)`: Initialize with domain events
 - `givenEvent(events: Array<out Any>, block: WhenDsl<S>.() -> Unit)`: Initialize with multiple events
 - `givenState(state: S, version: Int, block: WhenDsl<S>.() -> Unit)`: Initialize with direct state
 
 #### WhenDsl
 - `name(name: String)`: Set the name for this test scenario
-- `whenCommand(command: Any, header: Header, ownerId: String, block: ExpectDsl<S>.() -> Unit)`: Execute command
+- `whenCommand(command: Any, header: Header, ownerId: String, spaceId: SpaceId, block: ExpectDsl<S>.() -> Unit)`: Execute command
 
 #### ExpectDsl
 - `expect(expected: ExpectedResult<S>.() -> Unit)`: Define expectations for complete test results
@@ -346,9 +347,17 @@ The `ref()` method allows marking specific verification points for subsequent br
 - `name(name: String)`: Sets the name for this test scenario
 - `functionFilter(filter: (MessageFunction<*, *, *>) -> Boolean)`: Filter message functions
 - `functionName(functionName: String)`: Filter by function name
-- `whenEvent(event: Any, state: Any?, ownerId: String, block: ExpectDsl<T>.() -> Unit)`: Trigger Saga with event
+- `whenEvent(event: Any, state: Any?, ownerId: String, spaceId: SpaceId, block: ExpectDsl<T>.() -> Unit)`: Trigger Saga with event
 
 #### Saga ExpectDsl
 - `expectCommandType(commandType: KClass<out Any>)`: Assert sent command type
 - `expectCommand(block: CommandMessage<*>.() -> Unit)`: Verify command content
+- `expectCommandBody(block: C.() -> Unit)`: Verify command body content
+- `expectCommandCount(expected: Int)`: Assert number of commands sent
+- `expectCommandStream(block: CommandStream.() -> Unit)`: Define expectations for complete command stream
+- `expectCommandIterator(block: CommandIterator.() -> Unit)`: Define expectations for iterating commands
 - `expectNoCommand()`: Assert no commands were sent
+- `expectNoError()`: Assert no errors occurred
+- `expectError()`: Assert an error occurred
+- `expectError(block: E.() -> Unit)`: Define expectations for specific errors
+- `expectErrorType(errorType: KClass<out Throwable>)`: Assert specific error type
