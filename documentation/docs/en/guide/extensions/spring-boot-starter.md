@@ -1,3 +1,8 @@
+---
+title: Spring Boot Starter
+description: Spring Boot Starter module integrating all Wow extensions with auto-configuration.
+---
+
 # Spring-Boot-Starter
 
 The _Spring-Boot-Starter_ module integrates all _Wow_ extensions and provides auto-configuration capabilities, making the _Wow_ framework more convenient to use in _Spring Boot_ projects.

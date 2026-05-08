@@ -1,3 +1,8 @@
+---
+title: Query Service
+description: Query service provides query capabilities through wow-mongo and wow-elasticsearch modules.
+---
+
 # Query Service
 
 :::tip

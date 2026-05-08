@@ -1,3 +1,8 @@
+---
+title: Business Intelligence
+description: Wow provides real-time aggregate root state events and commands as data sources for business intelligence analysis.
+---
+
 # Business Intelligence
 
 ## Traditional Architecture VS Event Sourcing

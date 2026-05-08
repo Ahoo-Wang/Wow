@@ -1,3 +1,8 @@
+---
+title: Snapshot
+description: Snapshot is an important optimization mechanism in event sourcing architecture that improves performance by saving checkpoints of aggregate root state.
+---
+
 # Snapshot
 
 Snapshot is an important optimization mechanism in event sourcing architecture that improves performance by saving checkpoints of aggregate root state to reduce the number of event replays.

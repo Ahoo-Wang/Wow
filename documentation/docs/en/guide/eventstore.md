@@ -1,3 +1,8 @@
+---
+title: Event Store
+description: The Event Store is a core component of the event sourcing architecture, responsible for persisting and retrieving domain event streams.
+---
+
 # Event Store
 
 The Event Store is a core component of the event sourcing architecture, responsible for persisting and retrieving domain event streams. It is the foundation for aggregate root state reconstruction, ensuring that all state changes are recorded as immutable events.

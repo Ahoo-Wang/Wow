@@ -1,3 +1,8 @@
+---
+title: Best Practices
+description: Architecture and development best practices for building applications with the Wow framework.
+---
+
 # Best Practices
 
 ## Architecture Best Practices

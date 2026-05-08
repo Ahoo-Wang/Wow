@@ -1,3 +1,8 @@
+---
+title: Elasticsearch
+description: Elasticsearch extension for full-text search and complex query support.
+---
+
 # Elasticsearch
 
 The _Elasticsearch_ extension provides support for _Elasticsearch_, suitable for scenarios requiring full-text search and complex queries. It implements the following interfaces:

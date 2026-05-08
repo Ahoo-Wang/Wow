@@ -1,3 +1,8 @@
+---
+title: Projection Processor
+description: The projection processor transforms domain events into optimized read model projections in CQRS architecture.
+---
+
 # Projection Processor
 
 The *projection processor* is a core component in the Wow framework for maintaining read models in CQRS architecture. It transforms domain events into optimized projections that are tailored for specific query and display requirements.

@@ -1,3 +1,8 @@
+---
+title: OpenTelemetry
+description: OpenTelemetry integration for vendor-neutral distributed tracing and monitoring.
+---
+
 # OpenTelemetry
 
 OpenTelemetry is a vendor-neutral open source project designed to provide standard APIs, tools, and libraries for tracing and monitoring distributed applications.

@@ -1,3 +1,8 @@
+---
+title: Metrics
+description: Micrometer metrics collection for comprehensive performance monitoring and observability.
+---
+
 # Metrics
 
 The Wow framework integrates Micrometer metrics collection functionality, providing comprehensive performance monitoring and observability for all core components.

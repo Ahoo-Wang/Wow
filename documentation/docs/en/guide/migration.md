@@ -1,3 +1,8 @@
+---
+title: Migration Guide
+description: Guide for migrating from traditional architecture to the Wow framework and upgrading between versions.
+---
+
 # Migration Guide
 
 This guide helps you migrate from traditional architecture to the Wow framework, as well as upgrade between different versions.

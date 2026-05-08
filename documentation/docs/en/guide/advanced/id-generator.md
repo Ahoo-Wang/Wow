@@ -1,3 +1,8 @@
+---
+title: ID Generator
+description: Message ID and aggregate root ID generation powered by CosId.
+---
+
 # ID Generator
 
 The Wow framework's *message ID* and *aggregate root ID* generation relies on the powerful support provided by [CosId](https://github.com/Ahoo-Wang/CosId).

@@ -1,3 +1,8 @@
+---
+title: Observability
+description: End-to-end observability integration for the Wow framework.
+---
+
 # Observability
 
 ![Observability](../../../public/images/observability/observability.png)

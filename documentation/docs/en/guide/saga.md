@@ -1,3 +1,8 @@
+---
+title: Distributed Transactions (Saga)
+description: Wow provides a stateless Saga implementation based on the Orchestration pattern for handling distributed transactions.
+---
+
 # Distributed Transactions (Saga)
 
 The _Wow_ framework provides a stateless _Saga_ implementation based on the *Orchestration pattern*, which can be used to handle distributed transactions.

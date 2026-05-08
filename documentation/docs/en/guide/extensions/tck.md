@@ -1,3 +1,8 @@
+---
+title: Technology Compatibility Kit
+description: TCK test cases for verifying that interface implementations conform to specifications.
+---
+
 # Technology Compatibility Kit
 
 The Technology Compatibility Kit (_TCK_) is a set of test cases used to verify that specific interface implementations conform to specifications.
