@@ -24,9 +24,6 @@ export const head: HeadConfig[] = [
         name: 'description',
         content: '基于 DDD & EventSourcing 的现代响应式 CQRS 架构微服务开发框架 | A Modern Reactive CQRS Architecture Microservice development framework based on DDD and EventSourcing.'
     }],
-    ['meta', {'http-equiv': 'cache-control', content: 'no-cache, no-store, must-revalidate'}],
-    ['meta', {'http-equiv': 'pragma', content: 'no-cache'}],
-    ['meta', {'http-equiv': 'expires', content: '0'}],
     ['link', {rel: 'manifest', href: `${SITE_BASE}manifest.webmanifest`}],
     ['meta', {name: 'application-name', content: 'Wow'}],
     ['meta', {name: 'theme-color', content: '#5f67ee'}],
