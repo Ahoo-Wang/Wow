@@ -66,9 +66,9 @@ export const sidebarZh: DefaultTheme.Sidebar = {
                 {text: '编译器', link: 'compiler'},
                 {text: '预分配 Key', link: 'prepare-key'},
                 {text: 'JSON Schema', link: 'schema'},
-                // {text: '指标', link: 'metrics'},
-                // {text: '可观测性', link: 'observability'},
-                // {text: '聚合调度器', link: 'aggregate-scheduler'},
+                {text: '指标', link: 'metrics'},
+                {text: '可观测性', link: 'observability'},
+                {text: '聚合调度器', link: 'aggregate-scheduler'},
             ],
         }, {
             text: '参考',

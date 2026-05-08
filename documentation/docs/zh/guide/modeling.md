@@ -7,6 +7,10 @@ description: 使用聚合模式在 Wow 框架中进行聚合根建模。
 
 ## 风格
 
+:::info
+Wow 框架同时支持 Kotlin 和 Java 进行聚合建模。[银行转账示例](../reference/example/transfer)展示了一个完整的 Java 聚合。Kotlin 的默认参数值和伴生对象等特性在 Java 中不可用，但所有核心注解（`@OnCommand`、`@OnSourcing`、`@AggregateRoot` 等）在两种语言中完全一致。
+:::
+
 ### 聚合模式 (推荐)
 
 聚合模式将命令函数、溯源函数(包含聚合状态数据)分别放置在不同的类中，这样做的好处是可以避免命令函数直接变更聚合状态数据的问题(将`setter`访问器设置为`private`)。
@@ -163,6 +167,18 @@ classDiagram
 
 - 命令聚合根需要添加 `@AggregateRoot` 注解，以便 `wow-compiler` 模块可以生成相应的元数据定义。
 - 命令处理函数的 `@OnCommand` 注解不是必须的，默认情况下将命令处理函数命名为 `onCommand` 即表明该函数为命令处理函数。
+
+### 禁用路由生成
+
+使用 `@AggregateRoute(enabled = false)` 阻止聚合的自动命令路由注册：
+
+```kotlin
+@AggregateRoot
+@AggregateRoute(enabled = false)
+class InternalAggregate(val id: String) {
+    // 此聚合不会生成 REST API 端点
+}
+```
 - 命令处理函数的第一个参数可以定义为：具体命令(`AddCartItem`)、命令消息(`CommandMessage<AddCartItem>`)、命令消息交换(`CommandExchange<AddCartItem>`)。
 - 命令处理函数的其余参数将从 `IOC` 容器中获取。如果你在 `Spring IOC` 容器中注入了某个实例，可以通过参数直接获取。
 - 命令处理函数的返回值为一个或者多个领域事件，该领域事件首先会由状态聚合根通过溯源函数将状态变更为最新状态，然后持久化到 `EventStore`。

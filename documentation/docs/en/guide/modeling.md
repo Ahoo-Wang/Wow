@@ -7,6 +7,10 @@ description: Learn how to model aggregate roots in the Wow framework using the A
 
 ## Patterns
 
+:::info
+Wow framework supports both Kotlin and Java for aggregate modeling. The [Bank Transfer example](../reference/example/transfer) demonstrates a complete Java-based aggregate. Kotlin features such as default parameter values and companion objects are not available in Java, but all core annotations (`@OnCommand`, `@OnSourcing`, `@AggregateRoot`, etc.) work identically in both languages.
+:::
+
 ### Aggregate Pattern (Recommended)
 
 The aggregate pattern places command functions and sourcing functions (containing aggregate state data) in separate classes. This approach avoids the problem of command functions directly modifying aggregate state data (by setting the `setter` accessor to `private`).
@@ -163,6 +167,18 @@ The command aggregate root is responsible for defining command handler functions
 
 - The command aggregate root needs to add the `@AggregateRoot` annotation so that the `wow-compiler` module can generate corresponding metadata definitions.
 - The `@OnCommand` annotation for command handler functions is not required. By default, naming a command handler function `onCommand` indicates it is a command handler function.
+
+### Disabling Route Generation
+
+Use `@AggregateRoute(enabled = false)` to prevent automatic command route registration for an aggregate:
+
+```kotlin
+@AggregateRoot
+@AggregateRoute(enabled = false)
+class InternalAggregate(val id: String) {
+    // This aggregate won't have REST API endpoints
+}
+```
 - The first parameter of command handler functions can be defined as: specific command (`AddCartItem`), command message (`CommandMessage<AddCartItem>`), command message exchange (`CommandExchange<AddCartItem>`).
 - The remaining parameters of command handler functions will be obtained from the `IOC` container. If you have injected an instance in the `Spring IOC` container, you can obtain it directly through parameters.
 - The return value of command handler functions is one or more domain events. These domain events will first have their state changed to the latest state by the state aggregate root through sourcing functions, then be persisted to the `EventStore`.
