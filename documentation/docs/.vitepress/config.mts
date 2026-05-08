@@ -54,7 +54,10 @@ let userConfig = defineConfig({
         },
     },
     vite: {
-        plugins: [llmstxt({workDir: 'en', ignoreFiles: ['index.md']})]
+        plugins: [llmstxt({workDir: 'en', ignoreFiles: ['index.md']})],
+        optimizeDeps: {
+            include: ['mermaid']
+        }
     },
     markdown: {
         config(md) {
