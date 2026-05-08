@@ -14,6 +14,7 @@
 package me.ahoo.wow.spring.boot.starter.redis
 
 import io.mockk.mockk
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.redis.eventsourcing.RedisEventStore
 import me.ahoo.wow.redis.eventsourcing.RedisSnapshotRepository
 import me.ahoo.wow.redis.prepare.RedisPrepareKeyFactory
@@ -23,7 +24,6 @@ import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreProperties
 import me.ahoo.wow.spring.boot.starter.prepare.PrepareProperties
 import me.ahoo.wow.spring.boot.starter.prepare.PrepareStorage
-import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner

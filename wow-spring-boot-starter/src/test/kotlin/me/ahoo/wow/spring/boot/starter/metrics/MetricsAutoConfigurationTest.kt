@@ -1,7 +1,7 @@
 package me.ahoo.wow.spring.boot.starter.metrics
 
-import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.spring.boot.starter.enableWow
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner

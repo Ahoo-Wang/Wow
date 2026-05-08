@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spring.boot.starter
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.exception.DefaultErrorConverter
 import me.ahoo.wow.exception.ErrorConverter
@@ -20,7 +21,6 @@ import me.ahoo.wow.exception.ErrorConverterFactory
 import me.ahoo.wow.exception.ErrorConverterRegistrar
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration.Companion.SPRING_APPLICATION_NAME
-import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner

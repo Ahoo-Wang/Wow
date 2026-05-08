@@ -16,6 +16,7 @@ package me.ahoo.wow.spring.boot.starter.event
 import io.mockk.mockk
 import me.ahoo.cosid.machine.HostAddressSupplier
 import me.ahoo.cosid.machine.LocalHostAddressSupplier
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.event.dispatcher.DomainEventDispatcher
 import me.ahoo.wow.event.dispatcher.DomainEventFunctionFilter
 import me.ahoo.wow.event.dispatcher.DomainEventFunctionRegistrar
@@ -28,7 +29,6 @@ import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.opentelemetry.WowOpenTelemetryAutoConfiguration
 import me.ahoo.wow.spring.event.DomainEventDispatcherLauncher
 import me.ahoo.wow.spring.event.EventProcessorAutoRegistrar
-import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner

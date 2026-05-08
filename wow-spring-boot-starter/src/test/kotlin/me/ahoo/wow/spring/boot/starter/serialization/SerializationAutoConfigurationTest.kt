@@ -13,9 +13,9 @@
 
 package me.ahoo.wow.spring.boot.starter.serialization
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.serialization.WowModule
 import me.ahoo.wow.spring.boot.starter.enableWow
-import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 

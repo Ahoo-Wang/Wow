@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spring.boot.starter.r2dbc
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.r2dbc.ConnectionFactoryRegistrar
 import me.ahoo.wow.r2dbc.EventStreamSchema
 import me.ahoo.wow.r2dbc.SnapshotSchema
@@ -21,7 +22,6 @@ import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreProperties
-import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
