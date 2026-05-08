@@ -66,9 +66,9 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                 {text: 'Compiler', link: 'compiler'},
                 {text: 'Prepare Key', link: 'prepare-key'},
                 {text: 'JSON Schema', link: 'schema'},
-                // {text: 'Metrics', link: 'metrics'},
-                // {text: 'Observability', link: 'observability'},
-                // {text: 'Aggregate Scheduler', link: 'aggregate-scheduler'},
+                {text: 'Metrics', link: 'metrics'},
+                {text: 'Observability', link: 'observability'},
+                {text: 'Aggregate Scheduler', link: 'aggregate-scheduler'},
             ],
         }, {
             text: 'Reference',
