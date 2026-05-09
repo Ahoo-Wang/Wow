@@ -19,9 +19,7 @@ CoSec integration provides three key components:
 
 Add the `wow-cosec` dependency and enable the `cosec-support` capability in your Spring Boot Starter:
 
-=== "Gradle (Kotlin)"
-
-```kotlin
+```kotlin [Gradle(Kotlin)]
 implementation("me.ahoo.wow:wow-spring-boot-starter") {
     capabilities { requireCapability("cosec-support") }
 }

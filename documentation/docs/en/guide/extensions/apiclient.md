@@ -18,9 +18,7 @@ The API Client module provides a declarative RESTful client for Wow services bas
 
 Add the `wow-apiclient` dependency:
 
-=== "Gradle (Kotlin)"
-
-```kotlin
+```kotlin [Gradle(Kotlin)]
 implementation("me.ahoo.wow:wow-apiclient")
 ```
 

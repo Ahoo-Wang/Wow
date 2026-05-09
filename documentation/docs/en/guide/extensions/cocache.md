@@ -17,9 +17,7 @@ The CoCache extension integrates the [CoCache](https://github.com/Ahoo-Wang/CoCa
 
 Add the `wow-cocache` dependency:
 
-=== "Gradle (Kotlin)"
-
-```kotlin
+```kotlin [Gradle(Kotlin)]
 implementation("me.ahoo.wow:wow-cocache")
 ```
 
