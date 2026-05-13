@@ -145,36 +145,6 @@ graph LR
     wow_boot -.->|"feature variant"| wow_openapi
     wow_boot -.->|"feature variant"| wow_mock
 
-    style API fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style CORE fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style TOOLING fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style SPRING fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style INFRA fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style CLIENT fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style TESTING fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style wow_api fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style wow_core fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style wow_query fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style wow_models fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style wow_compiler fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style wow_schema fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style wow_openapi fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style wow_bi fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style wow_spring fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style wow_boot fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style wow_kafka fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style wow_mongo fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style wow_redis fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style wow_r2dbc fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style wow_es fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style wow_webflux fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style wow_otel fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style wow_cosec fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style wow_apiclient fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style wow_cocache fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style wow_test fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style wow_tck fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style wow_mock fill:#161b22,stroke:#6d5dfc,color:#e6edf3
 
 
 ```
@@ -330,16 +300,6 @@ graph TB
     R --> SR
     R2 --> ES
 
-    style Interfaces fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style Implementations fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style CB fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style DEB fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style ES fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style SR fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style K fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style M fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style R fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style R2 fill:#161b22,stroke:#6d5dfc,color:#e6edf3
 
 
 ```
@@ -419,12 +379,6 @@ graph TB
     wow_tck --> wow_core
     wow_mock --> wow_core
 
-    style Testing fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style wow_test fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style wow_tck fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style wow_mock fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style wow_it fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style wow_core fill:#161b22,stroke:#6d5dfc,color:#e6edf3
 
 
 ```

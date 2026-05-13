@@ -297,14 +297,6 @@ flowchart TB
 
     R --> S[StateAggregateRepository<br>now loads from snapshot + incremental events]
 
-    style A fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style B fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style E fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style F fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style H fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style R fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style C fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
-    style K fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
 ```
 
 <!-- Sources:
@@ -458,16 +450,6 @@ stateDiagram-v2
     Idempotent --> [*]
     Fatal --> [*]
 
-    style AppendRequested fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style Success fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style VersionConflict fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style DuplicateRequest fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style EventVersionConflictException fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
-    style DuplicateRequestIdException fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style DuplicateAggregateIdException fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
-    style Retryable fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style Idempotent fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style Fatal fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
 ```
 
 <!-- Sources:

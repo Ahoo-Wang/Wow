@@ -80,28 +80,6 @@ graph TB
     MDL --> AR
     SP --> Core
 
-    style APP fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style WOWAC fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style CAC fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style EAC fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style ESAC fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style CGAC fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style KAC fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style MAC fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style RAC fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style WAC fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style CPAC fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style SP fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style AR fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style MDL fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style RFB fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
-    style CHF fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
-    style GEH fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
-    style CB fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
-    style EB fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
-    style CG fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
-    style ES fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
-    style SR fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
 ```
 
 <!-- Sources: WowAutoConfiguration.kt:37-72, CommandAutoConfiguration.kt:38-100, EventAutoConfiguration.kt:34-82, EventSourcingAutoConfiguration.kt:24-36, CommandGatewayAutoConfiguration.kt:46-145, KafkaAutoConfiguration.kt:43-127, MongoEventSourcingAutoConfiguration.kt:47-162, RedisEventSourcingAutoConfiguration.kt:39-75, WebFluxAutoConfiguration.kt:94-582, CompensationAutoConfiguration.kt:27-56, SpringServiceProvider.kt:24-62, AutoRegistrar.kt:28-71, MessageDispatcherLauncher.kt:21-43 -->

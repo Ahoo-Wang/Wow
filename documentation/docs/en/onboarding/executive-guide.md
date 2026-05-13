@@ -76,19 +76,6 @@ graph TB
 
     RAW -.-> L1
 
-    style WOW fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style AXON fill:#2d333b,stroke:#7a7a8a,color:#e6edf3
-    style AKKA fill:#2d333b,stroke:#7a7a8a,color:#e6edf3
-    style RAW fill:#2d333b,stroke:#7a7a8a,color:#e6edf3
-    style L1 fill:#2d333b,stroke:#4aba8a,color:#e6edf3
-    style L2 fill:#2d333b,stroke:#4aba8a,color:#e6edf3
-    style L3 fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style L4 fill:#2d333b,stroke:#4aba8a,color:#e6edf3
-    style L5 fill:#2d333b,stroke:#4aba8a,color:#e6edf3
-    style L6 fill:#2d333b,stroke:#d4a84b,color:#e6edf3
-    style L7 fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style ECOSYSTEM fill:#1a1d23,stroke:#444c56,color:#e6edf3
-    style LAYERS fill:#1a1d23,stroke:#444c56,color:#e6edf3
 ```
 
 <!-- Sources: README.md:30-34, wiki/en/guide/index.md:7-16, wiki/en/reference/cqrs.md:18-19 -->
@@ -130,12 +117,6 @@ graph TB
         OBS["<b>Operational<br>Visibility</b><br>OpenTelemetry Tracing<br>Compensation Dashboard<br>Prometheus Metrics"]
     end
 
-    style CONCERN fill:#1a1d23,stroke:#444c56,color:#e6edf3
-    style TXN fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style AUDIT fill:#2d333b,stroke:#4aba8a,color:#e6edf3
-    style SCALE fill:#2d333b,stroke:#d4a84b,color:#e6edf3
-    style SPEED fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style OBS fill:#2d333b,stroke:#d45b5b,color:#e6edf3
 ```
 
 <!-- Sources: README.md:30-45, wiki/en/index.md:21-58, CLAUDE.md:46-89 -->
@@ -173,17 +154,6 @@ graph TB
     F6 --> F5
     F7 --> F2
 
-    style APP fill:#1a1d23,stroke:#6d5dfc,color:#e6edf3
-    style FRAMEWORK fill:#1a1d23,stroke:#444c56,color:#e6edf3
-    style DOMAIN fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style API fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style F1 fill:#2d333b,stroke:#7a7a8a,color:#e6edf3
-    style F2 fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style F3 fill:#2d333b,stroke:#d4a84b,color:#e6edf3
-    style F4 fill:#2d333b,stroke:#4aba8a,color:#e6edf3
-    style F5 fill:#2d333b,stroke:#d4a84b,color:#e6edf3
-    style F6 fill:#2d333b,stroke:#7a7a8a,color:#e6edf3
-    style F7 fill:#2d333b,stroke:#d45b5b,color:#e6edf3
 ```
 
 <!-- Sources: wiki/en/guide/architecture.md:30-91, CLAUDE.md:44-89, settings.gradle.kts:19-63 -->
@@ -226,11 +196,6 @@ graph TB
     MAINT -->|"increases perceived"| ADOPTION
     MAINT -->|"may slow"| GROWTH
 
-    style ADOPTION fill:#2d333b,stroke:#d45b5b,color:#e6edf3
-    style TALENT fill:#2d333b,stroke:#d4a84b,color:#e6edf3
-    style INFRA fill:#2d333b,stroke:#d4a84b,color:#e6edf3
-    style MAINT fill:#2d333b,stroke:#d45b5b,color:#e6edf3
-    style GROWTH fill:#2d333b,stroke:#d4a84b,color:#e6edf3
 ```
 
 <!-- Sources: Comprehensive analysis based on README.md, CLAUDE.md, wiki/en/guide/, and settings.gradle.kts -->
@@ -294,15 +259,6 @@ graph TB
     PILOT --> R3
     PILOT --> R4
 
-    style INVEST fill:#1a1d23,stroke:#6d5dfc,color:#e6edf3
-    style RETURN fill:#1a1d23,stroke:#4aba8a,color:#e6edf3
-    style TRAIN fill:#2d333b,stroke:#d4a84b,color:#e6edf3
-    style SETUP fill:#2d333b,stroke:#d4a84b,color:#e6edf3
-    style PILOT fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style R1 fill:#2d333b,stroke:#4aba8a,color:#e6edf3
-    style R2 fill:#2d333b,stroke:#4aba8a,color:#e6edf3
-    style R3 fill:#2d333b,stroke:#4aba8a,color:#e6edf3
-    style R4 fill:#2d333b,stroke:#4aba8a,color:#e6edf3
 ```
 
 <!-- Sources: README.md:70-98, wiki/en/index.md:78-85, wiki/en/guide/testing.md -->
@@ -429,13 +385,6 @@ flowchart TD
     Q3 -->|"Commercial support"| R_AXON
     Q3 -->|"Maximum control"| R_BUILD
 
-    style Q1 fill:#2d333b,stroke:#d4a84b,color:#e6edf3
-    style Q2 fill:#2d333b,stroke:#d4a84b,color:#e6edf3
-    style Q3 fill:#2d333b,stroke:#d4a84b,color:#e6edf3
-    style R_WOW fill:#2d333b,stroke:#4aba8a,color:#e6edf3
-    style R_AXON fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style R_BUILD fill:#2d333b,stroke:#d45b5b,color:#e6edf3
-    style R_SPRING fill:#2d333b,stroke:#7a7a8a,color:#e6edf3
 ```
 
 <!-- Sources: wiki/en/reference/cqrs.md:18-19, README.md:1-16, CLAUDE.md:46-89 -->
@@ -463,12 +412,6 @@ flowchart TB
 
     PHASE1 -.->|"No-go: feedback"| STOP1["Re-evaluate in 6 months"]
 
-    style PHASE1 fill:#2d333b,stroke:#7a7a8a,color:#e6edf3
-    style PHASE2 fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style PHASE3 fill:#2d333b,stroke:#d4a84b,color:#e6edf3
-    style PHASE4 fill:#2d333b,stroke:#4aba8a,color:#e6edf3
-    style PHASE5 fill:#2d333b,stroke:#4aba8a,color:#e6edf3
-    style STOP1 fill:#2d333b,stroke:#d45b5b,color:#e6edf3
 ```
 
 <!-- Sources: wiki/en/guide/index.md:7-16, CLAUDE.md:46-89 -->

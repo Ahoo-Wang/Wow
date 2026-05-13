@@ -297,14 +297,6 @@ flowchart TB
 
     R --> S[StateAggregateRepository<br>现在从快照 + 增量事件加载]
 
-    style A fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style B fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style E fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style F fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style H fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style R fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style C fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
-    style K fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
 ```
 
 <!-- Sources:
@@ -458,16 +450,6 @@ stateDiagram-v2
     幂等 --> [*]
     致命 --> [*]
 
-    style 请求追加 fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style 成功 fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style 版本冲突 fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style 重复请求 fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style EventVersionConflictException fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
-    style DuplicateRequestIdException fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style DuplicateAggregateIdException fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
-    style 可重试 fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style 幂等 fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style 致命 fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
 ```
 
 <!-- Sources:

@@ -21,16 +21,6 @@ graph LR
     DEB --> SNAP["Snapshots"]
     ES --> WS["WaitStrategy<br>Notify"]
 
-    style CMD fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style GW fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style CB fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style AP fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style ES fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style DEB fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style PROJ fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style SAGA fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style SNAP fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style WS fill:#161b22,stroke:#6d5dfc,color:#e6edf3
 
 
 ```
@@ -490,19 +480,6 @@ graph TB
     E6 --> ER1
     ER1 --> E8
 
-    style Errors fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style Handlers fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style E1 fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style E2 fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style E3 fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style E4 fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style E5 fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style E6 fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style E7 fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style E8 fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style ER1 fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style ER2 fill:#161b22,stroke:#6d5dfc,color:#e6edf3
-    style ER3 fill:#161b22,stroke:#6d5dfc,color:#e6edf3
 
 
 ```

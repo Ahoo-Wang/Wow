@@ -44,19 +44,6 @@ graph LR
     SAGA -->|sends| CMD
     AR -->|event sourcing| STATE
 
-    style Command_Side fill:#2d333b,stroke:#30363d,color:#e6edf3
-    style Event_Layer fill:#2d333b,stroke:#30363d,color:#e6edf3
-    style Query_Side fill:#2d333b,stroke:#30363d,color:#e6edf3
-    style Saga_Layer fill:#2d333b,stroke:#30363d,color:#e6edf3
-    style CMD fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style AR fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style STATE fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style ES fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style EB fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style PROJ fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style READ fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style SAGA fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style EVENTS fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
 ```
 
 <!-- Sources: wow-api/src/main/kotlin/me/ahoo/wow/api/command/CommandMessage.kt:53-126, wow-api/src/main/kotlin/me/ahoo/wow/api/event/DomainEvent.kt:52-95, wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt:27-98 -->

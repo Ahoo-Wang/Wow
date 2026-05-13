@@ -50,11 +50,6 @@ stateDiagram-v2
     活跃 --> 删除: 聚合被删除
     删除 --> [*]
 
-    style 创建 fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style 存储 fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style 活跃 fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style 过期 fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style 删除 fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
 ```
 
 <!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/event/snapshot/SnapshotHandler.kt -->

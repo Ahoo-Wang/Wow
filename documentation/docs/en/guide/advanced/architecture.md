@@ -213,12 +213,6 @@ stateDiagram-v2
         Solves sync delay problem.
     end note
 
-    style SENT fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style PROCESSED fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style SNAPSHOT fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style PROJECTED fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
-    style EVENT_HANDLED fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
-    style SAGA_HANDLED fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
 ```
 
 <!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt:25-123, wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitStrategy.kt -->
@@ -273,10 +267,6 @@ stateDiagram-v2
         Only RecoverAggregate allowed
     end note
 
-    style INITIAL fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style STORED fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style SOURCED fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style DELETED fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
 ```
 
 <!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/CommandAggregate.kt:41-118, wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/SimpleCommandAggregate.kt:43-80 -->

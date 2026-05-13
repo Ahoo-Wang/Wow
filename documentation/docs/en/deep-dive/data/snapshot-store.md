@@ -50,11 +50,6 @@ stateDiagram-v2
     Active --> Delete: Aggregate Deleted
     Delete --> [*]
 
-    style Create fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style Store fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style Active fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style Stale fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style Delete fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
 ```
 
 <!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/event/snapshot/SnapshotHandler.kt -->

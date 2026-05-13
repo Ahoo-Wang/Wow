@@ -70,22 +70,6 @@ graph TB
     ABK --> ESE
     ESD --> DB
 
-    style Contracts fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style Core fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style Kafka fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style Dispatchers fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
-    style DB fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style LDB fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style DDB fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style LFDB fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style IMDB fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style KDB fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style DED fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
-    style DE fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style EM fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style ES fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style ABK fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style ESD fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
 ```
 
 <!-- Sources:
@@ -229,16 +213,6 @@ flowchart LR
     E1 --- Properties
     E2 --- Properties
 
-    style Input fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style Stream fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style Properties fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
-    style CMD fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style E1 fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style E2 fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style STM fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style AID fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
-    style SEQ fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
-    style LST fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
 ```
 
 <!-- Sources:
@@ -326,18 +300,6 @@ flowchart TD
     DISTNO --> DONE
     DISTSEND2 --> DONE
 
-    style START fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style CHECK fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style LSUB fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style LRESULT fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style DISTBUS fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
-    style DONE fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style LSEND fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style SETFALSE fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style DISTSEND fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
-    style DISTNO fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
-    style DISTSEND2 fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
-    style SETLF fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
 ```
 
 <!-- Sources:

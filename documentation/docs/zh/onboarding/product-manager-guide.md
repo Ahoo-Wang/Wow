@@ -71,16 +71,6 @@ flowchart TB
     B2 --> W4
     W4 --> W5
 
-    style WhatYouWrite fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style WhatWowHandles fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style B1 fill:#2d4a3e,stroke:#4aba8a,color:#e6edf3
-    style B2 fill:#2d4a3e,stroke:#4aba8a,color:#e6edf3
-    style B3 fill:#2d4a3e,stroke:#4aba8a,color:#e6edf3
-    style W1 fill:#1e3a5f,stroke:#4a9eed,color:#e6edf3
-    style W2 fill:#1e3a5f,stroke:#4a9eed,color:#e6edf3
-    style W3 fill:#1e3a5f,stroke:#4a9eed,color:#e6edf3
-    style W4 fill:#1e3a5f,stroke:#4a9eed,color:#e6edf3
-    style W5 fill:#1e3a5f,stroke:#4a9eed,color:#e6edf3
 ```
 
 <!-- Sources: [settings.gradle.kts:19-63](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L19-L63) (module structure), [wow-api/src/main/kotlin/me/ahoo/wow/api/Wow.kt:26-45](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/Wow.kt#L26-L45) (core API contracts), wiki/en/guide/architecture.md (architecture overview), wiki/en/guide/saga.md (distributed transactions) -->
@@ -131,21 +121,6 @@ flowchart LR
 
     Phase1 --> Phase2 --> Phase3 --> Phase4
 
-    style Phase1 fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style Phase2 fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style Phase3 fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style Phase4 fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style A1 fill:#1e3a5f,stroke:#4a9eed,color:#e6edf3
-    style A2 fill:#1e3a5f,stroke:#4a9eed,color:#e6edf3
-    style A3 fill:#1e3a5f,stroke:#4a9eed,color:#e6edf3
-    style B1 fill:#2d4a3e,stroke:#4aba8a,color:#e6edf3
-    style B2 fill:#2d4a3e,stroke:#4aba8a,color:#e6edf3
-    style B3 fill:#2d4a3e,stroke:#4aba8a,color:#e6edf3
-    style C1 fill:#5a4a2e,stroke:#d4a84b,color:#e6edf3
-    style C2 fill:#5a4a2e,stroke:#d4a84b,color:#e6edf3
-    style D1 fill:#4a2e2e,stroke:#d45b5b,color:#e6edf3
-    style D2 fill:#4a2e2e,stroke:#d45b5b,color:#e6edf3
-    style D3 fill:#4a2e2e,stroke:#d45b5b,color:#e6edf3
 ```
 
 <!-- Sources: [wow-test/src/main/kotlin/me/ahoo/wow/test/AggregateSpec.kt:69-108](https://github.com/Ahoo-Wang/Wow/blob/main/test/wow-test/src/main/kotlin/me/ahoo/wow/test/AggregateSpec.kt#L69-L108) (testing DSL), [wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/OnCommand.kt:70-87](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/OnCommand.kt#L70-L87) (command handlers), wiki/en/guide/modeling.md (domain modeling workflow), wiki/en/guide/testing.md (Given-When-Expect pattern) -->
@@ -221,16 +196,6 @@ flowchart TB
     N3 --> P3
     N4 --> P4
 
-    style PMNeeds fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style WowProvides fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style N1 fill:#1e3a5f,stroke:#4a9eed,color:#e6edf3
-    style N2 fill:#1e3a5f,stroke:#4a9eed,color:#e6edf3
-    style N3 fill:#5a4a2e,stroke:#d4a84b,color:#e6edf3
-    style N4 fill:#1e3a5f,stroke:#4a9eed,color:#e6edf3
-    style P1 fill:#2d4a3e,stroke:#4aba8a,color:#e6edf3
-    style P2 fill:#2d4a3e,stroke:#4aba8a,color:#e6edf3
-    style P3 fill:#2d4a3e,stroke:#4aba8a,color:#e6edf3
-    style P4 fill:#2d4a3e,stroke:#4aba8a,color:#e6edf3
 ```
 
 <!-- Sources: [wow-bi/src/main/kotlin/me/ahoo/wow/bi/](https://github.com/Ahoo-Wang/Wow/tree/main/wow-bi/src/main/kotlin/me/ahoo/wow/bi/) (BI module), [compensation/dashboard/src/](https://github.com/Ahoo-Wang/Wow/tree/main/compensation/dashboard/src/) (React dashboard), wiki/en/guide/architecture.md (auto-generated OpenAPI), wiki/en/guide/bi.md (BI module), wiki/en/guide/event-compensation.md (dashboard) -->
@@ -371,17 +336,6 @@ flowchart TB
     Events --> ReadDB
     Queries --> ReadDB
 
-    style External fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style Security fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style Business fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style Storage fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style AuthN fill:#5a4a2e,stroke:#d4a84b,color:#e6edf3
-    style AuthZ fill:#1e3a5f,stroke:#4a9eed,color:#e6edf3
-    style Commands fill:#2d4a3e,stroke:#4aba8a,color:#e6edf3
-    style Queries fill:#2d4a3e,stroke:#4aba8a,color:#e6edf3
-    style Events fill:#4a2e2e,stroke:#d45b5b,color:#e6edf3
-    style Snapshots fill:#2d2d3d,stroke:#7a7a8a,color:#e6edf3
-    style ReadDB fill:#2d2d3d,stroke:#7a7a8a,color:#e6edf3
 ```
 
 <!-- Sources: [settings.gradle.kts:40](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L40) (wow-cosec module), [wow-cosec/src/main/kotlin/me/ahoo/wow/cosec/](https://github.com/Ahoo-Wang/Wow/tree/main/wow-cosec/src/main/kotlin/me/ahoo/wow/cosec/) (authorization framework), wiki/en/guide/architecture.md (security layer), wiki/en/guide/saga.md (multi-tenancy) -->

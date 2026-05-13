@@ -184,12 +184,6 @@ graph LR
     Suffix[".command / .event / .state"] --> Topic
     Topic["wow.order-service.order.command"]
 
-    style Config fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style Named fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style Suffix fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style Topic fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style Prefix fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
-    style Ident fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
 ```
 
 <!-- Sources: wow-kafka/AggregateTopicConverter.kt:28-55 (DefaultCommandTopicConverter, DefaultEventStreamTopicConverter, DefaultStateEventTopicConverter) -->
@@ -222,12 +216,6 @@ flowchart LR
     C2 -->|"hash(Order-002)"| P2
     E1 -->|"hash(Order-001)"| P0
 
-    style C1 fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style C2 fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style E1 fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style P0 fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
-    style P1 fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
-    style P2 fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
 ```
 
 <!-- Sources: wow-kafka/AbstractKafkaBus.kt:97-111 (encode method, key = aggregateId.id) -->
@@ -328,17 +316,6 @@ graph TB
     C2 --> Beans
     C3 --> Beans
 
-    style C1 fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
-    style C2 fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
-    style C3 fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
-    style Config fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style B1 fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style B2 fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style B3 fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style B4 fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style B5 fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style B6 fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style B7 fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
 ```
 
 <!-- Sources: wow-spring-boot-starter/kafka/KafkaAutoConfiguration.kt:43-127, wow-spring-boot-starter/kafka/ConditionalOnKafkaEnabled.kt:19-24, wow-spring-boot-starter/kafka/KafkaProperties.kt:27-68 -->

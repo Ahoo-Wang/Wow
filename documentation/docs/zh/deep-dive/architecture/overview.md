@@ -51,19 +51,6 @@ flowchart TB
     SG -->|新命令| CB
     QS --> PS
 
-    style API fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style UI fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style GW fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style CB fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style AG fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style EB fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style ES fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style SS fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style PS fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style PR fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style SG fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style QS fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style CP fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
 ```
 
 <!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/, wow-spring-boot-starter/, settings.gradle.kts -->

@@ -89,16 +89,6 @@ graph TB
     CWN -->|"9. Push each signal"| WS
     WS -->|"10. Reactive stream to caller"| CG
 
-    style CG fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style WS fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style WST fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style S1 fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style S2 fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style S3 fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style S4 fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style S5 fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style S6 fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style CWN fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
 ```
 
 <!-- Sources: CommandStage.kt:25-86, WaitingFor.kt:33-132, WaitStrategy.kt:60-176, CommandGateway.kt:75-178, DefaultCommandGateway.kt:45-246, MonoCommandWaitNotifier.kt -->
@@ -336,47 +326,6 @@ graph TB
     SCHEMA -.-> API
     TEST -.-> CGW
 
-    style CLIENT fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
-    style OTEL fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
-    style WF fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style OPENAPI fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style CGW fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style CB fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style DEB fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style ESR fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style ES fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style SR fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style CD fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style PD fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style SD fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style SN fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style WS fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style API fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style MONGO fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
-    style REDIS fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
-    style R2DBC fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
-    style KAFKA fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
-    style ESDB fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
-    style COCACHE fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
-    style METRICS fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
-    style COSEC fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
-    style COMP fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
-    style PREPARE fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
-    style KSP fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style SCHEMA fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style TEST fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style AC fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style CA fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style EA fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style ESA fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style SNA fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style KA fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style MA fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style RA fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style R2A fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style ELA fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style OA fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style COSA fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
 ```
 
 <!-- Sources: settings.gradle.kts:17-83, WowAutoConfiguration.kt:37-72, EventSourcingAutoConfiguration.kt:24-37, CommandAutoConfiguration.kt, EventAutoConfiguration.kt, wow-core package structure -->
@@ -579,19 +528,6 @@ flowchart TB
     MONGO_ES --> IDEM
     MONGO_ES --> ORD
 
-    style ESI fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style API_A fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style API_L fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style API_S fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style IM fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style MONGO_ES fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style REDIS_ES fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style R2DBC_ES fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style SHARD fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style SNAP fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style OPT fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
-    style IDEM fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
-    style ORD fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
 ```
 
 <!-- Sources: EventStore.kt:27-98, AbstractEventStore.kt:26-140, AggregateIdSharding.kt:23-191, settings.gradle.kts:27-30, InMemoryEventStore.kt -->

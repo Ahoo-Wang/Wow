@@ -55,19 +55,6 @@ graph TB
     QS -->|"dynamicQuery()"| MSQS
     MSQS -->|"find()"| SSCol
 
-    style App fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style MongoEvent fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style MongoSnap fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style MongoPrep fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style Impl fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style MES fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
-    style MSR fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
-    style MPK fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
-    style MESQ fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
-    style MSQS fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
-    style ESColl fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style SSCol fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style PKCol fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
 ```
 
 <!-- Sources:

@@ -86,17 +86,6 @@ graph LR
         O6[.zip / .zipWith] --> T6["组合多个 Mono"]
         O7[.checkpoint] --> T7["调试钩子点"]
     end
-    style M fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style F fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style D0 fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
-    style D1 fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
-    style O1 fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style O2 fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style O3 fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style O4 fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style O5 fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style O6 fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style O7 fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
 ```
 
 <!-- Sources: CommandGateway.kt:128 (Mono return), Order.kt:110 (Mono<OrderCreated>), CartSaga.kt:33 (Mono-based handler) -->
@@ -250,16 +239,6 @@ graph TB
         RS --> QAPI["查询 API<br>GET /sales-order/{id}"]
     end
 
-    style GW fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style AGG fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style ES fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style EB fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style SAGA fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style PROJ fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style RS fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
-    style API fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
-    style QAPI fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
-    style CB fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
 ```
 
 <!-- Sources: CommandGateway.kt:75-178 (CommandGateway interface), DomainEvent.kt:52-95 (DomainEvent interface), CommandAggregate.kt:41-53 (CommandAggregate interface) -->
@@ -467,21 +446,6 @@ graph TB
     COMP_CORE --> COMP_DOM
     COMP_DOM --> COMP_SRV
 
-    style API fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style CORE fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style SPRING fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style STARTER fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style KAFKA fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style MONGO fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style R2DBC fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style REDIS fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style ES fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style WEBFLUX fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style OTE fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style COSEC fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style COMP fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
-    style TEST fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
-    style TCK fill:#4a2e2e,stroke:#d45b5b,color:#e0e0e0
 ```
 
 <!-- Sources: settings.gradle.kts:19-83, CLAUDE.md:48-62, build.gradle.kts:31-51 -->
@@ -834,9 +798,6 @@ graph LR
     G[Given<br>初始事件/状态] --> W[When<br>发送命令]
     W --> E[Expect<br>验证事件 + 状态]
 
-    style G fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style W fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style E fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
 ```
 
 <!-- Sources: AggregateVerifier.kt:57-265, AggregateSpec.kt, SagaSpec.kt -->

@@ -90,16 +90,6 @@ graph TB
     Registrar -->|callback| Gateway
     Gateway -->|CommandResult| Client
 
-    style Client fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style Handler fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style Gateway fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style Registrar fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
-    style LFBus fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style InMem fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style Kafka fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style Dispatcher fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style Aggregate fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style Notifier fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
 ```
 
 <!-- Sources:
@@ -277,16 +267,6 @@ graph TB
     WFS --> WFS_EH
     WFS --> WFS_SH
 
-    style WS fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style WF fill:#2d4a3e,stroke:#4aba8a,color:#e0e0e0
-    style WFS fill:#1e3a5f,stroke:#4a9eed,color:#e0e0e0
-    style SC fill:#5a4a2e,stroke:#d4a84b,color:#e0e0e0
-    style WFS_SENT fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
-    style WFS_PROC fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
-    style WFS_SNAP fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
-    style WFS_PROJ fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
-    style WFS_EH fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
-    style WFS_SH fill:#2d2d3d,stroke:#7a7a8a,color:#e0e0e0
 ```
 
 <!-- Sources:

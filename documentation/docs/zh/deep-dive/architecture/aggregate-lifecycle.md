@@ -71,10 +71,6 @@ stateDiagram-v2
         所有其他命令被拒绝
     end note
 
-    style NEW fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style STORED fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style SOURCED fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style DELETED fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
 ```
 
 <!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/CommandAggregate.kt:41-118, wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/SimpleCommandAggregate.kt:66, wow-api/src/main/kotlin/me/ahoo/wow/api/Version.kt:41-68, wow-api/src/main/kotlin/me/ahoo/wow/api/modeling/DeletedCapable.kt:25-32 -->
@@ -361,18 +357,6 @@ flowchart TD
     T -->|"全部完成"| U["StateAggregateTagsExtractor<br>提取标签"]
     U --> V["返回 this<br>状态已变更"]
 
-    style A fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style B fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style C fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style D fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style E fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style V fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style L fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style M fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style R fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style ERR1 fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style ERR2 fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style Z fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
 ```
 
 <!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/modeling/state/SimpleStateAggregate.kt:96-141, wow-core/src/main/kotlin/me/ahoo/wow/modeling/state/SimpleStateAggregate.kt:157-182 -->
@@ -492,14 +476,6 @@ flowchart TD
     G --> H
     H --> I["StateAggregate 就绪<br>version = tailVersion"]
 
-    style A fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style B fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style C fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style D fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style F fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style G fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style H fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
-    style I fill:#2d333b,stroke:#6d5dfc,color:#e6edf3
 ```
 
 <!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventSourcingStateAggregateRepository.kt:41-148, wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStoreStateAggregateRepository.kt:33-105 -->
