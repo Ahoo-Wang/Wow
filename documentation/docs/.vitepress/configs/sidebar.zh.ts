@@ -14,6 +14,47 @@
 import {DefaultTheme} from "vitepress/types/default-theme";
 
 export const sidebarZh: DefaultTheme.Sidebar = {
+    '/zh/onboarding/': [
+        {
+            text: 'Onboarding',
+            collapsed: false,
+            items: [
+                {text: '贡献者指南', link: '/zh/onboarding/contributor-guide'},
+                {text: '架构师指南', link: '/zh/onboarding/staff-engineer-guide'},
+                {text: '管理层指南', link: '/zh/onboarding/executive-guide'},
+                {text: '产品经理指南', link: '/zh/onboarding/product-manager-guide'},
+            ],
+        },
+    ],
+    '/zh/deep-dive/': [
+        {
+            text: '架构深入',
+            collapsed: false,
+            items: [
+                {text: '架构概览', link: '/zh/deep-dive/architecture/overview'},
+                {text: '命令总线', link: '/zh/deep-dive/architecture/command-bus'},
+                {text: '事件总线', link: '/zh/deep-dive/architecture/event-bus'},
+                {text: '聚合生命周期', link: '/zh/deep-dive/architecture/aggregate-lifecycle'},
+            ],
+        },
+        {
+            text: '数据层',
+            collapsed: false,
+            items: [
+                {text: '事件存储', link: '/zh/deep-dive/data/event-store'},
+                {text: '快照存储', link: '/zh/deep-dive/data/snapshot-store'},
+            ],
+        },
+        {
+            text: '集成',
+            collapsed: false,
+            items: [
+                {text: 'Spring Boot', link: '/zh/deep-dive/integrations/spring-boot'},
+                {text: 'Kafka', link: '/zh/deep-dive/integrations/kafka'},
+                {text: 'MongoDB', link: '/zh/deep-dive/integrations/mongodb'},
+            ],
+        },
+    ],
     '/zh/guide/': [
         {
             base: '/zh/guide/',
@@ -22,6 +63,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
             items: [
                 {text: '简介', link: 'introduction'},
                 {text: '快速上手', link: 'getting-started'},
+                {text: '核心概念', link: 'core-concepts'},
                 {text: '聚合建模', link: 'modeling'},
                 {text: '事件存储', link: 'eventstore'},
                 {text: '快照', link: 'snapshot'},
@@ -62,6 +104,8 @@ export const sidebarZh: DefaultTheme.Sidebar = {
             collapsed: true,
             items: [
                 {text: '架构', link: 'architecture'},
+                {text: '数据流', link: 'data-flow'},
+                {text: '模块依赖', link: 'module-dependencies'},
                 {text: 'Id 生成器', link: 'id-generator'},
                 {text: '编译器', link: 'compiler'},
                 {text: '预分配 Key', link: 'prepare-key'},

@@ -14,6 +14,47 @@
 import {DefaultTheme} from "vitepress/types/default-theme";
 
 export const sidebarEn: DefaultTheme.Sidebar = {
+    '/onboarding/': [
+        {
+            text: 'Onboarding',
+            collapsed: false,
+            items: [
+                {text: 'Contributor Guide', link: '/onboarding/contributor-guide'},
+                {text: 'Staff Engineer Guide', link: '/onboarding/staff-engineer-guide'},
+                {text: 'Executive Guide', link: '/onboarding/executive-guide'},
+                {text: 'Product Manager Guide', link: '/onboarding/product-manager-guide'},
+            ],
+        },
+    ],
+    '/deep-dive/': [
+        {
+            text: 'Architecture',
+            collapsed: false,
+            items: [
+                {text: 'Architecture Overview', link: '/deep-dive/architecture/overview'},
+                {text: 'Command Bus', link: '/deep-dive/architecture/command-bus'},
+                {text: 'Event Bus', link: '/deep-dive/architecture/event-bus'},
+                {text: 'Aggregate Lifecycle', link: '/deep-dive/architecture/aggregate-lifecycle'},
+            ],
+        },
+        {
+            text: 'Data Layer',
+            collapsed: false,
+            items: [
+                {text: 'Event Store', link: '/deep-dive/data/event-store'},
+                {text: 'Snapshot Store', link: '/deep-dive/data/snapshot-store'},
+            ],
+        },
+        {
+            text: 'Integrations',
+            collapsed: false,
+            items: [
+                {text: 'Spring Boot', link: '/deep-dive/integrations/spring-boot'},
+                {text: 'Kafka', link: '/deep-dive/integrations/kafka'},
+                {text: 'MongoDB', link: '/deep-dive/integrations/mongodb'},
+            ],
+        },
+    ],
     '/guide/': [
         {
             base: '/guide/',
@@ -22,6 +63,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             items: [
                 {text: 'Introduction', link: 'introduction'},
                 {text: 'Getting Started', link: 'getting-started'},
+                {text: 'Core Concepts', link: 'core-concepts'},
                 {text: 'Aggregate Modeling', link: 'modeling'},
                 {text: 'Event Store', link: 'eventstore'},
                 {text: 'Snapshot', link: 'snapshot'},
@@ -62,6 +104,8 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             collapsed: true,
             items: [
                 {text: 'Architecture', link: 'architecture'},
+                {text: 'Data Flow', link: 'data-flow'},
+                {text: 'Module Dependencies', link: 'module-dependencies'},
                 {text: 'ID Generator', link: 'id-generator'},
                 {text: 'Compiler', link: 'compiler'},
                 {text: 'Prepare Key', link: 'prepare-key'},

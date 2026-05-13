@@ -7,6 +7,16 @@ export const navbarEn: DefaultTheme.NavItem[] = [
         activeMatch: '^/guide/'
     },
     {
+        text: 'Deep Dive',
+        activeMatch: '^/deep-dive/',
+        items: [
+            {text: 'Architecture Overview', link: '/deep-dive/architecture/overview'},
+            {text: 'Command Bus', link: '/deep-dive/architecture/command-bus'},
+            {text: 'Event Bus', link: '/deep-dive/architecture/event-bus'},
+            {text: 'Event Store', link: '/deep-dive/data/event-store'},
+        ]
+    },
+    {
         text: 'Reference',
         activeMatch: '^/reference/',
         items: [

@@ -7,6 +7,16 @@ export const navbarZh: DefaultTheme.NavItem[] = [
         activeMatch: '^/zh/guide/'
     },
     {
+        text: '深入',
+        activeMatch: '^/zh/deep-dive/',
+        items: [
+            {text: '架构概览', link: '/zh/deep-dive/architecture/overview'},
+            {text: '命令总线', link: '/zh/deep-dive/architecture/command-bus'},
+            {text: '事件总线', link: '/zh/deep-dive/architecture/event-bus'},
+            {text: '事件存储', link: '/zh/deep-dive/data/event-store'},
+        ]
+    },
+    {
         text: '参考',
         activeMatch: '^/zh/reference/',
         items: [
