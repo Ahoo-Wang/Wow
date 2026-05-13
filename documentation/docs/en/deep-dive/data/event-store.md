@@ -269,7 +269,7 @@ Snapshots solve the fundamental performance problem of event sourcing: replaying
 ```mermaid
 flowchart TB
     A[State Event Published] --> B{Snapshot Enabled?}
-    B -->|No (NoOp)| C[Skip -- no snapshot]
+    B -->|No| C[Skip -- no snapshot]
     B -->|Yes| D{Strategy Type?}
 
     D -->|ALL| E[SimpleSnapshotStrategy]
