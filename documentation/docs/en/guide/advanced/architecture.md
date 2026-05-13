@@ -236,37 +236,12 @@ The aggregate root is the heart of domain logic in the Wow Framework. It follows
 
 ```mermaid
 stateDiagram-v2
-    direction LR
-
-    state "Aggregate Lifecycle" as Lifecycle {
-        [*] --> INITIAL : create new aggregate
-        INITIAL --> STORED : initial state loaded
-        STORED --> SOURCED : events sourced into state<br>(CommandState.onSourcing)
-        SOURCED --> STORED : events appended to EventStore<br>(CommandState.onStore)
-        STORED --> DELETED : DeleteAggregate command
-        DELETED --> STORED : RecoverAggregate command
-
-        state "Command Processing Cycle" as Cycle {
-            STORED : ready to source events
-            SOURCED : events applied, ready to store
-        }
-    }
-
-    note right of STORED
-        Supports: sourcing events
-        Initial command processing state
-    end note
-
-    note right of SOURCED
-        Supports: storing events
-        After events applied to state
-    end note
-
-    note right of DELETED
-        Supports: no operations
-        Only RecoverAggregate allowed
-    end note
-
+    [*] --> INITIAL : create new aggregate
+    INITIAL --> STORED : initial state loaded
+    STORED --> SOURCED : events sourced into state
+    SOURCED --> STORED : events appended to EventStore
+    STORED --> DELETED : DeleteAggregate command
+    DELETED --> STORED : RecoverAggregate command
 ```
 
 <!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/CommandAggregate.kt:41-118, wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/SimpleCommandAggregate.kt:43-80 -->

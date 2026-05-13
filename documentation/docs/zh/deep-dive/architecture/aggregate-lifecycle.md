@@ -28,49 +28,13 @@ outline: deep
 
 ```mermaid
 stateDiagram-v2
-    direction TB
-
-    state "聚合生命周期" as FullLifecycle {
-        [*] --> NEW : 工厂创建<br>version = 0
-
-        state "活跃（命令处理循环）" as Active {
-            STORED : 准备溯源事件<br>版本已检查，状态已加载
-            SOURCED : 事件已应用到状态<br>准备持久化
-
-            STORED --> SOURCED : onSourcing(eventStream)<br>将事件应用到状态
-            SOURCED --> STORED : onStore(eventStore, eventStream)<br>原子性追加 + 快照
-        }
-
-        NEW --> STORED : isCreate = true<br>第一条命令到达
-        STORED --> DELETED : DeleteAggregate 命令<br>AggregateDeleted 事件
-        DELETED --> STORED : RecoverAggregate 命令<br>AggregateRecovered 事件
-        DELETED --> [*] : （逻辑终点）
-    }
-
-    note right of NEW
-        version = 0（未初始化）
-        事件存储中无事件
-        仅允许 isCreate 命令
-    end note
-
-    note right of STORED
-        支持：溯源事件
-        聚合已加载并就绪
-        命令可以处理
-    end note
-
-    note right of SOURCED
-        支持：存储事件
-        事件已应用到状态之后
-        内部过渡状态
-    end note
-
-    note right of DELETED
-        deleted = true
-        仅允许 RecoverAggregate
-        所有其他命令被拒绝
-    end note
-
+    [*] --> NEW : 工厂创建, version = 0
+    NEW --> STORED : isCreate = true, 第一条命令
+    STORED --> SOURCED : onSourcing(eventStream)
+    SOURCED --> STORED : onStore + snapshot
+    STORED --> DELETED : DeleteAggregate 命令
+    DELETED --> STORED : RecoverAggregate 命令
+    DELETED --> [*] : 逻辑终点
 ```
 
 <!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/CommandAggregate.kt:41-118, wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/SimpleCommandAggregate.kt:66, wow-api/src/main/kotlin/me/ahoo/wow/api/Version.kt:41-68, wow-api/src/main/kotlin/me/ahoo/wow/api/modeling/DeletedCapable.kt:25-32 -->

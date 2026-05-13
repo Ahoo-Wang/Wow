@@ -236,37 +236,12 @@ stateDiagram-v2
 
 ```mermaid
 stateDiagram-v2
-    direction LR
-
-    state "聚合生命周期" as Lifecycle {
-        [*] --> INITIAL : 创建新聚合
-        INITIAL --> STORED : 初始状态已加载
-        STORED --> SOURCED : 事件已溯源到状态<br>（CommandState.onSourcing）
-        SOURCED --> STORED : 事件已追加到 EventStore<br>（CommandState.onStore）
-        STORED --> DELETED : DeleteAggregate 命令
-        DELETED --> STORED : RecoverAggregate 命令
-
-        state "命令处理循环" as Cycle {
-            STORED : 准备溯源事件
-            SOURCED : 事件已应用，准备存储
-        }
-    }
-
-    note right of STORED
-        支持：溯源事件
-        命令处理的初始状态
-    end note
-
-    note right of SOURCED
-        支持：存储事件
-        事件应用至状态之后
-    end note
-
-    note right of DELETED
-        支持：无操作
-        仅允许 RecoverAggregate
-    end note
-
+    [*] --> INITIAL : 创建新聚合
+    INITIAL --> STORED : 初始状态已加载
+    STORED --> SOURCED : 事件已溯源到状态
+    SOURCED --> STORED : 事件已追加到 EventStore
+    STORED --> DELETED : DeleteAggregate 命令
+    DELETED --> STORED : RecoverAggregate 命令
 ```
 
 <!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/CommandAggregate.kt:41-118, wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/SimpleCommandAggregate.kt:43-80 -->

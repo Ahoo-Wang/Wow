@@ -191,7 +191,6 @@ sequenceDiagram
 
 ```mermaid
 stateDiagram-v2
-    direction TB
 
     [*] --> SENT: 命令已发布到总线
 

@@ -322,11 +322,10 @@ Every aggregate implements a separation of concerns:
 
 ```mermaid
 stateDiagram-v2
-    direction LR
 
-    [*] --> STORED: command stored<br>(event sourcing ready)
-    STORED --> SOURCED: onSourcing applied<br>(state reconstructed)
-    SOURCED --> STORED: events appended to store<br>(ready for next command)
+    [*] --> STORED: command stored - (event sourcing ready)
+    STORED --> SOURCED: onSourcing applied - (state reconstructed)
+    SOURCED --> STORED: events appended to store - (ready for next command)
     STORED --> EXPIRED: TTL / eviction
     SOURCED --> EXPIRED: TTL / eviction
     EXPIRED --> [*]

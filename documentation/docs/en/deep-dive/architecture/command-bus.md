@@ -191,7 +191,6 @@ The `CommandStage` enum defines six processing milestones. Each stage declares i
 
 ```mermaid
 stateDiagram-v2
-    direction TB
 
     [*] --> SENT: Command published to bus
 

@@ -322,11 +322,10 @@ classDiagram
 
 ```mermaid
 stateDiagram-v2
-    direction LR
 
-    [*] --> STORED: 命令已存储<br>（事件溯源就绪）
-    STORED --> SOURCED: onSourcing 已应用<br>（状态已重建）
-    SOURCED --> STORED: 事件已追加到存储<br>（准备处理下一个命令）
+    [*] --> STORED: 命令已存储 - （事件溯源就绪）
+    STORED --> SOURCED: onSourcing 已应用 - （状态已重建）
+    SOURCED --> STORED: 事件已追加到存储 - （准备处理下一个命令）
     STORED --> EXPIRED: TTL / 淘汰
     SOURCED --> EXPIRED: TTL / 淘汰
     EXPIRED --> [*]

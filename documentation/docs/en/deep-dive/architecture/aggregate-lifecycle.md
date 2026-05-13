@@ -28,49 +28,13 @@ The aggregate lifecycle spans from creation through active command processing to
 
 ```mermaid
 stateDiagram-v2
-    direction TB
-
-    state "Aggregate Lifecycle" as FullLifecycle {
-        [*] --> NEW : factory creates<br>version = 0
-
-        state "Active (Command Processing Cycle)" as Active {
-            STORED : Ready to source events<br>version checked, state loaded
-            SOURCED : Events applied to state<br>ready to persist
-
-            STORED --> SOURCED : onSourcing(eventStream)<br>apply events to state
-            SOURCED --> STORED : onStore(eventStore, eventStream)<br>atomic append + snapshot
-        }
-
-        NEW --> STORED : isCreate = true<br>first command arrives
-        STORED --> DELETED : DeleteAggregate command<br>AggregateDeleted event
-        DELETED --> STORED : RecoverAggregate command<br>AggregateRecovered event
-        DELETED --> [*] : (logical end)
-    }
-
-    note right of NEW
-        version = 0 (UNINITIALIZED)
-        No events in store
-        Only isCreate commands allowed
-    end note
-
-    note right of STORED
-        Supports: sourcing events
-        Aggregate is loaded and ready
-        Command can be processed
-    end note
-
-    note right of SOURCED
-        Supports: storing events
-        After events applied to state
-        Internal transitional state
-    end note
-
-    note right of DELETED
-        deleted = true
-        Only RecoverAggregate allowed
-        All other commands rejected
-    end note
-
+    [*] --> NEW : factory creates, version = 0
+    NEW --> STORED : isCreate = true, first command
+    STORED --> SOURCED : onSourcing(eventStream)
+    SOURCED --> STORED : onStore + snapshot
+    STORED --> DELETED : DeleteAggregate command
+    DELETED --> STORED : RecoverAggregate command
+    DELETED --> [*] : logical end
 ```
 
 <!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/CommandAggregate.kt:41-118, wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/SimpleCommandAggregate.kt:66, wow-api/src/main/kotlin/me/ahoo/wow/api/Version.kt:41-68, wow-api/src/main/kotlin/me/ahoo/wow/api/modeling/DeletedCapable.kt:25-32 -->
