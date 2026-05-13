@@ -26,61 +26,66 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             ],
         },
     ],
-    '/deep-dive/': [
-        {
-            text: 'Architecture',
-            collapsed: false,
-            items: [
-                {text: 'Architecture Overview', link: '/deep-dive/architecture/overview'},
-                {text: 'Command Bus', link: '/deep-dive/architecture/command-bus'},
-                {text: 'Event Bus', link: '/deep-dive/architecture/event-bus'},
-                {text: 'Aggregate Lifecycle', link: '/deep-dive/architecture/aggregate-lifecycle'},
-            ],
-        },
-        {
-            text: 'Data Layer',
-            collapsed: false,
-            items: [
-                {text: 'Event Store', link: '/deep-dive/data/event-store'},
-                {text: 'Snapshot Store', link: '/deep-dive/data/snapshot-store'},
-            ],
-        },
-        {
-            text: 'Integrations',
-            collapsed: false,
-            items: [
-                {text: 'Spring Boot', link: '/deep-dive/integrations/spring-boot'},
-                {text: 'Kafka', link: '/deep-dive/integrations/kafka'},
-                {text: 'MongoDB', link: '/deep-dive/integrations/mongodb'},
-            ],
-        },
-    ],
     '/guide/': [
         {
+            text: 'Onboarding',
+            collapsed: false,
+            items: [
+                {text: 'Contributor Guide', link: '/onboarding/contributor-guide'},
+                {text: 'Staff Engineer Guide', link: '/onboarding/staff-engineer-guide'},
+                {text: 'Executive Guide', link: '/onboarding/executive-guide'},
+                {text: 'Product Manager Guide', link: '/onboarding/product-manager-guide'},
+            ],
+        },
+        {
             base: '/guide/',
-            text: 'Guide',
+            text: 'Basics',
             collapsed: false,
             items: [
                 {text: 'Introduction', link: 'introduction'},
                 {text: 'Getting Started', link: 'getting-started'},
                 {text: 'Core Concepts', link: 'core-concepts'},
                 {text: 'Aggregate Modeling', link: 'modeling'},
+                {text: 'Configuration', link: 'configuration'},
+            ],
+        },
+        {
+            base: '/guide/',
+            text: 'Core',
+            collapsed: false,
+            items: [
                 {text: 'Event Store', link: 'eventstore'},
                 {text: 'Snapshot', link: 'snapshot'},
                 {text: 'Command Gateway', link: 'command-gateway'},
                 {text: 'Distributed Transactions (Saga)', link: 'saga'},
-                {text: 'Projection Processor', link: 'projection'},
+                {text: 'Projection', link: 'projection'},
                 {text: 'Query Service', link: 'query'},
+                {text: 'Event Processor', link: 'event-processor'},
+            ],
+        },
+        {
+            base: '/guide/',
+            text: 'Tooling',
+            collapsed: false,
+            items: [
                 {text: 'Open API', link: 'open-api'},
                 {text: 'Test Suite', link: 'test-suite'},
                 {text: 'Business Intelligence', link: 'bi'},
                 {text: 'Event Compensation', link: 'event-compensation'},
+            ],
+        },
+        {
+            base: '/guide/',
+            text: 'Best Practices',
+            collapsed: false,
+            items: [
                 {text: 'Best Practices', link: 'best-practices'},
                 {text: 'Performance Testing', link: 'perf-test'},
                 {text: 'Troubleshooting', link: 'troubleshooting'},
                 {text: 'Migration Guide', link: 'migration'},
             ],
-        }, {
+        },
+        {
             base: '/guide/extensions/',
             text: 'Extensions',
             collapsed: true,
@@ -98,12 +103,15 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                 {text: 'Spring-Boot-Starter', link: 'spring-boot-starter'},
                 {text: 'Compatibility Test Suite', link: 'tck'},
             ],
-        }, {
+        },
+        {
             base: '/guide/advanced/',
             text: 'Advanced',
             collapsed: true,
             items: [
                 {text: 'Architecture', link: 'architecture'},
+                {text: 'Aggregate Lifecycle', link: 'aggregate-lifecycle'},
+                {text: 'Event Bus', link: 'event-bus'},
                 {text: 'Data Flow', link: 'data-flow'},
                 {text: 'Module Dependencies', link: 'module-dependencies'},
                 {text: 'ID Generator', link: 'id-generator'},
@@ -114,65 +122,36 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                 {text: 'Observability', link: 'observability'},
                 {text: 'Aggregate Scheduler', link: 'aggregate-scheduler'},
             ],
-        }, {
-            text: 'Reference',
-            base: '/reference/',
-            collapsed: true,
-            items: [
-                {text: 'Configuration', link: 'config/basic'},
-                {text: 'Examples', link: 'example/transfer'},
-                {text: 'Awesome', link: 'awesome/cqrs'},
-            ]
-        }
+        },
     ],
     '/reference/': [
         {
-            text: 'Reference',
+            text: 'Configuration',
+            base: '/reference/config/',
+            collapsed: false,
             items: [
-                {
-                    text: 'Configuration',
-                    base: '/reference/config/',
-                    collapsed: false,
-                    items: [
-                        {text: 'Basic Configuration', link: 'basic'},
-                        {text: 'Command Bus', link: 'command'},
-                        {text: 'Event Bus', link: 'event'},
-                        {text: 'Event Sourcing', link: 'eventsourcing'},
-                        {text: 'Snapshot', link: 'snapshot'},
-                        {text: 'State Event', link: 'state'},
-                        {text: 'Kafka', link: 'kafka'},
-                        {text: 'Mongo', link: 'mongo'},
-                        {text: 'Redis', link: 'redis'},
-                        {text: 'R2DBC', link: 'r2dbc'},
-                        {text: 'Elasticsearch', link: 'elasticsearch'},
-                        {text: 'WebFlux', link: 'webflux'},
-                        {text: 'OpenAPI', link: 'openapi'},
-                        {text: 'Prepare Key', link: 'prepare'},
-                        {text: 'Compensation', link: 'compensation'},
-                    ],
-                },
-                {
-                    text: 'Examples',
-                    base: '/reference/example/',
-                    collapsed: false,
-                    items: [
-                        {text: 'Bank Transfer (JAVA)', link: 'transfer'},
-                        {text: 'Order System', link: 'order'},
-                        {text: 'Event Compensation', link: 'compensation'},
-                    ],
-                },
-                {
-                    text: 'Awesome',
-                    base: '/reference/awesome/',
-                    collapsed: false,
-                    items: [
-                        {text: 'CQRS', link: 'cqrs'},
-                        {text: 'Microservices', link: 'microservices'},
-                        {text: 'Reactive', link: 'reactive'},
-                    ]
-                }
-            ]
+                {text: 'Core Configuration', link: 'core'},
+                {text: 'Infrastructure', link: 'infrastructure'},
+                {text: 'Observability', link: 'observability'},
+                {text: 'Compensation', link: 'compensation'},
+            ],
         },
-
-    ]
+        {
+            text: 'Examples',
+            base: '/reference/example/',
+            collapsed: false,
+            items: [
+                {text: 'Bank Transfer (JAVA)', link: 'transfer'},
+                {text: 'Order System', link: 'order'},
+                {text: 'Event Compensation', link: 'compensation'},
+            ],
+        },
+        {
+            text: 'Ecosystem',
+            collapsed: false,
+            items: [
+                {text: 'Ecosystem', link: '/reference/ecosystem'},
+            ],
+        },
+    ],
 }

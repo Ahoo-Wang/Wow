@@ -1,15 +1,15 @@
 ---
-title: OpenAPI Configuration
-description: Configuration options for OpenAPI spec generation and exposure.
+title: Observability Configuration
+description: Configuration options for OpenAPI spec generation and observability integrations.
 ---
 
-# OpenAPI Configuration
+# Observability Configuration
+
+## OpenAPI
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
 | `wow.openapi.enabled` | Boolean | `true` | Enable OpenAPI spec generation |
-
-## Example
 
 ```yaml
 wow:

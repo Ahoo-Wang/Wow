@@ -8,7 +8,7 @@ outline: deep
 
 The Wow Framework is a modular, layered architecture built on four foundational paradigms: **Domain-Driven Design**, **CQRS**, **Event Sourcing**, and **Reactive Programming**. Every component from the API contracts down to the storage backends is designed for non-blocking I/O, horizontal scalability, and clean separation of concerns.
 
-**Why this architecture exists**: Traditional CRUD-based systems couple read and write models, entangle business logic with persistence, and require complex sharding logic to scale. Wow inverts this: developers write only the domain model, and the framework automatically provides command routing, event persistence, projection pipelines, OpenAPI endpoints, and distributed saga orchestration. The result is a system where business logic lives in pure, testable aggregates, while infrastructure concerns are handled by pluggable extension modules.
+Wow's architecture is built around a single core principle: **"Domain Model as a Service"**. Write your aggregate, and the framework handles everything else -- command routing, event persistence, projection updates, and API generation. Developers write only the domain model, and the framework automatically provides command routing, event persistence, projection pipelines, OpenAPI endpoints, and distributed saga orchestration. The result is a system where business logic lives in pure, testable aggregates, while infrastructure concerns are handled by pluggable extension modules.
 
 ## At-a-Glance Summary
 
@@ -115,6 +115,17 @@ The module hierarchy is defined in [settings.gradle.kts:19-63](https://github.co
 1. **Dependency Inversion**: Core modules depend on abstractions (`CommandBus`, `EventStore`, `SnapshotRepository`), not concrete implementations. Infrastructure modules provide the implementations and are discovered at runtime via Spring's `@ConditionalOnClass` auto-configuration.
 2. **Open-Closed Principle**: New storage backends or message transports can be added as new modules without touching core code.
 3. **Single Responsibility**: Each module has exactly one reason to change. `wow-mongo` handles MongoDB event storage; `wow-kafka` handles Kafka message transport; they never overlap.
+
+### Key Design Decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| Reactive (Project Reactor) | Non-blocking I/O for maximum throughput |
+| KSP over KAPT | Compile-time code generation, faster builds |
+| Spring Boot auto-configuration | Zero-boilerplate setup |
+| Pluggable event store | Swap backends without changing domain code |
+| Given-When-Expect testing | Readable, maintainable test suite |
+| Dark launch support | Feature flags for gradual rollouts |
 
 ## Command Processing Flow
 
@@ -425,7 +436,7 @@ The architectural choices of the Wow Framework directly enable its performance p
 |---|---|
 | [Introduction](./introduction) | Overview of Wow framework features and value proposition |
 | [Domain Modeling](./modeling) | How to design aggregate roots, commands, and events |
-| [Command Gateway](./command-gateway) | Deep-dive into command sending and wait strategies |
+| [Command Gateway](../command-gateway) | Deep-dive into command sending and wait strategies |
 | [Event Sourcing](./event-sourcing) | Event store, snapshots, and state rebuild mechanics |
 | [Saga Orchestration](./saga) | Distributed transaction support via sagas |
 | [Projections](./projection) | Building and updating read models |

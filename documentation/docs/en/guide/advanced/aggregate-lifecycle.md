@@ -658,11 +658,11 @@ The `AggregateRoute.Owner.ALWAYS` setting on the `Order` aggregate ensures that 
 
 | Page | Description |
 |---|---|
-| [Architecture Overview](../../guide/architecture.md) | Overall Wow Framework architecture and module hierarchy |
-| [Command Gateway](../../guide/command-gateway.md) | Sending commands, wait strategies, and command stages |
-| [Event Sourcing](../../guide/event-sourcing.md) | Event store, snapshots, and full replay mechanics |
-| [Domain Modeling](../../guide/modeling.md) | Designing aggregates, commands, events, and state classes |
-| [Saga Orchestration](../../guide/saga.md) | Distributed transaction support via sagas |
-| [Configuration Reference: Event Sourcing](../../reference/config/eventsourcing.md) | Event sourcing configuration properties |
-| [Configuration Reference: Snapshot](../../reference/config/snapshot.md) | Snapshot repository configuration |
-| [Testing](../../guide/testing.md) | AggregateSpec and Given-When-Expect testing DSL |
+| [Architecture Overview](./architecture) | Overall Wow Framework architecture and module hierarchy |
+| [Command Gateway](../command-gateway) | Sending commands, wait strategies, and command stages |
+| [Event Sourcing](../eventstore) | Event store, snapshots, and full replay mechanics |
+| [Domain Modeling](../modeling) | Designing aggregates, commands, events, and state classes |
+| [Saga Orchestration](../saga) | Distributed transaction support via sagas |
+| [Configuration Reference: Event Sourcing](../../reference/config/eventsourcing) | Event sourcing configuration properties |
+| [Configuration Reference: Snapshot](../../reference/config/snapshot) | Snapshot repository configuration |
+| [Testing](../test-suite) | AggregateSpec and Given-When-Expect testing DSL |

@@ -204,15 +204,6 @@ stateDiagram-v2
     STORED --> EXPIRED : 处理过程中出错
     EXPIRED --> [*]
 
-    state STORED {
-    }
-    state SOURCED {
-    }
-    state EXPIRED {
-    }
-
-
-
 ```
 
 <!-- Sources:

@@ -20,6 +20,35 @@ data class SimpleSnapshot<S : Any>(
 ) : Snapshot<S>
 ```
 
+## Snapshot Loading Flow
+
+When loading an aggregate, the snapshot store is consulted first. If a snapshot exists, only events after the snapshot version need to be replayed.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant CB as Command Bus
+    participant AG as Aggregate
+    participant SS as Snapshot Store
+    participant ES as Event Store
+
+    CB->>AG: Load Aggregate(id)
+    AG->>SS: Get Latest Snapshot(id)
+    alt Snapshot Found
+        SS-->>AG: Snapshot(v=50)
+        AG->>ES: Get Events After(v=50)
+        ES-->>AG: Events [51..55]
+    else No Snapshot
+        SS-->>AG: null
+        AG->>ES: Get All Events(id)
+        ES-->>AG: Events [1..55]
+    end
+    AG->>AG: Replay Events -> State
+    AG-->>CB: Aggregate Ready
+```
+
+<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/event/snapshot/, wow-api/src/main/kotlin/me/ahoo/wow/api/event/snapshot/ -->
+
 ## Snapshot Strategies
 
 Snapshot strategies determine when to create snapshots. The Wow framework provides multiple built-in strategies:
@@ -55,6 +84,21 @@ object NoOp : SnapshotStrategy {
 }
 ```
 
+## Snapshot Lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> Create: Every N Events
+    Create --> Store: Serialize State
+    Store --> Active: Available for Loading
+    Active --> Stale: New Events Added
+    Stale --> Create: Interval Reached
+    Active --> Delete: Aggregate Deleted
+    Delete --> [*]
+```
+
+<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/event/snapshot/SnapshotHandler.kt -->
+
 ## Snapshot Repository
 
 The snapshot repository is responsible for storing and retrieving snapshots.
@@ -85,6 +129,14 @@ class InMemorySnapshotRepository : SnapshotRepository {
 }
 ```
 
+### Supported Backends
+
+| Backend | Module | Status |
+|---------|--------|--------|
+| MongoDB | `wow-mongo` | Production-ready |
+| Redis | `wow-redis` | Production-ready |
+| R2DBC | `wow-r2dbc` | Production-ready |
+
 ## Snapshot Processing Flow
 
 1. **State Event Publishing**: When aggregate root state changes, publish state events
@@ -103,6 +155,12 @@ wow:
       storage: mongo  # Snapshot storage (mongo, redis, r2dbc, elasticsearch, in_memory, delay)
       version-offset: 5  # Version offset (only valid for version_offset strategy)
 ```
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `wow.snapshot.enabled` | `false` | Enable snapshot store |
+| `wow.snapshot.interval` | `100` | Events before new snapshot |
+| `wow.snapshot.store.type` | Event store backend | Snapshot storage backend |
 
 ## Aggregate Loading Optimization
 
@@ -155,6 +213,8 @@ class EventSourcingOrderRepository(
 - **Snapshots Enabled**: Aggregate loading time is proportional to snapshot interval, not total event count
 - **Snapshots Disabled**: Every load requires replaying all historical events
 - **Storage Cost**: Requires additional storage space to save snapshot data
+
+With a snapshot interval of 50, an aggregate with 1000 events replays at most 49 events instead of all 1000 -- a ~95% reduction.
 
 ## Best Practices
 
