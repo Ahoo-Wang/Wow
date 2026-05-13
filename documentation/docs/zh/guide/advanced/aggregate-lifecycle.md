@@ -1,51 +1,51 @@
 ---
-title: Aggregate Lifecycle
-description: Comprehensive guide to the Wow Framework aggregate lifecycle — creation, command processing, event sourcing, state mutation, deletion, and recovery
+title: 聚合生命周期
+description: Wow 框架聚合生命周期综合指南——创建、命令处理、事件溯源、状态变更、删除和恢复
 outline: deep
 ---
 
-# Aggregate Lifecycle
+# 聚合生命周期
 
-The aggregate is the central domain object in the Wow Framework. Its lifecycle governs how commands are received, events are sourced, state is mutated, and how aggregates are created, soft-deleted, and recovered. Every aggregate in Wow follows a well-defined state machine backed by deterministic event sourcing and optimistic concurrency control.
+聚合是 Wow 框架中的核心领域对象。其生命周期规定了命令如何接收、事件如何溯源、状态如何变更，以及聚合如何创建、软删除和恢复。Wow 中的每个聚合都遵循一个定义良好的状态机，由确定性事件溯源和乐观并发控制支持。
 
-**Why this matters**: Understanding the aggregate lifecycle is essential for designing correct domain models. Every command handler you write, every `@OnSourcing` method you implement, and every business rule you enforce operates within a specific phase of this lifecycle. Misunderstanding it leads to race conditions, stale state, or incorrect event ordering.
+**为什么这很重要**：理解聚合生命周期对于设计正确的领域模型至关重要。您编写的每个命令处理器、每个 `@OnSourcing` 方法以及每个业务规则都在生命周期的特定阶段内运行。误解它会导致竞态条件、过期状态或错误的事件排序。
 
-## At-a-Glance Summary
+## 速查摘要
 
-| Phase | Key Interfaces / Classes | What Happens | Source |
+| 阶段 | 关键接口 / 类 | 发生了什么 | Source |
 |---|---|---|---|
-| **Creation** | `CommandMessage.isCreate`, `@CreateAggregate`, `StateAggregateFactory` | A new aggregate is instantiated with version 0, ready for its first command | [CommandMessage.kt:105](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/command/CommandMessage.kt#L105) |
-| **Command Validation** | `SimpleCommandAggregate.process()`, `CommandState.STORED` | Version, ownership, and initialization checks happen before any handler runs | [SimpleCommandAggregate.kt:82-138](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/SimpleCommandAggregate.kt#L82-L138) |
-| **Command Execution** | `@OnCommand`, `CommandFunction.invoke()` | Business logic runs, producing domain events | [OnCommand.kt:69-87](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/OnCommand.kt#L69-L87) |
-| **Event Sourcing** | `@OnSourcing`, `CommandState.onSourcing()`, `SimpleStateAggregate.onSourcing()` | Events are applied to aggregate state deterministically | [OnSourcing.kt:55-59](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/OnSourcing.kt#L55-L59) |
-| **Event Persistence** | `EventStore.append()`, `CommandState.onStore()` | Events are atomically committed with version conflict checks | [CommandAggregate.kt:76-83](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/CommandAggregate.kt#L76-L83) |
-| **Deletion** | `DefaultDeleteAggregate`, `AggregateDeleted`, `DeletedCapable.deleted` | Soft-delete via `DefaultAggregateDeleted` event; no hard delete | [DefaultDeleteAggregateFunction.kt:33-46](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/DefaultDeleteAggregateFunction.kt#L33-L46) |
-| **Recovery** | `DefaultRecoverAggregate`, `AggregateRecovered` | Restores a soft-deleted aggregate to active state | [DefaultRecoverAggregateFunction.kt:33-46](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/DefaultRecoverAggregateFunction.kt#L33-L46) |
+| **创建** | `CommandMessage.isCreate`、`@CreateAggregate`、`StateAggregateFactory` | 新聚合以版本 0 实例化，准备好接收第一个命令 | [CommandMessage.kt:105](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/command/CommandMessage.kt#L105) |
+| **命令验证** | `SimpleCommandAggregate.process()`、`CommandState.STORED` | 版本、所有权和初始化检查在任何处理器运行之前发生 | [SimpleCommandAggregate.kt:82-138](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/SimpleCommandAggregate.kt#L82-L138) |
+| **命令执行** | `@OnCommand`、`CommandFunction.invoke()` | 业务逻辑运行，产生领域事件 | [OnCommand.kt:69-87](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/OnCommand.kt#L69-L87) |
+| **事件溯源** | `@OnSourcing`、`CommandState.onSourcing()`、`SimpleStateAggregate.onSourcing()` | 事件被确定性地应用到聚合状态 | [OnSourcing.kt:55-59](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/OnSourcing.kt#L55-L59) |
+| **事件持久化** | `EventStore.append()`、`CommandState.onStore()` | 事件通过版本冲突检查原子性地提交 | [CommandAggregate.kt:76-83](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/CommandAggregate.kt#L76-L83) |
+| **删除** | `DefaultDeleteAggregate`、`AggregateDeleted`、`DeletedCapable.deleted` | 通过 `DefaultAggregateDeleted` 事件软删除；无硬删除 | [DefaultDeleteAggregateFunction.kt:33-46](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/DefaultDeleteAggregateFunction.kt#L33-L46) |
+| **恢复** | `DefaultRecoverAggregate`、`AggregateRecovered` | 将软删除的聚合恢复到活动状态 | [DefaultRecoverAggregateFunction.kt:33-46](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/DefaultRecoverAggregateFunction.kt#L33-L46) |
 
-## High-Level Lifecycle State Machine
+## 高层生命周期状态机
 
-The aggregate lifecycle spans from creation through active command processing to optional deletion and recovery. The following state diagram captures the complete lifecycle.
+聚合生命周期横跨从创建到活动命令处理，再到可选的删除和恢复。以下状态图展示了完整的生命周期。
 
 ```mermaid
 stateDiagram-v2
-    [*] --> NEW : factory creates, version = 0
-    NEW --> STORED : isCreate = true, first command
+    [*] --> NEW : 工厂创建, version = 0
+    NEW --> STORED : isCreate = true, 第一个命令
     STORED --> SOURCED : onSourcing(eventStream)
-    SOURCED --> STORED : onStore + snapshot
-    STORED --> DELETED : DeleteAggregate command
-    DELETED --> STORED : RecoverAggregate command
-    DELETED --> [*] : logical end
+    SOURCED --> STORED : onStore + 快照
+    STORED --> DELETED : DeleteAggregate 命令
+    DELETED --> STORED : RecoverAggregate 命令
+    DELETED --> [*] : 逻辑终点
 ```
 
 <!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/CommandAggregate.kt:41-118, wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/SimpleCommandAggregate.kt:66, wow-api/src/main/kotlin/me/ahoo/wow/api/Version.kt:41-68, wow-api/src/main/kotlin/me/ahoo/wow/api/modeling/DeletedCapable.kt:25-32 -->
 
-## Phase 1: Aggregate Creation
+## 阶段 1：聚合创建
 
-An aggregate begins its life when a **creation command** arrives. Creation commands are distinguished from modification commands by the `isCreate` flag on `CommandMessage`.
+聚合的生命始于 **创建命令** 到达时。创建命令通过 `CommandMessage` 上的 `isCreate` 标志与修改命令区分开来。
 
-### How the Framework Decides to Create vs. Load
+### 框架如何决定创建还是加载
 
-The `RetryableAggregateProcessor` ([RetryableAggregateProcessor.kt:54-72](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/RetryableAggregateProcessor.kt#L54-L72)) makes the critical branching decision:
+`RetryableAggregateProcessor`（[RetryableAggregateProcessor.kt:54-72](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/RetryableAggregateProcessor.kt#L54-L72)）做出关键的分支决策：
 
 ```kotlin
 val stateAggregateMono = if (exchange.message.isCreate) {
@@ -57,14 +57,14 @@ val stateAggregateMono = if (exchange.message.isCreate) {
 
 <!-- Source: wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/RetryableAggregateProcessor.kt:55-59 -->
 
-| Condition | Action | Initial Version |
+| 条件 | 操作 | 初始版本 |
 |---|---|---|
-| `isCreate = true` | `StateAggregateFactory.createAsMono()` creates a fresh instance | `0` (`UNINITIALIZED_VERSION`) |
-| `isCreate = false` | `StateAggregateRepository.load()` loads from snapshot/event store | `>= 0` (reconstructed from events) |
+| `isCreate = true` | `StateAggregateFactory.createAsMono()` 创建新实例 | `0`（`UNINITIALIZED_VERSION`） |
+| `isCreate = false` | `StateAggregateRepository.load()` 从快照/事件存储加载 | `>= 0`（从事件重建） |
 
-### Creation Command Annotation
+### 创建命令注解
 
-Commands intended to create aggregates should be annotated with `@CreateAggregate`. This annotation marks the command as an initialization command that establishes the aggregate's initial state.
+用于创建聚合的命令应使用 `@CreateAggregate` 注解。该注解将命令标记为初始化命令，用于建立聚合的初始状态。
 
 ```kotlin
 @CreateAggregate
@@ -78,9 +78,9 @@ data class CreateUserCommand(
 
 <!-- Source: wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/CreateAggregate.kt:30-56 -->
 
-### Example: Order Creation from the Example Project
+### 示例：示例项目中的订单创建
 
-The example `Order` aggregate demonstrates a creation command handler. When `CreateOrder` arrives, the handler validates business rules, returns an `OrderCreated` event, and sets the command result.
+示例 `Order` 聚合演示了一个创建命令处理器。当 `CreateOrder` 到达时，处理器验证业务规则，返回 `OrderCreated` 事件，并设置命令结果。
 
 ```kotlin
 fun onCommand(
@@ -113,18 +113,18 @@ fun onCommand(
 
 <!-- Source: example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/order/Order.kt:106-138 -->
 
-Key points about creation handlers:
-- The aggregate is in its initial state (version = 0), so there is no existing state to validate against — only command field validation applies.
-- The handler can be either synchronous (returning the event directly) or reactive (returning `Mono`).
-- External services (like `CreateOrderSpec`) can be injected into the handler method via `@Name` qualifiers.
+创建处理器的关键点：
+- 聚合处于初始状态（版本 = 0），因此没有现有状态需要验证——只应用命令字段验证。
+- 处理器可以是同步的（直接返回事件）或响应式的（返回 `Mono`）。
+- 外部服务（如 `CreateOrderSpec`）可以通过 `@Name` 限定符注入到处理器方法中。
 
-## Phase 2: Command Processing Cycle
+## 阶段 2：命令处理周期
 
-Once an aggregate exists (either newly created or loaded from the event store), it enters the **command processing cycle**. This is the heart of the aggregate lifecycle where commands are validated, executed, sourced, and persisted.
+一旦聚合存在（无论是新创建还是从事件存储加载），它就进入 **命令处理周期**。这是聚合生命周期的核心，命令在这里被验证、执行、溯源和持久化。
 
-### Command Processing Sequence
+### 命令处理时序
 
-The following sequence diagram shows the complete flow from command arrival through event persistence, using the `SimpleCommandAggregate.process()` method as the primary reference.
+以下时序图展示了从命令到达到事件持久化的完整流程，以 `SimpleCommandAggregate.process()` 方法为主要参考。
 
 ```mermaid
 sequenceDiagram
@@ -140,115 +140,115 @@ sequenceDiagram
 
     RAP->>SCA: process(exchange)
 
-    Note over SCA: Set processor function<br>Set aggregate version on exchange
+    Note over SCA: 设置处理器函数<br>在 exchange 上设置聚合版本
 
     rect rgb(22, 27, 34)
-        Note over SCA: === Pre-Execution Validations ===
+        Note over SCA: === 执行前验证 ===
 
-        SCA->>SCA: Check aggregateVersion matches<br>(optimistic concurrency)
-        alt version mismatch
+        SCA->>SCA: 检查 aggregateVersion 匹配<br>（乐观并发控制）
+        alt 版本不匹配
             SCA-->>RAP: CommandExpectVersionConflictException
         end
 
-        SCA->>SCA: Check initialized || isCreate || allowCreate
-        alt not initialized and not a create command
+        SCA->>SCA: 检查 initialized || isCreate || allowCreate
+        alt 未初始化且不是创建命令
             SCA-->>RAP: NotFoundResourceException
         end
 
-        SCA->>SCA: Check ownerId matches<br>(if command.ownerId is not blank)
-        alt owner mismatch
+        SCA->>SCA: 检查 ownerId 匹配<br>（如果 command.ownerId 不为空）
+        alt 所有者不匹配
             SCA-->>RAP: IllegalAccessOwnerAggregateException
         end
 
-        SCA->>SCA: Check spaceId matches<br>(if command.spaceId is not blank)
-        alt space mismatch
+        SCA->>SCA: 检查 spaceId 匹配<br>（如果 command.spaceId 不为空）
+        alt 空间不匹配
             SCA-->>RAP: IllegalAccessSpaceAggregateException
         end
 
-        SCA->>SCA: Assert CommandState == STORED
-        alt not STORED
+        SCA->>SCA: 断言 CommandState == STORED
+        alt 不是 STORED
             SCA-->>RAP: IllegalStateException
         end
 
-        SCA->>SCA: If RecoverAggregate, check state.deleted == true
-        SCA->>SCA: Else if state.deleted == true
-        alt deleted aggregate
+        SCA->>SCA: 如果是 RecoverAggregate，检查 state.deleted == true
+        SCA->>SCA: 否则如果 state.deleted == true
+        alt 已删除的聚合
             SCA-->>RAP: IllegalAccessDeletedAggregateException
         end
     end
 
-    Note over SCA: === Command Execution ===
+    Note over SCA: === 命令执行 ===
 
     SCA->>CF: invoke(exchange)
-    CF-->>SCA: DomainEventStream (from command handler)
+    CF-->>SCA: DomainEventStream（来自命令处理器）
 
-    Note over SCA: === Event Sourcing (State Mutation) ===
+    Note over SCA: === 事件溯源（状态变更） ===
 
     SCA->>SA: commandState.onSourcing(state, eventStream)
-    SA->>SA: Validate aggregateId match
-    SA->>SA: Validate expectedVersion match
-    alt version conflict
+    SA->>SA: 验证 aggregateId 匹配
+    SA->>SA: 验证 expectedVersion 匹配
+    alt 版本冲突
         SA-->>SCA: SourcingVersionConflictException
     end
-    SA->>SA: Update metadata<br>(version, ownerId, eventId, operator, eventTime)
-    loop Each DomainEvent in eventStream
-        SA->>SA: Apply event to state<br>(AggregateDeleted? deleted = true<br> AggregateRecovered? deleted = false<br> OwnerTransferred? ownerId = ...<br> or registered @OnSourcing function)
+    SA->>SA: 更新元数据<br>（version, ownerId, eventId, operator, eventTime）
+    loop eventStream 中的每个 DomainEvent
+        SA->>SA: 将事件应用到状态<br>（AggregateDeleted? deleted = true<br> AggregateRecovered? deleted = false<br> OwnerTransferred? ownerId = ...<br> 或已注册的 @OnSourcing 函数）
     end
     SA-->>SCA: CommandState.SOURCED
 
-    Note over SCA: === Event Persistence ===
+    Note over SCA: === 事件持久化 ===
 
     SCA->>ES: commandState.onStore(eventStore, eventStream)
-    ES->>ES: Atomic append with version check
-    alt version conflict at store
+    ES->>ES: 带版本检查的原子追加
+    alt 存储时版本冲突
         ES-->>SCA: EventVersionConflictException<br>commandState = EXPIRED
     end
     ES-->>SCA: CommandState.STORED
 
-    SCA-->>RAP: DomainEventStream (success)
+    SCA-->>RAP: DomainEventStream（成功）
 
-    Note over RAP: Event published to EventBus<br>for projections, sagas, handlers
+    Note over RAP: 事件发布到 EventBus<br>供投影、Saga、处理器使用
 
     rect rgb(22, 27, 34)
-        Note over SCA: === Error Handling (on failure) ===
-        SCA->>EF: errorResume: invoke error function
-        EF-->>SCA: (handle or re-throw)
+        Note over SCA: === 错误处理（失败时） ===
+        SCA->>EF: errorResume: 调用错误函数
+        EF-->>SCA: （处理或重新抛出）
     end
 
 ```
 
 <!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/SimpleCommandAggregate.kt:82-138, wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/RetryableAggregateProcessor.kt:54-72, wow-core/src/main/kotlin/me/ahoo/wow/modeling/state/SimpleStateAggregate.kt:96-141, wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/CommandAggregate.kt:65-118 -->
 
-### Validation Gates (Pre-Execution)
+### 验证门槛（执行前）
 
-Before any command handler runs, `SimpleCommandAggregate.process()` runs six sequential validation gates:
+在任何命令处理器运行之前，`SimpleCommandAggregate.process()` 运行六个顺序验证门槛：
 
-| # | Validation | What It Checks | Failure Exception | Source |
+| # | 验证 | 检查内容 | 失败异常 | Source |
 |---|---|---|---|---|
-| 1 | **Version check** | `command.aggregateVersion == current version` (optimistic concurrency) | `CommandExpectVersionConflictException` | [SimpleCommandAggregate.kt:92-98](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/SimpleCommandAggregate.kt#L92-L98) |
-| 2 | **Initialization check** | `initialized \|\| isCreate \|\| allowCreate` | `NotFoundResourceException` | [SimpleCommandAggregate.kt:99-101](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/SimpleCommandAggregate.kt#L99-L101) |
-| 3 | **Owner check** | `command.ownerId == state.ownerId` (multi-tenancy) | `IllegalAccessOwnerAggregateException` | [SimpleCommandAggregate.kt:102-104](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/SimpleCommandAggregate.kt#L102-L104) |
-| 4 | **Space check** | `command.spaceId == state.spaceId` (multi-tenancy) | `IllegalAccessSpaceAggregateException` | [SimpleCommandAggregate.kt:105-107](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/SimpleCommandAggregate.kt#L105-L107) |
-| 5 | **CommandState check** | `commandState == STORED` (serial processing) | `IllegalStateException` | [SimpleCommandAggregate.kt:108-110](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/SimpleCommandAggregate.kt#L108-L110) |
-| 6 | **Delete check** | Not deleted OR is `RecoverAggregate` command | `IllegalAccessDeletedAggregateException` | [SimpleCommandAggregate.kt:111-119](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/SimpleCommandAggregate.kt#L111-L119) |
+| 1 | **版本检查** | `command.aggregateVersion == 当前版本`（乐观并发控制） | `CommandExpectVersionConflictException` | [SimpleCommandAggregate.kt:92-98](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/SimpleCommandAggregate.kt#L92-L98) |
+| 2 | **初始化检查** | `initialized \|\| isCreate \|\| allowCreate` | `NotFoundResourceException` | [SimpleCommandAggregate.kt:99-101](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/SimpleCommandAggregate.kt#L99-L101) |
+| 3 | **所有者检查** | `command.ownerId == state.ownerId`（多租户） | `IllegalAccessOwnerAggregateException` | [SimpleCommandAggregate.kt:102-104](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/SimpleCommandAggregate.kt#L102-L104) |
+| 4 | **空间检查** | `command.spaceId == state.spaceId`（多租户） | `IllegalAccessSpaceAggregateException` | [SimpleCommandAggregate.kt:105-107](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/SimpleCommandAggregate.kt#L105-L107) |
+| 5 | **CommandState 检查** | `commandState == STORED`（串行处理） | `IllegalStateException` | [SimpleCommandAggregate.kt:108-110](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/SimpleCommandAggregate.kt#L108-L110) |
+| 6 | **删除检查** | 未删除 或 是 `RecoverAggregate` 命令 | `IllegalAccessDeletedAggregateException` | [SimpleCommandAggregate.kt:111-119](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/SimpleCommandAggregate.kt#L111-L119) |
 
-### The CommandState Enum: Serial Processing Guarantee
+### CommandState 枚举：串行处理保证
 
-The `CommandState` enum ensures **serial command processing per aggregate instance**. Only one command at a time can transition through the STORED -> SOURCED -> STORED cycle.
+`CommandState` 枚举确保 **每个聚合实例的串行命令处理**。一次只有一个命令可以在 STORED -> SOURCED -> STORED 周期中转换。
 
-| State | Permitted Transition | Behavior | Source |
+| 状态 | 允许的转换 | 行为 | Source |
 |---|---|---|---|
-| `STORED` | `onSourcing(eventStream)` -> `SOURCED` | Applies events to state aggregate | [CommandAggregate.kt:66-74](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/CommandAggregate.kt#L66-L74) |
-| `SOURCED` | `onStore(eventStore, eventStream)` -> `STORED` | Atomically appends events to event store | [CommandAggregate.kt:75-83](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/CommandAggregate.kt#L75-L83) |
-| `EXPIRED` | (none) | Terminal state after unrecoverable error; no further operations | [CommandAggregate.kt:84-85](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/CommandAggregate.kt#L84-L85) |
+| `STORED` | `onSourcing(eventStream)` -> `SOURCED` | 将事件应用到状态聚合 | [CommandAggregate.kt:66-74](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/CommandAggregate.kt#L66-L74) |
+| `SOURCED` | `onStore(eventStore, eventStream)` -> `STORED` | 原子性地将事件追加到事件存储 | [CommandAggregate.kt:75-83](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/CommandAggregate.kt#L75-L83) |
+| `EXPIRED` | （无） | 不可恢复错误后的终结状态；不再进行任何操作 | [CommandAggregate.kt:84-85](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/CommandAggregate.kt#L84-L85) |
 
-This design means that if a second command for the same aggregate arrives while the first is in `SOURCED`, it will fail with `IllegalStateException`. This is the framework's built-in protection against concurrent modification.
+这个设计意味着，如果对同一聚合的第二个命令在第一个处于 `SOURCED` 时到达，它将因 `IllegalStateException` 而失败。这是框架内置的并发修改保护机制。
 
-### Business Rule Execution
+### 业务规则执行
 
-After passing all validation gates, the `CommandFunction` corresponding to the command type is looked up and invoked. Command handlers have one clear responsibility: **validate business rules and return domain events**. They must never directly modify aggregate state.
+通过所有验证门槛后，查找与命令类型对应的 `CommandFunction` 并调用。命令处理器有一个明确的职责：**验证业务规则并返回领域事件**。它们绝不能直接修改聚合状态。
 
-Example from the `Order` aggregate — a payment command handler that returns multiple events:
+来自 `Order` 聚合的示例——一个返回多个事件的付款命令处理器：
 
 ```kotlin
 fun onCommand(payOrder: PayOrder): Iterable<*> {
@@ -273,67 +273,67 @@ fun onCommand(payOrder: PayOrder): Iterable<*> {
 
 <!-- Source: example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/order/Order.kt:184-216 -->
 
-Key patterns shown above:
-- **State guards**: The handler checks `state.status` to gate operations (can only pay if `CREATED`).
-- **Multiple events**: A single command can produce multiple domain events (e.g., `OrderPaid` + `OrderOverPaid`). Events are published in the order they appear in the returned collection.
-- **Idempotency**: Duplicate payments return an `OrderPayDuplicated` event rather than throwing an error, allowing downstream compensation.
+上面展示的关键模式：
+- **状态守卫**：处理器检查 `state.status` 来限制操作（只有在 `CREATED` 状态下才能付款）。
+- **多个事件**：一个命令可以产生多个领域事件（例如 `OrderPaid` + `OrderOverPaid`）。事件按返回集合中的顺序发布。
+- **幂等性**：重复付款返回 `OrderPayDuplicated` 事件而不是抛出错误，允许下游进行补偿。
 
-## Phase 3: Event Sourcing and State Mutation
+## 阶段 3：事件溯源和状态变更
 
-After the command handler produces events, the framework enters the **event sourcing phase**. This is where events are deterministically applied to the aggregate state.
+命令处理器产生事件后，框架进入 **事件溯源阶段**。这是事件被确定性地应用到聚合状态的地方。
 
-### How Event Sourcing Works
+### 事件溯源如何工作
 
-The `SimpleStateAggregate.onSourcing()` method orchestrates this phase:
+`SimpleStateAggregate.onSourcing()` 方法编排此阶段：
 
 ```mermaid
 flowchart TD
-    A["DomainEventStream<br>from command handler"] --> B{"ignoreSourcing?"}
-    B -->|"Yes"| Z["Skip: state unchanged"]
-    B -->|"No"| C{"aggregateId match?"}
-    C -->|"No"| ERR1["IllegalArgumentException"]
-    C -->|"Yes"| D{"expectedNextVersion<br>== eventStream.version?"}
-    D -->|"No"| ERR2["SourcingVersionConflictException"]
-    D -->|"Yes"| E["Update metadata"]
+    A["来自命令处理器的<br>DomainEventStream"] --> B{"ignoreSourcing?"}
+    B -->|"是"| Z["跳过：状态不变"]
+    B -->|"否"| C{"aggregateId 匹配?"}
+    C -->|"否"| ERR1["IllegalArgumentException"]
+    C -->|"是"| D{"expectedNextVersion<br>== eventStream.version?"}
+    D -->|"否"| ERR2["SourcingVersionConflictException"]
+    D -->|"是"| E["更新元数据"]
     E --> F["version = eventStream.version"]
-    F --> G["ownerId, spaceId, eventId<br>operator, eventTime updated"]
+    F --> G["更新 ownerId, spaceId, eventId<br>operator, eventTime"]
     G --> H{"isInitialVersion?"}
-    H -->|"Yes"| I["firstOperator = operator<br>firstEventTime = eventTime"]
-    H -->|"No"| J["Loop: each DomainEvent"]
+    H -->|"是"| I["firstOperator = operator<br>firstEventTime = eventTime"]
+    H -->|"否"| J["循环：每个 DomainEvent"]
     I --> J
-    J --> K{"Event type?"}
+    J --> K{"事件类型?"}
     K -->|"AggregateDeleted"| L["deleted = true"]
     K -->|"AggregateRecovered"| M["deleted = false"]
     K -->|"OwnerTransferred"| N["ownerId = toOwnerId"]
     K -->|"SpaceTransferred"| O["spaceId = toSpaceId"]
     K -->|"ResourceTagsApplied"| P["tags = event.tags"]
-    K -->|"Other domain event"| Q{"@OnSourcing exists?"}
-    Q -->|"Yes"| R["invoke @OnSourcing handler"]
-    Q -->|"No"| S["Log: ignore event<br>version still updated"]
-    L --> T["Next event"]
+    K -->|"其他领域事件"| Q{"@OnSourcing 存在?"}
+    Q -->|"是"| R["调用 @OnSourcing 处理器"]
+    Q -->|"否"| S["日志：忽略事件<br>版本仍然更新"]
+    L --> T["下一个事件"]
     M --> T
     N --> T
     O --> T
     P --> T
     R --> T
     S --> T
-    T -->|"More events"| K
-    T -->|"All done"| U["StateAggregateTagsExtractor<br>extract tags"]
-    U --> V["Return this<br>state mutated"]
+    T -->|"更多事件"| K
+    T -->|"全部完成"| U["StateAggregateTagsExtractor<br>提取标签"]
+    U --> V["返回 this<br>状态已变更"]
 
 ```
 
 <!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/modeling/state/SimpleStateAggregate.kt:96-141, wow-core/src/main/kotlin/me/ahoo/wow/modeling/state/SimpleStateAggregate.kt:157-182 -->
 
-### The @OnSourcing Annotation
+### @OnSourcing 注解
 
-`@OnSourcing` marks methods that apply domain events to aggregate state. These methods are the **only** place where aggregate state should be mutated, and they must be:
+`@OnSourcing` 标记将领域事件应用到聚合状态的方法。这些方法是 **唯一** 可以修改聚合状态的地方，并且必须是：
 
-- **Deterministic**: Given the same event, always produce the same state result.
-- **Side-effect-free**: No external system calls (no HTTP, no database writes, no message publishing).
-- **Applied in order**: Events are applied sequentially in the order they were produced.
+- **确定性的**：给定相同的事件，始终产生相同的状态结果。
+- **无副作用的**：不调用外部系统（无 HTTP、无数据库写入、无消息发布）。
+- **按顺序应用**：事件按产生的顺序顺序应用。
 
-Example from the example project's `OrderState`:
+来自示例项目的 `OrderState` 示例：
 
 ```kotlin
 class OrderState(val id: String) : StatusCapable<OrderStatus> {
@@ -379,86 +379,86 @@ class OrderState(val id: String) : StatusCapable<OrderStatus> {
 
 <!-- Source: example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/order/OrderState.kt:40-118 -->
 
-### Built-in Special Events
+### 内置特殊事件
 
-The `SimpleStateAggregate` automatically handles several special event types without requiring explicit `@OnSourcing` methods:
+`SimpleStateAggregate` 自动处理几种特殊事件类型，无需显式的 `@OnSourcing` 方法：
 
-| Special Event | Effect on State | Source |
+| 特殊事件 | 对状态的影响 | Source |
 |---|---|---|
-| `AggregateDeleted` | Sets `deleted = true` | [SimpleStateAggregate.kt:159-161](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/state/SimpleStateAggregate.kt#L159-L161) |
-| `AggregateRecovered` | Sets `deleted = false` | [SimpleStateAggregate.kt:162-164](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/state/SimpleStateAggregate.kt#L162-L164) |
-| `OwnerTransferred` | Updates `ownerId` | [SimpleStateAggregate.kt:165-167](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/state/SimpleStateAggregate.kt#L165-L167) |
-| `SpaceTransferred` | Updates `spaceId` | [SimpleStateAggregate.kt:168-170](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/state/SimpleStateAggregate.kt#L168-L170) |
-| `ResourceTagsApplied` | Updates `tags` (ABAC) | [SimpleStateAggregate.kt:171-173](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/state/SimpleStateAggregate.kt#L171-L173) |
+| `AggregateDeleted` | 设置 `deleted = true` | [SimpleStateAggregate.kt:159-161](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/state/SimpleStateAggregate.kt#L159-L161) |
+| `AggregateRecovered` | 设置 `deleted = false` | [SimpleStateAggregate.kt:162-164](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/state/SimpleStateAggregate.kt#L162-L164) |
+| `OwnerTransferred` | 更新 `ownerId` | [SimpleStateAggregate.kt:165-167](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/state/SimpleStateAggregate.kt#L165-L167) |
+| `SpaceTransferred` | 更新 `spaceId` | [SimpleStateAggregate.kt:168-170](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/state/SimpleStateAggregate.kt#L168-L170) |
+| `ResourceTagsApplied` | 更新 `tags`（ABAC） | [SimpleStateAggregate.kt:171-173](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/state/SimpleStateAggregate.kt#L171-L173) |
 
-### Missing @OnSourcing: A Graceful Default
+### 缺少 @OnSourcing：优雅的默认行为
 
-If an event has no matching `@OnSourcing` handler, the framework **does not throw an error**. Instead, it logs a debug message and still updates the aggregate version to the event's version. This is documented in `StateAggregate.kt`:
+如果事件没有匹配的 `@OnSourcing` 处理器，框架 **不会抛出错误**。相反，它记录一条调试消息，并仍然将聚合版本更新为事件的版本。这在 `StateAggregate.kt` 中有文档说明：
 
 ```kotlin
 /**
- * When the aggregate does not find a matching `onSourcing` method,
- * it does not consider this a fault; the event is ignored,
- * but the aggregate version is updated to the domain event's version.
+ * 当聚合没有找到匹配的 `onSourcing` 方法时，
+ * 它不认为这是故障；事件被忽略，
+ * 但聚合版本更新为领域事件的版本。
  */
 ```
 
 <!-- Source: wow-core/src/main/kotlin/me/ahoo/wow/modeling/state/StateAggregate.kt:28-30 -->
 
-This design choice is deliberate: it allows aggregates to evolve over time by adding new `@OnSourcing` handlers for future events without breaking replay of historical events that predate the handler.
+这种设计选择是故意的：它允许聚合随时间演进，通过为未来事件添加新的 `@OnSourcing` 处理器，而不会破坏早于该处理器的历史事件的重放。
 
-## Phase 4: Event Persistence and Snapshot
+## 阶段 4：事件持久化和快照
 
-After events are sourced into state, the `CommandState.onStore()` method atomically persists the event stream to the `EventStore`. On success, the `CommandState` returns to `STORED` (ready for the next command). On failure, it becomes `EXPIRED`.
+事件被溯源到状态后，`CommandState.onStore()` 方法将事件流原子性地持久化到 `EventStore`。成功时，`CommandState` 返回 `STORED`（准备好接收下一个命令）。失败时，变为 `EXPIRED`。
 
-### The Relationship Between State Mutability and Persistence
+### 状态可变性与持久化的关系
 
-By setting `private set` on state properties and only mutating them via `@OnSourcing` methods, the `OrderState` class enforces the Event Sourcing principle: **state is only mutated by applying events**. The command handler's role is to produce the right events; the `@OnSourcing` methods apply them to state.
+通过设置状态属性的 `private set` 并仅通过 `@OnSourcing` 方法修改它们，`OrderState` 类强制执行事件溯源原则：**状态仅通过应用事件来修改**。命令处理器的角色是产生正确的事件；`@OnSourcing` 方法将它们应用到状态。
 
-| Component | Can Mutate State? | Role |
+| 组件 | 可以修改状态吗？ | 角色 |
 |---|---|---|
-| `@OnCommand` handler | No | Produce domain events |
-| `@OnSourcing` handler | Yes (only place) | Apply events to state |
-| `@OnEvent` handler | No | React to events (projections, sagas) |
-| External code | No | N/A |
+| `@OnCommand` 处理器 | 否 | 产生领域事件 |
+| `@OnSourcing` 处理器 | 是（唯一的位置） | 将事件应用到状态 |
+| `@OnEvent` 处理器 | 否 | 响应事件（投影、Saga） |
+| 外部代码 | 否 | 不适用 |
 
-## Phase 5: Aggregate Loading and Replay
+## 阶段 5：聚合加载和重放
 
-When an existing aggregate receives a non-create command, the framework must load (or reconstruct) its current state before processing. The `EventSourcingStateAggregateRepository` orchestrates this loading.
+当现有聚合接收到非创建命令时，框架在处理器运行之前必须加载（或重建）其当前状态。`EventSourcingStateAggregateRepository` 编排此加载。
 
-### State Rebuild Strategy
+### 状态重建策略
 
 ```mermaid
 flowchart TD
-    A["Load Aggregate"] --> B{"Snapshot exists<br>AND tailVersion == MAX_VALUE?"}
-    B -->|"Yes"| C["Load Snapshot<br>from SnapshotRepository"]
-    B -->|"No"| D["Create fresh instance<br>via StateAggregateFactory"]
-    C --> E["Get snapshot version<br>(e.g., version = 50)"]
-    E --> F["Load incremental events<br>from version 51 to tailVersion"]
-    D --> G["Load all events<br>from version 1 to tailVersion"]
-    F --> H["Apply events to state<br>state.onSourcing(eventStream)"]
+    A["加载聚合"] --> B{"快照存在<br>且 tailVersion == MAX_VALUE?"}
+    B -->|"是"| C["从 SnapshotRepository<br>加载快照"]
+    B -->|"否"| D["通过 StateAggregateFactory<br>创建新实例"]
+    C --> E["获取快照版本<br>（例如 version = 50）"]
+    E --> F["加载增量事件<br>从版本 51 到 tailVersion"]
+    D --> G["加载所有事件<br>从版本 1 到 tailVersion"]
+    F --> H["将事件应用到状态<br>state.onSourcing(eventStream)"]
     G --> H
-    H --> I["StateAggregate ready<br>version = tailVersion"]
+    H --> I["StateAggregate 就绪<br>version = tailVersion"]
 
 ```
 
 <!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventSourcingStateAggregateRepository.kt:41-148, wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStoreStateAggregateRepository.kt:33-105 -->
 
-The loading process follows two strategies based on whether a snapshot exists:
+加载过程根据快照是否存在采用两种策略：
 
-| Strategy | Trigger | How It Works |
+| 策略 | 触发条件 | 如何工作 |
 |---|---|---|
-| **Snapshot-based** | `tailVersion == Int.MAX_VALUE` AND snapshot exists | Load snapshot, then replay only incremental events from `snapshot.version + 1` |
-| **Full replay** | No snapshot exists | Create fresh instance, replay all events from version 1 |
+| **基于快照** | `tailVersion == Int.MAX_VALUE` 且快照存在 | 加载快照，然后仅重放 `snapshot.version + 1` 以来的增量事件 |
+| **完全重放** | 无快照存在 | 创建新实例，从版本 1 重放所有事件 |
 
-Snapshots dramatically improve performance for long-lived aggregates by avoiding the need to replay hundreds or thousands of historical events. The snapshot stores the aggregate state at a specific version, so only events after that version need to be replayed.
+快照通过避免重放成百上千个历史事件，显著提高了长生命周期聚合的性能。快照存储特定版本的聚合状态，因此只需重放该版本之后的事件。
 
-### Point-in-Time Reconstruction
+### 时间点重建
 
-The `EventSourcingStateAggregateRepository` also supports loading an aggregate **as it existed at a specific point in time**:
+`EventSourcingStateAggregateRepository` 还支持加载聚合在 **特定时间点** 的状态：
 
 ```kotlin
-// Load aggregate as it was 1 day ago
+// 加载 1 天前的聚合状态
 val eventTime = System.currentTimeMillis() - 86400000L
 val historicalState = repository.load(
     aggregateId,
@@ -469,21 +469,21 @@ val historicalState = repository.load(
 
 <!-- Source: wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventSourcingStateAggregateRepository.kt:130-147 -->
 
-This enables temporal queries, audit trails, and debugging of past state without maintaining separate historical snapshots.
+这支持时间查询、审计追踪和过去状态的调试，无需维护单独的历史快照。
 
-## Phase 6: Deletion and Recovery
+## 阶段 6：删除和恢复
 
-Wow implements **soft deletion** for aggregates. When an aggregate is deleted, it is not physically removed from the store; instead, it is marked as deleted (`deleted = true`), and all subsequent non-recovery commands are rejected.
+Wow 对聚合实现 **软删除**。当聚合被删除时，它不会从存储中物理移除；而是标记为已删除（`deleted = true`），所有后续的非恢复命令都会被拒绝。
 
-### How Deletion Works
+### 删除如何工作
 
-1. **Command**: A client sends `DefaultDeleteAggregate` (or a custom `DeleteAggregate` command).
-2. **Built-in handler**: `DefaultDeleteAggregateFunction` processes it automatically, returning a `DefaultAggregateDeleted` event.
-3. **Event sourcing**: `SimpleStateAggregate.sourcing()` sets `deleted = true`.
-4. **Guard**: Subsequent commands (except `RecoverAggregate`) are rejected with `IllegalAccessDeletedAggregateException`.
+1. **命令**：客户端发送 `DefaultDeleteAggregate`（或自定义 `DeleteAggregate` 命令）。
+2. **内置处理器**：`DefaultDeleteAggregateFunction` 自动处理它，返回 `DefaultAggregateDeleted` 事件。
+3. **事件溯源**：`SimpleStateAggregate.sourcing()` 设置 `deleted = true`。
+4. **守卫**：后续命令（除 `RecoverAggregate` 外）被拒绝，抛出 `IllegalAccessDeletedAggregateException`。
 
 ```kotlin
-// The DefaultDeleteAggregate is automatically routed as:
+// DefaultDeleteAggregate 自动路由为：
 // DELETE /{resourceName}/{aggregateId}
 @Summary("Delete aggregate")
 @CommandRoute(action = "", method = CommandRoute.Method.DELETE, appendIdPath = CommandRoute.AppendPath.ALWAYS)
@@ -492,16 +492,16 @@ object DefaultDeleteAggregate : DeleteAggregate
 
 <!-- Source: wow-api/src/main/kotlin/me/ahoo/wow/api/command/DeleteAggregate.kt:55-57 -->
 
-### How Recovery Works
+### 恢复如何工作
 
-1. **Command**: A client sends `DefaultRecoverAggregate` (or a custom `RecoverAggregate` command).
-2. **Pre-check**: `SimpleCommandAggregate.process()` validates that the aggregate is currently deleted.
-3. **Built-in handler**: `DefaultRecoverAggregateFunction` returns a `DefaultAggregateRecovered` event.
-4. **Event sourcing**: `SimpleStateAggregate.sourcing()` sets `deleted = false`.
-5. **Result**: The aggregate is active again and can process commands normally.
+1. **命令**：客户端发送 `DefaultRecoverAggregate`（或自定义 `RecoverAggregate` 命令）。
+2. **预检查**：`SimpleCommandAggregate.process()` 验证聚合当前处于已删除状态。
+3. **内置处理器**：`DefaultRecoverAggregateFunction` 返回 `DefaultAggregateRecovered` 事件。
+4. **事件溯源**：`SimpleStateAggregate.sourcing()` 设置 `deleted = false`。
+5. **结果**：聚合再次激活，可以正常处理命令。
 
 ```kotlin
-// The DefaultRecoverAggregate is automatically routed as:
+// DefaultRecoverAggregate 自动路由为：
 // PUT /{resourceName}/{aggregateId}/recover
 @Summary("Recover deleted aggregate")
 @CommandRoute(action = "recover", method = CommandRoute.Method.PUT, appendIdPath = CommandRoute.AppendPath.ALWAYS)
@@ -510,34 +510,34 @@ object DefaultRecoverAggregate : RecoverAggregate
 
 <!-- Source: wow-api/src/main/kotlin/me/ahoo/wow/api/command/RecoverAggregate.kt:56-58 -->
 
-| Operation | Command | Event | State Change | Route |
+| 操作 | 命令 | 事件 | 状态变更 | 路由 |
 |---|---|---|---|---|
-| **Delete** | `DefaultDeleteAggregate` | `DefaultAggregateDeleted` | `deleted = true` | `DELETE /{resource}/{id}` |
-| **Recover** | `DefaultRecoverAggregate` | `DefaultAggregateRecovered` | `deleted = false` | `PUT /{resource}/{id}/recover` |
+| **删除** | `DefaultDeleteAggregate` | `DefaultAggregateDeleted` | `deleted = true` | `DELETE /{resource}/{id}` |
+| **恢复** | `DefaultRecoverAggregate` | `DefaultAggregateRecovered` | `deleted = false` | `PUT /{resource}/{id}/recover` |
 
-### Deleted Aggregate Guard Logic
+### 已删除聚合的守卫逻辑
 
-The validation logic in `SimpleCommandAggregate.process()` ensures correct behavior around deletion:
+`SimpleCommandAggregate.process()` 中的验证逻辑确保围绕删除的正确行为：
 
 ```
 if (command is RecoverAggregate) {
-    check(state.deleted)  // Must be deleted to recover
+    check(state.deleted)  // 必须是已删除状态才能恢复
 } else if (state.deleted) {
-    throw IllegalAccessDeletedAggregateException  // Cannot operate on deleted aggregate
+    throw IllegalAccessDeletedAggregateException  // 不能对已删除的聚合进行操作
 }
 ```
 
 <!-- Source: wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/SimpleCommandAggregate.kt:111-119 -->
 
-## Error Handling in the Lifecycle
+## 生命周期中的错误处理
 
-### Error Functions (@OnError)
+### 错误函数（@OnError）
 
-Aggregates can define error handlers via methods that handle exceptions thrown during command processing. These are registered by method naming convention (`onError`) and can:
+聚合可以定义错误处理器，通过方法命名约定（`onError`）注册，可以：
 
-- Log error details
-- Decide whether to suppress or propagate the error
-- Publish compensation events
+- 记录错误详情
+- 决定是抑制还是传播错误
+- 发布补偿事件
 
 ```kotlin
 fun onError(
@@ -552,9 +552,9 @@ fun onError(
 
 <!-- Source: example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/order/Order.kt:140-148 -->
 
-### Retryable Processing
+### 可重试处理
 
-The `RetryableAggregateProcessor` wraps every aggregate processor with a retry strategy that retries up to 3 times with a 500 ms backoff, but only for **recoverable** errors:
+`RetryableAggregateProcessor` 为每个聚合处理器包装了重试策略，最多重试 3 次，回退间隔 500 毫秒，但仅针对 **可恢复** 错误：
 
 ```kotlin
 private val retryStrategy: Retry = Retry.backoff(MAX_RETRIES, MIN_BACKOFF)
@@ -569,9 +569,9 @@ private val retryStrategy: Retry = Retry.backoff(MAX_RETRIES, MIN_BACKOFF)
 
 <!-- Source: wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/RetryableAggregateProcessor.kt:45-52 -->
 
-### The EXPIRED State
+### EXPIRED 状态
 
-When an unrecoverable error occurs during event persistence (`commandState.onStore`), the command state is set to `EXPIRED`:
+当事件持久化期间（`commandState.onStore`）发生不可恢复的错误时，命令状态设置为 `EXPIRED`：
 
 ```kotlin
 commandState.onStore(eventStore, eventStream)
@@ -582,29 +582,29 @@ commandState.onStore(eventStore, eventStream)
 
 <!-- Source: wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/SimpleCommandAggregate.kt:134-136 -->
 
-In the `EXPIRED` state, the aggregate cannot process any further commands. This is a terminal state indicating that the aggregate instance has encountered an unrecoverable consistency problem and requires manual intervention.
+在 `EXPIRED` 状态中，聚合无法处理任何进一步的命令。这是一个终结状态，表示聚合实例遇到了不可恢复的一致性问题，需要手动干预。
 
-## Version Lifecycle
+## 版本生命周期
 
-Version tracking is fundamental to the aggregate lifecycle. The `Version` interface defines the version semantics:
+版本追踪是聚合生命周期的基础。`Version` 接口定义了版本语义：
 
-| Constant | Value | Meaning | Source |
+| 常量 | 值 | 含义 | Source |
 |---|---|---|---|
-| `UNINITIALIZED_VERSION` | `0` | Aggregate has just been created, no events applied yet | [Version.kt:47](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/Version.kt#L47) |
-| `INITIAL_VERSION` | `1` | First event has been applied; aggregate is initialized | [Version.kt:53](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/Version.kt#L53) |
-| `initialized` | `version > 0` | Computed property: true if aggregate has any events | [Version.kt:59-62](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/Version.kt#L59-L62) |
-| `isInitialVersion` | `version == 1` | Computed property: true if exactly at the first event | [Version.kt:64-67](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/Version.kt#L64-L67) |
-| `expectedNextVersion` | `version + 1` | The version the next event should carry | [ReadOnlyStateAggregate.kt:90-91](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/state/ReadOnlyStateAggregate.kt#L90-L91) |
+| `UNINITIALIZED_VERSION` | `0` | 聚合刚刚创建，尚未应用事件 | [Version.kt:47](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/Version.kt#L47) |
+| `INITIAL_VERSION` | `1` | 第一个事件已应用；聚合已初始化 | [Version.kt:53](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/Version.kt#L53) |
+| `initialized` | `version > 0` | 计算属性：如果聚合有任何事件则为 true | [Version.kt:59-62](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/Version.kt#L59-L62) |
+| `isInitialVersion` | `version == 1` | 计算属性：如果恰好是第一个事件则为 true | [Version.kt:64-67](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/Version.kt#L64-L67) |
+| `expectedNextVersion` | `version + 1` | 下一个事件应携带的版本 | [ReadOnlyStateAggregate.kt:90-91](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/state/ReadOnlyStateAggregate.kt#L90-L91) |
 
-Version progression through the lifecycle:
+生命周期中的版本演进：
 
 ```
-Creation -> version=0 -> first event -> version=1 -> event N -> version=N
+创建 -> version=0 -> 第一个事件 -> version=1 -> 事件 N -> version=N
 ```
 
-### Optimistic Concurrency Control
+### 乐观并发控制
 
-Every command can optionally carry an `aggregateVersion` (from `CommandMessage.aggregateVersion`). If specified, the framework validates that the current aggregate version matches the expected version **before** processing the command:
+每个命令可以可选地携带 `aggregateVersion`（来自 `CommandMessage.aggregateVersion`）。如果指定，框架在处理命令 **之前** 验证当前聚合版本是否匹配预期版本：
 
 ```kotlin
 if (message.aggregateVersion != null && message.aggregateVersion != version) {
@@ -618,11 +618,11 @@ if (message.aggregateVersion != null && message.aggregateVersion != version) {
 
 <!-- Source: wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/SimpleCommandAggregate.kt:92-98 -->
 
-This pattern (optimistic concurrency control / optimistic locking) ensures that no two clients can modify the same aggregate concurrently without one of them detecting the conflict.
+此模式（乐观并发控制/乐观锁）确保两个客户端不能在不检测冲突的情况下同时修改同一聚合。
 
-## Aggregate Routing
+## 聚合路由
 
-The `@AggregateRoute` annotation configures how the aggregate is exposed via REST APIs and how ownership is managed:
+`@AggregateRoute` 注解配置聚合如何通过 REST API 暴露以及所有权如何管理：
 
 ```kotlin
 @AggregateRoot
@@ -636,33 +636,33 @@ class Order(private val state: OrderState) {
 
 <!-- Source: example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain/order/Order.kt:55-56 -->
 
-| Attribute | Description | Source |
+| 属性 | 描述 | Source |
 |---|---|---|
-| `resourceName` | Custom API path segment (default: lowercased class name) | [AggregateRoute.kt:60](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/AggregateRoute.kt#L60) |
-| `enabled` | Whether API routes are generated (default: `true`) | [AggregateRoute.kt:61](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/AggregateRoute.kt#L61) |
-| `spaced` | Whether to space-separate the resource name in URL paths | [AggregateRoute.kt:62](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/AggregateRoute.kt#L62) |
-| `owner` | Ownership policy: `NEVER`, `ALWAYS`, or `AGGREGATE_ID` | [AggregateRoute.kt:63](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/AggregateRoute.kt#L63) |
+| `resourceName` | 自定义 API 路径段（默认：小写类名） | [AggregateRoute.kt:60](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/AggregateRoute.kt#L60) |
+| `enabled` | 是否生成 API 路由（默认：`true`） | [AggregateRoute.kt:61](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/AggregateRoute.kt#L61) |
+| `spaced` | 是否在 URL 路径中用空格分隔资源名称 | [AggregateRoute.kt:62](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/AggregateRoute.kt#L62) |
+| `owner` | 所有权策略：`NEVER`、`ALWAYS` 或 `AGGREGATE_ID` | [AggregateRoute.kt:63](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/AggregateRoute.kt#L63) |
 
-The `AggregateRoute.Owner.ALWAYS` setting on the `Order` aggregate ensures that every command must carry an owner ID, and it is validated against the aggregate's `ownerId` during the pre-execution checks (gate #3).
+`Order` 聚合上的 `AggregateRoute.Owner.ALWAYS` 设置确保每个命令必须携带所有者 ID，并在执行前检查（门槛 #3）中根据聚合的 `ownerId` 进行验证。
 
-## Key Design Principles
+## 关键设计原则
 
-1. **Serial command processing**: The `CommandState` STORED/SOURCED cycle ensures only one command processes per aggregate at a time. This eliminates race conditions at the framework level. |
-2. **Deterministic event sourcing**: `@OnSourcing` handlers must be pure functions. Given the same event history, the same state must result every time. |
-3. **Soft deletion**: Aggregates are never physically removed. The `deleted` flag prevents operations while preserving the full event history for audit and recovery. |
-4. **Optimistic concurrency**: Version checks at both the command (client-specified) and event store (server-enforced) levels prevent lost updates. |
-5. **Graceful missing handler**: Events without matching `@OnSourcing` handlers are silently skipped (with version update), enabling forward-compatible state evolution. |
-6. **Separation of concerns**: Command handlers produce events; sourcing handlers apply events to state. These are distinct phases in the lifecycle, not a single step.
+1. **串行命令处理**：`CommandState` 的 STORED/SOURCED 周期确保每个聚合一次只处理一个命令。这在框架层面消除了竞态条件。|
+2. **确定性事件溯源**：`@OnSourcing` 处理器必须是纯函数。给定相同的事件历史，每次必须得到相同的状态。|
+3. **软删除**：聚合永远不会被物理移除。`deleted` 标志阻止操作，同时保留完整的事件历史以供审计和恢复。|
+4. **乐观并发控制**：命令级别（客户端指定）和事件存储级别（服务器强制）的版本检查防止丢失更新。|
+5. **优雅的缺失处理器**：没有匹配 `@OnSourcing` 处理器的事件会被静默跳过（伴随版本更新），从而支持向前兼容的状态演进。|
+6. **关注点分离**：命令处理器产生事件；溯源处理器将事件应用到状态。这些是生命周期中的不同阶段，而不是一个步骤。
 
-## Related Pages
+## 相关页面
 
-| Page | Description |
+| 页面 | 描述 |
 |---|---|
-| [Architecture Overview](./architecture) | Overall Wow Framework architecture and module hierarchy |
-| [Command Gateway](../command-gateway) | Sending commands, wait strategies, and command stages |
-| [Event Sourcing](../eventstore) | Event store, snapshots, and full replay mechanics |
-| [Domain Modeling](../modeling) | Designing aggregates, commands, events, and state classes |
-| [Saga Orchestration](../saga) | Distributed transaction support via sagas |
-| [Configuration Reference: Event Sourcing](../../reference/config/eventsourcing) | Event sourcing configuration properties |
-| [Configuration Reference: Snapshot](../../reference/config/snapshot) | Snapshot repository configuration |
-| [Testing](../test-suite) | AggregateSpec and Given-When-Expect testing DSL |
+| [架构概述](./architecture) | Wow 框架整体架构和模块层级 |
+| [命令网关](../command-gateway) | 发送命令、等待策略和命令阶段 |
+| [事件溯源](../eventstore) | 事件存储、快照和完全重放机制 |
+| [领域建模](../modeling) | 设计聚合、命令、事件和状态类 |
+| [Saga 编排](../saga) | 通过 Saga 实现分布式事务支持 |
+| [配置参考：事件溯源](../../reference/config/eventsourcing) | 事件溯源配置属性 |
+| [配置参考：快照](../../reference/config/snapshot) | 快照仓库配置 |
+| [测试](../test-suite) | AggregateSpec 和 Given-When-Expect 测试 DSL |

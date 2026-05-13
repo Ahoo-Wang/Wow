@@ -1,47 +1,47 @@
 ---
 title: Kafka
-description: Apache Kafka extension implementing CommandBus, DomainEventBus, and StateEventBus for production environments.
+description: Apache Kafka 扩展，为生产环境实现 CommandBus、DomainEventBus 和 StateEventBus。
 ---
 
 # Kafka
 
-The _Kafka_ extension provides support for Apache Kafka, implementing `CommandBus`, `DomainEventBus`, and `StateEventBus`. It is the **default and recommended distributed message bus** implementation for production environments. All three concrete bus implementations -- `KafkaCommandBus`, `KafkaDomainEventBus`, and `KafkaStateEventBus` -- are built on top of a shared reactive pipeline powered by [reactor-kafka](https://projectreactor.io/docs/kafka/release/reference/).
+_Kafka_ 扩展提供对 Apache Kafka 的支持，实现了 `CommandBus`、`DomainEventBus` 和 `StateEventBus`。它是生产环境的 **默认和推荐的分布式消息总线** 实现。三种具体总线实现——`KafkaCommandBus`、`KafkaDomainEventBus` 和 `KafkaStateEventBus`——均构建在由 [reactor-kafka](https://projectreactor.io/docs/kafka/release/reference/) 驱动的共享响应式管道之上。
 
-## Architecture Overview
+## 架构概述
 
-### High-Level Flow
+### 高层流程
 
 ```mermaid
 flowchart TB
-    subgraph Producer["Producer"]
+    subgraph Producer["生产者"]
         CG[CommandGateway]
         EB[EventBus]
     end
     
-    subgraph Kafka["Kafka Cluster"]
-        CT[Command Topic]
-        DET[DomainEvent Topic]
-        SET[StateEvent Topic]
+    subgraph Kafka["Kafka 集群"]
+        CT[命令主题]
+        DET[领域事件主题]
+        SET[状态事件主题]
     end
     
-    subgraph Consumer["Consumer"]
+    subgraph Consumer["消费者"]
         CP[CommandProcessor]
         EP[EventProcessor]
         PP[ProjectionProcessor]
     end
     
-    CG -->|Send Command| CT
-    EB -->|Publish Domain Event| DET
-    EB -->|Publish State Event| SET
+    CG -->|发送命令| CT
+    EB -->|发布领域事件| DET
+    EB -->|发布状态事件| SET
     
-    CT -->|Consume Command| CP
-    DET -->|Consume Domain Event| EP
-    SET -->|Consume State Event| PP
+    CT -->|消费命令| CP
+    DET -->|消费领域事件| EP
+    SET -->|消费状态事件| PP
 ```
 
-### Class Hierarchy
+### 类层级
 
-All three Kafka bus implementations extend `AbstractKafkaBus`, which itself implements the `DistributedMessageBus` interface. Each bus specializes in one message type, producing and consuming from dedicated Kafka topics.
+所有三个 Kafka 总线实现都扩展了 `AbstractKafkaBus`，后者本身实现了 `DistributedMessageBus` 接口。每个总线专门处理一种消息类型，从专用的 Kafka 主题生产和消费。
 
 ```mermaid
 classDiagram
@@ -111,19 +111,19 @@ classDiagram
     KafkaStateEventBus --> StateEventTopicConverter
 ```
 
-The `AbstractKafkaBus` base class centralizes the entire reactive send/receive pipeline using `reactor-kafka`. It wraps a `KafkaSender` for producing messages and configures a `KafkaReceiver` per subscription for consuming them. Each concrete subclass only needs to declare its `messageType` (used for JSON deserialization) and a `toExchange` factory method that constructs the acknowledgment-bearing exchange object.
+`AbstractKafkaBus` 基类使用 `reactor-kafka` 集中了整个响应式发送/接收管道。它包装了一个 `KafkaSender` 用于生产消息，并为每个订阅配置一个 `KafkaReceiver` 用于消费消息。每个具体的子类只需要声明其 `messageType`（用于 JSON 反序列化）和一个 `toExchange` 工厂方法，该方法构造携带确认信息的交换对象。
 
-### Three Buses, Three Topic Kinds
+### 三种总线，三种主题类型
 
-| Bus | Core Interface | Message Type | Exchange Type | Topic Suffix | Source |
+| 总线 | 核心接口 | 消息类型 | 交换类型 | 主题后缀 | Source |
 |---|---|---|---|---|---|
 | `KafkaCommandBus` | `DistributedCommandBus` | `CommandMessage<*>` | `KafkaServerCommandExchange` | `.command` | [KafkaCommandBus.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/KafkaCommandBus.kt) |
 | `KafkaDomainEventBus` | `DistributedDomainEventBus` | `DomainEventStream` | `KafkaEventStreamExchange` | `.event` | [KafkaDomainEventBus.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/KafkaDomainEventBus.kt) |
 | `KafkaStateEventBus` | `DistributedStateEventBus` | `StateEvent<*>` | `KafkaStateEventExchange` | `.state` | [KafkaStateEventBus.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/KafkaStateEventBus.kt) |
 
-## End-to-End Message Flow
+## 端到端消息流
 
-The following sequence diagram traces the lifecycle of a command through the Kafka bus, from the `CommandGateway` through Kafka to the `CommandProcessor` on the receiving end. Domain events and state events follow an identical pattern with their respective topic converters and exchange types.
+以下时序图追踪了命令通过 Kafka 总线的生命周期，从 `CommandGateway` 经过 Kafka 到接收端的 `CommandProcessor`。领域事件和状态事件遵循相同的模式，使用各自的主题转换器和交换类型。
 
 ```mermaid
 sequenceDiagram
@@ -140,30 +140,30 @@ sequenceDiagram
     KCB->>KCB: encode(message)
     Note over KCB: ProducerRecord(topic, key=aggregateId, value=json)
     KCB->>KS: sender.send(senderRecord)
-    KS->>K: produce to {prefix}.{context}.{aggregate}.command
-    K-->>KS: ack (partition, offset)
+    KS->>K: 生产到 {prefix}.{context}.{aggregate}.command
+    K-->>KS: 确认（分区, 偏移量）
     KS-->>KCB: SenderResult
-    KCB-->>CG: Mono<Void> complete
+    KCB-->>CG: Mono<Void> 完成
 
-    Note over KR,K: On consumer side (separate JVM)
-    K->>KR: poll from subscribed topics
+    Note over KR,K: 消费者端（独立的 JVM）
+    K->>KR: 从订阅的主题轮询
     KR->>KCB: receive - decode(receiverRecord)
-    Note over KCB: JSON to CommandMessage
+    Note over KCB: JSON 转 CommandMessage
     KCB->>KCB: message.toExchange(receiverOffset)
     KCB-->>CP: KafkaServerCommandExchange(message, offset)
-    CP->>CP: process command
+    CP->>CP: 处理命令
     CP->>KR: exchange.acknowledge()
-    Note over KR: commit offset
+    Note over KR: 提交偏移量
 ```
 
-Key behavioral characteristics visible in the flow:
+流程中可见的关键行为特征：
 
-1. **Non-blocking reactive pipeline**: Both `send` and `receive` return reactive types (`Mono<Void>`, `Flux<E>`) -- the sender never blocks.
-2. **Read-only marking**: Every message is marked read-only before serialization at [AbstractKafkaBus.kt:57](https://github.com/Ahoo-Wang/Wow/blob/main/wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/AbstractKafkaBus.kt#L57), preventing accidental mutation.
-3. **Partition key is aggregate ID**: The record key is always set to `message.aggregateId.id` at [AbstractKafkaBus.kt:106](https://github.com/Ahoo-Wang/Wow/blob/main/wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/AbstractKafkaBus.kt#L106), guaranteeing ordered processing per aggregate.
-4. **Manual offset management**: Offsets are acknowledged explicitly via `exchange.acknowledge()` rather than auto-committed, giving the processor full control over at-least-once delivery semantics.
+1. **非阻塞响应式管道**：`send` 和 `receive` 都返回响应式类型（`Mono<Void>`、`Flux<E>`）——发送方永远不会阻塞。
+2. **只读标记**：每条消息在序列化前都会在 [AbstractKafkaBus.kt:57](https://github.com/Ahoo-Wang/Wow/blob/main/wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/AbstractKafkaBus.kt#L57) 处标记为只读，防止传输过程中的意外修改。
+3. **分区键是聚合 ID**：记录键始终设置为 `message.aggregateId.id`，代码位于 [AbstractKafkaBus.kt:106](https://github.com/Ahoo-Wang/Wow/blob/main/wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/AbstractKafkaBus.kt#L106)，保证每个聚合的有序处理。
+4. **手动偏移量管理**：偏移量通过 `exchange.acknowledge()` 显式确认，而不是自动提交，使处理器能够完全控制至少一次投递语义。
 
-## Installation
+## 安装
 
 ::: code-group
 ```kotlin [Gradle(Kotlin)]
@@ -181,40 +181,40 @@ implementation 'me.ahoo.wow:wow-kafka'
 ```
 :::
 
-When using `wow-spring-boot-starter`, the Kafka integration is included as an optional feature capability (`kafka-support`). Add it explicitly if the starter is used without the full dependency set:
+当使用 `wow-spring-boot-starter` 时，Kafka 集成作为可选的功能能力（`kafka-support`）包含在内。如果 starter 在没有完整依赖集的情况下使用，请显式添加它：
 
 ```kotlin
 implementation("me.ahoo.wow:wow-spring-boot-starter")
 implementation("me.ahoo.wow:wow-kafka")
 ```
 
-## Configuration
+## 配置
 
-- Configuration class: [KafkaProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/kafka/KafkaProperties.kt)
-- Prefix: `wow.kafka.`
+- 配置类： [KafkaProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/kafka/KafkaProperties.kt)
+- 前缀： `wow.kafka.`
 
-| Name | Data Type | Required | Default Value | Description |
+| 名称 | 数据类型 | 必填 | 默认值 | 描述 |
 |---|---|---|---|---|
-| `enabled` | `Boolean` | No | `true` | Whether to enable |
-| `bootstrap-servers` | `List<String>` | **Yes** | -- | Kafka server addresses |
-| `topic-prefix` | `String` | No | `wow.` | Topic prefix |
-| `properties` | `Map<String, String>` | No | `{}` | Common configuration |
-| `producer` | `Map<String, String>` | No | `{}` | Producer configuration |
-| `consumer` | `Map<String, String>` | No | `{}` | Consumer configuration |
+| `enabled` | `Boolean` | 否 | `true` | 是否启用 |
+| `bootstrap-servers` | `List<String>` | **是** | -- | Kafka 服务器地址 |
+| `topic-prefix` | `String` | 否 | `wow.` | 主题前缀 |
+| `properties` | `Map<String, String>` | 否 | `{}` | 通用配置 |
+| `producer` | `Map<String, String>` | 否 | `{}` | 生产者配置 |
+| `consumer` | `Map<String, String>` | 否 | `{}` | 消费者配置 |
 
-### Bus Type Selection
+### 总线类型选择
 
-Each bus (command, domain event, state event) can independently select its implementation via the `*.bus.type` property. Kafka is the **default** for all three:
+每种总线（命令、领域事件、状态事件）可以通过 `*.bus.type` 属性独立选择其实现。Kafka 是所有三种总线的 **默认值**：
 
-| Property | Default |
+| 属性 | 默认值 |
 |---|---|
 | `wow.command.bus.type` | `kafka` |
 | `wow.event.bus.type` | `kafka` |
 | `wow.eventsourcing.state.bus.type` | `kafka` |
 
-Valid values are: `kafka`, `redis`, `in_memory`, `no_op`.
+有效值为：`kafka`、`redis`、`in_memory`、`no_op`。
 
-**YAML Configuration Example**
+**YAML 配置示例**
 
 ```yaml
 wow:
@@ -233,30 +233,30 @@ wow:
     topic-prefix: 'wow.'
 ```
 
-### SenderOptions and ReceiverOptions
+### SenderOptions 和 ReceiverOptions
 
-The `KafkaProperties` class provides two builder methods that merge the common `properties` map with the type-specific `producer` or `consumer` maps:
+`KafkaProperties` 类提供两个构建器方法，将通用 `properties` 映射与特定类型的 `producer` 或 `consumer` 映射合并：
 
-- `buildSenderOptions()` -- merges `properties` + `producer`, auto-sets `KEY_SERIALIZER_CLASS_CONFIG` and `VALUE_SERIALIZER_CLASS_CONFIG` to `StringSerializer`.
-- `buildReceiverOptions()` -- merges `properties` + `consumer`, auto-sets deserializers to `StringDeserializer`.
+- `buildSenderOptions()`——合并 `properties` + `producer`，自动设置 `KEY_SERIALIZER_CLASS_CONFIG` 和 `VALUE_SERIALIZER_CLASS_CONFIG` 为 `StringSerializer`。
+- `buildReceiverOptions()`——合并 `properties` + `consumer`，自动设置反序列化器为 `StringDeserializer`。
 
-All serialization is performed at the application layer as JSON strings (via `message.toJsonString()` in [AbstractKafkaBus.kt:108](https://github.com/Ahoo-Wang/Wow/blob/main/wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/AbstractKafkaBus.kt#L108)), so the Kafka client only needs to transport raw strings. This avoids coupling the broker to any domain-specific serialization format.
+所有序列化都在应用层以 JSON 字符串执行（通过 [AbstractKafkaBus.kt:108](https://github.com/Ahoo-Wang/Wow/blob/main/wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/AbstractKafkaBus.kt#L108) 中的 `message.toJsonString()`），因此 Kafka 客户端只需传输原始字符串。这避免了对任何特定领域的序列化格式的耦合。
 
-### Receiver Retry Policy
+### 接收端重试策略
 
-When a `KafkaReceiver` encounters a transient error during polling, it retries up to **3 times with a 10-second backoff** before propagating the error:
+当 `KafkaReceiver` 在轮询期间遇到瞬时错误时，在传播错误之前最多重试 **3 次，间隔 10 秒**：
 
 ```kotlin
 internal val DEFAULT_RECEIVE_RETRY_SPEC: RetryBackoffSpec = Retry.backoff(3, Duration.ofSeconds(10))
 ```
 
-## Topic Naming Rules
+## 主题命名规则
 
-Topics are derived from three components: the configurable **prefix**, the **named aggregate** (context + aggregate name), and a **fixed suffix** per bus type.
+主题从三个组成部分派生：可配置的 **前缀**、**命名聚合**（上下文 + 聚合名称）以及每种总线类型的 **固定后缀**。
 
 ```mermaid
 graph LR
-    Config[Config<br>wow.kafka.topic-prefix] --> Prefix["wow."]
+    Config[配置<br>wow.kafka.topic-prefix] --> Prefix["wow."]
     Named[NamedAggregate] --> Ident["order-service.order"]
     Prefix --> Topic
     Ident --> Topic
@@ -264,53 +264,53 @@ graph LR
     Topic["wow.order-service.order.command"]
 ```
 
-| Message Type | Topic Naming Format | Example |
+| 消息类型 | 主题命名格式 | 示例 |
 |---|---|---|
-| Command | `{prefix}{contextName}.{aggregateName}.command` | `wow.order-service.order.command` |
-| DomainEvent | `{prefix}{contextName}.{aggregateName}.event` | `wow.order-service.order.event` |
-| StateEvent | `{prefix}{contextName}.{aggregateName}.state` | `wow.order-service.order.state` |
+| 命令 | `{prefix}{contextName}.{aggregateName}.command` | `wow.order-service.order.command` |
+| 领域事件 | `{prefix}{contextName}.{aggregateName}.event` | `wow.order-service.order.event` |
+| 状态事件 | `{prefix}{contextName}.{aggregateName}.state` | `wow.order-service.order.state` |
 
 ::: tip
-The `topic-prefix` configuration allows you to add a uniform prefix to all Topics, making it easier to distinguish between multiple environments or projects. The topic prefix defaults to `"wow."` (the `Wow.WOW_PREFIX` constant defined at [Wow.kt:37](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/Wow.kt#L37)), but can be customized for multi-tenant or multi-environment deployments.
+`topic-prefix` 配置允许您为所有主题添加统一前缀，便于区分多个环境或项目。主题前缀默认值为 `"wow."`（在 [Wow.kt:37](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/Wow.kt#L37) 中定义的 `Wow.WOW_PREFIX` 常量），但可以根据多租户或多环境部署进行自定义。
 :::
 
-## Partition Strategy
+## 分区策略
 
-The Kafka extension uses the aggregate root ID as the partition key by default, ensuring that all messages for the same aggregate root are sent to the same partition, guaranteeing message ordering.
+Kafka 扩展默认使用聚合根 ID 作为分区键，确保同一聚合根的所有消息发送到同一分区，保证消息排序。
 
 ```mermaid
 flowchart LR
-    subgraph Messages["Messages"]
-        C1["Order-001<br>Command"]
-        C2["Order-002<br>Command"]
-        E1["Order-001<br>DomainEvent"]
+    subgraph Messages["消息"]
+        C1["Order-001<br>命令"]
+        C2["Order-002<br>命令"]
+        E1["Order-001<br>领域事件"]
     end
-    subgraph Partitions["Kafka Partitions"]
-        P0["Partition 0"]
-        P1["Partition 1"]
-        P2["Partition 2"]
+    subgraph Partitions["Kafka 分区"]
+        P0["分区 0"]
+        P1["分区 1"]
+        P2["分区 2"]
     end
     C1 -->|"hash(Order-001)"| P0
     C2 -->|"hash(Order-002)"| P2
     E1 -->|"hash(Order-001)"| P0
 ```
 
-This design is foundational for Event Sourcing: events must be consumed in publish-order to reconstruct aggregate state correctly. The partition key enforcement at the broker level makes this resilient across consumer rebalances.
+这种设计是事件溯源的基础：事件必须按照发布顺序消费才能正确重建聚合状态。Broker 级别的分区键强制执行使这在不同消费者再均衡之间具有弹性。
 
-## Auto-Configuration
+## 自动配置
 
-The `KafkaAutoConfiguration` class wires all beans when Kafka is enabled and the `wow-kafka` module is on the classpath.
+当启用 Kafka 且 `wow-kafka` 模块在 classpath 上时，`KafkaAutoConfiguration` 类装配所有 Bean。
 
-### Bean Wiring
+### Bean 装配
 
 ```mermaid
 graph TB
-    subgraph Conditions["Condition Annotations"]
+    subgraph Conditions["条件注解"]
         C1["@ConditionalOnWowEnabled"]
         C2["@ConditionalOnKafkaEnabled"]
         C3["@ConditionalOnClass(KafkaCommandBus)"]
     end
-    subgraph Beans["Auto-Configured Beans"]
+    subgraph Beans["自动配置的 Bean"]
         B1["ReceiverOptionsCustomizer"]
         B2["CommandTopicConverter<br>(DefaultCommandTopicConverter)"]
         B3["kafkaCommandBus<br>(KafkaCommandBus)"]
@@ -335,176 +335,176 @@ graph TB
     C3 --> Beans
 ```
 
-Each bus bean is guarded by a `@ConditionalOnProperty` check against the corresponding `*.bus.type` property. This means you can selectively disable Kafka for specific message types:
+每个总线 Bean 都受到 `@ConditionalOnProperty` 的保护，检查对应的 `*.bus.type` 属性。这意味着您可以选择性地对特定消息类型禁用 Kafka：
 
 ```yaml
 wow:
   command:
     bus:
-      type: kafka       # Commands via Kafka (default)
+      type: kafka       # 命令通过 Kafka（默认）
   event:
     bus:
-      type: in_memory   # Domain events locally only
+      type: in_memory   # 仅本地领域事件
   eventsourcing:
     state:
       bus:
-        type: kafka     # State events via Kafka
+        type: kafka     # 状态事件通过 Kafka
 ```
 
 ### ConditionalOnKafkaEnabled
 
-The custom `@ConditionalOnKafkaEnabled` annotation is a focused composition that enables/disables the entire `KafkaAutoConfiguration` class. It checks `wow.kafka.enabled = true` (matching if missing).
+自定义的 `@ConditionalOnKafkaEnabled` 注解是一个专注的组合，用于启用/禁用整个 `KafkaAutoConfiguration` 类。它检查 `wow.kafka.enabled = true`（缺失时也匹配）。
 
 ### ReceiverOptionsCustomizer
 
-The `ReceiverOptionsCustomizer` interface allows injecting custom behavior into the `KafkaReceiver` creation pipeline. Each concrete bus accepts an optional customizer, and the auto-configuration registers a `NoOpReceiverOptionsCustomizer` as the default.
+`ReceiverOptionsCustomizer` 接口允许将自定义行为注入到 `KafkaReceiver` 创建管道中。每个具体总线接受一个可选的自定义器，自动配置注册 `NoOpReceiverOptionsCustomizer` 作为默认值。
 
-## Producer Optimization
+## 生产者优化
 
 ```yaml
 wow:
   kafka:
     producer:
-      # Batch configuration
+      # 批量配置
       batch.size: 16384
       linger.ms: 5
-      # Compression configuration
+      # 压缩配置
       compression.type: lz4
-      # Reliability configuration
+      # 可靠性配置
       acks: all
       retries: 3
-      # Idempotence
+      # 幂等性
       enable.idempotence: true
 ```
 
-| Configuration | Description | Recommended Value |
+| 配置 | 描述 | 推荐值 |
 |---|---|---|
-| `batch.size` | Batch size (bytes) | 16384 |
-| `linger.ms` | Wait time (milliseconds) | 5 |
-| `compression.type` | Compression type | lz4 |
-| `acks` | Acknowledgment level | all |
-| `enable.idempotence` | Idempotence | true |
+| `batch.size` | 批量大小（字节） | 16384 |
+| `linger.ms` | 等待时间（毫秒） | 5 |
+| `compression.type` | 压缩类型 | lz4 |
+| `acks` | 确认级别 | all |
+| `enable.idempotence` | 幂等性 | true |
 
-## Consumer Optimization
+## 消费者优化
 
 ```yaml
 wow:
   kafka:
     consumer:
-      # Fetch configuration
+      # 拉取配置
       fetch.min.bytes: 1024
       fetch.max.wait.ms: 500
       max.poll.records: 500
-      # Auto commit configuration
+      # 自动提交配置
       enable.auto.commit: false
-      # Session timeout
+      # 会话超时
       session.timeout.ms: 30000
       heartbeat.interval.ms: 10000
 ```
 
-| Configuration | Description | Recommended Value |
+| 配置 | 描述 | 推荐值 |
 |---|---|---|
-| `fetch.min.bytes` | Minimum fetch bytes | 1024 |
-| `max.poll.records` | Maximum poll records | 500 |
-| `enable.auto.commit` | Auto commit | false |
-| `session.timeout.ms` | Session timeout | 30000 |
+| `fetch.min.bytes` | 最小拉取字节数 | 1024 |
+| `max.poll.records` | 最大轮询记录数 | 500 |
+| `enable.auto.commit` | 自动提交 | false |
+| `session.timeout.ms` | 会话超时 | 30000 |
 
-## Consumer Groups
+## 消费者组
 
-Each processor corresponds to an independent Kafka consumer group. The consumer group ID format is:
+每个处理器对应一个独立的 Kafka 消费者组。消费者组 ID 格式为：
 
 ```
 {contextName}.{processorName}
 ```
 
-For example: `order-service.OrderProjectionProcessor`
+例如：`order-service.OrderProjectionProcessor`
 
-This is set at [AbstractKafkaBus.kt:81-84](https://github.com/Ahoo-Wang/Wow/blob/main/wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/AbstractKafkaBus.kt#L81-L84), where the `ConsumerConfig.GROUP_ID_CONFIG` property is dynamically injected into the `ReceiverOptions` based on the current processing context. This ensures each processor instance independently tracks its own offset, enabling parallel consumption across processor types while maintaining ordering within each consumer group.
+这是在 [AbstractKafkaBus.kt:81-84](https://github.com/Ahoo-Wang/Wow/blob/main/wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/AbstractKafkaBus.kt#L81-L84) 中设置的，其中 `ConsumerConfig.GROUP_ID_CONFIG` 属性根据当前处理上下文动态注入到 `ReceiverOptions` 中。这确保了每个处理器实例独立跟踪自己的偏移量，支持跨处理器类型的并行消费，同时维护每个消费者组内的有序性。
 
-## Key Design Decisions
+## 关键设计决策
 
-### 1. String Serialization at the Kafka Layer
+### 1. Kafka 层的字符串序列化
 
-The Kafka client always uses `StringSerializer`/`StringDeserializer`. Domain objects are serialized to JSON strings by the application (`message.toJsonString()`) before being handed to the producer. This decouples the Kafka wire format from the domain serialization format -- you can change serialization strategies without touching Kafka configuration.
+Kafka 客户端始终使用 `StringSerializer`/`StringDeserializer`。领域对象在交给生产者之前由应用程序（`message.toJsonString()`）序列化为 JSON 字符串。这将 Kafka 传输格式与领域序列化格式解耦——您可以在不修改 Kafka 配置的情况下更改序列化策略。
 
-### 2. Read-Only Message Protection
+### 2. 只读消息保护
 
-Before serialization, each message is marked as read-only via `message.withReadOnly()` at [AbstractKafkaBus.kt:57](https://github.com/Ahoo-Wang/Wow/blob/main/wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/AbstractKafkaBus.kt#L57). This prevents accidental mutation of message state during transmission, a critical invariant for Event Sourcing where events must be immutable.
+在序列化前，每条消息通过 [AbstractKafkaBus.kt:57](https://github.com/Ahoo-Wang/Wow/blob/main/wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/AbstractKafkaBus.kt#L57) 处的 `message.withReadOnly()` 标记为只读。这防止了传输期间对消息状态的意外修改，这是事件溯源的关键不变量，其中事件必须是不可变的。
 
-### 3. Manual Offset Acknowledgment
+### 3. 手动偏移量确认
 
-Auto-commit is disabled by the framework. Instead, each `Exchange` implementation wraps a `ReceiverOffset` and exposes an `acknowledge()` method. The processor calls this after successful processing, giving full control over at-least-once semantics. If processing fails, the offset is not acknowledged and the message is re-delivered.
+框架禁用了自动提交。相反，每个 `Exchange` 实现包装了一个 `ReceiverOffset` 并暴露了一个 `acknowledge()` 方法。处理器在成功处理后调用此方法，从而完全控制至少一次语义。如果处理失败，偏移量不会被确认，消息将重新投递。
 
-### 4. Correlation Metadata for Send Feedback
+### 4. 用于发送反馈的相关元数据
 
-When sending, each `SenderRecord` carries a `Sinks.Empty<Void>` as correlation metadata. The send result is either an error-emit or an empty-completion, providing back-pressure-aware send confirmation to the caller.
+发送时，每个 `SenderRecord` 携带一个 `Sinks.Empty<Void>` 作为相关元数据。发送结果要么是错误发出要么是空完成，为调用方提供具有背压感知的发送确认。
 
-## Monitoring and Observability
+## 监控和可观察性
 
-While Kafka broker metrics (consumer lag, request rate, ISR) should be monitored at the infrastructure level, the Wow framework contributes several application-level signals:
+虽然 Kafka Broker 指标（消费者滞后、请求速率、ISR）应在基础设施层面监控，但 Wow 框架贡献了几个应用层信号：
 
-| Signal | Source | What It Reveals |
+| 信号 | 来源 | 揭示内容 |
 |---|---|---|
-| Send errors | `doOnNext` in [AbstractKafkaBus.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/AbstractKafkaBus.kt) | Kafka broker unavailability, topic creation issues |
-| Decode errors | `decode()` in [AbstractKafkaBus.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/AbstractKafkaBus.kt) | Schema/version mismatch, corrupted messages |
-| Receiver retry | `DEFAULT_RECEIVE_RETRY_SPEC` | Transient broker/network failures |
-| Close events | `close()` in [AbstractKafkaBus.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/AbstractKafkaBus.kt) | Graceful shutdown coverage |
+| 发送错误 | [AbstractKafkaBus.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/AbstractKafkaBus.kt) 中的 `doOnNext` | Kafka Broker 不可用、主题创建问题 |
+| 解码错误 | [AbstractKafkaBus.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/AbstractKafkaBus.kt) 中的 `decode()` | 模式/版本不匹配、损坏的消息 |
+| 接收端重试 | `DEFAULT_RECEIVE_RETRY_SPEC` | 瞬时 Broker/网络故障 |
+| 关闭事件 | [AbstractKafkaBus.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/AbstractKafkaBus.kt) 中的 `close()` | 优雅关闭覆盖 |
 
-## Troubleshooting
+## 故障排除
 
-### Common Issues
+### 常见问题
 
-#### 1. Connection Timeout
+#### 1. 连接超时
 
 ```
 org.apache.kafka.common.errors.TimeoutException: Failed to update metadata
 ```
 
-**Solutions**:
-- Verify `wow.kafka.bootstrap-servers` addresses are reachable from the application host.
-- Check network connectivity and firewall rules between the application and Kafka brokers.
-- Confirm the Kafka broker process is running and listening on the configured ports.
+**解决方案**：
+- 验证从应用程序主机可以访问 `wow.kafka.bootstrap-servers` 地址。
+- 检查应用程序与 Kafka Broker 之间的网络连接和防火墙规则。
+- 确认 Kafka Broker 进程正在运行并在配置的端口上监听。
 
-#### 2. Unknown Topic or Partition
+#### 2. 未知主题或分区
 
 ```
 org.apache.kafka.common.errors.UnknownTopicOrPartitionException
 ```
 
-**Solutions**:
-- Ensure the Kafka broker has `auto.create.topics.enable=true` (default), or pre-create the required topics manually.
-- Verify the `topic-prefix` configuration matches the expected topic names.
+**解决方案**：
+- 确保 Kafka Broker 具有 `auto.create.topics.enable=true`（默认值），或手动预先创建所需的主题。
+- 验证 `topic-prefix` 配置与预期的主题名称匹配。
 
-#### 3. Frequent Consumer Rebalancing
+#### 3. 频繁的消费者再均衡
 
-**Symptom**: Consumer groups experience repeated rebalances, causing processing pauses.
+**症状**：消费者组经历重复的再均衡，导致处理暂停。
 
-**Solutions**:
-- Increase `session.timeout.ms` and `heartbeat.interval.ms` in the consumer configuration.
-- Reduce `max.poll.records` to shorten the time between polls.
-- Ensure message processing time is consistently below `max.poll.interval.ms` (default 5 minutes).
+**解决方案**：
+- 在消费者配置中增加 `session.timeout.ms` 和 `heartbeat.interval.ms`。
+- 减少 `max.poll.records` 以缩短轮询之间的时间。
+- 确保消息处理时间始终低于 `max.poll.interval.ms`（默认 5 分钟）。
 
-#### 4. Message Decoding Failures
+#### 4. 消息解码失败
 
-**Symptom**: Error logs from `decode()` showing `Failed to decode ReceiverRecord`
+**症状**：来自 `decode()` 的错误日志显示 `Failed to decode ReceiverRecord`
 
-**Solutions**:
-- Verify all producers and consumers are running the same version of `wow-kafka` and domain model classes.
-- Check that the domain event or command class has not been modified in a backward-incompatible way.
-- Use schema evolution strategies for production deployments.
+**解决方案**：
+- 验证所有生产者和消费者运行相同版本的 `wow-kafka` 和领域模型类。
+- 检查领域事件或命令类是否以向后不兼容的方式被修改。
+- 在生产部署中使用模式演进策略。
 
-### Monitoring Metrics
+### 监控指标
 
-The following Kafka metrics should be monitored:
+以下 Kafka 指标应进行监控：
 
-| Metric | Description | Alert Threshold |
+| 指标 | 描述 | 告警阈值 |
 |---|---|---|
-| Consumer Lag | Consumption delay | > 10000 |
-| Request Rate | Request rate | Based on business |
-| Error Rate | Error rate | > 1% |
-| Replication ISR | In-sync replicas | < Replication factor |
+| 消费者滞后 | 消费延迟 | > 10000 |
+| 请求速率 | 请求速率 | 基于业务 |
+| 错误率 | 错误率 | > 1% |
+| 副本 ISR | 同步副本数 | < 副本因子 |
 
-## Complete Configuration Example
+## 完整配置示例
 
 ```yaml
 wow:
@@ -550,23 +550,23 @@ wow:
       heartbeat.interval.ms: 10000
 ```
 
-## Best Practices
+## 最佳实践
 
-1. **Enable LocalFirst Mode**: The `local-first` bus configuration (enabled by default) routes messages locally within the same JVM when the handler is co-located, reducing Kafka round-trips for intra-service communication.
-2. **Enable Idempotent Producer**: Set `enable.idempotence: true` in the producer configuration to guarantee exactly-once delivery at the producer level, preventing duplicate messages during retry scenarios.
-3. **Use Compression**: Enable `compression.type: lz4` in the producer configuration to reduce network bandwidth and storage overhead. LZ4 offers an excellent balance of compression ratio and CPU cost.
-4. **Match Partition Count to Topology**: Configure the number of Kafka partitions based on the expected consumer parallelism. Since ordering is per-partition (per aggregate ID), a higher partition count increases parallelism but does not affect ordering guarantees.
-5. **Monitor Consumer Lag**: Track consumer group lag as a primary health metric. Lag exceeding the business SLA threshold indicates processing bottlenecks that need investigation.
-6. **Test with Testcontainers**: The `wow-kafka` test dependencies include `testcontainers-kafka`. Use `wow-tck` (Technology Compatibility Kit) tests as a reference for integration testing patterns.
-7. **Customize the Topic Prefix Per Environment**: Use distinct `topic-prefix` values for development, staging, and production to isolate message streams (e.g., `dev.wow.`, `staging.wow.`, `wow.`).
+1. **启用 LocalFirst 模式**：`local-first` 总线配置（默认启用）当处理器位于同一位置时在同一 JVM 内本地路由消息，减少服务内通信的 Kafka 往返。
+2. **启用幂等生产者**：在生产者配置中设置 `enable.idempotence: true`，以保证生产者级别的精确一次投递，防止重试场景中的重复消息。
+3. **使用压缩**：在生产者配置中启用 `compression.type: lz4`，减少网络带宽和存储开销。LZ4 在压缩比和 CPU 成本之间提供了出色的平衡。
+4. **将分区数与拓扑匹配**：根据预期的消费者并行度配置 Kafka 分区数。由于排序是按分区的（按聚合 ID），更高的分区数会增加并行度但不会影响排序保证。
+5. **监控消费者滞后**：将消费者组滞后作为主要健康指标进行追踪。超过业务 SLA 阈值的滞后表明存在需要调查的处理瓶颈。
+6. **使用 Testcontainers 进行测试**：`wow-kafka` 测试依赖项包括 `testcontainers-kafka`。使用 `wow-tck`（技术兼容性套件）测试作为集成测试模式的参考。
+7. **按环境自定义主题前缀**：为开发、预发布和生产环境使用不同的 `topic-prefix` 值，以隔离消息流（例如 `dev.wow.`、`staging.wow.`、`wow.`）。
 
-## Related Topics
+## 相关主题
 
-| Topic | Description |
+| 主题 | 描述 |
 |---|---|
-| [Configuration Reference](../../reference/config/kafka.md) | Complete property reference for `wow.kafka.*` |
-| [Spring Boot Starter](spring-boot-starter.md) | Auto-configuration and feature variants |
-| [Command Gateway](../command-gateway.md) | Command gateway and wait strategies |
-| [Event Processor](../event-processor.md) | Event processing pipeline |
-| [Observability](../advanced/observability.md) | Monitoring and tracing integration |
-| [Configuration](../configuration.md) | Framework configuration principles |
+| [配置参考](../../reference/config/kafka.md) | `wow.kafka.*` 的完整属性参考 |
+| [Spring Boot Starter](spring-boot-starter.md) | 自动配置和功能变体 |
+| [命令网关](../command-gateway.md) | 命令网关和等待策略 |
+| [事件处理器](../event-processor.md) | 事件处理管道 |
+| [可观察性](../advanced/observability.md) | 监控和追踪集成 |
+| [配置](../configuration.md) | 框架配置原则 |

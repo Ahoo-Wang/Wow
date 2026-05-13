@@ -1,15 +1,15 @@
 ---
-title: Snapshot
-description: Snapshot is an important optimization mechanism in event sourcing architecture that improves performance by saving checkpoints of aggregate root state.
+title: 快照
+description: 快照是事件溯源架构中的重要优化机制，通过保存聚合根状态检查点来提升性能，减少事件重放次数。
 ---
 
-# Snapshot
+# 快照
 
-Snapshot is an important optimization mechanism in event sourcing architecture that improves performance by saving checkpoints of aggregate root state to reduce the number of event replays.
+快照是事件溯源架构中的重要优化机制，通过保存聚合根状态检查点来提升性能，减少事件重放次数。
 
-## Snapshot Mechanism
+## 快照机制
 
-In event sourcing, the state of an aggregate root is reconstructed by replaying all historical events. As the number of events increases, replaying all events becomes slower and slower. The snapshot mechanism solves this problem by periodically saving the current state of the aggregate root.
+在事件溯源中，聚合根的状态通过重放所有历史事件来重建。随着事件数量的增加，重放所有事件变得越来越慢。快照机制通过定期保存聚合根的当前状态来解决此问题。
 
 ```kotlin
 interface Snapshot<S : Any> : ReadOnlyStateAggregate<S>, SnapshotTimeCapable
@@ -20,42 +20,42 @@ data class SimpleSnapshot<S : Any>(
 ) : Snapshot<S>
 ```
 
-## Snapshot Loading Flow
+## 快照加载流程
 
-When loading an aggregate, the snapshot store is consulted first. If a snapshot exists, only events after the snapshot version need to be replayed.
+加载聚合时，首先查询快照存储。如果存在快照，则只需重放快照版本之后的事件。
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant CB as Command Bus
-    participant AG as Aggregate
-    participant SS as Snapshot Store
-    participant ES as Event Store
+    participant CB as 命令总线
+    participant AG as 聚合
+    participant SS as 快照存储
+    participant ES as 事件存储
 
-    CB->>AG: Load Aggregate(id)
-    AG->>SS: Get Latest Snapshot(id)
-    alt Snapshot Found
-        SS-->>AG: Snapshot(v=50)
-        AG->>ES: Get Events After(v=50)
-        ES-->>AG: Events [51..55]
-    else No Snapshot
+    CB->>AG: 加载聚合(id)
+    AG->>SS: 获取最新快照(id)
+    alt 找到快照
+        SS-->>AG: 快照(v=50)
+        AG->>ES: 获取版本之后的事件(v=50)
+        ES-->>AG: 事件 [51..55]
+    else 无快照
         SS-->>AG: null
-        AG->>ES: Get All Events(id)
-        ES-->>AG: Events [1..55]
+        AG->>ES: 获取所有事件(id)
+        ES-->>AG: 事件 [1..55]
     end
-    AG->>AG: Replay Events -> State
-    AG-->>CB: Aggregate Ready
+    AG->>AG: 重放事件 -> 状态
+    AG-->>CB: 聚合就绪
 ```
 
 <!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/event/snapshot/, wow-api/src/main/kotlin/me/ahoo/wow/api/event/snapshot/ -->
 
-## Snapshot Strategies
+## 快照策略
 
-Snapshot strategies determine when to create snapshots. The Wow framework provides multiple built-in strategies:
+快照策略决定何时创建快照。Wow 框架提供多种内置策略：
 
-### Version Offset Strategy (VersionOffset)
+### 版本偏移策略 (VersionOffset)
 
-Creates a snapshot when the difference between the aggregate root version and the last snapshot version reaches a specified threshold.
+当聚合根版本与上次快照版本的差值达到指定阈值时创建快照。
 
 ```kotlin
 class VersionOffsetSnapshotStrategy(
@@ -64,9 +64,9 @@ class VersionOffsetSnapshotStrategy(
 ) : SnapshotStrategy
 ```
 
-### All Strategy (All)
+### 全量策略 (All)
 
-Creates a snapshot for every state event.
+为每个状态事件创建快照。
 
 ```kotlin
 class SimpleSnapshotStrategy(
@@ -74,9 +74,9 @@ class SimpleSnapshotStrategy(
 ) : SnapshotStrategy
 ```
 
-### No Operation Strategy (NoOp)
+### 无操作策略 (NoOp)
 
-Does not create any snapshots.
+不创建任何快照。
 
 ```kotlin
 object NoOp : SnapshotStrategy {
@@ -84,24 +84,24 @@ object NoOp : SnapshotStrategy {
 }
 ```
 
-## Snapshot Lifecycle
+## 快照生命周期
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Create: Every N Events
-    Create --> Store: Serialize State
-    Store --> Active: Available for Loading
-    Active --> Stale: New Events Added
-    Stale --> Create: Interval Reached
-    Active --> Delete: Aggregate Deleted
+    [*] --> Create: 每 N 个事件
+    Create --> Store: 序列化状态
+    Store --> Active: 可用于加载
+    Active --> Stale: 新事件已添加
+    Stale --> Create: 达到间隔
+    Active --> Delete: 聚合已删除
     Delete --> [*]
 ```
 
 <!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/event/snapshot/SnapshotHandler.kt -->
 
-## Snapshot Repository
+## 快照仓库
 
-The snapshot repository is responsible for storing and retrieving snapshots.
+快照仓库负责存储和检索快照。
 
 ```kotlin
 interface SnapshotRepository : Named, AggregateIdScanner {
@@ -111,7 +111,7 @@ interface SnapshotRepository : Named, AggregateIdScanner {
 }
 ```
 
-### In-Memory Implementation
+### 内存实现
 
 ```kotlin
 class InMemorySnapshotRepository : SnapshotRepository {
@@ -129,42 +129,42 @@ class InMemorySnapshotRepository : SnapshotRepository {
 }
 ```
 
-### Supported Backends
+### 支持的后端
 
-| Backend | Module | Status |
+| 后端 | 模块 | 状态 |
 |---------|--------|--------|
-| MongoDB | `wow-mongo` | Production-ready |
-| Redis | `wow-redis` | Production-ready |
-| R2DBC | `wow-r2dbc` | Production-ready |
+| MongoDB | `wow-mongo` | 生产就绪 |
+| Redis | `wow-redis` | 生产就绪 |
+| R2DBC | `wow-r2dbc` | 生产就绪 |
 
-## Snapshot Processing Flow
+## 快照处理流程
 
-1. **State Event Publishing**: When aggregate root state changes, publish state events
-2. **Strategy Evaluation**: Snapshot strategy evaluates whether a snapshot needs to be created
-3. **Snapshot Creation**: If needed, create a snapshot of the current state
-4. **Snapshot Storage**: Save the snapshot to the snapshot repository
+1. **状态事件发布**：当聚合根状态变化时，发布状态事件
+2. **策略评估**：快照策略评估是否需要创建快照
+3. **快照创建**：如需要，创建当前状态的快照
+4. **快照存储**：将快照保存到快照仓库
 
-## Configuration
+## 配置
 
 ```yaml
 wow:
   eventsourcing:
     snapshot:
-      enabled: true  # Whether to enable snapshots
-      strategy: all  # Snapshot strategy (all, version_offset)
-      storage: mongo  # Snapshot storage (mongo, redis, r2dbc, elasticsearch, in_memory, delay)
-      version-offset: 5  # Version offset (only valid for version_offset strategy)
+      enabled: true  # 是否启用快照
+      strategy: all  # 快照策略 (all, version_offset)
+      storage: mongo  # 快照存储 (mongo, redis, r2dbc, elasticsearch, in_memory, delay)
+      version-offset: 5  # 版本偏移（仅对 version_offset 策略有效）
 ```
 
-| Property | Default | Description |
+| 属性 | 默认值 | 描述 |
 |----------|---------|-------------|
-| `wow.snapshot.enabled` | `false` | Enable snapshot store |
-| `wow.snapshot.interval` | `100` | Events before new snapshot |
-| `wow.snapshot.store.type` | Event store backend | Snapshot storage backend |
+| `wow.snapshot.enabled` | `false` | 启用快照存储 |
+| `wow.snapshot.interval` | `100` | 创建新快照前的事件数 |
+| `wow.snapshot.store.type` | 事件存储后端 | 快照存储后端 |
 
-## Aggregate Loading Optimization
+## 聚合加载优化
 
-Snapshots greatly optimize aggregate root loading performance:
+快照极大地优化了聚合根的加载性能：
 
 ```kotlin
 class EventSourcingOrderRepository(
@@ -177,7 +177,7 @@ class EventSourcingOrderRepository(
 
         return snapshotRepository.load<OrderState>(aggregateId)
             .flatMap { snapshot ->
-                // Only replay events after the snapshot version
+                // 只重放快照版本之后的事件
                 eventStore.load(aggregateId, snapshot.version + 1)
                     .collectList()
                     .map { eventStreams ->
@@ -191,7 +191,7 @@ class EventSourcingOrderRepository(
                     }
             }
             .switchIfEmpty(
-                // No snapshot, load all events
+                // 无快照，加载所有事件
                 eventStore.load(aggregateId)
                     .collectList()
                     .map { eventStreams ->
@@ -208,17 +208,17 @@ class EventSourcingOrderRepository(
 }
 ```
 
-## Performance Impact
+## 性能影响
 
-- **Snapshots Enabled**: Aggregate loading time is proportional to snapshot interval, not total event count
-- **Snapshots Disabled**: Every load requires replaying all historical events
-- **Storage Cost**: Requires additional storage space to save snapshot data
+- **启用快照**：聚合加载时间与快照间隔成正比，而非总事件数
+- **禁用快照**：每次加载都需要重放所有历史事件
+- **存储成本**：需要额外的存储空间来保存快照数据
 
-With a snapshot interval of 50, an aggregate with 1000 events replays at most 49 events instead of all 1000 -- a ~95% reduction.
+当快照间隔为 50 时，拥有 1000 个事件的聚合最多重放 49 个事件，而非全部 1000 个 -- 减少约 95%。
 
-## Best Practices
+## 最佳实践
 
-1. **Choose Appropriate Snapshot Strategy**: Select appropriate snapshot frequency based on business scenarios
-2. **Monitor Snapshot Effectiveness**: Regularly check if snapshots significantly improve loading performance
-3. **Snapshot Cleanup**: Regularly clean up expired snapshots to save storage space
-4. **Snapshot Consistency**: Ensure snapshot version consistency with event streams
+1. **选择合适的快照策略**：根据业务场景选择合适的快照频率
+2. **监控快照效果**：定期检查快照是否显著改善了加载性能
+3. **快照清理**：定期清理过期的快照以节省存储空间
+4. **快照一致性**：确保快照版本与事件流的一致性

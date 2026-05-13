@@ -1,20 +1,20 @@
 ---
-title: Infrastructure Configuration
-description: Configuration options for infrastructure integrations including Kafka, MongoDB, Redis, R2DBC, Elasticsearch, and WebFlux.
+title: 基础设施配置
+description: 基础设施集成的配置选项，包括 Kafka、MongoDB、Redis、R2DBC、Elasticsearch 和 WebFlux。
 ---
 
-# Infrastructure Configuration
+# 基础设施配置
 
 ## Kafka
 
-| Property | Type | Default | Description |
+| 属性 | 类型 | 默认值 | 描述 |
 |----------|------|---------|-------------|
-| `wow.kafka.enabled` | Boolean | `true` | Enable Kafka integration |
-| `wow.kafka.bootstrap-servers` | List\<String\> | (required) | Kafka bootstrap server addresses |
-| `wow.kafka.topic-prefix` | String | `wow.` | Topic name prefix |
-| `wow.kafka.properties` | Map\<String, String\> | `{}` | Additional Kafka client properties |
-| `wow.kafka.producer` | Map\<String, String\> | `{}` | Kafka producer-specific properties |
-| `wow.kafka.consumer` | Map\<String, String\> | `{}` | Kafka consumer-specific properties |
+| `wow.kafka.enabled` | Boolean | `true` | 启用 Kafka 集成 |
+| `wow.kafka.bootstrap-servers` | List\<String\> | （必填） | Kafka bootstrap server 地址 |
+| `wow.kafka.topic-prefix` | String | `wow.` | Topic 名称前缀 |
+| `wow.kafka.properties` | Map\<String, String\> | `{}` | 额外的 Kafka 客户端属性 |
+| `wow.kafka.producer` | Map\<String, String\> | `{}` | Kafka 生产者专属属性 |
+| `wow.kafka.consumer` | Map\<String, String\> | `{}` | Kafka 消费者专属属性 |
 
 ```yaml
 wow:
@@ -33,13 +33,13 @@ wow:
 
 ## MongoDB
 
-| Property | Type | Default | Description |
+| 属性 | 类型 | 默认值 | 描述 |
 |----------|------|---------|-------------|
-| `wow.mongo.enabled` | Boolean | `true` | Enable MongoDB integration |
-| `wow.mongo.auto-init-schema` | Boolean | `true` | Automatically initialize database schema on startup |
-| `wow.mongo.event-stream-database` | String? | `null` | Separate database for event streams (defaults to main database) |
-| `wow.mongo.snapshot-database` | String? | `null` | Separate database for snapshots (defaults to main database) |
-| `wow.mongo.prepare-database` | String? | `null` | Separate database for PrepareKey storage (defaults to main database) |
+| `wow.mongo.enabled` | Boolean | `true` | 启用 MongoDB 集成 |
+| `wow.mongo.auto-init-schema` | Boolean | `true` | 启动时自动初始化数据库 Schema |
+| `wow.mongo.event-stream-database` | String? | `null` | 事件流使用的独立数据库（默认使用主数据库） |
+| `wow.mongo.snapshot-database` | String? | `null` | 快照使用的独立数据库（默认使用主数据库） |
+| `wow.mongo.prepare-database` | String? | `null` | PrepareKey 存储使用的独立数据库（默认使用主数据库） |
 
 ```yaml
 wow:
@@ -52,11 +52,11 @@ wow:
 
 ## Redis
 
-| Property | Type | Default | Description |
+| 属性 | 类型 | 默认值 | 描述 |
 |----------|------|---------|-------------|
-| `wow.redis.enabled` | Boolean | `true` | Enable Redis integration |
+| `wow.redis.enabled` | Boolean | `true` | 启用 Redis 集成 |
 
-Redis connection is configured through Spring Boot's standard `spring.data.redis.*` properties.
+Redis 连接通过 Spring Boot 标准的 `spring.data.redis.*` 属性进行配置。
 
 ```yaml
 spring:
@@ -72,28 +72,28 @@ wow:
 
 ## R2DBC
 
-### Basic Properties
+### 基础属性
 
-| Property | Type | Default | Description |
+| 属性 | 类型 | 默认值 | 描述 |
 |----------|------|---------|-------------|
-| `wow.r2dbc.enabled` | Boolean | `true` | Enable R2DBC integration |
+| `wow.r2dbc.enabled` | Boolean | `true` | 启用 R2DBC 集成 |
 
-### DataSource Properties
+### DataSource 属性
 
-| Property | Type | Default | Description |
+| 属性 | 类型 | 默认值 | 描述 |
 |----------|------|---------|-------------|
-| `wow.r2dbc.datasource.type` | Type | `SIMPLE` | DataSource type: `SIMPLE` or `SHARDING` |
+| `wow.r2dbc.datasource.type` | Type | `SIMPLE` | DataSource 类型：`SIMPLE` 或 `SHARDING` |
 
-### Sharding Properties
+### 分片属性
 
-When `wow.r2dbc.datasource.type` is `SHARDING`:
+当 `wow.r2dbc.datasource.type` 为 `SHARDING` 时：
 
-| Property | Type | Default | Description |
+| 属性 | 类型 | 默认值 | 描述 |
 |----------|------|---------|-------------|
-| `wow.r2dbc.datasource.sharding.databases` | Map\<String, Database\> | `{}` | Sharded database definitions |
-| `wow.r2dbc.datasource.sharding.event-stream` | Map\<String, ShardingRule\> | `{}` | Event stream sharding rules |
-| `wow.r2dbc.datasource.sharding.snapshot` | Map\<String, ShardingRule\> | `{}` | Snapshot sharding rules |
-| `wow.r2dbc.datasource.sharding.algorithms` | Map\<String, ShardingAlgorithm\> | `{}` | Sharding algorithm definitions |
+| `wow.r2dbc.datasource.sharding.databases` | Map\<String, Database\> | `{}` | 分片数据库定义 |
+| `wow.r2dbc.datasource.sharding.event-stream` | Map\<String, ShardingRule\> | `{}` | 事件流分片规则 |
+| `wow.r2dbc.datasource.sharding.snapshot` | Map\<String, ShardingRule\> | `{}` | 快照分片规则 |
+| `wow.r2dbc.datasource.sharding.algorithms` | Map\<String, ShardingAlgorithm\> | `{}` | 分片算法定义 |
 
 ```yaml
 wow:
@@ -103,7 +103,7 @@ wow:
       type: simple
 ```
 
-### Sharding Example
+### 分片示例
 
 ```yaml
 wow:
@@ -131,12 +131,12 @@ wow:
 
 ## Elasticsearch
 
-| Property | Type | Default | Description |
+| 属性 | 类型 | 默认值 | 描述 |
 |----------|------|---------|-------------|
-| `wow.elasticsearch.enabled` | Boolean | `true` | Enable Elasticsearch integration |
-| `wow.elasticsearch.auto-init-template` | Boolean | `true` | Automatically initialize index templates on startup |
+| `wow.elasticsearch.enabled` | Boolean | `true` | 启用 Elasticsearch 集成 |
+| `wow.elasticsearch.auto-init-template` | Boolean | `true` | 启动时自动初始化索引模板 |
 
-Elasticsearch connection is configured through Spring Boot's standard `spring.elasticsearch.*` properties.
+Elasticsearch 连接通过 Spring Boot 标准的 `spring.elasticsearch.*` 属性进行配置。
 
 ```yaml
 spring:
@@ -151,10 +151,10 @@ wow:
 
 ## WebFlux
 
-| Property | Type | Default | Description |
+| 属性 | 类型 | 默认值 | 描述 |
 |----------|------|---------|-------------|
-| `wow.webflux.enabled` | Boolean | `true` | Enable WebFlux command endpoint auto-registration |
-| `wow.webflux.global-error.enabled` | Boolean | `true` | Enable global error handling |
+| `wow.webflux.enabled` | Boolean | `true` | 启用 WebFlux 命令端点自动注册 |
+| `wow.webflux.global-error.enabled` | Boolean | `true` | 启用全局错误处理 |
 
 ```yaml
 wow:

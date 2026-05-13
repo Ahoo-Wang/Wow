@@ -1,20 +1,20 @@
 ---
-title: Core Configuration
-description: Fundamental configuration options for the Wow framework, including command bus, event bus, event sourcing, snapshots, state events, and prepare keys.
+title: 核心配置
+description: Wow 框架的基础配置选项，包括命令总线、事件总线、事件溯源、快照、状态事件和 Prepare Key。
 ---
 
-# Core Configuration
+# 核心配置
 
 ## WowProperties
 
-- Configuration class: [WowProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowProperties.kt)
-- Prefix: `wow`
+- 配置类：[WowProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowProperties.kt)
+- 前缀：`wow`
 
-| Name | Data Type | Description | Default Value |
+| 名称 | 数据类型 | 描述 | 默认值 |
 |------|-----------|-------------|---------------|
-| `enabled` | Boolean | Enable/disable the Wow framework | `true` |
-| `context-name` | String | Bounded context name for the service | `${spring.application.name}` |
-| `shutdown-timeout` | Duration | Graceful shutdown timeout | `60s` |
+| `enabled` | Boolean | 启用/禁用 Wow 框架 | `true` |
+| `context-name` | String | 服务的限界上下文名称 | `${spring.application.name}` |
+| `shutdown-timeout` | Duration | 优雅停机超时时间 | `60s` |
 
 ```yaml
 wow:
@@ -25,39 +25,39 @@ wow:
 
 ## BusProperties
 
-`BusProperties` is the shared configuration for `CommandBus`, `EventBus`, and `StateEventBus`.
+`BusProperties` 是 `CommandBus`、`EventBus` 和 `StateEventBus` 的公共配置。
 
-- Configuration class: [BusProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/BusProperties.kt)
+- 配置类：[BusProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/BusProperties.kt)
 
-| Name | Data Type | Description | Default Value |
+| 名称 | 数据类型 | 描述 | 默认值 |
 |------|-----------|-------------|---------------|
-| `type` | BusType | Message bus implementation type | `kafka` |
-| `local-first` | LocalFirstProperties | LocalFirst mode configuration | |
+| `type` | BusType | 消息总线实现类型 | `kafka` |
+| `local-first` | LocalFirstProperties | LocalFirst 模式配置 | |
 
 ### BusType
 
 ```kotlin
 enum class BusType {
-    KAFKA,      // Apache Kafka (recommended for production)
+    KAFKA,      // Apache Kafka（生产环境推荐）
     REDIS,      // Redis Streams
-    IN_MEMORY,  // In-memory (for testing)
-    NO_OP;      // No-op (for special cases)
+    IN_MEMORY,  // 内存模式（用于测试）
+    NO_OP;      // 无操作模式（用于特殊场景）
 }
 ```
 
-### LocalFirst Mode
+### LocalFirst 模式
 
-LocalFirst mode optimizes command and event processing by prioritizing local message consumption over distributed message bus:
+LocalFirst 模式通过优先在本地消费消息而非通过分布式消息总线来优化命令和事件处理：
 
 ```mermaid
 flowchart TB
-    subgraph Local["Local Service Instance"]
-        CG[CommandGateway]
-        LocalBus[Local Bus]
-        Processor[Processor]
+    subgraph Local["本地服务实例"]
+        CG[命令网关]
+        LocalBus[本地总线]
+        Processor[处理器]
     end
 
-    subgraph Distributed["Distributed Message Bus"]
+    subgraph Distributed["分布式消息总线"]
         Kafka[Kafka]
     end
 
@@ -68,25 +68,25 @@ flowchart TB
     Kafka --> Processor
 ```
 
-#### Benefits
+#### 优势
 
-1. **Reduced Latency**: Local message processing avoids network round trips
-2. **Better Resource Utilization**: Maximizes local processing before distributed
-3. **Fault Tolerance**: Failed local messages are retried via distributed bus
+1. **降低延迟**：本地消息处理避免了网络往返
+2. **更好的资源利用率**：在分发到分布式总线之前最大化本地处理
+3. **容错能力**：失败的本地消息通过分布式总线重试
 
-| Name | Data Type | Description | Default Value |
+| 名称 | 数据类型 | 描述 | 默认值 |
 |------|-----------|-------------|---------------|
-| `local-first.enabled` | Boolean | Enable LocalFirst mode | `true` |
+| `local-first.enabled` | Boolean | 启用 LocalFirst 模式 | `true` |
 
-## Command Bus
+## 命令总线
 
-- Configuration class: [CommandProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/command/CommandProperties.kt)
-- Prefix: `wow.command.`
+- 配置类：[CommandProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/command/CommandProperties.kt)
+- 前缀：`wow.command.`
 
-| Name | Data Type | Description | Default Value |
+| 名称 | 数据类型 | 描述 | 默认值 |
 |------|-----------|-------------|---------------|
-| `bus` | `BusProperties` | Command bus configuration | |
-| `idempotency` | `IdempotencyProperties` | Command idempotency | |
+| `bus` | `BusProperties` | 命令总线配置 | |
+| `idempotency` | `IdempotencyProperties` | 命令幂等性 | |
 
 ```yaml
 wow:
@@ -105,29 +105,29 @@ wow:
 
 ### IdempotencyProperties
 
-- Configuration class: [IdempotencyProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/command/CommandProperties.kt)
+- 配置类：[IdempotencyProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/command/CommandProperties.kt)
 
-| Name | Data Type | Description | Default Value |
+| 名称 | 数据类型 | 描述 | 默认值 |
 |------|-----------|-------------|---------------|
-| `enabled` | `boolean` | Whether to enable | `true` |
-| `bloom-filter` | `BloomFilter` | BloomFilter | |
+| `enabled` | `boolean` | 是否启用 | `true` |
+| `bloom-filter` | `BloomFilter` | 布隆过滤器 | |
 
 #### BloomFilter
 
-| Name | Data Type | Description | Default Value |
+| 名称 | 数据类型 | 描述 | 默认值 |
 |------|-----------|-------------|---------------|
-| `ttl` | `Duration` | Time to live | `Duration.ofMinutes(1)` |
-| `expected-insertions` | `Long` | Expected number of insertions | `1000_000` |
-| `fpp` | `Double` | False positive probability | `0.00001` |
+| `ttl` | `Duration` | 存活时间 | `Duration.ofMinutes(1)` |
+| `expected-insertions` | `Long` | 预期插入数量 | `1000_000` |
+| `fpp` | `Double` | 误判率 | `0.00001` |
 
-## Event Bus
+## 事件总线
 
-- Configuration class: [EventProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/event/EventProperties.kt)
-- Prefix: `wow.event.`
+- 配置类：[EventProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/event/EventProperties.kt)
+- 前缀：`wow.event.`
 
-| Name | Data Type | Description | Default Value |
+| 名称 | 数据类型 | 描述 | 默认值 |
 |------|-----------|-------------|---------------|
-| `bus` | `BusProperties` | Event bus configuration | |
+| `bus` | `BusProperties` | 事件总线配置 | |
 
 ```yaml
 wow:
@@ -138,16 +138,16 @@ wow:
         enabled: true
 ```
 
-## Event Sourcing
+## 事件溯源
 
 ### EventStoreProperties
 
-- Configuration class: [EventStoreProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/eventsourcing/store/EventStoreProperties.kt)
-- Prefix: `wow.eventsourcing.store`
+- 配置类：[EventStoreProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/eventsourcing/store/EventStoreProperties.kt)
+- 前缀：`wow.eventsourcing.store`
 
-| Name | Data Type | Description | Default Value |
+| 名称 | 数据类型 | 描述 | 默认值 |
 |------|-----------|-------------|---------------|
-| `storage` | `EventStoreStorage` | Event store storage backend | `mongo` |
+| `storage` | `EventStoreStorage` | 事件存储后端 | `mongo` |
 
 ```yaml
 wow:
@@ -171,15 +171,15 @@ enum class EventStoreStorage {
 
 ### SnapshotProperties
 
-- Configuration class: [SnapshotProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/eventsourcing/snapshot/SnapshotProperties.kt)
-- Prefix: `wow.eventsourcing.snapshot`
+- 配置类：[SnapshotProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/eventsourcing/snapshot/SnapshotProperties.kt)
+- 前缀：`wow.eventsourcing.snapshot`
 
-| Name | Data Type | Description | Default Value |
+| 名称 | 数据类型 | 描述 | 默认值 |
 |------|-----------|-------------|---------------|
-| `enabled` | `Boolean` | Whether to enable snapshots | `true` |
-| `strategy` | `Strategy` | Snapshot strategy | `all` |
-| `version-offset` | `Int` | Version offset threshold | `5` |
-| `storage` | `SnapshotStorage` | Snapshot storage backend | `mongo` |
+| `enabled` | `Boolean` | 是否启用快照 | `true` |
+| `strategy` | `Strategy` | 快照策略 | `all` |
+| `version-offset` | `Int` | 版本偏移阈值 | `5` |
+| `storage` | `SnapshotStorage` | 快照存储后端 | `mongo` |
 
 ```yaml
 wow:
@@ -215,14 +215,14 @@ enum class SnapshotStorage {
 }
 ```
 
-## State Event Bus
+## 状态事件总线
 
-- Configuration class: [StateProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/eventsourcing/state/StateProperties.kt)
-- Prefix: `wow.eventsourcing.state`
+- 配置类：[StateProperties](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/eventsourcing/state/StateProperties.kt)
+- 前缀：`wow.eventsourcing.state`
 
-| Name | Data Type | Description | Default Value |
+| 名称 | 数据类型 | 描述 | 默认值 |
 |------|-----------|-------------|---------------|
-| `bus` | `BusProperties` | State event bus configuration | |
+| `bus` | `BusProperties` | 状态事件总线配置 | |
 
 ```yaml
 wow:
@@ -236,19 +236,19 @@ wow:
 
 ## Prepare Key
 
-- Prefix: `wow.prepare`
+- 前缀：`wow.prepare`
 
-| Name | Data Type | Description | Default Value |
+| 名称 | 数据类型 | 描述 | 默认值 |
 |------|-----------|-------------|---------------|
-| `enabled` | Boolean | Enable PrepareKey functionality | `true` |
-| `storage` | PrepareStorage | Storage backend for PrepareKey | `MONGO` |
-| `base-packages` | List\<String\> | Base packages to scan for PrepareKey definitions | `[]` |
+| `enabled` | Boolean | 启用 PrepareKey 功能 | `true` |
+| `storage` | PrepareStorage | PrepareKey 存储后端 | `MONGO` |
+| `base-packages` | List\<String\> | 扫描 PrepareKey 定义的基础包路径 | `[]` |
 
-### PrepareStorage Values
+### PrepareStorage 值
 
-| Value | Description |
+| 值 | 描述 |
 |-------|-------------|
-| `MONGO` | MongoDB (recommended) |
+| `MONGO` | MongoDB（推荐） |
 | `REDIS` | Redis |
 
 ```yaml
@@ -260,9 +260,9 @@ wow:
       - com.example.domain
 ```
 
-## Environment-Specific Configuration
+## 环境特定配置
 
-### Development Environment
+### 开发环境
 
 ```yaml
 wow:
@@ -279,7 +279,7 @@ wow:
       storage: in_memory
 ```
 
-### Production Environment
+### 生产环境
 
 ```yaml
 wow:
@@ -303,7 +303,7 @@ wow:
       storage: mongo
 ```
 
-## Complete Configuration Example
+## 完整配置示例
 
 ```yaml
 spring:
