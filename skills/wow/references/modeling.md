@@ -26,6 +26,7 @@ classDiagram
     }
 
 StateAggregate "1" o-- "state" CommandAggregate
+
 ```
 
 #### Complex Aggregation Pattern
@@ -80,6 +81,7 @@ CommandAggregate <|-- CommandAggregateA
 CommandAggregate <|-- CommandAggregateB
 StateAggregateA "1" o-- "state" CommandAggregateA
 StateAggregateB "1" o-- "state" CommandAggregateB
+
 ```
 
 ### Single Class Pattern
@@ -108,6 +110,7 @@ classDiagram
         -onSourcing(domainEvent)
         -onCommand(command)
     }
+
 ```
 
 ### Inheritance Pattern
@@ -131,6 +134,7 @@ classDiagram
     }
 
     StateAggregate <|-- CommandAggregate
+
 ```
 
 ## Conventions

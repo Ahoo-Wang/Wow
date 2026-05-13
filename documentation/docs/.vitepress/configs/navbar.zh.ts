@@ -13,20 +13,9 @@ export const navbarZh: DefaultTheme.NavItem[] = [
             {
                 text: '配置',
                 items: [
-                    {text: '基础配置', link: '/zh/reference/config/basic'},
-                    {text: '命令总线', link: '/zh/reference/config/command'},
-                    {text: '事件总线', link: '/zh/reference/config/event'},
-                    {text: '事件溯源', link: '/zh/reference/config/eventsourcing'},
-                    {text: '快照', link: '/zh/reference/config/snapshot'},
-                    {text: '状态事件', link: '/zh/reference/config/state'},
-                    {text: 'Kafka', link: '/zh/reference/config/kafka'},
-                    {text: 'Mongo', link: '/zh/reference/config/mongo'},
-                    {text: 'Redis', link: '/zh/reference/config/redis'},
-                    {text: 'R2DBC', link: '/zh/reference/config/r2dbc'},
-                    {text: 'Elasticsearch', link: '/zh/reference/config/elasticsearch'},
-                    {text: 'WebFlux', link: '/zh/reference/config/webflux'},
-                    {text: 'OpenAPI', link: '/zh/reference/config/openapi'},
-                    {text: '预分配 Key', link: '/zh/reference/config/prepare'},
+                    {text: '核心配置', link: '/zh/reference/config/core'},
+                    {text: '基础设施', link: '/zh/reference/config/infrastructure'},
+                    {text: '可观测性', link: '/zh/reference/config/observability'},
                     {text: '事件补偿', link: '/zh/reference/config/compensation'},
                 ],
             },
@@ -39,11 +28,9 @@ export const navbarZh: DefaultTheme.NavItem[] = [
                 ],
             },
             {
-                text: 'Awesome',
+                text: '生态',
                 items: [
-                    {text: 'CQRS', link: '/zh/reference/awesome/cqrs'},
-                    {text: 'Microservices', link: '/zh/reference/awesome/microservices'},
-                    {text: 'Reactive', link: '/zh/reference/awesome/reactive'},
+                    {text: '生态资源', link: '/zh/reference/ecosystem'},
                 ],
             },
         ]

@@ -101,6 +101,8 @@ stateDiagram-v2
     SHIPPED --> RECEIVED: OrderReceived
     CREATED --> PAY_DUPLICATED: OrderPayDuplicated
     PAID --> OVER_PAID: OrderOverPaid
+
+
 ```
 
 ## 命令和事件

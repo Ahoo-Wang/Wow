@@ -40,6 +40,7 @@ flowchart TB
     CF --> TX
     TX --> Simple
     TX --> Sharding
+
 ```
 
 ## 支持的数据库
@@ -133,6 +134,7 @@ sequenceDiagram
     SR-->>TX: 确认
     TX->>TX: 提交事务
     TX-->>CP: 完成
+
 ```
 
 ## 连接池配置

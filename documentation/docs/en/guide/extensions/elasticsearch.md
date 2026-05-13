@@ -34,6 +34,7 @@ flowchart TB
     AR -->|Save Snapshot| SS
     QS -->|Full-text Search| SS
     QS -->|Aggregation Query| SS
+
 ```
 
 ## Installation

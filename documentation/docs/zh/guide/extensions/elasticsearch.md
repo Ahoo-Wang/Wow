@@ -34,6 +34,7 @@ flowchart TB
     AR -->|保存快照| SS
     QS -->|全文搜索| SS
     QS -->|聚合查询| SS
+
 ```
 
 ## 安装

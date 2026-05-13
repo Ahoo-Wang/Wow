@@ -1,15 +1,15 @@
 ---
 title: 快照
-description: 快照是事件溯源架构中的重要优化机制，通过保存聚合根状态检查点减少事件回放次数。
+description: 快照是事件溯源架构中的重要优化机制，通过保存聚合根状态检查点来提升性能，减少事件重放次数。
 ---
 
 # 快照
 
-快照是事件溯源架构中的重要优化机制，通过保存聚合根状态的检查点来减少事件重放的数量，从而提高性能。
+快照是事件溯源架构中的重要优化机制，通过保存聚合根状态检查点来提升性能，减少事件重放次数。
 
 ## 快照机制
 
-在事件溯源中，聚合根的状态是通过重放所有历史事件来重建的。随着事件数量的增加，重放所有事件会变得越来越慢。快照机制通过定期保存聚合根的当前状态来解决这个问题。
+在事件溯源中，聚合根的状态通过重放所有历史事件来重建。随着事件数量的增加，重放所有事件变得越来越慢。快照机制通过定期保存聚合根的当前状态来解决此问题。
 
 ```kotlin
 interface Snapshot<S : Any> : ReadOnlyStateAggregate<S>, SnapshotTimeCapable
@@ -20,13 +20,42 @@ data class SimpleSnapshot<S : Any>(
 ) : Snapshot<S>
 ```
 
+## 快照加载流程
+
+加载聚合时，首先查询快照存储。如果存在快照，则只需重放快照版本之后的事件。
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant CB as 命令总线
+    participant AG as 聚合
+    participant SS as 快照存储
+    participant ES as 事件存储
+
+    CB->>AG: 加载聚合(id)
+    AG->>SS: 获取最新快照(id)
+    alt 找到快照
+        SS-->>AG: 快照(v=50)
+        AG->>ES: 获取版本之后的事件(v=50)
+        ES-->>AG: 事件 [51..55]
+    else 无快照
+        SS-->>AG: null
+        AG->>ES: 获取所有事件(id)
+        ES-->>AG: 事件 [1..55]
+    end
+    AG->>AG: 重放事件 -> 状态
+    AG-->>CB: 聚合就绪
+```
+
+<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/event/snapshot/, wow-api/src/main/kotlin/me/ahoo/wow/api/event/snapshot/ -->
+
 ## 快照策略
 
-快照策略决定了何时创建快照。Wow 框架提供了多种内置策略：
+快照策略决定何时创建快照。Wow 框架提供多种内置策略：
 
 ### 版本偏移策略 (VersionOffset)
 
-当聚合根版本与上次快照的版本差达到指定阈值时创建快照。
+当聚合根版本与上次快照版本的差值达到指定阈值时创建快照。
 
 ```kotlin
 class VersionOffsetSnapshotStrategy(
@@ -35,7 +64,7 @@ class VersionOffsetSnapshotStrategy(
 ) : SnapshotStrategy
 ```
 
-### 全部策略 (All)
+### 全量策略 (All)
 
 为每个状态事件创建快照。
 
@@ -54,6 +83,21 @@ object NoOp : SnapshotStrategy {
     override fun <S : Any> shouldSnapshot(stateEvent: StateEvent<S>): Boolean = false
 }
 ```
+
+## 快照生命周期
+
+```mermaid
+stateDiagram-v2
+    [*] --> Create: 每 N 个事件
+    Create --> Store: 序列化状态
+    Store --> Active: 可用于加载
+    Active --> Stale: 新事件已添加
+    Stale --> Create: 达到间隔
+    Active --> Delete: 聚合已删除
+    Delete --> [*]
+```
+
+<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/event/snapshot/SnapshotHandler.kt -->
 
 ## 快照仓库
 
@@ -85,12 +129,20 @@ class InMemorySnapshotRepository : SnapshotRepository {
 }
 ```
 
+### 支持的后端
+
+| 后端 | 模块 | 状态 |
+|---------|--------|--------|
+| MongoDB | `wow-mongo` | 生产就绪 |
+| Redis | `wow-redis` | 生产就绪 |
+| R2DBC | `wow-r2dbc` | 生产就绪 |
+
 ## 快照处理流程
 
-1. **状态事件发布**: 当聚合根状态发生变化时，发布状态事件
-2. **策略评估**: 快照策略评估是否需要创建快照
-3. **快照创建**: 如果需要，创建当前状态的快照
-4. **快照存储**: 将快照保存到快照仓库
+1. **状态事件发布**：当聚合根状态变化时，发布状态事件
+2. **策略评估**：快照策略评估是否需要创建快照
+3. **快照创建**：如需要，创建当前状态的快照
+4. **快照存储**：将快照保存到快照仓库
 
 ## 配置
 
@@ -101,8 +153,14 @@ wow:
       enabled: true  # 是否启用快照
       strategy: all  # 快照策略 (all, version_offset)
       storage: mongo  # 快照存储 (mongo, redis, r2dbc, elasticsearch, in_memory, delay)
-      version-offset: 5  # 版本偏移量 (仅在version_offset策略时有效)
+      version-offset: 5  # 版本偏移（仅对 version_offset 策略有效）
 ```
+
+| 属性 | 默认值 | 描述 |
+|----------|---------|-------------|
+| `wow.snapshot.enabled` | `false` | 启用快照存储 |
+| `wow.snapshot.interval` | `100` | 创建新快照前的事件数 |
+| `wow.snapshot.store.type` | 事件存储后端 | 快照存储后端 |
 
 ## 聚合加载优化
 
@@ -133,7 +191,7 @@ class EventSourcingOrderRepository(
                     }
             }
             .switchIfEmpty(
-                // 没有快照，加载所有事件
+                // 无快照，加载所有事件
                 eventStore.load(aggregateId)
                     .collectList()
                     .map { eventStreams ->
@@ -152,13 +210,15 @@ class EventSourcingOrderRepository(
 
 ## 性能影响
 
-- **启用快照**: 聚合加载时间与快照间隔成正比，而不是与总事件数成正比
-- **禁用快照**: 每次加载都需要重放所有历史事件
-- **存储成本**: 需要额外的存储空间来保存快照数据
+- **启用快照**：聚合加载时间与快照间隔成正比，而非总事件数
+- **禁用快照**：每次加载都需要重放所有历史事件
+- **存储成本**：需要额外的存储空间来保存快照数据
+
+当快照间隔为 50 时，拥有 1000 个事件的聚合最多重放 49 个事件，而非全部 1000 个 -- 减少约 95%。
 
 ## 最佳实践
 
-1. **选择合适的快照策略**: 根据业务场景选择合适的快照频率
-2. **监控快照效果**: 定期检查快照是否显著提高了加载性能
-3. **快照清理**: 定期清理过期的快照以节省存储空间
-4. **快照一致性**: 确保快照与事件流的版本一致性
+1. **选择合适的快照策略**：根据业务场景选择合适的快照频率
+2. **监控快照效果**：定期检查快照是否显著改善了加载性能
+3. **快照清理**：定期清理过期的快照以节省存储空间
+4. **快照一致性**：确保快照版本与事件流的一致性

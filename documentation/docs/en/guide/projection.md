@@ -33,6 +33,7 @@ flowchart TB
     EB --> PP
     PP -->|Update| RM
     QS -->|Query| RM
+
 ```
 
 ## When to Use Projections

@@ -37,6 +37,7 @@ sequenceDiagram
         Saga ->> SourceAccount: UnlockAmount (解锁金额)
         SourceAccount -> SourceAccount: AmountUnlocked (金额已解锁)
     end
+
 ```
 
 </center>

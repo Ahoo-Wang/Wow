@@ -31,6 +31,7 @@ flowchart TB
     EB -->|分发事件| EP1
     EB -->|分发事件| EP2
     EB -->|分发事件| EP3
+
 ```
 
 ## 事件处理器 vs 投影处理器
@@ -139,6 +140,7 @@ sequenceDiagram
     EP->>Ext: 执行业务逻辑
     Ext-->>EP: 响应
     EP-->>EB: 确认
+
 ```
 
 ## 反应式事件处理
