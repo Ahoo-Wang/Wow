@@ -58,6 +58,7 @@ flowchart TB
     EC --> EB
     ESC --> ES
     ESC --> SR
+
 ```
 
 ## 自动配置类

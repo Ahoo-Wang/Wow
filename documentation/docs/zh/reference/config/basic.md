@@ -87,6 +87,7 @@ flowchart TB
     CG --> Kafka
     LocalBus --> Processor
     Kafka --> Processor
+
 ```
 
 ### 优势

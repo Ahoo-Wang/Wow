@@ -35,6 +35,7 @@ flowchart TB
     CT -->|消费命令| CP
     DET -->|消费领域事件| EP
     SET -->|消费状态事件| PP
+
 ```
 
 ## 安装
@@ -122,6 +123,7 @@ flowchart LR
     M1 -->|"hash(Order-001)"| P0
     M2 -->|"hash(Order-002)"| P1
     M3 -->|"hash(Order-001)"| P0
+
 ```
 
 ## 生产者优化

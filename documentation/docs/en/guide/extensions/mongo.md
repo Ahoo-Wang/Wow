@@ -39,6 +39,7 @@ flowchart TB
     AR -->|Prepare Key| PK
     QS -->|Query Snapshot| SS
     QS -->|Query Events| ES
+
 ```
 
 ## Installation

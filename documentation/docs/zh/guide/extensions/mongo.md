@@ -39,6 +39,7 @@ flowchart TB
     AR -->|预分配 Key| PK
     QS -->|查询快照| SS
     QS -->|查询事件| ES
+
 ```
 
 ## 安装

@@ -37,6 +37,7 @@ sequenceDiagram
         Saga ->> SourceAccount: UnlockAmount (Unlock Amount)
         SourceAccount -> SourceAccount: AmountUnlocked (Amount Unlocked)
     end
+
 ```
 
 </center>

@@ -63,6 +63,7 @@ flowchart LR
     
     LS -->|发布事件| WS
     WS -->|同步数据| LDB
+
 ```
 
 #### 迁移步骤

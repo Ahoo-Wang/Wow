@@ -38,6 +38,7 @@ classDiagram
     }
 
 StateAggregate "1" o-- "state" CommandAggregate
+
 ```
 
 </center>
@@ -96,6 +97,7 @@ CommandAggregate <|-- CommandAggregateA
 CommandAggregate <|-- CommandAggregateB
 StateAggregateA "1" o-- "state" CommandAggregateA
 StateAggregateB "1" o-- "state" CommandAggregateB
+
 ```
 
 </center>
@@ -127,6 +129,7 @@ classDiagram
         -onSourcing(domainEvent)
         -onCommand(command)
     }
+
 ```
 
 </center>
@@ -154,6 +157,7 @@ classDiagram
     }
 
     StateAggregate <|-- CommandAggregate
+
 ```
 
 </center>

@@ -63,6 +63,7 @@ flowchart LR
     
     LS -->|Publish Events| WS
     WS -->|Sync Data| LDB
+
 ```
 
 #### Migration Steps

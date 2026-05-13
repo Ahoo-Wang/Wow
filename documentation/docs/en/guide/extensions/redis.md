@@ -44,6 +44,7 @@ flowchart TB
     AR -->|Save Snapshot| SH
     AR -->|Prepare Key| PK
     CS -->|Consume Command| EP
+
 ```
 
 ## Installation

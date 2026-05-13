@@ -35,6 +35,7 @@ flowchart TB
     CT -->|Consume Command| CP
     DET -->|Consume Domain Event| EP
     SET -->|Consume State Event| PP
+
 ```
 
 ## Installation
@@ -122,6 +123,7 @@ flowchart LR
     M1 -->|"hash(Order-001)"| P0
     M2 -->|"hash(Order-002)"| P1
     M3 -->|"hash(Order-001)"| P0
+
 ```
 
 ## Producer Optimization

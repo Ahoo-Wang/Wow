@@ -44,6 +44,7 @@ flowchart TB
     AR -->|保存快照| SH
     AR -->|预分配 Key| PK
     CS -->|消费命令| EP
+
 ```
 
 ## 安装

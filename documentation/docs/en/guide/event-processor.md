@@ -31,6 +31,7 @@ flowchart TB
     EB -->|Dispatch Event| EP1
     EB -->|Dispatch Event| EP2
     EB -->|Dispatch Event| EP3
+
 ```
 
 ## Event Processor vs Projection Processor
@@ -139,6 +140,7 @@ sequenceDiagram
     EP->>Ext: Execute Business Logic
     Ext-->>EP: Response
     EP-->>EB: Acknowledge
+
 ```
 
 ## Reactive Event Processing

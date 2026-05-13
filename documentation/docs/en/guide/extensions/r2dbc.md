@@ -40,6 +40,7 @@ flowchart TB
     CF --> TX
     TX --> Simple
     TX --> Sharding
+
 ```
 
 ## Supported Databases
@@ -133,6 +134,7 @@ sequenceDiagram
     SR-->>TX: Confirm
     TX->>TX: Commit Transaction
     TX-->>CP: Complete
+
 ```
 
 ## Connection Pool Configuration

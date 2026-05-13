@@ -157,6 +157,7 @@ flowchart TD
     G --> I[Apply Events]
     H --> I
     I --> J[Return Aggregate]
+
 ```
 
 ## Configuration
