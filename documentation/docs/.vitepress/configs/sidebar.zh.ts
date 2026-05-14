@@ -60,6 +60,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
                 {text: '分布式事务(Saga)', link: 'saga'},
                 {text: '投影', link: 'projection'},
                 {text: '查询服务', link: 'query'},
+                {text: '数据权限', link: 'data-access'},
                 {text: '事件处理器', link: 'event-processor'},
             ],
         },

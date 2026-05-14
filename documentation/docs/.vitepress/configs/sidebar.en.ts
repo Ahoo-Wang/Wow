@@ -60,6 +60,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                 {text: 'Distributed Transactions (Saga)', link: 'saga'},
                 {text: 'Projection', link: 'projection'},
                 {text: 'Query Service', link: 'query'},
+                {text: 'Data Access Control', link: 'data-access'},
                 {text: 'Event Processor', link: 'event-processor'},
             ],
         },
