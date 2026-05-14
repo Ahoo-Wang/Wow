@@ -6,14 +6,14 @@ outline: deep
 
 # 数据权限
 
-Wow 提供了分层的数据权限控制模型，覆盖了最常见的多租户和权限场景：
+Wow 提供了三个可选的数据隔离层和一个基于属性的访问控制层：
 
-1. **租户（Tenant）** — 按组织/客户隔离数据
-2. **拥有者（Owner）** — 在租户内按用户身份隔离数据
-3. **命名空间（Space）** — 在租户内提供基于命名空间的分区
+1. **租户（Tenant）** — 按组织/客户隔离数据（可选）
+2. **拥有者（Owner）** — 在租户内按用户身份隔离数据（可选）
+3. **命名空间（Space）** — 在租户内提供基于命名空间的分区（可选）
 4. **ABAC** — 基于属性的细粒度访问控制
 
-这些层级独立工作，可以自由组合。你可以仅使用租户隔离，也可以组合全部四个层级以获得最大安全性。
+这三层隔离都是**可选**的，可以独立启用或自由组合。单租户应用无需启用任何隔离层；SaaS 应用可以按需组合租户、拥有者、命名空间和 ABAC。
 
 ```mermaid
 graph TB
@@ -34,7 +34,21 @@ graph TB
     style A fill:#fce4ec
 ```
 
-<!-- Sources: wow-api/src/main/kotlin/me/ahoo/wow/api/modeling/TenantId.kt, wow-api/src/main/kotlin/me/ahoo/wow/api/modeling/OwnerId.kt, wow-api/src/main/kotlin/me/ahoo/wow/api/modeling/SpaceIdCapable.kt, wow-api/src/main/kotlin/me/ahoo/wow/api/abac/Taggable.kt -->
+## RESTful URL 模式
+
+数据隔离层级直接体现在自动生成的 RESTful API 路径中：
+
+```
+[tenant/{tenantId}]/[owner/{ownerId}]/resource/[{resourceId}]/action
+```
+
+| 层级 | 路径 / 请求头 | 生效条件 |
+|------|--------------|---------|
+| 租户 | `tenant/{tenantId}` 路径前缀 | 聚合**未**标记 `@StaticTenantId` |
+| 拥有者 | `owner/{ownerId}` 路径前缀 | `@AggregateRoute(owner ≠ NEVER)` |
+| 命名空间 | `Wow-Space-Id` 请求头 | `@AggregateRoute(spaced = true)` |
+
+框架为每个聚合生成**多套路由变体** — 默认路由（无前缀）、仅租户路由、仅拥有者路由 — 调用方可以根据需要选择最小作用域。
 
 ## 租户（Tenant）
 
@@ -71,6 +85,7 @@ data class CreateOrder(
 - 从请求中自动设置租户上下文
 - 按租户隔离事件存储和快照存储
 - 在查询操作中强制租户边界
+- 在 RESTful API 中生成 `tenant/{tenantId}` 路径前缀
 
 ### 静态租户 ID
 
@@ -81,14 +96,13 @@ data class CreateOrder(
 @StaticTenantId("system-tenant")
 class SystemConfigurationAggregate {
     // 始终属于系统租户
+    // 生成的 API 不会包含 tenant/{tenantId} 路径前缀
 }
 ```
 
 ### 默认租户
 
 未指定租户时，Wow 使用默认租户 ID `(0)`。这对单租户应用是透明的 — 无需处理租户 ID。
-
-<!-- Sources: wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/TenantId.kt:57-94, wow-api/src/main/kotlin/me/ahoo/wow/api/modeling/TenantId.kt:20-43 -->
 
 ## 拥有者（Owner）
 
@@ -132,11 +146,13 @@ class OrderAggregate(
 
 可用策略：
 
-| 策略 | 说明 | 适用场景 |
-|------|------|---------|
-| `NEVER` | 无需拥有者上下文 | 公共资源、系统聚合 |
-| `ALWAYS` | 始终需要拥有者上下文 | 用户专属数据（订单、个人资料） |
-| `AGGREGATE_ID` | 聚合 ID 即拥有者 ID | 每用户聚合（用户资料、设置） |
+| 策略 | `owned` | 说明 | API 路径 | 适用场景 |
+|------|---------|------|---------|---------|
+| `NEVER` | `false` | 无需拥有者上下文 | `/orders/{id}` | 公共资源、系统聚合 |
+| `ALWAYS` | `true` | 始终需要拥有者上下文 | `/owner/{ownerId}/orders/{id}` | 用户专属数据（订单、个人资料） |
+| `AGGREGATE_ID` | `true` | 聚合 ID 即拥有者 ID | `/owner/{ownerId}/orders`（无 `{id}`） | 每用户聚合（用户资料、设置） |
+
+当使用 `AGGREGATE_ID` 时，`{resourceId}` 路径参数会被移除，因为拥有者 ID 已经标识了聚合。
 
 ### 拥有权转移
 
@@ -150,8 +166,6 @@ data class TaskTransferred(
 
 框架识别此事件并自动更新聚合的拥有者上下文。
 
-<!-- Sources: wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/OwnerId.kt, wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/AggregateRoute.kt:59-91, wow-api/src/main/kotlin/me/ahoo/wow/api/event/OwnerTransferred.kt -->
-
 ## 命名空间（Space）
 
 **命名空间**在租户内提供基于命名空间的数据分区，增加了第三个隔离维度，适用于：
@@ -160,18 +174,23 @@ data class TaskTransferred(
 - 业务域分区（primary / archive）
 - 组织单元边界
 
+### 启用命名空间
+
+在 `@AggregateRoute` 中设置 `spaced = true`：
+
 ```kotlin
-// 聚合可以属于同一租户内的不同命名空间
-data class ArchivedOrder(
-    @AggregateId
-    val orderId: String,
-
-    @TenantId
-    val tenantId: String,
-
-    val spaceId: SpaceId  // "archive" 命名空间
+@AggregateRoot
+@AggregateRoute(
+    resourceName = "sales-order",
+    spaced = true,
+    owner = AggregateRoute.Owner.ALWAYS
 )
+class Order(private val state: OrderState)
 ```
+
+当 `spaced = true` 时，生成的 API 会添加 `Wow-Space-Id` 请求头参数。默认命名空间 ID 为空字符串 `""`，即所有未显式指定命名空间的聚合都在默认空间中。
+
+### 命名空间转移
 
 命名空间转移遵循与拥有权转移相同的模式 — 实现 `SpaceTransferred`：
 
@@ -181,9 +200,7 @@ data class OrderArchived(
 ) : SpaceTransferred
 ```
 
-默认命名空间 ID 为空字符串 `""`，即所有未显式指定命名空间的聚合都在默认空间中。
-
-<!-- Sources: wow-api/src/main/kotlin/me/ahoo/wow/api/modeling/SpaceIdCapable.kt, wow-api/src/main/kotlin/me/ahoo/wow/api/event/SpaceTransferred.kt -->
+框架识别此事件并自动更新聚合的命名空间上下文。
 
 ## ABAC（基于属性的访问控制）
 
@@ -209,8 +226,6 @@ graph LR
     P --> PT2
     R --> RT1
 ```
-
-<!-- Sources: wow-api/src/main/kotlin/me/ahoo/wow/api/abac/Taggable.kt:63-98 -->
 
 **AbacTags** — 键值对映射，每个键对应一个值列表：
 
@@ -261,8 +276,8 @@ class DocumentAggregate(
 或者使用内置的 `DefaultApplyResourceTags` 命令，它提供了开箱即用的标签管理端点：
 
 ```kotlin
-// 框架自动处理 DefaultApplyResourceTags
-// 生成 PUT 端点：PUT /{resourceName}/{id}/tags
+// PUT /{resourceName}/{id}/tags
+// Body: { "tags": { "dept": ["eng"], "role": ["admin"] } }
 ```
 
 ### 标签合并
@@ -277,7 +292,30 @@ tags1.merge(tags2)
 // 结果：{ "dept": ["eng", "pm"], "role": ["admin"], "team": ["backend"] }
 ```
 
-<!-- Sources: wow-api/src/main/kotlin/me/ahoo/wow/api/abac/ApplyAbacTags.kt, wow-api/src/main/kotlin/me/ahoo/wow/api/abac/ApplyResourceTags.kt, wow-api/src/main/kotlin/me/ahoo/wow/api/abac/AbacTagsMerger.kt -->
+### 动态标签提取（StateAggregateTagsExtractor）
+
+标签可以在查询时从聚合状态中动态提取，而非仅依赖静态存储。在状态类上实现 `StateAggregateTagsExtractor`：
+
+```kotlin
+class OrderState(
+    val id: String
+) : StateAggregateTagsExtractor<OrderState> {
+
+    lateinit var address: ShippingAddress
+    // ... 其他字段 ...
+
+    override fun extract(source: ReadOnlyStateAggregate<OrderState>): AbacTags {
+        val stateTags = mapOf(
+            "address-country" to listOf(address.country),
+            "address-province" to listOf(address.province),
+        )
+        // 与聚合上显式存储的标签合并
+        return stateTags.merge(source.tags)
+    }
+}
+```
+
+这种模式允许 ABAC 规则基于聚合状态字段（如地址）与显式分配的标签组合进行匹配。
 
 ### ABAC 查询过滤器
 
@@ -290,35 +328,42 @@ tags1.merge(tags2)
 | `["a", "b"]` | `["c"]` | ❌ 不匹配 |
 | 任意 | 键不存在 | ✅ 匹配（该键对应的资源为公开） |
 
-过滤器将主体标签转换为查询条件：
-- 通配符标签：检查资源上该键是否存在
-- 普通标签：匹配键不存在、值为空、或值在主体列表中的资源
+过滤器将主体标签转换为查询条件，所有标签键之间使用 AND 逻辑：
+- **通配符**标签：检查资源上该键是否存在（`EXISTS`）
+- **普通**标签：匹配键不存在、值为空、或值在主体列表中的资源
 
 实现自定义的主体标签解析，继承 `AbacQueryFilter`：
 
 ```kotlin
 @Component
-class MyAbacQueryFilter : AbacQueryFilter() {
+class MemberAbacQueryFilter(
+    private val memberCache: MemberCache
+) : AbacQueryFilter() {
+
     override fun getPrincipalTags(
         contextView: ContextView,
         context: QueryContext<*, *>
     ): Mono<AbacTags> {
-        // 从安全上下文、JWT 等解析主体标签
-        return SecurityContext.fromContext(contextView)
-            .map { it.abacTags }
+        val securityContext = contextView.getSecurityContextOrEmpty()
+            ?: return Mono.empty()
+        val principal = securityContext.principal
+
+        // 根据用户 + 租户 + 应用从缓存查找成员标签
+        return Mono.fromCallable {
+            val memberId = memberId(userId = principal.id, tenantId = principal.tenantId)
+            memberCache[memberId]?.tags?.get(appId)
+        }
     }
 }
 ```
 
-<!-- Sources: wow-query/src/main/kotlin/me/ahoo/wow/query/snapshot/filter/AbacQueryFilter.kt -->
-
 ## 隔离层级总结
 
-| 层级 | 作用范围 | 机制 | 典型场景 |
-|------|---------|------|---------|
-| 租户 | 组织 | `@TenantId` 注解 + 存储隔离 | SaaS 多租户 |
-| 命名空间 | 租户内的命名空间 | `SpaceId` 字段 + 存储分区 | 环境、业务域隔离 |
-| 拥有者 | 个人用户 | `@OwnerId` 注解 + 路由策略 | "我的数据"隔离 |
-| ABAC | 基于属性 | 主体标签 + 资源标签 + 查询过滤器 | 细粒度权限（部门、角色、级别） |
+| 层级 | 作用范围 | 机制 | API 表现 | 典型场景 |
+|------|---------|------|---------|---------|
+| 租户 | 组织 | `@TenantId` / `@StaticTenantId` + 存储隔离 | `tenant/{tenantId}` 路径前缀 | SaaS 多租户 |
+| 命名空间 | 租户内的命名空间 | `@AggregateRoute(spaced = true)` + 存储分区 | `Wow-Space-Id` 请求头 | 环境、业务域隔离 |
+| 拥有者 | 个人用户 | `@OwnerId` + `@AggregateRoute(owner)` | `owner/{ownerId}` 路径前缀 | "我的数据"隔离 |
+| ABAC | 基于属性 | 主体标签 + 资源标签 + 查询过滤器 | 内部过滤（无 API 表面） | 细粒度权限（部门、角色、级别） |
 
 这些层级是**叠加**关系 — 启用更多层级意味着更严格的限制。未启用任何层级的查询返回全部数据；同时启用租户 + 拥有者 + ABAC，则仅返回经过认证的用户被允许查看的数据。
