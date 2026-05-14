@@ -9,151 +9,39 @@ At the same time, separation of responsibilities allows the aggregate root's com
 
 #### Simple Aggregation Pattern
 
-```mermaid
----
-title: Aggregate Modeling Using Simple Aggregation Pattern
----
-classDiagram
-    class StateAggregate {
-        +StateAggregate(id)
-        //... state fields
-        -onSourcing(domainEvent)
-    }
-    class CommandAggregate~S: StateAggregate~ {
-        <<AggregateRoot>>
-        +CommandAggregate(state)
-        -onCommand(command)
-    }
-
-StateAggregate "1" o-- "state" CommandAggregate
-
+```
+StateAggregate ←--state-- CommandAggregate(@AggregateRoot)
 ```
 
 #### Complex Aggregation Pattern
 
-```mermaid
----
-title: Aggregate Modeling Using Complex Aggregation Pattern
----
-classDiagram
-    class StateAggregate {
-        +StateAggregate(id)
-        //... state fields
-        -onSourcing(domainEvent)
-    }
-
-    class CommandAggregate~S: StateAggregate~ {
-        +CommandAggregate(state)
-        state: S
-        -onCommand(command)
-    }
-
-    class StateAggregateA {
-        +StateAggregateA(id)
-        //... state fields
-        -onSourcing(domainEvent)
-    }
-
-    class StateAggregateB {
-        +StateAggregateB(id)
-        //... state fields
-        -onSourcing(domainEvent)
-    }
-
-    class CommandAggregateA~StateAggregateA~ {
-        <<AggregateRoot>>
-        +CommandAggregate(state)
-        state: StateAggregateA
-        -onCommand(command)
-    }
-
-    class CommandAggregateB~StateAggregateB~ {
-        <<AggregateRoot>>
-        +CommandAggregate(state)
-        state: StateAggregateB
-        -onCommand(command)
-    }
-
-StateAggregate "1" o-- "state" CommandAggregate
-StateAggregate <|-- StateAggregateA
-StateAggregate <|-- StateAggregateB
-CommandAggregate <|-- CommandAggregateA
-CommandAggregate <|-- CommandAggregateB
-StateAggregateA "1" o-- "state" CommandAggregateA
-StateAggregateB "1" o-- "state" CommandAggregateB
-
+```
+StateAggregate ←--state-- CommandAggregate
+  ├── StateAggregateA ←--state-- CommandAggregateA(@AggregateRoot)
+  └── StateAggregateB ←--state-- CommandAggregateB(@AggregateRoot)
 ```
 
 ### Single Class Pattern
 
-The single class pattern places command functions, sourcing functions, and aggregate state data together in one class. The advantage is simplicity and directness.
-
-::: danger Violation of Event Sourcing Principles
-In the single class pattern, command functions can directly modify aggregate state data, which leads to:
-
-* State changes cannot be traced via events
-* Destroys the core value of Event Sourcing
-* May result in inconsistent state changes
-
-**Strongly Recommended**: Use this pattern only for simple scenarios or prototype development.
-:::
-
-```mermaid
----
-title: Aggregate Modeling Using Single Class
----
-classDiagram
-    class Aggregate {
-        <<AggregateRoot>>
-        +Aggregate(id)
-        //... state fields
-        -onSourcing(domainEvent)
-        -onCommand(command)
-    }
-
-```
+Command + sourcing + state in one class. **Avoid** — violates event sourcing principles:
+- Command functions can directly modify state
+- State changes cannot be traced via events
+- Use only for simple prototypes
 
 ### Inheritance Pattern
 
-The inheritance pattern uses the state aggregate root as the base class and sets the `setter` accessor to `private` to prevent command aggregate roots from modifying aggregate state data in command functions.
-
-```mermaid
----
-title: Aggregate Modeling Using Inheritance Pattern
----
-classDiagram
-    class StateAggregate {
-        +StateAggregate(id)
-        //... state fields
-        -onSourcing(domainEvent)
-    }
-
-    class CommandAggregate {
-        <<AggregateRoot>>
-        -onCommand(command)
-    }
-
-    StateAggregate <|-- CommandAggregate
-
-```
+Command aggregate inherits from state aggregate with `private set` on setters.
 
 ## Conventions
 
 ### Command Aggregate Root
 
-The command aggregate root is responsible for defining command handler functions, processing commands to execute corresponding business logic, and finally returning domain events.
-
-* The command aggregate root needs to add the `@AggregateRoot` annotation so that the `wow-compiler` module can generate corresponding metadata definitions.
-* The `@OnCommand` annotation for command handler functions is not required. By default, naming a command handler function `onCommand` indicates it is a command handler function.
-* The first parameter of command handler functions can be defined as: specific command (`AddCartItem`), command message (`CommandMessage<AddCartItem>`), command message exchange (`CommandExchange<AddCartItem>`).
-* The remaining parameters of command handler functions will be obtained from the `IOC` container. If you have injected an instance in the `Spring IOC` container, you can obtain it directly through parameters.
-* The return value of command handler functions is one or more domain events. These domain events will first have their state changed to the latest state by the state aggregate root through sourcing functions, then be persisted to the `EventStore`.
-  * `@OnCommand(returns = [...])` is **required** when:
-    * The return type is `Any` or `Object` (polymorphic returns)
-    * A single command can produce multiple different event types
-    * The compiler cannot infer the event type from the return statement
-  * If omitted when required, `wow-compiler` will fail to identify the returned domain event type.
-* After persistence is complete, they will be published to the event bus through the `DomainEventBus`.
+- Add `@AggregateRoot` annotation for `wow-compiler` metadata generation
+- `@OnCommand` is optional if method is named `onCommand`
+- First parameter: specific command, `CommandMessage<C>`, or `CommandExchange<C>`
+- Other parameters resolved from IOC container (use `@Name` for qualified injection)
+- Return value: one or more domain events
+- `@OnCommand(returns = [...])` is required when return type is `Any` or polymorphic
 
 ```kotlin
 @AggregateRoot
@@ -182,15 +70,37 @@ class Cart(private val state: CartState) {
 }
 ```
 
+### AfterCommand Hook
+
+Post-processing hook that executes after command handler completes. Non-null return values are appended as additional events.
+
+```kotlin
+@AfterCommand(include = [CreateOrder::class])
+fun afterCreateOrder(exchange: ServerCommandExchange<*>): OrderConfirmed? {
+    val result = exchange.getCommandInvokeResult<OrderCreated>()
+    return null
+}
+```
+
+### Error Handling with OnError
+
+```kotlin
+@OnError
+fun onError(command: CreateOrder, error: Throwable) {
+    // Handle error, log or publish error event
+}
+```
+
+Can also accept `eventStream: DomainEventStream?` as a third parameter.
+
 ### State Aggregate Root
 
-The state aggregate root defines aggregate state data and sourcing functions.
-
-* The state aggregate root must define the aggregate root ID field in the constructor.
-* The role of sourcing functions is to apply domain events to aggregate state data, thereby changing aggregate state data.
-* Sourcing functions are marked with the `@OnSourcing` annotation. However, this annotation is optional. By default, when the function name is `onSourcing`, it indicates that the function is a sourcing function.
-* Sourcing functions accept parameters of: specific domain events (`CartItemAdded`), domain events (`DomainEvent<CartItemAdded>`).
-* No return value needs to be defined for sourcing functions.
+- Must define aggregate root ID field in constructor
+- Sourcing functions apply domain events to state
+- `@OnSourcing` optional if method named `onSourcing`
+- Sourcing parameters: specific event or `DomainEvent<T>`
+- No return value — state is mutated in place
+- **Must be deterministic and side-effect-free**
 
 ```kotlin
 class CartState(val id: String) {
@@ -202,4 +112,155 @@ class CartState(val id: String) {
         items = items + cartItemAdded.added
     }
 }
+```
+
+## Bounded Context
+
+A bounded context defines a coherent area of the domain with its own ubiquitous language and rules.
+
+```kotlin
+@BoundedContext(
+    name = "example",
+    alias = "ex",
+    aggregates = [
+        BoundedContext.Aggregate(name = "order"),
+        BoundedContext.Aggregate(name = "cart")
+    ]
+)
+object ExampleBoundedContext
+```
+
+Every `AggregateId` includes a `contextName`, ensuring commands and events are routed within the correct bounded context.
+
+## Aggregate Lifecycle
+
+### State Machine
+
+```
+NEW (version=0) → STORED → SOURCED → STORED (cycle per command)
+                             ↓
+                         EXPIRED (unrecoverable error)
+
+STORED → DELETED (DefaultDeleteAggregate)
+DELETED → STORED (DefaultRecoverAggregate)
+```
+
+### Command Processing Phases
+
+1. **Validation Gates** (6 sequential checks):
+   - Version check (optimistic concurrency)
+   - Initialization check (`initialized || isCreate || allowCreate`)
+   - Owner check (multi-tenancy)
+   - Space check (multi-tenancy)
+   - CommandState check (`STORED` — serial processing)
+   - Delete check (reject unless `RecoverAggregate`)
+
+2. **Command Execution**: `@OnCommand` handler produces events
+
+3. **Event Sourcing**: `@OnSourcing` methods apply events to state deterministically
+
+4. **Event Persistence**: Atomic append to EventStore with version conflict check
+
+5. **Event Publication**: Events published to DomainEventBus
+
+### Version Lifecycle
+
+| Constant | Value | Meaning |
+|---|---|---|
+| `UNINITIALIZED_VERSION` | `0` | Just created, no events |
+| `INITIAL_VERSION` | `1` | First event applied |
+| `initialized` | `version > 0` | Has any events |
+| `expectedNextVersion` | `version + 1` | Next expected version |
+
+### Special Built-in Events
+
+Handled automatically without explicit `@OnSourcing`:
+
+| Event | Effect |
+|---|---|
+| `AggregateDeleted` | `deleted = true` |
+| `AggregateRecovered` | `deleted = false` |
+| `OwnerTransferred` | `ownerId = toOwnerId` |
+| `SpaceTransferred` | `spaceId = toSpaceId` |
+| `ResourceTagsApplied` | `tags = event.tags` |
+
+### Missing @OnSourcing
+
+If no matching `@OnSourcing` handler exists for an event, the framework:
+- Does NOT throw an error
+- Logs a debug message
+- Still updates the aggregate version
+
+This allows forward-compatible state evolution.
+
+### State Rebuild Strategy
+
+When loading an existing aggregate:
+- **Snapshot-based**: Load snapshot, replay only incremental events after snapshot version
+- **Full replay**: No snapshot → replay all events from version 1
+
+Point-in-time reconstruction is supported via `tailEventTime` parameter.
+
+## Multi-Tenancy
+
+Every `AggregateId` includes `tenantId`:
+
+- `@StaticTenantId` on aggregate class — fixed tenant
+- `@TenantId` on command parameter — extract from command body
+- `BoundedContext.Aggregate(tenantId = "...")` — static tenant assignment
+
+## Aggregate Routing
+
+```kotlin
+@AggregateRoute(
+    resourceName = "sales-order",
+    spaced = true,
+    owner = AggregateRoute.Owner.ALWAYS
+)
+class Order(private val state: OrderState) { ... }
+```
+
+| Attribute | Description |
+|---|---|
+| `resourceName` | Custom API path segment |
+| `enabled` | Set `false` to disable route generation |
+| `owner` | Ownership: `NEVER`, `ALWAYS`, `AGGREGATE_ID` |
+
+## Aggregate Scheduler
+
+Each aggregate gets a dedicated Reactor Scheduler to control concurrent execution:
+
+```kotlin
+fun interface AggregateSchedulerSupplier {
+    fun getOrInitialize(namedAggregate: NamedAggregate): Scheduler
+}
+```
+
+Default implementation creates a parallel scheduler per aggregate: `Schedulers.newParallel("$name-${namedAggregate.aggregateName}")`.
+
+## Event Naming Convention
+
+```kotlin
+// Good - past tense + specific behavior
+@Event
+data class OrderCreated(
+    val orderId: String,
+    val customerId: String,
+    val items: List<OrderItem>,
+    val totalAmount: BigDecimal
+)
+
+// Avoid - vague naming
+data class OrderUpdated(val orderId: String)  // What changed?
+```
+
+### Event Revision
+
+```kotlin
+@Event(revision = "2.0")
+data class OrderShipped(
+    val orderId: String,
+    val trackingNumber: String,
+    val shippedAt: Instant
+)
 ```
