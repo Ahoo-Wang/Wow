@@ -4,8 +4,14 @@
 
 Wow provides a Given→When→Expect test pattern:
 - **Given**: Previous domain events to initialize aggregate state
-- **When**: Current command to trigger state changes
-- **Expect**: Verify state changes meet expectations
+- **When**: Current command or event to trigger changes
+- **Expect**: Verify results meet expectations
+
+Use `me.ahoo.test.asserts.assert` for assertions — NOT AssertJ's `assertThat()`.
+
+```kotlin
+import me.ahoo.test.asserts.assert
+```
 
 ## AggregateSpec
 
@@ -17,14 +23,11 @@ Testing aggregates using Given-When-Expect pattern.
 class CartSpec : AggregateSpec<Cart, CartState>(
     {
         on {
-            // Given
             val ownerId = generateGlobalId()
             givenOwnerId(ownerId)
 
-            // When
             val addCartItem = AddCartItem(productId = "product-1", quantity = 1)
             whenCommand(addCartItem) {
-                // Then
                 expectNoError()
                 expectEventType(CartItemAdded::class)
                 expectState {
@@ -79,17 +82,13 @@ class CartSpec : AggregateSpec<Cart, CartState>(
 | `fork(ref, name, verifyError) { }` | Branch with error verification |
 | `ref("name")` | Mark a verification point |
 
-### Fork Use Cases
-
-- **Sequential Operations**: Order → Payment → Shipping
-- **Error Scenarios**: Invalid operations in different states
-- **Alternative Paths**: Different command sequences from same point
-- **Aggregate Lifecycle**: Deletion, recovery, behavior after deletion
-- **Business Rules**: Constraints across state transitions
+**Fork Use Cases:**
+- Sequential Operations: Order → Payment → Shipping
+- Error Scenarios: Invalid operations in different states
+- Alternative Paths: Different command sequences from same point
+- Aggregate Lifecycle: Deletion, recovery, behavior after deletion
 
 ### Reference Points
-
-Mark points for cross-scenario branching:
 
 ```kotlin
 whenCommand(CreateOrder(...)) {
@@ -98,7 +97,7 @@ whenCommand(CreateOrder(...)) {
     expectState { status.assert().isEqualTo(OrderStatus.CREATED) }
 }
 
-// Later, branch from marked point
+// Branch from marked point
 fork("order-created", "Pay Order") {
     whenCommand(PayOrder(...)) {
         expectEventType(OrderPaid::class)
@@ -120,14 +119,12 @@ class OrderSpec : AggregateSpec<Order, OrderState>({
             expectEventType(OrderCreated::class)
 
             fork("Pay Order") {
-                val payOrder = PayOrder(totalAmount)
-                whenCommand(payOrder) {
+                whenCommand(PayOrder(totalAmount)) {
                     expectEventType(OrderPaid::class)
                     expectState { status.assert().isEqualTo(OrderStatus.PAID) }
 
                     fork("Ship Order") {
-                        val shipOrder = ShipOrder(aggregateId.id)
-                        whenCommand(shipOrder) {
+                        whenCommand(ShipOrder(aggregateId.id)) {
                             expectEventType(OrderShipped::class)
                         }
                     }
@@ -135,8 +132,7 @@ class OrderSpec : AggregateSpec<Order, OrderState>({
             }
 
             fork("Ship Before Payment") {
-                val shipOrder = ShipOrder(aggregateId.id)
-                whenCommand(shipOrder) {
+                whenCommand(ShipOrder(aggregateId.id)) {
                     expectErrorType(IllegalStateException::class)
                 }
             }
@@ -152,9 +148,6 @@ on {
     val inventoryService = object : InventoryService {
         override fun getInventory(productId: String) = quantity.toMono()
     }
-    val pricingService = object : PricingService {
-        override fun getProductPrice(productId: String) = price.toMono()
-    }
 
     inject {
         register(DefaultCreateOrderSpec(inventoryService, pricingService))
@@ -166,9 +159,32 @@ on {
 }
 ```
 
+### Testing Delete/Recover
+
+```kotlin
+// Delete aggregate
+whenCommand(DefaultDeleteAggregate) {
+    expectEventType(DefaultAggregateDeleted::class)
+}
+
+// Verify deleted state
+fork("Cannot operate after delete") {
+    whenCommand(SomeCommand(...)) {
+        expectErrorType(IllegalAccessDeletedAggregateException::class)
+    }
+}
+
+// Recover
+fork("Recover aggregate") {
+    whenCommand(DefaultRecoverAggregate) {
+        expectEventType(DefaultAggregateRecovered::class)
+    }
+}
+```
+
 ## SagaSpec
 
-Testing stateless sagas.
+Testing stateless sagas with Given-When-Expect pattern.
 
 ### Basic Structure
 
@@ -204,15 +220,15 @@ class TransferSagaSpec : SagaSpec<TransferSaga>({
 | `expectNoError()` | Assert no error occurred |
 | `expectNoCommand()` | Assert no command was sent |
 | `expectCommandType<T>()` | Assert specific command type was sent |
-| `expectCommand<T> { }` | Assert command content |
+| `expectCommand<T> { }` | Assert full `CommandMessage<T>` (includes `aggregateId`, headers) |
+| `expectCommandBody<T> { }` | Assert command body content (`T.() -> Unit`) |
 
-### Full Saga Example
+### Conditional Saga Testing
 
 ```kotlin
 class CartSagaSpec : SagaSpec<CartSaga>({
     on {
         name("From cart - should remove items")
-        val orderItem = OrderItem(...)
         whenEvent(
             event = mockk<OrderCreated> {
                 every { items } returns listOf(orderItem)
@@ -222,7 +238,8 @@ class CartSagaSpec : SagaSpec<CartSaga>({
         ) {
             expectCommandType(RemoveCartItem::class)
             expectCommand<RemoveCartItem> {
-                body.productIds.assert().contains(orderItem.productId)
+                aggregateId.id.assert().isEqualTo(ownerId)
+                body.productIds.assert().hasSize(1)
             }
         }
     }
@@ -242,72 +259,102 @@ class CartSagaSpec : SagaSpec<CartSaga>({
 })
 ```
 
-## ProjectionSpec
-
-Testing projection processors for maintaining read models.
-
-### Basic Structure
+### Multiple Event Handlers
 
 ```kotlin
-class OrderProjectorSpec : ProjectionSpec<OrderProjector, OrderState>({
+class TransferSagaSpec : SagaSpec<TransferSaga>({
     on {
-        val event = OrderCreated(orderId = "order-1", items = listOf)
-        whenEvent(event) {
-            expectNoError()
-            expectState {
-                id.assert().isEqualTo("order-1")
+        whenEvent(Prepared("to", 1)) {
+            expectCommandType(Entry::class)
+            expectCommandBody<Entry> {
+                id.assert().isEqualTo("to")
+                amount.assert().isEqualTo(1)
             }
+        }
+    }
+    on {
+        whenEvent(AmountEntered("sourceId", 1)) {
+            expectCommandType(Confirm::class)
+        }
+    }
+    on {
+        whenEvent(EntryFailed("sourceId", 1)) {
+            expectCommandType(UnlockAmount::class)
         }
     }
 })
 ```
 
-### Projection WhenDsl Methods
+## SagaVerifier (Fluent API)
 
-| Method | Description |
-|--------|-------------|
-| `whenEvent(event)` | Trigger projection with event |
-| `name("description")` | Name this test scenario |
-
-### Projection ExpectDsl Methods
-
-| Method | Description |
-|--------|-------------|
-| `expectNoError()` | Assert no error occurred |
-| `expectError()` | Assert an error occurred |
-| `expectState { }` | Assert projected state |
-
-### Complete Projection Example
+For programmatic saga testing:
 
 ```kotlin
-class OrderProjectorSpec : ProjectionSpec<OrderProjector, OrderState>({
-    on {
-        name("OrderCreated - should project state")
-        val created = OrderCreated(
-            orderId = "order-1",
-            items = listOf(OrderItem("product-1", 2))
-        )
-        whenEvent(created) {
-            expectNoError()
-            expectState {
-                id.assert().isEqualTo("order-1")
-                items.assert().hasSize(1)
-            }
-        }
-    }
+// Standalone with reified generics
+sagaVerifier<CartSaga>()
+    .whenEvent(mockOrderCreatedEvent)
+    .expectNoCommand()
+    .verify()
 
-    on {
-        name("OrderPaid - should update status")
-        givenEvent(OrderCreated(...))
-        val paid = OrderPaid(orderId = "order-1")
-        whenEvent(paid) {
-            expectNoError()
-            expectState {
-                status.assert().isEqualTo(OrderStatus.PAID)
-            }
-        }
+// Extension function on Class
+CartSaga::class.java.sagaVerifier()
+    .whenEvent(mockOrderCreatedEvent)
+    .expectCommandType(RemoveCartItem::class)
+    .verify()
+```
+
+The verifier pre-configures an in-memory command bus, test validator, and no-op idempotency checker for isolated testing.
+
+## Projection Testing
+
+Projection processors are tested using standard unit testing with MockK, since they are regular Spring components:
+
+```kotlin
+class OrderProjectorTest {
+    private val repository = mockk<OrderSummaryRepository>()
+    private val projector = OrderProjector(repository)
+
+    @Test
+    fun `on OrderCreated should create order summary`() {
+        val event = OrderCreated(
+            orderId = "order-001",
+            customerId = "customer-001",
+            items = listOf(OrderItem(productId = "prod-001", quantity = 2))
+        )
+        every { repository.save(any()) } returns Mono.empty()
+
+        val result = projector.onEvent(event).block()
+
+        verify(exactly = 1) { repository.save(any()) }
     }
-})
+}
+```
+
+## AggregateVerifier (Fluent API)
+
+For programmatic aggregate testing, use extension function on `Class<C>` or standalone function with reified generics:
+
+```kotlin
+// Extension function on Class
+Cart::class.java.aggregateVerifier<Cart, CartState>()
+    .given()
+    .whenCommand(addCartItem)
+    .expectEventType(CartItemAdded::class)
+    .expectState { items.assert().hasSize(1) }
+    .verify()
+
+// Standalone with reified generics
+aggregateVerifier<Cart, CartState>()
+    .given()
+    .whenCommand(addCartItem)
+    .expectNoError()
+    .verify()
+
+// With custom aggregate ID
+aggregateVerifier<Cart, CartState>(aggregateId = "cart-123")
+    .given()
+    .whenCommand(addCartItem)
+    .verify()
 ```
 
 ## FluentAssert Assertions
@@ -357,7 +404,7 @@ val mockOrderCreated = mockk<OrderCreated> {
 
 ## Default Test Commands/Events
 
-Wow provides built-in commands for testing:
+Wow provides built-in commands for testing aggregate lifecycle:
 
 ```kotlin
 // Delete aggregate
@@ -366,13 +413,16 @@ whenCommand(DefaultDeleteAggregate) {
 }
 
 // Recover deleted aggregate
-whenCommand(DefaultRecoverAggregate) { ... }
+whenCommand(DefaultRecoverAggregate) {
+    expectEventType(DefaultAggregateRecovered::class)
+}
 ```
 
-Built-in exceptions:
+Built-in exceptions for error assertions:
 
 ```kotlin
 expectErrorType(IllegalAccessDeletedAggregateException::class)
+expectErrorType(CommandExpectVersionConflictException::class)
 expectErrorType(IllegalStateException::class)
 expectErrorType(DomainEventException::class)
 ```
@@ -386,7 +436,7 @@ expectErrorType(DomainEventException::class)
 # Run with coverage
 ./gradlew domain:jacocoTestReport
 
-# Verify coverage
+# Verify coverage (80% minimum on domain modules)
 ./gradlew domain:jacocoTestCoverageVerification
 ```
 
@@ -395,6 +445,8 @@ expectErrorType(DomainEventException::class)
 1. **Test Coverage Target**: ≥85% for domain models
 2. **Use fork() for related operations** within same scenario
 3. **Use separate on {} blocks** for unrelated scenarios
-4. **Avoid deep nesting** (>3 levels) - use `ref()` and `fork(ref, ...)`
-5. **Use descriptive names** for fork scenarios
-6. **Test error cases** - verify behavior in invalid states
+4. **Avoid deep nesting** (>3 levels) — use `ref()` and `fork(ref, ...)`
+5. **Use descriptive names** for fork scenarios: `fork("Pay Order")`
+6. **Test error cases** — verify behavior in invalid states
+7. **Test deletion/recovery** — verify aggregate lifecycle behavior
+8. **Use FluentAssert** — `me.ahoo.test.asserts.assert`, not AssertJ's `assertThat()`
