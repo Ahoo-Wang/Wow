@@ -7,36 +7,15 @@ description: Get started with the Wow framework using the project template to qu
 
 > Use the [Wow Project Template](https://github.com/Ahoo-Wang/wow-project-template) to quickly create a DDD project based on the _Wow_ framework.
 
-## Install Template
-
-[IntelliJ IDEA Project Template Guide](https://www.jetbrains.com/help/idea/saving-project-as-template.html)
-
-[IntelliJ IDEA Configuration Directory Guide](https://www.jetbrains.com/help/idea/directories-used-by-the-ide-to-store-settings-caches-plugins-and-logs.html#config-directory)
-
-- _IDEA_ project template directory: `<IDE config home>/projectTemplates`
-    - _Windows_: `C:\Users\<USERNAME>\AppData\Roaming\JetBrains\<PRODUCT><VERSION>\projectTemplates\`
-    - _Mac OS_:`~/Library/Application\ Support/JetBrains/<PRODUCT><VERSION/projectTemplates/`
-    - _Linux_: `~/.config/JetBrains/<PRODUCT><VERSION>/projectTemplates/`
-- Place the template zip package in the _IDEA_ project template directory
-    - Template zip package: [wow-project-template.zip](https://github.com/Ahoo-Wang/wow-project-template/releases/download/v8.3.6/wow-project-template.zip)
-
 ## Create Project
 
-> [Create project from template](https://www.jetbrains.com/help/idea/saving-project-as-template.html#create-project-from-template)
+[![Use this template](https://img.shields.io/badge/Use%20this%20template-2ea44f?style=for-the-badge&logo=github)](https://github.com/new?template_name=wow-project-template&template_owner=Ahoo-Wang)
 
-![Create Project](../../public/images/getting-started/new-project.png)
+Click the button above to create a new repository from [Wow Project Template](https://github.com/Ahoo-Wang/wow-project-template), then clone it locally.
 
 - Modify the `settings.gradle.kts` file, change `rootProject.name` to the project name
 - Modify `api/{package}/DemoService`
 - Modify `domain/{package}/DemoBoundedContext`
-
-::: tip
-When IDEA creates a project based on a template, the `gradlew` script may be commented out, you need to copy it again from the template project.
-> Enable executable permissions:
-```shell
-chmod +x ./gradlew
-```
-:::
 
 
 ## Project Modules
