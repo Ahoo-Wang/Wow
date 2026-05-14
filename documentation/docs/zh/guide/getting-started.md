@@ -7,36 +7,15 @@ description: 使用 Wow 项目模板快速创建基于 DDD 的微服务项目。
 
 > 使用 [Wow 项目模板](https://github.com/Ahoo-Wang/wow-project-template) 快速创建基于 _Wow_ 框架的 _DDD_ 项目。
 
-## 安装模板
-
-[IDEA 项目模板指南](https://www.jetbrains.com/help/idea/saving-project-as-template.html)
-
-[IDEA 配置目录指南](https://www.jetbrains.com/help/idea/directories-used-by-the-ide-to-store-settings-caches-plugins-and-logs.html#config-directory)
-
-- _IDEA_ 项目模板目录：`<IDE config home>/projectTemplates`
-    - _Windows_: `C:\Users\<USERNAME>\AppData\Roaming\JetBrains\<PRODUCT><VERSION>\projectTemplates\`
-    - _Mac OS_:`~/Library/Application\ Support/JetBrains/<PRODUCT><VERSION/projectTemplates/`
-    - _Linux_: `~/.config/JetBrains/<PRODUCT><VERSION>/projectTemplates/`
-- 将模板压缩包放到 _IDEA_ 项目模板目录下
-    - 模板压缩包: [wow-project-template.zip](https://gitee.com/AhooWang/wow-project-template/releases/download/v8.3.6/wow-project-template.zip)
-
 ## 创建项目
 
-> [使用模板创建项目](https://www.jetbrains.com/help/idea/saving-project-as-template.html#create-project-from-template)
+[![Use this template](https://img.shields.io/badge/Use%20this%20template-2ea44f?style=for-the-badge&logo=github)](https://github.com/new?template_name=wow-project-template&template_owner=Ahoo-Wang)
 
-![创建项目](../../public/images/getting-started/new-project.png)
+点击上方按钮即可从 [Wow 项目模板](https://github.com/Ahoo-Wang/wow-project-template) 创建你自己的项目仓库，然后克隆到本地。
 
 - 修改 `settings.gradle.kts` 文件，将 `rootProject.name` 修改为项目名称
 - 修改 `api/{package}/DemoService`
 - 修改 `domain/{package}/DemoBoundedContext`
-
-::: tip
-IDEA 基于模版创建项目会将 `gradlew` 脚本被注释，需要重新从模板项目中Copy过来。
-> 开启可执行权限：
-```shell
-chmod +x ./gradlew
-```
-:::
 
 
 ## 项目模块
