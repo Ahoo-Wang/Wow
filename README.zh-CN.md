@@ -1,27 +1,43 @@
 <p align="center" style="text-align:center;">
-  <img width="150" src="documentation/docs/public/images/logo.svg" alt="Wow:基于 DDD & EventSourcing 的现代响应式 CQRS 架构微服务开发框架"/>
+  <img width="150" src="documentation/docs/public/images/logo.svg" alt="Wow"/>
 </p>
 
-# Wow : 基于 DDD & EventSourcing 的现代响应式 CQRS 架构微服务开发框架
+<h1 align="center">Wow</h1>
 
-[![License](https://img.shields.io/badge/license-Apache%202-4EB1BA.svg)](https://github.com/Ahoo-Wang/Wow/blob/mvp/LICENSE)
-[![GitHub release](https://img.shields.io/github/release/Ahoo-Wang/Wow.svg)](https://github.com/Ahoo-Wang/Wow/releases)
-[![Maven Central Version](https://img.shields.io/maven-central/v/me.ahoo.wow/wow-core)](https://central.sonatype.com/artifact/me.ahoo.wow/wow-core)
-[![Codacy Badge](https://app.codacy.com/project/badge/Grade/cfc724df22db4f9387525258c8a59609)](https://app.codacy.com/gh/Ahoo-Wang/Wow/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
-[![codecov](https://codecov.io/gh/Ahoo-Wang/Wow/branch/main/graph/badge.svg?token=uloJrLoQir)](https://codecov.io/gh/Ahoo-Wang/Wow)
-[![Integration Test Status](https://github.com/Ahoo-Wang/Wow/actions/workflows/integration-test.yml/badge.svg)](https://github.com/Ahoo-Wang/Wow)
-[![Awesome Kotlin Badge](https://kotlin.link/awesome-kotlin.svg)](https://github.com/KotlinBy/awesome-kotlin)
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/Ahoo-Wang/Wow)
+<p align="center"><strong>领域模型即服务</strong></p>
 
-**领域驱动** | **事件驱动** | **测试驱动** | **声明式设计** | **响应式编程** | **命令查询职责分离** | **事件溯源**
+<p align="center">基于 DDD & Event Sourcing 的现代响应式 CQRS 架构微服务开发框架</p>
 
-> [中文文档](https://wow.ahoo.me/zh/) | [English Document](https://wow.ahoo.me/)
+<p align="center">
+  <a href="https://github.com/Ahoo-Wang/Wow/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache%202-4EB1BA.svg" alt="License"/></a>
+  <a href="https://github.com/Ahoo-Wang/Wow/releases"><img src="https://img.shields.io/github/release/Ahoo-Wang/Wow.svg" alt="GitHub release"/></a>
+  <a href="https://central.sonatype.com/artifact/me.ahoo.wow/wow-core"><img src="https://img.shields.io/maven-central/v/me.ahoo.wow/wow-core" alt="Maven Central"/></a>
+  <a href="https://app.codacy.com/gh/Ahoo-Wang/Wow/dashboard"><img src="https://app.codacy.com/project/badge/Grade/cfc724df22db4f9387525258c8a59609" alt="Codacy"/></a>
+  <a href="https://codecov.io/gh/Ahoo-Wang/Wow"><img src="https://codecov.io/gh/Ahoo-Wang/Wow/branch/main/graph/badge.svg?token=uloJrLoQir" alt="Codecov"/></a>
+  <a href="https://github.com/Ahoo-Wang/Wow/actions/workflows/integration-test.yml"><img src="https://github.com/Ahoo-Wang/Wow/actions/workflows/integration-test.yml/badge.svg" alt="CI"/></a>
+  <a href="https://kotlin.link/"><img src="https://kotlin.link/awesome-kotlin.svg" alt="Awesome Kotlin"/></a>
+  <a href="https://deepwiki.com/Ahoo-Wang/Wow"><img src="https://deepwiki.com/badge.svg" alt="DeepWiki"/></a>
+</p>
 
-## Spring Boot 版本兼容性
+<p align="center">
+  <strong>领域驱动</strong> &middot; <strong>事件驱动</strong> &middot; <strong>测试驱动</strong> &middot; <strong>声明式设计</strong> &middot; <strong>响应式</strong> &middot; <strong>CQRS</strong> &middot; <strong>事件溯源</strong>
+</p>
 
-> **Wow 6.x** 支持 Spring Boot 3.x , 基于 Java 17
+<p align="center">
+  <a href="https://wow.ahoo.me/">English</a> &middot; <a href="https://wow.ahoo.me/zh/">中文</a>
+</p>
+
+---
+
+## 快速开始
+
+[![Use this template](https://img.shields.io/badge/Use%20this%20template-2ea44f?style=for-the-badge&logo=github)](https://github.com/new?template_name=wow-project-template&template_owner=Ahoo-Wang)
+
+点击上方按钮，从 [Wow 项目模板](https://github.com/Ahoo-Wang/wow-project-template) 创建你自己的项目仓库，然后克隆到本地，开始编写领域模型。
+
+> **Wow 8.x** 支持 Spring Boot 4.x，基于 Java 17+
 >
-> **Wow 8.x** 支持 Spring Boot 4.x , 基于 Java 17
+> **Wow 6.x** 支持 Spring Boot 3.x，基于 Java 17+
 
 ## 简介
 
@@ -31,177 +47,165 @@ _Wow_ 是一个基于领域驱动设计和事件溯源的现代响应式 _CQRS_ 
 
 > 值得一提的是，领域驱动设计和事件溯源并非微服务架构的专属，_Wow_ 框架不仅适用于微服务开发，同样也可用于构建基于领域驱动设计的单体应用程序。
 
-## 快速开始
+## 特性一览
 
-[使用 Wow 项目模板快速创建基于 Wow 框架的 DDD 项目](https://wow.ahoo.me/guide/getting-started.html) 
+<p align="center"><img src="documentation/docs/public/images/Features.png" alt="Wow Features" width="95%"/></p>
 
-## 特性概览
+| 特性 | 说明 |
+|------|------|
+| **领域模型即服务** | 仅需编写领域模型，Wow 自动生成 OpenAPI 接口 |
+| **测试套件** | Given→When→Expect 模式，轻松实现 80%+ 覆盖率 |
+| **高性能** | 写操作仅需 AppendOnly，读操作利用面向查询的搜索引擎 |
+| **水平伸缩** | 无需考虑分片规则，代码无需变更即可水平扩展 |
+| **分布式事务** | Saga 编排模式，降低复杂多服务间事务的复杂性 |
+| **事件补偿** | 可视化控制台 + 自动补偿机制，确保最终一致性 |
+| **可观测性** | 集成 OpenTelemetry，实现端到端可观测 |
+| **响应式** | 基于 Project Reactor 的非阻塞异步消息通信 |
+| **商业智能** | 丰富的事件溯源数据源，极低 ETL 成本 |
 
-<p align="center" style="text-align:center">
-  <img src="documentation/docs/public/images/Features.png" alt="Wow-Features"/>
-</p>
+## 架构
 
-## 架构图
-
-<p align="center" style="text-align:center">
-  <img  width="95%"  src="documentation/docs/public/images/Architecture.svg" alt="Wow-Architecture"/>
-</p>
+<p align="center"><img src="documentation/docs/public/images/Architecture.svg" alt="Architecture" width="95%"/></p>
 
 ### 命令处理传播链
 
-<p align="center" style="text-align:center;">
-  <img  width="95%" src="documentation/docs/public/images/wait/WaitingForChain.svg" alt="Wow-WaitingForChain"/>
+<p align="center"><img src="documentation/docs/public/images/wait/WaitingForChain.svg" alt="Command Processing Chain" width="95%"/></p>
+
+## 性能测试
+
+示例应用压力测试（2 分钟）：
+
+| 操作 | 等待策略 | 平均 TPS | 峰值 TPS | 平均延迟 |
+|------|---------|---------|---------|---------|
+| 加入购物车 | `SENT` | 59,625 | 82,312 | 29 ms |
+| 加入购物车 | `PROCESSED` | 18,696 | 24,141 | 239 ms |
+| 创建订单 | `SENT` | 47,838 | 86,200 | 217 ms |
+| 创建订单 | `PROCESSED` | 18,230 | 25,506 | 268 ms |
+
+<details>
+<summary>性能详情与部署</summary>
+
+- 测试代码：[Example](./example)
+- 部署配置：[Redis](deploy/example/perf/redis.yaml) / [MongoDB](deploy/example/perf/mongo.yaml) / [Kafka](deploy/example/perf/kafka.yaml)
+
+<p align="center">
+  <img src="./document/example/perf/Example.Cart.Add@SENT.png" alt="AddCartItem-SENT"/>
 </p>
 
-
-## 背景
-
-随着业务的发展和复杂性的增加，传统的架构和开发方式逐渐显露出瓶颈。*领域驱动设计*和*事件溯源*等理念在提高系统设计的灵活性和可维护性方面表现出色，但在实践中常常需要面对复杂性和学习曲线的挑战。
-
-_Wow_ 框架的目标是以简单易用的方式将领域驱动设计和事件溯源等理念融入到微服务应用开发中，降低开发者的学习成本，提高开发效率。
-通过提供现代响应式的 _CQRS_ 架构和相关组件，_Wow_ 框架旨在让开发者更专注于业务逻辑的实现，而不必过多关心底层技术细节。
-
-经过多年的实践和不断的演进，_Wow_ 框架在生产环境中得到了验证，积累了丰富的经验。这些经验和反馈不仅丰富了框架的功能和性能，也为持续的改进和优化提供了宝贵的指导。
-
-## 对于开发者而言，_Wow_ 框架意味着什么？
-
-我曾告诫我的团队：如果我们过于依赖*数据驱动设计*而忽视*领域驱动设计*，我们最终将沦为*CRUD*工程师。
-
-> *CRUD*工程师的竞争力和可替代性可想而知，这或许是为何会有 _35_ 岁效应，企业显然更倾向于招募没有太多生活羁绊、更加廉价的 _25_ 岁*CRUD*工程师。
-
-### 业务价值
-
-软件系统的核心价值体现在业务价值上，研发人员不应只关注技术实现上，而是应该更多地关注业务价值的实现。
-这其中的好处显而易见，当你开发完一个业务系统之后，你将变成一个业务专家，甚至比跟你合作的领域专家还要专业，因为你需要洞察业务细节。
-
-使用 _Wow_ 框架，意味着你将关注点放在围绕领域模型设计上，与业务专家一起探索业务领域，而不是关注于技术实现上。
-你仅需编写领域模型，即可完成服务开发，_Wow_ 框架自动为你准备好 _OpenAPI_ 接口。
-
-> 在《实现领域驱动设计》一书中，作者 Vaughn Vernon 提到：核心域才值得投入精力进行领域驱动设计，
-> 但如果你使用 _Wow_ 框架，你将发现，因为低廉开发成本、快速的开发效率，即使是次要的支撑子域也值得 _DDD_。
-
-### 性能与伸缩性
-
-随着业务的发展，你需要开始思考系统的性能和伸缩性问题。
-在传统架构中，这牵扯到数据库关系模式、分片规则等复杂问题，同时你还需要处理因数据库分片导致的跨分片事务问题。
-这时，你不得不修改你的业务代码，以适应水平拆分后的数据库架构。
-
-然而，如果你选择使用 _Wow_ 框架，你将不再需要过多关注数据库关系模式、分片规则等问题。你的业务代码无需变更，系统能够轻松实现水平伸缩。
-
-你可以在这里了解更多关于 [Wow 框架的性能](https://wow.ahoo.me/guide/perf-test.html)。
-
-### 读写分离与同步延迟
-
-读写分离是一种极为普遍的性能优化架构模式。
-然而，同步延迟问题常伴随而来，事务执行成功后写库落库成功，但读库同步延迟，用户刷新页面后无法获取最新数据，从而对用户的体验产生影响。例如：
-
-- 用户发起下单事务，写库执行成功，但由于某种原因，读库同步延迟，用户刷新页面后发现订单未成功创建。
-- 商家编辑完商品后，同步到 _Elasticsearch_ 索引库，但由于某种原因，同步延迟，导致商家刷新页面后搜索不到该商品。
-
-通常，大家采用最简便的方法，等待1秒后刷新页面。
-虽然这种方式能解决大多数数据同步延迟的问题，但效率不够高。
-因为大多数情况下，同步在100毫秒内就已完成，剩余的900毫秒成了*浪费*。
-然而，有时1秒无法完成同步，这就导致用户获取的数据变得**无效**。
-
-使用 _Wow_ 框架，你可以通过等待 _PROJECTED_ 信号完成，然后再将结果返回给用户，以更为优雅和高效的方式处理数据同步延迟的问题。
-
-<p align="center" style="text-align:center;">
-  <img  width="95%" src="documentation/docs/public/images/wait/WaitingForStage.svg" alt="Wow-WaitingForStage"/>
+<p align="center">
+  <img src="./document/example/perf/Example.Order.Create@SENT.png" alt="CreateOrder-SENT"/>
 </p>
 
+</details>
 
-### 工程质量
+## 测试套件
 
-*单元测试*是确保代码质量且符合预期业务需求的重要手段，但在传统架构中，单元测试往往是一项相当困难的任务，因为你需要考虑数据库连接、事务管理、数据清理等问题。
+> Given → When → Expect
 
-使用 _Wow_ 框架，你将会发现基于 _Given->When->Expect_ 模式的测试套件，使得单元测试变得异常简单。
-你只需关注领域模型是否符合预期，而无需为数据库连接等问题烦恼。
+<p align="center"><img src="document/design/assets/CI-Flow.png" alt="CI Flow" width="80%"/></p>
 
-> 在实际应用中，我们将领域模型的单元测试覆盖率下限阈值设置为 **85%**，也是可以轻松实现的。
-> 
-> 在没有刻意要求的情况下，开发人员甚至自觉地将覆盖率提升至 **95%**。
-> 
-> 因此，每次提交代码都变得轻松自在，因为你确信你的代码经过了充分的测试，并且真正意义上从单元测试中获得了收益。
+### 聚合根测试（`AggregateVerifier`）
 
+```kotlin
+class CartSpec : AggregateSpec<Cart, CartState>({
+  on {
+    whenCommand(AddCartItem(productId = "productId", quantity = 1)) {
+      expectNoError()
+      expectEventType(CartItemAdded::class)
+      expectState {
+        items.assert().hasSize(1)
+      }
+    }
+  }
+})
+```
 
-在研发同级别的项目中，我们的测试团队在系统 _API_ 测试中发现，基于 Wow 框架的项目，其 _BUG_ 数仅为传统架构项目的 **1/3**。
+### Saga 测试（`SagaVerifier`）
 
-你可以在这里了解更多关于 [Wow 单元测试套件](https://wow.ahoo.me/guide/test-suite.html)。
+```kotlin
+class CartSagaSpec : SagaSpec<CartSaga>({
+  on {
+    whenEvent(event = mockk<OrderCreated> {
+      every { items } returns listOf(orderItem)
+      every { fromCart } returns true
+    }, ownerId = ownerId) {
+      expectCommandType(RemoveCartItem::class)
+    }
+  }
+})
+```
 
-## 对于企业而言，_Wow_ 框架意味着什么？
+## 设计
 
-### 商业智能
+### 建模范式
 
-*商业智能*是企业决策的关键支持，而数据则是商业智能的分析原料。业务数据越为丰富有价值，商业智能的分析结果越准确，决策也就更加可靠。
+| 单一类 | 继承模式 | 聚合模式 |
+|:---:|:---:|:---:|
+| ![单一类](./document/design/assets/Modeling-Single-Class-Pattern.svg) | ![继承模式](./document/design/assets/Modeling-Inheritance-Pattern.svg) | ![聚合模式](./document/design/assets/Modeling-Aggregation-Pattern.svg) |
 
-与传统架构有着显著差异，_Wow_ 提供了实时聚合根状态事件（`StateEvent`）和聚合命令（`Command`）作为数据分析的数据源，同时极大降低了实时 _ETL_（`Extract`, `Transform`, `Load`）的难度。
+### 核心流程
 
-在传统架构中，实现实时 _ETL_ 通常需要经过繁琐的流程，包括 `DB->CDC->Process->DB`，而在 _Wow_ 框架中，仅需一段简单的 _SQL_ 脚本即可完成这一过程。
+<p align="center"><img src="./document/design/assets/Command-Event-Flow.svg" alt="Command And Event Flow" width="95%"/></p>
 
-另外，在传统架构中，使用 _CDC_（`MySql Binlog`）数据仅记录数据的变化，缺乏明确的业务语义。进行业务分析时，需要基于数据状态的变化推断出业务语义，这往往需要进行大量的数据处理。
-相较之下，_Wow_ 框架直接提供了聚合根状态事件和聚合命令作为数据分析的数据源，极大降低了数据处理的难度。
+<p align="center"><img src="./document/design/assets/EventSourcing.svg" alt="Event Sourcing" width="80%"/></p>
 
-_Wow_ 提供的实时同步机制将数据实时同步至数据仓库（_ClickHouse_），为实时数据分析提供了极大的便利。这种方法为商业智能提供了强有力的支持，构建了一个实时数据分析系统，使决策制定能够基于及时而准确的信息。
+<details>
+<summary>更多设计图</summary>
 
-你可以在这里了解更多关于 [Wow 商业智能](https://wow.ahoo.me/guide/bi.html)。
+**加载聚合根**
 
-### 操作审计
+<p align="center"><img src="./document/design/assets/Load-Aggregate.svg" alt="Load Aggregate" width="95%"/></p>
 
-*操作审计*是企业中保障安全性和合规性的重要组成部分，同时也是对系统操作进行监控和追踪的关键手段。_Wow_ 框架在这方面为企业带来了显著的优势。
+**聚合状态流转**
 
-通过记录聚合命令（`Command`）作为操作审计的数据源，_Wow_ 框架能够详细追踪系统中的各种操作。
-这些记录不仅包含了操作本身的内容，还涵盖了操作触发的副作用（_领域事件_），为审计提供了更为全面和准确的数据基础。
+<p align="center"><img src="./document/design/assets/Aggregate-State-Flow.svg" alt="Aggregate State Flow" width="95%"/></p>
 
-相较于传统审计方法，_Wow_ 框架的操作审计的数据源具备更加明确的业务语义，以及操作后产生的明确领域事件。
+**发送命令**
 
-此外，Wow 框架提供的实时数据同步机制也为操作审计带来了便利，确保了审计数据的及时性和一致性。
+<p align="center"><img src="./document/design/assets/Send-Command.svg" alt="Send Command" width="95%"/></p>
 
-了解更多关于 [Wow 操作审计](https://wow.ahoo.me/guide/bi.html#聚合命令)。
+**可观测性**
+
+<p align="center"><img src="./document/design/assets/OpenTelemetry.png" alt="Observability" width="80%"/></p>
+
+</details>
 
 ## 事件补偿
 
-> *事件补偿*在事件驱动架构中的作用是处理和恢复因为事件处理失败而导致的数据不一致性或错误状态。
-> 当系统中的某个事件处理失败时，_event compensation_ 机制会介入并执行相应的补偿操作，以确保系统状态得以修复并保持一致性。
-> 这个机制有助于保障系统的可靠性和稳定性，尤其是在复杂的分布式系统中，其中事件可能在多个组件或服务之间传递。
-> 通过 _event compensation_，系统可以更好地处理故障和异常情况，防止错误状态的传播，并最终确保系统能够从失败中恢复并继续正常运行。
+<p align="center"><img src="documentation/docs/public/images/compensation/dashboard.png" alt="Compensation Dashboard" width="80%"/></p>
 
-事件补偿模块提供了可视化的事件补偿控制台和自动补偿机制，确保系统数据的最终一致性。
+<details>
+<summary>补偿详情</summary>
 
-### 执行时序图
+<p align="center"><img src="documentation/docs/public/images/compensation/usercase.svg" alt="Compensation Use Case" width="80%"/></p>
 
-- 订阅者服务：
-    - 订阅领域事件，执行业务逻辑。
-    - 在执行失败时，发送执行失败记录。
-    - 在执行成功时，发送执行成功记录。
-- 控制台：
-    - 分布式补偿调度器： 定时检查待补偿事件并执行准备补偿操作。
-    - 通知： 在发生执行失败异常时，发送通知消息。
-- 开发者：
-    - 监控： 监控补偿事件，执行重试操作以重新触发补偿逻辑，或标记不再需要的补偿事件。
-    - 接收通知： 接收执行失败通知，快速定位到异常，修复 BUG。
-    - 修复 BUG： 当发生无法自动修复的异常时，开发者可以通过控制台快速定位到异常，修复 BUG，并重新发起重试。
+<p align="center"><img src="documentation/docs/public/images/compensation/process-sequence-diagram.svg" alt="Compensation Sequence" width="80%"/></p>
 
-![Event-Compensation](./documentation/docs/public/images/compensation/process-sequence-diagram.svg)
+<p align="center"><img src="documentation/docs/public/images/compensation/dashboard-apply-retry-spec.png" alt="Apply Retry Spec" width="80%"/></p>
 
-### 控制台
+<p align="center"><img src="documentation/docs/public/images/compensation/dashboard-succeeded.png" alt="Compensation Succeeded" width="80%"/></p>
 
-*事件补偿控制台*的强大功能不仅包括分布式定时调度自动补偿，还搭载直观可视化的补偿事件管理功能、事件补偿通知（企业微信）以及 _OpenAPI_ 接口。
+</details>
 
-通过分布式定时自动补偿，_Wow_ 框架智能地解决了系统数据最终一致性的难题，摆脱了手动补偿的繁琐过程。
-而可视化的补偿事件管理功能为开发者提供了巨大便利，轻松监控和处理补偿事件。
+## 生态
 
-在控制台上，开发者能轻松进行特定状态的补偿事件查询，执行重试操作以重新触发补偿逻辑，或删除不再需要的补偿事件，提供了灵活而直观的操作手段。
+| 项目 | 说明 |
+|------|------|
+| [CosId](https://github.com/Ahoo-Wang/CosId) | 通用、灵活、高性能的分布式 ID 生成器 |
+| [CoSec](https://github.com/Ahoo-Wang/CoSec) | 基于策略和 RBAC 的多租户响应式安全框架 |
+| [CoCache](https://github.com/Ahoo-Wang/CoCache) | 分布式一致性二级缓存框架 |
+| [Simba](https://github.com/Ahoo-Wang/Simba) | 易用、灵活的分布式锁服务 |
+| [CoSky](https://github.com/Ahoo-Wang/CoSky) | 高性能、低成本的微服务治理平台 |
+| [CoApi](https://github.com/Ahoo-Wang/CoApi) | Spring 6 零样板 HTTP 客户端自动配置 |
+| [FluentAssert](https://github.com/Ahoo-Wang/FluentAssert) | Kotlin 流式断言库，让测试更简洁优雅 |
 
-这一设计不仅增强了系统的稳健性和可维护性，同时也让开发者更容易处理复杂的分布式事务流程，确保系统在异常情况下能够正确而可控地进行补偿操作。
+## 示例
 
-> [事件补偿控制台](https://github.com/Ahoo-Wang/Wow/tree/main/compensation) 也是基于 _Wow_ 框架设计开发的。可以作为 _Wow_ 框架的参考实现来学习。
+| 示例 | 语言 | 说明 |
+|------|------|------|
+| [订单服务](./example) | Kotlin | 聚合根、Saga、投影 — 完整 DDD 示例 |
+| [银行转账](./example/transfer) | Java | 简单事件溯源示例 |
 
-#### UI
+## License
 
-![Event-Compensation-Dashboard](./documentation/docs/public/images/compensation/dashboard.png)
-
-![Event-Compensation-Dashboard](./documentation/docs/public/images/compensation/dashboard-apply-retry-spec.png)
-
-![Event-Compensation-Dashboard](./documentation/docs/public/images/compensation/dashboard-succeeded.png)
-
-![Event-Compensation-Dashboard](./documentation/docs/public/images/compensation/dashboard-error.png)
+Wow 基于 [Apache 2.0](LICENSE) 协议开源。
