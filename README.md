@@ -39,21 +39,40 @@ Click the button above to create a new repository from [Wow Project Template](ht
 > 
 > **Wow 6.x** supports Spring Boot 3.x, Java 17+
 
+## Why Wow?
+
+As business complexity grows, traditional CRUD architectures hit bottlenecks — tangled database schemas, painful sharding, and fragile distributed transactions. *Domain-Driven Design* and *Event Sourcing* address these problems, but often come with steep learning curves and implementation overhead.
+
+Wow was built to change that. After years of production validation, it distills DDD + ES into a developer-friendly framework where you focus on the domain model, and Wow handles the rest.
+
+**For developers:**
+- **Focus on business, not infrastructure** — Write only the domain model; Wow auto-generates OpenAPI interfaces
+- **Effortless testing** — The Given→When→Expect pattern makes 85%+ unit test coverage the norm, not the exception
+- **Elegant read-write separation** — Wait for the `PROJECTED` signal instead of guessing sync delays; no more "wait 1 second and refresh"
+- **Scale without code changes** — Horizontal scaling without sharding rules or database relationship refactoring
+
+**For enterprises:**
+- **Business Intelligence** — State events and commands serve as rich, real-time data sources, reducing ETL to simple SQL scripts
+- **Operation Audit** — Every command and its resulting domain events are recorded with clear business semantics
+- **Engineering Quality** — In API testing, Wow-based projects showed only **1/3** the bug count of traditional-architecture projects at the same skill level
+
 ## Features
 
 <p align="center"><img src="documentation/docs/public/images/Features.png" alt="Wow Features" width="95%"/></p>
 
 | Feature | Description |
 |---------|-------------|
-| **Domain Model as a Service** | Just write the domain model, Wow auto-generates OpenAPI interfaces |
-| **Test Suite** | Given→When→Expect pattern, 80%+ coverage made easy |
-| **High Performance** | AppendOnly writes, query-oriented search engines for reads |
-| **Horizontal Scalability** | No sharding rules needed, code unchanged when scaling out |
-| **Distributed Transactions** | Saga orchestration pattern for complex multi-service transactions |
-| **Event Compensation** | Visual dashboard + automatic retry for eventual consistency |
-| **Observability** | End-to-end OpenTelemetry integration for monitoring and debugging |
-| **Reactive** | Non-blocking async messaging with Project Reactor |
-| **Business Intelligence** | Rich event-sourced data with minimal ETL cost |
+| **Domain Model as a Service** | Just write the domain model, Wow auto-generates OpenAPI interfaces — no controller boilerplate needed |
+| **Test Suite** | Given→When→Expect pattern (`AggregateSpec` / `SagaSpec`), 80%+ coverage made easy |
+| **High Performance** | AppendOnly writes to event store, query-oriented search engines for reads — 59k+ TPS in stress tests |
+| **Horizontal Scalability** | No sharding rules needed, business code unchanged when scaling out |
+| **Distributed Transactions** | Saga orchestration pattern for carefully managed multi-service transactions |
+| **Event Compensation** | Visual dashboard + automatic retry with configurable `RetrySpec` for eventual consistency |
+| **Read-Write Separation** | `SENT` / `PROCESSED` / `PROJECTED` wait strategies eliminate sync-delay guesswork |
+| **Observability** | End-to-end OpenTelemetry integration for tracing, metrics, and debugging |
+| **Reactive** | Non-blocking async messaging with Project Reactor throughout the entire stack |
+| **Event Sourcing** | Full state history via event replay, enabling powerful audit and time-travel debugging |
+| **Business Intelligence** | Rich event-sourced data with real-time sync to data warehouses, minimal ETL cost |
 
 ## Architecture
 
