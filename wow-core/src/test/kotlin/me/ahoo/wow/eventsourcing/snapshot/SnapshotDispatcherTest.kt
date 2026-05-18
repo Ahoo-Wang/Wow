@@ -41,7 +41,7 @@ internal class SnapshotDispatcherTest {
     protected val aggregateMetadata = MOCK_AGGREGATE_METADATA
 
     @Test
-    fun start() {
+    fun `should start and process snapshot`() {
         val stateEventBus = InMemoryStateEventBus()
         val inMemorySnapshotRepository = InMemorySnapshotRepository()
         val waitForAppend = Sinks.empty<Void>()

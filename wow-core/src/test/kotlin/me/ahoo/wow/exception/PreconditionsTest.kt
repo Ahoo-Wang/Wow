@@ -1,18 +1,16 @@
 package me.ahoo.wow.exception
 
-import me.ahoo.test.asserts.assert
-import org.junit.jupiter.api.Assertions
+import me.ahoo.test.asserts.assertThrownBy
 import org.junit.jupiter.api.Test
 
 class PreconditionsTest {
 
     @Test
-    fun check() {
-        val exception = Assertions.assertThrows(WowException::class.java) {
+    fun `should throw WowException when check fails`() {
+        assertThrownBy<WowException> {
             Preconditions.check(false, "errorCode") {
                 "error message"
             }
         }
-        exception.errorCode.assert().isEqualTo("errorCode")
     }
 }

@@ -19,7 +19,7 @@ import reactor.kotlin.test.test
 internal class DefaultCommandTest {
 
     @Test
-    fun testMono() {
+    fun `should test mono`() {
         Mono.defer<Any> {
             throw IllegalStateException()
         }

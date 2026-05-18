@@ -17,17 +17,17 @@ import org.junit.jupiter.api.Test
 
 internal class HeaderTest {
     @Test
-    fun ofWhenNull() {
+    fun `should of when null`() {
         null.toHeader().assert().isEqualTo(DefaultHeader.empty())
     }
 
     @Test
-    fun ofWhenEmpty() {
+    fun `should of when empty`() {
         HashMap<String, String>().toHeader().assert().isEqualTo(DefaultHeader.empty())
     }
 
     @Test
-    fun ofWhenHeader() {
+    fun `should of when header`() {
         val values = HashMap<String, String>()
         values["KEY"] = "VALUE"
         val header = DefaultHeader(values)
@@ -35,7 +35,7 @@ internal class HeaderTest {
     }
 
     @Test
-    fun ofWhenNotEmpty() {
+    fun `should of when not empty`() {
         val values = HashMap<String, String>()
         values["KEY"] = "VALUE"
         values.toHeader().assert().hasSize(1)

@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test
 
 class SimpleCommandMessageTest {
     @Test
-    fun toCommandMessage() {
+    fun `should to command message`() {
         val ownerId = generateGlobalId()
         val command =
             MockCreateCommand(GlobalIdGenerator.generateAsString()).toCommandMessage(ownerId = ownerId)

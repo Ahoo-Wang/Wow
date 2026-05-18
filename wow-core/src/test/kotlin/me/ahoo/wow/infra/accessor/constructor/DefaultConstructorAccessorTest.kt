@@ -13,28 +13,28 @@
 package me.ahoo.wow.infra.accessor.constructor
 
 import me.ahoo.test.asserts.assert
-import org.junit.jupiter.api.Assertions
+import me.ahoo.test.asserts.assertThrownBy
 import org.junit.jupiter.api.Test
 import java.lang.reflect.Constructor
 
 internal class DefaultConstructorAccessorTest {
     @Test
-    fun constructor() {
+    fun `should invoke constructor successfully`() {
         val constructorAccessor = DefaultConstructorAccessor(MockConstructor.CTOR)
         constructorAccessor.invoke().assert().isNotNull()
     }
 
     @Test
-    fun constructorWhenIllegalAccess() {
+    fun `should throw IllegalAccessException when constructor is not accessible`() {
         val constructorAccessor = DefaultConstructorAccessor(MockConstructorWhenIllegalAccess.CTOR)
         MockConstructorWhenIllegalAccess.CTOR.isAccessible = false
-        Assertions.assertThrows(IllegalAccessException::class.java) { constructorAccessor.invoke() }
+        assertThrownBy<IllegalAccessException> { constructorAccessor.invoke() }
     }
 
     @Test
-    fun constructorWhenIllegalArgument() {
+    fun `should throw IllegalArgumentException when constructor has illegal argument`() {
         val constructorAccessor = DefaultConstructorAccessor(MockConstructorWhenIllegalArgument.CTOR)
-        Assertions.assertThrows(IllegalArgumentException::class.java) { constructorAccessor.invoke() }
+        assertThrownBy<IllegalArgumentException> { constructorAccessor.invoke() }
     }
 
     @Suppress("UtilityClassWithPublicConstructor")

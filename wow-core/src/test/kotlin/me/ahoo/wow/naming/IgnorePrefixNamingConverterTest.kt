@@ -23,14 +23,14 @@ internal class IgnorePrefixNamingConverterTest {
     }
 
     @Test
-    fun convert() {
+    fun `should convert`() {
         CONVERTER.prefix.assert().isEqualTo(PREFIX)
         val actual = CONVERTER.convert(PREFIX)
         actual.assert().isEqualTo("")
     }
 
     @Test
-    fun convertWhenMismatch() {
+    fun `should convert when mismatch`() {
         val phrase = "prefix"
         val actual = CONVERTER.convert(phrase)
         actual.assert().isEqualTo(phrase)

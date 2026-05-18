@@ -1,6 +1,7 @@
 package me.ahoo.wow.annotation
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.annotation.AnnotationPropertyAccessorParser.staticAggregateIdGetterIfAnnotated
 import me.ahoo.wow.annotation.AnnotationPropertyAccessorParser.toAggregateIdGetterIfAnnotated
 import me.ahoo.wow.annotation.AnnotationPropertyAccessorParser.toAggregateNameGetterIfAnnotated
@@ -14,85 +15,84 @@ import me.ahoo.wow.api.annotation.AggregateVersion
 import me.ahoo.wow.api.annotation.StaticAggregateId
 import me.ahoo.wow.api.annotation.StaticTenantId
 import me.ahoo.wow.api.annotation.TenantId
-import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 
 class AnnotationPropertyAccessorParserTest {
     @Test
-    fun toStringGetter() {
+    fun `should get string getter from property`() {
         Mock::stringField.toStringGetter().assert().isNotNull()
     }
 
     @Test
-    fun toStringGetterIfInt() {
-        Assertions.assertThrows(IllegalArgumentException::class.java) {
+    fun `should throw when getting string getter from int field`() {
+        assertThrownBy<IllegalArgumentException> {
             Mock::intField.toStringGetter()
         }
     }
 
     @Test
-    fun toIntGetter() {
+    fun `should get int getter from property`() {
         val propertyGetter = Mock::intField.toIntGetter()
         propertyGetter.assert().isNotNull()
     }
 
     @Test
-    fun toIntGetterIfString() {
-        Assertions.assertThrows(IllegalArgumentException::class.java) {
+    fun `should throw when getting int getter from string field`() {
+        assertThrownBy<IllegalArgumentException> {
             Mock::stringField.toIntGetter()
         }
     }
 
     @Test
-    fun toAggregateNameGetterIfAnnotated() {
+    fun `should get aggregate name getter when annotated`() {
         val propertyGetter = Mock::aggregateName.toAggregateNameGetterIfAnnotated()
         propertyGetter.assert().isNotNull()
     }
 
     @Test
-    fun toAggregateNameGetterIfUnAnnotated() {
+    fun `should return null for aggregate name getter when not annotated`() {
         val propertyGetter = Mock::aggregateId.toAggregateNameGetterIfAnnotated()
         propertyGetter.assert().isNull()
     }
 
     @Test
-    fun toAggregateIdGetterIfAnnotated() {
+    fun `should get aggregate id getter when annotated`() {
         val propertyGetter = Mock::aggregateId.toAggregateIdGetterIfAnnotated()
         propertyGetter.assert().isNotNull()
     }
 
     @Test
-    fun toAggregateIdGetterIfUnAnnotated() {
+    fun `should return null for aggregate id getter when not annotated`() {
         val propertyGetter = Mock::aggregateName.toAggregateIdGetterIfAnnotated()
         propertyGetter.assert().isNull()
     }
 
     @Test
-    fun toStaticAggregateIdGetterIfAnnotated() {
+    fun `should get static aggregate id getter when annotated`() {
         val propertyGetter = staticAggregateIdGetterIfAnnotated<Mock>()
         propertyGetter.assert().isNotNull()
     }
 
     @Test
-    fun toTenantIdGetterIfAnnotated() {
+    fun `should get tenant id getter when annotated`() {
         val propertyGetter = Mock::tenantId.toTenantIdGetterIfAnnotated()
         propertyGetter.assert().isNotNull()
     }
 
     @Test
-    fun toTenantIdGetterIfUnAnnotated() {
+    fun `should return null for tenant id getter when not annotated`() {
         val propertyGetter = Mock::aggregateId.toTenantIdGetterIfAnnotated()
         propertyGetter.assert().isNull()
     }
 
     @Test
-    fun toAggregateVersionGetterIfAnnotated() {
+    fun `should get aggregate version getter when annotated`() {
         val propertyGetter = Mock::aggregateVersion.toAggregateVersionGetterIfAnnotated()
         propertyGetter.assert().isNotNull()
     }
 
     @Test
-    fun toAggregateVersionGetterIfUnAnnotated() {
+    fun `should return null for aggregate version getter when not annotated`() {
         val propertyGetter = Mock::aggregateId.toAggregateVersionGetterIfAnnotated()
         propertyGetter.assert().isNull()
     }

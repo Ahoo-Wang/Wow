@@ -17,23 +17,23 @@ class AfterCommandFunctionMetadataTest {
         .toAfterCommandFunctionMetadata()
 
     @Test
-    fun getInclude() {
+    fun `should get include`() {
         afterCommandFunctionMetadata.include.assert().containsExactly(CreateCmd::class.java)
     }
 
     @Test
-    fun getExclude() {
+    fun `should get exclude`() {
         afterCommandFunctionMetadata.exclude.assert().containsExactly(UpdateCmd::class.java)
     }
 
     @Test
-    fun supportCommand() {
+    fun `should support command`() {
         afterCommandFunctionMetadata.supportCommand(CreateCmd::class.java).assert().isEqualTo(true)
         afterCommandFunctionMetadata.supportCommand(UpdateCmd::class.java).assert().isEqualTo(false)
     }
 
     @Test
-    fun supportCommandEmpty() {
+    fun `should support command empty`() {
         val funMetadata = MockDefaultAfterCommandAggregate::afterCommand
             .toMonoFunctionMetadata<MockDefaultAfterCommandAggregate, Any>()
             .toAfterCommandFunctionMetadata()
@@ -41,17 +41,17 @@ class AfterCommandFunctionMetadataTest {
     }
 
     @Test
-    fun getFunction() {
+    fun `should get function`() {
         afterCommandFunctionMetadata.function.functionKind.assert().isEqualTo(FunctionKind.COMMAND)
     }
 
     @Test
-    fun getOrder() {
+    fun `should get order`() {
         afterCommandFunctionMetadata.order.value.assert().isEqualTo(0)
     }
 
     @Test
-    fun fistOrder() {
+    fun `should fist order`() {
         val funMetadata = MockAfterCommandAggregate::firstAfterCommand
             .toMonoFunctionMetadata<MockAfterCommandAggregate, Any>()
             .toAfterCommandFunctionMetadata()

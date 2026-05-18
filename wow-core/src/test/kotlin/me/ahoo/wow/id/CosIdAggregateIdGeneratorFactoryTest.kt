@@ -12,7 +12,7 @@ class CosIdAggregateIdGeneratorFactoryTest {
     private val namedAggregate = "test.test".toNamedAggregate()
 
     @Test
-    fun create() {
+    fun `should create`() {
         val idProvider = DefaultIdGeneratorProvider()
         val injectIdGenerator = mockk<CosIdGenerator>()
         idProvider.set("test", injectIdGenerator)
@@ -21,7 +21,7 @@ class CosIdAggregateIdGeneratorFactoryTest {
     }
 
     @Test
-    fun createIfNull() {
+    fun `should create if null`() {
         val idGenerator = CosIdAggregateIdGeneratorFactory().create(namedAggregate) as ClockSyncCosIdGenerator
         idGenerator.machineId.assert().isEqualTo(GlobalIdGenerator.machineId)
     }

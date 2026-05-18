@@ -26,7 +26,7 @@ import org.junit.jupiter.api.Test
 
 class CommandValidationExceptionTest {
     @Test
-    fun toBindingErrors() {
+    fun `should to binding errors`() {
         val path = mockk<Path>()
         val constraintViolation = mockk<ConstraintViolation<MockCreateCommand>> {
             every { propertyPath } returns path
@@ -38,7 +38,7 @@ class CommandValidationExceptionTest {
     }
 
     @Test
-    fun test() {
+    fun `should test`() {
         val command = MockCreateCommand(generateGlobalId())
         val path = mockk<Path>()
         every { path.toString() } returns "name"
@@ -58,7 +58,7 @@ class CommandValidationExceptionTest {
     }
 
     @Test
-    fun testIfEmpty() {
+    fun `should test if empty`() {
         val command = MockCreateCommand(generateGlobalId())
         val exception = CommandValidationException(command, "Command validation failed.")
         exception.errorCode.assert().isEqualTo(COMMAND_VALIDATION)

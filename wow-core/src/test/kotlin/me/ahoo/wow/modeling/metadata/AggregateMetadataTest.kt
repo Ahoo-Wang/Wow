@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test
 class AggregateMetadataTest {
 
     @Test
-    fun testEquals() {
+    fun `should test equals`() {
         val aggregateMetadata =
             aggregateMetadata<MockCommandAggregate, MockStateAggregate>()
         aggregateMetadata.equals(aggregateMetadata).assert().isTrue()
@@ -26,7 +26,7 @@ class AggregateMetadataTest {
     }
 
     @Test
-    fun testHashCode() {
+    fun `should test hash code`() {
         val aggregateMetadata =
             aggregateMetadata<MockCommandAggregate, MockStateAggregate>()
         val aggregateMetadata2 =
@@ -35,14 +35,14 @@ class AggregateMetadataTest {
     }
 
     @Test
-    fun testToString() {
+    fun `should test to string`() {
         val aggregateMetadata =
             aggregateMetadata<MockCommandAggregate, MockStateAggregate>()
         aggregateMetadata.toString().assert().isNotNull()
     }
 
     @Test
-    fun testIsAggregationPattern() {
+    fun `should test is aggregation pattern`() {
         val aggregateMetadata =
             aggregateMetadata<MockCommandAggregate, MockStateAggregate>()
         // 当Command和State是不同类型时，isAggregationPattern应该为true
@@ -50,7 +50,7 @@ class AggregateMetadataTest {
     }
 
     @Test
-    fun testExtractAggregateIdWithAccessor() {
+    fun `should test extract aggregate id with accessor`() {
         val aggregateMetadata =
             aggregateMetadata<MockCommandAggregate, MockStateAggregate>()
         val stateAggregateFactory: StateAggregateFactory = ConstructorStateAggregateFactory
@@ -66,7 +66,7 @@ class AggregateMetadataTest {
     }
 
     @Test
-    fun testExtractAggregateIdWithoutAccessor() {
+    fun `should test extract aggregate id without accessor`() {
         val aggregateMetadata =
             aggregateMetadata<MockCommandAggregate, MockStateAggregate>()
         val stateAggregateFactory: StateAggregateFactory = ConstructorStateAggregateFactory
@@ -84,7 +84,7 @@ class AggregateMetadataTest {
     }
 
     @Test
-    fun testExtractAggregateIdWithCustomTenantId() {
+    fun `should test extract aggregate id with custom tenant id`() {
         val aggregateMetadata =
             aggregateMetadata<MockCommandAggregate, MockStateAggregate>()
         val stateAggregateFactory: StateAggregateFactory = ConstructorStateAggregateFactory
@@ -102,14 +102,14 @@ class AggregateMetadataTest {
     }
 
     @Test
-    fun testAsAggregateMetadata() {
+    fun `should test as aggregate metadata`() {
         val namedAggregate = aggregateMetadata<MockCommandAggregate, MockStateAggregate>().namedAggregate
         val converted = namedAggregate.asAggregateMetadata<MockCommandAggregate, MockStateAggregate>()
         converted.assert().isSameAs(aggregateMetadata<MockCommandAggregate, MockStateAggregate>())
     }
 
     @Test
-    fun testAsAggregateMetadataWhenAggregateMetadata() {
+    fun `should test as aggregate metadata when aggregate metadata`() {
         val namedAggregate = aggregateMetadata<MockCommandAggregate, MockStateAggregate>()
         val converted = namedAggregate.asAggregateMetadata<MockCommandAggregate, MockStateAggregate>()
         converted.assert().isSameAs(aggregateMetadata<MockCommandAggregate, MockStateAggregate>())

@@ -19,26 +19,26 @@ import org.junit.jupiter.api.Test
 class CommandRouteMetadataTest {
 
     @Test
-    fun equalTo() {
+    fun `should be equal to same command route metadata`() {
         val commandRouteMetadata = commandRouteMetadata<MockCommandRoute>()
         commandRouteMetadata.assert().isEqualTo(commandRouteMetadata)
     }
 
     @Test
-    fun equalToAny() {
+    fun `should not be equal to arbitrary object`() {
         val commandRouteMetadata = commandRouteMetadata<MockCommandRoute>()
         commandRouteMetadata.assert().isNotEqualTo(Any())
     }
 
     @Test
-    fun equalToOther() {
+    fun `should not be equal to different command route metadata`() {
         val commandRouteMetadata = commandRouteMetadata<MockCommandRoute>()
         val nestedMockCommandRoute = commandRouteMetadata<NestedMockCommandRoute>()
         commandRouteMetadata.assert().isNotEqualTo(nestedMockCommandRoute)
     }
 
     @Test
-    fun testHasCode() {
+    fun `should have hash code matching command metadata`() {
         val commandRouteMetadata = commandRouteMetadata<MockCommandRoute>()
         commandRouteMetadata.hashCode().assert().isEqualTo(commandRouteMetadata.commandMetadata.hashCode())
     }

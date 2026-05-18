@@ -25,7 +25,7 @@ import reactor.kotlin.core.publisher.toMono
 
 class QueryServiceCacheSourceTest {
     @Test
-    fun load() {
+    fun `should load from cache source`() {
         val snapshot = mockk<MaterializedSnapshot<String>> {
             every { state } returns "test"
         }

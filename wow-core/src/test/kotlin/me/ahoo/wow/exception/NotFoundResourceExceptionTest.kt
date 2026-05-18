@@ -8,7 +8,7 @@ import reactor.kotlin.test.test
 
 class NotFoundResourceExceptionTest {
     @Test
-    fun monoThrowNotFoundIfEmpty() {
+    fun `should mono throw not found if empty`() {
         Mono.empty<String>()
             .throwNotFoundIfEmpty("Not found.", null)
             .test()
@@ -17,7 +17,7 @@ class NotFoundResourceExceptionTest {
     }
 
     @Test
-    fun fluxThrowNotFoundIfEmpty() {
+    fun `should flux throw not found if empty`() {
         Flux.empty<String>()
             .throwNotFoundIfEmpty("not found", RuntimeException())
             .test()
@@ -26,14 +26,14 @@ class NotFoundResourceExceptionTest {
     }
 
     @Test
-    fun throwNotFoundIfNull() {
+    fun `should throw not found if null`() {
         assertThrownBy<NotFoundResourceException> {
             null.throwNotFoundIfNull("null value")
         }
     }
 
     @Test
-    fun ifNotNull() {
+    fun `should if not null`() {
         "".throwNotFoundIfNull()
     }
 }

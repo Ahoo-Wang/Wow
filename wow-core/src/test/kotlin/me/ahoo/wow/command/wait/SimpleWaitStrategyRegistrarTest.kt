@@ -25,7 +25,7 @@ import org.junit.jupiter.api.Test
 internal class SimpleWaitStrategyRegistrarTest {
 
     @Test
-    fun register() {
+    fun `should register`() {
         val registrar = SimpleWaitStrategyRegistrar
         val waitStrategy = WaitingForStage.processed(generateGlobalId())
         var registerResult = registrar.register(waitStrategy)
@@ -35,7 +35,7 @@ internal class SimpleWaitStrategyRegistrarTest {
     }
 
     @Test
-    fun unregister() {
+    fun `should unregister`() {
         val registrar = SimpleWaitStrategyRegistrar
         val waitStrategy = WaitingForStage.processed(generateGlobalId())
         var registerResult = registrar.unregister(waitStrategy.waitCommandId)
@@ -47,7 +47,7 @@ internal class SimpleWaitStrategyRegistrarTest {
     }
 
     @Test
-    fun contains() {
+    fun `should contains`() {
         val registrar = SimpleWaitStrategyRegistrar
         val waitStrategy = WaitingForStage.processed(generateGlobalId())
         var containsResult = registrar.contains(waitStrategy.waitCommandId)
@@ -58,7 +58,7 @@ internal class SimpleWaitStrategyRegistrarTest {
     }
 
     @Test
-    fun next() {
+    fun `should next`() {
         val registrar = SimpleWaitStrategyRegistrar
         val waitStrategy = WaitingForStage.processed(generateGlobalId())
         val waitSignal = SimpleWaitSignal(

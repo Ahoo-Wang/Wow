@@ -25,7 +25,7 @@ import org.junit.jupiter.api.Test
  */
 internal class AggregateMetadataParserTest {
     @Test
-    fun parse() {
+    fun `should parse`() {
         val aggregateMetadata =
             aggregateMetadata<MockAggregate, MockAggregate>()
         aggregateMetadata.state.aggregateType.assert().isEqualTo(MockAggregate::class.java)
@@ -33,7 +33,7 @@ internal class AggregateMetadataParserTest {
     }
 
     @Test
-    fun parseCombined() {
+    fun `should parse combined`() {
         val aggregateMetadata = aggregateMetadata<MockCommandAggregate, me.ahoo.wow.tck.mock.MockStateAggregate>()
         aggregateMetadata.command.aggregateType.assert().isEqualTo(MockCommandAggregate::class.java)
         aggregateMetadata.state.aggregateType.assert().isEqualTo(MockStateAggregate::class.java)
@@ -41,34 +41,34 @@ internal class AggregateMetadataParserTest {
     }
 
     @Test
-    fun parseWhenWithAggregateId() {
+    fun `should parse when with aggregate id`() {
         val aggregateMetadata = aggregateMetadata<MockAggregateWithAggregateId, MockAggregateWithAggregateId>()
         aggregateMetadata.state.aggregateType.assert().isEqualTo(MockAggregateWithAggregateId::class.java)
     }
 
     @Test
-    fun parseMockCommandAggregateWithoutConstructor() {
+    fun `should parse mock command aggregate without constructor`() {
         assertThrownBy<IllegalStateException> {
             aggregateMetadata<MockCommandAggregateWithoutConstructor, MockCommandAggregateWithoutConstructor>()
         }
     }
 
     @Test
-    fun parseMockStateAggregateWithoutCtorCommand() {
+    fun `should parse mock state aggregate without ctor command`() {
         val aggregateMetadata =
             aggregateMetadata<MockStateAggregateWithoutCtorCommand, MockStateAggregateWithoutCtorState>()
         aggregateMetadata.state.aggregateType.assert().isEqualTo(MockStateAggregateWithoutCtorState::class.java)
     }
 
     @Test
-    fun parseMockStateAggregateWithoutRedundantCtorCommand() {
+    fun `should parse mock state aggregate without redundant ctor command`() {
         assertThrownBy<IllegalStateException> {
             aggregateMetadata<MockStateAggregateWithoutRedundantCtorCommand, MockStateAggregateWithoutRedundantCtorState>()
         }
     }
 
     @Test
-    fun parseMountAggregate() {
+    fun `should parse mount aggregate`() {
         val aggregateMetadata = aggregateMetadata<MockMountAggregate, MockMountAggregate>()
         aggregateMetadata.command.mountedCommands.assert().hasSize(1)
         val mountCommand = aggregateMetadata.command.mountedCommands.first()
@@ -76,7 +76,7 @@ internal class AggregateMetadataParserTest {
     }
 
     @Test
-    fun parseAfterCommandAggregate() {
+    fun `should parse after command aggregate`() {
         val aggregateMetadata = aggregateMetadata<MockAfterCommandAggregate, MockAfterCommandAggregate>()
         aggregateMetadata.command.afterCommandFunctionRegistry.assert().hasSize(3)
         aggregateMetadata.command.afterCommandFunctionRegistry[0].order.value.assert().isEqualTo(ORDER_FIRST)
@@ -85,13 +85,13 @@ internal class AggregateMetadataParserTest {
     }
 
     @Test
-    fun parseDefaultAfterCommandAggregate() {
+    fun `should parse default after command aggregate`() {
         val aggregateMetadata = aggregateMetadata<MockDefaultAfterCommandAggregate, MockDefaultAfterCommandAggregate>()
         aggregateMetadata.command.afterCommandFunctionRegistry.assert().hasSize(1)
     }
 
     @Test
-    fun parseMockMultipleAfterCommandAggregate() {
+    fun `should parse mock multiple after command aggregate`() {
         val aggregateMetadata =
             aggregateMetadata<MockMultipleAfterCommandAggregate, MockMultipleAfterCommandAggregate>()
         aggregateMetadata.command.afterCommandFunctionRegistry.assert().hasSize(2)

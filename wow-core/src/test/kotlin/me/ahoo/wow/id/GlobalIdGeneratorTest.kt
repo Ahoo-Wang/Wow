@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test
 internal class GlobalIdGeneratorTest {
 
     @Test
-    fun generate() {
+    fun `should generate`() {
         val id1 = generateGlobalId()
         id1.assert().isNotNull()
         val id2 = generateGlobalId()

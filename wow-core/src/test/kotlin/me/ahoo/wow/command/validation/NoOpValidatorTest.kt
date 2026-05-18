@@ -9,13 +9,13 @@ import org.junit.jupiter.api.Test
 class NoOpValidatorTest {
 
     @Test
-    fun validate() {
+    fun `should validate`() {
         val actual = NoOpValidator.validate(MockCreateCommand(GlobalIdGenerator.generateAsString()))
         actual.assert().isEmpty()
     }
 
     @Test
-    fun validateProperty() {
+    fun `should validate property`() {
         val actual = NoOpValidator.validateProperty(
             MockCreateCommand(
                 GlobalIdGenerator.generateAsString(),
@@ -26,7 +26,7 @@ class NoOpValidatorTest {
     }
 
     @Test
-    fun validateValue() {
+    fun `should validate value`() {
         val actual = NoOpValidator.validateValue(
             MockCreateCommand::class.java,
             "",
@@ -36,21 +36,21 @@ class NoOpValidatorTest {
     }
 
     @Test
-    fun getConstraintsForClass() {
+    fun `should get constraints for class`() {
         assertThrownBy<UnsupportedOperationException> {
             NoOpValidator.getConstraintsForClass(MockCreateCommand::class.java)
         }
     }
 
     @Test
-    fun unwrap() {
+    fun `should unwrap`() {
         assertThrownBy<UnsupportedOperationException> {
             NoOpValidator.unwrap(MockCreateCommand::class.java)
         }
     }
 
     @Test
-    fun forExecutables() {
+    fun `should for executables`() {
         assertThrownBy<UnsupportedOperationException> {
             NoOpValidator.forExecutables()
         }

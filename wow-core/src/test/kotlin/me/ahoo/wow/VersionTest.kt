@@ -20,7 +20,7 @@ import org.junit.jupiter.api.Test
 class VersionTest {
 
     @Test
-    fun initialized() {
+    fun `should not be initialized when version is uninitialized`() {
         val version = object : Version {
             override val version: Int
                 get() = Version.UNINITIALIZED_VERSION
@@ -29,7 +29,7 @@ class VersionTest {
     }
 
     @Test
-    fun initializedGivenInitial() {
+    fun `should be initialized when version is initial`() {
         val version = object : Version {
             override val version: Int
                 get() = Version.INITIAL_VERSION

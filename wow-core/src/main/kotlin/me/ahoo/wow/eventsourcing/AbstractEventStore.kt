@@ -82,7 +82,7 @@ abstract class AbstractEventStore : EventStore {
             "$aggregateId headVersion[$headVersion] must be greater than -1!"
         }
         require(tailVersion >= headVersion) {
-            "$aggregateId headEventTime[$tailVersion] must be greater than or equal to headEventTime[$headVersion]!"
+            "$aggregateId tailVersion[$tailVersion] must be greater than or equal to headVersion[$headVersion]!"
         }
         return loadStream(aggregateId, headVersion, tailVersion)
     }
@@ -103,7 +103,7 @@ abstract class AbstractEventStore : EventStore {
         tailEventTime: Long
     ): Flux<DomainEventStream> {
         require(tailEventTime >= headEventTime) {
-            "$aggregateId headEventTime[$headEventTime] must be greater than or equal to headEventTime[$headEventTime]!"
+            "$aggregateId tailEventTime[$tailEventTime] must be greater than or equal to headEventTime[$headEventTime]!"
         }
         return loadStream(aggregateId, headEventTime, tailEventTime)
     }

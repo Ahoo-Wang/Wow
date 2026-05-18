@@ -13,18 +13,18 @@
 package me.ahoo.wow.command
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.modeling.OwnerId
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.command.factory.CommandBuilder.Companion.commandBuilder
 import me.ahoo.wow.id.generateGlobalId
 import org.assertj.core.data.Offset
-import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 
 internal class CommandFactoryTest {
 
     @Test
-    fun create() {
+    fun `should create command message from command`() {
         val command = MockCommandWithExpectedAggregateVersion(generateGlobalId(), null)
         val commandMessage = command.toCommandMessage()
         commandMessage.body.assert().isEqualTo(command)
@@ -34,7 +34,7 @@ internal class CommandFactoryTest {
     }
 
     @Test
-    fun createFromBuilder() {
+    fun `should create command message from builder`() {
         val command = MockCommandWithExpectedAggregateVersion(generateGlobalId(), null)
         val commandMessage = command.commandBuilder().toCommandMessage<MockCommandWithExpectedAggregateVersion>()
         commandMessage.body.assert().isEqualTo(command)
@@ -44,7 +44,7 @@ internal class CommandFactoryTest {
     }
 
     @Test
-    fun createWithInheritNamedAggregate() {
+    fun `should create command message with inherit named aggregate`() {
         val command = MockCommandWithInheritNamedAggregate(generateGlobalId(), "test", "test")
         val commandMessage = command.toCommandMessage()
         commandMessage.body.assert().isEqualTo(command)
@@ -55,7 +55,7 @@ internal class CommandFactoryTest {
     }
 
     @Test
-    fun asCommand() {
+    fun `should convert command to command message`() {
         val command = MockCommandWithExpectedAggregateVersion(generateGlobalId(), null)
         val commandMessage = command.toCommandMessage()
         commandMessage.body.assert().isEqualTo(command)
@@ -65,7 +65,7 @@ internal class CommandFactoryTest {
     }
 
     @Test
-    fun createGivenCreateAggregate() {
+    fun `should create command message given create aggregate`() {
         val command = MockCreateCommand(generateGlobalId())
         val commandMessage = command.toCommandMessage()
         commandMessage.body.assert().isEqualTo(command)
@@ -76,7 +76,7 @@ internal class CommandFactoryTest {
     }
 
     @Test
-    fun createGivenNamed() {
+    fun `should create command message given named command`() {
         val command = MockNamedCommand(generateGlobalId())
         val commandMessage = command.toCommandMessage()
         commandMessage.body.assert().isEqualTo(command)
@@ -89,7 +89,7 @@ internal class CommandFactoryTest {
     }
 
     @Test
-    fun createGivenTenantIdAndOwnerId() {
+    fun `should create command message given tenant id and owner id`() {
         val command = MockNamedCommand(generateGlobalId())
         val tenantId = "tenantId"
         val ownerId = "ownerId"
@@ -104,7 +104,7 @@ internal class CommandFactoryTest {
     }
 
     @Test
-    fun createTenantCommand() {
+    fun `should create command message for tenant command`() {
         val command = MockTenantIdCommand(generateGlobalId(), generateGlobalId())
         val commandMessage = command.toCommandMessage()
         commandMessage.aggregateId.id.assert().isEqualTo(command.id)
@@ -112,7 +112,7 @@ internal class CommandFactoryTest {
     }
 
     @Test
-    fun createOwnerCommand() {
+    fun `should create command message for owner command`() {
         val command = MockOwnerIdCommand(generateGlobalId(), generateGlobalId())
         val commandMessage = command.toCommandMessage()
         commandMessage.aggregateId.id.assert().isEqualTo(command.id)
@@ -120,18 +120,14 @@ internal class CommandFactoryTest {
     }
 
     @Test
-    fun anyCommand() {
-        Assertions.assertThrows(
-            IllegalArgumentException::class.java,
-            {
-                Any().toCommandMessage()
-            },
-            "The command[${Any().javaClass}] must be associated with a named aggregate!"
-        )
+    fun `should throw when command is not associated with named aggregate`() {
+        assertThrownBy<IllegalArgumentException> {
+            Any().toCommandMessage()
+        }
     }
 
     @Test
-    fun createWithOwnerIdSameAsAggregateId() {
+    fun `should create command message with owner id same as aggregate id`() {
         val command = MockNamedCommand(generateGlobalId())
         val commandMessage = command.toCommandMessage(ownerIdSameAsAggregateId = true)
         commandMessage.body.assert().isEqualTo(command)
@@ -139,7 +135,7 @@ internal class CommandFactoryTest {
     }
 
     @Test
-    fun createWithOwnerIdSameAsAggregateIdAndExplicitOwnerId() {
+    fun `should use explicit owner id when ownerIdSameAsAggregateId is true`() {
         val command = MockNamedCommand(generateGlobalId())
         val ownerId = generateGlobalId()
         val commandMessage = command.toCommandMessage(
@@ -154,7 +150,7 @@ internal class CommandFactoryTest {
     }
 
     @Test
-    fun createWithOwnerIdSameAsAggregateIdAndExplicitOwnerIdBlank() {
+    fun `should use aggregate id as owner id when ownerId is blank and ownerIdSameAsAggregateId is true`() {
         val command = MockNamedCommand(generateGlobalId())
         val commandMessage = command.toCommandMessage(
             ownerId = "",

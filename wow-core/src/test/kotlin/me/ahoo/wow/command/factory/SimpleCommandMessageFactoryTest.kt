@@ -8,7 +8,7 @@ import reactor.kotlin.test.test
 class SimpleCommandMessageFactoryTest {
 
     @Test
-    fun createIfNotFound() {
+    fun `should create if not found`() {
         val registry = SimpleCommandBuilderRewriterRegistry()
         val factory = SimpleCommandMessageFactory(NoOpValidator, registry)
         val command = MockCreateCommand("")
@@ -19,7 +19,7 @@ class SimpleCommandMessageFactoryTest {
     }
 
     @Test
-    fun createIfFound() {
+    fun `should create if found`() {
         val registry = SimpleCommandBuilderRewriterRegistry()
         registry.register(MockCommandBuilderRewriter())
         val factory = SimpleCommandMessageFactory(NoOpValidator, registry)
@@ -31,7 +31,7 @@ class SimpleCommandMessageFactoryTest {
     }
 
     @Test
-    fun createIfEmpty() {
+    fun `should create if empty`() {
         val registry = SimpleCommandBuilderRewriterRegistry()
         registry.register(EmptyCommandBuilderRewriter())
         val factory = SimpleCommandMessageFactory(NoOpValidator, registry)

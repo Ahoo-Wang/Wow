@@ -14,33 +14,33 @@ package me.ahoo.wow.messaging
 
 import me.ahoo.cosid.test.MockIdGenerator
 import me.ahoo.test.asserts.assert
-import org.junit.jupiter.api.Assertions
+import me.ahoo.test.asserts.assertThrownBy
 import org.junit.jupiter.api.Test
 
 internal class DefaultHeaderTest {
     @Test
-    fun asHeader() {
+    fun `should convert map to header`() {
         val values = HashMap<String, String>()
         val header = values.toHeader()
         header.assert().isNotNull()
     }
 
     @Test
-    fun size() {
+    fun `should be empty when header has no entries`() {
         val values = HashMap<String, String>()
         val header = values.toHeader()
         header.assert().isEmpty()
     }
 
     @Test
-    fun isEmpty() {
+    fun `should report isEmpty correctly`() {
         val values = HashMap<String, String>()
         val header = values.toHeader()
         header.isEmpty().assert().isEqualTo(true)
     }
 
     @Test
-    fun containsKey() {
+    fun `should check containsKey`() {
         val values = HashMap<String, String>()
         values[KEY] = VALUE
         val header = values.toHeader()
@@ -51,7 +51,7 @@ internal class DefaultHeaderTest {
     }
 
     @Test
-    fun containsValue() {
+    fun `should check containsValue`() {
         val values = HashMap<String, String>()
         values[KEY] = VALUE
         val header = values.toHeader()
@@ -62,7 +62,7 @@ internal class DefaultHeaderTest {
     }
 
     @Test
-    fun get() {
+    fun `should get value by key`() {
         val values = HashMap<String, String>()
         values[KEY] = VALUE
         val header = values.toHeader()
@@ -72,26 +72,26 @@ internal class DefaultHeaderTest {
     }
 
     @Test
-    fun keySet() {
+    fun `should return empty key set`() {
         val values = HashMap<String, String>()
         val header = values.toHeader()
         header.keys.assert().isEmpty()
     }
 
     @Test
-    fun values() {
+    fun `should return empty values`() {
         val values = HashMap<String, String>()
         val header = values.toHeader()
         header.values.assert().isEmpty()
     }
 
     @Test
-    fun entrySet() {
+    fun `should return empty entry set`() {
         DefaultHeader.empty().entries.assert().isEmpty()
     }
 
     @Test
-    fun testEquals() {
+    fun `should implement equals correctly`() {
         DefaultHeader.empty().assert().isEqualTo(DefaultHeader.empty())
         DefaultHeader.empty().assert().isNotEqualTo(Any())
         val values = HashMap<String, String>()
@@ -104,12 +104,12 @@ internal class DefaultHeaderTest {
     }
 
     @Test
-    fun testHashCode() {
+    fun `should return zero hashCode for empty header`() {
         DefaultHeader.empty().hashCode().assert().isEqualTo(0)
     }
 
     @Test
-    fun mergeWith() {
+    fun `should merge headers with additional source`() {
         val values = HashMap<String, String>()
         values[KEY] = VALUE
         val header = DefaultHeader(values)
@@ -123,13 +123,13 @@ internal class DefaultHeaderTest {
     }
 
     @Test
-    fun mergeWithWhenEmpty() {
+    fun `should return same empty when merging with empty`() {
         val mergedHeader = DefaultHeader.empty().with(HashMap())
         mergedHeader.assert().isEqualTo(DefaultHeader.empty())
     }
 
     @Test
-    fun mergeWithWhenThisIsEmpty() {
+    fun `should merge when this header is empty`() {
         val additionalSource = HashMap<String, String>()
         additionalSource[KEY] = VALUE
         val mergedHeader = DefaultHeader.empty().with(additionalSource)
@@ -138,31 +138,31 @@ internal class DefaultHeaderTest {
     }
 
     @Test
-    fun createWhenCopyHeader() {
+    fun `should create copy that is not same instance`() {
         val sourceHeader = DefaultHeader.empty()
-        Assertions.assertNotSame(sourceHeader, sourceHeader.copy())
+        sourceHeader.assert().isNotSameAs(sourceHeader.copy())
     }
 
     @Test
-    fun empty() {
+    fun `should create non-readonly empty header`() {
         val header = DefaultHeader.empty()
         header.isReadOnly.assert().isEqualTo(false)
     }
 
     @Test
-    fun withReadonly() {
+    fun `should throw UnsupportedOperationException on readonly header operations`() {
         val header = DefaultHeader.empty().withReadOnly()
         header.isReadOnly.assert().isEqualTo(true)
-        Assertions.assertThrows(UnsupportedOperationException::class.java) {
+        assertThrownBy<UnsupportedOperationException> {
             header[KEY] = VALUE
         }
-        Assertions.assertThrows(UnsupportedOperationException::class.java) {
+        assertThrownBy<UnsupportedOperationException> {
             header.remove(KEY)
         }
-        Assertions.assertThrows(UnsupportedOperationException::class.java) {
+        assertThrownBy<UnsupportedOperationException> {
             header.remove(KEY, VALUE)
         }
-        Assertions.assertThrows(UnsupportedOperationException::class.java) {
+        assertThrownBy<UnsupportedOperationException> {
             header.putAll(mapOf(KEY to VALUE))
         }
     }

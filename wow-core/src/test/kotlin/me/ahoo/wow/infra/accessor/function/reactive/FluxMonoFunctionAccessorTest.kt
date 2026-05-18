@@ -20,7 +20,7 @@ import reactor.kotlin.test.test
 
 class FluxMonoFunctionAccessorTest {
     @Test
-    fun invoke() {
+    fun `should invoke flux function accessor`() {
         val methodAccessor = ::fluxFunction.toMonoFunctionAccessor<FluxMonoFunctionAccessorTest, List<String>>()
         methodAccessor.assert().isInstanceOf(FluxMonoFunctionAccessor::class.java)
         methodAccessor.invoke(this).test()

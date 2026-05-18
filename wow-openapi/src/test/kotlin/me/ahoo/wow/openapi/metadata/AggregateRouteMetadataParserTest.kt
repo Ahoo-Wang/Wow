@@ -20,7 +20,7 @@ import org.junit.jupiter.api.Test
 
 class AggregateRouteMetadataParserTest {
     @Test
-    fun toAggregateRouteMetadata() {
+    fun `should parse aggregate route metadata`() {
         val aggregateRouteMetadata = aggregateRouteMetadata<Cart>()
         aggregateRouteMetadata.owner.assert().isEqualTo(AggregateRoute.Owner.AGGREGATE_ID)
     }

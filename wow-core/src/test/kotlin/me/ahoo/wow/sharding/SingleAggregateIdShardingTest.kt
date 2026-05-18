@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test
 class SingleAggregateIdShardingTest {
 
     @Test
-    fun sharding() {
+    fun `should return constant sharding`() {
         val sharding = SingleAggregateIdSharding("test")
         val actual = sharding.sharding(MOCK_AGGREGATE_METADATA.aggregateId())
         actual.assert().isEqualTo("test")

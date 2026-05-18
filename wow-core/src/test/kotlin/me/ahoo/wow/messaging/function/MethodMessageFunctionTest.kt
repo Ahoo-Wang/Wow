@@ -33,7 +33,7 @@ import kotlin.reflect.jvm.kotlinFunction
 
 internal class MethodMessageFunctionTest {
     @Test
-    fun toMessageFunction() {
+    fun `should to message function`() {
         val commandFunction = MockCommandAggregate::class.java.getDeclaredMethod(
             "onCommand",
             MockCreateAggregate::class.java,
@@ -61,7 +61,7 @@ internal class MethodMessageFunctionTest {
     }
 
     @Test
-    fun toMessageFunctionWhenInjectable() {
+    fun `should to message function when injectable`() {
         val messageFunction = MockWithInjectableFunction::onEvent.toFunctionMetadata<MockWithInjectableFunction, Any>()
             .toMessageFunction<MockWithInjectableFunction, DomainEventExchange<*>, Any>(
                 MockWithInjectableFunction(),
@@ -83,7 +83,7 @@ internal class MethodMessageFunctionTest {
     }
 
     @Test
-    fun toMonoMessageFunction() {
+    fun `should to mono message function`() {
         val messageFunction = MockFunction::onEvent.toMonoFunctionMetadata<MockFunction, Any>()
             .toMessageFunction<MockFunction, ServerCommandExchange<*>, Any>(
                 MockFunction(),

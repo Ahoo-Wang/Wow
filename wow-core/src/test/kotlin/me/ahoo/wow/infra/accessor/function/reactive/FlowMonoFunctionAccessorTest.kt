@@ -21,7 +21,7 @@ import reactor.kotlin.test.test
 
 class FlowMonoFunctionAccessorTest {
     @Test
-    fun invoke() {
+    fun `should invoke flow function accessor`() {
         val methodAccessor = FlowFunctionClass::flowFunction.toMonoFunctionAccessor<FlowFunctionClass, List<String>>()
         methodAccessor.assert().isInstanceOf(FlowMonoFunctionAccessor::class.java)
         methodAccessor.invoke(FlowFunctionClass()).test()

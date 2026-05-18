@@ -34,7 +34,7 @@ import org.junit.jupiter.api.Test
 class SimpleWaitingChainTest {
 
     @Test
-    fun main() {
+    fun `should main`() {
         val function = NamedFunctionInfoData("context", "processor", "function")
         val tail = WaitingChainTail(CommandStage.PROCESSED, function)
         val chain = SimpleWaitingChain(tail, function)
@@ -43,7 +43,7 @@ class SimpleWaitingChainTest {
     }
 
     @Test
-    fun propagate() {
+    fun `should propagate`() {
         val function = NamedFunctionInfoData("context", "processor", "function")
         val tail = WaitingChainTail(CommandStage.PROCESSED, function)
         val chain = SimpleWaitingChain(tail, function)
@@ -59,7 +59,7 @@ class SimpleWaitingChainTest {
     }
 
     @Test
-    fun propagateCommandMessageUpstream() {
+    fun `should propagate command message upstream`() {
         val function = NamedFunctionInfoData("context", "processor", "function")
         val tail = WaitingChainTail(CommandStage.PROCESSED, function)
         val chain = SimpleWaitingChain(tail, function)
@@ -78,7 +78,7 @@ class SimpleWaitingChainTest {
     }
 
     @Test
-    fun propagateDomainEventUpstream() {
+    fun `should propagate domain event upstream`() {
         val function = NamedFunctionInfoData("context", "processor", "function")
         val tail = WaitingChainTail(CommandStage.PROCESSED, function)
         val chain = SimpleWaitingChain(tail, function)
@@ -95,21 +95,21 @@ class SimpleWaitingChainTest {
     }
 
     @Test
-    fun extractWaitChain() {
+    fun `should extract wait chain`() {
         val header = DefaultHeader.empty()
         header.propagateWaitChain(SimpleWaitingChain.SIMPLE_CHAIN)
         header.extractWaitChain().assert().isEqualTo(SimpleWaitingChain.SIMPLE_CHAIN)
     }
 
     @Test
-    fun extractSimpleWaitingChainWhenNotSimpleChain() {
+    fun `should extract simple waiting chain when not simple chain`() {
         val header = DefaultHeader.empty()
         header.propagateWaitChain("other")
         header.extractSimpleWaitingChain().assert().isNull()
     }
 
     @Test
-    fun extractSimpleWaitingChainWhenNoTail() {
+    fun `should extract simple waiting chain when no tail`() {
         val header = DefaultHeader.empty()
         header.propagateWaitChain(SimpleWaitingChain.SIMPLE_CHAIN)
         header.extractSimpleWaitingChain().assert().isNull()

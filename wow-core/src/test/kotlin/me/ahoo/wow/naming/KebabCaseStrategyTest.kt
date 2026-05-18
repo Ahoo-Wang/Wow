@@ -24,13 +24,13 @@ internal class KebabCaseStrategyTest {
     }
 
     @Test
-    fun segment() {
+    fun `should segment`() {
         val actual = KebabCaseStrategy.segment(PHRASE)
         actual.assert().isEqualTo(WORDS)
     }
 
     @Test
-    fun transform() {
+    fun `should transform`() {
         val actual = KebabCaseStrategy.transform(WORDS)
         actual.assert().isEqualTo(PHRASE)
     }

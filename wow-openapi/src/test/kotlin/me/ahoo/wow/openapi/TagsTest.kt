@@ -8,13 +8,13 @@ import org.junit.jupiter.api.Test
 class TagsTest {
 
     @Test
-    fun singleToTags() {
+    fun `should convert single tag annotation to tags`() {
         val tags = SingleTag::class.java.toTags()
         tags.map { it.name }.assert().contains("test")
     }
 
     @Test
-    fun multiToTags() {
+    fun `should convert multiple tag annotations to tags`() {
         val tags = MultiTag::class.java.toTags()
         tags.map { it.name }.assert().contains("test", "test2")
     }

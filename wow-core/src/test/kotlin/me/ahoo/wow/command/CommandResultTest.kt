@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test
 
 class CommandResultTest {
     @Test
-    fun throwableAsResult() {
+    fun `should throwable as result`() {
         val command = MockCreateCommand(generateGlobalId()).toCommandMessage()
         val actual = IllegalStateException("test").toResult(
             waitCommandId = generateGlobalId(),

@@ -24,14 +24,14 @@ internal class IgnoreSuffixNamingConverterTest {
     }
 
     @Test
-    fun convert() {
+    fun `should convert`() {
         CONVERTER.suffix.assert().isEqualTo(SUFFIX)
         val actual = CONVERTER.convert(SUFFIX)
         actual.assert().isEqualTo("")
     }
 
     @Test
-    fun convertWhenMismatch() {
+    fun `should convert when mismatch`() {
         val phrase = "suffix"
         val actual = CONVERTER.convert(phrase)
         actual.assert().isEqualTo(phrase)

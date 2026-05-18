@@ -20,7 +20,7 @@ import reactor.kotlin.test.test
 
 class SimpleMonoFunctionAccessorTest {
     @Test
-    fun invoke() {
+    fun `should invoke mono function accessor`() {
         val methodAccessor = ::monoFunction.toMonoFunctionAccessor<SimpleMonoFunctionAccessorTest, String>()
         methodAccessor.assert().isInstanceOf(SimpleMonoFunctionAccessor::class.java)
         methodAccessor.invoke(this).test()

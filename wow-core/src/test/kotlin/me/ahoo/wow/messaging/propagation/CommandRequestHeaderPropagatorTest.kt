@@ -26,7 +26,7 @@ import org.junit.jupiter.api.Test
 
 class CommandRequestHeaderPropagatorTest {
     @Test
-    fun propagate() {
+    fun `should propagate`() {
         val injectedHeader = DefaultHeader.empty()
         val upstreamMessage =
             MockCreateAggregate(generateGlobalId(), generateGlobalId())
@@ -38,7 +38,7 @@ class CommandRequestHeaderPropagatorTest {
     }
 
     @Test
-    fun propagateIfNull() {
+    fun `should propagate if null`() {
         val injectedHeader = DefaultHeader.empty()
         val upstreamMessage =
             MockCreateAggregate(generateGlobalId(), generateGlobalId())
@@ -49,7 +49,7 @@ class CommandRequestHeaderPropagatorTest {
     }
 
     @Test
-    fun propagateDisabled() {
+    fun `should propagate disabled`() {
         System.setProperty(CommandRequestHeaderPropagator.ENABLED_KEY, "false")
         val injectedHeader = DefaultHeader.empty()
         val upstreamMessage =
@@ -63,7 +63,7 @@ class CommandRequestHeaderPropagatorTest {
     }
 
     @Test
-    fun propagateEnabled() {
+    fun `should propagate enabled`() {
         System.setProperty(CommandRequestHeaderPropagator.ENABLED_KEY, "true")
         val injectedHeader = DefaultHeader.empty()
         val upstreamMessage =

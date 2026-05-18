@@ -7,7 +7,7 @@ import reactor.kotlin.test.test
 
 class SafeSubscriberTest {
     @Test
-    fun subscribe() {
+    fun `should subscribe`() {
         val completed = Sinks.empty<String>()
         val safeSubscriber = object : SafeSubscriber<String>() {
             override val name: String
@@ -24,7 +24,7 @@ class SafeSubscriberTest {
     }
 
     @Test
-    fun subscribeHookOnError() {
+    fun `should subscribe hook on error`() {
         val completed = Sinks.empty<String>()
         val safeSubscriber = object : SafeSubscriber<String>() {
             override val name: String

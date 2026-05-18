@@ -24,7 +24,7 @@ import org.junit.jupiter.api.Test
 class WaitingChainTailTest {
 
     @Test
-    fun propagate() {
+    fun `should propagate`() {
         val function = NamedFunctionInfoData("context", "processor", "function")
         val tail = WaitingChainTail(CommandStage.PROCESSED, function)
         val header = DefaultHeader.empty()
@@ -36,7 +36,7 @@ class WaitingChainTailTest {
     }
 
     @Test
-    fun propagateWithEmptyValues() {
+    fun `should propagate with empty values`() {
         val function = NamedFunctionInfoData("", "", "")
         val tail = WaitingChainTail(CommandStage.PROCESSED, function)
         val header = DefaultHeader.empty()
@@ -46,13 +46,13 @@ class WaitingChainTailTest {
     }
 
     @Test
-    fun extractWaitingTailNodeWhenStageIsNull() {
+    fun `should extract waiting tail node when stage is null`() {
         val header = DefaultHeader.empty()
         header.extractWaitingChainTail().assert().isNull()
     }
 
     @Test
-    fun toWaitingChainTailWithShouldWaitFunctionStage() {
+    fun `should to waiting chain tail with should wait function stage`() {
         val function = NamedFunctionInfoData("context", "processor", "function")
 
         // SENT stage should use EMPTY function
@@ -72,7 +72,7 @@ class WaitingChainTailTest {
     }
 
     @Test
-    fun toWaitingChainTailWithShouldNotWaitFunctionStage() {
+    fun `should to waiting chain tail with should not wait function stage`() {
         val function = NamedFunctionInfoData("context", "processor", "function")
 
         // EVENT_HANDLED stage should use provided function
@@ -87,7 +87,7 @@ class WaitingChainTailTest {
     }
 
     @Test
-    fun extractWaitingChainTailWithAllFields() {
+    fun `should extract waiting chain tail with all fields`() {
         val header = DefaultHeader.empty()
             .with(WaitingChainTail.COMMAND_WAIT_TAIL_STAGE, CommandStage.EVENT_HANDLED.name)
             .with(WaitingChainTail.COMMAND_WAIT_TAIL_CONTEXT, "context")
@@ -103,7 +103,7 @@ class WaitingChainTailTest {
     }
 
     @Test
-    fun extractWaitingChainTailWithPartialFields() {
+    fun `should extract waiting chain tail with partial fields`() {
         val header = DefaultHeader.empty()
             .with(WaitingChainTail.COMMAND_WAIT_TAIL_STAGE, CommandStage.SENT.name)
 
