@@ -22,22 +22,22 @@ import java.util.concurrent.ConcurrentHashMap
 /**
  * Registry for managing error converters by exception type.
  *
- * This object maintains a mapping of exception classes to their corresponding ErrorConverter
+ * This object maintains a mapping of exception classes to their corresponding ErrorInfoConverter
  * implementations. It automatically loads and registers converters from the ServiceLoader
  * during initialization, and provides methods for manual registration and lookup.
  *
  * The registrar uses a thread-safe ConcurrentHashMap to ensure safe concurrent access.
  *
- * @see ErrorConverter
- * @see ErrorConverterFactory
+ * @see ErrorInfoConverter
+ * @see ErrorInfoConverterFactory
  */
-object ErrorConverterRegistrar {
+object ErrorInfoConverterRegistrar {
     private val log = KotlinLogging.logger {}
-    private val registrar = ConcurrentHashMap<Class<out Throwable>, ErrorConverter<Throwable>>()
+    private val registrar = ConcurrentHashMap<Class<out Throwable>, ErrorInfoConverter<Throwable>>()
 
     init {
         ServiceLoader
-            .load(ErrorConverterFactory::class.java)
+            .load(ErrorInfoConverterFactory::class.java)
             .sortedByOrder()
             .forEach {
                 register(it)
@@ -47,15 +47,15 @@ object ErrorConverterRegistrar {
     /**
      * Registers an error converter using a factory.
      *
-     * This method creates an ErrorConverter instance from the factory and registers it
+     * This method creates an ErrorInfoConverter instance from the factory and registers it
      * for the factory's supported exception type.
      *
      * @param factory the factory to create the converter from
      * @return the previously registered converter for this exception type, or null if none existed
      */
     @Suppress("UNCHECKED_CAST")
-    fun register(factory: ErrorConverterFactory<out Throwable>): ErrorConverter<Throwable>? =
-        register(factory.supportedType, factory.create() as ErrorConverter<Throwable>)
+    fun register(factory: ErrorInfoConverterFactory<out Throwable>): ErrorInfoConverter<Throwable>? =
+        register(factory.supportedType, factory.create() as ErrorInfoConverter<Throwable>)
 
     /**
      * Registers an error converter for a specific exception type.
@@ -69,8 +69,8 @@ object ErrorConverterRegistrar {
      */
     fun register(
         throwableClass: Class<out Throwable>,
-        errorConverter: ErrorConverter<Throwable>
-    ): ErrorConverter<Throwable>? {
+        errorConverter: ErrorInfoConverter<Throwable>
+    ): ErrorInfoConverter<Throwable>? {
         val previous = registrar.put(throwableClass, errorConverter)
         log.info {
             "Register - throwableClass:[$throwableClass] - previous:[$previous],current:[$errorConverter]."
@@ -86,7 +86,7 @@ object ErrorConverterRegistrar {
      * @param throwableClass the exception class to unregister
      * @return the converter that was removed, or null if none was registered
      */
-    fun unregister(throwableClass: Class<out Throwable>): ErrorConverter<Throwable>? {
+    fun unregister(throwableClass: Class<out Throwable>): ErrorInfoConverter<Throwable>? {
         val removed = registrar.remove(throwableClass)
         log.info {
             "Unregister - throwableClass:[$throwableClass] - removed:[$removed]."
@@ -100,7 +100,7 @@ object ErrorConverterRegistrar {
      * @param throwableClass the exception class to look up
      * @return the registered converter for this exception type, or null if none is registered
      */
-    fun get(throwableClass: Class<out Throwable>): ErrorConverter<Throwable>? = registrar[throwableClass]
+    fun get(throwableClass: Class<out Throwable>): ErrorInfoConverter<Throwable>? = registrar[throwableClass]
 }
 
 /**
@@ -108,7 +108,7 @@ object ErrorConverterRegistrar {
  *
  * This extension function looks up the appropriate error converter for this exception's type
  * and uses it to convert the exception to ErrorInfo. If no specific converter is registered,
- * it falls back to the DefaultErrorConverter.
+ * it falls back to the DefaultErrorInfoConverter.
  *
  * Example usage:
  * ```kotlin
@@ -123,9 +123,9 @@ object ErrorConverterRegistrar {
  * @receiver the exception to convert
  * @return the standardized error information
  * @see ErrorInfo
- * @see DefaultErrorConverter
+ * @see DefaultErrorInfoConverter
  */
 fun Throwable.toErrorInfo(): ErrorInfo {
-    val errorConverter = ErrorConverterRegistrar.get(this.javaClass) ?: DefaultErrorConverter
+    val errorConverter = ErrorInfoConverterRegistrar.get(this.javaClass) ?: DefaultErrorInfoConverter
     return errorConverter.convert(this)
 }

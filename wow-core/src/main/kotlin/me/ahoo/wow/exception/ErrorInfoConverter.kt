@@ -29,7 +29,7 @@ import java.util.concurrent.TimeoutException
  * @param E the type of exception this converter can handle
  * @see ErrorInfo
  */
-fun interface ErrorConverter<E : Throwable> {
+fun interface ErrorInfoConverter<E : Throwable> {
     /**
      * Converts an exception to an ErrorInfo object.
      *
@@ -40,39 +40,39 @@ fun interface ErrorConverter<E : Throwable> {
 }
 
 /**
- * Factory interface for creating ErrorConverter instances.
+ * Factory interface for creating ErrorInfoConverter instances.
  *
  * This interface allows for dynamic creation of error converters and provides
  * type information about the exceptions they can handle.
  *
  * @param E the type of exception the created converter can handle
- * @see ErrorConverter
+ * @see ErrorInfoConverter
  */
-interface ErrorConverterFactory<E : Throwable> {
+interface ErrorInfoConverterFactory<E : Throwable> {
     /**
      * The class of exceptions this factory can create converters for.
      */
     val supportedType: Class<E>
 
     /**
-     * Creates a new ErrorConverter instance.
+     * Creates a new ErrorInfoConverter instance.
      *
      * @return a new error converter for the supported exception type
      */
-    fun create(): ErrorConverter<E>
+    fun create(): ErrorInfoConverter<E>
 }
 
 /**
- * Abstract base class for ErrorConverterFactory implementations.
+ * Abstract base class for ErrorInfoConverterFactory implementations.
  *
  * This class provides automatic type resolution for the supported exception type
  * using reflection on the generic type parameter. Subclasses only need to implement
  * the create() method.
  *
  * @param E the type of exception the factory handles
- * @see ErrorConverterFactory
+ * @see ErrorInfoConverterFactory
  */
-abstract class AbstractErrorConverterFactory<E : Throwable> : ErrorConverterFactory<E> {
+abstract class AbstractErrorInfoConverterFactory<E : Throwable> : ErrorInfoConverterFactory<E> {
     /**
      * Automatically resolves the supported exception type from the generic type parameter.
      */
@@ -94,14 +94,14 @@ abstract class AbstractErrorConverterFactory<E : Throwable> : ErrorConverterFact
  *
  * Example usage:
  * ```kotlin
- * val errorInfo = DefaultErrorConverter.convert(IllegalArgumentException("Invalid input"))
+ * val errorInfo = DefaultErrorInfoConverter.convert(IllegalArgumentException("Invalid input"))
  * // Returns ErrorInfo with code "IllegalArgument"
  * ```
  *
- * @see ErrorConverter
+ * @see ErrorInfoConverter
  * @see ErrorCodes
  */
-object DefaultErrorConverter : ErrorConverter<Throwable> {
+object DefaultErrorInfoConverter : ErrorInfoConverter<Throwable> {
     /**
      * Converts a Throwable to ErrorInfo using standard mappings.
      *
