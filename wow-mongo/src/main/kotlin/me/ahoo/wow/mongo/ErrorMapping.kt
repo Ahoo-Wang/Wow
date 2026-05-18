@@ -15,7 +15,6 @@ package me.ahoo.wow.mongo
 
 import com.mongodb.ErrorCategory
 import com.mongodb.MongoException
-import com.mongodb.MongoServerException
 import com.mongodb.MongoWriteException
 import com.mongodb.WriteError
 import me.ahoo.wow.command.DuplicateRequestIdException
@@ -43,25 +42,25 @@ class RecoverableMongoWriteException(writeException: MongoWriteException) :
 
 fun WriteError.isRecoverableWriteError(): Boolean = code in RECOVERABLE_WRITE_ERROR_CODES
 
-fun WriteError.toWowError(eventStream: DomainEventStream, cause: MongoServerException): Throwable {
-    if (ErrorCategory.fromErrorCode(code) == ErrorCategory.DUPLICATE_KEY) {
-        if (message.contains(AggregateSchemaInitializer.AGGREGATE_ID_AND_VERSION_UNIQUE_INDEX_NAME)) {
+fun MongoWriteException.toWowError(eventStream: DomainEventStream): Throwable {
+    if (ErrorCategory.fromErrorCode(error.code) == ErrorCategory.DUPLICATE_KEY) {
+        if (error.message.contains(AggregateSchemaInitializer.AGGREGATE_ID_AND_VERSION_UNIQUE_INDEX_NAME)) {
             return EventVersionConflictException(
                 eventStream = eventStream,
-                cause = cause,
+                cause = this,
             )
         }
-        if (message.contains(AggregateSchemaInitializer.REQUEST_ID_UNIQUE_INDEX_NAME)) {
+        if (error.message.contains(AggregateSchemaInitializer.REQUEST_ID_UNIQUE_INDEX_NAME)) {
             return DuplicateRequestIdException(
                 aggregateId = eventStream.aggregateId,
                 requestId = eventStream.requestId,
-                cause = cause,
+                cause = this,
             )
         }
-        return cause
+        return this
     }
-    if (isRecoverableWriteError()) {
-        return RecoverableMongoWriteException(cause as MongoWriteException)
+    if (error.isRecoverableWriteError()) {
+        return RecoverableMongoWriteException(this)
     }
-    return cause
+    return this
 }
