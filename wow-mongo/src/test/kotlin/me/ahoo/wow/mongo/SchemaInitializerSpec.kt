@@ -28,7 +28,7 @@ abstract class SchemaInitializerSpec {
     }
 
     @Test
-    fun initAll() {
+    fun `should initialize all aggregate schemas`() {
         MongoClients.create(MongoLauncher.getConnectionString()).use { client ->
             val database = client.getDatabase(DATABASE_NAME)
             initAllAggregateSchema(database)
@@ -40,7 +40,7 @@ abstract class SchemaInitializerSpec {
     abstract fun getCollectionName(namedAggregate: NamedAggregate): String
 
     @Test
-    fun initSchema() {
+    fun `should initialize aggregate schema`() {
         MongoClients.create(MongoLauncher.getConnectionString()).use { client ->
             val database = client.getDatabase(DATABASE_NAME)
             val aggregateName = "testInitSchema"

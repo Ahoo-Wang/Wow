@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test
 class StatelessSagaMetadataParserTest {
 
     @Test
-    fun statelessSagaMetadata() {
+    fun `should stateless saga metadata`() {
         val metadata = statelessSagaMetadata<TestStatelessSaga>()
         metadata.name.assert().isEqualTo("TestStatelessSaga")
         metadata.processorType.assert().isEqualTo(TestStatelessSaga::class.java)

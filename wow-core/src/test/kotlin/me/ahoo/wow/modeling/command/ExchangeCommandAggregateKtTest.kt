@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test
 class ExchangeCommandAggregateKtTest {
 
     @Test
-    fun setCommandAggregate() {
+    fun `should set command aggregate`() {
         val exchange = SimpleServerCommandExchange(mockk<CommandMessage<*>>())
         exchange.setCommandAggregate(mockk()).getCommandAggregate<Any, Any>().assert().isNotNull()
     }

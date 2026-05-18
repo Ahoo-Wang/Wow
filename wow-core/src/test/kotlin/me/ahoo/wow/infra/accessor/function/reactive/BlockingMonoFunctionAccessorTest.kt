@@ -23,7 +23,7 @@ import reactor.kotlin.test.test
 class BlockingMonoFunctionAccessorTest {
 
     @Test
-    fun invoke() {
+    fun `should invoke blocking function on bounded elastic scheduler`() {
         val blockingMonoMethodAccessor = BlockingMethod::blocking.toMonoFunctionAccessor<BlockingMethod, String>()
         Schedulers.parallel().schedule {
             blockingMonoMethodAccessor.invoke(BlockingMethod())

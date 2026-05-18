@@ -28,7 +28,7 @@ import org.springframework.mock.web.reactive.function.server.MockServerRequest
 
 class CoSecCommandBuilderExtractorTest {
     @Test
-    fun extract() {
+    fun `should extract command builder from security context`() {
         val request = MockServerRequest.builder()
             .pathVariable(MessageRecords.TENANT_ID, generateGlobalId())
             .pathVariable(MessageRecords.OWNER_ID, generateGlobalId())

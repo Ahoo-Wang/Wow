@@ -28,7 +28,7 @@ import org.junit.jupiter.api.Test
 internal class ProjectionProcessorMetadataParserTest {
 
     @Test
-    fun projectorMetadata() {
+    fun `should projector metadata`() {
         val metadata = projectionProcessorMetadata<MockProjector>()
         metadata.processorType.assert().isEqualTo(MockProjector::class.java)
         metadata.contextName.assert().isEqualTo("wow")
@@ -40,7 +40,7 @@ internal class ProjectionProcessorMetadataParserTest {
     }
 
     @Test
-    fun asTarget() {
+    fun `should as target`() {
         val aggregateMetadata = MOCK_AGGREGATE_METADATA
         val mockProjector = MockProjector()
         val eventHandlerRegistry = projectionProcessorMetadata<MockProjector>().toMessageFunctionRegistry(mockProjector)

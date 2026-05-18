@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test
 class CosIdGlobalIdGeneratorFactoryTest {
 
     @Test
-    fun create() {
+    fun `should create`() {
         val idProvider = DefaultIdGeneratorProvider()
         idProvider.set(CosIdGlobalIdGeneratorFactory.ID_NAME, mockk<CosIdGenerator>())
         val idGenerator = CosIdGlobalIdGeneratorFactory(idProvider).create()
@@ -17,7 +17,7 @@ class CosIdGlobalIdGeneratorFactoryTest {
     }
 
     @Test
-    fun createIfNull() {
+    fun `should create if null`() {
         val idGenerator = CosIdGlobalIdGeneratorFactory().create()
         idGenerator.assert().isNull()
     }

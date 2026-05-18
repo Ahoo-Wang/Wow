@@ -15,6 +15,7 @@ package me.ahoo.wow.modeling.state
 import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.event.AggregateDeleted
 import me.ahoo.wow.api.event.AggregateRecovered
@@ -36,20 +37,19 @@ import me.ahoo.wow.tck.mock.MockAggregateChanged
 import me.ahoo.wow.tck.mock.MockCommandAggregate
 import me.ahoo.wow.tck.mock.MockStateAggregate
 import me.ahoo.wow.test.aggregate.GivenInitializationCommand
-import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 
 internal class SimpleStateAggregateTest {
     private val aggregateMetadata = MOCK_AGGREGATE_METADATA
 
     @Test
-    fun testMetadataHashCode() {
+    fun `should compute metadata hashCode from aggregate type`() {
         val stateAggregateMetadata = aggregateMetadata.state
         stateAggregateMetadata.hashCode().assert().isEqualTo(stateAggregateMetadata.aggregateType.hashCode())
     }
 
     @Test
-    fun testMetadataToString() {
+    fun `should format metadata toString`() {
         val stateAggregateMetadata = aggregateMetadata.state
 
         stateAggregateMetadata
@@ -59,7 +59,7 @@ internal class SimpleStateAggregateTest {
     }
 
     @Test
-    fun testMetadataEq() {
+    fun `should implement metadata equals correctly`() {
         val stateAggregateMetadata = aggregateMetadata.state
 
         stateAggregateMetadata.equals(stateAggregateMetadata).assert().isEqualTo(true)
@@ -78,7 +78,7 @@ internal class SimpleStateAggregateTest {
     }
 
     @Test
-    fun toStateAggregate() {
+    fun `should create state aggregate with full args`() {
         val aggregateMetadata = aggregateMetadata<MockCommandAggregate, MockStateAggregate>()
         val stateAggregate =
             aggregateMetadata.state.toStateAggregate(
@@ -101,7 +101,7 @@ internal class SimpleStateAggregateTest {
     }
 
     @Test
-    fun id() {
+    fun `should get id from state aggregate`() {
         val mockAggregate = MockStateAggregate(generateGlobalId())
         val stateAggregate = aggregateMetadata.toStateAggregate(mockAggregate, 0)
         stateAggregate.aggregateId.id
@@ -116,7 +116,7 @@ internal class SimpleStateAggregateTest {
     }
 
     @Test
-    fun createWhenFullArgs() {
+    fun `should create state aggregate with full constructor args`() {
         val mockAggregate = MockStateAggregate(generateGlobalId())
         val stateAggregate =
             SimpleStateAggregate(
@@ -129,21 +129,21 @@ internal class SimpleStateAggregateTest {
     }
 
     @Test
-    fun version() {
+    fun `should return correct version`() {
         val mockAggregate = MockStateAggregate(generateGlobalId())
         val stateAggregate = aggregateMetadata.toStateAggregate(mockAggregate, 1)
         stateAggregate.version.assert().isEqualTo(1)
     }
 
     @Test
-    fun aggregateRoot() {
+    fun `should return aggregate root state`() {
         val mockAggregate = MockStateAggregate(generateGlobalId())
         val stateAggregate = aggregateMetadata.toStateAggregate(mockAggregate, 1)
         stateAggregate.state.assert().isEqualTo(mockAggregate)
     }
 
     @Test
-    fun sourcing() {
+    fun `should apply sourcing from domain event`() {
         val mockAggregate = MockStateAggregate(generateGlobalId())
         val stateAggregate = aggregateMetadata.toStateAggregate(mockAggregate, 0)
         val changed = MockAggregateChanged("changed")
@@ -162,7 +162,7 @@ internal class SimpleStateAggregateTest {
     }
 
     @Test
-    fun sourcingGivenFailVersion() {
+    fun `should throw SourcingVersionConflictException when version conflict`() {
         val mockAggregate = MockStateAggregate(generateGlobalId())
         val stateAggregate = aggregateMetadata.toStateAggregate(mockAggregate, 0)
         val changed = MockAggregateChanged("changed")
@@ -185,7 +185,7 @@ internal class SimpleStateAggregateTest {
     }
 
     @Test
-    fun sourcingGivenWrongAggregateId() {
+    fun `should throw IllegalArgumentException when sourcing with wrong aggregate id`() {
         val mockAggregate = MockStateAggregate(generateGlobalId())
         val stateAggregate = aggregateMetadata.toStateAggregate(mockAggregate, 0)
         val changed = MockAggregateChanged("changed")
@@ -198,7 +198,7 @@ internal class SimpleStateAggregateTest {
                 ),
                 aggregateVersion = streamHeadVersion,
             )
-        Assertions.assertThrows(IllegalArgumentException::class.java) {
+        assertThrownBy<IllegalArgumentException> {
             stateAggregate.onSourcing(
                 domainEventStream,
             )
@@ -209,7 +209,7 @@ internal class SimpleStateAggregateTest {
      * 当聚合未找到匹配的 `onSourcing` 方法时，不会认为产生的故障，忽略该事件，但更新聚合版本号为该领域事件的版本号。
      */
     @Test
-    fun sourcingGivenErrorIgnoreEvent() {
+    fun `should ignore error event and keep version unchanged`() {
         val mockAggregate = MockStateAggregate(generateGlobalId())
         val stateAggregate = aggregateMetadata.toStateAggregate(mockAggregate, 0)
         val errorIgnoreEvent =
@@ -224,7 +224,7 @@ internal class SimpleStateAggregateTest {
     }
 
     @Test
-    fun sourcingWithAggregateDeleted() {
+    fun `should mark deleted when sourcing aggregate deleted event`() {
         val mockAggregate = MockStateAggregate(generateGlobalId())
         val stateAggregate = aggregateMetadata.toStateAggregate(mockAggregate, 0)
         stateAggregate.deleted.assert().isEqualTo(false)
@@ -242,7 +242,7 @@ internal class SimpleStateAggregateTest {
     }
 
     @Test
-    fun sourcingWithAggregateRecovered() {
+    fun `should recover when sourcing aggregate recovered event`() {
         val mockAggregate = MockStateAggregate(generateGlobalId())
         val stateAggregate = aggregateMetadata.toStateAggregate(mockAggregate, 0)
         (stateAggregate as SimpleStateAggregate<*>).deleted = true // Simulate previously deleted
@@ -260,7 +260,7 @@ internal class SimpleStateAggregateTest {
     }
 
     @Test
-    fun sourcingWithOwnerTransferred() {
+    fun `should transfer owner when sourcing owner transferred event`() {
         val mockAggregate = MockStateAggregate(generateGlobalId())
         val stateAggregate = aggregateMetadata.toStateAggregate(mockAggregate, 0)
         val newOwnerId = generateGlobalId()
@@ -279,7 +279,7 @@ internal class SimpleStateAggregateTest {
     }
 
     @Test
-    fun sourcingWithSpaceTransferred() {
+    fun `should transfer space when sourcing space transferred event`() {
         val mockAggregate = MockStateAggregate(generateGlobalId())
         val stateAggregate = aggregateMetadata.toStateAggregate(mockAggregate, 0)
         val newSpaceId = generateGlobalId()
@@ -298,7 +298,7 @@ internal class SimpleStateAggregateTest {
     }
 
     @Test
-    fun sourcingWithNormalEventHavingSourcingFunction() {
+    fun `should apply sourcing with normal event having sourcing function`() {
         val mockAggregate = MockStateAggregate(generateGlobalId())
         val stateAggregate = aggregateMetadata.toStateAggregate(mockAggregate, 0)
         val changed = MockAggregateChanged("updated")
@@ -314,7 +314,7 @@ internal class SimpleStateAggregateTest {
     }
 
     @Test
-    fun sourcingWithEventMissingSourcingFunction() {
+    fun `should ignore event missing sourcing function and increment version`() {
         val mockAggregate = MockStateAggregate(generateGlobalId())
         val stateAggregate = aggregateMetadata.toStateAggregate(mockAggregate, 0)
         val normalEvent = TestNormalEvent("test")
@@ -332,7 +332,7 @@ internal class SimpleStateAggregateTest {
     }
 
     @Test
-    fun onSourcingUpdatesMetadata() {
+    fun `should update metadata when sourcing event`() {
         val mockAggregate = MockStateAggregate(generateGlobalId())
 
         val stateAggregate =
@@ -359,7 +359,7 @@ internal class SimpleStateAggregateTest {
     }
 
     @Test
-    fun onSourcingWithInitialVersion() {
+    fun `should not update first metadata when sourcing with initial version`() {
         val mockAggregate = MockStateAggregate(generateGlobalId())
         val stateAggregate = aggregateMetadata.toStateAggregate(mockAggregate, Version.INITIAL_VERSION)
         val operator = generateGlobalId()
@@ -383,7 +383,7 @@ internal class SimpleStateAggregateTest {
     }
 
     @Test
-    fun equalsAndHashCode() {
+    fun `should implement equals and hashCode correctly`() {
         val mockAggregate1 = MockStateAggregate(generateGlobalId())
         val stateAggregate1 = aggregateMetadata.toStateAggregate(mockAggregate1, 1)
         val stateAggregate2 = aggregateMetadata.toStateAggregate(mockAggregate1, 1)
@@ -401,7 +401,7 @@ internal class SimpleStateAggregateTest {
     }
 
     @Test
-    fun toStringFormat() {
+    fun `should format toString correctly`() {
         val mockAggregate = MockStateAggregate(generateGlobalId())
         val stateAggregate = aggregateMetadata.toStateAggregate(mockAggregate, 5)
         stateAggregate

@@ -24,14 +24,14 @@ internal class CompositeNamingConverterTest {
     }
 
     @Test
-    fun convert() {
+    fun `should convert`() {
         val phrase = PREFIX + PascalCaseStrategyTest.PHRASE
         val actual = CONVERTER.convert(phrase)
         actual.assert().isEqualTo(SnakeCaseStrategyTest.PHRASE)
     }
 
     @Test
-    fun convertWhenMismatch() {
+    fun `should convert when mismatch`() {
         val phrase = "prefix" + PascalCaseStrategyTest.PHRASE
         val actual = CONVERTER.convert(phrase)
         actual.assert().isEqualTo("prefix_wow_is_great")

@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test
 class SimpleServerCommandExchangeTest {
 
     @Test
-    fun main() {
+    fun `should main`() {
         val command = MockCreateCommand(generateGlobalId()).toCommandMessage()
         val commandExchange = SimpleServerCommandExchange(command)
         commandExchange.setAggregateProcessor(mockk()).getAggregateProcessor().assert().isNotNull()
@@ -22,14 +22,14 @@ class SimpleServerCommandExchangeTest {
     }
 
     @Test
-    fun extractDeclaredCommand() {
+    fun `should extract declared command`() {
         val command = MockCreateCommand(generateGlobalId()).toCommandMessage()
         val commandExchange = SimpleServerCommandExchange(command)
         commandExchange.extractDeclared(CommandMessage::class.java).assert().isNotNull()
     }
 
     @Test
-    fun extractDeclaredCommandAggregate() {
+    fun `should extract declared command aggregate`() {
         val command = MockCreateCommand(generateGlobalId()).toCommandMessage()
         val commandExchange = SimpleServerCommandExchange(command)
         commandExchange.setCommandAggregate(mockk())
@@ -37,7 +37,7 @@ class SimpleServerCommandExchangeTest {
     }
 
     @Test
-    fun extractDeclaredEventStream() {
+    fun `should extract declared event stream`() {
         val command = MockCreateCommand(generateGlobalId()).toCommandMessage()
         val commandExchange = SimpleServerCommandExchange(command)
             .setEventStream(mockk())
@@ -45,7 +45,7 @@ class SimpleServerCommandExchangeTest {
     }
 
     @Test
-    fun extractDeclaredError() {
+    fun `should extract declared error`() {
         val command = MockCreateCommand(generateGlobalId()).toCommandMessage()
 
         val commandExchange = SimpleServerCommandExchange(command)

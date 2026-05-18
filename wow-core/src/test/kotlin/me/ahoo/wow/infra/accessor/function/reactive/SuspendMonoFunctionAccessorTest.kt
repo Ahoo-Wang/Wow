@@ -19,7 +19,7 @@ import reactor.kotlin.test.test
 
 class SuspendMonoFunctionAccessorTest {
     @Test
-    fun invoke() {
+    fun `should invoke suspend function accessor`() {
         val methodAccessor =
             SuspendFunctionClass::suspendFunction.toMonoFunctionAccessor<SuspendFunctionClass, String>()
         methodAccessor.assert().isInstanceOf(SuspendMonoFunctionAccessor::class.java)

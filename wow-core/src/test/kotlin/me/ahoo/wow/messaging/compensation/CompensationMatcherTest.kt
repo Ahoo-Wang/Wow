@@ -24,7 +24,7 @@ class CompensationMatcherTest {
     )
 
     @Test
-    fun withCompensation() {
+    fun `should with compensation`() {
         val target = CompensationTarget(function = function)
         val command = MockCreateAggregate(
             GlobalIdGenerator.generateAsString(),
@@ -37,12 +37,12 @@ class CompensationMatcherTest {
     }
 
     @Test
-    fun matchIfNull() {
+    fun `should match if null`() {
         DefaultHeader.empty().match(function).assert().isEqualTo(true)
     }
 
     @Test
-    fun matchIfFunctionNull() {
+    fun `should match if function null`() {
         val header = DefaultHeader.empty()
         header[COMPENSATION_ID] = GlobalIdGenerator.generateAsString()
         header[COMPENSATION_CONTEXT] = contextName

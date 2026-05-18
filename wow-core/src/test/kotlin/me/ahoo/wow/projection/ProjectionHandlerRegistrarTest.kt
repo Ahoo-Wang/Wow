@@ -25,7 +25,7 @@ import org.junit.jupiter.api.Test
 internal class ProjectionProcessorRegistrarTest {
 
     @Test
-    fun registerProjectionProcessor() {
+    fun `should register projection processor`() {
         val handlerRegistrar = ProjectionFunctionRegistrar()
         val mockProjector = MockProjector()
         handlerRegistrar.registerProcessor(mockProjector)

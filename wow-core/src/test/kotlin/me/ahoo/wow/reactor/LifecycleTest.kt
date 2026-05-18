@@ -28,7 +28,7 @@ class LifecycleTest {
     }
 
     @Test
-    fun tryEmitComplete() {
+    fun `should try emit complete`() {
         val sink = Sinks.unsafe().many().unicast().onBackpressureBuffer<String>().concurrent()
         sink.asFlux().publishOn(Schedulers.boundedElastic()).flatMap { record ->
             Mono.delay(Duration.ofMillis(100)).map {
@@ -45,7 +45,7 @@ class LifecycleTest {
     }
 
     @Test
-    fun cancel() {
+    fun `should cancel`() {
         val sink = Sinks.unsafe().many().unicast().onBackpressureBuffer<String>().concurrent()
         val subscription = sink.asFlux().publishOn(Schedulers.boundedElastic()).flatMap { record ->
             Mono.delay(Duration.ofMillis(100)).map {

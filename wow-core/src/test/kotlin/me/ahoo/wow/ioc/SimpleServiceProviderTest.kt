@@ -15,7 +15,7 @@ class SimpleServiceProviderTest {
     }
 
     @Test
-    fun getService() {
+    fun `should get service`() {
         val serviceProvider = SimpleServiceProvider()
         serviceProvider.register<SimpleServiceProviderTest>(this)
         serviceProvider.serviceNames.assert().contains(SERVICE_NAME)
@@ -49,7 +49,7 @@ class SimpleServiceProviderTest {
     }
 
     @Test
-    fun getMockkService() {
+    fun `should get mockk service`() {
         val serviceProvider = SimpleServiceProvider()
         val mockkService = mockk<MockkService>()
         serviceProvider.register(mockkService)

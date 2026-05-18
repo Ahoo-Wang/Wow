@@ -24,13 +24,13 @@ internal class PascalCaseStrategyTest {
     }
 
     @Test
-    fun segment() {
+    fun `should segment`() {
         val actual = PascalCaseStrategy.segment(PHRASE)
         actual.assert().isEqualTo(WORDS)
     }
 
     @Test
-    fun transform() {
+    fun `should transform`() {
         val actual = PascalCaseStrategy.transform(WORDS)
         actual.assert().isEqualTo(PHRASE)
     }

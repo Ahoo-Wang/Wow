@@ -24,13 +24,13 @@ internal class SnakeCaseStrategyTest {
     }
 
     @Test
-    fun segment() {
+    fun `should segment`() {
         val actual = SnakeCaseStrategy.segment(PHRASE)
         actual.assert().isEqualTo(WORDS)
     }
 
     @Test
-    fun transform() {
+    fun `should transform`() {
         val actual = SnakeCaseStrategy.transform(WORDS)
         actual.assert().isEqualTo(PHRASE)
     }

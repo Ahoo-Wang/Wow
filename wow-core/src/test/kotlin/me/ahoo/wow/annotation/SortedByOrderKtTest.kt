@@ -10,41 +10,41 @@ import kotlin.reflect.jvm.javaMethod
 class SortedByOrderKtTest {
 
     @Test
-    fun sortAny() {
+    fun `should sort any objects`() {
         val sortedList = listOf(Any(), Any()).sortedByOrder()
         sortedList.assert().hasSize(2)
     }
 
     @Test
-    fun sortOrderValue() {
+    fun `should sort by order value`() {
         val sortedList = listOf(OrderLast, OrderFirst).sortedByOrder()
         sortedList.assert().hasSize(2)
         sortedList.assert().containsSequence(OrderFirst, OrderLast)
     }
 
     @Test
-    fun sortOrderBefore() {
+    fun `should sort by order before`() {
         val sortedList = listOf(Undefined, Before).sortedByOrder()
         sortedList.assert().hasSize(2)
         sortedList.assert().containsSequence(Before, Undefined)
     }
 
     @Test
-    fun sortOrderAfter() {
+    fun `should sort by order after`() {
         val sortedList = listOf(After, Undefined).sortedByOrder()
         sortedList.assert().hasSize(2)
         sortedList.assert().containsSequence(Undefined, After)
     }
 
     @Test
-    fun sortByOrder() {
+    fun `should sort all items by order`() {
         val sortedList = listOf(OrderLast, OrderFirst, Before, After, Undefined).sortedByOrder()
         sortedList.assert().hasSize(5)
         sortedList.assert().containsSequence(Before, OrderFirst, OrderLast, Undefined, After)
     }
 
     @Test
-    fun sortByOrderClass() {
+    fun `should sort classes by order`() {
         val sortedList = listOf(
             OrderLast::class.java,
             OrderFirst::class.java,
@@ -63,7 +63,7 @@ class SortedByOrderKtTest {
     }
 
     @Test
-    fun sortByOrderKClass() {
+    fun `should sort kclasses by order`() {
         val sortedList = listOf(
             OrderLast::class,
             OrderFirst::class,
@@ -82,7 +82,7 @@ class SortedByOrderKtTest {
     }
 
     @Test
-    fun sortMethod() {
+    fun `should sort methods by order`() {
         val sortedList = listOf(
             OrderMethods::orderDefault.javaMethod!!,
             OrderMethods::orderFirst.javaMethod!!,

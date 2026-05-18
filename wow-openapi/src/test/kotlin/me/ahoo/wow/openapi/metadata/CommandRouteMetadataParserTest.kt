@@ -14,7 +14,6 @@
 package me.ahoo.wow.openapi.metadata
 
 import com.fasterxml.jackson.annotation.JsonProperty
-import com.fasterxml.jackson.databind.node.ObjectNode
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.annotation.CommandRoute
@@ -29,7 +28,7 @@ import kotlin.reflect.jvm.javaField
 class CommandRouteMetadataParserTest {
 
     @Test
-    fun toCommandRouteMetadata() {
+    fun `should parse command route metadata with path and header variables`() {
         val commandRouteMetadata = commandRouteMetadata<MockCommandRouteNotRequired>()
         commandRouteMetadata.enabled.assert().isTrue()
         commandRouteMetadata.action.assert().isEqualTo("{id}/{name}")
@@ -56,16 +55,16 @@ class CommandRouteMetadataParserTest {
     }
 
     @Test
-    fun asDelete() {
+    fun `should parse delete aggregate route method`() {
         val commandRouteMetadata = commandRouteMetadata<DefaultDeleteAggregate>()
         commandRouteMetadata.method.assert().isEqualTo(Https.Method.DELETE)
     }
 
     @Test
-    fun decode() {
+    fun `should decode command from path and header variables`() {
         val commandRouteMetadata = commandRouteMetadata<MockCommandRoute>()
         val command = commandRouteMetadata.decode(
-            ObjectNode(JsonSerializer.nodeFactory),
+            JsonSerializer.createObjectNode(),
             {
                 mapOf(
                     "id" to "id",
@@ -83,7 +82,7 @@ class CommandRouteMetadataParserTest {
         command.header.assert().isEqualTo("header-value")
         assertThrownBy<IllegalArgumentException> {
             commandRouteMetadata.decode(
-                ObjectNode(JsonSerializer.nodeFactory),
+                JsonSerializer.createObjectNode(),
                 {
                     mapOf(
                         "id" to "id",
@@ -97,10 +96,10 @@ class CommandRouteMetadataParserTest {
     }
 
     @Test
-    fun decodeNotRequired() {
+    fun `should decode command with optional variables using defaults`() {
         val commandRouteMetadata = commandRouteMetadata<MockCommandRouteNotRequired>()
         val command = commandRouteMetadata.decode(
-            ObjectNode(JsonSerializer.nodeFactory),
+            JsonSerializer.createObjectNode(),
             {
                 mapOf(
                     "id" to "id",
@@ -119,7 +118,7 @@ class CommandRouteMetadataParserTest {
         command.header.assert().isEqualTo("header-value")
 
         val commandWithDefault = commandRouteMetadata.decode(
-            ObjectNode(JsonSerializer.nodeFactory),
+            JsonSerializer.createObjectNode(),
             {
                 mapOf(
                     "id" to "id",
@@ -135,7 +134,7 @@ class CommandRouteMetadataParserTest {
     }
 
     @Test
-    fun decodeNested() {
+    fun `should decode command with nested path variables`() {
         val commandRouteMetadata = commandRouteMetadata<NestedMockCommandRoute>()
         commandRouteMetadata.action.assert().isEqualTo("{customerId}/{id}/{name}")
         val customerIdPathVariable =
@@ -150,7 +149,7 @@ class CommandRouteMetadataParserTest {
         customerNamePathVariable.variableType.assert().isEqualTo(String::class.java)
 
         val command = commandRouteMetadata.decode(
-            ObjectNode(JsonSerializer.nodeFactory),
+            JsonSerializer.createObjectNode(),
             {
                 mapOf(
                     "id" to "id",
@@ -168,7 +167,7 @@ class CommandRouteMetadataParserTest {
     }
 
     @Test
-    fun decodeFieldNested() {
+    fun `should decode command with field-level nested path variables`() {
         NestedFieldMockCommandRoute::customer.toIntimateAnnotationElement()
         val commandRouteMetadata = commandRouteMetadata<NestedFieldMockCommandRoute>()
         commandRouteMetadata.action.assert().isEqualTo("{customerId}/{id}/{name}")
@@ -178,7 +177,7 @@ class CommandRouteMetadataParserTest {
         customerIdPathVariable.fieldPath.assert().contains("customer", "id")
         customerIdPathVariable.variableType.assert().isEqualTo(String::class.java)
         val command = commandRouteMetadata.decode(
-            ObjectNode(JsonSerializer.nodeFactory),
+            JsonSerializer.createObjectNode(),
             {
                 mapOf(
                     "id" to "id",
@@ -196,7 +195,7 @@ class CommandRouteMetadataParserTest {
     }
 
     @Test
-    fun missedVariable() {
+    fun `should handle missed variable in route metadata`() {
         val commandRouteMetadata = commandRouteMetadata<MockCommandRouteMissedVariable>()
         commandRouteMetadata.pathVariableMetadata.map { it.variableName }
             .assert().contains("id", "name")

@@ -11,26 +11,26 @@ import org.junit.jupiter.api.Test
 class CommandOperatorTest {
 
     @Test
-    fun getOperator() {
+    fun `should get operator`() {
         val header = DefaultHeader.empty()
         header.operator.assert().isNull()
     }
 
     @Test
-    fun getRequiredOperator() {
+    fun `should get required operator`() {
         assertThrownBy<IllegalStateException> {
             DefaultHeader.empty().requiredOperator
         }
     }
 
     @Test
-    fun withOperator() {
+    fun `should with operator`() {
         val header = DefaultHeader.empty().withOperator("test")
         header.operator.assert().isEqualTo("test")
     }
 
     @Test
-    fun testWithOperator() {
+    fun `should test with operator`() {
         val header = DefaultHeader.empty().withOperator("test")
         header.operator.assert().isEqualTo("test")
     }

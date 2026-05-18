@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test
 class DefaultEventStreamTopicConverterTest {
 
     @Test
-    fun convert() {
+    fun `should convert event stream topic`() {
         val topic = DefaultEventStreamTopicConverter().convert(MOCK_AGGREGATE_METADATA)
         topic.assert().isEqualTo("wow.tck.mock_aggregate.event")
     }

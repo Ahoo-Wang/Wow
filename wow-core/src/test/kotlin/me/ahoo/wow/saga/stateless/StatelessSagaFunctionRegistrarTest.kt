@@ -22,7 +22,7 @@ class StatelessSagaFunctionRegistrarTest {
     }
 
     @Test
-    fun register() {
+    fun `should register`() {
         val functionRegistrar = StatelessSagaFunctionRegistrar(
             SagaVerifier.defaultCommandGateway(),
             SimpleCommandMessageFactory(NoOpValidator, SimpleCommandBuilderRewriterRegistry())

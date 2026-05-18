@@ -10,7 +10,7 @@ import reactor.kotlin.test.test
 class AbstractHandlerTest {
 
     @Test
-    fun handle() {
+    fun `should handle`() {
         val chain: FilterChain<String> = FilterChain {
             IllegalStateException().toMono()
         }
@@ -21,7 +21,7 @@ class AbstractHandlerTest {
     }
 
     @Test
-    fun handleIfErrorAccessor() {
+    fun `should handle if error accessor`() {
         val context = mockk<ErrorAccessor> {
             every { setError(any()) } returns Unit
         }

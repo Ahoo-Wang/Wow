@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test
 class AnnotationScannerTest {
 
     @Test
-    fun scanPropertyAnnotation() {
+    fun `should scan property annotation`() {
         val propertyAnnotation = Data::property.scanAnnotation<MockAnnotation>()
         propertyAnnotation.assert().isNotNull()
         propertyAnnotation!!.annotationClass.assert().isEqualTo(MockAnnotation::class)
@@ -18,7 +18,7 @@ class AnnotationScannerTest {
     }
 
     @Test
-    fun scanAnnotationNotFound() {
+    fun `should return null when annotation not found`() {
         val propertyAnnotation = Data::class.scanAnnotation<MockAnnotation>()
         propertyAnnotation.assert().isNull()
         val propertyAnnotation2 = Data::class.scanAnnotation<MockAnnotation>()
@@ -26,7 +26,7 @@ class AnnotationScannerTest {
     }
 
     @Test
-    fun scanFunctionAnnotation() {
+    fun `should scan function annotation`() {
         val commandAnnotation = MockClass::onCommand.scanAnnotation<OnCommand>()
         commandAnnotation.assert().isEqualTo(OnCommand())
     }

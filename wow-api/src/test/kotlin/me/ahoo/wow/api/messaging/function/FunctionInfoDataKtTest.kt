@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Test
 class FunctionInfoDataKtTest {
 
     @Test
-    fun materialize() {
+    fun `should materialize function info data`() {
         val functionInfoData = FunctionInfoData(FunctionKind.COMMAND, "contextName", "processorName", "functionName")
         val materialized = functionInfoData.materialize()
         functionInfoData.assert().isSameAs(materialized)

@@ -22,7 +22,7 @@ import org.junit.jupiter.api.Test
 internal class EventProcessorParserTest {
 
     @Test
-    fun eventProcessorMetadata() {
+    fun `should event processor metadata`() {
         val eventProcessorMetadata = eventProcessorMetadata<MockEventProcessor>()
         eventProcessorMetadata.contextName.assert().isEqualTo("wow.event")
         eventProcessorMetadata.processorType.assert().isEqualTo(MockEventProcessor::class.java)

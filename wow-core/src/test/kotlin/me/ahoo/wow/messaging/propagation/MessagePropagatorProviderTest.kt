@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test
 class MessagePropagatorProviderTest {
 
     @Test
-    fun propagate() {
+    fun `should propagate`() {
         val header = DefaultHeader.empty()
         val upstreamMessage =
             MockCreateAggregate(GlobalIdGenerator.generateAsString(), GlobalIdGenerator.generateAsString())

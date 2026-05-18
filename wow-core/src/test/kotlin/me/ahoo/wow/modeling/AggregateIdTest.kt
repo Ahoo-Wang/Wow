@@ -13,19 +13,19 @@
 package me.ahoo.wow.modeling
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.annotation.StaticTenantId
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.command.MockCommandAggregate
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
-import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 
 internal class AggregateIdTest {
     private val namedTypedAggregate = MOCK_AGGREGATE_METADATA
 
     @Test
-    fun equalTo() {
+    fun `should be equal when aggregate ids match`() {
         val aggregateId = namedTypedAggregate.aggregateId(generateGlobalId())
         val unCreatedAggregateId = aggregateId.copy()
         aggregateId.assert().isEqualTo(unCreatedAggregateId)
@@ -34,7 +34,7 @@ internal class AggregateIdTest {
     }
 
     @Test
-    fun equalToDiffId() {
+    fun `should not be equal when aggregate ids differ`() {
         val aggregateId = namedTypedAggregate.aggregateId()
         val unCreatedAggregateId = aggregateId.copy(id = generateGlobalId())
         aggregateId.assert().isNotEqualTo(unCreatedAggregateId)
@@ -42,14 +42,14 @@ internal class AggregateIdTest {
     }
 
     @Test
-    fun compareTo() {
+    fun `should compare aggregate ids by id value`() {
         val aggregateId = namedTypedAggregate.aggregateId(generateGlobalId())
         val aggregateId2 = namedTypedAggregate.aggregateId(generateGlobalId())
         aggregateId2.assert().isGreaterThan(aggregateId)
     }
 
     @Test
-    fun sort() {
+    fun `should sort aggregate ids correctly`() {
         val aggregateId = namedTypedAggregate.aggregateId(generateGlobalId())
         val aggregateId2 = namedTypedAggregate.aggregateId(generateGlobalId())
         val sorted = listOf(aggregateId2, aggregateId).asSequence().sorted().toList()
@@ -58,17 +58,17 @@ internal class AggregateIdTest {
     }
 
     @Test
-    fun compareToWhenNotAggregateName() {
+    fun `should throw IllegalArgumentException when comparing different aggregate names`() {
         val aggregateId = namedTypedAggregate.aggregateId(generateGlobalId())
         val aggregateId2 = aggregateMetadata<MockCommandAggregate, MockCommandAggregate>()
             .aggregateId(generateGlobalId())
-        Assertions.assertThrows(IllegalArgumentException::class.java) {
+        assertThrownBy<IllegalArgumentException> {
             aggregateId2.compareTo(aggregateId)
         }
     }
 
     @Test
-    fun withStaticAggregate() {
+    fun `should use static tenant id from annotation`() {
         val aggregateId = aggregateMetadata<MockStaticAggregate, MockStaticAggregate>().aggregateId()
         aggregateId.tenantId.assert().isEqualTo("static-tenant-id")
     }

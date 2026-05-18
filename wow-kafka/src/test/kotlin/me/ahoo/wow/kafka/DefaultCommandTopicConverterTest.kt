@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test
 class DefaultCommandTopicConverterTest {
 
     @Test
-    fun convert() {
+    fun `should convert command topic`() {
         val topic = DefaultCommandTopicConverter().convert(MOCK_AGGREGATE_METADATA)
         topic.assert().isEqualTo("wow.tck.mock_aggregate.command")
     }

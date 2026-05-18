@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test
 class CommandResultExceptionTest {
 
     @Test
-    fun ctor() {
+    fun `should ctor`() {
         val commandResult = mockk<CommandResult> {
             every { errorCode } returns "errorCode"
             every { errorMsg } returns "errorMsg"

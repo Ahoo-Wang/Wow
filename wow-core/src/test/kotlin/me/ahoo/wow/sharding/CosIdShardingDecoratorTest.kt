@@ -36,7 +36,7 @@ internal class CosIdShardingDecoratorTest {
             "0TEDamtj0001005,5",
         ],
     )
-    fun sharding(aggregateId: String, shardingValue: Int) {
+    fun `should compute correct sharding value`(aggregateId: String, shardingValue: Int) {
         val actual = sharding.sharding(namedAggregate.aggregateId(aggregateId))
         actual.assert().isEqualTo("sharding_${shardingValue % divisor}")
     }

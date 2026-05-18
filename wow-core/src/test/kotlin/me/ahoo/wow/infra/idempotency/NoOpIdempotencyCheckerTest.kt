@@ -7,7 +7,7 @@ import reactor.kotlin.test.test
 class NoOpIdempotencyCheckerTest {
 
     @Test
-    fun check() {
+    fun `should check`() {
         val requestId = GlobalIdGenerator.generateAsString()
         NoOpIdempotencyChecker.check(requestId)
             .test()

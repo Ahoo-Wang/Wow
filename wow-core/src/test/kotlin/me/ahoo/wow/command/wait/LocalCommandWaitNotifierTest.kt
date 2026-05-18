@@ -30,7 +30,7 @@ internal class LocalCommandWaitNotifierTest {
     )
 
     @Test
-    fun notifyLocal() {
+    fun `should notify local`() {
         val commandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar)
         commandWaitNotifier.notify(
             "endpoint",
@@ -48,7 +48,7 @@ internal class LocalCommandWaitNotifierTest {
     }
 
     @Test
-    fun notifyAndForget() {
+    fun `should notify and forget`() {
         val commandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar)
         commandWaitNotifier.notifyAndForget(
             "endpoint",
@@ -64,7 +64,7 @@ internal class LocalCommandWaitNotifierTest {
     }
 
     @Test
-    fun notifyRemote() {
+    fun `should notify remote`() {
         val commandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar)
         commandWaitNotifier.notify(
             "endpoint",

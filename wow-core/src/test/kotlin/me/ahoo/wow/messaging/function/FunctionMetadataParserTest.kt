@@ -16,7 +16,7 @@ import kotlin.reflect.jvm.kotlinFunction
 class FunctionMetadataParserTest {
 
     @Test
-    fun toCommandFunctionMetadata() {
+    fun `should to command function metadata`() {
         @Suppress("UNCHECKED_CAST")
         val onCommandFun = MockCommandAggregate::class.java.getDeclaredMethod(
             "onCommand",
@@ -36,14 +36,14 @@ class FunctionMetadataParserTest {
     }
 
     @Test
-    fun toEventFunctionMetadata() {
+    fun `should to event function metadata`() {
         val metadata = MockFunction::onEvent.toFunctionMetadata<Any, Any>()
         metadata.supportedTopics.assert().contains(MaterializedNamedAggregate("wow-core-test", "messaging_aggregate"))
         metadata.functionKind.assert().isEqualTo(FunctionKind.EVENT)
     }
 
     @Test
-    fun toEventFunctionMetadataWithMultiAggregate() {
+    fun `should to event function metadata with multi aggregate`() {
         val metadata = MockWithMultiAggregateNameFunction::onEvent
             .toFunctionMetadata<Any, Any>()
         metadata.supportedTopics.assert().containsExactly(
@@ -54,7 +54,7 @@ class FunctionMetadataParserTest {
     }
 
     @Test
-    fun toOnStateEventFunctionMetadata() {
+    fun `should to on state event function metadata`() {
         val metadata = MockOnStateEventFunction::onStateEvent.toFunctionMetadata<Any, Any>()
         metadata.supportedTopics.assert().containsExactly(
             MaterializedNamedAggregate("wow.messaging", "aggregate1")
@@ -63,7 +63,7 @@ class FunctionMetadataParserTest {
     }
 
     @Test
-    fun toFunctionMetadataWhenWrapped() {
+    fun `should to function metadata when wrapped`() {
         val metadata = MockWithWrappedFunction::onEvent.toFunctionMetadata<MockAggregate, Any>()
         metadata.supportedType.assert().isEqualTo(MockEventBody::class.java)
         metadata.injectParameters.assert().isEmpty()
@@ -72,9 +72,9 @@ class FunctionMetadataParserTest {
     }
 
     @Test
-    fun toFunctionMetadataWithNoneParameter() {
+    fun `should to function metadata with none parameter`() {
         assertThrownBy<IllegalStateException> {
-            FunctionMetadataParserTest::toFunctionMetadataWithNoneParameter.toFunctionMetadata<FunctionMetadataParserTest, Unit>()
+            FunctionMetadataParserTest::`should to function metadata with none parameter`.toFunctionMetadata<FunctionMetadataParserTest, Unit>()
         }
     }
 }

@@ -10,14 +10,14 @@ class PropertyDescriptorTest {
     var data: String = "value"
 
     @Test
-    fun toStaticPropertyGetter() {
+    fun `should create static property getter`() {
         val propertyGetter = "value".toPropertyGetter<Any?, String>()
         propertyGetter.assert().isInstanceOf(StaticPropertyGetter::class.java)
         propertyGetter[null].assert().isEqualTo("value")
     }
 
     @Test
-    fun toPropertyGetter() {
+    fun `should create property getter`() {
         val propertyGetter = PropertyDescriptorTest::data.toPropertyGetter()
         propertyGetter.assert().isInstanceOf(SimplePropertyGetter::class.java)
         val instance = PropertyDescriptorTest()
@@ -25,7 +25,7 @@ class PropertyDescriptorTest {
     }
 
     @Test
-    fun toPropertySetter() {
+    fun `should create property setter`() {
         val propertySetter = PropertyDescriptorTest::data.toPropertySetter()
         propertySetter.assert().isInstanceOf(SimplePropertySetter::class.java)
         val instance = PropertyDescriptorTest()

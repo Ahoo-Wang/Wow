@@ -21,7 +21,7 @@ import reactor.kotlin.test.test
 internal class LogResumeErrorHandlerTest {
 
     @Test
-    fun handle() {
+    fun `should handle`() {
         val logResumeErrorHandler = LogResumeErrorHandler<ServerCommandExchange<Any>>()
         val exchange = mockk<ServerCommandExchange<Any>>()
         logResumeErrorHandler.handle(exchange, RuntimeException())

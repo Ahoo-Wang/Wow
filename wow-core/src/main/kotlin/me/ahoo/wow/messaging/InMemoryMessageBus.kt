@@ -128,8 +128,14 @@ abstract class InMemoryMessageBus<M, E : MessageExchange<*, M>> : LocalMessageBu
     override fun close() {
         sinks.forEach { (aggregate, many) ->
             val emitResult = many.tryEmitComplete()
-            log.debug {
-                "Close [${aggregate.aggregateName}] sink - [$emitResult]."
+            if (emitResult.isSuccess) {
+                log.debug {
+                    "Close [${aggregate.aggregateName}] sink - [$emitResult]."
+                }
+            } else {
+                log.warn {
+                    "Close [${aggregate.aggregateName}] sink - [$emitResult]."
+                }
             }
         }
         sinks.clear()
