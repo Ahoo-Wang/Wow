@@ -15,29 +15,52 @@ package me.ahoo.wow.exception
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.exception.RecoverableType
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Registry for managing recoverable exception classifications.
+ * SPI interface for registering recoverable exception classifications.
  *
- * This object maintains a mapping of exception classes to their RecoverableType,
- * allowing the framework to determine whether specific exceptions can be recovered
- * from through retry mechanisms.
+ * Implementations are discovered via Java's [ServiceLoader] mechanism.
+ * Each provider can register custom exception-to-[RecoverableType] mappings
+ * into the shared [RecoverableExceptionRegistrar].
+ */
+interface RecoverableExceptionProvider {
+    fun register(registrar: RecoverableExceptionRegistrar)
+}
+
+/**
+ * Global registry that maps exception classes to their [RecoverableType] classifications.
  *
+ * On initialization, it uses [ServiceLoader] to discover all [RecoverableExceptionProvider]
+ * implementations on the classpath and delegates registration to each one.
+ * The backing store is a [ConcurrentHashMap], so registration and lookup are thread-safe.
+ *
+ * The registry is consulted by the [Class.recoverable] extension property when determining
+ * whether an exception can be retried. Explicit registrations here take precedence over
+ * the default rules (e.g., [RecoverableException] marker interface, [TimeoutException]).
+ *
+ * @see RecoverableExceptionProvider
  * @see RecoverableType
+ * @see Class.recoverable
  */
 object RecoverableExceptionRegistrar {
     private val log = KotlinLogging.logger {}
     private val registrar = ConcurrentHashMap<Class<out Throwable>, RecoverableType>()
 
+    init {
+        ServiceLoader
+            .load(RecoverableExceptionProvider::class.java)
+            .forEach {
+                it.register(this)
+            }
+    }
+
     /**
-     * Registers a recoverable type classification for an exception class.
-     *
-     * This method associates an exception class with a specific RecoverableType,
-     * overriding any default classification for that exception type.
+     * Registers (or overwrites) the [RecoverableType] for the given exception class.
      *
      * @param throwableClass the exception class to classify
-     * @param recoverableType the recoverable classification for this exception type
+     * @param recoverableType the recoverability classification
      */
     fun register(
         throwableClass: Class<out Throwable>,
@@ -50,10 +73,7 @@ object RecoverableExceptionRegistrar {
     }
 
     /**
-     * Unregisters the recoverable type classification for an exception class.
-     *
-     * This method removes any custom classification for the given exception class,
-     * causing it to fall back to the default classification logic.
+     * Removes the registration for the given exception class.
      *
      * @param throwableClass the exception class to unregister
      */
@@ -65,10 +85,8 @@ object RecoverableExceptionRegistrar {
     }
 
     /**
-     * Retrieves the registered recoverable type for an exception class.
-     *
-     * @param throwableClass the exception class to look up
-     * @return the registered RecoverableType, or null if not explicitly registered
+     * Returns the explicitly registered [RecoverableType] for the given exception class,
+     * or `null` if no registration exists.
      */
     fun getRecoverableType(throwableClass: Class<out Throwable>): RecoverableType? = registrar[throwableClass]
 }

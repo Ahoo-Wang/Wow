@@ -81,7 +81,7 @@ interface GracefullyStoppable : AutoCloseable {
      * @see stopGracefully for the asynchronous version
      */
     fun stop() {
-        stopGracefully().block()
+        stop(Duration.ofSeconds(30))
     }
 
     /**

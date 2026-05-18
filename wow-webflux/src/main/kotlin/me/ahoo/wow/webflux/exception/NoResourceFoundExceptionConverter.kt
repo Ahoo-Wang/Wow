@@ -14,19 +14,19 @@
 package me.ahoo.wow.webflux.exception
 
 import me.ahoo.wow.api.exception.ErrorInfo
-import me.ahoo.wow.exception.AbstractErrorConverterFactory
+import me.ahoo.wow.exception.AbstractErrorInfoConverterFactory
 import me.ahoo.wow.exception.ErrorCodes
-import me.ahoo.wow.exception.ErrorConverter
+import me.ahoo.wow.exception.ErrorInfoConverter
 import org.springframework.web.reactive.resource.NoResourceFoundException
 
-object NoResourceFoundExceptionConverter : ErrorConverter<NoResourceFoundException> {
+object NoResourceFoundExceptionConverter : ErrorInfoConverter<NoResourceFoundException> {
     override fun convert(error: NoResourceFoundException): ErrorInfo {
         return ErrorInfo.of(ErrorCodes.NOT_FOUND, errorMsg = error.message)
     }
 }
 
-class NoResourceFoundExceptionConverterFactory : AbstractErrorConverterFactory<NoResourceFoundException>() {
-    override fun create(): ErrorConverter<NoResourceFoundException> {
+class NoResourceFoundExceptionConverterFactory : AbstractErrorInfoConverterFactory<NoResourceFoundException>() {
+    override fun create(): ErrorInfoConverter<NoResourceFoundException> {
         return NoResourceFoundExceptionConverter
     }
 }

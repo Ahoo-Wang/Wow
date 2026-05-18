@@ -14,8 +14,8 @@ package me.ahoo.wow.spring.boot.starter
 
 import me.ahoo.wow.annotation.sortedByOrder
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.exception.ErrorConverterFactory
-import me.ahoo.wow.exception.ErrorConverterRegistrar
+import me.ahoo.wow.exception.ErrorInfoConverterFactory
+import me.ahoo.wow.exception.ErrorInfoConverterRegistrar
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.naming.CurrentBoundedContext
 import me.ahoo.wow.naming.MaterializedNamedBoundedContext
@@ -61,12 +61,12 @@ class WowAutoConfiguration(private val wowProperties: WowProperties) {
     }
 
     @Bean
-    fun errorConverterRegistrar(
-        errorConverterFactoryProvider: ObjectProvider<ErrorConverterFactory<*>>
-    ): ErrorConverterRegistrar {
-        errorConverterFactoryProvider.sortedByOrder().forEach {
-            ErrorConverterRegistrar.register(it)
+    fun errorInfoConverterRegistrar(
+        errorInfoConverterFactoryProvider: ObjectProvider<ErrorInfoConverterFactory<*>>
+    ): ErrorInfoConverterRegistrar {
+        errorInfoConverterFactoryProvider.sortedByOrder().forEach {
+            ErrorInfoConverterRegistrar.register(it)
         }
-        return ErrorConverterRegistrar
+        return ErrorInfoConverterRegistrar
     }
 }
