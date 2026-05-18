@@ -41,7 +41,7 @@ class MongoEventStore(private val database: MongoDatabase) : AbstractEventStore(
             .doOnNext {
                 check(it.wasAcknowledged())
             }.onErrorMap(MongoWriteException::class.java) {
-                it.error.toWowError(eventStream, it)
+                it.toWowError(eventStream)
             }.then()
     }
 
