@@ -14,28 +14,54 @@
 package me.ahoo.wow.mongo
 
 import com.mongodb.ErrorCategory
+import com.mongodb.MongoException
 import com.mongodb.MongoServerException
+import com.mongodb.MongoWriteException
 import com.mongodb.WriteError
 import me.ahoo.wow.command.DuplicateRequestIdException
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.EventVersionConflictException
+import me.ahoo.wow.exception.RecoverableException
+
+private val RECOVERABLE_WRITE_ERROR_CODES = setOf(
+    6, // HostUnreachable
+    7, // HostNotFound
+    89, // NetworkTimeout
+    91, // ShutdownInProgress
+    133, // StaleShardVersion / FailedToSatisfyReadPreference
+    189, // PrimarySteppedDown
+    262, // ExceededTimeLimit
+    264, // StaleEpoch
+    10107, // NotWritablePrimary
+)
+
+class RecoverableMongoWriteException(writeException: MongoWriteException) :
+    MongoException(writeException.error.code, writeException.error.message, writeException),
+    RecoverableException {
+    val error: WriteError = writeException.error
+}
+
+fun WriteError.isRecoverableWriteError(): Boolean = code in RECOVERABLE_WRITE_ERROR_CODES
 
 fun WriteError.toWowError(eventStream: DomainEventStream, cause: MongoServerException): Throwable {
-    if (ErrorCategory.fromErrorCode(code) != ErrorCategory.DUPLICATE_KEY) {
+    if (ErrorCategory.fromErrorCode(code) == ErrorCategory.DUPLICATE_KEY) {
+        if (message.contains(AggregateSchemaInitializer.AGGREGATE_ID_AND_VERSION_UNIQUE_INDEX_NAME)) {
+            return EventVersionConflictException(
+                eventStream = eventStream,
+                cause = cause,
+            )
+        }
+        if (message.contains(AggregateSchemaInitializer.REQUEST_ID_UNIQUE_INDEX_NAME)) {
+            return DuplicateRequestIdException(
+                aggregateId = eventStream.aggregateId,
+                requestId = eventStream.requestId,
+                cause = cause,
+            )
+        }
         return cause
     }
-    if (message.contains(AggregateSchemaInitializer.AGGREGATE_ID_AND_VERSION_UNIQUE_INDEX_NAME)) {
-        return EventVersionConflictException(
-            eventStream = eventStream,
-            cause = cause,
-        )
-    }
-    if (message.contains(AggregateSchemaInitializer.REQUEST_ID_UNIQUE_INDEX_NAME)) {
-        return DuplicateRequestIdException(
-            aggregateId = eventStream.aggregateId,
-            requestId = eventStream.requestId,
-            cause = cause,
-        )
+    if (isRecoverableWriteError()) {
+        return RecoverableMongoWriteException(cause as MongoWriteException)
     }
     return cause
 }
