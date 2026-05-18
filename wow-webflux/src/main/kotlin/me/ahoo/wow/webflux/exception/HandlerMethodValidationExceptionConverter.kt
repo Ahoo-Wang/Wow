@@ -15,12 +15,12 @@ package me.ahoo.wow.webflux.exception
 
 import me.ahoo.wow.api.exception.BindingError
 import me.ahoo.wow.api.exception.ErrorInfo
-import me.ahoo.wow.exception.AbstractErrorConverterFactory
+import me.ahoo.wow.exception.AbstractErrorInfoConverterFactory
 import me.ahoo.wow.exception.ErrorCodes
-import me.ahoo.wow.exception.ErrorConverter
+import me.ahoo.wow.exception.ErrorInfoConverter
 import org.springframework.web.method.annotation.HandlerMethodValidationException
 
-object HandlerMethodValidationExceptionConverter : ErrorConverter<HandlerMethodValidationException> {
+object HandlerMethodValidationExceptionConverter : ErrorInfoConverter<HandlerMethodValidationException> {
     override fun convert(error: HandlerMethodValidationException): ErrorInfo {
         val bindingErrors = error.parameterValidationResults.flatMap { parameterValidationResult ->
             val name = parameterValidationResult.methodParameter.parameterName.orEmpty()
@@ -36,8 +36,8 @@ object HandlerMethodValidationExceptionConverter : ErrorConverter<HandlerMethodV
     }
 }
 
-class HandlerMethodValidationExceptionConverterFactory : AbstractErrorConverterFactory<HandlerMethodValidationException>() {
-    override fun create(): ErrorConverter<HandlerMethodValidationException> {
+class HandlerMethodValidationExceptionConverterFactory : AbstractErrorInfoConverterFactory<HandlerMethodValidationException>() {
+    override fun create(): ErrorInfoConverter<HandlerMethodValidationException> {
         return HandlerMethodValidationExceptionConverter
     }
 }

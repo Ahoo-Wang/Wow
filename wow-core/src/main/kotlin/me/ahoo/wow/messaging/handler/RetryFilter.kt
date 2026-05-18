@@ -47,5 +47,9 @@ fun retryStrategy(
         logger.warn(it.failure()) {
             "[BeforeRetry] totalRetries[${it.totalRetries()}]."
         }
+    }.doAfterRetry {
+        logger.info {
+            "[AfterRetry] totalRetries[${it.totalRetries()}]."
+        }
     }
 }

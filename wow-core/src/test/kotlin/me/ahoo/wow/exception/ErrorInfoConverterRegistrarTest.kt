@@ -13,17 +13,17 @@ import org.junit.jupiter.api.Test
 class ErrorInfoConverterRegistrarTest {
 
     @Test
-    fun register() {
+    fun `should register`() {
         CustomException().toErrorInfo().errorCode.assert().isEqualTo("CUSTOM_EXCEPTION")
-        ErrorConverterRegistrar.unregister(CustomException::class.java).assert()
-            .isEqualTo(CustomExceptionErrorConverter)
+        ErrorInfoConverterRegistrar.unregister(CustomException::class.java).assert()
+            .isEqualTo(CustomExceptionErrorInfoConverter)
         CustomException().toErrorInfo().errorCode.assert().isEqualTo(ErrorCodes.BAD_REQUEST)
-        ErrorConverterRegistrar.register(CustomExceptionErrorConverterFactory()).assert().isNull()
+        ErrorInfoConverterRegistrar.register(CustomExceptionErrorInfoConverterFactory()).assert().isNull()
         CustomException().toErrorInfo().errorCode.assert().isEqualTo("CUSTOM_EXCEPTION")
     }
 
     @Test
-    fun commandResultExceptionToErrorInfo() {
+    fun `should command result exception to error info`() {
         val commandResult = CommandResult(
             id = generateGlobalId(),
             waitCommandId = generateGlobalId(),
@@ -48,15 +48,15 @@ class ErrorInfoConverterRegistrarTest {
 
 class CustomException : RuntimeException()
 
-object CustomExceptionErrorConverter : ErrorConverter<CustomException> {
+object CustomExceptionErrorInfoConverter : ErrorInfoConverter<CustomException> {
     override fun convert(error: CustomException): ErrorInfo {
         return ErrorInfo.of("CUSTOM_EXCEPTION")
     }
 }
 
-class CustomExceptionErrorConverterFactory : AbstractErrorConverterFactory<CustomException>() {
+class CustomExceptionErrorInfoConverterFactory : AbstractErrorInfoConverterFactory<CustomException>() {
 
-    override fun create(): ErrorConverter<CustomException> {
-        return CustomExceptionErrorConverter
+    override fun create(): ErrorInfoConverter<CustomException> {
+        return CustomExceptionErrorInfoConverter
     }
 }
