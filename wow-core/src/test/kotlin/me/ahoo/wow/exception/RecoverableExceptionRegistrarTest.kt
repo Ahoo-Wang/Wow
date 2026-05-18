@@ -109,5 +109,36 @@ class RecoverableExceptionRegistrarTest {
         TestSpiException().recoverable.assert().isEqualTo(RecoverableType.RECOVERABLE)
     }
 
+    @Test
+    fun `getRecoverableType resolves superclass registration for subclass`() {
+        register(RuntimeException::class.java, RecoverableType.UNRECOVERABLE)
+        getRecoverableType(IllegalStateException::class.java).assert()
+            .isEqualTo(RecoverableType.UNRECOVERABLE)
+        unregister(RuntimeException::class.java)
+    }
+
+    @Test
+    fun `getRecoverableType prefers exact match over superclass`() {
+        register(RuntimeException::class.java, RecoverableType.UNRECOVERABLE)
+        register(IllegalStateException::class.java, RecoverableType.RECOVERABLE)
+        getRecoverableType(IllegalStateException::class.java).assert()
+            .isEqualTo(RecoverableType.RECOVERABLE)
+        unregister(RuntimeException::class.java)
+        unregister(IllegalStateException::class.java)
+    }
+
+    @Test
+    fun `getRecoverableType returns null when no superclass registered`() {
+        getRecoverableType(IllegalStateException::class.java).assert().isNull()
+    }
+
+    @Test
+    fun `Class recoverable extension resolves superclass registration`() {
+        register(RuntimeException::class.java, RecoverableType.UNRECOVERABLE)
+        IllegalStateException::class.java.recoverable.assert()
+            .isEqualTo(RecoverableType.UNRECOVERABLE)
+        unregister(RuntimeException::class.java)
+    }
+
     class MockRecoverableException : RecoverableException, RuntimeException()
 }

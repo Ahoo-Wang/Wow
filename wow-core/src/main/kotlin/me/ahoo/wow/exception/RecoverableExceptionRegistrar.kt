@@ -85,8 +85,21 @@ object RecoverableExceptionRegistrar {
     }
 
     /**
-     * Returns the explicitly registered [RecoverableType] for the given exception class,
+     * Returns the registered [RecoverableType] for the given exception class,
      * or `null` if no registration exists.
+     *
+     * Lookup walks the class hierarchy: if the exact class is not registered,
+     * each superclass is checked in order. This ensures that subclasses of a
+     * registered exception (e.g., MongoDB socket exception subclasses) are
+     * correctly classified without requiring individual registration.
      */
-    fun getRecoverableType(throwableClass: Class<out Throwable>): RecoverableType? = registrar[throwableClass]
+    fun getRecoverableType(throwableClass: Class<out Throwable>): RecoverableType? {
+        registrar[throwableClass]?.let { return it }
+        var superclass = throwableClass.superclass
+        while (superclass != null && Throwable::class.java.isAssignableFrom(superclass)) {
+            registrar[superclass]?.let { return it }
+            superclass = superclass.superclass
+        }
+        return null
+    }
 }
