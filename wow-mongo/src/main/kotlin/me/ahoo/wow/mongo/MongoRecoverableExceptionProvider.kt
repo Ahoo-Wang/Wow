@@ -26,6 +26,16 @@ import me.ahoo.wow.api.exception.RecoverableType
 import me.ahoo.wow.exception.RecoverableExceptionProvider
 import me.ahoo.wow.exception.RecoverableExceptionRegistrar
 
+/**
+ * Registers MongoDB transient/recoverable error codes as [RecoverableType.RECOVERABLE],
+ * enabling the framework's retry mechanism to automatically handle these errors.
+ *
+ * Covered transient error categories:
+ * - **Network**: [MongoSocketException], [MongoServerUnavailableException]
+ * - **Timeout**: [MongoTimeoutException], [MongoOperationTimeoutException], [MongoExecutionTimeoutException]
+ * - **Replica set state change**: [MongoNodeIsRecoveringException], [MongoNotPrimaryException], [MongoStalePrimaryException]
+ * - **Connection pool**: [MongoConnectionPoolClearedException]
+ */
 class MongoRecoverableExceptionProvider : RecoverableExceptionProvider {
     override fun register(registrar: RecoverableExceptionRegistrar) {
         registrar.register(MongoSocketException::class.java, RecoverableType.RECOVERABLE)
