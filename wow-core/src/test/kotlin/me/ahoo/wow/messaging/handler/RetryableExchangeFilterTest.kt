@@ -32,7 +32,7 @@ import java.util.concurrent.atomic.AtomicInteger
 internal class RetryableExchangeFilterTest {
 
     @Test
-    fun filter() {
+    fun `should filter`() {
         val retryableFilter = RetryableFilter<ServerCommandExchange<Any>>()
         val exchange = mockk<ServerCommandExchange<Any>>()
 
@@ -47,7 +47,7 @@ internal class RetryableExchangeFilterTest {
     }
 
     @Test
-    fun filterGivenTimeout() {
+    fun `should filter given timeout`() {
         val retryableFilter = RetryableFilter<ServerCommandExchange<Any>>(
             Retry.backoff(3, Duration.ofMillis(100))
                 .filter { it.recoverable == RecoverableType.RECOVERABLE },
@@ -68,7 +68,7 @@ internal class RetryableExchangeFilterTest {
     }
 
     @Test
-    fun filterGivenTimeoutNextSuccess() {
+    fun `should filter given timeout next success`() {
         val retryableFilter = RetryableFilter<ServerCommandExchange<Any>>(
             Retry.backoff(3, Duration.ofMillis(100))
                 .filter { it.recoverable == RecoverableType.RECOVERABLE },
