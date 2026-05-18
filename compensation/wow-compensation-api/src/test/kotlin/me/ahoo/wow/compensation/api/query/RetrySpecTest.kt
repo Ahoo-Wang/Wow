@@ -24,14 +24,14 @@ import org.junit.jupiter.api.Test
 class RetrySpecTest {
 
     @Test
-    fun materializeSelf() {
+    fun `should materialize retry spec when already concrete`() {
         val retrySpec = RetrySpec(1, 2, 3)
         val materialized = retrySpec.materialize()
         retrySpec.assert().isEqualTo(materialized)
     }
 
     @Test
-    fun materialize() {
+    fun `should materialize retry spec from interface`() {
         val retrySpec: IRetrySpec = object : IRetrySpec {
             override val maxRetries: Int
                 get() = 1
@@ -48,7 +48,7 @@ class RetrySpecTest {
     }
 
     @Test
-    fun toSpec() {
+    fun `should convert retry annotation to spec`() {
         val retry = Retry()
         val retrySpec = retry.toSpec()
         retrySpec.maxRetries.assert().isEqualTo(retry.maxRetries)
