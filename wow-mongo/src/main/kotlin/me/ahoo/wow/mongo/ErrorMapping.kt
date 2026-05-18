@@ -61,7 +61,12 @@ fun WriteError.toWowError(eventStream: DomainEventStream, cause: MongoServerExce
         return cause
     }
     if (isRecoverableWriteError()) {
-        return RecoverableMongoWriteException(cause as MongoWriteException)
+        val writeException = cause as? MongoWriteException
+        return if (writeException != null) {
+            RecoverableMongoWriteException(writeException)
+        } else {
+            cause
+        }
     }
     return cause
 }

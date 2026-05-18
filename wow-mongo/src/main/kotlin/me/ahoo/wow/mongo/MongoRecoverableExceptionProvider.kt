@@ -32,7 +32,7 @@ import me.ahoo.wow.exception.RecoverableExceptionRegistrar
  * Covered transient error categories:
  * - **Network**: [MongoSocketException], [MongoServerUnavailableException]
  * - **Timeout**: [MongoTimeoutException], [MongoOperationTimeoutException], [MongoExecutionTimeoutException]
- * - **Replica set state change**: [MongoNodeIsRecoveringException], [MongoNotPrimaryException], [MongoStalePrimaryException]
+ * - **Replica set state change**: [MongoNodeIsRecoveringException], [MongoNotPrimaryException]
  * - **Connection pool**: [MongoConnectionPoolClearedException]
  */
 class MongoRecoverableExceptionProvider : RecoverableExceptionProvider {
