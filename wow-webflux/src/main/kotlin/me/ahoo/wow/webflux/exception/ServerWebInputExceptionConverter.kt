@@ -15,12 +15,12 @@ package me.ahoo.wow.webflux.exception
 
 import me.ahoo.wow.api.exception.BindingError
 import me.ahoo.wow.api.exception.ErrorInfo
-import me.ahoo.wow.exception.AbstractErrorConverterFactory
+import me.ahoo.wow.exception.AbstractErrorInfoConverterFactory
 import me.ahoo.wow.exception.ErrorCodes
-import me.ahoo.wow.exception.ErrorConverter
+import me.ahoo.wow.exception.ErrorInfoConverter
 import org.springframework.web.server.ServerWebInputException
 
-object ServerWebInputExceptionConverter : ErrorConverter<ServerWebInputException> {
+object ServerWebInputExceptionConverter : ErrorInfoConverter<ServerWebInputException> {
     override fun convert(error: ServerWebInputException): ErrorInfo {
         return ErrorInfo.of(
             errorCode = ErrorCodes.ILLEGAL_ARGUMENT,
@@ -32,8 +32,8 @@ object ServerWebInputExceptionConverter : ErrorConverter<ServerWebInputException
     }
 }
 
-class ServerWebInputExceptionConverterFactory : AbstractErrorConverterFactory<ServerWebInputException>() {
-    override fun create(): ErrorConverter<ServerWebInputException> {
+class ServerWebInputExceptionConverterFactory : AbstractErrorInfoConverterFactory<ServerWebInputException>() {
+    override fun create(): ErrorInfoConverter<ServerWebInputException> {
         return ServerWebInputExceptionConverter
     }
 }
