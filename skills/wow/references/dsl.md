@@ -61,7 +61,7 @@ pagedQuery {
 }
 ```
 
-### countQuery
+### Count With Condition
 
 Count documents matching a condition:
 
@@ -145,7 +145,7 @@ condition {
 | `recentDays(n)` | Within n recent days | `"updatedAt".recentDays(7)` |
 | `earlierDays(n)` | More than n days ago | `"createdAt".earlierDays(30)` |
 
-All date operators accept an optional `datePattern` parameter.
+Most date range helpers accept an optional `datePattern` parameter. `beforeToday(time)` takes only the time boundary argument in the current source.
 
 ### Logical Combinations
 

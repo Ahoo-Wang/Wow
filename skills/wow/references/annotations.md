@@ -1,5 +1,51 @@
 # Wow Framework Annotations Reference
 
+## API Metadata Annotations
+
+### @Summary
+
+`me.ahoo.wow.api.annotation.Summary` provides concise title metadata for classes and properties. In the current source, `wow-schema` resolves it into schema title metadata.
+
+Use it on every command and domain event that is part of the API/domain contract:
+
+```kotlin
+import me.ahoo.wow.api.annotation.Summary
+
+@Summary("Create order")
+data class CreateOrder(...)
+
+@Summary("Order created")
+data class OrderCreated(...)
+```
+
+### @Description
+
+`me.ahoo.wow.api.annotation.Description` provides longer description metadata for classes and properties. In the current source, `wow-schema` resolves it into schema description metadata.
+
+Use it together with `@Summary` on commands and domain events:
+
+```kotlin
+import me.ahoo.wow.api.annotation.Description
+import me.ahoo.wow.api.annotation.Summary
+
+@Summary("Create order")
+@Description("Creates an order and initializes the order aggregate.")
+data class CreateOrder(...)
+```
+
+When the description is long, use Kotlin raw string syntax. Do not use `.trimIndent()` in annotation arguments because annotation values must be compile-time constants.
+
+```kotlin
+@Description(
+    """Creates an order from selected items.
+The command initializes the order aggregate and records shipping information.
+When fromCart is true, a saga may remove items from the cart after the order is created."""
+)
+data class CreateOrder(...)
+```
+
+Both annotations target classes and fields/properties. Prefer putting stable reusable field metadata on capability interfaces so repeated fields share one definition.
+
 ## Core Annotations
 
 ### @AggregateRoot
@@ -191,7 +237,7 @@ fun onEvent(event: OrderPaid) {
 
 ### @Retry
 
-Configures retry and compensation behavior for event handlers.
+Configures retry behavior for event handlers, including Saga handlers.
 
 ```kotlin
 @Retry(maxRetries = 5, minBackoff = 60, executionTimeout = 10)
@@ -201,12 +247,18 @@ fun onEvent(event: DomainEvent<OrderCreated>): CommandBuilder? { ... }
 **Parameters:**
 | Parameter | Type | Default | Description |
 |---|---|---|---|
-| `enabled` | Boolean | `true` | Set `false` to disable compensation |
+| `enabled` | Boolean | `true` | Set `false` to disable this retry policy |
 | `maxRetries` | Int | `10` | Maximum retry attempts |
 | `minBackoff` | Int | `180` | Initial backoff in seconds (grows exponentially: `minBackoff * 2^retries`) |
 | `executionTimeout` | Int | `120` | Max time per execution in seconds |
 | `recoverable` | Array | `[]` | Exception types that trigger retries |
 | `unrecoverable` | Array | `[]` | Exception types that fail immediately |
+
+Saga guidance:
+
+- Put `@Retry` on the `onEvent` handler whose failure policy differs from the default.
+- Use `recoverable` for transient infrastructure or downstream failures.
+- Use `unrecoverable` for domain errors that should fail fast and not retry.
 
 ## Command Annotations
 
@@ -395,14 +447,6 @@ The framework automatically handles these events without explicit `@OnSourcing` 
 | `SpaceTransferred` | Updates `spaceId` |
 | `ResourceTagsApplied` | Updates `tags` (ABAC) |
 
-## Configuration Annotations
+## Configuration Conditions
 
-### @Enabled
-
-Enable/disable components:
-
-```kotlin
-@Configuration
-@Enabled(properties = ["wow.command.enabled=true"])
-class CommandConfiguration { ... }
-```
+The current source uses Spring Boot `@ConfigurationProperties` classes plus conditional annotations such as `@ConditionalOnWowEnabled` and `@ConditionalOnCommandLocalFirstEnabled`. Do not use a generic `@Enabled` annotation unless it exists in the target checkout.
