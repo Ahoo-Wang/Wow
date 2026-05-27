@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "plugins": [
+    {
+      "name": "ahoo-wow-skills",
+      "description": "Agent skills for building, testing, reviewing, and debugging Wow reactive DDD, Event Sourcing, and CQRS microservices.",
+      "skills": {
+        "include": [
+          "*"
+        ],
+        "exclude": [
+          "*-workspace"
+        ]
+      },
+      "keywords": [
+        "wow",
+        "ddd",
+        "cqrs",
+        "event-sourcing",
+        "saga",
+        "aggregate",
+        "kotlin",
+        "spring-boot",
+        "reactor",
+        "microservices"
+      ],
+      "category": "development",
+      "interface": {
+        "displayName": "Ahoo Wow Skills",
+        "capabilities": [
+          "Skills"
+        ],
+        "defaultPrompt": "Help me design, test, review, and debug Wow DDD, Event Sourcing, and CQRS services."
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      }
+    }
+  ]
+}
