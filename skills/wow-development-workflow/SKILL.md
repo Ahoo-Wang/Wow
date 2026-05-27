@@ -106,7 +106,7 @@ Run focused source searches such as:
 ```bash
 rg -n "@AggregateRoot|@OnCommand|@OnSourcing|@StatelessSaga|@OnEvent|@Retry" . -g "*.kt"
 rg -n "AggregateSpec<|SagaSpec<|aggregateVerifier|sagaVerifier|expectCommand|expectNoCommand" . -g "*.kt"
-rg -n "include\\(" settings.gradle.kts **/settings.gradle.kts
+rg -n "include\\(" . -g "settings.gradle.kts"
 ```
 
 Load the smallest references needed:

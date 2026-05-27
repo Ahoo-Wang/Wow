@@ -65,6 +65,10 @@ PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
         "Resolve placeholders before shipping skill content.",
     ),
     (
+        re.compile(r"\*\*/settings\.gradle\.kts\b"),
+        "Use rg-native `-g \"settings.gradle.kts\"` filtering instead of shell globstar.",
+    ),
+    (
         re.compile(r"\bcom\.xxx\b"),
         "Use realistic package placeholders or fully qualified names from the target module.",
     ),
