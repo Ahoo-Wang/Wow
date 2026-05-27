@@ -16,6 +16,9 @@ class Finding:
     message: str
 
 
+ASSERT_THAT_PATTERN = re.compile(r"\bassertThat\s*\(")
+NEGATIVE_ASSERT_THAT_GUIDANCE = re.compile(r"\b(?:not|NOT|never|avoid)\b|不要|不使用")
+
 PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
     (
         re.compile(r"\bUse\s+(?:Grep|Glob)\b|\b(?:Grep|Glob)\s+to\b"),
@@ -54,7 +57,7 @@ PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
         "Do not include deployment-only compensation properties in business-service skills; use Saga/Event handler `@Retry` guidance instead.",
     ),
     (
-        re.compile(r"\bassertThat\s*\("),
+        ASSERT_THAT_PATTERN,
         "Use FluentAssert `.assert()` instead of AssertJ `assertThat()`.",
     ),
     (
@@ -93,7 +96,11 @@ def lint(root: Path) -> list[Finding]:
         text = path.read_text(encoding="utf-8")
         for line_no, line in enumerate(text.splitlines(), start=1):
             for pattern, message in PATTERNS:
-                if "assertThat" in line and re.search(r"\b(?:not|NOT|never|avoid)\b|不要|不使用", line):
+                if (
+                    pattern is ASSERT_THAT_PATTERN
+                    and ASSERT_THAT_PATTERN.search(line)
+                    and NEGATIVE_ASSERT_THAT_GUIDANCE.search(line)
+                ):
                     continue
                 if pattern.search(line):
                     findings.append(Finding(path.relative_to(root), line_no, message))

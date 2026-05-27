@@ -83,7 +83,7 @@ graph TD
 
 | Skill | 关系 |
 |-------|------|
-| `fluent-assert` | Kotlin 测试断言风格。Wow testing references 只保留 `import me.ahoo.test.asserts.assert` 与 `.assert()` 的最小契约；完整断言 API 由 `fluent-assert` skill 维护。 |
+| `fluent-assert` | 外部 skill，不在本仓库重复维护；通过 [Ahoo-Wang/skills](https://github.com/Ahoo-Wang/skills) 聚合分发，源头在 [Ahoo-Wang/FluentAssert](https://github.com/Ahoo-Wang/FluentAssert/tree/main/skills/fluent-assert)。Wow testing references 只保留 `me.ahoo.test:fluent-assert-core` 的最小契约：`import me.ahoo.test.asserts.assert` 与 `.assert()`。 |
 
 ## 使用路径
 

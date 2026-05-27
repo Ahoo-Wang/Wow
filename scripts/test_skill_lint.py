@@ -44,6 +44,18 @@ class SkillLintTest(unittest.TestCase):
 
             self.assertEqual([], findings)
 
+    def test_negative_assert_that_guidance_does_not_skip_other_patterns(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            skill = root / "skills" / "wow" / "SKILL.md"
+            skill.parent.mkdir(parents=True)
+            skill.write_text("Use `.assert()`, not `assertThat()`. TODO remove placeholder.", encoding="utf-8")
+
+            findings = skill_lint.lint(root)
+
+            self.assertEqual(1, len(findings))
+            self.assertEqual("Resolve placeholders before shipping skill content.", findings[0].message)
+
     def test_reports_invalid_json(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

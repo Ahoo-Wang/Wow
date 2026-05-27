@@ -359,7 +359,7 @@ aggregateVerifier<Cart, CartState>(aggregateId = "cart-123")
 
 ## FluentAssert Assertions
 
-Use `me.ahoo.test.asserts.assert` and `.assert()` for Wow tests. This section is the minimal Wow testing contract; load the `fluent-assert` skill for the complete assertion API.
+Use `me.ahoo.test.asserts.assert` and `.assert()` from `me.ahoo.test:fluent-assert-core` for Wow tests. This section is the minimal Wow testing contract; the complete assertion API belongs to the external `fluent-assert` skill, distributed through [Ahoo-Wang/skills](https://github.com/Ahoo-Wang/skills) and maintained in [Ahoo-Wang/FluentAssert](https://github.com/Ahoo-Wang/FluentAssert/tree/main/skills/fluent-assert). If that external skill is not installed, follow the library contract shown here.
 
 ```kotlin
 import me.ahoo.test.asserts.assert
