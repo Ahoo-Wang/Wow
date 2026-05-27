@@ -83,9 +83,11 @@ POST /account/sourceId/prepare
 Command-Wait-Stage: SAGA_HANDLED
 Command-Wait-Context: transfer
 Command-Wait-Processor: TransferSaga
+Command-Wait-Function: onEvent
 Command-Wait-Tail-Stage: SNAPSHOT
 Command-Wait-Tail-Context: transfer
 Command-Wait-Tail-Processor: TransferSaga
+Command-Wait-Tail-Function: onEvent
 ```
 
 Programmatic usage:
