@@ -74,13 +74,13 @@ class SkillLintTest(unittest.TestCase):
             skill = root / "skills" / "wow" / "references" / "prepare-key.md"
             skill.parent.mkdir(parents=True)
             skill.write_text(
-                "Use countQuery, Command-Wait-Timeout, PreparedValue(value, duration), @Enabled(properties = []), @get:Summary, and wow.compensation.host.",
+                "Use countQuery, Command-Wait-Timeout, PreparedValue(value, duration), @Enabled(properties = []), @get:Summary, wow.compensation.host, and **/settings.gradle.kts.",
                 encoding="utf-8",
             )
 
             findings = skill_lint.lint(root)
 
-            self.assertEqual(6, len(findings))
+            self.assertEqual(7, len(findings))
             messages = [finding.message for finding in findings]
             self.assertIn(
                 "Use `Condition.count(queryService)` wording; Wow does not expose a countQuery DSL function.",
@@ -104,6 +104,10 @@ class SkillLintTest(unittest.TestCase):
             )
             self.assertIn(
                 "Do not include deployment-only compensation properties in business-service skills; use Saga/Event handler `@Retry` guidance instead.",
+                messages,
+            )
+            self.assertIn(
+                'Use rg-native `-g "settings.gradle.kts"` filtering instead of shell globstar.',
                 messages,
             )
 
