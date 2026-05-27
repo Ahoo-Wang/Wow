@@ -16,14 +16,23 @@ on:
   schedule:
     - cron: '0 10 * * *'
   push:
-    paths-ignore:
-      - 'examples/**'
-      - 'documentation/**'
-      - 'schema/**'
     branches:
       - main
     tags:
       - 'v*.*.*'
+    paths:
+      - '.github/workflows/compensation-deploy.yml'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+      - 'gradle.properties'
+      - 'gradle/**'
+      - 'config/**'
+      - 'wow-*/**'
+      - 'compensation/dashboard/**'
+      - 'compensation/wow-compensation-api/**'
+      - 'compensation/wow-compensation-core/**'
+      - 'compensation/wow-compensation-domain/**'
+      - 'compensation/wow-compensation-server/**'
   workflow_dispatch:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

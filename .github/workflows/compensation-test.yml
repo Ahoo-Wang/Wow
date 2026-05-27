@@ -14,11 +14,22 @@
 name: Compensation Test
 on:
   pull_request:
-    paths-ignore:
-      - 'document/**'
-      - 'documentation/**'
-      - 'schema/**'
-      - 'wow-example/**'
+    paths:
+      - '.github/workflows/compensation-test.yml'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+      - 'gradle.properties'
+      - 'gradle/**'
+      - 'config/**'
+      - 'wow-api/**'
+      - 'wow-core/**'
+      - 'wow-spring/**'
+      - 'wow-compiler/**'
+      - 'wow-dependencies/**'
+      - 'test/wow-test/**'
+      - 'compensation/wow-compensation-api/**'
+      - 'compensation/wow-compensation-core/**'
+      - 'compensation/wow-compensation-domain/**'
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true

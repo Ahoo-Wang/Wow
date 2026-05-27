@@ -14,11 +14,15 @@
 name: Integration Test
 on:
   pull_request:
-    paths-ignore:
-      - 'document/**'
-      - 'documentation/**'
-      - 'schema/**'
-      - 'wow-example/**'
+    paths:
+      - '.github/workflows/integration-test.yml'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+      - 'gradle.properties'
+      - 'gradle/**'
+      - 'config/**'
+      - 'wow-*/**'
+      - 'test/**'
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true

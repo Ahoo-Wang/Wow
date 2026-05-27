@@ -14,10 +14,23 @@
 name: Java compatibility Test
 on:
   pull_request:
-    paths-ignore:
-      - 'document/**'
-      - 'documentation/**'
-      - 'schema/**'
+    paths:
+      - '.github/workflows/example-java-test.yml'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+      - 'gradle.properties'
+      - 'gradle/**'
+      - 'config/**'
+      - 'wow-api/**'
+      - 'wow-core/**'
+      - 'wow-spring/**'
+      - 'wow-compiler/**'
+      - 'wow-webflux/**'
+      - 'wow-opentelemetry/**'
+      - 'wow-spring-boot-starter/**'
+      - 'wow-dependencies/**'
+      - 'test/wow-test/**'
+      - 'example/transfer/**'
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true

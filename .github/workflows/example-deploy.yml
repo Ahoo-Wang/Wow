@@ -16,14 +16,22 @@ on:
   schedule:
     - cron: '0 10 * * *'
   push:
-    paths-ignore:
-      - 'document/**'
-      - 'documentation/**'
-      - 'schema/**'
     branches:
       - main
     tags:
       - 'v*.*.*'
+    paths:
+      - '.github/workflows/example-deploy.yml'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+      - 'gradle.properties'
+      - 'gradle/**'
+      - 'config/**'
+      - 'wow-*/**'
+      - 'test/wow-mock/**'
+      - 'example/example-api/**'
+      - 'example/example-domain/**'
+      - 'example/example-server/**'
   workflow_dispatch:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
