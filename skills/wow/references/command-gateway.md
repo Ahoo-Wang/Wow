@@ -74,14 +74,17 @@ WaitingForStage.sagaHandled(...)
 
 ### WaitingForChain
 
-Wait for the **entire saga chain** to complete. Used for end-to-end request-reply semantics in distributed operations.
+Wait for a saga handler and for the downstream commands reported by that saga signal to reach a configured tail stage. Use it for request-reply semantics in distributed operations when a saga emits follow-up commands.
 
-For example, a client initiating a bank transfer can wait until both the saga has processed the event and the resulting downstream command has been fully processed.
+For example, a client initiating a bank transfer can wait until the transfer saga has processed the event and the resulting downstream command has reached the configured tail stage.
 
 ```http
 POST /account/sourceId/prepare
 Command-Wait-Stage: SAGA_HANDLED
+Command-Wait-Context: transfer
+Command-Wait-Processor: TransferSaga
 Command-Wait-Tail-Stage: SNAPSHOT
+Command-Wait-Tail-Context: transfer
 Command-Wait-Tail-Processor: TransferSaga
 ```
 
@@ -89,13 +92,23 @@ Programmatic usage:
 
 ```kotlin
 val waitStrategy = SimpleWaitingForChain.chain(
+    waitCommandId = command.commandId,
+    function = NamedFunctionInfoData(
+        contextName = "transfer",
+        processorName = "TransferSaga",
+        name = "onEvent",
+    ),
     tailStage = CommandStage.SNAPSHOT,
-    // optional: tailProcessor, tailContextName
+    tailFunction = NamedFunctionInfoData(
+        contextName = "transfer",
+        processorName = "TransferSaga",
+        name = "onEvent",
+    ),
 )
-commandGateway.sendAndWait(message, waitStrategy)
+commandGateway.sendAndWait(command, waitStrategy)
 ```
 
-This guarantees the entire distributed workflow has completed when the response returns.
+The completion guarantee is limited to the configured main saga function and the tail commands present in the saga wait signal. It does not prove that unrelated asynchronous work has finished.
 
 ## CommandGateway vs CommandBus
 
@@ -122,10 +135,13 @@ This guarantees the entire distributed workflow has completed when the response 
 | `aggregateVersion` | `Int?` | Version after processing |
 | `requestId` | `String` | Request identifier for idempotency |
 | `commandId` | `String` | Command identifier |
+| `function` | `FunctionInfoData` | Function that produced the wait signal |
 | `errorCode` | `String` | Error code ("Ok" on success) |
 | `errorMsg` | `String` | Error message |
 | `bindingErrors` | `List<BindingError>` | Validation errors |
-| `succeeded` | `Boolean` | Whether processing succeeded |
+| `result` | `Map<String, Any>` | Additional result data |
+| `signalTime` | `Long` | Signal timestamp in milliseconds |
+| `succeeded` | `Boolean` | Derived from `ErrorInfo`; true when the result is successful |
 
 ## Error Handling
 
@@ -203,7 +219,7 @@ wow:
         enabled: true  # Default
 ```
 
-When enabled, if the command gateway determines the command can be processed locally, it sends to both the local and distributed command bus, eliminating network IO for local operations.
+When enabled and there are local subscribers, local-first sends the message to the local bus first and then sends a copy to the distributed bus. If local-first is disabled or no local subscriber exists, only the distributed bus is used.
 
 ## Command Rewriter
 
@@ -242,10 +258,26 @@ Register via Spring's `@Service` annotation.
 | Header | Description |
 |--------|-------------|
 | `Command-Wait-Stage` | Wait stage: SENT, PROCESSED, SNAPSHOT, PROJECTED, EVENT_HANDLED, SAGA_HANDLED |
+| `Command-Wait-Context` | Bounded context for function-level waiting; defaults to the command context when blank |
+| `Command-Wait-Processor` | Processor name for function-level waiting |
+| `Command-Wait-Function` | Function name for function-level waiting |
+| `Command-Wait-Timout` | Current source spelling for wait timeout in milliseconds |
 | `Command-Aggregate-Id` | Target aggregate ID |
+| `Command-Aggregate-Version` | Expected aggregate version for conflict control |
 | `Command-Request-Id` | Idempotency key |
+| `Command-Local-First` | Override local-first routing for this command |
 | `Command-Wait-Tail-Stage` | Tail wait stage for chain strategy |
+| `Command-Wait-Tail-Context` | Tail bounded context for chain strategy |
 | `Command-Wait-Tail-Processor` | Tail processor name for chain strategy |
+| `Command-Wait-Tail-Function` | Tail function name for chain strategy |
+| `Command-Tenant-Id` | Tenant ID, when not provided by route/static tenant |
+| `Command-Owner-Id` | Owner ID, when the aggregate route requires ownership |
+| `Command-Aggregate-Context` | Aggregate context for generic command routes |
+| `Command-Aggregate-Name` | Aggregate name for generic command routes |
+| `Command-Type` | Fully qualified command body type for generic command routes |
+| `Command-Header-*` | Prefix for custom command headers |
+
+Note: public documentation may spell the timeout header with `Timeout`, but the current source constant is `Command-Wait-Timout`. Use the source spelling when validating the current checkout.
 
 ## Troubleshooting
 

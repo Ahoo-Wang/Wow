@@ -24,7 +24,7 @@
     {
       "id": 5,
       "prompt": "Write a query using Wow Query DSL to find all active orders for a specific tenant. The query should:\n1. Use pagedQuery with pagination\n2. Filter by tenantId and status=ACTIVE\n3. Sort by createdAt descending\n4. Project only id, status, and totalAmount fields",
-      "expected_output": "Kotlin code using pagedQuery { where { ... } page(...) projection { ... } } DSL to query orders by tenant and status."
+      "expected_output": "Kotlin code using pagedQuery { condition { tenantId(tenantId); \"status\" eq \"ACTIVE\" } pagination { index(...); size(...) } sort { \"createdAt\".desc() } projection { include(\"id\", \"status\", \"totalAmount\") } } DSL to query orders by tenant and status."
     }
   ]
 }

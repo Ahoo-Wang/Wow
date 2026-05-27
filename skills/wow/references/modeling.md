@@ -34,6 +34,51 @@ Command aggregate inherits from state aggregate with `private set` on setters.
 
 ## Conventions
 
+### Command and Event API Metadata
+
+Commands and domain events should include Wow API metadata annotations:
+
+- `@Summary` for a concise title.
+- `@Description` for REST/API schema detail.
+
+The current source resolves these annotations in `wow-schema` into schema title and description metadata. Use the current source as the final authority when generator behavior changes.
+
+```kotlin
+@Summary("Create order")
+@Description(
+    """Creates an order from selected items.
+The command initializes the order aggregate and records shipping information."""
+)
+data class CreateOrder(...)
+
+@Summary("Order created")
+@Description("The order aggregate was initialized successfully.")
+data class OrderCreated(...)
+```
+
+Use Kotlin raw string syntax for longer `@Description` text. Do not call `.trimIndent()` inside an annotation argument.
+
+### Field Capability Interfaces
+
+Important repeated domain fields should be extracted into dedicated capability interfaces named `<FieldName>Capable`, following existing source patterns such as `AggregateIdCapable`, `DeletedCapable`, `TitleCapable`, and `QuantityCapable`.
+
+Use a capability interface when a field appears across commands, events, state, query models, or reusable contracts and carries stable business meaning or validation.
+
+```kotlin
+interface ProductIdCapable {
+    @Summary("Product ID")
+    @Description("Unique product identifier in the product bounded context.")
+    val productId: String
+}
+
+interface NotBlankProductIdCapable : ProductIdCapable {
+    @get:NotBlank
+    override val productId: String
+}
+```
+
+Avoid extracting one-off incidental fields. The point is a shared domain vocabulary, not interface noise.
+
 ### Command Aggregate Root
 
 - Add `@AggregateRoot` annotation for `wow-compiler` metadata generation
@@ -134,16 +179,21 @@ Every `AggregateId` includes a `contextName`, ensuring commands and events are r
 
 ## Aggregate Lifecycle
 
-### State Machine
+### Command State And Lifecycle
 
 ```
-NEW (version=0) → STORED → SOURCED → STORED (cycle per command)
-                             ↓
-                         EXPIRED (unrecoverable error)
+CommandState.STORED -> CommandState.SOURCED -> CommandState.STORED
+                                  |
+                                  v
+                         CommandState.EXPIRED
 
-STORED → DELETED (DefaultDeleteAggregate)
-DELETED → STORED (DefaultRecoverAggregate)
+version 0 -> uninitialized aggregate
+version 1 -> first event applied
+deleted flag true  -> DefaultAggregateDeleted sourced
+deleted flag false -> DefaultAggregateRecovered sourced
 ```
+
+`CommandState` is an internal processing state with `STORED`, `SOURCED`, and `EXPIRED`. Deletion and recovery are aggregate state flags sourced from built-in events, not separate `CommandState` values.
 
 ### Command Processing Phases
 

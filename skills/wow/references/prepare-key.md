@@ -18,7 +18,7 @@ interface UsernamePrepare : PrepareKey<String>
 * `@PreparableKey(name = "username_idx")`: Specifies the name of the prepared key, used to identify the key's index in storage.
 * `PrepareKey<String>`: The generic parameter `String` indicates the key type is string.
 
-The framework automatically scans interfaces annotated with `@PreparableKey`, creates proxy instances through `PrepareKeyProxyFactory`, and registers them as Spring Beans with the interface's simple name as the bean name. This allows dependency injection to obtain `PrepareKey` instances in aggregates.
+The Spring Boot starter scans application base packages plus `wow.prepare.base-packages` for interfaces annotated with `@PreparableKey`, creates proxy instances through `PrepareKeyProxyFactory`, and registers them as Spring Beans with the interface's simple name as the bean name. This allows dependency injection to obtain `PrepareKey` instances in aggregates.
 
 ## PrepareKey Interface Methods
 
@@ -50,12 +50,12 @@ The `PrepareKey<V>` interface provides the following core methods:
 
 ## PreparedValue and TTL Support
 
-`PreparedValue<V>` encapsulates the value and optional TTL configuration:
+`PreparedValue<V>` encapsulates the value and an expiration timestamp:
 
 * Permanent preparation: `value.toForever()`
-* TTL preparation: `PreparedValue(value, Duration.ofMinutes(5))`
+* TTL preparation: `value.toTtlAt(System.currentTimeMillis() + Duration.ofMinutes(5).toMillis())`
 
-TTL support allows temporary key reservations that automatically clean up after expiration, suitable for temporary operations requiring cleanup.
+`ttlAt` is an absolute millisecond timestamp. TTL support allows temporary key reservations that are treated as expired after that timestamp, suitable for temporary operations requiring cleanup.
 
 ## Value Type
 

@@ -67,6 +67,12 @@ wow:
     snapshot-database: wow_snapshot_db
     prepare-database: wow_prepare_db
 
+  prepare:
+    enabled: true
+    storage: mongo                  # mongo or redis
+    base-packages:
+      - me.example.prepare
+
   redis:
     enabled: true
 
@@ -77,18 +83,7 @@ wow:
 
   elasticsearch:
     enabled: true
-
-  # Features
-  compensation:
-    enabled: true
-    host: https://your-dashboard.example.com
-    webhook:
-      weixin:
-        url: <webhook-url>
-        events:
-          - execution_failed_created
-          - execution_failed_applied
-          - execution_success_applied
+    auto-init-template: true
 
   openapi:
     enabled: true
@@ -161,6 +156,14 @@ wow:
 | `wow.mongo.snapshot-database` | String | Spring MongoDB database | Snapshot database |
 | `wow.mongo.prepare-database` | String | Spring MongoDB database | Prepare key database |
 
+### Prepare
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `wow.prepare.enabled` | Boolean | `true` | Enable PrepareKey support |
+| `wow.prepare.storage` | PrepareStorage | `mongo` | PrepareKey backend: `mongo` or `redis` |
+| `wow.prepare.base-packages` | List\<String\> | empty | Extra packages scanned for `@PreparableKey` interfaces; the registrar also scans application base packages |
+
 ### Redis
 
 | Property | Type | Default | Description |
@@ -179,17 +182,9 @@ wow:
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
 | `wow.elasticsearch.enabled` | Boolean | `true` | Enable Elasticsearch support |
+| `wow.elasticsearch.auto-init-template` | Boolean | `true` | Auto-create Elasticsearch templates |
 
 ## Features
-
-### Event Compensation
-
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `wow.compensation.enabled` | Boolean | `true` | Enable event compensation |
-| `wow.compensation.host` | String | | Dashboard URL for notification links |
-| `wow.compensation.webhook.weixin.url` | String | | WeChat Work webhook URL |
-| `wow.compensation.webhook.weixin.events` | List\<String\> | all events | Notification event types |
 
 ### OpenAPI
 

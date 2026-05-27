@@ -43,7 +43,7 @@ class CartSpec : AggregateSpec<Cart, CartState>(
 
 | Method | Description |
 |--------|-------------|
-| `givenOwnerId(id)` | Set the aggregate ID |
+| `givenOwnerId(id)` | Set the owner ID for owner-aware aggregate scenarios |
 | `givenEvent(event)` | Initialize with a domain event |
 | `givenEvent(events)` | Initialize with multiple events |
 | `givenState(state, version)` | Initialize with direct state |
@@ -431,13 +431,13 @@ expectErrorType(DomainEventException::class)
 
 ```bash
 # Run specific test class
-./gradlew test --tests "me.ahoo.wow.example.domain.cart.CartSpec"
+./gradlew <module>:test --tests "me.ahoo.wow.example.domain.cart.CartSpec"
 
 # Run with coverage
-./gradlew domain:jacocoTestReport
+./gradlew <domain-module>:jacocoTestReport
 
 # Verify coverage (80% minimum on domain modules)
-./gradlew domain:jacocoTestCoverageVerification
+./gradlew <domain-module>:jacocoTestCoverageVerification
 ```
 
 ## Best Practices
