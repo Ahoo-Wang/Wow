@@ -57,7 +57,8 @@ object CommandComponent {
         const val AGGREGATE_VERSION = "${COMMAND_HEADERS_PREFIX}Aggregate-Version"
 
         const val WAIT_PREFIX = "${COMMAND_HEADERS_PREFIX}Wait-"
-        const val WAIT_TIME_OUT = "${WAIT_PREFIX}Timout"
+        const val WAIT_TIME_OUT = "${WAIT_PREFIX}Timeout"
+        const val LEGACY_WAIT_TIME_OUT = "${WAIT_PREFIX}Timout"
 
         //region Wait Stage
         const val WAIT_STAGE = "${WAIT_PREFIX}Stage"

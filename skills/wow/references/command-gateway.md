@@ -263,7 +263,7 @@ Register via Spring's `@Service` annotation.
 | `Command-Wait-Context` | Bounded context for function-level waiting; defaults to the command context when blank |
 | `Command-Wait-Processor` | Processor name for function-level waiting |
 | `Command-Wait-Function` | Function name for function-level waiting |
-| `Command-Wait-Timout` | Current source spelling for wait timeout in milliseconds |
+| `Command-Wait-Timeout` | Wait timeout in milliseconds |
 | `Command-Aggregate-Id` | Target aggregate ID |
 | `Command-Aggregate-Version` | Expected aggregate version for conflict control |
 | `Command-Request-Id` | Idempotency key |
@@ -279,7 +279,7 @@ Register via Spring's `@Service` annotation.
 | `Command-Type` | Fully qualified command body type for generic command routes |
 | `Command-Header-*` | Prefix for custom command headers |
 
-Note: public documentation may spell the timeout header with `Timeout`, but the current source constant is `Command-Wait-Timout`. Use the source spelling when validating the current checkout.
+The legacy misspelled `Command-Wait-Timout` header remains accepted for compatibility, but new clients and documentation should use `Command-Wait-Timeout`.
 
 ## Troubleshooting
 

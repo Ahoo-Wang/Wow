@@ -189,6 +189,27 @@ class AggregateRequestTest {
     }
 
     @Test
+    fun `should expose documented wait timeout header`() {
+        CommandComponent.Header.WAIT_TIME_OUT.assert().isEqualTo("Command-Wait-Timeout")
+    }
+
+    @Test
+    fun `should get wait timeout from documented header`() {
+        val request = MockServerRequest.builder()
+            .header("Command-Wait-Timeout", "5000")
+            .build()
+        request.getWaitTimeout().assert().isEqualTo(Duration.ofMillis(5000))
+    }
+
+    @Test
+    fun `should get wait timeout from legacy misspelled header`() {
+        val request = MockServerRequest.builder()
+            .header("Command-Wait-Timout", "5000")
+            .build()
+        request.getWaitTimeout().assert().isEqualTo(Duration.ofMillis(5000))
+    }
+
+    @Test
     fun `should use default wait timeout when header is missing`() {
         val request = MockServerRequest.builder().build()
         request.getWaitTimeout(Duration.ofSeconds(10)).assert().isEqualTo(Duration.ofSeconds(10))
