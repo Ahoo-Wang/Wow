@@ -19,6 +19,9 @@ on:
       - 'documentation/**'
       - 'schema/**'
       - 'wow-example/**'
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 env:
   CI: GITHUB_ACTIONS
 
@@ -40,7 +43,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Test Wow-Api
-        run: ./gradlew wow-api:clean wow-api:check --stacktrace
+        run: ./gradlew wow-api:check --stacktrace
 
   wow-core-test:
     name: Wow Core Test
@@ -60,7 +63,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Test Wow-Core
-        run: ./gradlew wow-core:clean wow-core:check --stacktrace
+        run: ./gradlew wow-core:check --stacktrace
   wow-schema-test:
     name: Wow Schema Test
     runs-on: ubuntu-latest
@@ -79,7 +82,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Test Wow-Schema
-        run: ./gradlew wow-schema:clean wow-schema:check --stacktrace
+        run: ./gradlew wow-schema:check --stacktrace
   wow-openapi-test:
     name: Wow OpenAPI Test
     runs-on: ubuntu-latest
@@ -98,7 +101,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Test Wow-OpenAPI
-        run: ./gradlew wow-openapi:clean wow-openapi:check --stacktrace
+        run: ./gradlew wow-openapi:check --stacktrace
 
   wow-compiler-test:
     name: Wow Compiler Test
@@ -118,7 +121,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Test Wow-Compiler
-        run: ./gradlew wow-compiler:clean wow-compiler:check --stacktrace
+        run: ./gradlew wow-compiler:check --stacktrace
 
   wow-bi-test:
     name: Wow BI Test
@@ -138,7 +141,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Test Wow-BI
-        run: ./gradlew wow-bi:clean wow-bi:check --stacktrace
+        run: ./gradlew wow-bi:check --stacktrace
 
   wow-query-test:
     name: Wow Query Test
@@ -158,7 +161,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Test Wow-Query
-        run: ./gradlew wow-query:clean wow-query:check --stacktrace
+        run: ./gradlew wow-query:check --stacktrace
 
   wow-cocache-test:
     name: Wow CoCache Test
@@ -178,7 +181,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Test Wow-CoCache
-        run: ./gradlew wow-cocache:clean wow-cocache:check --stacktrace
+        run: ./gradlew wow-cocache:check --stacktrace
 
   wow-models-test:
     name: Wow Models Test
@@ -198,7 +201,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Test Wow-Models
-        run: ./gradlew wow-models:clean wow-models:check --stacktrace
+        run: ./gradlew wow-models:check --stacktrace
 
   wow-kafka-test:
     name: Wow Kafka Test
@@ -218,7 +221,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Test Wow-Kafka
-        run: ./gradlew wow-kafka:clean wow-kafka:check --stacktrace
+        run: ./gradlew wow-kafka:check --stacktrace
 
   wow-mongo-test:
     name: Wow Mongo Test
@@ -238,7 +241,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Test Wow-Mongo
-        run: ./gradlew wow-mongo:clean wow-mongo:check --stacktrace
+        run: ./gradlew wow-mongo:check --stacktrace
 
   wow-redis-test:
     name: Wow Redis Test
@@ -268,7 +271,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Test Wow-Redis
-        run: ./gradlew wow-redis:clean wow-redis:check --stacktrace
+        run: ./gradlew wow-redis:check --stacktrace
 
   wow-it-test:
     name: Wow IT Test
@@ -288,7 +291,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Test Wow-IT
-        run: ./gradlew wow-it:clean wow-it:check --stacktrace
+        run: ./gradlew wow-it:check --stacktrace
 
   wow-r2dbc-test:
     name: Wow R2DBC Test
@@ -308,7 +311,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Test Wow-R2DBC
-        run: ./gradlew wow-r2dbc:clean wow-r2dbc:check --stacktrace
+        run: ./gradlew wow-r2dbc:check --stacktrace
 
   wow-elasticsearch-test:
     name: Wow ElasticSearch Test
@@ -328,7 +331,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Test Wow-ElasticSearch
-        run: ./gradlew wow-elasticsearch:clean wow-elasticsearch:check --stacktrace
+        run: ./gradlew wow-elasticsearch:check --stacktrace
 
   wow-spring-test:
     name: Wow Spring Test
@@ -348,7 +351,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Test Wow-Spring
-        run: ./gradlew wow-spring:clean wow-spring:check --stacktrace
+        run: ./gradlew wow-spring:check --stacktrace
 
   wow-webflux-test:
     name: Wow Webflux Test
@@ -368,7 +371,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Test Wow-Webflux
-        run: ./gradlew wow-webflux:clean wow-webflux:check --stacktrace
+        run: ./gradlew wow-webflux:check --stacktrace
 
   wow-cosec-test:
     name: Wow CoSec Test
@@ -388,7 +391,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Test Wow-CoSec
-        run: ./gradlew wow-cosec:clean wow-cosec:check --stacktrace
+        run: ./gradlew wow-cosec:check --stacktrace
 
   wow-spring-boot-starter-test:
     name: Wow Spring-Boot-Starter Test
@@ -408,7 +411,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Test Wow-Spring-Boot-Starter
-        run: ./gradlew wow-spring-boot-starter:clean wow-spring-boot-starter:check --stacktrace
+        run: ./gradlew wow-spring-boot-starter:check --stacktrace
 
   wow-opentelemetry-test:
     name: Wow Opentelemetry Test
@@ -428,4 +431,4 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Test Wow-opentelemetry
-        run: ./gradlew wow-opentelemetry:clean wow-opentelemetry:check --stacktrace
+        run: ./gradlew wow-opentelemetry:check --stacktrace

@@ -21,16 +21,13 @@ on:
       - 'documentation/**'
       - 'schema/**'
     branches:
-      - '**'
+      - main
     tags:
       - 'v*.*.*'
-  pull_request:
-    paths-ignore:
-      - 'document/**'
-      - 'documentation/**'
-      - 'schema/**'
-    branches:
-      - 'main'
+  workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   example-docker-deploy:
