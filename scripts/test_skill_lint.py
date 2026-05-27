@@ -21,6 +21,38 @@ class SkillLintTest(unittest.TestCase):
             self.assertIn("Use resolved Gradle module placeholders instead of hard-coded domain/api modules.", messages)
             self.assertIn("Use Wow Query DSL condition/pagination APIs instead of where/page wording.", messages)
 
+    def test_reports_colon_prefixed_gradle_module_placeholders(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            skill = root / "skills" / "wow" / "SKILL.md"
+            skill.parent.mkdir(parents=True)
+            skill.write_text("Run ./gradlew :api:test\nRun ./gradlew :domain:check", encoding="utf-8")
+
+            findings = skill_lint.lint(root)
+
+            self.assertEqual(2, len(findings))
+            self.assertEqual(
+                [
+                    "Use resolved Gradle module placeholders instead of hard-coded domain/api modules.",
+                    "Use resolved Gradle module placeholders instead of hard-coded domain/api modules.",
+                ],
+                [finding.message for finding in findings],
+            )
+
+    def test_allows_legacy_wait_timeout_compatibility_guidance(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            skill = root / "skills" / "wow" / "references" / "command-gateway.md"
+            skill.parent.mkdir(parents=True)
+            skill.write_text(
+                "The legacy misspelled `Command-Wait-Timout` header remains accepted for compatibility.",
+                encoding="utf-8",
+            )
+
+            findings = skill_lint.lint(root)
+
+            self.assertEqual([], findings)
+
     def test_reports_missing_reference_links(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -74,7 +106,7 @@ class SkillLintTest(unittest.TestCase):
             skill = root / "skills" / "wow" / "references" / "prepare-key.md"
             skill.parent.mkdir(parents=True)
             skill.write_text(
-                "Use countQuery, Command-Wait-Timeout, PreparedValue(value, duration), @Enabled(properties = []), @get:Summary, wow.compensation.host, and **/settings.gradle.kts.",
+                "Use countQuery, Command-Wait-Timout, PreparedValue(value, duration), @Enabled(properties = []), @get:Summary, wow.compensation.host, and **/settings.gradle.kts.",
                 encoding="utf-8",
             )
 
@@ -87,7 +119,7 @@ class SkillLintTest(unittest.TestCase):
                 messages,
             )
             self.assertIn(
-                "Use the current source header spelling `Command-Wait-Timout`, and note the docs/source mismatch when relevant.",
+                "Use the documented `Command-Wait-Timeout` header; the misspelled form is legacy compatibility only.",
                 messages,
             )
             self.assertIn(

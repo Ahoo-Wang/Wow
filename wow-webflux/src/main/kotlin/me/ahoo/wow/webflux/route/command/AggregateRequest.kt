@@ -102,7 +102,9 @@ fun ServerRequest.isSse(): Boolean {
 }
 
 fun ServerRequest.getWaitTimeout(default: Duration = DEFAULT_TIME_OUT): Duration {
-    return headers().firstHeader(CommandComponent.Header.WAIT_TIME_OUT)?.toLongOrNull()?.let {
+    val waitTimeout = headers().firstHeader(CommandComponent.Header.WAIT_TIME_OUT)
+        ?: headers().firstHeader(CommandComponent.Header.LEGACY_WAIT_TIME_OUT)
+    return waitTimeout?.toLongOrNull()?.let {
         Duration.ofMillis(it)
     } ?: default
 }

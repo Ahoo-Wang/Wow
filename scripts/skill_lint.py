@@ -18,6 +18,8 @@ class Finding:
 
 ASSERT_THAT_PATTERN = re.compile(r"\bassertThat\s*\(")
 NEGATIVE_ASSERT_THAT_GUIDANCE = re.compile(r"\b(?:not|NOT|never|avoid)\b|不要|不使用")
+LEGACY_WAIT_TIMEOUT_PATTERN = re.compile(r"\bCommand-Wait-Timout\b")
+LEGACY_WAIT_TIMEOUT_GUIDANCE = re.compile(r"\blegacy\b.*\bcompatibility\b|\bcompatibility\b.*\blegacy\b")
 
 PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
     (
@@ -25,7 +27,7 @@ PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
         "Use rg or rg --files instead of Claude-style Grep/Glob wording.",
     ),
     (
-        re.compile(r"(?:^|[\s`./])(?:domain|api):(?:compileKotlin|test|check|jacocoTestReport|jacocoTestCoverageVerification)\b"),
+        re.compile(r"(?:^|[\s`./:])(?:domain|api):(?:compileKotlin|test|check|jacocoTestReport|jacocoTestCoverageVerification)\b"),
         "Use resolved Gradle module placeholders instead of hard-coded domain/api modules.",
     ),
     (
@@ -37,8 +39,8 @@ PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
         "Use `Condition.count(queryService)` wording; Wow does not expose a countQuery DSL function.",
     ),
     (
-        re.compile(r"\bCommand-Wait-Timeout\b"),
-        "Use the current source header spelling `Command-Wait-Timout`, and note the docs/source mismatch when relevant.",
+        LEGACY_WAIT_TIMEOUT_PATTERN,
+        "Use the documented `Command-Wait-Timeout` header; the misspelled form is legacy compatibility only.",
     ),
     (
         re.compile(r"\bPreparedValue\s*\("),
@@ -104,6 +106,12 @@ def lint(root: Path) -> list[Finding]:
                     pattern is ASSERT_THAT_PATTERN
                     and ASSERT_THAT_PATTERN.search(line)
                     and NEGATIVE_ASSERT_THAT_GUIDANCE.search(line)
+                ):
+                    continue
+                if (
+                    pattern is LEGACY_WAIT_TIMEOUT_PATTERN
+                    and LEGACY_WAIT_TIMEOUT_PATTERN.search(line)
+                    and LEGACY_WAIT_TIMEOUT_GUIDANCE.search(line)
                 ):
                     continue
                 if pattern.search(line):

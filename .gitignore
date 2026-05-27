@@ -16,6 +16,10 @@ gradle-app.setting
 # Kotlin daemon
 .kotlin/
 
+# Python cache
+__pycache__/
+**/__pycache__/
+
 # 忽略 .DS_Store 文件
 .DS_Store
 **/.DS_Store
@@ -23,6 +27,9 @@ gradle-app.setting
 # IDE
 /.idea/
 /.vscode/
+
+# Local agent configuration
+/.claude/
 
 # Superpowers
 docs/superpowers/
