@@ -21,16 +21,10 @@ on:
       - 'gradle.properties'
       - 'gradle/**'
       - 'config/**'
-      - 'wow-api/**'
-      - 'wow-core/**'
-      - 'wow-spring/**'
-      - 'wow-compiler/**'
-      - 'wow-webflux/**'
-      - 'wow-opentelemetry/**'
-      - 'wow-spring-boot-starter/**'
-      - 'wow-dependencies/**'
-      - 'test/wow-test/**'
-      - 'example/transfer/**'
+      - 'wow-*/**'
+      - 'test/**'
+      - 'example/**'
+      - 'compensation/wow-compensation-*/**'
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
