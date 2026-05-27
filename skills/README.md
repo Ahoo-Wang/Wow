@@ -79,6 +79,12 @@ graph TD
 | `design-report-template.md` | 聚合/Saga 设计报告模板。 |
 | `test-patterns.md` | workflow 到 `AggregateSpec` / `SagaSpec` 的测试映射。 |
 
+## Related Skills
+
+| Skill | 关系 |
+|-------|------|
+| `fluent-assert` | Kotlin 测试断言风格。Wow testing references 只保留 `import me.ahoo.test.asserts.assert` 与 `.assert()` 的最小契约；完整断言 API 由 `fluent-assert` skill 维护。 |
+
 ## 使用路径
 
 常见任务应从 `wow` 开始：

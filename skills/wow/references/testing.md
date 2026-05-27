@@ -359,7 +359,7 @@ aggregateVerifier<Cart, CartState>(aggregateId = "cart-123")
 
 ## FluentAssert Assertions
 
-Use `me.ahoo.test.asserts.assert` for assertions:
+Use `me.ahoo.test.asserts.assert` and `.assert()` for Wow tests. This section is the minimal Wow testing contract; load the `fluent-assert` skill for the complete assertion API.
 
 ```kotlin
 import me.ahoo.test.asserts.assert
