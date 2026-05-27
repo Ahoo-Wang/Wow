@@ -1,18 +1,17 @@
 name: Codecov
 on:
   push:
-    paths-ignore:
-      - 'document/**'
-      - 'documentation/**'
-      - 'schema/**'
-      - 'wow-example/**'
-  pull_request:
+    branches:
+      - main
     paths-ignore:
       - 'document/**'
       - 'documentation/**'
       - 'schema/**'
       - 'wow-example/**'
   workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
   issues: read
@@ -90,4 +89,3 @@ jobs:
           verbose: true # optional (default = false)
 #          directory: ./build/reports/jacoco/codeCoverageReport/
           files: ./test/code-coverage-report/build/reports/jacoco/codeCoverageReport/codeCoverageReport.xml
-          path_to_write_report: ./coverage/codecov_report.txt

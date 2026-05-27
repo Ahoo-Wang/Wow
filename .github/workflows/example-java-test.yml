@@ -18,6 +18,9 @@ on:
       - 'document/**'
       - 'documentation/**'
       - 'schema/**'
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 env:
   CI: GITHUB_ACTIONS
 
@@ -42,10 +45,10 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Test example-transfer-api
-        run: ./gradlew example-transfer-api:clean example-transfer-api:build --stacktrace
+        run: ./gradlew example-transfer-api:build --stacktrace
 
       - name: Test example-transfer-domain
-        run: ./gradlew example-transfer-domain:clean example-transfer-domain:build --stacktrace
+        run: ./gradlew example-transfer-domain:build --stacktrace
 
       - name: Test example-transfer-server
-        run: ./gradlew example-transfer-server:clean example-transfer-server:build --stacktrace
+        run: ./gradlew example-transfer-server:build --stacktrace
