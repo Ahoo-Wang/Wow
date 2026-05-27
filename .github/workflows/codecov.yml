@@ -14,9 +14,7 @@ concurrency:
   cancel-in-progress: true
 permissions:
   contents: read
-  issues: read
   checks: write
-  pull-requests: write
 env:
   CI: GITHUB_ACTIONS
 jobs:
@@ -53,6 +51,7 @@ jobs:
         uses: EnricoMi/publish-unit-test-result-action@v2.23.0
         if: always()
         with:
+          comment_mode: off
           ignore_runs: true
           large_files: true
           files: |
