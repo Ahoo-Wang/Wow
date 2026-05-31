@@ -57,6 +57,41 @@ class QuerySymbolProcessorTest {
 
     @OptIn(ExperimentalCompilerApi::class)
     @Test
+    fun `should process aggregate with id and tenantId constructor`() {
+        val mockTenantCompilerAggregateFile =
+            File("src/test/kotlin/me/ahoo/wow/compiler/MockTenantCompilerAggregate.kt")
+        compileTestQuerySymbolProcessor(
+            listOf(mockTenantCompilerAggregateFile),
+        ) { compilation, _ ->
+            val navFile = Path(
+                compilation.kspSourcesDir.path,
+                "kotlin/me/ahoo/wow/compiler",
+                "MockTenantCompilerAggregateProperties.kt"
+            )
+            val navFileContent = navFile.toFile().readText()
+            val navFileContentLines = navFileContent.lines()
+            val navFileContentLinesWithoutGenerated = navFileContentLines.subList(0, 4) + navFileContentLines.subList(
+                5,
+                navFileContentLines.size
+            )
+            val navFileContentWithoutGenerated = navFileContentLinesWithoutGenerated.joinToString("\n").trimIndent()
+            navFileContentWithoutGenerated.assert().isEqualTo(
+                """
+                |package me.ahoo.wow.compiler
+                |
+                |import me.ahoo.wow.api.annotation.Generated
+                |
+                |object MockTenantCompilerAggregateProperties {
+                |    const val ID = "id"
+                |    const val TENANT_ID = "tenantId"
+                |}
+                """.trimMargin()
+            )
+        }
+    }
+
+    @OptIn(ExperimentalCompilerApi::class)
+    @Test
     fun `should process example project`() {
         val exampleApiDir = File("../example/example-api/src/main/kotlin/me/ahoo/wow/example/api")
         val exampleApiFiles = exampleApiDir.walkTopDown().filter { it.isFile }.toList()

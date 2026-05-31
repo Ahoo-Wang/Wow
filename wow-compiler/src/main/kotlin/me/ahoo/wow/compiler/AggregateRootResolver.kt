@@ -40,8 +40,10 @@ object AggregateRootResolver {
             "AggregateRoot[${qualifiedName!!.asString()}] must have a primary constructor with one parameter,like ctor(id) / ctor(id,tenantId) or ctor(state)."
         }
 
-        val ctorParameterDeclaration = aggregateRootCtor.parameters.single().type.resolve().declaration
-        val aggregationPattern = ctorParameterDeclaration.qualifiedName!!.asString() != String::class.qualifiedName!!
+        val ctorParameterDeclaration = aggregateRootCtor.parameters.first().type.resolve().declaration
+        val aggregationPattern =
+            aggregateRootCtor.parameters.size == 1 &&
+                ctorParameterDeclaration.qualifiedName!!.asString() != String::class.qualifiedName!!
 
         val stateAggregateDeclaration = if (aggregationPattern) {
             (ctorParameterDeclaration as KSClassDeclaration)
