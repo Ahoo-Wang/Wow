@@ -1,0 +1,4 @@
+interface:
+  display_name: "Wow Debugging"
+  short_description: "Debug Wow command and event pipelines"
+  default_prompt: "Use $wow-debugging to find the failing stage in a Wow command, event, saga, or wait flow."

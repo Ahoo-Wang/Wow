@@ -1,0 +1,4 @@
+interface:
+  display_name: "Wow Framework"
+  short_description: "DDD, CQRS, and Event Sourcing guidance"
+  default_prompt: "Use $wow to help me model, test, or debug a Wow framework service."
