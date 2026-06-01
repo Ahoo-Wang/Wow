@@ -1,0 +1,4 @@
+interface:
+  display_name: "Wow Development Workflow"
+  short_description: "End-to-end aggregate and saga workflow"
+  default_prompt: "Use $wow-development-workflow to design and verify a Wow aggregate or saga change."

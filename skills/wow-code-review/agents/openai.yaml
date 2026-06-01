@@ -1,0 +1,4 @@
+interface:
+  display_name: "Wow Code Review"
+  short_description: "Review Wow DDD and event-sourcing code"
+  default_prompt: "Use $wow-code-review to review this Wow diff for aggregate, saga, and test issues."
