@@ -29,7 +29,8 @@ import reactor.core.publisher.Mono
 class MetricSnapshotStrategy(
     override val delegate: SnapshotStrategy
 ) : SnapshotStrategy,
-    Decorator<SnapshotStrategy> {
+    Decorator<SnapshotStrategy>,
+    Metrizable {
     /**
      * Processes a state event exchange for snapshot strategy evaluation and collects metrics on the operation.
      * Metrics collected include timing, success/failure rates, and tags for aggregate identification.

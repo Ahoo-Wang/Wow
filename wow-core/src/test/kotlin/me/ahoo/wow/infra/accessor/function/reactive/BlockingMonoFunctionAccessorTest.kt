@@ -39,6 +39,17 @@ class BlockingMonoFunctionAccessorTest {
                 it.assert().doesNotStartWith("boundedElastic")
             }.verifyComplete()
     }
+
+    @Test
+    fun `should switch to bounded elastic when subscribed from non blocking thread`() {
+        val blockingMonoMethodAccessor = BlockingMethod::blocking.toMonoFunctionAccessor<BlockingMethod, String>()
+        blockingMonoMethodAccessor.invoke(BlockingMethod())
+            .subscribeOn(Schedulers.parallel())
+            .test()
+            .consumeNextWith {
+                it.assert().startsWith("boundedElastic")
+            }.verifyComplete()
+    }
 }
 
 class BlockingMethod {

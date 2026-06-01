@@ -69,25 +69,30 @@ object AggregateIdGeneratorRegistrar :
      * @return the [IdGenerator] associated with the [key]
      * @throws IllegalStateException if no [AggregateIdGeneratorFactory] can create an [IdGenerator] for the [key]
      */
-    fun getOrInitialize(key: NamedAggregate): IdGenerator =
-        AGGREGATE_ID_GENERATORS.computeIfAbsent(key) { _ ->
+    fun getOrInitialize(key: NamedAggregate): IdGenerator {
+        val materializedKey = key.materialize()
+        return AGGREGATE_ID_GENERATORS.computeIfAbsent(materializedKey) { _ ->
             factories.firstNotNullOfOrNull {
                 log.info {
-                    "Load $it to create [$key]'s AggregateIdGenerator."
+                    "Load $it to create [$materializedKey]'s AggregateIdGenerator."
                 }
-                val idGenerator = it.create(key)
+                val idGenerator = it.create(materializedKey)
                 if (idGenerator == null) {
                     log.info {
-                        "Ignore: $it create [$key]'s AggregateIdGenerator is null."
+                        "Ignore: $it create [$materializedKey]'s AggregateIdGenerator is null."
                     }
                 } else {
                     log.info {
-                        "Setup $idGenerator to [$key]'s AggregateIdGenerator."
+                        "Setup $idGenerator to [$materializedKey]'s AggregateIdGenerator."
                     }
                 }
                 idGenerator
-            } ?: throw IllegalStateException("No AggregateIdGeneratorFactory found for [$key]'s AggregateIdGenerator.")
+            }
+                ?: throw IllegalStateException(
+                    "No AggregateIdGeneratorFactory found for [$materializedKey]'s AggregateIdGenerator."
+                )
         }
+    }
 
     /**
      * Generates a unique ID string for the given [key].

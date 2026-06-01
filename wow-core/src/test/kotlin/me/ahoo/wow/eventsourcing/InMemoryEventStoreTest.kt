@@ -12,8 +12,10 @@
  */
 package me.ahoo.wow.eventsourcing
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.metrics.MetricEventStore
 import me.ahoo.wow.tck.eventsourcing.EventStoreSpec
+import org.junit.jupiter.api.Test
 
 /**
  * InMemoryEventStoreTest .
@@ -23,5 +25,27 @@ import me.ahoo.wow.tck.eventsourcing.EventStoreSpec
 internal class InMemoryEventStoreTest : EventStoreSpec() {
     override fun createEventStore(): EventStore {
         return MetricEventStore(InMemoryEventStore())
+    }
+
+    @Test
+    fun `last should return copied event stream`() {
+        val eventStore = createEventStore()
+        val eventStream = generateEventStream()
+        eventStore.append(eventStream).block()
+
+        eventStore.last(eventStream.aggregateId).block()!!.header["polluted"] = "true"
+
+        eventStore.last(eventStream.aggregateId).block()!!.header["polluted"].assert().isNull()
+    }
+
+    @Test
+    fun `load should return copied domain event headers`() {
+        val eventStore = createEventStore()
+        val eventStream = generateEventStream()
+        eventStore.append(eventStream).block()
+
+        eventStore.load(eventStream.aggregateId).blockFirst()!!.first().header["polluted"] = "true"
+
+        eventStore.load(eventStream.aggregateId).blockFirst()!!.first().header["polluted"].assert().isNull()
     }
 }

@@ -15,6 +15,7 @@ package me.ahoo.wow.infra.accessor.constructor
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.ioc.SimpleServiceProvider
+import me.ahoo.wow.ioc.register
 import org.junit.jupiter.api.Test
 
 internal class InjectableObjectFactoryTest {
@@ -40,6 +41,18 @@ internal class InjectableObjectFactoryTest {
         val mockServiceWithInject = injectableObjectFactory.newInstance()
         mockServiceWithInject.assert().isNotNull()
         mockServiceWithInject.injectService.assert().isEqualTo(injectService)
+    }
+
+    @Test
+    fun `should create java instance with inject`() {
+        val serviceProvider = SimpleServiceProvider()
+        val bytes = "java".toByteArray()
+        serviceProvider.register<ByteArray>(bytes)
+
+        val injectableObjectFactory =
+            InjectableObjectFactory(String::class.java.getConstructor(ByteArray::class.java), serviceProvider)
+
+        injectableObjectFactory.newInstance().assert().isEqualTo("java")
     }
 }
 

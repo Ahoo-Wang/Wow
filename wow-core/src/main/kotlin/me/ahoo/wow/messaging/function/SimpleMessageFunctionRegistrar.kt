@@ -17,6 +17,9 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.naming.NamedBoundedContext
+import me.ahoo.wow.modeling.MaterializedNamedAggregate
+import me.ahoo.wow.modeling.materialize
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArraySet
 
 /**
@@ -36,6 +39,40 @@ class SimpleMessageFunctionRegistrar<F : MessageFunction<*, *, *>> : MessageFunc
      * Thread-safe set for storing registered functions.
      */
     private val registrar: CopyOnWriteArraySet<F> = CopyOnWriteArraySet()
+    private val topicIndex: ConcurrentHashMap<MaterializedNamedAggregate, CopyOnWriteArraySet<F>> = ConcurrentHashMap()
+    private val unindexedRegistrar: CopyOnWriteArraySet<F> = CopyOnWriteArraySet()
+
+    private fun index(function: F) {
+        if (function.supportedTopics.isEmpty()) {
+            unindexedRegistrar.add(function)
+            return
+        }
+        function.supportedTopics.forEach { topic ->
+            topicIndex.compute(topic.materialize()) { _, functions ->
+                (functions ?: CopyOnWriteArraySet()).also {
+                    it.add(function)
+                }
+            }
+        }
+    }
+
+    private fun deindex(function: F) {
+        if (function.supportedTopics.isEmpty()) {
+            unindexedRegistrar.remove(function)
+            return
+        }
+        function.supportedTopics.forEach { topic ->
+            val materializedTopic = topic.materialize()
+            topicIndex.computeIfPresent(materializedTopic) { _, functions ->
+                functions.remove(function)
+                if (functions.isEmpty()) {
+                    null
+                } else {
+                    functions
+                }
+            }
+        }
+    }
 
     /**
      * Registers a function and logs the registration.
@@ -46,7 +83,9 @@ class SimpleMessageFunctionRegistrar<F : MessageFunction<*, *, *>> : MessageFunc
         log.info {
             "Register $function."
         }
-        registrar.add(function)
+        if (registrar.add(function)) {
+            index(function)
+        }
     }
 
     /**
@@ -58,13 +97,18 @@ class SimpleMessageFunctionRegistrar<F : MessageFunction<*, *, *>> : MessageFunc
         log.info {
             "Unregister $function."
         }
-        registrar.remove(function)
+        if (registrar.remove(function)) {
+            deindex(function)
+        }
     }
 
     override fun filter(predicate: (F) -> Boolean): MessageFunctionRegistrar<F> {
         val filteredRegistrar = SimpleMessageFunctionRegistrar<F>()
         val filteredFunctions = registrar.filter(predicate)
-        filteredRegistrar.registrar.addAll(filteredFunctions)
+        filteredFunctions.forEach {
+            filteredRegistrar.registrar.add(it)
+            filteredRegistrar.index(it)
+        }
         return filteredRegistrar
     }
 
@@ -86,9 +130,23 @@ class SimpleMessageFunctionRegistrar<F : MessageFunction<*, *, *>> : MessageFunc
     override fun <M> supportedFunctions(
         message: M
     ): Sequence<F>
-        where M : Message<*, Any>, M : NamedBoundedContext, M : NamedAggregate =
-        functions.asSequence()
+        where M : Message<*, Any>, M : NamedBoundedContext, M : NamedAggregate {
+        val topicFunctions = topicIndex[message.materialize()]
+        if (topicFunctions.isNullOrEmpty()) {
+            return unindexedRegistrar.asSequence()
+                .filter {
+                    it.supportMessage(message)
+                }
+        }
+        if (unindexedRegistrar.isEmpty()) {
+            return topicFunctions.asSequence()
+                .filter {
+                    it.supportMessage(message)
+                }
+        }
+        return (topicFunctions.asSequence() + unindexedRegistrar.asSequence())
             .filter {
                 it.supportMessage(message)
             }
+    }
 }

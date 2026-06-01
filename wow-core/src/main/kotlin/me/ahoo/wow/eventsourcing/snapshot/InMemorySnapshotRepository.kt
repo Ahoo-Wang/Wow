@@ -71,7 +71,7 @@ class InMemorySnapshotRepository : SnapshotRepository {
     /**
      * Scans aggregate IDs from the in-memory map, sorted and filtered by afterId and limit.
      *
-     * @param namedAggregate the named aggregate (not used in this implementation)
+     * @param namedAggregate the named aggregate to scan
      * @param afterId the ID to start scanning after
      * @param limit the maximum number of IDs to return
      * @return a Flux of aggregate IDs
@@ -84,6 +84,9 @@ class InMemorySnapshotRepository : SnapshotRepository {
         aggregateIdMapSnapshot.keys
             .sortedBy { it.id }
             .toFlux()
+            .filter {
+                it.isSameAggregateName(namedAggregate)
+            }
             .filter {
                 it.id > afterId
             }.take(limit.toLong())
