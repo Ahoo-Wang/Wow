@@ -16,10 +16,16 @@ import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.event.DomainEvent
+import me.ahoo.wow.api.messaging.Message
+import me.ahoo.wow.api.messaging.function.FunctionKind
+import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.configuration.requiredNamedAggregate
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.messaging.function.FunctionMetadataParser.toFunctionMetadata
+import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import org.junit.jupiter.api.Test
+import java.util.concurrent.atomic.AtomicInteger
 
 internal class SimpleMessageFunctionRegistrarTest {
     private val message = mockk<DomainEvent<MockEventBody>> {
@@ -69,4 +75,60 @@ internal class SimpleMessageFunctionRegistrarTest {
         val actual = registrar.supportedFunctions(message).toSet()
         actual.assert().isEmpty()
     }
+
+    @Test
+    fun `should lookup functions by aggregate topic before evaluating support`() {
+        val targetTopic = requiredNamedAggregate<MockEventBody>()
+        val unrelatedSupportCount = AtomicInteger()
+        val matchingSupportCount = AtomicInteger()
+        val registrar = SimpleMessageFunctionRegistrar<MessageFunction<*, *, *>>()
+        (1..128).forEach {
+            registrar.register(
+                CountingMessageFunction(
+                    topic = MaterializedNamedAggregate(targetTopic.contextName, "unrelated-$it"),
+                    supportCount = unrelatedSupportCount,
+                )
+            )
+        }
+        val matchingFunctions = (1..2).map {
+            CountingMessageFunction(
+                topic = targetTopic,
+                supportCount = matchingSupportCount,
+            ).also { function ->
+                registrar.register(function)
+            }
+        }
+
+        val actual = registrar.supportedFunctions(message).toSet()
+
+        actual.assert().containsAll(matchingFunctions)
+        actual.assert().hasSize(matchingFunctions.size)
+        matchingSupportCount.get().assert().isEqualTo(matchingFunctions.size)
+        unrelatedSupportCount.get().assert().isEqualTo(0)
+    }
+}
+
+private class CountingMessageFunction(
+    private val topic: NamedAggregate,
+    private val supportCount: AtomicInteger,
+) : MessageFunction<Any, DomainEventExchange<*>, Any> {
+    override val supportedType: Class<*> = MockEventBody::class.java
+    override val supportedTopics: Set<NamedAggregate> = setOf(topic)
+    override val processor: Any = this
+    override val functionKind: FunctionKind = FunctionKind.EVENT
+    override val contextName: String = topic.contextName
+    override val name: String = "counting-${topic.aggregateName}"
+
+    override fun <A : Annotation> getAnnotation(annotationClass: Class<A>): A? = null
+
+    override fun <M> supportMessage(message: M): Boolean
+        where M : Message<*, Any>, M : NamedBoundedContext, M : NamedAggregate {
+        supportCount.incrementAndGet()
+        return supportedType.isInstance(message.body) &&
+            supportedTopics.any {
+                it.isSameAggregateName(message)
+            }
+    }
+
+    override fun invoke(exchange: DomainEventExchange<*>): Any = Unit
 }
