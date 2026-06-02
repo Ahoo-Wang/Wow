@@ -32,7 +32,10 @@ import me.ahoo.wow.modeling.annotation.CmdAfter
 import me.ahoo.wow.modeling.annotation.CmdCreated
 import me.ahoo.wow.modeling.annotation.CmdUpdated
 import me.ahoo.wow.modeling.annotation.CreateCmd
+import me.ahoo.wow.modeling.annotation.FirstAfter
+import me.ahoo.wow.modeling.annotation.LastAfter
 import me.ahoo.wow.modeling.annotation.MockAfterCommandAggregate
+import me.ahoo.wow.modeling.annotation.MockAsyncAfterCommandAggregate
 import me.ahoo.wow.modeling.annotation.UpdateCmd
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory.toStateAggregate
@@ -195,6 +198,14 @@ internal class SimpleCommandAggregateTest {
             .then()
             .whenCommand(UpdateCmd)
             .expectEventType(CmdUpdated::class.java, CmdAfter::class.java, CmdAfter::class.java)
+            .verify()
+    }
+
+    @Test
+    fun `should preserve ordered async after command events`() {
+        aggregateVerifier<MockAsyncAfterCommandAggregate, MockAsyncAfterCommandAggregate>()
+            .whenCommand(CreateCmd)
+            .expectEventType(CmdCreated::class.java, FirstAfter::class.java, LastAfter::class.java)
             .verify()
     }
 }

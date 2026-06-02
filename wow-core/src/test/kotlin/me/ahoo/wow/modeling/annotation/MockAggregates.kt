@@ -21,6 +21,8 @@ import me.ahoo.wow.api.annotation.ORDER_LAST
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.command.ServerCommandExchange
+import reactor.core.publisher.Mono
+import java.time.Duration
 
 class MockAggregate(val id: String)
 
@@ -73,12 +75,35 @@ class MockAfterCommandAggregate(val id: String) {
     }
 }
 
+@Suppress("UNUSED_PARAMETER")
+class MockAsyncAfterCommandAggregate(val id: String) {
+
+    @OnCommand
+    fun onCommand(command: CreateCmd): CmdCreated {
+        return CmdCreated
+    }
+
+    @Order(ORDER_FIRST)
+    @AfterCommand
+    fun firstAfterCommand(exchange: ServerCommandExchange<Any>): Mono<FirstAfter> {
+        return Mono.just(FirstAfter).delayElement(Duration.ofMillis(50))
+    }
+
+    @Order(ORDER_LAST)
+    @AfterCommand
+    fun lastAfterCommand(exchange: ServerCommandExchange<Any>): Mono<LastAfter> {
+        return Mono.just(LastAfter)
+    }
+}
+
 @CreateAggregate
 object CreateCmd
 object CmdCreated
 object UpdateCmd
 object CmdUpdated
 object CmdAfter
+object FirstAfter
+object LastAfter
 
 @Suppress("UNUSED_PARAMETER")
 class MockDefaultAfterCommandAggregate(val id: String) {

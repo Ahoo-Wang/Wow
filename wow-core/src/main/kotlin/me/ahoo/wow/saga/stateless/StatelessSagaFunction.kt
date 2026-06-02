@@ -78,8 +78,8 @@ class StatelessSagaFunction(
         return Flux
             .fromIterable(handleResult as Iterable<Any>)
             .index()
-            .flatMap {
-                toCommand(domainEvent = domainEvent, singleResult = it.t2!!, index = it.t1.toInt())
+            .concatMap {
+                toCommand(domainEvent = domainEvent, singleResult = it.t2, index = it.t1.toInt())
             }
     }
 
