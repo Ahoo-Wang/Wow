@@ -29,7 +29,8 @@ import reactor.core.publisher.Mono
 class MetricSnapshotHandler(
     override val delegate: SnapshotHandler
 ) : SnapshotHandler,
-    Decorator<SnapshotHandler> {
+    Decorator<SnapshotHandler>,
+    Metrizable {
     /**
      * Handles a state event exchange for snapshot creation and collects metrics on the operation.
      * Metrics collected include timing, success/failure rates, and tags for aggregate identification.

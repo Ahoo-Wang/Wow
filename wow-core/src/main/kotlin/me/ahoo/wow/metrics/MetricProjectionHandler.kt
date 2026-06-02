@@ -29,7 +29,8 @@ import reactor.core.publisher.Mono
 class MetricProjectionHandler(
     override val delegate: ProjectionHandler
 ) : ProjectionHandler,
-    Decorator<ProjectionHandler> {
+    Decorator<ProjectionHandler>,
+    Metrizable {
     /**
      * Handles a domain event exchange for projection and collects metrics on the operation.
      * Metrics collected include timing, success/failure rates, and tags for aggregate, event,

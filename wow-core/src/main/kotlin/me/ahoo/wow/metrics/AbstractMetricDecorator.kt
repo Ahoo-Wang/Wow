@@ -28,7 +28,8 @@ import reactor.core.publisher.Mono
  */
 abstract class AbstractMetricDecorator<T : Any>(
     final override val delegate: T
-) : Decorator<T> {
+) : Decorator<T>,
+    Metrizable {
     /**
      * The source identifier derived from the original delegate's class name.
      * This is used for metrics tagging to identify the component type.

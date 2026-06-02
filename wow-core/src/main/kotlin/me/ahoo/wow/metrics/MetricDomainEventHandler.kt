@@ -29,7 +29,8 @@ import reactor.core.publisher.Mono
 class MetricDomainEventHandler(
     override val delegate: DomainEventHandler
 ) : DomainEventHandler,
-    Decorator<DomainEventHandler> {
+    Decorator<DomainEventHandler>,
+    Metrizable {
     /**
      * Handles a domain event exchange and collects metrics on the operation.
      * Metrics collected include timing, success/failure rates, and tags for aggregate, event,

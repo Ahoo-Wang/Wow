@@ -29,7 +29,8 @@ import reactor.core.publisher.Mono
 class MetricCommandHandler(
     override val delegate: CommandHandler
 ) : CommandHandler,
-    Decorator<CommandHandler> {
+    Decorator<CommandHandler>,
+    Metrizable {
     /**
      * Handles a server command exchange and collects metrics on the operation.
      * Metrics collected include timing, success/failure rates, and tags for aggregate and command identification.
