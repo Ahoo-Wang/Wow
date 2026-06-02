@@ -41,7 +41,12 @@ abstract class AbstractEventStreamJsonSerializer<M : DomainEventStream>(messageT
             generator.writeStringProperty(MessageRecords.ID, it.id)
             generator.writeStringProperty(MessageRecords.NAME, it.name)
             generator.writeStringProperty(DomainEventRecords.REVISION, it.revision)
-            generator.writeStringProperty(MessageRecords.BODY_TYPE, it.body.javaClass.name)
+            val bodyType = if (it is JsonDomainEvent) {
+                it.bodyType
+            } else {
+                it.body.javaClass.name
+            }
+            generator.writeStringProperty(MessageRecords.BODY_TYPE, bodyType)
             generator.writePOJOProperty(MessageRecords.BODY, it.body)
             generator.writeEndObject()
         }

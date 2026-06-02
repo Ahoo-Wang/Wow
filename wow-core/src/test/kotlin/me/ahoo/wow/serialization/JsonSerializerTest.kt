@@ -148,6 +148,27 @@ internal class JsonSerializerTest {
     }
 
     @Test
+    fun `should preserve json domain event body type in event stream`() {
+        val namedAggregate = requiredNamedAggregate<MockAggregateCreated>()
+        val eventStream = MockDomainEventStreams.generateEventStream(
+            aggregateId = namedAggregate.aggregateId(tenantId = generateGlobalId()),
+            eventCount = 1,
+            createdEventSupplier = { MockAggregateCreated(generateGlobalId()) },
+        )
+        val unknownBodyType = "NotFoundEventStreamBody"
+        val eventStreamRecord = eventStream.toJsonString().toObjectNode()
+        val eventRecord = eventStreamRecord[MessageRecords.BODY][0] as ObjectNode
+        eventRecord.put(MessageRecords.BODY_TYPE, unknownBodyType)
+
+        val jsonEventStream = eventStreamRecord.toJsonString().toObject<DomainEventStream>()
+
+        jsonEventStream.first().assert().isInstanceOf(JsonDomainEvent::class.java)
+        val reserializedRecord = jsonEventStream.toJsonString().toObjectNode()
+        val reserializedEventRecord = reserializedRecord[MessageRecords.BODY][0] as ObjectNode
+        reserializedEventRecord[MessageRecords.BODY_TYPE].asText().assert().isEqualTo(unknownBodyType)
+    }
+
+    @Test
     fun `should serialize and deserialize snapshot`() {
         val aggregateMetadata = MOCK_AGGREGATE_METADATA
         val aggregateId = aggregateMetadata.aggregateId(

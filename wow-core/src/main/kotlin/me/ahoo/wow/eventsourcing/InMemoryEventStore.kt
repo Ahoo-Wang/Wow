@@ -121,7 +121,7 @@ class InMemoryEventStore : AbstractEventStore() {
     override fun last(aggregateId: AggregateId): Mono<DomainEventStream> {
         return Mono.fromSupplier {
             val eventsOfAgg = events[aggregateId] ?: return@fromSupplier null
-            eventsOfAgg.lastOrNull()
+            eventsOfAgg.lastOrNull()?.copy()
         }
     }
 }
