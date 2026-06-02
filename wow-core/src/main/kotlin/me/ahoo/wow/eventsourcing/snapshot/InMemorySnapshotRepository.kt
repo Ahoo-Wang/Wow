@@ -82,12 +82,16 @@ class InMemorySnapshotRepository : SnapshotRepository {
         limit: Int
     ): Flux<AggregateId> =
         aggregateIdMapSnapshot.keys
-            .sortedBy { it.id }
-            .toFlux()
+            .asSequence()
             .filter {
                 it.isSameAggregateName(namedAggregate)
             }
             .filter {
                 it.id > afterId
-            }.take(limit.toLong())
+            }
+            .sortedBy {
+                it.id
+            }
+            .take(limit)
+            .toFlux()
 }
