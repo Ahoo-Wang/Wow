@@ -68,4 +68,20 @@ internal class MetadataSearcherTest {
             )
         }
     }
+
+    @Test
+    fun `should not match sibling package prefix as scope`() {
+        val metadata = WowMetadata(
+            mapOf(
+                "context" to BoundedContext(
+                    aggregates = mapOf(
+                        "foo" to Aggregate(scopes = setOf("me.ahoo.foo")),
+                    ),
+                ),
+            ),
+        )
+        val searcher = metadata.toScopeNamedAggregateSearcher()
+
+        searcher.search("me.ahoo.foobar.Command").assert().isNull()
+    }
 }
