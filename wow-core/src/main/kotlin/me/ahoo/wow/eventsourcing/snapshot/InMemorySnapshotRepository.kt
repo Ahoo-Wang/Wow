@@ -69,7 +69,8 @@ class InMemorySnapshotRepository : SnapshotRepository {
         }
 
     /**
-     * Scans aggregate IDs from the in-memory map, sorted and filtered by afterId and limit.
+     * Scans aggregate IDs from the in-memory map, filtered by named aggregate and afterId,
+     * then sorted and limited.
      *
      * @param namedAggregate the named aggregate to scan
      * @param afterId the ID to start scanning after
