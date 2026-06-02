@@ -15,7 +15,8 @@ package me.ahoo.wow.infra.accessor.constructor
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.ioc.getRequiredService
 import java.lang.reflect.Constructor
-import kotlin.reflect.KParameter
+import kotlin.reflect.KType
+import kotlin.reflect.full.starProjectedType
 import kotlin.reflect.full.valueParameters
 import kotlin.reflect.jvm.kotlinFunction
 
@@ -61,7 +62,12 @@ class InjectableObjectFactory<T : Any>(
         serviceProvider,
     )
 
-    private val parameters: List<KParameter> = constructorAccessor.constructor.kotlinFunction!!.valueParameters
+    private val parameterTypes: List<KType> =
+        constructorAccessor.constructor.kotlinFunction?.valueParameters?.map {
+            it.type
+        } ?: constructorAccessor.constructor.parameterTypes.map {
+            it.kotlin.starProjectedType
+        }
 
     /**
      * Creates a new instance by resolving all constructor parameters from the service provider.
@@ -79,9 +85,9 @@ class InjectableObjectFactory<T : Any>(
      * ```
      */
     override fun newInstance(): T {
-        val args = parameters
+        val args = parameterTypes
             .map {
-                serviceProvider.getRequiredService<Any>(it.type)
+                serviceProvider.getRequiredService<Any>(it)
             }.toTypedArray()
         return constructorAccessor.invoke(args)
     }
