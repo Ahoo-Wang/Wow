@@ -109,6 +109,26 @@ interface LocalFirstMessageBus<M, E : MessageExchange<*, M>> :
      */
     val localBus: LocalMessageBus<M, E>
 
+    @Suppress("TooGenericExceptionCaught")
+    override fun close() {
+        var closeError: Exception? = null
+        try {
+            localBus.close()
+        } catch (error: Exception) {
+            closeError = error
+        }
+        try {
+            distributedBus.close()
+        } catch (error: Exception) {
+            closeError?.addSuppressed(error) ?: run {
+                closeError = error
+            }
+        }
+        closeError?.let {
+            throw it
+        }
+    }
+
     /**
      * The simple name of the local bus class for logging.
      */
