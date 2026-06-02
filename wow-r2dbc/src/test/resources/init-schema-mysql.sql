@@ -114,6 +114,8 @@ create table if not exists mock_aggregate_snapshot
 )
     collate = utf8mb4_bin;
 
+create table if not exists other_aggregate_snapshot like mock_aggregate_snapshot;
+
 create table if not exists eventsourcing_mock_aggregate_event_stream_0
 (
     id           char(15)        not null comment 'event stream id' primary key,
