@@ -29,7 +29,8 @@ import reactor.core.publisher.Mono
 class MetricStatelessSagaHandler(
     override val delegate: StatelessSagaHandler
 ) : StatelessSagaHandler,
-    Decorator<StatelessSagaHandler> {
+    Decorator<StatelessSagaHandler>,
+    Metrizable {
     /**
      * Handles a domain event exchange for saga processing and collects metrics on the operation.
      * Metrics collected include timing, success/failure rates, and tags for aggregate, event,
