@@ -44,9 +44,16 @@ class ErrorInfoConverterRegistrarTest {
         )
         CommandResultException(commandResult).toErrorInfo().assert().isEqualTo(commandResult)
     }
+
+    @Test
+    fun `should resolve superclass converter for subclass`() {
+        CustomSubclassException().toErrorInfo().errorCode.assert().isEqualTo("CUSTOM_EXCEPTION")
+    }
 }
 
-class CustomException : RuntimeException()
+open class CustomException : RuntimeException()
+
+class CustomSubclassException : CustomException()
 
 object CustomExceptionErrorInfoConverter : ErrorInfoConverter<CustomException> {
     override fun convert(error: CustomException): ErrorInfo {

@@ -97,10 +97,23 @@ object ErrorInfoConverterRegistrar {
     /**
      * Retrieves the error converter for a specific exception type.
      *
+     * Lookup walks the class hierarchy: if the exact class is not registered,
+     * each superclass is checked in order. This allows a converter registered
+     * for a framework/base exception to handle its subclasses.
+     *
      * @param throwableClass the exception class to look up
      * @return the registered converter for this exception type, or null if none is registered
      */
-    fun get(throwableClass: Class<out Throwable>): ErrorInfoConverter<Throwable>? = registrar[throwableClass]
+    @Suppress("UNCHECKED_CAST")
+    fun get(throwableClass: Class<out Throwable>): ErrorInfoConverter<Throwable>? {
+        registrar[throwableClass]?.let { return it }
+        var superclass = throwableClass.superclass
+        while (superclass != null && Throwable::class.java.isAssignableFrom(superclass)) {
+            registrar[superclass as Class<out Throwable>]?.let { return it }
+            superclass = superclass.superclass
+        }
+        return null
+    }
 }
 
 /**

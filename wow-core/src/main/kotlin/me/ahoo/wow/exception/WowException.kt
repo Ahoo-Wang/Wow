@@ -122,13 +122,14 @@ val Class<out Throwable>.recoverable: RecoverableType
  * Determines recoverable type considering Retry annotation configuration.
  *
  * This function evaluates the recoverable type of an exception class in the context
- * of a Retry annotation. The Retry annotation can explicitly mark certain exceptions
- * as recoverable or unrecoverable, overriding the default classifications.
+ * of a Retry annotation. The Retry annotation can mark exceptions, including
+ * assignable superclasses, as recoverable or unrecoverable, overriding the default
+ * classifications.
  *
  * Priority order:
- * 1. Explicitly listed in retry.recoverable → RECOVERABLE
- * 2. Explicitly listed in retry.unrecoverable → UNRECOVERABLE
- * 3. Default classification for the exception class
+ * 1. Nearest assignable type in retry.recoverable or retry.unrecoverable
+ * 2. Recoverable match when both lists match at the same distance
+ * 3. Default classification for the exception class when neither list matches
  *
  * @param throwableClass the exception class to evaluate
  * @return the recoverable type considering retry configuration
@@ -140,11 +141,38 @@ fun Retry?.recoverable(throwableClass: Class<out Throwable>): RecoverableType {
         return throwableClass.recoverable
     }
 
-    if (recoverable.any { it.java == throwableClass }) {
+    val recoverableDistance = recoverable.closestAssignableDistance(throwableClass)
+    val unrecoverableDistance = unrecoverable.closestAssignableDistance(throwableClass)
+    if (recoverableDistance != null || unrecoverableDistance != null) {
+        if (unrecoverableDistance != null &&
+            (recoverableDistance == null || unrecoverableDistance < recoverableDistance)
+        ) {
+            return RecoverableType.UNRECOVERABLE
+        }
         return RecoverableType.RECOVERABLE
     }
-    if (unrecoverable.any { it.java == throwableClass }) {
-        return RecoverableType.UNRECOVERABLE
-    }
     return throwableClass.recoverable
+}
+
+private fun Array<out kotlin.reflect.KClass<out Throwable>>.closestAssignableDistance(
+    throwableClass: Class<out Throwable>
+): Int? =
+    asSequence()
+        .mapNotNull { it.java.assignableDistanceTo(throwableClass) }
+        .minOrNull()
+
+private fun Class<out Throwable>.assignableDistanceTo(throwableClass: Class<out Throwable>): Int? {
+    if (!isAssignableFrom(throwableClass)) {
+        return null
+    }
+    var distance = 0
+    var current: Class<*>? = throwableClass
+    while (current != null) {
+        if (current == this) {
+            return distance
+        }
+        distance++
+        current = current.superclass
+    }
+    return null
 }
