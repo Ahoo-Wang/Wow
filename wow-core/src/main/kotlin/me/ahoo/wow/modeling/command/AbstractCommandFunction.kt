@@ -73,7 +73,7 @@ abstract class AbstractCommandFunction<C : Any>(
             return invokeCommandThenSetCommandInvokeResult(exchange)
         }
         val afterFunctionResult = Flux.fromIterable(afterCommandFunctions)
-            .flatMap {
+            .concatMap {
                 it.invoke(exchange)
             }.flatMapIterable { event ->
                 event.flatEvent()
