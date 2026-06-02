@@ -140,11 +140,38 @@ fun Retry?.recoverable(throwableClass: Class<out Throwable>): RecoverableType {
         return throwableClass.recoverable
     }
 
-    if (recoverable.any { it.java == throwableClass }) {
+    val recoverableDistance = recoverable.closestAssignableDistance(throwableClass)
+    val unrecoverableDistance = unrecoverable.closestAssignableDistance(throwableClass)
+    if (recoverableDistance != null || unrecoverableDistance != null) {
+        if (unrecoverableDistance != null &&
+            (recoverableDistance == null || unrecoverableDistance < recoverableDistance)
+        ) {
+            return RecoverableType.UNRECOVERABLE
+        }
         return RecoverableType.RECOVERABLE
     }
-    if (unrecoverable.any { it.java == throwableClass }) {
-        return RecoverableType.UNRECOVERABLE
-    }
     return throwableClass.recoverable
+}
+
+private fun Array<out kotlin.reflect.KClass<out Throwable>>.closestAssignableDistance(
+    throwableClass: Class<out Throwable>
+): Int? =
+    asSequence()
+        .mapNotNull { it.java.assignableDistanceTo(throwableClass) }
+        .minOrNull()
+
+private fun Class<out Throwable>.assignableDistanceTo(throwableClass: Class<out Throwable>): Int? {
+    if (!isAssignableFrom(throwableClass)) {
+        return null
+    }
+    var distance = 0
+    var current: Class<*>? = throwableClass
+    while (current != null) {
+        if (current == this) {
+            return distance
+        }
+        distance++
+        current = current.superclass
+    }
+    return null
 }

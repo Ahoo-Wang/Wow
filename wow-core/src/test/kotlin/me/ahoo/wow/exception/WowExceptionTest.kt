@@ -43,6 +43,15 @@ class WowExceptionTest {
             unrecoverable = arrayOf(IllegalArgumentException::class)
         ).recoverable(IllegalArgumentException::class.java)
             .assert().isEqualTo(RecoverableType.UNRECOVERABLE)
+        Retry(recoverable = arrayOf(RuntimeException::class)).recoverable(IllegalStateException::class.java)
+            .assert().isEqualTo(RecoverableType.RECOVERABLE)
+        Retry(unrecoverable = arrayOf(RuntimeException::class)).recoverable(IllegalStateException::class.java)
+            .assert().isEqualTo(RecoverableType.UNRECOVERABLE)
+        Retry(
+            recoverable = arrayOf(RuntimeException::class),
+            unrecoverable = arrayOf(IllegalArgumentException::class)
+        ).recoverable(IllegalArgumentException::class.java)
+            .assert().isEqualTo(RecoverableType.UNRECOVERABLE)
     }
 
     companion object {
