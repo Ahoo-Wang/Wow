@@ -58,6 +58,14 @@ object AggregateIdGeneratorRegistrar :
             .sortedByOrder()
     }
 
+    override fun containsKey(key: NamedAggregate): Boolean {
+        return AGGREGATE_ID_GENERATORS.containsKey(key.materialize())
+    }
+
+    override fun get(key: NamedAggregate): IdGenerator? {
+        return AGGREGATE_ID_GENERATORS[key.materialize()]
+    }
+
     /**
      * Retrieves or initializes an [IdGenerator] for the given [NamedAggregate].
      *
