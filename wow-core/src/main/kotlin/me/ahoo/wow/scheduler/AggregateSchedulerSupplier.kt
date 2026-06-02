@@ -128,10 +128,12 @@ class DefaultAggregateSchedulerSupplier(
      * Stops all schedulers gracefully.
      */
     override fun stopGracefully(): Mono<Void> {
-        return Flux.fromIterable(schedulers.values).flatMap {
-            it.disposeGracefully()
-        }.then().doFinally {
+        return Flux.defer {
+            val cachedSchedulers = schedulers.values.toList()
             schedulers.clear()
-        }
+            Flux.fromIterable(cachedSchedulers)
+        }.flatMap {
+            it.disposeGracefully()
+        }.then()
     }
 }
