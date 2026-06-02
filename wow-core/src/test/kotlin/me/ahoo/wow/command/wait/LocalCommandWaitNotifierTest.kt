@@ -13,8 +13,14 @@
 
 package me.ahoo.wow.command.wait
 
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.verify
+import me.ahoo.cosid.cosid.ClockSyncCosIdGenerator
+import me.ahoo.cosid.cosid.Radix62CosIdGenerator
 import me.ahoo.wow.api.messaging.function.FunctionInfoData
 import me.ahoo.wow.api.messaging.function.FunctionKind
+import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -79,5 +85,42 @@ internal class LocalCommandWaitNotifierTest {
         )
             .test()
             .verifyComplete()
+    }
+
+    @Test
+    fun `should notify local wait strategy when signal id is remote`() {
+        val registrar = mockk<WaitStrategyRegistrar> {
+            every { next(any()) } returns true
+        }
+        val commandWaitNotifier = LocalCommandWaitNotifier(registrar)
+        val waitCommandId = generateGlobalId()
+        val remoteSignalId = ClockSyncCosIdGenerator(
+            Radix62CosIdGenerator(remoteMachineId())
+        ).generateAsString()
+        val waitSignal = SimpleWaitSignal(
+            id = remoteSignalId,
+            waitCommandId = waitCommandId,
+            commandId = remoteSignalId,
+            aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
+            stage = CommandStage.PROCESSED,
+            function = functionInfo
+        )
+
+        commandWaitNotifier.notify("endpoint", waitSignal)
+            .test()
+            .verifyComplete()
+
+        verify(exactly = 1) {
+            registrar.next(waitSignal)
+        }
+    }
+
+    private fun remoteMachineId(): Int {
+        val localMachineId = GlobalIdGenerator.machineId
+        return if (localMachineId == 1) {
+            2
+        } else {
+            1
+        }
     }
 }

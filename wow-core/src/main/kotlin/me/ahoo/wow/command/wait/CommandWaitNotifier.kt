@@ -78,7 +78,7 @@ class LocalCommandWaitNotifier(
         waitSignal: WaitSignal
     ): Mono<Void> =
         Mono.fromRunnable {
-            if (isLocalWaitStrategy(waitSignal.id)) {
+            if (isLocalWaitStrategy(waitSignal.waitCommandId)) {
                 log.debug {
                     "Notify Local - waitSignal: $waitSignal"
                 }
