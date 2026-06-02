@@ -71,7 +71,7 @@ interface ScopeSearcher<V : Any> : SortedMap<String, V> {
         }
 
         forEach {
-            if (scope.startsWith(it.key)) {
+            if (scope.startsWith("${it.key}.")) {
                 return it.value
             }
         }
