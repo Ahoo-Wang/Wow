@@ -23,6 +23,11 @@ import reactor.core.publisher.Mono
  * regardless of processing success or failure.
  */
 object ExchangeAck {
+    private fun MessageExchange<*, *>.acknowledgeDefer(): Mono<Void> =
+        Mono.defer {
+            acknowledge()
+        }
+
     /**
      * Ensures the exchange is acknowledged after Mono completion, even on error.
      *
@@ -34,9 +39,9 @@ object ExchangeAck {
      */
     fun Mono<*>.finallyAck(exchange: MessageExchange<*, *>): Mono<Void> =
         onErrorResume {
-            exchange.acknowledge()
+            exchange.acknowledgeDefer()
                 .then(Mono.error(it))
-        }.then(exchange.acknowledge())
+        }.then(exchange.acknowledgeDefer())
 
     /**
      * Ensures the exchange is acknowledged after Flux completion, even on error.
@@ -49,9 +54,9 @@ object ExchangeAck {
      */
     fun Flux<*>.finallyAck(exchange: MessageExchange<*, *>): Mono<Void> =
         onErrorResume {
-            exchange.acknowledge()
+            exchange.acknowledgeDefer()
                 .then(Mono.error(it))
-        }.then(exchange.acknowledge())
+        }.then(exchange.acknowledgeDefer())
 
     /**
      * Filters the flux and acknowledges exchanges that don't match the predicate.

@@ -30,6 +30,6 @@ class SnapshotFunctionFilter(private val snapshotStrategy: SnapshotStrategy) : E
         return snapshotStrategy.onEvent(exchange)
             .checkpoint("OnEvent Message[${exchange.message.id}] [SnapshotFunctionFilter]")
             .finallyAck(exchange)
-            .then(next.filter(exchange))
+            .then(Mono.defer { next.filter(exchange) })
     }
 }

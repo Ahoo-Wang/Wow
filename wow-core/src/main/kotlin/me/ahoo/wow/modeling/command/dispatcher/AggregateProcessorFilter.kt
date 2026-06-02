@@ -45,6 +45,6 @@ class AggregateProcessorFilter(
                 "[${aggregateProcessor.aggregateId}] Process Command[${exchange.message.id}] [AggregateProcessorFilter]"
             )
             .finallyAck(exchange)
-            .then(next.filter(exchange))
+            .then(Mono.defer { next.filter(exchange) })
     }
 }

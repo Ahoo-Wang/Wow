@@ -114,7 +114,7 @@ abstract class MainDispatcher<T : Any> : MessageDispatcher {
      * and metrics context. This property is initialized on first access to avoid
      * unnecessary resource allocation.
      */
-    protected val aggregateDispatchers by lazy {
+    private val aggregateDispatchersLazy = lazy {
         namedAggregates
             .map {
                 val messageFlux =
@@ -124,6 +124,9 @@ abstract class MainDispatcher<T : Any> : MessageDispatcher {
                 newAggregateDispatcher(it, messageFlux)
             }
     }
+
+    protected val aggregateDispatchers: List<MessageDispatcher>
+        get() = aggregateDispatchersLazy.value
 
     private fun String.withNamePrefix(): String = "[$name][${this@MainDispatcher.javaClass.simpleName}] $this"
 
@@ -162,6 +165,9 @@ abstract class MainDispatcher<T : Any> : MessageDispatcher {
     override fun stopGracefully(): Mono<Void> {
         log.info {
             "Stop Gracefully.".withNamePrefix()
+        }
+        if (!aggregateDispatchersLazy.isInitialized()) {
+            return Mono.empty()
         }
         return Flux
             .fromIterable(aggregateDispatchers)

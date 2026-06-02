@@ -12,6 +12,7 @@
  */
 package me.ahoo.wow.messaging.dispatcher
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.modeling.NamedAggregate
@@ -24,6 +25,8 @@ import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
 import java.time.Duration
 import java.util.*
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 internal class AggregateDispatcherTest {
     @Test
@@ -38,8 +41,27 @@ internal class AggregateDispatcherTest {
         testDispatcher.stopGracefully().block(Duration.ofSeconds(5))
     }
 
+    @Test
+    fun `should stop gracefully when handle exchange throws before returning mono`() {
+        val testDispatcher = ThrowingAggregateDispatcher()
+        testDispatcher.start()
+
+        testDispatcher.invoked.await(2, TimeUnit.SECONDS).assert().isTrue()
+
+        testDispatcher.stopGracefully().block(Duration.ofSeconds(1))
+    }
+
     class TestAggregateDispatcher : TestBaseAggregateDispatcher() {
         override fun handleExchange(exchange: TestMessageExchange): Mono<Void> = Mono.empty()
+    }
+
+    class ThrowingAggregateDispatcher : TestBaseAggregateDispatcher() {
+        val invoked = CountDownLatch(1)
+
+        override fun handleExchange(exchange: TestMessageExchange): Mono<Void> {
+            invoked.countDown()
+            throw IllegalStateException("handleExchange")
+        }
     }
 
     abstract class TestBaseAggregateDispatcher : AggregateDispatcher<TestMessageExchange>() {

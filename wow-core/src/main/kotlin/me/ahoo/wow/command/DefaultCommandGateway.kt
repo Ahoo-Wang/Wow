@@ -113,7 +113,9 @@ class DefaultCommandGateway(
      */
     override fun send(message: CommandMessage<*>): Mono<Void> {
         return check(message)
-            .then(commandBus.send(message))
+            .thenDefer {
+                commandBus.send(message)
+            }
             .doOnSuccess {
                 val waitStrategy = message.header.extractWaitStrategy() ?: return@doOnSuccess
                 val waitSignal = message.commandSentSignal(waitStrategy.waitCommandId)

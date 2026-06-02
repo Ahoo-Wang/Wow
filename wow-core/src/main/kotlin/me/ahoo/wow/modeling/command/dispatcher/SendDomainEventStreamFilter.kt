@@ -19,7 +19,6 @@ import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.filter.FilterChain
-import me.ahoo.wow.messaging.function.logErrorResume
 import reactor.core.publisher.Mono
 
 @Order(ORDER_LAST, after = [AggregateProcessorFilter::class])
@@ -42,8 +41,7 @@ class SendDomainEventStreamFilter(
             }
             domainEventBus.send(eventStream)
                 .checkpoint("Send Message[${eventStream.id}] [SendDomainEventStreamFilter]")
-                .logErrorResume()
-                .then(next.filter(exchange))
+                .then(Mono.defer { next.filter(exchange) })
         }
     }
 }

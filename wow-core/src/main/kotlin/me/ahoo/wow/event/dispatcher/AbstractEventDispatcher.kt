@@ -58,4 +58,9 @@ abstract class AbstractEventDispatcher<E : MessageExchange<*, *>, BUS : MessageB
     override fun receiveMessage(namedAggregate: NamedAggregate): Flux<E> {
         return messageBus.receive(setOf(namedAggregate))
     }
+
+    internal fun stopAggregateDispatchersGracefully(): Mono<Void> = super.stopGracefully()
+
+    override fun stopGracefully(): Mono<Void> =
+        stopAggregateDispatchersGracefully().then(schedulerSupplier.stopGracefully())
 }
