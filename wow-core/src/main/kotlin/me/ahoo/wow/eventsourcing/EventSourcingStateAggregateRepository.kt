@@ -84,7 +84,7 @@ class EventSourcingStateAggregateRepository(
                 .map {
                     it.toStateAggregate()
                 }
-                .defaultIfEmpty(stateAggregateFactory.create(metadata, aggregateId))
+                .switchIfEmpty(stateAggregateFactory.createAsMono(metadata, aggregateId))
         } else {
             stateAggregateFactory.createAsMono(metadata, aggregateId)
         }
