@@ -63,8 +63,10 @@ class BlockingMonoFunctionAccessor<T, D : Any>(
  * @return a Mono that will execute on an appropriate thread for blocking operations
  */
 fun <T : Any> Mono<T>.toBlockable(scheduler: Scheduler = Schedulers.boundedElastic()): Mono<T> {
-    if (Schedulers.isInNonBlockingThread()) {
-        return this.subscribeOn(scheduler)
+    return Mono.defer {
+        if (Schedulers.isInNonBlockingThread()) {
+            return@defer this.subscribeOn(scheduler)
+        }
+        this
     }
-    return this
 }
