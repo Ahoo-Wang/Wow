@@ -26,4 +26,34 @@ internal class AggregateIdGeneratorRegistrarTest {
         id.assert().isNotNull()
         AggregateIdGeneratorRegistrar[namedAggregate].assert().isNotNull
     }
+
+    @Test
+    fun `should materialize key when initialize generator`() {
+        val contextName = generateGlobalId()
+        val aggregateName = generateGlobalId()
+        val namedAggregate = object : me.ahoo.wow.api.modeling.NamedAggregate {
+            override val contextName: String = contextName
+            override val aggregateName: String = aggregateName
+        }
+        val materialized = MaterializedNamedAggregate(contextName, aggregateName)
+
+        val idGenerator = AggregateIdGeneratorRegistrar.getOrInitialize(namedAggregate)
+
+        AggregateIdGeneratorRegistrar[materialized].assert().isSameAs(idGenerator)
+    }
+
+    @Test
+    fun `should materialize key when query generator`() {
+        val contextName = generateGlobalId()
+        val aggregateName = generateGlobalId()
+        val namedAggregate = object : me.ahoo.wow.api.modeling.NamedAggregate {
+            override val contextName: String = contextName
+            override val aggregateName: String = aggregateName
+        }
+
+        val idGenerator = AggregateIdGeneratorRegistrar.getOrInitialize(namedAggregate)
+
+        AggregateIdGeneratorRegistrar[namedAggregate].assert().isSameAs(idGenerator)
+        AggregateIdGeneratorRegistrar.containsKey(namedAggregate).assert().isTrue()
+    }
 }
