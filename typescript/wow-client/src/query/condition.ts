@@ -210,6 +210,9 @@ export function and<FIELDS extends string = string>(
       andChildren.push(condition);
     }
   });
+  if (andChildren.length === 0) {
+    return all();
+  }
   return { operator: Operator.AND, children: andChildren };
 }
 

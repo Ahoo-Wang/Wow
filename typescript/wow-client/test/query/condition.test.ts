@@ -171,6 +171,13 @@ describe('Condition', () => {
         });
       });
 
+      it('should return ALL when AND conditions are empty after filtering', () => {
+        const result = and(all(), undefined, null);
+        expect(result).toEqual({
+          operator: Operator.ALL,
+        });
+      });
+
       it('should create AND condition with no arguments and return ALL condition', () => {
         const result = and();
         expect(result).toEqual({
