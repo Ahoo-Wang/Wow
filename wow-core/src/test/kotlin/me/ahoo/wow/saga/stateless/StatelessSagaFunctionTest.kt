@@ -124,7 +124,7 @@ class StatelessSagaFunctionTest {
             aggregateVersion = 1,
         ).body.first()
 
-        statelessSagaFunction.invoke(SimpleDomainEventExchange(event)).block()
+        statelessSagaFunction.invoke(SimpleDomainEventExchange(event)).block(Duration.ofSeconds(5))
 
         sentBodyTypes.assert().containsSequence(MockCreateAggregate::class.java, MockChangeAggregate::class.java)
     }
