@@ -26,6 +26,17 @@ internal class DefaultHeaderTest {
     }
 
     @Test
+    fun `should copy mutable map when converting to header`() {
+        val values = HashMap<String, String>()
+        values[KEY] = VALUE
+
+        val header = values.toHeader()
+        values[KEY] = "changed"
+
+        header[KEY].assert().isEqualTo(VALUE)
+    }
+
+    @Test
     fun `should be empty when header has no entries`() {
         val values = HashMap<String, String>()
         val header = values.toHeader()

@@ -26,6 +26,7 @@ import me.ahoo.wow.api.modeling.AggregateIdCapable
 import me.ahoo.wow.api.modeling.SpaceId
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.DefaultHeader
+import me.ahoo.wow.serialization.event.JsonDomainEvent
 
 /**
  * Domain Event Stream interface representing a sequence of domain events.
@@ -105,7 +106,12 @@ data class SimpleDomainEventStream(
     override val commandId: String
     override val version: Int
 
-    override fun copy(): DomainEventStream = copy(header = header.copy())
+    override fun copy(): DomainEventStream = copy(
+        header = header.copy(),
+        body = body.map {
+            it.copyDomainEvent()
+        }
+    )
 
     override val size: Int
     override val createTime: Long
@@ -123,6 +129,13 @@ data class SimpleDomainEventStream(
         size = body.size
     }
 }
+
+private fun DomainEvent<*>.copyDomainEvent(): DomainEvent<*> =
+    when (this) {
+        is SimpleDomainEvent<*> -> copy(header = header.copy())
+        is JsonDomainEvent -> copy(header = header.copy())
+        else -> this
+    }
 
 /**
  * Determines if this event stream should be ignored during event sourcing.

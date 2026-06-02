@@ -170,8 +170,5 @@ fun Map<String, String>?.toHeader(): Header {
     if (this is Header) {
         return this
     }
-    if (this is MutableMap<*, *>) {
-        return DefaultHeader(this as MutableMap<String, String>)
-    }
     return DefaultHeader(this.toMutableMap())
 }
