@@ -85,6 +85,20 @@ internal class JsonSerializerTest {
     }
 
     @Test
+    fun `should deserialize event stream with shared stream header`() {
+        val namedAggregate = requiredNamedAggregate<MockCreateAggregate>()
+        val eventStream = MockDomainEventStreams.generateEventStream(
+            aggregateId = namedAggregate.aggregateId(tenantId = generateGlobalId()),
+            eventCount = 1,
+        )
+
+        val input = eventStream.toJsonString().toObject<DomainEventStream>()
+        input.first().header["polluted"] = "true"
+
+        input.header["polluted"].assert().isEqualTo("true")
+    }
+
+    @Test
     fun `should deep copy event stream`() {
         val namedAggregate = requiredNamedAggregate<MockCreateAggregate>()
         val eventStream = MockDomainEventStreams.generateEventStream(

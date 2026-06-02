@@ -142,8 +142,12 @@ private fun Iterable<*>.toDomainEvents(
     eventStreamHeader: Header,
     createTime: Long
 ): List<DomainEvent<Any>> {
-    val eventCount = count()
-    return mapIndexed { index, event ->
+    val events = when (this) {
+        is Collection<*> -> this
+        else -> toList()
+    }
+    val eventCount = events.size
+    return events.mapIndexed { index, event ->
         val sequence = (index + DEFAULT_EVENT_SEQUENCE)
         event!!.toDomainEvent(
             id = generateGlobalId(),
@@ -154,8 +158,8 @@ private fun Iterable<*>.toDomainEvents(
             ownerId = ownerId,
             spaceId = spaceId,
             commandId = command.commandId,
-            header = eventStreamHeader.copy(),
+            header = eventStreamHeader,
             createTime = createTime,
         )
-    }.toList()
+    }
 }

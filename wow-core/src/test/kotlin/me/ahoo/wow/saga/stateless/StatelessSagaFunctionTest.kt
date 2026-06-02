@@ -129,6 +129,42 @@ class StatelessSagaFunctionTest {
         sentBodyTypes.assert().containsSequence(MockCreateAggregate::class.java, MockChangeAggregate::class.java)
     }
 
+    @Test
+    fun `should send returned command message when saga returns command message`() {
+        val returnedCommand = MockCreateAggregate("", "").toCommandMessage()
+        val sentCommands = mutableListOf<CommandMessage<*>>()
+        val commandGateway = mockk<CommandGateway> {
+            every { send(any<CommandMessage<*>>()) } answers {
+                val sentCommand = firstArg<CommandMessage<*>>()
+                sentCommand.withReadOnly()
+                sentCommands.add(sentCommand)
+                Mono.empty()
+            }
+        }
+        val delegate = object : MessageFunction<Any, DomainEventExchange<*>, Mono<*>> {
+            override val contextName: String = "context"
+            override val name: String = "onEvent"
+            override val processor: Any = "processor"
+            override val supportedType: Class<*> = MockAggregateCreated::class.java
+            override val supportedTopics = emptySet<me.ahoo.wow.api.modeling.NamedAggregate>()
+            override val functionKind: FunctionKind = FunctionKind.EVENT
+            override fun <A : Annotation> getAnnotation(annotationClass: Class<A>): A? = null
+            override fun invoke(exchange: DomainEventExchange<*>): Mono<*> = Mono.just(returnedCommand)
+        }
+        val statelessSagaFunction = StatelessSagaFunction(delegate, commandGateway, mockk())
+        val upstream = MockCreateAggregate(generateGlobalId(), "data").toCommandMessage()
+        val event = MockAggregateCreated("data").toDomainEventStream(
+            upstream = upstream,
+            aggregateVersion = 1,
+        ).body.first()
+
+        statelessSagaFunction.invoke(SimpleDomainEventExchange(event)).block(Duration.ofSeconds(5))
+
+        sentCommands.assert().hasSize(1)
+        sentCommands.first().assert().isSameAs(returnedCommand)
+        returnedCommand.isReadOnly.assert().isTrue()
+    }
+
     class MockSaga {
         @Suppress("UNUSED_PARAMETER")
         @OnEvent

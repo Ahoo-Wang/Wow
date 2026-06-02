@@ -37,6 +37,16 @@ internal class DefaultHeaderTest {
     }
 
     @Test
+    fun `should use supplied mutable map when constructing header`() {
+        val values = mutableMapOf(KEY to VALUE)
+
+        val header = DefaultHeader(values)
+        values[KEY] = "changed"
+
+        header[KEY].assert().isEqualTo("changed")
+    }
+
+    @Test
     fun `should be empty when header has no entries`() {
         val values = HashMap<String, String>()
         val header = values.toHeader()
@@ -115,6 +125,13 @@ internal class DefaultHeaderTest {
     }
 
     @Test
+    fun `should implement map equals contract`() {
+        val header = DefaultHeader(mutableMapOf(KEY to VALUE))
+
+        header.assert().isEqualTo(mapOf(KEY to VALUE))
+    }
+
+    @Test
     fun `should return zero hashCode for empty header`() {
         DefaultHeader.empty().hashCode().assert().isEqualTo(0)
     }
@@ -176,6 +193,50 @@ internal class DefaultHeaderTest {
         assertThrownBy<UnsupportedOperationException> {
             header.putAll(mapOf(KEY to VALUE))
         }
+    }
+
+    @Test
+    fun `should throw UnsupportedOperationException on readonly header view operations`() {
+        val header = DefaultHeader(mutableMapOf(KEY to VALUE)).withReadOnly()
+
+        assertThrownBy<UnsupportedOperationException> {
+            header.keys.remove(KEY)
+        }
+        assertThrownBy<UnsupportedOperationException> {
+            header.values.remove(VALUE)
+        }
+        assertThrownBy<UnsupportedOperationException> {
+            header.entries.clear()
+        }
+        assertThrownBy<UnsupportedOperationException> {
+            header.entries.first().setValue("changed")
+        }
+        header[KEY].assert().isEqualTo(VALUE)
+    }
+
+    @Test
+    fun `should throw UnsupportedOperationException on captured header view operations after readonly`() {
+        val header = DefaultHeader(mutableMapOf(KEY to VALUE))
+        val keys = header.keys
+        val values = header.values
+        val entries = header.entries
+        val entry = entries.first()
+
+        header.withReadOnly()
+
+        assertThrownBy<UnsupportedOperationException> {
+            keys.remove(KEY)
+        }
+        assertThrownBy<UnsupportedOperationException> {
+            values.remove(VALUE)
+        }
+        assertThrownBy<UnsupportedOperationException> {
+            entries.clear()
+        }
+        assertThrownBy<UnsupportedOperationException> {
+            entry.setValue("changed")
+        }
+        header[KEY].assert().isEqualTo(VALUE)
     }
 
     companion object {

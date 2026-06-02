@@ -39,6 +39,19 @@ class DefaultHeader(
         fun empty(): Header = DefaultHeader()
     }
 
+    private val guardedEntries = GuardedMutableEntrySet(delegate.entries, ::checkWritable)
+    private val guardedKeys = GuardedMutableSet(delegate.keys, ::checkWritable)
+    private val guardedValues = GuardedMutableCollection(delegate.values, ::checkWritable)
+
+    override val entries: MutableSet<MutableMap.MutableEntry<String, String>>
+        get() = guardedEntries
+
+    override val keys: MutableSet<String>
+        get() = guardedKeys
+
+    override val values: MutableCollection<String>
+        get() = guardedValues
+
     /**
      * Makes this header read-only and returns it.
      *
@@ -68,10 +81,14 @@ class DefaultHeader(
      * @return The result of the block execution
      * @throws UnsupportedOperationException if the header is read-only
      */
-    private inline fun <T> write(block: () -> T): T {
+    private fun checkWritable() {
         if (isReadOnly) {
             throw UnsupportedOperationException("Header is read only.")
         }
+    }
+
+    private inline fun <T> write(block: () -> T): T {
+        checkWritable()
         return block()
     }
 
@@ -144,13 +161,157 @@ class DefaultHeader(
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
-        if (other !is DefaultHeader) return false
-        return delegate == other.delegate
+        if (other !is Map<*, *>) return false
+        return delegate == other
     }
 
     override fun hashCode(): Int = delegate.hashCode()
 
     override fun toString(): String = "DefaultHeader(delegate=$delegate)"
+
+    private open class GuardedMutableCollection<T>(
+        private val delegate: MutableCollection<T>,
+        private val checkWritable: () -> Unit
+    ) : MutableCollection<T> {
+        override val size: Int
+            get() = delegate.size
+
+        override fun add(element: T): Boolean {
+            checkWritable()
+            return delegate.add(element)
+        }
+
+        override fun addAll(elements: Collection<T>): Boolean {
+            checkWritable()
+            return delegate.addAll(elements)
+        }
+
+        override fun clear() {
+            checkWritable()
+            delegate.clear()
+        }
+
+        override fun contains(element: T): Boolean = delegate.contains(element)
+
+        override fun containsAll(elements: Collection<T>): Boolean = delegate.containsAll(elements)
+
+        override fun isEmpty(): Boolean = delegate.isEmpty()
+
+        override fun iterator(): MutableIterator<T> =
+            GuardedMutableIterator(delegate.iterator(), checkWritable) { it }
+
+        override fun remove(element: T): Boolean {
+            checkWritable()
+            return delegate.remove(element)
+        }
+
+        override fun removeAll(elements: Collection<T>): Boolean {
+            checkWritable()
+            return delegate.removeAll(elements)
+        }
+
+        override fun retainAll(elements: Collection<T>): Boolean {
+            checkWritable()
+            return delegate.retainAll(elements)
+        }
+    }
+
+    private class GuardedMutableSet<T>(
+        delegate: MutableSet<T>,
+        checkWritable: () -> Unit
+    ) : GuardedMutableCollection<T>(delegate, checkWritable),
+        MutableSet<T>
+
+    private class GuardedMutableEntrySet(
+        private val delegate: MutableSet<MutableMap.MutableEntry<String, String>>,
+        private val checkWritable: () -> Unit
+    ) : MutableSet<MutableMap.MutableEntry<String, String>> {
+        override val size: Int
+            get() = delegate.size
+
+        override fun add(element: MutableMap.MutableEntry<String, String>): Boolean {
+            checkWritable()
+            return delegate.add(element)
+        }
+
+        override fun addAll(elements: Collection<MutableMap.MutableEntry<String, String>>): Boolean {
+            checkWritable()
+            return delegate.addAll(elements)
+        }
+
+        override fun clear() {
+            checkWritable()
+            delegate.clear()
+        }
+
+        override fun contains(element: MutableMap.MutableEntry<String, String>): Boolean = delegate.contains(element)
+
+        override fun containsAll(elements: Collection<MutableMap.MutableEntry<String, String>>): Boolean =
+            delegate.containsAll(elements)
+
+        override fun isEmpty(): Boolean = delegate.isEmpty()
+
+        override fun iterator(): MutableIterator<MutableMap.MutableEntry<String, String>> =
+            GuardedMutableIterator(delegate.iterator(), checkWritable) {
+                GuardedMutableEntry(it, checkWritable)
+            }
+
+        override fun remove(element: MutableMap.MutableEntry<String, String>): Boolean {
+            checkWritable()
+            return delegate.remove(element)
+        }
+
+        override fun removeAll(elements: Collection<MutableMap.MutableEntry<String, String>>): Boolean {
+            checkWritable()
+            return delegate.removeAll(elements)
+        }
+
+        override fun retainAll(elements: Collection<MutableMap.MutableEntry<String, String>>): Boolean {
+            checkWritable()
+            return delegate.retainAll(elements)
+        }
+    }
+
+    private class GuardedMutableIterator<T>(
+        private val delegate: MutableIterator<T>,
+        private val checkWritable: () -> Unit,
+        private val wrap: (T) -> T
+    ) : MutableIterator<T> {
+        override fun hasNext(): Boolean = delegate.hasNext()
+
+        override fun next(): T = wrap(delegate.next())
+
+        override fun remove() {
+            checkWritable()
+            delegate.remove()
+        }
+    }
+
+    private class GuardedMutableEntry(
+        private val delegate: MutableMap.MutableEntry<String, String>,
+        private val checkWritable: () -> Unit
+    ) : MutableMap.MutableEntry<String, String> {
+        override val key: String
+            get() = delegate.key
+        override val value: String
+            get() = delegate.value
+
+        override fun setValue(newValue: String): String {
+            checkWritable()
+            return delegate.setValue(newValue)
+        }
+
+        override fun equals(other: Any?): Boolean {
+            if (other !is Map.Entry<*, *>) {
+                return false
+            }
+            return key == other.key && value == other.value
+        }
+
+        override fun hashCode(): Int = key.hashCode() xor value.hashCode()
+
+        override fun toString(): String = "$key=$value"
+    }
 }
 
 /**

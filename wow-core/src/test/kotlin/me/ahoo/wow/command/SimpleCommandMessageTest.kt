@@ -18,4 +18,30 @@ class SimpleCommandMessageTest {
         command.isReadOnly.assert().isEqualTo(true)
         command.ownerId.assert().isEqualTo(ownerId)
     }
+
+    @Test
+    fun `should create command message with supplied header`() {
+        val header = DefaultHeader.empty().with("source", "original")
+
+        val command = MockCreateCommand(GlobalIdGenerator.generateAsString()).toCommandMessage(header = header)
+        header["source"] = "mutated"
+
+        command.header.assert().isSameAs(header)
+        command.header["source"].assert().isEqualTo("mutated")
+        command.withReadOnly()
+        header.isReadOnly.assert().isTrue()
+    }
+
+    @Test
+    fun `should copy command message with independent header`() {
+        val command = MockCreateCommand(GlobalIdGenerator.generateAsString()).toCommandMessage(
+            header = DefaultHeader.empty().with("source", "original")
+        )
+        val copied = command.copy()
+        copied.header["source"] = "mutated"
+        command.withReadOnly()
+
+        command.header["source"].assert().isEqualTo("original")
+        copied.header["source"].assert().isEqualTo("mutated")
+    }
 }
