@@ -6,12 +6,16 @@ import babel from "@rolldown/plugin-babel";
 
 // https://vite.dev/config/
 export default defineConfig({
+  oxc: {
+    decorator: {
+      legacy: true,
+      emitDecoratorMetadata: true,
+    },
+  },
   plugins: [
     react(),
     babel({
-      plugins: [
-        ["@babel/plugin-proposal-decorators", { version: "legacy" }],
-      ],
+      plugins: [["@babel/plugin-syntax-decorators", { legacy: true }]],
       presets: [reactCompilerPreset()],
     }),
     tailwindcss(),
