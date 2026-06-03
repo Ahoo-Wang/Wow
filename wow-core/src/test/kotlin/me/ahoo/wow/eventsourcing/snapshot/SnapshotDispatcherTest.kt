@@ -13,12 +13,14 @@
 
 package me.ahoo.wow.eventsourcing.snapshot
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.eventsourcing.snapshot.dispatcher.DefaultSnapshotHandler
 import me.ahoo.wow.eventsourcing.snapshot.dispatcher.SnapshotDispatcher
 import me.ahoo.wow.eventsourcing.snapshot.dispatcher.SnapshotFunctionFilter
+import me.ahoo.wow.eventsourcing.snapshot.dispatcher.SnapshotHandler
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.toStateEvent
 import me.ahoo.wow.eventsourcing.state.StateEventExchange
@@ -27,6 +29,7 @@ import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.metrics.Metrics.metrizable
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.materialize
+import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockAggregateCreated
 import me.ahoo.wow.tck.mock.MockStateAggregate
@@ -35,7 +38,11 @@ import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
+import reactor.core.scheduler.Scheduler
+import reactor.core.scheduler.Schedulers
 import reactor.kotlin.test.test
+import java.time.Duration
+import java.util.concurrent.atomic.AtomicBoolean
 
 internal class SnapshotDispatcherTest {
     protected val aggregateMetadata = MOCK_AGGREGATE_METADATA
@@ -103,5 +110,39 @@ internal class SnapshotDispatcherTest {
             .verifyComplete()
 
         snapshotDispatcher.close()
+    }
+
+    @Test
+    fun `should stop scheduler supplier gracefully`() {
+        val schedulerSupplier = RecordingAggregateSchedulerSupplier()
+        val snapshotDispatcher = SnapshotDispatcher(
+            name = "test",
+            namedAggregates = setOf(aggregateMetadata.materialize()),
+            snapshotHandler = object : SnapshotHandler {
+                override fun handle(context: StateEventExchange<*>): Mono<Void> {
+                    return Mono.empty()
+                }
+            },
+            stateEventBus = InMemoryStateEventBus(),
+            schedulerSupplier = schedulerSupplier,
+        )
+
+        snapshotDispatcher.start()
+        snapshotDispatcher.stopGracefully().block(Duration.ofSeconds(5))
+
+        schedulerSupplier.stopped.get().assert().isTrue()
+    }
+
+    private class RecordingAggregateSchedulerSupplier : AggregateSchedulerSupplier {
+        val stopped = AtomicBoolean()
+        private val scheduler = Schedulers.newSingle("recording-snapshot-dispatcher")
+
+        override fun getOrInitialize(namedAggregate: NamedAggregate): Scheduler = scheduler
+
+        override fun stopGracefully(): Mono<Void> =
+            Mono.fromRunnable {
+                stopped.set(true)
+                scheduler.dispose()
+            }
     }
 }

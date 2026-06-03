@@ -12,6 +12,7 @@
  */
 package me.ahoo.wow.event
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.api.modeling.NamedAggregate
@@ -20,6 +21,7 @@ import me.ahoo.wow.event.dispatcher.DefaultDomainEventHandler
 import me.ahoo.wow.event.dispatcher.DomainEventDispatcher
 import me.ahoo.wow.event.dispatcher.DomainEventFunctionFilter
 import me.ahoo.wow.event.dispatcher.DomainEventFunctionRegistrar
+import me.ahoo.wow.event.dispatcher.DomainEventHandler
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
 import me.ahoo.wow.eventsourcing.state.StateEventBus
 import me.ahoo.wow.filter.FilterChainBuilder
@@ -28,13 +30,17 @@ import me.ahoo.wow.ioc.SimpleServiceProvider
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.metrics.Metrics.metrizable
 import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
 import me.ahoo.wow.tck.mock.MockAggregateChanged
 import me.ahoo.wow.tck.mock.MockAggregateCreated
 import me.ahoo.wow.test.aggregate.GivenInitializationCommand
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
+import reactor.core.scheduler.Scheduler
+import reactor.core.scheduler.Schedulers
 import java.time.Duration
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.LockSupport
 
 internal class DomainEventDispatcherTest {
@@ -42,6 +48,30 @@ internal class DomainEventDispatcherTest {
     private val domainEventBus: DomainEventBus = InMemoryDomainEventBus()
     private val stateEventBus: StateEventBus = InMemoryStateEventBus()
     private val functionRegistrar = DomainEventFunctionRegistrar()
+
+    @Test
+    fun `should stop scheduler supplier gracefully`() {
+        val schedulerSupplier = RecordingAggregateSchedulerSupplier()
+        val functionRegistrar = DomainEventFunctionRegistrar()
+        functionRegistrar.registerProcessor(NoOpMessageFunction(namedAggregate))
+        val domainEventProcessor = DomainEventDispatcher(
+            name = "test.DomainEventProcessor",
+            domainEventBus = InMemoryDomainEventBus(),
+            stateEventBus = InMemoryStateEventBus(),
+            functionRegistrar = functionRegistrar,
+            eventHandler = object : DomainEventHandler {
+                override fun handle(context: DomainEventExchange<*>): Mono<Void> {
+                    return Mono.empty()
+                }
+            },
+            schedulerSupplier = schedulerSupplier,
+        )
+
+        domainEventProcessor.start()
+        domainEventProcessor.stopGracefully().block(Duration.ofSeconds(5))
+
+        schedulerSupplier.stopped.get().assert().isTrue()
+    }
 
     @Test
     fun `should run`() {
@@ -100,5 +130,43 @@ internal class DomainEventDispatcherTest {
 
         LockSupport.parkNanos(Duration.ofSeconds(1).toNanos())
         domainEventProcessor.close()
+    }
+
+    private class NoOpMessageFunction(
+        private val namedAggregate: NamedAggregate,
+    ) : MessageFunction<Any, DomainEventExchange<*>, Mono<*>> {
+        override val contextName: String
+            get() = namedAggregate.contextName
+        override val name: String
+            get() = "noop"
+        override val supportedType: Class<*>
+            get() = Any::class.java
+        override val processor: Any
+            get() = this
+        override val functionKind: FunctionKind
+            get() = FunctionKind.EVENT
+        override val supportedTopics: Set<NamedAggregate>
+            get() = setOf(namedAggregate)
+
+        override fun <A : Annotation> getAnnotation(annotationClass: Class<A>): A? {
+            return null
+        }
+
+        override fun invoke(exchange: DomainEventExchange<*>): Mono<*> {
+            return Mono.empty<Void>()
+        }
+    }
+
+    private class RecordingAggregateSchedulerSupplier : AggregateSchedulerSupplier {
+        val stopped = AtomicBoolean()
+        private val scheduler = Schedulers.newSingle("recording-domain-event-dispatcher")
+
+        override fun getOrInitialize(namedAggregate: NamedAggregate): Scheduler = scheduler
+
+        override fun stopGracefully(): Mono<Void> =
+            Mono.fromRunnable {
+                stopped.set(true)
+                scheduler.dispose()
+            }
     }
 }

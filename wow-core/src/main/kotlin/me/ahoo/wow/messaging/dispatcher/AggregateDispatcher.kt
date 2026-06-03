@@ -215,7 +215,9 @@ abstract class AggregateDispatcher<T : MessageExchange<*, *>> :
             .metrics()
             .concatMap { exchange ->
                 activeTaskCounter.incrementAndGet()
-                handleExchange(exchange).doFinally {
+                Mono.defer {
+                    handleExchange(exchange)
+                }.doFinally {
                     val remaining = activeTaskCounter.decrementAndGet()
                     if (isDisposed && remaining <= 0) {
                         log.info {

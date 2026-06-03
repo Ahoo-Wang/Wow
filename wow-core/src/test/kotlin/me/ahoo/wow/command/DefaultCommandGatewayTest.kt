@@ -15,6 +15,7 @@ package me.ahoo.wow.command
 
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.command.validation.CommandValidator
@@ -25,10 +26,12 @@ import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
 import me.ahoo.wow.command.wait.stage.WaitingForStage
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.infra.idempotency.DefaultAggregateIdempotencyCheckerProvider
+import me.ahoo.wow.infra.idempotency.IdempotencyChecker
 import me.ahoo.wow.tck.command.CommandGatewaySpec
 import me.ahoo.wow.tck.mock.MockVoidCommand
 import me.ahoo.wow.test.validation.TestValidator
 import org.junit.jupiter.api.Test
+import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
 import java.time.Duration
@@ -95,6 +98,32 @@ internal class DefaultCommandGatewayTest : CommandGatewaySpec() {
             .verify()
         Thread.sleep(10)
         waitStrategyRegistrar.contains(message.commandId).assert().isFalse()
+    }
+
+    @Test
+    fun `should not send command when idempotency check fails`() {
+        val commandBus = mockk<CommandBus> {
+            every { send(any()) } returns Mono.empty()
+        }
+        val commandGateway = DefaultCommandGateway(
+            commandWaitEndpoint = SimpleCommandWaitEndpoint(""),
+            commandBus = commandBus,
+            validator = TestValidator,
+            idempotencyCheckerProvider = DefaultAggregateIdempotencyCheckerProvider {
+                IdempotencyChecker { Mono.just(false) }
+            },
+            waitStrategyRegistrar = waitStrategyRegistrar,
+            commandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar)
+        )
+
+        commandGateway.send(createMessage())
+            .test()
+            .expectError(DuplicateRequestIdException::class.java)
+            .verify()
+
+        verify(exactly = 0) {
+            commandBus.send(any())
+        }
     }
 
     class MockCommandBody : CommandValidator {

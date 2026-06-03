@@ -25,6 +25,7 @@ import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
 import me.ahoo.wow.scheduler.DefaultAggregateSchedulerSupplier
 import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 
 /**
  * Command Dispatcher .
@@ -63,4 +64,7 @@ class CommandDispatcher(
             scheduler = schedulerSupplier.getOrInitialize(namedAggregate),
         )
     }
+
+    override fun stopGracefully(): Mono<Void> =
+        super.stopGracefully().then(schedulerSupplier.stopGracefully())
 }

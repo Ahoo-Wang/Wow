@@ -72,7 +72,7 @@ class SendStateEventFilter(
             stateEventBus.send(stateEvent)
                 .checkpoint("Send Message[${eventStream.id}] [SendStateEventFilter]")
                 .logErrorResume()
-                .then(next.filter(exchange))
+                .then(Mono.defer { next.filter(exchange) })
         }
     }
 }

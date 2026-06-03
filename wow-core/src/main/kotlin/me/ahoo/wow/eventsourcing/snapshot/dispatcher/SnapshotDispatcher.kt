@@ -28,6 +28,7 @@ import me.ahoo.wow.messaging.handler.ExchangeAck.filterThenAck
 import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
 import me.ahoo.wow.scheduler.DefaultAggregateSchedulerSupplier
 import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 
 internal const val SNAPSHOT_PROCESSOR_NAME = "SnapshotDispatcher"
 
@@ -71,4 +72,7 @@ class SnapshotDispatcher(
             scheduler = schedulerSupplier.getOrInitialize(namedAggregate),
         )
     }
+
+    override fun stopGracefully(): Mono<Void> =
+        super.stopGracefully().then(schedulerSupplier.stopGracefully())
 }

@@ -66,6 +66,6 @@ open class DomainEventFunctionFilter(
         return eventFunction
             .invoke(exchange)
             .checkpoint("Invoke ${eventFunction.qualifiedName} [DomainEventFunctionFilter]")
-            .then(next.filter(exchange))
+            .then(Mono.defer { next.filter(exchange) })
     }
 }

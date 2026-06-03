@@ -13,6 +13,20 @@ import reactor.kotlin.test.test
 class ExchangeAckTest {
 
     @Test
+    fun `should not mono ack before subscription`() {
+        val exchange = mockk<MessageExchange<*, *>> {
+            every { acknowledge() } returns Mono.empty()
+        }
+
+        val finallyAck = Mono.empty<Void>().finallyAck(exchange)
+
+        verify(exactly = 0) {
+            exchange.acknowledge()
+        }
+        finallyAck.test().verifyComplete()
+    }
+
+    @Test
     fun `should mono finally ack`() {
         val exchange = mockk<MessageExchange<*, *>> {
             every { acknowledge() } returns Mono.empty()
@@ -41,6 +55,20 @@ class ExchangeAckTest {
         verify {
             exchange.acknowledge()
         }
+    }
+
+    @Test
+    fun `should not flux ack before subscription`() {
+        val exchange = mockk<MessageExchange<*, *>> {
+            every { acknowledge() } returns Mono.empty()
+        }
+
+        val finallyAck = Flux.empty<Void>().finallyAck(exchange)
+
+        verify(exactly = 0) {
+            exchange.acknowledge()
+        }
+        finallyAck.test().verifyComplete()
     }
 
     @Test
