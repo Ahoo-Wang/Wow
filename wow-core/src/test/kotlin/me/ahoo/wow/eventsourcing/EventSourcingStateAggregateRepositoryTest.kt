@@ -12,10 +12,26 @@
  */
 package me.ahoo.wow.eventsourcing
 
+import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
+import me.ahoo.wow.eventsourcing.snapshot.Snapshot
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.id.generateGlobalId
+import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.modeling.metadata.StateAggregateMetadata
+import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
+import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.tck.eventsourcing.StateAggregateRepositorySpec
+import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
+import org.junit.jupiter.api.Test
+import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
+import java.util.concurrent.atomic.AtomicInteger
 
 internal class EventSourcingStateAggregateRepositoryTest : StateAggregateRepositorySpec() {
     override fun createStateAggregateRepository(
@@ -27,5 +43,46 @@ internal class EventSourcingStateAggregateRepositoryTest : StateAggregateReposit
             InMemorySnapshotRepository(),
             eventStore,
         )
+    }
+
+    @Test
+    fun `should not create empty aggregate when snapshot exists`() {
+        val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(generateGlobalId())
+        val stateAggregate = ConstructorStateAggregateFactory.create(MOCK_AGGREGATE_METADATA.state, aggregateId)
+        val snapshot = SimpleSnapshot(stateAggregate)
+        val snapshotRepository = object : SnapshotRepository {
+            override val name: String = "snapshot"
+
+            @Suppress("UNCHECKED_CAST")
+            override fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>> =
+                Mono.just(snapshot as Snapshot<S>)
+
+            override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> = Mono.empty()
+
+            override fun scanAggregateId(
+                namedAggregate: NamedAggregate,
+                afterId: String,
+                limit: Int
+            ): Flux<AggregateId> = Flux.empty()
+        }
+        val createCount = AtomicInteger()
+        val stateAggregateFactory = object : StateAggregateFactory {
+            override fun <S : Any> create(
+                metadata: StateAggregateMetadata<S>,
+                aggregateId: AggregateId
+            ): StateAggregate<S> {
+                createCount.incrementAndGet()
+                return ConstructorStateAggregateFactory.create(metadata, aggregateId)
+            }
+        }
+        val repository = EventSourcingStateAggregateRepository(
+            stateAggregateFactory,
+            snapshotRepository,
+            InMemoryEventStore(),
+        )
+
+        repository.load(aggregateId, MOCK_AGGREGATE_METADATA.state).block()
+
+        createCount.get().assert().isEqualTo(0)
     }
 }
