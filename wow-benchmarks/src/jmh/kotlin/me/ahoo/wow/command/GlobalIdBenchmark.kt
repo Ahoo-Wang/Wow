@@ -13,7 +13,8 @@
 
 package me.ahoo.wow.command
 
-import me.ahoo.wow.id.generateGlobalId
+import me.ahoo.cosid.cosid.ClockSyncCosIdGenerator
+import me.ahoo.cosid.cosid.Radix62CosIdGenerator
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.State
@@ -21,10 +22,11 @@ import org.openjdk.jmh.infra.Blackhole
 
 @State(Scope.Benchmark)
 open class GlobalIdBenchmark {
+    private val idGenerator = ClockSyncCosIdGenerator(Radix62CosIdGenerator(0))
 
     @Benchmark
     fun generateId(blackhole: Blackhole) {
-        val id = generateGlobalId()
+        val id = idGenerator.generateAsString()
         blackhole.consume(id)
     }
 }

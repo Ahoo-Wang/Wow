@@ -17,9 +17,46 @@ dependencies {
 tasks.named<Jar>("jmhJar") {
     isZip64 = true
 }
+
+val benchmarkSmokeIncludes = listOf(
+    "me.ahoo.wow.command.CommandFactoryBenchmark",
+    "me.ahoo.wow.command.GlobalIdBenchmark",
+    "me.ahoo.wow.messaging.function.MessageFunctionRegistrarBenchmark",
+)
+
+val benchmarkSmokeReport = layout.buildDirectory.file("reports/jmh/benchmark-smoke.json")
+tasks.register<JavaExec>("benchmarkSmoke") {
+    description = "Runs a PR-safe JMH smoke benchmark set."
+    group = "verification"
+    dependsOn(tasks.named("jmhJar"))
+    classpath(tasks.named<Jar>("jmhJar").flatMap { it.archiveFile })
+    mainClass.set("org.openjdk.jmh.Main")
+    args(
+        benchmarkSmokeIncludes.joinToString("|") { Regex.escape(it) + ".*" },
+        "-wi",
+        "0",
+        "-i",
+        "1",
+        "-f",
+        "1",
+        "-foe",
+        "true",
+        "-r",
+        "1s",
+        "-rf",
+        "json",
+        "-rff",
+        benchmarkSmokeReport.get().asFile.absolutePath,
+    )
+    outputs.file(benchmarkSmokeReport)
+    doFirst {
+        benchmarkSmokeReport.get().asFile.parentFile.mkdirs()
+    }
+}
+
 jmh {
     zip64.set(true)
-    includes.set(listOf("MongoCommandDispatcherBenchmark.sendAndWaitForProcessed"))
+    includes.set(listOf(".*Benchmark.*"))
     warmup.set("2s")
     warmupIterations.set(1)
     iterations.set(2)

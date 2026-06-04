@@ -20,15 +20,25 @@ import me.ahoo.wow.example.api.cart.AddCartItem
 import me.ahoo.wow.example.domain.cart.Cart
 import me.ahoo.wow.example.domain.cart.CartState
 import me.ahoo.wow.infra.idempotency.BloomFilterIdempotencyChecker
+import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import java.time.Duration
 
-val cartAggregateMetadata = aggregateMetadata<Cart, CartState>()
+val cartAggregateMetadata by lazy {
+    aggregateMetadata<Cart, CartState>()
+}
+
+private val benchmarkCart = MaterializedNamedAggregate("example-service", "cart")
 
 fun createCommandMessage(): CommandMessage<AddCartItem> {
     return AddCartItem(
         productId = "productId"
-    ).toCommandMessage()
+    ).toCommandMessage(
+        id = "benchmark-command-id",
+        requestId = "benchmark-request-id",
+        aggregateId = "benchmark-cart-id",
+        namedAggregate = benchmarkCart,
+    )
 }
 
 fun createBloomFilterIdempotencyChecker(): BloomFilterIdempotencyChecker {

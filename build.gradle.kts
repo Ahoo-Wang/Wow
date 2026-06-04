@@ -281,6 +281,12 @@ tasks.register("allIntegrationTest") {
     dependsOn(integrationTestProjects.map { it.tasks.named(WowTestLayer.INTEGRATION.taskName) })
 }
 
+tasks.register("benchmarkSmoke") {
+    description = "Runs the PR-safe JMH smoke benchmark set."
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+    dependsOn(benchmarksProject.tasks.named("benchmarkSmoke"))
+}
+
 configure(publishProjects) {
     val isBom = bomProjects.contains(this)
     apply<MavenPublishPlugin>()
