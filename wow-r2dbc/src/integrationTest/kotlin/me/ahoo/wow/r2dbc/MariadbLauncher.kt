@@ -16,33 +16,21 @@ package me.ahoo.wow.r2dbc
 import org.testcontainers.containers.MariaDBContainer
 
 object MariadbLauncher {
-    private const val DEV_HOST = "localhost"
     private val CONTAINER = MariaDBContainer("mariadb:10.6.4")
         .withNetworkAliases("mariadb")
         .withPassword("root")
         .withDatabaseName("wow_db")
         .withInitScript("init-schema-mysql.sql")
-        .withReuse(true)
-    private val inCI = System.getenv("CI").isNullOrBlank().not()
 
     init {
-        if (inCI) {
-            CONTAINER.start()
-        }
+        CONTAINER.start()
     }
 
     fun getHost(): String {
-        if (inCI) {
-            return CONTAINER.host
-        }
-        return DEV_HOST
+        return CONTAINER.host
     }
 
     fun getPort(): Int {
-        val innerPort = 3306
-        if (inCI) {
-            return CONTAINER.getMappedPort(innerPort)
-        }
-        return innerPort
+        return CONTAINER.getMappedPort(3306)
     }
 }

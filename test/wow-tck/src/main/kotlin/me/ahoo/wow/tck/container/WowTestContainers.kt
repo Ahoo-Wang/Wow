@@ -1,0 +1,60 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.tck.container
+
+import org.testcontainers.containers.GenericContainer
+import org.testcontainers.containers.KafkaContainer
+import org.testcontainers.containers.MongoDBContainer
+import org.testcontainers.elasticsearch.ElasticsearchContainer
+import org.testcontainers.utility.DockerImageName
+import java.time.Duration
+
+object WowTestContainers {
+    private const val ELASTIC_PASSWORD = "wow"
+
+    val mongo: MongoDBContainer by lazy {
+        MongoDBContainer(DockerImageName.parse("mongo:6.0.6"))
+            .withNetworkAliases("mongo")
+            .also { it.start() }
+    }
+
+    val kafka: KafkaContainer by lazy {
+        KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.4.0"))
+            .withNetworkAliases("kafka")
+            .withKraft()
+            .also { it.start() }
+    }
+
+    val elasticsearch: ElasticsearchContainer by lazy {
+        ElasticsearchContainer(
+            DockerImageName
+                .parse("docker.elastic.co/elasticsearch/elasticsearch")
+                .withTag("9.2.6"),
+        )
+            .withPassword(ELASTIC_PASSWORD)
+            .withNetworkAliases("elasticsearch")
+            .withStartupTimeout(Duration.ofMinutes(5))
+            .also { it.start() }
+    }
+
+    val redis: GenericContainer<*> by lazy {
+        GenericContainer(DockerImageName.parse("redis:7.4-alpine"))
+            .withExposedPorts(6379)
+            .withNetworkAliases("redis")
+            .also { it.start() }
+    }
+
+    val elasticPassword: String
+        get() = ELASTIC_PASSWORD
+}

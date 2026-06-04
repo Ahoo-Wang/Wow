@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.redis
 
+import me.ahoo.wow.tck.container.WowTestContainers
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration
 import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory
@@ -26,7 +27,11 @@ class RedisInitializer : AutoCloseable {
         val lettuceClientConfiguration = LettuceClientConfiguration
             .builder()
             .build()
-        val redisConfig = RedisStandaloneConfiguration()
+        val redisContainer = WowTestContainers.redis
+        val redisConfig = RedisStandaloneConfiguration(
+            redisContainer.host,
+            redisContainer.getMappedPort(6379),
+        )
         connectionFactory = LettuceConnectionFactory(redisConfig, lettuceClientConfiguration)
         connectionFactory.afterPropertiesSet()
         redisTemplate = ReactiveStringRedisTemplate(connectionFactory)

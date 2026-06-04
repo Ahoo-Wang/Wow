@@ -14,7 +14,6 @@
 package me.ahoo.wow.tck.container
 
 import org.testcontainers.elasticsearch.ElasticsearchContainer
-import org.testcontainers.utility.DockerImageName
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -25,26 +24,19 @@ import java.util.Base64
 
 object ElasticsearchLauncher {
     private const val ELASTIC_USER = "elastic"
-    const val ELASTIC_PWD = "wow"
+    val ELASTIC_PWD: String
+        get() = WowTestContainers.elasticPassword
     private val BASIC_AUTH = Base64.getEncoder().encodeToString(
         "$ELASTIC_USER:$ELASTIC_PWD".toByteArray(StandardCharsets.UTF_8),
     )
-    val ELASTICSEARCH_CONTAINER: ElasticsearchContainer = ElasticsearchContainer(
-        DockerImageName
-            .parse("docker.elastic.co/elasticsearch/elasticsearch")
-            .withTag("9.2.6"),
-    )
-        .withPassword(ELASTIC_PWD)
-        .withNetworkAliases("elasticsearch")
-        .withReuse(false)
-        .withStartupTimeout(Duration.ofMinutes(5))
+    val ELASTICSEARCH_CONTAINER: ElasticsearchContainer
+        get() = WowTestContainers.elasticsearch
 
-    init {
-        ELASTICSEARCH_CONTAINER.start()
-        waitUntilAuthenticated()
-    }
-
-    val isRunning = ELASTICSEARCH_CONTAINER.isRunning
+    val isRunning: Boolean
+        get() {
+            waitUntilAuthenticated()
+            return ELASTICSEARCH_CONTAINER.isRunning
+        }
 
     private fun waitUntilAuthenticated() {
         val httpClient = HttpClient.newBuilder()
