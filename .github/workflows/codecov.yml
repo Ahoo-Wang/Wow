@@ -45,8 +45,7 @@ jobs:
           ignore_runs: true
           large_files: true
           files: |
-            **/build/test-results/unitTest/**/*.xml
-            **/build/test-results/domainTest/**/*.xml
+            **/build/test-results/test/**/*.xml
             **/build/test-results/contractTest/**/*.xml
             **/build/test-results/integrationTest/**/*.xml
 

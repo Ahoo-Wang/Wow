@@ -38,6 +38,7 @@ import java.time.Duration
 abstract class MessageBusSpec<M : Message<*, *>, E : MessageExchange<*, M>, BUS : MessageBus<M, E>> : TopicKindCapable {
     companion object {
         private val log = KotlinLogging.logger { }
+        private val VERIFY_TIMEOUT: Duration = Duration.ofMinutes(2)
     }
 
     abstract val namedAggregate: NamedAggregate
@@ -72,7 +73,7 @@ abstract class MessageBusSpec<M : Message<*, *>, E : MessageExchange<*, M>, BUS 
             }
             .expectNextCount(0)
             .thenCancel()
-            .verify()
+            .verify(VERIFY_TIMEOUT)
     }
 
     @Test
@@ -94,7 +95,7 @@ abstract class MessageBusSpec<M : Message<*, *>, E : MessageExchange<*, M>, BUS 
                     it.message.id.assert().isEqualTo(message.id)
                 }
                 .thenCancel()
-                .verify()
+                .verify(VERIFY_TIMEOUT)
         }
     }
 
@@ -119,7 +120,7 @@ abstract class MessageBusSpec<M : Message<*, *>, E : MessageExchange<*, M>, BUS 
                 .test()
                 .expectNextCount(10)
                 .thenCancel()
-                .verify()
+                .verify(VERIFY_TIMEOUT)
         }
     }
 
@@ -133,14 +134,15 @@ abstract class MessageBusSpec<M : Message<*, *>, E : MessageExchange<*, M>, BUS 
                 .doOnSubscribe {
                     val duration = sendLoop(messageBus = this)
                         .test()
-                        .verifyComplete()
+                        .expectComplete()
+                        .verify(VERIFY_TIMEOUT)
                     log.info {
                         "[${this.javaClass.simpleName}] sendPerformance - duration:$duration"
                     }
                 }
                 .test()
                 .thenCancel()
-                .verify()
+                .verify(VERIFY_TIMEOUT)
         }
     }
 
@@ -171,7 +173,7 @@ abstract class MessageBusSpec<M : Message<*, *>, E : MessageExchange<*, M>, BUS 
                 .test()
                 .expectNextCount(maxCount)
                 .thenCancel()
-                .verify()
+                .verify(VERIFY_TIMEOUT)
             log.info { "[${this.javaClass.simpleName}] receivePerformance - duration:$duration" }
         }
     }

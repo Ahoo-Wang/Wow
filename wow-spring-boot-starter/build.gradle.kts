@@ -85,7 +85,7 @@ dependencies {
     testImplementation("org.springdoc:springdoc-openapi-starter-webflux-ui")
 }
 
-configurations.named("unitTestImplementation") {
+configurations.named("testImplementation") {
     extendsFrom(
         configurations.getByName("mongoSupportImplementation"),
         configurations.getByName("r2dbcSupportImplementation"),

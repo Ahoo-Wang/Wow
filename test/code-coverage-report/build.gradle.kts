@@ -25,9 +25,7 @@ plugins {
 @Suppress("UNCHECKED_CAST")
 val libraryProjects = rootProject.ext.get("libraryProjects") as Iterable<Project>
 @Suppress("UNCHECKED_CAST")
-val unitTestProjects = rootProject.ext.get("unitTestProjects") as Iterable<Project>
-@Suppress("UNCHECKED_CAST")
-val domainTestProjects = rootProject.ext.get("domainTestProjects") as Iterable<Project>
+val standardTestProjects = rootProject.ext.get("standardTestProjects") as Iterable<Project>
 @Suppress("UNCHECKED_CAST")
 val localContractTestProjects = rootProject.ext.get("localContractTestProjects") as Iterable<Project>
 @Suppress("UNCHECKED_CAST")
@@ -42,14 +40,13 @@ dependencies {
 reporting {
     reports {
         val codeCoverageReport by creating(JacocoCoverageReport::class) {
-            testSuiteName = "unitTest"
+            testSuiteName = "test"
         }
     }
 }
 
 val coveredTestTasks = listOf(
-    unitTestProjects to "unitTest",
-    domainTestProjects to "domainTest",
+    standardTestProjects to "test",
     localContractTestProjects to "contractTest",
     integrationTestProjects to "integrationTest",
 ).flatMap { (projects, taskName) ->

@@ -23,8 +23,8 @@ class QuerySymbolProcessorTest {
     @OptIn(ExperimentalCompilerApi::class)
     @Test
     fun `should process query metadata`() {
-        val mockBoundedContextFile = File("src/unitTest/kotlin/me/ahoo/wow/compiler/MockBoundedContext.kt")
-        val mockCompilerAggregateFile = File("src/unitTest/kotlin/me/ahoo/wow/compiler/MockCompilerAggregate.kt")
+        val mockBoundedContextFile = File("src/test/kotlin/me/ahoo/wow/compiler/MockBoundedContext.kt")
+        val mockCompilerAggregateFile = File("src/test/kotlin/me/ahoo/wow/compiler/MockCompilerAggregate.kt")
         compileTestQuerySymbolProcessor(
             listOf(mockBoundedContextFile, mockCompilerAggregateFile),
         ) { compilation, _ ->
@@ -59,7 +59,7 @@ class QuerySymbolProcessorTest {
     @Test
     fun `should process aggregate with id and tenantId constructor`() {
         val mockTenantCompilerAggregateFile =
-            File("src/unitTest/kotlin/me/ahoo/wow/compiler/MockTenantCompilerAggregate.kt")
+            File("src/test/kotlin/me/ahoo/wow/compiler/MockTenantCompilerAggregate.kt")
         compileTestQuerySymbolProcessor(
             listOf(mockTenantCompilerAggregateFile),
         ) { compilation, _ ->
@@ -103,8 +103,8 @@ class QuerySymbolProcessorTest {
     @OptIn(ExperimentalCompilerApi::class)
     @Test
     fun `should process Java sources`() {
-        val mockBoundedContextFile = File("src/unitTest/java/me/ahoo/wow/compiler/MockJavaBoundedContext.java")
-        val mockCompilerAggregateFile = File("src/unitTest/java/me/ahoo/wow/compiler/MockJavaCompilerAggregate.java")
+        val mockBoundedContextFile = File("src/test/java/me/ahoo/wow/compiler/MockJavaBoundedContext.java")
+        val mockCompilerAggregateFile = File("src/test/java/me/ahoo/wow/compiler/MockJavaCompilerAggregate.java")
         compileTestQuerySymbolProcessor(listOf(mockBoundedContextFile, mockCompilerAggregateFile)) { compilation, _ ->
             val navFile = Path(
                 compilation.kspSourcesDir.path,

@@ -59,16 +59,6 @@ enum class WowTestLayer(
     val taskName: String,
     val description: String,
 ) {
-    UNIT(
-        sourceSetName = "unitTest",
-        taskName = "unitTest",
-        description = "Runs local-safe unit tests.",
-    ),
-    DOMAIN(
-        sourceSetName = "domainTest",
-        taskName = "domainTest",
-        description = "Runs domain behavior tests.",
-    ),
     CONTRACT(
         sourceSetName = "contractTest",
         taskName = "contractTest",
@@ -81,7 +71,8 @@ enum class WowTestLayer(
     ),
 }
 
-val unitTestProjects = libraryProjects - benchmarksProject
+val standardTestProjects = libraryProjects - benchmarksProject
+val unitTestTaskProjects = standardTestProjects + project(":wow-compensation-server")
 val domainTestProjects = setOf(
     exampleDomainProject,
     project(":example-transfer-domain"),
@@ -101,7 +92,7 @@ val integrationTestProjects = setOf(
     project(":wow-it"),
 )
 
-ext.set("unitTestProjects", unitTestProjects)
+ext.set("standardTestProjects", standardTestProjects)
 ext.set("domainTestProjects", domainTestProjects)
 ext.set("localContractTestProjects", localContractTestProjects)
 ext.set("integrationTestProjects", integrationTestProjects)
@@ -241,14 +232,6 @@ configure(libraryProjects) {
     }
 }
 
-configure(unitTestProjects) {
-    registerJvmTestLayer(WowTestLayer.UNIT, includeInCheck = true)
-}
-
-configure(domainTestProjects) {
-    registerJvmTestLayer(WowTestLayer.DOMAIN, includeInCheck = true)
-}
-
 configure(localContractTestProjects) {
     registerJvmTestLayer(WowTestLayer.CONTRACT, includeInCheck = true)
 }
@@ -260,13 +243,13 @@ configure(integrationTestProjects) {
 tasks.register("allUnitTest") {
     description = "Runs all local-safe unit tests."
     group = LifecycleBasePlugin.VERIFICATION_GROUP
-    dependsOn(unitTestProjects.map { it.tasks.named(WowTestLayer.UNIT.taskName) })
+    dependsOn(unitTestTaskProjects.map { it.tasks.named("test") })
 }
 
 tasks.register("allDomainTest") {
     description = "Runs all domain behavior tests."
     group = LifecycleBasePlugin.VERIFICATION_GROUP
-    dependsOn(domainTestProjects.map { it.tasks.named(WowTestLayer.DOMAIN.taskName) })
+    dependsOn(domainTestProjects.map { it.tasks.named("test") })
 }
 
 tasks.register("allContractTest") {

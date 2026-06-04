@@ -22,6 +22,7 @@ import java.time.Duration
 
 object WowTestContainers {
     private const val ELASTIC_PASSWORD = "wow"
+    private const val ELASTICSEARCH_JAVA_OPTS = "-Xms512m -Xmx512m"
 
     val mongo: MongoDBContainer by lazy {
         MongoDBContainer(DockerImageName.parse("mongo:6.0.6"))
@@ -43,6 +44,7 @@ object WowTestContainers {
                 .withTag("9.2.6"),
         )
             .withPassword(ELASTIC_PASSWORD)
+            .withEnv("ES_JAVA_OPTS", ELASTICSEARCH_JAVA_OPTS)
             .withNetworkAliases("elasticsearch")
             .withStartupTimeout(Duration.ofMinutes(5))
             .also { it.start() }

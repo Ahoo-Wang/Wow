@@ -36,8 +36,8 @@ class AggregatesMetadataSymbolProcessorTest {
     @OptIn(ExperimentalCompilerApi::class)
     @Test
     fun `should process aggregate metadata`() {
-        val mockBoundedContextFile = File("src/unitTest/kotlin/me/ahoo/wow/compiler/MockBoundedContext.kt")
-        val mockCompilerAggregateFile = File("src/unitTest/kotlin/me/ahoo/wow/compiler/MockCompilerAggregate.kt")
+        val mockBoundedContextFile = File("src/test/kotlin/me/ahoo/wow/compiler/MockBoundedContext.kt")
+        val mockCompilerAggregateFile = File("src/test/kotlin/me/ahoo/wow/compiler/MockCompilerAggregate.kt")
         compileNamedAggregatesSymbolProcessor(
             listOf(mockBoundedContextFile, mockCompilerAggregateFile),
         ) { compilation, _ ->
@@ -66,8 +66,8 @@ class AggregatesMetadataSymbolProcessorTest {
     @OptIn(ExperimentalCompilerApi::class)
     @Test
     fun `should process Java sources`() {
-        val mockBoundedContextFile = File("src/unitTest/java/me/ahoo/wow/compiler/MockJavaBoundedContext.java")
-        val mockCompilerAggregateFile = File("src/unitTest/java/me/ahoo/wow/compiler/MockJavaCompilerAggregate.java")
+        val mockBoundedContextFile = File("src/test/java/me/ahoo/wow/compiler/MockJavaBoundedContext.java")
+        val mockCompilerAggregateFile = File("src/test/java/me/ahoo/wow/compiler/MockJavaCompilerAggregate.java")
         compileNamedAggregatesSymbolProcessor(listOf(mockBoundedContextFile, mockCompilerAggregateFile))
     }
 }

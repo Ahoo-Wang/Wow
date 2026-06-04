@@ -768,7 +768,7 @@ flowchart TB
 6. **阅读 `LocalFirstMessageBus`**：[LocalFirstMessageBus.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/LocalFirstMessageBus.kt#L89-L171)。这是理解分布式与本地路由的最重要的实现细节。
 7. **研究 `WaitStrategy` 链**：[WaitingFor.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitingFor.kt) 和 [CommandStage.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt)。理解阶段如何形成有向无环图。
 8. **检查自动配置**：[WowAutoConfiguration.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt) 和所有子配置。这是框架如何将自己接入 Spring Boot 的方式。
-9. **查看测试示例**：[OrderTest.kt](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/test/kotlin/me/ahoo/wow/example/domain/order/OrderTest.kt)（聚合测试）和 [CartSagaTest.kt](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/test/kotlin/me/ahoo/wow/example/domain/cart/CartSagaTest.kt)（Saga 测试）。带 `fork` 支持的 Given-When-Expect DSL 功能强大。
+9. **查看测试示例**：[OrderTest.kt](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/test/kotlin/me/ahoo/wow/example/domain/order/tradition/OrderTest.kt)（聚合测试）和 [CartSagaSpec.kt](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/test/kotlin/me/ahoo/wow/example/domain/cart/CartSagaSpec.kt)（Saga 测试）。带 `fork` 支持的 Given-When-Expect DSL 功能强大。
 10. **运行基准测试套件**：`./gradlew wow-benchmarks:jmh` 查看原始框架开销数据。
 
 ---

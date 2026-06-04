@@ -11,12 +11,12 @@ Wow separates tests by runtime dependency so local checks stay fast while contai
 
 | Layer | Source set | Root task | Runtime dependency |
 | --- | --- | --- | --- |
-| Unit | `src/unitTest` | `allUnitTest` | Local-safe unit tests for framework and extension code. |
-| Domain | `src/domainTest` | `allDomainTest` | Domain behavior tests using the existing `AggregateSpec` and `SagaSpec` DSL. |
+| Unit | `src/test` | `allUnitTest` | Local-safe unit tests for framework and extension code. |
+| Domain | `src/test` | `allDomainTest` | Domain-module behavior tests using the existing `AggregateSpec` and `SagaSpec` DSL. |
 | Contract | `src/contractTest` | `allContractTest` | Local-safe TCK implementor tests. |
 | Integration | `src/integrationTest` | `allIntegrationTest` | Testcontainers-backed middleware and end-to-end tests. |
 
-`check` runs local-safe verification: unit, domain, and contract tests. It does not start Docker containers.
+`check` runs local-safe verification: standard `test` tasks plus contract tests where configured. It does not start Docker containers.
 
 ## Local Fast Checks
 
@@ -31,13 +31,13 @@ Use these commands for normal development and pull-request feedback when Docker 
 
 ## Domain Tests
 
-Domain tests still use the inheritance-style `AggregateSpec` and `SagaSpec` APIs documented in [Test Suite](./test-suite.md). Those APIs remain the compatibility layer for this runtime refactor.
+Domain tests still use the inheritance-style `AggregateSpec` and `SagaSpec` APIs documented in [Test Suite](./test-suite.md). They live in the standard `src/test` source set; `allDomainTest` is a semantic aggregate task for the domain modules.
 
 ```bash
 ./gradlew allDomainTest
-./gradlew :example-domain:domainTest
-./gradlew :example-transfer-domain:domainTest
-./gradlew :wow-compensation-domain:domainTest
+./gradlew :example-domain:test
+./gradlew :example-transfer-domain:test
+./gradlew :wow-compensation-domain:test
 ```
 
 The function-style DSL is planned as a later migration stage, so runtime test layering does not require changing existing domain specs.
@@ -62,13 +62,13 @@ Integration tests use Testcontainers and require Docker. They are intentionally 
 ./gradlew codeCoverageReport
 ```
 
-The aggregate report includes unit, domain, contract, and integration execution data. The XML report is written to:
+The aggregate report includes standard test, contract, and integration execution data. The XML report is written to:
 
 ```text
 test/code-coverage-report/build/reports/jacoco/codeCoverageReport/codeCoverageReport.xml
 ```
 
-Domain modules also enforce their existing coverage threshold through `jacocoTestCoverageVerification`, using `domainTest` execution data.
+Domain modules also enforce their existing coverage threshold through `jacocoTestCoverageVerification`, using standard `test` execution data.
 
 ## Benchmark Smoke
 
@@ -88,4 +88,4 @@ Full JMH runs are intended for manual or scheduled performance analysis.
 
 ## CI Workflows
 
-Pull requests run separate workflows for `Unit Test`, `Domain Test`, `Contract Test`, `Integration Test`, and `Benchmark Smoke`. Codecov builds the aggregate coverage report with `codeCoverageReport`.
+Pull requests run separate workflows for `Unit Test`, `Domain Test`, `Contract Test`, `Integration Test`, `Benchmark Smoke`, and `Static Analysis`. The `Domain Test` workflow is a semantic signal over standard domain-module `test` tasks. Codecov builds the aggregate coverage report with `codeCoverageReport`.
