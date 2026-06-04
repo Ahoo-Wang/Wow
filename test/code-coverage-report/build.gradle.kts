@@ -82,7 +82,3 @@ tasks.named<JacocoReport>("codeCoverageReport") {
         },
     )
 }
-
-tasks.check {
-    dependsOn(tasks.named<JacocoReport>("codeCoverageReport"))
-}
