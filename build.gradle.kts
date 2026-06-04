@@ -13,7 +13,10 @@
 
 import io.gitlab.arturbosch.detekt.DetektPlugin
 import io.gitlab.arturbosch.detekt.extensions.DetektExtension
+import org.gradle.api.tasks.SourceSet
+import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
+import org.gradle.language.base.plugins.LifecycleBasePlugin
 import org.gradle.testretry.TestRetryPlugin
 import org.jetbrains.dokka.gradle.DokkaPlugin
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
@@ -50,6 +53,103 @@ val publishProjects = subprojects - exampleProjects - codeCoverageReportProject 
 val libraryProjects = publishProjects - bomProjects + exampleLibraries + benchmarksProject
 val isInCI = !System.getenv("CI").isNullOrEmpty()
 ext.set("libraryProjects", libraryProjects)
+
+enum class WowTestLayer(
+    val sourceSetName: String,
+    val taskName: String,
+    val description: String,
+) {
+    UNIT(
+        sourceSetName = "unitTest",
+        taskName = "unitTest",
+        description = "Runs local-safe unit tests.",
+    ),
+    DOMAIN(
+        sourceSetName = "domainTest",
+        taskName = "domainTest",
+        description = "Runs domain behavior tests.",
+    ),
+    CONTRACT(
+        sourceSetName = "contractTest",
+        taskName = "contractTest",
+        description = "Runs local-safe TCK contract tests.",
+    ),
+    INTEGRATION(
+        sourceSetName = "integrationTest",
+        taskName = "integrationTest",
+        description = "Runs container-backed integration tests.",
+    ),
+}
+
+val unitTestProjects = libraryProjects - benchmarksProject
+val domainTestProjects = setOf(
+    exampleDomainProject,
+    project(":example-transfer-domain"),
+    project(":wow-compensation-domain"),
+)
+val localContractTestProjects = setOf(
+    project(":wow-core"),
+    project(":wow-opentelemetry"),
+    project(":wow-mock"),
+)
+val integrationTestProjects = setOf(
+    project(":wow-mongo"),
+    project(":wow-redis"),
+    project(":wow-r2dbc"),
+    project(":wow-kafka"),
+    project(":wow-elasticsearch"),
+    project(":wow-it"),
+)
+
+ext.set("unitTestProjects", unitTestProjects)
+ext.set("domainTestProjects", domainTestProjects)
+ext.set("localContractTestProjects", localContractTestProjects)
+ext.set("integrationTestProjects", integrationTestProjects)
+
+fun Project.registerJvmTestLayer(
+    layer: WowTestLayer,
+    includeInCheck: Boolean,
+) {
+    val sourceSets = extensions.getByType<SourceSetContainer>()
+    val mainSourceSet = sourceSets.getByName(SourceSet.MAIN_SOURCE_SET_NAME)
+    val layerSourceSet = sourceSets.maybeCreate(layer.sourceSetName)
+
+    configurations.named("${layer.sourceSetName}Implementation") {
+        extendsFrom(configurations.getByName("testImplementation"))
+    }
+    configurations.named("${layer.sourceSetName}RuntimeOnly") {
+        extendsFrom(configurations.getByName("testRuntimeOnly"))
+    }
+
+    layerSourceSet.compileClasspath += mainSourceSet.output
+    layerSourceSet.runtimeClasspath += layerSourceSet.output + layerSourceSet.compileClasspath
+
+    val testTask = tasks.register<Test>(layer.taskName) {
+        description = layer.description
+        group = LifecycleBasePlugin.VERIFICATION_GROUP
+        testClassesDirs = layerSourceSet.output.classesDirs
+        classpath = layerSourceSet.runtimeClasspath
+        shouldRunAfter(tasks.named("test"))
+        useJUnitPlatform()
+        testLogging {
+            exceptionFormat = TestExceptionFormat.FULL
+        }
+        jvmArgs = listOf("-Dlogback.configurationFile=${rootProject.rootDir}/config/logback.xml")
+        retry {
+            if (isInCI) {
+                maxRetries = 2
+                maxFailures = 20
+            }
+            failOnPassedAfterRetry = true
+        }
+    }
+
+    tasks.named(LifecycleBasePlugin.CHECK_TASK_NAME) {
+        if (includeInCheck) {
+            dependsOn(testTask)
+        }
+    }
+}
 
 allprojects {
     repositories {
@@ -134,6 +234,46 @@ configure(libraryProjects) {
         testRuntimeOnly("org.junit.platform:junit-platform-launcher")
         testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
     }
+}
+
+configure(unitTestProjects) {
+    registerJvmTestLayer(WowTestLayer.UNIT, includeInCheck = true)
+}
+
+configure(domainTestProjects) {
+    registerJvmTestLayer(WowTestLayer.DOMAIN, includeInCheck = true)
+}
+
+configure(localContractTestProjects) {
+    registerJvmTestLayer(WowTestLayer.CONTRACT, includeInCheck = true)
+}
+
+configure(integrationTestProjects) {
+    registerJvmTestLayer(WowTestLayer.INTEGRATION, includeInCheck = false)
+}
+
+tasks.register("allUnitTest") {
+    description = "Runs all local-safe unit tests."
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+    dependsOn(unitTestProjects.map { it.tasks.named(WowTestLayer.UNIT.taskName) })
+}
+
+tasks.register("allDomainTest") {
+    description = "Runs all domain behavior tests."
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+    dependsOn(domainTestProjects.map { it.tasks.named(WowTestLayer.DOMAIN.taskName) })
+}
+
+tasks.register("allContractTest") {
+    description = "Runs all local-safe contract tests."
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+    dependsOn(localContractTestProjects.map { it.tasks.named(WowTestLayer.CONTRACT.taskName) })
+}
+
+tasks.register("allIntegrationTest") {
+    description = "Runs all container-backed integration tests."
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+    dependsOn(integrationTestProjects.map { it.tasks.named(WowTestLayer.INTEGRATION.taskName) })
 }
 
 configure(publishProjects) {
