@@ -1,3 +1,6 @@
+import org.gradle.api.tasks.testing.Test
+import org.gradle.testing.jacoco.plugins.JacocoTaskExtension
+
 plugins {
     alias(libs.plugins.ksp)
 }
@@ -9,8 +12,19 @@ dependencies {
     testImplementation("io.projectreactor:reactor-test")
 }
 
+val domainTestTask = tasks.named<Test>("domainTest")
+val domainTestJacocoData = domainTestTask.map {
+    it.extensions.getByType(JacocoTaskExtension::class).destinationFile
+}
+
+tasks.jacocoTestReport {
+    dependsOn(domainTestTask)
+    executionData.setFrom(domainTestJacocoData)
+}
+
 tasks.jacocoTestCoverageVerification {
-    dependsOn(tasks.test, tasks.jacocoTestReport)
+    dependsOn(domainTestTask, tasks.jacocoTestReport)
+    executionData.setFrom(domainTestJacocoData)
     violationRules {
         rule {
             limit {
