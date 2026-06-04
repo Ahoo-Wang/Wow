@@ -23,23 +23,51 @@ import me.ahoo.wow.infra.idempotency.BloomFilterIdempotencyChecker
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import java.time.Duration
+import java.util.concurrent.atomic.AtomicLong
 
 val cartAggregateMetadata by lazy {
     aggregateMetadata<Cart, CartState>()
 }
 
 private val benchmarkCart = MaterializedNamedAggregate("example-service", "cart")
+private val benchmarkIdSequence = AtomicLong()
 
 fun createCommandMessage(): CommandMessage<AddCartItem> {
-    return AddCartItem(
-        productId = "productId"
-    ).toCommandMessage(
+    val id = nextBenchmarkId()
+    return createCommandMessage(
+        id = id,
+        requestId = id,
+        aggregateId = nextBenchmarkId(),
+        namedAggregate = benchmarkCart,
+    )
+}
+
+fun createSmokeCommandMessage(): CommandMessage<AddCartItem> {
+    return createCommandMessage(
         id = "benchmark-command-id",
         requestId = "benchmark-request-id",
         aggregateId = "benchmark-cart-id",
         namedAggregate = benchmarkCart,
     )
 }
+
+private fun createCommandMessage(
+    id: String,
+    requestId: String?,
+    aggregateId: String?,
+    namedAggregate: MaterializedNamedAggregate?,
+): CommandMessage<AddCartItem> {
+    return AddCartItem(
+        productId = "productId"
+    ).toCommandMessage(
+        id = id,
+        requestId = requestId,
+        aggregateId = aggregateId,
+        namedAggregate = namedAggregate,
+    )
+}
+
+private fun nextBenchmarkId(): String = "benchmark-${benchmarkIdSequence.incrementAndGet()}"
 
 fun createBloomFilterIdempotencyChecker(): BloomFilterIdempotencyChecker {
     return BloomFilterIdempotencyChecker(Duration.ofMinutes(1)) {
