@@ -14,13 +14,12 @@
 package me.ahoo.wow.spring.boot.starter.mongo
 
 import com.mongodb.reactivestreams.client.MongoClient
-import com.mongodb.reactivestreams.client.MongoClients
+import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.mongo.MongoEventStore
 import me.ahoo.wow.mongo.MongoSnapshotRepository
 import me.ahoo.wow.mongo.prepare.MongoPrepareKeyFactory
 import me.ahoo.wow.spring.boot.starter.enableWow
-import me.ahoo.wow.tck.container.MongoLauncher
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
@@ -40,7 +39,7 @@ class MongoEventSourcingAutoConfigurationTest {
                 "${MongoProperties.PREFIX}.auto-init-schema=false",
             )
             .withBean(MongoClient::class.java, {
-                MongoClients.create(MongoLauncher.getConnectionString())
+                mockk(relaxed = true)
             })
             .withUserConfiguration(
                 MongoEventSourcingAutoConfiguration::class.java,
