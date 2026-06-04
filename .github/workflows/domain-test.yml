@@ -11,11 +11,11 @@
 # limitations under the License.
 #
 
-name: Integration Test
+name: Domain Test
 on:
   pull_request:
     paths:
-      - '.github/workflows/integration-test.yml'
+      - '.github/workflows/domain-test.yml'
       - 'build.gradle.kts'
       - 'settings.gradle.kts'
       - 'gradle.properties'
@@ -25,16 +25,12 @@ on:
       - 'wow-dependencies/**'
       - 'wow-api/**'
       - 'wow-core/**'
-      - 'wow-query/**'
       - 'wow-spring/**'
-      - 'wow-mongo/**'
-      - 'wow-redis/**'
-      - 'wow-r2dbc/**'
-      - 'wow-kafka/**'
-      - 'wow-elasticsearch/**'
-      - 'test/wow-tck/**'
+      - 'wow-compiler/**'
       - 'test/wow-test/**'
-      - 'test/wow-it/**'
+      - 'example/**'
+      - 'compensation/wow-compensation-api/**'
+      - 'compensation/wow-compensation-domain/**'
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -42,8 +38,8 @@ env:
   CI: GITHUB_ACTIONS
 
 jobs:
-  integration-test:
-    name: Integration Test
+  domain-test:
+    name: Domain Test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -58,5 +54,5 @@ jobs:
           cache: gradle
           settings-path: ${{ github.workspace }}
 
-      - name: Run integration tests
-        run: ./gradlew allIntegrationTest --stacktrace
+      - name: Run domain tests
+        run: ./gradlew allDomainTest --stacktrace
