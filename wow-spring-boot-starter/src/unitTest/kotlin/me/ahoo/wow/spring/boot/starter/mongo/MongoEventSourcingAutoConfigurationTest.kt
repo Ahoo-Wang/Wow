@@ -37,6 +37,7 @@ class MongoEventSourcingAutoConfigurationTest {
                 "${MongoProperties.PREFIX}.snapshot-database=testSnapshot",
                 "${MongoProperties.PREFIX}.prepare-database=testPrepare",
                 "${MongoProperties.PREFIX}.error-database=testError",
+                "${MongoProperties.PREFIX}.auto-init-schema=false",
             )
             .withBean(MongoClient::class.java, {
                 MongoClients.create(MongoLauncher.getConnectionString())

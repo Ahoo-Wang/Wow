@@ -40,8 +40,8 @@ class MetadataSymbolProcessorTest {
     @OptIn(ExperimentalCompilerApi::class)
     @Test
     fun `should process metadata`() {
-        val mockBoundedContextFile = File("src/test/kotlin/me/ahoo/wow/compiler/MockBoundedContext.kt")
-        val mockCompilerAggregateFile = File("src/test/kotlin/me/ahoo/wow/compiler/MockCompilerAggregate.kt")
+        val mockBoundedContextFile = File("src/unitTest/kotlin/me/ahoo/wow/compiler/MockBoundedContext.kt")
+        val mockCompilerAggregateFile = File("src/unitTest/kotlin/me/ahoo/wow/compiler/MockCompilerAggregate.kt")
         compileTestMetadataSymbolProcessor(
             listOf(
                 mockBoundedContextFile,
@@ -61,8 +61,8 @@ class MetadataSymbolProcessorTest {
     @OptIn(ExperimentalCompilerApi::class)
     @Test
     fun `should process Java sources`() {
-        val mockBoundedContextFile = File("src/test/java/me/ahoo/wow/compiler/MockJavaBoundedContext.java")
-        val mockCompilerAggregateFile = File("src/test/java/me/ahoo/wow/compiler/MockJavaCompilerAggregate.java")
+        val mockBoundedContextFile = File("src/unitTest/java/me/ahoo/wow/compiler/MockJavaBoundedContext.java")
+        val mockCompilerAggregateFile = File("src/unitTest/java/me/ahoo/wow/compiler/MockJavaCompilerAggregate.java")
         compileTestMetadataSymbolProcessor(
             listOf(
                 mockBoundedContextFile,

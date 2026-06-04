@@ -124,6 +124,11 @@ fun Project.registerJvmTestLayer(
     layerSourceSet.compileClasspath += mainSourceSet.output
     layerSourceSet.runtimeClasspath += layerSourceSet.output + layerSourceSet.compileClasspath
 
+    extensions.configure<KotlinJvmProjectExtension> {
+        target.compilations.getByName(layer.sourceSetName)
+            .associateWith(target.compilations.getByName(SourceSet.MAIN_SOURCE_SET_NAME))
+    }
+
     val testTask = tasks.register<Test>(layer.taskName) {
         description = layer.description
         group = LifecycleBasePlugin.VERIFICATION_GROUP
