@@ -1,4 +1,5 @@
 import java.time.LocalDate
+import java.util.zip.ZipFile
 
 plugins {
     alias(libs.plugins.ksp)
@@ -16,8 +17,119 @@ dependencies {
     jmh(libs.jmh.generator.bytecode)
     kapt(libs.jmh.generator.annprocess)
 }
+
+/**
+ * Merge all META-INF/wow-metadata.json from the runtime classpath into a single valid JSON.
+ * Without this, the JMH JAR contains duplicate entries that concatenate into invalid JSON,
+ * causing MetadataSearcher to fail silently at runtime.
+ *
+ * Aggregate entries are deep-merged (non-null values take precedence) to avoid the API module's
+ * type=null overwriting the domain module's type=full.class.Name.
+ */
+val mergedWowMetadata = layout.buildDirectory.file("tmp/wow-metadata-merged/META-INF/wow-metadata.json")
+val mergeWowMetadata = tasks.register("mergeWowMetadata") {
+    description = "Merge all wow-metadata.json from classpath into a single file."
+    outputs.file(mergedWowMetadata)
+    inputs.files(configurations.jmhRuntimeClasspath)
+    doLast {
+        val mapper = com.fasterxml.jackson.databind.ObjectMapper()
+        val merged = mutableMapOf<String, Any>()
+        val metadataContents = mutableListOf<String>()
+
+        configurations.jmhRuntimeClasspath.get().resolve()
+            .filter { it.name.endsWith(".jar") || it.isDirectory }
+            .forEach { file ->
+                if (file.isDirectory) {
+                    val meta = file.resolve("META-INF/wow-metadata.json")
+                    if (meta.exists()) {
+                        metadataContents.add(meta.readText())
+                    }
+                } else {
+                    ZipFile(file).use { zip ->
+                        zip.getEntry("META-INF/wow-metadata.json")?.let { entry ->
+                            metadataContents.add(zip.getInputStream(entry).bufferedReader().readText())
+                        }
+                    }
+                }
+            }
+
+        for (text in metadataContents) {
+            try {
+                @Suppress("UNCHECKED_CAST")
+                val next = mapper.readValue(text, Map::class.java) as Map<String, Any>
+                @Suppress("UNCHECKED_CAST")
+                val contexts = next["contexts"] as? Map<String, Any> ?: continue
+                @Suppress("UNCHECKED_CAST")
+                val mergedContexts = merged.getOrPut("contexts") { mutableMapOf<String, Any>() } as MutableMap<String, Any>
+                for ((ctxName, ctxValue) in contexts) {
+                    val existing = mergedContexts[ctxName]
+                    if (existing == null) {
+                        mergedContexts[ctxName] = ctxValue
+                    } else {
+                        @Suppress("UNCHECKED_CAST")
+                        val existingMap = existing as MutableMap<String, Any>
+                        @Suppress("UNCHECKED_CAST")
+                        val newMap = ctxValue as Map<String, Any>
+                        // Deep-merge aggregates (non-null values win)
+                        @Suppress("UNCHECKED_CAST")
+                        val existingAggregates = existingMap.getOrPut("aggregates") { mutableMapOf<String, Any>() } as MutableMap<String, Any>
+                        @Suppress("UNCHECKED_CAST")
+                        val newAggregates = newMap["aggregates"] as? Map<String, Any> ?: emptyMap()
+                        for ((aggName, aggValue) in newAggregates) {
+                            val existingAgg = existingAggregates[aggName]
+                            if (existingAgg == null) {
+                                existingAggregates[aggName] = aggValue
+                            } else {
+                                @Suppress("UNCHECKED_CAST")
+                                val existingAggMap = existingAgg as MutableMap<String, Any>
+                                @Suppress("UNCHECKED_CAST")
+                                val newAggMap = aggValue as Map<String, Any>
+                                for ((key, value) in newAggMap) {
+                                    if (value != null) {
+                                        val existingVal = existingAggMap[key]
+                                        if (existingVal == null || value is String) {
+                                            existingAggMap[key] = value
+                                        } else if (value is List<*>) {
+                                            @Suppress("UNCHECKED_CAST")
+                                            val existingList = (existingVal as? List<String> ?: emptyList()).toMutableList()
+                                            @Suppress("UNCHECKED_CAST")
+                                            val newList = value as List<String>
+                                            existingList.addAll(newList.filter { it !in existingList })
+                                            existingAggMap[key] = existingList
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        // Merge scopes (union)
+                        @Suppress("UNCHECKED_CAST")
+                        val existingScopes = existingMap.getOrPut("scopes") { mutableListOf<String>() } as MutableList<String>
+                        @Suppress("UNCHECKED_CAST")
+                        val newScopes = newMap["scopes"] as? List<String> ?: emptyList()
+                        existingScopes.addAll(newScopes.filter { it !in existingScopes })
+                    }
+                }
+            } catch (_: Exception) {
+                // skip invalid metadata
+            }
+        }
+
+        val outputFile = mergedWowMetadata.get().asFile
+        outputFile.parentFile.mkdirs()
+        mapper.writerWithDefaultPrettyPrinter().writeValue(outputFile, merged)
+        logger.lifecycle("Merged ${metadataContents.size} wow-metadata.json files into ${outputFile.absolutePath}")
+    }
+}
+
 tasks.named<Jar>("jmhJar") {
     isZip64 = true
+    dependsOn(mergeWowMetadata)
+    // Exclude all wow-metadata.json from dependency JARs (they're duplicated)
+    exclude("META-INF/wow-metadata.json")
+    // Add the merged metadata file
+    from(mergedWowMetadata) {
+        into("META-INF")
+    }
 }
 
 val benchmarkSmokeIncludes = listOf(

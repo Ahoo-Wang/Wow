@@ -18,7 +18,6 @@ import me.ahoo.wow.command.DefaultCommandGateway
 import me.ahoo.wow.command.InMemoryCommandBus
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.createBloomFilterIdempotencyChecker
-import me.ahoo.wow.command.createCommandMessageForNewAggregate
 import me.ahoo.wow.command.validation.NoOpValidator
 import me.ahoo.wow.command.wait.LocalCommandWaitNotifier
 import me.ahoo.wow.command.wait.ProcessedNotifierFilter
@@ -94,6 +93,7 @@ open class CommandProcessingPipelineBenchmark {
             .addFilter(ProcessedNotifierFilter(commandWaitNotifier))
             .build()
         commandDispatcher = CommandDispatcher(
+            namedAggregates = setOf(HotPathFixture.namedAggregate),
             commandBus = commandGateway,
             commandHandler = DefaultCommandHandler(chain),
         )
@@ -109,7 +109,7 @@ open class CommandProcessingPipelineBenchmark {
     fun sendAndWaitForProcessed(blackhole: Blackhole) {
         try {
             val result = commandGateway.sendAndWaitForProcessed(
-                createCommandMessageForNewAggregate(),
+                HotPathFixture.createCommandMessage(),
             ).block()
             blackhole.consume(result)
         } catch (e: WowException) {
@@ -121,7 +121,7 @@ open class CommandProcessingPipelineBenchmark {
     fun sendFireAndForget(blackhole: Blackhole) {
         try {
             val result = commandGateway.send(
-                createCommandMessageForNewAggregate(),
+                HotPathFixture.createCommandMessage(),
             ).block()
             blackhole.consume(result)
         } catch (e: WowException) {

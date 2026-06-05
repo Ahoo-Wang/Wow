@@ -31,7 +31,6 @@ import me.ahoo.wow.id.CosIdGlobalIdGeneratorFactory
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.infra.idempotency.BloomFilterIdempotencyChecker
 import me.ahoo.wow.messaging.DefaultHeader
-import me.ahoo.wow.modeling.DefaultAggregateId
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.test.aggregate.GivenInitializationCommand
@@ -66,12 +65,7 @@ object HotPathFixture {
     fun createEventStream(): DomainEventStream {
         val event = CartItemAdded(CartItem("productId"))
         return listOf<Any>(event).toDomainEventStream(
-            upstream = GivenInitializationCommand(
-                DefaultAggregateId(
-                    namedAggregate = namedAggregate,
-                    id = generateGlobalId(),
-                ),
-            ),
+            upstream = GivenInitializationCommand(aggregateId),
         )
     }
 
