@@ -14,48 +14,20 @@
 package me.ahoo.wow.tck.container
 
 import org.testcontainers.elasticsearch.ElasticsearchContainer
-import java.net.URI
-import java.net.http.HttpClient
-import java.net.http.HttpRequest
-import java.net.http.HttpResponse
-import java.nio.charset.StandardCharsets
 import java.time.Duration
-import java.util.Base64
 
 object ElasticsearchLauncher {
-    private const val ELASTIC_USER = "elastic"
     val ELASTIC_PWD: String
         get() = WowTestContainers.elasticPassword
-    private val BASIC_AUTH = Base64.getEncoder().encodeToString(
-        "$ELASTIC_USER:$ELASTIC_PWD".toByteArray(StandardCharsets.UTF_8),
-    )
+
     val ELASTICSEARCH_CONTAINER: ElasticsearchContainer
         get() = WowTestContainers.elasticsearch
 
     val isRunning: Boolean
         get() {
-            waitUntilAuthenticated()
+            ElasticsearchTestFixture().waitUntilAuthenticated()
             return ELASTICSEARCH_CONTAINER.isRunning
         }
-
-    private fun waitUntilAuthenticated() {
-        val httpClient = HttpClient.newBuilder()
-            .sslContext(ELASTICSEARCH_CONTAINER.createSslContextFromCa())
-            .connectTimeout(Duration.ofSeconds(5))
-            .build()
-        val request = HttpRequest.newBuilder()
-            .uri(URI.create("https://${ELASTICSEARCH_CONTAINER.httpHostAddress}/_security/_authenticate"))
-            .timeout(Duration.ofSeconds(5))
-            .header("Authorization", "Basic $BASIC_AUTH")
-            .GET()
-            .build()
-
-        ElasticsearchAuthenticationWaiter.waitUntilAuthenticated(
-            authenticate = {
-                httpClient.send(request, HttpResponse.BodyHandlers.discarding()).statusCode()
-            },
-        )
-    }
 }
 
 internal object ElasticsearchAuthenticationWaiter {
