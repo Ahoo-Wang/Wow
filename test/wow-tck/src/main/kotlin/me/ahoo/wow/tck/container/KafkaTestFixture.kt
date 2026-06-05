@@ -36,7 +36,16 @@ class KafkaTestFixture(
     }
 
     fun clientId(suffix: String = "client"): String {
-        return ContainerTestIds.nextName("${clientPrefix}_$suffix")
+        val prefix = "${clientPrefix}_$suffix"
+        return runCatching {
+            ContainerTestIds.nextName(prefix)
+        }.getOrElse {
+            throw IllegalArgumentException(
+                "Kafka client id prefix '$prefix' must normalize to 1-30 lowercase letters, " +
+                    "digits, or underscores and start with a letter.",
+                it,
+            )
+        }
     }
 
     fun kafkaProperties(clientId: String = clientId()): Map<String, Any> {
@@ -69,6 +78,6 @@ class KafkaTestFixture(
     }
 
     override fun testFailed(context: ExtensionContext, cause: Throwable?) {
-        ContainerDiagnostics.printFailure("kafka", WowTestContainers.kafka, requireNotNull(cause))
+        ContainerDiagnostics.printFailure("kafka", WowTestContainers.kafka, cause)
     }
 }

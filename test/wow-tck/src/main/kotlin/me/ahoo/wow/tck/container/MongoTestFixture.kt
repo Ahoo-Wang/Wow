@@ -25,6 +25,7 @@ class MongoTestFixture(
     private val databasePrefix: String = "wow_it",
 ) : BeforeEachCallback, AfterEachCallback, TestWatcher {
     private val clients = mutableListOf<MongoClient>()
+    private var defaultClient: MongoClient? = null
 
     lateinit var databaseName: String
         private set
@@ -38,6 +39,13 @@ class MongoTestFixture(
     }
 
     fun client(): MongoClient {
+        return defaultClient ?: newClient()
+            .also {
+                defaultClient = it
+            }
+    }
+
+    fun newClient(): MongoClient {
         return MongoClients.create(connectionString)
             .also {
                 clients.add(it)
@@ -57,10 +65,11 @@ class MongoTestFixture(
             clients.forEach(MongoClient::close)
         } finally {
             clients.clear()
+            defaultClient = null
         }
     }
 
     override fun testFailed(context: ExtensionContext, cause: Throwable?) {
-        ContainerDiagnostics.printFailure("mongo", WowTestContainers.mongo, requireNotNull(cause))
+        ContainerDiagnostics.printFailure("mongo", WowTestContainers.mongo, cause)
     }
 }

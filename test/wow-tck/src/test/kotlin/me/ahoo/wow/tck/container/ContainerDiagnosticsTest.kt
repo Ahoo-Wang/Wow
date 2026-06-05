@@ -37,6 +37,11 @@ class ContainerDiagnosticsTest {
     }
 
     @Test
+    fun `should print unavailable failure without throwing when cause is null`() {
+        ContainerDiagnostics.printFailure("redis", DescribedContainer(), null)
+    }
+
+    @Test
     fun `should keep diagnostics safe when container fields fail`() {
         val description = ContainerDiagnostics.describe("redis", FailingContainer())
 

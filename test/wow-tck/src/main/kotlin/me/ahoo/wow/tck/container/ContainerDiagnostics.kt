@@ -31,14 +31,17 @@ object ContainerDiagnostics {
         }
     }
 
-    fun printFailure(name: String, container: GenericContainer<*>, cause: Throwable) {
+    fun printFailure(name: String, container: GenericContainer<*>, cause: Throwable?) {
         val diagnostics = runCatching {
             describe(name, container)
         }.getOrElse {
             "name=$name, diagnostics=$UNAVAILABLE"
         }
+        val failure = cause?.let {
+            "${it::class.qualifiedName}: ${it.message}"
+        } ?: UNAVAILABLE
         System.err.println(
-            "Container fixture failed: $diagnostics, failure=${cause::class.qualifiedName}: ${cause.message}",
+            "Container fixture failed: $diagnostics, failure=$failure",
         )
     }
 
