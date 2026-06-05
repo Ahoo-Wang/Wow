@@ -15,19 +15,23 @@ package me.ahoo.wow.command
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.command.wait.stage.WaitingForStage
-import me.ahoo.wow.id.generateGlobalId
 import org.junit.jupiter.api.Test
 
-class SimpleClientCommandExchangeTest {
+class SimpleClientCommandExchangeBehaviorTest {
 
     @Test
-    fun `should main`() {
-        val command = MockCreateCommand(generateGlobalId()).toCommandMessage()
-        val waitingFor = WaitingForStage.sent(command.commandId)
-        val commandExchange = SimpleClientCommandExchange(command, waitingFor)
-        commandExchange.message.assert().isEqualTo(command)
-        commandExchange.waitStrategy.assert().isEqualTo(waitingFor)
-        commandExchange.attributes.assert().isEmpty()
-        commandExchange.getAggregateVersion().assert().isNull()
+    fun `should expose message wait strategy and mutable attributes`() {
+        val message = AccountCommand(id = "account-1").toCommandMessage(id = "command-1")
+        val waitStrategy = WaitingForStage.sent(message.commandId)
+        val exchange = SimpleClientCommandExchange(message, waitStrategy)
+
+        exchange.message.assert().isSameAs(message)
+        exchange.waitStrategy.assert().isSameAs(waitStrategy)
+        exchange.attributes.assert().isEmpty()
+        exchange.getAggregateVersion().assert().isNull()
+
+        exchange.setAttribute("key", "value")
+
+        exchange.getAttribute<String>("key").assert().isEqualTo("value")
     }
 }
