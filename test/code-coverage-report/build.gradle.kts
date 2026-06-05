@@ -13,7 +13,9 @@
 
 import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.SourceSetContainer
+import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.testing.Test
+import org.gradle.language.base.plugins.LifecycleBasePlugin
 import org.gradle.testing.jacoco.plugins.JacocoTaskExtension
 import org.gradle.testing.jacoco.tasks.JacocoReport
 
@@ -26,6 +28,8 @@ plugins {
 val libraryProjects = rootProject.ext.get("libraryProjects") as Iterable<Project>
 @Suppress("UNCHECKED_CAST")
 val standardTestProjects = rootProject.ext.get("standardTestProjects") as Iterable<Project>
+@Suppress("UNCHECKED_CAST")
+val domainTestProjects = rootProject.ext.get("domainTestProjects") as Iterable<Project>
 @Suppress("UNCHECKED_CAST")
 val localContractTestProjects = rootProject.ext.get("localContractTestProjects") as Iterable<Project>
 @Suppress("UNCHECKED_CAST")
@@ -45,37 +49,69 @@ reporting {
     }
 }
 
-val coveredTestTasks = listOf(
-    standardTestProjects to "test",
-    localContractTestProjects to "contractTest",
-    integrationTestProjects to "integrationTest",
-).flatMap { (projects, taskName) ->
-    projects.map { project ->
+fun testTasks(projects: Iterable<Project>, taskName: String): List<TaskProvider<Test>> {
+    return projects.map { project ->
         project.tasks.named<Test>(taskName)
     }
 }
 
-val mainSourceSets = libraryProjects.map { project ->
+fun mainSourceSets(projects: Iterable<Project>) = projects.map { project ->
     project.extensions.getByType<SourceSetContainer>().named(SourceSet.MAIN_SOURCE_SET_NAME)
 }
 
-tasks.named<JacocoReport>("codeCoverageReport") {
-    dependsOn(coveredTestTasks)
+fun JacocoReport.useCoverageData(
+    projects: Iterable<Project>,
+    testTasks: Iterable<TaskProvider<Test>>,
+) {
+    dependsOn(testTasks)
     sourceDirectories.setFrom(
-        mainSourceSets.map { sourceSet ->
+        mainSourceSets(projects).map { sourceSet ->
             sourceSet.map { it.allSource.srcDirs }
         },
     )
     classDirectories.setFrom(
-        mainSourceSets.map { sourceSet ->
+        mainSourceSets(projects).map { sourceSet ->
             sourceSet.map { it.output.classesDirs }
         },
     )
     executionData.setFrom(
-        coveredTestTasks.map { testTask ->
+        testTasks.map { testTask ->
             testTask.map {
                 it.extensions.getByType(JacocoTaskExtension::class).destinationFile
             }
         },
     )
 }
+
+fun registerLayerCoverageReport(
+    taskName: String,
+    projects: Iterable<Project>,
+    testTaskName: String,
+) {
+    val layerTestTasks = testTasks(projects, testTaskName)
+    tasks.register<JacocoReport>(taskName) {
+        description = "Generates the ${taskName.removeSuffix("CoverageReport")} coverage report."
+        group = LifecycleBasePlugin.VERIFICATION_GROUP
+        reports {
+            xml.required.set(true)
+            xml.outputLocation.set(layout.buildDirectory.file("reports/jacoco/$taskName/$taskName.xml"))
+            csv.required.set(false)
+            html.required.set(false)
+        }
+        useCoverageData(projects, layerTestTasks)
+    }
+}
+
+val standardTestTasks = testTasks(standardTestProjects, "test")
+val contractTestTasks = testTasks(localContractTestProjects, "contractTest")
+val integrationTestTasks = testTasks(integrationTestProjects, "integrationTest")
+val coveredTestTasks = standardTestTasks + contractTestTasks + integrationTestTasks
+
+tasks.named<JacocoReport>("codeCoverageReport") {
+    useCoverageData(libraryProjects, coveredTestTasks)
+}
+
+registerLayerCoverageReport("unitCoverageReport", standardTestProjects, "test")
+registerLayerCoverageReport("domainCoverageReport", domainTestProjects, "test")
+registerLayerCoverageReport("contractCoverageReport", localContractTestProjects, "contractTest")
+registerLayerCoverageReport("integrationCoverageReport", integrationTestProjects, "integrationTest")

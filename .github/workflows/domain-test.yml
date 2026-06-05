@@ -34,6 +34,8 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
+permissions:
+  contents: read
 env:
   CI: GITHUB_ACTIONS
 
@@ -54,5 +56,17 @@ jobs:
           cache: gradle
           settings-path: ${{ github.workspace }}
 
-      - name: Run domain tests
-        run: ./gradlew allDomainTest --stacktrace
+      - name: Run domain tests with coverage
+        run: ./gradlew allDomainTest :code-coverage-report:domainCoverageReport --stacktrace
+
+      - name: Upload domain coverage
+        uses: codecov/codecov-action@v6
+        if: success()
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: domain
+          name: domain-tests
+          fail_ci_if_error: true
+          verbose: true
+          disable_search: true
+          files: ./test/code-coverage-report/build/reports/jacoco/domainCoverageReport/domainCoverageReport.xml

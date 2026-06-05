@@ -29,6 +29,8 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
+permissions:
+  contents: read
 env:
   CI: GITHUB_ACTIONS
 
@@ -49,5 +51,17 @@ jobs:
           cache: gradle
           settings-path: ${{ github.workspace }}
 
-      - name: Run unit tests
-        run: ./gradlew allUnitTest --stacktrace
+      - name: Run unit tests with coverage
+        run: ./gradlew allUnitTest :code-coverage-report:unitCoverageReport --stacktrace
+
+      - name: Upload unit coverage
+        uses: codecov/codecov-action@v6
+        if: success()
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: unit
+          name: unit-tests
+          fail_ci_if_error: true
+          verbose: true
+          disable_search: true
+          files: ./test/code-coverage-report/build/reports/jacoco/unitCoverageReport/unitCoverageReport.xml

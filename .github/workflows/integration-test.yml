@@ -38,6 +38,8 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
+permissions:
+  contents: read
 env:
   CI: GITHUB_ACTIONS
 
@@ -58,5 +60,17 @@ jobs:
           cache: gradle
           settings-path: ${{ github.workspace }}
 
-      - name: Run integration tests
-        run: ./gradlew allIntegrationTest --stacktrace
+      - name: Run integration tests with coverage
+        run: ./gradlew allIntegrationTest :code-coverage-report:integrationCoverageReport --stacktrace
+
+      - name: Upload integration coverage
+        uses: codecov/codecov-action@v6
+        if: success()
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: integration
+          name: integration-tests
+          fail_ci_if_error: true
+          verbose: true
+          disable_search: true
+          files: ./test/code-coverage-report/build/reports/jacoco/integrationCoverageReport/integrationCoverageReport.xml

@@ -33,6 +33,8 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
+permissions:
+  contents: read
 env:
   CI: GITHUB_ACTIONS
 
@@ -53,5 +55,17 @@ jobs:
           cache: gradle
           settings-path: ${{ github.workspace }}
 
-      - name: Run contract tests
-        run: ./gradlew allContractTest --stacktrace
+      - name: Run contract tests with coverage
+        run: ./gradlew allContractTest :code-coverage-report:contractCoverageReport --stacktrace
+
+      - name: Upload contract coverage
+        uses: codecov/codecov-action@v6
+        if: success()
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: contract
+          name: contract-tests
+          fail_ci_if_error: true
+          verbose: true
+          disable_search: true
+          files: ./test/code-coverage-report/build/reports/jacoco/contractCoverageReport/contractCoverageReport.xml
