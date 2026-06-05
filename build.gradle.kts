@@ -72,12 +72,13 @@ enum class WowTestLayer(
 }
 
 val standardTestProjects = libraryProjects - benchmarksProject
-val unitTestTaskProjects = standardTestProjects + project(":wow-compensation-server")
 val domainTestProjects = setOf(
     exampleDomainProject,
     project(":example-transfer-domain"),
     project(":wow-compensation-domain"),
 )
+val unitTestProjects = standardTestProjects - domainTestProjects
+val unitTestTaskProjects = unitTestProjects + project(":wow-compensation-server")
 val localContractTestProjects = setOf(
     project(":wow-core"),
     project(":wow-opentelemetry"),
@@ -93,6 +94,7 @@ val integrationTestProjects = setOf(
 )
 
 ext.set("standardTestProjects", standardTestProjects)
+ext.set("unitTestProjects", unitTestProjects)
 ext.set("domainTestProjects", domainTestProjects)
 ext.set("localContractTestProjects", localContractTestProjects)
 ext.set("integrationTestProjects", integrationTestProjects)

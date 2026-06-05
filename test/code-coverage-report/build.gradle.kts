@@ -27,7 +27,7 @@ plugins {
 @Suppress("UNCHECKED_CAST")
 val libraryProjects = rootProject.ext.get("libraryProjects") as Iterable<Project>
 @Suppress("UNCHECKED_CAST")
-val standardTestProjects = rootProject.ext.get("standardTestProjects") as Iterable<Project>
+val unitTestProjects = rootProject.ext.get("unitTestProjects") as Iterable<Project>
 @Suppress("UNCHECKED_CAST")
 val domainTestProjects = rootProject.ext.get("domainTestProjects") as Iterable<Project>
 @Suppress("UNCHECKED_CAST")
@@ -102,16 +102,17 @@ fun registerLayerCoverageReport(
     }
 }
 
-val standardTestTasks = testTasks(standardTestProjects, "test")
+val unitTestTasks = testTasks(unitTestProjects, "test")
+val domainTestTasks = testTasks(domainTestProjects, "test")
 val contractTestTasks = testTasks(localContractTestProjects, "contractTest")
 val integrationTestTasks = testTasks(integrationTestProjects, "integrationTest")
-val coveredTestTasks = standardTestTasks + contractTestTasks + integrationTestTasks
+val coveredTestTasks = unitTestTasks + domainTestTasks + contractTestTasks + integrationTestTasks
 
 tasks.named<JacocoReport>("codeCoverageReport") {
     useCoverageData(libraryProjects, coveredTestTasks)
 }
 
-registerLayerCoverageReport("unitCoverageReport", standardTestProjects, "test")
+registerLayerCoverageReport("unitCoverageReport", unitTestProjects, "test")
 registerLayerCoverageReport("domainCoverageReport", domainTestProjects, "test")
 registerLayerCoverageReport("contractCoverageReport", localContractTestProjects, "contractTest")
 registerLayerCoverageReport("integrationCoverageReport", integrationTestProjects, "integrationTest")

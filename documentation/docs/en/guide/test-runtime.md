@@ -11,12 +11,14 @@ Wow separates tests by runtime dependency so local checks stay fast while contai
 
 | Layer | Source set | Root task | Runtime dependency |
 | --- | --- | --- | --- |
-| Unit | `src/test` | `allUnitTest` | Local-safe unit tests for framework and extension code. |
+| Unit | `src/test` | `allUnitTest` | Local-safe framework, extension, and server tests outside the domain-module signal. |
 | Domain | `src/test` | `allDomainTest` | Domain-module behavior tests using the existing `AggregateSpec` and `SagaSpec` DSL. |
 | Contract | `src/contractTest` | `allContractTest` | Local-safe TCK implementor tests. |
 | Integration | `src/integrationTest` | `allIntegrationTest` | Testcontainers-backed middleware and end-to-end tests. |
 
 `check` runs local-safe verification: standard `test` tasks plus contract tests where configured. It does not start Docker containers.
+
+Unit and domain tests both use standard `src/test`, but their root tasks are separate semantic aggregates. `allUnitTest` excludes the domain-module subset, and `allDomainTest` runs those domain modules explicitly.
 
 ## Local Fast Checks
 
@@ -60,13 +62,19 @@ Integration tests use Testcontainers and require Docker. They are intentionally 
 
 ```bash
 ./gradlew codeCoverageReport
+./gradlew :code-coverage-report:unitCoverageReport
+./gradlew :code-coverage-report:domainCoverageReport
+./gradlew :code-coverage-report:contractCoverageReport
+./gradlew :code-coverage-report:integrationCoverageReport
 ```
 
-The aggregate report includes standard test, contract, and integration execution data. The XML report is written to:
+The aggregate report includes unit, domain, contract, and integration execution data. The XML report is written to:
 
 ```text
 test/code-coverage-report/build/reports/jacoco/codeCoverageReport/codeCoverageReport.xml
 ```
+
+Layer reports are written under the matching `unitCoverageReport`, `domainCoverageReport`, `contractCoverageReport`, and `integrationCoverageReport` directories. Pull-request workflows upload those XML reports to Codecov with the `unit`, `domain`, `contract`, and `integration` flags. The main-branch Codecov workflow uploads the aggregate report as the `full` baseline flag.
 
 Domain modules also enforce their existing coverage threshold through `jacocoTestCoverageVerification`, using standard `test` execution data.
 
@@ -88,4 +96,4 @@ Full JMH runs are intended for manual or scheduled performance analysis.
 
 ## CI Workflows
 
-Pull requests run separate workflows for `Unit Test`, `Domain Test`, `Contract Test`, `Integration Test`, `Benchmark Smoke`, and `Static Analysis`. The `Domain Test` workflow is a semantic signal over standard domain-module `test` tasks. Codecov builds the aggregate coverage report with `codeCoverageReport`.
+Pull requests run separate workflows for `Unit Test`, `Domain Test`, `Contract Test`, `Integration Test`, `Benchmark Smoke`, and `Static Analysis`. The `Unit Test`, `Domain Test`, `Contract Test`, and `Integration Test` workflows each publish a layer-specific Codecov flag. The main `Codecov` workflow builds `codeCoverageReport` for the full baseline on `main` or manual dispatch.

@@ -38,7 +38,7 @@ src/test/resources
 test
 ```
 
-The root task `allUnitTest` is a semantic aggregate over standard module `test` tasks. This keeps module-level behavior familiar while making CI intent explicit. `:wow-compensation-server:test` is included in the aggregate even though the server module is not a published library module.
+The root task `allUnitTest` is a semantic aggregate over non-domain standard module `test` tasks. This keeps module-level behavior familiar, makes CI intent explicit, and leaves the domain-module signal separate. `:wow-compensation-server:test` is included in the aggregate even though the server module is not a published library module.
 
 ### Domain Test
 
@@ -57,6 +57,8 @@ The root task `allDomainTest` is a semantic aggregate over the standard `test` t
 - `:wow-compensation-domain`
 
 This preserves the existing domain-module testing convention and avoids a custom `domainTest` source set at the module level. Domain coverage verification continues to depend on the standard `test` task and keeps the existing 80% minimum where configured.
+
+The domain modules are excluded from `allUnitTest` and `unitCoverageReport` so Pull Request feedback can show a distinct `domain` signal even though the source set remains `src/test`.
 
 ### Contract Test
 
@@ -98,7 +100,7 @@ Local behavior:
 CI behavior:
 
 - CI runs `allIntegrationTest`.
-- CI should use the shared Testcontainers strategy for Mongo, Kafka, MariaDB, Redis, and Elasticsearch instead of developer-local services.
+- CI should use the shared Testcontainers strategy for Mongo, Kafka, Redis, and Elasticsearch instead of developer-local services. MariaDB remains module-local in `wow-r2dbc` because its initialization script and module dependency boundary are specific to that provider.
 
 ### Benchmark Smoke
 
@@ -142,7 +144,14 @@ Module-level tasks:
 
 ## Container Test Infrastructure
 
-Create a unified test container utility for Mongo, Kafka, MariaDB, Redis, and Elasticsearch.
+Use a shared test container utility for common middleware containers:
+
+- Mongo,
+- Kafka,
+- Redis,
+- Elasticsearch.
+
+MariaDB stays in the `wow-r2dbc` integration-test launcher in this stage.
 
 Responsibilities:
 
@@ -153,7 +162,7 @@ Responsibilities:
 - disable reliance on reusable containers in CI,
 - surface startup diagnostics with image, task, mapped ports, and recent logs.
 
-The target behavior is one container strategy across local and CI runs.
+The target behavior is one shared strategy for common middleware across local and CI runs without widening TCK dependencies only to host the MariaDB launcher.
 
 ## CI Design
 
@@ -164,16 +173,18 @@ Split CI by test intent:
 - `contract-test.yml` runs `allContractTest`.
 - `integration-test.yml` runs `allIntegrationTest`.
 - `benchmark-smoke.yml` runs `benchmarkSmoke`.
-- `codecov.yml` runs the required coverage-producing test layers and uploads the aggregate report.
+- PR test workflows run their layer task and upload the matching Codecov flag.
+- `codecov.yml` runs `codeCoverageReport` on `main` or manual dispatch and uploads the aggregate `full` baseline report.
 - `static-analysis.yml` runs PR-level Detekt.
 
 All CI jobs use JDK 17 until a separate JVM baseline decision changes that.
 
 ## Coverage Design
 
-The aggregate coverage report includes:
+The full aggregate coverage report includes:
 
-- standard `test` execution data from library modules,
+- unit `test` execution data from non-domain library modules,
+- domain `test` execution data from domain modules,
 - local-safe `contractTest` execution data,
 - container-backed `integrationTest` execution data where configured.
 
@@ -190,7 +201,14 @@ Existing per-domain 80% verification remains for:
 - `:example-transfer-domain`
 - `:wow-compensation-domain`
 
-Coverage tasks keep the Codecov XML report path stable while updating JUnit result upload globs to `test`, `contractTest`, and `integrationTest`.
+Coverage tasks keep the full Codecov XML report path stable while adding layer-specific XML reports:
+
+- `unitCoverageReport`,
+- `domainCoverageReport`,
+- `contractCoverageReport`,
+- `integrationCoverageReport`.
+
+Pull Request workflows upload the layer reports with `unit`, `domain`, `contract`, and `integration` flags. The `Codecov` workflow uploads the full aggregate report with the `full` flag.
 
 ## Migration Strategy
 
@@ -236,7 +254,8 @@ This stage only prepares the execution layers needed to validate that later DSL 
 - Root aggregate tasks exist for unit, domain, contract, integration, benchmark smoke, and coverage.
 - Local `check` remains fast and does not start containers by default.
 - CI runs unit, domain, contract, integration, benchmark smoke, coverage, and static analysis workflows.
-- Container-backed tests use a unified Testcontainers strategy.
+- Mongo, Kafka, Redis, and Elasticsearch tests use the shared Testcontainers strategy.
+- MariaDB remains in the `wow-r2dbc` integration-test launcher for this stage.
 - Redis no longer depends on a separate GitHub Actions service while other middleware uses Testcontainers.
 - Existing `AggregateSpec` and `SagaSpec` tests still run from standard `src/test`.
 - Existing TCK inheritance-style tests still run.
