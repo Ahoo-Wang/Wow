@@ -17,7 +17,7 @@ Wow separates tests by runtime dependency so local checks stay fast while contai
 
 `check` runs local-safe verification: standard `test` tasks plus contract tests where configured. It does not start Docker containers.
 
-`allUnitTest` remains as a deprecated compatibility alias for `allLocalTest`.
+Use `allLocalTest` as the root task for standard `src/test` execution.
 
 ## Local Fast Checks
 

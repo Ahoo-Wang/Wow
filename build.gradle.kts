@@ -240,12 +240,6 @@ tasks.register("allLocalTest") {
     dependsOn(localTestTaskProjects.map { it.tasks.named("test") })
 }
 
-tasks.register("allUnitTest") {
-    description = "Deprecated compatibility alias for allLocalTest."
-    group = LifecycleBasePlugin.VERIFICATION_GROUP
-    dependsOn(tasks.named("allLocalTest"))
-}
-
 tasks.register("allContractTest") {
     description = "Runs all local-safe contract tests."
     group = LifecycleBasePlugin.VERIFICATION_GROUP
