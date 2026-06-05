@@ -32,7 +32,9 @@ class FunctionAccessorExtensionBehaviorTest {
 }
 
 private class ExtensionFunctionReceiver {
-    fun memberGreeting(): String = "member"
+    private val greeting = "member"
+
+    fun memberGreeting(): String = greeting
 }
 
-private fun ExtensionFunctionReceiver.extensionGreeting(): String = "extension"
+private fun ExtensionFunctionReceiver.extensionGreeting(): String = memberGreeting()

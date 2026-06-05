@@ -20,7 +20,10 @@ class NoOpIdempotencyCheckerBehaviorTest {
 
     @Test
     fun `should always allow repeated elements`() {
-        StepVerifier.create(NoOpIdempotencyChecker.check("request-1").concatWith(NoOpIdempotencyChecker.check("request-1")))
+        StepVerifier.create(
+            NoOpIdempotencyChecker.check("request-1")
+                .concatWith(NoOpIdempotencyChecker.check("request-1")),
+        )
             .expectNext(true, true)
             .verifyComplete()
     }

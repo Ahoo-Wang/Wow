@@ -101,15 +101,20 @@ class MonoFunctionAccessorBehaviorTest {
 }
 
 private class ReactiveAccessorFixture {
-    fun monoValue(): Mono<String> = Mono.just("mono")
+    private val monoResult = "mono"
+    private val syncResult = "sync"
+    private val suspendResult = "suspend"
+    private val blockingResult = "blocking"
 
-    fun syncValue(): String = "sync"
+    fun monoValue(): Mono<String> = Mono.just(monoResult)
+
+    fun syncValue(): String = syncResult
 
     fun fluxValues(): Flux<String> = Flux.just("flux-1", "flux-2")
 
     fun publisherValues(): Publisher<String> = Flux.just("publisher-1", "publisher-2")
 
-    suspend fun suspendValue(): String = "suspend"
+    suspend fun suspendValue(): String = suspendResult
 
     fun flowValues(): Flow<String> = flow {
         emit("flow-1")
@@ -117,5 +122,5 @@ private class ReactiveAccessorFixture {
     }
 
     @Blocking
-    fun blockingValue(): String = "blocking"
+    fun blockingValue(): String = blockingResult
 }
