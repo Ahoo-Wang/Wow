@@ -10,31 +10,41 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 @file:Suppress("unused")
 
 package me.ahoo.wow.event.annotation
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.annotation.OnStateEvent
+import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.tck.mock.MockAggregateChanged
 import me.ahoo.wow.tck.mock.MockAggregateCreated
 import org.junit.jupiter.api.Test
 
-internal class EventProcessorParserTest {
+class EventProcessorParserBehaviorTest {
 
     @Test
-    fun `should event processor metadata`() {
-        val eventProcessorMetadata = eventProcessorMetadata<MockEventProcessor>()
-        eventProcessorMetadata.contextName.assert().isEqualTo("wow.event")
-        eventProcessorMetadata.processorType.assert().isEqualTo(MockEventProcessor::class.java)
+    fun `processor parser finds event and state event handlers`() {
+        val metadata = eventProcessorMetadata<FixtureEventProcessor>()
+        val functions = metadata.functionRegistry
 
-        eventProcessorMetadata.functionRegistry.map { it.supportedType }.toSet().assert().containsExactly(
-            MockAggregateCreated::class.java,
-            MockAggregateChanged::class.java
+        metadata.processorType.assert().isEqualTo(FixtureEventProcessor::class.java)
+        functions.size.assert().isEqualTo(2)
+        functions.map { it.functionKind }.toSet().assert().isEqualTo(
+            setOf(FunctionKind.EVENT, FunctionKind.STATE_EVENT)
+        )
+        functions.map { it.supportedType }.toSet().assert().isEqualTo(
+            setOf(MockAggregateCreated::class.java, MockAggregateChanged::class.java)
         )
     }
 }
 
-internal class MockEventProcessor {
+private class FixtureEventProcessor {
     fun onEvent(created: MockAggregateCreated) = Unit
-    fun onEvent(changed: MockAggregateChanged) = Unit
+
+    @OnStateEvent
+    fun onChanged(changed: MockAggregateChanged) = Unit
+
+    fun ignored(value: String) = Unit
 }

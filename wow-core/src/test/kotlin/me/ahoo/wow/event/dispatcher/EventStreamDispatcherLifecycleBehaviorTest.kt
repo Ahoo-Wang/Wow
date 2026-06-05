@@ -16,40 +16,41 @@ package me.ahoo.wow.event.dispatcher
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.configuration.requiredNamedAggregate
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.event.InMemoryDomainEventBus
 import me.ahoo.wow.messaging.function.MessageFunction
+import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
+import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
+import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
 import reactor.core.scheduler.Schedulers
-import java.time.Duration
+import reactor.test.StepVerifier
 import java.util.concurrent.atomic.AtomicBoolean
 
-internal class EventStreamDispatcherLifecycleTest {
-    private val namedAggregate = EventStreamDispatcherLifecycleTest::class.java.requiredNamedAggregate()
+class EventStreamDispatcherLifecycleBehaviorTest {
 
-    @org.junit.jupiter.api.Test
-    fun `should stop scheduler supplier gracefully`() {
+    @Test
+    fun `stopGracefully stops scheduler supplier`() {
+        val namedAggregate = MOCK_AGGREGATE_METADATA.materialize()
         val schedulerSupplier = RecordingAggregateSchedulerSupplier()
         val functionRegistrar = DomainEventFunctionRegistrar()
-        functionRegistrar.registerProcessor(NoOpMessageFunction(namedAggregate))
-        val eventStreamDispatcher = EventStreamDispatcher(
+        functionRegistrar.register(NoOpMessageFunction(namedAggregate))
+        val dispatcher = EventStreamDispatcher(
             name = "test.EventStreamDispatcher",
             parallelism = 1,
             messageBus = InMemoryDomainEventBus(),
             functionRegistrar = functionRegistrar,
             eventHandler = object : EventHandler {
-                override fun handle(context: DomainEventExchange<*>): Mono<Void> {
-                    return Mono.empty()
-                }
+                override fun handle(context: DomainEventExchange<*>): Mono<Void> = Mono.empty()
             },
             schedulerSupplier = schedulerSupplier,
         )
+        dispatcher.start()
 
-        eventStreamDispatcher.start()
-        eventStreamDispatcher.stopGracefully().block(Duration.ofSeconds(5))
+        StepVerifier.create(dispatcher.stopGracefully())
+            .verifyComplete()
 
         schedulerSupplier.stopped.get().assert().isTrue()
     }
@@ -57,26 +58,16 @@ internal class EventStreamDispatcherLifecycleTest {
     private class NoOpMessageFunction(
         private val namedAggregate: NamedAggregate,
     ) : MessageFunction<Any, DomainEventExchange<*>, Mono<*>> {
-        override val contextName: String
-            get() = namedAggregate.contextName
-        override val name: String
-            get() = "noop"
-        override val supportedType: Class<*>
-            get() = Any::class.java
-        override val processor: Any
-            get() = this
-        override val functionKind: FunctionKind
-            get() = FunctionKind.EVENT
-        override val supportedTopics: Set<NamedAggregate>
-            get() = setOf(namedAggregate)
+        override val contextName: String = namedAggregate.contextName
+        override val name: String = "noop"
+        override val supportedType: Class<*> = Any::class.java
+        override val supportedTopics: Set<NamedAggregate> = setOf(namedAggregate)
+        override val processor: Any = this
+        override val functionKind: FunctionKind = FunctionKind.EVENT
 
-        override fun <A : Annotation> getAnnotation(annotationClass: Class<A>): A? {
-            return null
-        }
+        override fun <A : Annotation> getAnnotation(annotationClass: Class<A>): A? = null
 
-        override fun invoke(exchange: DomainEventExchange<*>): Mono<*> {
-            return Mono.empty<Void>()
-        }
+        override fun invoke(exchange: DomainEventExchange<*>): Mono<*> = Mono.empty<Void>()
     }
 
     private class RecordingAggregateSchedulerSupplier : AggregateSchedulerSupplier {

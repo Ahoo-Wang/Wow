@@ -11,19 +11,30 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.eventsourcing
+package me.ahoo.wow.event
 
+import io.mockk.mockk
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.messaging.TopicKind
 import org.junit.jupiter.api.Test
+import reactor.test.StepVerifier
 
-class AggregateIdScannerTest {
+class NoOpDomainEventBusBehaviorTest {
+
     @Test
-    fun `should return first id`() {
-        AggregateIdScanner.FIRST_ID.assert().isEqualTo("(0)")
+    fun `send completes without publishing`() {
+        StepVerifier.create(NoOpDomainEventBus.send(mockk()))
+            .verifyComplete()
     }
 
     @Test
-    fun `should return last id`() {
-        AggregateIdScanner.LAST_ID.assert().isEqualTo("~")
+    fun `receive is empty`() {
+        StepVerifier.create(NoOpDomainEventBus.receive(emptySet()))
+            .verifyComplete()
+    }
+
+    @Test
+    fun `topic kind is event stream`() {
+        NoOpDomainEventBus.topicKind.assert().isEqualTo(TopicKind.EVENT_STREAM)
     }
 }
