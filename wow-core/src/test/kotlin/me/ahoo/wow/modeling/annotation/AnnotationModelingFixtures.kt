@@ -10,6 +10,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package me.ahoo.wow.modeling.annotation
 
 import me.ahoo.wow.api.annotation.AfterCommand
@@ -35,6 +36,7 @@ abstract class MockAbstractStateAggregate(val id: String)
 abstract class MockAbstractCommandAggregate<S : MockAbstractStateAggregate>(val state: S)
 
 class MockStateAggregate(id: String) : MockAbstractStateAggregate(id)
+
 class MockCommandAggregate(state: MockStateAggregate) : MockAbstractCommandAggregate<MockStateAggregate>(state)
 
 @AggregateRoot(commands = [MockMountCommand::class])
@@ -47,20 +49,14 @@ data class MockMountCommand(val id: String)
 class MockAfterCommandAggregate(val id: String) {
 
     @OnCommand
-    fun onCommand(command: CreateCmd): CmdCreated {
-        return CmdCreated
-    }
+    fun onCommand(command: CreateCmd): CmdCreated = CmdCreated
 
     @OnCommand
-    fun onCommand(command: UpdateCmd): CmdUpdated {
-        return CmdUpdated
-    }
+    fun onCommand(command: UpdateCmd): CmdUpdated = CmdUpdated
 
     @Order(ORDER_FIRST)
     @AfterCommand
-    fun firstAfterCommand(exchange: ServerCommandExchange<Any>): CmdAfter {
-        return CmdAfter
-    }
+    fun firstAfterCommand(exchange: ServerCommandExchange<Any>): CmdAfter = CmdAfter
 
     @AfterCommand(include = [CreateCmd::class], exclude = [UpdateCmd::class])
     fun onAfterCommand(exchange: ServerCommandExchange<Any>): CmdAfter {
@@ -70,34 +66,28 @@ class MockAfterCommandAggregate(val id: String) {
 
     @Order(ORDER_LAST)
     @AfterCommand
-    fun lastAfterCommand(exchange: ServerCommandExchange<Any>): CmdAfter {
-        return CmdAfter
-    }
+    fun lastAfterCommand(exchange: ServerCommandExchange<Any>): CmdAfter = CmdAfter
 }
 
 @Suppress("UNUSED_PARAMETER")
 class MockAsyncAfterCommandAggregate(val id: String) {
 
     @OnCommand
-    fun onCommand(command: CreateCmd): CmdCreated {
-        return CmdCreated
-    }
+    fun onCommand(command: CreateCmd): CmdCreated = CmdCreated
 
     @Order(ORDER_FIRST)
     @AfterCommand
-    fun firstAfterCommand(exchange: ServerCommandExchange<Any>): Mono<FirstAfter> {
-        return Mono.just(FirstAfter).delayElement(Duration.ofMillis(50))
-    }
+    fun firstAfterCommand(exchange: ServerCommandExchange<Any>): Mono<FirstAfter> =
+        Mono.just(FirstAfter).delayElement(Duration.ofMillis(50))
 
     @Order(ORDER_LAST)
     @AfterCommand
-    fun lastAfterCommand(exchange: ServerCommandExchange<Any>): Mono<LastAfter> {
-        return Mono.just(LastAfter)
-    }
+    fun lastAfterCommand(exchange: ServerCommandExchange<Any>): Mono<LastAfter> = Mono.just(LastAfter)
 }
 
 @CreateAggregate
 object CreateCmd
+
 object CmdCreated
 object UpdateCmd
 object CmdUpdated
@@ -107,27 +97,22 @@ object LastAfter
 
 @Suppress("UNUSED_PARAMETER")
 class MockDefaultAfterCommandAggregate(val id: String) {
-
-    fun afterCommand(exchange: ServerCommandExchange<Any>): CmdAfter {
-        return CmdAfter
-    }
+    fun afterCommand(exchange: ServerCommandExchange<Any>): CmdAfter = CmdAfter
 }
 
 @Suppress("UNUSED_PARAMETER")
 class MockMultipleAfterCommandAggregate(val id: String) {
 
     @AfterCommand
-    fun onAfterCommand(exchange: ServerCommandExchange<Any>): CmdAfter {
-        return CmdAfter
-    }
+    fun onAfterCommand(exchange: ServerCommandExchange<Any>): CmdAfter = CmdAfter
 
-    fun afterCommand(exchange: ServerCommandExchange<Any>): CmdAfter {
-        return CmdAfter
-    }
+    fun afterCommand(exchange: ServerCommandExchange<Any>): CmdAfter = CmdAfter
 }
 
 class MockStateAggregateWithoutCtorCommand(private val state: MockStateAggregateWithoutCtorState)
+
 class MockStateAggregateWithoutCtorState
 
 class MockStateAggregateWithoutRedundantCtorCommand(private val state: MockStateAggregateWithoutRedundantCtorState)
+
 class MockStateAggregateWithoutRedundantCtorState(val id: String, val tenantId: String, val ownerId: String)

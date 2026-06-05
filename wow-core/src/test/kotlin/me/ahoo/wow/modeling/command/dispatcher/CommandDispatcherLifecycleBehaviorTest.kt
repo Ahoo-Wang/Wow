@@ -20,16 +20,18 @@ import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
+import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
 import reactor.core.scheduler.Schedulers
-import java.time.Duration
+import reactor.test.StepVerifier
 import java.util.concurrent.atomic.AtomicBoolean
 
-internal class CommandDispatcherLifecycleTest {
-    @org.junit.jupiter.api.Test
-    fun `should stop scheduler supplier gracefully`() {
+class CommandDispatcherLifecycleBehaviorTest {
+
+    @Test
+    fun `stop gracefully stops aggregate scheduler supplier`() {
         val schedulerSupplier = RecordingAggregateSchedulerSupplier()
         val commandDispatcher = CommandDispatcher(
             namedAggregates = setOf(MOCK_AGGREGATE_METADATA),
@@ -39,7 +41,8 @@ internal class CommandDispatcherLifecycleTest {
         )
 
         commandDispatcher.start()
-        commandDispatcher.stopGracefully().block(Duration.ofSeconds(5))
+        StepVerifier.create(commandDispatcher.stopGracefully())
+            .verifyComplete()
 
         schedulerSupplier.stopped.get().assert().isTrue()
     }
