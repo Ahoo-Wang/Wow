@@ -17,6 +17,7 @@ import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
+import org.openjdk.jmh.annotations.TearDown
 
 @State(Scope.Benchmark)
 open class InMemoryEventStoreBenchmark : AbstractEventStoreBenchmark() {
@@ -24,6 +25,11 @@ open class InMemoryEventStoreBenchmark : AbstractEventStoreBenchmark() {
     @Setup
     override fun setup() {
         super.setup()
+    }
+
+    @TearDown
+    fun tearDown() {
+        setup()
     }
 
     override fun createEventStore(): EventStore {

@@ -31,8 +31,19 @@ val cartAggregateMetadata by lazy {
 
 private val benchmarkCart = MaterializedNamedAggregate("example-service", "cart")
 private val benchmarkIdSequence = AtomicLong()
+const val FIXED_AGGREGATE_ID = "benchmark-cart-fixed-id"
 
 fun createCommandMessage(): CommandMessage<AddCartItem> {
+    val id = nextBenchmarkId()
+    return createCommandMessage(
+        id = id,
+        requestId = id,
+        aggregateId = FIXED_AGGREGATE_ID,
+        namedAggregate = benchmarkCart,
+    )
+}
+
+fun createCommandMessageForNewAggregate(): CommandMessage<AddCartItem> {
     val id = nextBenchmarkId()
     return createCommandMessage(
         id = id,
