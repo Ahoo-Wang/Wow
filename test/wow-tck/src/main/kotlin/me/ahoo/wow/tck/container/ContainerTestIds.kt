@@ -17,9 +17,9 @@ import java.util.Locale
 import java.util.UUID
 
 object ContainerTestIds {
-    private val PREFIX_PATTERN = Regex("[a-z][a-z0-9_]{0,30}")
+    private val PREFIX_PATTERN = Regex("[a-z][a-z0-9_]{0,29}")
     private const val PREFIX_REQUIREMENT =
-        "prefix must normalize to 1-31 lowercase letters, digits, or underscores and start with a letter."
+        "prefix must normalize to 1-30 lowercase letters, digits, or underscores and start with a letter."
 
     fun nextName(prefix: String): String {
         require(prefix.isNotBlank()) {

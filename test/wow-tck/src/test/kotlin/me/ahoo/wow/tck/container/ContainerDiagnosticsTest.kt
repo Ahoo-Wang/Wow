@@ -22,24 +22,18 @@ class ContainerDiagnosticsTest {
 
     @Test
     fun `should describe unstarted container without throwing`() {
-        val container = GenericContainer(DockerImageName.parse(ContainerImages.REDIS))
-            .withExposedPorts(6379)
-
-        val description = ContainerDiagnostics.describe("redis", container)
+        val description = ContainerDiagnostics.describe("redis", DescribedContainer())
 
         description.assert().contains("name=redis")
         description.assert().contains("image=${ContainerImages.REDIS}")
         description.assert().contains("running=false")
-        description.assert().contains("host=")
-        description.assert().contains("ports=")
+        description.assert().contains("host=localhost")
+        description.assert().contains("ports=[6379->16379]")
     }
 
     @Test
     fun `should print failure without throwing when container is unstarted`() {
-        val container = GenericContainer(DockerImageName.parse(ContainerImages.REDIS))
-            .withExposedPorts(6379)
-
-        ContainerDiagnostics.printFailure("redis", container, IllegalStateException("boom"))
+        ContainerDiagnostics.printFailure("redis", DescribedContainer(), IllegalStateException("boom"))
     }
 
     @Test
@@ -51,6 +45,26 @@ class ContainerDiagnosticsTest {
         description.assert().contains("running=unavailable")
         description.assert().contains("host=unavailable")
         description.assert().contains("ports=unavailable")
+    }
+
+    private class DescribedContainer : GenericContainer<DescribedContainer>(
+        DockerImageName.parse(ContainerImages.REDIS),
+    ) {
+        override fun isRunning(): Boolean {
+            return false
+        }
+
+        override fun getHost(): String {
+            return "localhost"
+        }
+
+        override fun getExposedPorts(): MutableList<Int> {
+            return mutableListOf(6379)
+        }
+
+        override fun getMappedPort(originalPort: Int): Int {
+            return 16379
+        }
     }
 
     private class FailingContainer : GenericContainer<FailingContainer>(

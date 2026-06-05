@@ -42,16 +42,16 @@ class ContainerTestIdsTest {
         assertThrownBy<IllegalArgumentException> {
             ContainerTestIds.nextName("_wow")
         }.hasMessage(
-            "prefix must normalize to 1-31 lowercase letters, digits, or underscores and start with a letter.",
+            "prefix must normalize to 1-30 lowercase letters, digits, or underscores and start with a letter.",
         )
     }
 
     @Test
     fun `should reject too long prefix`() {
         assertThrownBy<IllegalArgumentException> {
-            ContainerTestIds.nextName("a".repeat(32))
+            ContainerTestIds.nextName("a".repeat(31))
         }.hasMessage(
-            "prefix must normalize to 1-31 lowercase letters, digits, or underscores and start with a letter.",
+            "prefix must normalize to 1-30 lowercase letters, digits, or underscores and start with a letter.",
         )
     }
 }
