@@ -18,26 +18,22 @@ import me.ahoo.wow.elasticsearch.TemplateInitializer.initSnapshotTemplate
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotRepository
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
-import me.ahoo.wow.tck.container.ElasticsearchLauncher
+import me.ahoo.wow.tck.container.ElasticsearchTestFixture
 import me.ahoo.wow.tck.query.SnapshotQueryServiceSpec
-import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.extension.RegisterExtension
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 
 class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
-    companion object {
-        @JvmStatic
-        @BeforeAll
-        fun waitLauncher() {
-            ElasticsearchLauncher.isRunning
-        }
-    }
+    @JvmField
+    @RegisterExtension
+    val elasticsearch = ElasticsearchTestFixture()
 
     lateinit var elasticsearchClient: ReactiveElasticsearchClient
 
     @BeforeEach
     override fun setup() {
-        elasticsearchClient = ReactiveElasticsearchClients.createReactiveElasticsearchClient()
+        elasticsearchClient = ReactiveElasticsearchClients.createReactiveElasticsearchClient(elasticsearch)
         elasticsearchClient.initSnapshotTemplate()
         super.setup()
     }

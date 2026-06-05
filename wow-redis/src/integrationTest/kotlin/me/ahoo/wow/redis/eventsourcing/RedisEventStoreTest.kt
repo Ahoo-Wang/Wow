@@ -14,27 +14,17 @@
 package me.ahoo.wow.redis.eventsourcing
 
 import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.redis.RedisInitializer
+import me.ahoo.wow.tck.container.RedisTestFixture
 import me.ahoo.wow.tck.eventsourcing.EventStoreSpec
-import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.extension.RegisterExtension
 
 class RedisEventStoreTest : EventStoreSpec() {
-    protected lateinit var redisInitializer: RedisInitializer
-
-    @BeforeEach
-    override fun setup() {
-        redisInitializer = RedisInitializer()
-        super.setup()
-    }
-
-    @AfterEach
-    fun destroy() {
-        redisInitializer.close()
-    }
+    @JvmField
+    @RegisterExtension
+    val redis = RedisTestFixture()
 
     override fun createEventStore(): EventStore {
-        return RedisEventStore(redisInitializer.redisTemplate)
+        return RedisEventStore(redis.redisTemplate)
     }
 
     override fun loadEventStreamByEventTime() = Unit

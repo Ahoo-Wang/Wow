@@ -15,21 +15,17 @@ package me.ahoo.wow.kafka
 
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.event.DomainEventBus
-import me.ahoo.wow.tck.container.KafkaLauncher
+import me.ahoo.wow.tck.container.KafkaTestFixture
 import me.ahoo.wow.tck.modeling.command.CommandDispatcherSpec
-import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.extension.RegisterExtension
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
 
 internal class KafkaCommandDispatcherTest : CommandDispatcherSpec() {
 
-    companion object {
-        @JvmStatic
-        @BeforeAll
-        fun waitLauncher() {
-            KafkaLauncher.isRunning
-        }
-    }
+    @JvmField
+    @RegisterExtension
+    val kafka = KafkaTestFixture()
 
     private val onCommandSeekSink = Sinks.empty<Void>()
     override fun onCommandSeek(): Mono<Void> {
@@ -38,8 +34,8 @@ internal class KafkaCommandDispatcherTest : CommandDispatcherSpec() {
 
     override fun createCommandBus(): CommandBus {
         return KafkaCommandBus(
-            senderOptions = KafkaLauncher.senderOptions,
-            receiverOptions = KafkaLauncher.receiverOptions,
+            senderOptions = kafka.senderOptions(),
+            receiverOptions = kafka.receiverOptions(),
             receiverOptionsCustomizer = { options ->
                 options
                     .addAssignListener { partitions ->
@@ -54,8 +50,8 @@ internal class KafkaCommandDispatcherTest : CommandDispatcherSpec() {
 
     override fun createEventBus(): DomainEventBus {
         return KafkaDomainEventBus(
-            senderOptions = KafkaLauncher.senderOptions,
-            receiverOptions = KafkaLauncher.receiverOptions,
+            senderOptions = kafka.senderOptions(),
+            receiverOptions = kafka.receiverOptions(),
         )
     }
 }

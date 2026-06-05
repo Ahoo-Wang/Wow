@@ -31,6 +31,9 @@ class ElasticsearchTestFixture(
 ) : BeforeEachCallback, TestWatcher {
     private var elasticsearchContainer: ElasticsearchContainer? = null
 
+    val username: String
+        get() = WowTestContainers.ELASTIC_USER
+
     val password: String
         get() = WowTestContainers.elasticPassword
 
@@ -55,7 +58,7 @@ class ElasticsearchTestFixture(
 
     fun waitUntilAuthenticated() {
         val basicAuth = Base64.getEncoder().encodeToString(
-            "${WowTestContainers.ELASTIC_USER}:$password".toByteArray(StandardCharsets.UTF_8),
+            "$username:$password".toByteArray(StandardCharsets.UTF_8),
         )
         val httpClient = HttpClient.newBuilder()
             .sslContext(sslContext)

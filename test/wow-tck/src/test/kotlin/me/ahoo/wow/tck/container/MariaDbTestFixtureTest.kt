@@ -13,8 +13,13 @@
 
 package me.ahoo.wow.tck.container
 
-object MongoLauncher {
-    fun getConnectionString(): String {
-        return WowTestContainers.mongo.connectionString
+import me.ahoo.test.asserts.assert
+import org.junit.jupiter.api.Test
+
+class MariaDbTestFixtureTest {
+
+    @Test
+    fun `should provide jdbc driver required by testcontainers`() {
+        Class.forName("org.mariadb.jdbc.Driver").assert().isNotNull()
     }
 }

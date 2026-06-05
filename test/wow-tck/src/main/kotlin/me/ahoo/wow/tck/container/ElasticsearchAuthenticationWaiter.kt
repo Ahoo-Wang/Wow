@@ -13,22 +13,7 @@
 
 package me.ahoo.wow.tck.container
 
-import org.testcontainers.elasticsearch.ElasticsearchContainer
 import java.time.Duration
-
-object ElasticsearchLauncher {
-    val ELASTIC_PWD: String
-        get() = WowTestContainers.elasticPassword
-
-    val ELASTICSEARCH_CONTAINER: ElasticsearchContainer
-        get() = WowTestContainers.elasticsearch
-
-    val isRunning: Boolean
-        get() {
-            ElasticsearchTestFixture().waitUntilAuthenticated()
-            return ELASTICSEARCH_CONTAINER.isRunning
-        }
-}
 
 internal object ElasticsearchAuthenticationWaiter {
     private val SUCCESSFUL_STATUS_CODES = 200..299

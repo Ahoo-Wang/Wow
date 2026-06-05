@@ -17,30 +17,36 @@ import me.ahoo.cosid.sharding.ModCycle
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.sharding.CosIdShardingDecorator
+import me.ahoo.wow.tck.container.MariaDbTestFixture
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.RegisterExtension
 import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
 
 internal class ShardingDatabaseTest {
+    @JvmField
+    @RegisterExtension
+    val mariaDb = MariaDbTestFixture()
+
     private val namedAggregate = MaterializedNamedAggregate("test", "ShardingDatabaseTest")
-    private val database1 = ConnectionFactoryProviders.create(1)
-    private val database2 = ConnectionFactoryProviders.create(1)
     private val divisor = 2
     private val databaseSharding =
         CosIdShardingDecorator(ModCycle(divisor, "database_"))
 
-    private val shardingDatabase = ShardingDatabase(
-        SimpleConnectionFactoryRegistrar(
-            mutableMapOf(
-                "database_1" to database1,
-                "database_2" to database2,
-            ),
-        ),
-        databaseSharding,
-    )
-
     @Test
     fun `should create sharding database`() {
+        val database1 = ConnectionFactoryProviders.create(mariaDb.r2dbcUrl(poolSize = 1))
+        val database2 = ConnectionFactoryProviders.create(mariaDb.r2dbcUrl(poolSize = 1))
+        val shardingDatabase = ShardingDatabase(
+            SimpleConnectionFactoryRegistrar(
+                mutableMapOf(
+                    "database_1" to database1,
+                    "database_2" to database2,
+                ),
+            ),
+            databaseSharding,
+        )
+
         shardingDatabase.createConnection(namedAggregate.aggregateId("0TEpCw9e0001001")).toMono()
             .test()
             .consumeNextWith {

@@ -22,31 +22,28 @@ import me.ahoo.wow.redis.bus.RedisCommandBus
 import me.ahoo.wow.redis.bus.RedisDomainEventBus
 import me.ahoo.wow.redis.eventsourcing.RedisEventStore
 import me.ahoo.wow.redis.eventsourcing.RedisSnapshotRepository
+import me.ahoo.wow.tck.container.RedisTestFixture
 import me.ahoo.wow.tck.modeling.command.CommandDispatcherSpec
-import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.extension.RegisterExtension
 
 class RedisCommandDispatcherTest : CommandDispatcherSpec() {
-    protected lateinit var redisInitializer: RedisInitializer
-
-    @BeforeEach
-    override fun setup() {
-        redisInitializer = RedisInitializer()
-        super.setup()
-    }
+    @JvmField
+    @RegisterExtension
+    val redis = RedisTestFixture()
 
     override fun createSnapshotRepository(): SnapshotRepository {
-        return RedisSnapshotRepository(redisInitializer.redisTemplate).metrizable()
+        return RedisSnapshotRepository(redis.redisTemplate).metrizable()
     }
 
     override fun createEventStore(): EventStore {
-        return RedisEventStore(redisInitializer.redisTemplate)
+        return RedisEventStore(redis.redisTemplate)
     }
 
     override fun createCommandBus(): CommandBus {
-        return RedisCommandBus(redisInitializer.redisTemplate)
+        return RedisCommandBus(redis.redisTemplate)
     }
 
     override fun createEventBus(): DomainEventBus {
-        return RedisDomainEventBus(redisInitializer.redisTemplate)
+        return RedisDomainEventBus(redis.redisTemplate)
     }
 }

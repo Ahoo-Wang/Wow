@@ -13,8 +13,7 @@
 
 package me.ahoo.wow.elasticsearch
 
-import me.ahoo.wow.tck.container.ElasticsearchLauncher
-import me.ahoo.wow.tck.container.ElasticsearchLauncher.ELASTIC_PWD
+import me.ahoo.wow.tck.container.ElasticsearchTestFixture
 import org.springframework.data.elasticsearch.client.ClientConfiguration
 import org.springframework.data.elasticsearch.client.elc.ElasticsearchClients
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
@@ -23,7 +22,9 @@ import org.springframework.data.elasticsearch.support.HttpHeaders
 import java.time.Duration
 
 object ReactiveElasticsearchClients {
-    fun createReactiveElasticsearchClient(): ReactiveElasticsearchClient {
+    fun createReactiveElasticsearchClient(
+        elasticsearch: ElasticsearchTestFixture,
+    ): ReactiveElasticsearchClient {
         val httpHeaders = HttpHeaders()
 //        httpHeaders["X-Elastic-Product"] = listOf("Elasticsearch")
 //        httpHeaders["Content-Type"] = listOf("application/json")
@@ -31,9 +32,9 @@ object ReactiveElasticsearchClients {
         val clientConfiguration =
             ClientConfiguration
                 .builder()
-                .connectedTo(ElasticsearchLauncher.ELASTICSEARCH_CONTAINER.httpHostAddress)
-                .usingSsl(ElasticsearchLauncher.ELASTICSEARCH_CONTAINER.createSslContextFromCa())
-                .withBasicAuth("elastic", ELASTIC_PWD)
+                .connectedTo(elasticsearch.hostAddress)
+                .usingSsl(elasticsearch.sslContext)
+                .withBasicAuth(elasticsearch.username, elasticsearch.password)
                 .withSocketTimeout(Duration.ofSeconds(30))
                 .withConnectTimeout(Duration.ofSeconds(5))
                 .withDefaultHeaders(httpHeaders)

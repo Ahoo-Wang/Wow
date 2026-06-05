@@ -13,26 +13,23 @@
 
 package me.ahoo.wow.mongo
 
-import com.mongodb.reactivestreams.client.MongoClients
 import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.tck.container.MongoLauncher
+import me.ahoo.wow.tck.container.MongoTestFixture
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.RegisterExtension
 import reactor.kotlin.core.publisher.toFlux
 import reactor.kotlin.core.publisher.toMono
 
 abstract class SchemaInitializerSpec {
-    companion object {
-        const val DATABASE_NAME = "wow_db"
-    }
+    @JvmField
+    @RegisterExtension
+    val mongo = MongoTestFixture()
 
     @Test
     fun `should initialize all aggregate schemas`() {
-        MongoClients.create(MongoLauncher.getConnectionString()).use { client ->
-            val database = client.getDatabase(DATABASE_NAME)
-            initAllAggregateSchema(database)
-        }
+        initAllAggregateSchema(mongo.database())
     }
 
     abstract fun initAllAggregateSchema(database: MongoDatabase)
@@ -41,17 +38,15 @@ abstract class SchemaInitializerSpec {
 
     @Test
     fun `should initialize aggregate schema`() {
-        MongoClients.create(MongoLauncher.getConnectionString()).use { client ->
-            val database = client.getDatabase(DATABASE_NAME)
-            val aggregateName = "testInitSchema"
-            val namedAggregate = me.ahoo.wow.modeling.MaterializedNamedAggregate("", aggregateName)
-            val collectionName = getCollectionName(namedAggregate)
-            database.getCollection(collectionName).drop().toMono().block()
-            initAggregateSchema(database, namedAggregate)
-            database.listCollectionNames().toFlux().collectList().block()!!.let {
-                it.assert().contains(collectionName)
-            }
-            database.getCollection(collectionName).drop().toMono().block()
+        val database = mongo.database()
+        val aggregateName = "testInitSchema"
+        val namedAggregate = me.ahoo.wow.modeling.MaterializedNamedAggregate("", aggregateName)
+        val collectionName = getCollectionName(namedAggregate)
+        database.getCollection(collectionName).drop().toMono().block()
+        initAggregateSchema(database, namedAggregate)
+        database.listCollectionNames().toFlux().collectList().block()!!.let {
+            it.assert().contains(collectionName)
         }
+        database.getCollection(collectionName).drop().toMono().block()
     }
 }

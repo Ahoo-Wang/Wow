@@ -16,25 +16,21 @@ package me.ahoo.wow.kafka
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.tck.command.CommandBusSpec
-import me.ahoo.wow.tck.container.KafkaLauncher
-import org.junit.jupiter.api.BeforeAll
+import me.ahoo.wow.tck.container.KafkaTestFixture
+import org.junit.jupiter.api.extension.RegisterExtension
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Sinks
 
 internal class KafkaCommandBusTest : CommandBusSpec() {
 
-    companion object {
-        @JvmStatic
-        @BeforeAll
-        fun waitLauncher() {
-            KafkaLauncher.isRunning
-        }
-    }
+    @JvmField
+    @RegisterExtension
+    val kafka = KafkaTestFixture()
 
     override fun createMessageBus(): CommandBus {
         return KafkaCommandBus(
-            senderOptions = KafkaLauncher.senderOptions,
-            receiverOptions = KafkaLauncher.receiverOptions,
+            senderOptions = kafka.senderOptions(),
+            receiverOptions = kafka.receiverOptions(),
         )
     }
 

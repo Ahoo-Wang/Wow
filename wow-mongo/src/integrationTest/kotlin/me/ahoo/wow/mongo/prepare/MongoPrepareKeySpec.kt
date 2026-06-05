@@ -13,16 +13,16 @@
 
 package me.ahoo.wow.mongo.prepare
 
-import com.mongodb.reactivestreams.client.MongoClients
-import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.wow.infra.prepare.PrepareKeyFactory
-import me.ahoo.wow.mongo.SchemaInitializerSpec
-import me.ahoo.wow.tck.container.MongoLauncher
+import me.ahoo.wow.tck.container.MongoTestFixture
 import me.ahoo.wow.tck.prepare.PrepareKeySpec
+import org.junit.jupiter.api.extension.RegisterExtension
 
 abstract class MongoPrepareKeySpec<V : Any> : PrepareKeySpec<V>() {
-    private val client = MongoClients.create(MongoLauncher.getConnectionString())
-    private val database: MongoDatabase = client.getDatabase(SchemaInitializerSpec.DATABASE_NAME)
+    @JvmField
+    @RegisterExtension
+    val mongo = MongoTestFixture()
+
     protected val prepareKeyFactory: PrepareKeyFactory
-        get() = MongoPrepareKeyFactory(database)
+        get() = MongoPrepareKeyFactory(mongo.database())
 }

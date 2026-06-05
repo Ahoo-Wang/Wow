@@ -13,15 +13,18 @@
 
 package me.ahoo.wow.mongo
 
-import com.mongodb.reactivestreams.client.MongoClients
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
-import me.ahoo.wow.tck.container.MongoLauncher
+import me.ahoo.wow.tck.container.MongoTestFixture
 import me.ahoo.wow.tck.eventsourcing.snapshot.SnapshotRepositorySpec
+import org.junit.jupiter.api.extension.RegisterExtension
 
 class MongoSnapshotRepositoryTest : SnapshotRepositorySpec() {
+    @JvmField
+    @RegisterExtension
+    val mongo = MongoTestFixture()
+
     override fun createSnapshotRepository(): SnapshotRepository {
-        val client = MongoClients.create(MongoLauncher.getConnectionString())
-        val database = client.getDatabase(SchemaInitializerSpec.DATABASE_NAME)
+        val database = mongo.database()
         SnapshotSchemaInitializer(database).initSchema(aggregateMetadata)
         return MongoSnapshotRepository(database)
     }
