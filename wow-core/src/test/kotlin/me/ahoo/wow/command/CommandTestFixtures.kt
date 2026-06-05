@@ -45,12 +45,6 @@ internal data class CreateAccountCommand(
     @AggregateName val aggregate: String = COMMAND_FIXTURE_NAMED_AGGREGATE_VALUE
 )
 
-@CreateAggregate
-internal data class MockCreateCommand(
-    @AggregateId val id: String,
-    @AggregateName val aggregate: String = COMMAND_FIXTURE_NAMED_AGGREGATE_VALUE
-)
-
 @AllowCreate
 internal data class UpsertAccountCommand(
     @AggregateId val id: String,
