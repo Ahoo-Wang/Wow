@@ -71,14 +71,8 @@ enum class WowTestLayer(
     ),
 }
 
-val standardTestProjects = libraryProjects - benchmarksProject
-val domainTestProjects = setOf(
-    exampleDomainProject,
-    project(":example-transfer-domain"),
-    project(":wow-compensation-domain"),
-)
-val unitTestProjects = standardTestProjects - domainTestProjects
-val unitTestTaskProjects = unitTestProjects + project(":wow-compensation-server")
+val localTestProjects = libraryProjects - benchmarksProject
+val localTestTaskProjects = localTestProjects + project(":wow-compensation-server")
 val localContractTestProjects = setOf(
     project(":wow-core"),
     project(":wow-opentelemetry"),
@@ -93,9 +87,7 @@ val integrationTestProjects = setOf(
     project(":wow-it"),
 )
 
-ext.set("standardTestProjects", standardTestProjects)
-ext.set("unitTestProjects", unitTestProjects)
-ext.set("domainTestProjects", domainTestProjects)
+ext.set("localTestProjects", localTestProjects)
 ext.set("localContractTestProjects", localContractTestProjects)
 ext.set("integrationTestProjects", integrationTestProjects)
 
@@ -242,16 +234,16 @@ configure(integrationTestProjects) {
     registerJvmTestLayer(WowTestLayer.INTEGRATION, includeInCheck = false)
 }
 
-tasks.register("allUnitTest") {
-    description = "Runs all local-safe unit tests."
+tasks.register("allLocalTest") {
+    description = "Runs all local-safe tests."
     group = LifecycleBasePlugin.VERIFICATION_GROUP
-    dependsOn(unitTestTaskProjects.map { it.tasks.named("test") })
+    dependsOn(localTestTaskProjects.map { it.tasks.named("test") })
 }
 
-tasks.register("allDomainTest") {
-    description = "Runs all domain behavior tests."
+tasks.register("allUnitTest") {
+    description = "Deprecated compatibility alias for allLocalTest."
     group = LifecycleBasePlugin.VERIFICATION_GROUP
-    dependsOn(domainTestProjects.map { it.tasks.named("test") })
+    dependsOn(tasks.named("allLocalTest"))
 }
 
 tasks.register("allContractTest") {
