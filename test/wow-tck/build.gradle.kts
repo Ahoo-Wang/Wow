@@ -18,5 +18,5 @@ dependencies {
     implementation("org.testcontainers:testcontainers-kafka")
     implementation("org.testcontainers:testcontainers-mongodb")
     implementation("org.testcontainers:testcontainers-elasticsearch")
-    implementation("org.testcontainers:testcontainers-mariadb")
+    api("org.testcontainers:testcontainers-mariadb")
 }

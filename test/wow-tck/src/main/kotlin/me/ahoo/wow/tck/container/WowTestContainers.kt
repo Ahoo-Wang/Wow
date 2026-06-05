@@ -15,9 +15,9 @@ package me.ahoo.wow.tck.container
 
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.KafkaContainer
-import org.testcontainers.containers.MariaDBContainer
 import org.testcontainers.containers.MongoDBContainer
 import org.testcontainers.elasticsearch.ElasticsearchContainer
+import org.testcontainers.mariadb.MariaDBContainer
 import org.testcontainers.utility.DockerImageName
 import java.time.Duration
 
@@ -60,7 +60,7 @@ object WowTestContainers {
             .also { it.start() }
     }
 
-    val mariaDb: MariaDBContainer<*> by lazy {
+    val mariaDb: MariaDBContainer by lazy {
         MariaDBContainer(DockerImageName.parse(ContainerImages.MARIADB))
             .withNetworkAliases("mariadb")
             .withUsername("root")
