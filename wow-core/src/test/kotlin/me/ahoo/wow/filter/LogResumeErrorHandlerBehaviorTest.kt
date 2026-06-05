@@ -13,20 +13,14 @@
 
 package me.ahoo.wow.filter
 
-import io.mockk.mockk
-import me.ahoo.wow.command.CommandExchange
 import org.junit.jupiter.api.Test
-import reactor.kotlin.test.test
+import reactor.test.StepVerifier
 
-internal class LogErrorHandlerTest {
+class LogResumeErrorHandlerBehaviorTest {
 
     @Test
-    fun `should handle`() {
-        val logErrorHandler = LogErrorHandler<CommandExchange<*, Any>>()
-        val exchange = mockk<CommandExchange<*, Any>>()
-        logErrorHandler.handle(exchange, RuntimeException())
-            .test()
-            .expectError()
-            .verify()
+    fun `handle logs and resumes empty`() {
+        StepVerifier.create(LogResumeErrorHandler<String>().handle("context", IllegalArgumentException("failed")))
+            .verifyComplete()
     }
 }

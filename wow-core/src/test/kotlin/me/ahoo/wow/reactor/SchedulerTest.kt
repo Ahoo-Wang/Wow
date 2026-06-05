@@ -13,45 +13,44 @@
 
 package me.ahoo.wow.reactor
 
-import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.test.asserts.assert
+import me.ahoo.wow.modeling.toNamedAggregate
+import me.ahoo.wow.scheduler.DefaultAggregateSchedulerSupplier
 import org.junit.jupiter.api.Test
-import reactor.core.publisher.Flux
-import reactor.core.publisher.Mono
-import reactor.core.scheduler.Schedulers
+import reactor.test.StepVerifier
 
 class SchedulerTest {
-    companion object {
-        private val log = KotlinLogging.logger { }
+
+    @Test
+    fun `aggregate scheduler supplier reuses schedulers per aggregate`() {
+        val supplier = DefaultAggregateSchedulerSupplier(name = "test-scheduler", parallelism = 1)
+        val order = "wow-core-test.messaging_aggregate".toNamedAggregate()
+        val other = "wow-core-test.command_aggregate".toNamedAggregate()
+
+        val first = supplier.getOrInitialize(order)
+        val second = supplier.getOrInitialize(order)
+        val third = supplier.getOrInitialize(other)
+
+        second.assert().isSameAs(first)
+        third.assert().isNotSameAs(first)
+
+        StepVerifier.create(supplier.stopGracefully())
+            .verifyComplete()
     }
 
     @Test
-    fun `should test`() {
-        val firstScheduler = Schedulers.newSingle("firstScheduler")
-        val secondScheduler = Schedulers.newSingle("secondScheduler")
-        val thirdScheduler = Schedulers.newSingle("thirdScheduler")
-        val fourthScheduler = Schedulers.newSingle("fourthScheduler")
-        Flux.fromIterable(listOf(1, 2, 3, 4, 5))
-            .publishOn(firstScheduler)
-            .doOnSubscribe {
-                log.info { "subscribe" } // fourthScheduler
-            }
-            .doOnNext {
-                log.info { "<1> $it" } // firstScheduler
-            }
-            .publishOn(secondScheduler)
-            .doOnNext {
-                log.info { "<2> $it" } // secondScheduler
-            }
-            .flatMap {
-                Mono.fromCallable {
-                    log.info { "<3> $it" } // thirdScheduler
-                    it * 2
-                }.publishOn(thirdScheduler)
-            }
-            .doOnNext {
-                log.info { "<4> $it" } // thirdScheduler
-            }
-            .subscribeOn(fourthScheduler)
-            .blockLast()
+    fun `stopGracefully disposes cached schedulers and clears the cache`() {
+        val supplier = DefaultAggregateSchedulerSupplier(name = "test-scheduler", parallelism = 1)
+        val aggregate = "wow-core-test.messaging_aggregate".toNamedAggregate()
+        val scheduler = supplier.getOrInitialize(aggregate)
+
+        StepVerifier.create(supplier.stopGracefully())
+            .verifyComplete()
+
+        scheduler.isDisposed.assert().isTrue()
+        supplier.getOrInitialize(aggregate).assert().isNotSameAs(scheduler)
+
+        StepVerifier.create(supplier.stopGracefully())
+            .verifyComplete()
     }
 }

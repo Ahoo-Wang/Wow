@@ -15,39 +15,64 @@ package me.ahoo.wow.messaging.dispatcher
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.messaging.getReceiverGroup
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.modeling.toNamedAggregate
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
-import java.time.Duration
+import reactor.core.publisher.Sinks
+import reactor.test.StepVerifier
 import java.util.concurrent.atomic.AtomicInteger
 
-internal class MainDispatcherTest {
+class MainDispatcherBehaviorTest {
+
     @Test
-    fun `should not initialize aggregate dispatchers when stopping before start`() {
+    fun `stopGracefully before start does not initialize aggregate dispatchers`() {
         val dispatcher = RecordingMainDispatcher()
 
-        dispatcher.stopGracefully().block(Duration.ofSeconds(1))
+        StepVerifier.create(dispatcher.stopGracefully())
+            .verifyComplete()
 
         dispatcher.receiveCount.get().assert().isEqualTo(0)
         dispatcher.createCount.get().assert().isEqualTo(0)
         dispatcher.childStopCount.get().assert().isEqualTo(0)
     }
 
+    @Test
+    fun `start creates one child per aggregate and subscribes with receiver group context`() {
+        val dispatcher = RecordingMainDispatcher()
+
+        StepVerifier.create(dispatcher.receiverGroups.asFlux().take(2))
+            .then { dispatcher.start() }
+            .expectNext("recording-main", "recording-main")
+            .verifyComplete()
+
+        dispatcher.receiveCount.get().assert().isEqualTo(2)
+        dispatcher.createCount.get().assert().isEqualTo(2)
+
+        StepVerifier.create(dispatcher.stopGracefully())
+            .verifyComplete()
+        dispatcher.childStopCount.get().assert().isEqualTo(2)
+    }
+
     private class RecordingMainDispatcher : MainDispatcher<String>() {
         val receiveCount = AtomicInteger()
         val createCount = AtomicInteger()
         val childStopCount = AtomicInteger()
+        val receiverGroups: Sinks.Many<String> = Sinks.many().replay().all()
 
-        override val name: String = "RecordingMainDispatcher"
+        override val name: String = "recording-main"
         override val namedAggregates: Set<NamedAggregate> = setOf(
-            "test.test".toNamedAggregate().materialize(),
+            "wow-core-test.messaging_aggregate".toNamedAggregate().materialize(),
+            "wow-core-test.command_aggregate".toNamedAggregate().materialize(),
         )
 
         override fun receiveMessage(namedAggregate: NamedAggregate): Flux<String> {
             receiveCount.incrementAndGet()
-            return Flux.never()
+            return Flux.deferContextual {
+                Flux.just(it.getReceiverGroup())
+            }
         }
 
         override fun newAggregateDispatcher(
@@ -56,14 +81,18 @@ internal class MainDispatcherTest {
         ): MessageDispatcher {
             createCount.incrementAndGet()
             return object : MessageDispatcher {
-                override val name: String = "RecordingChildDispatcher"
+                override val name: String = "child-${namedAggregate.aggregateName}"
 
-                override fun start() = Unit
-
-                override fun stopGracefully(): Mono<Void> {
-                    childStopCount.incrementAndGet()
-                    return Mono.empty()
+                override fun start() {
+                    messageFlux.subscribe {
+                        receiverGroups.tryEmitNext(it).orThrow()
+                    }
                 }
+
+                override fun stopGracefully(): Mono<Void> =
+                    Mono.fromRunnable {
+                        childStopCount.incrementAndGet()
+                    }
             }
         }
     }
