@@ -16,21 +16,17 @@ package me.ahoo.wow.elasticsearch.eventsourcing
 import me.ahoo.wow.elasticsearch.ReactiveElasticsearchClients
 import me.ahoo.wow.elasticsearch.TemplateInitializer.initEventStreamTemplate
 import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.tck.container.ElasticsearchLauncher
+import me.ahoo.wow.tck.container.ElasticsearchTestFixture
 import me.ahoo.wow.tck.eventsourcing.EventStoreSpec
-import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.extension.RegisterExtension
 
 class ElasticsearchEventStoreTest : EventStoreSpec() {
-    companion object {
-        @JvmStatic
-        @BeforeAll
-        fun waitLauncher() {
-            ElasticsearchLauncher.isRunning
-        }
-    }
+    @JvmField
+    @RegisterExtension
+    val elasticsearch = ElasticsearchTestFixture()
 
     override fun createEventStore(): EventStore {
-        val elasticsearchClient = ReactiveElasticsearchClients.createReactiveElasticsearchClient()
+        val elasticsearchClient = ReactiveElasticsearchClients.createReactiveElasticsearchClient(elasticsearch)
         elasticsearchClient.initEventStreamTemplate()
         return ElasticsearchEventStore(
             elasticsearchClient = elasticsearchClient,

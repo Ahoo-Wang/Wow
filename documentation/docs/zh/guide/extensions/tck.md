@@ -34,15 +34,12 @@ testImplementation 'me.ahoo.wow:wow-tck'
 
 ```kotlin
 class RedisCommandBusTest : CommandBusSpec() {
-    protected lateinit var redisInitializer: RedisInitializer
-
-    @BeforeEach
-    fun setup() {
-        redisInitializer = RedisInitializer()
-    }
+    @JvmField
+    @RegisterExtension
+    val redis = RedisTestFixture()
 
     override fun createMessageBus(): CommandBus {
-        return RedisCommandBus(redisInitializer.redisTemplate)
+        return RedisCommandBus(redis.redisTemplate)
     }
 }
 ```
@@ -51,15 +48,12 @@ class RedisCommandBusTest : CommandBusSpec() {
 
 ```kotlin
 class RedisDomainEventBusTest : DomainEventBusSpec() {
-    protected lateinit var redisInitializer: RedisInitializer
-
-    @BeforeEach
-    fun setup() {
-        redisInitializer = RedisInitializer()
-    }
+    @JvmField
+    @RegisterExtension
+    val redis = RedisTestFixture()
 
     override fun createMessageBus(): DomainEventBus {
-        return RedisDomainEventBus(redisInitializer.redisTemplate)
+        return RedisDomainEventBus(redis.redisTemplate)
     }
 }
 ```
@@ -68,15 +62,12 @@ class RedisDomainEventBusTest : DomainEventBusSpec() {
 
 ```kotlin
 class RedisStateEventBusTest : StateEventBusSpec() {
-    protected lateinit var redisInitializer: RedisInitializer
-
-    @BeforeEach
-    fun setup() {
-        redisInitializer = RedisInitializer()
-    }
+    @JvmField
+    @RegisterExtension
+    val redis = RedisTestFixture()
 
     override fun createMessageBus(): StateEventBus {
-        return RedisStateEventBus(redisInitializer.redisTemplate)
+        return RedisStateEventBus(redis.redisTemplate)
     }
 }
 ```
@@ -85,24 +76,15 @@ class RedisStateEventBusTest : StateEventBusSpec() {
 
 ```kotlin
 class RedisEventStoreTest : EventStoreSpec() {
-    protected lateinit var redisInitializer: RedisInitializer
-
-    @BeforeEach
-    override fun setup() {
-        redisInitializer = RedisInitializer()
-        super.setup()
-    }
-
-    @AfterEach
-    fun destroy() {
-        redisInitializer.close()
-    }
+    @JvmField
+    @RegisterExtension
+    val redis = RedisTestFixture()
 
     override fun createEventStore(): EventStore {
-        return RedisEventStore(redisInitializer.redisTemplate)
+        return RedisEventStore(redis.redisTemplate)
     }
 
-    override fun scanAggregateId() = Unit
+    override fun loadEventStreamByEventTime() = Unit
 }
 ```
 
@@ -110,15 +92,12 @@ class RedisEventStoreTest : EventStoreSpec() {
 
 ```kotlin
 class RedisSnapshotRepositoryTest : SnapshotRepositorySpec() {
-    protected lateinit var redisInitializer: RedisInitializer
-
-    @BeforeEach
-    fun setup() {
-        redisInitializer = RedisInitializer()
-    }
+    @JvmField
+    @RegisterExtension
+    val redis = RedisTestFixture()
 
     override fun createSnapshotRepository(): SnapshotRepository {
-        return RedisSnapshotRepository(redisInitializer.redisTemplate)
+        return RedisSnapshotRepository(redis.redisTemplate)
     }
 }
 ```

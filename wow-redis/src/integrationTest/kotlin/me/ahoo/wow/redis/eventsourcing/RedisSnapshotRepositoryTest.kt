@@ -14,19 +14,16 @@
 package me.ahoo.wow.redis.eventsourcing
 
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
-import me.ahoo.wow.redis.RedisInitializer
+import me.ahoo.wow.tck.container.RedisTestFixture
 import me.ahoo.wow.tck.eventsourcing.snapshot.SnapshotRepositorySpec
-import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.extension.RegisterExtension
 
 class RedisSnapshotRepositoryTest : SnapshotRepositorySpec() {
-    protected lateinit var redisInitializer: RedisInitializer
-
-    @BeforeEach
-    fun setup() {
-        redisInitializer = RedisInitializer()
-    }
+    @JvmField
+    @RegisterExtension
+    val redis = RedisTestFixture()
 
     override fun createSnapshotRepository(): SnapshotRepository {
-        return RedisSnapshotRepository(redisInitializer.redisTemplate)
+        return RedisSnapshotRepository(redis.redisTemplate)
     }
 }

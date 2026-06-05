@@ -18,26 +18,22 @@ import me.ahoo.wow.elasticsearch.TemplateInitializer.initEventStreamTemplate
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchEventStore
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
-import me.ahoo.wow.tck.container.ElasticsearchLauncher
+import me.ahoo.wow.tck.container.ElasticsearchTestFixture
 import me.ahoo.wow.tck.query.EventStreamQueryServiceSpec
-import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.extension.RegisterExtension
 import org.springframework.data.elasticsearch.client.elc.ReactiveElasticsearchClient
 
 class ElasticsearchEventStreamQueryServiceTest : EventStreamQueryServiceSpec() {
-    companion object {
-        @JvmStatic
-        @BeforeAll
-        fun waitLauncher() {
-            ElasticsearchLauncher.isRunning
-        }
-    }
+    @JvmField
+    @RegisterExtension
+    val elasticsearch = ElasticsearchTestFixture()
 
     lateinit var elasticsearchClient: ReactiveElasticsearchClient
 
     @BeforeEach
     override fun setup() {
-        elasticsearchClient = ReactiveElasticsearchClients.createReactiveElasticsearchClient()
+        elasticsearchClient = ReactiveElasticsearchClients.createReactiveElasticsearchClient(elasticsearch)
         elasticsearchClient.initEventStreamTemplate()
         super.setup()
     }

@@ -13,8 +13,11 @@
 
 package me.ahoo.wow.tck.container
 
-object MongoLauncher {
-    fun getConnectionString(): String {
-        return WowTestContainers.mongo.connectionString
-    }
+object ContainerImages {
+    const val MONGO = "mongo:6.0.6"
+    const val KAFKA = "confluentinc/cp-kafka:7.4.0"
+    const val ELASTICSEARCH_REPOSITORY = "docker.elastic.co/elasticsearch/elasticsearch"
+    const val ELASTICSEARCH_TAG = "9.2.6"
+    const val REDIS = "redis:7.4-alpine"
+    const val MARIADB = "mariadb:10.6.4"
 }

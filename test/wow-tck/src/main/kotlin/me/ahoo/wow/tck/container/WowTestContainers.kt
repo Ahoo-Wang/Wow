@@ -17,21 +17,24 @@ import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.KafkaContainer
 import org.testcontainers.containers.MongoDBContainer
 import org.testcontainers.elasticsearch.ElasticsearchContainer
+import org.testcontainers.mariadb.MariaDBContainer
 import org.testcontainers.utility.DockerImageName
 import java.time.Duration
 
 object WowTestContainers {
+    const val ELASTIC_USER = "elastic"
+
     private const val ELASTIC_PASSWORD = "wow"
     private const val ELASTICSEARCH_JAVA_OPTS = "-Xms512m -Xmx512m"
 
     val mongo: MongoDBContainer by lazy {
-        MongoDBContainer(DockerImageName.parse("mongo:6.0.6"))
+        MongoDBContainer(DockerImageName.parse(ContainerImages.MONGO))
             .withNetworkAliases("mongo")
             .also { it.start() }
     }
 
     val kafka: KafkaContainer by lazy {
-        KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.4.0"))
+        KafkaContainer(DockerImageName.parse(ContainerImages.KAFKA))
             .withNetworkAliases("kafka")
             .withKraft()
             .also { it.start() }
@@ -40,8 +43,8 @@ object WowTestContainers {
     val elasticsearch: ElasticsearchContainer by lazy {
         ElasticsearchContainer(
             DockerImageName
-                .parse("docker.elastic.co/elasticsearch/elasticsearch")
-                .withTag("9.2.6"),
+                .parse(ContainerImages.ELASTICSEARCH_REPOSITORY)
+                .withTag(ContainerImages.ELASTICSEARCH_TAG),
         )
             .withPassword(ELASTIC_PASSWORD)
             .withEnv("ES_JAVA_OPTS", ELASTICSEARCH_JAVA_OPTS)
@@ -51,9 +54,19 @@ object WowTestContainers {
     }
 
     val redis: GenericContainer<*> by lazy {
-        GenericContainer(DockerImageName.parse("redis:7.4-alpine"))
+        GenericContainer(DockerImageName.parse(ContainerImages.REDIS))
             .withExposedPorts(6379)
             .withNetworkAliases("redis")
+            .also { it.start() }
+    }
+
+    val mariaDb: MariaDBContainer by lazy {
+        MariaDBContainer(DockerImageName.parse(ContainerImages.MARIADB))
+            .withNetworkAliases("mariadb")
+            .withUsername("root")
+            .withPassword("root")
+            .withDatabaseName("wow_db")
+            .withInitScript("init-schema-mysql.sql")
             .also { it.start() }
     }
 

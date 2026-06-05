@@ -1,19 +1,16 @@
 package me.ahoo.wow.redis.bus
 
 import me.ahoo.wow.command.CommandBus
-import me.ahoo.wow.redis.RedisInitializer
+import me.ahoo.wow.tck.container.RedisTestFixture
 import me.ahoo.wow.tck.command.CommandBusSpec
-import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.extension.RegisterExtension
 
 class RedisCommandBusTest : CommandBusSpec() {
-    protected lateinit var redisInitializer: RedisInitializer
-
-    @BeforeEach
-    fun setup() {
-        redisInitializer = RedisInitializer()
-    }
+    @JvmField
+    @RegisterExtension
+    val redis = RedisTestFixture()
 
     override fun createMessageBus(): CommandBus {
-        return RedisCommandBus(redisInitializer.redisTemplate)
+        return RedisCommandBus(redis.redisTemplate)
     }
 }

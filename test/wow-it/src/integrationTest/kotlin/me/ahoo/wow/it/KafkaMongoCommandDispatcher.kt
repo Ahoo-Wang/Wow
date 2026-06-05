@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.it
 
-import com.mongodb.reactivestreams.client.MongoClients
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.eventsourcing.EventStore
@@ -22,28 +21,24 @@ import me.ahoo.wow.kafka.KafkaDomainEventBus
 import me.ahoo.wow.metrics.Metrics.metrizable
 import me.ahoo.wow.mongo.EventStreamSchemaInitializer
 import me.ahoo.wow.mongo.MongoEventStore
-import me.ahoo.wow.tck.container.KafkaLauncher
-import me.ahoo.wow.tck.container.MongoLauncher
+import me.ahoo.wow.tck.container.KafkaTestFixture
+import me.ahoo.wow.tck.container.MongoTestFixture
 import me.ahoo.wow.tck.modeling.command.CommandDispatcherSpec
-import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.extension.RegisterExtension
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
 
 class KafkaMongoCommandDispatcher : CommandDispatcherSpec() {
-    companion object {
-        const val DATABASE_NAME = "wow_it_db"
+    @JvmField
+    @RegisterExtension
+    val kafka = KafkaTestFixture()
 
-        @JvmStatic
-        @BeforeAll
-        fun waitLauncher() {
-            KafkaLauncher.isRunning
-        }
-    }
-
-    private val client = MongoClients.create(MongoLauncher.getConnectionString())
+    @JvmField
+    @RegisterExtension
+    val mongo = MongoTestFixture()
 
     override fun createEventStore(): EventStore {
-        val database = client.getDatabase(DATABASE_NAME)
+        val database = mongo.database()
         EventStreamSchemaInitializer(database).initSchema(aggregateMetadata.namedAggregate)
         return MongoEventStore(database).metrizable()
     }
@@ -55,8 +50,8 @@ class KafkaMongoCommandDispatcher : CommandDispatcherSpec() {
 
     override fun createCommandBus(): CommandBus {
         return KafkaCommandBus(
-            senderOptions = KafkaLauncher.senderOptions,
-            receiverOptions = KafkaLauncher.receiverOptions,
+            senderOptions = kafka.senderOptions(),
+            receiverOptions = kafka.receiverOptions(),
             receiverOptionsCustomizer = { options ->
                 options
                     .addAssignListener { partitions ->
@@ -71,8 +66,8 @@ class KafkaMongoCommandDispatcher : CommandDispatcherSpec() {
 
     override fun createEventBus(): DomainEventBus {
         return KafkaDomainEventBus(
-            senderOptions = KafkaLauncher.senderOptions,
-            receiverOptions = KafkaLauncher.receiverOptions,
+            senderOptions = kafka.senderOptions(),
+            receiverOptions = kafka.receiverOptions(),
         )
     }
 }

@@ -11,18 +11,15 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.mongo.prepare
+package me.ahoo.wow.tck.container
 
-import me.ahoo.wow.infra.prepare.PrepareKeyFactory
-import me.ahoo.wow.tck.container.MongoTestFixture
-import me.ahoo.wow.tck.prepare.PrepareKeySpec
-import org.junit.jupiter.api.extension.RegisterExtension
+import me.ahoo.test.asserts.assert
+import org.junit.jupiter.api.Test
 
-abstract class MongoPrepareKeySpec<V : Any> : PrepareKeySpec<V>() {
-    @JvmField
-    @RegisterExtension
-    val mongo = MongoTestFixture()
+class ElasticsearchTestFixtureTest {
 
-    protected val prepareKeyFactory: PrepareKeyFactory
-        get() = MongoPrepareKeyFactory(mongo.database())
+    @Test
+    fun `should expose authentication username`() {
+        ElasticsearchTestFixture().username.assert().isEqualTo(WowTestContainers.ELASTIC_USER)
+    }
 }

@@ -13,16 +13,19 @@
 
 package me.ahoo.wow.mongo
 
-import com.mongodb.reactivestreams.client.MongoClients
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.metrics.Metrics.metrizable
-import me.ahoo.wow.tck.container.MongoLauncher
+import me.ahoo.wow.tck.container.MongoTestFixture
 import me.ahoo.wow.tck.eventsourcing.EventStoreSpec
+import org.junit.jupiter.api.extension.RegisterExtension
 
 class MongoEventStoreTest : EventStoreSpec() {
+    @JvmField
+    @RegisterExtension
+    val mongo = MongoTestFixture()
+
     override fun createEventStore(): EventStore {
-        val client = MongoClients.create(MongoLauncher.getConnectionString())
-        val database = client.getDatabase(SchemaInitializerSpec.DATABASE_NAME)
+        val database = mongo.database()
         EventStreamSchemaInitializer(database, true).initSchema(namedAggregate)
         return MongoEventStore(database).metrizable()
     }

@@ -11,26 +11,15 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.r2dbc
+package me.ahoo.wow.tck.container
 
-import org.testcontainers.containers.MariaDBContainer
+import me.ahoo.test.asserts.assert
+import org.junit.jupiter.api.Test
 
-object MariadbLauncher {
-    private val CONTAINER = MariaDBContainer("mariadb:10.6.4")
-        .withNetworkAliases("mariadb")
-        .withPassword("root")
-        .withDatabaseName("wow_db")
-        .withInitScript("init-schema-mysql.sql")
+class MariaDbTestFixtureTest {
 
-    init {
-        CONTAINER.start()
-    }
-
-    fun getHost(): String {
-        return CONTAINER.host
-    }
-
-    fun getPort(): Int {
-        return CONTAINER.getMappedPort(3306)
+    @Test
+    fun `should provide jdbc driver required by testcontainers`() {
+        Class.forName("org.mariadb.jdbc.Driver").assert().isNotNull()
     }
 }

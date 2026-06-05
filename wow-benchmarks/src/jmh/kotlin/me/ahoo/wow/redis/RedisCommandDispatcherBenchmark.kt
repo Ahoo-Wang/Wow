@@ -25,22 +25,22 @@ import org.openjdk.jmh.infra.Blackhole
 
 @State(Scope.Benchmark)
 open class RedisCommandDispatcherBenchmark : AbstractCommandDispatcherBenchmark() {
-    private lateinit var redisInitializer: RedisInitializer
+    private lateinit var redis: RedisBenchmarkFixture
 
     @Setup
     override fun setup() {
-        redisInitializer = RedisInitializer()
+        redis = RedisBenchmarkFixture()
         super.setup()
     }
 
     @TearDown
     override fun destroy() {
         super.destroy()
-        redisInitializer.close()
+        redis.close()
     }
 
     override fun createEventStore(): EventStore {
-        return RedisEventStore(redisInitializer.redisTemplate)
+        return RedisEventStore(redis.redisTemplate)
     }
 
     @Benchmark

@@ -21,12 +21,9 @@ import io.r2dbc.spi.ConnectionFactory
 object ConnectionFactoryProviders {
     private val log = KotlinLogging.logger { }
 
-    @JvmOverloads
-    fun create(poolSize: Int = 32): ConnectionFactory {
+    fun create(r2dbcUrl: String): ConnectionFactory {
         // Very important: https://github.com/r2dbc/r2dbc-pool/issues/129
-        val connectionFactory = ConnectionFactories.get(
-            "r2dbc:pool:mariadb:sequential://root:root@${MariadbLauncher.getHost()}:${MariadbLauncher.getPort()}/wow_db?initialSize=$poolSize&maxSize=$poolSize&acquireRetry=3&maxLifeTime=PT30M",
-        )
+        val connectionFactory = ConnectionFactories.get(r2dbcUrl)
         val formatter = QueryExecutionInfoFormatter.showAll()
         return ProxyConnectionFactory.builder(connectionFactory)
             .onAfterQuery { execInfo ->

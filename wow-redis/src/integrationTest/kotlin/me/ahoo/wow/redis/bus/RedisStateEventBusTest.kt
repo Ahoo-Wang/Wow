@@ -1,19 +1,16 @@
 package me.ahoo.wow.redis.bus
 
 import me.ahoo.wow.eventsourcing.state.StateEventBus
-import me.ahoo.wow.redis.RedisInitializer
+import me.ahoo.wow.tck.container.RedisTestFixture
 import me.ahoo.wow.tck.eventsourcing.state.StateEventBusSpec
-import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.extension.RegisterExtension
 
 class RedisStateEventBusTest : StateEventBusSpec() {
-    protected lateinit var redisInitializer: RedisInitializer
-
-    @BeforeEach
-    fun setup() {
-        redisInitializer = RedisInitializer()
-    }
+    @JvmField
+    @RegisterExtension
+    val redis = RedisTestFixture()
 
     override fun createMessageBus(): StateEventBus {
-        return RedisStateEventBus(redisInitializer.redisTemplate)
+        return RedisStateEventBus(redis.redisTemplate)
     }
 }

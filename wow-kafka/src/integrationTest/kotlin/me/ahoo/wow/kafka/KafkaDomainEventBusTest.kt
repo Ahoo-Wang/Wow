@@ -15,17 +15,21 @@ package me.ahoo.wow.kafka
 
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.EventStreamExchange
-import me.ahoo.wow.tck.container.KafkaLauncher
+import me.ahoo.wow.tck.container.KafkaTestFixture
 import me.ahoo.wow.tck.event.DomainEventBusSpec
-import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.extension.RegisterExtension
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Sinks
 
 internal class KafkaDomainEventBusTest : DomainEventBusSpec() {
+    @JvmField
+    @RegisterExtension
+    val kafka = KafkaTestFixture()
+
     override fun createMessageBus(): DomainEventBus {
         return KafkaDomainEventBus(
-            senderOptions = KafkaLauncher.senderOptions,
-            receiverOptions = KafkaLauncher.receiverOptions,
+            senderOptions = kafka.senderOptions(),
+            receiverOptions = kafka.receiverOptions(),
         )
     }
 
@@ -42,11 +46,4 @@ internal class KafkaDomainEventBusTest : DomainEventBusSpec() {
         }
     }
 
-    companion object {
-        @JvmStatic
-        @BeforeAll
-        fun waitLauncher() {
-            KafkaLauncher.isRunning
-        }
-    }
 }

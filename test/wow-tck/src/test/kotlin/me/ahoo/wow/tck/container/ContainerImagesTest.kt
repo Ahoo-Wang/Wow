@@ -11,21 +11,20 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.mongo
+package me.ahoo.wow.tck.container
 
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
-import me.ahoo.wow.tck.container.MongoTestFixture
-import me.ahoo.wow.tck.eventsourcing.snapshot.SnapshotRepositorySpec
-import org.junit.jupiter.api.extension.RegisterExtension
+import me.ahoo.test.asserts.assert
+import org.junit.jupiter.api.Test
 
-class MongoSnapshotRepositoryTest : SnapshotRepositorySpec() {
-    @JvmField
-    @RegisterExtension
-    val mongo = MongoTestFixture()
+class ContainerImagesTest {
 
-    override fun createSnapshotRepository(): SnapshotRepository {
-        val database = mongo.database()
-        SnapshotSchemaInitializer(database).initSchema(aggregateMetadata)
-        return MongoSnapshotRepository(database)
+    @Test
+    fun `should expose container images`() {
+        ContainerImages.MONGO.assert().isEqualTo("mongo:6.0.6")
+        ContainerImages.KAFKA.assert().isEqualTo("confluentinc/cp-kafka:7.4.0")
+        ContainerImages.ELASTICSEARCH_REPOSITORY.assert().isEqualTo("docker.elastic.co/elasticsearch/elasticsearch")
+        ContainerImages.ELASTICSEARCH_TAG.assert().isEqualTo("9.2.6")
+        ContainerImages.REDIS.assert().isEqualTo("redis:7.4-alpine")
+        ContainerImages.MARIADB.assert().isEqualTo("mariadb:10.6.4")
     }
 }

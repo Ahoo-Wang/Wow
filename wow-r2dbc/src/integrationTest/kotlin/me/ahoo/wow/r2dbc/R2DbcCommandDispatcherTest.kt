@@ -19,22 +19,30 @@ import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.sharding.CompositeAggregateIdSharding
 import me.ahoo.wow.sharding.CosIdShardingDecorator
+import me.ahoo.wow.tck.container.MariaDbTestFixture
 import me.ahoo.wow.tck.modeling.command.CommandDispatcherSpec
+import org.junit.jupiter.api.extension.RegisterExtension
 
 class R2DbcCommandDispatcherTest : CommandDispatcherSpec() {
-    private val connectionFactory: ConnectionFactory = ConnectionFactoryProviders.create()
+    @JvmField
+    @RegisterExtension
+    val mariaDb = MariaDbTestFixture()
+
+    private fun connectionFactory(): ConnectionFactory {
+        return ConnectionFactoryProviders.create(mariaDb.r2dbcUrl())
+    }
 
     override fun createSnapshotRepository(): SnapshotRepository {
         val simpleSnapshotSchema = SimpleSnapshotSchema()
         return R2dbcSnapshotRepository(
-            SimpleDatabase(connectionFactory),
+            SimpleDatabase(connectionFactory()),
             simpleSnapshotSchema,
         )
     }
 
     override fun createEventStore(): EventStore {
         return R2dbcEventStore(
-            SimpleDatabase(connectionFactory),
+            SimpleDatabase(connectionFactory()),
             ShardingEventStreamSchema(
                 CompositeAggregateIdSharding(
                     mapOf(

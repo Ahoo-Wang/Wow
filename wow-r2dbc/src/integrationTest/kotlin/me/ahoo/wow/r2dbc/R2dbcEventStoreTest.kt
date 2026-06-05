@@ -16,12 +16,18 @@ import me.ahoo.cosid.sharding.ModCycle
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.metrics.Metrics.metrizable
 import me.ahoo.wow.sharding.CosIdShardingDecorator
+import me.ahoo.wow.tck.container.MariaDbTestFixture
 import me.ahoo.wow.tck.eventsourcing.EventStoreSpec
+import org.junit.jupiter.api.extension.RegisterExtension
 
 internal class R2dbcEventStoreTest : EventStoreSpec() {
+    @JvmField
+    @RegisterExtension
+    val mariaDb = MariaDbTestFixture()
+
     override fun createEventStore(): EventStore {
         return R2dbcEventStore(
-            SimpleDatabase(ConnectionFactoryProviders.create(2)),
+            SimpleDatabase(ConnectionFactoryProviders.create(mariaDb.r2dbcUrl(poolSize = 2))),
             ShardingEventStreamSchema(
                 CosIdShardingDecorator(
                     ModCycle(4, namedAggregate.aggregateName + "_" + EVENT_STREAM_LOGIC_NAME_PREFIX)

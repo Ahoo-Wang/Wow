@@ -13,24 +13,27 @@
 
 package me.ahoo.wow.mongo
 
-import com.mongodb.reactivestreams.client.MongoClients
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.metrics.MetricEventStore
 import me.ahoo.wow.metrics.Metrics.metrizable
-import me.ahoo.wow.tck.container.MongoLauncher
+import me.ahoo.wow.tck.container.MongoTestFixture
 import me.ahoo.wow.tck.modeling.command.CommandDispatcherSpec
+import org.junit.jupiter.api.extension.RegisterExtension
 
 class MongoCommandDispatcherTest : CommandDispatcherSpec() {
-    private val client = MongoClients.create(MongoLauncher.getConnectionString())
+    @JvmField
+    @RegisterExtension
+    val mongo = MongoTestFixture()
+
     override fun createSnapshotRepository(): SnapshotRepository {
-        val database = client.getDatabase(SchemaInitializerSpec.DATABASE_NAME)
+        val database = mongo.database()
         SnapshotSchemaInitializer(database).initSchema(aggregateMetadata)
         return MongoSnapshotRepository(database)
     }
 
     override fun createEventStore(): EventStore {
-        val database = client.getDatabase(SchemaInitializerSpec.DATABASE_NAME)
+        val database = mongo.database()
         EventStreamSchemaInitializer(database).initSchema(aggregateMetadata.namedAggregate)
         return MetricEventStore(MongoEventStore(database)).metrizable()
     }

@@ -11,26 +11,21 @@
 # limitations under the License.
 #
 
-name: Domain Test
+name: Local Test
 on:
   pull_request:
     paths:
-      - '.github/workflows/domain-test.yml'
+      - '.github/workflows/local-test.yml'
       - 'build.gradle.kts'
       - 'settings.gradle.kts'
       - 'gradle.properties'
       - 'gradlew'
       - 'gradle/**'
       - 'config/**'
-      - 'wow-dependencies/**'
-      - 'wow-api/**'
-      - 'wow-core/**'
-      - 'wow-spring/**'
-      - 'wow-compiler/**'
-      - 'test/wow-test/**'
+      - 'wow-*/**'
+      - 'test/**'
       - 'example/**'
-      - 'compensation/wow-compensation-api/**'
-      - 'compensation/wow-compensation-domain/**'
+      - 'compensation/**'
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -40,8 +35,8 @@ env:
   CI: GITHUB_ACTIONS
 
 jobs:
-  domain-test:
-    name: Domain Test
+  local-test:
+    name: Local Test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -56,17 +51,17 @@ jobs:
           cache: gradle
           settings-path: ${{ github.workspace }}
 
-      - name: Run domain tests with coverage
-        run: ./gradlew allDomainTest :code-coverage-report:domainCoverageReport --stacktrace
+      - name: Run local tests with coverage
+        run: ./gradlew allLocalTest :code-coverage-report:localCoverageReport --stacktrace
 
-      - name: Upload domain coverage
+      - name: Upload local coverage
         uses: codecov/codecov-action@v6
         if: success()
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          flags: domain
-          name: domain-tests
+          flags: local
+          name: local-tests
           fail_ci_if_error: true
           verbose: true
           disable_search: true
-          files: ./test/code-coverage-report/build/reports/jacoco/domainCoverageReport/domainCoverageReport.xml
+          files: ./test/code-coverage-report/build/reports/jacoco/localCoverageReport/localCoverageReport.xml
