@@ -21,16 +21,6 @@ jobs:
   codecov:
     name: Codecov
     runs-on: ubuntu-latest
-    services:
-      redis:
-        image: redis
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 6379:6379
     steps:
       - name: Checkout
         uses: actions/checkout@master
@@ -55,36 +45,17 @@ jobs:
           ignore_runs: true
           large_files: true
           files: |
-            wow-core/build/test-results/**/*.xml
-            wow-schema/build/test-results/**/*.xml
-            wow-openapi/build/test-results/**/*.xml
-            wow-compiler/build/test-results/**/*.xml
-            wow-kafka/build/test-results/**/*.xml
-            wow-mongo/build/test-results/**/*.xml
-            test/wow-mock/build/test-results/**/*.xml
-            wow-r2dbc/build/test-results/**/*.xml
-            wow-redis/build/test-results/**/*.xml
-            wow-elasticsearch/build/test-results/**/*.xml
-            wow-spring/build/test-results/**/*.xml
-            wow-webflux/build/test-results/**/*.xml
-            wow-cosec/build/test-results/**/*.xml
-            wow-spring-boot-starter/build/test-results/**/*.xml
-            wow-opentelemetry/build/test-results/**/*.xml
-            wow-query/build/test-results/**/*.xml
-            wow-cocache/build/test-results/**/*.xml
-            wow-models/build/test-results/**/*.xml
-            compensation/compensation-core/build/test-results/**/*.xml
-            compensation/compensation-domain/build/test-results/**/*.xml
-            example/example-domain/build/test-results/**/*.xml
-            example/transfer/example-transfer-domain/build/test-results/**/*.xml
+            **/build/test-results/test/**/*.xml
+            **/build/test-results/contractTest/**/*.xml
+            **/build/test-results/integrationTest/**/*.xml
 
       - name: Upload Code Coverage Report to Codecov
         uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          flags: unittests # optional
-          name: codecov-umbrella # optional
-          fail_ci_if_error: true # optional (default = false)
-          verbose: true # optional (default = false)
-#          directory: ./build/reports/jacoco/codeCoverageReport/
+          flags: full
+          name: full-coverage
+          fail_ci_if_error: true
+          verbose: true
+          disable_search: true
           files: ./test/code-coverage-report/build/reports/jacoco/codeCoverageReport/codeCoverageReport.xml

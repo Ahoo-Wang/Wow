@@ -71,6 +71,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
             items: [
                 {text: 'Open API', link: 'open-api'},
                 {text: '测试套件', link: 'test-suite'},
+                {text: '测试运行体系', link: 'test-runtime'},
                 {text: '商业智能', link: 'bi'},
                 {text: '事件补偿', link: 'event-compensation'},
             ],

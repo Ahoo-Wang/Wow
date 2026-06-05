@@ -19,27 +19,17 @@ import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.kafka.common.serialization.StringSerializer
-import org.testcontainers.containers.KafkaContainer
-import org.testcontainers.utility.DockerImageName
 import reactor.kafka.receiver.ReceiverOptions
 import reactor.kafka.sender.SenderOptions
 
 object KafkaLauncher {
-    private val KAFKA_CONTAINER: KafkaContainer = KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.4.0"))
-        .withNetworkAliases("kafka")
-        .withKraft()
-        .withReuse(true)
-
-    init {
-        KAFKA_CONTAINER.start()
-    }
-
-    val isRunning = KAFKA_CONTAINER.isRunning
+    val isRunning: Boolean
+        get() = WowTestContainers.kafka.isRunning
 
     val kafkaProperties: Map<String, Any>
         get() {
             return buildMap {
-                put(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, KAFKA_CONTAINER.bootstrapServers)
+                put(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, WowTestContainers.kafka.bootstrapServers)
                 put(CommonClientConfigs.CLIENT_ID_CONFIG, "wow-test-client-${GlobalIdGenerator.generateAsString()}")
             }
         }

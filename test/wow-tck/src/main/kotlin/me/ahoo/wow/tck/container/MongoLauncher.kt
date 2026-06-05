@@ -13,20 +13,8 @@
 
 package me.ahoo.wow.tck.container
 
-import org.testcontainers.containers.MongoDBContainer
-import org.testcontainers.utility.DockerImageName
-
 object MongoLauncher {
-    private const val DEV_CONNECTION_STRING = "mongodb://root:root@localhost"
-    private val MONGO_CONTAINER: MongoDBContainer = MongoDBContainer(DockerImageName.parse("mongo:6.0.6"))
-        .withNetworkAliases("mongo")
-        .withReuse(true)
-
     fun getConnectionString(): String {
-        if (System.getenv("CI").isNullOrBlank()) {
-            return DEV_CONNECTION_STRING
-        }
-        MONGO_CONTAINER.start()
-        return MONGO_CONTAINER.connectionString
+        return WowTestContainers.mongo.connectionString
     }
 }

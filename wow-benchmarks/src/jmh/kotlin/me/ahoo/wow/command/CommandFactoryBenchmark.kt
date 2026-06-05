@@ -23,7 +23,7 @@ open class CommandFactoryBenchmark {
 
     @Benchmark
     fun createCommandMessage(blackhole: Blackhole) {
-        val commandMessage = createCommandMessage()
+        val commandMessage = createSmokeCommandMessage()
         blackhole.consume(commandMessage)
     }
 }

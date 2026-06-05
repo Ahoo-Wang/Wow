@@ -22,17 +22,30 @@ on:
       - 'gradlew'
       - 'gradle/**'
       - 'config/**'
-      - 'wow-*/**'
-      - 'test/**'
+      - 'wow-dependencies/**'
+      - 'wow-api/**'
+      - 'wow-core/**'
+      - 'wow-query/**'
+      - 'wow-spring/**'
+      - 'wow-mongo/**'
+      - 'wow-redis/**'
+      - 'wow-r2dbc/**'
+      - 'wow-kafka/**'
+      - 'wow-elasticsearch/**'
+      - 'test/wow-tck/**'
+      - 'test/wow-test/**'
+      - 'test/wow-it/**'
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
+permissions:
+  contents: read
 env:
   CI: GITHUB_ACTIONS
 
 jobs:
-  wow-api-test:
-    name: Wow Api Test
+  integration-test:
+    name: Integration Test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -47,393 +60,17 @@ jobs:
           cache: gradle
           settings-path: ${{ github.workspace }}
 
-      - name: Test Wow-Api
-        run: ./gradlew wow-api:check --stacktrace
+      - name: Run integration tests with coverage
+        run: ./gradlew allIntegrationTest :code-coverage-report:integrationCoverageReport --stacktrace
 
-  wow-core-test:
-    name: Wow Core Test
-    runs-on: ubuntu-latest
-    needs: [ wow-api-test ]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@master
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v5
+      - name: Upload integration coverage
+        uses: codecov/codecov-action@v6
+        if: success()
         with:
-          java-version: '17'
-          distribution: 'temurin'
-          server-id: github
-          cache: gradle
-          settings-path: ${{ github.workspace }}
-
-      - name: Test Wow-Core
-        run: ./gradlew wow-core:check --stacktrace
-  wow-schema-test:
-    name: Wow Schema Test
-    runs-on: ubuntu-latest
-    needs: [ wow-api-test ]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@master
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v5
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-          server-id: github
-          cache: gradle
-          settings-path: ${{ github.workspace }}
-
-      - name: Test Wow-Schema
-        run: ./gradlew wow-schema:check --stacktrace
-  wow-openapi-test:
-    name: Wow OpenAPI Test
-    runs-on: ubuntu-latest
-    needs: [ wow-api-test ]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@master
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v5
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-          server-id: github
-          cache: gradle
-          settings-path: ${{ github.workspace }}
-
-      - name: Test Wow-OpenAPI
-        run: ./gradlew wow-openapi:check --stacktrace
-
-  wow-compiler-test:
-    name: Wow Compiler Test
-    needs: [ wow-core-test ]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@master
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v5
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-          server-id: github
-          cache: gradle
-          settings-path: ${{ github.workspace }}
-
-      - name: Test Wow-Compiler
-        run: ./gradlew wow-compiler:check --stacktrace
-
-  wow-bi-test:
-    name: Wow BI Test
-    needs: [ wow-core-test ]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@master
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v5
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-          server-id: github
-          cache: gradle
-          settings-path: ${{ github.workspace }}
-
-      - name: Test Wow-BI
-        run: ./gradlew wow-bi:check --stacktrace
-
-  wow-query-test:
-    name: Wow Query Test
-    needs: [ wow-core-test ]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@master
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v5
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-          server-id: github
-          cache: gradle
-          settings-path: ${{ github.workspace }}
-
-      - name: Test Wow-Query
-        run: ./gradlew wow-query:check --stacktrace
-
-  wow-cocache-test:
-    name: Wow CoCache Test
-    runs-on: ubuntu-latest
-    needs: [ wow-api-test ]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@master
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v5
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-          server-id: github
-          cache: gradle
-          settings-path: ${{ github.workspace }}
-
-      - name: Test Wow-CoCache
-        run: ./gradlew wow-cocache:check --stacktrace
-
-  wow-models-test:
-    name: Wow Models Test
-    needs: [ wow-core-test ]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@master
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v5
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-          server-id: github
-          cache: gradle
-          settings-path: ${{ github.workspace }}
-
-      - name: Test Wow-Models
-        run: ./gradlew wow-models:check --stacktrace
-
-  wow-kafka-test:
-    name: Wow Kafka Test
-    needs: [ wow-core-test ]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@master
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v5
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-          server-id: github
-          cache: gradle
-          settings-path: ${{ github.workspace }}
-
-      - name: Test Wow-Kafka
-        run: ./gradlew wow-kafka:check --stacktrace
-
-  wow-mongo-test:
-    name: Wow Mongo Test
-    needs: [ wow-core-test ]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@master
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v5
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-          server-id: github
-          cache: gradle
-          settings-path: ${{ github.workspace }}
-
-      - name: Test Wow-Mongo
-        run: ./gradlew wow-mongo:check --stacktrace
-
-  wow-redis-test:
-    name: Wow Redis Test
-    needs: [ wow-core-test ]
-    runs-on: ubuntu-latest
-    services:
-      redis:
-        image: redis
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 6379:6379
-    steps:
-      - name: Checkout
-        uses: actions/checkout@master
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v5
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-          server-id: github
-          cache: gradle
-          settings-path: ${{ github.workspace }}
-
-      - name: Test Wow-Redis
-        run: ./gradlew wow-redis:check --stacktrace
-
-  wow-it-test:
-    name: Wow IT Test
-    needs: [ wow-core-test ]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@master
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v5
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-          server-id: github
-          cache: gradle
-          settings-path: ${{ github.workspace }}
-
-      - name: Test Wow-IT
-        run: ./gradlew wow-it:check --stacktrace
-
-  wow-r2dbc-test:
-    name: Wow R2DBC Test
-    needs: [ wow-core-test ]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@master
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v5
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-          server-id: github
-          cache: gradle
-          settings-path: ${{ github.workspace }}
-
-      - name: Test Wow-R2DBC
-        run: ./gradlew wow-r2dbc:check --stacktrace
-
-  wow-elasticsearch-test:
-    name: Wow ElasticSearch Test
-    needs: [ wow-core-test ]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@master
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v5
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-          server-id: github
-          cache: gradle
-          settings-path: ${{ github.workspace }}
-
-      - name: Test Wow-ElasticSearch
-        run: ./gradlew wow-elasticsearch:check --stacktrace
-
-  wow-spring-test:
-    name: Wow Spring Test
-    needs: [ wow-core-test ]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@master
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v5
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-          server-id: github
-          cache: gradle
-          settings-path: ${{ github.workspace }}
-
-      - name: Test Wow-Spring
-        run: ./gradlew wow-spring:check --stacktrace
-
-  wow-webflux-test:
-    name: Wow Webflux Test
-    needs: [ wow-core-test ]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@master
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v5
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-          server-id: github
-          cache: gradle
-          settings-path: ${{ github.workspace }}
-
-      - name: Test Wow-Webflux
-        run: ./gradlew wow-webflux:check --stacktrace
-
-  wow-cosec-test:
-    name: Wow CoSec Test
-    needs: [ wow-core-test ]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@master
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v5
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-          server-id: github
-          cache: gradle
-          settings-path: ${{ github.workspace }}
-
-      - name: Test Wow-CoSec
-        run: ./gradlew wow-cosec:check --stacktrace
-
-  wow-spring-boot-starter-test:
-    name: Wow Spring-Boot-Starter Test
-    needs: [ wow-spring-test ]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@master
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v5
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-          server-id: github
-          cache: gradle
-          settings-path: ${{ github.workspace }}
-
-      - name: Test Wow-Spring-Boot-Starter
-        run: ./gradlew wow-spring-boot-starter:check --stacktrace
-
-  wow-opentelemetry-test:
-    name: Wow Opentelemetry Test
-    needs: [ wow-core-test ]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@master
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v5
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-          server-id: github
-          cache: gradle
-          settings-path: ${{ github.workspace }}
-
-      - name: Test Wow-opentelemetry
-        run: ./gradlew wow-opentelemetry:check --stacktrace
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: integration
+          name: integration-tests
+          fail_ci_if_error: true
+          verbose: true
+          disable_search: true
+          files: ./test/code-coverage-report/build/reports/jacoco/integrationCoverageReport/integrationCoverageReport.xml

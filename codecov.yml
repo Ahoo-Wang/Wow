@@ -11,6 +11,9 @@ coverage:
       default:
         target: 80%
         threshold: 1%
+flag_management:
+  default_rules:
+    carryforward: true
 ignore:
   - "document/.*"
   - "test/wow-it/.*"

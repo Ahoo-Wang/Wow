@@ -84,3 +84,18 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-webflux")
     testImplementation("org.springdoc:springdoc-openapi-starter-webflux-ui")
 }
+
+configurations.named("testImplementation") {
+    extendsFrom(
+        configurations.getByName("mongoSupportImplementation"),
+        configurations.getByName("r2dbcSupportImplementation"),
+        configurations.getByName("redisSupportImplementation"),
+        configurations.getByName("mockSupportImplementation"),
+        configurations.getByName("kafkaSupportImplementation"),
+        configurations.getByName("webfluxSupportImplementation"),
+        configurations.getByName("elasticsearchSupportImplementation"),
+        configurations.getByName("opentelemetrySupportImplementation"),
+        configurations.getByName("openapiSupportImplementation"),
+        configurations.getByName("cosecSupportImplementation"),
+    )
+}
