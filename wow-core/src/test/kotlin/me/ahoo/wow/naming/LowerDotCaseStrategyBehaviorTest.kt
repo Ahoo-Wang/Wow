@@ -11,14 +11,20 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.exception
+package me.ahoo.wow.naming
 
-import me.ahoo.wow.api.exception.RecoverableType
+import me.ahoo.test.asserts.assert
+import org.junit.jupiter.api.Test
 
-class TestRecoverableExceptionProvider : RecoverableExceptionProvider {
-    override fun register(registrar: RecoverableExceptionRegistrar) {
-        registrar.register(TestSpiException::class.java, RecoverableType.RECOVERABLE)
+class LowerDotCaseStrategyBehaviorTest {
+
+    @Test
+    fun `should segment lower dot case phrase by dot`() {
+        LowerDotCaseStrategy.segment("wow.is.great").assert().isEqualTo(listOf("wow", "is", "great"))
+    }
+
+    @Test
+    fun `should transform words to lower dot case`() {
+        LowerDotCaseStrategy.transform(listOf("Wow", "IS", "Great")).assert().isEqualTo("wow.is.great")
     }
 }
-
-class TestSpiException : RuntimeException()

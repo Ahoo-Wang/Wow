@@ -11,14 +11,17 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.exception
+package me.ahoo.wow.naming
 
-import me.ahoo.wow.api.exception.RecoverableType
+import me.ahoo.test.asserts.assert
+import me.ahoo.wow.naming.NamingConverter.Companion.pascalToSnake
+import org.junit.jupiter.api.Test
 
-class TestRecoverableExceptionProvider : RecoverableExceptionProvider {
-    override fun register(registrar: RecoverableExceptionRegistrar) {
-        registrar.register(TestSpiException::class.java, RecoverableType.RECOVERABLE)
+class NamingConverterBehaviorTest {
+
+    @Test
+    fun `should convert pascal case names to snake case names`() {
+        NamingConverter.PASCAL_TO_SNAKE.convert("CreateCartItem").assert().isEqualTo("create_cart_item")
+        "CreateCartItem".pascalToSnake().assert().isEqualTo("create_cart_item")
     }
 }
-
-class TestSpiException : RuntimeException()

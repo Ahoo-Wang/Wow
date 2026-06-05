@@ -11,14 +11,19 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.exception
+package me.ahoo.wow.naming
 
-import me.ahoo.wow.api.exception.RecoverableType
+import me.ahoo.test.asserts.assert
+import org.junit.jupiter.api.Test
 
-class TestRecoverableExceptionProvider : RecoverableExceptionProvider {
-    override fun register(registrar: RecoverableExceptionRegistrar) {
-        registrar.register(TestSpiException::class.java, RecoverableType.RECOVERABLE)
+class IgnoreSuffixNamingConverterBehaviorTest {
+
+    @Test
+    fun `should remove suffix only when phrase ends with suffix`() {
+        val converter = IgnoreSuffixNamingConverter("Command")
+
+        converter.suffix.assert().isEqualTo("Command")
+        converter.convert("CreateCartCommand").assert().isEqualTo("CreateCart")
+        converter.convert("CommandCreateCart").assert().isEqualTo("CommandCreateCart")
     }
 }
-
-class TestSpiException : RuntimeException()

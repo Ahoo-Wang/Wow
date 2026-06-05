@@ -11,14 +11,20 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.exception
+package me.ahoo.wow.naming
 
-import me.ahoo.wow.api.exception.RecoverableType
+import me.ahoo.test.asserts.assert
+import org.junit.jupiter.api.Test
 
-class TestRecoverableExceptionProvider : RecoverableExceptionProvider {
-    override fun register(registrar: RecoverableExceptionRegistrar) {
-        registrar.register(TestSpiException::class.java, RecoverableType.RECOVERABLE)
+class CamelCaseStrategyBehaviorTest {
+
+    @Test
+    fun `should segment camel case phrase at uppercase boundaries`() {
+        CamelCaseStrategy.segment("wowIsGreat").assert().isEqualTo(listOf("wow", "Is", "Great"))
+    }
+
+    @Test
+    fun `should transform words to camel case phrase`() {
+        CamelCaseStrategy.transform(listOf("wow", "IS", "great")).assert().isEqualTo("wowIsGreat")
     }
 }
-
-class TestSpiException : RuntimeException()
