@@ -18,7 +18,7 @@ import org.springframework.data.redis.connection.lettuce.LettuceClientConfigurat
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate
 
-class RedisInitializer : AutoCloseable {
+class RedisBenchmarkFixture : AutoCloseable {
     val connectionFactory: LettuceConnectionFactory
     val redisTemplate: ReactiveStringRedisTemplate
 
