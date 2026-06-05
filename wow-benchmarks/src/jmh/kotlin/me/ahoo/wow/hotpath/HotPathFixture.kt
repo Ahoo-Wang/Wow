@@ -21,7 +21,6 @@ import me.ahoo.cosid.provider.DefaultIdGeneratorProvider
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.command.cartAggregateMetadata
-import me.ahoo.wow.command.createBloomFilterIdempotencyChecker
 import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.toDomainEventStream
@@ -32,6 +31,7 @@ import me.ahoo.wow.id.CosIdGlobalIdGeneratorFactory
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.infra.idempotency.BloomFilterIdempotencyChecker
 import me.ahoo.wow.messaging.DefaultHeader
+import me.ahoo.wow.modeling.DefaultAggregateId
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.test.aggregate.GivenInitializationCommand
@@ -39,8 +39,9 @@ import java.time.Duration
 
 object HotPathFixture {
     val namedAggregate = MaterializedNamedAggregate("example-service", "cart")
-    val aggregateMetadata = cartAggregateMetadata
-    val aggregateId = aggregateMetadata.aggregateId()
+
+    val aggregateMetadata by lazy { cartAggregateMetadata }
+    val aggregateId by lazy { aggregateMetadata.aggregateId() }
 
     init {
         DefaultIdGeneratorProvider.INSTANCE.set(
@@ -57,7 +58,7 @@ object HotPathFixture {
         return AddCartItem(productId = "productId").toCommandMessage(
             id = generateGlobalId(),
             requestId = generateGlobalId(),
-            aggregateId = aggregateId.id,
+            aggregateId = generateGlobalId(),
             namedAggregate = namedAggregate,
         )
     }
@@ -65,7 +66,12 @@ object HotPathFixture {
     fun createEventStream(): DomainEventStream {
         val event = CartItemAdded(CartItem("productId"))
         return listOf<Any>(event).toDomainEventStream(
-            upstream = GivenInitializationCommand(aggregateId),
+            upstream = GivenInitializationCommand(
+                DefaultAggregateId(
+                    namedAggregate = namedAggregate,
+                    id = generateGlobalId(),
+                ),
+            ),
         )
     }
 
