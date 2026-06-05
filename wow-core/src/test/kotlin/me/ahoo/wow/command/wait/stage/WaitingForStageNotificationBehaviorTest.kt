@@ -94,9 +94,12 @@ class WaitingForStageNotificationBehaviorTest {
                 strategy.next(wrongContext)
             }
             .expectNext(processed, wrongContext)
+            .then {
+                strategy.terminated.assert().isFalse()
+                strategy.cancelled.assert().isFalse()
+                strategy.completed.assert().isFalse()
+            }
             .thenCancel()
             .verify()
-
-        strategy.completed.assert().isTrue()
     }
 }
