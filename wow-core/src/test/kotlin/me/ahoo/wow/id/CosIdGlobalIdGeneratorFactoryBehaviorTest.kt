@@ -11,29 +11,27 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow
+package me.ahoo.wow.id
 
+import io.mockk.mockk
+import me.ahoo.cosid.cosid.CosIdGenerator
+import me.ahoo.cosid.provider.DefaultIdGeneratorProvider
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.Version
 import org.junit.jupiter.api.Test
 
-class VersionTest {
+internal class CosIdGlobalIdGeneratorFactoryBehaviorTest {
 
     @Test
-    fun `should not be initialized when version is uninitialized`() {
-        val version = object : Version {
-            override val version: Int
-                get() = Version.UNINITIALIZED_VERSION
-        }
-        version.initialized.assert().isFalse()
+    fun `create should return configured CosId generator by global id name`() {
+        val provider = DefaultIdGeneratorProvider()
+        val generator = mockk<CosIdGenerator>()
+        provider.set(CosIdGlobalIdGeneratorFactory.ID_NAME, generator)
+
+        CosIdGlobalIdGeneratorFactory(provider).create().assert().isSameAs(generator)
     }
 
     @Test
-    fun `should be initialized when version is initial`() {
-        val version = object : Version {
-            override val version: Int
-                get() = Version.INITIAL_VERSION
-        }
-        version.initialized.assert().isTrue()
+    fun `create should return null when provider does not contain global id name`() {
+        CosIdGlobalIdGeneratorFactory(DefaultIdGeneratorProvider()).create().assert().isNull()
     }
 }

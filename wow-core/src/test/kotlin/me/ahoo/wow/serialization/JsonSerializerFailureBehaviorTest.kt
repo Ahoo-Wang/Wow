@@ -10,28 +10,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.ahoo.wow.jackson
 
-import com.google.common.base.Objects
+package me.ahoo.wow.serialization
 
-/**
- * Type .
- *
- * @author ahoo wang
- */
-class Type(val id: String) {
+import me.ahoo.test.asserts.assert
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import tools.jackson.databind.node.ObjectNode
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) {
-            return true
+internal class JsonSerializerFailureBehaviorTest {
+
+    @Test
+    fun `toJsonNode should surface parser failures for malformed json`() {
+        val exception = assertThrows<Exception> {
+            "{".toJsonNode<ObjectNode>()
         }
-        if (other !is Type) {
-            return false
-        }
-        return Objects.equal(id, other.id)
+
+        exception.message.assert().isNotBlank()
     }
 
-    override fun hashCode(): Int {
-        return Objects.hashCode(id)
+    @Test
+    fun `toObjectNode should fail when parsed json is not an object`() {
+        assertThrows<ClassCastException> {
+            "[]".toObjectNode()
+        }
     }
 }

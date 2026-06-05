@@ -11,18 +11,22 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.id
+package me.ahoo.wow.sharding
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.modeling.MaterializedNamedAggregate
+import me.ahoo.wow.modeling.aggregateId
 import org.junit.jupiter.api.Test
 
-internal class GlobalIdGeneratorTest {
+internal class SingleAggregateIdShardingBehaviorTest {
 
     @Test
-    fun `should generate`() {
-        val id1 = generateGlobalId()
-        id1.assert().isNotNull()
-        val id2 = generateGlobalId()
-        id1.assert().isLessThan(id2)
+    fun `single sharding should always return configured node`() {
+        val sharding = SingleAggregateIdSharding("node-a")
+        val order = MaterializedNamedAggregate("sales", "Order").aggregateId("order-1")
+        val invoice = MaterializedNamedAggregate("billing", "Invoice").aggregateId("invoice-1")
+
+        sharding.sharding(order).assert().isEqualTo("node-a")
+        sharding.sharding(invoice).assert().isEqualTo("node-a")
     }
 }
