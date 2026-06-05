@@ -11,14 +11,19 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.exception
+package me.ahoo.wow.naming
 
-import me.ahoo.wow.api.exception.RecoverableType
+import me.ahoo.test.asserts.assert
+import org.junit.jupiter.api.Test
 
-class TestRecoverableExceptionProvider : RecoverableExceptionProvider {
-    override fun register(registrar: RecoverableExceptionRegistrar) {
-        registrar.register(TestSpiException::class.java, RecoverableType.RECOVERABLE)
+class CompositeNamingConverterBehaviorTest {
+
+    @Test
+    fun `should delegate first and then convert delegated result`() {
+        val delegate = AppendPrefixNamingConverter("wow_")
+        val converter = CompositeNamingConverter(delegate, SnakeCaseStrategy, KebabCaseStrategy)
+
+        converter.delegate.assert().isSameAs(delegate)
+        converter.convert("core_event").assert().isEqualTo("wow-core-event")
     }
 }
-
-class TestSpiException : RuntimeException()

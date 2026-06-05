@@ -11,14 +11,16 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.exception
+package me.ahoo.wow.filter
 
-import me.ahoo.wow.api.exception.RecoverableType
+import org.junit.jupiter.api.Test
+import reactor.test.StepVerifier
 
-class TestRecoverableExceptionProvider : RecoverableExceptionProvider {
-    override fun register(registrar: RecoverableExceptionRegistrar) {
-        registrar.register(TestSpiException::class.java, RecoverableType.RECOVERABLE)
+class LogResumeErrorHandlerBehaviorTest {
+
+    @Test
+    fun `handle logs and resumes empty`() {
+        StepVerifier.create(LogResumeErrorHandler<String>().handle("context", IllegalArgumentException("failed")))
+            .verifyComplete()
     }
 }
-
-class TestSpiException : RuntimeException()

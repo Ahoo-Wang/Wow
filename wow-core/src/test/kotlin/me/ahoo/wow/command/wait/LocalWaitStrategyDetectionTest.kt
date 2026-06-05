@@ -11,14 +11,21 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.exception
+package me.ahoo.wow.command.wait
 
-import me.ahoo.wow.api.exception.RecoverableType
+import me.ahoo.test.asserts.assert
+import me.ahoo.wow.id.generateGlobalId
+import org.junit.jupiter.api.Test
 
-class TestRecoverableExceptionProvider : RecoverableExceptionProvider {
-    override fun register(registrar: RecoverableExceptionRegistrar) {
-        registrar.register(TestSpiException::class.java, RecoverableType.RECOVERABLE)
+class LocalWaitStrategyDetectionTest {
+
+    @Test
+    fun `blank command wait id is not local`() {
+        isLocalWaitStrategy("").assert().isFalse()
+    }
+
+    @Test
+    fun `generated global id is detected as local`() {
+        isLocalWaitStrategy(generateGlobalId()).assert().isTrue()
     }
 }
-
-class TestSpiException : RuntimeException()

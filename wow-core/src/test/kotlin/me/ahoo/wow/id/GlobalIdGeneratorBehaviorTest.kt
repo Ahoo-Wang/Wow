@@ -11,14 +11,20 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.exception
+package me.ahoo.wow.id
 
-import me.ahoo.wow.api.exception.RecoverableType
+import me.ahoo.test.asserts.assert
+import org.junit.jupiter.api.Test
 
-class TestRecoverableExceptionProvider : RecoverableExceptionProvider {
-    override fun register(registrar: RecoverableExceptionRegistrar) {
-        registrar.register(TestSpiException::class.java, RecoverableType.RECOVERABLE)
+internal class GlobalIdGeneratorBehaviorTest {
+
+    @Test
+    fun `generate global id should delegate to initialized global CosId generator`() {
+        val first = generateGlobalId()
+        val second = generateGlobalId()
+
+        first.assert().isNotBlank()
+        second.assert().isNotBlank()
+        first.assert().isLessThan(second)
     }
 }
-
-class TestSpiException : RuntimeException()

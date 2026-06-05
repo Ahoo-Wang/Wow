@@ -11,14 +11,20 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.exception
+package me.ahoo.wow.naming
 
-import me.ahoo.wow.api.exception.RecoverableType
+import me.ahoo.test.asserts.assert
+import org.junit.jupiter.api.Test
 
-class TestRecoverableExceptionProvider : RecoverableExceptionProvider {
-    override fun register(registrar: RecoverableExceptionRegistrar) {
-        registrar.register(TestSpiException::class.java, RecoverableType.RECOVERABLE)
+class SnakeCaseStrategyBehaviorTest {
+
+    @Test
+    fun `should segment snake case phrase by underscore`() {
+        SnakeCaseStrategy.segment("wow_is_great").assert().isEqualTo(listOf("wow", "is", "great"))
+    }
+
+    @Test
+    fun `should transform words to lower snake case`() {
+        SnakeCaseStrategy.transform(listOf("Wow", "IS", "Great")).assert().isEqualTo("wow_is_great")
     }
 }
-
-class TestSpiException : RuntimeException()

@@ -11,14 +11,19 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.exception
+package me.ahoo.wow.naming
 
-import me.ahoo.wow.api.exception.RecoverableType
+import me.ahoo.test.asserts.assert
+import org.junit.jupiter.api.Test
 
-class TestRecoverableExceptionProvider : RecoverableExceptionProvider {
-    override fun register(registrar: RecoverableExceptionRegistrar) {
-        registrar.register(TestSpiException::class.java, RecoverableType.RECOVERABLE)
+class IgnorePrefixNamingConverterBehaviorTest {
+
+    @Test
+    fun `should remove prefix only when phrase starts with prefix`() {
+        val converter = IgnorePrefixNamingConverter("Command")
+
+        converter.prefix.assert().isEqualTo("Command")
+        converter.convert("CommandHandler").assert().isEqualTo("Handler")
+        converter.convert("HandlerCommand").assert().isEqualTo("HandlerCommand")
     }
 }
-
-class TestSpiException : RuntimeException()

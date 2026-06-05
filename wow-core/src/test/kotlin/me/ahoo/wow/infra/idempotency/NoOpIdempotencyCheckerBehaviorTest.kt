@@ -11,14 +11,20 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.exception
+package me.ahoo.wow.infra.idempotency
 
-import me.ahoo.wow.api.exception.RecoverableType
+import org.junit.jupiter.api.Test
+import reactor.test.StepVerifier
 
-class TestRecoverableExceptionProvider : RecoverableExceptionProvider {
-    override fun register(registrar: RecoverableExceptionRegistrar) {
-        registrar.register(TestSpiException::class.java, RecoverableType.RECOVERABLE)
+class NoOpIdempotencyCheckerBehaviorTest {
+
+    @Test
+    fun `should always allow repeated elements`() {
+        StepVerifier.create(
+            NoOpIdempotencyChecker.check("request-1")
+                .concatWith(NoOpIdempotencyChecker.check("request-1")),
+        )
+            .expectNext(true, true)
+            .verifyComplete()
     }
 }
-
-class TestSpiException : RuntimeException()

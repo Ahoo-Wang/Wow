@@ -11,14 +11,22 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.exception
+package me.ahoo.wow.modeling.command
 
-import me.ahoo.wow.api.exception.RecoverableType
+import io.mockk.mockk
+import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.command.SimpleServerCommandExchange
+import org.junit.jupiter.api.Test
 
-class TestRecoverableExceptionProvider : RecoverableExceptionProvider {
-    override fun register(registrar: RecoverableExceptionRegistrar) {
-        registrar.register(TestSpiException::class.java, RecoverableType.RECOVERABLE)
+class ExchangeCommandAggregateBehaviorTest {
+
+    @Test
+    fun `exchange stores command aggregate attribute fluently`() {
+        val exchange = SimpleServerCommandExchange(mockk<CommandMessage<Any>>())
+        val aggregate = mockk<CommandAggregate<Any, Any>>()
+
+        exchange.setCommandAggregate(aggregate).assert().isSameAs(exchange)
+        exchange.getCommandAggregate<Any, Any>().assert().isSameAs(aggregate)
     }
 }
-
-class TestSpiException : RuntimeException()

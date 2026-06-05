@@ -13,52 +13,56 @@
 
 package me.ahoo.wow.reactor
 
-import io.github.oshai.kotlinlogging.KotlinLogging
-import me.ahoo.test.asserts.assertThrownBy
-import me.ahoo.wow.infra.sink.concurrent
+import me.ahoo.test.asserts.assert
+import me.ahoo.wow.infra.lifecycle.Lifecycle
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
-import reactor.core.publisher.Sinks
-import reactor.core.scheduler.Schedulers
+import reactor.test.StepVerifier
 import java.time.Duration
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 
 class LifecycleTest {
-    companion object {
-        private val log = KotlinLogging.logger { }
+
+    @Test
+    fun `start can transition a lifecycle implementation to started`() {
+        val lifecycle = RecordingLifecycle()
+
+        lifecycle.start()
+
+        lifecycle.started.get().assert().isTrue()
     }
 
     @Test
-    fun `should try emit complete`() {
-        val sink = Sinks.unsafe().many().unicast().onBackpressureBuffer<String>().concurrent()
-        sink.asFlux().publishOn(Schedulers.boundedElastic()).flatMap { record ->
-            Mono.delay(Duration.ofMillis(100)).map {
-                log.info { "flatMap: $record" }
-            }
-        }.doOnComplete {
-            log.info { "doOnComplete" }
-        }.subscribe()
-        sink.tryEmitNext("1").orThrow()
-        sink.tryEmitNext("2").orThrow()
-        sink.tryEmitComplete().orThrow()
-        assertThrownBy<Sinks.EmissionException> { sink.tryEmitNext("3").orThrow() }
-        Thread.sleep(1000)
+    fun `stop delegates to stopGracefully and blocks until completion`() {
+        val lifecycle = RecordingLifecycle()
+
+        lifecycle.stop(Duration.ofSeconds(1))
+
+        lifecycle.stopCount.get().assert().isOne()
     }
 
     @Test
-    fun `should cancel`() {
-        val sink = Sinks.unsafe().many().unicast().onBackpressureBuffer<String>().concurrent()
-        val subscription = sink.asFlux().publishOn(Schedulers.boundedElastic()).flatMap { record ->
-            Mono.delay(Duration.ofMillis(100)).map {
-                log.info { "flatMap: $record" }
-            }
-        }.doOnComplete {
-            log.info { "doOnComplete" }
-        }.subscribe()
-        sink.tryEmitNext("1").orThrow()
-        sink.tryEmitNext("2").orThrow()
+    fun `stopGracefully exposes deterministic completion`() {
+        val lifecycle = RecordingLifecycle()
 
-        subscription.dispose()
-        assertThrownBy<Sinks.EmissionException> { sink.tryEmitNext("3").orThrow() }
-        Thread.sleep(1000)
+        StepVerifier.create(lifecycle.stopGracefully())
+            .verifyComplete()
+
+        lifecycle.stopCount.get().assert().isOne()
     }
+}
+
+private class RecordingLifecycle : Lifecycle {
+    val started = AtomicBoolean(false)
+    val stopCount = AtomicInteger()
+
+    override fun start() {
+        started.set(true)
+    }
+
+    override fun stopGracefully(): Mono<Void> =
+        Mono.fromRunnable {
+            stopCount.incrementAndGet()
+        }
 }

@@ -11,14 +11,28 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.exception
+package me.ahoo.wow.serialization
 
-import me.ahoo.wow.api.exception.RecoverableType
+import me.ahoo.test.asserts.assert
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import tools.jackson.databind.node.ObjectNode
 
-class TestRecoverableExceptionProvider : RecoverableExceptionProvider {
-    override fun register(registrar: RecoverableExceptionRegistrar) {
-        registrar.register(TestSpiException::class.java, RecoverableType.RECOVERABLE)
+internal class JsonSerializerFailureBehaviorTest {
+
+    @Test
+    fun `toJsonNode should surface parser failures for malformed json`() {
+        val exception = assertThrows<Exception> {
+            "{".toJsonNode<ObjectNode>()
+        }
+
+        exception.message.assert().isNotBlank()
+    }
+
+    @Test
+    fun `toObjectNode should fail when parsed json is not an object`() {
+        assertThrows<ClassCastException> {
+            "[]".toObjectNode()
+        }
     }
 }
-
-class TestSpiException : RuntimeException()

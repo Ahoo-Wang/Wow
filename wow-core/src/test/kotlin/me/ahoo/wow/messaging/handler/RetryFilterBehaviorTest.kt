@@ -11,11 +11,10 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.reactor
+package me.ahoo.wow.messaging.handler
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.messaging.handler.retryStrategy
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
@@ -25,26 +24,45 @@ import java.time.Duration
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicInteger
 
-class RetryTest {
+class RetryFilterBehaviorTest {
 
     @Test
-    fun `retry helper can drive a recoverable source to completion`() {
+    fun `retryStrategy resubscribes until the source succeeds`() {
         val attempts = AtomicInteger()
 
         StepVerifier.withVirtualTime {
             val retry = deterministicRetry(maxAttempts = 2)
             Mono.defer {
                 if (attempts.incrementAndGet() < 3) {
-                    Mono.error(TimeoutException("retry"))
+                    Mono.error(TimeoutException("recoverable"))
                 } else {
-                    Mono.empty<Void>()
+                    Mono.just("done")
                 }
             }.retryWhen(retry)
         }
             .thenAwait(Duration.ofSeconds(5))
+            .expectNext("done")
             .verifyComplete()
 
         attempts.get().assert().isEqualTo(3)
+    }
+
+    @Test
+    fun `retryStrategy propagates the terminal failure after retries are exhausted`() {
+        val attempts = AtomicInteger()
+
+        StepVerifier.withVirtualTime {
+            val retry = deterministicRetry(maxAttempts = 1)
+            Mono.defer<String> {
+                attempts.incrementAndGet()
+                Mono.error(TimeoutException("recoverable"))
+            }.retryWhen(retry)
+        }
+            .thenAwait(Duration.ofSeconds(2))
+            .expectError()
+            .verify()
+
+        attempts.get().assert().isEqualTo(2)
     }
 
     private companion object {
