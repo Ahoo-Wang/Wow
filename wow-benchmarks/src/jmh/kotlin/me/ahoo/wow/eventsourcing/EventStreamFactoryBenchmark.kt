@@ -18,9 +18,6 @@ import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.infra.Blackhole
 
-//@Warmup(iterations = 1)
-//@Measurement(iterations = 2)
-//@Fork(value = 2)
 @State(Scope.Benchmark)
 open class EventStreamFactoryBenchmark {
 

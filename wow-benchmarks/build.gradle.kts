@@ -57,13 +57,15 @@ tasks.register<JavaExec>("benchmarkSmoke") {
 jmh {
     zip64.set(true)
     includes.set(listOf(".*Benchmark.*"))
-    warmup.set("2s")
-    warmupIterations.set(1)
-    iterations.set(2)
+    threads.set(1)
+    warmupIterations.set(2)
+    warmup.set("5s")
+    iterations.set(3)
     timeOnIteration.set("10s")
-    resultFormat.set("json")
-    threads.set(12)
     fork.set(2)
+    resultFormat.set("json")
+    humanOutputFile.set(layout.buildDirectory.file("reports/jmh/human.txt"))
+    resultsFile.set(layout.buildDirectory.file("results/jmh/latest.json"))
     jvmArgs.set(
         listOf(
             "-Xmx4g",
@@ -80,11 +82,8 @@ jmh {
         add("gc")
         if (hasAsyncProfiler) {
             add("async:output=flamegraph;dir=build/profiling;event=cpu;libPath=${asyncProfilerLib.absolutePath}")
-            println("✅ Using async-profiler:  ${asyncProfilerLib.absolutePath}")
         } else {
             add("stack:lines=10;top=20")
-            println("⚠️  async-profiler not found, using stack profiler instead")
-            println("   Install guide: https://github.com/async-profiler/async-profiler")
         }
     })
 }

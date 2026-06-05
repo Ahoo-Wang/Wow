@@ -20,19 +20,11 @@ import me.ahoo.wow.serialization.toJsonNode
 import me.ahoo.wow.serialization.toLinkedHashMap
 import me.ahoo.wow.serialization.toObject
 import org.openjdk.jmh.annotations.Benchmark
-import org.openjdk.jmh.annotations.Fork
-import org.openjdk.jmh.annotations.Measurement
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.State
-import org.openjdk.jmh.annotations.Threads
-import org.openjdk.jmh.annotations.Warmup
 import tools.jackson.databind.node.ObjectNode
 
-@Warmup(iterations = 1, time = 5)
-@Measurement(iterations = 2, time = 5)
-@Fork(value = 2)
 @State(Scope.Benchmark)
-@Threads(1)
 open class DeepCopyBenchmark {
 
     private val eventStream: DomainEventStream = createEventStream()

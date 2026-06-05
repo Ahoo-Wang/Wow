@@ -16,23 +16,15 @@ package me.ahoo.wow.infra
 import me.ahoo.wow.infra.sink.ConcurrentManySink
 import me.ahoo.wow.infra.sink.concurrent
 import org.openjdk.jmh.annotations.Benchmark
-import org.openjdk.jmh.annotations.Fork
-import org.openjdk.jmh.annotations.Measurement
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
-import org.openjdk.jmh.annotations.Threads
-import org.openjdk.jmh.annotations.Warmup
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
 import reactor.core.scheduler.Scheduler
 import reactor.core.scheduler.Schedulers
 
-@Warmup(iterations = 1)
-@Measurement(iterations = 2)
-@Fork(value = 2)
 @State(Scope.Benchmark)
-@Threads(2)
 open class SinkBenchmark {
     private lateinit var sink: Sinks.Many<String>
     private lateinit var concurrentManySink: ConcurrentManySink<String>
