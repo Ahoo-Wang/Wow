@@ -10,9 +10,13 @@ dependencies {
     implementation("io.micrometer:micrometer-core")
     implementation(kotlin("reflect"))
     implementation(libs.reactor.kafka)
+    implementation("org.mongodb:mongodb-driver-reactivestreams")
+    implementation("org.springframework.data:spring-data-redis")
+    implementation("io.lettuce:lettuce-core")
     implementation("org.testcontainers:testcontainers")
     implementation("org.testcontainers:testcontainers-junit-jupiter")
     implementation("org.testcontainers:testcontainers-kafka")
     implementation("org.testcontainers:testcontainers-mongodb")
     implementation("org.testcontainers:testcontainers-elasticsearch")
+    implementation("org.testcontainers:testcontainers-mariadb")
 }
