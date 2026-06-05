@@ -31,11 +31,15 @@ object ContainerDiagnostics {
         }
     }
 
-    fun printFailure(name: String, container: GenericContainer<*>, cause: Throwable?) {
-        val diagnostics = runCatching {
-            describe(name, container)
-        }.getOrElse {
-            "name=$name, diagnostics=$UNAVAILABLE"
+    fun printFailure(name: String, container: GenericContainer<*>?, cause: Throwable?) {
+        val diagnostics = if (container == null) {
+            "name=$name, container=$UNAVAILABLE"
+        } else {
+            runCatching {
+                describe(name, container)
+            }.getOrElse {
+                "name=$name, diagnostics=$UNAVAILABLE"
+            }
         }
         val failure = cause?.let {
             "${it::class.qualifiedName}: ${it.message}"

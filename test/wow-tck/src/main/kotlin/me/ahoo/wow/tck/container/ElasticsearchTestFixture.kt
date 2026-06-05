@@ -16,6 +16,7 @@ package me.ahoo.wow.tck.container
 import org.junit.jupiter.api.extension.BeforeEachCallback
 import org.junit.jupiter.api.extension.ExtensionContext
 import org.junit.jupiter.api.extension.TestWatcher
+import org.testcontainers.elasticsearch.ElasticsearchContainer
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -28,20 +29,29 @@ import javax.net.ssl.SSLContext
 class ElasticsearchTestFixture(
     private val indexPrefix: String = "wow_it",
 ) : BeforeEachCallback, TestWatcher {
+    private var elasticsearchContainer: ElasticsearchContainer? = null
+
     val password: String
         get() = WowTestContainers.elasticPassword
 
     val hostAddress: String
-        get() = WowTestContainers.elasticsearch.httpHostAddress
+        get() = elasticsearch().httpHostAddress
 
     val sslContext: SSLContext
-        get() = WowTestContainers.elasticsearch.createSslContextFromCa()
+        get() = elasticsearch().createSslContextFromCa()
 
     override fun beforeEach(context: ExtensionContext) {
         waitUntilAuthenticated()
     }
 
     fun index(name: String): String = "${ContainerTestIds.nextName(indexPrefix)}_$name"
+
+    private fun elasticsearch(): ElasticsearchContainer {
+        return elasticsearchContainer ?: WowTestContainers.elasticsearch
+            .also {
+                elasticsearchContainer = it
+            }
+    }
 
     fun waitUntilAuthenticated() {
         val basicAuth = Base64.getEncoder().encodeToString(
@@ -66,6 +76,6 @@ class ElasticsearchTestFixture(
     }
 
     override fun testFailed(context: ExtensionContext, cause: Throwable?) {
-        ContainerDiagnostics.printFailure("elasticsearch", WowTestContainers.elasticsearch, cause)
+        ContainerDiagnostics.printFailure("elasticsearch", elasticsearchContainer, cause)
     }
 }

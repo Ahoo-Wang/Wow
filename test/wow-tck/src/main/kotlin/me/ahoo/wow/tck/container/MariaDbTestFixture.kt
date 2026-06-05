@@ -16,21 +16,31 @@ package me.ahoo.wow.tck.container
 import org.junit.jupiter.api.extension.BeforeEachCallback
 import org.junit.jupiter.api.extension.ExtensionContext
 import org.junit.jupiter.api.extension.TestWatcher
+import org.testcontainers.mariadb.MariaDBContainer
 
 class MariaDbTestFixture(
     private val databaseName: String = "wow_db",
 ) : BeforeEachCallback, TestWatcher {
+    private var mariaDbContainer: MariaDBContainer? = null
+
     val host: String
-        get() = WowTestContainers.mariaDb.host
+        get() = mariaDb().host
 
     val port: Int
-        get() = WowTestContainers.mariaDb.getMappedPort(3306)
+        get() = mariaDb().getMappedPort(3306)
 
     val jdbcUrl: String
-        get() = WowTestContainers.mariaDb.jdbcUrl
+        get() = mariaDb().jdbcUrl
 
     override fun beforeEach(context: ExtensionContext) {
-        WowTestContainers.mariaDb.isRunning
+        mariaDb().isRunning
+    }
+
+    private fun mariaDb(): MariaDBContainer {
+        return mariaDbContainer ?: WowTestContainers.mariaDb
+            .also {
+                mariaDbContainer = it
+            }
     }
 
     fun r2dbcUrl(poolSize: Int = 32): String {
@@ -39,6 +49,6 @@ class MariaDbTestFixture(
     }
 
     override fun testFailed(context: ExtensionContext, cause: Throwable?) {
-        ContainerDiagnostics.printFailure("mariadb", WowTestContainers.mariaDb, cause)
+        ContainerDiagnostics.printFailure("mariadb", mariaDbContainer, cause)
     }
 }

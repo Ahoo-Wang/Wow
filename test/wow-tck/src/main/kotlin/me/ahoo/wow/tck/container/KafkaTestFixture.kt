@@ -21,14 +21,24 @@ import org.apache.kafka.common.serialization.StringSerializer
 import org.junit.jupiter.api.extension.BeforeEachCallback
 import org.junit.jupiter.api.extension.ExtensionContext
 import org.junit.jupiter.api.extension.TestWatcher
+import org.testcontainers.containers.KafkaContainer
 import reactor.kafka.receiver.ReceiverOptions
 import reactor.kafka.sender.SenderOptions
 
 class KafkaTestFixture(
     private val clientPrefix: String = "wow-test-client",
 ) : BeforeEachCallback, TestWatcher {
+    private var kafkaContainer: KafkaContainer? = null
+
     override fun beforeEach(context: ExtensionContext) {
-        WowTestContainers.kafka.isRunning
+        kafka().isRunning
+    }
+
+    private fun kafka(): KafkaContainer {
+        return kafkaContainer ?: WowTestContainers.kafka
+            .also {
+                kafkaContainer = it
+            }
     }
 
     fun topic(prefix: String): String {
@@ -50,7 +60,7 @@ class KafkaTestFixture(
 
     fun kafkaProperties(clientId: String = clientId()): Map<String, Any> {
         return buildMap {
-            put(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, WowTestContainers.kafka.bootstrapServers)
+            put(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, kafka().bootstrapServers)
             put(CommonClientConfigs.CLIENT_ID_CONFIG, clientId)
         }
     }
@@ -78,6 +88,6 @@ class KafkaTestFixture(
     }
 
     override fun testFailed(context: ExtensionContext, cause: Throwable?) {
-        ContainerDiagnostics.printFailure("kafka", WowTestContainers.kafka, cause)
+        ContainerDiagnostics.printFailure("kafka", kafkaContainer, cause)
     }
 }

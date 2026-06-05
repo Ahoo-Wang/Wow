@@ -42,6 +42,11 @@ class ContainerDiagnosticsTest {
     }
 
     @Test
+    fun `should print unavailable container without throwing when container is null`() {
+        ContainerDiagnostics.printFailure("redis", null, IllegalStateException("boom"))
+    }
+
+    @Test
     fun `should keep diagnostics safe when container fields fail`() {
         val description = ContainerDiagnostics.describe("redis", FailingContainer())
 

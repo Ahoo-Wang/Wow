@@ -20,22 +20,31 @@ import org.junit.jupiter.api.extension.AfterEachCallback
 import org.junit.jupiter.api.extension.BeforeEachCallback
 import org.junit.jupiter.api.extension.ExtensionContext
 import org.junit.jupiter.api.extension.TestWatcher
+import org.testcontainers.containers.MongoDBContainer
 
 class MongoTestFixture(
     private val databasePrefix: String = "wow_it",
 ) : BeforeEachCallback, AfterEachCallback, TestWatcher {
     private val clients = mutableListOf<MongoClient>()
+    private var mongoContainer: MongoDBContainer? = null
     private var defaultClient: MongoClient? = null
 
     lateinit var databaseName: String
         private set
 
     val connectionString: String
-        get() = WowTestContainers.mongo.connectionString
+        get() = mongo().connectionString
 
     override fun beforeEach(context: ExtensionContext) {
-        WowTestContainers.mongo.isRunning
+        mongo().isRunning
         databaseName = ContainerTestIds.nextName(databasePrefix)
+    }
+
+    private fun mongo(): MongoDBContainer {
+        return mongoContainer ?: WowTestContainers.mongo
+            .also {
+                mongoContainer = it
+            }
     }
 
     fun client(): MongoClient {
@@ -70,6 +79,6 @@ class MongoTestFixture(
     }
 
     override fun testFailed(context: ExtensionContext, cause: Throwable?) {
-        ContainerDiagnostics.printFailure("mongo", WowTestContainers.mongo, cause)
+        ContainerDiagnostics.printFailure("mongo", mongoContainer, cause)
     }
 }

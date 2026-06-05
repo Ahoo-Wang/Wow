@@ -21,10 +21,13 @@ import org.springframework.data.redis.connection.RedisStandaloneConfiguration
 import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate
+import org.testcontainers.containers.GenericContainer
 
 class RedisTestFixture(
     private val keyPrefix: String = "wow_it",
 ) : BeforeEachCallback, AfterEachCallback, TestWatcher {
+    private var redisContainer: GenericContainer<*>? = null
+
     lateinit var connectionFactory: LettuceConnectionFactory
         private set
 
@@ -35,7 +38,7 @@ class RedisTestFixture(
         private set
 
     override fun beforeEach(context: ExtensionContext) {
-        val redisContainer = WowTestContainers.redis
+        val redisContainer = redis()
         prefix = ContainerTestIds.nextName(keyPrefix)
         val lettuceClientConfiguration = LettuceClientConfiguration
             .builder()
@@ -51,6 +54,13 @@ class RedisTestFixture(
 
     fun key(name: String): String = "$prefix:$name"
 
+    private fun redis(): GenericContainer<*> {
+        return redisContainer ?: WowTestContainers.redis
+            .also {
+                redisContainer = it
+            }
+    }
+
     override fun afterEach(context: ExtensionContext) {
         if (::connectionFactory.isInitialized) {
             connectionFactory.destroy()
@@ -58,6 +68,6 @@ class RedisTestFixture(
     }
 
     override fun testFailed(context: ExtensionContext, cause: Throwable?) {
-        ContainerDiagnostics.printFailure("redis", WowTestContainers.redis, cause)
+        ContainerDiagnostics.printFailure("redis", redisContainer, cause)
     }
 }
