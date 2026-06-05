@@ -52,6 +52,20 @@ class RecoverableExceptionRegistrarBehaviorTest {
     }
 
     @Test
+    fun `should prefer explicit registration over default recoverable classifications`() {
+        RecoverableExceptionRegistrar.unregister(TimeoutException::class.java)
+        try {
+            RecoverableExceptionRegistrar.register(TimeoutException::class.java, RecoverableType.UNRECOVERABLE)
+
+            TimeoutException::class.java.recoverable.assert().isEqualTo(RecoverableType.UNRECOVERABLE)
+        } finally {
+            RecoverableExceptionRegistrar.unregister(TimeoutException::class.java)
+        }
+
+        TimeoutException::class.java.recoverable.assert().isEqualTo(RecoverableType.RECOVERABLE)
+    }
+
+    @Test
     fun `should prefer exact registration over registered superclass`() {
         RecoverableExceptionRegistrar.unregister(RuntimeException::class.java)
         RecoverableExceptionRegistrar.unregister(IllegalStateException::class.java)

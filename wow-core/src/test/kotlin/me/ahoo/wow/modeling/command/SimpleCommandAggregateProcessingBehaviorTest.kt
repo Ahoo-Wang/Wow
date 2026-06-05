@@ -95,7 +95,9 @@ class SimpleCommandAggregateProcessingBehaviorTest {
             ownerId = "owner-1",
             spaceId = "space-1",
         )
-        aggregate.process(SimpleServerCommandExchange(create)).block()
+        StepVerifier.create(aggregate.process(SimpleServerCommandExchange(create)))
+            .expectNextCount(1)
+            .verifyComplete()
 
         StepVerifier.create(
             aggregate.process(
@@ -121,15 +123,23 @@ class SimpleCommandAggregateProcessingBehaviorTest {
     @Test
     fun `process rejects normal commands while state is deleted and allows recovery command`() {
         val aggregate = commandAggregate()
-        aggregate.process(SimpleServerCommandExchange(Create("aggregate-1", "created").toCommandMessage())).block()
-        aggregate.process(
-            SimpleServerCommandExchange(
-                DefaultDeleteAggregate.toCommandMessage(
-                    aggregateId = "aggregate-1",
-                    namedAggregate = aggregate,
+        StepVerifier.create(
+            aggregate.process(SimpleServerCommandExchange(Create("aggregate-1", "created").toCommandMessage()))
+        )
+            .expectNextCount(1)
+            .verifyComplete()
+        StepVerifier.create(
+            aggregate.process(
+                SimpleServerCommandExchange(
+                    DefaultDeleteAggregate.toCommandMessage(
+                        aggregateId = "aggregate-1",
+                        namedAggregate = aggregate,
+                    )
                 )
             )
-        ).block()
+        )
+            .expectNextCount(1)
+            .verifyComplete()
 
         StepVerifier.create(
             aggregate.process(SimpleServerCommandExchange(ChangeState("aggregate-1", "changed").toCommandMessage()))
@@ -159,7 +169,11 @@ class SimpleCommandAggregateProcessingBehaviorTest {
         val aggregate = commandAggregate()
         val serviceProvider = SimpleServiceProvider()
         serviceProvider.register(ExternalService())
-        aggregate.process(SimpleServerCommandExchange(Create("aggregate-1", "created").toCommandMessage())).block()
+        StepVerifier.create(
+            aggregate.process(SimpleServerCommandExchange(Create("aggregate-1", "created").toCommandMessage()))
+        )
+            .expectNextCount(1)
+            .verifyComplete()
 
         StepVerifier.create(
             aggregate.process(
