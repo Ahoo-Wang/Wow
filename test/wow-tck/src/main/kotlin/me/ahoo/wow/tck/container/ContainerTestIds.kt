@@ -13,17 +13,26 @@
 
 package me.ahoo.wow.tck.container
 
-import me.ahoo.wow.id.GlobalIdGenerator
 import java.util.Locale
+import java.util.UUID
 
 object ContainerTestIds {
+    private val PREFIX_PATTERN = Regex("[a-z][a-z0-9_]{0,30}")
+    private const val PREFIX_REQUIREMENT =
+        "prefix must normalize to 1-31 lowercase letters, digits, or underscores and start with a letter."
+
     fun nextName(prefix: String): String {
         require(prefix.isNotBlank()) {
             "prefix must not be blank."
         }
-        return "${prefix}_${GlobalIdGenerator.generateAsString()}"
+        val normalizedPrefix = prefix
             .lowercase(Locale.ROOT)
             .replace('-', '_')
             .replace('.', '_')
+        require(PREFIX_PATTERN.matches(normalizedPrefix)) {
+            PREFIX_REQUIREMENT
+        }
+        val suffix = UUID.randomUUID().toString().replace("-", "")
+        return "${normalizedPrefix}_$suffix"
     }
 }

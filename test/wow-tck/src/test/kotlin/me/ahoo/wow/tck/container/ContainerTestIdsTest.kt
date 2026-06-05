@@ -25,8 +25,9 @@ class ContainerTestIdsTest {
 
         name.assert().startsWith("wow_test_")
         name.assert().isEqualTo(name.lowercase())
-        name.contains("-").assert().isFalse()
-        name.contains(".").assert().isFalse()
+        val suffix = name.removePrefix("wow_test_")
+        suffix.length.assert().isEqualTo(32)
+        suffix.all { it in '0'..'9' || it in 'a'..'f' }.assert().isTrue()
     }
 
     @Test
@@ -34,5 +35,23 @@ class ContainerTestIdsTest {
         assertThrownBy<IllegalArgumentException> {
             ContainerTestIds.nextName(" ")
         }.hasMessage("prefix must not be blank.")
+    }
+
+    @Test
+    fun `should reject unsafe prefix`() {
+        assertThrownBy<IllegalArgumentException> {
+            ContainerTestIds.nextName("_wow")
+        }.hasMessage(
+            "prefix must normalize to 1-31 lowercase letters, digits, or underscores and start with a letter.",
+        )
+    }
+
+    @Test
+    fun `should reject too long prefix`() {
+        assertThrownBy<IllegalArgumentException> {
+            ContainerTestIds.nextName("a".repeat(32))
+        }.hasMessage(
+            "prefix must normalize to 1-31 lowercase letters, digits, or underscores and start with a letter.",
+        )
     }
 }

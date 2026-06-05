@@ -19,32 +19,56 @@ object ContainerDiagnostics {
     fun describe(name: String, container: GenericContainer<*>): String {
         return buildString {
             append("name=").append(name)
-            append(", image=").append(container.dockerImageName)
-            append(", running=").append(container.isRunning)
-            append(", host=").append(container.host)
+            append(", image=").append(readField { container.dockerImageName })
+            append(", running=").append(readField { container.isRunning })
+            append(", host=").append(readField { container.host })
             append(", ports=").append(describePorts(container))
-            container.containerId?.let {
-                append(", id=").append(it)
-            }
+            readField { container.containerId }
+                .takeIf { it.isNotBlank() && it != UNAVAILABLE }
+                ?.let {
+                    append(", id=").append(it)
+                }
         }
     }
 
     fun printFailure(name: String, container: GenericContainer<*>, cause: Throwable) {
-        System.err.println("${describe(name, container)}, failure=${cause::class.qualifiedName}: ${cause.message}")
+        val diagnostics = runCatching {
+            describe(name, container)
+        }.getOrElse {
+            "name=$name, diagnostics=$UNAVAILABLE"
+        }
+        System.err.println(
+            "Container fixture failed: $diagnostics, failure=${cause::class.qualifiedName}: ${cause.message}",
+        )
     }
 
     private fun describePorts(container: GenericContainer<*>): String {
-        return runCatching {
-            val exposedPorts = container.exposedPorts
-            if (exposedPorts.isEmpty()) {
-                "[]"
-            } else {
-                exposedPorts.joinToString(prefix = "[", postfix = "]") { exposedPort ->
-                    "$exposedPort->${container.getMappedPort(exposedPort)}"
-                }
-            }
+        val exposedPorts = runCatching {
+            container.exposedPorts
         }.getOrElse {
-            "unmapped"
+            return UNAVAILABLE
+        }
+        return if (exposedPorts.isEmpty()) {
+            "[]"
+        } else {
+            exposedPorts.joinToString(prefix = "[", postfix = "]") { exposedPort ->
+                val mappedPort = runCatching {
+                    container.getMappedPort(exposedPort).toString()
+                }.getOrElse {
+                    "unmapped"
+                }
+                "$exposedPort->$mappedPort"
+            }
         }
     }
+
+    private fun readField(read: () -> Any?): String {
+        return runCatching {
+            read()?.toString().orEmpty()
+        }.getOrElse {
+            UNAVAILABLE
+        }
+    }
+
+    private const val UNAVAILABLE = "unavailable"
 }
