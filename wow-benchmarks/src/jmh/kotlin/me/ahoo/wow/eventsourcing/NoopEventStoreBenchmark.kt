@@ -32,6 +32,6 @@ open class NoopEventStoreBenchmark : AbstractEventStoreBenchmark() {
 
     @Benchmark
     override fun append() {
-        super.setup()
+        super.append()
     }
 }
