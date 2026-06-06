@@ -11,14 +11,10 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.mongo
+package me.ahoo.wow.modeling
 
-import me.ahoo.wow.api.command.CommandMessage
-import me.ahoo.wow.command.createCommandMessageForNewAggregate
-import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.example.api.cart.AddCartItem
-import me.ahoo.wow.modeling.AbstractCommandDispatcherBenchmark
 import org.openjdk.jmh.annotations.Benchmark
+import org.openjdk.jmh.annotations.Level
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
@@ -26,31 +22,20 @@ import org.openjdk.jmh.annotations.TearDown
 import org.openjdk.jmh.infra.Blackhole
 
 @State(Scope.Benchmark)
-open class MongoCommandDispatcherBenchmark : AbstractCommandDispatcherBenchmark() {
-    private lateinit var mongoInitializer: MongoInitializer
+open class InMemoryCommandDispatcherGrowthBenchmark : AbstractCommandDispatcherBenchmark() {
 
-    @Setup
+    @Setup(Level.Iteration)
     override fun setup() {
-        mongoInitializer = MongoInitializer()
         super.setup()
     }
 
-    @TearDown
+    @TearDown(Level.Iteration)
     override fun destroy() {
         super.destroy()
-        mongoInitializer.close()
-    }
-
-    override fun createEventStore(): EventStore {
-        return MongoEventStore(mongoInitializer.database)
-    }
-
-    override fun createBenchmarkCommandMessage(): CommandMessage<AddCartItem> {
-        return createCommandMessageForNewAggregate()
     }
 
     @Benchmark
-    fun sendAndWaitForProcessedForNewAggregate(blackHole: Blackhole) {
+    fun sendAndWaitForProcessedWithGrowingStream(blackHole: Blackhole) {
         super.sendAndWaitForProcessed(blackHole)
     }
 }

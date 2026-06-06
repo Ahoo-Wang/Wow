@@ -13,7 +13,11 @@
 
 package me.ahoo.wow.modeling
 
+import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.command.createCommandMessageForNewAggregate
+import me.ahoo.wow.example.api.cart.AddCartItem
 import org.openjdk.jmh.annotations.Benchmark
+import org.openjdk.jmh.annotations.Level
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
@@ -23,18 +27,22 @@ import org.openjdk.jmh.infra.Blackhole
 @State(Scope.Benchmark)
 open class InMemoryCommandDispatcherBenchmark : AbstractCommandDispatcherBenchmark() {
 
-    @Setup
+    @Setup(Level.Iteration)
     override fun setup() {
         super.setup()
     }
 
-    @TearDown
+    @TearDown(Level.Iteration)
     override fun destroy() {
         super.destroy()
     }
 
+    override fun createBenchmarkCommandMessage(): CommandMessage<AddCartItem> {
+        return createCommandMessageForNewAggregate()
+    }
+
     @Benchmark
-    override fun sendAndWaitForProcessed(blackHole: Blackhole) {
+    fun sendAndWaitForProcessedForNewAggregate(blackHole: Blackhole) {
         super.sendAndWaitForProcessed(blackHole)
     }
 }

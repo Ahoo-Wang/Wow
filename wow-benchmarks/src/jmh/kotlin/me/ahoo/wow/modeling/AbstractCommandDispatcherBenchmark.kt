@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.modeling
 
+import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.BenchmarkAggregateSchedulerSupplier
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.CommandGateway
@@ -21,6 +22,7 @@ import me.ahoo.wow.command.InMemoryCommandBus
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.createBloomFilterIdempotencyChecker
 import me.ahoo.wow.command.createCommandMessage
+import me.ahoo.wow.example.api.cart.AddCartItem
 import me.ahoo.wow.command.wait.CommandWaitNotifier
 import me.ahoo.wow.command.wait.LocalCommandWaitNotifier
 import me.ahoo.wow.command.wait.ProcessedNotifierFilter
@@ -132,6 +134,10 @@ abstract class AbstractCommandDispatcherBenchmark {
         return BenchmarkAggregateSchedulerSupplier()
     }
 
+    open fun createBenchmarkCommandMessage(): CommandMessage<AddCartItem> {
+        return createCommandMessage()
+    }
+
     open fun destroy() {
         commandDispatcher.stop()
         commandGateway.close()
@@ -150,20 +156,20 @@ abstract class AbstractCommandDispatcherBenchmark {
     // outpace dispatcher processing and measure backlog pressure instead.
     open fun send(blackHole: Blackhole) {
         run(blackHole) {
-            commandGateway.send(createCommandMessage()).block()
+            commandGateway.send(createBenchmarkCommandMessage()).block()
         }
     }
 
     open fun sendAndWaitForSent(blackHole: Blackhole) {
         run(blackHole) {
-            commandGateway.sendAndWaitForSent(createCommandMessage()).block()
+            commandGateway.sendAndWaitForSent(createBenchmarkCommandMessage()).block()
         }
 
     }
 
     open fun sendAndWaitForProcessed(blackHole: Blackhole) {
         run(blackHole) {
-            commandGateway.sendAndWaitForProcessed(createCommandMessage()).block()
+            commandGateway.sendAndWaitForProcessed(createBenchmarkCommandMessage()).block()
         }
     }
 }
