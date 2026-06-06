@@ -15,6 +15,7 @@ package me.ahoo.wow.webflux.route
 
 import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.filter.LogErrorHandler
+import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory
 import me.ahoo.wow.query.event.filter.DefaultEventStreamQueryHandler
 import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
@@ -25,7 +26,6 @@ import me.ahoo.wow.query.snapshot.filter.DefaultSnapshotQueryHandler
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.query.snapshot.filter.TailSnapshotQueryFilter
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
-import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 
 internal object RouteTestFixtures {
     val MOCK_AGGREGATE_ROUTE_METADATA =

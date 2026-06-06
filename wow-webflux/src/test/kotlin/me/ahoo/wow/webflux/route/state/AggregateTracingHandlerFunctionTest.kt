@@ -1,22 +1,35 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package me.ahoo.wow.webflux.route.state
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
-import me.ahoo.wow.example.api.cart.AddCartItem
-import me.ahoo.wow.example.api.cart.CartItemAdded
-import me.ahoo.wow.example.domain.cart.Cart
-import me.ahoo.wow.example.domain.cart.CartState
 import me.ahoo.wow.id.generateGlobalId
-import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.openapi.aggregate.state.AggregateTracingRouteSpec
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
-import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.serialization.MessageRecords
+import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
+import me.ahoo.wow.tck.mock.MockAggregateCreated
+import me.ahoo.wow.tck.mock.MockCommandAggregate
+import me.ahoo.wow.tck.mock.MockCreateAggregate
+import me.ahoo.wow.tck.mock.MockStateAggregate
 import me.ahoo.wow.test.aggregate.whenCommand
 import me.ahoo.wow.test.aggregateVerifier
 import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
+import me.ahoo.wow.webflux.route.RouteTestFixtures
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
@@ -27,16 +40,12 @@ class AggregateTracingHandlerFunctionTest {
     @Test
     fun `should handle aggregate tracing request`() {
         val eventStore = InMemoryEventStore()
-        val addCartItem = AddCartItem(
-            productId = "productId",
-            quantity = 1,
-        )
-        aggregateVerifier<Cart, CartState>(eventStore = eventStore)
-            .whenCommand(addCartItem)
+        aggregateVerifier<MockCommandAggregate, MockStateAggregate>(eventStore = eventStore)
+            .whenCommand(MockCreateAggregate(id = generateGlobalId(), data = "test-data"))
             .expectNoError()
-            .expectEventType(CartItemAdded::class.java)
+            .expectEventType(MockAggregateCreated::class.java)
             .expectState {
-                items.assert().hasSize(1)
+                data.assert().isEqualTo("test-data")
             }
             .verify()
         val handlerFunction = AggregateTracingHandlerFunctionFactory(
@@ -46,8 +55,8 @@ class AggregateTracingHandlerFunctionTest {
         )
             .create(
                 AggregateTracingRouteSpec(
-                    aggregateMetadata<Cart, CartState>(),
-                    aggregateMetadata<Cart, CartState>().command.aggregateType.aggregateRouteMetadata(),
+                    MOCK_AGGREGATE_METADATA,
+                    aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA,
                     componentContext = OpenAPIComponentContext.default()
                 )
             )
