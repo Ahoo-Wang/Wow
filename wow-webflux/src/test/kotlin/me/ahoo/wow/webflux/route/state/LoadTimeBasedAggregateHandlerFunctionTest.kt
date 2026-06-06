@@ -14,23 +14,23 @@
 package me.ahoo.wow.webflux.route.state
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.configuration.requiredNamedBoundedContext
 import me.ahoo.wow.eventsourcing.EventSourcingStateAggregateRepository
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotRepository
-import me.ahoo.wow.example.api.cart.AddCartItem
-import me.ahoo.wow.example.api.cart.CartItemAdded
-import me.ahoo.wow.example.domain.cart.Cart
-import me.ahoo.wow.example.domain.cart.CartState
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.openapi.aggregate.state.LoadTimeBasedAggregateRouteSpec
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
-import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.serialization.MessageRecords
+import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
+import me.ahoo.wow.tck.mock.MockAggregateCreated
+import me.ahoo.wow.tck.mock.MockCommandAggregate
+import me.ahoo.wow.tck.mock.MockCreateAggregate
+import me.ahoo.wow.tck.mock.MockStateAggregate
 import me.ahoo.wow.test.aggregate.whenCommand
 import me.ahoo.wow.test.aggregateVerifier
 import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
+import me.ahoo.wow.webflux.route.RouteTestFixtures
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
@@ -42,18 +42,14 @@ class LoadTimeBasedAggregateHandlerFunctionTest {
     @Test
     fun `should handle load time-based aggregate request`() {
         val eventStore = InMemoryEventStore()
-        val customerId = generateGlobalId()
-        val addCartItem = AddCartItem(
-            productId = "productId",
-            quantity = 1,
-        )
-        aggregateVerifier<Cart, CartState>(customerId, eventStore = eventStore)
-            .givenOwnerId(customerId)
-            .whenCommand(addCartItem)
+        val aggregateId = generateGlobalId()
+        aggregateVerifier<MockCommandAggregate, MockStateAggregate>(aggregateId, eventStore = eventStore)
+            .givenOwnerId(aggregateId)
+            .whenCommand(MockCreateAggregate(id = aggregateId, data = "test-data"))
             .expectNoError()
-            .expectEventType(CartItemAdded::class.java)
+            .expectEventType(MockAggregateCreated::class.java)
             .expectState {
-                items.assert().hasSize(1)
+                data.assert().isEqualTo("test-data")
             }
             .verify()
 
@@ -66,8 +62,8 @@ class LoadTimeBasedAggregateHandlerFunctionTest {
             exceptionHandler = DefaultRequestExceptionHandler,
         ).create(
             LoadTimeBasedAggregateRouteSpec(
-                Cart::class.java.requiredNamedBoundedContext(),
-                aggregateRouteMetadata = Cart::class.java.aggregateRouteMetadata(),
+                MOCK_AGGREGATE_METADATA,
+                aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA,
                 componentContext = OpenAPIComponentContext.default()
             )
         )
@@ -75,7 +71,8 @@ class LoadTimeBasedAggregateHandlerFunctionTest {
         val request = MockServerRequest.builder()
             .method(HttpMethod.GET)
             .uri(URI.create("http://localhost"))
-            .pathVariable(MessageRecords.OWNER_ID, customerId)
+            .pathVariable(MessageRecords.ID, aggregateId)
+            .pathVariable(MessageRecords.OWNER_ID, aggregateId)
             .pathVariable(MessageRecords.CREATE_TIME, System.currentTimeMillis().toString())
             .build()
         handlerFunction.handle(request)

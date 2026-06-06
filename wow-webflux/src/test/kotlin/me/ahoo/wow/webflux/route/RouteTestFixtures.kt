@@ -11,24 +11,43 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.webflux.route.snapshot
+package me.ahoo.wow.webflux.route
 
 import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.filter.LogErrorHandler
+import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
+import me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory
+import me.ahoo.wow.query.event.filter.DefaultEventStreamQueryHandler
+import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
+import me.ahoo.wow.query.event.filter.TailEventStreamQueryFilter
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory
 import me.ahoo.wow.query.snapshot.filter.DefaultSnapshotQueryHandler
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.query.snapshot.filter.TailSnapshotQueryFilter
+import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 
-object MockQueryHandler {
+internal object RouteTestFixtures {
+    val MOCK_AGGREGATE_ROUTE_METADATA =
+        MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata()
+
     private val tailSnapshotQueryFilter = TailSnapshotQueryFilter<Any>(NoOpSnapshotQueryServiceFactory)
     private val snapshotQueryFilterChain = FilterChainBuilder<QueryContext<*, *>>()
         .addFilters(listOf(tailSnapshotQueryFilter))
         .filterCondition(SnapshotQueryHandler::class)
         .build()
-    val queryHandler = DefaultSnapshotQueryHandler(
+    val snapshotQueryHandler = DefaultSnapshotQueryHandler(
         snapshotQueryFilterChain,
+        LogErrorHandler()
+    )
+
+    private val tailEventStreamQueryFilter = TailEventStreamQueryFilter(NoOpEventStreamQueryServiceFactory)
+    private val eventStreamQueryFilterChain = FilterChainBuilder<QueryContext<*, *>>()
+        .addFilters(listOf(tailEventStreamQueryFilter))
+        .filterCondition(EventStreamQueryHandler::class)
+        .build()
+    val eventStreamQueryHandler = DefaultEventStreamQueryHandler(
+        eventStreamQueryFilterChain,
         LogErrorHandler()
     )
 }
