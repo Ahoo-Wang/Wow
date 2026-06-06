@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.dsl
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.Pagination
 import org.junit.jupiter.api.Test
 
 class PaginationDslTest {
@@ -22,9 +23,34 @@ class PaginationDslTest {
     fun `should build pagination with index and size`() {
         val pagination = pagination {
             index(1)
-            size(1)
+            size(10)
         }
         pagination.index.assert().isOne()
-        pagination.size.assert().isOne()
+        pagination.size.assert().isEqualTo(10)
+    }
+
+    @Test
+    fun `should use default values when no values set`() {
+        val pagination = pagination { }
+        pagination.index.assert().isEqualTo(Pagination.DEFAULT.index)
+        pagination.size.assert().isEqualTo(Pagination.DEFAULT.size)
+    }
+
+    @Test
+    fun `should override index independently`() {
+        val pagination = pagination {
+            index(5)
+        }
+        pagination.index.assert().isEqualTo(5)
+        pagination.size.assert().isEqualTo(Pagination.DEFAULT.size)
+    }
+
+    @Test
+    fun `should override size independently`() {
+        val pagination = pagination {
+            size(20)
+        }
+        pagination.index.assert().isEqualTo(Pagination.DEFAULT.index)
+        pagination.size.assert().isEqualTo(20)
     }
 }

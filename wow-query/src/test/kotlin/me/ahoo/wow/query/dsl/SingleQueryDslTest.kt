@@ -15,6 +15,7 @@ package me.ahoo.wow.query.dsl
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Sort
 import org.junit.jupiter.api.Test
 
@@ -32,5 +33,34 @@ class SingleQueryDslTest {
         }
         query.sort.assert().isEqualTo(listOf(Sort("field1", Sort.Direction.ASC)))
         query.condition.assert().isEqualTo(Condition.eq("field1", "value1"))
+    }
+
+    @Test
+    fun `should build empty single query with defaults`() {
+        val query = singleQuery { }
+        query.condition.assert().isEqualTo(Condition.all())
+        query.projection.assert().isEqualTo(Projection.ALL)
+        query.sort.assert().isEmpty()
+    }
+
+    @Test
+    fun `should build single query with only condition`() {
+        val query = singleQuery {
+            condition {
+                "field" eq "value"
+            }
+        }
+        query.condition.assert().isEqualTo(Condition.eq("field", "value"))
+        query.sort.assert().isEmpty()
+    }
+
+    @Test
+    fun `should build single query with projection`() {
+        val query = singleQuery {
+            projection {
+                include("field1")
+            }
+        }
+        query.projection.include.assert().hasSize(1)
     }
 }

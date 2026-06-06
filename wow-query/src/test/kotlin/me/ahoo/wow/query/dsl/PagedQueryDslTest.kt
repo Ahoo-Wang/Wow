@@ -15,6 +15,8 @@ package me.ahoo.wow.query.dsl
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Condition
+import me.ahoo.wow.api.query.Pagination
+import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.Sort
 import org.junit.jupiter.api.Test
 
@@ -95,5 +97,47 @@ class PagedQueryDslTest {
                 )
             )
         )
+    }
+
+    @Test
+    fun `should build empty paged query with defaults`() {
+        val pagedQuery = pagedQuery { }
+        pagedQuery.condition.assert().isEqualTo(Condition.all())
+        pagedQuery.projection.assert().isEqualTo(Projection.ALL)
+        pagedQuery.sort.assert().isEmpty()
+        pagedQuery.pagination.assert().isEqualTo(Pagination.DEFAULT)
+    }
+
+    @Test
+    fun `should build paged query with only pagination`() {
+        val pagedQuery = pagedQuery {
+            pagination {
+                index(2)
+                size(20)
+            }
+        }
+        pagedQuery.pagination.index.assert().isEqualTo(2)
+        pagedQuery.pagination.size.assert().isEqualTo(20)
+        pagedQuery.condition.assert().isEqualTo(Condition.all())
+    }
+
+    @Test
+    fun `should build paged query with only condition`() {
+        val pagedQuery = pagedQuery {
+            condition {
+                "field1" eq "value1"
+            }
+        }
+        pagedQuery.condition.assert().isEqualTo(Condition.eq("field1", "value1"))
+        pagedQuery.pagination.assert().isEqualTo(Pagination.DEFAULT)
+    }
+
+    @Test
+    fun `should build paged query with direct pagination object`() {
+        val pagedQuery = pagedQuery {
+            pagination(Pagination(3, 50))
+        }
+        pagedQuery.pagination.index.assert().isEqualTo(3)
+        pagedQuery.pagination.size.assert().isEqualTo(50)
     }
 }

@@ -27,27 +27,67 @@ import java.util.stream.Stream
 
 class ConditionDslTest {
 
-    @Suppress("LongMethod")
     @Test
-    fun `should build complex condition with all operators`() {
+    fun `should return all condition when empty`() {
+        val condition = condition { }
+        condition.assert().isEqualTo(Condition.all())
+    }
+
+    @Test
+    fun `should return all condition when all()`() {
         val condition = condition {
-            deleted(DeletionState.ACTIVE)
-            and {
-                tenantId("tenantId")
-            }
-            nor {
-                all()
-            }
+            all()
+        }
+        condition.assert().isEqualTo(Condition.ALL)
+    }
+
+    @Test
+    fun `should build id and aggregateId conditions`() {
+        val condition = condition {
             id("id")
             ids("id", "id2")
             aggregateId("id")
             aggregateIds("id", "id2")
+        }
+        condition.assert().isEqualTo(
+            Condition.and(
+                listOf(
+                    Condition.id("id"),
+                    Condition.ids("id", "id2"),
+                    Condition.aggregateId("id"),
+                    Condition.aggregateIds("id", "id2")
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `should build comparison conditions`() {
+        val condition = condition {
             "field1" eq "value1"
             "field2" ne "value2"
             "filed3" gt 1
             "field4" lt 1
             "field5" gte 1
             "field6" lte 1
+        }
+        condition.assert().isEqualTo(
+            Condition.and(
+                listOf(
+                    Condition.eq("field1", "value1"),
+                    Condition.ne("field2", "value2"),
+                    Condition.gt("filed3", 1),
+                    Condition.lt("field4", 1),
+                    Condition.gte("field5", 1),
+                    Condition.lte("field6", 1)
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `should build collection conditions`() {
+        val condition = condition {
             "field7" contains "value7"
             "field7".contains("value7", false)
             "field7".contains("value7", true)
@@ -62,13 +102,63 @@ class ConditionDslTest {
             "field12" endsWith "value12"
             "field12".endsWith("value12", false)
             "field12".endsWith("value12", true)
-            "field13" elemMatch {
-                "field14" eq "value14"
-            }
+        }
+        condition.assert().isEqualTo(
+            Condition.and(
+                listOf(
+                    Condition.contains("field7", "value7"),
+                    Condition.contains("field7", "value7", false),
+                    Condition.contains("field7", "value7", true),
+                    Condition.isIn("field8", listOf("value8")),
+                    Condition.notIn("field9", listOf("value9")),
+                    Condition.between("field10", 1, 2),
+                    Condition.between("field100", 1, 2),
+                    Condition.all("field11", listOf("value11")),
+                    Condition.startsWith("field12", "value12"),
+                    Condition.startsWith("field12", "value12", false),
+                    Condition.startsWith("field12", "value12", true),
+                    Condition.endsWith("field12", "value12"),
+                    Condition.endsWith("field12", "value12", false),
+                    Condition.endsWith("field12", "value12", true)
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `should build null boolean and exists conditions`() {
+        val condition = condition {
             "field15".isNull()
             "field16".notNull()
             "field17".isTrue()
             "field18".isFalse()
+            "field17".exists()
+            "field17".exists(false)
+        }
+        condition.assert().isEqualTo(
+            Condition.and(
+                listOf(
+                    Condition.isNull("field15"),
+                    Condition.notNull("field16"),
+                    Condition.isTrue("field17"),
+                    Condition.isFalse("field18"),
+                    Condition.exists("field17"),
+                    Condition.exists("field17", false)
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `should build logical conditions`() {
+        val condition = condition {
+            deleted(DeletionState.ACTIVE)
+            and {
+                tenantId("tenantId")
+            }
+            nor {
+                all()
+            }
             and {
                 "field3" eq "value3"
                 "field4" eq "value4"
@@ -77,6 +167,60 @@ class ConditionDslTest {
                 "field3" eq "value3"
                 "field4" eq "value4"
             }
+        }
+        condition.assert().isEqualTo(
+            Condition.and(
+                listOf(
+                    Condition.deleted(DeletionState.ACTIVE),
+                    Condition.and(Condition.tenantId("tenantId")),
+                    Condition.nor(Condition.all()),
+                    Condition.and(
+                        listOf(
+                            Condition.eq("field3", "value3"),
+                            Condition.eq("field4", "value4")
+                        )
+                    ),
+                    Condition.or(
+                        listOf(
+                            Condition.eq("field3", "value3"),
+                            Condition.eq("field4", "value4")
+                        )
+                    )
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `should return all condition when and is empty`() {
+        val condition = condition {
+            and {
+            }
+        }
+        condition.assert().isEqualTo(Condition.all())
+    }
+
+    @Test
+    fun `should return all condition when nor is empty`() {
+        val condition = condition {
+            nor {
+            }
+        }
+        condition.assert().isEqualTo(Condition.ALL)
+    }
+
+    @Test
+    fun `should return all condition when or is empty`() {
+        val condition = condition {
+            or {
+            }
+        }
+        condition.assert().isEqualTo(Condition.ALL)
+    }
+
+    @Test
+    fun `should build time range conditions`() {
+        val condition = condition {
             "field19".today()
             "field20" beforeToday LocalTime.of(17, 0)
             "field20".tomorrow()
@@ -85,7 +229,28 @@ class ConditionDslTest {
             "field23".lastWeek()
             "field24".thisMonth()
             "field25".lastMonth()
-            "field26".recentDays(1)
+            "field26" recentDays 1
+        }
+        condition.assert().isEqualTo(
+            Condition.and(
+                listOf(
+                    Condition.today("field19"),
+                    Condition.beforeToday("field20", LocalTime.of(17, 0)),
+                    Condition.tomorrow("field20"),
+                    Condition.thisWeek("field21"),
+                    Condition.nextWeek("field22"),
+                    Condition.lastWeek("field23"),
+                    Condition.thisMonth("field24"),
+                    Condition.lastMonth("field25"),
+                    Condition.recentDays("field26", 1)
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `should build nested conditions`() {
+        val condition = condition {
             raw("1=1")
             "state" nested {
                 "field27" eq "value27"
@@ -101,59 +266,6 @@ class ConditionDslTest {
         condition.assert().isEqualTo(
             Condition.and(
                 listOf(
-                    Condition.deleted(DeletionState.ACTIVE),
-                    Condition.and(Condition.tenantId("tenantId")),
-                    Condition.nor(Condition.all()),
-                    Condition.id("id"),
-                    Condition.ids("id", "id2"),
-                    Condition.aggregateId("id"),
-                    Condition.aggregateIds("id", "id2"),
-                    Condition.eq("field1", "value1"),
-                    Condition.ne("field2", "value2"),
-                    Condition.gt("filed3", 1),
-                    Condition.lt("field4", 1),
-                    Condition.gte("field5", 1),
-                    Condition.lte("field6", 1),
-                    Condition.contains("field7", "value7"),
-                    Condition.contains("field7", "value7", false),
-                    Condition.contains("field7", "value7", true),
-                    Condition.isIn("field8", listOf("value8")),
-                    Condition.notIn("field9", listOf("value9")),
-                    Condition.between("field10", 1, 2),
-                    Condition.between("field100", 1, 2),
-                    Condition.all("field11", listOf("value11")),
-                    Condition.startsWith("field12", "value12"),
-                    Condition.startsWith("field12", "value12", false),
-                    Condition.startsWith("field12", "value12", true),
-                    Condition.endsWith("field12", "value12"),
-                    Condition.endsWith("field12", "value12", false),
-                    Condition.endsWith("field12", "value12", true),
-                    Condition.elemMatch("field13", Condition.eq("field14", "value14")),
-                    Condition.isNull("field15"),
-                    Condition.notNull("field16"),
-                    Condition.isTrue("field17"),
-                    Condition.isFalse("field18"),
-                    Condition.and(
-                        listOf(
-                            Condition.eq("field3", "value3"),
-                            Condition.eq("field4", "value4")
-                        )
-                    ),
-                    Condition.or(
-                        listOf(
-                            Condition.eq("field3", "value3"),
-                            Condition.eq("field4", "value4")
-                        )
-                    ),
-                    Condition.today("field19"),
-                    Condition.beforeToday("field20", LocalTime.of(17, 0)),
-                    Condition.tomorrow("field20"),
-                    Condition.thisWeek("field21"),
-                    Condition.nextWeek("field22"),
-                    Condition.lastWeek("field23"),
-                    Condition.thisMonth("field24"),
-                    Condition.lastMonth("field25"),
-                    Condition.recentDays("field26", 1),
                     Condition.raw("1=1"),
                     Condition.eq("state.field27", "value27"),
                     Condition.eq("state.field28", "value28"),
@@ -189,7 +301,6 @@ class ConditionDslTest {
                 }
             }
         }
-
         condition.assert().isEqualTo(
             Condition.and(
                 listOf(
@@ -202,15 +313,6 @@ class ConditionDslTest {
                 )
             )
         )
-    }
-
-    @Test
-    fun `should return all condition when and is empty`() {
-        val condition = condition {
-            and {
-            }
-        }
-        condition.assert().isEqualTo(Condition.all())
     }
 
     @Test
@@ -233,32 +335,6 @@ class ConditionDslTest {
     }
 
     @Test
-    fun `should return all condition when nor is empty`() {
-        val condition = condition {
-            nor {
-            }
-        }
-        condition.assert().isEqualTo(Condition.ALL)
-    }
-
-    @Test
-    fun `should return all condition when or is empty`() {
-        val condition = condition {
-            or {
-            }
-        }
-        condition.assert().isEqualTo(Condition.ALL)
-    }
-
-    @Test
-    fun `should return all condition`() {
-        val condition = condition {
-            all()
-        }
-        condition.assert().isEqualTo(Condition.ALL)
-    }
-
-    @Test
     fun `should set deletion state on condition`() {
         val condition = condition {
             deleted(DeletionState.DELETED)
@@ -270,6 +346,42 @@ class ConditionDslTest {
     fun `should parse deletion state from string value`() {
         val condition = Condition(operator = Operator.DELETED, value = "DELETED")
         condition.deletionState().assert().isEqualTo(DeletionState.DELETED)
+    }
+
+    @Test
+    fun `should build tenantId condition`() {
+        val condition = condition {
+            tenantId("tenantId")
+        }
+        condition.assert().isEqualTo(Condition.tenantId("tenantId"))
+    }
+
+    @Test
+    fun `should build ownerId condition`() {
+        val condition = condition {
+            ownerId("ownerId")
+        }
+        condition.assert().isEqualTo(Condition.ownerId("ownerId"))
+    }
+
+    @Test
+    fun `should build spaceId condition`() {
+        val condition = condition {
+            spaceId("spaceId")
+        }
+        condition.assert().isEqualTo(Condition.spaceId("spaceId"))
+    }
+
+    @Test
+    fun `should build elemMatch condition`() {
+        val condition = condition {
+            "field13" elemMatch {
+                "field14" eq "value14"
+            }
+        }
+        condition.assert().isEqualTo(
+            Condition.elemMatch("field13", Condition.eq("field14", "value14"))
+        )
     }
 
     @Test
@@ -361,14 +473,6 @@ class ConditionDslTest {
     }
 
     @Test
-    fun `should build contains condition`() {
-        val condition = condition {
-            QueryModel::id contains "value1"
-        }
-        condition.assert().isEqualTo(Condition.contains("id", "value1"))
-    }
-
-    @Test
     fun `should build startsWith condition using property reference`() {
         val condition = condition {
             QueryModel::id startsWith "value1"
@@ -392,10 +496,7 @@ class ConditionDslTest {
             }
         }
         condition.assert().isEqualTo(
-            Condition.elemMatch(
-                "id",
-                Condition.eq("field2", "value2")
-            )
+            Condition.elemMatch("id", Condition.eq("field2", "value2"))
         )
     }
 
@@ -445,30 +546,6 @@ class ConditionDslTest {
             QueryModel::id.exists(false)
         }
         condition.assert().isEqualTo(Condition.exists("id", false))
-    }
-
-    @Test
-    fun `should build tenantId condition`() {
-        val condition = condition {
-            tenantId("tenantId")
-        }
-        condition.assert().isEqualTo(Condition.tenantId("tenantId"))
-    }
-
-    @Test
-    fun `should build ownerId condition`() {
-        val condition = condition {
-            ownerId("ownerId")
-        }
-        condition.assert().isEqualTo(Condition.ownerId("ownerId"))
-    }
-
-    @Test
-    fun `should build spaceId condition`() {
-        val condition = condition {
-            spaceId("spaceId")
-        }
-        condition.assert().isEqualTo(Condition.spaceId("spaceId"))
     }
 
     @Test
