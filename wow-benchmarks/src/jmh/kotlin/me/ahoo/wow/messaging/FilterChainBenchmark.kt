@@ -11,28 +11,47 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.command
+package me.ahoo.wow.messaging
 
-import me.ahoo.wow.id.generateGlobalId
-import me.ahoo.wow.infra.idempotency.BloomFilterIdempotencyChecker
+import me.ahoo.wow.filter.Filter
+import me.ahoo.wow.filter.FilterChain
+import me.ahoo.wow.filter.FilterChainBuilder
 import org.openjdk.jmh.annotations.Benchmark
+import org.openjdk.jmh.annotations.Param
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.infra.Blackhole
+import reactor.core.publisher.Mono
 
 @State(Scope.Benchmark)
-open class BloomFilterIdempotencyCheckerBenchmark {
-    private lateinit var idempotencyChecker: BloomFilterIdempotencyChecker
+open class FilterChainBenchmark {
+    @Param("1", "5", "10")
+    var filterCount: Int = 1
+
+    private lateinit var chain: FilterChain<String>
+    private val context = "benchmark-context"
 
     @Setup
     fun setup() {
-        idempotencyChecker = createBloomFilterIdempotencyChecker()
+        chain = FilterChainBuilder<String>()
+            .apply {
+                repeat(filterCount) {
+                    addFilter(NoopFilter)
+                }
+            }
+            .build()
     }
 
     @Benchmark
-    fun check(blackhole: Blackhole) {
-        val result = idempotencyChecker.check(generateGlobalId()).block()
+    fun executeChain(blackhole: Blackhole) {
+        val result = chain.filter(context).block()
         blackhole.consume(result)
+    }
+}
+
+private object NoopFilter : Filter<String> {
+    override fun filter(context: String, chain: FilterChain<String>): Mono<Void> {
+        return chain.filter(context)
     }
 }

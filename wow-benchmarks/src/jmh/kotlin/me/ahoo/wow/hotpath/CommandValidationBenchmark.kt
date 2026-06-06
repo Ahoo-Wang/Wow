@@ -11,19 +11,24 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.eventsourcing
+package me.ahoo.wow.hotpath
 
+import me.ahoo.wow.command.ServerCommandExchange
+import me.ahoo.wow.command.SimpleServerCommandExchange
+import me.ahoo.wow.test.validation.TestValidator
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.infra.Blackhole
 
 @State(Scope.Benchmark)
-open class EventStreamFactoryBenchmark {
+open class CommandValidationBenchmark {
+    private val commandMessage = HotPathFixture.createCommandMessage()
 
     @Benchmark
-    fun createEventStream(blackhole: Blackhole) {
-        val eventStream = createEventStream()
-        blackhole.consume(eventStream)
+    fun validateCommand(blackhole: Blackhole) {
+        val exchange: ServerCommandExchange<*> = SimpleServerCommandExchange(commandMessage)
+        TestValidator.validate(commandMessage.body)
+        blackhole.consume(exchange)
     }
 }

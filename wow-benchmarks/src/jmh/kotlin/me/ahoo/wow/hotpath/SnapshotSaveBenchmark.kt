@@ -11,33 +11,35 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.eventsourcing
+package me.ahoo.wow.hotpath
 
+import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
+import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
-import org.openjdk.jmh.annotations.TearDown
+import org.openjdk.jmh.infra.Blackhole
 
 @State(Scope.Benchmark)
-open class InMemoryEventStoreBenchmark : AbstractEventStoreBenchmark() {
+open class SnapshotSaveBenchmark {
+    private lateinit var snapshotRepository: InMemorySnapshotRepository
+    private lateinit var snapshot: SimpleSnapshot<*>
 
     @Setup
-    override fun setup() {
-        super.setup()
-    }
-
-    @TearDown
-    fun tearDown() {
-        setup()
-    }
-
-    override fun createEventStore(): EventStore {
-        return InMemoryEventStore()
+    fun setup() {
+        snapshotRepository = InMemorySnapshotRepository()
+        val aggregate = ConstructorStateAggregateFactory.create(
+            HotPathFixture.aggregateMetadata.state,
+            HotPathFixture.aggregateId,
+        )
+        snapshot = SimpleSnapshot(aggregate)
     }
 
     @Benchmark
-    override fun append() {
-        super.append()
+    fun saveSnapshot(blackhole: Blackhole) {
+        val result = snapshotRepository.save(snapshot).block()
+        blackhole.consume(result)
     }
 }

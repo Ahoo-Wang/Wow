@@ -11,19 +11,32 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.eventsourcing
+package me.ahoo.wow.hotpath
 
+import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.infra.Blackhole
 
 @State(Scope.Benchmark)
-open class EventStreamFactoryBenchmark {
+open class CommandHandlingBenchmark {
+    @Benchmark
+    fun createAggregateAndHandle(blackhole: Blackhole) {
+        val aggregate = ConstructorStateAggregateFactory.create(
+            HotPathFixture.aggregateMetadata.state,
+            HotPathFixture.aggregateId,
+        )
+        aggregate.onSourcing(HotPathFixture.createEventStream())
+        blackhole.consume(aggregate)
+    }
 
     @Benchmark
-    fun createEventStream(blackhole: Blackhole) {
-        val eventStream = createEventStream()
-        blackhole.consume(eventStream)
+    fun createAggregateFromEmpty(blackhole: Blackhole) {
+        val aggregate = ConstructorStateAggregateFactory.create(
+            HotPathFixture.aggregateMetadata.state,
+            HotPathFixture.aggregateId,
+        )
+        blackhole.consume(aggregate)
     }
 }

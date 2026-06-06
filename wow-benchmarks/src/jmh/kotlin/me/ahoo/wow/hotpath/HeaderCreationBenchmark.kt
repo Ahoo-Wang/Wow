@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.eventsourcing
+package me.ahoo.wow.hotpath
 
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
@@ -19,11 +19,28 @@ import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.infra.Blackhole
 
 @State(Scope.Benchmark)
-open class EventStreamFactoryBenchmark {
+open class HeaderCreationBenchmark {
+    private val fixture = HotPathFixture
 
     @Benchmark
-    fun createEventStream(blackhole: Blackhole) {
-        val eventStream = createEventStream()
-        blackhole.consume(eventStream)
+    fun createEmptyHeader(blackhole: Blackhole) {
+        val header = fixture.createHeader()
+        blackhole.consume(header)
+    }
+
+    @Benchmark
+    fun createAndMutateHeader(blackhole: Blackhole) {
+        val header = fixture.createHeader()
+        header["key1"] = "value1"
+        header["key2"] = "value2"
+        blackhole.consume(header)
+    }
+
+    @Benchmark
+    fun headerReadAfterWrite(blackhole: Blackhole) {
+        val header = fixture.createHeader()
+        header["key"] = "value"
+        val value = header["key"]
+        blackhole.consume(value)
     }
 }

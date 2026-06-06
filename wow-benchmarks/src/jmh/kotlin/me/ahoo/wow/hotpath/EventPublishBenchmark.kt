@@ -11,19 +11,35 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.eventsourcing
+package me.ahoo.wow.hotpath
 
+import me.ahoo.wow.event.InMemoryDomainEventBus
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
+import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
+import org.openjdk.jmh.annotations.TearDown
 import org.openjdk.jmh.infra.Blackhole
 
 @State(Scope.Benchmark)
-open class EventStreamFactoryBenchmark {
+open class EventPublishBenchmark {
+    private lateinit var eventBus: InMemoryDomainEventBus
+    private val eventStream = HotPathFixture.createEventStream()
+
+    @Setup
+    fun setup() {
+        eventBus = InMemoryDomainEventBus()
+        eventBus.receive(setOf(HotPathFixture.namedAggregate)).subscribe()
+    }
+
+    @TearDown
+    fun tearDown() {
+        eventBus.close()
+    }
 
     @Benchmark
-    fun createEventStream(blackhole: Blackhole) {
-        val eventStream = createEventStream()
-        blackhole.consume(eventStream)
+    fun publishEvent(blackhole: Blackhole) {
+        val result = eventBus.send(eventStream).block()
+        blackhole.consume(result)
     }
 }

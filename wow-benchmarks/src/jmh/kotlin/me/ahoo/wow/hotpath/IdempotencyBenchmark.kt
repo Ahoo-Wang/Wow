@@ -11,19 +11,34 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.eventsourcing
+package me.ahoo.wow.hotpath
 
+import me.ahoo.wow.id.generateGlobalId
+import me.ahoo.wow.infra.idempotency.BloomFilterIdempotencyChecker
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
+import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.infra.Blackhole
 
 @State(Scope.Benchmark)
-open class EventStreamFactoryBenchmark {
+open class IdempotencyBenchmark {
+    private lateinit var idempotencyChecker: BloomFilterIdempotencyChecker
+
+    @Setup
+    fun setup() {
+        idempotencyChecker = HotPathFixture.createBloomFilterIdempotencyChecker()
+    }
 
     @Benchmark
-    fun createEventStream(blackhole: Blackhole) {
-        val eventStream = createEventStream()
-        blackhole.consume(eventStream)
+    fun checkNewId(blackhole: Blackhole) {
+        val result = idempotencyChecker.check(generateGlobalId()).block()
+        blackhole.consume(result)
+    }
+
+    @Benchmark
+    fun checkFixedId(blackhole: Blackhole) {
+        val result = idempotencyChecker.check("known-request-id").block()
+        blackhole.consume(result)
     }
 }

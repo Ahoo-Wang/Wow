@@ -11,19 +11,41 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.eventsourcing
+package me.ahoo.wow.hotpath
 
+import me.ahoo.wow.id.generateGlobalId
+import me.ahoo.wow.modeling.DefaultAggregateId
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.infra.Blackhole
 
 @State(Scope.Benchmark)
-open class EventStreamFactoryBenchmark {
+open class AggregateIdGenerationBenchmark {
+    private val fixture = HotPathFixture
 
     @Benchmark
-    fun createEventStream(blackhole: Blackhole) {
-        val eventStream = createEventStream()
-        blackhole.consume(eventStream)
+    fun generateGlobalId(blackhole: Blackhole) {
+        val id = generateGlobalId()
+        blackhole.consume(id)
+    }
+
+    @Benchmark
+    fun createAggregateId(blackhole: Blackhole) {
+        val aggregateId = DefaultAggregateId(
+            namedAggregate = fixture.namedAggregate,
+            id = "test-id",
+        )
+        blackhole.consume(aggregateId)
+    }
+
+    @Benchmark
+    fun generateIdAndCreateAggregateId(blackhole: Blackhole) {
+        val id = generateGlobalId()
+        val aggregateId = DefaultAggregateId(
+            namedAggregate = fixture.namedAggregate,
+            id = id,
+        )
+        blackhole.consume(aggregateId)
     }
 }

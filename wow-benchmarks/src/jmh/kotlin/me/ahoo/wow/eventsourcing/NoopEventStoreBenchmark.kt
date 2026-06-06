@@ -14,15 +14,9 @@
 package me.ahoo.wow.eventsourcing
 
 import org.openjdk.jmh.annotations.Benchmark
-import org.openjdk.jmh.annotations.Fork
-import org.openjdk.jmh.annotations.Measurement
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.State
-import org.openjdk.jmh.annotations.Warmup
 
-@Warmup(iterations = 1)
-@Measurement(iterations = 2)
-@Fork(value = 2)
 @State(Scope.Benchmark)
 open class NoopEventStoreBenchmark : AbstractEventStoreBenchmark() {
     override fun createEventStore(): EventStore {
@@ -32,6 +26,6 @@ open class NoopEventStoreBenchmark : AbstractEventStoreBenchmark() {
 
     @Benchmark
     override fun append() {
-        super.setup()
+        super.append()
     }
 }

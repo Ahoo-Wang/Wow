@@ -11,20 +11,31 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.eventsourcing
+package me.ahoo.wow.hotpath
 
+import me.ahoo.wow.eventsourcing.EventSourcingStateAggregateRepository
+import me.ahoo.wow.eventsourcing.InMemoryEventStore
+import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotRepository
+import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.annotations.TearDown
+import org.openjdk.jmh.infra.Blackhole
 
 @State(Scope.Benchmark)
-open class InMemoryEventStoreBenchmark : AbstractEventStoreBenchmark() {
+open class AggregateLoadingBenchmark {
+    private lateinit var repository: EventSourcingStateAggregateRepository
 
     @Setup
-    override fun setup() {
-        super.setup()
+    fun setup() {
+        val eventStore = InMemoryEventStore()
+        repository = EventSourcingStateAggregateRepository(
+            ConstructorStateAggregateFactory,
+            InMemorySnapshotRepository(),
+            eventStore,
+        )
     }
 
     @TearDown
@@ -32,12 +43,13 @@ open class InMemoryEventStoreBenchmark : AbstractEventStoreBenchmark() {
         setup()
     }
 
-    override fun createEventStore(): EventStore {
-        return InMemoryEventStore()
-    }
-
     @Benchmark
-    override fun append() {
-        super.append()
+    fun loadEmptyAggregate(blackhole: Blackhole) {
+        val aggregate = repository.load(
+            HotPathFixture.aggregateId,
+            HotPathFixture.aggregateMetadata.state,
+            Int.MAX_VALUE,
+        ).block()
+        blackhole.consume(aggregate)
     }
 }
