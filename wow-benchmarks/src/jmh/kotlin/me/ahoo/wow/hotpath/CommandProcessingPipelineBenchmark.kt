@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.hotpath
 
+import me.ahoo.wow.BenchmarkAggregateSchedulerSupplier
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.DefaultCommandGateway
 import me.ahoo.wow.command.InMemoryCommandBus
@@ -96,14 +97,15 @@ open class CommandProcessingPipelineBenchmark {
             namedAggregates = setOf(HotPathFixture.namedAggregate),
             commandBus = commandGateway,
             commandHandler = DefaultCommandHandler(chain),
+            schedulerSupplier = BenchmarkAggregateSchedulerSupplier(),
         )
         commandDispatcher.start()
     }
 
     @TearDown
     fun tearDown() {
-        commandGateway.close()
         commandDispatcher.stop()
+        commandGateway.close()
     }
 
     @Benchmark

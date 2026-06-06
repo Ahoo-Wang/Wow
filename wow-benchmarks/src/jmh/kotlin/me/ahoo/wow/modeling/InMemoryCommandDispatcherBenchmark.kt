@@ -34,19 +34,7 @@ open class InMemoryCommandDispatcherBenchmark : AbstractCommandDispatcherBenchma
     }
 
     @Benchmark
-    override fun send(blackHole: Blackhole) {
-        super.send(blackHole)
-    }
-
-    @Benchmark
-    override fun sendAndWaitForSent(blackHole: Blackhole) {
-        super.sendAndWaitForSent(blackHole)
-
-    }
-
-    @Benchmark
     override fun sendAndWaitForProcessed(blackHole: Blackhole) {
         super.sendAndWaitForProcessed(blackHole)
-
     }
 }
