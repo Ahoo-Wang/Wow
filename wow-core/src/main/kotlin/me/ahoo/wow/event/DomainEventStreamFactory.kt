@@ -94,16 +94,15 @@ fun Any.toDomainEventStream(
     val streamSpaceId = upstream.spaceId.ifBlank {
         stateSpaceId
     }
-    val events =
-        flatEvent().toDomainEvents(
-            streamVersion = streamVersion,
-            aggregateId = aggregateId,
-            command = upstream,
-            ownerId = streamOwnerId,
-            spaceId = streamSpaceId,
-            eventStreamHeader = header,
-            createTime = createTime,
-        )
+    val events = toDomainEvents(
+        streamVersion = streamVersion,
+        aggregateId = aggregateId,
+        command = upstream,
+        ownerId = streamOwnerId,
+        spaceId = streamSpaceId,
+        eventStreamHeader = header,
+        createTime = createTime,
+    )
 
     return SimpleDomainEventStream(
         id = eventStreamId,
@@ -112,6 +111,59 @@ fun Any.toDomainEventStream(
         body = events,
     )
 }
+
+@Suppress("LongParameterList")
+private fun Any.toDomainEvents(
+    streamVersion: Int,
+    aggregateId: AggregateId,
+    command: CommandMessage<*>,
+    ownerId: String,
+    spaceId: SpaceId,
+    eventStreamHeader: Header,
+    createTime: Long
+): List<DomainEvent<Any>> =
+    when (this) {
+        is Iterable<*> -> {
+            toDomainEvents(
+                streamVersion = streamVersion,
+                aggregateId = aggregateId,
+                command = command,
+                ownerId = ownerId,
+                spaceId = spaceId,
+                eventStreamHeader = eventStreamHeader,
+                createTime = createTime,
+            )
+        }
+
+        is Array<*> -> {
+            asList().toDomainEvents(
+                streamVersion = streamVersion,
+                aggregateId = aggregateId,
+                command = command,
+                ownerId = ownerId,
+                spaceId = spaceId,
+                eventStreamHeader = eventStreamHeader,
+                createTime = createTime,
+            )
+        }
+
+        else -> {
+            listOf(
+                toDomainEvent(
+                    id = generateGlobalId(),
+                    version = streamVersion,
+                    sequence = DEFAULT_EVENT_SEQUENCE,
+                    isLast = true,
+                    aggregateId = aggregateId,
+                    ownerId = ownerId,
+                    spaceId = spaceId,
+                    commandId = command.commandId,
+                    header = eventStreamHeader.copy(),
+                    createTime = createTime,
+                )
+            )
+        }
+    }
 
 /**
  * Converts an iterable of event objects to a list of domain events.
@@ -142,20 +194,28 @@ private fun Iterable<*>.toDomainEvents(
     eventStreamHeader: Header,
     createTime: Long
 ): List<DomainEvent<Any>> {
-    val eventCount = count()
-    return mapIndexed { index, event ->
+    val eventCount = if (this is Collection<*>) {
+        size
+    } else {
+        count()
+    }
+    val events = ArrayList<DomainEvent<Any>>(eventCount)
+    forEachIndexed { index, event ->
         val sequence = (index + DEFAULT_EVENT_SEQUENCE)
-        event!!.toDomainEvent(
-            id = generateGlobalId(),
-            version = streamVersion,
-            sequence = sequence,
-            isLast = sequence == eventCount,
-            aggregateId = aggregateId,
-            ownerId = ownerId,
-            spaceId = spaceId,
-            commandId = command.commandId,
-            header = eventStreamHeader.copy(),
-            createTime = createTime,
+        events.add(
+            event!!.toDomainEvent(
+                id = generateGlobalId(),
+                version = streamVersion,
+                sequence = sequence,
+                isLast = sequence == eventCount,
+                aggregateId = aggregateId,
+                ownerId = ownerId,
+                spaceId = spaceId,
+                commandId = command.commandId,
+                header = eventStreamHeader.copy(),
+                createTime = createTime,
+            )
         )
-    }.toList()
+    }
+    return events
 }

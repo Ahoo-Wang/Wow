@@ -31,6 +31,44 @@ class DomainEventStreamFactoryBehaviorTest {
     }
 
     @Test
+    fun `toDomainEventStream creates single event from command context`() {
+        val aggregateId = FIXTURE_NAMED_AGGREGATE.toNamedAggregate().aggregateId("single-factory-aggregate")
+        val upstream = GivenInitializationCommand(
+            aggregateId = aggregateId,
+            id = "single-command",
+            ownerId = "",
+            spaceId = "",
+            requestId = "single-request",
+        )
+        val header = DefaultHeader.empty().with("trace", "single-trace")
+
+        val stream = FixtureNamedEvent("single").toDomainEventStream(
+            upstream = upstream,
+            aggregateVersion = 6,
+            stateOwnerId = "single-owner",
+            stateSpaceId = "single-space",
+            header = header,
+            createTime = 3000,
+        )
+        val event = stream.body.single()
+
+        stream.requestId.assert().isEqualTo("single-request")
+        stream.aggregateId.assert().isEqualTo(aggregateId)
+        stream.ownerId.assert().isEqualTo("single-owner")
+        stream.spaceId.assert().isEqualTo("single-space")
+        stream.version.assert().isEqualTo(7)
+        stream.createTime.assert().isEqualTo(3000)
+        stream.size.assert().isEqualTo(1)
+        event.sequence.assert().isEqualTo(DEFAULT_EVENT_SEQUENCE)
+        event.isLast.assert().isTrue()
+        event.commandId.assert().isEqualTo(upstream.commandId)
+        event.header["trace"].assert().isEqualTo("single-trace")
+
+        event.header["trace"] = "event-local"
+        stream.header["trace"].assert().isEqualTo("single-trace")
+    }
+
+    @Test
     fun `toDomainEventStream creates sequenced events from command context`() {
         val aggregateId = FIXTURE_NAMED_AGGREGATE.toNamedAggregate().aggregateId("factory-aggregate")
         val upstream = GivenInitializationCommand(
