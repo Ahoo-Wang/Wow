@@ -263,7 +263,8 @@ tasks.register("generateBenchmarkReport") {
                 allocRateNorm = String.format("%.1f B/op", gcAlloc?.get("score") as? Double ?: 0.0)
             }
 
-            val shortName = benchmark.substringAfterLast(".")
+            val parts = benchmark.split(".")
+            val shortName = if (parts.size >= 2) "${parts[parts.size - 2]}.${parts.last()}" else benchmark
             sb.appendLine("| $shortName | ${String.format("%.2f", score)} | ±${String.format("%.2f", scoreError)} | $unit | $allocRateNorm |")
         }
 
@@ -295,8 +296,15 @@ tasks.register("benchmarkCompare") {
             return results.associate { result ->
                 val benchmark = result["benchmark"] as String
                 @Suppress("UNCHECKED_CAST")
+                val params = result["params"] as? Map<String, String>
+                val key = if (params != null && params.isNotEmpty()) {
+                    "$benchmark(${params.entries.joinToString(",") { "${it.key}=${it.value}" }})"
+                } else {
+                    benchmark
+                }
+                @Suppress("UNCHECKED_CAST")
                 val primaryMetric = result["primaryMetric"] as Map<String, Any>
-                benchmark to (primaryMetric["score"] as Double)
+                key to (primaryMetric["score"] as Double)
             }
         }
 
@@ -316,14 +324,18 @@ tasks.register("benchmarkCompare") {
         for (benchmark in allBenchmarks) {
             val baseScore = baseline[benchmark]
             val latestScore = latest[benchmark]
-            val shortName = benchmark.substringAfterLast(".")
+            val parts = benchmark.split("(")[0].split(".")
+            val shortName = if (parts.size >= 2) "${parts[parts.size - 2]}.${parts.last()}" else benchmark
+            val paramSuffix = if ("(" in benchmark) " ${benchmark.substringAfter("(").substringBefore(")")}" else ""
+
+            val displayName = "$shortName$paramSuffix"
 
             if (baseScore == null) {
-                println("| $shortName | — | ${String.format("%.2f", latestScore)} | NEW | 🆕 |")
+                println("| $displayName | — | ${String.format("%.2f", latestScore)} | NEW | 🆕 |")
                 continue
             }
             if (latestScore == null) {
-                println("| $shortName | ${String.format("%.2f", baseScore)} | — | REMOVED | ⚠️ |")
+                println("| $displayName | ${String.format("%.2f", baseScore)} | — | REMOVED | ⚠️ |")
                 continue
             }
 
@@ -340,7 +352,7 @@ tasks.register("benchmarkCompare") {
                 else -> "✅"
             }
 
-            println("| $shortName | ${String.format("%.2f", baseScore)} | ${String.format("%.2f", latestScore)} | ${String.format("%+.1f%%", changePercent)} | $status |")
+            println("| $displayName | ${String.format("%.2f", baseScore)} | ${String.format("%.2f", latestScore)} | ${String.format("%+.1f%%", changePercent)} | $status |")
         }
 
         println()

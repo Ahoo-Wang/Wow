@@ -43,6 +43,7 @@ open class AggregateStateRecoveryBenchmark {
             val event = CartItemAdded(CartItem("product-$index", index))
             listOf<Any>(event).toDomainEventStream(
                 upstream = GivenInitializationCommand(aggregateId),
+                aggregateVersion = index - 1,
             )
         }
     }
