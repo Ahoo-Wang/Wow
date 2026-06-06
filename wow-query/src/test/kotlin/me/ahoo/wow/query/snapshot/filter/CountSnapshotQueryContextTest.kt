@@ -40,4 +40,21 @@ class CountSnapshotQueryContextTest {
             }
         )
     }
+
+    @Test
+    fun `should rewrite query with appended condition`() {
+        val context = DefaultQueryContext<Condition, Any>(
+            queryType = QueryType.COUNT,
+            MOCK_AGGREGATE_METADATA
+        )
+        val query = condition {
+            "field1" eq "value1"
+        }
+        context.setQuery(query)
+        context.asRewritableQuery().rewriteQuery {
+            it.appendCondition(Condition.ownerId("ownerId"))
+        }
+        context.getQuery().children.assert().hasSize(2)
+        context.getQuery().children.last().assert().isEqualTo(Condition.ownerId("ownerId"))
+    }
 }
