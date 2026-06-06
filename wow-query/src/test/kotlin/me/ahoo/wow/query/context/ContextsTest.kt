@@ -31,4 +31,14 @@ class ContextsTest {
             .test()
             .verifyComplete()
     }
+
+    @Test
+    fun `should return null when no raw request in context`() {
+        Mono.deferContextual {
+            val request: ContextsTest? = it.getRawRequest()
+            request.assert().isNull()
+            Mono.empty<Void>()
+        }.test()
+            .verifyComplete()
+    }
 }

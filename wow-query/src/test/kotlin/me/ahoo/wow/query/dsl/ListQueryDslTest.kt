@@ -62,4 +62,34 @@ class ListQueryDslTest {
             )
         )
     }
+
+    @Test
+    fun `should build empty list query with defaults`() {
+        val query = listQuery { }
+        query.condition.assert().isEqualTo(Condition.all())
+        query.projection.assert().isEqualTo(Projection.ALL)
+        query.sort.assert().isEmpty()
+        query.limit.assert().isZero()
+    }
+
+    @Test
+    fun `should build list query with only limit`() {
+        val query = listQuery {
+            limit(10)
+        }
+        query.limit.assert().isEqualTo(10)
+        query.condition.assert().isEqualTo(Condition.all())
+    }
+
+    @Test
+    fun `should build list query with projection block`() {
+        val query = listQuery {
+            projection {
+                include("field1")
+                exclude("field2")
+            }
+        }
+        query.projection.include.assert().hasSize(1)
+        query.projection.exclude.assert().hasSize(1)
+    }
 }

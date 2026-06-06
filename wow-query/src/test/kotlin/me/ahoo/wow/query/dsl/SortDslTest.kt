@@ -32,4 +32,32 @@ class SortDslTest {
             )
         )
     }
+
+    @Test
+    fun `should return empty list when no sort specified`() {
+        val sort = sort { }
+        sort.assert().isEmpty()
+    }
+
+    @Test
+    fun `should build sort with nested field prefix`() {
+        val sort = sort {
+            nested("state")
+            "field1".asc()
+        }
+        sort.assert().isEqualTo(listOf(Sort("state.field1", Sort.Direction.ASC)))
+    }
+
+    @Test
+    fun `should build multi-field sort`() {
+        val sort = sort {
+            "field1".asc()
+            "field2".desc()
+            "field3".asc()
+        }
+        sort.assert().hasSize(3)
+        sort[0].assert().isEqualTo(Sort("field1", Sort.Direction.ASC))
+        sort[1].assert().isEqualTo(Sort("field2", Sort.Direction.DESC))
+        sort[2].assert().isEqualTo(Sort("field3", Sort.Direction.ASC))
+    }
 }

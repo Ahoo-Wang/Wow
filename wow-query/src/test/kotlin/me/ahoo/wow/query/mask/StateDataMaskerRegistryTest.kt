@@ -14,6 +14,8 @@
 package me.ahoo.wow.query.mask
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.toNamedAggregate
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -22,9 +24,9 @@ import org.junit.jupiter.api.Test
 class StateDataMaskerRegistryTest {
 
     @Test
-    fun `should register and unregister maskers`() {
+    fun `should register and unregister state maskers`() {
         val stateDataMaskerRegistry = StateDataMaskerRegistry()
-        val masker = MockStateDataMasker(MOCK_AGGREGATE_METADATA)
+        val masker = MockStateMasker(MOCK_AGGREGATE_METADATA.namedAggregate)
         stateDataMaskerRegistry.unregister(masker)
         stateDataMaskerRegistry.register(masker)
         val aggregateDataMasker = stateDataMaskerRegistry.getAggregateDataMasker(MOCK_AGGREGATE_METADATA.namedAggregate)
@@ -44,5 +46,33 @@ class StateDataMaskerRegistryTest {
         val namedAggregate = "${generateGlobalId()}.${generateGlobalId()}".toNamedAggregate()
         val aggregateDataMasker = stateDataMaskerRegistry.getAggregateDataMasker(namedAggregate)
         aggregateDataMasker.maskers.assert().isEmpty()
+    }
+
+    @Test
+    fun `should register and unregister event stream maskers`() {
+        val eventStreamMaskerRegistry = EventStreamMaskerRegistry()
+        val masker = MockEventStreamMasker(MOCK_AGGREGATE_METADATA.namedAggregate)
+        eventStreamMaskerRegistry.register(masker)
+        val aggregateDataMasker = eventStreamMaskerRegistry.getAggregateDataMasker(
+            MOCK_AGGREGATE_METADATA.namedAggregate
+        )
+        aggregateDataMasker.maskers.size.assert().isOne()
+        eventStreamMaskerRegistry.unregister(masker)
+        val aggregateDataMasker2 = eventStreamMaskerRegistry.getAggregateDataMasker(
+            MOCK_AGGREGATE_METADATA.namedAggregate
+        )
+        aggregateDataMasker2.maskers.assert().isEmpty()
+    }
+
+    private class MockStateMasker(override val namedAggregate: NamedAggregate) : StateDynamicDocumentMasker {
+        override fun mask(dynamicDocument: DynamicDocument): DynamicDocument {
+            return dynamicDocument
+        }
+    }
+
+    private class MockEventStreamMasker(override val namedAggregate: NamedAggregate) : EventStreamDynamicDocumentMasker {
+        override fun mask(dynamicDocument: DynamicDocument): DynamicDocument {
+            return dynamicDocument
+        }
     }
 }

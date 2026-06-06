@@ -64,4 +64,29 @@ class DeleteConditionGuardTest {
         val converted = condition.guard()
         converted.children.first().assert().isEqualTo(Condition.ACTIVE)
     }
+
+    @Test
+    fun `should inject active condition for nor condition without deleted`() {
+        val condition = Condition.nor(Condition.eq("field", "value"))
+        val converted = condition.guard()
+        converted.children.first().assert().isEqualTo(Condition.ACTIVE)
+    }
+
+    @Test
+    fun `should inject active condition for nor condition even with deleted child`() {
+        val condition = Condition.nor(
+            Condition.deleted(DeletionState.DELETED),
+            Condition.eq("field", "value")
+        )
+        val converted = condition.guard()
+        converted.operator.assert().isEqualTo(me.ahoo.wow.api.query.Operator.AND)
+        converted.children.first().assert().isEqualTo(Condition.ACTIVE)
+    }
+
+    @Test
+    fun `should inject active condition for or condition`() {
+        val condition = Condition.or(Condition.eq("field", "value"))
+        val converted = condition.guard()
+        converted.children.first().assert().isEqualTo(Condition.ACTIVE)
+    }
 }

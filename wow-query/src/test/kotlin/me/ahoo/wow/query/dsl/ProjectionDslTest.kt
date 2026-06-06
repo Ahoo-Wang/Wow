@@ -48,4 +48,38 @@ class ProjectionDslTest {
             )
         )
     }
+
+    @Test
+    fun `should build empty projection when no fields specified`() {
+        val projection = projection { }
+        projection.include.assert().isEmpty()
+        projection.exclude.assert().isEmpty()
+    }
+
+    @Test
+    fun `should build projection with multiple includes`() {
+        val projection = projection {
+            include("field1", "field2", "field3")
+        }
+        projection.include.assert().hasSize(3)
+        projection.exclude.assert().isEmpty()
+    }
+
+    @Test
+    fun `should build projection with multiple excludes`() {
+        val projection = projection {
+            exclude("field1", "field2")
+        }
+        projection.include.assert().isEmpty()
+        projection.exclude.assert().hasSize(2)
+    }
+
+    @Test
+    fun `should build projection with custom nested prefix`() {
+        val projection = projection {
+            nested("custom")
+            include("field1")
+        }
+        projection.include.assert().isEqualTo(listOf("custom.field1"))
+    }
 }

@@ -28,6 +28,7 @@ import me.ahoo.wow.filter.LogErrorHandler
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.query.dsl.listQuery
+import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.event.EventStreamQueryService
 import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
 import me.ahoo.wow.query.filter.QueryContext
@@ -67,6 +68,39 @@ class MaskingEventStreamQueryFilterTest {
             .test()
             .consumeNextWith {
                 it.assert().doesNotContainKey(MessageRecords.CONTEXT_NAME)
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `should mask dynamic single event stream result`() {
+        val query = singleQuery { }
+        queryHandler.dynamicSingle(MOCK_AGGREGATE_METADATA, query)
+            .test()
+            .consumeNextWith {
+                it.assert().doesNotContainKey(MessageRecords.CONTEXT_NAME)
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `should mask dynamic paged event stream results`() {
+        val pagedQuery = me.ahoo.wow.query.dsl.pagedQuery { }
+        queryHandler.dynamicPaged(MOCK_AGGREGATE_METADATA, pagedQuery)
+            .test()
+            .consumeNextWith {
+                it.total.assert().isOne()
+                it.list.first().assert().doesNotContainKey(MessageRecords.CONTEXT_NAME)
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `should return count without masking`() {
+        queryHandler.count(MOCK_AGGREGATE_METADATA, Condition.ALL)
+            .test()
+            .consumeNextWith {
+                it.assert().isOne()
             }
             .verifyComplete()
     }
