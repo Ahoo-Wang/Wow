@@ -15,13 +15,17 @@ package me.ahoo.wow.openapi.metadata
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.AggregateRoute
-import me.ahoo.wow.example.domain.cart.Cart
+import me.ahoo.wow.tck.mock.MockCommandAggregate
 import org.junit.jupiter.api.Test
 
-class AggregateRouteMetadataParserTest {
+internal class AggregateRouteMetadataParserTest {
+
     @Test
-    fun `should parse aggregate route metadata`() {
-        val aggregateRouteMetadata = aggregateRouteMetadata<Cart>()
-        aggregateRouteMetadata.owner.assert().isEqualTo(AggregateRoute.Owner.AGGREGATE_ID)
+    fun `should parse aggregate route metadata with default values when no annotation`() {
+        val metadata = aggregateRouteMetadata<MockCommandAggregate>()
+        metadata.enabled.assert().isTrue()
+        metadata.owner.assert().isEqualTo(AggregateRoute.Owner.NEVER)
+        metadata.spaced.assert().isFalse()
+        metadata.resourceName.assert().isEqualTo("mock_aggregate")
     }
 }

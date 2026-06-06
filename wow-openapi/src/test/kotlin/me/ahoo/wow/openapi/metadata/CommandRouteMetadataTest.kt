@@ -14,32 +14,39 @@
 package me.ahoo.wow.openapi.metadata
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.annotation.CommandRoute
 import org.junit.jupiter.api.Test
 
-class CommandRouteMetadataTest {
+internal class CommandRouteMetadataTest {
 
     @Test
     fun `should be equal to same command route metadata`() {
-        val commandRouteMetadata = commandRouteMetadata<MockCommandRoute>()
-        commandRouteMetadata.assert().isEqualTo(commandRouteMetadata)
+        val metadata = commandRouteMetadata<FixtureCommand>()
+        metadata.assert().isEqualTo(metadata)
     }
 
     @Test
     fun `should not be equal to arbitrary object`() {
-        val commandRouteMetadata = commandRouteMetadata<MockCommandRoute>()
-        commandRouteMetadata.assert().isNotEqualTo(Any())
+        val metadata = commandRouteMetadata<FixtureCommand>()
+        metadata.assert().isNotEqualTo(Any())
     }
 
     @Test
     fun `should not be equal to different command route metadata`() {
-        val commandRouteMetadata = commandRouteMetadata<MockCommandRoute>()
-        val nestedMockCommandRoute = commandRouteMetadata<NestedMockCommandRoute>()
-        commandRouteMetadata.assert().isNotEqualTo(nestedMockCommandRoute)
+        val metadata1 = commandRouteMetadata<FixtureCommand>()
+        val metadata2 = commandRouteMetadata<OtherFixtureCommand>()
+        metadata1.assert().isNotEqualTo(metadata2)
     }
 
     @Test
     fun `should have hash code matching command metadata`() {
-        val commandRouteMetadata = commandRouteMetadata<MockCommandRoute>()
-        commandRouteMetadata.hashCode().assert().isEqualTo(commandRouteMetadata.commandMetadata.hashCode())
+        val metadata = commandRouteMetadata<FixtureCommand>()
+        metadata.hashCode().assert().isEqualTo(metadata.commandMetadata.hashCode())
     }
 }
+
+@CommandRoute("{id}")
+private data class FixtureCommand(@CommandRoute.PathVariable val id: String)
+
+@CommandRoute("{name}")
+private data class OtherFixtureCommand(@CommandRoute.PathVariable val name: String)

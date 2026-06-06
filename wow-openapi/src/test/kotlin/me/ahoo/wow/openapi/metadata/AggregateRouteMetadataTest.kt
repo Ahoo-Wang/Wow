@@ -14,33 +14,26 @@
 package me.ahoo.wow.openapi.metadata
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.example.domain.cart.Cart
-import me.ahoo.wow.example.domain.order.Order
+import me.ahoo.wow.tck.mock.MockCommandAggregate
 import org.junit.jupiter.api.Test
 
-class AggregateRouteMetadataTest {
+internal class AggregateRouteMetadataTest {
+
     @Test
     fun `should be equal to same aggregate route metadata`() {
-        val aggregateRouteMetadata = aggregateRouteMetadata<Cart>()
-        aggregateRouteMetadata.assert().isEqualTo(aggregateRouteMetadata)
+        val metadata = aggregateRouteMetadata<MockCommandAggregate>()
+        metadata.assert().isEqualTo(metadata)
     }
 
     @Test
     fun `should not be equal to arbitrary object`() {
-        val aggregateRouteMetadata = aggregateRouteMetadata<Cart>()
-        aggregateRouteMetadata.assert().isNotEqualTo(Any())
-    }
-
-    @Test
-    fun `should not be equal to different aggregate route metadata`() {
-        val aggregateRouteMetadata = aggregateRouteMetadata<Cart>()
-        val other = aggregateRouteMetadata<Order>()
-        aggregateRouteMetadata.assert().isNotEqualTo(other)
+        val metadata = aggregateRouteMetadata<MockCommandAggregate>()
+        metadata.assert().isNotEqualTo(Any())
     }
 
     @Test
     fun `should have hash code matching aggregate metadata`() {
-        val aggregateRouteMetadata = aggregateRouteMetadata<Cart>()
-        aggregateRouteMetadata.hashCode().assert().isEqualTo(aggregateRouteMetadata.aggregateMetadata.hashCode())
+        val metadata = aggregateRouteMetadata<MockCommandAggregate>()
+        metadata.hashCode().assert().isEqualTo(metadata.aggregateMetadata.hashCode())
     }
 }

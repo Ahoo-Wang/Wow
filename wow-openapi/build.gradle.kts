@@ -9,4 +9,5 @@ dependencies {
     implementation("org.springframework:spring-web")
     api("io.swagger.core.v3:swagger-core-jakarta")
     testImplementation(project(":wow-models"))
+    testImplementation(project(":wow-tck"))
 }
