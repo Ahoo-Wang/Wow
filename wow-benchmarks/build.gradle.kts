@@ -1,3 +1,6 @@
+import org.gradle.api.file.RegularFile
+import org.gradle.api.provider.Provider
+import org.gradle.api.tasks.JavaExec
 import java.time.LocalDate
 import java.util.zip.ZipFile
 
@@ -170,6 +173,97 @@ tasks.register<JavaExec>("benchmarkSmoke") {
     doFirst {
         benchmarkSmokeReport.get().asFile.parentFile.mkdirs()
     }
+}
+
+val benchmarkInternalReport = layout.buildDirectory.file("results/jmh/internal.json")
+val benchmarkExternalReport = layout.buildDirectory.file("results/jmh/external.json")
+val benchmarkInternalHumanReport = layout.buildDirectory.file("reports/jmh/internal-human.txt")
+val benchmarkExternalHumanReport = layout.buildDirectory.file("reports/jmh/external-human.txt")
+
+val benchmarkJvmArgs = listOf(
+    "-Xmx4g",
+    "-Xms4g",
+    "-XX:+UseG1GC",
+    "-XX:+UnlockDiagnosticVMOptions",
+    "-XX:+DebugNonSafepoints",
+    "-XX:+AlwaysPreTouch",
+)
+
+fun benchmarkProfilerArgs(): List<String> {
+    val asyncProfilerLib = file("/opt/async-profiler/lib/libasyncProfiler.dylib")
+    return buildList {
+        add("-prof")
+        add("gc")
+        add("-prof")
+        if (asyncProfilerLib.exists()) {
+            add("async:output=flamegraph;dir=build/profiling;event=cpu;libPath=${asyncProfilerLib.absolutePath}")
+        } else {
+            add("stack:lines=10;top=20")
+        }
+    }
+}
+
+fun JavaExec.configureJmhBenchmarkRun(
+    includePattern: String,
+    resultsFile: Provider<RegularFile>,
+    humanOutputFile: Provider<RegularFile>,
+) {
+    dependsOn(tasks.named("jmhJar"))
+    classpath(tasks.named<Jar>("jmhJar").flatMap { it.archiveFile })
+    mainClass.set("org.openjdk.jmh.Main")
+    args(
+        includePattern,
+        "-t",
+        "1",
+        "-wi",
+        "2",
+        "-w",
+        "5s",
+        "-i",
+        "3",
+        "-r",
+        "10s",
+        "-f",
+        "2",
+        "-foe",
+        "true",
+        "-rf",
+        "json",
+        "-rff",
+        resultsFile.get().asFile.absolutePath,
+        "-o",
+        humanOutputFile.get().asFile.absolutePath,
+        "-jvmArgs",
+        benchmarkJvmArgs.joinToString(" "),
+    )
+    args(benchmarkProfilerArgs())
+    outputs.file(resultsFile)
+    outputs.file(humanOutputFile)
+    outputs.upToDateWhen { false }
+    doFirst {
+        resultsFile.get().asFile.parentFile.mkdirs()
+        humanOutputFile.get().asFile.parentFile.mkdirs()
+    }
+}
+
+tasks.register<JavaExec>("benchmarkInternal") {
+    description = "Runs non-Mongo and non-Redis JMH benchmarks."
+    group = "benchmark"
+    configureJmhBenchmarkRun(
+        includePattern = """me\.ahoo\.wow\.(?!mongo\.|redis\.).*Benchmark.*""",
+        resultsFile = benchmarkInternalReport,
+        humanOutputFile = benchmarkInternalHumanReport,
+    )
+}
+
+tasks.register<JavaExec>("benchmarkExternal") {
+    description = "Runs MongoDB and Redis JMH benchmarks."
+    group = "benchmark"
+    configureJmhBenchmarkRun(
+        includePattern = """me\.ahoo\.wow\.(mongo|redis)\..*Benchmark.*""",
+        resultsFile = benchmarkExternalReport,
+        humanOutputFile = benchmarkExternalHumanReport,
+    )
 }
 
 jmh {
