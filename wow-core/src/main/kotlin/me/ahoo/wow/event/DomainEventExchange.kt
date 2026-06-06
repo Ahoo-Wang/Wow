@@ -53,20 +53,35 @@ interface DomainEventExchange<T : Any> : EventExchange<DomainEventExchange<T>, D
  *
  * @param T The type of the domain event body
  * @property message The domain event being processed
- * @property attributes Mutable map for storing exchange attributes (default: empty ConcurrentHashMap)
+ * @property attributes Mutable map for storing exchange attributes (default: lazy empty ConcurrentHashMap)
  *
  * @constructor Creates a new SimpleDomainEventExchange with the given message and attributes
  *
  * @param message The domain event message
- * @param attributes The mutable map of attributes (default: ConcurrentHashMap)
+ * @param attributes The mutable map of attributes (default: lazy ConcurrentHashMap)
  *
  * @see DomainEventExchange
  * @see DomainEvent
  */
 class SimpleDomainEventExchange<T : Any>(
     override val message: DomainEvent<T>,
-    override val attributes: MutableMap<String, Any> = ConcurrentHashMap()
-) : DomainEventExchange<T>
+    attributes: MutableMap<String, Any>? = null
+) : DomainEventExchange<T> {
+    @Volatile
+    private var lazyAttributes: MutableMap<String, Any>? = attributes
+
+    override val attributes: MutableMap<String, Any>
+        get() {
+            lazyAttributes?.let {
+                return it
+            }
+            return synchronized(this) {
+                lazyAttributes ?: ConcurrentHashMap<String, Any>().also {
+                    lazyAttributes = it
+                }
+            }
+        }
+}
 
 /**
  * Exchange interface for domain events with state context.
@@ -127,13 +142,13 @@ interface StateDomainEventExchange<S : Any, T : Any> : DomainEventExchange<T> {
  * @param T The type of the domain event body
  * @property state The read-only state aggregate
  * @property message The domain event being processed
- * @property attributes Mutable map for storing exchange attributes (default: empty ConcurrentHashMap)
+ * @property attributes Mutable map for storing exchange attributes (default: lazy empty ConcurrentHashMap)
  *
  * @constructor Creates a new SimpleStateDomainEventExchange with state, message, and attributes
  *
  * @param state The read-only state aggregate
  * @param message The domain event message
- * @param attributes The mutable map of attributes (default: ConcurrentHashMap)
+ * @param attributes The mutable map of attributes (default: lazy ConcurrentHashMap)
  *
  * @see StateDomainEventExchange
  * @see ReadOnlyStateAggregate
@@ -142,5 +157,20 @@ interface StateDomainEventExchange<S : Any, T : Any> : DomainEventExchange<T> {
 class SimpleStateDomainEventExchange<S : Any, T : Any>(
     override val state: ReadOnlyStateAggregate<S>,
     override val message: DomainEvent<T>,
-    override val attributes: MutableMap<String, Any> = ConcurrentHashMap()
-) : StateDomainEventExchange<S, T>
+    attributes: MutableMap<String, Any>? = null
+) : StateDomainEventExchange<S, T> {
+    @Volatile
+    private var lazyAttributes: MutableMap<String, Any>? = attributes
+
+    override val attributes: MutableMap<String, Any>
+        get() {
+            lazyAttributes?.let {
+                return it
+            }
+            return synchronized(this) {
+                lazyAttributes ?: ConcurrentHashMap<String, Any>().also {
+                    lazyAttributes = it
+                }
+            }
+        }
+}

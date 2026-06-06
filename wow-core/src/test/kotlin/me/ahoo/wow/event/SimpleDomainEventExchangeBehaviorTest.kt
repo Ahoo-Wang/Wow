@@ -25,6 +25,7 @@ import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockStateAggregate
 import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
+import java.util.concurrent.ConcurrentHashMap
 
 class SimpleDomainEventExchangeBehaviorTest {
 
@@ -65,6 +66,61 @@ class SimpleDomainEventExchangeBehaviorTest {
         exchange.extractDeclared(ReadOnlyStateAggregate::class.java).assert().isSameAs(stateAggregate)
         exchange.extractDeclared(MockStateAggregate::class.java).assert().isSameAs(stateAggregate.state)
     }
+
+    @Test
+    fun `default exchanges create attribute maps lazily`() {
+        val exchange = SimpleDomainEventExchange(event)
+
+        exchange.eagerAttributeMaps().assert().isEmpty()
+        exchange.attributes["key"] = "value"
+        exchange.attributes["key"].assert().isEqualTo("value")
+
+        val stateAggregate = MOCK_AGGREGATE_METADATA.state.toStateAggregate(
+            aggregateId = aggregateId,
+            state = MockStateAggregate("exchange-aggregate"),
+            version = 1,
+        )
+        val stateExchange = SimpleStateDomainEventExchange(
+            state = stateAggregate,
+            message = event,
+        )
+
+        stateExchange.eagerAttributeMaps().assert().isEmpty()
+        stateExchange.attributes["key"] = "value"
+        stateExchange.attributes["key"].assert().isEqualTo("value")
+    }
+
+    @Test
+    fun `simple exchanges preserve supplied attribute maps`() {
+        val attributes = ConcurrentHashMap<String, Any>()
+        val exchange = SimpleDomainEventExchange(
+            message = event,
+            attributes = attributes,
+        )
+
+        exchange.attributes.assert().isSameAs(attributes)
+
+        val stateAggregate = MOCK_AGGREGATE_METADATA.state.toStateAggregate(
+            aggregateId = aggregateId,
+            state = MockStateAggregate("exchange-aggregate"),
+            version = 1,
+        )
+        val stateExchange = SimpleStateDomainEventExchange(
+            state = stateAggregate,
+            message = event,
+            attributes = attributes,
+        )
+
+        stateExchange.attributes.assert().isSameAs(attributes)
+    }
+
+    private fun Any.eagerAttributeMaps(): List<Map<*, *>> =
+        javaClass.declaredFields
+            .filter { Map::class.java.isAssignableFrom(it.type) }
+            .mapNotNull { field ->
+                field.isAccessible = true
+                field.get(this) as? Map<*, *>
+            }
 
     private class TestEventFunction : MessageFunction<Any, DomainEventExchange<*>, Mono<*>> {
         override val name: String = "test"

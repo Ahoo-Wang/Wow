@@ -47,6 +47,16 @@ class MonoFunctionAccessorBehaviorTest {
     }
 
     @Test
+    fun `single argument sync accessor still adapts return value to Mono`() {
+        val accessor = ReactiveAccessorFixture::syncEcho.toMonoFunctionAccessor<ReactiveAccessorFixture, String>()
+
+        accessor.assert().isInstanceOf(SyncMonoFunctionAccessor::class.java)
+        StepVerifier.create(accessor.invokeSingle(fixture, "single"))
+            .expectNext("single")
+            .verifyComplete()
+    }
+
+    @Test
     fun `should collect Flux return values into a list`() {
         val accessor = ReactiveAccessorFixture::fluxValues
             .toMonoFunctionAccessor<ReactiveAccessorFixture, List<String>>()
@@ -109,6 +119,8 @@ private class ReactiveAccessorFixture {
     fun monoValue(): Mono<String> = Mono.just(monoResult)
 
     fun syncValue(): String = syncResult
+
+    fun syncEcho(value: String): String = value
 
     fun fluxValues(): Flux<String> = Flux.just("flux-1", "flux-2")
 

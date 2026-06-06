@@ -36,6 +36,8 @@ import java.lang.reflect.Method;
  * @see <a href="https://detekt.dev/docs/rules/performance/#spreadoperator">Detekt SpreadOperator Rule</a>
  */
 public final class FastInvoke {
+    private static final ThreadLocal<Object[]> SINGLE_ARGUMENTS = ThreadLocal.withInitial(() -> new Object[1]);
+
     private FastInvoke() {
     }
 
@@ -98,6 +100,55 @@ public final class FastInvoke {
             throws Throwable {
         try {
             return invoke(method, target, args);
+        } catch (InvocationTargetException targetException) {
+            throw targetException.getTargetException();
+        }
+    }
+
+    /**
+     * Invokes the specified single-argument method on the target object.
+     * <p>
+     * This method reuses a per-thread one-element argument array, avoiding per-call Object[]
+     * allocation in hot paths that invoke simple message handlers.
+     * </p>
+     *
+     * @param method the method to invoke; must not be null
+     * @param target the object on which to invoke the method, or null for static methods
+     * @param arg the single argument to pass to the method
+     * @param <T> the return type of the method
+     * @return the result of the method invocation, or null if the method returns void
+     * @throws InvocationTargetException if the underlying method throws an exception
+     * @throws IllegalAccessException if the method is not accessible
+     */
+    public static <T> T invokeSingle(@NotNull Method method, Object target, Object arg)
+            throws InvocationTargetException, IllegalAccessException {
+        Object[] args = SINGLE_ARGUMENTS.get();
+        args[0] = arg;
+        try {
+            return invoke(method, target, args);
+        } finally {
+            args[0] = null;
+        }
+    }
+
+    /**
+     * Safely invokes the specified single-argument method on the target object.
+     * <p>
+     * This method calls {@link #invokeSingle(Method, Object, Object)} but throws the target
+     * exception directly instead of wrapping it in InvocationTargetException.
+     * </p>
+     *
+     * @param method the method to invoke; must not be null
+     * @param target the object on which to invoke the method, or null for static methods
+     * @param arg the single argument to pass to the method
+     * @param <T> the return type of the method
+     * @return the result of the method invocation, or null if the method returns void
+     * @throws Throwable if the underlying method throws an exception or if invocation fails
+     */
+    public static <T> T safeInvokeSingle(@NotNull Method method, Object target, Object arg)
+            throws Throwable {
+        try {
+            return invokeSingle(method, target, arg);
         } catch (InvocationTargetException targetException) {
             throw targetException.getTargetException();
         }

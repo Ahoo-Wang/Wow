@@ -14,11 +14,17 @@
 package me.ahoo.wow.redis
 
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration
+import org.springframework.data.redis.connection.ReactiveRedisConnection
 import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate
+import java.time.Duration
 
 class RedisBenchmarkFixture : AutoCloseable {
+    companion object {
+        private val FLUSH_TIMEOUT: Duration = Duration.ofSeconds(30)
+    }
+
     val connectionFactory: LettuceConnectionFactory
     val redisTemplate: ReactiveStringRedisTemplate
 
@@ -30,9 +36,22 @@ class RedisBenchmarkFixture : AutoCloseable {
         connectionFactory = LettuceConnectionFactory(redisConfig, lettuceClientConfiguration)
         connectionFactory.afterPropertiesSet()
         redisTemplate = ReactiveStringRedisTemplate(connectionFactory)
+        flushDb()
     }
 
     override fun close() {
+        runCatching {
+            flushDb()
+        }
         connectionFactory.destroy()
+    }
+
+    private fun flushDb() {
+        val connection: ReactiveRedisConnection = connectionFactory.reactiveConnection
+        try {
+            connection.serverCommands().flushDb().block(FLUSH_TIMEOUT)
+        } finally {
+            connection.close()
+        }
     }
 }

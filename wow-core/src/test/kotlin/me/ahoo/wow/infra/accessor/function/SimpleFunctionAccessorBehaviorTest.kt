@@ -28,6 +28,7 @@ class SimpleFunctionAccessorBehaviorTest {
         accessor.name.assert().isEqualTo("greet")
         accessor.targetType.assert().isEqualTo(FunctionAccessorFixture::class.java)
         accessor.invoke(fixture, arrayOf("wow")).assert().isEqualTo("hello wow")
+        accessor.invokeSingle(fixture, "wow").assert().isEqualTo("hello wow")
     }
 }
 

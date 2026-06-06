@@ -41,7 +41,7 @@ data class SimpleMessageFunctionAccessor<P : Any, in M : MessageExchange<*, *>, 
      */
     override fun invoke(exchange: M): R {
         val firstArgument = metadata.extractFirstArgument(exchange)
-        return metadata.accessor.invoke(processor, arrayOf(firstArgument))
+        return metadata.accessor.invokeSingle(processor, firstArgument)
     }
 
     override fun toString(): String = "SimpleMessageFunctionAccessor(metadata=$metadata)"

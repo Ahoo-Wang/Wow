@@ -41,6 +41,10 @@ class FastInvokeTest {
         return args;
     }
 
+    public String singleArgMethod(String arg) {
+        return "hello " + arg;
+    }
+
     @Test
     void invoke() throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
         Method method = getClass().getDeclaredMethod("varArgsMethod", String[].class);
@@ -49,6 +53,14 @@ class FastInvokeTest {
         Object[] invokeArgs = {args};
         Object result = FastInvoke.invoke(method, this, invokeArgs);
         assertThat(result).isEqualTo(args);
+    }
+
+    @Test
+    void safeInvokeSingle() throws Throwable {
+        Method method = getClass().getDeclaredMethod("singleArgMethod", String.class);
+        method.trySetAccessible();
+        Object result = FastInvoke.safeInvokeSingle(method, this, "wow");
+        assertThat(result).isEqualTo("hello wow");
     }
 
     @Test

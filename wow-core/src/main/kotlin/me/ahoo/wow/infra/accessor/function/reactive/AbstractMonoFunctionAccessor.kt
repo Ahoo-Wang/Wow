@@ -25,4 +25,6 @@ abstract class AbstractMonoFunctionAccessor<T, D : Mono<*>> (override val functi
     init {
         function.ensureAccessible()
     }
+
+    override fun invokeSingle(target: T, arg: Any?): D = invoke(target, arrayOf(arg))
 }

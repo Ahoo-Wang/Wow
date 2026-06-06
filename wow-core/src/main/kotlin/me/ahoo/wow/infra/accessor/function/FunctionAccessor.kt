@@ -98,4 +98,14 @@ interface FunctionAccessor<T, out R> : Named {
         target: T,
         args: Array<Any?> = emptyArray<Any?>()
     ): R = FastInvoke.safeInvoke(method, target, args)
+
+    /**
+     * Invokes a single-argument function without allocating a fresh Object[] on every call.
+     *
+     * @param target the object on which to invoke the function
+     * @param arg the argument to pass to the function
+     * @return the result of the function invocation
+     * @throws Throwable if the function invocation fails or throws an exception
+     */
+    fun invokeSingle(target: T, arg: Any?): R = FastInvoke.safeInvokeSingle(method, target, arg)
 }
