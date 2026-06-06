@@ -126,6 +126,7 @@ abstract class AbstractCommandDispatcherBenchmark {
     }
 
     open fun destroy() {
+        commandGateway.close()
         commandDispatcher.stop()
     }
 

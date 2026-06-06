@@ -88,7 +88,7 @@ val mergeWowMetadata = tasks.register("mergeWowMetadata") {
                                 @Suppress("UNCHECKED_CAST")
                                 val existingAggMap = existingAgg as MutableMap<String, Any>
                                 @Suppress("UNCHECKED_CAST")
-                                val newAggMap = aggValue as Map<String, Any>
+                                val newAggMap = aggValue as Map<String, Any?>
                                 for ((key, value) in newAggMap) {
                                     if (value != null) {
                                         val existingVal = existingAggMap[key]
@@ -126,15 +126,76 @@ val mergeWowMetadata = tasks.register("mergeWowMetadata") {
     }
 }
 
+val mergedJmhServicesRoot = layout.buildDirectory.dir("tmp/jmh-services-merged")
+val jmhServiceFilesToMerge = listOf(
+    "META-INF/services/tools.jackson.databind.JacksonModule",
+    "META-INF/services/me.ahoo.wow.id.GlobalIdGeneratorFactory",
+)
+val mergeJmhServices = tasks.register("mergeJmhServices") {
+    description = "Merge critical SPI service files from the JMH runtime classpath."
+    outputs.dir(mergedJmhServicesRoot)
+    inputs.files(configurations.jmhRuntimeClasspath)
+    inputs.files(jmhServiceFilesToMerge.map { layout.projectDirectory.file("src/jmh/resources/$it") })
+    doLast {
+        val outputRoot = mergedJmhServicesRoot.get().asFile
+        outputRoot.deleteRecursively()
+
+        fun MutableSet<String>.addServiceProviders(text: String) {
+            text.lineSequence()
+                .map { it.substringBefore('#').trim() }
+                .filter { it.isNotEmpty() }
+                .forEach { add(it) }
+        }
+
+        for (servicePath in jmhServiceFilesToMerge) {
+            val providers = linkedSetOf<String>()
+            configurations.jmhRuntimeClasspath.get().resolve()
+                .filter { it.name.endsWith(".jar") || it.isDirectory }
+                .forEach { file ->
+                    if (file.isDirectory) {
+                        val serviceFile = file.resolve(servicePath)
+                        if (serviceFile.exists()) {
+                            providers.addServiceProviders(serviceFile.readText())
+                        }
+                    } else {
+                        ZipFile(file).use { zip ->
+                            zip.getEntry(servicePath)?.let { entry ->
+                                providers.addServiceProviders(zip.getInputStream(entry).bufferedReader().readText())
+                            }
+                        }
+                    }
+                }
+
+            val localServiceFile = file("src/jmh/resources/$servicePath")
+            if (localServiceFile.exists()) {
+                providers.addServiceProviders(localServiceFile.readText())
+            }
+
+            if (providers.isNotEmpty()) {
+                val outputFile = outputRoot.resolve(servicePath)
+                outputFile.parentFile.mkdirs()
+                outputFile.writeText(providers.joinToString(System.lineSeparator(), postfix = System.lineSeparator()))
+            }
+        }
+    }
+}
+
 tasks.named<Jar>("jmhJar") {
     isZip64 = true
     dependsOn(mergeWowMetadata)
+    dependsOn(mergeJmhServices)
     // Exclude all wow-metadata.json from dependency JARs (they're duplicated)
     exclude("META-INF/wow-metadata.json")
     // Add the merged metadata file
     from(mergedWowMetadata) {
         into("META-INF")
     }
+    eachFile {
+        if (path in jmhServiceFilesToMerge && !file.absolutePath.startsWith(mergedJmhServicesRoot.get().asFile.absolutePath)) {
+            exclude()
+        }
+    }
+    from(mergedJmhServicesRoot)
 }
 
 val benchmarkSmokeIncludes = listOf(

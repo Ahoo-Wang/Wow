@@ -26,7 +26,7 @@ import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.InMemoryDomainEventBus
 import me.ahoo.wow.eventsourcing.EventSourcingStateAggregateRepository
-import me.ahoo.wow.eventsourcing.InMemoryEventStore
+import me.ahoo.wow.eventsourcing.NoopEventStore
 import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotRepository
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
 import me.ahoo.wow.eventsourcing.state.SendStateEventFilter
@@ -60,7 +60,7 @@ open class CommandProcessingPipelineBenchmark {
         val commandBus = InMemoryCommandBus()
         val domainEventBus: DomainEventBus = InMemoryDomainEventBus()
         val stateEventBus = InMemoryStateEventBus()
-        val eventStore = InMemoryEventStore()
+        val eventStore = NoopEventStore
         val snapshotRepository = InMemorySnapshotRepository()
 
         commandGateway = DefaultCommandGateway(
@@ -102,6 +102,7 @@ open class CommandProcessingPipelineBenchmark {
 
     @TearDown
     fun tearDown() {
+        commandGateway.close()
         commandDispatcher.stop()
     }
 

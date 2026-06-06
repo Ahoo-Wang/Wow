@@ -21,26 +21,35 @@ import me.ahoo.wow.example.api.cart.CartQuantityChanged
 import me.ahoo.wow.example.api.cart.ICartInfo
 
 class CartState(val id: String) : ICartInfo {
-    override var items: List<CartItem> = listOf()
+    override var items: List<CartItem> = ArrayList()
         private set
+
+    @Suppress("UNCHECKED_CAST")
+    private fun mutableItems(): MutableList<CartItem> {
+        if (items is MutableList<*>) {
+            return items as MutableList<CartItem>
+        }
+        val mutableItems = ArrayList(items)
+        items = mutableItems
+        return mutableItems
+    }
 
     @OnSourcing
     fun onCartItemAdded(cartItemAdded: CartItemAdded) {
-        items = items + cartItemAdded.added
+        mutableItems().add(cartItemAdded.added)
     }
 
     @OnSourcing
     fun onCartItemRemoved(cartItemRemoved: CartItemRemoved) {
-        items = items.filter { !cartItemRemoved.productIds.contains(it.productId) }
+        mutableItems().removeAll { cartItemRemoved.productIds.contains(it.productId) }
     }
 
     @OnSourcing
     fun onCartQuantityChanged(cartQuantityChanged: CartQuantityChanged) {
-        items = items.map {
-            if (it.productId == cartQuantityChanged.changed.productId) {
-                cartQuantityChanged.changed
-            } else {
-                it
+        val mutableItems = mutableItems()
+        for (index in mutableItems.indices) {
+            if (mutableItems[index].productId == cartQuantityChanged.changed.productId) {
+                mutableItems[index] = cartQuantityChanged.changed
             }
         }
     }

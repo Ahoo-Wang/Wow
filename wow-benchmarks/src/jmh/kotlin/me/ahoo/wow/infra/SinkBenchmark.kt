@@ -19,6 +19,8 @@ import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
+import org.openjdk.jmh.annotations.TearDown
+import reactor.core.Disposable
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
 import reactor.core.scheduler.Scheduler
@@ -29,13 +31,25 @@ open class SinkBenchmark {
     private lateinit var sink: Sinks.Many<String>
     private lateinit var concurrentManySink: ConcurrentManySink<String>
     private lateinit var emitScheduler: Scheduler
+    private lateinit var sinkSubscription: Disposable
+    private lateinit var concurrentManySinkSubscription: Disposable
 
     @Setup
     fun setup() {
         sink = Sinks.many().unicast().onBackpressureBuffer()
-        sink.asFlux().subscribe()
+        sinkSubscription = sink.asFlux().subscribe()
         emitScheduler = Schedulers.newSingle("emit-scheduler")
         concurrentManySink = Sinks.unsafe().many().unicast().onBackpressureBuffer<String>().concurrent()
+        concurrentManySinkSubscription = concurrentManySink.asFlux().subscribe()
+    }
+
+    @TearDown
+    fun tearDown() {
+        emitScheduler.dispose()
+        sink.tryEmitComplete()
+        concurrentManySink.tryEmitComplete()
+        sinkSubscription.dispose()
+        concurrentManySinkSubscription.dispose()
     }
 
     @Benchmark
