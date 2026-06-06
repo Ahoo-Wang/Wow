@@ -38,18 +38,17 @@ class RetryableAggregateProcessor<C : Any, S : Any>(
         private val log = KotlinLogging.logger {}
         private const val MAX_RETRIES = 3L
         private val MIN_BACKOFF = Duration.ofMillis(500)
+        private val RETRY_STRATEGY: Retry = Retry.backoff(MAX_RETRIES, MIN_BACKOFF)
+            .filter {
+                it.recoverable == RecoverableType.RECOVERABLE
+            }.doBeforeRetry {
+                log.warn(it.failure()) {
+                    "[BeforeRetry] totalRetries[${it.totalRetries()}]."
+                }
+            }
     }
 
     override val processorName: String = RetryableAggregateProcessor::class.simpleName!!
-
-    private val retryStrategy: Retry = Retry.backoff(MAX_RETRIES, MIN_BACKOFF)
-        .filter {
-            it.recoverable == RecoverableType.RECOVERABLE
-        }.doBeforeRetry {
-            log.warn(it.failure()) {
-                "[BeforeRetry] $aggregateId totalRetries[${it.totalRetries()}]."
-            }
-        }
 
     override fun process(exchange: ServerCommandExchange<*>): Mono<DomainEventStream> {
         val stateAggregateMono = if (exchange.message.isCreate) {
@@ -67,6 +66,6 @@ class RetryableAggregateProcessor<C : Any, S : Any>(
                 exchange.clearError()
                 it.process(exchange)
             }
-            .retryWhen(retryStrategy)
+            .retryWhen(RETRY_STRATEGY)
     }
 }

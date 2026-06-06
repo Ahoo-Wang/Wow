@@ -20,6 +20,17 @@ import org.junit.jupiter.api.Test
 class SimpleClientCommandExchangeBehaviorTest {
 
     @Test
+    fun `default exchange creates attribute map lazily`() {
+        val message = AccountCommand(id = "account-1").toCommandMessage(id = "command-1")
+        val waitStrategy = WaitingForStage.sent(message.commandId)
+        val exchange = SimpleClientCommandExchange(message, waitStrategy)
+
+        exchange.eagerAttributeMaps().assert().isEmpty()
+        exchange.attributes["key"] = "value"
+        exchange.attributes["key"].assert().isEqualTo("value")
+    }
+
+    @Test
     fun `should expose message wait strategy and mutable attributes`() {
         val message = AccountCommand(id = "account-1").toCommandMessage(id = "command-1")
         val waitStrategy = WaitingForStage.sent(message.commandId)
@@ -34,4 +45,12 @@ class SimpleClientCommandExchangeBehaviorTest {
 
         exchange.getAttribute<String>("key").assert().isEqualTo("value")
     }
+
+    private fun Any.eagerAttributeMaps(): List<Map<*, *>> =
+        javaClass.declaredFields
+            .filter { Map::class.java.isAssignableFrom(it.type) }
+            .mapNotNull { field ->
+                field.isAccessible = true
+                field.get(this) as? Map<*, *>
+            }
 }

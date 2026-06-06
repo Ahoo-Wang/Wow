@@ -70,8 +70,23 @@ interface ClientCommandExchange<C : Any> : CommandExchange<ClientCommandExchange
 class SimpleClientCommandExchange<C : Any>(
     override val message: CommandMessage<C>,
     override val waitStrategy: WaitStrategy,
-    override val attributes: MutableMap<String, Any> = ConcurrentHashMap()
-) : ClientCommandExchange<C>
+    attributes: MutableMap<String, Any>? = null
+) : ClientCommandExchange<C> {
+    @Volatile
+    private var lazyAttributes: MutableMap<String, Any>? = attributes
+
+    override val attributes: MutableMap<String, Any>
+        get() {
+            lazyAttributes?.let {
+                return it
+            }
+            return synchronized(this) {
+                lazyAttributes ?: ConcurrentHashMap<String, Any>().also {
+                    lazyAttributes = it
+                }
+            }
+        }
+}
 
 const val COMMAND_INVOKE_RESULT_KEY = "__COMMAND_INVOKE_RESULT__"
 const val EVENT_STREAM_KEY = "__EVENT_STREAM__"
@@ -241,5 +256,20 @@ interface ServerCommandExchange<C : Any> : CommandExchange<ServerCommandExchange
  */
 class SimpleServerCommandExchange<C : Any>(
     override val message: CommandMessage<C>,
-    override val attributes: MutableMap<String, Any> = ConcurrentHashMap()
-) : ServerCommandExchange<C>
+    attributes: MutableMap<String, Any>? = null
+) : ServerCommandExchange<C> {
+    @Volatile
+    private var lazyAttributes: MutableMap<String, Any>? = attributes
+
+    override val attributes: MutableMap<String, Any>
+        get() {
+            lazyAttributes?.let {
+                return it
+            }
+            return synchronized(this) {
+                lazyAttributes ?: ConcurrentHashMap<String, Any>().also {
+                    lazyAttributes = it
+                }
+            }
+        }
+}

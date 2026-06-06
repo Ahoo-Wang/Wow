@@ -29,6 +29,16 @@ import org.junit.jupiter.api.Test
 class SimpleServerCommandExchangeBehaviorTest {
 
     @Test
+    fun `default exchange creates attribute map lazily`() {
+        val message = AccountCommand(id = "account-1").toCommandMessage()
+        val exchange = SimpleServerCommandExchange(message)
+
+        exchange.eagerAttributeMaps().assert().isEmpty()
+        exchange.attributes["key"] = "value"
+        exchange.attributes["key"].assert().isEqualTo("value")
+    }
+
+    @Test
     fun `should store command processing attributes`() {
         val message = AccountCommand(id = "account-1").toCommandMessage()
         val exchange = SimpleServerCommandExchange(message)
@@ -84,4 +94,12 @@ class SimpleServerCommandExchangeBehaviorTest {
         (error as DomainEventException).errorCode.assert().isEqualTo("EVENT_FAILED")
         error.errorMsg.assert().isEqualTo("event failed")
     }
+
+    private fun Any.eagerAttributeMaps(): List<Map<*, *>> =
+        javaClass.declaredFields
+            .filter { Map::class.java.isAssignableFrom(it.type) }
+            .mapNotNull { field ->
+                field.isAccessible = true
+                field.get(this) as? Map<*, *>
+            }
 }

@@ -34,6 +34,8 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
 import reactor.test.StepVerifier
+import reactor.util.retry.Retry
+import java.lang.reflect.Modifier
 import java.time.Duration
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicInteger
@@ -90,6 +92,16 @@ class RetryableAggregateProcessorBehaviorTest {
 
         eventStore.attempts.get().assert().isEqualTo(4)
         exchange.getError().assert().isNull()
+    }
+
+    @Test
+    fun `processor reuses retry strategy across instances`() {
+        val perInstanceRetryFields = RetryableAggregateProcessor::class.java.declaredFields
+            .filter {
+                Retry::class.java.isAssignableFrom(it.type) && !Modifier.isStatic(it.modifiers)
+            }
+
+        perInstanceRetryFields.map { it.name }.assert().isEmpty()
     }
 
     private fun processor(
