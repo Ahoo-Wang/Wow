@@ -11,29 +11,33 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.openapi.metadata
+package me.ahoo.wow.openapi.global
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.tck.mock.MockCommandAggregate
+import me.ahoo.wow.api.Wow
+import me.ahoo.wow.openapi.Https
+import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import org.junit.jupiter.api.Test
 
-internal class AggregateRouteMetadataTest {
+internal class GenerateGlobalIdRouteSpecTest {
+
+    private val context = OpenAPIComponentContext.default()
 
     @Test
-    fun `should be equal to same aggregate route metadata`() {
-        val metadata = aggregateRouteMetadata<MockCommandAggregate>()
-        metadata.assert().isEqualTo(metadata)
+    fun `should have get method`() {
+        val spec = GenerateGlobalIdRouteSpec(context)
+        spec.method.assert().isEqualTo(Https.Method.GET)
     }
 
     @Test
-    fun `should not be equal to arbitrary object`() {
-        val metadata = aggregateRouteMetadata<MockCommandAggregate>()
-        metadata.assert().isNotEqualTo(Any())
+    fun `should have text plain accept`() {
+        val spec = GenerateGlobalIdRouteSpec(context)
+        spec.accept.assert().contains(Https.MediaType.TEXT_PLAIN)
     }
 
     @Test
-    fun `should have hash code matching aggregate metadata`() {
-        val metadata = aggregateRouteMetadata<MockCommandAggregate>()
-        metadata.hashCode().assert().isEqualTo(metadata.aggregateMetadata.hashCode())
+    fun `should have global id path`() {
+        val spec = GenerateGlobalIdRouteSpec(context)
+        spec.path.assert().isEqualTo("/${Wow.WOW}/id/global")
     }
 }

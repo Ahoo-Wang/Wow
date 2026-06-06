@@ -11,29 +11,25 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.openapi.metadata
+package me.ahoo.wow.openapi.global
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.tck.mock.MockCommandAggregate
+import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import org.junit.jupiter.api.Test
 
-internal class AggregateRouteMetadataTest {
+internal class GlobalRouteSpecFactoryProviderTest {
 
     @Test
-    fun `should be equal to same aggregate route metadata`() {
-        val metadata = aggregateRouteMetadata<MockCommandAggregate>()
-        metadata.assert().isEqualTo(metadata)
+    fun `should return component context`() {
+        val context = OpenAPIComponentContext.default()
+        val provider = GlobalRouteSpecFactoryProvider(context)
+        provider.componentContext.assert().isSameAs(context)
     }
 
     @Test
-    fun `should not be equal to arbitrary object`() {
-        val metadata = aggregateRouteMetadata<MockCommandAggregate>()
-        metadata.assert().isNotEqualTo(Any())
-    }
-
-    @Test
-    fun `should have hash code matching aggregate metadata`() {
-        val metadata = aggregateRouteMetadata<MockCommandAggregate>()
-        metadata.hashCode().assert().isEqualTo(metadata.aggregateMetadata.hashCode())
+    fun `should return factories loaded via service loader`() {
+        val context = OpenAPIComponentContext.default()
+        val provider = GlobalRouteSpecFactoryProvider(context)
+        provider.get().assert().isNotNull()
     }
 }

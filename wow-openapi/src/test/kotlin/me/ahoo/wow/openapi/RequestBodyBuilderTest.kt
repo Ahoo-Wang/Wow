@@ -11,29 +11,28 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.openapi.metadata
+package me.ahoo.wow.openapi
 
+import io.swagger.v3.oas.models.media.StringSchema
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.tck.mock.MockCommandAggregate
 import org.junit.jupiter.api.Test
 
-internal class AggregateRouteMetadataTest {
+internal class RequestBodyBuilderTest {
 
     @Test
-    fun `should be equal to same aggregate route metadata`() {
-        val metadata = aggregateRouteMetadata<MockCommandAggregate>()
-        metadata.assert().isEqualTo(metadata)
+    fun `should add content to request body`() {
+        val requestBody = RequestBodyBuilder()
+            .content(schema = StringSchema())
+            .build()
+        requestBody.content.containsKey(Https.MediaType.APPLICATION_JSON).assert().isTrue()
     }
 
     @Test
-    fun `should not be equal to arbitrary object`() {
-        val metadata = aggregateRouteMetadata<MockCommandAggregate>()
-        metadata.assert().isNotEqualTo(Any())
-    }
-
-    @Test
-    fun `should have hash code matching aggregate metadata`() {
-        val metadata = aggregateRouteMetadata<MockCommandAggregate>()
-        metadata.hashCode().assert().isEqualTo(metadata.aggregateMetadata.hashCode())
+    fun `should build request body with description`() {
+        val requestBody = RequestBodyBuilder()
+            .description("command body")
+            .content(schema = StringSchema())
+            .build()
+        requestBody.description.assert().isEqualTo("command body")
     }
 }

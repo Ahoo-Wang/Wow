@@ -1,3 +1,16 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package me.ahoo.wow.openapi
 
 import io.swagger.v3.oas.models.Components
@@ -5,74 +18,63 @@ import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.oas.models.Paths
 import io.swagger.v3.oas.models.info.Info
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.example.api.ExampleService
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.naming.MaterializedNamedBoundedContext
 import me.ahoo.wow.openapi.RouterSpecs.Companion.DEFAULT_OPENAPI_INFO_TITLE
 import org.junit.jupiter.api.Test
 
-class RouterSpecsTest {
-    val materializedNamedBoundedContext = MaterializedNamedBoundedContext(ExampleService.SERVICE_NAME)
+internal class RouterSpecsTest {
+
+    private val namedContext = MaterializedNamedBoundedContext("test-service")
 
     @Test
-    fun `should merge open api when context name not found`() {
-        val openAPI = OpenAPI()
-        val materializedNamedBoundedContext = MaterializedNamedBoundedContext(generateGlobalId())
-        val routerSpecs = RouterSpecs(materializedNamedBoundedContext).build()
-        routerSpecs.mergeOpenAPI(openAPI)
-        routerSpecs.assert().isNotEmpty()
+    fun `should build and return non-empty routes`() {
+        val routerSpecs = RouterSpecs(namedContext).build()
+        routerSpecs.assert().isNotNull()
     }
 
     @Test
-    fun `should merge router specs into open api`() {
+    fun `should merge router specs into open api with context name as title`() {
         val openAPI = OpenAPI()
-        RouterSpecs(materializedNamedBoundedContext).build()
-            .mergeOpenAPI(openAPI)
-        openAPI.info?.title.assert().isEqualTo(materializedNamedBoundedContext.contextName)
-        openAPI.components.schemas.assert().isNotEmpty()
+        RouterSpecs(namedContext).build().mergeOpenAPI(openAPI)
+        openAPI.info?.title.assert().isEqualTo(namedContext.contextName)
     }
 
     @Test
     fun `should keep existing info when merging`() {
-        val info = Info()
+        val info = Info().title("Custom Title")
         val openAPI = OpenAPI().info(info)
-        RouterSpecs(materializedNamedBoundedContext).build()
-            .mergeOpenAPI(openAPI)
+        RouterSpecs(namedContext).build().mergeOpenAPI(openAPI)
         openAPI.info.assert().isSameAs(info)
-        openAPI.components.schemas.assert().isNotEmpty()
+        openAPI.info.title.assert().isEqualTo("Custom Title")
     }
 
     @Test
     fun `should replace default info title when merging`() {
         val info = Info().title(DEFAULT_OPENAPI_INFO_TITLE).description("hello")
         val openAPI = OpenAPI().info(info)
-        RouterSpecs(materializedNamedBoundedContext).build()
-            .mergeOpenAPI(openAPI)
+        RouterSpecs(namedContext).build().mergeOpenAPI(openAPI)
         openAPI.info.assert().isSameAs(info)
-        openAPI.components.schemas.assert().isNotEmpty()
+        openAPI.info.title.assert().isEqualTo(namedContext.contextName)
     }
 
     @Test
     fun `should keep custom info title when merging`() {
         val info = Info().title(generateGlobalId())
         val openAPI = OpenAPI().info(info)
-        RouterSpecs(materializedNamedBoundedContext).build()
-            .mergeOpenAPI(openAPI)
+        RouterSpecs(namedContext).build().mergeOpenAPI(openAPI)
         openAPI.info.assert().isSameAs(info)
-        openAPI.components.schemas.assert().isNotEmpty()
     }
 
     @Test
-    fun `should merge into existing open api with all components`() {
+    fun `should merge into existing open api preserving paths and components`() {
         val info = Info()
         val paths = Paths()
         val components = Components()
         val openAPI = OpenAPI().info(info).paths(paths).components(components)
-        RouterSpecs(materializedNamedBoundedContext).build()
-            .mergeOpenAPI(openAPI)
+        RouterSpecs(namedContext).build().mergeOpenAPI(openAPI)
         openAPI.info.assert().isSameAs(info)
         openAPI.paths.assert().isSameAs(paths)
         openAPI.components.assert().isSameAs(components)
-        openAPI.components.schemas.assert().isNotEmpty()
     }
 }

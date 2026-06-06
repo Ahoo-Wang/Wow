@@ -11,29 +11,30 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.openapi.metadata
+package me.ahoo.wow.openapi.context
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.tck.mock.MockCommandAggregate
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 
-internal class AggregateRouteMetadataTest {
+internal class CurrentOpenAPIComponentContextTest {
 
-    @Test
-    fun `should be equal to same aggregate route metadata`() {
-        val metadata = aggregateRouteMetadata<MockCommandAggregate>()
-        metadata.assert().isEqualTo(metadata)
+    @AfterEach
+    fun tearDown() {
+        CurrentOpenAPIComponentContext.current = null
     }
 
     @Test
-    fun `should not be equal to arbitrary object`() {
-        val metadata = aggregateRouteMetadata<MockCommandAggregate>()
-        metadata.assert().isNotEqualTo(Any())
+    fun `should set and get current context`() {
+        val context = OpenAPIComponentContext.default()
+        CurrentOpenAPIComponentContext.current = context
+        CurrentOpenAPIComponentContext.current.assert().isSameAs(context)
     }
 
     @Test
-    fun `should have hash code matching aggregate metadata`() {
-        val metadata = aggregateRouteMetadata<MockCommandAggregate>()
-        metadata.hashCode().assert().isEqualTo(metadata.aggregateMetadata.hashCode())
+    fun `should clear current context when set to null`() {
+        CurrentOpenAPIComponentContext.current = OpenAPIComponentContext.default()
+        CurrentOpenAPIComponentContext.current = null
+        CurrentOpenAPIComponentContext.current.assert().isNull()
     }
 }

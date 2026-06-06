@@ -11,29 +11,19 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.openapi.metadata
+package me.ahoo.wow.openapi.context
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.tck.mock.MockCommandAggregate
 import org.junit.jupiter.api.Test
 
-internal class AggregateRouteMetadataTest {
+internal class OpenAPIComponentContextCapableTest {
 
     @Test
-    fun `should be equal to same aggregate route metadata`() {
-        val metadata = aggregateRouteMetadata<MockCommandAggregate>()
-        metadata.assert().isEqualTo(metadata)
-    }
-
-    @Test
-    fun `should not be equal to arbitrary object`() {
-        val metadata = aggregateRouteMetadata<MockCommandAggregate>()
-        metadata.assert().isNotEqualTo(Any())
-    }
-
-    @Test
-    fun `should have hash code matching aggregate metadata`() {
-        val metadata = aggregateRouteMetadata<MockCommandAggregate>()
-        metadata.hashCode().assert().isEqualTo(metadata.aggregateMetadata.hashCode())
+    fun `should return component context from capable implementation`() {
+        val context = OpenAPIComponentContext.default()
+        val capable = object : OpenAPIComponentContextCapable {
+            override val componentContext: OpenAPIComponentContext = context
+        }
+        capable.componentContext.assert().isSameAs(context)
     }
 }

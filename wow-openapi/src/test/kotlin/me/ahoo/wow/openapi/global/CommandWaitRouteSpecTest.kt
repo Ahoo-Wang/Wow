@@ -11,29 +11,32 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.openapi.metadata
+package me.ahoo.wow.openapi.global
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.tck.mock.MockCommandAggregate
+import me.ahoo.wow.openapi.Https
+import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import org.junit.jupiter.api.Test
 
-internal class AggregateRouteMetadataTest {
+internal class CommandWaitRouteSpecTest {
+
+    private val context = OpenAPIComponentContext.default()
 
     @Test
-    fun `should be equal to same aggregate route metadata`() {
-        val metadata = aggregateRouteMetadata<MockCommandAggregate>()
-        metadata.assert().isEqualTo(metadata)
+    fun `should have post method`() {
+        val spec = CommandWaitRouteSpec(context)
+        spec.method.assert().isEqualTo(Https.Method.POST)
     }
 
     @Test
-    fun `should not be equal to arbitrary object`() {
-        val metadata = aggregateRouteMetadata<MockCommandAggregate>()
-        metadata.assert().isNotEqualTo(Any())
+    fun `should have wait path`() {
+        val spec = CommandWaitRouteSpec(context)
+        spec.path.assert().isEqualTo(CommandWaitRouteSpecFactory.PATH)
     }
 
     @Test
-    fun `should have hash code matching aggregate metadata`() {
-        val metadata = aggregateRouteMetadata<MockCommandAggregate>()
-        metadata.hashCode().assert().isEqualTo(metadata.aggregateMetadata.hashCode())
+    fun `should have request body`() {
+        val spec = CommandWaitRouteSpec(context)
+        spec.requestBody.assert().isNotNull()
     }
 }

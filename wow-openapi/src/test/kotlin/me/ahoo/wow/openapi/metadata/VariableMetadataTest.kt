@@ -16,18 +16,24 @@ package me.ahoo.wow.openapi.metadata
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 
-class VariableMetadataTest {
+internal class VariableMetadataTest {
 
     @Test
-    fun `test variableType when fieldPath is empty`() {
+    fun `should resolve variable type from field when field path has single element`() {
         val field = java.lang.String::class.java.getDeclaredField("value")
-        val variableMetadata = VariableMetadata(field, listOf(), "testVariable", true)
-        variableMetadata.variableType.assert().isEqualTo(field.genericType)
+        val metadata = VariableMetadata(field, listOf("value"), "testVar", true)
+        metadata.variableType.assert().isEqualTo(field.genericType)
     }
 
     @Test
-    fun `test variableType is null when field is null`() {
-        val variableMetadata = VariableMetadata(null, listOf(), "testVariable", true)
-        variableMetadata.variableType.assert().isNull()
+    fun `should return null variable type when field is null`() {
+        val metadata = VariableMetadata(null, listOf("test"), "testVar", true)
+        metadata.variableType.assert().isNull()
+    }
+
+    @Test
+    fun `should provide field name as last element of field path`() {
+        val metadata = VariableMetadata(null, listOf("customer", "id"), "customerId", true)
+        metadata.fieldName.assert().isEqualTo("id")
     }
 }
