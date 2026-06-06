@@ -10,4 +10,6 @@ dependencies {
     api("io.swagger.core.v3:swagger-core-jakarta")
     testImplementation(project(":wow-models"))
     testImplementation(project(":wow-tck"))
+    testImplementation(project(":example-domain"))
+    testImplementation(project(":example-api"))
 }
