@@ -54,10 +54,11 @@ data class StateAggregateMetadata<S : Any>(
      * @return A map of event classes to their message functions.
      */
     fun toMessageFunctionRegistry(stateRoot: S): Map<Class<*>, MessageFunction<S, DomainEventExchange<*>, Void>> =
-        sourcingFunctionRegistry
-            .map {
-                it.key to it.value.toMessageFunction<S, DomainEventExchange<*>, Void>(stateRoot)
-            }.toMap()
+        buildMap(sourcingFunctionRegistry.size) {
+            sourcingFunctionRegistry.forEach { (eventType, functionMetadata) ->
+                put(eventType, functionMetadata.toMessageFunction<S, DomainEventExchange<*>, Void>(stateRoot))
+            }
+        }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
