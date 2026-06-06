@@ -20,7 +20,6 @@ import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.aggregate.snapshot.ListQuerySnapshotRouteSpec
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
-import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
