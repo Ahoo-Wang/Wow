@@ -27,6 +27,10 @@ class AggregateProcessorFilter(
     private val serviceProvider: ServiceProvider,
     private val aggregateProcessorFactory: AggregateProcessorFactory,
 ) : CommandFilter {
+    private companion object {
+        const val PROCESS_COMMAND_CHECKPOINT = "Process Command [AggregateProcessorFilter]"
+    }
+
     override fun filter(
         exchange: ServerCommandExchange<*>,
         next: FilterChain<ServerCommandExchange<*>>
@@ -41,9 +45,7 @@ class AggregateProcessorFilter(
         exchange.setAggregateProcessor(aggregateProcessor)
         return aggregateProcessor
             .process(exchange)
-            .checkpoint(
-                "[${aggregateProcessor.aggregateId}] Process Command[${exchange.message.id}] [AggregateProcessorFilter]"
-            )
+            .checkpoint(PROCESS_COMMAND_CHECKPOINT)
             .finallyAck(exchange)
             .then(Mono.defer { next.filter(exchange) })
     }

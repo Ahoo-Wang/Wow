@@ -41,6 +41,10 @@ class CommandFunction<C : Any>(
     afterCommandFunctions: List<AfterCommandFunction<C>>
 ) : AbstractCommandFunction<C>(commandAggregate, afterCommandFunctions),
     Decorator<MessageFunction<C, ServerCommandExchange<*>, Mono<*>>> {
+    private companion object {
+        const val INVOKE_COMMAND_CHECKPOINT = "Invoke Command [CommandFunction]"
+    }
+
     override val contextName: String = delegate.contextName
     override val name: String = delegate.name
     override val supportedType: Class<*> = delegate.supportedType
@@ -59,9 +63,7 @@ class CommandFunction<C : Any>(
     override fun invokeCommand(exchange: ServerCommandExchange<*>): Mono<*> =
         delegate
             .invoke(exchange)
-            .checkpoint(
-                "[${commandAggregate.aggregateId}] Invoke $qualifiedName Command[${exchange.message.id}] [CommandFunction]",
-            )
+            .checkpoint(INVOKE_COMMAND_CHECKPOINT)
 
     override fun toString(): String = "CommandFunction(delegate=$delegate)"
 }

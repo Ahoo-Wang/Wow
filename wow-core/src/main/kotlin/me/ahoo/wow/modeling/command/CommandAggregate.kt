@@ -75,14 +75,16 @@ enum class CommandState {
     SOURCED {
         override fun onStore(eventStore: EventStore, eventStream: DomainEventStream): Mono<CommandState> {
             return eventStore.append(eventStream)
-                .checkpoint(
-                    "Append DomainEventStream[${eventStream.id}] CommandId:[${eventStream.commandId}] [CommandState]"
-                )
+                .checkpoint(STORE_EVENT_STREAM_CHECKPOINT)
                 .thenReturn(STORED)
         }
     },
     EXPIRED
     ;
+
+    private companion object {
+        const val STORE_EVENT_STREAM_CHECKPOINT = "Append DomainEventStream [CommandState]"
+    }
 
     /**
      * Applies event sourcing to the state aggregate with the given event stream.

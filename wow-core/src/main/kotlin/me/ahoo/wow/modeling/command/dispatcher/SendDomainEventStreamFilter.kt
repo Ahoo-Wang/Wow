@@ -27,6 +27,7 @@ class SendDomainEventStreamFilter(
 ) : CommandFilter {
     companion object {
         private val log = KotlinLogging.logger {}
+        private const val SEND_EVENT_STREAM_CHECKPOINT = "Send Message [SendDomainEventStreamFilter]"
     }
 
     override fun filter(
@@ -40,7 +41,7 @@ class SendDomainEventStreamFilter(
                 return@defer next.filter(exchange)
             }
             domainEventBus.send(eventStream)
-                .checkpoint("Send Message[${eventStream.id}] [SendDomainEventStreamFilter]")
+                .checkpoint(SEND_EVENT_STREAM_CHECKPOINT)
                 .then(Mono.defer { next.filter(exchange) })
         }
     }
