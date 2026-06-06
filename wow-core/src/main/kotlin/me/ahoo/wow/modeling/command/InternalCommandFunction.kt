@@ -20,10 +20,10 @@ import me.ahoo.wow.modeling.materialize
 
 abstract class InternalCommandFunction<C : Any>(
     commandAggregate: CommandAggregate<C, *>,
-    afterCommandFunctions: List<AfterCommandFunction<C>>
+    afterCommandFunctions: List<AfterCommandFunction<C>>,
+    override val supportedTopics: Set<NamedAggregate> = setOf(commandAggregate.materialize())
 ) : AbstractCommandFunction<C>(commandAggregate, afterCommandFunctions) {
     override val contextName: String = commandAggregate.contextName
-    override val supportedTopics: Set<NamedAggregate> = setOf(commandAggregate.materialize())
     override val processor: C = commandAggregate.commandRoot
     override val name: String by lazy {
         "${processor.javaClass.simpleName}.${supportedType.simpleName}"

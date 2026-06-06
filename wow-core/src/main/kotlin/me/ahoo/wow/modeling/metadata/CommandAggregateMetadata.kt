@@ -38,6 +38,7 @@ import me.ahoo.wow.modeling.command.DefaultRecoverAggregateFunction
 import me.ahoo.wow.modeling.command.after.AfterCommandFunction
 import me.ahoo.wow.modeling.command.after.AfterCommandFunctionMetadata
 import me.ahoo.wow.modeling.command.after.AfterCommandFunctionMetadata.Companion.toAfterCommandFunction
+import me.ahoo.wow.modeling.materialize
 import reactor.core.publisher.Mono
 
 /**
@@ -74,6 +75,8 @@ data class CommandAggregateMetadata<C : Any>(
      * The name of this processor, used for identification in processing contexts.
      */
     override val processorName: String = aggregateType.simpleName
+
+    private val supportedTopics: Set<NamedAggregate> = setOf(namedAggregate.materialize())
 
     /**
      * Indicates whether delete aggregate functionality is registered for this command aggregate.
@@ -122,21 +125,29 @@ data class CommandAggregateMetadata<C : Any>(
                 val actualMessageFunction = functionMetadata
                     .toMessageFunction<C, ServerCommandExchange<*>, Mono<*>>(commandAggregate.commandRoot)
                 val afterCommandFunctions = allAfterCommandFunctions.supportCommand(commandType)
-                put(commandType, CommandFunction(actualMessageFunction, commandAggregate, afterCommandFunctions))
+                put(
+                    commandType,
+                    CommandFunction(
+                        actualMessageFunction,
+                        commandAggregate,
+                        afterCommandFunctions,
+                        supportedTopics,
+                    )
+                )
             }
 
             if (!registeredRecoverAggregate) {
                 val afterCommandFunctions = allAfterCommandFunctions.supportCommand(DefaultRecoverAggregate::class.java)
                 put(
                     DefaultRecoverAggregate::class.java,
-                    DefaultRecoverAggregateFunction(commandAggregate, afterCommandFunctions),
+                    DefaultRecoverAggregateFunction(commandAggregate, afterCommandFunctions, supportedTopics),
                 )
             }
             if (!registeredDeleteAggregate) {
                 val afterCommandFunctions = allAfterCommandFunctions.supportCommand(DefaultDeleteAggregate::class.java)
                 put(
                     DefaultDeleteAggregate::class.java,
-                    DefaultDeleteAggregateFunction(commandAggregate, afterCommandFunctions),
+                    DefaultDeleteAggregateFunction(commandAggregate, afterCommandFunctions, supportedTopics),
                 )
             }
             if (!registeredApplyResourceTags) {
@@ -145,7 +156,7 @@ data class CommandAggregateMetadata<C : Any>(
                 )
                 put(
                     DefaultApplyResourceTags::class.java,
-                    DefaultApplyResourceTagsFunction(commandAggregate, afterCommandFunctions),
+                    DefaultApplyResourceTagsFunction(commandAggregate, afterCommandFunctions, supportedTopics),
                 )
             }
         }

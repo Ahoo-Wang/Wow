@@ -15,8 +15,10 @@ package me.ahoo.wow.modeling.command
 
 import me.ahoo.wow.api.command.DefaultRecoverAggregate
 import me.ahoo.wow.api.event.DefaultAggregateRecovered
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.modeling.command.after.AfterCommandFunction
+import me.ahoo.wow.modeling.materialize
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
 
@@ -32,8 +34,9 @@ import reactor.kotlin.core.publisher.toMono
  */
 class DefaultRecoverAggregateFunction<C : Any>(
     commandAggregate: CommandAggregate<C, *>,
-    afterCommandFunctions: List<AfterCommandFunction<C>>
-) : InternalCommandFunction<C>(commandAggregate, afterCommandFunctions) {
+    afterCommandFunctions: List<AfterCommandFunction<C>>,
+    supportedTopics: Set<NamedAggregate> = setOf(commandAggregate.materialize())
+) : InternalCommandFunction<C>(commandAggregate, afterCommandFunctions, supportedTopics) {
     override val supportedType: Class<*> = DefaultRecoverAggregate::class.java
 
     /**

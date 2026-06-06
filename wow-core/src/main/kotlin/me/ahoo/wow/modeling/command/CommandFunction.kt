@@ -38,7 +38,8 @@ import reactor.core.publisher.Mono
 class CommandFunction<C : Any>(
     override val delegate: MessageFunction<C, ServerCommandExchange<*>, Mono<*>>,
     commandAggregate: CommandAggregate<C, *>,
-    afterCommandFunctions: List<AfterCommandFunction<C>>
+    afterCommandFunctions: List<AfterCommandFunction<C>>,
+    override val supportedTopics: Set<NamedAggregate> = setOf(commandAggregate.materialize())
 ) : AbstractCommandFunction<C>(commandAggregate, afterCommandFunctions),
     Decorator<MessageFunction<C, ServerCommandExchange<*>, Mono<*>>> {
     private companion object {
@@ -48,7 +49,6 @@ class CommandFunction<C : Any>(
     override val contextName: String = delegate.contextName
     override val name: String = delegate.name
     override val supportedType: Class<*> = delegate.supportedType
-    override val supportedTopics: Set<NamedAggregate> = setOf(commandAggregate.materialize())
     override val processor: C = delegate.processor
     override val functionKind: FunctionKind = delegate.functionKind
 
