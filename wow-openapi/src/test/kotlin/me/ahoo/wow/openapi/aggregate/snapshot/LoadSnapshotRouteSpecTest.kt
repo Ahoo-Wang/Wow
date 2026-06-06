@@ -42,6 +42,6 @@ internal class LoadSnapshotRouteSpecTest {
     @Test
     fun `should have responses`() {
         val spec = LoadSnapshotRouteSpec(namedContext, aggregateRouteMetadata, context)
-        spec.responses.assert().isNotEmpty
+        spec.responses.assert().isNotEmpty()
     }
 }
