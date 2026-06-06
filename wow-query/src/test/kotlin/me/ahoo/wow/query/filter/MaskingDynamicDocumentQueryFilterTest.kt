@@ -35,9 +35,14 @@ class MaskingDynamicDocumentQueryFilterTest {
     private class MockMaskerRegistry(
         private val aggregateDataMasker: AggregateDataMasker<AggregateDynamicDocumentMasker>
     ) : DataMaskerRegistry<AggregateDynamicDocumentMasker> {
+        @Suppress("EmptyFunctionBlock")
         override fun register(masker: AggregateDynamicDocumentMasker) {}
+
+        @Suppress("EmptyFunctionBlock")
         override fun unregister(masker: AggregateDynamicDocumentMasker) {}
-        override fun getAggregateDataMasker(namedAggregate: NamedAggregate): AggregateDataMasker<AggregateDynamicDocumentMasker> {
+        override fun getAggregateDataMasker(
+            namedAggregate: NamedAggregate
+        ): AggregateDataMasker<AggregateDynamicDocumentMasker> {
             return aggregateDataMasker
         }
     }

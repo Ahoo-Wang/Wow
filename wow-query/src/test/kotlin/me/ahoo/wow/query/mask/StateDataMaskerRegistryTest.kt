@@ -53,10 +53,14 @@ class StateDataMaskerRegistryTest {
         val eventStreamMaskerRegistry = EventStreamMaskerRegistry()
         val masker = MockEventStreamMasker(MOCK_AGGREGATE_METADATA.namedAggregate)
         eventStreamMaskerRegistry.register(masker)
-        val aggregateDataMasker = eventStreamMaskerRegistry.getAggregateDataMasker(MOCK_AGGREGATE_METADATA.namedAggregate)
+        val aggregateDataMasker = eventStreamMaskerRegistry.getAggregateDataMasker(
+            MOCK_AGGREGATE_METADATA.namedAggregate
+        )
         aggregateDataMasker.maskers.size.assert().isOne()
         eventStreamMaskerRegistry.unregister(masker)
-        val aggregateDataMasker2 = eventStreamMaskerRegistry.getAggregateDataMasker(MOCK_AGGREGATE_METADATA.namedAggregate)
+        val aggregateDataMasker2 = eventStreamMaskerRegistry.getAggregateDataMasker(
+            MOCK_AGGREGATE_METADATA.namedAggregate
+        )
         aggregateDataMasker2.maskers.assert().isEmpty()
     }
 
