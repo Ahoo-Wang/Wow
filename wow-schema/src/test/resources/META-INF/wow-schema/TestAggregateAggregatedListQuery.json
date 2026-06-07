@@ -1,0 +1,126 @@
+{
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "$defs" : {
+    "wow.api.query.Condition" : {
+      "type" : "object",
+      "properties" : {
+        "children" : {
+          "default" : "[]",
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/wow.api.query.Condition"
+          }
+        },
+        "field" : {
+          "type" : "string"
+        },
+        "operator" : {
+          "$ref" : "#/$defs/wow.api.query.Operator",
+          "default" : "ALL"
+        },
+        "options" : {
+          "$ref" : "#/$defs/wow.api.query.ConditionOptions",
+          "default" : "{}"
+        },
+        "value" : { }
+      }
+    },
+    "wow.api.query.ConditionOptions" : {
+      "$schema" : "https://json-schema.org/draft/2020-12/schema",
+      "type" : "object",
+      "properties" : {
+        "ignoreCase" : {
+          "type" : "boolean",
+          "description" : "Whether to ignore case in string comparisons"
+        },
+        "datePattern" : {
+          "type" : "string",
+          "description" : "Date pattern for date formatting"
+        },
+        "zoneId" : {
+          "type" : "string",
+          "description" : "Time zone ID for date operations"
+        }
+      },
+      "additionalProperties" : true,
+      "required" : [ ]
+    },
+    "wow.api.query.Operator" : {
+      "type" : "string",
+      "enum" : [ "AND", "OR", "NOR", "ID", "IDS", "AGGREGATE_ID", "AGGREGATE_IDS", "TENANT_ID", "OWNER_ID", "SPACE_ID", "DELETED", "ALL", "EQ", "NE", "GT", "LT", "GTE", "LTE", "CONTAINS", "IN", "NOT_IN", "BETWEEN", "ALL_IN", "STARTS_WITH", "ENDS_WITH", "ELEM_MATCH", "NULL", "NOT_NULL", "TRUE", "FALSE", "EXISTS", "TODAY", "BEFORE_TODAY", "TOMORROW", "THIS_WEEK", "NEXT_WEEK", "LAST_WEEK", "THIS_MONTH", "LAST_MONTH", "RECENT_DAYS", "EARLIER_DAYS", "MATCH", "RAW" ]
+    },
+    "wow.schema.TestAggregateAggregatedCondition" : {
+      "type" : "object",
+      "properties" : {
+        "children" : {
+          "default" : "[]",
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/wow.schema.TestAggregateAggregatedCondition"
+          }
+        },
+        "field" : {
+          "type" : "string",
+          "enum" : [ "", "aggregateId", "tenantId", "ownerId", "spaceId", "version", "eventId", "firstOperator", "operator", "firstEventTime", "eventTime", "tags", "deleted", "state", "state.id" ]
+        },
+        "operator" : {
+          "$ref" : "#/$defs/wow.api.query.Operator",
+          "default" : "ALL"
+        },
+        "options" : {
+          "$ref" : "#/$defs/wow.api.query.ConditionOptions",
+          "default" : "{}"
+        },
+        "value" : { }
+      }
+    }
+  },
+  "type" : "object",
+  "properties" : {
+    "condition" : {
+      "$ref" : "#/$defs/wow.schema.TestAggregateAggregatedCondition"
+    },
+    "limit" : {
+      "type" : "integer",
+      "format" : "int32",
+      "default" : "0"
+    },
+    "projection" : {
+      "type" : "object",
+      "properties" : {
+        "exclude" : {
+          "default" : "[]",
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "include" : {
+          "default" : "[]",
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        }
+      }
+    },
+    "sort" : {
+      "default" : "[]",
+      "type" : "array",
+      "items" : {
+        "type" : "object",
+        "properties" : {
+          "direction" : {
+            "type" : "string",
+            "enum" : [ "ASC", "DESC" ]
+          },
+          "field" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "direction", "field" ]
+      }
+    }
+  },
+  "required" : [ "condition" ]
+}

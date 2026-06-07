@@ -1,4 +1,4 @@
-package me.ahoo.wow.schema
+package me.ahoo.wow.schema.naming
 
 import com.fasterxml.classmate.ResolvedType
 import com.github.victools.jsonschema.generator.OptionPreset
@@ -13,12 +13,10 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
-import me.ahoo.wow.configuration.BoundedContext
-import me.ahoo.wow.example.api.ExampleService
-import me.ahoo.wow.example.api.order.CreateOrder
-import me.ahoo.wow.example.domain.cart.CartState
-import me.ahoo.wow.example.domain.order.Order
-import me.ahoo.wow.example.domain.order.OrderState
+import me.ahoo.wow.schema.CreateTestAggregate
+import me.ahoo.wow.schema.OuterFixture
+import me.ahoo.wow.schema.TestAggregate
+import me.ahoo.wow.schema.TestState
 import me.ahoo.wow.schema.naming.WowSchemaNamingStrategy.Companion.toSchemaName
 import me.ahoo.wow.schema.typed.AggregatedFields
 import me.ahoo.wow.serialization.JsonSerializer
@@ -33,7 +31,7 @@ class WowSchemaNamingStrategyTest {
         private val generatorConfig: SchemaGeneratorConfig =
             SchemaGeneratorConfigBuilder(JsonSerializer, SchemaVersion.DRAFT_2020_12, OptionPreset.PLAIN_JSON)
                 .build()
-        private const val defaultSchemaNamePrefix = "WowSchemaNamingStrategyTest."
+        private const val defaultSchemaNamePrefix = "SchemaDefinitionNamingStrategyTest."
         private val typeContext: TypeContext = TypeContextFactory.createDefaultTypeContext(generatorConfig)
 
         @Suppress("LongMethod")
@@ -41,38 +39,27 @@ class WowSchemaNamingStrategyTest {
         fun parametersForToSchemaName(): Stream<Arguments> {
             return Stream.of(
                 Arguments.of(typeContext.resolve(AggregateId::class.java), "wow.api.modeling.AggregateId"),
-                Arguments.of(typeContext.resolve(CreateOrder::class.java), "example.order.CreateOrder"),
+                Arguments.of(typeContext.resolve(CreateTestAggregate::class.java), "wow.schema.CreateTestAggregate"),
                 Arguments.of(typeContext.resolve(Any::class.java), "${defaultSchemaNamePrefix}Object"),
                 Arguments.of(
                     typeContext.resolve(WowSchemaNamingStrategyTest::class.java),
                     "wow.schema.SchemaDefinitionNamingStrategyTest"
                 ),
-                Arguments.of(typeContext.resolve(ExampleService::class.java), "example.ExampleService"),
                 Arguments.of(
                     typeContext.resolve(
                         PagedList::class.java,
                         typeContext.resolve(
                             MaterializedSnapshot::class.java,
-                            OrderState::class.java
+                            TestState::class.java
                         )
                     ),
-                    "example.order.WowExampleOrderStateMaterializedSnapshotPagedList"
+                    "wow.schema.TestStateMaterializedSnapshotPagedList"
                 ),
                 Arguments.of(
                     typeContext.resolve(
-                        PagedList::class.java,
-                        typeContext.resolve(
-                            MaterializedSnapshot::class.java,
-                            CartState::class.java
-                        )
+                        arrayOf(mockk<CreateTestAggregate>()).javaClass
                     ),
-                    "example.cart.CartStateMaterializedSnapshotPagedList"
-                ),
-                Arguments.of(
-                    typeContext.resolve(
-                        arrayOf(mockk<CreateOrder>()).javaClass
-                    ),
-                    "example.order.CreateOrderArray"
+                    "wow.schema.CreateTestAggregateArray"
                 ),
                 Arguments.of(
                     typeContext.resolve(
@@ -80,34 +67,26 @@ class WowSchemaNamingStrategyTest {
                         String::class.java,
                         Object::class.java
                     ),
-                    "WowSchemaNamingStrategyTest.StringObjectMap"
+                    "SchemaDefinitionNamingStrategyTest.StringObjectMap"
                 ),
                 Arguments.of(
                     typeContext.resolve(
-                        Map::class.java,
-                        String::class.java,
-                        BoundedContext::class.java
+                        OuterFixture.InnerFixture::class.java
                     ),
-                    "wow.configuration.StringBoundedContextMap"
+                    "wow.schema.OuterFixture.InnerFixture"
                 ),
                 Arguments.of(
                     typeContext.resolve(
-                        Outer.Inner::class.java
+                        OuterFixture.StaticNestedFixture::class.java
                     ),
-                    "wow.schema.Outer.Inner"
-                ),
-                Arguments.of(
-                    typeContext.resolve(
-                        Outer.StaticNested::class.java
-                    ),
-                    "wow.schema.Outer.StaticNested"
+                    "wow.schema.OuterFixture.StaticNestedFixture"
                 ),
                 Arguments.of(
                     typeContext.resolve(
                         AggregatedFields::class.java,
-                        Order::class.java
+                        TestAggregate::class.java
                     ),
-                    "example.order.OrderAggregatedFields"
+                    "wow.schema.TestAggregateAggregatedFields"
                 )
             )
         }
@@ -119,9 +98,4 @@ class WowSchemaNamingStrategyTest {
         val schemaName = type.toSchemaName(defaultSchemaNamePrefix)
         schemaName.assert().isEqualTo(expectedSchemaName)
     }
-}
-
-class Outer {
-    inner class Inner // 非静态内部类
-    class StaticNested // 静态嵌套类
 }

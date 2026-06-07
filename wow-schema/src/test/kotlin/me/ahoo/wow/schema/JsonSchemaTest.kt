@@ -6,7 +6,6 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.query.SmallMaterializedSnapshot
-import me.ahoo.wow.example.api.order.CreateOrder
 import me.ahoo.wow.schema.JsonSchema.Companion.asJsonSchema
 import me.ahoo.wow.serialization.toObject
 import org.junit.jupiter.api.Test
@@ -20,7 +19,7 @@ class JsonSchemaTest {
 
     @Test
     fun `should get schema properties`() {
-        val schema = jsonSchemaGenerator.generateSchema(CreateOrder::class.java)
+        val schema = jsonSchemaGenerator.generateSchema(CreateTestAggregate::class.java)
             .asJsonSchema(schemaVersion = SchemaVersion.DRAFT_2020_12)
         schema.getProperties().assert().isNotNull()
     }
@@ -36,7 +35,7 @@ class JsonSchemaTest {
     @Test
     fun `should generate schema for parameterized server sent event`() {
         val resolvedType =
-            TypeResolver().resolve(ServerSentEvent::class.java, AggregatedFieldPathsTest.DemoState::class.java)
+            TypeResolver().resolve(ServerSentEvent::class.java, TestState::class.java)
         val schema = jsonSchemaGenerator.generateSchema(resolvedType)
             .asJsonSchema(schemaVersion = SchemaVersion.DRAFT_2020_12)
         schema.getProperties().assert().isNotNull()
@@ -54,7 +53,7 @@ class JsonSchemaTest {
     fun `should generate schema for small materialized snapshot`() {
         val schema = jsonSchemaGenerator.generateSchema(
             SmallMaterializedSnapshot::class.java,
-            String::class.java
+            TestState::class.java
         )
         val jsonSchema = schema.asJsonSchema(SchemaVersion.DRAFT_2020_12)
         jsonSchema.getProperties().assert().isNotNull()

@@ -7,12 +7,12 @@ import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.command.wait.SimpleWaitSignal
-import me.ahoo.wow.example.api.cart.AddCartItem
-import me.ahoo.wow.example.api.order.CreateOrder
-import me.ahoo.wow.example.domain.order.OrderState
-import me.ahoo.wow.models.tree.Leaf
-import me.ahoo.wow.schema.JsonSchemaGeneratorTest.SchemaData
+import me.ahoo.wow.schema.AnnotationFixture
+import me.ahoo.wow.schema.ChangeTestName
+import me.ahoo.wow.schema.CreateTestAggregate
 import me.ahoo.wow.schema.SchemaGeneratorBuilder
+import me.ahoo.wow.schema.TestState
+import me.ahoo.wow.schema.TreeNodeFixture
 import org.junit.jupiter.api.Test
 import org.springframework.http.codec.ServerSentEvent
 
@@ -24,27 +24,27 @@ class OpenAPISchemaBuilderTest {
         openAPISchemaBuilder.inline.assert().isFalse()
         val stringSchema = openAPISchemaBuilder.generateSchema(String::class.java)
         stringSchema.types.assert().contains("string")
-        val createOderSchema = openAPISchemaBuilder.generateSchema(CreateOrder::class.java)
-        createOderSchema.`$ref`.assert().isNull()
-        val addCartItemSchema = openAPISchemaBuilder.generateSchema(AddCartItem::class.java)
-        addCartItemSchema.`$ref`.assert().isNull()
-        val orderStateSnapshotSchema = openAPISchemaBuilder.generateSchema(
+        val createSchema = openAPISchemaBuilder.generateSchema(CreateTestAggregate::class.java)
+        createSchema.`$ref`.assert().isNull()
+        val changeNameSchema = openAPISchemaBuilder.generateSchema(ChangeTestName::class.java)
+        changeNameSchema.`$ref`.assert().isNull()
+        val testStateSnapshotSchema = openAPISchemaBuilder.generateSchema(
             MaterializedSnapshot::class.java,
-            OrderState::class.java
+            TestState::class.java
         )
-        orderStateSnapshotSchema.`$ref`.assert().isNull()
-        val orderStateSnapshotPagedListSchema = openAPISchemaBuilder.generateSchema(
+        testStateSnapshotSchema.`$ref`.assert().isNull()
+        val testStateSnapshotPagedListSchema = openAPISchemaBuilder.generateSchema(
             PagedList::class.java,
             openAPISchemaBuilder.resolveType(
                 MaterializedSnapshot::class.java,
-                OrderState::class.java
+                TestState::class.java
             )
         )
-        orderStateSnapshotPagedListSchema.`$ref`.assert().isNull()
+        testStateSnapshotPagedListSchema.`$ref`.assert().isNull()
         val componentsSchemas = openAPISchemaBuilder.build()
-        createOderSchema.`$ref`.assert().isNotNull()
-        addCartItemSchema.`$ref`.assert().isNotNull()
-        componentsSchemas.assert().hasSize(10)
+        createSchema.`$ref`.assert().isNotNull()
+        changeNameSchema.`$ref`.assert().isNotNull()
+        componentsSchemas.assert().hasSize(9)
     }
 
     @Test
@@ -55,23 +55,23 @@ class OpenAPISchemaBuilderTest {
             }
         )
         openAPISchemaBuilder.inline.assert().isTrue()
-        val createOderSchema = openAPISchemaBuilder.generateSchema(CreateOrder::class.java)
-        createOderSchema.`$ref`.assert().isNull()
-        val addCartItemSchema = openAPISchemaBuilder.generateSchema(AddCartItem::class.java)
-        addCartItemSchema.`$ref`.assert().isNull()
-        val orderStateSnapshotSchema = openAPISchemaBuilder.generateSchema(
+        val createSchema = openAPISchemaBuilder.generateSchema(CreateTestAggregate::class.java)
+        createSchema.`$ref`.assert().isNull()
+        val changeNameSchema = openAPISchemaBuilder.generateSchema(ChangeTestName::class.java)
+        changeNameSchema.`$ref`.assert().isNull()
+        val testStateSnapshotSchema = openAPISchemaBuilder.generateSchema(
             MaterializedSnapshot::class.java,
-            OrderState::class.java
+            TestState::class.java
         )
-        orderStateSnapshotSchema.`$ref`.assert().isNull()
-        val orderStateSnapshotPagedListSchema = openAPISchemaBuilder.generateSchema(
+        testStateSnapshotSchema.`$ref`.assert().isNull()
+        val testStateSnapshotPagedListSchema = openAPISchemaBuilder.generateSchema(
             PagedList::class.java,
             openAPISchemaBuilder.resolveType(
                 MaterializedSnapshot::class.java,
-                OrderState::class.java
+                TestState::class.java
             )
         )
-        orderStateSnapshotPagedListSchema.`$ref`.assert().isNull()
+        testStateSnapshotPagedListSchema.`$ref`.assert().isNull()
         val componentsSchemas = openAPISchemaBuilder.build()
         componentsSchemas.assert().isEmpty()
     }
@@ -112,33 +112,22 @@ class OpenAPISchemaBuilderTest {
     }
 
     @Test
-    fun `should build leaf category schema with children items`() {
+    fun `should build tree node schema with children items`() {
         val openAPISchemaBuilder = OpenAPISchemaBuilder()
-        openAPISchemaBuilder.generateSchema(LeafCategory::class.java)
+        openAPISchemaBuilder.generateSchema(TreeNodeFixture::class.java)
         val componentsSchemas = openAPISchemaBuilder.build()
-        val schema = componentsSchemas["wow.schema.LeafCategory"]
-        val childrenItem = schema?.properties[LeafCategory::children.name]?.items
+        val schema = componentsSchemas["wow.schema.TreeNodeFixture"]
+        val childrenItem = schema?.properties[TreeNodeFixture::children.name]?.items
         childrenItem.assert().isNotNull()
     }
 
     @Test
     fun `should generate schema for array type`() {
         val openAPISchemaBuilder = OpenAPISchemaBuilder()
-        val arrayType = TypeResolver().arrayType(SchemaData::class.java)
+        val arrayType = TypeResolver().arrayType(AnnotationFixture::class.java)
         val arrayTypeSchema = openAPISchemaBuilder.generateSchema(arrayType)
         val componentsSchemas = openAPISchemaBuilder.build()
-        val schema = componentsSchemas["wow.schema.JsonSchemaGeneratorTest.SchemaData"]
+        val schema = componentsSchemas["wow.schema.AnnotationFixture"]
         arrayTypeSchema.types.assert().contains("array")
-    }
-}
-
-data class LeafCategory(
-    override val children: List<LeafCategory>,
-    override val sortId: Int,
-    override val code: String,
-    override val name: String
-) : Leaf<LeafCategory> {
-    override fun withChildren(children: List<LeafCategory>): LeafCategory {
-        return this.copy(children = children)
     }
 }
