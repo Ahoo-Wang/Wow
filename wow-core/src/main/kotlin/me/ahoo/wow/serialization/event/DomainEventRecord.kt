@@ -20,6 +20,7 @@ import me.ahoo.wow.event.upgrader.EventUpgraderFactory
 import me.ahoo.wow.infra.TypeNameMapper.toType
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.MessageAggregateIdRecord
 import me.ahoo.wow.serialization.MessageAggregateNameRecord
 import me.ahoo.wow.serialization.MessageBodyRecord
@@ -31,13 +32,25 @@ import me.ahoo.wow.serialization.MessageVersionRecord
 import me.ahoo.wow.serialization.NamedBoundedContextMessageRecord
 import me.ahoo.wow.serialization.OwnerIdRecord
 import me.ahoo.wow.serialization.SpaceIdRecord
-import me.ahoo.wow.serialization.toObject
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.ObjectReader
 import tools.jackson.databind.node.ObjectNode
+import java.util.concurrent.ConcurrentHashMap
 
 object DomainEventRecords {
     const val SEQUENCE = "sequence"
     const val REVISION = "revision"
     const val IS_LAST = "isLast"
+}
+
+private object DomainEventBodyReaders {
+    private val readers = ConcurrentHashMap<String, ObjectReader>()
+
+    fun read(bodyType: String, body: JsonNode): Any {
+        return readers.computeIfAbsent(bodyType) {
+            JsonSerializer.readerFor(it.toType<Any>())
+        }.readValue(body)
+    }
 }
 
 interface StreamEventRecord : MessageIdRecord, MessageBodyTypeRecord, MessageBodyRecord, MessageNameRecord {
@@ -74,14 +87,16 @@ interface DomainEventRecord :
 
     private fun toDomainEventObject(): DomainEvent<Any> {
         val aggregateId = toAggregateId()
-        val bodyType = try {
-            bodyType.toType<Any>()
+        val bodyTypeName = bodyType
+        val body = body
+        val eventBody = try {
+            DomainEventBodyReaders.read(bodyTypeName, body)
         } catch (classNotFoundException: ClassNotFoundException) {
             @Suppress("UNCHECKED_CAST")
             return JsonDomainEvent(
                 id = id,
                 header = toMessageHeader(),
-                bodyType = bodyType,
+                bodyType = bodyTypeName,
                 body = body,
                 aggregateId = aggregateId,
                 ownerId = ownerId,
@@ -98,7 +113,7 @@ interface DomainEventRecord :
         return SimpleDomainEvent(
             id = id,
             header = toMessageHeader(),
-            body = body.toObject(bodyType),
+            body = eventBody,
             aggregateId = aggregateId,
             ownerId = ownerId,
             spaceId = spaceId,

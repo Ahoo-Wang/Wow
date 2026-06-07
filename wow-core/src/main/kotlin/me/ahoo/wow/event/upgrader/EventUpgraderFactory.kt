@@ -84,7 +84,7 @@ object EventUpgraderFactory {
      */
     fun get(
         eventNamedAggregate: EventNamedAggregate
-    ): List<EventUpgrader> = eventUpgraderFactories[eventNamedAggregate] ?: listOf()
+    ): List<EventUpgrader> = eventUpgraderFactories[eventNamedAggregate] ?: emptyList()
 
     /**
      * Upgrades a domain event record using registered upgraders.
@@ -101,6 +101,9 @@ object EventUpgraderFactory {
      * @see toMutableDomainEventRecord
      */
     fun upgrade(domainEventRecord: DomainEventRecord): DomainEventRecord {
+        if (eventUpgraderFactories.isEmpty()) {
+            return domainEventRecord
+        }
         val namedAggregate = domainEventRecord.toAggregateId().namedAggregate.materialize()
         val eventNamedAggregate = namedAggregate.toEventNamedAggregate(domainEventRecord.name)
         val eventUpgraders = get(eventNamedAggregate)
