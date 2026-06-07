@@ -25,6 +25,7 @@ private class SmallHeaderMap(expectedSize: Int = 0) : AbstractMutableMap<String,
         arrayOfNulls(slotSize(capacity(expectedSize)))
     }
     private var entryCount: Int = 0
+    private var shared: Boolean = false
 
     override val size: Int
         get() = entryCount
@@ -60,10 +61,11 @@ private class SmallHeaderMap(expectedSize: Int = 0) : AbstractMutableMap<String,
         val index = indexOfKey(key)
         if (index >= 0) {
             val previous = slots[valueIndex(index)]
+            ensureMutable(entryCount)
             slots[valueIndex(index)] = value
             return previous
         }
-        ensureCapacity(entryCount + 1)
+        ensureMutable(entryCount + 1)
         slots[keyIndex(entryCount)] = key
         slots[valueIndex(entryCount)] = value
         entryCount++
@@ -79,14 +81,25 @@ private class SmallHeaderMap(expectedSize: Int = 0) : AbstractMutableMap<String,
     }
 
     override fun clear() {
+        if (entryCount == 0) {
+            return
+        }
+        if (shared) {
+            slots = EMPTY
+            entryCount = 0
+            shared = false
+            return
+        }
         slots.fill(null, 0, slotSize(entryCount))
         entryCount = 0
     }
 
     fun copyMap(): SmallHeaderMap {
-        val copied = SmallHeaderMap(entryCount)
+        val copied = SmallHeaderMap()
         if (entryCount > 0) {
-            slots.copyInto(copied.slots, endIndex = slotSize(entryCount))
+            shared = true
+            copied.shared = true
+            copied.slots = slots
             copied.entryCount = entryCount
         }
         return copied
@@ -101,19 +114,23 @@ private class SmallHeaderMap(expectedSize: Int = 0) : AbstractMutableMap<String,
         return -1
     }
 
-    private fun ensureCapacity(requiredCapacity: Int) {
-        if (slots.size >= slotSize(requiredCapacity)) {
+    private fun ensureMutable(requiredCapacity: Int) {
+        val requiredSlotSize = slotSize(requiredCapacity)
+        if (!shared && slots.size >= requiredSlotSize) {
             return
         }
         val newCapacity = when {
             slots.isEmpty() -> DEFAULT_HEADER_CAPACITY
-            else -> capacity(slots.size / ENTRY_WIDTH) * 2
+            slots.size < requiredSlotSize -> capacity(slots.size / ENTRY_WIDTH) * 2
+            else -> slots.size / ENTRY_WIDTH
         }.coerceAtLeast(requiredCapacity)
         slots = slots.copyOf(slotSize(newCapacity))
+        shared = false
     }
 
     private fun removeAt(index: Int): String {
         val previous = checkNotNull(slots[valueIndex(index)])
+        ensureMutable(entryCount)
         val lastIndex = entryCount - 1
         if (index < lastIndex) {
             slots.copyInto(
@@ -195,6 +212,7 @@ private class SmallHeaderMap(expectedSize: Int = 0) : AbstractMutableMap<String,
 
         override fun setValue(newValue: String): String {
             val previous = value
+            ensureMutable(entryCount)
             slots[valueIndex(index)] = newValue
             return previous
         }

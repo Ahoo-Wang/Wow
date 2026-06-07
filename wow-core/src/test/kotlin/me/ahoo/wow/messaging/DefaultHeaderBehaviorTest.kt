@@ -93,6 +93,12 @@ class DefaultHeaderBehaviorTest {
         source.backingMap().arrayFieldCount().assert().isEqualTo(1)
         copy.backingMap().arrayFieldCount().assert().isEqualTo(1)
         copy.assert().isEqualTo(source)
+        copy.backingMap().slotArray().assert().isSameAs(source.backingMap().slotArray())
+
+        copy.with("copy-only", "true")
+
+        source.containsKey("copy-only").assert().isFalse()
+        copy.backingMap().slotArray().assert().isNotSameAs(source.backingMap().slotArray())
     }
 
     @Test
@@ -130,5 +136,11 @@ class DefaultHeaderBehaviorTest {
         return javaClass.declaredFields.count {
             it.type.isArray && !java.lang.reflect.Modifier.isStatic(it.modifiers)
         }
+    }
+
+    private fun Any.slotArray(): Array<*> {
+        val field = javaClass.getDeclaredField("slots")
+        field.isAccessible = true
+        return field.get(this) as Array<*>
     }
 }
