@@ -16,13 +16,213 @@ import me.ahoo.wow.api.messaging.Header
 
 private const val DEFAULT_HEADER_CAPACITY = 4
 
-private fun newHeaderMap(expectedSize: Int = 0): HashMap<String, String> =
-    HashMap(
-        when {
-            expectedSize <= 3 -> DEFAULT_HEADER_CAPACITY
-            else -> expectedSize + expectedSize / 3 + 1
+private fun newHeaderMap(expectedSize: Int = 0): SmallHeaderMap = SmallHeaderMap(expectedSize)
+
+private class SmallHeaderMap(expectedSize: Int = 0) : AbstractMutableMap<String, String>() {
+    private var entryKeys: Array<String?> = if (expectedSize == 0) {
+        EMPTY
+    } else {
+        arrayOfNulls(capacity(expectedSize))
+    }
+    private var entryValues: Array<String?> = if (expectedSize == 0) {
+        EMPTY
+    } else {
+        arrayOfNulls(capacity(expectedSize))
+    }
+    private var entryCount: Int = 0
+
+    override val size: Int
+        get() = entryCount
+
+    override val entries: MutableSet<MutableMap.MutableEntry<String, String>>
+        get() = EntrySet()
+
+    override fun containsKey(key: String): Boolean = indexOfKey(key) >= 0
+
+    override fun containsValue(value: String): Boolean {
+        for (index in 0 until entryCount) {
+            if (entryValues[index] == value) {
+                return true
+            }
         }
-    )
+        return false
+    }
+
+    override fun get(key: String): String? {
+        val index = indexOfKey(key)
+        if (index < 0) {
+            return null
+        }
+        return entryValues[index]
+    }
+
+    override fun isEmpty(): Boolean = entryCount == 0
+
+    override fun put(
+        key: String,
+        value: String
+    ): String? {
+        val index = indexOfKey(key)
+        if (index >= 0) {
+            val previous = entryValues[index]
+            entryValues[index] = value
+            return previous
+        }
+        ensureCapacity(entryCount + 1)
+        entryKeys[entryCount] = key
+        entryValues[entryCount] = value
+        entryCount++
+        return null
+    }
+
+    override fun remove(key: String): String? {
+        val index = indexOfKey(key)
+        if (index < 0) {
+            return null
+        }
+        return removeAt(index)
+    }
+
+    override fun clear() {
+        entryKeys.fill(null, 0, entryCount)
+        entryValues.fill(null, 0, entryCount)
+        entryCount = 0
+    }
+
+    fun copyMap(): SmallHeaderMap {
+        val copied = SmallHeaderMap(entryCount)
+        if (entryCount > 0) {
+            entryKeys.copyInto(copied.entryKeys, endIndex = entryCount)
+            entryValues.copyInto(copied.entryValues, endIndex = entryCount)
+            copied.entryCount = entryCount
+        }
+        return copied
+    }
+
+    private fun indexOfKey(key: String): Int {
+        for (index in 0 until entryCount) {
+            if (entryKeys[index] == key) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    private fun ensureCapacity(requiredCapacity: Int) {
+        if (entryKeys.size >= requiredCapacity) {
+            return
+        }
+        val newCapacity = when {
+            entryKeys.isEmpty() -> DEFAULT_HEADER_CAPACITY
+            else -> entryKeys.size * 2
+        }.coerceAtLeast(requiredCapacity)
+        entryKeys = entryKeys.copyOf(newCapacity)
+        entryValues = entryValues.copyOf(newCapacity)
+    }
+
+    private fun removeAt(index: Int): String {
+        val previous = checkNotNull(entryValues[index])
+        val lastIndex = entryCount - 1
+        if (index < lastIndex) {
+            entryKeys.copyInto(entryKeys, destinationOffset = index, startIndex = index + 1, endIndex = entryCount)
+            entryValues.copyInto(entryValues, destinationOffset = index, startIndex = index + 1, endIndex = entryCount)
+        }
+        entryKeys[lastIndex] = null
+        entryValues[lastIndex] = null
+        entryCount = lastIndex
+        return previous
+    }
+
+    private inner class EntrySet : AbstractMutableSet<MutableMap.MutableEntry<String, String>>() {
+        override val size: Int
+            get() = entryCount
+
+        override fun add(element: MutableMap.MutableEntry<String, String>): Boolean {
+            throw UnsupportedOperationException("Add is not supported on map entries.")
+        }
+
+        override fun clear() = this@SmallHeaderMap.clear()
+
+        override fun contains(element: MutableMap.MutableEntry<String, String>): Boolean {
+            val index = indexOfKey(element.key)
+            return index >= 0 && entryValues[index] == element.value
+        }
+
+        override fun iterator(): MutableIterator<MutableMap.MutableEntry<String, String>> = EntryIterator()
+
+        override fun remove(element: MutableMap.MutableEntry<String, String>): Boolean {
+            val index = indexOfKey(element.key)
+            if (index < 0 || entryValues[index] != element.value) {
+                return false
+            }
+            removeAt(index)
+            return true
+        }
+    }
+
+    private inner class EntryIterator : MutableIterator<MutableMap.MutableEntry<String, String>> {
+        private var nextIndex: Int = 0
+        private var lastIndex: Int = -1
+
+        override fun hasNext(): Boolean = nextIndex < entryCount
+
+        override fun next(): MutableMap.MutableEntry<String, String> {
+            if (!hasNext()) {
+                throw NoSuchElementException()
+            }
+            val entry = Entry(nextIndex)
+            lastIndex = nextIndex
+            nextIndex++
+            return entry
+        }
+
+        override fun remove() {
+            if (lastIndex < 0) {
+                throw IllegalStateException()
+            }
+            removeAt(lastIndex)
+            if (lastIndex < nextIndex) {
+                nextIndex--
+            }
+            lastIndex = -1
+        }
+    }
+
+    private inner class Entry(
+        private val index: Int
+    ) : MutableMap.MutableEntry<String, String> {
+        override val key: String
+            get() = checkNotNull(entryKeys[index])
+
+        override val value: String
+            get() = checkNotNull(entryValues[index])
+
+        override fun setValue(newValue: String): String {
+            val previous = value
+            entryValues[index] = newValue
+            return previous
+        }
+
+        override fun equals(other: Any?): Boolean {
+            if (other !is Map.Entry<*, *>) {
+                return false
+            }
+            return key == other.key && value == other.value
+        }
+
+        override fun hashCode(): Int = key.hashCode() xor value.hashCode()
+    }
+
+    companion object {
+        private val EMPTY = arrayOfNulls<String>(0)
+
+        private fun capacity(expectedSize: Int): Int =
+            when {
+                expectedSize <= 3 -> DEFAULT_HEADER_CAPACITY
+                else -> expectedSize
+            }
+    }
+}
 
 /**
  * Default implementation of the [Header] interface.
@@ -72,6 +272,9 @@ class DefaultHeader(
     override fun copy(): Header {
         if (isEmpty()) {
             return empty()
+        }
+        if (delegate is SmallHeaderMap) {
+            return DefaultHeader(delegate.copyMap())
         }
         return DefaultHeader(newHeaderMap(size).also { it.putAll(this) })
     }

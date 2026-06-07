@@ -81,15 +81,15 @@ class DefaultHeaderBehaviorTest {
     }
 
     @Test
-    fun `empty and copy use compact hash map backing`() {
+    fun `empty and copy use compact small map backing`() {
         val source = DefaultHeader.empty()
             .with("one", "1")
             .with("two", "2")
 
         val copy = source.copy()
 
-        source.backingMap().javaClass.assert().isEqualTo(HashMap::class.java)
-        copy.backingMap().javaClass.assert().isEqualTo(HashMap::class.java)
+        source.backingMap().javaClass.simpleName.assert().isEqualTo("SmallHeaderMap")
+        copy.backingMap().javaClass.simpleName.assert().isEqualTo("SmallHeaderMap")
         copy.assert().isEqualTo(source)
     }
 
