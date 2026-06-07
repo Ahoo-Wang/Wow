@@ -11,7 +11,7 @@ import me.ahoo.wow.example.api.cart.AddCartItem
 import me.ahoo.wow.example.api.order.CreateOrder
 import me.ahoo.wow.example.domain.order.OrderState
 import me.ahoo.wow.models.tree.Leaf
-import me.ahoo.wow.schema.JsonSchemaGeneratorTest.SchemaData
+import me.ahoo.wow.schema.AnnotationFixture
 import me.ahoo.wow.schema.SchemaGeneratorBuilder
 import org.junit.jupiter.api.Test
 import org.springframework.http.codec.ServerSentEvent
@@ -124,10 +124,10 @@ class OpenAPISchemaBuilderTest {
     @Test
     fun `should generate schema for array type`() {
         val openAPISchemaBuilder = OpenAPISchemaBuilder()
-        val arrayType = TypeResolver().arrayType(SchemaData::class.java)
+        val arrayType = TypeResolver().arrayType(AnnotationFixture::class.java)
         val arrayTypeSchema = openAPISchemaBuilder.generateSchema(arrayType)
         val componentsSchemas = openAPISchemaBuilder.build()
-        val schema = componentsSchemas["wow.schema.JsonSchemaGeneratorTest.SchemaData"]
+        val schema = componentsSchemas["wow.schema.AnnotationFixture"]
         arrayTypeSchema.types.assert().contains("array")
     }
 }

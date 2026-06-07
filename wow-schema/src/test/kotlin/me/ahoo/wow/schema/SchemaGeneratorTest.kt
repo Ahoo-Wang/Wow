@@ -1,8 +1,6 @@
 package me.ahoo.wow.schema
 
 import com.fasterxml.classmate.TypeResolver
-import com.fasterxml.jackson.annotation.JsonIgnore
-import com.fasterxml.jackson.annotation.JsonProperty
 import com.github.victools.jsonschema.generator.Module
 import com.github.victools.jsonschema.generator.Option
 import com.github.victools.jsonschema.generator.OptionPreset
@@ -14,18 +12,13 @@ import com.github.victools.jsonschema.module.jackson.JacksonOption
 import com.github.victools.jsonschema.module.jackson.JacksonSchemaModule
 import com.github.victools.jsonschema.module.jakarta.validation.JakartaValidationModule
 import com.github.victools.jsonschema.module.swagger2.Swagger2Module
-import io.swagger.v3.oas.annotations.media.Schema
 import me.ahoo.cosid.stat.generator.CosIdGeneratorStat
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.Identifier
 import me.ahoo.wow.api.annotation.AggregateRoot
-import me.ahoo.wow.api.annotation.CommandRoute
-import me.ahoo.wow.api.annotation.Description
-import me.ahoo.wow.api.annotation.Summary
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.api.query.Operator
 import me.ahoo.wow.command.SimpleCommandMessage
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.event.DomainEventStream
@@ -35,11 +28,6 @@ import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.eventsourcing.state.StateEventData
-import me.ahoo.wow.example.api.order.CreateOrder
-import me.ahoo.wow.example.api.order.OrderCreated
-import me.ahoo.wow.example.api.order.OrderStatus
-import me.ahoo.wow.example.domain.cart.Cart
-import me.ahoo.wow.example.domain.order.Order
 import me.ahoo.wow.modeling.DefaultAggregateId
 import me.ahoo.wow.modeling.state.SimpleStateAggregate
 import me.ahoo.wow.modeling.state.StateAggregate
@@ -54,8 +42,6 @@ import me.ahoo.wow.schema.typed.query.AggregatedPagedQuery
 import me.ahoo.wow.schema.typed.query.AggregatedSingleQuery
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.tck.mock.MockStateAggregate
-import org.joda.money.CurrencyUnit
-import org.joda.money.Money
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
@@ -63,7 +49,7 @@ import org.junit.jupiter.params.provider.MethodSource
 import tools.jackson.databind.JsonNode
 import java.util.stream.Stream
 
-class JsonSchemaGeneratorTest {
+class SchemaGeneratorTest {
     private val jsonSchemaGenerator = SchemaGeneratorBuilder()
         .openapi31(true)
         .schemaVersion(SchemaVersion.DRAFT_2020_12)
@@ -90,8 +76,6 @@ class JsonSchemaGeneratorTest {
                 Arguments.of(Snapshot::class.java, SimpleSnapshot::class.java),
                 Arguments.of(StateEvent::class.java, StateEvent::class.java),
                 Arguments.of(StateEvent::class.java, StateEventData::class.java),
-                Arguments.of(CurrencyUnit::class.java, CurrencyUnit::class.java),
-                Arguments.of(Money::class.java, Money::class.java),
                 Arguments.of(DomainEventStream::class.java, AggregatedDomainEventStream::class.java),
                 Arguments.of(CharRange::class.java, CharRange::class.java),
                 Arguments.of(IntRange::class.java, IntRange::class.java),
@@ -102,45 +86,65 @@ class JsonSchemaGeneratorTest {
         @JvmStatic
         fun parametersForGenerateTypeParameter(): Stream<Arguments> {
             return Stream.of(
-                Arguments.of(CommandMessage::class.java, CreateOrder::class.java, "CreateOrderCommandMessage"),
-                Arguments.of(DomainEvent::class.java, OrderCreated::class.java, "OrderCreatedDomainEvent"),
-                Arguments.of(StateAggregate::class.java, MockStateAggregate::class.java, "MockStateAggregate"),
-                Arguments.of(Snapshot::class.java, MockStateAggregate::class.java, "MockStateAggregateSnapshot"),
-                Arguments.of(StateEvent::class.java, MockStateAggregate::class.java, "MockStateAggregateStateEvent"),
+                Arguments.of(
+                    CommandMessage::class.java,
+                    CreateTestAggregate::class.java,
+                    "CreateTestAggregateCommandMessage"
+                ),
+                Arguments.of(
+                    DomainEvent::class.java,
+                    TestAggregateCreated::class.java,
+                    "TestAggregateCreatedDomainEvent"
+                ),
+                Arguments.of(
+                    StateAggregate::class.java,
+                    MockStateAggregate::class.java,
+                    "MockStateAggregate"
+                ),
+                Arguments.of(
+                    Snapshot::class.java,
+                    MockStateAggregate::class.java,
+                    "MockStateAggregateSnapshot"
+                ),
+                Arguments.of(
+                    StateEvent::class.java,
+                    MockStateAggregate::class.java,
+                    "MockStateAggregateStateEvent"
+                ),
                 Arguments.of(
                     AggregatedDomainEventStream::class.java,
-                    Cart::class.java,
-                    "CartAggregatedDomainEventStream"
+                    TestAggregate::class.java,
+                    "TestAggregateAggregatedDomainEventStream"
                 ),
                 Arguments.of(
                     AggregatedDomainEventStream::class.java,
                     MockEmptyAggregate::class.java,
-                    "EmptyAggregatedDomainEventStream"
+                    "MockEmptyAggregateAggregatedDomainEventStream"
                 ),
                 Arguments.of(
                     AggregatedFields::class.java,
-                    Order::class.java,
-                    "OrderAggregatedFields"
+                    TestAggregate::class.java,
+                    "TestAggregateAggregatedFields"
                 ),
                 Arguments.of(
                     AggregatedCondition::class.java,
-                    Order::class.java,
-                    "OrderAggregatedCondition"
+                    TestAggregate::class.java,
+                    "TestAggregateAggregatedCondition"
                 ),
                 Arguments.of(
                     AggregatedListQuery::class.java,
-                    Order::class.java,
-                    "OrderAggregatedListQuery"
+                    TestAggregate::class.java,
+                    "TestAggregateAggregatedListQuery"
                 ),
                 Arguments.of(
                     AggregatedPagedQuery::class.java,
-                    Order::class.java,
-                    "OrderAggregatedPagedQuery"
+                    TestAggregate::class.java,
+                    "TestAggregateAggregatedPagedQuery"
                 ),
                 Arguments.of(
                     AggregatedSingleQuery::class.java,
-                    Order::class.java,
-                    "OrderAggregatedSingleQuery"
+                    TestAggregate::class.java,
+                    "TestAggregateAggregatedSingleQuery"
                 ),
             )
         }
@@ -166,20 +170,20 @@ class JsonSchemaGeneratorTest {
 
     @Test
     fun `should ignore command path route variable in schema`() {
-        val schema = jsonSchemaGenerator.generateSchema(Patch::class.java).asJsonSchema()
+        val schema = jsonSchemaGenerator.generateSchema(CommandRouteFixture::class.java).asJsonSchema()
         schema.getProperties().assert().isNull()
     }
 
     @Test
     fun `should ignore command header route variable in schema`() {
-        val schema = jsonSchemaGenerator.generateSchema(Header::class.java).asJsonSchema()
+        val schema = jsonSchemaGenerator.generateSchema(HeaderRouteFixture::class.java).asJsonSchema()
         schema.getProperties().assert().isNull()
     }
 
     @Test
     fun `should not ignore path route variable when wow module is empty`() {
         val jsonSchemaGenerator = SchemaGeneratorBuilder().wowModule(WowModule(setOf())).build()
-        val schema = jsonSchemaGenerator.generateSchema(Patch::class.java).asJsonSchema()
+        val schema = jsonSchemaGenerator.generateSchema(CommandRouteFixture::class.java).asJsonSchema()
         schema.getProperties().assert().isNotNull()
     }
 
@@ -191,11 +195,11 @@ class JsonSchemaGeneratorTest {
     }
 
     @Test
-    fun `should generate aggregated condition schema for order`() {
+    fun `should generate aggregated condition schema for test aggregate`() {
         val jsonSchemaGenerator = SchemaGeneratorBuilder().build()
         val schema = jsonSchemaGenerator.generateSchema(
             AggregatedCondition::class.java,
-            Order::class.java
+            TestAggregate::class.java
         ).asJsonSchema()
         schema.getProperties().assert().isNotNull()
     }
@@ -241,33 +245,15 @@ class JsonSchemaGeneratorTest {
         val schemaGenerator = SchemaGenerator(schemaGeneratorConfigBuilder.build())
 
         val openAPISchemaBuilder = schemaGenerator.buildMultipleSchemaDefinitions()
-        val schema = openAPISchemaBuilder.createSchemaReference(CreateOrder::class.java).asJsonSchema()
+        val schema = openAPISchemaBuilder.createSchemaReference(CreateTestAggregate::class.java).asJsonSchema()
         val componentsSchemas = openAPISchemaBuilder.collectDefinitions("components/schemas")
         schema.get<JsonNode>(SchemaKeyword.TAG_REF).assert().isNotNull()
         componentsSchemas.assert().hasSize(3)
     }
 
-    data class Patch(
-        @field:CommandRoute.PathVariable
-        val field: String,
-        @CommandRoute.PathVariable
-        val property: String,
-        @get:CommandRoute.PathVariable
-        val getter: String
-    )
-
-    data class Header(
-        @field:CommandRoute.HeaderVariable
-        val field: String,
-        @CommandRoute.HeaderVariable
-        val property: String,
-        @get:CommandRoute.HeaderVariable
-        val getter: String
-    )
-
     @Test
     fun `should generate kotlin data class schema with nullable and readonly fields`() {
-        val schema = jsonSchemaGenerator.generateSchema(KotlinData::class.java)
+        val schema = jsonSchemaGenerator.generateSchema(KotlinFixture::class.java)
         val nullableFieldAnyOfType = schema.get("properties").get("nullableField").get("anyOf")
         nullableFieldAnyOfType.isArray.assert().isTrue()
         nullableFieldAnyOfType.get(0).get("type").stringValue().assert().isEqualTo("null")
@@ -275,7 +261,7 @@ class JsonSchemaGeneratorTest {
         val readOnlyField = schema.get("properties").get("readOnlyField")
         readOnlyField.get("readOnly").booleanValue().assert().isTrue()
         val readOnlyGetter = schema.get("properties").get("readOnlyGetter")
-        readOnlyGetter.get("readOnly").booleanValue().assert().isTrue
+        readOnlyGetter.get("readOnly").booleanValue().assert().isTrue()
         val required = schema.get("required")
         required.isArray.assert().isTrue()
         required.get(0).stringValue().assert().isEqualTo("field")
@@ -284,7 +270,7 @@ class JsonSchemaGeneratorTest {
 
     @Test
     fun `should generate polymorphic schema with anyOf`() {
-        val schema = jsonSchemaGenerator.generateSchema(PolymorphicConfig::class.java)
+        val schema = jsonSchemaGenerator.generateSchema(PolymorphicFixture::class.java)
         schema.get("anyOf").assert().isNotNull()
     }
 
@@ -297,30 +283,30 @@ class JsonSchemaGeneratorTest {
     @Test
     fun `should generate schema for array type`() {
         val jsonSchemaGenerator = SchemaGeneratorBuilder().build()
-        val arrayType = TypeResolver().arrayType(SchemaData::class.java)
+        val arrayType = TypeResolver().arrayType(AnnotationFixture::class.java)
         val arrayTypeSchema = jsonSchemaGenerator.generateSchema(arrayType)
         arrayTypeSchema.get("type").asString().assert().isEqualTo("array")
     }
 
     @Test
     fun `should generate schema with annotations`() {
-        val schema = jsonSchemaGenerator.generateSchema(SchemaData::class.java)
+        val schema = jsonSchemaGenerator.generateSchema(AnnotationFixture::class.java)
         val nullableFieldNode = schema.get("properties").get("nullableField")
-        val nullableFieldAnyOfType = schema.get("properties").get("nullableField").get("anyOf")
+        val nullableFieldAnyOfType = nullableFieldNode.get("anyOf")
         nullableFieldAnyOfType.isArray.assert().isTrue()
         nullableFieldAnyOfType.get(0).get("type").stringValue().assert().isEqualTo("null")
         nullableFieldAnyOfType.get(1).get("type").stringValue().assert().isEqualTo("string")
-        nullableFieldNode.get("title").stringValue().assert().isEqualTo("testSummary")
-        nullableFieldNode.get("description").stringValue().assert().isEqualTo("testDescription")
+        nullableFieldNode.get("title").stringValue().assert().isEqualTo("titleField")
+        nullableFieldNode.get("description").stringValue().assert().isEqualTo("descField")
         val readOnlyField = schema.get("properties").get("readOnlyField")
         readOnlyField.get("readOnly").booleanValue().assert().isTrue()
         val required = schema.get("required")
         required.isArray.assert().isTrue()
         required.get(0).stringValue().assert().isEqualTo("nullableField")
         required.get(1).stringValue().assert().isEqualTo("requiredField")
-        schema.get("properties").get("ignoreProperty").assert().isNull()
-        schema.get("properties").get("ignoreSchemaProperty").assert().isNull()
-        val getterNode = schema.get("properties").get("getter")
+        schema.get("properties").get("ignoredProp").assert().isNull()
+        schema.get("properties").get("hiddenProp").assert().isNull()
+        val getterNode = schema.get("properties").get("getterProp")
         getterNode.assert().isNotNull()
         getterNode.get("readOnly").booleanValue().assert().isTrue()
         getterNode.get("description").assert().isNotNull()
@@ -328,7 +314,7 @@ class JsonSchemaGeneratorTest {
 
     @Test
     fun `should handle is-prefixed properties with wow jackson module`() {
-        val schema = jsonSchemaGenerator.generateSchema(StartIsProperty::class.java)
+        val schema = jsonSchemaGenerator.generateSchema(IsPrefixFixture::class.java)
         val isOwnerNode = schema.get("properties").get("isOwner")
         isOwnerNode.assert().isNotNull()
         val isMissingNode = schema.get("properties").get("isMissing")
@@ -353,74 +339,12 @@ class JsonSchemaGeneratorTest {
             .customizer {
             }
             .build()
-        val schema = jsonSchemaGenerator.generateSchema(StartIsProperty::class.java)
+        val schema = jsonSchemaGenerator.generateSchema(IsPrefixFixture::class.java)
         val isOwnerNode = schema.get("properties").get("isOwner")
         isOwnerNode.assert().isNotNull()
         val isMissingNode = schema.get("properties").get("isMissing")
         isMissingNode.assert().isNotNull()
     }
-
-    @Suppress("UnusedPrivateProperty")
-    data class KotlinData(
-        val field: String,
-        val nullableField: String?,
-        val defaultField: String = "default",
-    ) {
-        private var writeOnlyField: String = "writeOnly"
-
-        val readOnlyField: String = "readOnly"
-        val readOnlyGetter: String
-            get() = "readOnlyGetter"
-        val readOnlyFieldByLazy: String by lazy { "readOnlyByLazy" }
-    }
-
-    data class SchemaData(
-        @field:Schema(nullable = true)
-        @Summary("testSummary")
-        @Description("testDescription")
-        val nullableField: String?,
-        @field:Schema(accessMode = Schema.AccessMode.READ_ONLY)
-        val readOnlyField: String?,
-        @field:Schema(accessMode = Schema.AccessMode.WRITE_ONLY)
-        val writeOnlyField: String?,
-        @field:Schema(requiredMode = Schema.RequiredMode.REQUIRED)
-        val requiredField: String?,
-        val enumMap: Map<Operator, String>? = null,
-        val enum: OrderStatus? = null,
-    ) {
-        @get:Schema(description = "getterDescription")
-        val getter: String
-            get() = ""
-
-        @get:JsonIgnore(false)
-        val getterJsonIgnoreFalse: String
-            get() = ""
-
-        @get:Schema(hidden = false)
-        val getterSchemaHiddenFalse: String
-            get() = ""
-
-        @get:JsonIgnore
-        val ignoreProperty: String
-            get() = ""
-
-        @get:Schema(hidden = true)
-        val ignoreSchemaProperty: String
-            get() = ""
-    }
-
-    data class StartIsProperty(
-        /**
-         * WARN: JacksonModule
-         *
-         * shouldIgnoreField
-         *
-         * // other kinds of field ignorals are handled implicitly, i.e. are only available by way of being absent
-         */
-        @field:JsonProperty("isOwner")
-        val isOwner: Boolean,
-        val isMissing: Boolean
-    )
 }
 
 @AggregateRoot

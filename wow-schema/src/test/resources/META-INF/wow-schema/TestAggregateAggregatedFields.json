@@ -1,0 +1,5 @@
+{
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "type" : "string",
+  "enum" : [ "", "aggregateId", "tenantId", "ownerId", "spaceId", "version", "eventId", "firstOperator", "operator", "firstEventTime", "eventTime", "tags", "deleted", "state", "state.id" ]
+}
