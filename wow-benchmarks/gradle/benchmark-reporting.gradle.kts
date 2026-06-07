@@ -89,7 +89,7 @@ fun parseBenchmarkGroup(
             return BenchmarkGroupReport(
                 group = group,
                 rows = emptyList(),
-                unavailableReason = "Result file was not present. Run ${group.command} when the required service is available.",
+                unavailableReason = "Status: unavailable. Result file was not present. Run ${group.command} when the required service is available.",
             )
         }
         throw GradleException(
