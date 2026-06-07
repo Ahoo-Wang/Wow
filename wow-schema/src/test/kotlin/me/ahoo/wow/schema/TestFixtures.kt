@@ -105,8 +105,10 @@ data class AnnotationFixture(
 ) {
     @get:Schema(description = "getterDesc")
     val getterProp: String get() = ""
+
     @get:JsonIgnore
     val ignoredProp: String get() = ""
+
     @get:Schema(hidden = true)
     val hiddenProp: String get() = ""
 }
