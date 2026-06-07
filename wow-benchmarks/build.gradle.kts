@@ -61,10 +61,10 @@ tasks.register<JavaExec>("benchmarkSmoke") {
     }
 }
 
-val benchmarkInternalReport = layout.buildDirectory.file("results/jmh/internal.json")
-val benchmarkExternalReport = layout.buildDirectory.file("results/jmh/external.json")
-val benchmarkInternalHumanReport = layout.buildDirectory.file("reports/jmh/internal-human.txt")
-val benchmarkExternalHumanReport = layout.buildDirectory.file("reports/jmh/external-human.txt")
+val benchmarkLocalReport = layout.buildDirectory.file("results/jmh/local.json")
+val benchmarkInfrastructureReport = layout.buildDirectory.file("results/jmh/infrastructure.json")
+val benchmarkLocalHumanReport = layout.buildDirectory.file("reports/jmh/local-human.txt")
+val benchmarkInfrastructureHumanReport = layout.buildDirectory.file("reports/jmh/infrastructure-human.txt")
 
 val benchmarkJvmArgs = listOf(
     "-Xmx4g",
@@ -132,29 +132,29 @@ fun JavaExec.configureJmhBenchmarkRun(
     }
 }
 
-tasks.register<JavaExec>("benchmarkInternal") {
-    description = "Runs non-Mongo and non-Redis JMH benchmarks."
+tasks.register<JavaExec>("benchmarkLocal") {
+    description = "Runs local JVM, Noop, and InMemory JMH benchmarks without Redis or Mongo."
     group = "benchmark"
     configureJmhBenchmarkRun(
-        includePattern = """me\.ahoo\.wow\.(?!mongo\.|redis\.).*Benchmark.*""",
-        resultsFile = benchmarkInternalReport,
-        humanOutputFile = benchmarkInternalHumanReport,
+        includePattern = """me\.ahoo\.wow\.(?!infrastructure\.|mongo\.|redis\.).*Benchmark.*""",
+        resultsFile = benchmarkLocalReport,
+        humanOutputFile = benchmarkLocalHumanReport,
     )
 }
 
-tasks.register<JavaExec>("benchmarkExternal") {
-    description = "Runs MongoDB and Redis JMH benchmarks."
+tasks.register<JavaExec>("benchmarkInfrastructure") {
+    description = "Runs Redis and Mongo infrastructure I/O JMH benchmarks."
     group = "benchmark"
     configureJmhBenchmarkRun(
-        includePattern = """me\.ahoo\.wow\.(mongo|redis)\..*Benchmark.*""",
-        resultsFile = benchmarkExternalReport,
-        humanOutputFile = benchmarkExternalHumanReport,
+        includePattern = """me\.ahoo\.wow\.(infrastructure\.|mongo\.|redis\.).*Benchmark.*""",
+        resultsFile = benchmarkInfrastructureReport,
+        humanOutputFile = benchmarkInfrastructureHumanReport,
     )
 }
 
 jmh {
     zip64.set(true)
-    includes.set(listOf(".*Benchmark.*"))
+    includes.set(listOf("""me\.ahoo\.wow\.(?!infrastructure\.|mongo\.|redis\.).*Benchmark.*"""))
     threads.set(1)
     warmupIterations.set(2)
     warmup.set("5s")
@@ -163,7 +163,7 @@ jmh {
     fork.set(2)
     resultFormat.set("json")
     humanOutputFile.set(layout.buildDirectory.file("reports/jmh/human.txt"))
-    resultsFile.set(layout.buildDirectory.file("results/jmh/latest.json"))
+    resultsFile.set(layout.buildDirectory.file("results/jmh/local.json"))
     jvmArgs.set(
         listOf(
             "-Xmx4g",
