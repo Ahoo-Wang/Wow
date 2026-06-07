@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.command
 
+import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
+import me.ahoo.wow.benchmark.fixture.BenchmarkCommands
 import me.ahoo.wow.modeling.materialize
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
@@ -27,7 +29,7 @@ open class InMemoryCommandBusBenchmark {
     @Setup
     fun setup() {
         commandBus = InMemoryCommandBus()
-        commandBus.receive(setOf(cartAggregateMetadata.namedAggregate.materialize())).subscribe()
+        commandBus.receive(setOf(BenchmarkAggregates.cartMetadata.namedAggregate.materialize())).subscribe()
     }
 
     @TearDown
@@ -37,7 +39,7 @@ open class InMemoryCommandBusBenchmark {
 
     @Benchmark
     fun send() {
-        val commandMessage = createCommandMessage()
+        val commandMessage = BenchmarkCommands.fixedAggregateAddCartItem()
         commandBus.send(commandMessage).block()
     }
 

@@ -13,30 +13,13 @@
 
 package me.ahoo.wow.redis
 
-import me.ahoo.wow.command.ServerCommandExchange
-import me.ahoo.wow.command.SimpleServerCommandExchange
-import me.ahoo.wow.command.cartAggregateMetadata
-import me.ahoo.wow.command.createCommandMessageForNewAggregate
+import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
+import me.ahoo.wow.benchmark.fixture.BenchmarkCommands
+import me.ahoo.wow.benchmark.scenario.CommandPipelineScenario
+import me.ahoo.wow.benchmark.scenario.consumeWowResult
 import me.ahoo.wow.command.wait.LocalCommandWaitNotifier
-import me.ahoo.wow.command.wait.ProcessedNotifierFilter
 import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
 import me.ahoo.wow.command.wait.stage.WaitingForStage
-import me.ahoo.wow.event.InMemoryDomainEventBus
-import me.ahoo.wow.eventsourcing.EventSourcingStateAggregateRepository
-import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotRepository
-import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
-import me.ahoo.wow.eventsourcing.state.SendStateEventFilter
-import me.ahoo.wow.exception.WowException
-import me.ahoo.wow.filter.FilterChainBuilder
-import me.ahoo.wow.ioc.SimpleServiceProvider
-import me.ahoo.wow.modeling.command.RetryableAggregateProcessorFactory
-import me.ahoo.wow.modeling.command.SimpleCommandAggregateFactory
-import me.ahoo.wow.modeling.command.dispatcher.AggregateProcessorFilter
-import me.ahoo.wow.modeling.command.dispatcher.CommandHandler
-import me.ahoo.wow.modeling.command.dispatcher.DefaultCommandHandler
-import me.ahoo.wow.modeling.command.dispatcher.SendDomainEventStreamFilter
-import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.redis.eventsourcing.RedisEventStore
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Fork
@@ -56,38 +39,16 @@ import org.openjdk.jmh.infra.Blackhole
 @State(Scope.Benchmark)
 open class RedisCommandProcessingPipelineBenchmark {
     private lateinit var redis: RedisBenchmarkFixture
-    private lateinit var aggregateOnlyHandler: CommandHandler
-    private lateinit var aggregateDomainAndStateEventHandler: CommandHandler
-    private lateinit var aggregateDomainStateAndProcessedNotifierHandler: CommandHandler
+    private lateinit var commandPipelineScenario: CommandPipelineScenario
 
     @Setup
     fun setup() {
         redis = RedisBenchmarkFixture()
-        val eventStore = RedisEventStore(redis.redisTemplate)
-        val commandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar)
-        val aggregateProcessorFilter = AggregateProcessorFilter(
-            serviceProvider = SimpleServiceProvider(),
-            aggregateProcessorFactory = createAggregateProcessorFactory(eventStore),
-        )
-        aggregateOnlyHandler = DefaultCommandHandler(
-            FilterChainBuilder<ServerCommandExchange<*>>()
-                .addFilter(aggregateProcessorFilter)
-                .build()
-        )
-        aggregateDomainAndStateEventHandler = DefaultCommandHandler(
-            FilterChainBuilder<ServerCommandExchange<*>>()
-                .addFilter(aggregateProcessorFilter)
-                .addFilter(SendDomainEventStreamFilter(InMemoryDomainEventBus()))
-                .addFilter(SendStateEventFilter(InMemoryStateEventBus()))
-                .build()
-        )
-        aggregateDomainStateAndProcessedNotifierHandler = DefaultCommandHandler(
-            FilterChainBuilder<ServerCommandExchange<*>>()
-                .addFilter(aggregateProcessorFilter)
-                .addFilter(SendDomainEventStreamFilter(InMemoryDomainEventBus()))
-                .addFilter(SendStateEventFilter(InMemoryStateEventBus()))
-                .addFilter(ProcessedNotifierFilter(commandWaitNotifier))
-                .build()
+        commandPipelineScenario = CommandPipelineScenario.create(
+            eventStore = RedisEventStore(redis.redisTemplate),
+            commandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar),
+            aggregateMetadata = BenchmarkAggregates.cartMetadata,
+            newAggregateCommandFactory = BenchmarkCommands::newAggregateAddCartItem,
         )
     }
 
@@ -96,67 +57,45 @@ open class RedisCommandProcessingPipelineBenchmark {
         redis.close()
     }
 
-    private fun createAggregateProcessorFactory(eventStore: EventStore): RetryableAggregateProcessorFactory {
-        val stateAggregateRepository = EventSourcingStateAggregateRepository(
-            ConstructorStateAggregateFactory,
-            InMemorySnapshotRepository(),
-            eventStore,
-        )
-        return RetryableAggregateProcessorFactory(
-            ConstructorStateAggregateFactory,
-            stateAggregateRepository,
-            SimpleCommandAggregateFactory(eventStore),
-        )
-    }
-
-    private fun createServerExchange(): ServerCommandExchange<*> {
-        val exchange = SimpleServerCommandExchange(createCommandMessageForNewAggregate())
-        exchange.setAggregateMetadata(cartAggregateMetadata)
-        return exchange
-    }
-
-    private fun run(blackHole: Blackhole, block: () -> Any?) {
-        try {
-            blackHole.consume(block())
-        } catch (wowException: WowException) {
-            blackHole.consume(wowException)
-        }
-    }
-
     @Benchmark
     fun handleAggregateOnly(blackHole: Blackhole) {
-        run(blackHole) {
-            aggregateOnlyHandler.handle(createServerExchange()).block()
+        blackHole.consumeWowResult {
+            commandPipelineScenario.aggregateOnlyHandler
+                .handle(commandPipelineScenario.createServerExchange())
+                .block()
         }
     }
 
     @Benchmark
     fun handleAggregateDomainAndStateEvent(blackHole: Blackhole) {
-        run(blackHole) {
-            aggregateDomainAndStateEventHandler.handle(createServerExchange()).block()
+        blackHole.consumeWowResult {
+            commandPipelineScenario.aggregateDomainAndStateEventHandler
+                .handle(commandPipelineScenario.createServerExchange())
+                .block()
         }
     }
 
     @Benchmark
     fun handleAggregateDomainStateAndProcessedNotifierWithoutWait(blackHole: Blackhole) {
-        run(blackHole) {
-            aggregateDomainStateAndProcessedNotifierHandler.handle(createServerExchange()).block()
+        blackHole.consumeWowResult {
+            commandPipelineScenario.aggregateDomainStateAndProcessedNotifierHandler
+                .handle(commandPipelineScenario.createServerExchange())
+                .block()
         }
     }
 
     @Benchmark
     fun handleAggregateDomainStateAndProcessedNotifierWithLocalWait(blackHole: Blackhole) {
-        run(blackHole) {
-            val commandMessage = createCommandMessageForNewAggregate()
+        blackHole.consumeWowResult {
+            val commandMessage = BenchmarkCommands.newAggregateAddCartItem()
             val waitStrategy = WaitingForStage.processed(commandMessage.commandId)
             waitStrategy.propagate("", commandMessage.header)
             SimpleWaitStrategyRegistrar.register(waitStrategy)
             waitStrategy.onFinally {
                 SimpleWaitStrategyRegistrar.unregister(waitStrategy.waitCommandId)
             }
-            val exchange = SimpleServerCommandExchange(commandMessage)
-            exchange.setAggregateMetadata(cartAggregateMetadata)
-            aggregateDomainStateAndProcessedNotifierHandler
+            val exchange = commandPipelineScenario.createServerExchange(commandMessage)
+            commandPipelineScenario.aggregateDomainStateAndProcessedNotifierHandler
                 .handle(exchange)
                 .then(waitStrategy.waitingLast())
                 .block()

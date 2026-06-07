@@ -39,6 +39,15 @@ object BenchmarkCommands {
         )
     }
 
+    fun hotPathAddCartItem(): CommandMessage<AddCartItem> {
+        return addCartItem(
+            id = BenchmarkIds.nextGlobalId(),
+            requestId = BenchmarkIds.nextGlobalId(),
+            aggregateId = BenchmarkIds.nextGlobalId(),
+            namedAggregate = BenchmarkAggregates.namedAggregate,
+        )
+    }
+
     fun smokeAddCartItem(): CommandMessage<AddCartItem> {
         return addCartItem(
             id = "benchmark-command-id",
