@@ -14,6 +14,7 @@
 package me.ahoo.wow.serialization.event
 
 import me.ahoo.wow.api.event.DEFAULT_EVENT_SEQUENCE
+import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.messaging.Header
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.SpaceId
@@ -60,21 +61,24 @@ interface EventStreamRecord :
         val createTime = createTime
         val aggregateId = toAggregateId()
         val eventCount = body.size()
-        val events = body.mapIndexed { index, eventNode ->
+        val events = ArrayList<DomainEvent<*>>(eventCount)
+        body.forEachIndexed { index, eventNode ->
             val sequence = (index + DEFAULT_EVENT_SEQUENCE)
-            StreamDomainEventRecord(
-                actual = eventNode as ObjectNode,
-                streamedAggregateId = aggregateId,
-                version = version,
-                ownerId = ownerId,
-                spaceId = spaceId,
-                streamedHeader = header,
-                commandId = commandId,
-                sequence = sequence,
-                isLast = sequence == eventCount,
-                createTime = createTime,
-            ).toDomainEvent()
-        }.toList()
+            events.add(
+                StreamDomainEventRecord(
+                    actual = eventNode as ObjectNode,
+                    streamedAggregateId = aggregateId,
+                    version = version,
+                    ownerId = ownerId,
+                    spaceId = spaceId,
+                    streamedHeader = header,
+                    commandId = commandId,
+                    sequence = sequence,
+                    isLast = sequence == eventCount,
+                    createTime = createTime,
+                ).toDomainEvent()
+            )
+        }
 
         return SimpleDomainEventStream(
             id = id,
