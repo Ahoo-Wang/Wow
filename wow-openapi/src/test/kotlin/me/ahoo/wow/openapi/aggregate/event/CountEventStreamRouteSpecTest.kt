@@ -29,13 +29,27 @@ internal class CountEventStreamRouteSpecTest {
 
     @Test
     fun `should have get method`() {
-        val spec = CountEventStreamRouteSpec(namedContext, aggregateRouteMetadata, appendTenantPath = false, appendOwnerPath = false, context)
+        val spec =
+            CountEventStreamRouteSpec(
+                namedContext,
+                aggregateRouteMetadata,
+                appendTenantPath = false,
+                appendOwnerPath = false,
+                context
+            )
         spec.method.assert().isEqualTo(Https.Method.POST)
     }
 
     @Test
     fun `should have event path suffix`() {
-        val spec = CountEventStreamRouteSpec(namedContext, aggregateRouteMetadata, appendTenantPath = false, appendOwnerPath = false, context)
+        val spec =
+            CountEventStreamRouteSpec(
+                namedContext,
+                aggregateRouteMetadata,
+                appendTenantPath = false,
+                appendOwnerPath = false,
+                context
+            )
         spec.path.assert().contains("event")
     }
 }
