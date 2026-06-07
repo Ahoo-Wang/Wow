@@ -112,54 +112,112 @@ data class CommandAggregateMetadata<C : Any>(
         (commandFunctionRegistry.keys.toList() + mountedCommands).sortedByOrder()
     }
 
+    fun toCommandFunction(
+        commandAggregate: CommandAggregate<C, *>,
+        commandType: Class<*>
+    ): MessageFunction<C, ServerCommandExchange<*>, Mono<DomainEventStream>>? {
+        commandFunctionRegistry[commandType]?.let { functionMetadata ->
+            return functionMetadata.toCommandFunction(
+                commandType = commandType,
+                commandAggregate = commandAggregate,
+                allAfterCommandFunctions = commandAggregate.toAfterCommandFunctions(),
+            )
+        }
+
+        return commandAggregate.toDefaultCommandFunction(commandType)
+    }
+
     fun toCommandFunctionRegistry(
         commandAggregate: CommandAggregate<C, *>
     ): Map<Class<*>, MessageFunction<C, ServerCommandExchange<*>, Mono<DomainEventStream>>> {
-        val allAfterCommandFunctions =
-            afterCommandFunctionRegistry.map {
-                it.toAfterCommandFunction(commandAggregate.commandRoot)
-            }
+        val allAfterCommandFunctions = commandAggregate.toAfterCommandFunctions()
+        val registry =
+            LinkedHashMap<Class<*>, MessageFunction<C, ServerCommandExchange<*>, Mono<DomainEventStream>>>(
+                commandFunctionRegistry.size + DEFAULT_INTERNAL_COMMAND_COUNT,
+            )
+        commandFunctionRegistry.forEach { (commandType, functionMetadata) ->
+            registry[commandType] = functionMetadata.toCommandFunction(
+                commandType = commandType,
+                commandAggregate = commandAggregate,
+                allAfterCommandFunctions = allAfterCommandFunctions,
+            )
+        }
 
-        return buildMap(commandFunctionRegistry.size + 3) {
-            commandFunctionRegistry.forEach { (commandType, functionMetadata) ->
-                val actualMessageFunction = functionMetadata
-                    .toMessageFunction<C, ServerCommandExchange<*>, Mono<*>>(commandAggregate.commandRoot)
-                val afterCommandFunctions = allAfterCommandFunctions.supportCommand(commandType)
-                put(
-                    commandType,
-                    CommandFunction(
-                        actualMessageFunction,
-                        commandAggregate,
-                        afterCommandFunctions,
-                        supportedTopics,
-                    )
-                )
-            }
+        commandAggregate.toDefaultCommandFunction(
+            commandType = DefaultRecoverAggregate::class.java,
+            allAfterCommandFunctions = allAfterCommandFunctions,
+        )?.let {
+            registry[DefaultRecoverAggregate::class.java] = it
+        }
+        commandAggregate.toDefaultCommandFunction(
+            commandType = DefaultDeleteAggregate::class.java,
+            allAfterCommandFunctions = allAfterCommandFunctions,
+        )?.let {
+            registry[DefaultDeleteAggregate::class.java] = it
+        }
+        commandAggregate.toDefaultCommandFunction(
+            commandType = DefaultApplyResourceTags::class.java,
+            allAfterCommandFunctions = allAfterCommandFunctions,
+        )?.let {
+            registry[DefaultApplyResourceTags::class.java] = it
+        }
+        return registry
+    }
 
-            if (!registeredRecoverAggregate) {
+    private fun FunctionAccessorMetadata<C, Mono<*>>.toCommandFunction(
+        commandType: Class<*>,
+        commandAggregate: CommandAggregate<C, *>,
+        allAfterCommandFunctions: List<AfterCommandFunction<C>>
+    ): MessageFunction<C, ServerCommandExchange<*>, Mono<DomainEventStream>> {
+        val actualMessageFunction = toMessageFunction<C, ServerCommandExchange<*>, Mono<*>>(
+            commandAggregate.commandRoot,
+        )
+        val afterCommandFunctions = allAfterCommandFunctions.supportCommand(commandType)
+        return CommandFunction(
+            actualMessageFunction,
+            commandAggregate,
+            afterCommandFunctions,
+            supportedTopics,
+        )
+    }
+
+    private fun CommandAggregate<C, *>.toDefaultCommandFunction(
+        commandType: Class<*>,
+        allAfterCommandFunctions: List<AfterCommandFunction<C>> = toAfterCommandFunctions()
+    ): MessageFunction<C, ServerCommandExchange<*>, Mono<DomainEventStream>>? {
+        return when {
+            commandType == DefaultRecoverAggregate::class.java && !registeredRecoverAggregate -> {
                 val afterCommandFunctions = allAfterCommandFunctions.supportCommand(DefaultRecoverAggregate::class.java)
-                put(
-                    DefaultRecoverAggregate::class.java,
-                    DefaultRecoverAggregateFunction(commandAggregate, afterCommandFunctions, supportedTopics),
-                )
+                DefaultRecoverAggregateFunction(this, afterCommandFunctions, supportedTopics)
             }
-            if (!registeredDeleteAggregate) {
+
+            commandType == DefaultDeleteAggregate::class.java && !registeredDeleteAggregate -> {
                 val afterCommandFunctions = allAfterCommandFunctions.supportCommand(DefaultDeleteAggregate::class.java)
-                put(
-                    DefaultDeleteAggregate::class.java,
-                    DefaultDeleteAggregateFunction(commandAggregate, afterCommandFunctions, supportedTopics),
-                )
+                DefaultDeleteAggregateFunction(this, afterCommandFunctions, supportedTopics)
             }
-            if (!registeredApplyResourceTags) {
+
+            commandType == DefaultApplyResourceTags::class.java && !registeredApplyResourceTags -> {
                 val afterCommandFunctions = allAfterCommandFunctions.supportCommand(
                     DefaultApplyResourceTags::class.java,
                 )
-                put(
-                    DefaultApplyResourceTags::class.java,
-                    DefaultApplyResourceTagsFunction(commandAggregate, afterCommandFunctions, supportedTopics),
-                )
+                DefaultApplyResourceTagsFunction(this, afterCommandFunctions, supportedTopics)
             }
+
+            else -> null
         }
+    }
+
+    private fun CommandAggregate<C, *>.toAfterCommandFunctions(): List<AfterCommandFunction<C>> {
+        if (afterCommandFunctionRegistry.isEmpty()) {
+            return emptyList()
+        }
+        return afterCommandFunctionRegistry.map {
+            it.toAfterCommandFunction(commandRoot)
+        }
+    }
+
+    private companion object {
+        const val DEFAULT_INTERNAL_COMMAND_COUNT = 3
     }
 
     /**

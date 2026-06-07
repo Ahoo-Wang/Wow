@@ -59,7 +59,6 @@ class SimpleCommandAggregate<C : Any, S : Any>(
             processorName = processorName,
             name = SimpleCommandAggregate<*, *>::process.name,
         )
-    private val commandFunctionRegistry = metadata.toCommandFunctionRegistry(this)
     private val errorFunctionRegistry = metadata.toErrorFunctionRegistry(this)
 
     @Volatile
@@ -117,7 +116,7 @@ class SimpleCommandAggregate<C : Any, S : Any>(
                     state.aggregateId,
                 ).toMono()
             }
-            val commandFunction = commandFunctionRegistry[commandType]
+            val commandFunction = metadata.toCommandFunction(this, commandType)
             requireNotNull(commandFunction) {
                 "Failed to process command[${message.id}]: Undefined command[${message.body.javaClass}]."
             }

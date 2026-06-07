@@ -73,4 +73,30 @@ class CommandAggregateMetadataBehaviorTest {
             DefaultApplyResourceTags::class.java,
         )
     }
+
+    @Test
+    fun `command function resolves one command type and default internal commands`() {
+        val aggregateMetadata = aggregateMetadata<MockAfterCommandAggregate, MockAfterCommandAggregate>()
+        val commandRoot = MockAfterCommandAggregate("aggregate-1")
+        val stateAggregate = aggregateMetadata.toStateAggregate(commandRoot, version = 0)
+        val commandAggregate = SimpleCommandAggregate(
+            state = stateAggregate,
+            commandRoot = commandRoot,
+            eventStore = InMemoryEventStore(),
+            metadata = aggregateMetadata.command,
+        )
+
+        val createFunction = aggregateMetadata.command.toCommandFunction(commandAggregate, CreateCmd::class.java)
+        val deleteFunction = aggregateMetadata.command.toCommandFunction(
+            commandAggregate,
+            DefaultDeleteAggregate::class.java,
+        )
+        val missingFunction = aggregateMetadata.command.toCommandFunction(commandAggregate, String::class.java)
+
+        createFunction.assert().isNotNull()
+        createFunction!!.supportedType.assert().isEqualTo(CreateCmd::class.java)
+        deleteFunction.assert().isNotNull()
+        deleteFunction!!.supportedType.assert().isEqualTo(DefaultDeleteAggregate::class.java)
+        missingFunction.assert().isNull()
+    }
 }
