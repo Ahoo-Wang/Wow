@@ -14,11 +14,31 @@
 package me.ahoo.wow.redis
 
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration
+import org.springframework.data.redis.connection.ReactiveRedisConnection
 import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate
+import java.time.Duration
 
 class RedisBenchmarkFixture : AutoCloseable {
+    companion object {
+        private val FLUSH_TIMEOUT: Duration = Duration.ofSeconds(30)
+        private const val DEFAULT_BENCHMARK_DATABASE = 15
+        private const val REDIS_DATABASE_PROPERTY = "wow.benchmark.redis.database"
+
+        private fun benchmarkDatabase(): Int {
+            val configuredDatabase = System.getProperty(REDIS_DATABASE_PROPERTY)
+            val database = configuredDatabase?.toIntOrNull() ?: DEFAULT_BENCHMARK_DATABASE
+            require(configuredDatabase == null || configuredDatabase.toIntOrNull() != null) {
+                "$REDIS_DATABASE_PROPERTY must be an integer."
+            }
+            require(database >= 0) {
+                "$REDIS_DATABASE_PROPERTY must be greater than or equal to 0."
+            }
+            return database
+        }
+    }
+
     val connectionFactory: LettuceConnectionFactory
     val redisTemplate: ReactiveStringRedisTemplate
 
@@ -26,13 +46,28 @@ class RedisBenchmarkFixture : AutoCloseable {
         val lettuceClientConfiguration = LettuceClientConfiguration
             .builder()
             .build()
-        val redisConfig = RedisStandaloneConfiguration()
+        val redisConfig = RedisStandaloneConfiguration().apply {
+            database = benchmarkDatabase()
+        }
         connectionFactory = LettuceConnectionFactory(redisConfig, lettuceClientConfiguration)
         connectionFactory.afterPropertiesSet()
         redisTemplate = ReactiveStringRedisTemplate(connectionFactory)
+        flushDb()
     }
 
     override fun close() {
+        runCatching {
+            flushDb()
+        }
         connectionFactory.destroy()
+    }
+
+    private fun flushDb() {
+        val connection: ReactiveRedisConnection = connectionFactory.reactiveConnection
+        try {
+            connection.serverCommands().flushDb().block(FLUSH_TIMEOUT)
+        } finally {
+            connection.close()
+        }
     }
 }

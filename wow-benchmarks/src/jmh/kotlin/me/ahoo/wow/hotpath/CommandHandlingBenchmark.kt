@@ -13,6 +13,9 @@
 
 package me.ahoo.wow.hotpath
 
+import me.ahoo.wow.command.SimpleServerCommandExchange
+import me.ahoo.wow.eventsourcing.NoopEventStore
+import me.ahoo.wow.modeling.command.SimpleCommandAggregateFactory
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
@@ -21,6 +24,8 @@ import org.openjdk.jmh.infra.Blackhole
 
 @State(Scope.Benchmark)
 open class CommandHandlingBenchmark {
+    private val commandAggregateFactory = SimpleCommandAggregateFactory(NoopEventStore)
+
     @Benchmark
     fun createAggregateAndHandle(blackhole: Blackhole) {
         val aggregate = ConstructorStateAggregateFactory.create(
@@ -38,5 +43,36 @@ open class CommandHandlingBenchmark {
             HotPathFixture.aggregateId,
         )
         blackhole.consume(aggregate)
+    }
+
+    @Benchmark
+    fun createCommandAggregate(blackhole: Blackhole) {
+        val commandMessage = HotPathFixture.createCommandMessage()
+        val stateAggregate = ConstructorStateAggregateFactory.create(
+            HotPathFixture.aggregateMetadata.state,
+            commandMessage.aggregateId,
+        )
+        val commandAggregate = commandAggregateFactory.create(
+            HotPathFixture.aggregateMetadata,
+            stateAggregate,
+        )
+        blackhole.consume(commandAggregate)
+    }
+
+    @Benchmark
+    fun processCommandAggregate(blackhole: Blackhole) {
+        val commandMessage = HotPathFixture.createCommandMessage()
+        val stateAggregate = ConstructorStateAggregateFactory.create(
+            HotPathFixture.aggregateMetadata.state,
+            commandMessage.aggregateId,
+        )
+        val commandAggregate = commandAggregateFactory.create(
+            HotPathFixture.aggregateMetadata,
+            stateAggregate,
+        )
+        val eventStream = commandAggregate.process(
+            SimpleServerCommandExchange(commandMessage),
+        ).block()
+        blackhole.consume(eventStream)
     }
 }

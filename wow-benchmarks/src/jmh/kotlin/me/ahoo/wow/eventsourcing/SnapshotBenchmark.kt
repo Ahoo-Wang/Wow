@@ -30,7 +30,7 @@ import org.openjdk.jmh.infra.Blackhole
 
 @State(Scope.Benchmark)
 open class SnapshotBenchmark {
-    private lateinit var snapshotRepository: SnapshotRepository
+    private lateinit var snapshotLoadRepository: SnapshotRepository
     private lateinit var snapshotStrategy: VersionOffsetSnapshotStrategy
     private lateinit var stateEventExchange: SimpleStateEventExchange<*>
     private lateinit var aggregateId: me.ahoo.wow.api.modeling.AggregateId
@@ -38,21 +38,20 @@ open class SnapshotBenchmark {
     @Setup
     fun setup() {
         aggregateId = cartAggregateMetadata.aggregateId()
-        snapshotRepository = InMemorySnapshotRepository()
+        snapshotLoadRepository = InMemorySnapshotRepository()
         snapshotStrategy = VersionOffsetSnapshotStrategy(
             versionOffset = 5,
-            snapshotRepository = snapshotRepository,
+            snapshotRepository = InMemorySnapshotRepository(),
         )
 
         val aggregate = ConstructorStateAggregateFactory.create(
             cartAggregateMetadata.state,
             aggregateId,
         )
-        val snapshot = SimpleSnapshot(aggregate)
-        snapshotRepository.save(snapshot).block()
-
-        val eventStream = createEventStream()
+        val eventStream = createEventStream(aggregateId)
         val stateEvent = eventStream.toStateEvent(aggregate)
+        val snapshot = SimpleSnapshot(stateEvent)
+        snapshotLoadRepository.save(snapshot).block()
         stateEventExchange = SimpleStateEventExchange(stateEvent)
     }
 
@@ -64,7 +63,9 @@ open class SnapshotBenchmark {
 
     @Benchmark
     fun snapshotLoad(blackhole: Blackhole) {
-        val snapshot = snapshotRepository.load<me.ahoo.wow.modeling.state.SimpleStateAggregate<*>>(aggregateId).block()
+        val snapshot = checkNotNull(
+            snapshotLoadRepository.load<me.ahoo.wow.modeling.state.SimpleStateAggregate<*>>(aggregateId).block()
+        )
         blackhole.consume(snapshot)
     }
 }

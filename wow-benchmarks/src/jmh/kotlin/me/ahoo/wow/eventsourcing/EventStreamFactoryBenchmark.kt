@@ -26,4 +26,10 @@ open class EventStreamFactoryBenchmark {
         val eventStream = createEventStream()
         blackhole.consume(eventStream)
     }
+
+    @Benchmark
+    fun createSingleEventStream(blackhole: Blackhole) {
+        val eventStream = createSingleEventStream()
+        blackhole.consume(eventStream)
+    }
 }

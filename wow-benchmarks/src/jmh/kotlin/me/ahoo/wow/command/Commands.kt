@@ -19,18 +19,17 @@ import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.example.api.cart.AddCartItem
 import me.ahoo.wow.example.domain.cart.Cart
 import me.ahoo.wow.example.domain.cart.CartState
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.infra.idempotency.BloomFilterIdempotencyChecker
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import java.time.Duration
-import java.util.concurrent.atomic.AtomicLong
 
 val cartAggregateMetadata by lazy {
     aggregateMetadata<Cart, CartState>()
 }
 
 private val benchmarkCart = MaterializedNamedAggregate("example-service", "cart")
-private val benchmarkIdSequence = AtomicLong()
 const val FIXED_AGGREGATE_ID = "benchmark-cart-fixed-id"
 
 fun createCommandMessage(): CommandMessage<AddCartItem> {
@@ -78,7 +77,7 @@ private fun createCommandMessage(
     )
 }
 
-private fun nextBenchmarkId(): String = "benchmark-${benchmarkIdSequence.incrementAndGet()}"
+private fun nextBenchmarkId(): String = generateGlobalId()
 
 fun createBloomFilterIdempotencyChecker(): BloomFilterIdempotencyChecker {
     return BloomFilterIdempotencyChecker(Duration.ofMinutes(1)) {

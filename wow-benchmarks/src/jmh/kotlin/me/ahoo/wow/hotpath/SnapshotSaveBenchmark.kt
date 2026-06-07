@@ -15,6 +15,7 @@ package me.ahoo.wow.hotpath
 
 import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotRepository
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
+import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.toStateEvent
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
@@ -34,7 +35,7 @@ open class SnapshotSaveBenchmark {
             HotPathFixture.aggregateMetadata.state,
             HotPathFixture.aggregateId,
         )
-        snapshot = SimpleSnapshot(aggregate)
+        snapshot = SimpleSnapshot(HotPathFixture.createEventStream().toStateEvent(aggregate))
     }
 
     @Benchmark
