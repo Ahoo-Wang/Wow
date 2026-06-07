@@ -12,10 +12,13 @@
  */
 package me.ahoo.wow.modeling.metadata
 
+import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.modeling.TypedAggregate
 import me.ahoo.wow.event.DomainEventExchange
+import me.ahoo.wow.event.SimpleDomainEventExchange
 import me.ahoo.wow.infra.accessor.constructor.ConstructorAccessor
 import me.ahoo.wow.infra.accessor.property.PropertyGetter
+import me.ahoo.wow.messaging.function.FirstParameterKind
 import me.ahoo.wow.messaging.function.FunctionAccessorMetadata
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.function.toMessageFunction
@@ -59,6 +62,48 @@ data class StateAggregateMetadata<S : Any>(
                 put(eventType, functionMetadata.toMessageFunction<S, DomainEventExchange<*>, Void>(stateRoot))
             }
         }
+
+    fun sourcing(
+        stateRoot: S,
+        domainEvent: DomainEvent<*>
+    ): Boolean {
+        val functionMetadata = sourcingFunctionRegistry[domainEvent.body.javaClass] ?: return false
+        functionMetadata.invokeSourcing(stateRoot, domainEvent)
+        return true
+    }
+
+    private fun FunctionAccessorMetadata<S, Void>.invokeSourcing(
+        stateRoot: S,
+        domainEvent: DomainEvent<*>
+    ) {
+        if (injectParameterLength == 0) {
+            accessor.invokeSingle(stateRoot, firstArgument(domainEvent))
+            return
+        }
+        val exchange = domainEvent.toExchange()
+        val args = arrayOfNulls<Any>(1 + injectParameterLength)
+        args[0] = extractFirstArgument(exchange)
+        for (i in 0 until injectParameterLength) {
+            val injectParameter = injectParameters[i]
+            if (injectParameter.name.isNotBlank()) {
+                args[i + 1] = exchange.getServiceProvider()?.getService(injectParameter.name)
+            } else {
+                args[i + 1] = exchange.extractObject(injectParameter.type)
+            }
+        }
+        accessor.invoke(stateRoot, args)
+    }
+
+    private fun FunctionAccessorMetadata<S, Void>.firstArgument(domainEvent: DomainEvent<*>): Any =
+        when (firstParameterKind) {
+            FirstParameterKind.MESSAGE_EXCHANGE -> domainEvent.toExchange()
+            FirstParameterKind.MESSAGE -> domainEvent
+            FirstParameterKind.MESSAGE_BODY -> domainEvent.body
+        }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun DomainEvent<*>.toExchange(): SimpleDomainEventExchange<Any> =
+        SimpleDomainEventExchange(this as DomainEvent<Any>)
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

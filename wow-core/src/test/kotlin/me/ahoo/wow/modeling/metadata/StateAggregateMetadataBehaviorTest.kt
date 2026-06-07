@@ -14,8 +14,12 @@
 package me.ahoo.wow.modeling.metadata
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.event.toDomainEventStream
+import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
+import me.ahoo.wow.tck.mock.MockAggregateChanged
 import me.ahoo.wow.tck.mock.MockStateAggregate
+import me.ahoo.wow.test.aggregate.GivenInitializationCommand
 import org.junit.jupiter.api.Test
 
 class StateAggregateMetadataBehaviorTest {
@@ -40,4 +44,23 @@ class StateAggregateMetadataBehaviorTest {
             it.processor.assert().isSameAs(state)
         }
     }
+
+    @Test
+    fun `state aggregate metadata sources matching domain events directly`() {
+        val state = MockStateAggregate("aggregate-1")
+        val command = GivenInitializationCommand(MOCK_AGGREGATE_METADATA.aggregateId("aggregate-1"))
+        val matchedEvent = MockAggregateChanged("changed")
+            .toDomainEventStream(upstream = command)
+            .first()
+        val ignoredEvent = UnknownStateMetadataEvent
+            .toDomainEventStream(upstream = command)
+            .first()
+
+        MOCK_AGGREGATE_METADATA.state.sourcing(state, matchedEvent).assert().isTrue()
+        MOCK_AGGREGATE_METADATA.state.sourcing(state, ignoredEvent).assert().isFalse()
+
+        state.data.assert().isEqualTo("changed")
+    }
+
+    private object UnknownStateMetadataEvent
 }
