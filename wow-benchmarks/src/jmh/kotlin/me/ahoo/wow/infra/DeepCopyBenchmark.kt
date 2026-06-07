@@ -15,14 +15,12 @@ package me.ahoo.wow.infra
 
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.createEventStream
-import me.ahoo.wow.serialization.deepCopy
-import me.ahoo.wow.serialization.toJsonNode
 import me.ahoo.wow.serialization.toLinkedHashMap
+import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.State
-import tools.jackson.databind.node.ObjectNode
 
 @State(Scope.Benchmark)
 open class DeepCopyBenchmark {
@@ -30,13 +28,13 @@ open class DeepCopyBenchmark {
     private val eventStream: DomainEventStream = createEventStream()
 
     @Benchmark
-    fun toJsonNodeToObject(): DomainEventStream {
-        return eventStream.toJsonNode<ObjectNode>().toObject<DomainEventStream>()
+    fun jsonRoundTrip(): DomainEventStream {
+        return eventStream.toJsonString().toObject<DomainEventStream>()
     }
 
     @Benchmark
-    fun convertValue(): DomainEventStream {
-        return eventStream.deepCopy(DomainEventStream::class.java)
+    fun domainCopy(): DomainEventStream {
+        return eventStream.copy()
     }
 
     @Benchmark

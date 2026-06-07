@@ -14,22 +14,20 @@
 package me.ahoo.wow.eventsourcing
 
 import org.openjdk.jmh.annotations.Benchmark
+import org.openjdk.jmh.annotations.OperationsPerInvocation
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
-import org.openjdk.jmh.annotations.TearDown
 
 @State(Scope.Benchmark)
 open class InMemoryEventStoreBenchmark : AbstractEventStoreBenchmark() {
+    private companion object {
+        const val APPENDS_PER_INVOCATION = 1024
+    }
 
     @Setup
     override fun setup() {
         super.setup()
-    }
-
-    @TearDown
-    fun tearDown() {
-        setup()
     }
 
     override fun createEventStore(): EventStore {
@@ -37,7 +35,11 @@ open class InMemoryEventStoreBenchmark : AbstractEventStoreBenchmark() {
     }
 
     @Benchmark
+    @OperationsPerInvocation(APPENDS_PER_INVOCATION)
     override fun append() {
-        super.append()
+        repeat(APPENDS_PER_INVOCATION) {
+            super.append()
+        }
+        setup()
     }
 }

@@ -11,27 +11,31 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.eventsourcing
+package me.ahoo.wow.modeling
 
 import org.openjdk.jmh.annotations.Benchmark
+import org.openjdk.jmh.annotations.Level
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
+import org.openjdk.jmh.annotations.TearDown
+import org.openjdk.jmh.infra.Blackhole
 
 @State(Scope.Benchmark)
-open class NoopEventStoreBenchmark : AbstractEventStoreBenchmark() {
-    @Setup
+open class InMemoryCommandDispatcherGrowthBenchmark : AbstractCommandDispatcherBenchmark() {
+
+    @Setup(Level.Iteration)
     override fun setup() {
         super.setup()
     }
 
-    override fun createEventStore(): EventStore {
-        return NoopEventStore
+    @TearDown(Level.Iteration)
+    override fun destroy() {
+        super.destroy()
     }
 
-
     @Benchmark
-    override fun append() {
-        super.append()
+    fun sendAndWaitForProcessedWithGrowingStream(blackHole: Blackhole) {
+        super.sendAndWaitForProcessed(blackHole)
     }
 }

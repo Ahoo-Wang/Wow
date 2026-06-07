@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.modeling
 
+import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.BenchmarkAggregateSchedulerSupplier
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.DefaultCommandGateway
@@ -20,6 +22,7 @@ import me.ahoo.wow.command.InMemoryCommandBus
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.createBloomFilterIdempotencyChecker
 import me.ahoo.wow.command.createCommandMessage
+import me.ahoo.wow.example.api.cart.AddCartItem
 import me.ahoo.wow.command.wait.CommandWaitNotifier
 import me.ahoo.wow.command.wait.LocalCommandWaitNotifier
 import me.ahoo.wow.command.wait.ProcessedNotifierFilter
@@ -49,6 +52,7 @@ import me.ahoo.wow.modeling.command.dispatcher.DefaultCommandHandler
 import me.ahoo.wow.modeling.command.dispatcher.SendDomainEventStreamFilter
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
+import me.ahoo.wow.scheduler.AggregateSchedulerSupplier
 import me.ahoo.wow.test.validation.TestValidator
 import org.openjdk.jmh.infra.Blackhole
 
@@ -94,7 +98,8 @@ abstract class AbstractCommandDispatcherBenchmark {
             .build()
         commandDispatcher = CommandDispatcher(
             commandBus = commandGateway,
-            commandHandler = DefaultCommandHandler(chain)
+            commandHandler = DefaultCommandHandler(chain),
+            schedulerSupplier = createSchedulerSupplier()
         )
         commandDispatcher.start()
     }
@@ -125,8 +130,17 @@ abstract class AbstractCommandDispatcherBenchmark {
         return InMemorySnapshotRepository()
     }
 
+    open fun createSchedulerSupplier(): AggregateSchedulerSupplier {
+        return BenchmarkAggregateSchedulerSupplier()
+    }
+
+    open fun createBenchmarkCommandMessage(): CommandMessage<AddCartItem> {
+        return createCommandMessage()
+    }
+
     open fun destroy() {
         commandDispatcher.stop()
+        commandGateway.close()
     }
 
     inline fun run(blackHole: Blackhole, block: () -> Any?) {
@@ -138,22 +152,24 @@ abstract class AbstractCommandDispatcherBenchmark {
         }
     }
 
+    // Sent-only helpers are intentionally not JMH benchmarks: tight loops can
+    // outpace dispatcher processing and measure backlog pressure instead.
     open fun send(blackHole: Blackhole) {
         run(blackHole) {
-            commandGateway.send(createCommandMessage()).block()
+            commandGateway.send(createBenchmarkCommandMessage()).block()
         }
     }
 
     open fun sendAndWaitForSent(blackHole: Blackhole) {
         run(blackHole) {
-            commandGateway.sendAndWaitForSent(createCommandMessage()).block()
+            commandGateway.sendAndWaitForSent(createBenchmarkCommandMessage()).block()
         }
 
     }
 
     open fun sendAndWaitForProcessed(blackHole: Blackhole) {
         run(blackHole) {
-            commandGateway.sendAndWaitForProcessed(createCommandMessage()).block()
+            commandGateway.sendAndWaitForProcessed(createBenchmarkCommandMessage()).block()
         }
     }
 }

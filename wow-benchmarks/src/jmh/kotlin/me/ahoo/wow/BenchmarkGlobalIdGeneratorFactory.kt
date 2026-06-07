@@ -11,27 +11,15 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.eventsourcing
+package me.ahoo.wow
 
-import org.openjdk.jmh.annotations.Benchmark
-import org.openjdk.jmh.annotations.Scope
-import org.openjdk.jmh.annotations.Setup
-import org.openjdk.jmh.annotations.State
+import me.ahoo.cosid.cosid.ClockSyncCosIdGenerator
+import me.ahoo.cosid.cosid.CosIdGenerator
+import me.ahoo.cosid.cosid.Radix62CosIdGenerator
+import me.ahoo.wow.id.GlobalIdGeneratorFactory
 
-@State(Scope.Benchmark)
-open class NoopEventStoreBenchmark : AbstractEventStoreBenchmark() {
-    @Setup
-    override fun setup() {
-        super.setup()
-    }
-
-    override fun createEventStore(): EventStore {
-        return NoopEventStore
-    }
-
-
-    @Benchmark
-    override fun append() {
-        super.append()
+class BenchmarkGlobalIdGeneratorFactory : GlobalIdGeneratorFactory {
+    override fun create(): CosIdGenerator {
+        return ClockSyncCosIdGenerator(Radix62CosIdGenerator(0))
     }
 }

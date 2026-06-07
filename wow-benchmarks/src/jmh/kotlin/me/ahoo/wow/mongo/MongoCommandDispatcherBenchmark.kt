@@ -13,7 +13,10 @@
 
 package me.ahoo.wow.mongo
 
+import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.command.createCommandMessageForNewAggregate
 import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.example.api.cart.AddCartItem
 import me.ahoo.wow.modeling.AbstractCommandDispatcherBenchmark
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
@@ -42,18 +45,12 @@ open class MongoCommandDispatcherBenchmark : AbstractCommandDispatcherBenchmark(
         return MongoEventStore(mongoInitializer.database)
     }
 
-    @Benchmark
-    override fun send(blackHole: Blackhole) {
-        super.send(blackHole)
+    override fun createBenchmarkCommandMessage(): CommandMessage<AddCartItem> {
+        return createCommandMessageForNewAggregate()
     }
 
     @Benchmark
-    override fun sendAndWaitForSent(blackHole: Blackhole) {
-        super.sendAndWaitForSent(blackHole)
-    }
-
-    @Benchmark
-    override fun sendAndWaitForProcessed(blackHole: Blackhole) {
+    fun sendAndWaitForProcessedForNewAggregate(blackHole: Blackhole) {
         super.sendAndWaitForProcessed(blackHole)
     }
 }

@@ -13,7 +13,10 @@
 
 package me.ahoo.wow.redis
 
+import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.command.createCommandMessageForNewAggregate
 import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.example.api.cart.AddCartItem
 import me.ahoo.wow.modeling.AbstractCommandDispatcherBenchmark
 import me.ahoo.wow.redis.eventsourcing.RedisEventStore
 import org.openjdk.jmh.annotations.Benchmark
@@ -43,18 +46,12 @@ open class RedisCommandDispatcherBenchmark : AbstractCommandDispatcherBenchmark(
         return RedisEventStore(redis.redisTemplate)
     }
 
-    @Benchmark
-    override fun send(blackHole: Blackhole) {
-        super.send(blackHole)
+    override fun createBenchmarkCommandMessage(): CommandMessage<AddCartItem> {
+        return createCommandMessageForNewAggregate()
     }
 
     @Benchmark
-    override fun sendAndWaitForSent(blackHole: Blackhole) {
-        super.sendAndWaitForSent(blackHole)
-    }
-
-    @Benchmark
-    override fun sendAndWaitForProcessed(blackHole: Blackhole) {
+    fun sendAndWaitForProcessedForNewAggregate(blackHole: Blackhole) {
         super.sendAndWaitForProcessed(blackHole)
     }
 }

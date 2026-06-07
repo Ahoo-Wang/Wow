@@ -27,3 +27,10 @@ fun createEventStream(): DomainEventStream {
         upstream = GivenInitializationCommand(cartAggregateMetadata.aggregateId()),
     )
 }
+
+fun createSingleEventStream(): DomainEventStream {
+    val event = CartItemAdded(CartItem("productId"))
+    return event.toDomainEventStream(
+        upstream = GivenInitializationCommand(cartAggregateMetadata.aggregateId()),
+    )
+}
