@@ -11,23 +11,13 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.command
+package me.ahoo.wow.benchmark.fixture
 
-import me.ahoo.wow.benchmark.fixture.BenchmarkIds
-import org.openjdk.jmh.annotations.Benchmark
-import org.openjdk.jmh.annotations.Scope
-import org.openjdk.jmh.annotations.State
-import org.openjdk.jmh.infra.Blackhole
+import me.ahoo.wow.api.messaging.Header
+import me.ahoo.wow.messaging.DefaultHeader
 
-@State(Scope.Benchmark)
-open class GlobalIdBenchmark {
-    init {
-        BenchmarkIds.installDeterministicGlobalIdGenerator()
-    }
-
-    @Benchmark
-    fun generateId(blackhole: Blackhole) {
-        val id = BenchmarkIds.nextGlobalId()
-        blackhole.consume(id)
+object BenchmarkHeaders {
+    fun emptyHeader(): Header {
+        return DefaultHeader()
     }
 }

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.hotpath
 
+import me.ahoo.wow.benchmark.fixture.BenchmarkHeaders
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.State
@@ -20,17 +21,15 @@ import org.openjdk.jmh.infra.Blackhole
 
 @State(Scope.Benchmark)
 open class HeaderCreationBenchmark {
-    private val fixture = HotPathFixture
-
     @Benchmark
     fun createEmptyHeader(blackhole: Blackhole) {
-        val header = fixture.createHeader()
+        val header = BenchmarkHeaders.emptyHeader()
         blackhole.consume(header)
     }
 
     @Benchmark
     fun createAndMutateHeader(blackhole: Blackhole) {
-        val header = fixture.createHeader()
+        val header = BenchmarkHeaders.emptyHeader()
         header["key1"] = "value1"
         header["key2"] = "value2"
         blackhole.consume(header)
@@ -38,7 +37,7 @@ open class HeaderCreationBenchmark {
 
     @Benchmark
     fun headerReadAfterWrite(blackhole: Blackhole) {
-        val header = fixture.createHeader()
+        val header = BenchmarkHeaders.emptyHeader()
         header["key"] = "value"
         val value = header["key"]
         blackhole.consume(value)

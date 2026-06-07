@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.command
 
+import me.ahoo.wow.benchmark.fixture.BenchmarkCommands
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.State
@@ -23,7 +24,7 @@ open class CommandFactoryBenchmark {
 
     @Benchmark
     fun createCommandMessage(blackhole: Blackhole) {
-        val commandMessage = createSmokeCommandMessage()
+        val commandMessage = BenchmarkCommands.smokeAddCartItem()
         blackhole.consume(commandMessage)
     }
 }

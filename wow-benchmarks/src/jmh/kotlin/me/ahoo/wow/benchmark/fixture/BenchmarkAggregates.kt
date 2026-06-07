@@ -11,23 +11,21 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.command
+package me.ahoo.wow.benchmark.fixture
 
-import me.ahoo.wow.benchmark.fixture.BenchmarkIds
-import org.openjdk.jmh.annotations.Benchmark
-import org.openjdk.jmh.annotations.Scope
-import org.openjdk.jmh.annotations.State
-import org.openjdk.jmh.infra.Blackhole
+import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.example.domain.cart.Cart
+import me.ahoo.wow.example.domain.cart.CartState
+import me.ahoo.wow.modeling.MaterializedNamedAggregate
+import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.modeling.annotation.aggregateMetadata
 
-@State(Scope.Benchmark)
-open class GlobalIdBenchmark {
-    init {
-        BenchmarkIds.installDeterministicGlobalIdGenerator()
-    }
+object BenchmarkAggregates {
+    val namedAggregate = MaterializedNamedAggregate("example-service", "cart")
+    val cartMetadata by lazy { aggregateMetadata<Cart, CartState>() }
+    const val FIXED_AGGREGATE_ID: String = "benchmark-cart-fixed-id"
 
-    @Benchmark
-    fun generateId(blackhole: Blackhole) {
-        val id = BenchmarkIds.nextGlobalId()
-        blackhole.consume(id)
+    fun aggregateId(): AggregateId {
+        return cartMetadata.aggregateId()
     }
 }

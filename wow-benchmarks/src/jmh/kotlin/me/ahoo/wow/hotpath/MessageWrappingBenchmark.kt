@@ -13,24 +13,30 @@
 
 package me.ahoo.wow.hotpath
 
+import me.ahoo.wow.benchmark.fixture.BenchmarkCommands
+import me.ahoo.wow.benchmark.fixture.BenchmarkIds
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
+import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.infra.Blackhole
 
 @State(Scope.Benchmark)
 open class MessageWrappingBenchmark {
-    private val fixture = HotPathFixture
+    @Setup
+    fun setup() {
+        BenchmarkIds.installDeterministicGlobalIdGenerator()
+    }
 
     @Benchmark
     fun createCommandMessage(blackhole: Blackhole) {
-        val msg = fixture.createCommandMessage()
+        val msg = BenchmarkCommands.newAggregateAddCartItem()
         blackhole.consume(msg)
     }
 
     @Benchmark
     fun readCommandMessageProperties(blackhole: Blackhole) {
-        val msg = fixture.createCommandMessage()
+        val msg = BenchmarkCommands.newAggregateAddCartItem()
         blackhole.consume(msg.id)
         blackhole.consume(msg.aggregateId)
         blackhole.consume(msg.requestId)

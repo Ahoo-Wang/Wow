@@ -11,23 +11,21 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.command
+package me.ahoo.wow.benchmark.fixture
 
-import me.ahoo.wow.benchmark.fixture.BenchmarkIds
-import org.openjdk.jmh.annotations.Benchmark
-import org.openjdk.jmh.annotations.Scope
-import org.openjdk.jmh.annotations.State
-import org.openjdk.jmh.infra.Blackhole
+import com.google.common.hash.BloomFilter
+import com.google.common.hash.Funnels
+import me.ahoo.wow.infra.idempotency.BloomFilterIdempotencyChecker
+import java.time.Duration
 
-@State(Scope.Benchmark)
-open class GlobalIdBenchmark {
-    init {
-        BenchmarkIds.installDeterministicGlobalIdGenerator()
-    }
-
-    @Benchmark
-    fun generateId(blackhole: Blackhole) {
-        val id = BenchmarkIds.nextGlobalId()
-        blackhole.consume(id)
+object BenchmarkIdempotency {
+    fun bloomFilterChecker(): BloomFilterIdempotencyChecker {
+        return BloomFilterIdempotencyChecker(Duration.ofMinutes(1)) {
+            BloomFilter.create(
+                Funnels.stringFunnel(Charsets.UTF_8),
+                10_000_000,
+                0.00001,
+            )
+        }
     }
 }
