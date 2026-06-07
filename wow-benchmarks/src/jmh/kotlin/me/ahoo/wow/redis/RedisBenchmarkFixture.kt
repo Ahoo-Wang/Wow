@@ -23,6 +23,20 @@ import java.time.Duration
 class RedisBenchmarkFixture : AutoCloseable {
     companion object {
         private val FLUSH_TIMEOUT: Duration = Duration.ofSeconds(30)
+        private const val DEFAULT_BENCHMARK_DATABASE = 15
+        private const val REDIS_DATABASE_PROPERTY = "wow.benchmark.redis.database"
+
+        private fun benchmarkDatabase(): Int {
+            val configuredDatabase = System.getProperty(REDIS_DATABASE_PROPERTY)
+            val database = configuredDatabase?.toIntOrNull() ?: DEFAULT_BENCHMARK_DATABASE
+            require(configuredDatabase == null || configuredDatabase.toIntOrNull() != null) {
+                "$REDIS_DATABASE_PROPERTY must be an integer."
+            }
+            require(database >= 0) {
+                "$REDIS_DATABASE_PROPERTY must be greater than or equal to 0."
+            }
+            return database
+        }
     }
 
     val connectionFactory: LettuceConnectionFactory
@@ -32,7 +46,9 @@ class RedisBenchmarkFixture : AutoCloseable {
         val lettuceClientConfiguration = LettuceClientConfiguration
             .builder()
             .build()
-        val redisConfig = RedisStandaloneConfiguration()
+        val redisConfig = RedisStandaloneConfiguration().apply {
+            database = benchmarkDatabase()
+        }
         connectionFactory = LettuceConnectionFactory(redisConfig, lettuceClientConfiguration)
         connectionFactory.afterPropertiesSet()
         redisTemplate = ReactiveStringRedisTemplate(connectionFactory)

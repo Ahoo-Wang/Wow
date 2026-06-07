@@ -48,7 +48,7 @@ open class SnapshotBenchmark {
             cartAggregateMetadata.state,
             aggregateId,
         )
-        val eventStream = createEventStream()
+        val eventStream = createEventStream(aggregateId)
         val stateEvent = eventStream.toStateEvent(aggregate)
         val snapshot = SimpleSnapshot(stateEvent)
         snapshotLoadRepository.save(snapshot).block()
@@ -63,7 +63,9 @@ open class SnapshotBenchmark {
 
     @Benchmark
     fun snapshotLoad(blackhole: Blackhole) {
-        val snapshot = snapshotLoadRepository.load<me.ahoo.wow.modeling.state.SimpleStateAggregate<*>>(aggregateId).block()
+        val snapshot = checkNotNull(
+            snapshotLoadRepository.load<me.ahoo.wow.modeling.state.SimpleStateAggregate<*>>(aggregateId).block()
+        )
         blackhole.consume(snapshot)
     }
 }

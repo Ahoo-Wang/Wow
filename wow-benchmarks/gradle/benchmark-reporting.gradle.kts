@@ -307,8 +307,8 @@ tasks.register("generateBenchmarkReport") {
             val benchmark = result["benchmark"] as? String ?: continue
             @Suppress("UNCHECKED_CAST")
             val primaryMetric = result["primaryMetric"] as? Map<String, Any> ?: continue
-            val score = primaryMetric["score"] as? Double ?: continue
-            val scoreError = primaryMetric["scoreError"] as? Double ?: 0.0
+            val score = parseMetricNumber(primaryMetric["score"]) ?: continue
+            val scoreError = parseMetricNumber(primaryMetric["scoreError"]) ?: 0.0
             val unit = primaryMetric["scoreUnit"] as? String ?: "ops/s"
 
             var allocRateNorm = "—"
@@ -316,7 +316,7 @@ tasks.register("generateBenchmarkReport") {
             val secondaryMetrics = result["secondaryMetrics"] as? Map<String, Map<String, Any>>
             if (secondaryMetrics != null) {
                 val gcAlloc = secondaryMetrics["gc.alloc.rate.norm"]
-                allocRateNorm = String.format(Locale.US, "%.1f B/op", gcAlloc?.get("score") as? Double ?: 0.0)
+                allocRateNorm = String.format(Locale.US, "%.1f B/op", parseMetricNumber(gcAlloc?.get("score")) ?: 0.0)
             }
 
             val parts = benchmark.split(".")
@@ -384,7 +384,7 @@ tasks.register("benchmarkCompare") {
         fun parseScores(file: java.io.File): Map<String, Double> {
             @Suppress("UNCHECKED_CAST")
             val results = parser.parse(file) as List<Map<String, Any>>
-            return results.associate { result ->
+            return results.mapIndexed { rowIndex, result ->
                 val benchmark = result["benchmark"] as String
                 @Suppress("UNCHECKED_CAST")
                 val params = result["params"] as? Map<String, String>
@@ -395,8 +395,11 @@ tasks.register("benchmarkCompare") {
                 }
                 @Suppress("UNCHECKED_CAST")
                 val primaryMetric = result["primaryMetric"] as Map<String, Any>
-                key to (primaryMetric["score"] as Double)
-            }
+                val score = parseMetricNumber(primaryMetric["score"]) ?: throw GradleException(
+                    "Invalid JMH score at index $rowIndex in ${file.absolutePath}: primaryMetric.score must be numeric."
+                )
+                key to score
+            }.toMap()
         }
 
         val baseline = parseScores(baselineFile)
