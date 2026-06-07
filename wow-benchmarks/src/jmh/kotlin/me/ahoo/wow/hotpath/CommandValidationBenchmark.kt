@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.hotpath
 
+import me.ahoo.wow.benchmark.fixture.BenchmarkCommands
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.SimpleServerCommandExchange
 import me.ahoo.wow.test.validation.TestValidator
@@ -23,7 +24,7 @@ import org.openjdk.jmh.infra.Blackhole
 
 @State(Scope.Benchmark)
 open class CommandValidationBenchmark {
-    private val commandMessage = HotPathFixture.createCommandMessage()
+    private val commandMessage = BenchmarkCommands.hotPathAddCartItem()
 
     @Benchmark
     fun validateCommand(blackhole: Blackhole) {

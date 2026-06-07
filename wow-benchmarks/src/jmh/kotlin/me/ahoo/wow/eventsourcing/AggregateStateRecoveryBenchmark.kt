@@ -13,14 +13,10 @@
 
 package me.ahoo.wow.eventsourcing
 
-import me.ahoo.wow.command.cartAggregateMetadata
+import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
+import me.ahoo.wow.benchmark.fixture.BenchmarkEvents
 import me.ahoo.wow.event.DomainEventStream
-import me.ahoo.wow.event.toDomainEventStream
-import me.ahoo.wow.example.api.cart.CartItem
-import me.ahoo.wow.example.api.cart.CartItemAdded
-import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
-import me.ahoo.wow.test.aggregate.GivenInitializationCommand
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Param
 import org.openjdk.jmh.annotations.Scope
@@ -38,20 +34,14 @@ open class AggregateStateRecoveryBenchmark {
 
     @Setup
     fun setup() {
-        aggregateId = cartAggregateMetadata.aggregateId()
-        eventStreams = (1..eventCount).map { index ->
-            val event = CartItemAdded(CartItem("product-$index", index))
-            listOf<Any>(event).toDomainEventStream(
-                upstream = GivenInitializationCommand(aggregateId),
-                aggregateVersion = index - 1,
-            )
-        }
+        aggregateId = BenchmarkAggregates.aggregateId()
+        eventStreams = BenchmarkEvents.eventStreams(aggregateId, eventCount)
     }
 
     @Benchmark
     fun recoverFromEvents(blackhole: Blackhole) {
         val aggregate = ConstructorStateAggregateFactory.create(
-            cartAggregateMetadata.state,
+            BenchmarkAggregates.cartMetadata.state,
             aggregateId,
         )
         for (eventStream in eventStreams) {

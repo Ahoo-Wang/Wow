@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.eventsourcing
 
+import me.ahoo.wow.benchmark.fixture.BenchmarkEvents
+
 abstract class AbstractEventStoreBenchmark {
     protected lateinit var eventStore: EventStore
 
@@ -23,7 +25,7 @@ abstract class AbstractEventStoreBenchmark {
     abstract fun createEventStore(): EventStore
 
     open fun append() {
-        val eventStream = createEventStream()
+        val eventStream = BenchmarkEvents.singleEventStream()
         eventStore.append(eventStream).block()
     }
 

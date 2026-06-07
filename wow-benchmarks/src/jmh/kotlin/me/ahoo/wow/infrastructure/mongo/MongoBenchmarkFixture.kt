@@ -16,7 +16,7 @@ package me.ahoo.wow.infrastructure.mongo
 import com.mongodb.reactivestreams.client.MongoClient
 import com.mongodb.reactivestreams.client.MongoClients
 import com.mongodb.reactivestreams.client.MongoDatabase
-import me.ahoo.wow.command.cartAggregateMetadata
+import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
 import me.ahoo.wow.infrastructure.InfrastructureAvailability
 import me.ahoo.wow.mongo.EventStreamSchemaInitializer
 
@@ -28,7 +28,7 @@ class MongoBenchmarkFixture : AutoCloseable {
         InfrastructureAvailability.requireMongo()
         client = MongoClients.create("mongodb://root:root@localhost")
         database = client.getDatabase("wow_db")
-        EventStreamSchemaInitializer(database, true).initSchema(cartAggregateMetadata)
+        EventStreamSchemaInitializer(database, true).initSchema(BenchmarkAggregates.cartMetadata)
     }
 
     override fun close() {

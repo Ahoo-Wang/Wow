@@ -13,9 +13,9 @@
 
 package me.ahoo.wow.serialization
 
-import me.ahoo.wow.command.createCommandMessage
+import me.ahoo.wow.benchmark.fixture.BenchmarkCommands
+import me.ahoo.wow.benchmark.fixture.BenchmarkEvents
 import me.ahoo.wow.event.DomainEventStream
-import me.ahoo.wow.eventsourcing.createEventStream
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.State
@@ -23,8 +23,8 @@ import org.openjdk.jmh.infra.Blackhole
 
 @State(Scope.Benchmark)
 open class SerializationBenchmark {
-    private val commandMessage = createCommandMessage()
-    private val eventStream: DomainEventStream = createEventStream()
+    private val commandMessage = BenchmarkCommands.fixedAggregateAddCartItem()
+    private val eventStream: DomainEventStream = BenchmarkEvents.singleEventStream()
 
     @Benchmark
     fun commandSerializeDeserialize(blackhole: Blackhole) {

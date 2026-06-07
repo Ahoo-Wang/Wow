@@ -15,11 +15,10 @@ package me.ahoo.wow.event
 
 import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.command.cartAggregateMetadata
+import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
 import me.ahoo.wow.example.api.cart.CartItemAdded
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.function.SimpleMessageFunctionRegistrar
-import me.ahoo.wow.modeling.aggregateId
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
@@ -35,10 +34,10 @@ open class EventDispatcherBenchmark {
     @Setup
     fun setup() {
         registrar = SimpleMessageFunctionRegistrar()
-        val topic = cartAggregateMetadata.namedAggregate
+        val topic = BenchmarkAggregates.cartMetadata.namedAggregate
         registrar.register(BenchmarkEventHandler(topic))
 
-        val aggregateId = cartAggregateMetadata.aggregateId()
+        val aggregateId = BenchmarkAggregates.aggregateId()
         domainEvent = SimpleDomainEvent(
             id = "event-id",
             body = CartItemAdded(me.ahoo.wow.example.api.cart.CartItem("productId")),

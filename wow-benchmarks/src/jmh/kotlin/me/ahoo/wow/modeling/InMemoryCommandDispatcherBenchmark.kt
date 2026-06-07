@@ -14,7 +14,7 @@
 package me.ahoo.wow.modeling
 
 import me.ahoo.wow.api.command.CommandMessage
-import me.ahoo.wow.command.createCommandMessageForNewAggregate
+import me.ahoo.wow.benchmark.fixture.BenchmarkCommands
 import me.ahoo.wow.example.api.cart.AddCartItem
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Level
@@ -38,7 +38,7 @@ open class InMemoryCommandDispatcherBenchmark : AbstractCommandDispatcherBenchma
     }
 
     override fun createBenchmarkCommandMessage(): CommandMessage<AddCartItem> {
-        return createCommandMessageForNewAggregate()
+        return BenchmarkCommands.newAggregateAddCartItem()
     }
 
     @Benchmark

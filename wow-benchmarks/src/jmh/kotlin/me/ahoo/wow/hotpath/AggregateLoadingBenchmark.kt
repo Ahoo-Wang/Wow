@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.hotpath
 
+import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
 import me.ahoo.wow.eventsourcing.EventSourcingStateAggregateRepository
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotRepository
@@ -27,6 +29,7 @@ import org.openjdk.jmh.infra.Blackhole
 @State(Scope.Benchmark)
 open class AggregateLoadingBenchmark {
     private lateinit var repository: EventSourcingStateAggregateRepository
+    private lateinit var aggregateId: AggregateId
 
     @Setup
     fun setup() {
@@ -36,6 +39,7 @@ open class AggregateLoadingBenchmark {
             InMemorySnapshotRepository(),
             eventStore,
         )
+        aggregateId = BenchmarkAggregates.aggregateId()
     }
 
     @TearDown
@@ -46,8 +50,8 @@ open class AggregateLoadingBenchmark {
     @Benchmark
     fun loadEmptyAggregate(blackhole: Blackhole) {
         val aggregate = repository.load(
-            HotPathFixture.aggregateId,
-            HotPathFixture.aggregateMetadata.state,
+            aggregateId,
+            BenchmarkAggregates.cartMetadata.state,
             Int.MAX_VALUE,
         ).block()
         blackhole.consume(aggregate)

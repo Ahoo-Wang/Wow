@@ -13,6 +13,9 @@
 
 package me.ahoo.wow.hotpath
 
+import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
+import me.ahoo.wow.benchmark.fixture.BenchmarkCommands
+import me.ahoo.wow.benchmark.fixture.BenchmarkEvents
 import me.ahoo.wow.command.SimpleServerCommandExchange
 import me.ahoo.wow.eventsourcing.NoopEventStore
 import me.ahoo.wow.modeling.command.SimpleCommandAggregateFactory
@@ -28,32 +31,33 @@ open class CommandHandlingBenchmark {
 
     @Benchmark
     fun createAggregateAndHandle(blackhole: Blackhole) {
+        val aggregateId = BenchmarkAggregates.aggregateId()
         val aggregate = ConstructorStateAggregateFactory.create(
-            HotPathFixture.aggregateMetadata.state,
-            HotPathFixture.aggregateId,
+            BenchmarkAggregates.cartMetadata.state,
+            aggregateId,
         )
-        aggregate.onSourcing(HotPathFixture.createEventStream())
+        aggregate.onSourcing(BenchmarkEvents.singleEventStream(aggregateId))
         blackhole.consume(aggregate)
     }
 
     @Benchmark
     fun createAggregateFromEmpty(blackhole: Blackhole) {
         val aggregate = ConstructorStateAggregateFactory.create(
-            HotPathFixture.aggregateMetadata.state,
-            HotPathFixture.aggregateId,
+            BenchmarkAggregates.cartMetadata.state,
+            BenchmarkAggregates.aggregateId(),
         )
         blackhole.consume(aggregate)
     }
 
     @Benchmark
     fun createCommandAggregate(blackhole: Blackhole) {
-        val commandMessage = HotPathFixture.createCommandMessage()
+        val commandMessage = BenchmarkCommands.hotPathAddCartItem()
         val stateAggregate = ConstructorStateAggregateFactory.create(
-            HotPathFixture.aggregateMetadata.state,
+            BenchmarkAggregates.cartMetadata.state,
             commandMessage.aggregateId,
         )
         val commandAggregate = commandAggregateFactory.create(
-            HotPathFixture.aggregateMetadata,
+            BenchmarkAggregates.cartMetadata,
             stateAggregate,
         )
         blackhole.consume(commandAggregate)
@@ -61,13 +65,13 @@ open class CommandHandlingBenchmark {
 
     @Benchmark
     fun processCommandAggregate(blackhole: Blackhole) {
-        val commandMessage = HotPathFixture.createCommandMessage()
+        val commandMessage = BenchmarkCommands.hotPathAddCartItem()
         val stateAggregate = ConstructorStateAggregateFactory.create(
-            HotPathFixture.aggregateMetadata.state,
+            BenchmarkAggregates.cartMetadata.state,
             commandMessage.aggregateId,
         )
         val commandAggregate = commandAggregateFactory.create(
-            HotPathFixture.aggregateMetadata,
+            BenchmarkAggregates.cartMetadata,
             stateAggregate,
         )
         val eventStream = commandAggregate.process(

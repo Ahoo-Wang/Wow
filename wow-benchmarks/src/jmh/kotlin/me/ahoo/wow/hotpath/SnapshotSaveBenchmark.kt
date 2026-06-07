@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.hotpath
 
+import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
+import me.ahoo.wow.benchmark.fixture.BenchmarkEvents
 import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotRepository
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
 import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.toStateEvent
@@ -31,11 +33,12 @@ open class SnapshotSaveBenchmark {
     @Setup
     fun setup() {
         snapshotRepository = InMemorySnapshotRepository()
+        val aggregateId = BenchmarkAggregates.aggregateId()
         val aggregate = ConstructorStateAggregateFactory.create(
-            HotPathFixture.aggregateMetadata.state,
-            HotPathFixture.aggregateId,
+            BenchmarkAggregates.cartMetadata.state,
+            aggregateId,
         )
-        snapshot = SimpleSnapshot(HotPathFixture.createEventStream().toStateEvent(aggregate))
+        snapshot = SimpleSnapshot(BenchmarkEvents.singleEventStream(aggregateId).toStateEvent(aggregate))
     }
 
     @Benchmark

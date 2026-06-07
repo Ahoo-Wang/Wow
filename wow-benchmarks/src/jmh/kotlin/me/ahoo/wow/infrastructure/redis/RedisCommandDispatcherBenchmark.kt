@@ -14,7 +14,7 @@
 package me.ahoo.wow.infrastructure.redis
 
 import me.ahoo.wow.api.command.CommandMessage
-import me.ahoo.wow.command.createCommandMessageForNewAggregate
+import me.ahoo.wow.benchmark.fixture.BenchmarkCommands
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.example.api.cart.AddCartItem
 import me.ahoo.wow.modeling.AbstractCommandDispatcherBenchmark
@@ -47,7 +47,7 @@ open class RedisCommandDispatcherBenchmark : AbstractCommandDispatcherBenchmark(
     }
 
     override fun createBenchmarkCommandMessage(): CommandMessage<AddCartItem> {
-        return createCommandMessageForNewAggregate()
+        return BenchmarkCommands.newAggregateAddCartItem()
     }
 
     @Benchmark
