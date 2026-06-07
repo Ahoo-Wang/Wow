@@ -16,11 +16,19 @@ import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.exception.ErrorInfo.Companion.isFailed
+import me.ahoo.wow.api.messaging.function.FunctionInfo
 import me.ahoo.wow.command.wait.WaitStrategy
 import me.ahoo.wow.event.DomainEventException.Companion.toException
 import me.ahoo.wow.event.DomainEventStream
+import me.ahoo.wow.ioc.ServiceProvider
+import me.ahoo.wow.messaging.handler.COMMAND_RESULT_KEY
+import me.ahoo.wow.messaging.handler.ERROR_KEY
+import me.ahoo.wow.messaging.handler.FUNCTION_KEY
 import me.ahoo.wow.messaging.handler.MessageExchange
+import me.ahoo.wow.messaging.handler.SERVICE_PROVIDER_KEY
 import me.ahoo.wow.modeling.command.AggregateProcessor
+import me.ahoo.wow.modeling.command.COMMAND_AGGREGATE_KEY
+import me.ahoo.wow.modeling.command.CommandAggregate
 import me.ahoo.wow.modeling.command.getCommandAggregate
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import java.util.concurrent.ConcurrentHashMap
@@ -258,8 +266,42 @@ class SimpleServerCommandExchange<C : Any>(
     override val message: CommandMessage<C>,
     attributes: MutableMap<String, Any>? = null
 ) : ServerCommandExchange<C> {
+    private companion object {
+        private const val ATTRIBUTE_MAP_INITIAL_CAPACITY = 8
+    }
+
     @Volatile
     private var lazyAttributes: MutableMap<String, Any>? = attributes
+
+    @Volatile
+    private var aggregateMetadata: AggregateMetadata<*, *>? = null
+
+    @Volatile
+    private var aggregateProcessor: AggregateProcessor<*>? = null
+
+    @Volatile
+    private var commandAggregate: CommandAggregate<*, *>? = null
+
+    @Volatile
+    private var commandInvokeResult: Any? = null
+
+    @Volatile
+    private var eventStream: DomainEventStream? = null
+
+    @Volatile
+    private var aggregateVersion: Int? = null
+
+    @Volatile
+    private var error: Throwable? = null
+
+    @Volatile
+    private var function: FunctionInfo? = null
+
+    @Volatile
+    private var serviceProvider: ServiceProvider? = null
+
+    @Volatile
+    private var commandResult: Map<String, Any>? = null
 
     override val attributes: MutableMap<String, Any>
         get() {
@@ -267,9 +309,108 @@ class SimpleServerCommandExchange<C : Any>(
                 return it
             }
             return synchronized(this) {
-                lazyAttributes ?: ConcurrentHashMap<String, Any>().also {
+                lazyAttributes ?: ConcurrentHashMap<String, Any>(ATTRIBUTE_MAP_INITIAL_CAPACITY).also {
+                    copyFieldAttributesTo(it)
                     lazyAttributes = it
                 }
             }
         }
+
+    override fun setAttribute(key: String, value: Any): ServerCommandExchange<C> {
+        lazyAttributes?.let {
+            it[key] = value
+            return this
+        }
+        if (setFieldAttribute(key, value)) {
+            return this
+        }
+        attributes[key] = value
+        return this
+    }
+
+    override fun <T> getAttribute(key: String): T? {
+        lazyAttributes?.let {
+            @Suppress("UNCHECKED_CAST")
+            return it[key] as T?
+        }
+        @Suppress("UNCHECKED_CAST")
+        return getFieldAttribute(key) as T?
+    }
+
+    override fun removeAttribute(key: String): ServerCommandExchange<C> {
+        lazyAttributes?.let {
+            it.remove(key)
+            return this
+        }
+        if (removeFieldAttribute(key)) {
+            return this
+        }
+        return this
+    }
+
+    private fun copyFieldAttributesTo(attributes: MutableMap<String, Any>) {
+        aggregateMetadata?.let { attributes[AGGREGATE_METADATA_KEY] = it }
+        aggregateProcessor?.let { attributes[AGGREGATE_PROCESSOR_KEY] = it }
+        commandAggregate?.let { attributes[COMMAND_AGGREGATE_KEY] = it }
+        commandInvokeResult?.let { attributes[COMMAND_INVOKE_RESULT_KEY] = it }
+        eventStream?.let { attributes[EVENT_STREAM_KEY] = it }
+        aggregateVersion?.let { attributes[AGGREGATE_VERSION_KEY] = it }
+        error?.let { attributes[ERROR_KEY] = it }
+        function?.let { attributes[FUNCTION_KEY] = it }
+        serviceProvider?.let { attributes[SERVICE_PROVIDER_KEY] = it }
+        commandResult?.let { attributes[COMMAND_RESULT_KEY] = it }
+    }
+
+    private fun setFieldAttribute(key: String, value: Any): Boolean {
+        when (key) {
+            AGGREGATE_METADATA_KEY -> aggregateMetadata = value as AggregateMetadata<*, *>
+            AGGREGATE_PROCESSOR_KEY -> aggregateProcessor = value as AggregateProcessor<*>
+            COMMAND_AGGREGATE_KEY -> commandAggregate = value as CommandAggregate<*, *>
+            COMMAND_INVOKE_RESULT_KEY -> commandInvokeResult = value
+            EVENT_STREAM_KEY -> eventStream = value as DomainEventStream
+            AGGREGATE_VERSION_KEY -> aggregateVersion = value as Int
+            ERROR_KEY -> error = value as Throwable
+            FUNCTION_KEY -> function = value as FunctionInfo
+            SERVICE_PROVIDER_KEY -> serviceProvider = value as ServiceProvider
+            COMMAND_RESULT_KEY -> {
+                @Suppress("UNCHECKED_CAST")
+                commandResult = value as Map<String, Any>
+            }
+
+            else -> return false
+        }
+        return true
+    }
+
+    private fun getFieldAttribute(key: String): Any? =
+        when (key) {
+            AGGREGATE_METADATA_KEY -> aggregateMetadata
+            AGGREGATE_PROCESSOR_KEY -> aggregateProcessor
+            COMMAND_AGGREGATE_KEY -> commandAggregate
+            COMMAND_INVOKE_RESULT_KEY -> commandInvokeResult
+            EVENT_STREAM_KEY -> eventStream
+            AGGREGATE_VERSION_KEY -> aggregateVersion
+            ERROR_KEY -> error
+            FUNCTION_KEY -> function
+            SERVICE_PROVIDER_KEY -> serviceProvider
+            COMMAND_RESULT_KEY -> commandResult
+            else -> null
+        }
+
+    private fun removeFieldAttribute(key: String): Boolean {
+        when (key) {
+            AGGREGATE_METADATA_KEY -> aggregateMetadata = null
+            AGGREGATE_PROCESSOR_KEY -> aggregateProcessor = null
+            COMMAND_AGGREGATE_KEY -> commandAggregate = null
+            COMMAND_INVOKE_RESULT_KEY -> commandInvokeResult = null
+            EVENT_STREAM_KEY -> eventStream = null
+            AGGREGATE_VERSION_KEY -> aggregateVersion = null
+            ERROR_KEY -> error = null
+            FUNCTION_KEY -> function = null
+            SERVICE_PROVIDER_KEY -> serviceProvider = null
+            COMMAND_RESULT_KEY -> commandResult = null
+            else -> return false
+        }
+        return true
+    }
 }

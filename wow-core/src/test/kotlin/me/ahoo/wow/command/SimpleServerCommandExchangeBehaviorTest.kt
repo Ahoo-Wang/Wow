@@ -20,9 +20,17 @@ import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.exception.DefaultErrorInfo
 import me.ahoo.wow.api.exception.ErrorInfo
+import me.ahoo.wow.api.messaging.function.FunctionInfoData
+import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.event.DomainEventException
 import me.ahoo.wow.event.DomainEventStream
+import me.ahoo.wow.messaging.handler.ERROR_KEY
+import me.ahoo.wow.messaging.handler.FUNCTION_KEY
 import me.ahoo.wow.modeling.command.AggregateProcessor
+import me.ahoo.wow.modeling.command.COMMAND_AGGREGATE_KEY
+import me.ahoo.wow.modeling.command.CommandAggregate
+import me.ahoo.wow.modeling.command.getCommandAggregate
+import me.ahoo.wow.modeling.command.setCommandAggregate
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import org.junit.jupiter.api.Test
 
@@ -57,6 +65,47 @@ class SimpleServerCommandExchangeBehaviorTest {
         exchange.getCommandInvokeResult<String>().assert().isEqualTo("handled")
         exchange.getEventStream().assert().isSameAs(eventStream)
         exchange.getAggregateVersion().assert().isEqualTo(7)
+    }
+
+    @Test
+    fun `typed command attributes are field backed until attributes map is requested`() {
+        val message = AccountCommand(id = "account-1").toCommandMessage()
+        val exchange = SimpleServerCommandExchange(message)
+        val function = FunctionInfoData.unknown(FunctionKind.COMMAND, "context")
+        val aggregateMetadata = mockk<AggregateMetadata<*, *>>()
+        val aggregateProcessor = mockk<AggregateProcessor<*>>()
+        val commandAggregate = mockk<CommandAggregate<Any, Any>>()
+        val eventStream = mockk<DomainEventStream>()
+        val error = IllegalStateException("failed")
+
+        exchange.setFunction(function)
+        exchange.setAggregateMetadata(aggregateMetadata)
+        exchange.setAggregateProcessor(aggregateProcessor)
+        exchange.setCommandAggregate(commandAggregate)
+        exchange.setCommandInvokeResult("handled")
+        exchange.setEventStream(eventStream)
+        exchange.setAggregateVersion(7)
+        exchange.setError(error)
+
+        exchange.eagerAttributeMaps().assert().isEmpty()
+        exchange.getFunction().assert().isSameAs(function)
+        exchange.getAggregateMetadata().assert().isSameAs(aggregateMetadata)
+        exchange.getAggregateProcessor().assert().isSameAs(aggregateProcessor)
+        exchange.getCommandAggregate<Any, Any>().assert().isSameAs(commandAggregate)
+        exchange.getCommandInvokeResult<String>().assert().isEqualTo("handled")
+        exchange.getEventStream().assert().isSameAs(eventStream)
+        exchange.getAggregateVersion().assert().isEqualTo(7)
+        exchange.getError().assert().isSameAs(error)
+
+        val attributes = exchange.attributes
+        attributes[FUNCTION_KEY].assert().isSameAs(function)
+        attributes[AGGREGATE_METADATA_KEY].assert().isSameAs(aggregateMetadata)
+        attributes[AGGREGATE_PROCESSOR_KEY].assert().isSameAs(aggregateProcessor)
+        attributes[COMMAND_AGGREGATE_KEY].assert().isSameAs(commandAggregate)
+        attributes[COMMAND_INVOKE_RESULT_KEY].assert().isEqualTo("handled")
+        attributes[EVENT_STREAM_KEY].assert().isSameAs(eventStream)
+        attributes[AGGREGATE_VERSION_KEY].assert().isEqualTo(7)
+        attributes[ERROR_KEY].assert().isSameAs(error)
     }
 
     @Test
