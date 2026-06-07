@@ -15,6 +15,7 @@ package me.ahoo.wow.messaging
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.api.messaging.Header
 import org.junit.jupiter.api.Test
 
 class DefaultHeaderBehaviorTest {
@@ -80,6 +81,19 @@ class DefaultHeaderBehaviorTest {
     }
 
     @Test
+    fun `empty and copy use compact hash map backing`() {
+        val source = DefaultHeader.empty()
+            .with("one", "1")
+            .with("two", "2")
+
+        val copy = source.copy()
+
+        source.backingMap().javaClass.assert().isEqualTo(HashMap::class.java)
+        copy.backingMap().javaClass.assert().isEqualTo(HashMap::class.java)
+        copy.assert().isEqualTo(source)
+    }
+
+    @Test
     fun `toHeader returns empty header for null and empty maps`() {
         val nullMap: Map<String, String>? = null
 
@@ -101,5 +115,12 @@ class DefaultHeaderBehaviorTest {
         source["key"] = "changed"
 
         copied["key"].assert().isEqualTo("value")
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun Header.backingMap(): MutableMap<String, String> {
+        val field = DefaultHeader::class.java.getDeclaredField("delegate")
+        field.isAccessible = true
+        return field.get(this) as MutableMap<String, String>
     }
 }

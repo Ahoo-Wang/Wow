@@ -14,6 +14,16 @@ package me.ahoo.wow.messaging
 
 import me.ahoo.wow.api.messaging.Header
 
+private const val DEFAULT_HEADER_CAPACITY = 4
+
+private fun newHeaderMap(expectedSize: Int = 0): HashMap<String, String> =
+    HashMap(
+        when {
+            expectedSize <= 3 -> DEFAULT_HEADER_CAPACITY
+            else -> expectedSize + expectedSize / 3 + 1
+        }
+    )
+
 /**
  * Default implementation of the [Header] interface.
  *
@@ -25,7 +35,7 @@ import me.ahoo.wow.api.messaging.Header
  * @author ahoo wang
  */
 class DefaultHeader(
-    private val delegate: MutableMap<String, String> = mutableMapOf(),
+    private val delegate: MutableMap<String, String> = newHeaderMap(),
     @Volatile
     override var isReadOnly: Boolean = false
 ) : Header,
@@ -59,7 +69,12 @@ class DefaultHeader(
      *
      * @return A new mutable copy of this header
      */
-    override fun copy(): Header = empty().with(this)
+    override fun copy(): Header {
+        if (isEmpty()) {
+            return empty()
+        }
+        return DefaultHeader(newHeaderMap(size).also { it.putAll(this) })
+    }
 
     /**
      * Executes a write operation if the header is not read-only.
@@ -170,5 +185,5 @@ fun Map<String, String>?.toHeader(): Header {
     if (this is Header) {
         return this
     }
-    return DefaultHeader(this.toMutableMap())
+    return DefaultHeader(newHeaderMap(size).also { it.putAll(this) })
 }
