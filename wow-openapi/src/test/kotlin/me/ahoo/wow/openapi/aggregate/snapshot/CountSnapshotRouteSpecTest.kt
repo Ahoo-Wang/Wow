@@ -29,13 +29,27 @@ internal class CountSnapshotRouteSpecTest {
 
     @Test
     fun `should have get method`() {
-        val spec = CountSnapshotRouteSpec(namedContext, aggregateRouteMetadata, appendTenantPath = false, appendOwnerPath = false, context)
+        val spec =
+            CountSnapshotRouteSpec(
+                namedContext,
+                aggregateRouteMetadata,
+                appendTenantPath = false,
+                appendOwnerPath = false,
+                context
+            )
         spec.method.assert().isEqualTo(Https.Method.POST)
     }
 
     @Test
     fun `should have snapshot count path`() {
-        val spec = CountSnapshotRouteSpec(namedContext, aggregateRouteMetadata, appendTenantPath = false, appendOwnerPath = false, context)
+        val spec =
+            CountSnapshotRouteSpec(
+                namedContext,
+                aggregateRouteMetadata,
+                appendTenantPath = false,
+                appendOwnerPath = false,
+                context
+            )
         spec.path.assert().contains("snapshot")
     }
 }

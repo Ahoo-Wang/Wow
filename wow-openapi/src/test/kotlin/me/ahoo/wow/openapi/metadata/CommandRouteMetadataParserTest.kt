@@ -138,7 +138,6 @@ internal class CommandRouteMetadataParserTest {
         namePathVariable.fieldPath.assert().contains("name")
         namePathVariable.variableType.assert().isNull()
     }
-
 }
 
 @CommandRoute("{id}/{name}", method = CommandRoute.Method.PATCH)

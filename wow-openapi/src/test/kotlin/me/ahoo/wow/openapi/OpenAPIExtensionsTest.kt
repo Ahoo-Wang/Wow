@@ -16,11 +16,11 @@ package me.ahoo.wow.openapi
 import io.swagger.v3.oas.models.info.Info
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.Wow
+import me.ahoo.wow.naming.MaterializedNamedBoundedContext
 import me.ahoo.wow.openapi.OpenAPIExtensions.WOW_CONTEXT_ALIAS
 import me.ahoo.wow.openapi.OpenAPIExtensions.WOW_CONTEXT_NAME
 import me.ahoo.wow.openapi.OpenAPIExtensions.WOW_VERSION
 import me.ahoo.wow.openapi.OpenAPIExtensions.withExtensions
-import me.ahoo.wow.naming.MaterializedNamedBoundedContext
 import org.junit.jupiter.api.Test
 
 internal class OpenAPIExtensionsTest {
