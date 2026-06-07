@@ -11,46 +11,46 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.mongo
+package me.ahoo.wow.infrastructure.redis
 
-import me.ahoo.wow.api.command.CommandMessage
-import me.ahoo.wow.command.createCommandMessageForNewAggregate
+import me.ahoo.wow.eventsourcing.AbstractEventStoreBenchmark
 import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.example.api.cart.AddCartItem
-import me.ahoo.wow.modeling.AbstractCommandDispatcherBenchmark
+import me.ahoo.wow.redis.eventsourcing.RedisEventStore
 import org.openjdk.jmh.annotations.Benchmark
+import org.openjdk.jmh.annotations.Fork
+import org.openjdk.jmh.annotations.Measurement
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.annotations.TearDown
-import org.openjdk.jmh.infra.Blackhole
+import org.openjdk.jmh.annotations.Threads
+import org.openjdk.jmh.annotations.Warmup
 
+@Warmup(iterations = 1)
+@Measurement(iterations = 2)
+@Fork(value = 2)
+@Threads(5)
 @State(Scope.Benchmark)
-open class MongoCommandDispatcherBenchmark : AbstractCommandDispatcherBenchmark() {
-    private lateinit var mongoInitializer: MongoInitializer
+open class RedisEventStoreBenchmark : AbstractEventStoreBenchmark() {
+    private lateinit var redis: RedisBenchmarkFixture
 
     @Setup
     override fun setup() {
-        mongoInitializer = MongoInitializer()
+        redis = RedisBenchmarkFixture()
         super.setup()
     }
 
     @TearDown
-    override fun destroy() {
-        super.destroy()
-        mongoInitializer.close()
+    fun destroy() {
+        redis.close()
     }
 
     override fun createEventStore(): EventStore {
-        return MongoEventStore(mongoInitializer.database)
-    }
-
-    override fun createBenchmarkCommandMessage(): CommandMessage<AddCartItem> {
-        return createCommandMessageForNewAggregate()
+        return RedisEventStore(redis.redisTemplate)
     }
 
     @Benchmark
-    fun sendAndWaitForProcessedForNewAggregate(blackHole: Blackhole) {
-        super.sendAndWaitForProcessed(blackHole)
+    override fun append() {
+        super.append()
     }
 }

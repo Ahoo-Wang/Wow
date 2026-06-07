@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.redis
+package me.ahoo.wow.infrastructure.redis
 
 import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
 import me.ahoo.wow.benchmark.fixture.BenchmarkCommands

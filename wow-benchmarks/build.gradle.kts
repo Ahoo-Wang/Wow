@@ -1,3 +1,5 @@
+import java.net.InetSocketAddress
+import java.net.Socket
 import org.gradle.api.file.RegularFile
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.JavaExec
@@ -89,6 +91,18 @@ fun benchmarkProfilerArgs(): List<String> {
     }
 }
 
+fun requireBenchmarkService(service: String, port: Int) {
+    val available = runCatching {
+        Socket().use { socket ->
+            socket.connect(InetSocketAddress("localhost", port), 2000)
+        }
+    }.isSuccess
+    require(available) {
+        "$service is required for Infrastructure I/O benchmarks at localhost:$port. " +
+            "Start $service and rerun `./gradlew :wow-benchmarks:benchmarkInfrastructure`."
+    }
+}
+
 fun JavaExec.configureJmhBenchmarkRun(
     includePattern: String,
     resultsFile: Provider<RegularFile>,
@@ -136,7 +150,7 @@ tasks.register<JavaExec>("benchmarkLocal") {
     description = "Runs local JVM, Noop, and InMemory JMH benchmarks without Redis or Mongo."
     group = "benchmark"
     configureJmhBenchmarkRun(
-        includePattern = """me\.ahoo\.wow\.(?!infrastructure\.|mongo\.|redis\.).*Benchmark.*""",
+        includePattern = """me\.ahoo\.wow\.(?!infrastructure\.).*Benchmark.*""",
         resultsFile = benchmarkLocalReport,
         humanOutputFile = benchmarkLocalHumanReport,
     )
@@ -146,15 +160,19 @@ tasks.register<JavaExec>("benchmarkInfrastructure") {
     description = "Runs Redis and Mongo infrastructure I/O JMH benchmarks."
     group = "benchmark"
     configureJmhBenchmarkRun(
-        includePattern = """me\.ahoo\.wow\.(infrastructure\.|mongo\.|redis\.).*Benchmark.*""",
+        includePattern = """me\.ahoo\.wow\.infrastructure\..*Benchmark.*""",
         resultsFile = benchmarkInfrastructureReport,
         humanOutputFile = benchmarkInfrastructureHumanReport,
     )
+    doFirst {
+        requireBenchmarkService("Redis", 6379)
+        requireBenchmarkService("MongoDB", 27017)
+    }
 }
 
 jmh {
     zip64.set(true)
-    includes.set(listOf("""me\.ahoo\.wow\.(?!infrastructure\.|mongo\.|redis\.).*Benchmark.*"""))
+    includes.set(listOf("""me\.ahoo\.wow\.(?!infrastructure\.).*Benchmark.*"""))
     threads.set(1)
     warmupIterations.set(2)
     warmup.set("5s")

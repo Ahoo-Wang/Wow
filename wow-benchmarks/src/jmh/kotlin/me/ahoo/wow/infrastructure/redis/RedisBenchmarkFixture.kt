@@ -11,8 +11,9 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.redis
+package me.ahoo.wow.infrastructure.redis
 
+import me.ahoo.wow.infrastructure.InfrastructureAvailability
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration
 import org.springframework.data.redis.connection.ReactiveRedisConnection
 import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration
@@ -43,6 +44,7 @@ class RedisBenchmarkFixture : AutoCloseable {
     val redisTemplate: ReactiveStringRedisTemplate
 
     init {
+        InfrastructureAvailability.requireRedis()
         val lettuceClientConfiguration = LettuceClientConfiguration
             .builder()
             .build()
