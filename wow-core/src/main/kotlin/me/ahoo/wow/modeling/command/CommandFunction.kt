@@ -17,6 +17,8 @@ import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.infra.Decorator
+import me.ahoo.wow.infra.reflection.AnnotationScanner.scanAnnotation
+import me.ahoo.wow.messaging.function.FunctionAccessorMetadata
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.modeling.command.after.AfterCommandFunction
 import me.ahoo.wow.modeling.materialize
@@ -66,4 +68,33 @@ class CommandFunction<C : Any>(
             .checkpoint(INVOKE_COMMAND_CHECKPOINT)
 
     override fun toString(): String = "CommandFunction(delegate=$delegate)"
+}
+
+internal class SimpleCommandFunction<C : Any>(
+    private val metadata: FunctionAccessorMetadata<C, Mono<*>>,
+    commandAggregate: CommandAggregate<C, *>,
+    afterCommandFunctions: List<AfterCommandFunction<C>>,
+    override val supportedTopics: Set<NamedAggregate> = setOf(commandAggregate.materialize())
+) : AbstractCommandFunction<C>(commandAggregate, afterCommandFunctions) {
+    private companion object {
+        const val INVOKE_COMMAND_CHECKPOINT = "Invoke Command [CommandFunction]"
+    }
+
+    override val contextName: String = metadata.contextName
+    override val name: String = metadata.name
+    override val supportedType: Class<*> = metadata.supportedType
+    override val processor: C = commandAggregate.commandRoot
+    override val functionKind: FunctionKind = metadata.functionKind
+
+    override fun <A : Annotation> getAnnotation(annotationClass: Class<A>): A? =
+        metadata.accessor.function.scanAnnotation(annotationClass.kotlin)
+
+    override fun invokeCommand(exchange: ServerCommandExchange<*>): Mono<*> {
+        val firstArgument = metadata.extractFirstArgument(exchange)
+        return metadata.accessor
+            .invokeSingle(processor, firstArgument)
+            .checkpoint(INVOKE_COMMAND_CHECKPOINT)
+    }
+
+    override fun toString(): String = "SimpleCommandFunction(metadata=$metadata)"
 }

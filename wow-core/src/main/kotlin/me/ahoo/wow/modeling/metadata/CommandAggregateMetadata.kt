@@ -35,6 +35,7 @@ import me.ahoo.wow.modeling.command.CommandFunction
 import me.ahoo.wow.modeling.command.DefaultApplyResourceTagsFunction
 import me.ahoo.wow.modeling.command.DefaultDeleteAggregateFunction
 import me.ahoo.wow.modeling.command.DefaultRecoverAggregateFunction
+import me.ahoo.wow.modeling.command.SimpleCommandFunction
 import me.ahoo.wow.modeling.command.after.AfterCommandFunction
 import me.ahoo.wow.modeling.command.after.AfterCommandFunctionMetadata
 import me.ahoo.wow.modeling.command.after.AfterCommandFunctionMetadata.Companion.toAfterCommandFunction
@@ -169,10 +170,18 @@ data class CommandAggregateMetadata<C : Any>(
         commandAggregate: CommandAggregate<C, *>,
         allAfterCommandFunctions: List<AfterCommandFunction<C>>
     ): MessageFunction<C, ServerCommandExchange<*>, Mono<DomainEventStream>> {
+        val afterCommandFunctions = allAfterCommandFunctions.supportCommand(commandType)
+        if (injectParameterLength == 0) {
+            return SimpleCommandFunction(
+                metadata = this,
+                commandAggregate = commandAggregate,
+                afterCommandFunctions = afterCommandFunctions,
+                supportedTopics = supportedTopics,
+            )
+        }
         val actualMessageFunction = toMessageFunction<C, ServerCommandExchange<*>, Mono<*>>(
             commandAggregate.commandRoot,
         )
-        val afterCommandFunctions = allAfterCommandFunctions.supportCommand(commandType)
         return CommandFunction(
             actualMessageFunction,
             commandAggregate,

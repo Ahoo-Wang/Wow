@@ -18,6 +18,7 @@ import me.ahoo.wow.api.abac.DefaultApplyResourceTags
 import me.ahoo.wow.api.command.DefaultDeleteAggregate
 import me.ahoo.wow.api.command.DefaultRecoverAggregate
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
+import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.modeling.annotation.CreateCmd
 import me.ahoo.wow.modeling.annotation.MockAfterCommandAggregate
 import me.ahoo.wow.modeling.annotation.MockAggregate
@@ -95,6 +96,7 @@ class CommandAggregateMetadataBehaviorTest {
 
         createFunction.assert().isNotNull()
         createFunction!!.supportedType.assert().isEqualTo(CreateCmd::class.java)
+        Decorator::class.java.isInstance(createFunction).assert().isFalse()
         deleteFunction.assert().isNotNull()
         deleteFunction!!.supportedType.assert().isEqualTo(DefaultDeleteAggregate::class.java)
         missingFunction.assert().isNull()
