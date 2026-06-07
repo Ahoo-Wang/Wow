@@ -6,8 +6,14 @@
         "me.ahoo.wow.schema"
       ],
       "aggregates": {
+        "test_aggregate": {
+          "type": "me.ahoo.wow.schema.TestAggregate"
+        },
         "mock_empty_aggregate": {
           "type": "me.ahoo.wow.schema.MockEmptyAggregate"
+        },
+        "mock_empty_agg": {
+          "type": "me.ahoo.wow.schema.MockEmptyAgg"
         }
       }
     }

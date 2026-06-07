@@ -83,6 +83,7 @@ class SchemaGeneratorTest {
             )
         }
 
+        @Suppress("LongMethod")
         @JvmStatic
         fun parametersForGenerateTypeParameter(): Stream<Arguments> {
             return Stream.of(
