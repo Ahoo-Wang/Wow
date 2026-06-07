@@ -19,15 +19,10 @@ private const val DEFAULT_HEADER_CAPACITY = 4
 private fun newHeaderMap(expectedSize: Int = 0): SmallHeaderMap = SmallHeaderMap(expectedSize)
 
 private class SmallHeaderMap(expectedSize: Int = 0) : AbstractMutableMap<String, String>() {
-    private var entryKeys: Array<String?> = if (expectedSize == 0) {
+    private var slots: Array<String?> = if (expectedSize == 0) {
         EMPTY
     } else {
-        arrayOfNulls(capacity(expectedSize))
-    }
-    private var entryValues: Array<String?> = if (expectedSize == 0) {
-        EMPTY
-    } else {
-        arrayOfNulls(capacity(expectedSize))
+        arrayOfNulls(slotSize(capacity(expectedSize)))
     }
     private var entryCount: Int = 0
 
@@ -41,7 +36,7 @@ private class SmallHeaderMap(expectedSize: Int = 0) : AbstractMutableMap<String,
 
     override fun containsValue(value: String): Boolean {
         for (index in 0 until entryCount) {
-            if (entryValues[index] == value) {
+            if (slots[valueIndex(index)] == value) {
                 return true
             }
         }
@@ -53,7 +48,7 @@ private class SmallHeaderMap(expectedSize: Int = 0) : AbstractMutableMap<String,
         if (index < 0) {
             return null
         }
-        return entryValues[index]
+        return slots[valueIndex(index)]
     }
 
     override fun isEmpty(): Boolean = entryCount == 0
@@ -64,13 +59,13 @@ private class SmallHeaderMap(expectedSize: Int = 0) : AbstractMutableMap<String,
     ): String? {
         val index = indexOfKey(key)
         if (index >= 0) {
-            val previous = entryValues[index]
-            entryValues[index] = value
+            val previous = slots[valueIndex(index)]
+            slots[valueIndex(index)] = value
             return previous
         }
         ensureCapacity(entryCount + 1)
-        entryKeys[entryCount] = key
-        entryValues[entryCount] = value
+        slots[keyIndex(entryCount)] = key
+        slots[valueIndex(entryCount)] = value
         entryCount++
         return null
     }
@@ -84,16 +79,14 @@ private class SmallHeaderMap(expectedSize: Int = 0) : AbstractMutableMap<String,
     }
 
     override fun clear() {
-        entryKeys.fill(null, 0, entryCount)
-        entryValues.fill(null, 0, entryCount)
+        slots.fill(null, 0, slotSize(entryCount))
         entryCount = 0
     }
 
     fun copyMap(): SmallHeaderMap {
         val copied = SmallHeaderMap(entryCount)
         if (entryCount > 0) {
-            entryKeys.copyInto(copied.entryKeys, endIndex = entryCount)
-            entryValues.copyInto(copied.entryValues, endIndex = entryCount)
+            slots.copyInto(copied.slots, endIndex = slotSize(entryCount))
             copied.entryCount = entryCount
         }
         return copied
@@ -101,7 +94,7 @@ private class SmallHeaderMap(expectedSize: Int = 0) : AbstractMutableMap<String,
 
     private fun indexOfKey(key: String): Int {
         for (index in 0 until entryCount) {
-            if (entryKeys[index] == key) {
+            if (slots[keyIndex(index)] == key) {
                 return index
             }
         }
@@ -109,26 +102,29 @@ private class SmallHeaderMap(expectedSize: Int = 0) : AbstractMutableMap<String,
     }
 
     private fun ensureCapacity(requiredCapacity: Int) {
-        if (entryKeys.size >= requiredCapacity) {
+        if (slots.size >= slotSize(requiredCapacity)) {
             return
         }
         val newCapacity = when {
-            entryKeys.isEmpty() -> DEFAULT_HEADER_CAPACITY
-            else -> entryKeys.size * 2
+            slots.isEmpty() -> DEFAULT_HEADER_CAPACITY
+            else -> capacity(slots.size / ENTRY_WIDTH) * 2
         }.coerceAtLeast(requiredCapacity)
-        entryKeys = entryKeys.copyOf(newCapacity)
-        entryValues = entryValues.copyOf(newCapacity)
+        slots = slots.copyOf(slotSize(newCapacity))
     }
 
     private fun removeAt(index: Int): String {
-        val previous = checkNotNull(entryValues[index])
+        val previous = checkNotNull(slots[valueIndex(index)])
         val lastIndex = entryCount - 1
         if (index < lastIndex) {
-            entryKeys.copyInto(entryKeys, destinationOffset = index, startIndex = index + 1, endIndex = entryCount)
-            entryValues.copyInto(entryValues, destinationOffset = index, startIndex = index + 1, endIndex = entryCount)
+            slots.copyInto(
+                slots,
+                destinationOffset = keyIndex(index),
+                startIndex = keyIndex(index + 1),
+                endIndex = slotSize(entryCount),
+            )
         }
-        entryKeys[lastIndex] = null
-        entryValues[lastIndex] = null
+        slots[keyIndex(lastIndex)] = null
+        slots[valueIndex(lastIndex)] = null
         entryCount = lastIndex
         return previous
     }
@@ -145,14 +141,14 @@ private class SmallHeaderMap(expectedSize: Int = 0) : AbstractMutableMap<String,
 
         override fun contains(element: MutableMap.MutableEntry<String, String>): Boolean {
             val index = indexOfKey(element.key)
-            return index >= 0 && entryValues[index] == element.value
+            return index >= 0 && slots[valueIndex(index)] == element.value
         }
 
         override fun iterator(): MutableIterator<MutableMap.MutableEntry<String, String>> = EntryIterator()
 
         override fun remove(element: MutableMap.MutableEntry<String, String>): Boolean {
             val index = indexOfKey(element.key)
-            if (index < 0 || entryValues[index] != element.value) {
+            if (index < 0 || slots[valueIndex(index)] != element.value) {
                 return false
             }
             removeAt(index)
@@ -192,14 +188,14 @@ private class SmallHeaderMap(expectedSize: Int = 0) : AbstractMutableMap<String,
         private val index: Int
     ) : MutableMap.MutableEntry<String, String> {
         override val key: String
-            get() = checkNotNull(entryKeys[index])
+            get() = checkNotNull(slots[keyIndex(index)])
 
         override val value: String
-            get() = checkNotNull(entryValues[index])
+            get() = checkNotNull(slots[valueIndex(index)])
 
         override fun setValue(newValue: String): String {
             val previous = value
-            entryValues[index] = newValue
+            slots[valueIndex(index)] = newValue
             return previous
         }
 
@@ -214,6 +210,7 @@ private class SmallHeaderMap(expectedSize: Int = 0) : AbstractMutableMap<String,
     }
 
     companion object {
+        private const val ENTRY_WIDTH = 2
         private val EMPTY = arrayOfNulls<String>(0)
 
         private fun capacity(expectedSize: Int): Int =
@@ -221,6 +218,12 @@ private class SmallHeaderMap(expectedSize: Int = 0) : AbstractMutableMap<String,
                 expectedSize <= 3 -> DEFAULT_HEADER_CAPACITY
                 else -> expectedSize
             }
+
+        private fun keyIndex(entryIndex: Int): Int = entryIndex * ENTRY_WIDTH
+
+        private fun valueIndex(entryIndex: Int): Int = keyIndex(entryIndex) + 1
+
+        private fun slotSize(entryCapacity: Int): Int = entryCapacity * ENTRY_WIDTH
     }
 }
 

@@ -90,6 +90,8 @@ class DefaultHeaderBehaviorTest {
 
         source.backingMap().javaClass.simpleName.assert().isEqualTo("SmallHeaderMap")
         copy.backingMap().javaClass.simpleName.assert().isEqualTo("SmallHeaderMap")
+        source.backingMap().arrayFieldCount().assert().isEqualTo(1)
+        copy.backingMap().arrayFieldCount().assert().isEqualTo(1)
         copy.assert().isEqualTo(source)
     }
 
@@ -122,5 +124,11 @@ class DefaultHeaderBehaviorTest {
         val field = DefaultHeader::class.java.getDeclaredField("delegate")
         field.isAccessible = true
         return field.get(this) as MutableMap<String, String>
+    }
+
+    private fun Any.arrayFieldCount(): Int {
+        return javaClass.declaredFields.count {
+            it.type.isArray && !java.lang.reflect.Modifier.isStatic(it.modifiers)
+        }
     }
 }
