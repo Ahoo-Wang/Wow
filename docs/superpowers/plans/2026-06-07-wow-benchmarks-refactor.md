@@ -365,11 +365,13 @@ object BenchmarkIds {
     }
 
     fun nextGlobalId(): String {
-        installDeterministicGlobalIdGenerator()
         return generateGlobalId()
     }
 }
 ```
+
+`installDeterministicGlobalIdGenerator()` is intentionally separate from `nextGlobalId()` so setup code can install
+the deterministic provider outside measured benchmark methods.
 
 - [ ] **Step 4: Create command fixture**
 
@@ -399,6 +401,15 @@ object BenchmarkCommands {
         return addCartItem(
             id = id,
             requestId = id,
+            aggregateId = BenchmarkIds.nextGlobalId(),
+            namedAggregate = BenchmarkAggregates.namedAggregate,
+        )
+    }
+
+    fun hotPathAddCartItem(): CommandMessage<AddCartItem> {
+        return addCartItem(
+            id = BenchmarkIds.nextGlobalId(),
+            requestId = BenchmarkIds.nextGlobalId(),
             aggregateId = BenchmarkIds.nextGlobalId(),
             namedAggregate = BenchmarkAggregates.namedAggregate,
         )
