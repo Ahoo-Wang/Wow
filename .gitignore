@@ -33,6 +33,3 @@ __pycache__/
 
 # Local agent configuration
 /.claude/
-
-# Superpowers
-docs/superpowers/
