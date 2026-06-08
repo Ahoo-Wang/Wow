@@ -142,7 +142,7 @@ val infrastructureE2ESuite = BenchmarkSuite(
     resultFileName = "infrastructure-e2e.json",
     humanFileName = "infrastructure-e2e-human.txt",
     requiredForGroupedReport = false,
-    performanceConclusionSource = true,
+    performanceConclusionSource = false,
     requiredServices = listOf(
         BenchmarkRequiredService("Redis", 6379),
         BenchmarkRequiredService("MongoDB", 27017),
@@ -358,7 +358,8 @@ data class BenchmarkGroupReport(
 )
 
 data class ParsedBenchmarkResult(
-    val group: String,
+    val suite: BenchmarkSuite,
+    val profile: String,
     val threads: Int,
     val benchmark: String,
     val displayName: String,
@@ -392,8 +393,7 @@ fun shortBenchmarkName(benchmark: String): String {
     }
 }
 
-fun benchmarkDisplayName(result: Map<*, *>): String {
-    val benchmark = result["benchmark"] as String
+fun benchmarkDisplayName(result: Map<*, *>, benchmark: String = result["benchmark"] as String): String {
     @Suppress("UNCHECKED_CAST")
     val params = result["params"] as? Map<*, *>
     if (params.isNullOrEmpty()) {
@@ -402,6 +402,17 @@ fun benchmarkDisplayName(result: Map<*, *>): String {
     val paramText = params.entries.sortedBy { it.key.toString() }
         .joinToString(", ") { "${it.key}=${it.value}" }
     return "${shortBenchmarkName(benchmark)} ($paramText)"
+}
+
+fun benchmarkIdentity(result: Map<*, *>, benchmark: String = result["benchmark"] as String): String {
+    @Suppress("UNCHECKED_CAST")
+    val params = result["params"] as? Map<*, *>
+    if (params.isNullOrEmpty()) {
+        return benchmark
+    }
+    val paramText = params.entries.sortedBy { it.key.toString() }
+        .joinToString(", ") { "${it.key}=${it.value}" }
+    return "$benchmark ($paramText)"
 }
 
 fun parseMetricNumber(value: Any?): Double? {
@@ -477,10 +488,11 @@ fun parseBenchmarkResultFile(
         val allocationBytesPerOp = parseMetricNumber(allocationMetric?.get("score"))
         val allocationErrorBytesPerOp = parseMetricNumber(allocationMetric?.get("scoreError"))
         ParsedBenchmarkResult(
-            group = group.suite.displayName,
+            suite = group.suite,
+            profile = group.profile.id,
             threads = threads,
-            benchmark = benchmark,
-            displayName = benchmarkDisplayName(result),
+            benchmark = benchmarkIdentity(result, benchmark),
+            displayName = benchmarkDisplayName(result, benchmark),
             mode = result["mode"] as? String ?: "unknown",
             score = score,
             scoreError = scoreError,
@@ -541,12 +553,17 @@ fun formatAllocationError(allocationErrorBytesPerOp: Double?): String {
 }
 
 fun StringBuilder.appendBenchmarkTable(rows: List<ParsedBenchmarkResult>) {
-    appendLine("| Threads | Mode | Benchmark | Score | Error | Unit | gc.alloc.rate.norm |")
-    appendLine("|---------|------|-----------|-------|-------|------|-------------------|")
-    rows.sortedWith(compareBy<ParsedBenchmarkResult> { it.threads }.thenBy { it.displayName }.thenBy { it.mode })
+    appendLine("| Suite | Benchmark | Threads | Mode | Score | Error | Unit | gc.alloc.rate.norm |")
+    appendLine("|-------|-----------|---------|------|-------|-------|------|-------------------|")
+    rows.sortedWith(
+        compareBy<ParsedBenchmarkResult> { it.suite.displayName }
+            .thenBy { it.displayName }
+            .thenBy { it.threads }
+            .thenBy { it.mode }
+    )
         .forEach { row ->
             appendLine(
-                "| ${row.threads} | ${row.mode} | ${row.displayName} | " +
+                "| ${row.suite.displayName} | ${row.displayName} | ${row.threads} | ${row.mode} | " +
                     "${String.format(Locale.US, "%.2f", row.score)} | ${formatScoreError(row.scoreError)} | " +
                     "${row.unit} | ${formatAllocationBytes(row.allocationBytesPerOp)} |"
             )
@@ -554,28 +571,28 @@ fun StringBuilder.appendBenchmarkTable(rows: List<ParsedBenchmarkResult>) {
 }
 
 fun StringBuilder.appendThroughputBottlenecks(rows: List<ParsedBenchmarkResult>) {
-    appendLine("| Group | Threads | Benchmark | Score | Error | Unit |")
+    appendLine("| Suite | Threads | Benchmark | Score | Error | Unit |")
     appendLine("|-------|---------|-----------|-------|-------|------|")
     rows.filter { it.unit.contains("ops", ignoreCase = true) }
         .sortedBy { it.score }
         .take(10)
         .forEach { row ->
             appendLine(
-                "| ${row.group} | ${row.threads} | ${row.displayName} | " +
+                "| ${row.suite.displayName} | ${row.threads} | ${row.displayName} | " +
                     "${String.format(Locale.US, "%.2f", row.score)} | ${formatScoreError(row.scoreError)} | ${row.unit} |"
             )
         }
 }
 
 fun StringBuilder.appendAllocationBottlenecks(rows: List<ParsedBenchmarkResult>) {
-    appendLine("| Group | Threads | Benchmark | Allocation | Error | Score | Unit |")
+    appendLine("| Suite | Threads | Benchmark | Allocation | Error | Score | Unit |")
     appendLine("|-------|---------|-----------|------------|-------|-------|------|")
     rows.filter { it.allocationBytesPerOp != null }
         .sortedByDescending { it.allocationBytesPerOp }
         .take(10)
         .forEach { row ->
             appendLine(
-                "| ${row.group} | ${row.threads} | ${row.displayName} | " +
+                "| ${row.suite.displayName} | ${row.threads} | ${row.displayName} | " +
                     "${formatAllocationBytes(row.allocationBytesPerOp)} | " +
                     "${formatAllocationError(row.allocationErrorBytesPerOp)} | " +
                     "${String.format(Locale.US, "%.2f", row.score)} | ${row.unit} |"
@@ -594,18 +611,21 @@ fun renderGroupedBenchmarkReport(
         .filter { it.group.suite.performanceConclusionSource }
         .flatMap { it.rows }
     val componentRows = parsedGroups
-        .filterNot { it.group.suite.performanceConclusionSource }
+        .filter { it.group.suite.id == componentSuite.id }
+        .flatMap { it.rows }
+    val infrastructureRows = parsedGroups
+        .filter { it.group.suite.id == infrastructureE2ESuite.id }
         .flatMap { it.rows }
     if (allRows.isEmpty()) {
         throw GradleException("No benchmark rows were available for grouped report generation.")
     }
     val sb = StringBuilder()
-    sb.appendLine("# E2E Benchmark Report")
+    sb.appendLine("# Grouped Benchmark Report")
     sb.appendLine()
     sb.appendLine("## Policy")
-    sb.appendLine("- Primary Framework E2E results are the main framework performance conclusion source.")
-    sb.appendLine("- Infrastructure E2E results are performance conclusion sources for Redis and Mongo environments.")
-    sb.appendLine("- Component results explain bottlenecks; they are not standalone framework performance conclusions.")
+    sb.appendLine("- Full E2E results are the performance conclusion source.")
+    sb.appendLine("- Infrastructure E2E results reflect real Redis or Mongo persistence paths when services are available.")
+    sb.appendLine("- Component results explain bottlenecks and are not standalone performance goals.")
     sb.appendLine("- Smoke results are excluded from performance reports.")
     sb.appendLine()
     sb.appendLine("## Environment")
@@ -637,6 +657,18 @@ fun renderGroupedBenchmarkReport(
         sb.appendLine("### Highest Allocation")
         sb.appendLine()
         sb.appendAllocationBottlenecks(componentRows)
+        sb.appendLine()
+    }
+    if (infrastructureRows.isNotEmpty()) {
+        sb.appendLine("## Infrastructure E2E Diagnostics")
+        sb.appendLine()
+        sb.appendLine("### Lowest Throughput")
+        sb.appendLine()
+        sb.appendThroughputBottlenecks(infrastructureRows)
+        sb.appendLine()
+        sb.appendLine("### Highest Allocation")
+        sb.appendLine()
+        sb.appendAllocationBottlenecks(infrastructureRows)
         sb.appendLine()
     }
     sb.appendLine("## Group Details")
@@ -696,7 +728,10 @@ tasks.register("generateBenchmarkReport") {
         sb.appendLine()
         sb.appendLine("# Framework E2E Benchmark Report")
         sb.appendLine()
-        sb.appendLine("Framework performance conclusions must use this primary E2E report.")
+        sb.appendLine(
+            "Framework performance conclusions use Full E2E results. " +
+                "Component benchmarks explain bottlenecks and Smoke only verifies benchmark entry health."
+        )
         sb.appendLine()
         sb.appendLine("## Environment")
         sb.appendLine("- **Version**: ${project.version}")
@@ -732,88 +767,290 @@ tasks.register("generateGroupedBenchmarkReport") {
     }
 }
 
-fun parseJsonResultRows(resultFile: File): List<Map<*, *>> {
-    val resultsText = resultFile.readText()
-    if (resultsText.isBlank()) {
-        throw GradleException("JMH results are empty: ${resultFile.absolutePath}")
-    }
-    @Suppress("UNCHECKED_CAST")
-    val results = JsonSlurper().parseText(resultsText) as List<*>
-    if (results.isEmpty()) {
-        throw GradleException("JMH results contain no benchmarks: ${resultFile.absolutePath}")
-    }
-    return results.mapIndexed { rowIndex, rawResult ->
-        rawResult as? Map<*, *> ?: throw GradleException(
-            "Invalid JMH result row at index $rowIndex in ${resultFile.absolutePath}: expected row to be a JSON object."
-        )
-    }
-}
-
-fun fullFrameworkE2EResultFiles(): List<File> {
-    return fullProfile.threads.map { threads ->
-        suiteResultFile(fullProfile, frameworkE2ESuite, threads).get().asFile
-    }
-}
-
-fun requireFullFrameworkE2EResultFiles(): List<File> {
-    val resultFiles = fullFrameworkE2EResultFiles()
-    val missingFile = resultFiles.firstOrNull { !it.exists() }
-    if (missingFile != null) {
-        throw GradleException(
-            "Framework E2E benchmark results not found: ${missingFile.absolutePath}. " +
-                "Run :wow-benchmarks:${frameworkE2ESuite.commandName} first."
-        )
-    }
-    return resultFiles
-}
-
 data class BenchmarkComparisonRow(
     val key: String,
+    val benchmark: String,
     val displayName: String,
     val mode: String,
+    val threads: Int,
     val unit: String,
     val score: Double,
+    val allocationBytesPerOp: Double?,
 )
 
-fun comparisonKey(result: Map<*, *>): String {
-    val benchmark = result["benchmark"] as? String ?: "unknown"
-    val mode = result["mode"] as? String ?: "unknown"
-    val threads = result["threads"]?.toString() ?: "unknown"
-    val params = result["params"] as? Map<*, *>
-    val paramText = params?.entries
-        ?.sortedBy { it.key.toString() }
-        ?.joinToString(",") { "${it.key}=${it.value}" }
-        ?: ""
-    return "$benchmark|mode=$mode|threads=$threads|$paramText"
+data class BenchmarkMetricComparison(
+    val metric: String,
+    val displayName: String,
+    val mode: String,
+    val threads: Int,
+    val baseline: Double,
+    val current: Double,
+    val deltaPercent: Double?,
+    val thresholdPercent: Double,
+    val higherIsBetter: Boolean,
+)
+
+fun benchmarkRegressionThreshold(propertyName: String, defaultValue: Double): Double {
+    return providers.gradleProperty(propertyName)
+        .map { value ->
+            val threshold = value.toDoubleOrNull()
+                ?: throw GradleException("Gradle property $propertyName must be a number: $value")
+            if (threshold < 0.0) {
+                throw GradleException("Gradle property $propertyName must be greater than or equal to zero.")
+            }
+            threshold
+        }
+        .getOrElse(defaultValue)
 }
 
-fun parseComparisonRows(resultFiles: List<File>): Map<String, BenchmarkComparisonRow> {
-    return resultFiles.flatMap { parseJsonResultRows(it) }
-        .mapIndexed { rowIndex, result ->
-            val benchmark = result["benchmark"] as? String ?: throw GradleException(
-                "Invalid JMH result row at index $rowIndex: missing benchmark."
+val benchmarkThroughputRegressionPercent =
+    benchmarkRegressionThreshold("benchmarkThroughputRegressionPercent", 10.0)
+val benchmarkAllocationRegressionPercent =
+    benchmarkRegressionThreshold("benchmarkAllocationRegressionPercent", 10.0)
+val benchmarkLatencyRegressionPercent =
+    benchmarkRegressionThreshold("benchmarkLatencyRegressionPercent", 10.0)
+
+fun comparisonKey(benchmark: String, mode: String, threads: Int): String {
+    return "$benchmark|mode=$mode|threads=$threads"
+}
+
+fun ParsedBenchmarkResult.toComparisonRow(): BenchmarkComparisonRow {
+    return BenchmarkComparisonRow(
+        key = comparisonKey(benchmark, mode, threads),
+        benchmark = benchmark,
+        displayName = displayName,
+        mode = mode,
+        threads = threads,
+        unit = unit,
+        score = score,
+        allocationBytesPerOp = allocationBytesPerOp,
+    )
+}
+
+fun parsePositiveInt(value: Any?): Int? {
+    val parsed = when (value) {
+        is Number -> value.toInt()
+        is String -> value.toIntOrNull()
+        else -> null
+    } ?: return null
+    return parsed.takeIf { it > 0 }
+}
+
+fun parsedFrameworkE2EResults(): List<ParsedBenchmarkResult> {
+    return parseBenchmarkGroup(
+        parser = JsonSlurper(),
+        group = benchmarkResultGroup(frameworkE2ESuite, fullProfile),
+    ).rows
+}
+
+fun ParsedBenchmarkResult.toBaselineJsonRow(): Map<String, Any?> {
+    return linkedMapOf(
+        "suite" to suite.id,
+        "suiteDisplayName" to suite.displayName,
+        "profile" to profile,
+        "threads" to threads,
+        "benchmark" to benchmark,
+        "displayName" to displayName,
+        "mode" to mode,
+        "score" to score,
+        "scoreError" to scoreError,
+        "unit" to unit,
+        "allocationBytesPerOp" to allocationBytesPerOp,
+        "allocationErrorBytesPerOp" to allocationErrorBytesPerOp,
+    )
+}
+
+fun parsedResultBaselineRow(row: Map<*, *>, source: String, rowIndex: Int): BenchmarkComparisonRow {
+    val benchmark = row["benchmark"] as? String ?: throw GradleException(
+        "Invalid benchmark baseline row at index $rowIndex in $source: missing benchmark."
+    )
+    val mode = row["mode"] as? String ?: throw GradleException(
+        "Invalid benchmark baseline row for $benchmark at index $rowIndex in $source: missing mode."
+    )
+    val threads = parsePositiveInt(row["threads"]) ?: throw GradleException(
+        "Invalid benchmark baseline row for $benchmark at index $rowIndex in $source: missing positive threads. " +
+            "Regenerate the baseline with :wow-benchmarks:updateBenchmarkBaseline."
+    )
+    val score = parseMetricNumber(row["score"]) ?: throw GradleException(
+        "Invalid benchmark baseline row for $benchmark at index $rowIndex in $source: missing score."
+    )
+    val unit = row["unit"] as? String ?: throw GradleException(
+        "Invalid benchmark baseline row for $benchmark at index $rowIndex in $source: missing unit."
+    )
+    val displayName = row["displayName"] as? String ?: shortBenchmarkName(benchmark)
+    return BenchmarkComparisonRow(
+        key = comparisonKey(benchmark, mode, threads),
+        benchmark = benchmark,
+        displayName = displayName,
+        mode = mode,
+        threads = threads,
+        unit = unit,
+        score = score,
+        allocationBytesPerOp = parseMetricNumber(row["allocationBytesPerOp"]),
+    )
+}
+
+fun legacyJmhBaselineRow(row: Map<*, *>, source: String, rowIndex: Int): BenchmarkComparisonRow {
+    val benchmark = row["benchmark"] as? String ?: throw GradleException(
+        "Invalid legacy JMH baseline row at index $rowIndex in $source: missing benchmark."
+    )
+    val threads = parsePositiveInt(row["threads"]) ?: throw GradleException(
+        "Legacy JMH baseline row for $benchmark at index $rowIndex in $source does not contain a usable threads value. " +
+            "Regenerate the baseline with :wow-benchmarks:updateBenchmarkBaseline."
+    )
+    val primaryMetric = row["primaryMetric"] as? Map<*, *> ?: throw GradleException(
+        "Invalid legacy JMH baseline row for $benchmark at index $rowIndex in $source: missing primaryMetric."
+    )
+    val mode = row["mode"] as? String ?: "unknown"
+    val score = parseMetricNumber(primaryMetric["score"]) ?: throw GradleException(
+        "Invalid legacy JMH baseline row for $benchmark at index $rowIndex in $source: missing primaryMetric.score."
+    )
+    val unit = primaryMetric["scoreUnit"] as? String ?: throw GradleException(
+        "Invalid legacy JMH baseline row for $benchmark at index $rowIndex in $source: missing primaryMetric.scoreUnit."
+    )
+    val secondaryMetrics = row["secondaryMetrics"] as? Map<*, *>
+    val allocationMetric = secondaryMetrics?.get("gc.alloc.rate.norm") as? Map<*, *>
+    val identity = benchmarkIdentity(row)
+    return BenchmarkComparisonRow(
+        key = comparisonKey(identity, mode, threads),
+        benchmark = identity,
+        displayName = benchmarkDisplayName(row),
+        mode = mode,
+        threads = threads,
+        unit = unit,
+        score = score,
+        allocationBytesPerOp = parseMetricNumber(allocationMetric?.get("score")),
+    )
+}
+
+fun parseBaselineComparisonRows(baselineFile: File): Map<String, BenchmarkComparisonRow> {
+    val parsed = JsonSlurper().parseText(baselineFile.readText())
+    val source = baselineFile.absolutePath
+    val rows = when (parsed) {
+        is Map<*, *> -> parsed["results"] as? List<*>
+            ?: throw GradleException("Benchmark baseline is missing results array: $source")
+        is List<*> -> parsed
+        else -> throw GradleException("Benchmark baseline must be a JSON object or array: $source")
+    }
+    if (rows.isEmpty()) {
+        throw GradleException("Benchmark baseline contains no rows: $source")
+    }
+    return rows.mapIndexed { rowIndex, rawRow ->
+        val row = rawRow as? Map<*, *> ?: throw GradleException(
+            "Invalid benchmark baseline row at index $rowIndex in $source: expected row to be a JSON object."
+        )
+        if (row.containsKey("primaryMetric")) {
+            legacyJmhBaselineRow(row, source, rowIndex)
+        } else {
+            parsedResultBaselineRow(row, source, rowIndex)
+        }
+    }.associateBy { it.key }
+}
+
+fun parsedComparisonRows(rows: List<ParsedBenchmarkResult>): Map<String, BenchmarkComparisonRow> {
+    return rows.map { it.toComparisonRow() }.associateBy { it.key }
+}
+
+fun isThroughputMetric(row: BenchmarkComparisonRow): Boolean {
+    return row.mode == "thrpt" || row.unit.contains("ops", ignoreCase = true)
+}
+
+fun compareMetric(
+    metric: String,
+    baseRow: BenchmarkComparisonRow,
+    latestRow: BenchmarkComparisonRow,
+    baseline: Double,
+    current: Double,
+    thresholdPercent: Double,
+    higherIsBetter: Boolean,
+): BenchmarkMetricComparison {
+    val deltaPercent = if (baseline == 0.0) {
+        null
+    } else {
+        ((current - baseline) / baseline) * 100
+    }
+    return BenchmarkMetricComparison(
+        metric = metric,
+        displayName = latestRow.displayName.ifBlank { baseRow.displayName },
+        mode = latestRow.mode,
+        threads = latestRow.threads,
+        baseline = baseline,
+        current = current,
+        deltaPercent = deltaPercent,
+        thresholdPercent = thresholdPercent,
+        higherIsBetter = higherIsBetter,
+    )
+}
+
+fun BenchmarkMetricComparison.status(): String {
+    val delta = deltaPercent ?: return "STABLE"
+    val regression = if (higherIsBetter) {
+        delta < -thresholdPercent
+    } else {
+        delta > thresholdPercent
+    }
+    if (regression) {
+        return "${metric.uppercase(Locale.US)}_REGRESSION"
+    }
+    val improvement = if (higherIsBetter) {
+        delta > thresholdPercent
+    } else {
+        delta < -thresholdPercent
+    }
+    if (improvement) {
+        return "${metric.uppercase(Locale.US)}_IMPROVED"
+    }
+    return "STABLE"
+}
+
+fun benchmarkMetricComparisons(
+    baseline: Map<String, BenchmarkComparisonRow>,
+    latest: Map<String, BenchmarkComparisonRow>,
+): List<BenchmarkMetricComparison> {
+    return (baseline.keys + latest.keys).sorted().flatMap { benchmark ->
+        val baseRow = baseline[benchmark]
+        val latestRow = latest[benchmark]
+        if (baseRow == null || latestRow == null) {
+            return@flatMap emptyList()
+        }
+        val primaryMetric = if (isThroughputMetric(latestRow)) {
+            compareMetric(
+                metric = "throughput",
+                baseRow = baseRow,
+                latestRow = latestRow,
+                baseline = baseRow.score,
+                current = latestRow.score,
+                thresholdPercent = benchmarkThroughputRegressionPercent,
+                higherIsBetter = true,
             )
-            val primaryMetric = result["primaryMetric"] as? Map<*, *> ?: throw GradleException(
-                "Invalid JMH result row for $benchmark at index $rowIndex: missing primaryMetric."
-            )
-            val score = parseMetricNumber(primaryMetric["score"]) ?: throw GradleException(
-                "Invalid JMH result row for $benchmark at index $rowIndex: missing or unusable primaryMetric.score."
-            )
-            val unit = primaryMetric["scoreUnit"] as? String ?: throw GradleException(
-                "Invalid JMH result row for $benchmark at index $rowIndex: missing primaryMetric.scoreUnit."
-            )
-            val mode = result["mode"] as? String ?: "unknown"
-            val threads = result["threads"]?.toString() ?: "unknown"
-            val displayName = "${benchmarkDisplayName(result)} [mode=$mode, threads=$threads]"
-            BenchmarkComparisonRow(
-                key = comparisonKey(result),
-                displayName = displayName,
-                mode = mode,
-                unit = unit,
-                score = score,
+        } else {
+            compareMetric(
+                metric = "latency",
+                baseRow = baseRow,
+                latestRow = latestRow,
+                baseline = baseRow.score,
+                current = latestRow.score,
+                thresholdPercent = benchmarkLatencyRegressionPercent,
+                higherIsBetter = false,
             )
         }
-        .associateBy { it.key }
+        val allocationMetric = if (baseRow.allocationBytesPerOp != null && latestRow.allocationBytesPerOp != null) {
+            listOf(
+                compareMetric(
+                    metric = "allocation",
+                    baseRow = baseRow,
+                    latestRow = latestRow,
+                    baseline = baseRow.allocationBytesPerOp,
+                    current = latestRow.allocationBytesPerOp,
+                    thresholdPercent = benchmarkAllocationRegressionPercent,
+                    higherIsBetter = false,
+                )
+            )
+        } else {
+            emptyList()
+        }
+        listOf(primaryMetric) + allocationMetric
+    }
 }
 
 tasks.register("benchmarkCompare") {
@@ -823,66 +1060,68 @@ tasks.register("benchmarkCompare") {
     doLast {
         val baselineFile = frameworkE2EBaselineJson.asFile
         if (!baselineFile.exists()) {
-            throw GradleException("Baseline not found: ${baselineFile.absolutePath}. Run :wow-benchmarks:updateBaseline first.")
+            throw GradleException(
+                "Baseline not found: ${baselineFile.absolutePath}. " +
+                    "Run :wow-benchmarks:updateBenchmarkBaseline first."
+            )
         }
-        val latestFiles = requireFullFrameworkE2EResultFiles()
-        val baseline = parseComparisonRows(listOf(baselineFile))
-        val latest = parseComparisonRows(latestFiles)
+        val baseline = parseBaselineComparisonRows(baselineFile)
+        val latest = parsedComparisonRows(parsedFrameworkE2EResults())
         val allBenchmarks = (baseline.keys + latest.keys).sorted()
+        val comparisons = benchmarkMetricComparisons(baseline, latest)
 
-        var regressions = 0
-        var improvements = 0
+        val regressions = comparisons.count { it.status().endsWith("_REGRESSION") }
+        val improvements = comparisons.count { it.status().endsWith("_IMPROVED") }
 
         println()
         println("## Benchmark Comparison")
+        println("Baseline: ${baselineFile.absolutePath}")
+        println(
+            "Thresholds: throughput=${benchmarkThroughputRegressionPercent}%, " +
+                "latency=${benchmarkLatencyRegressionPercent}%, " +
+                "allocation=${benchmarkAllocationRegressionPercent}%"
+        )
         println()
-        println("| Benchmark | Baseline | Current | Delta % | Status |")
-        println("|-----------|----------|---------|---------|--------|")
+        println("| Metric | Benchmark | Threads | Mode | Baseline | Current | Delta % | Threshold | Status |")
+        println("|--------|-----------|---------|------|----------|---------|---------|-----------|--------|")
 
         for (benchmark in allBenchmarks) {
             val baseRow = baseline[benchmark]
             val latestRow = latest[benchmark]
 
             if (baseRow == null) {
-                println("| ${latestRow?.displayName ?: benchmark} | - | ${String.format(Locale.US, "%.2f", latestRow?.score)} | NEW | NEW |")
+                println(
+                    "| result | ${latestRow?.displayName ?: benchmark} | ${latestRow?.threads ?: "-"} | " +
+                        "${latestRow?.mode ?: "-"} | - | ${latestRow?.score?.let { String.format(Locale.US, "%.2f", it) } ?: "-"} | " +
+                        "NEW | - | NEW |"
+                )
                 continue
             }
             if (latestRow == null) {
-                println("| ${baseRow.displayName} | ${String.format(Locale.US, "%.2f", baseRow.score)} | - | REMOVED | REMOVED |")
+                println(
+                    "| result | ${baseRow.displayName} | ${baseRow.threads} | ${baseRow.mode} | " +
+                        "${String.format(Locale.US, "%.2f", baseRow.score)} | - | REMOVED | - | REMOVED |"
+                )
                 continue
             }
-
-            val changePercent = ((latestRow.score - baseRow.score) / baseRow.score) * 100
-            val higherIsBetter = latestRow.mode == "thrpt" || latestRow.unit.contains("ops", ignoreCase = true)
-            val status = when {
-                higherIsBetter && changePercent < -10.0 -> {
-                    regressions++
-                    "REGRESSION"
+            comparisons
+                .filter { it.displayName == latestRow.displayName && it.mode == latestRow.mode && it.threads == latestRow.threads }
+                .forEach { comparison ->
+                    println(
+                        "| ${comparison.metric} | ${comparison.displayName} | ${comparison.threads} | ${comparison.mode} | " +
+                            "${String.format(Locale.US, "%.2f", comparison.baseline)} | " +
+                            "${String.format(Locale.US, "%.2f", comparison.current)} | " +
+                            "${comparison.deltaPercent?.let { String.format(Locale.US, "%+.1f%%", it) } ?: "n/a"} | " +
+                            "${String.format(Locale.US, "%.1f%%", comparison.thresholdPercent)} | ${comparison.status()} |"
+                    )
                 }
-                !higherIsBetter && changePercent > 10.0 -> {
-                    regressions++
-                    "REGRESSION"
-                }
-                higherIsBetter && changePercent > 10.0 -> {
-                    improvements++
-                    "IMPROVED"
-                }
-                !higherIsBetter && changePercent < -10.0 -> {
-                    improvements++
-                    "IMPROVED"
-                }
-                else -> "STABLE"
-            }
-
-            println(
-                "| ${latestRow.displayName} | ${String.format(Locale.US, "%.2f", baseRow.score)} | " +
-                    "${String.format(Locale.US, "%.2f", latestRow.score)} | " +
-                    "${String.format(Locale.US, "%+.1f%%", changePercent)} | $status |"
-            )
         }
 
         println()
-        println("Summary: $regressions regression(s), $improvements improvement(s), ${allBenchmarks.size - regressions - improvements} stable")
+        println(
+            "Summary: $regressions regression(s), $improvements improvement(s), " +
+                "${comparisons.size - regressions - improvements} stable metric comparison(s)"
+        )
 
         if (regressions > 0) {
             throw GradleException("Benchmark regressions detected: $regressions")
@@ -890,15 +1129,22 @@ tasks.register("benchmarkCompare") {
     }
 }
 
-tasks.register("updateBaseline") {
+tasks.register("updateBenchmarkBaseline") {
     description = "Copy primary framework E2E benchmark results as the new baseline."
     group = "benchmark"
 
     doLast {
-        val localRows = requireFullFrameworkE2EResultFiles().flatMap { parseJsonResultRows(it) }
+        val localRows = parsedFrameworkE2EResults()
         val baselineFile = frameworkE2EBaselineJson.asFile
+        val baselineJson = linkedMapOf(
+            "schemaVersion" to 1,
+            "suite" to frameworkE2ESuite.id,
+            "profile" to fullProfile.id,
+            "generatedAt" to Instant.now().toString(),
+            "results" to localRows.map { it.toBaselineJsonRow() },
+        )
         baselineFile.parentFile.mkdirs()
-        baselineFile.writeText(JsonOutput.prettyPrint(JsonOutput.toJson(localRows)))
+        baselineFile.writeText(JsonOutput.prettyPrint(JsonOutput.toJson(baselineJson)))
         logger.lifecycle("Baseline updated: ${baselineFile.absolutePath}")
     }
 }
