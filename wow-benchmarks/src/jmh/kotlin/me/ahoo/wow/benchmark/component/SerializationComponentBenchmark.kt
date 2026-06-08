@@ -11,20 +11,27 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.serialization
+package me.ahoo.wow.benchmark.component
 
 import me.ahoo.wow.benchmark.fixture.BenchmarkCommands
 import me.ahoo.wow.benchmark.fixture.BenchmarkEvents
 import me.ahoo.wow.event.DomainEventStream
+import me.ahoo.wow.serialization.JsonSerializer
+import me.ahoo.wow.serialization.toJsonString
+import me.ahoo.wow.serialization.toObject
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.infra.Blackhole
 
-@State(Scope.Benchmark)
-open class SerializationBenchmark {
+@State(Scope.Thread)
+open class SerializationComponentBenchmark {
     private val commandMessage = BenchmarkCommands.fixedAggregateAddCartItem()
     private val eventStream: DomainEventStream = BenchmarkEvents.singleEventStream()
+    private val payload = SmallPayload()
+    private val preSerializedPayload = payload.toJsonString()
+    private val preSerializedCommand by lazy { commandMessage.toJsonString() }
+    private val preSerializedEventStream by lazy { eventStream.toJsonString() }
 
     @Benchmark
     fun commandSerializeDeserialize(blackhole: Blackhole) {
@@ -42,14 +49,12 @@ open class SerializationBenchmark {
 
     @Benchmark
     fun commandSerialize(blackhole: Blackhole) {
-        val json = commandMessage.toJsonString()
-        blackhole.consume(json)
+        blackhole.consume(commandMessage.toJsonString())
     }
 
     @Benchmark
     fun eventStreamSerialize(blackhole: Blackhole) {
-        val json = eventStream.toJsonString()
-        blackhole.consume(json)
+        blackhole.consume(eventStream.toJsonString())
     }
 
     @Benchmark
@@ -64,6 +69,28 @@ open class SerializationBenchmark {
         blackhole.consume(deserialized)
     }
 
-    private val preSerializedCommand by lazy { commandMessage.toJsonString() }
-    private val preSerializedEventStream by lazy { eventStream.toJsonString() }
+    @Benchmark
+    fun serializePayload(blackhole: Blackhole) {
+        blackhole.consume(payload.toJsonString())
+    }
+
+    @Benchmark
+    fun deserializePayload(blackhole: Blackhole) {
+        val obj = preSerializedPayload.toObject<SmallPayload>()
+        blackhole.consume(obj)
+    }
+
+    @Benchmark
+    fun roundTripPayload(blackhole: Blackhole) {
+        val json = payload.toJsonString()
+        val obj = json.toObject<SmallPayload>()
+        blackhole.consume(obj)
+    }
+
+    @Benchmark
+    fun serializePayloadWithSharedMapper(blackhole: Blackhole) {
+        blackhole.consume(JsonSerializer.writeValueAsString(payload))
+    }
 }
+
+private data class SmallPayload(val name: String = "test", val value: Int = 42)

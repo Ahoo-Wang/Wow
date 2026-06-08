@@ -641,7 +641,7 @@ All benchmarks run with MongoDB + Redis + Kafka on Kubernetes ([README.md:56-98]
 
 4. **The bottleneck for PROCESSED mode is the event store append latency.** MongoDB insert latency dominates at ~18k TPS. Switching to Redis or tuning MongoDB write concerns can raise this ceiling.
 
-5. **JMH microbenchmarks exist separately.** The `wow-benchmarks` module contains JMH benchmarks for `CommandGateway`, `InMemoryCommandBus`, `InMemoryEventStore`, and backend-specific benchmarks (MongoDB, Redis). These measure raw framework overhead, not end-to-end throughput.
+5. **Layered JMH benchmarks exist separately.** The `wow-benchmarks` module separates Smoke, Quick, Full E2E, and Component benchmarks. Full E2E results are the source for framework performance conclusions; Component results explain bottlenecks such as command message creation, aggregate handling, event store append, event publishing, wait notification, and serialization.
 
 ### TPS Scaling Model (per node)
 
@@ -769,7 +769,7 @@ When adopting Wow, use this format to document architectural decisions. Each dec
 7. **Study the `WaitStrategy` chain** at [WaitingFor.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitingFor.kt) and [CommandStage.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt). Understand how stages form a DAG.
 8. **Examine the auto-configuration** at [WowAutoConfiguration.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt) and all sub-configurations. This is how the framework wires itself into Spring Boot.
 9. **Review test examples** at [OrderTest.kt](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/test/kotlin/me/ahoo/wow/example/domain/order/tradition/OrderTest.kt) (aggregate tests) and [CartSagaSpec.kt](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/test/kotlin/me/ahoo/wow/example/domain/cart/CartSagaSpec.kt) (saga tests). The Given-When-Expect DSL with `fork` support is powerful.
-10. **Run the benchmark suite**: `./gradlew wow-benchmarks:jmh` to see raw framework overhead numbers.
+10. **Run the benchmark suite**: use `./gradlew :wow-benchmarks:benchmarkQuickE2E` and `./gradlew :wow-benchmarks:benchmarkQuickComponent` for quick feedback. Full analysis uses `./gradlew :wow-benchmarks:benchmarkFullE2E` and `./gradlew :wow-benchmarks:benchmarkFullComponent`.
 
 ---
 

@@ -16,7 +16,7 @@
 
 | 文件 | 变更 |
 |------|------|
-| `wow-benchmarks/build.gradle.kts` | 统一 JMH 配置 + 新增 `generateBenchmarkReport` / `updateBaseline` task |
+| `wow-benchmarks/gradle/benchmarking.gradle.kts` | 统一 benchmark catalog + 新增 `generateBenchmarkReport` / `updateBenchmarkBaseline` task |
 | `wow-benchmarks/src/jmh/kotlin/me/ahoo/wow/eventsourcing/NoopEventStoreBenchmark.kt` | Bug 修复：`super.setup()` → `super.append()` |
 | `wow-benchmarks/src/jmh/kotlin/me/ahoo/wow/command/Commands.kt` | 重构：支持固定/唯一 aggregateId |
 | `wow-benchmarks/src/jmh/kotlin/me/ahoo/wow/command/BloomFilterIdempotencyCheckerBenchmark.kt` | 移除 `@Warmup/@Measurement/@Fork/@Threads` 注解 |
@@ -92,43 +92,19 @@ git commit -m "fix(benchmark): correct NoopEventStoreBenchmark.append() to call 
 - Modify: `wow-benchmarks/src/jmh/kotlin/me/ahoo/wow/eventsourcing/NoopEventStoreBenchmark.kt`
 - Modify: `wow-benchmarks/src/jmh/kotlin/me/ahoo/wow/eventsourcing/EventStreamFactoryBenchmark.kt`
 
-- [ ] **Step 1: 更新 build.gradle.kts 全局 JMH 配置**
+- [ ] **Step 1: 更新 benchmark Gradle catalog 配置**
 
-修改 `wow-benchmarks/build.gradle.kts` 中的 `jmh { }` 块：
+当前实现使用 `wow-benchmarks/gradle/benchmarking.gradle.kts` 中的 benchmark catalog，为每个 suite/profile/thread 生成独立结果文件：
 
 ```kotlin
-jmh {
-    zip64.set(true)
-    includes.set(listOf(".*Benchmark.*"))
-    threads.set(1)
-    warmupIterations.set(2)
-    warmup.set("5s")
-    iterations.set(3)
-    timeOnIteration.set("10s")
-    fork.set(2)
-    resultFormat.set("json")
-    humanOutputFile.set(layout.buildDirectory.file("reports/jmh/human.txt"))
-    resultsFile.set(layout.buildDirectory.file("results/jmh/latest.json"))
-    jvmArgs.set(
-        listOf(
-            "-Xmx4g",
-            "-Xms4g",
-            "-XX:+UseG1GC",
-            "-XX:+UnlockDiagnosticVMOptions",
-            "-XX:+DebugNonSafepoints",
-            "-XX:+AlwaysPreTouch",
-        )
+fun suiteResultFile(
+    profile: BenchmarkRunProfile,
+    suite: BenchmarkSuite,
+    threads: Int,
+): Provider<RegularFile> {
+    return layout.buildDirectory.file(
+        "results/jmh/${profile.id}/${suite.id}/threads-$threads-${suite.resultFileName}"
     )
-    val asyncProfilerLib = file("/opt/async-profiler/lib/libasyncProfiler.dylib")
-    val hasAsyncProfiler = asyncProfilerLib.exists()
-    profilers.set(buildList {
-        add("gc")
-        if (hasAsyncProfiler) {
-            add("async:output=flamegraph;dir=build/profiling;event=cpu;libPath=${asyncProfilerLib.absolutePath}")
-        } else {
-            add("stack:lines=10;top=20")
-        }
-    })
 }
 ```
 
@@ -1180,7 +1156,7 @@ git commit -m "feat(benchmark): add EventDispatcher/Snapshot/FilterChain/EventUp
 - Create: `wow-benchmarks/results/.gitkeep`
 - Create: `wow-benchmarks/.gitignore`
 
-- [ ] **Step 1: 在 build.gradle.kts 末尾追加 generateBenchmarkReport、benchmarkCompare、updateBaseline 三个 task**
+- [ ] **Step 1: 在 benchmark Gradle 脚本中追加 generateBenchmarkReport、benchmarkCompare、updateBenchmarkBaseline 三个 task**
 
 使用 Jackson ObjectMapper（已在 classpath 中，无需新增依赖）解析 JMH JSON：
 
@@ -1188,22 +1164,21 @@ git commit -m "feat(benchmark): add EventDispatcher/Snapshot/FilterChain/EventUp
 // === 追加到 wow-benchmarks/build.gradle.kts 末尾 ===
 
 val resultsDir = layout.projectDirectory.dir("results")
-val baselineJson = resultsDir.file("baseline.json")
-val latestJson = layout.buildDirectory.file("results/jmh/latest.json")
+val frameworkE2EBaselineJson = resultsDir.file("framework-e2e-baseline.json")
 val readmeFile = layout.projectDirectory.file("README.md")
 
 tasks.register("generateBenchmarkReport") {
     description = "Generate benchmark README.md from JMH JSON results."
     group = "benchmark"
-    dependsOn(tasks.named("jmh"))
+    // Full E2E result files are produced by benchmarkFullE2E.
 
-    val resultsFile = latestJson.get().asFile
+    val resultsFile = fullFrameworkE2EResultFiles().first()
     inputs.file(resultsFile)
     outputs.file(readmeFile.asFile)
 
     doLast {
         if (!resultsFile.exists()) {
-            throw GradleException("JMH results not found: ${resultsFile.absolutePath}. Run :wow-benchmarks:jmh first.")
+            throw GradleException("JMH results not found: ${resultsFile.absolutePath}. Run :wow-benchmarks:benchmarkFullE2E first.")
         }
 
         val mapper = com.fasterxml.jackson.databind.ObjectMapper()
@@ -1261,14 +1236,14 @@ tasks.register("benchmarkCompare") {
     group = "benchmark"
 
     doLast {
-        val latestFile = latestJson.get().asFile
-        val baselineFile = baselineJson.asFile
+        val latestFiles = fullFrameworkE2EResultFiles()
+        val baselineFile = frameworkE2EBaselineJson.asFile
 
         if (!baselineFile.exists()) {
-            throw GradleException("Baseline not found: ${baselineFile.absolutePath}. Run :wow-benchmarks:updateBaseline first.")
+            throw GradleException("Baseline not found: ${baselineFile.absolutePath}. Run :wow-benchmarks:updateBenchmarkBaseline first.")
         }
-        if (!latestFile.exists()) {
-            throw GradleException("Latest results not found: ${latestFile.absolutePath}. Run :wow-benchmarks:jmh first.")
+        if (latestFiles.any { !it.exists() }) {
+            throw GradleException("Latest results not found. Run :wow-benchmarks:benchmarkFullE2E first.")
         }
 
         val mapper = com.fasterxml.jackson.databind.ObjectMapper()
@@ -1336,19 +1311,19 @@ tasks.register("benchmarkCompare") {
     }
 }
 
-tasks.register("updateBaseline") {
+tasks.register("updateBenchmarkBaseline") {
     description = "Copy latest benchmark results as the new baseline."
     group = "benchmark"
 
     doLast {
-        val latestFile = latestJson.get().asFile
-        val baselineFile = baselineJson.asFile
+        val latestFiles = fullFrameworkE2EResultFiles()
+        val baselineFile = frameworkE2EBaselineJson.asFile
 
-        if (!latestFile.exists()) {
-            throw GradleException("Latest results not found: ${latestFile.absolutePath}. Run :wow-benchmarks:jmh first.")
+        if (latestFiles.any { !it.exists() }) {
+            throw GradleException("Latest results not found. Run :wow-benchmarks:benchmarkFullE2E first.")
         }
 
-        latestFile.copyTo(baselineFile, overwrite = true)
+        baselineFile.writeText(toBaselineJson(latestFiles))
         logger.lifecycle("Baseline updated: ${baselineFile.absolutePath}")
     }
 }
@@ -1364,13 +1339,13 @@ touch wow-benchmarks/results/.gitkeep
 创建 `wow-benchmarks/.gitignore`：
 
 ```
-results/latest.json
+build/results/jmh/
 ```
 
 - [ ] **Step 3: 验证 Gradle 同步**
 
 Run: `./gradlew :wow-benchmarks:tasks --group=benchmark`
-Expected: 列出 `generateBenchmarkReport`、`benchmarkCompare`、`updateBaseline` 三个 task
+Expected: 列出 `generateBenchmarkReport`、`benchmarkCompare`、`updateBenchmarkBaseline` 三个 task
 
 - [ ] **Step 4: Commit**
 
@@ -1399,11 +1374,11 @@ git commit -m "feat(benchmark): add report generation, comparison, and baseline 
 
 # Benchmark Report
 
-> 运行 `./gradlew :wow-benchmarks:jmh :wow-benchmarks:generateBenchmarkReport` 生成最新报告。
+> 运行 `./gradlew :wow-benchmarks:benchmarkFullE2E :wow-benchmarks:generateBenchmarkReport` 生成最新报告。
 >
 > 对比基线：`./gradlew :wow-benchmarks:benchmarkCompare`
 >
-> 更新基线：`./gradlew :wow-benchmarks:updateBaseline`
+> 更新基线：`./gradlew :wow-benchmarks:updateBenchmarkBaseline`
 ```
 
 - [ ] **Step 2: Commit**

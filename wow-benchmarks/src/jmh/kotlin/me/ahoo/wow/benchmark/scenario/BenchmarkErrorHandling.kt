@@ -17,9 +17,17 @@ import me.ahoo.wow.exception.WowException
 import org.openjdk.jmh.infra.Blackhole
 
 inline fun Blackhole.consumeWowResult(block: () -> Any?) {
+    consumeWowResult(onError = {}, block = block)
+}
+
+inline fun Blackhole.consumeWowResult(
+    onError: (WowException) -> Unit = {},
+    block: () -> Any?,
+) {
     try {
         consume(block())
     } catch (wowException: WowException) {
+        onError(wowException)
         consume(wowException)
     }
 }

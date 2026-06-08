@@ -78,18 +78,29 @@ Domain modules also enforce their existing coverage threshold through `jacocoTes
 ## Benchmark Smoke
 
 ```bash
-./gradlew benchmarkSmoke
+./gradlew :wow-benchmarks:benchmarkSmoke
 ```
 
-Benchmark smoke checks that selected JMH paths still compile and execute. It is a pull-request safety check, not a stable performance report.
+Benchmark smoke checks that selected JMH paths still compile and execute. It is a pull-request safety check, not a performance report.
+
+## Quick Benchmarks
+
+```bash
+./gradlew :wow-benchmarks:benchmarkQuickE2E
+./gradlew :wow-benchmarks:benchmarkQuickComponent
+```
+
+Quick benchmarks use the same catalog as full benchmarks with shorter JMH settings. They are useful for local regression feedback, but full E2E remains the source for performance conclusions.
 
 ## Full Benchmarks
 
 ```bash
-./gradlew :wow-benchmarks:jmh
+./gradlew :wow-benchmarks:benchmarkFullE2E
+./gradlew :wow-benchmarks:benchmarkFullComponent
+./gradlew :wow-benchmarks:generateGroupedBenchmarkReport
 ```
 
-Full JMH runs are intended for manual or scheduled performance analysis.
+Full E2E results are used for framework performance conclusions. Component results explain bottlenecks and should not be reported as standalone framework performance goals.
 
 ## CI Workflows
 

@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.commandpath
+package me.ahoo.wow.benchmark.component
 
 import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
 import me.ahoo.wow.benchmark.fixture.BenchmarkCommands
@@ -25,8 +25,8 @@ import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.infra.Blackhole
 
-@State(Scope.Benchmark)
-open class CommandAggregateHandlingBenchmark {
+@State(Scope.Thread)
+open class AggregateHandleComponentBenchmark {
     private val commandAggregateFactory = SimpleCommandAggregateFactory(NoopEventStore)
 
     @Benchmark

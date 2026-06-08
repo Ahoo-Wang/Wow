@@ -5,21 +5,6 @@
 
 # Framework E2E Benchmark Report
 
-Framework performance conclusions must use this primary E2E report. Component benchmarks are diagnostic only.
+Framework performance conclusions use Full E2E results. Component benchmarks explain bottlenecks and Smoke only verifies benchmark entry health.
 
-## Environment
-- **Version**: 8.4.0
-- **JVM**: OpenJDK 64-Bit Server VM 17.0.7+7-LTS
-- **OS**: Mac OS X aarch64
-- **Date**: 2026-06-08
-- **JMH Config**: threads=1, warmup=2×5s, measurement=3×10s, fork=2
-
-## Results
-
-| Benchmark | Score | Error | Unit | gc.alloc.rate.norm |
-|-----------|-------|-------|------|-------------------|
-| CommandPipelineE2EBenchmark.sendCommandAndWaitForProcessed | 73392.10 | ±14104.72 | ops/s | 14547.6 B/op |
-| InMemoryCommandDispatcherBenchmark.sendAndWaitForProcessedForNewAggregate | 62088.94 | ±6883.35 | ops/s | 6679.4 B/op |
-| InMemoryCommandDispatcherGrowthBenchmark.sendAndWaitForProcessedWithGrowingStream | 879.55 | ±43.18 | ops/s | 9682.9 B/op |
-| NoopCommandDispatcherBenchmark.sendAndWaitForProcessed | 77128.16 | ±30423.47 | ops/s | 14442.7 B/op |
-| NoopEventStoreCommandDispatcherBenchmark.sendAndWaitForProcessed | 74299.24 | ±8755.39 | ops/s | 15118.8 B/op |
+Full E2E result JSON files are not checked in. Run `./gradlew :wow-benchmarks:benchmarkFullE2E :wow-benchmarks:generateBenchmarkReport` to regenerate the measured table.

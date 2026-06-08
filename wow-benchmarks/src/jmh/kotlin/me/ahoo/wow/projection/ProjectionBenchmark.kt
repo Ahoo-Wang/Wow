@@ -17,8 +17,8 @@ import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
 import me.ahoo.wow.event.DomainEventExchange
-import me.ahoo.wow.event.SimpleDomainEventExchange
 import me.ahoo.wow.event.SimpleDomainEvent
+import me.ahoo.wow.event.SimpleDomainEventExchange
 import me.ahoo.wow.example.api.cart.CartItemAdded
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.function.SimpleMessageFunctionRegistrar
@@ -78,7 +78,8 @@ private class BenchmarkProjectionFunction(
     override val functionKind: FunctionKind = FunctionKind.EVENT
     override val contextName: String = topic.contextName
     override val name: String = "benchmark-projection"
+
     @Suppress("UNCHECKED_CAST")
     override fun <A : Annotation> getAnnotation(annotationClass: Class<A>): A? = null as A?
-    override fun invoke(exchange: DomainEventExchange<*>): Any = Mono.empty<Void>()
+    override fun invoke(exchange: DomainEventExchange<*>): Any = Mono.empty<Any>()
 }

@@ -14,8 +14,8 @@
 package me.ahoo.wow.infrastructure.redis
 
 import me.ahoo.wow.infrastructure.InfrastructureAvailability
-import org.springframework.data.redis.connection.RedisStandaloneConfiguration
 import org.springframework.data.redis.connection.ReactiveRedisConnection
+import org.springframework.data.redis.connection.RedisStandaloneConfiguration
 import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate

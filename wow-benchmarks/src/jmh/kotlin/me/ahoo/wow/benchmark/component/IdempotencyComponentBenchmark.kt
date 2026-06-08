@@ -11,9 +11,10 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.commandpath
+package me.ahoo.wow.benchmark.component
 
 import me.ahoo.wow.benchmark.fixture.BenchmarkIdempotency
+import me.ahoo.wow.benchmark.fixture.BenchmarkIds
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.infra.idempotency.BloomFilterIdempotencyChecker
 import org.openjdk.jmh.annotations.Benchmark
@@ -22,13 +23,21 @@ import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.infra.Blackhole
 
-@State(Scope.Benchmark)
-open class CommandIdempotencyBenchmark {
+@State(Scope.Thread)
+open class IdempotencyComponentBenchmark {
+    private companion object {
+        const val KNOWN_REQUEST_ID = "known-request-id"
+    }
+
     private lateinit var idempotencyChecker: BloomFilterIdempotencyChecker
+    private lateinit var bloomFilterChecker: BloomFilterIdempotencyChecker
 
     @Setup
     fun setup() {
+        BenchmarkIds.installDeterministicGlobalIdGenerator()
         idempotencyChecker = BenchmarkIdempotency.bloomFilterChecker()
+        bloomFilterChecker = BenchmarkIdempotency.bloomFilterChecker()
+        idempotencyChecker.check(KNOWN_REQUEST_ID).block()
     }
 
     @Benchmark
@@ -39,7 +48,13 @@ open class CommandIdempotencyBenchmark {
 
     @Benchmark
     fun checkKnownRequestId(blackhole: Blackhole) {
-        val result = idempotencyChecker.check("known-request-id").block()
+        val result = idempotencyChecker.check(KNOWN_REQUEST_ID).block()
+        blackhole.consume(result)
+    }
+
+    @Benchmark
+    fun checkBloomFilterRequestId(blackhole: Blackhole) {
+        val result = bloomFilterChecker.check(BenchmarkIds.nextGlobalId()).block()
         blackhole.consume(result)
     }
 }

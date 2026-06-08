@@ -30,6 +30,7 @@ class BenchmarkAggregateSchedulerSupplier : AggregateSchedulerSupplier {
             Schedulers.newParallel("CommandDispatcherBenchmark-${it.aggregateName}", Schedulers.DEFAULT_POOL_SIZE)
         }
 
+    @Suppress("ForbiddenVoid")
     override fun stopGracefully(): Mono<Void> =
         Mono.fromRunnable {
             schedulers.values.forEach(Scheduler::dispose)

@@ -117,22 +117,21 @@ wow-benchmarks/src/jmh/kotlin/me/ahoo/wow/
 ```
 wow-benchmarks/
 ├── results/
-│   ├── baseline.json              ← git 跟踪，性能基线
-│   └── latest.json                ← .gitignore，每次运行生成
+│   └── framework-e2e-baseline.json ← git 跟踪，Full E2E 性能基线
 ├── README.md                      ← 自动生成，最新报告（git 跟踪）
-├── scripts/
-│   └── benchmark-compare.kt       ← 对比脚本
-└── build.gradle.kts               ← 新增 Gradle tasks
+└── gradle/
+    └── benchmarking.gradle.kts    ← benchmark catalog、报告和对比任务
 ```
 
 ### Gradle Tasks
 
 | Task | 作用 |
 |------|------|
-| `benchmarkSmoke` | 已有，快速冒烟验证 |
-| `jmh` | 已有，运行完整 benchmark，输出 `latest.json` |
-| `generateBenchmarkReport` | 新增，解析 JSON + 环境信息 → 生成 `README.md` |
-| `updateBaseline` | 新增，`latest.json` → `baseline.json`，手动执行 |
+| `benchmarkSmoke` | 快速入口健康验证，不用于性能结论 |
+| `benchmarkFullE2E` | 运行完整 Framework E2E benchmark，输出多线程 JMH JSON |
+| `generateBenchmarkReport` | 解析 Full E2E JSON + 环境信息 → 生成 `README.md` |
+| `benchmarkCompare` | 对比当前 Full E2E 结果与 `framework-e2e-baseline.json` |
+| `updateBenchmarkBaseline` | 将当前 Full E2E 结果保存为新的基线，手动执行 |
 
 ### 报告格式
 
@@ -157,24 +156,24 @@ wow-benchmarks/
 
 ### 对比脚本
 
-`wow-benchmarks/scripts/benchmark-compare.kt` 读取 `results/baseline.json` 和 `results/latest.json`：
+`benchmarkCompare` 读取 `results/framework-e2e-baseline.json` 和当前 Full E2E JMH JSON：
 
-- 按 benchmark 名称匹配
-- 计算吞吐量变化百分比
-- ±10% 以上标红告警
+- 按 benchmark、mode、threads 匹配
+- 计算吞吐量、延迟和分配变化百分比
+- 超过阈值时失败
 - 输出 Markdown 表格
 
 ### 运行流程
 
 ```bash
 # 完整运行 + 报告生成
-./gradlew :wow-benchmarks:jmh :wow-benchmarks:generateBenchmarkReport
+./gradlew :wow-benchmarks:benchmarkFullE2E :wow-benchmarks:generateBenchmarkReport
 
 # 版本对比
-./scripts/benchmark-compare.kts
+./gradlew :wow-benchmarks:benchmarkCompare
 
 # 满意后更新基线
-./gradlew :wow-benchmarks:updateBaseline
+./gradlew :wow-benchmarks:updateBenchmarkBaseline
 
 # 快速冒烟
 ./gradlew :wow-benchmarks:benchmarkSmoke

@@ -11,27 +11,25 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.eventsourcing
+package me.ahoo.wow.benchmark.component
 
+import me.ahoo.wow.benchmark.fixture.BenchmarkCommands
+import me.ahoo.wow.command.ServerCommandExchange
+import me.ahoo.wow.command.SimpleServerCommandExchange
+import me.ahoo.wow.test.validation.TestValidator
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
-import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
+import org.openjdk.jmh.infra.Blackhole
 
-@State(Scope.Benchmark)
-open class NoopEventStoreBenchmark : AbstractEventStoreBenchmark() {
-    @Setup
-    override fun setup() {
-        super.setup()
-    }
-
-    override fun createEventStore(): EventStore {
-        return NoopEventStore
-    }
-
+@State(Scope.Thread)
+open class CommandValidationComponentBenchmark {
+    private val commandMessage = BenchmarkCommands.commandPathAddCartItem()
 
     @Benchmark
-    override fun append() {
-        super.append()
+    fun validateCommand(blackhole: Blackhole) {
+        val exchange: ServerCommandExchange<*> = SimpleServerCommandExchange(commandMessage)
+        TestValidator.validate(commandMessage.body)
+        blackhole.consume(exchange)
     }
 }

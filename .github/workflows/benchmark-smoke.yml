@@ -50,4 +50,4 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Run benchmark smoke
-        run: ./gradlew benchmarkSmoke --stacktrace
+        run: ./gradlew :wow-benchmarks:benchmarkSmoke --stacktrace

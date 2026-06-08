@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.commandpath
+package me.ahoo.wow.benchmark.component
 
 import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
 import me.ahoo.wow.benchmark.fixture.BenchmarkIds
@@ -22,8 +22,8 @@ import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.infra.Blackhole
 
-@State(Scope.Benchmark)
-open class CommandAggregateIdBenchmark {
+@State(Scope.Thread)
+open class CommandIdComponentBenchmark {
     @Setup
     fun setup() {
         BenchmarkIds.installDeterministicGlobalIdGenerator()
@@ -31,25 +31,23 @@ open class CommandAggregateIdBenchmark {
 
     @Benchmark
     fun generateGlobalId(blackhole: Blackhole) {
-        val id = BenchmarkIds.nextGlobalId()
-        blackhole.consume(id)
+        blackhole.consume(BenchmarkIds.nextGlobalId())
     }
 
     @Benchmark
     fun createAggregateId(blackhole: Blackhole) {
         val aggregateId = DefaultAggregateId(
             namedAggregate = BenchmarkAggregates.namedAggregate,
-            id = "test-id",
+            id = "benchmark-cart-id",
         )
         blackhole.consume(aggregateId)
     }
 
     @Benchmark
     fun generateGlobalIdAndCreateAggregateId(blackhole: Blackhole) {
-        val id = BenchmarkIds.nextGlobalId()
         val aggregateId = DefaultAggregateId(
             namedAggregate = BenchmarkAggregates.namedAggregate,
-            id = id,
+            id = BenchmarkIds.nextGlobalId(),
         )
         blackhole.consume(aggregateId)
     }

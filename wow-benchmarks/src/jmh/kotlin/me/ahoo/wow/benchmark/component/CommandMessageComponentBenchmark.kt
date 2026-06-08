@@ -11,24 +11,31 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.commandpath
+package me.ahoo.wow.benchmark.component
 
+import me.ahoo.wow.benchmark.fixture.BenchmarkCommands
 import me.ahoo.wow.benchmark.fixture.BenchmarkHeaders
+import me.ahoo.wow.benchmark.fixture.BenchmarkIds
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
+import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.infra.Blackhole
 
-@State(Scope.Benchmark)
-open class CommandHeaderBenchmark {
-    @Benchmark
-    fun createEmptyCommandHeader(blackhole: Blackhole) {
-        val header = BenchmarkHeaders.emptyHeader()
-        blackhole.consume(header)
+@State(Scope.Thread)
+open class CommandMessageComponentBenchmark {
+    @Setup
+    fun setup() {
+        BenchmarkIds.installDeterministicGlobalIdGenerator()
     }
 
     @Benchmark
-    fun createAndMutateCommandHeader(blackhole: Blackhole) {
+    fun createEmptyHeader(blackhole: Blackhole) {
+        blackhole.consume(BenchmarkHeaders.emptyHeader())
+    }
+
+    @Benchmark
+    fun createAndMutateHeader(blackhole: Blackhole) {
         val header = BenchmarkHeaders.emptyHeader()
         header["key1"] = "value1"
         header["key2"] = "value2"
@@ -36,10 +43,16 @@ open class CommandHeaderBenchmark {
     }
 
     @Benchmark
-    fun readCommandHeaderAfterWrite(blackhole: Blackhole) {
-        val header = BenchmarkHeaders.emptyHeader()
-        header["key"] = "value"
-        val value = header["key"]
-        blackhole.consume(value)
+    fun createCommandMessage(blackhole: Blackhole) {
+        blackhole.consume(BenchmarkCommands.commandPathAddCartItem())
+    }
+
+    @Benchmark
+    fun readCommandMessageProperties(blackhole: Blackhole) {
+        val message = BenchmarkCommands.commandPathAddCartItem()
+        blackhole.consume(message.id)
+        blackhole.consume(message.aggregateId)
+        blackhole.consume(message.requestId)
+        blackhole.consume(message.body)
     }
 }

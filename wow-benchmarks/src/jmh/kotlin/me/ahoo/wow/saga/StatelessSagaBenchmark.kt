@@ -77,6 +77,7 @@ private class BenchmarkSagaDelegate(
     override val functionKind: FunctionKind = FunctionKind.EVENT
     override val contextName: String = topic.contextName
     override val name: String = "benchmark-saga"
+
     @Suppress("UNCHECKED_CAST")
     override fun <A : Annotation> getAnnotation(annotationClass: Class<A>): A? = null as A?
     override fun invoke(exchange: DomainEventExchange<*>): Mono<Any> = Mono.empty()

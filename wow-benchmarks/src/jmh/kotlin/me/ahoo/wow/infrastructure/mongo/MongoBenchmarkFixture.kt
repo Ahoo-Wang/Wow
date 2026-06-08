@@ -19,19 +19,42 @@ import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
 import me.ahoo.wow.infrastructure.InfrastructureAvailability
 import me.ahoo.wow.mongo.EventStreamSchemaInitializer
+import reactor.kotlin.core.publisher.toMono
+import java.time.Duration
+import java.util.UUID
 
 class MongoBenchmarkFixture : AutoCloseable {
+    companion object {
+        private val DROP_TIMEOUT: Duration = Duration.ofSeconds(30)
+        private const val DEFAULT_BENCHMARK_DATABASE_PREFIX = "wow_benchmark"
+        private const val MONGO_DATABASE_PREFIX_PROPERTY = "wow.benchmark.mongo.databasePrefix"
+
+        private fun benchmarkDatabaseName(): String {
+            val databasePrefix = System.getProperty(MONGO_DATABASE_PREFIX_PROPERTY)
+                ?: DEFAULT_BENCHMARK_DATABASE_PREFIX
+            require(databasePrefix.isNotBlank()) {
+                "$MONGO_DATABASE_PREFIX_PROPERTY must not be blank."
+            }
+            val uniqueSuffix = UUID.randomUUID().toString().replace("-", "")
+            return "${databasePrefix}_$uniqueSuffix"
+        }
+    }
+
     val client: MongoClient
     val database: MongoDatabase
 
     init {
         InfrastructureAvailability.requireMongo()
         client = MongoClients.create("mongodb://root:root@localhost")
-        database = client.getDatabase("wow_db")
+        database = client.getDatabase(benchmarkDatabaseName())
         EventStreamSchemaInitializer(database, true).initSchema(BenchmarkAggregates.cartMetadata)
     }
 
     override fun close() {
-        client.close()
+        try {
+            database.drop().toMono().block(DROP_TIMEOUT)
+        } finally {
+            client.close()
+        }
     }
 }

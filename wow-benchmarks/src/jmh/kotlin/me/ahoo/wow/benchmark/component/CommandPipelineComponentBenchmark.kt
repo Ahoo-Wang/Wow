@@ -11,15 +11,14 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.commandpath
+package me.ahoo.wow.benchmark.component
 
 import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
 import me.ahoo.wow.benchmark.fixture.BenchmarkCommands
-import me.ahoo.wow.benchmark.fixture.BenchmarkIds
 import me.ahoo.wow.benchmark.fixture.BenchmarkIdempotency
+import me.ahoo.wow.benchmark.fixture.BenchmarkIds
 import me.ahoo.wow.benchmark.scenario.CommandDispatcherScenario
 import me.ahoo.wow.benchmark.scenario.CommandPipelineScenario
-import me.ahoo.wow.benchmark.scenario.consumeWowResult
 import me.ahoo.wow.command.validation.NoOpValidator
 import me.ahoo.wow.command.wait.LocalCommandWaitNotifier
 import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
@@ -37,8 +36,8 @@ import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.annotations.TearDown
 import org.openjdk.jmh.infra.Blackhole
 
-@State(Scope.Benchmark)
-open class CommandPipelineDiagnosticBenchmark {
+@State(Scope.Thread)
+open class CommandPipelineComponentBenchmark {
     private lateinit var commandDispatcherScenario: CommandDispatcherScenario
     private lateinit var commandPipelineScenario: CommandPipelineScenario
 
@@ -80,73 +79,66 @@ open class CommandPipelineDiagnosticBenchmark {
 
     @Benchmark
     fun handleAggregateOnly(blackhole: Blackhole) {
-        blackhole.consumeWowResult {
-            commandPipelineScenario.aggregateOnlyHandler
-                .handle(commandPipelineScenario.createServerExchange())
-                .block()
-        }
+        val result = commandPipelineScenario.aggregateOnlyHandler
+            .handle(commandPipelineScenario.createServerExchange())
+            .block()
+        blackhole.consume(result)
     }
 
     @Benchmark
     fun handleAggregateWithoutRetry(blackhole: Blackhole) {
-        blackhole.consumeWowResult {
-            commandPipelineScenario.aggregateOnlyWithoutRetryHandler
-                .handle(commandPipelineScenario.createServerExchange())
-                .block()
-        }
+        val result = commandPipelineScenario.aggregateOnlyWithoutRetryHandler
+            .handle(commandPipelineScenario.createServerExchange())
+            .block()
+        blackhole.consume(result)
     }
 
     @Benchmark
     fun handleAggregateAndSendDomainEvent(blackhole: Blackhole) {
-        blackhole.consumeWowResult {
-            commandPipelineScenario.aggregateAndDomainEventHandler
-                .handle(commandPipelineScenario.createServerExchange())
-                .block()
-        }
+        val result = commandPipelineScenario.aggregateAndDomainEventHandler
+            .handle(commandPipelineScenario.createServerExchange())
+            .block()
+        blackhole.consume(result)
     }
 
     @Benchmark
     fun handleAggregateAndSendDomainStateEvents(blackhole: Blackhole) {
-        blackhole.consumeWowResult {
-            commandPipelineScenario.aggregateDomainAndStateEventHandler
-                .handle(commandPipelineScenario.createServerExchange())
-                .block()
-        }
+        val result = commandPipelineScenario.aggregateDomainAndStateEventHandler
+            .handle(commandPipelineScenario.createServerExchange())
+            .block()
+        blackhole.consume(result)
     }
 
     @Benchmark
     fun handleAggregateAndNotifyProcessedWithoutWait(blackhole: Blackhole) {
-        blackhole.consumeWowResult {
-            commandPipelineScenario.aggregateDomainStateAndProcessedNotifierHandler
-                .handle(commandPipelineScenario.createServerExchange())
-                .block()
-        }
+        val result = commandPipelineScenario.aggregateDomainStateAndProcessedNotifierHandler
+            .handle(commandPipelineScenario.createServerExchange())
+            .block()
+        blackhole.consume(result)
     }
 
     @Benchmark
     fun handleAggregateAndNotifyProcessedWithLocalWait(blackhole: Blackhole) {
-        blackhole.consumeWowResult {
-            val commandMessage = BenchmarkCommands.commandPathAddCartItem()
-            val waitStrategy = WaitingForStage.processed(commandMessage.commandId)
-            waitStrategy.propagate("", commandMessage.header)
-            SimpleWaitStrategyRegistrar.register(waitStrategy)
-            waitStrategy.onFinally {
-                SimpleWaitStrategyRegistrar.unregister(waitStrategy.waitCommandId)
-            }
-            val exchange = commandPipelineScenario.createServerExchange(commandMessage)
-            commandPipelineScenario.aggregateDomainStateAndProcessedNotifierHandler
-                .handle(exchange)
-                .then(waitStrategy.waitingLast())
-                .block()
+        val commandMessage = BenchmarkCommands.commandPathAddCartItem()
+        val waitStrategy = WaitingForStage.processed(commandMessage.commandId)
+        waitStrategy.propagate("", commandMessage.header)
+        SimpleWaitStrategyRegistrar.register(waitStrategy)
+        waitStrategy.onFinally {
+            SimpleWaitStrategyRegistrar.unregister(waitStrategy.waitCommandId)
         }
+        val exchange = commandPipelineScenario.createServerExchange(commandMessage)
+        val result = commandPipelineScenario.aggregateDomainStateAndProcessedNotifierHandler
+            .handle(exchange)
+            .then(waitStrategy.waitingLast())
+            .block()
+        blackhole.consume(result)
     }
 
     @Benchmark
     fun sendCommandFireAndForget(blackhole: Blackhole) {
-        blackhole.consumeWowResult {
-            commandDispatcherScenario.commandGateway
-                .send(BenchmarkCommands.commandPathAddCartItem())
-                .block()
-        }
+        val result = commandDispatcherScenario.commandGateway
+            .send(BenchmarkCommands.commandPathAddCartItem())
+            .block()
+        blackhole.consume(result)
     }
 }

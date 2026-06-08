@@ -59,7 +59,7 @@ open class ReactorSinkBenchmark {
 
     @Benchmark
     fun emitWithMonoFromRunnable() {
-        Mono.fromRunnable<Void> {
+        Mono.fromRunnable<Unit> {
             sink.tryEmitNext("test").orThrow()
         }.block()
     }
@@ -71,16 +71,15 @@ open class ReactorSinkBenchmark {
 
     @Benchmark
     fun emitConcurrentManySinkWithMonoFromRunnable() {
-        Mono.fromRunnable<Void> {
+        Mono.fromRunnable<Unit> {
             concurrentManySink.tryEmitNext("test").orThrow()
         }.block()
     }
 
     @Benchmark
     fun emitWithMonoFromRunnableOnSingleScheduler() {
-        Mono.fromRunnable<Void> {
+        Mono.fromRunnable<Unit> {
             sink.tryEmitNext("test").orThrow()
         }.subscribeOn(emitScheduler).block()
     }
-
 }
