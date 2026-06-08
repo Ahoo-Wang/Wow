@@ -58,7 +58,6 @@ open class CommandWriteE2EBenchmark {
         "ceiling",
         "noop-store",
         "in-memory-new-aggregate",
-        "in-memory-growing-stream",
     )
     lateinit var scenario: String
 
