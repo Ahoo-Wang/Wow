@@ -88,19 +88,24 @@ Benchmark smoke checks that selected JMH paths still compile and execute. It is 
 ```bash
 ./gradlew :wow-benchmarks:benchmarkQuickE2E
 ./gradlew :wow-benchmarks:benchmarkQuickComponent
+./gradlew :wow-benchmarks:benchmarkQuickInfrastructureE2E
+./gradlew :wow-benchmarks:generateQuickBenchmarkReport
 ```
 
 Quick benchmarks use the same catalog as full benchmarks with shorter JMH settings. They are useful for local regression feedback, but full E2E remains the source for performance conclusions.
+Infrastructure benchmarks require local Redis and MongoDB services.
 
 ## Full Benchmarks
 
 ```bash
 ./gradlew :wow-benchmarks:benchmarkFullE2E
 ./gradlew :wow-benchmarks:benchmarkFullComponent
+./gradlew :wow-benchmarks:benchmarkFullInfrastructureE2E
 ./gradlew :wow-benchmarks:generateGroupedBenchmarkReport
 ```
 
 Full E2E results are used for framework performance conclusions. Component results explain bottlenecks and should not be reported as standalone framework performance goals.
+Infrastructure E2E results expose storage-path bottlenecks when Redis and MongoDB are available.
 
 ## CI Workflows
 

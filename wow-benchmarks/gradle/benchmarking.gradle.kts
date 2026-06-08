@@ -246,6 +246,30 @@ fun BenchmarkRunProfile.configSummary(): String {
         "fork=$forks, threads=${threads.joinToString(",")}, modes=${benchmarkModes.joinToString(",")}"
 }
 
+fun BenchmarkRunProfile.reportLabel(): String {
+    return when (id) {
+        smokeProfile.id -> "Smoke"
+        quickProfile.id -> "Quick"
+        fullProfile.id -> "Full"
+        else -> id.replaceFirstChar { firstChar ->
+            if (firstChar.isLowerCase()) firstChar.titlecase(Locale.US) else firstChar.toString()
+        }
+    }
+}
+
+fun BenchmarkSuite.taskName(profile: BenchmarkRunProfile): String {
+    if (profile.id == smokeProfile.id) {
+        return commandName
+    }
+    val profileLabel = profile.reportLabel()
+    return when (id) {
+        frameworkE2ESuite.id -> "benchmark${profileLabel}E2E"
+        infrastructureE2ESuite.id -> "benchmark${profileLabel}InfrastructureE2E"
+        componentSuite.id -> "benchmark${profileLabel}Component"
+        else -> commandName
+    }
+}
+
 fun registerBenchmarkThreadTask(
     taskName: String,
     suite: BenchmarkSuite,
@@ -344,6 +368,7 @@ val resultsDir = layout.projectDirectory.dir("results")
 val frameworkE2EBaselineJson = resultsDir.file("framework-e2e-baseline.json")
 val readmeFile = layout.projectDirectory.file("README.md")
 val groupedBenchmarkReport = layout.buildDirectory.file("reports/jmh/grouped.md")
+val quickGroupedBenchmarkReport = layout.buildDirectory.file("reports/jmh/quick-grouped.md")
 
 data class BenchmarkResultFile(
     val threads: Int,
@@ -522,13 +547,13 @@ fun parseBenchmarkGroup(
                 group = group,
                 rows = emptyList(),
                 unavailableReason = "Status: unavailable. Result files were not present. " +
-                    "Run ${group.suite.commandName} to include this optional group.",
+                    "Run ${group.suite.taskName(group.profile)} to include this optional group.",
             )
         }
         val missingFiles = group.resultFiles.joinToString(", ") { it.resultFile.get().asFile.absolutePath }
         throw GradleException(
             "JMH results not found for ${group.suite.displayName}: $missingFiles. " +
-                "Run ${group.suite.commandName} first."
+                "Run ${group.suite.taskName(group.profile)} first."
         )
     }
     val missingRequiredFile = group.resultFiles
@@ -537,7 +562,7 @@ fun parseBenchmarkGroup(
     if (group.suite.requiredForGroupedReport && missingRequiredFile != null) {
         throw GradleException(
             "JMH result file not found for ${group.suite.displayName}: ${missingRequiredFile.absolutePath}. " +
-                "Run ${group.suite.commandName} first."
+                "Run ${group.suite.taskName(group.profile)} first."
         )
     }
     val rows = presentFiles.flatMap { (threads, resultFile) ->
@@ -590,15 +615,26 @@ fun StringBuilder.appendThroughputBottlenecks(rows: List<ParsedBenchmarkResult>)
         }
 }
 
-fun StringBuilder.appendAllocationBottlenecks(rows: List<ParsedBenchmarkResult>) {
-    appendLine("| Suite | Threads | Benchmark | Allocation | Error | Score | Unit |")
-    appendLine("|-------|---------|-----------|------------|-------|-------|------|")
-    rows.filter { it.allocationBytesPerOp != null }
-        .sortedByDescending { it.allocationBytesPerOp }
+fun allocationBottleneckRows(rows: List<ParsedBenchmarkResult>): List<ParsedBenchmarkResult> {
+    return rows.filter { it.allocationBytesPerOp != null }
+        .groupBy { row -> "${row.suite.id}|${row.displayName}|${row.threads}" }
+        .map { (_, duplicateRows) ->
+            val preferredRows = duplicateRows
+                .filter { it.unit.contains("ops", ignoreCase = true) }
+                .ifEmpty { duplicateRows }
+            preferredRows.maxBy { it.allocationBytesPerOp ?: Double.NEGATIVE_INFINITY }
+        }
+        .sortedByDescending { it.allocationBytesPerOp ?: Double.NEGATIVE_INFINITY }
         .take(10)
+}
+
+fun StringBuilder.appendAllocationBottlenecks(rows: List<ParsedBenchmarkResult>) {
+    appendLine("| Suite | Threads | Benchmark | Mode | Allocation | Error | Score | Unit |")
+    appendLine("|-------|---------|-----------|------|------------|-------|-------|------|")
+    allocationBottleneckRows(rows)
         .forEach { row ->
             appendLine(
-                "| ${row.suite.displayName} | ${row.threads} | ${row.displayName} | " +
+                "| ${row.suite.displayName} | ${row.threads} | ${row.displayName} | ${row.mode} | " +
                     "${formatAllocationBytes(row.allocationBytesPerOp)} | " +
                     "${formatAllocationError(row.allocationErrorBytesPerOp)} | " +
                     "${String.format(Locale.US, "%.2f", row.score)} | ${row.unit} |"
@@ -611,10 +647,16 @@ fun renderGroupedBenchmarkReport(
     version: String,
 ): String {
     val parser = JsonSlurper()
+    val reportProfiles = groups.map { it.profile }.distinctBy { it.id }
+    if (reportProfiles.size != 1) {
+        throw GradleException("Grouped benchmark report requires one run profile, found: ${reportProfiles.map { it.id }}")
+    }
+    val reportProfile = reportProfiles.single()
+    val reportLabel = reportProfile.reportLabel()
     val parsedGroups = groups.map { parseBenchmarkGroup(parser, it) }
     val allRows = parsedGroups.flatMap { it.rows }
-    val conclusionRows = parsedGroups
-        .filter { it.group.suite.performanceConclusionSource }
+    val frameworkRows = parsedGroups
+        .filter { it.group.suite.id == frameworkE2ESuite.id }
         .flatMap { it.rows }
     val componentRows = parsedGroups
         .filter { it.group.suite.id == componentSuite.id }
@@ -626,10 +668,17 @@ fun renderGroupedBenchmarkReport(
         throw GradleException("No benchmark rows were available for grouped report generation.")
     }
     val sb = StringBuilder()
-    sb.appendLine("# Grouped Benchmark Report")
+    sb.appendLine("# $reportLabel Grouped Benchmark Report")
     sb.appendLine()
     sb.appendLine("## Policy")
-    sb.appendLine("- Full E2E results are the performance conclusion source.")
+    if (reportProfile.id == fullProfile.id) {
+        sb.appendLine("- Full E2E results are the performance conclusion source.")
+    } else {
+        sb.appendLine(
+            "- $reportLabel results are directional feedback; run Full E2E before updating baselines " +
+                "or claiming framework performance conclusions."
+        )
+    }
     sb.appendLine("- Infrastructure E2E results reflect real Redis or Mongo persistence paths when services are available.")
     sb.appendLine("- Component results explain bottlenecks and are not standalone performance goals.")
     sb.appendLine("- Smoke results are excluded from performance reports.")
@@ -639,18 +688,18 @@ fun renderGroupedBenchmarkReport(
     sb.appendLine("- **JVM**: ${System.getProperty("java.vm.name")} ${System.getProperty("java.vm.version")}")
     sb.appendLine("- **OS**: ${System.getProperty("os.name")} ${System.getProperty("os.arch")}")
     sb.appendLine("- **Date**: ${LocalDate.now()}")
-    sb.appendLine("- **JMH Config**: ${fullProfile.configSummary()}")
+    sb.appendLine("- **JMH Config**: ${reportProfile.configSummary()}")
     sb.appendLine()
-    if (conclusionRows.isNotEmpty()) {
-        sb.appendLine("## E2E Bottlenecks")
+    if (frameworkRows.isNotEmpty()) {
+        sb.appendLine("## Framework E2E Bottlenecks")
         sb.appendLine()
         sb.appendLine("### Lowest Throughput")
         sb.appendLine()
-        sb.appendThroughputBottlenecks(conclusionRows)
+        sb.appendThroughputBottlenecks(frameworkRows)
         sb.appendLine()
         sb.appendLine("### Highest Allocation")
         sb.appendLine()
-        sb.appendAllocationBottlenecks(conclusionRows)
+        sb.appendAllocationBottlenecks(frameworkRows)
         sb.appendLine()
     }
     if (componentRows.isNotEmpty()) {
@@ -666,7 +715,7 @@ fun renderGroupedBenchmarkReport(
         sb.appendLine()
     }
     if (infrastructureRows.isNotEmpty()) {
-        sb.appendLine("## Infrastructure E2E Diagnostics")
+        sb.appendLine("## Infrastructure E2E Bottlenecks")
         sb.appendLine()
         sb.appendLine("### Lowest Throughput")
         sb.appendLine()
@@ -694,8 +743,9 @@ fun renderGroupedBenchmarkReport(
         val rows = groupReport.rows
         sb.appendLine("## ${group.suite.displayName} Results")
         sb.appendLine()
-        sb.appendLine("- **Command**: `./gradlew :wow-benchmarks:${group.suite.commandName}`")
-        sb.appendLine("- **Performance Conclusion Source**: ${if (group.suite.performanceConclusionSource) "yes" else "no"}")
+        sb.appendLine("- **Command**: `./gradlew :wow-benchmarks:${group.suite.taskName(group.profile)}`")
+        val performanceConclusionSource = group.profile.id == fullProfile.id && group.suite.performanceConclusionSource
+        sb.appendLine("- **Performance Conclusion Source**: ${if (performanceConclusionSource) "yes" else "no"}")
         sb.appendLine("- **Source Row Count**: ${groupReport.sourceRowCount}")
         sb.appendLine("- **Parsed Row Count**: ${rows.size}")
         sb.appendLine()
@@ -756,7 +806,7 @@ tasks.register("generateBenchmarkReport") {
 }
 
 tasks.register("generateGroupedBenchmarkReport") {
-    description = "Generate grouped E2E and component benchmark reports from JMH JSON results."
+    description = "Generate full grouped E2E and component benchmark reports from JMH JSON results."
     group = "benchmark"
     outputs.file(groupedBenchmarkReport)
     outputs.upToDateWhen { false }
@@ -770,6 +820,24 @@ tasks.register("generateGroupedBenchmarkReport") {
         outputFile.parentFile.mkdirs()
         outputFile.writeText(report)
         logger.lifecycle("Grouped benchmark report generated: ${outputFile.absolutePath}")
+    }
+}
+
+tasks.register("generateQuickBenchmarkReport") {
+    description = "Generate quick grouped E2E and component benchmark report from quick JMH JSON results."
+    group = "benchmark"
+    outputs.file(quickGroupedBenchmarkReport)
+    outputs.upToDateWhen { false }
+    doLast {
+        val outputFile = quickGroupedBenchmarkReport.get().asFile
+        outputFile.delete()
+        val report = renderGroupedBenchmarkReport(
+            groups = reportSuites.map { benchmarkResultGroup(it, quickProfile) },
+            version = project.version.toString(),
+        )
+        outputFile.parentFile.mkdirs()
+        outputFile.writeText(report)
+        logger.lifecycle("Quick benchmark report generated: ${outputFile.absolutePath}")
     }
 }
 
