@@ -26,11 +26,31 @@ import java.lang.reflect.Constructor
 class DefaultConstructorAccessor<T : Any>(
     override val constructor: Constructor<T>
 ) : ConstructorAccessor<T> {
+    private val constructorInvoker: ConstructorInvoker<T>
+
     /**
      * Initialization block that ensures the constructor is accessible for reflection.
      * This automatically makes private, protected, or package-private constructors accessible.
      */
     init {
         constructor.ensureAccessible()
+        constructorInvoker = ConstructorInvokerFactory.create(constructor)
+    }
+
+    override fun invoke(args: Array<out Any?>): T {
+        @Suppress("UNCHECKED_CAST")
+        return constructorInvoker.newInstance(args as Array<Any?>)
+    }
+
+    override fun newInstance0(): T {
+        return constructorInvoker.newInstance0()
+    }
+
+    override fun newInstance1(arg: Any?): T {
+        return constructorInvoker.newInstance1(arg)
+    }
+
+    override fun newInstance2(arg1: Any?, arg2: Any?): T {
+        return constructorInvoker.newInstance2(arg1, arg2)
     }
 }

@@ -102,9 +102,9 @@ object ConstructorStateAggregateFactory : StateAggregateFactory {
 
     private fun <S : Any> StateAggregateMetadata<S>.constructState(aggregateId: AggregateId): S {
         return when (constructorAccessor.constructor.parameterCount) {
-            0 -> constructorAccessor.invoke(arrayOf())
-            1 -> constructorAccessor.invoke(arrayOf(aggregateId.id))
-            2 -> constructorAccessor.invoke(arrayOf(aggregateId.id, aggregateId.tenantId))
+            0 -> constructorAccessor.newInstance0()
+            1 -> constructorAccessor.newInstance1(aggregateId.id)
+            2 -> constructorAccessor.newInstance2(aggregateId.id, aggregateId.tenantId)
             else -> {
                 throw IllegalArgumentException("Unsupported constructor parameters.")
             }
