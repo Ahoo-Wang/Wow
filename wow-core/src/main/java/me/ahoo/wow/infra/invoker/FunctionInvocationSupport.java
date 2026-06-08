@@ -72,137 +72,18 @@ final class FunctionInvocationSupport {
     }
 
     static Throwable normalizeInvocationException(Throwable error, Method method, boolean staticMethod,
-                                                  Object target, Object[] args) {
-        if (shouldNormalize(error) && !isValidInvocation(method, staticMethod, target, args)) {
+                                                  Object receiver, Object... args) {
+        if (shouldNormalize(error) && !isValidInvocation(method, staticMethod, receiver, args)) {
             return new IllegalArgumentException(error.getMessage(), error);
         }
         return error;
     }
 
-    static Throwable normalizeInvocationException(Throwable error, Method method, boolean staticMethod,
-                                                  Object target, Object arg1) {
-        return normalizeInvocationException(error, method, staticMethod, target, new Object[]{arg1});
-    }
-
-    static Throwable normalizeInvocationException(Throwable error, Method method, boolean staticMethod,
-                                                  Object target, Object arg1, Object arg2) {
-        return normalizeInvocationException(error, method, staticMethod, target, new Object[]{arg1, arg2});
-    }
-
-    static Throwable normalizeInvocationException(Throwable error, Method method, boolean staticMethod,
-                                                  Object target, Object arg1, Object arg2, Object arg3) {
-        return normalizeInvocationException(error, method, staticMethod, target, new Object[]{arg1, arg2, arg3});
-    }
-
-    static Throwable normalizeInvocationException(Throwable error, Method method, boolean staticMethod,
-                                                  Object target, Object arg1, Object arg2, Object arg3,
-                                                  Object arg4) {
-        return normalizeInvocationException(error, method, staticMethod, target, new Object[]{
-            arg1, arg2, arg3, arg4
-        });
-    }
-
-    static Throwable normalizeInvocationException(Throwable error, Method method, boolean staticMethod,
-                                                  Object target, Object arg1, Object arg2, Object arg3,
-                                                  Object arg4, Object arg5) {
-        return normalizeInvocationException(error, method, staticMethod, target, new Object[]{
-            arg1, arg2, arg3, arg4, arg5
-        });
-    }
-
-    static Throwable normalizeInvocationException(Throwable error, Method method, boolean staticMethod,
-                                                  Object target, Object arg1, Object arg2, Object arg3,
-                                                  Object arg4, Object arg5, Object arg6) {
-        return normalizeInvocationException(error, method, staticMethod, target, new Object[]{
-            arg1, arg2, arg3, arg4, arg5, arg6
-        });
-    }
-
-    static Throwable normalizeInvocationException(Throwable error, Method method, boolean staticMethod,
-                                                  Object target, Object arg1, Object arg2, Object arg3,
-                                                  Object arg4, Object arg5, Object arg6, Object arg7) {
-        return normalizeInvocationException(error, method, staticMethod, target, new Object[]{
-            arg1, arg2, arg3, arg4, arg5, arg6, arg7
-        });
-    }
-
-    static Throwable normalizeInvocationException(Throwable error, Method method, boolean staticMethod,
-                                                  Object target, Object arg1, Object arg2, Object arg3,
-                                                  Object arg4, Object arg5, Object arg6, Object arg7,
-                                                  Object arg8) {
-        return normalizeInvocationException(error, method, staticMethod, target, new Object[]{
-            arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8
-        });
-    }
-
-    static Throwable normalizeInvocationException(Throwable error, Method method, boolean staticMethod,
-                                                  Object target, Object arg1, Object arg2, Object arg3,
-                                                  Object arg4, Object arg5, Object arg6, Object arg7,
-                                                  Object arg8, Object arg9) {
-        return normalizeInvocationException(error, method, staticMethod, target, new Object[]{
-            arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9
-        });
-    }
-
-    static Throwable normalizeInvocationException(Throwable error, Constructor<?> constructor, Object[] args) {
+    static Throwable normalizeInvocationException(Throwable error, Constructor<?> constructor, Object... args) {
         if (shouldNormalize(error) && !isValidInvocation(constructor.getParameterTypes(), args)) {
             return new IllegalArgumentException(error.getMessage(), error);
         }
         return error;
-    }
-
-    static Throwable normalizeInvocationException(Throwable error, Constructor<?> constructor, Object arg1) {
-        return normalizeInvocationException(error, constructor, new Object[]{arg1});
-    }
-
-    static Throwable normalizeInvocationException(Throwable error, Constructor<?> constructor, Object arg1,
-                                                  Object arg2) {
-        return normalizeInvocationException(error, constructor, new Object[]{arg1, arg2});
-    }
-
-    static Throwable normalizeInvocationException(Throwable error, Constructor<?> constructor, Object arg1,
-                                                  Object arg2, Object arg3) {
-        return normalizeInvocationException(error, constructor, new Object[]{arg1, arg2, arg3});
-    }
-
-    static Throwable normalizeInvocationException(Throwable error, Constructor<?> constructor, Object arg1,
-                                                  Object arg2, Object arg3, Object arg4) {
-        return normalizeInvocationException(error, constructor, new Object[]{arg1, arg2, arg3, arg4});
-    }
-
-    static Throwable normalizeInvocationException(Throwable error, Constructor<?> constructor, Object arg1,
-                                                  Object arg2, Object arg3, Object arg4, Object arg5) {
-        return normalizeInvocationException(error, constructor, new Object[]{arg1, arg2, arg3, arg4, arg5});
-    }
-
-    static Throwable normalizeInvocationException(Throwable error, Constructor<?> constructor, Object arg1,
-                                                  Object arg2, Object arg3, Object arg4, Object arg5,
-                                                  Object arg6) {
-        return normalizeInvocationException(error, constructor, new Object[]{arg1, arg2, arg3, arg4, arg5, arg6});
-    }
-
-    static Throwable normalizeInvocationException(Throwable error, Constructor<?> constructor, Object arg1,
-                                                  Object arg2, Object arg3, Object arg4, Object arg5,
-                                                  Object arg6, Object arg7) {
-        return normalizeInvocationException(error, constructor, new Object[]{
-            arg1, arg2, arg3, arg4, arg5, arg6, arg7
-        });
-    }
-
-    static Throwable normalizeInvocationException(Throwable error, Constructor<?> constructor, Object arg1,
-                                                  Object arg2, Object arg3, Object arg4, Object arg5,
-                                                  Object arg6, Object arg7, Object arg8) {
-        return normalizeInvocationException(error, constructor, new Object[]{
-            arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8
-        });
-    }
-
-    static Throwable normalizeInvocationException(Throwable error, Constructor<?> constructor, Object arg1,
-                                                  Object arg2, Object arg3, Object arg4, Object arg5,
-                                                  Object arg6, Object arg7, Object arg8, Object arg9) {
-        return normalizeInvocationException(error, constructor, new Object[]{
-            arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9
-        });
     }
 
     private static boolean shouldNormalize(Throwable error) {
@@ -211,8 +92,8 @@ final class FunctionInvocationSupport {
             || error instanceof NullPointerException;
     }
 
-    private static boolean isValidInvocation(Method method, boolean staticMethod, Object target, Object[] args) {
-        if (!staticMethod && (target == null || !method.getDeclaringClass().isInstance(target))) {
+    private static boolean isValidInvocation(Method method, boolean staticMethod, Object receiver, Object[] args) {
+        if (!staticMethod && (receiver == null || !method.getDeclaringClass().isInstance(receiver))) {
             return false;
         }
         return isValidInvocation(method.getParameterTypes(), args);

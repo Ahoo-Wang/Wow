@@ -143,56 +143,7 @@ final class MethodHandleInstanceFunctionInvoker implements InstanceFunctionInvok
         }
     }
 
-    private Throwable normalize(Throwable error, Object receiver, Object[] args) {
+    private Throwable normalize(Throwable error, Object receiver, Object... args) {
         return FunctionInvocationSupport.normalizeInvocationException(error, method, false, receiver, args);
-    }
-
-    private Throwable normalize(Throwable error, Object receiver, Object arg1) {
-        return FunctionInvocationSupport.normalizeInvocationException(error, method, false, receiver, arg1);
-    }
-
-    private Throwable normalize(Throwable error, Object receiver, Object arg1, Object arg2) {
-        return FunctionInvocationSupport.normalizeInvocationException(error, method, false, receiver, arg1, arg2);
-    }
-
-    private Throwable normalize(Throwable error, Object receiver, Object arg1, Object arg2, Object arg3) {
-        return FunctionInvocationSupport.normalizeInvocationException(error, method, false, receiver, arg1, arg2,
-            arg3);
-    }
-
-    private Throwable normalize(Throwable error, Object receiver, Object arg1, Object arg2, Object arg3,
-                                Object arg4) {
-        return FunctionInvocationSupport.normalizeInvocationException(error, method, false, receiver, arg1, arg2,
-            arg3, arg4);
-    }
-
-    private Throwable normalize(Throwable error, Object receiver, Object arg1, Object arg2, Object arg3,
-                                Object arg4, Object arg5) {
-        return FunctionInvocationSupport.normalizeInvocationException(error, method, false, receiver, arg1, arg2,
-            arg3, arg4, arg5);
-    }
-
-    private Throwable normalize(Throwable error, Object receiver, Object arg1, Object arg2, Object arg3,
-                                Object arg4, Object arg5, Object arg6) {
-        return FunctionInvocationSupport.normalizeInvocationException(error, method, false, receiver, arg1, arg2,
-            arg3, arg4, arg5, arg6);
-    }
-
-    private Throwable normalize(Throwable error, Object receiver, Object arg1, Object arg2, Object arg3,
-                                Object arg4, Object arg5, Object arg6, Object arg7) {
-        return FunctionInvocationSupport.normalizeInvocationException(error, method, false, receiver, arg1, arg2,
-            arg3, arg4, arg5, arg6, arg7);
-    }
-
-    private Throwable normalize(Throwable error, Object receiver, Object arg1, Object arg2, Object arg3,
-                                Object arg4, Object arg5, Object arg6, Object arg7, Object arg8) {
-        return FunctionInvocationSupport.normalizeInvocationException(error, method, false, receiver, arg1, arg2,
-            arg3, arg4, arg5, arg6, arg7, arg8);
-    }
-
-    private Throwable normalize(Throwable error, Object receiver, Object arg1, Object arg2, Object arg3,
-                                Object arg4, Object arg5, Object arg6, Object arg7, Object arg8, Object arg9) {
-        return FunctionInvocationSupport.normalizeInvocationException(error, method, false, receiver, arg1, arg2,
-            arg3, arg4, arg5, arg6, arg7, arg8, arg9);
     }
 }
