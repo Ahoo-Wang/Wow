@@ -86,15 +86,15 @@ open class CommandWriteE2EBenchmark {
 
     @TearDown(Level.Iteration)
     fun tearDown() {
+        val failureCount = failures.get()
         try {
-            commandDispatcherScenario.close()
-        } finally {
-            val failureCount = failures.get()
             if (failureCount > 0) {
                 throw IllegalStateException(
                     "Command write E2E scenario [$scenario] recorded $failureCount failure(s).",
                 )
             }
+        } finally {
+            commandDispatcherScenario.close()
         }
     }
 
