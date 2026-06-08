@@ -17,7 +17,7 @@ public interface InstanceFunctionInvoker extends FunctionInvoker {
     Object invoke(Object receiver, Object[] args) throws Throwable;
 
     default Object invoke0(Object receiver) throws Throwable {
-        return invoke(receiver, FunctionInvocationSupport.EMPTY_ARGS);
+        return invoke(receiver, Arguments.EMPTY_ARGS);
     }
 
     default Object invoke1(Object receiver, Object arg1) throws Throwable {
