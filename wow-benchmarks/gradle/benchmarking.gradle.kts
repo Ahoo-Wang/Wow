@@ -779,6 +779,7 @@ data class BenchmarkComparisonRow(
 )
 
 data class BenchmarkMetricComparison(
+    val key: String,
     val metric: String,
     val displayName: String,
     val mode: String,
@@ -970,6 +971,7 @@ fun compareMetric(
         ((current - baseline) / baseline) * 100
     }
     return BenchmarkMetricComparison(
+        key = latestRow.key,
         metric = metric,
         displayName = latestRow.displayName.ifBlank { baseRow.displayName },
         mode = latestRow.mode,
@@ -1069,9 +1071,13 @@ tasks.register("benchmarkCompare") {
         val latest = parsedComparisonRows(parsedFrameworkE2EResults())
         val allBenchmarks = (baseline.keys + latest.keys).sorted()
         val comparisons = benchmarkMetricComparisons(baseline, latest)
+        val comparisonsByKey = comparisons.groupBy { it.key }
 
         val regressions = comparisons.count { it.status().endsWith("_REGRESSION") }
         val improvements = comparisons.count { it.status().endsWith("_IMPROVED") }
+        val coverageChanges = allBenchmarks.count { benchmark ->
+            baseline[benchmark] == null || latest[benchmark] == null
+        }
 
         println()
         println("## Benchmark Comparison")
@@ -1104,8 +1110,7 @@ tasks.register("benchmarkCompare") {
                 )
                 continue
             }
-            comparisons
-                .filter { it.displayName == latestRow.displayName && it.mode == latestRow.mode && it.threads == latestRow.threads }
+            comparisonsByKey.getValue(benchmark)
                 .forEach { comparison ->
                     println(
                         "| ${comparison.metric} | ${comparison.displayName} | ${comparison.threads} | ${comparison.mode} | " +
@@ -1120,9 +1125,13 @@ tasks.register("benchmarkCompare") {
         println()
         println(
             "Summary: $regressions regression(s), $improvements improvement(s), " +
-                "${comparisons.size - regressions - improvements} stable metric comparison(s)"
+                "${comparisons.size - regressions - improvements} stable metric comparison(s), " +
+                "$coverageChanges coverage change(s)"
         )
 
+        if (coverageChanges > 0) {
+            throw GradleException("Benchmark coverage changed: $coverageChanges new or removed result row(s)")
+        }
         if (regressions > 0) {
             throw GradleException("Benchmark regressions detected: $regressions")
         }
