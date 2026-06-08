@@ -334,6 +334,12 @@ registerBenchmarkAggregateTask("benchmarkFullInfrastructureE2E", infrastructureE
 registerBenchmarkAggregateTask("benchmarkQuickComponent", componentSuite, quickProfile)
 registerBenchmarkAggregateTask("benchmarkFullComponent", componentSuite, fullProfile)
 
+tasks.named("jmh") {
+    enabled = false
+    group = null
+    description = "Disabled. Use the layered benchmark tasks instead."
+}
+
 val resultsDir = layout.projectDirectory.dir("results")
 val frameworkE2EBaselineJson = resultsDir.file("framework-e2e-baseline.json")
 val readmeFile = layout.projectDirectory.file("README.md")
