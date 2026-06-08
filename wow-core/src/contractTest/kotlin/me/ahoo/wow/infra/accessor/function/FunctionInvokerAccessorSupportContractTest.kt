@@ -55,6 +55,10 @@ class FunctionInvokerAccessorSupportContractTest {
     fun `unsupported invoker should fail fast`() {
         val invoker = object : FunctionInvoker {
             override fun parameterCount(): Int = 0
+
+            override fun invoke(args: Array<Any?>): Any? {
+                error("unsupported")
+            }
         }
 
         assertThrows<IllegalStateException> {

@@ -15,4 +15,19 @@ package me.ahoo.wow.infra.invoker;
 
 public interface FunctionInvoker {
     int parameterCount();
+
+    /**
+     * Invokes the function with flattened invocation arguments.
+     *
+     * <p>For receiver-based instance functions, {@code args[0]} must be the receiver, followed by the
+     * function parameters.</p>
+     *
+     * <p>For static functions and constructors, {@code args} contains only the function or constructor
+     * parameters and does not include a receiver.</p>
+     *
+     * @param args flattened invocation arguments
+     * @return invocation result
+     * @throws Throwable if the invocation fails
+     */
+    Object invoke(Object[] args) throws Throwable;
 }

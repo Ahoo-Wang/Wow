@@ -14,6 +14,7 @@
 package me.ahoo.wow.infra.invoker;
 
 public interface ReceiverlessFunctionInvoker extends FunctionInvoker {
+    @Override
     Object invoke(Object[] args) throws Throwable;
 
     default Object invoke0() throws Throwable {

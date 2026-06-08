@@ -73,6 +73,29 @@ class FunctionInvokerFactoryTest {
     }
 
     @Test
+    void invokeFlattenedArgumentsForInstanceMethodRequiresReceiverAsFirstArgument() throws Throwable {
+        Method method = Target.class.getDeclaredMethod("hidden", String.class);
+        method.trySetAccessible();
+        FunctionInvoker invoker = FunctionInvokerFactory.create(method);
+        Target target = new Target();
+
+        Object result = invoker.invoke(new Object[]{target, "wow"});
+
+        assertThat(result).isEqualTo("hello wow");
+    }
+
+    @Test
+    void invokeFlattenedArgumentsForInstanceMethodRequiresReceiver() throws NoSuchMethodException {
+        Method method = Target.class.getDeclaredMethod("hidden", String.class);
+        method.trySetAccessible();
+        FunctionInvoker invoker = FunctionInvokerFactory.create(method);
+
+        assertThatThrownBy(() -> invoker.invoke(new Object[0]))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("receiver");
+    }
+
+    @Test
     void invoke1StaticMethodWithoutTarget() throws Throwable {
         Method method = Target.class.getDeclaredMethod("staticHello", String.class);
         method.trySetAccessible();
@@ -84,12 +107,35 @@ class FunctionInvokerFactoryTest {
     }
 
     @Test
+    void invokeFlattenedArgumentsForStaticMethodDoesNotRequireReceiver() throws Throwable {
+        Method method = Target.class.getDeclaredMethod("staticHello", String.class);
+        method.trySetAccessible();
+        FunctionInvoker invoker = FunctionInvokerFactory.create(method);
+
+        Object result = invoker.invoke(new Object[]{"wow"});
+
+        assertThat(result).isEqualTo("static wow");
+    }
+
+    @Test
     void invoke1PrivateConstructorWithoutTarget() throws Throwable {
         Constructor<OneArgTarget> constructor = OneArgTarget.class.getDeclaredConstructor(String.class);
         constructor.trySetAccessible();
         ConstructorFunctionInvoker invoker = FunctionInvokerFactory.create(constructor);
 
         Object result = invoker.invoke1("created");
+
+        assertThat(result).isInstanceOf(OneArgTarget.class);
+        assertThat(((OneArgTarget) result).value).isEqualTo("created");
+    }
+
+    @Test
+    void invokeFlattenedArgumentsForConstructorDoesNotRequireReceiver() throws Throwable {
+        Constructor<OneArgTarget> constructor = OneArgTarget.class.getDeclaredConstructor(String.class);
+        constructor.trySetAccessible();
+        FunctionInvoker invoker = FunctionInvokerFactory.create(constructor);
+
+        Object result = invoker.invoke(new Object[]{"created"});
 
         assertThat(result).isInstanceOf(OneArgTarget.class);
         assertThat(((OneArgTarget) result).value).isEqualTo("created");

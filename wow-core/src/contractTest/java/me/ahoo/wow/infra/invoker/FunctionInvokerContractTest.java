@@ -48,6 +48,30 @@ class FunctionInvokerContractTest {
     }
 
     @Test
+    void functionInvokerSupportsFlattenedInvocationArguments() throws Throwable {
+        ArityTarget target = new ArityTarget();
+        Method instanceMethod = ArityTarget.class.getDeclaredMethod("arity1", String.class);
+        instanceMethod.trySetAccessible();
+        FunctionInvoker instanceInvoker = FunctionInvokerFactory.create(instanceMethod);
+        assertThat(instanceInvoker.invoke(new Object[]{target, "arg"})).isEqualTo(1);
+        assertThatThrownBy(() -> instanceInvoker.invoke(new Object[0]))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("receiver");
+
+        Method staticMethod = ArityTarget.class.getDeclaredMethod("staticArity1", String.class);
+        staticMethod.trySetAccessible();
+        FunctionInvoker staticInvoker = FunctionInvokerFactory.create(staticMethod);
+        assertThat(staticInvoker.invoke(new Object[]{"arg"})).isEqualTo(1);
+
+        Constructor<ArityConstructedTarget> constructor = ArityConstructedTarget.class.getDeclaredConstructor(
+            String.class
+        );
+        constructor.trySetAccessible();
+        FunctionInvoker constructorInvoker = FunctionInvokerFactory.create(constructor);
+        assertThat(((ArityConstructedTarget) constructorInvoker.invoke(new Object[]{"arg"})).arity).isEqualTo(1);
+    }
+
+    @Test
     void defaultArityMethodsDelegateToArrayInvocation() throws Throwable {
         RecordingInstanceInvoker instanceInvoker = new RecordingInstanceInvoker();
         RecordingReceiverlessInvoker receiverlessInvoker = new RecordingReceiverlessInvoker();
