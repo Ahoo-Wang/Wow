@@ -13,6 +13,8 @@
 package me.ahoo.wow.infra.accessor.constructor
 
 import me.ahoo.wow.infra.accessor.ensureAccessible
+import me.ahoo.wow.infra.invoker.ConstructorFunctionInvoker
+import me.ahoo.wow.infra.invoker.FunctionInvokerFactory
 import java.lang.reflect.Constructor
 
 /**
@@ -26,7 +28,7 @@ import java.lang.reflect.Constructor
 class DefaultConstructorAccessor<T : Any>(
     override val constructor: Constructor<T>
 ) : ConstructorAccessor<T> {
-    private val constructorInvoker: ConstructorInvoker<T>
+    private val constructorInvoker: ConstructorFunctionInvoker
 
     /**
      * Initialization block that ensures the constructor is accessible for reflection.
@@ -34,23 +36,26 @@ class DefaultConstructorAccessor<T : Any>(
      */
     init {
         constructor.ensureAccessible()
-        constructorInvoker = ConstructorInvokerFactory.create(constructor)
+        constructorInvoker = FunctionInvokerFactory.create(constructor)
     }
 
     override fun invoke(args: Array<out Any?>): T {
         @Suppress("UNCHECKED_CAST")
-        return constructorInvoker.newInstance(args as Array<Any?>)
+        return constructorInvoker.invoke(args as Array<Any?>) as T
     }
 
     override fun newInstance0(): T {
-        return constructorInvoker.newInstance0()
+        @Suppress("UNCHECKED_CAST")
+        return constructorInvoker.invoke0() as T
     }
 
     override fun newInstance1(arg: Any?): T {
-        return constructorInvoker.newInstance1(arg)
+        @Suppress("UNCHECKED_CAST")
+        return constructorInvoker.invoke1(arg) as T
     }
 
     override fun newInstance2(arg1: Any?, arg2: Any?): T {
-        return constructorInvoker.newInstance2(arg1, arg2)
+        @Suppress("UNCHECKED_CAST")
+        return constructorInvoker.invoke2(arg1, arg2) as T
     }
 }

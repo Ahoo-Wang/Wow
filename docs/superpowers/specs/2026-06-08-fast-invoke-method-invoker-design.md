@@ -1,4 +1,4 @@
-# FastInvoke MethodInvoker 性能优化设计
+# FastInvoke FunctionInvoker 性能优化设计
 
 ## 背景
 
@@ -25,18 +25,38 @@ Suspend 函数和 Flow 返回函数继续使用 Kotlin reflection 的 `callSuspe
 
 ## 总体架构
 
-新增一个对外调用抽象 `MethodInvoker`，用于封装已绑定的 Java `Method` 调用策略：
+在 `wow-core/src/main/java/me/ahoo/wow/infra/invoker/` 新增底层 invoker package，用 Java 编写性能关键路径。该 package 提供顶级标记接口 `FunctionInvoker`，并按调用形态拆分 Method 和 Constructor 的已绑定调用策略：
 
-```kotlin
-interface MethodInvoker {
-    fun invoke(target: Any, args: Array<Any?>): Any?
-    fun invoke0(target: Any): Any?
-    fun invoke1(target: Any, arg1: Any?): Any?
+```java
+public interface FunctionInvoker {
+    int parameterCount();
+}
+
+public interface InstanceFunctionInvoker extends FunctionInvoker {
+    Object invoke(Object target, Object[] args) throws Throwable;
+    Object invoke0(Object target) throws Throwable;
+    Object invoke1(Object target, Object arg1) throws Throwable;
+    // ... invoke2 到 invoke9
+}
+
+public interface StaticFunctionInvoker extends FunctionInvoker {
+    Object invoke(Object[] args) throws Throwable;
+    Object invoke0() throws Throwable;
+    Object invoke1(Object arg1) throws Throwable;
+    // ... invoke2 到 invoke9
+}
+
+public interface ConstructorFunctionInvoker extends FunctionInvoker {
+    Object invoke(Object[] args) throws Throwable;
+    Object invoke0() throws Throwable;
+    Object invoke1(Object arg1) throws Throwable;
     // ... invoke2 到 invoke9
 }
 ```
 
-`MethodInvoker` 是统一入口和唯一调用接口。`MethodInvokerFactory` 负责根据 `Method` 创建具体 invoker。默认优先创建 `MethodHandle` invoker，并按方法形态拆分为实例和静态两条路径；如果访问权限、方法形态或平台差异导致创建失败，则降级到 reflection invoker。降级路径必须和现有 `FastInvoke.safeInvoke` 的行为一致。
+`FunctionInvoker` 是顶级标记和元信息入口。`InstanceFunctionInvoker` 需要 target；`StaticFunctionInvoker` 和 `ConstructorFunctionInvoker` 不需要 target。`ConstructorFunctionInvoker` 不继承 `StaticFunctionInvoker`，二者只共享“无 receiver”的形态，不表达语义继承关系。
+
+`FunctionInvokerFactory` 负责根据 `Method` 或 `Constructor` 创建具体 invoker。默认优先创建 `MethodHandle` invoker，并按调用形态拆分为实例方法、静态方法和构造器三条路径；如果访问权限、方法形态或平台差异导致创建失败，则降级到 reflection invoker。降级路径必须和现有 `FastInvoke.safeInvoke` / `FastInvoke.safeNewInstance` 的行为一致。
 
 `FunctionAccessor` 持有并复用该 invoker。`SimpleFunctionAccessor` 和 `AbstractMonoFunctionAccessor` 在初始化时确保方法 accessible，然后创建一次 invoker。运行期只做目标对象、参数和返回值传递。
 
@@ -44,13 +64,16 @@ interface MethodInvoker {
 
 ## Invoker 策略
 
-第一版采用三类 invoker 策略：
+第一版采用六类 invoker 策略：
 
 | 策略 | 用途 | 说明 |
 | --- | --- | --- |
-| `InstanceMethodInvoker` | 实例方法快速路径 | 直接实现 `MethodInvoker`，初始化时 `unreflect(method)`，运行期 `invoke0` 到 `invoke9` 直接传入 target 和参数 |
-| `StaticMethodInvoker` | 静态方法快速路径 | 直接实现 `MethodInvoker`，初始化时 `unreflect(method)`，运行期忽略 target，直接调用静态 `MethodHandle` |
-| `ReflectionMethodInvoker` | 保底路径 | 创建 `MethodHandle` 失败时回到 `Method.invoke`，保持兼容性 |
+| `MethodHandleInstanceFunctionInvoker` | 实例方法快速路径 | 实现 `InstanceFunctionInvoker`，初始化时 `unreflect(method)`，运行期 `invoke0` 到 `invoke9` 直接传入 target 和参数 |
+| `MethodHandleStaticFunctionInvoker` | 静态方法快速路径 | 实现 `StaticFunctionInvoker`，初始化时 `unreflect(method)`，运行期无 target，直接调用静态 `MethodHandle` |
+| `MethodHandleConstructorFunctionInvoker` | 构造器快速路径 | 实现 `ConstructorFunctionInvoker`，初始化时 `unreflectConstructor(constructor)`，运行期无 target，直接调用构造器 `MethodHandle` |
+| `ReflectionInstanceFunctionInvoker` | 实例方法保底路径 | 创建实例方法 `MethodHandle` 失败时回到 `Method.invoke` |
+| `ReflectionStaticFunctionInvoker` | 静态方法保底路径 | 创建静态方法 `MethodHandle` 失败时回到 `Method.invoke(null, args)` |
+| `ReflectionConstructorFunctionInvoker` | 构造器保底路径 | 创建构造器 `MethodHandle` 失败时回到 `Constructor.newInstance(args)` |
 
 单参数 fast path 的目标签名固定为：
 
@@ -112,7 +135,7 @@ fun newInstance1(arg: Any?): T
 fun newInstance2(arg1: Any?, arg2: Any?): T
 ```
 
-`ConstructorAccessor.invoke(args)` 继续保留，用于可变参数和注入式对象工厂。`DefaultConstructorAccessor` 初始化时为构造器创建缓存 invoker 或 constructor invoker。
+`ConstructorAccessor.invoke(args)` 继续保留，用于可变参数和注入式对象工厂。`DefaultConstructorAccessor` 初始化时为构造器创建缓存 `ConstructorFunctionInvoker`。对外继续暴露 `newInstance0/1/2`，内部委托到 `invoke0()`、`invoke1(arg)` 和 `invoke2(arg1, arg2)`。
 
 `ConstructorStateAggregateFactory` 当前只支持状态构造器 0/1/2 参数，因此可以直接改用 fast path：
 
@@ -130,7 +153,8 @@ fun newInstance2(arg1: Any?, arg2: Any?): T
 2. 不删除 `FunctionAccessor.invoke(target, args)`。
 3. 不删除 `ConstructorAccessor.invoke(args)`。
 4. 新增 fast path API，并把框架内部热点调用切换到新 API。
-5. 文档和测试说明新 API 是高频调用推荐入口，旧 API 仍是通用入口。
+5. 删除旧 `MethodInvoker*` 和 `ConstructorInvoker*`，统一迁移到 `infra.invoker.FunctionInvoker*`。
+6. 文档和测试说明新 API 是高频调用推荐入口，旧 API 仍是通用入口。
 
 这样可以让已有外部扩展继续工作，同时让框架默认路径获得性能收益。
 
@@ -143,20 +167,20 @@ fun newInstance2(arg1: Any?, arg2: Any?): T
 - constructor fallback 必须解包构造器内部异常。
 - `IllegalAccessException`、`IllegalArgumentException` 等调用错误继续按调用错误传播。
 
-`MethodInvokerFactory` 创建失败不应让框架启动失败，除非 fallback 也无法工作。创建失败时降级到 reflection invoker，并保留测试覆盖。
+`FunctionInvokerFactory` 创建失败不应让框架启动失败，除非 fallback 也无法工作。创建失败时降级到 reflection invoker，并保留测试覆盖。
 
 ## 测试设计
 
 新增或更新 `wow-core` 单元测试，覆盖以下行为：
 
-1. `MethodInvoker` 可调用 public 方法、private 方法、单参数方法、多参数方法和无参数方法。
+1. `FunctionInvokerFactory.create(Method)` 可创建实例方法和静态方法 invoker，并可调用 public 方法、private 方法、单参数方法、多参数方法和无参数方法。
 2. `invoke0`、`invoke1`、`invoke2` 和 `invoke(args)` 返回值一致。
 3. 业务异常保持原始异常传播，不泄漏 `InvocationTargetException`。
 4. MethodHandle 调用形态错误继续暴露为 `IllegalArgumentException`，业务 `ClassCastException` 等运行时异常不被误包装。
 5. varargs 方法保持现有调用方式，传入 `Object[]{String[]}` 时结果不变。
 6. `SimpleMessageFunctionAccessor` 无注入函数走单参数路径，结果和现有行为一致。
 7. `InjectableMessageFunctionAccessor` 仍正确解析命名服务和类型服务。
-8. `ConstructorAccessor` 0/1/2 参数 fast path 支持私有构造器。
+8. `FunctionInvokerFactory.create(Constructor)` 创建 `ConstructorFunctionInvoker`，0/1/2 参数 fast path 支持私有构造器。
 9. 构造器内部异常按原始异常传播。
 10. reactive accessor 保持 lazy 语义和返回类型适配。
 
@@ -211,7 +235,7 @@ fun newInstance2(arg1: Any?, arg2: Any?): T
 ## 验收标准
 
 1. `SimpleMessageFunctionAccessor` 无注入路径不再为第一个参数创建数组。
-2. `FunctionAccessor.invoke1` 使用缓存 invoker，而不是每次临时反射适配。
+2. `FunctionAccessor.invoke1` 使用缓存 `InstanceFunctionInvoker`，而不是每次临时反射适配。
 3. `MethodHandle` 创建失败时自动 fallback 到 reflection，业务行为不变。
 4. 构造器 0/1/2 参数 fast path 覆盖状态聚合和聚合模式 command root 构造。
 5. `:wow-core:check` 通过。
@@ -221,7 +245,7 @@ fun newInstance2(arg1: Any?, arg2: Any?): T
 
 ## 后续扩展
 
-如果第一版 JMH 显示 `MethodHandle` 仍不是最优，可以在同一 `MethodInvokerFactory` 下增加 `LambdaMetafactory` invoker。只有在以下条件满足时再推进：
+如果第一版 JMH 显示 `MethodHandle` 仍不是最优，可以在同一 `FunctionInvokerFactory` 下增加 `LambdaMetafactory` invoker。只有在以下条件满足时再推进：
 
 1. accessor microbenchmark 显示 `LambdaMetafactory` 明显优于 `MethodHandle`。
 2. 私有方法、Kotlin bridge、返回 `Unit`、基本类型装箱和异常语义都有测试覆盖。

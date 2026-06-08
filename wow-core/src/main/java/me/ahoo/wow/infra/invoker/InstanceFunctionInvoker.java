@@ -11,13 +11,13 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.infra.accessor.method;
+package me.ahoo.wow.infra.invoker;
 
-public interface MethodInvoker {
+public interface InstanceFunctionInvoker extends FunctionInvoker {
     Object invoke(Object target, Object[] args) throws Throwable;
 
     default Object invoke0(Object target) throws Throwable {
-        return invoke(target, MethodInvocationSupport.EMPTY_ARGS);
+        return invoke(target, FunctionInvocationSupport.EMPTY_ARGS);
     }
 
     default Object invoke1(Object target, Object arg1) throws Throwable {
@@ -60,5 +60,4 @@ public interface MethodInvoker {
                            Object arg6, Object arg7, Object arg8, Object arg9) throws Throwable {
         return invoke(target, new Object[]{arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9});
     }
-
 }

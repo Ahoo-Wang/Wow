@@ -16,8 +16,8 @@ package me.ahoo.wow.benchmark.component
 import me.ahoo.wow.infra.accessor.constructor.DefaultConstructorAccessor
 import me.ahoo.wow.infra.accessor.function.SimpleFunctionAccessor
 import me.ahoo.wow.infra.accessor.method.FastInvoke
-import me.ahoo.wow.infra.accessor.method.MethodInvoker
-import me.ahoo.wow.infra.accessor.method.MethodInvokerFactory
+import me.ahoo.wow.infra.invoker.FunctionInvokerFactory
+import me.ahoo.wow.infra.invoker.InstanceFunctionInvoker
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
@@ -30,7 +30,7 @@ open class AccessorComponentBenchmark {
     private lateinit var target: AccessorTarget
     private lateinit var argument: String
     private lateinit var singleMethod: Method
-    private lateinit var singleInvoker: MethodInvoker
+    private lateinit var singleInvoker: InstanceFunctionInvoker
     private lateinit var functionAccessor: SimpleFunctionAccessor<AccessorTarget, String>
     private lateinit var constructorAccessor0: DefaultConstructorAccessor<ConstructorTarget0>
     private lateinit var constructorAccessor1: DefaultConstructorAccessor<ConstructorTarget1>
@@ -42,7 +42,7 @@ open class AccessorComponentBenchmark {
         argument = "wow"
         singleMethod = AccessorTarget::class.java.getDeclaredMethod("single", String::class.java)
         singleMethod.trySetAccessible()
-        singleInvoker = MethodInvokerFactory.create(singleMethod)
+        singleInvoker = FunctionInvokerFactory.create(singleMethod) as InstanceFunctionInvoker
         functionAccessor = SimpleFunctionAccessor(AccessorTarget::single)
         constructorAccessor0 = DefaultConstructorAccessor(ConstructorTarget0::class.java.getDeclaredConstructor())
         constructorAccessor1 = DefaultConstructorAccessor(

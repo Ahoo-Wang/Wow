@@ -13,8 +13,10 @@
 package me.ahoo.wow.infra.accessor.function
 
 import me.ahoo.wow.infra.accessor.ensureAccessible
-import me.ahoo.wow.infra.accessor.method.MethodInvoker
-import me.ahoo.wow.infra.accessor.method.MethodInvokerFactory
+import me.ahoo.wow.infra.invoker.FunctionInvoker
+import me.ahoo.wow.infra.invoker.FunctionInvokerFactory
+import me.ahoo.wow.infra.invoker.InstanceFunctionInvoker
+import me.ahoo.wow.infra.invoker.StaticFunctionInvoker
 import java.lang.reflect.Method
 import kotlin.reflect.KFunction
 import kotlin.reflect.jvm.javaMethod
@@ -43,11 +45,21 @@ data class SimpleFunctionAccessor<T, R>(
 
     override val method: Method = function.javaMethod!!
 
-    private val invoker: MethodInvoker = MethodInvokerFactory.create(method)
+    private val invoker: FunctionInvoker = FunctionInvokerFactory.create(method)
 
     @Suppress("UNCHECKED_CAST")
-    override fun invoke(target: T, args: Array<Any?>): R = invoker.invoke(target, args) as R
+    override fun invoke(target: T, args: Array<Any?>): R =
+        when (val currentInvoker = invoker) {
+            is InstanceFunctionInvoker -> currentInvoker.invoke(target, args)
+            is StaticFunctionInvoker -> currentInvoker.invoke(args)
+            else -> error("Unsupported function invoker: ${currentInvoker.javaClass.name}")
+        } as R
 
     @Suppress("UNCHECKED_CAST")
-    override fun invoke1(target: T, arg: Any?): R = invoker.invoke1(target, arg) as R
+    override fun invoke1(target: T, arg: Any?): R =
+        when (val currentInvoker = invoker) {
+            is InstanceFunctionInvoker -> currentInvoker.invoke1(target, arg)
+            is StaticFunctionInvoker -> currentInvoker.invoke1(arg)
+            else -> error("Unsupported function invoker: ${currentInvoker.javaClass.name}")
+        } as R
 }

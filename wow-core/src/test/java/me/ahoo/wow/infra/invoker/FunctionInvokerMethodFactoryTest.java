@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.infra.accessor.method;
+package me.ahoo.wow.infra.invoker;
 
 import org.junit.jupiter.api.Test;
 
@@ -21,13 +21,13 @@ import java.lang.reflect.Method;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 
-class MethodInvokerFactoryTest {
+class FunctionInvokerMethodFactoryTest {
 
     @Test
     void invoke1PrivateMethod() throws Throwable {
         Method method = Target.class.getDeclaredMethod("hidden", String.class);
         method.trySetAccessible();
-        MethodInvoker invoker = MethodInvokerFactory.create(method);
+        InstanceFunctionInvoker invoker = (InstanceFunctionInvoker) FunctionInvokerFactory.create(method);
 
         Object result = invoker.invoke1(new Target(), "wow");
 
@@ -35,30 +35,30 @@ class MethodInvokerFactoryTest {
     }
 
     @Test
-    void createInstanceMethodReturnsInstanceMethodInvoker() throws NoSuchMethodException {
+    void createInstanceMethodReturnsInstanceFunctionInvoker() throws NoSuchMethodException {
         Method method = Target.class.getDeclaredMethod("hidden", String.class);
         method.trySetAccessible();
 
-        MethodInvoker invoker = MethodInvokerFactory.create(method);
+        FunctionInvoker invoker = FunctionInvokerFactory.create(method);
 
-        assertThat(invoker).isInstanceOf(InstanceMethodInvoker.class);
+        assertThat(invoker).isInstanceOf(InstanceFunctionInvoker.class);
     }
 
     @Test
-    void createStaticMethodReturnsStaticMethodInvoker() throws NoSuchMethodException {
+    void createStaticMethodReturnsStaticFunctionInvoker() throws NoSuchMethodException {
         Method method = Target.class.getDeclaredMethod("staticHello", String.class);
         method.trySetAccessible();
 
-        MethodInvoker invoker = MethodInvokerFactory.create(method);
+        FunctionInvoker invoker = FunctionInvokerFactory.create(method);
 
-        assertThat(invoker).isInstanceOf(StaticMethodInvoker.class);
+        assertThat(invoker).isInstanceOf(StaticFunctionInvoker.class);
     }
 
     @Test
     void invokePrivateTwoArgMethod() throws Throwable {
         Method method = Target.class.getDeclaredMethod("join", String.class, String.class);
         method.trySetAccessible();
-        MethodInvoker invoker = MethodInvokerFactory.create(method);
+        InstanceFunctionInvoker invoker = (InstanceFunctionInvoker) FunctionInvokerFactory.create(method);
 
         Object result = invoker.invoke2(new Target(), "a", "b");
 
@@ -69,7 +69,7 @@ class MethodInvokerFactoryTest {
     void invokeNoArgMethod() throws Throwable {
         Method method = Target.class.getDeclaredMethod("hello");
         method.trySetAccessible();
-        MethodInvoker invoker = MethodInvokerFactory.create(method);
+        InstanceFunctionInvoker invoker = (InstanceFunctionInvoker) FunctionInvokerFactory.create(method);
 
         Object result = invoker.invoke0(new Target());
 
@@ -77,12 +77,12 @@ class MethodInvokerFactoryTest {
     }
 
     @Test
-    void invoke1StaticMethodWithNullTarget() throws Throwable {
+    void invoke1StaticMethodWithoutTarget() throws Throwable {
         Method method = Target.class.getDeclaredMethod("staticHello", String.class);
         method.trySetAccessible();
-        MethodInvoker invoker = MethodInvokerFactory.create(method);
+        StaticFunctionInvoker invoker = (StaticFunctionInvoker) FunctionInvokerFactory.create(method);
 
-        Object result = invoker.invoke1(null, "wow");
+        Object result = invoker.invoke1("wow");
 
         assertThat(result).isEqualTo("static wow");
     }
@@ -91,7 +91,7 @@ class MethodInvokerFactoryTest {
     void invokePreservesVarargsArrayArgument() throws Throwable {
         Method method = Target.class.getDeclaredMethod("varargs", String[].class);
         method.trySetAccessible();
-        MethodInvoker invoker = MethodInvokerFactory.create(method);
+        InstanceFunctionInvoker invoker = (InstanceFunctionInvoker) FunctionInvokerFactory.create(method);
         String[] args = {"a", "b"};
 
         Object result = invoker.invoke(new Target(), new Object[]{args});
@@ -103,7 +103,7 @@ class MethodInvokerFactoryTest {
     void invoke1PropagatesBusinessException() throws NoSuchMethodException {
         Method method = Target.class.getDeclaredMethod("boom", String.class);
         method.trySetAccessible();
-        MethodInvoker invoker = MethodInvokerFactory.create(method);
+        InstanceFunctionInvoker invoker = (InstanceFunctionInvoker) FunctionInvokerFactory.create(method);
 
         assertThatThrownBy(() -> invoker.invoke1(new Target(), "wow"))
             .isInstanceOf(IllegalStateException.class)
@@ -115,7 +115,7 @@ class MethodInvokerFactoryTest {
     void invoke1WithWrongArgumentTypeThrowsIllegalArgumentException() throws NoSuchMethodException {
         Method method = Target.class.getDeclaredMethod("hidden", String.class);
         method.trySetAccessible();
-        MethodInvoker invoker = MethodInvokerFactory.create(method);
+        InstanceFunctionInvoker invoker = (InstanceFunctionInvoker) FunctionInvokerFactory.create(method);
 
         assertThatThrownBy(() -> invoker.invoke1(new Target(), 1))
             .isInstanceOf(IllegalArgumentException.class);
@@ -125,7 +125,7 @@ class MethodInvokerFactoryTest {
     void invoke1WithWrongArityThrowsIllegalArgumentException() throws NoSuchMethodException {
         Method method = Target.class.getDeclaredMethod("hello");
         method.trySetAccessible();
-        MethodInvoker invoker = MethodInvokerFactory.create(method);
+        InstanceFunctionInvoker invoker = (InstanceFunctionInvoker) FunctionInvokerFactory.create(method);
 
         assertThatThrownBy(() -> invoker.invoke1(new Target(), "wow"))
             .isInstanceOf(IllegalArgumentException.class);
@@ -135,7 +135,7 @@ class MethodInvokerFactoryTest {
     void invokeWithWrongArgumentCountThrowsIllegalArgumentException() throws NoSuchMethodException {
         Method method = Target.class.getDeclaredMethod("join", String.class, String.class);
         method.trySetAccessible();
-        MethodInvoker invoker = MethodInvokerFactory.create(method);
+        InstanceFunctionInvoker invoker = (InstanceFunctionInvoker) FunctionInvokerFactory.create(method);
 
         assertThatThrownBy(() -> invoker.invoke(new Target(), new Object[]{"a"}))
             .isInstanceOf(IllegalArgumentException.class);
@@ -145,7 +145,7 @@ class MethodInvokerFactoryTest {
     void invoke1WithNullInstanceTargetThrowsIllegalArgumentException() throws NoSuchMethodException {
         Method method = Target.class.getDeclaredMethod("hidden", String.class);
         method.trySetAccessible();
-        MethodInvoker invoker = MethodInvokerFactory.create(method);
+        InstanceFunctionInvoker invoker = (InstanceFunctionInvoker) FunctionInvokerFactory.create(method);
 
         assertThatThrownBy(() -> invoker.invoke1(null, "wow"))
             .isInstanceOf(IllegalArgumentException.class);
@@ -155,7 +155,7 @@ class MethodInvokerFactoryTest {
     void invoke1WithWrongInstanceTargetThrowsIllegalArgumentException() throws NoSuchMethodException {
         Method method = Target.class.getDeclaredMethod("hidden", String.class);
         method.trySetAccessible();
-        MethodInvoker invoker = MethodInvokerFactory.create(method);
+        InstanceFunctionInvoker invoker = (InstanceFunctionInvoker) FunctionInvokerFactory.create(method);
 
         assertThatThrownBy(() -> invoker.invoke1(new Object(), "wow"))
             .isInstanceOf(IllegalArgumentException.class);
@@ -165,7 +165,7 @@ class MethodInvokerFactoryTest {
     void invoke1PropagatesBusinessClassCastException() throws NoSuchMethodException {
         Method method = Target.class.getDeclaredMethod("classCastBoom", Object.class);
         method.trySetAccessible();
-        MethodInvoker invoker = MethodInvokerFactory.create(method);
+        InstanceFunctionInvoker invoker = (InstanceFunctionInvoker) FunctionInvokerFactory.create(method);
 
         assertThatThrownBy(() -> invoker.invoke1(new Target(), "wow"))
             .isInstanceOf(ClassCastException.class)

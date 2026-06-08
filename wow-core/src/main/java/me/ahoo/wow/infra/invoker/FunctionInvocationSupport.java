@@ -11,22 +11,23 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.infra.accessor.method;
+package me.ahoo.wow.infra.invoker;
 
 import java.lang.invoke.WrongMethodTypeException;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 
-final class MethodInvocationSupport {
+final class FunctionInvocationSupport {
     static final Object[] EMPTY_ARGS = new Object[0];
 
-    private MethodInvocationSupport() {
+    private FunctionInvocationSupport() {
     }
 
     static Object[] actualArgs(Object[] args) {
         return args == null ? EMPTY_ARGS : args;
     }
 
-    static Object invokeByArgumentArray(MethodInvoker invoker, Object target, Object[] args)
+    static Object invokeByArgumentArray(InstanceFunctionInvoker invoker, Object target, Object[] args)
             throws Throwable {
         Object[] actualArgs = actualArgs(args);
         return switch (actualArgs.length) {
@@ -46,6 +47,48 @@ final class MethodInvocationSupport {
             case 9 -> invoker.invoke9(target, actualArgs[0], actualArgs[1], actualArgs[2], actualArgs[3],
                 actualArgs[4], actualArgs[5], actualArgs[6], actualArgs[7], actualArgs[8]);
             default -> invoker.invoke(target, actualArgs);
+        };
+    }
+
+    static Object invokeByArgumentArray(StaticFunctionInvoker invoker, Object[] args) throws Throwable {
+        Object[] actualArgs = actualArgs(args);
+        return switch (actualArgs.length) {
+            case 0 -> invoker.invoke0();
+            case 1 -> invoker.invoke1(actualArgs[0]);
+            case 2 -> invoker.invoke2(actualArgs[0], actualArgs[1]);
+            case 3 -> invoker.invoke3(actualArgs[0], actualArgs[1], actualArgs[2]);
+            case 4 -> invoker.invoke4(actualArgs[0], actualArgs[1], actualArgs[2], actualArgs[3]);
+            case 5 -> invoker.invoke5(actualArgs[0], actualArgs[1], actualArgs[2], actualArgs[3], actualArgs[4]);
+            case 6 -> invoker.invoke6(actualArgs[0], actualArgs[1], actualArgs[2], actualArgs[3], actualArgs[4],
+                actualArgs[5]);
+            case 7 -> invoker.invoke7(actualArgs[0], actualArgs[1], actualArgs[2], actualArgs[3], actualArgs[4],
+                actualArgs[5], actualArgs[6]);
+            case 8 -> invoker.invoke8(actualArgs[0], actualArgs[1], actualArgs[2], actualArgs[3], actualArgs[4],
+                actualArgs[5], actualArgs[6], actualArgs[7]);
+            case 9 -> invoker.invoke9(actualArgs[0], actualArgs[1], actualArgs[2], actualArgs[3], actualArgs[4],
+                actualArgs[5], actualArgs[6], actualArgs[7], actualArgs[8]);
+            default -> invoker.invoke(actualArgs);
+        };
+    }
+
+    static Object invokeByArgumentArray(ConstructorFunctionInvoker invoker, Object[] args) throws Throwable {
+        Object[] actualArgs = actualArgs(args);
+        return switch (actualArgs.length) {
+            case 0 -> invoker.invoke0();
+            case 1 -> invoker.invoke1(actualArgs[0]);
+            case 2 -> invoker.invoke2(actualArgs[0], actualArgs[1]);
+            case 3 -> invoker.invoke3(actualArgs[0], actualArgs[1], actualArgs[2]);
+            case 4 -> invoker.invoke4(actualArgs[0], actualArgs[1], actualArgs[2], actualArgs[3]);
+            case 5 -> invoker.invoke5(actualArgs[0], actualArgs[1], actualArgs[2], actualArgs[3], actualArgs[4]);
+            case 6 -> invoker.invoke6(actualArgs[0], actualArgs[1], actualArgs[2], actualArgs[3], actualArgs[4],
+                actualArgs[5]);
+            case 7 -> invoker.invoke7(actualArgs[0], actualArgs[1], actualArgs[2], actualArgs[3], actualArgs[4],
+                actualArgs[5], actualArgs[6]);
+            case 8 -> invoker.invoke8(actualArgs[0], actualArgs[1], actualArgs[2], actualArgs[3], actualArgs[4],
+                actualArgs[5], actualArgs[6], actualArgs[7]);
+            case 9 -> invoker.invoke9(actualArgs[0], actualArgs[1], actualArgs[2], actualArgs[3], actualArgs[4],
+                actualArgs[5], actualArgs[6], actualArgs[7], actualArgs[8]);
+            default -> invoker.invoke(actualArgs);
         };
     }
 
@@ -122,6 +165,67 @@ final class MethodInvocationSupport {
         });
     }
 
+    static Throwable normalizeInvocationException(Throwable error, Constructor<?> constructor, Object[] args) {
+        if (shouldNormalize(error) && !isValidInvocation(constructor.getParameterTypes(), args)) {
+            return new IllegalArgumentException(error.getMessage(), error);
+        }
+        return error;
+    }
+
+    static Throwable normalizeInvocationException(Throwable error, Constructor<?> constructor, Object arg1) {
+        return normalizeInvocationException(error, constructor, new Object[]{arg1});
+    }
+
+    static Throwable normalizeInvocationException(Throwable error, Constructor<?> constructor, Object arg1,
+                                                  Object arg2) {
+        return normalizeInvocationException(error, constructor, new Object[]{arg1, arg2});
+    }
+
+    static Throwable normalizeInvocationException(Throwable error, Constructor<?> constructor, Object arg1,
+                                                  Object arg2, Object arg3) {
+        return normalizeInvocationException(error, constructor, new Object[]{arg1, arg2, arg3});
+    }
+
+    static Throwable normalizeInvocationException(Throwable error, Constructor<?> constructor, Object arg1,
+                                                  Object arg2, Object arg3, Object arg4) {
+        return normalizeInvocationException(error, constructor, new Object[]{arg1, arg2, arg3, arg4});
+    }
+
+    static Throwable normalizeInvocationException(Throwable error, Constructor<?> constructor, Object arg1,
+                                                  Object arg2, Object arg3, Object arg4, Object arg5) {
+        return normalizeInvocationException(error, constructor, new Object[]{arg1, arg2, arg3, arg4, arg5});
+    }
+
+    static Throwable normalizeInvocationException(Throwable error, Constructor<?> constructor, Object arg1,
+                                                  Object arg2, Object arg3, Object arg4, Object arg5,
+                                                  Object arg6) {
+        return normalizeInvocationException(error, constructor, new Object[]{arg1, arg2, arg3, arg4, arg5, arg6});
+    }
+
+    static Throwable normalizeInvocationException(Throwable error, Constructor<?> constructor, Object arg1,
+                                                  Object arg2, Object arg3, Object arg4, Object arg5,
+                                                  Object arg6, Object arg7) {
+        return normalizeInvocationException(error, constructor, new Object[]{
+            arg1, arg2, arg3, arg4, arg5, arg6, arg7
+        });
+    }
+
+    static Throwable normalizeInvocationException(Throwable error, Constructor<?> constructor, Object arg1,
+                                                  Object arg2, Object arg3, Object arg4, Object arg5,
+                                                  Object arg6, Object arg7, Object arg8) {
+        return normalizeInvocationException(error, constructor, new Object[]{
+            arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8
+        });
+    }
+
+    static Throwable normalizeInvocationException(Throwable error, Constructor<?> constructor, Object arg1,
+                                                  Object arg2, Object arg3, Object arg4, Object arg5,
+                                                  Object arg6, Object arg7, Object arg8, Object arg9) {
+        return normalizeInvocationException(error, constructor, new Object[]{
+            arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9
+        });
+    }
+
     private static boolean shouldNormalize(Throwable error) {
         return error instanceof WrongMethodTypeException
             || error instanceof ClassCastException
@@ -132,12 +236,16 @@ final class MethodInvocationSupport {
         if (!staticMethod && (target == null || !method.getDeclaringClass().isInstance(target))) {
             return false;
         }
-        Class<?>[] parameterTypes = method.getParameterTypes();
-        if (args.length != parameterTypes.length) {
+        return isValidInvocation(method.getParameterTypes(), args);
+    }
+
+    private static boolean isValidInvocation(Class<?>[] parameterTypes, Object[] args) {
+        Object[] actualArgs = actualArgs(args);
+        if (actualArgs.length != parameterTypes.length) {
             return false;
         }
         for (int i = 0; i < parameterTypes.length; i++) {
-            if (!isMethodInvocationConvertible(args[i], parameterTypes[i])) {
+            if (!isMethodInvocationConvertible(actualArgs[i], parameterTypes[i])) {
                 return false;
             }
         }

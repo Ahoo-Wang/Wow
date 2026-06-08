@@ -11,14 +11,8 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.infra.accessor.constructor;
+package me.ahoo.wow.infra.invoker;
 
-public interface ConstructorInvoker<T> {
-    T newInstance(Object[] args) throws Throwable;
-
-    T newInstance0() throws Throwable;
-
-    T newInstance1(Object arg) throws Throwable;
-
-    T newInstance2(Object arg1, Object arg2) throws Throwable;
+public interface FunctionInvoker {
+    int parameterCount();
 }

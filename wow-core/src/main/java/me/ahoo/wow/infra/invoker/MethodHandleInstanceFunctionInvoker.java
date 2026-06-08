@@ -11,26 +11,33 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.infra.accessor.method;
+package me.ahoo.wow.infra.invoker;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.reflect.Method;
 
-final class InstanceMethodInvoker implements MethodInvoker {
+final class MethodHandleInstanceFunctionInvoker implements InstanceFunctionInvoker {
     private final Method method;
     private final MethodHandle handle;
+    private final int parameterCount;
 
-    InstanceMethodInvoker(Method method, MethodHandle handle) {
+    MethodHandleInstanceFunctionInvoker(Method method, MethodHandle handle) {
         this.method = method;
         this.handle = handle;
+        this.parameterCount = method.getParameterCount();
+    }
+
+    @Override
+    public int parameterCount() {
+        return parameterCount;
     }
 
     @Override
     public Object invoke(Object target, Object[] args) throws Throwable {
-        Object[] actualArgs = MethodInvocationSupport.actualArgs(args);
+        Object[] actualArgs = FunctionInvocationSupport.actualArgs(args);
         try {
             if (actualArgs.length <= 9) {
-                return MethodInvocationSupport.invokeByArgumentArray(this, target, actualArgs);
+                return FunctionInvocationSupport.invokeByArgumentArray(this, target, actualArgs);
             }
             Object[] arguments = new Object[actualArgs.length + 1];
             arguments[0] = target;
@@ -46,7 +53,7 @@ final class InstanceMethodInvoker implements MethodInvoker {
         try {
             return handle.invoke(target);
         } catch (Throwable error) {
-            throw normalize(error, target, MethodInvocationSupport.EMPTY_ARGS);
+            throw normalize(error, target, FunctionInvocationSupport.EMPTY_ARGS);
         }
     }
 
@@ -137,54 +144,54 @@ final class InstanceMethodInvoker implements MethodInvoker {
     }
 
     private Throwable normalize(Throwable error, Object target, Object[] args) {
-        return MethodInvocationSupport.normalizeInvocationException(error, method, false, target, args);
+        return FunctionInvocationSupport.normalizeInvocationException(error, method, false, target, args);
     }
 
     private Throwable normalize(Throwable error, Object target, Object arg1) {
-        return MethodInvocationSupport.normalizeInvocationException(error, method, false, target, arg1);
+        return FunctionInvocationSupport.normalizeInvocationException(error, method, false, target, arg1);
     }
 
     private Throwable normalize(Throwable error, Object target, Object arg1, Object arg2) {
-        return MethodInvocationSupport.normalizeInvocationException(error, method, false, target, arg1, arg2);
+        return FunctionInvocationSupport.normalizeInvocationException(error, method, false, target, arg1, arg2);
     }
 
     private Throwable normalize(Throwable error, Object target, Object arg1, Object arg2, Object arg3) {
-        return MethodInvocationSupport.normalizeInvocationException(error, method, false, target, arg1, arg2, arg3);
+        return FunctionInvocationSupport.normalizeInvocationException(error, method, false, target, arg1, arg2, arg3);
     }
 
     private Throwable normalize(Throwable error, Object target, Object arg1, Object arg2, Object arg3,
                                 Object arg4) {
-        return MethodInvocationSupport.normalizeInvocationException(error, method, false, target, arg1, arg2, arg3,
-            arg4);
+        return FunctionInvocationSupport.normalizeInvocationException(error, method, false, target, arg1, arg2,
+            arg3, arg4);
     }
 
     private Throwable normalize(Throwable error, Object target, Object arg1, Object arg2, Object arg3,
                                 Object arg4, Object arg5) {
-        return MethodInvocationSupport.normalizeInvocationException(error, method, false, target, arg1, arg2, arg3,
-            arg4, arg5);
+        return FunctionInvocationSupport.normalizeInvocationException(error, method, false, target, arg1, arg2,
+            arg3, arg4, arg5);
     }
 
     private Throwable normalize(Throwable error, Object target, Object arg1, Object arg2, Object arg3,
                                 Object arg4, Object arg5, Object arg6) {
-        return MethodInvocationSupport.normalizeInvocationException(error, method, false, target, arg1, arg2, arg3,
-            arg4, arg5, arg6);
+        return FunctionInvocationSupport.normalizeInvocationException(error, method, false, target, arg1, arg2,
+            arg3, arg4, arg5, arg6);
     }
 
     private Throwable normalize(Throwable error, Object target, Object arg1, Object arg2, Object arg3,
                                 Object arg4, Object arg5, Object arg6, Object arg7) {
-        return MethodInvocationSupport.normalizeInvocationException(error, method, false, target, arg1, arg2, arg3,
-            arg4, arg5, arg6, arg7);
+        return FunctionInvocationSupport.normalizeInvocationException(error, method, false, target, arg1, arg2,
+            arg3, arg4, arg5, arg6, arg7);
     }
 
     private Throwable normalize(Throwable error, Object target, Object arg1, Object arg2, Object arg3,
                                 Object arg4, Object arg5, Object arg6, Object arg7, Object arg8) {
-        return MethodInvocationSupport.normalizeInvocationException(error, method, false, target, arg1, arg2, arg3,
-            arg4, arg5, arg6, arg7, arg8);
+        return FunctionInvocationSupport.normalizeInvocationException(error, method, false, target, arg1, arg2,
+            arg3, arg4, arg5, arg6, arg7, arg8);
     }
 
     private Throwable normalize(Throwable error, Object target, Object arg1, Object arg2, Object arg3,
                                 Object arg4, Object arg5, Object arg6, Object arg7, Object arg8, Object arg9) {
-        return MethodInvocationSupport.normalizeInvocationException(error, method, false, target, arg1, arg2, arg3,
-            arg4, arg5, arg6, arg7, arg8, arg9);
+        return FunctionInvocationSupport.normalizeInvocationException(error, method, false, target, arg1, arg2,
+            arg3, arg4, arg5, arg6, arg7, arg8, arg9);
     }
 }
