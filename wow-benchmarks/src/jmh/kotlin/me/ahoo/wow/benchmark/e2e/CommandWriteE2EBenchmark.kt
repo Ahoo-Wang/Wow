@@ -19,7 +19,6 @@ import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
 import me.ahoo.wow.benchmark.fixture.BenchmarkCommands
 import me.ahoo.wow.benchmark.fixture.BenchmarkIdempotency
-import me.ahoo.wow.benchmark.fixture.BenchmarkIds
 import me.ahoo.wow.benchmark.scenario.CommandDispatcherScenario
 import me.ahoo.wow.benchmark.scenario.consumeWowResult
 import me.ahoo.wow.command.CommandBus
@@ -51,6 +50,7 @@ import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.annotations.TearDown
 import org.openjdk.jmh.infra.Blackhole
+import java.util.concurrent.atomic.AtomicInteger
 
 @State(Scope.Benchmark)
 open class CommandWriteE2EBenchmark {
@@ -63,10 +63,11 @@ open class CommandWriteE2EBenchmark {
     lateinit var scenario: String
 
     private lateinit var commandDispatcherScenario: CommandDispatcherScenario
+    private val failures = AtomicInteger()
 
     @Setup(Level.Iteration)
     fun setup() {
-        BenchmarkIds.installDeterministicGlobalIdGenerator()
+        failures.set(0)
         commandDispatcherScenario = when (scenario) {
             "ceiling" -> createScenario(
                 eventStore = NoopEventStore,
@@ -85,12 +86,21 @@ open class CommandWriteE2EBenchmark {
 
     @TearDown(Level.Iteration)
     fun tearDown() {
-        commandDispatcherScenario.close()
+        try {
+            commandDispatcherScenario.close()
+        } finally {
+            val failureCount = failures.get()
+            if (failureCount > 0) {
+                throw IllegalStateException(
+                    "Command write E2E scenario [$scenario] recorded $failureCount failure(s).",
+                )
+            }
+        }
     }
 
     @Benchmark
     fun sendAndWaitProcessed(blackhole: Blackhole) {
-        blackhole.consumeWowResult {
+        blackhole.consumeWowResult(onError = { failures.incrementAndGet() }) {
             commandDispatcherScenario.commandGateway
                 .sendAndWaitForProcessed(createCommandMessage())
                 .block()
@@ -126,9 +136,11 @@ open class CommandWriteE2EBenchmark {
 
     private fun createCommandMessage(): CommandMessage<AddCartItem> {
         return when (scenario) {
+            "ceiling" -> BenchmarkCommands.commandPathAddCartItem()
+            "noop-store" -> BenchmarkCommands.commandPathAddCartItem()
             "in-memory-new-aggregate" -> BenchmarkCommands.newAggregateAddCartItem()
             "in-memory-growing-stream" -> BenchmarkCommands.fixedAggregateAddCartItem()
-            else -> BenchmarkCommands.commandPathAddCartItem()
+            else -> error("Unsupported command write E2E scenario: $scenario")
         }
     }
 }
