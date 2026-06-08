@@ -66,6 +66,17 @@ class ConstructorAccessorTest {
         }
         error.message.assert().isEqualTo("boom bad")
     }
+
+    @Test
+    fun `custom accessor should retain default invoke implementation`() {
+        val constructor = CustomConstructorAccessorFixture::class.java.getDeclaredConstructor(String::class.java)
+        val accessor = object : ConstructorAccessor<CustomConstructorAccessorFixture> {
+            override val constructor = constructor
+        }
+
+        accessor.invoke(arrayOf("created")).value.assert().isEqualTo("created")
+        accessor.newInstance1("created").value.assert().isEqualTo("created")
+    }
 }
 
 private class NoArgConstructorAccessorFixture private constructor() {
@@ -83,3 +94,5 @@ private class FailingConstructorAccessorFixture private constructor(value: Strin
         error("boom $value")
     }
 }
+
+class CustomConstructorAccessorFixture(val value: String)
