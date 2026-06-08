@@ -60,7 +60,7 @@ interface EventStreamRecord :
         val createTime = createTime
         val aggregateId = toAggregateId()
         val eventCount = body.size()
-        val events = body.mapIndexed { index, eventNode ->
+        val events = body.asSequence().mapIndexed { index, eventNode ->
             val sequence = (index + DEFAULT_EVENT_SEQUENCE)
             StreamDomainEventRecord(
                 actual = eventNode as ObjectNode,
