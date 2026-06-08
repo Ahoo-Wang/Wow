@@ -88,19 +88,24 @@ test/code-coverage-report/build/reports/jacoco/codeCoverageReport/codeCoverageRe
 ```bash
 ./gradlew :wow-benchmarks:benchmarkQuickE2E
 ./gradlew :wow-benchmarks:benchmarkQuickComponent
+./gradlew :wow-benchmarks:benchmarkQuickInfrastructureE2E
+./gradlew :wow-benchmarks:generateQuickBenchmarkReport
 ```
 
 快速基准测试使用与完整基准测试相同的 catalog，但 JMH 设置更短，适合本地快速发现回归；性能结论仍以 Full E2E 为准。
+Infrastructure 基准测试需要本地 Redis 和 MongoDB 服务。
 
 ## 完整基准测试
 
 ```bash
 ./gradlew :wow-benchmarks:benchmarkFullE2E
 ./gradlew :wow-benchmarks:benchmarkFullComponent
+./gradlew :wow-benchmarks:benchmarkFullInfrastructureE2E
 ./gradlew :wow-benchmarks:generateGroupedBenchmarkReport
 ```
 
 Full E2E 结果用于框架性能结论。Component 结果用于解释瓶颈，不应作为独立框架性能目标对外报告。
+Infrastructure E2E 结果用于在 Redis 和 MongoDB 可用时暴露存储路径瓶颈。
 
 ## CI 工作流
 

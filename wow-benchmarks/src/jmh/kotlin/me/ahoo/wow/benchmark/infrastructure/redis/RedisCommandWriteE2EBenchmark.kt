@@ -61,7 +61,7 @@ open class RedisCommandWriteE2EBenchmark {
     }
 
     @Benchmark
-    fun sendAndWaitProcessedForNewAggregate(blackHole: Blackhole) {
+    fun sendAndWaitProcessed(blackHole: Blackhole) {
         blackHole.consumeWowResult(onError = { failures.incrementAndGet() }) {
             commandDispatcherScenario.commandGateway
                 .sendAndWaitForProcessed(BenchmarkCommands.newAggregateAddCartItem())

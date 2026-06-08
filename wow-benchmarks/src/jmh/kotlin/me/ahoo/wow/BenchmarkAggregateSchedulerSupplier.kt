@@ -27,7 +27,7 @@ class BenchmarkAggregateSchedulerSupplier : AggregateSchedulerSupplier {
 
     override fun getOrInitialize(namedAggregate: NamedAggregate): Scheduler =
         schedulers.computeIfAbsent(namedAggregate.materialize()) {
-            Schedulers.newParallel("CommandDispatcherBenchmark-${it.aggregateName}", Schedulers.DEFAULT_POOL_SIZE)
+            Schedulers.newParallel("BenchmarkAggregate-${it.aggregateName}", Schedulers.DEFAULT_POOL_SIZE)
         }
 
     @Suppress("ForbiddenVoid")
