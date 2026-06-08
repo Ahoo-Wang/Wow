@@ -67,7 +67,7 @@ open class RedisCommandProcessingPipelineBenchmark {
     }
 
     @Benchmark
-    fun handleAggregateDomainAndStateEvent(blackHole: Blackhole) {
+    fun handleAggregateAndSendDomainStateEvents(blackHole: Blackhole) {
         blackHole.consumeWowResult {
             commandPipelineScenario.aggregateDomainAndStateEventHandler
                 .handle(commandPipelineScenario.createServerExchange())
@@ -76,7 +76,7 @@ open class RedisCommandProcessingPipelineBenchmark {
     }
 
     @Benchmark
-    fun handleAggregateDomainStateAndProcessedNotifierWithoutWait(blackHole: Blackhole) {
+    fun handleAggregateAndNotifyProcessedWithoutWait(blackHole: Blackhole) {
         blackHole.consumeWowResult {
             commandPipelineScenario.aggregateDomainStateAndProcessedNotifierHandler
                 .handle(commandPipelineScenario.createServerExchange())
@@ -85,7 +85,7 @@ open class RedisCommandProcessingPipelineBenchmark {
     }
 
     @Benchmark
-    fun handleAggregateDomainStateAndProcessedNotifierWithLocalWait(blackHole: Blackhole) {
+    fun handleAggregateAndNotifyProcessedWithLocalWait(blackHole: Blackhole) {
         blackHole.consumeWowResult {
             val commandMessage = BenchmarkCommands.newAggregateAddCartItem()
             val waitStrategy = WaitingForStage.processed(commandMessage.commandId)

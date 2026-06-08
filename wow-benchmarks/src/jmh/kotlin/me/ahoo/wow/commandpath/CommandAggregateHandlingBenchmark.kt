@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.hotpath
+package me.ahoo.wow.commandpath
 
 import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
 import me.ahoo.wow.benchmark.fixture.BenchmarkCommands
@@ -26,11 +26,11 @@ import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.infra.Blackhole
 
 @State(Scope.Benchmark)
-open class CommandHandlingBenchmark {
+open class CommandAggregateHandlingBenchmark {
     private val commandAggregateFactory = SimpleCommandAggregateFactory(NoopEventStore)
 
     @Benchmark
-    fun createAggregateAndHandle(blackhole: Blackhole) {
+    fun createStateAggregateAndApplyEventStream(blackhole: Blackhole) {
         val aggregateId = BenchmarkAggregates.aggregateId()
         val aggregate = ConstructorStateAggregateFactory.create(
             BenchmarkAggregates.cartMetadata.state,
@@ -41,7 +41,7 @@ open class CommandHandlingBenchmark {
     }
 
     @Benchmark
-    fun createAggregateFromEmpty(blackhole: Blackhole) {
+    fun createEmptyStateAggregate(blackhole: Blackhole) {
         val aggregate = ConstructorStateAggregateFactory.create(
             BenchmarkAggregates.cartMetadata.state,
             BenchmarkAggregates.aggregateId(),
@@ -51,7 +51,7 @@ open class CommandHandlingBenchmark {
 
     @Benchmark
     fun createCommandAggregate(blackhole: Blackhole) {
-        val commandMessage = BenchmarkCommands.hotPathAddCartItem()
+        val commandMessage = BenchmarkCommands.commandPathAddCartItem()
         val stateAggregate = ConstructorStateAggregateFactory.create(
             BenchmarkAggregates.cartMetadata.state,
             commandMessage.aggregateId,
@@ -65,7 +65,7 @@ open class CommandHandlingBenchmark {
 
     @Benchmark
     fun processCommandAggregate(blackhole: Blackhole) {
-        val commandMessage = BenchmarkCommands.hotPathAddCartItem()
+        val commandMessage = BenchmarkCommands.commandPathAddCartItem()
         val stateAggregate = ConstructorStateAggregateFactory.create(
             BenchmarkAggregates.cartMetadata.state,
             commandMessage.aggregateId,

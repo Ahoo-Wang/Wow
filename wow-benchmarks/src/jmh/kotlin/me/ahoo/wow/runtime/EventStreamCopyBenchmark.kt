@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.infra
+package me.ahoo.wow.runtime
 
 import me.ahoo.wow.benchmark.fixture.BenchmarkEvents
 import me.ahoo.wow.event.DomainEventStream
@@ -23,22 +23,22 @@ import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.State
 
 @State(Scope.Benchmark)
-open class DeepCopyBenchmark {
+open class EventStreamCopyBenchmark {
 
     private val eventStream: DomainEventStream = BenchmarkEvents.singleEventStream()
 
     @Benchmark
-    fun jsonRoundTrip(): DomainEventStream {
+    fun copyEventStreamByJsonRoundTrip(): DomainEventStream {
         return eventStream.toJsonString().toObject<DomainEventStream>()
     }
 
     @Benchmark
-    fun domainCopy(): DomainEventStream {
+    fun copyEventStreamWithDomainCopy(): DomainEventStream {
         return eventStream.copy()
     }
 
     @Benchmark
-    fun convertValueToMap(): Map<String, Any> {
+    fun convertEventStreamToMap(): Map<String, Any> {
         return eventStream.toLinkedHashMap()
     }
 

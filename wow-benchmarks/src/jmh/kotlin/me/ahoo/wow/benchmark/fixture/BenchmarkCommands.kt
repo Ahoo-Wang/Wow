@@ -39,7 +39,7 @@ object BenchmarkCommands {
         )
     }
 
-    fun hotPathAddCartItem(): CommandMessage<AddCartItem> {
+    fun commandPathAddCartItem(): CommandMessage<AddCartItem> {
         return addCartItem(
             id = BenchmarkIds.nextGlobalId(),
             requestId = BenchmarkIds.nextGlobalId(),
