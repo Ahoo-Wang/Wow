@@ -17,7 +17,7 @@ public interface ReceiverlessFunctionInvoker extends FunctionInvoker {
     Object invoke(Object[] args) throws Throwable;
 
     default Object invoke0() throws Throwable {
-        return invoke(FunctionInvocationSupport.EMPTY_ARGS);
+        return invoke(InvocationArguments.EMPTY_ARGS);
     }
 
     default Object invoke1(Object arg1) throws Throwable {

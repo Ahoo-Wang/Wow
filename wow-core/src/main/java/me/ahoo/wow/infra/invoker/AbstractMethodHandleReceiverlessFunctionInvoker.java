@@ -31,7 +31,7 @@ abstract class AbstractMethodHandleReceiverlessFunctionInvoker implements Receiv
 
     @Override
     public Object invoke(Object[] args) throws Throwable {
-        Object[] actualArgs = FunctionInvocationSupport.actualArgs(args);
+        Object[] actualArgs = InvocationArguments.actualArgs(args);
         try {
             if (actualArgs.length <= 9) {
                 return FunctionInvocationSupport.invokeByArgumentArray(this, actualArgs);
@@ -47,7 +47,7 @@ abstract class AbstractMethodHandleReceiverlessFunctionInvoker implements Receiv
         try {
             return handle.invoke();
         } catch (Throwable error) {
-            throw normalize(error, FunctionInvocationSupport.EMPTY_ARGS);
+            throw normalize(error, InvocationArguments.EMPTY_ARGS);
         }
     }
 

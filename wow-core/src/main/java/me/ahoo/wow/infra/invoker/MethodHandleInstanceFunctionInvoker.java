@@ -34,14 +34,12 @@ final class MethodHandleInstanceFunctionInvoker implements InstanceFunctionInvok
 
     @Override
     public Object invoke(Object receiver, Object[] args) throws Throwable {
-        Object[] actualArgs = FunctionInvocationSupport.actualArgs(args);
+        Object[] actualArgs = InvocationArguments.actualArgs(args);
         try {
             if (actualArgs.length <= 9) {
                 return FunctionInvocationSupport.invokeByArgumentArray(this, receiver, actualArgs);
             }
-            Object[] arguments = new Object[actualArgs.length + 1];
-            arguments[0] = receiver;
-            System.arraycopy(actualArgs, 0, arguments, 1, actualArgs.length);
+            Object[] arguments = InvocationArguments.prependReceiver(receiver, args);
             return handle.invokeWithArguments(arguments);
         } catch (Throwable error) {
             throw normalize(error, receiver, actualArgs);
@@ -53,7 +51,7 @@ final class MethodHandleInstanceFunctionInvoker implements InstanceFunctionInvok
         try {
             return handle.invoke(receiver);
         } catch (Throwable error) {
-            throw normalize(error, receiver, FunctionInvocationSupport.EMPTY_ARGS);
+            throw normalize(error, receiver, InvocationArguments.EMPTY_ARGS);
         }
     }
 

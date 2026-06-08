@@ -14,6 +14,7 @@ package me.ahoo.wow.infra.accessor.function
 
 import me.ahoo.wow.infra.invoker.FunctionInvoker
 import me.ahoo.wow.infra.invoker.InstanceFunctionInvoker
+import me.ahoo.wow.infra.invoker.InvocationArguments
 import me.ahoo.wow.infra.invoker.StaticFunctionInvoker
 import kotlin.reflect.KFunction
 import kotlin.reflect.full.extensionReceiverParameter
@@ -31,7 +32,7 @@ internal fun FunctionInvoker.invokeFunction(
         is InstanceFunctionInvoker -> invoke(target, args)
         is StaticFunctionInvoker -> {
             if (function.isStaticExtensionFunction) {
-                invoke(prependTarget(target, args))
+                invoke(InvocationArguments.prependReceiver(target, args))
             } else {
                 invoke(args)
             }
@@ -57,10 +58,3 @@ internal fun FunctionInvoker.invokeFunction1(
 
         else -> error("Unsupported function invoker: ${javaClass.name}")
     }
-
-private fun prependTarget(target: Any?, args: Array<Any?>): Array<Any?> {
-    val arguments = arrayOfNulls<Any?>(args.size + 1)
-    arguments[0] = target
-    System.arraycopy(args, 0, arguments, 1, args.size)
-    return arguments
-}
