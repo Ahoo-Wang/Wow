@@ -19,8 +19,7 @@ import kotlin.reflect.KFunction
 
 /**
  * MonoFunctionAccessor for functions that return Publisher streams.
- * This accessor converts Publisher results to Mono<D> by taking the first emitted item,
- * providing compatibility with the Reactive Streams specification.
+ * This accessor converts Publisher results to a Mono that contains all emitted items as a List.
  *
  * @param T the type of the target object
  * @param D the type of data in the Publisher
@@ -32,8 +31,7 @@ class PublisherMonoFunctionAccessor<T, D : Any>(
 
     /**
      * Invokes the function that returns a Publisher and converts it to a Mono.
-     * Uses Mono.defer for lazy evaluation and toMono() to convert the Publisher
-     * to a Mono that emits the first item.
+     * Uses Mono.defer for lazy evaluation and collectList() to aggregate the Publisher emissions.
      *
      * @param target the object on which to invoke the function
      * @param args the arguments to pass to the function

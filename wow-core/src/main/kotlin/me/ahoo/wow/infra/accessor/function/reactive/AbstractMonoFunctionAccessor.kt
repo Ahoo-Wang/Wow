@@ -14,10 +14,10 @@
 package me.ahoo.wow.infra.accessor.function.reactive
 
 import me.ahoo.wow.infra.accessor.ensureAccessible
+import me.ahoo.wow.infra.accessor.function.invokeFunction
+import me.ahoo.wow.infra.accessor.function.invokeFunction1
 import me.ahoo.wow.infra.invoker.FunctionInvoker
 import me.ahoo.wow.infra.invoker.FunctionInvokerFactory
-import me.ahoo.wow.infra.invoker.InstanceFunctionInvoker
-import me.ahoo.wow.infra.invoker.StaticFunctionInvoker
 import reactor.core.publisher.Mono
 import java.lang.reflect.Method
 import kotlin.reflect.KFunction
@@ -38,17 +38,17 @@ abstract class AbstractMonoFunctionAccessor<T, D : Mono<*>> (override val functi
 
     @Suppress("UNCHECKED_CAST")
     protected fun <R> invokeMethod(target: T, args: Array<Any?>): R =
-        when (val currentInvoker = invoker) {
-            is InstanceFunctionInvoker -> currentInvoker.invoke(target, args)
-            is StaticFunctionInvoker -> currentInvoker.invoke(args)
-            else -> error("Unsupported function invoker: ${currentInvoker.javaClass.name}")
-        } as R
+        invoker.invokeFunction(
+            function,
+            target,
+            args
+        ) as R
 
     @Suppress("UNCHECKED_CAST")
     protected fun <R> invoke1Method(target: T, arg: Any?): R =
-        when (val currentInvoker = invoker) {
-            is InstanceFunctionInvoker -> currentInvoker.invoke1(target, arg)
-            is StaticFunctionInvoker -> currentInvoker.invoke1(arg)
-            else -> error("Unsupported function invoker: ${currentInvoker.javaClass.name}")
-        } as R
+        invoker.invokeFunction1(
+            function,
+            target,
+            arg
+        ) as R
 }

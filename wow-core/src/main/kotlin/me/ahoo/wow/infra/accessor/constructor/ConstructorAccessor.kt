@@ -32,7 +32,8 @@ interface ConstructorAccessor<T : Any> {
 
     /**
      * Invokes the constructor with the specified arguments to create a new instance.
-     * Uses FastInvoke.safeNewInstance for proper exception handling and performance.
+     * Default implementations use FastInvoke.safeNewInstance for proper exception handling.
+     * Optimized implementations may route through FunctionInvoker.
      *
      * @param args the arguments to pass to the constructor (empty array by default)
      * @return a new instance of type T

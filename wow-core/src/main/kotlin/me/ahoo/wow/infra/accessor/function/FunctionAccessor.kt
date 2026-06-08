@@ -80,7 +80,8 @@ interface FunctionAccessor<T, out R> : Named {
 
     /**
      * Invokes the function on the specified target object with the given arguments.
-     * Uses FastInvoke.safeInvoke for proper exception handling and performance.
+     * Default implementations use FastInvoke.safeInvoke for proper exception handling.
+     * Optimized implementations may route through FunctionInvoker.
      *
      * @param target the object on which to invoke the function
      * @param args the arguments to pass to the function (empty array by default)

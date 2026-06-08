@@ -111,6 +111,17 @@ class MonoFunctionAccessorTest {
     }
 
     @Test
+    fun `invoke1 should support extension Mono function`() {
+        val accessor = ReactiveAccessorFixture::extensionMonoEcho
+            .toMonoFunctionAccessor<ReactiveAccessorFixture, String>()
+
+        accessor.assert().isInstanceOf(SimpleMonoFunctionAccessor::class.java)
+        StepVerifier.create(accessor.invoke1(fixture, "wow"))
+            .expectNext("mono wow")
+            .verifyComplete()
+    }
+
+    @Test
     fun `invoke1 should use sync accessor`() {
         val accessor = ReactiveAccessorFixture::syncEcho.toMonoFunctionAccessor<ReactiveAccessorFixture, String>()
 
@@ -201,6 +212,8 @@ private class ReactiveAccessorFixture {
     @Blocking
     fun blockingEcho(value: String): String = "blocking $value"
 }
+
+private fun ReactiveAccessorFixture.extensionMonoEcho(value: String): Mono<String> = monoEcho(value)
 
 private class RecordingMonoFunctionAccessor : MonoFunctionAccessor<ReactiveAccessorFixture, Mono<String>> {
     var invokeArrayCount: Int = 0

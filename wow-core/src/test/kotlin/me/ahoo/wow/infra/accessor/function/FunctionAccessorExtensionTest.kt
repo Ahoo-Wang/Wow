@@ -29,6 +29,26 @@ class FunctionAccessorExtensionTest {
         ExtensionFunctionReceiver::memberGreeting.declaringClass.assert()
             .isEqualTo(ExtensionFunctionReceiver::class)
     }
+
+    @Test
+    fun `should invoke extension function with receiver target`() {
+        val accessor = SimpleFunctionAccessor<ExtensionFunctionReceiver, String>(
+            ExtensionFunctionReceiver::extensionGreeting
+        )
+
+        accessor.invoke(ExtensionFunctionReceiver(), emptyArray()).assert()
+            .isEqualTo("member")
+    }
+
+    @Test
+    fun `invoke1 should invoke extension function with receiver target`() {
+        val accessor = SimpleFunctionAccessor<ExtensionFunctionReceiver, String>(
+            ExtensionFunctionReceiver::extensionEcho
+        )
+
+        accessor.invoke1(ExtensionFunctionReceiver(), "wow").assert()
+            .isEqualTo("member wow")
+    }
 }
 
 private class ExtensionFunctionReceiver {
@@ -38,3 +58,5 @@ private class ExtensionFunctionReceiver {
 }
 
 private fun ExtensionFunctionReceiver.extensionGreeting(): String = memberGreeting()
+
+private fun ExtensionFunctionReceiver.extensionEcho(value: String): String = "${memberGreeting()} $value"
