@@ -51,6 +51,7 @@ open class FilterChainBenchmark {
 }
 
 private object NoopFilter : Filter<String> {
+    @Suppress("ForbiddenVoid")
     override fun filter(context: String, chain: FilterChain<String>): Mono<Void> {
         return chain.filter(context)
     }

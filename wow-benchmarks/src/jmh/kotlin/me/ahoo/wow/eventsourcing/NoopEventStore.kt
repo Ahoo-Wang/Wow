@@ -19,6 +19,7 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 object NoopEventStore : EventStore {
+    @Suppress("ForbiddenVoid")
     override fun append(eventStream: DomainEventStream): Mono<Void> {
         return Mono.empty()
     }

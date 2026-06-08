@@ -160,7 +160,8 @@ private class DirectAggregateProcessor<C : Any, S : Any>(
     private val stateAggregateRepository: StateAggregateRepository,
     private val commandAggregateFactory: CommandAggregateFactory,
 ) : AggregateProcessor<C>, NamedTypedAggregate<C> by aggregateMetadata.command {
-    override val processorName: String = DirectAggregateProcessor::class.simpleName!!
+    override val processorName: String =
+        DirectAggregateProcessor::class.simpleName ?: "DirectAggregateProcessor"
 
     override fun process(exchange: ServerCommandExchange<*>): Mono<DomainEventStream> {
         val stateAggregateMono = if (exchange.message.isCreate) {

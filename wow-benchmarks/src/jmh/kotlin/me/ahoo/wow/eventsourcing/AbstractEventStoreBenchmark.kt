@@ -28,6 +28,4 @@ abstract class AbstractEventStoreBenchmark {
         val eventStream = BenchmarkEvents.singleEventStream()
         eventStore.append(eventStream).block()
     }
-
-
 }
