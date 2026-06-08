@@ -38,7 +38,7 @@ import org.openjdk.jmh.annotations.TearDown
 import org.openjdk.jmh.infra.Blackhole
 
 @State(Scope.Benchmark)
-open class CommandPipelineBenchmark {
+open class CommandPipelineDiagnosticBenchmark {
     private lateinit var commandDispatcherScenario: CommandDispatcherScenario
     private lateinit var commandPipelineScenario: CommandPipelineScenario
 
@@ -76,15 +76,6 @@ open class CommandPipelineBenchmark {
     @TearDown
     fun tearDown() {
         commandDispatcherScenario.close()
-    }
-
-    @Benchmark
-    fun sendCommandAndWaitForProcessed(blackhole: Blackhole) {
-        blackhole.consumeWowResult {
-            commandDispatcherScenario.commandGateway
-                .sendAndWaitForProcessed(BenchmarkCommands.commandPathAddCartItem())
-                .block()
-        }
     }
 
     @Benchmark

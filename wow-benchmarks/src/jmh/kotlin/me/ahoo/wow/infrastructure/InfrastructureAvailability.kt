@@ -33,7 +33,7 @@ object InfrastructureAvailability {
         }.isSuccess
         require(available) {
             "$service is required for Infrastructure I/O benchmarks at $host:$port. " +
-                "Start $service and rerun `./gradlew :wow-benchmarks:benchmarkInfrastructure`."
+                "Start $service and rerun the selected infrastructure benchmark task."
         }
     }
 }
