@@ -34,13 +34,15 @@ final class MethodHandleInstanceFunctionInvoker implements InstanceFunctionInvok
 
     @Override
     public Object invoke(Object[] args) throws Throwable {
+        Object[] actualArgs = FunctionInvocationSupport.actualArgs(args);
+        Object receiver = FunctionInvocationSupport.receiver(actualArgs);
         try {
-            if (args.length <= 10) {
-                return FunctionInvocationSupport.invoke(this, args);
+            if (actualArgs.length <= 10) {
+                return FunctionInvocationSupport.invoke(this, actualArgs);
             }
-            return handle.invokeWithArguments(args);
+            return handle.invokeWithArguments(actualArgs);
         } catch (Throwable error) {
-            throw normalize(error, args[0], args);
+            throw normalize(error, receiver, FunctionInvocationSupport.argumentsWithoutReceiver(actualArgs));
         }
     }
 

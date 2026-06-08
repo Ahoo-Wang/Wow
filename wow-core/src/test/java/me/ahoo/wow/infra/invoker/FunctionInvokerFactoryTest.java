@@ -96,6 +96,21 @@ class FunctionInvokerFactoryTest {
     }
 
     @Test
+    void invokeFlattenedArgumentsForInstanceMethodPreservesTenArgBusinessException() throws NoSuchMethodException {
+        Method method = Target.class.getDeclaredMethod("tenArgBusinessNpe", String.class, String.class, String.class,
+            String.class, String.class, String.class, String.class, String.class, String.class, String.class);
+        method.trySetAccessible();
+        FunctionInvoker invoker = FunctionInvokerFactory.create(method);
+        Target target = new Target();
+
+        assertThatThrownBy(() -> invoker.invoke(new Object[]{
+            target, "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"
+        })).isInstanceOf(NullPointerException.class)
+            .isNotInstanceOf(IllegalArgumentException.class)
+            .hasMessage("business");
+    }
+
+    @Test
     void invoke1StaticMethodWithoutTarget() throws Throwable {
         Method method = Target.class.getDeclaredMethod("staticHello", String.class);
         method.trySetAccessible();
@@ -182,6 +197,12 @@ class FunctionInvokerFactoryTest {
 
         private static String staticHello(String value) {
             return "static " + value;
+        }
+
+        @SuppressWarnings("unused")
+        private void tenArgBusinessNpe(String arg1, String arg2, String arg3, String arg4, String arg5,
+                                       String arg6, String arg7, String arg8, String arg9, String arg10) {
+            throw new NullPointerException("business");
         }
     }
 

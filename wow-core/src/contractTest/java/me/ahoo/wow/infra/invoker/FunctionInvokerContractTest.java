@@ -233,6 +233,11 @@ class FunctionInvokerContractTest {
         }
 
         @Override
+        public Object invoke(Object[] args) throws Throwable {
+            return FunctionInvocationSupport.invoke(this, args);
+        }
+
+        @Override
         public Object invoke(Object receiver, Object[] args) {
             lastReceiver = receiver;
             lastArgs = args;

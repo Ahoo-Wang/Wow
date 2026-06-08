@@ -16,6 +16,7 @@ package me.ahoo.wow.infra.invoker;
 import java.lang.invoke.WrongMethodTypeException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
+import java.util.Arrays;
 
 final class FunctionInvocationSupport {
     static final Object[] EMPTY_ARGS = new Object[0];
@@ -27,26 +28,40 @@ final class FunctionInvocationSupport {
         return args == null ? EMPTY_ARGS : args;
     }
 
+    static Object receiver(Object[] actualArgs) {
+        if (actualArgs.length == 0) {
+            throw new IllegalArgumentException("Instance function invocation requires receiver as the first argument.");
+        }
+        return actualArgs[0];
+    }
+
+    static Object[] argumentsWithoutReceiver(Object[] actualArgs) {
+        return actualArgs.length == 1
+            ? EMPTY_ARGS
+            : Arrays.copyOfRange(actualArgs, 1, actualArgs.length);
+    }
+
     static Object invoke(InstanceFunctionInvoker invoker, Object[] args)
             throws Throwable {
         Object[] actualArgs = actualArgs(args);
+        Object receiver = receiver(actualArgs);
         return switch (actualArgs.length) {
-            case 1 -> invoker.invoke0(actualArgs[0]);
-            case 2 -> invoker.invoke1(actualArgs[0], actualArgs[1]);
-            case 3 -> invoker.invoke2(actualArgs[0], actualArgs[1], actualArgs[2]);
-            case 4 -> invoker.invoke3(actualArgs[0], actualArgs[1], actualArgs[2], actualArgs[3]);
-            case 5 -> invoker.invoke4(actualArgs[0], actualArgs[1], actualArgs[2], actualArgs[3], actualArgs[4]);
-            case 6 ->
-                    invoker.invoke5(actualArgs[0], actualArgs[1], actualArgs[2], actualArgs[3], actualArgs[4], actualArgs[5]);
-            case 7 ->
-                    invoker.invoke6(actualArgs[0], actualArgs[1], actualArgs[2], actualArgs[3], actualArgs[4], actualArgs[5], actualArgs[6]);
-            case 8 ->
-                    invoker.invoke7(actualArgs[0], actualArgs[1], actualArgs[2], actualArgs[3], actualArgs[4], actualArgs[5], actualArgs[6], actualArgs[7]);
-            case 9 ->
-                    invoker.invoke8(actualArgs[0], actualArgs[1], actualArgs[2], actualArgs[3], actualArgs[4], actualArgs[5], actualArgs[6], actualArgs[7], actualArgs[8]);
-            case 10 ->
-                    invoker.invoke9(actualArgs[0], actualArgs[1], actualArgs[2], actualArgs[3], actualArgs[4], actualArgs[5], actualArgs[6], actualArgs[7], actualArgs[8], actualArgs[9]);
-            default -> invoker.invoke(actualArgs);
+            case 1 -> invoker.invoke0(receiver);
+            case 2 -> invoker.invoke1(receiver, actualArgs[1]);
+            case 3 -> invoker.invoke2(receiver, actualArgs[1], actualArgs[2]);
+            case 4 -> invoker.invoke3(receiver, actualArgs[1], actualArgs[2], actualArgs[3]);
+            case 5 -> invoker.invoke4(receiver, actualArgs[1], actualArgs[2], actualArgs[3], actualArgs[4]);
+            case 6 -> invoker.invoke5(receiver, actualArgs[1], actualArgs[2], actualArgs[3], actualArgs[4],
+                actualArgs[5]);
+            case 7 -> invoker.invoke6(receiver, actualArgs[1], actualArgs[2], actualArgs[3], actualArgs[4],
+                actualArgs[5], actualArgs[6]);
+            case 8 -> invoker.invoke7(receiver, actualArgs[1], actualArgs[2], actualArgs[3], actualArgs[4],
+                actualArgs[5], actualArgs[6], actualArgs[7]);
+            case 9 -> invoker.invoke8(receiver, actualArgs[1], actualArgs[2], actualArgs[3], actualArgs[4],
+                actualArgs[5], actualArgs[6], actualArgs[7], actualArgs[8]);
+            case 10 -> invoker.invoke9(receiver, actualArgs[1], actualArgs[2], actualArgs[3], actualArgs[4],
+                actualArgs[5], actualArgs[6], actualArgs[7], actualArgs[8], actualArgs[9]);
+            default -> invoker.invoke(receiver, argumentsWithoutReceiver(actualArgs));
         };
     }
 
