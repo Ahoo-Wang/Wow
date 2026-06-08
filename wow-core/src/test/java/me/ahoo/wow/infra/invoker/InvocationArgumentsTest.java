@@ -17,13 +17,13 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
-class ArgumentsTest {
+class InvocationArgumentsTest {
 
     @Test
     void actualArgsShouldReturnEmptyArgsWhenNull() {
-        Object[] actualArgs = Arguments.actualArgs(null);
+        Object[] actualArgs = InvocationArguments.actualArgs(null);
 
-        assertThat(actualArgs).isSameAs(Arguments.EMPTY_ARGS);
+        assertThat(actualArgs).isSameAs(InvocationArguments.EMPTY_ARGS);
         assertThat(actualArgs).isEmpty();
     }
 
@@ -31,7 +31,7 @@ class ArgumentsTest {
     void actualArgsShouldReuseProvidedArray() {
         Object[] args = {"wow"};
 
-        Object[] actualArgs = Arguments.actualArgs(args);
+        Object[] actualArgs = InvocationArguments.actualArgs(args);
 
         assertThat(actualArgs).isSameAs(args);
         assertThat(actualArgs).containsExactly("wow");
@@ -41,7 +41,7 @@ class ArgumentsTest {
     void prependReceiverShouldCreateReceiverOnlyArgsWhenArgsAreNull() {
         Object receiver = new Object();
 
-        Object[] arguments = Arguments.prependReceiver(receiver, null);
+        Object[] arguments = InvocationArguments.prependReceiver(receiver, null);
 
         assertThat(arguments).containsExactly(receiver);
     }
@@ -50,7 +50,7 @@ class ArgumentsTest {
     void prependReceiverShouldCopyArgsAfterReceiver() {
         Object[] args = {"command", "state"};
 
-        Object[] arguments = Arguments.prependReceiver("receiver", args);
+        Object[] arguments = InvocationArguments.prependReceiver("receiver", args);
 
         assertThat(arguments).isNotSameAs(args);
         assertThat(arguments).containsExactly("receiver", "command", "state");
@@ -59,7 +59,7 @@ class ArgumentsTest {
 
     @Test
     void prependReceiverShouldPreserveNullReceiver() {
-        Object[] arguments = Arguments.prependReceiver(null, new Object[]{"arg"});
+        Object[] arguments = InvocationArguments.prependReceiver(null, new Object[]{"arg"});
 
         assertThat(arguments).containsExactly(null, "arg");
     }

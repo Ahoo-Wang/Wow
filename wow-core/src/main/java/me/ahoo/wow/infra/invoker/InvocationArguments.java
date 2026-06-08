@@ -13,10 +13,10 @@
 
 package me.ahoo.wow.infra.invoker;
 
-public final class Arguments {
+public final class InvocationArguments {
     public static final Object[] EMPTY_ARGS = new Object[0];
 
-    private Arguments() {
+    private InvocationArguments() {
     }
 
     public static Object[] actualArgs(Object[] args) {

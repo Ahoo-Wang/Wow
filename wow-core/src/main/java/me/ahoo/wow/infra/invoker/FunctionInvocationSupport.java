@@ -24,7 +24,7 @@ final class FunctionInvocationSupport {
 
     static Object invokeByArgumentArray(InstanceFunctionInvoker invoker, Object receiver, Object[] args)
             throws Throwable {
-        Object[] actualArgs = Arguments.actualArgs(args);
+        Object[] actualArgs = InvocationArguments.actualArgs(args);
         return switch (actualArgs.length) {
             case 0 -> invoker.invoke0(receiver);
             case 1 -> invoker.invoke1(receiver, actualArgs[0]);
@@ -46,7 +46,7 @@ final class FunctionInvocationSupport {
     }
 
     static Object invokeByArgumentArray(ReceiverlessFunctionInvoker invoker, Object[] args) throws Throwable {
-        Object[] actualArgs = Arguments.actualArgs(args);
+        Object[] actualArgs = InvocationArguments.actualArgs(args);
         return switch (actualArgs.length) {
             case 0 -> invoker.invoke0();
             case 1 -> invoker.invoke1(actualArgs[0]);
@@ -95,7 +95,7 @@ final class FunctionInvocationSupport {
     }
 
     private static boolean isValidInvocation(Class<?>[] parameterTypes, Object[] args) {
-        Object[] actualArgs = Arguments.actualArgs(args);
+        Object[] actualArgs = InvocationArguments.actualArgs(args);
         if (actualArgs.length != parameterTypes.length) {
             return false;
         }

@@ -12,9 +12,9 @@
  */
 package me.ahoo.wow.infra.accessor.function
 
-import me.ahoo.wow.infra.invoker.Arguments
 import me.ahoo.wow.infra.invoker.FunctionInvoker
 import me.ahoo.wow.infra.invoker.InstanceFunctionInvoker
+import me.ahoo.wow.infra.invoker.InvocationArguments
 import me.ahoo.wow.infra.invoker.StaticFunctionInvoker
 import kotlin.reflect.KFunction
 import kotlin.reflect.full.extensionReceiverParameter
@@ -32,7 +32,7 @@ internal fun FunctionInvoker.invokeFunction(
         is InstanceFunctionInvoker -> invoke(target, args)
         is StaticFunctionInvoker -> {
             if (function.isStaticExtensionFunction) {
-                invoke(Arguments.prependReceiver(target, args))
+                invoke(InvocationArguments.prependReceiver(target, args))
             } else {
                 invoke(args)
             }
