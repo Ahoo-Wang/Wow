@@ -68,6 +68,48 @@ class ConstructorAccessorTest {
     }
 
     @Test
+    fun `newInstance1 with wrong argument type should throw IllegalArgumentException`() {
+        val constructor = OneArgConstructorAccessorFixture::class.java.getDeclaredConstructor(String::class.java)
+        val accessor = DefaultConstructorAccessor(constructor)
+
+        assertThrows<IllegalArgumentException> {
+            accessor.newInstance1(1)
+        }
+    }
+
+    @Test
+    fun `newInstance1 with wrong argument count should throw IllegalArgumentException`() {
+        val constructor = NoArgConstructorAccessorFixture::class.java.getDeclaredConstructor()
+        val accessor = DefaultConstructorAccessor(constructor)
+
+        assertThrows<IllegalArgumentException> {
+            accessor.newInstance1("unexpected")
+        }
+    }
+
+    @Test
+    fun `newInstance1 with null primitive argument should throw IllegalArgumentException`() {
+        val fixtureClass = PrimitiveConstructorAccessorFixture::class.java
+        val constructor = fixtureClass.getDeclaredConstructor(Int::class.javaPrimitiveType)
+        val accessor = DefaultConstructorAccessor(constructor)
+
+        assertThrows<IllegalArgumentException> {
+            accessor.newInstance1(null)
+        }
+    }
+
+    @Test
+    fun `newInstance1 should propagate constructor ClassCastException`() {
+        val constructor = ClassCastConstructorAccessorFixture::class.java.getDeclaredConstructor(Any::class.java)
+        val accessor = DefaultConstructorAccessor(constructor)
+
+        val error = assertThrows<ClassCastException> {
+            accessor.newInstance1("bad")
+        }
+        error.message.assert().isEqualTo("business")
+    }
+
+    @Test
     fun `custom accessor should retain default invoke implementation`() {
         val constructor = CustomConstructorAccessorFixture::class.java.getDeclaredConstructor(String::class.java)
         val accessor = object : ConstructorAccessor<CustomConstructorAccessorFixture> {
@@ -92,6 +134,14 @@ private class TwoArgConstructorAccessorFixture private constructor(value: String
 private class FailingConstructorAccessorFixture private constructor(value: String) {
     init {
         error("boom $value")
+    }
+}
+
+private class PrimitiveConstructorAccessorFixture private constructor(val value: Int)
+
+private class ClassCastConstructorAccessorFixture private constructor(value: Any) {
+    init {
+        throw ClassCastException("business")
     }
 }
 

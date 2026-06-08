@@ -68,7 +68,7 @@ open class AccessorComponentBenchmark {
     @Benchmark
     @Throws(Throwable::class)
     fun methodHandleSingle(blackhole: Blackhole) {
-        blackhole.consume(singleInvoker.invokeSingle(target, argument))
+        blackhole.consume(singleInvoker.invoke1(target, argument))
     }
 
     @Benchmark

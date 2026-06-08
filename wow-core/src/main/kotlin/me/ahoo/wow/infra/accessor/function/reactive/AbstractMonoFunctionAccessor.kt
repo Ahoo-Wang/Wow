@@ -38,5 +38,5 @@ abstract class AbstractMonoFunctionAccessor<T, D : Mono<*>> (override val functi
     protected fun <R> invokeMethod(target: T, args: Array<Any?>): R = invoker.invoke(target, args) as R
 
     @Suppress("UNCHECKED_CAST")
-    protected fun <R> invokeSingleMethod(target: T, arg: Any?): R = invoker.invokeSingle(target, arg) as R
+    protected fun <R> invokeSingleMethod(target: T, arg: Any?): R = invoker.invoke1(target, arg) as R
 }

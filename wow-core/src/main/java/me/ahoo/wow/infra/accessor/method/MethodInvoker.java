@@ -16,5 +16,52 @@ package me.ahoo.wow.infra.accessor.method;
 public interface MethodInvoker {
     Object invoke(Object target, Object[] args) throws Throwable;
 
-    Object invokeSingle(Object target, Object arg) throws Throwable;
+    default Object invoke0(Object target) throws Throwable {
+        return invoke(target, MethodInvocationSupport.EMPTY_ARGS);
+    }
+
+    default Object invoke1(Object target, Object arg1) throws Throwable {
+        return invoke(target, new Object[]{arg1});
+    }
+
+    default Object invoke2(Object target, Object arg1, Object arg2) throws Throwable {
+        return invoke(target, new Object[]{arg1, arg2});
+    }
+
+    default Object invoke3(Object target, Object arg1, Object arg2, Object arg3) throws Throwable {
+        return invoke(target, new Object[]{arg1, arg2, arg3});
+    }
+
+    default Object invoke4(Object target, Object arg1, Object arg2, Object arg3, Object arg4) throws Throwable {
+        return invoke(target, new Object[]{arg1, arg2, arg3, arg4});
+    }
+
+    default Object invoke5(Object target, Object arg1, Object arg2, Object arg3, Object arg4, Object arg5)
+            throws Throwable {
+        return invoke(target, new Object[]{arg1, arg2, arg3, arg4, arg5});
+    }
+
+    default Object invoke6(Object target, Object arg1, Object arg2, Object arg3, Object arg4, Object arg5,
+                           Object arg6) throws Throwable {
+        return invoke(target, new Object[]{arg1, arg2, arg3, arg4, arg5, arg6});
+    }
+
+    default Object invoke7(Object target, Object arg1, Object arg2, Object arg3, Object arg4, Object arg5,
+                           Object arg6, Object arg7) throws Throwable {
+        return invoke(target, new Object[]{arg1, arg2, arg3, arg4, arg5, arg6, arg7});
+    }
+
+    default Object invoke8(Object target, Object arg1, Object arg2, Object arg3, Object arg4, Object arg5,
+                           Object arg6, Object arg7, Object arg8) throws Throwable {
+        return invoke(target, new Object[]{arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8});
+    }
+
+    default Object invoke9(Object target, Object arg1, Object arg2, Object arg3, Object arg4, Object arg5,
+                           Object arg6, Object arg7, Object arg8, Object arg9) throws Throwable {
+        return invoke(target, new Object[]{arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9});
+    }
+
+    default Object invokeSingle(Object target, Object arg) throws Throwable {
+        return invoke1(target, arg);
+    }
 }

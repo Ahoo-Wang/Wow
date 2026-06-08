@@ -11,7 +11,7 @@
 ## 设计目标
 
 1. 在 accessor 创建阶段完成 invoker 绑定，避免每次调用时重复判断和临时适配。
-2. 为单参数消息函数提供 `invokeSingle` fast path，消除每次 `arrayOf(firstArgument)` 分配。
+2. 为单参数消息函数提供 `invokeSingle` / `invoke1` fast path，消除每次 `arrayOf(firstArgument)` 分配。
 3. 使用缓存的 `MethodHandle` 作为首选执行路径，失败时安全降级到现有 reflection 行为。
 4. 保留多参数和注入参数函数的现有语义，不改变服务注入、消息参数解析或异常传播规则。
 5. 为构造器提供 0/1/2 参数 fast path，覆盖状态聚合构造和聚合模式 command root 构造。
@@ -25,16 +25,30 @@ Suspend 函数和 Flow 返回函数继续使用 Kotlin reflection 的 `callSuspe
 
 ## 总体架构
 
-新增一个低层调用抽象，例如 `MethodInvoker`，用于封装已绑定的 Java `Method` 调用策略：
+新增一个对外调用抽象 `MethodInvoker`，用于封装已绑定的 Java `Method` 调用策略：
 
 ```kotlin
 interface MethodInvoker {
     fun invoke(target: Any, args: Array<Any?>): Any?
+    fun invoke0(target: Any): Any?
+    fun invoke1(target: Any, arg1: Any?): Any?
+    // ... invoke2 到 invoke9
     fun invokeSingle(target: Any, arg: Any?): Any?
 }
 ```
 
-`MethodInvokerFactory` 负责根据 `Method` 创建 invoker。默认优先创建 `MethodHandleMethodInvoker`，如果访问权限、方法形态或平台差异导致创建失败，则降级到 `ReflectionMethodInvoker`。降级路径必须和现有 `FastInvoke.safeInvoke` 的行为一致。
+`MethodInvoker` 是统一入口和对外概念。内部再拆一层 `MethodHandler`，由 factory 选择具体执行策略：
+
+```java
+interface MethodHandler {
+    Object invoke(Object target, Object[] args) throws Throwable;
+    Object invoke0(Object target) throws Throwable;
+    Object invoke1(Object target, Object arg1) throws Throwable;
+    // ... invoke2 到 invoke9
+}
+```
+
+`MethodInvokerFactory` 负责根据 `Method` 创建 invoker。默认优先创建 `MethodHandle` handler，并按方法形态拆分为实例和静态两条路径；如果访问权限、方法形态或平台差异导致创建失败，则降级到 reflection handler。降级路径必须和现有 `FastInvoke.safeInvoke` 的行为一致。
 
 `FunctionAccessor` 持有并复用该 invoker。`SimpleFunctionAccessor` 和 `AbstractMonoFunctionAccessor` 在初始化时确保方法 accessible，然后创建一次 invoker。运行期只做目标对象、参数和返回值传递。
 
@@ -42,11 +56,12 @@ interface MethodInvoker {
 
 ## Invoker 策略
 
-第一版采用两级策略：
+第一版采用三类 handler 策略：
 
 | 策略 | 用途 | 说明 |
 | --- | --- | --- |
-| `MethodHandleMethodInvoker` | 默认快速路径 | 初始化时 `unreflect(method)` 并适配 erased 签名，运行期走稳定调用点 |
+| `InstanceMethodInvoker` | 实例方法快速路径 | 初始化时 `unreflect(method)`，运行期 `invoke0` 到 `invoke9` 直接传入 target 和参数 |
+| `StaticMethodInvoker` | 静态方法快速路径 | 初始化时 `unreflect(method)`，运行期忽略 target，直接调用静态 `MethodHandle` |
 | `ReflectionMethodInvoker` | 保底路径 | 创建 `MethodHandle` 失败时回到 `Method.invoke`，保持兼容性 |
 
 单参数 fast path 的目标签名固定为：
@@ -55,9 +70,9 @@ interface MethodInvoker {
 (target: Any, arg: Any?) -> Any?
 ```
 
-多参数路径继续接收 `Array<Any?>`。这样可以先优化最常见、收益最明确的无注入消息函数，同时避免为任意参数数量建立复杂的调用矩阵。
+多参数通用路径继续接收 `Array<Any?>`。0 到 9 参数提供固定 arity fast path，覆盖框架内常见 handler 形态；超过 9 参数回到数组路径。
 
-异常语义保持现状。业务方法抛出的异常必须向上传递原始异常，不让 `InvocationTargetException` 泄漏到命令、事件、projection 或 saga 链路。`MethodHandle` 直接抛出的 `Throwable` 也按原始异常传播。
+异常语义保持现状。业务方法抛出的异常必须向上传递原始异常，不让 `InvocationTargetException` 泄漏到命令、事件、projection 或 saga 链路。`MethodHandle` 正常路径不做前置类型扫描；如果 MethodHandle 抛出 `WrongMethodTypeException`、`ClassCastException` 或 `NullPointerException`，再按旧反射语义检查 target、参数数量和参数类型，不合法时归一化为 `IllegalArgumentException`，合法时传播业务原始异常。
 
 ## FunctionAccessor 变更
 
@@ -67,7 +82,7 @@ interface MethodInvoker {
 fun invokeSingle(target: T, arg: Any?): R
 ```
 
-默认实现可以委托到 `invoke(target, arrayOf(arg))`，保证自定义实现无需立即修改。框架内置实现覆盖该方法，使用缓存 invoker。
+默认实现可以委托到 `invoke(target, arrayOf(arg))`，保证自定义实现无需立即修改。框架内置实现覆盖该方法，使用缓存 invoker 的 `invoke1`。
 
 `invoke(target, args)` 继续保留，用于注入参数、多参数函数、测试辅助和兼容调用点。
 
@@ -147,14 +162,15 @@ fun newInstance2(arg1: Any?, arg2: Any?): T
 新增或更新 `wow-core` 单元测试，覆盖以下行为：
 
 1. `MethodInvoker` 可调用 public 方法、private 方法、单参数方法、多参数方法和无参数方法。
-2. `invokeSingle` 和 `invoke(args)` 返回值一致。
+2. `invoke0`、`invoke1`、`invoke2`、`invokeSingle` 和 `invoke(args)` 返回值一致。
 3. 业务异常保持原始异常传播，不泄漏 `InvocationTargetException`。
-4. varargs 方法保持现有调用方式，传入 `Object[]{String[]}` 时结果不变。
-5. `SimpleMessageFunctionAccessor` 无注入函数走单参数路径，结果和现有行为一致。
-6. `InjectableMessageFunctionAccessor` 仍正确解析命名服务和类型服务。
-7. `ConstructorAccessor` 0/1/2 参数 fast path 支持私有构造器。
-8. 构造器内部异常按原始异常传播。
-9. reactive accessor 保持 lazy 语义和返回类型适配。
+4. MethodHandle 调用形态错误继续暴露为 `IllegalArgumentException`，业务 `ClassCastException` 等运行时异常不被误包装。
+5. varargs 方法保持现有调用方式，传入 `Object[]{String[]}` 时结果不变。
+6. `SimpleMessageFunctionAccessor` 无注入函数走单参数路径，结果和现有行为一致。
+7. `InjectableMessageFunctionAccessor` 仍正确解析命名服务和类型服务。
+8. `ConstructorAccessor` 0/1/2 参数 fast path 支持私有构造器。
+9. 构造器内部异常按原始异常传播。
+10. reactive accessor 保持 lazy 语义和返回类型适配。
 
 验证命令：
 
