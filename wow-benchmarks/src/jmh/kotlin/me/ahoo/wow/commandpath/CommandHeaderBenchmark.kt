@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.hotpath
+package me.ahoo.wow.commandpath
 
 import me.ahoo.wow.benchmark.fixture.BenchmarkHeaders
 import org.openjdk.jmh.annotations.Benchmark
@@ -20,15 +20,15 @@ import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.infra.Blackhole
 
 @State(Scope.Benchmark)
-open class HeaderCreationBenchmark {
+open class CommandHeaderBenchmark {
     @Benchmark
-    fun createEmptyHeader(blackhole: Blackhole) {
+    fun createEmptyCommandHeader(blackhole: Blackhole) {
         val header = BenchmarkHeaders.emptyHeader()
         blackhole.consume(header)
     }
 
     @Benchmark
-    fun createAndMutateHeader(blackhole: Blackhole) {
+    fun createAndMutateCommandHeader(blackhole: Blackhole) {
         val header = BenchmarkHeaders.emptyHeader()
         header["key1"] = "value1"
         header["key2"] = "value2"
@@ -36,7 +36,7 @@ open class HeaderCreationBenchmark {
     }
 
     @Benchmark
-    fun headerReadAfterWrite(blackhole: Blackhole) {
+    fun readCommandHeaderAfterWrite(blackhole: Blackhole) {
         val header = BenchmarkHeaders.emptyHeader()
         header["key"] = "value"
         val value = header["key"]

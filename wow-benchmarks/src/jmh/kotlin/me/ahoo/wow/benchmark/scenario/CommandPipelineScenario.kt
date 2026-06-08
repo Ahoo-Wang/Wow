@@ -85,7 +85,7 @@ class CommandPipelineScenario private constructor(
             stateEventBus: StateEventBus = InMemoryStateEventBus(),
             commandWaitNotifier: CommandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar),
             aggregateMetadata: AggregateMetadata<*, *> = BenchmarkAggregates.cartMetadata,
-            newAggregateCommandFactory: () -> CommandMessage<*> = BenchmarkCommands::hotPathAddCartItem,
+            newAggregateCommandFactory: () -> CommandMessage<*> = BenchmarkCommands::commandPathAddCartItem,
         ): CommandPipelineScenario {
             val stateAggregateRepository: StateAggregateRepository =
                 EventSourcingStateAggregateRepository(

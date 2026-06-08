@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.hotpath
+package me.ahoo.wow.commandpath
 
 import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.toJsonString
@@ -24,31 +24,31 @@ import org.openjdk.jmh.infra.Blackhole
 data class SmallPayload(val name: String = "test", val value: Int = 42)
 
 @State(Scope.Benchmark)
-open class ObjectMapperLookupBenchmark {
+open class CommandPayloadSerializationBenchmark {
     private val payload = SmallPayload()
     private val preSerialized = payload.toJsonString()
 
     @Benchmark
-    fun serialize(blackhole: Blackhole) {
+    fun serializePayload(blackhole: Blackhole) {
         val json = payload.toJsonString()
         blackhole.consume(json)
     }
 
     @Benchmark
-    fun deserialize(blackhole: Blackhole) {
+    fun deserializePayload(blackhole: Blackhole) {
         val obj = preSerialized.toObject<SmallPayload>()
         blackhole.consume(obj)
     }
 
     @Benchmark
-    fun roundTrip(blackhole: Blackhole) {
+    fun roundTripPayload(blackhole: Blackhole) {
         val json = payload.toJsonString()
         val obj = json.toObject<SmallPayload>()
         blackhole.consume(obj)
     }
 
     @Benchmark
-    fun serializeWithSharedMapper(blackhole: Blackhole) {
+    fun serializePayloadWithSharedMapper(blackhole: Blackhole) {
         val json = JsonSerializer.writeValueAsString(payload)
         blackhole.consume(json)
     }

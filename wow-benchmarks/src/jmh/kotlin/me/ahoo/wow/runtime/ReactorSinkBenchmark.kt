@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.infra
+package me.ahoo.wow.runtime
 
 import me.ahoo.wow.infra.sink.ConcurrentManySink
 import me.ahoo.wow.infra.sink.concurrent
@@ -27,7 +27,7 @@ import reactor.core.scheduler.Scheduler
 import reactor.core.scheduler.Schedulers
 
 @State(Scope.Benchmark)
-open class SinkBenchmark {
+open class ReactorSinkBenchmark {
     private lateinit var sink: Sinks.Many<String>
     private lateinit var concurrentManySink: ConcurrentManySink<String>
     private lateinit var emitScheduler: Scheduler
@@ -53,31 +53,31 @@ open class SinkBenchmark {
     }
 
     @Benchmark
-    fun directSinkEmit() {
+    fun emitDirectlyToReactorSink() {
         sink.tryEmitNext("test").orThrow()
     }
 
     @Benchmark
-    fun monoFromRunnableSend() {
+    fun emitWithMonoFromRunnable() {
         Mono.fromRunnable<Void> {
             sink.tryEmitNext("test").orThrow()
         }.block()
     }
 
     @Benchmark
-    fun withConcurrentManySink() {
+    fun emitWithConcurrentManySink() {
         concurrentManySink.tryEmitNext("test").orThrow()
     }
 
     @Benchmark
-    fun withConcurrentManySinkFromRunnableSend() {
+    fun emitConcurrentManySinkWithMonoFromRunnable() {
         Mono.fromRunnable<Void> {
             concurrentManySink.tryEmitNext("test").orThrow()
         }.block()
     }
 
     @Benchmark
-    fun monoFromRunnableSendWithSubscribeOnSingleScheduler() {
+    fun emitWithMonoFromRunnableOnSingleScheduler() {
         Mono.fromRunnable<Void> {
             sink.tryEmitNext("test").orThrow()
         }.subscribeOn(emitScheduler).block()

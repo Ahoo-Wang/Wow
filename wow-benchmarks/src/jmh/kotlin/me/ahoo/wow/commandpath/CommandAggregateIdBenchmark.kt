@@ -11,37 +11,46 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.hotpath
+package me.ahoo.wow.commandpath
 
 import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
-import me.ahoo.wow.benchmark.fixture.BenchmarkEvents
-import me.ahoo.wow.event.InMemoryDomainEventBus
+import me.ahoo.wow.benchmark.fixture.BenchmarkIds
+import me.ahoo.wow.modeling.DefaultAggregateId
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
-import org.openjdk.jmh.annotations.TearDown
 import org.openjdk.jmh.infra.Blackhole
 
 @State(Scope.Benchmark)
-open class EventPublishBenchmark {
-    private lateinit var eventBus: InMemoryDomainEventBus
-    private val eventStream = BenchmarkEvents.singleEventStream()
-
+open class CommandAggregateIdBenchmark {
     @Setup
     fun setup() {
-        eventBus = InMemoryDomainEventBus()
-        eventBus.receive(setOf(BenchmarkAggregates.namedAggregate)).subscribe()
-    }
-
-    @TearDown
-    fun tearDown() {
-        eventBus.close()
+        BenchmarkIds.installDeterministicGlobalIdGenerator()
     }
 
     @Benchmark
-    fun publishEvent(blackhole: Blackhole) {
-        val result = eventBus.send(eventStream).block()
-        blackhole.consume(result)
+    fun generateGlobalId(blackhole: Blackhole) {
+        val id = BenchmarkIds.nextGlobalId()
+        blackhole.consume(id)
+    }
+
+    @Benchmark
+    fun createAggregateId(blackhole: Blackhole) {
+        val aggregateId = DefaultAggregateId(
+            namedAggregate = BenchmarkAggregates.namedAggregate,
+            id = "test-id",
+        )
+        blackhole.consume(aggregateId)
+    }
+
+    @Benchmark
+    fun generateGlobalIdAndCreateAggregateId(blackhole: Blackhole) {
+        val id = BenchmarkIds.nextGlobalId()
+        val aggregateId = DefaultAggregateId(
+            namedAggregate = BenchmarkAggregates.namedAggregate,
+            id = id,
+        )
+        blackhole.consume(aggregateId)
     }
 }

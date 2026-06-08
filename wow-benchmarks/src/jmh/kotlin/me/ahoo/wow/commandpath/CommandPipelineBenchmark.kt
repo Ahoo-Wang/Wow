@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.hotpath
+package me.ahoo.wow.commandpath
 
 import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
 import me.ahoo.wow.benchmark.fixture.BenchmarkCommands
@@ -38,7 +38,7 @@ import org.openjdk.jmh.annotations.TearDown
 import org.openjdk.jmh.infra.Blackhole
 
 @State(Scope.Benchmark)
-open class CommandProcessingPipelineBenchmark {
+open class CommandPipelineBenchmark {
     private lateinit var commandDispatcherScenario: CommandDispatcherScenario
     private lateinit var commandPipelineScenario: CommandPipelineScenario
 
@@ -79,10 +79,10 @@ open class CommandProcessingPipelineBenchmark {
     }
 
     @Benchmark
-    fun sendAndWaitForProcessed(blackhole: Blackhole) {
+    fun sendCommandAndWaitForProcessed(blackhole: Blackhole) {
         blackhole.consumeWowResult {
             commandDispatcherScenario.commandGateway
-                .sendAndWaitForProcessed(BenchmarkCommands.hotPathAddCartItem())
+                .sendAndWaitForProcessed(BenchmarkCommands.commandPathAddCartItem())
                 .block()
         }
     }
@@ -97,7 +97,7 @@ open class CommandProcessingPipelineBenchmark {
     }
 
     @Benchmark
-    fun handleAggregateOnlyWithoutRetry(blackhole: Blackhole) {
+    fun handleAggregateWithoutRetry(blackhole: Blackhole) {
         blackhole.consumeWowResult {
             commandPipelineScenario.aggregateOnlyWithoutRetryHandler
                 .handle(commandPipelineScenario.createServerExchange())
@@ -106,7 +106,7 @@ open class CommandProcessingPipelineBenchmark {
     }
 
     @Benchmark
-    fun handleAggregateAndDomainEvent(blackhole: Blackhole) {
+    fun handleAggregateAndSendDomainEvent(blackhole: Blackhole) {
         blackhole.consumeWowResult {
             commandPipelineScenario.aggregateAndDomainEventHandler
                 .handle(commandPipelineScenario.createServerExchange())
@@ -115,7 +115,7 @@ open class CommandProcessingPipelineBenchmark {
     }
 
     @Benchmark
-    fun handleAggregateDomainAndStateEvent(blackhole: Blackhole) {
+    fun handleAggregateAndSendDomainStateEvents(blackhole: Blackhole) {
         blackhole.consumeWowResult {
             commandPipelineScenario.aggregateDomainAndStateEventHandler
                 .handle(commandPipelineScenario.createServerExchange())
@@ -124,7 +124,7 @@ open class CommandProcessingPipelineBenchmark {
     }
 
     @Benchmark
-    fun handleAggregateDomainStateAndProcessedNotifierWithoutWait(blackhole: Blackhole) {
+    fun handleAggregateAndNotifyProcessedWithoutWait(blackhole: Blackhole) {
         blackhole.consumeWowResult {
             commandPipelineScenario.aggregateDomainStateAndProcessedNotifierHandler
                 .handle(commandPipelineScenario.createServerExchange())
@@ -133,9 +133,9 @@ open class CommandProcessingPipelineBenchmark {
     }
 
     @Benchmark
-    fun handleAggregateDomainStateAndProcessedNotifierWithLocalWait(blackhole: Blackhole) {
+    fun handleAggregateAndNotifyProcessedWithLocalWait(blackhole: Blackhole) {
         blackhole.consumeWowResult {
-            val commandMessage = BenchmarkCommands.hotPathAddCartItem()
+            val commandMessage = BenchmarkCommands.commandPathAddCartItem()
             val waitStrategy = WaitingForStage.processed(commandMessage.commandId)
             waitStrategy.propagate("", commandMessage.header)
             SimpleWaitStrategyRegistrar.register(waitStrategy)
@@ -151,10 +151,10 @@ open class CommandProcessingPipelineBenchmark {
     }
 
     @Benchmark
-    fun sendFireAndForget(blackhole: Blackhole) {
+    fun sendCommandFireAndForget(blackhole: Blackhole) {
         blackhole.consumeWowResult {
             commandDispatcherScenario.commandGateway
-                .send(BenchmarkCommands.hotPathAddCartItem())
+                .send(BenchmarkCommands.commandPathAddCartItem())
                 .block()
         }
     }

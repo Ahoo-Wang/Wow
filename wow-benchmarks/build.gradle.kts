@@ -27,10 +27,10 @@ val benchmarkSmokeIncludes = listOf(
     "me.ahoo.wow.command.CommandFactoryBenchmark",
     "me.ahoo.wow.command.GlobalIdBenchmark",
     "me.ahoo.wow.messaging.function.MessageFunctionRegistrarBenchmark",
-    "me.ahoo.wow.hotpath.HeaderCreationBenchmark",
-    "me.ahoo.wow.hotpath.MessageWrappingBenchmark",
-    "me.ahoo.wow.hotpath.AggregateIdGenerationBenchmark",
-    "me.ahoo.wow.hotpath.ObjectMapperLookupBenchmark",
+    "me.ahoo.wow.commandpath.CommandHeaderBenchmark",
+    "me.ahoo.wow.commandpath.CommandMessageBenchmark",
+    "me.ahoo.wow.commandpath.CommandAggregateIdBenchmark",
+    "me.ahoo.wow.commandpath.CommandPayloadSerializationBenchmark",
 )
 
 val benchmarkSmokeReport = layout.buildDirectory.file("reports/jmh/benchmark-smoke.json")

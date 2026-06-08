@@ -11,25 +11,35 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.hotpath
+package me.ahoo.wow.commandpath
 
 import me.ahoo.wow.benchmark.fixture.BenchmarkCommands
-import me.ahoo.wow.command.ServerCommandExchange
-import me.ahoo.wow.command.SimpleServerCommandExchange
-import me.ahoo.wow.test.validation.TestValidator
+import me.ahoo.wow.benchmark.fixture.BenchmarkIds
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
+import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.infra.Blackhole
 
 @State(Scope.Benchmark)
-open class CommandValidationBenchmark {
-    private val commandMessage = BenchmarkCommands.hotPathAddCartItem()
+open class CommandMessageBenchmark {
+    @Setup
+    fun setup() {
+        BenchmarkIds.installDeterministicGlobalIdGenerator()
+    }
 
     @Benchmark
-    fun validateCommand(blackhole: Blackhole) {
-        val exchange: ServerCommandExchange<*> = SimpleServerCommandExchange(commandMessage)
-        TestValidator.validate(commandMessage.body)
-        blackhole.consume(exchange)
+    fun createCommandMessage(blackhole: Blackhole) {
+        val msg = BenchmarkCommands.newAggregateAddCartItem()
+        blackhole.consume(msg)
+    }
+
+    @Benchmark
+    fun readCommandMessageProperties(blackhole: Blackhole) {
+        val msg = BenchmarkCommands.newAggregateAddCartItem()
+        blackhole.consume(msg.id)
+        blackhole.consume(msg.aggregateId)
+        blackhole.consume(msg.requestId)
+        blackhole.consume(msg.body)
     }
 }

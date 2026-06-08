@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.hotpath
+package me.ahoo.wow.commandpath
 
 import me.ahoo.wow.benchmark.fixture.BenchmarkIdempotency
 import me.ahoo.wow.id.generateGlobalId
@@ -23,7 +23,7 @@ import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.infra.Blackhole
 
 @State(Scope.Benchmark)
-open class IdempotencyBenchmark {
+open class CommandIdempotencyBenchmark {
     private lateinit var idempotencyChecker: BloomFilterIdempotencyChecker
 
     @Setup
@@ -32,13 +32,13 @@ open class IdempotencyBenchmark {
     }
 
     @Benchmark
-    fun checkNewId(blackhole: Blackhole) {
+    fun checkNewRequestId(blackhole: Blackhole) {
         val result = idempotencyChecker.check(generateGlobalId()).block()
         blackhole.consume(result)
     }
 
     @Benchmark
-    fun checkFixedId(blackhole: Blackhole) {
+    fun checkKnownRequestId(blackhole: Blackhole) {
         val result = idempotencyChecker.check("known-request-id").block()
         blackhole.consume(result)
     }

@@ -11,49 +11,39 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.hotpath
+package me.ahoo.wow.commandpath
 
-import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
-import me.ahoo.wow.eventsourcing.EventSourcingStateAggregateRepository
-import me.ahoo.wow.eventsourcing.InMemoryEventStore
+import me.ahoo.wow.benchmark.fixture.BenchmarkEvents
 import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
+import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.toStateEvent
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
-import org.openjdk.jmh.annotations.TearDown
 import org.openjdk.jmh.infra.Blackhole
 
 @State(Scope.Benchmark)
-open class AggregateLoadingBenchmark {
-    private lateinit var repository: EventSourcingStateAggregateRepository
-    private lateinit var aggregateId: AggregateId
+open class CommandSnapshotSaveBenchmark {
+    private lateinit var snapshotRepository: InMemorySnapshotRepository
+    private lateinit var snapshot: SimpleSnapshot<*>
 
     @Setup
     fun setup() {
-        val eventStore = InMemoryEventStore()
-        repository = EventSourcingStateAggregateRepository(
-            ConstructorStateAggregateFactory,
-            InMemorySnapshotRepository(),
-            eventStore,
+        snapshotRepository = InMemorySnapshotRepository()
+        val aggregateId = BenchmarkAggregates.aggregateId()
+        val aggregate = ConstructorStateAggregateFactory.create(
+            BenchmarkAggregates.cartMetadata.state,
+            aggregateId,
         )
-        aggregateId = BenchmarkAggregates.aggregateId()
-    }
-
-    @TearDown
-    fun tearDown() {
-        setup()
+        snapshot = SimpleSnapshot(BenchmarkEvents.singleEventStream(aggregateId).toStateEvent(aggregate))
     }
 
     @Benchmark
-    fun loadEmptyAggregate(blackhole: Blackhole) {
-        val aggregate = repository.load(
-            aggregateId,
-            BenchmarkAggregates.cartMetadata.state,
-            Int.MAX_VALUE,
-        ).block()
-        blackhole.consume(aggregate)
+    fun saveCommandSnapshot(blackhole: Blackhole) {
+        val result = snapshotRepository.save(snapshot).block()
+        blackhole.consume(result)
     }
 }
