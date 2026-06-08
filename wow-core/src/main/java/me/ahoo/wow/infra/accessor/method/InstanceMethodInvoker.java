@@ -16,7 +16,7 @@ package me.ahoo.wow.infra.accessor.method;
 import java.lang.invoke.MethodHandle;
 import java.lang.reflect.Method;
 
-final class InstanceMethodInvoker implements MethodHandler {
+final class InstanceMethodInvoker implements MethodInvoker {
     private final Method method;
     private final MethodHandle handle;
 

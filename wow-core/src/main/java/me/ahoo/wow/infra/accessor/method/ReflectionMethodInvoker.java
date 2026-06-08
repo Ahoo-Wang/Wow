@@ -16,7 +16,7 @@ package me.ahoo.wow.infra.accessor.method;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
-final class ReflectionMethodInvoker implements MethodHandler {
+final class ReflectionMethodInvoker implements MethodInvoker {
     private final Method method;
 
     ReflectionMethodInvoker(Method method) {

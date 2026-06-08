@@ -37,18 +37,7 @@ interface MethodInvoker {
 }
 ```
 
-`MethodInvoker` 是统一入口和对外概念。内部再拆一层 `MethodHandler`，由 factory 选择具体执行策略：
-
-```java
-interface MethodHandler {
-    Object invoke(Object target, Object[] args) throws Throwable;
-    Object invoke0(Object target) throws Throwable;
-    Object invoke1(Object target, Object arg1) throws Throwable;
-    // ... invoke2 到 invoke9
-}
-```
-
-`MethodInvokerFactory` 负责根据 `Method` 创建 invoker。默认优先创建 `MethodHandle` handler，并按方法形态拆分为实例和静态两条路径；如果访问权限、方法形态或平台差异导致创建失败，则降级到 reflection handler。降级路径必须和现有 `FastInvoke.safeInvoke` 的行为一致。
+`MethodInvoker` 是统一入口和唯一调用接口。`MethodInvokerFactory` 负责根据 `Method` 创建具体 invoker。默认优先创建 `MethodHandle` invoker，并按方法形态拆分为实例和静态两条路径；如果访问权限、方法形态或平台差异导致创建失败，则降级到 reflection invoker。降级路径必须和现有 `FastInvoke.safeInvoke` 的行为一致。
 
 `FunctionAccessor` 持有并复用该 invoker。`SimpleFunctionAccessor` 和 `AbstractMonoFunctionAccessor` 在初始化时确保方法 accessible，然后创建一次 invoker。运行期只做目标对象、参数和返回值传递。
 
@@ -56,12 +45,12 @@ interface MethodHandler {
 
 ## Invoker 策略
 
-第一版采用三类 handler 策略：
+第一版采用三类 invoker 策略：
 
 | 策略 | 用途 | 说明 |
 | --- | --- | --- |
-| `InstanceMethodInvoker` | 实例方法快速路径 | 初始化时 `unreflect(method)`，运行期 `invoke0` 到 `invoke9` 直接传入 target 和参数 |
-| `StaticMethodInvoker` | 静态方法快速路径 | 初始化时 `unreflect(method)`，运行期忽略 target，直接调用静态 `MethodHandle` |
+| `InstanceMethodInvoker` | 实例方法快速路径 | 直接实现 `MethodInvoker`，初始化时 `unreflect(method)`，运行期 `invoke0` 到 `invoke9` 直接传入 target 和参数 |
+| `StaticMethodInvoker` | 静态方法快速路径 | 直接实现 `MethodInvoker`，初始化时 `unreflect(method)`，运行期忽略 target，直接调用静态 `MethodHandle` |
 | `ReflectionMethodInvoker` | 保底路径 | 创建 `MethodHandle` 失败时回到 `Method.invoke`，保持兼容性 |
 
 单参数 fast path 的目标签名固定为：

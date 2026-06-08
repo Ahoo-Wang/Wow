@@ -35,6 +35,26 @@ class MethodInvokerFactoryTest {
     }
 
     @Test
+    void createInstanceMethodReturnsInstanceMethodInvoker() throws NoSuchMethodException {
+        Method method = Target.class.getDeclaredMethod("hidden", String.class);
+        method.trySetAccessible();
+
+        MethodInvoker invoker = MethodInvokerFactory.create(method);
+
+        assertThat(invoker).isInstanceOf(InstanceMethodInvoker.class);
+    }
+
+    @Test
+    void createStaticMethodReturnsStaticMethodInvoker() throws NoSuchMethodException {
+        Method method = Target.class.getDeclaredMethod("staticHello", String.class);
+        method.trySetAccessible();
+
+        MethodInvoker invoker = MethodInvokerFactory.create(method);
+
+        assertThat(invoker).isInstanceOf(StaticMethodInvoker.class);
+    }
+
+    @Test
     void invokePrivateTwoArgMethod() throws Throwable {
         Method method = Target.class.getDeclaredMethod("join", String.class, String.class);
         method.trySetAccessible();

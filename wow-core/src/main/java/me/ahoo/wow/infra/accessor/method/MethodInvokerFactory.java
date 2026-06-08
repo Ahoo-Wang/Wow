@@ -25,12 +25,11 @@ public final class MethodInvokerFactory {
     public static MethodInvoker create(Method method) {
         try {
             MethodHandle methodHandle = MethodHandles.lookup().unreflect(method).asFixedArity();
-            MethodHandler handler = Modifier.isStatic(method.getModifiers())
+            return Modifier.isStatic(method.getModifiers())
                 ? new StaticMethodInvoker(method, methodHandle)
                 : new InstanceMethodInvoker(method, methodHandle);
-            return new DefaultMethodInvoker(handler);
         } catch (IllegalAccessException | RuntimeException ignored) {
-            return new DefaultMethodInvoker(new ReflectionMethodInvoker(method));
+            return new ReflectionMethodInvoker(method);
         }
     }
 }
