@@ -6,18 +6,21 @@ import java.time.LocalDate
 import java.util.Locale
 
 val resultsDir = layout.projectDirectory.dir("results")
-val baselineJson = resultsDir.file("baseline.json")
-val localJson = layout.buildDirectory.file("results/jmh/local.json")
+val frameworkE2EBaselineJson = resultsDir.file("framework-e2e-baseline.json")
+val frameworkE2EJson = layout.buildDirectory.file("results/jmh/framework-e2e.json")
 val readmeFile = layout.projectDirectory.file("README.md")
 
-val benchmarkLocalReport = layout.buildDirectory.file("results/jmh/local.json")
-val benchmarkInfrastructureReport = layout.buildDirectory.file("results/jmh/infrastructure.json")
+val benchmarkFrameworkE2EReport = layout.buildDirectory.file("results/jmh/framework-e2e.json")
+val benchmarkInfrastructureE2EReport = layout.buildDirectory.file("results/jmh/infrastructure-e2e.json")
+val benchmarkDiagnosticsReport = layout.buildDirectory.file("results/jmh/diagnostics.json")
+val benchmarkInfrastructureDiagnosticsReport = layout.buildDirectory.file("results/jmh/infrastructure-diagnostics.json")
 
 data class BenchmarkResultGroup(
     val name: String,
     val command: String,
     val resultFile: Provider<RegularFile>,
     val required: Boolean = true,
+    val performanceConclusionSource: Boolean = false,
 )
 
 data class BenchmarkGroupReport(
@@ -89,7 +92,7 @@ fun parseBenchmarkGroup(
             return BenchmarkGroupReport(
                 group = group,
                 rows = emptyList(),
-                unavailableReason = "Status: unavailable. Result file was not present. Run ${group.command} when the required service is available.",
+                unavailableReason = "Status: unavailable. Result file was not present. Run ${group.command} to include this optional group.",
             )
         }
         throw GradleException(
@@ -210,11 +213,22 @@ fun renderGroupedBenchmarkReport(
     val parser = JsonSlurper()
     val parsedGroups = groups.map { parseBenchmarkGroup(parser, it) }
     val allRows = parsedGroups.flatMap { it.rows }
+    val conclusionRows = parsedGroups
+        .filter { it.group.performanceConclusionSource }
+        .flatMap { it.rows }
+    val diagnosticRows = parsedGroups
+        .filterNot { it.group.performanceConclusionSource }
+        .flatMap { it.rows }
     if (allRows.isEmpty()) {
         throw GradleException("No benchmark rows were available for grouped report generation.")
     }
     val sb = StringBuilder()
-    sb.appendLine("# Grouped Benchmark Report")
+    sb.appendLine("# E2E Benchmark Report")
+    sb.appendLine()
+    sb.appendLine("## Policy")
+    sb.appendLine("- Framework performance conclusions must use Primary Framework E2E results only.")
+    sb.appendLine("- Infrastructure E2E results are secondary because they include Redis or Mongo I/O.")
+    sb.appendLine("- Diagnostic results explain bottlenecks, but they are not performance success criteria.")
     sb.appendLine()
     sb.appendLine("## Environment")
     sb.appendLine("- **Version**: $version")
@@ -223,15 +237,31 @@ fun renderGroupedBenchmarkReport(
     sb.appendLine("- **Date**: ${LocalDate.now()}")
     sb.appendLine("- **JMH Config**: threads=1, warmup=2x5s, measurement=3x10s, fork=2")
     sb.appendLine()
-    sb.appendLine("## Bottlenecks")
-    sb.appendLine()
-    sb.appendLine("### Lowest Throughput")
-    sb.appendLine()
-    sb.appendThroughputBottlenecks(allRows)
-    sb.appendLine()
-    sb.appendLine("### Highest Allocation")
-    sb.appendLine()
-    sb.appendAllocationBottlenecks(allRows)
+    if (conclusionRows.isNotEmpty()) {
+        sb.appendLine("## Primary E2E Bottlenecks")
+        sb.appendLine()
+        sb.appendLine("### Lowest Throughput")
+        sb.appendLine()
+        sb.appendThroughputBottlenecks(conclusionRows)
+        sb.appendLine()
+        sb.appendLine("### Highest Allocation")
+        sb.appendLine()
+        sb.appendAllocationBottlenecks(conclusionRows)
+        sb.appendLine()
+    }
+    if (diagnosticRows.isNotEmpty()) {
+        sb.appendLine("## Diagnostic Bottlenecks")
+        sb.appendLine()
+        sb.appendLine("### Lowest Throughput")
+        sb.appendLine()
+        sb.appendThroughputBottlenecks(diagnosticRows)
+        sb.appendLine()
+        sb.appendLine("### Highest Allocation")
+        sb.appendLine()
+        sb.appendAllocationBottlenecks(diagnosticRows)
+        sb.appendLine()
+    }
+    sb.appendLine("## Group Details")
     sb.appendLine()
     parsedGroups.filter { it.rows.isNotEmpty() }.forEach { groupReport ->
         sb.appendLine("### ${groupReport.group.name} Lowest Throughput")
@@ -251,6 +281,7 @@ fun renderGroupedBenchmarkReport(
         sb.appendLine()
         sb.appendLine("- **Command**: `${group.command}`")
         sb.appendLine("- **Result File**: `${resultFile.absolutePath}`")
+        sb.appendLine("- **Performance Conclusion Source**: ${if (group.performanceConclusionSource) "yes" else "no"}")
         if (resultFile.exists()) {
             sb.appendLine("- **Last Modified**: ${Instant.ofEpochMilli(resultFile.lastModified())}")
         }
@@ -268,14 +299,15 @@ fun renderGroupedBenchmarkReport(
 }
 
 tasks.register("generateBenchmarkReport") {
-    description = "Generate benchmark README.md from JMH JSON results."
+    description = "Generate benchmark README.md from primary framework E2E JMH JSON results."
     group = "benchmark"
 
     doLast {
-        val resultsFile = localJson.get().asFile
+        val resultsFile = frameworkE2EJson.get().asFile
         if (!resultsFile.exists()) {
             throw GradleException(
-                "Local JMH results not found: ${resultsFile.absolutePath}. Run :wow-benchmarks:benchmarkLocal first."
+                "Framework E2E JMH results not found: ${resultsFile.absolutePath}. " +
+                    "Run :wow-benchmarks:benchmarkFrameworkE2E first."
             )
         }
 
@@ -290,7 +322,15 @@ tasks.register("generateBenchmarkReport") {
         val os = System.getProperty("os.name") + " " + System.getProperty("os.arch")
 
         val sb = StringBuilder()
-        sb.appendLine("# Benchmark Report")
+        sb.appendLine("<!--")
+        sb.appendLine("  This file is auto-generated by `./gradlew :wow-benchmarks:generateBenchmarkReport`.")
+        sb.appendLine("  Do not manually edit benchmark results.")
+        sb.appendLine("-->")
+        sb.appendLine()
+        sb.appendLine("# Framework E2E Benchmark Report")
+        sb.appendLine()
+        sb.appendLine("Framework performance conclusions must use this primary E2E report. " +
+            "Component benchmarks are diagnostic only.")
         sb.appendLine()
         sb.appendLine("## Environment")
         sb.appendLine("- **Version**: $version")
@@ -336,7 +376,7 @@ tasks.register("generateBenchmarkReport") {
 val groupedBenchmarkReport = layout.buildDirectory.file("reports/jmh/grouped.md")
 
 tasks.register("generateGroupedBenchmarkReport") {
-    description = "Generate a grouped benchmark report from local and infrastructure JMH JSON results."
+    description = "Generate grouped E2E and diagnostic benchmark reports from JMH JSON results."
     group = "benchmark"
     outputs.file(groupedBenchmarkReport)
     outputs.upToDateWhen { false }
@@ -346,14 +386,27 @@ tasks.register("generateGroupedBenchmarkReport") {
         val report = renderGroupedBenchmarkReport(
             groups = listOf(
                 BenchmarkResultGroup(
-                    name = "Local Runtime",
-                    command = "./gradlew :wow-benchmarks:benchmarkLocal",
-                    resultFile = benchmarkLocalReport,
+                    name = "Primary Framework E2E",
+                    command = "./gradlew :wow-benchmarks:benchmarkFrameworkE2E",
+                    resultFile = benchmarkFrameworkE2EReport,
+                    performanceConclusionSource = true,
                 ),
                 BenchmarkResultGroup(
-                    name = "Infrastructure I/O",
-                    command = "./gradlew :wow-benchmarks:benchmarkInfrastructure",
-                    resultFile = benchmarkInfrastructureReport,
+                    name = "Secondary Infrastructure E2E",
+                    command = "./gradlew :wow-benchmarks:benchmarkInfrastructureE2E",
+                    resultFile = benchmarkInfrastructureE2EReport,
+                    required = false,
+                ),
+                BenchmarkResultGroup(
+                    name = "Diagnostic Local Components",
+                    command = "./gradlew :wow-benchmarks:benchmarkDiagnostics",
+                    resultFile = benchmarkDiagnosticsReport,
+                    required = false,
+                ),
+                BenchmarkResultGroup(
+                    name = "Diagnostic Infrastructure Components",
+                    command = "./gradlew :wow-benchmarks:benchmarkInfrastructureDiagnostics",
+                    resultFile = benchmarkInfrastructureDiagnosticsReport,
                     required = false,
                 ),
             ),
@@ -366,19 +419,20 @@ tasks.register("generateGroupedBenchmarkReport") {
 }
 
 tasks.register("benchmarkCompare") {
-    description = "Compare local benchmark results against baseline."
+    description = "Compare primary framework E2E benchmark results against baseline."
     group = "benchmark"
 
     doLast {
-        val localFile = localJson.get().asFile
-        val baselineFile = baselineJson.asFile
+        val localFile = frameworkE2EJson.get().asFile
+        val baselineFile = frameworkE2EBaselineJson.asFile
 
         if (!baselineFile.exists()) {
             throw GradleException("Baseline not found: ${baselineFile.absolutePath}. Run :wow-benchmarks:updateBaseline first.")
         }
         if (!localFile.exists()) {
             throw GradleException(
-                "Local benchmark results not found: ${localFile.absolutePath}. Run :wow-benchmarks:benchmarkLocal first."
+                "Framework E2E benchmark results not found: ${localFile.absolutePath}. " +
+                    "Run :wow-benchmarks:benchmarkFrameworkE2E first."
             )
         }
 
@@ -466,16 +520,17 @@ tasks.register("benchmarkCompare") {
 }
 
 tasks.register("updateBaseline") {
-    description = "Copy local benchmark results as the new baseline."
+    description = "Copy primary framework E2E benchmark results as the new baseline."
     group = "benchmark"
 
     doLast {
-        val localFile = localJson.get().asFile
-        val baselineFile = baselineJson.asFile
+        val localFile = frameworkE2EJson.get().asFile
+        val baselineFile = frameworkE2EBaselineJson.asFile
 
         if (!localFile.exists()) {
             throw GradleException(
-                "Local benchmark results not found: ${localFile.absolutePath}. Run :wow-benchmarks:benchmarkLocal first."
+                "Framework E2E benchmark results not found: ${localFile.absolutePath}. " +
+                    "Run :wow-benchmarks:benchmarkFrameworkE2E first."
             )
         }
 
