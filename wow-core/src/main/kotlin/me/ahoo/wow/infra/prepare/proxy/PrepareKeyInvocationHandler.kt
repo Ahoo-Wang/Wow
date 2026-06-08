@@ -14,10 +14,12 @@
 package me.ahoo.wow.infra.prepare.proxy
 
 import me.ahoo.wow.infra.Decorator
-import me.ahoo.wow.infra.accessor.method.FastInvoke
+import me.ahoo.wow.infra.invoker.FunctionInvokerFactory
+import me.ahoo.wow.infra.invoker.InstanceFunctionInvoker
 import me.ahoo.wow.infra.prepare.PrepareKey
 import java.lang.reflect.InvocationHandler
 import java.lang.reflect.Method
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Invocation handler for PrepareKey proxy instances.
@@ -46,6 +48,8 @@ class PrepareKeyInvocationHandler(
             .filter { it.isDefault }
     }
 
+    private val invokers = ConcurrentHashMap<Method, InstanceFunctionInvoker>()
+
     /**
      * Handles method invocation on the proxy instance.
      * For default methods, uses the JDK's default method invocation mechanism.
@@ -65,6 +69,13 @@ class PrepareKeyInvocationHandler(
         if (method.isDefault && declaredDefaultMethods.contains(method)) {
             return InvocationHandler.invokeDefault(proxy, method, *methodArgs)
         }
-        return FastInvoke.safeInvoke<Any?>(method, delegate, methodArgs)
+        @Suppress("UNCHECKED_CAST")
+        return invoker(method).invoke(delegate, methodArgs as Array<Any?>)
+    }
+
+    private fun invoker(method: Method): InstanceFunctionInvoker {
+        return invokers.computeIfAbsent(method) {
+            FunctionInvokerFactory.create(it) as InstanceFunctionInvoker
+        }
     }
 }

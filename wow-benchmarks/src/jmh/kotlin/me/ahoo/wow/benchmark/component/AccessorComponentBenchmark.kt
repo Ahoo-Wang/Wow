@@ -15,7 +15,6 @@ package me.ahoo.wow.benchmark.component
 
 import me.ahoo.wow.infra.accessor.constructor.DefaultConstructorAccessor
 import me.ahoo.wow.infra.accessor.function.SimpleFunctionAccessor
-import me.ahoo.wow.infra.accessor.method.FastInvoke
 import me.ahoo.wow.infra.invoker.FunctionInvokerFactory
 import me.ahoo.wow.infra.invoker.InstanceFunctionInvoker
 import org.openjdk.jmh.annotations.Benchmark
@@ -55,8 +54,8 @@ open class AccessorComponentBenchmark {
 
     @Benchmark
     @Throws(Throwable::class)
-    fun methodInvokeArray(blackhole: Blackhole) {
-        blackhole.consume(FastInvoke.safeInvoke<String>(singleMethod, target, arrayOf(argument)))
+    fun reflectionInvokeVarargs(blackhole: Blackhole) {
+        blackhole.consume(singleMethod.invoke(target, argument))
     }
 
     @Benchmark
