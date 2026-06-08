@@ -14,8 +14,12 @@
 package me.ahoo.wow.infra.accessor.function.reactive
 
 import me.ahoo.wow.infra.accessor.ensureAccessible
+import me.ahoo.wow.infra.accessor.method.MethodInvoker
+import me.ahoo.wow.infra.accessor.method.MethodInvokerFactory
 import reactor.core.publisher.Mono
+import java.lang.reflect.Method
 import kotlin.reflect.KFunction
+import kotlin.reflect.jvm.javaMethod
 
 abstract class AbstractMonoFunctionAccessor<T, D : Mono<*>> (override val function: KFunction<*>) : MonoFunctionAccessor<T, D> {
     /**
@@ -25,4 +29,14 @@ abstract class AbstractMonoFunctionAccessor<T, D : Mono<*>> (override val functi
     init {
         function.ensureAccessible()
     }
+
+    override val method: Method = function.javaMethod!!
+
+    private val invoker: MethodInvoker = MethodInvokerFactory.create(method)
+
+    @Suppress("UNCHECKED_CAST")
+    protected fun <R> invokeMethod(target: T, args: Array<Any?>): R = invoker.invoke(target, args) as R
+
+    @Suppress("UNCHECKED_CAST")
+    protected fun <R> invokeSingleMethod(target: T, arg: Any?): R = invoker.invokeSingle(target, arg) as R
 }

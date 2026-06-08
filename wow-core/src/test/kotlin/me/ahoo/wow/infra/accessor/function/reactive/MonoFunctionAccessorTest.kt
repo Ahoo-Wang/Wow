@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test
 import org.reactivestreams.Publisher
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import reactor.core.scheduler.Schedulers
 import reactor.test.StepVerifier
 
 class MonoFunctionAccessorTest {
@@ -98,6 +99,71 @@ class MonoFunctionAccessorTest {
             .expectNext("blocking")
             .verifyComplete()
     }
+
+    @Test
+    fun `invokeSingle should use simple accessor for Mono return values`() {
+        val accessor = ReactiveAccessorFixture::monoEcho.toMonoFunctionAccessor<ReactiveAccessorFixture, String>()
+
+        accessor.assert().isInstanceOf(SimpleMonoFunctionAccessor::class.java)
+        StepVerifier.create(accessor.invokeSingle(fixture, "wow"))
+            .expectNext("mono wow")
+            .verifyComplete()
+    }
+
+    @Test
+    fun `invokeSingle should use sync accessor`() {
+        val accessor = ReactiveAccessorFixture::syncEcho.toMonoFunctionAccessor<ReactiveAccessorFixture, String>()
+
+        accessor.assert().isInstanceOf(SyncMonoFunctionAccessor::class.java)
+        StepVerifier.create(accessor.invokeSingle(fixture, "wow"))
+            .expectNext("sync wow")
+            .verifyComplete()
+    }
+
+    @Test
+    fun `invokeSingle should collect Flux`() {
+        val accessor = ReactiveAccessorFixture::fluxEcho
+            .toMonoFunctionAccessor<ReactiveAccessorFixture, List<String>>()
+
+        accessor.assert().isInstanceOf(FluxMonoFunctionAccessor::class.java)
+        StepVerifier.create(accessor.invokeSingle(fixture, "wow"))
+            .expectNext(listOf("flux wow", "flux wow"))
+            .verifyComplete()
+    }
+
+    @Test
+    fun `invokeSingle should collect Publisher`() {
+        val accessor = ReactiveAccessorFixture::publisherEcho
+            .toMonoFunctionAccessor<ReactiveAccessorFixture, List<String>>()
+
+        accessor.assert().isInstanceOf(PublisherMonoFunctionAccessor::class.java)
+        StepVerifier.create(accessor.invokeSingle(fixture, "wow"))
+            .expectNext(listOf("publisher wow", "publisher wow"))
+            .verifyComplete()
+    }
+
+    @Test
+    fun `invokeSingle should preserve blocking accessor wrapper`() {
+        val accessor = ReactiveAccessorFixture::blockingEcho.toMonoFunctionAccessor<ReactiveAccessorFixture, String>()
+
+        accessor.assert().isInstanceOf(BlockingMonoFunctionAccessor::class.java)
+        StepVerifier.create(accessor.invokeSingle(fixture, "wow"))
+            .expectNext("blocking wow")
+            .verifyComplete()
+    }
+
+    @Test
+    fun `blocking invokeSingle should delegate to wrapped invokeSingle`() {
+        val delegate = RecordingMonoFunctionAccessor()
+        val accessor = BlockingMonoFunctionAccessor(delegate, Schedulers.immediate())
+
+        StepVerifier.create(accessor.invokeSingle(fixture, "wow"))
+            .expectNext("single wow")
+            .verifyComplete()
+
+        delegate.invokeSingleCount.assert().isEqualTo(1)
+        delegate.invokeArrayCount.assert().isEqualTo(0)
+    }
 }
 
 private class ReactiveAccessorFixture {
@@ -123,4 +189,38 @@ private class ReactiveAccessorFixture {
 
     @Blocking
     fun blockingValue(): String = blockingResult
+
+    fun monoEcho(value: String): Mono<String> = Mono.just("mono $value")
+
+    fun syncEcho(value: String): String = "sync $value"
+
+    fun fluxEcho(value: String): Flux<String> = Flux.just("flux $value", "flux $value")
+
+    fun publisherEcho(value: String): Publisher<String> = Flux.just("publisher $value", "publisher $value")
+
+    @Blocking
+    fun blockingEcho(value: String): String = "blocking $value"
+}
+
+private class RecordingMonoFunctionAccessor : MonoFunctionAccessor<ReactiveAccessorFixture, Mono<String>> {
+    var invokeArrayCount: Int = 0
+    var invokeSingleCount: Int = 0
+
+    override val function = ReactiveAccessorFixture::syncEcho
+
+    override fun invoke(
+        target: ReactiveAccessorFixture,
+        args: Array<Any?>
+    ): Mono<String> {
+        invokeArrayCount++
+        return Mono.just("array ${args[0]}")
+    }
+
+    override fun invokeSingle(
+        target: ReactiveAccessorFixture,
+        arg: Any?
+    ): Mono<String> {
+        invokeSingleCount++
+        return Mono.just("single $arg")
+    }
 }
