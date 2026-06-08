@@ -41,6 +41,11 @@ class SimpleMonoFunctionAccessor<T, D : Any>(
         args: Array<Any?>
     ): Mono<D> =
         Mono.defer {
-            super.invoke(target, args)
+            invokeMethod(target, args)
+        }
+
+    override fun invoke1(target: T, arg: Any?): Mono<D> =
+        Mono.defer {
+            invoke1Method(target, arg)
         }
 }

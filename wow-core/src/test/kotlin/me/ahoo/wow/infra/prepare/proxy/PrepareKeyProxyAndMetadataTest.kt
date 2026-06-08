@@ -20,6 +20,7 @@ import me.ahoo.wow.infra.prepare.PrepareKeyFactory
 import me.ahoo.wow.infra.prepare.PreparedValue
 import me.ahoo.wow.infra.prepare.PreparedValue.Companion.toForever
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
 
@@ -60,6 +61,18 @@ class PrepareKeyProxyAndMetadataTest {
         factory.createdValueClass.assert().isEqualTo(EmailIndexValue::class.java)
         factory.createdKey!!.preparedKey.assert().isEqualTo("a@example.com")
         factory.createdKey!!.preparedValue.assert().isSameAs(value)
+    }
+
+    @Test
+    fun `proxy should propagate original delegate exception`() {
+        val metadata = prepareKeyMetadata<EmailPrepareKey>()
+        val proxy = DefaultPrepareKeyProxyFactory(FailingPrepareKeyFactory).create(metadata)
+        val value = EmailIndexValue("user-1").toForever()
+
+        val error = assertThrows<IllegalStateException> {
+            proxy.prepare("a@example.com", value)
+        }
+        error.message.assert().isEqualTo("boom a@example.com")
     }
 }
 
@@ -106,6 +119,42 @@ private class RecordingPrepareKey<V : Any>(override val name: String) : PrepareK
         preparedKey = key
         preparedValue = value
         return Mono.just(true)
+    }
+
+    override fun getValue(key: String): Mono<PreparedValue<V>> = Mono.empty()
+
+    override fun rollback(key: String): Mono<Boolean> = Mono.just(true)
+
+    override fun rollback(
+        key: String,
+        value: V
+    ): Mono<Boolean> = Mono.just(true)
+
+    override fun reprepare(
+        key: String,
+        oldValue: V,
+        newValue: PreparedValue<V>
+    ): Mono<Boolean> = Mono.just(true)
+
+    override fun reprepare(
+        key: String,
+        value: PreparedValue<V>
+    ): Mono<Boolean> = Mono.just(true)
+}
+
+private object FailingPrepareKeyFactory : PrepareKeyFactory {
+    override fun <V : Any> create(
+        name: String,
+        valueClass: Class<V>
+    ): PrepareKey<V> = FailingPrepareKey(name)
+}
+
+private class FailingPrepareKey<V : Any>(override val name: String) : PrepareKey<V> {
+    override fun prepare(
+        key: String,
+        value: PreparedValue<V>
+    ): Mono<Boolean> {
+        error("boom $key")
     }
 
     override fun getValue(key: String): Mono<PreparedValue<V>> = Mono.empty()

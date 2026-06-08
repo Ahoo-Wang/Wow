@@ -12,7 +12,6 @@
  */
 package me.ahoo.wow.infra.accessor.function.reactive
 
-import me.ahoo.wow.infra.accessor.method.FastInvoke
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import kotlin.reflect.KFunction
@@ -26,7 +25,7 @@ import kotlin.reflect.KFunction
  * @param D the type of individual items in the Flux
  * @property function the Kotlin function that returns a Flux
  */
-class FluxMonoFunctionAccessor<T, D>(
+class FluxMonoFunctionAccessor<T, D : Any>(
     function: KFunction<*>
 ) : AbstractMonoFunctionAccessor<T, Mono<List<D>>>(function) {
 
@@ -43,6 +42,11 @@ class FluxMonoFunctionAccessor<T, D>(
         args: Array<Any?>
     ): Mono<List<D>> =
         Mono.defer {
-            FastInvoke.safeInvoke<Flux<D>>(method, target, args).collectList()
+            invokeMethod<Flux<D>>(target, args).collectList()
+        }
+
+    override fun invoke1(target: T, arg: Any?): Mono<List<D>> =
+        Mono.defer {
+            invoke1Method<Flux<D>>(target, arg).collectList()
         }
 }

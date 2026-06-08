@@ -12,7 +12,6 @@
  */
 package me.ahoo.wow.infra.accessor.function.reactive
 
-import me.ahoo.wow.infra.accessor.method.FastInvoke
 import reactor.core.publisher.Mono
 import kotlin.reflect.KFunction
 
@@ -43,6 +42,11 @@ class SyncMonoFunctionAccessor<T, D : Any>(
         args: Array<Any?>
     ): Mono<D> =
         Mono.fromCallable {
-            FastInvoke.safeInvoke(method, target, args)
+            invokeMethod(target, args)
+        }
+
+    override fun invoke1(target: T, arg: Any?): Mono<D> =
+        Mono.fromCallable {
+            invoke1Method(target, arg)
         }
 }

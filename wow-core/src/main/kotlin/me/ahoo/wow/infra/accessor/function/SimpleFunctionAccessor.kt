@@ -13,7 +13,11 @@
 package me.ahoo.wow.infra.accessor.function
 
 import me.ahoo.wow.infra.accessor.ensureAccessible
+import me.ahoo.wow.infra.invoker.FunctionInvoker
+import me.ahoo.wow.infra.invoker.FunctionInvokerFactory
+import java.lang.reflect.Method
 import kotlin.reflect.KFunction
+import kotlin.reflect.jvm.javaMethod
 
 /**
  * Simple implementation of FunctionAccessor that provides basic function invocation capabilities.
@@ -36,4 +40,14 @@ data class SimpleFunctionAccessor<T, R>(
     init {
         function.ensureAccessible()
     }
+
+    override val method: Method = function.javaMethod!!
+
+    private val invoker: FunctionInvoker = FunctionInvokerFactory.create(method)
+
+    @Suppress("UNCHECKED_CAST")
+    override fun invoke(target: T, args: Array<Any?>): R = invoker.invokeFunction(function, target, args) as R
+
+    @Suppress("UNCHECKED_CAST")
+    override fun invoke1(target: T, arg: Any?): R = invoker.invokeFunction1(function, target, arg) as R
 }

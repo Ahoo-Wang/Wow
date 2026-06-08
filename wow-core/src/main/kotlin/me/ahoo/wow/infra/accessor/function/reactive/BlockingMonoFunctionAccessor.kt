@@ -51,6 +51,9 @@ class BlockingMonoFunctionAccessor<T, D : Any>(
         target: T,
         args: Array<Any?>
     ): Mono<D> = monoFunctionAccessor.invoke(target, args).toBlockable(scheduler)
+
+    override fun invoke1(target: T, arg: Any?): Mono<D> =
+        monoFunctionAccessor.invoke1(target, arg).toBlockable(scheduler)
 }
 
 /**

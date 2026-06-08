@@ -13,7 +13,8 @@
 
 package me.ahoo.wow.infra.accessor.constructor
 
-import me.ahoo.wow.infra.accessor.method.FastInvoke
+import me.ahoo.wow.infra.accessor.ensureAccessible
+import me.ahoo.wow.infra.invoker.FunctionInvokerFactory
 import java.lang.reflect.Constructor
 
 /**
@@ -32,7 +33,7 @@ interface ConstructorAccessor<T : Any> {
 
     /**
      * Invokes the constructor with the specified arguments to create a new instance.
-     * Uses FastInvoke.safeNewInstance for proper exception handling and performance.
+     * Uses FunctionInvoker for proper exception handling and performance.
      *
      * @param args the arguments to pass to the constructor (empty array by default)
      * @return a new instance of type T
@@ -45,5 +46,15 @@ interface ConstructorAccessor<T : Any> {
      * val instance = accessor.invoke(arrayOf("initial value"))
      * ```
      */
-    fun invoke(args: Array<out Any?> = emptyArray<Any?>()): T = FastInvoke.safeNewInstance(constructor, args)
+    fun invoke(args: Array<out Any?> = emptyArray<Any?>()): T {
+        constructor.ensureAccessible()
+        @Suppress("UNCHECKED_CAST")
+        return FunctionInvokerFactory.create(constructor).invoke(args as Array<Any?>) as T
+    }
+
+    fun newInstance0(): T = invoke(emptyArray())
+
+    fun newInstance1(arg: Any?): T = invoke(arrayOf(arg))
+
+    fun newInstance2(arg1: Any?, arg2: Any?): T = invoke(arrayOf(arg1, arg2))
 }

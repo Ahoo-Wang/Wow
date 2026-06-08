@@ -109,6 +109,7 @@ val smokeSuite = BenchmarkSuite(
     includeClasses = listOf(
         "me.ahoo.wow.benchmark.component.CommandIdComponentBenchmark",
         "me.ahoo.wow.benchmark.component.CommandMessageComponentBenchmark",
+        "me.ahoo.wow.benchmark.component.AccessorComponentBenchmark",
         "me.ahoo.wow.benchmark.component.SerializationComponentBenchmark",
         "me.ahoo.wow.benchmark.e2e.CommandWriteE2EBenchmark",
     ),
@@ -156,6 +157,7 @@ val componentSuite = BenchmarkSuite(
     includeClasses = listOf(
         "me.ahoo.wow.benchmark.component.CommandIdComponentBenchmark",
         "me.ahoo.wow.benchmark.component.CommandMessageComponentBenchmark",
+        "me.ahoo.wow.benchmark.component.AccessorComponentBenchmark",
         "me.ahoo.wow.benchmark.component.CommandValidationComponentBenchmark",
         "me.ahoo.wow.benchmark.component.IdempotencyComponentBenchmark",
         "me.ahoo.wow.benchmark.component.AggregateLoadComponentBenchmark",

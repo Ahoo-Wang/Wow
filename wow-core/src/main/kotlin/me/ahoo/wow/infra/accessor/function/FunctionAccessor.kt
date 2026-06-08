@@ -13,7 +13,8 @@
 package me.ahoo.wow.infra.accessor.function
 
 import me.ahoo.wow.api.naming.Named
-import me.ahoo.wow.infra.accessor.method.FastInvoke
+import me.ahoo.wow.infra.accessor.ensureAccessible
+import me.ahoo.wow.infra.invoker.FunctionInvokerFactory
 import java.lang.reflect.Method
 import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
@@ -80,7 +81,7 @@ interface FunctionAccessor<T, out R> : Named {
 
     /**
      * Invokes the function on the specified target object with the given arguments.
-     * Uses FastInvoke.safeInvoke for proper exception handling and performance.
+     * Uses FunctionInvoker for proper exception handling and performance.
      *
      * @param target the object on which to invoke the function
      * @param args the arguments to pass to the function (empty array by default)
@@ -97,5 +98,11 @@ interface FunctionAccessor<T, out R> : Named {
     fun invoke(
         target: T,
         args: Array<Any?> = emptyArray<Any?>()
-    ): R = FastInvoke.safeInvoke(method, target, args)
+    ): R {
+        function.ensureAccessible()
+        @Suppress("UNCHECKED_CAST")
+        return FunctionInvokerFactory.create(method).invokeFunction(function, target, args) as R
+    }
+
+    fun invoke1(target: T, arg: Any?): R = invoke(target, arrayOf(arg))
 }

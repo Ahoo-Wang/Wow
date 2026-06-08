@@ -16,6 +16,8 @@ package me.ahoo.wow.messaging.function
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.annotation.OnEvent
+import me.ahoo.wow.infra.accessor.function.FunctionAccessor
+import me.ahoo.wow.infra.accessor.function.SimpleFunctionAccessor
 import me.ahoo.wow.ioc.SimpleServiceProvider
 import me.ahoo.wow.ioc.register
 import me.ahoo.wow.messaging.TestNamedMessage
@@ -23,6 +25,8 @@ import me.ahoo.wow.messaging.function.FunctionMetadataParser.toFunctionMetadata
 import me.ahoo.wow.messaging.handler.MessageExchange
 import org.junit.jupiter.api.Test
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.reflect.KFunction
+import kotlin.reflect.full.declaredFunctions
 
 class MethodMessageFunctionTest {
 
@@ -55,6 +59,47 @@ class MethodMessageFunctionTest {
             .toMessageFunction<InvocationProcessor, InvocationExchange, String>(processor)
 
         function.handle(exchange).assert().isEqualTo("event:named:typed")
+    }
+
+    @Test
+    fun `simple message function uses single argument accessor`() {
+        val processor = InvocationProcessor()
+        val delegate = SimpleFunctionAccessor<InvocationProcessor, String>(
+            InvocationProcessor::class.declaredFunctions.first { it.name == "handleBody" }
+        )
+        val accessor = RecordingFunctionAccessor(delegate)
+        val metadata = InvocationProcessor::handleBody.toFunctionMetadata<InvocationProcessor, String> { accessor }
+        val function = metadata.toMessageFunction<InvocationProcessor, InvocationExchange, String>(processor)
+
+        function(InvocationExchange(body = ParsedEventBody("body"))).assert().isEqualTo("body:body")
+
+        accessor.invoke1Count.assert().isEqualTo(1)
+        accessor.invokeArrayCount.assert().isEqualTo(0)
+        accessor.lastSingleArgument.assert().isEqualTo(ParsedEventBody("body"))
+    }
+
+    @Test
+    fun `injectable message function keeps array invocation`() {
+        val processor = InvocationProcessor()
+        val delegate = SimpleFunctionAccessor<InvocationProcessor, String>(
+            InvocationProcessor::class.declaredFunctions.first { it.name == "handleWithServices" }
+        )
+        val accessor = RecordingFunctionAccessor(delegate)
+        val provider = SimpleServiceProvider()
+        val namedService = InvocationService("named")
+        val typedService = InvocationService("typed")
+        provider.register(service = namedService, serviceName = "named-service")
+        provider.register<InvocationService>(typedService)
+        val exchange = InvocationExchange(body = ParsedEventBody("event"))
+            .setServiceProvider(provider)
+        val metadata = InvocationProcessor::handleWithServices.toFunctionMetadata<InvocationProcessor, String> { accessor }
+        val function = metadata.toMessageFunction<InvocationProcessor, InvocationExchange, String>(processor)
+
+        function(exchange).assert().isEqualTo("event:named:typed")
+
+        accessor.invoke1Count.assert().isEqualTo(0)
+        accessor.invokeArrayCount.assert().isEqualTo(1)
+        accessor.lastArraySize.assert().isEqualTo(3)
     }
 
     @Test
@@ -94,4 +139,31 @@ private class InvocationExchange(
 ) : MessageExchange<InvocationExchange, TestNamedMessage> {
     override val attributes: MutableMap<String, Any> = ConcurrentHashMap()
     override val message: TestNamedMessage = TestNamedMessage(body = body)
+}
+
+private class RecordingFunctionAccessor<P, R>(
+    private val delegate: FunctionAccessor<P, R>
+) : FunctionAccessor<P, R> {
+    var invokeArrayCount: Int = 0
+        private set
+    var invoke1Count: Int = 0
+        private set
+    var lastArraySize: Int? = null
+        private set
+    var lastSingleArgument: Any? = null
+        private set
+
+    override val function: KFunction<*> = delegate.function
+
+    override fun invoke(target: P, args: Array<Any?>): R {
+        invokeArrayCount++
+        lastArraySize = args.size
+        return delegate.invoke(target, args)
+    }
+
+    override fun invoke1(target: P, arg: Any?): R {
+        invoke1Count++
+        lastSingleArgument = arg
+        return delegate.invoke1(target, arg)
+    }
 }

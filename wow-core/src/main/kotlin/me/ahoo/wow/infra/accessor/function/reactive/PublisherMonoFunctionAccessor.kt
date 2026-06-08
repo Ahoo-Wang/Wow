@@ -12,7 +12,6 @@
  */
 package me.ahoo.wow.infra.accessor.function.reactive
 
-import me.ahoo.wow.infra.accessor.method.FastInvoke
 import org.reactivestreams.Publisher
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toFlux
@@ -20,8 +19,7 @@ import kotlin.reflect.KFunction
 
 /**
  * MonoFunctionAccessor for functions that return Publisher streams.
- * This accessor converts Publisher results to Mono<D> by taking the first emitted item,
- * providing compatibility with the Reactive Streams specification.
+ * This accessor converts Publisher results to a Mono that contains all emitted items as a List.
  *
  * @param T the type of the target object
  * @param D the type of data in the Publisher
@@ -33,8 +31,7 @@ class PublisherMonoFunctionAccessor<T, D : Any>(
 
     /**
      * Invokes the function that returns a Publisher and converts it to a Mono.
-     * Uses Mono.defer for lazy evaluation and toMono() to convert the Publisher
-     * to a Mono that emits the first item.
+     * Uses Mono.defer for lazy evaluation and collectList() to aggregate the Publisher emissions.
      *
      * @param target the object on which to invoke the function
      * @param args the arguments to pass to the function
@@ -46,6 +43,12 @@ class PublisherMonoFunctionAccessor<T, D : Any>(
     ): Mono<D> =
         Mono.defer {
             @Suppress("UNCHECKED_CAST")
-            FastInvoke.safeInvoke<Publisher<Any>>(method, target, args).toFlux().collectList() as Mono<D>
+            invokeMethod<Publisher<Any>>(target, args).toFlux().collectList() as Mono<D>
+        }
+
+    override fun invoke1(target: T, arg: Any?): Mono<D> =
+        Mono.defer {
+            @Suppress("UNCHECKED_CAST")
+            invoke1Method<Publisher<Any>>(target, arg).toFlux().collectList() as Mono<D>
         }
 }
