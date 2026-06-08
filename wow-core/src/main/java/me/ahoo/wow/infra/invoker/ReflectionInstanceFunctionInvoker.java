@@ -15,6 +15,7 @@ package me.ahoo.wow.infra.invoker;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.Arrays;
 
 final class ReflectionInstanceFunctionInvoker implements InstanceFunctionInvoker {
     private final Method method;
@@ -28,6 +29,19 @@ final class ReflectionInstanceFunctionInvoker implements InstanceFunctionInvoker
     @Override
     public int parameterCount() {
         return parameterCount;
+    }
+
+    @Override
+    public Object invoke(Object[] args) throws Throwable {
+        Object[] actualArgs = FunctionInvocationSupport.actualArgs(args);
+        if (actualArgs.length == 0) {
+            throw new IllegalArgumentException("Instance function invocation requires receiver as the first argument.");
+        }
+        Object receiver = actualArgs[0];
+        Object[] arguments = actualArgs.length == 1
+                ? FunctionInvocationSupport.EMPTY_ARGS
+                : Arrays.copyOfRange(actualArgs, 1, actualArgs.length);
+        return invoke(receiver, arguments);
     }
 
     @Override

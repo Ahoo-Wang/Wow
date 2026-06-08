@@ -34,7 +34,7 @@ abstract class AbstractMethodHandleReceiverlessFunctionInvoker implements Receiv
         Object[] actualArgs = FunctionInvocationSupport.actualArgs(args);
         try {
             if (actualArgs.length <= 9) {
-                return FunctionInvocationSupport.invokeByArgumentArray(this, actualArgs);
+                return FunctionInvocationSupport.invoke(this, actualArgs);
             }
             return handle.invokeWithArguments(actualArgs);
         } catch (Throwable error) {
