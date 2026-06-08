@@ -7,11 +7,11 @@ import java.util.Locale
 
 val resultsDir = layout.projectDirectory.dir("results")
 val baselineJson = resultsDir.file("baseline.json")
-val latestJson = layout.buildDirectory.file("results/jmh/latest.json")
+val localJson = layout.buildDirectory.file("results/jmh/local.json")
 val readmeFile = layout.projectDirectory.file("README.md")
 
-val benchmarkInternalReport = layout.buildDirectory.file("results/jmh/internal.json")
-val benchmarkExternalReport = layout.buildDirectory.file("results/jmh/external.json")
+val benchmarkLocalReport = layout.buildDirectory.file("results/jmh/local.json")
+val benchmarkInfrastructureReport = layout.buildDirectory.file("results/jmh/infrastructure.json")
 
 data class BenchmarkResultGroup(
     val name: String,
@@ -89,7 +89,7 @@ fun parseBenchmarkGroup(
             return BenchmarkGroupReport(
                 group = group,
                 rows = emptyList(),
-                unavailableReason = "Result file was not present. Run ${group.command} when the required service is available.",
+                unavailableReason = "Status: unavailable. Result file was not present. Run ${group.command} when the required service is available.",
             )
         }
         throw GradleException(
@@ -270,12 +270,13 @@ fun renderGroupedBenchmarkReport(
 tasks.register("generateBenchmarkReport") {
     description = "Generate benchmark README.md from JMH JSON results."
     group = "benchmark"
-    dependsOn(tasks.named("jmh"))
 
     doLast {
-        val resultsFile = latestJson.get().asFile
+        val resultsFile = localJson.get().asFile
         if (!resultsFile.exists()) {
-            throw GradleException("JMH results not found: ${resultsFile.absolutePath}. Run :wow-benchmarks:jmh first.")
+            throw GradleException(
+                "Local JMH results not found: ${resultsFile.absolutePath}. Run :wow-benchmarks:benchmarkLocal first."
+            )
         }
 
         val parser = JsonSlurper()
@@ -335,7 +336,7 @@ tasks.register("generateBenchmarkReport") {
 val groupedBenchmarkReport = layout.buildDirectory.file("reports/jmh/grouped.md")
 
 tasks.register("generateGroupedBenchmarkReport") {
-    description = "Generate a grouped benchmark report from internal and external JMH JSON results."
+    description = "Generate a grouped benchmark report from local and infrastructure JMH JSON results."
     group = "benchmark"
     outputs.file(groupedBenchmarkReport)
     outputs.upToDateWhen { false }
@@ -345,14 +346,14 @@ tasks.register("generateGroupedBenchmarkReport") {
         val report = renderGroupedBenchmarkReport(
             groups = listOf(
                 BenchmarkResultGroup(
-                    name = "Internal",
-                    command = "./gradlew :wow-benchmarks:benchmarkInternal",
-                    resultFile = benchmarkInternalReport,
+                    name = "Local Runtime",
+                    command = "./gradlew :wow-benchmarks:benchmarkLocal",
+                    resultFile = benchmarkLocalReport,
                 ),
                 BenchmarkResultGroup(
-                    name = "External",
-                    command = "./gradlew :wow-benchmarks:benchmarkExternal",
-                    resultFile = benchmarkExternalReport,
+                    name = "Infrastructure I/O",
+                    command = "./gradlew :wow-benchmarks:benchmarkInfrastructure",
+                    resultFile = benchmarkInfrastructureReport,
                     required = false,
                 ),
             ),
@@ -365,18 +366,20 @@ tasks.register("generateGroupedBenchmarkReport") {
 }
 
 tasks.register("benchmarkCompare") {
-    description = "Compare latest benchmark results against baseline."
+    description = "Compare local benchmark results against baseline."
     group = "benchmark"
 
     doLast {
-        val latestFile = latestJson.get().asFile
+        val localFile = localJson.get().asFile
         val baselineFile = baselineJson.asFile
 
         if (!baselineFile.exists()) {
             throw GradleException("Baseline not found: ${baselineFile.absolutePath}. Run :wow-benchmarks:updateBaseline first.")
         }
-        if (!latestFile.exists()) {
-            throw GradleException("Latest results not found: ${latestFile.absolutePath}. Run :wow-benchmarks:jmh first.")
+        if (!localFile.exists()) {
+            throw GradleException(
+                "Local benchmark results not found: ${localFile.absolutePath}. Run :wow-benchmarks:benchmarkLocal first."
+            )
         }
 
         val parser = JsonSlurper()
@@ -403,7 +406,7 @@ tasks.register("benchmarkCompare") {
         }
 
         val baseline = parseScores(baselineFile)
-        val latest = parseScores(latestFile)
+        val latest = parseScores(localFile)
         val allBenchmarks = (baseline.keys + latest.keys).sorted()
 
         var regressions = 0
@@ -463,18 +466,20 @@ tasks.register("benchmarkCompare") {
 }
 
 tasks.register("updateBaseline") {
-    description = "Copy latest benchmark results as the new baseline."
+    description = "Copy local benchmark results as the new baseline."
     group = "benchmark"
 
     doLast {
-        val latestFile = latestJson.get().asFile
+        val localFile = localJson.get().asFile
         val baselineFile = baselineJson.asFile
 
-        if (!latestFile.exists()) {
-            throw GradleException("Latest results not found: ${latestFile.absolutePath}. Run :wow-benchmarks:jmh first.")
+        if (!localFile.exists()) {
+            throw GradleException(
+                "Local benchmark results not found: ${localFile.absolutePath}. Run :wow-benchmarks:benchmarkLocal first."
+            )
         }
 
-        latestFile.copyTo(baselineFile, overwrite = true)
+        localFile.copyTo(baselineFile, overwrite = true)
         logger.lifecycle("Baseline updated: ${baselineFile.absolutePath}")
     }
 }

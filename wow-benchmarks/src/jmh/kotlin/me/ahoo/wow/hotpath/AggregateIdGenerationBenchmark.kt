@@ -13,27 +13,32 @@
 
 package me.ahoo.wow.hotpath
 
-import me.ahoo.wow.id.generateGlobalId
+import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
+import me.ahoo.wow.benchmark.fixture.BenchmarkIds
 import me.ahoo.wow.modeling.DefaultAggregateId
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
+import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.infra.Blackhole
 
 @State(Scope.Benchmark)
 open class AggregateIdGenerationBenchmark {
-    private val fixture = HotPathFixture
+    @Setup
+    fun setup() {
+        BenchmarkIds.installDeterministicGlobalIdGenerator()
+    }
 
     @Benchmark
     fun generateGlobalId(blackhole: Blackhole) {
-        val id = generateGlobalId()
+        val id = BenchmarkIds.nextGlobalId()
         blackhole.consume(id)
     }
 
     @Benchmark
     fun createAggregateId(blackhole: Blackhole) {
         val aggregateId = DefaultAggregateId(
-            namedAggregate = fixture.namedAggregate,
+            namedAggregate = BenchmarkAggregates.namedAggregate,
             id = "test-id",
         )
         blackhole.consume(aggregateId)
@@ -41,9 +46,9 @@ open class AggregateIdGenerationBenchmark {
 
     @Benchmark
     fun generateIdAndCreateAggregateId(blackhole: Blackhole) {
-        val id = generateGlobalId()
+        val id = BenchmarkIds.nextGlobalId()
         val aggregateId = DefaultAggregateId(
-            namedAggregate = fixture.namedAggregate,
+            namedAggregate = BenchmarkAggregates.namedAggregate,
             id = id,
         )
         blackhole.consume(aggregateId)

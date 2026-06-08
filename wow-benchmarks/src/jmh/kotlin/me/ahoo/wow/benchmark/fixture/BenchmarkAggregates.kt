@@ -11,23 +11,21 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.eventsourcing
+package me.ahoo.wow.benchmark.fixture
 
-import me.ahoo.wow.benchmark.fixture.BenchmarkEvents
+import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.example.domain.cart.Cart
+import me.ahoo.wow.example.domain.cart.CartState
+import me.ahoo.wow.modeling.MaterializedNamedAggregate
+import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.modeling.annotation.aggregateMetadata
 
-abstract class AbstractEventStoreBenchmark {
-    protected lateinit var eventStore: EventStore
+object BenchmarkAggregates {
+    val namedAggregate = MaterializedNamedAggregate("example-service", "cart")
+    val cartMetadata by lazy { aggregateMetadata<Cart, CartState>() }
+    const val FIXED_AGGREGATE_ID: String = "benchmark-cart-fixed-id"
 
-    open fun setup() {
-        this.eventStore = createEventStore()
+    fun aggregateId(): AggregateId {
+        return cartMetadata.aggregateId()
     }
-
-    abstract fun createEventStore(): EventStore
-
-    open fun append() {
-        val eventStream = BenchmarkEvents.singleEventStream()
-        eventStore.append(eventStream).block()
-    }
-
-
 }

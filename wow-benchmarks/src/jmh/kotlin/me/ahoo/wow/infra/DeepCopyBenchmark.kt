@@ -13,8 +13,8 @@
 
 package me.ahoo.wow.infra
 
+import me.ahoo.wow.benchmark.fixture.BenchmarkEvents
 import me.ahoo.wow.event.DomainEventStream
-import me.ahoo.wow.eventsourcing.createEventStream
 import me.ahoo.wow.serialization.toLinkedHashMap
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
@@ -25,7 +25,7 @@ import org.openjdk.jmh.annotations.State
 @State(Scope.Benchmark)
 open class DeepCopyBenchmark {
 
-    private val eventStream: DomainEventStream = createEventStream()
+    private val eventStream: DomainEventStream = BenchmarkEvents.singleEventStream()
 
     @Benchmark
     fun jsonRoundTrip(): DomainEventStream {

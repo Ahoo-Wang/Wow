@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.hotpath
 
+import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
+import me.ahoo.wow.benchmark.fixture.BenchmarkEvents
 import me.ahoo.wow.event.InMemoryDomainEventBus
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
@@ -24,12 +26,12 @@ import org.openjdk.jmh.infra.Blackhole
 @State(Scope.Benchmark)
 open class EventPublishBenchmark {
     private lateinit var eventBus: InMemoryDomainEventBus
-    private val eventStream = HotPathFixture.createEventStream()
+    private val eventStream = BenchmarkEvents.singleEventStream()
 
     @Setup
     fun setup() {
         eventBus = InMemoryDomainEventBus()
-        eventBus.receive(setOf(HotPathFixture.namedAggregate)).subscribe()
+        eventBus.receive(setOf(BenchmarkAggregates.namedAggregate)).subscribe()
     }
 
     @TearDown

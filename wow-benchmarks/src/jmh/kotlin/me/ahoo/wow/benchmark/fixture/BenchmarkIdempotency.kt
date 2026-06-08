@@ -11,23 +11,21 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.eventsourcing
+package me.ahoo.wow.benchmark.fixture
 
-import me.ahoo.wow.benchmark.fixture.BenchmarkEvents
+import com.google.common.hash.BloomFilter
+import com.google.common.hash.Funnels
+import me.ahoo.wow.infra.idempotency.BloomFilterIdempotencyChecker
+import java.time.Duration
 
-abstract class AbstractEventStoreBenchmark {
-    protected lateinit var eventStore: EventStore
-
-    open fun setup() {
-        this.eventStore = createEventStore()
+object BenchmarkIdempotency {
+    fun bloomFilterChecker(): BloomFilterIdempotencyChecker {
+        return BloomFilterIdempotencyChecker(Duration.ofMinutes(1)) {
+            BloomFilter.create(
+                Funnels.stringFunnel(Charsets.UTF_8),
+                10_000_000,
+                0.00001,
+            )
+        }
     }
-
-    abstract fun createEventStore(): EventStore
-
-    open fun append() {
-        val eventStream = BenchmarkEvents.singleEventStream()
-        eventStore.append(eventStream).block()
-    }
-
-
 }

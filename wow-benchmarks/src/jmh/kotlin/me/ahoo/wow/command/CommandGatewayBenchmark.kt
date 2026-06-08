@@ -13,13 +13,8 @@
 
 package me.ahoo.wow.command
 
-import me.ahoo.wow.command.wait.LocalCommandWaitNotifier
-import me.ahoo.wow.command.wait.SimpleCommandWaitEndpoint
-import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
-import me.ahoo.wow.infra.idempotency.DefaultAggregateIdempotencyCheckerProvider
-import me.ahoo.wow.infra.idempotency.NoOpIdempotencyChecker
-import me.ahoo.wow.modeling.materialize
-import me.ahoo.wow.test.validation.TestValidator
+import me.ahoo.wow.benchmark.fixture.BenchmarkCommands
+import me.ahoo.wow.benchmark.scenario.CommandGatewayScenario
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
@@ -28,33 +23,22 @@ import org.openjdk.jmh.annotations.TearDown
 
 @State(Scope.Benchmark)
 open class CommandGatewayBenchmark {
-    private lateinit var commandGateway: CommandGateway
+    private lateinit var scenario: CommandGatewayScenario
 
     @Setup
     fun setup() {
-        val commandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar)
-        commandGateway = DefaultCommandGateway(
-            commandWaitEndpoint = SimpleCommandWaitEndpoint(""),
-            commandBus = InMemoryCommandBus(),
-            validator = TestValidator,
-            idempotencyCheckerProvider = DefaultAggregateIdempotencyCheckerProvider({
-                NoOpIdempotencyChecker
-            }),
-            waitStrategyRegistrar = SimpleWaitStrategyRegistrar,
-            commandWaitNotifier = commandWaitNotifier
-        )
-        commandGateway.receive(setOf(cartAggregateMetadata.namedAggregate.materialize())).subscribe()
+        scenario = CommandGatewayScenario.inMemory()
     }
 
     @TearDown
     fun tearDown() {
-        commandGateway.close()
+        scenario.close()
     }
 
     @Benchmark
     fun send() {
-        val commandMessage = createCommandMessage()
-        commandGateway.send(commandMessage).block()
+        val commandMessage = BenchmarkCommands.fixedAggregateAddCartItem()
+        scenario.commandGateway.send(commandMessage).block()
     }
 
 }

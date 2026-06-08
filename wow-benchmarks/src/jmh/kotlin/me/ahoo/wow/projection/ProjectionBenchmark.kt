@@ -15,14 +15,13 @@ package me.ahoo.wow.projection
 
 import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.command.cartAggregateMetadata
+import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.event.SimpleDomainEventExchange
 import me.ahoo.wow.event.SimpleDomainEvent
 import me.ahoo.wow.example.api.cart.CartItemAdded
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.messaging.function.SimpleMessageFunctionRegistrar
-import me.ahoo.wow.modeling.aggregateId
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
@@ -39,11 +38,11 @@ open class ProjectionBenchmark {
     fun setup() {
         registrar = SimpleMessageFunctionRegistrar()
         val projectionFunction = BenchmarkProjectionFunction(
-            topic = cartAggregateMetadata.namedAggregate,
+            topic = BenchmarkAggregates.cartMetadata.namedAggregate,
         )
         registrar.register(projectionFunction)
 
-        val aggregateId = cartAggregateMetadata.aggregateId()
+        val aggregateId = BenchmarkAggregates.aggregateId()
         domainEvent = SimpleDomainEvent(
             id = "event-id",
             body = CartItemAdded(me.ahoo.wow.example.api.cart.CartItem("productId")),

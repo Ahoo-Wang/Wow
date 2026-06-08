@@ -11,23 +11,13 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.eventsourcing
+package me.ahoo.wow.benchmark.fixture
 
-import me.ahoo.wow.benchmark.fixture.BenchmarkEvents
+import me.ahoo.wow.api.messaging.Header
+import me.ahoo.wow.messaging.DefaultHeader
 
-abstract class AbstractEventStoreBenchmark {
-    protected lateinit var eventStore: EventStore
-
-    open fun setup() {
-        this.eventStore = createEventStore()
+object BenchmarkHeaders {
+    fun emptyHeader(): Header {
+        return DefaultHeader()
     }
-
-    abstract fun createEventStore(): EventStore
-
-    open fun append() {
-        val eventStream = BenchmarkEvents.singleEventStream()
-        eventStore.append(eventStream).block()
-    }
-
-
 }

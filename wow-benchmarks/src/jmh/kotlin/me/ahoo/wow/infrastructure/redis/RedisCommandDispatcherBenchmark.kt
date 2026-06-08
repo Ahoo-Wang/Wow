@@ -11,28 +11,23 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.redis
+package me.ahoo.wow.infrastructure.redis
 
-
-import me.ahoo.wow.eventsourcing.AbstractEventStoreBenchmark
+import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.benchmark.fixture.BenchmarkCommands
 import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.example.api.cart.AddCartItem
+import me.ahoo.wow.modeling.AbstractCommandDispatcherBenchmark
 import me.ahoo.wow.redis.eventsourcing.RedisEventStore
 import org.openjdk.jmh.annotations.Benchmark
-import org.openjdk.jmh.annotations.Fork
-import org.openjdk.jmh.annotations.Measurement
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.annotations.TearDown
-import org.openjdk.jmh.annotations.Threads
-import org.openjdk.jmh.annotations.Warmup
+import org.openjdk.jmh.infra.Blackhole
 
-@Warmup(iterations = 1)
-@Measurement(iterations = 2)
-@Fork(value = 2)
-@Threads(5)
 @State(Scope.Benchmark)
-open class RedisEventStoreBenchmark : AbstractEventStoreBenchmark() {
+open class RedisCommandDispatcherBenchmark : AbstractCommandDispatcherBenchmark() {
     private lateinit var redis: RedisBenchmarkFixture
 
     @Setup
@@ -42,7 +37,8 @@ open class RedisEventStoreBenchmark : AbstractEventStoreBenchmark() {
     }
 
     @TearDown
-    fun destroy() {
+    override fun destroy() {
+        super.destroy()
         redis.close()
     }
 
@@ -50,8 +46,12 @@ open class RedisEventStoreBenchmark : AbstractEventStoreBenchmark() {
         return RedisEventStore(redis.redisTemplate)
     }
 
+    override fun createBenchmarkCommandMessage(): CommandMessage<AddCartItem> {
+        return BenchmarkCommands.newAggregateAddCartItem()
+    }
+
     @Benchmark
-    override fun append() {
-        super.append()
+    fun sendAndWaitForProcessedForNewAggregate(blackHole: Blackhole) {
+        super.sendAndWaitForProcessed(blackHole)
     }
 }

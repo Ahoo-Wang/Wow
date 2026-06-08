@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.eventsourcing
 
+import me.ahoo.wow.benchmark.fixture.BenchmarkEvents
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.State
@@ -23,13 +24,13 @@ open class EventStreamFactoryBenchmark {
 
     @Benchmark
     fun createEventStream(blackhole: Blackhole) {
-        val eventStream = createEventStream()
+        val eventStream = BenchmarkEvents.singleEventStream()
         blackhole.consume(eventStream)
     }
 
     @Benchmark
-    fun createSingleEventStream(blackhole: Blackhole) {
-        val eventStream = createSingleEventStream()
+    fun createSingleBodyEventStream(blackhole: Blackhole) {
+        val eventStream = BenchmarkEvents.singleBodyEventStream()
         blackhole.consume(eventStream)
     }
 }

@@ -13,7 +13,8 @@
 
 package me.ahoo.wow.command
 
-import me.ahoo.wow.id.generateGlobalId
+import me.ahoo.wow.benchmark.fixture.BenchmarkIdempotency
+import me.ahoo.wow.benchmark.fixture.BenchmarkIds
 import me.ahoo.wow.infra.idempotency.BloomFilterIdempotencyChecker
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
@@ -27,12 +28,13 @@ open class BloomFilterIdempotencyCheckerBenchmark {
 
     @Setup
     fun setup() {
-        idempotencyChecker = createBloomFilterIdempotencyChecker()
+        BenchmarkIds.installDeterministicGlobalIdGenerator()
+        idempotencyChecker = BenchmarkIdempotency.bloomFilterChecker()
     }
 
     @Benchmark
     fun check(blackhole: Blackhole) {
-        val result = idempotencyChecker.check(generateGlobalId()).block()
+        val result = idempotencyChecker.check(BenchmarkIds.nextGlobalId()).block()
         blackhole.consume(result)
     }
 }

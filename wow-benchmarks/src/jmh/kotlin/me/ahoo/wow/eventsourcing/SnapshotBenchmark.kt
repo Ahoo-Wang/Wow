@@ -13,14 +13,14 @@
 
 package me.ahoo.wow.eventsourcing
 
-import me.ahoo.wow.command.cartAggregateMetadata
+import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
+import me.ahoo.wow.benchmark.fixture.BenchmarkEvents
 import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotRepository
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.eventsourcing.snapshot.VersionOffsetSnapshotStrategy
 import me.ahoo.wow.eventsourcing.state.SimpleStateEventExchange
 import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.toStateEvent
-import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
@@ -37,7 +37,7 @@ open class SnapshotBenchmark {
 
     @Setup
     fun setup() {
-        aggregateId = cartAggregateMetadata.aggregateId()
+        aggregateId = BenchmarkAggregates.aggregateId()
         snapshotLoadRepository = InMemorySnapshotRepository()
         snapshotStrategy = VersionOffsetSnapshotStrategy(
             versionOffset = 5,
@@ -45,10 +45,10 @@ open class SnapshotBenchmark {
         )
 
         val aggregate = ConstructorStateAggregateFactory.create(
-            cartAggregateMetadata.state,
+            BenchmarkAggregates.cartMetadata.state,
             aggregateId,
         )
-        val eventStream = createEventStream(aggregateId)
+        val eventStream = BenchmarkEvents.singleEventStream(aggregateId)
         val stateEvent = eventStream.toStateEvent(aggregate)
         val snapshot = SimpleSnapshot(stateEvent)
         snapshotLoadRepository.save(snapshot).block()

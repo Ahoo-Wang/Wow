@@ -11,46 +11,47 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.mongo
+package me.ahoo.wow.infrastructure.mongo
 
-
-import me.ahoo.wow.eventsourcing.AbstractEventStoreBenchmark
+import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.benchmark.fixture.BenchmarkCommands
 import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.example.api.cart.AddCartItem
+import me.ahoo.wow.modeling.AbstractCommandDispatcherBenchmark
+import me.ahoo.wow.mongo.MongoEventStore
 import org.openjdk.jmh.annotations.Benchmark
-import org.openjdk.jmh.annotations.Fork
-import org.openjdk.jmh.annotations.Measurement
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.annotations.TearDown
-import org.openjdk.jmh.annotations.Threads
-import org.openjdk.jmh.annotations.Warmup
+import org.openjdk.jmh.infra.Blackhole
 
-@Warmup(iterations = 1)
-@Measurement(iterations = 2)
-@Fork(value = 2)
-@Threads(5)
 @State(Scope.Benchmark)
-open class MongoEventStoreBenchmark : AbstractEventStoreBenchmark() {
-    private lateinit var mongoInitializer: MongoInitializer
+open class MongoCommandDispatcherBenchmark : AbstractCommandDispatcherBenchmark() {
+    private lateinit var mongo: MongoBenchmarkFixture
 
     @Setup
     override fun setup() {
-        mongoInitializer = MongoInitializer()
+        mongo = MongoBenchmarkFixture()
         super.setup()
     }
 
     @TearDown
-    fun destroy() {
-        mongoInitializer.close()
+    override fun destroy() {
+        super.destroy()
+        mongo.close()
     }
 
     override fun createEventStore(): EventStore {
-        return MongoEventStore(mongoInitializer.database)
+        return MongoEventStore(mongo.database)
+    }
+
+    override fun createBenchmarkCommandMessage(): CommandMessage<AddCartItem> {
+        return BenchmarkCommands.newAggregateAddCartItem()
     }
 
     @Benchmark
-    override fun append() {
-        super.append()
+    fun sendAndWaitForProcessedForNewAggregate(blackHole: Blackhole) {
+        super.sendAndWaitForProcessed(blackHole)
     }
 }

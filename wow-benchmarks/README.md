@@ -5,7 +5,9 @@
 
 # Benchmark Report
 
-> Run `./gradlew :wow-benchmarks:jmh :wow-benchmarks:generateBenchmarkReport` to generate the latest report.
+> Run `./gradlew :wow-benchmarks:benchmarkLocal :wow-benchmarks:generateBenchmarkReport` to generate the latest local runtime report.
+>
+> Run grouped Local Runtime and Infrastructure I/O benchmarks: `./gradlew :wow-benchmarks:benchmarkLocal :wow-benchmarks:benchmarkInfrastructure :wow-benchmarks:generateGroupedBenchmarkReport`
 >
 > Compare against baseline: `./gradlew :wow-benchmarks:benchmarkCompare`
 >

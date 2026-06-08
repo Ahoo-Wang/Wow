@@ -11,18 +11,14 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.redis
+package me.ahoo.wow.infrastructure.redis
 
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.command.cartAggregateMetadata
+import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
+import me.ahoo.wow.benchmark.fixture.BenchmarkEvents
 import me.ahoo.wow.event.DomainEventStream
-import me.ahoo.wow.event.toDomainEventStream
-import me.ahoo.wow.example.api.cart.CartItem
-import me.ahoo.wow.example.api.cart.CartItemAdded
 import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.redis.eventsourcing.RedisEventStore
-import me.ahoo.wow.test.aggregate.GivenInitializationCommand
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Fork
 import org.openjdk.jmh.annotations.Measurement
@@ -52,7 +48,7 @@ open class RedisEventStoreReadBenchmark {
     fun setup() {
         redis = RedisBenchmarkFixture()
         eventStore = RedisEventStore(redis.redisTemplate)
-        aggregateId = cartAggregateMetadata.aggregateId()
+        aggregateId = BenchmarkAggregates.aggregateId()
         for (eventStream in createEventStreams()) {
             eventStore.append(eventStream).block()
         }
@@ -64,13 +60,7 @@ open class RedisEventStoreReadBenchmark {
     }
 
     private fun createEventStreams(): List<DomainEventStream> {
-        return (1..eventCount).map { version ->
-            val event = CartItemAdded(CartItem("product-$version", version))
-            listOf<Any>(event).toDomainEventStream(
-                upstream = GivenInitializationCommand(aggregateId),
-                aggregateVersion = version - 1,
-            )
-        }
+        return BenchmarkEvents.eventStreams(aggregateId, eventCount)
     }
 
     @Benchmark

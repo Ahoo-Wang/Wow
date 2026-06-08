@@ -11,23 +11,15 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.eventsourcing
+package me.ahoo.wow.benchmark.scenario
 
-import me.ahoo.wow.benchmark.fixture.BenchmarkEvents
+import me.ahoo.wow.exception.WowException
+import org.openjdk.jmh.infra.Blackhole
 
-abstract class AbstractEventStoreBenchmark {
-    protected lateinit var eventStore: EventStore
-
-    open fun setup() {
-        this.eventStore = createEventStore()
+inline fun Blackhole.consumeWowResult(block: () -> Any?) {
+    try {
+        consume(block())
+    } catch (wowException: WowException) {
+        consume(wowException)
     }
-
-    abstract fun createEventStore(): EventStore
-
-    open fun append() {
-        val eventStream = BenchmarkEvents.singleEventStream()
-        eventStore.append(eventStream).block()
-    }
-
-
 }

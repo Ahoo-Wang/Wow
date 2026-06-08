@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.hotpath
 
+import me.ahoo.wow.benchmark.fixture.BenchmarkIdempotency
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.infra.idempotency.BloomFilterIdempotencyChecker
 import org.openjdk.jmh.annotations.Benchmark
@@ -27,7 +28,7 @@ open class IdempotencyBenchmark {
 
     @Setup
     fun setup() {
-        idempotencyChecker = HotPathFixture.createBloomFilterIdempotencyChecker()
+        idempotencyChecker = BenchmarkIdempotency.bloomFilterChecker()
     }
 
     @Benchmark

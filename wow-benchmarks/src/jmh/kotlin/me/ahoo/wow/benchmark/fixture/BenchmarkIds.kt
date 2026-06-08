@@ -11,24 +11,23 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.mongo
+package me.ahoo.wow.benchmark.fixture
 
-import com.mongodb.reactivestreams.client.MongoClient
-import com.mongodb.reactivestreams.client.MongoClients
-import com.mongodb.reactivestreams.client.MongoDatabase
-import me.ahoo.wow.command.cartAggregateMetadata
+import me.ahoo.cosid.cosid.ClockSyncCosIdGenerator
+import me.ahoo.cosid.cosid.Radix62CosIdGenerator
+import me.ahoo.cosid.provider.DefaultIdGeneratorProvider
+import me.ahoo.wow.id.CosIdGlobalIdGeneratorFactory
+import me.ahoo.wow.id.generateGlobalId
 
-class MongoInitializer : AutoCloseable {
-    val client: MongoClient
-    val database: MongoDatabase
-
-    init {
-        client = MongoClients.create("mongodb://root:root@localhost")
-        database = client.getDatabase("wow_db")
-        EventStreamSchemaInitializer(database, true).initSchema(cartAggregateMetadata)
+object BenchmarkIds {
+    fun installDeterministicGlobalIdGenerator() {
+        DefaultIdGeneratorProvider.INSTANCE.set(
+            CosIdGlobalIdGeneratorFactory.ID_NAME,
+            ClockSyncCosIdGenerator(Radix62CosIdGenerator(0)),
+        )
     }
 
-    override fun close() {
-        client.close()
+    fun nextGlobalId(): String {
+        return generateGlobalId()
     }
 }
