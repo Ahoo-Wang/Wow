@@ -31,9 +31,9 @@ final class ReflectionInstanceFunctionInvoker implements InstanceFunctionInvoker
     }
 
     @Override
-    public Object invoke(Object target, Object[] args) throws Throwable {
+    public Object invoke(Object receiver, Object[] args) throws Throwable {
         try {
-            return method.invoke(target, args);
+            return method.invoke(receiver, args);
         } catch (InvocationTargetException targetException) {
             throw targetException.getTargetException();
         }

@@ -33,28 +33,27 @@ public interface FunctionInvoker {
 }
 
 public interface InstanceFunctionInvoker extends FunctionInvoker {
-    Object invoke(Object target, Object[] args) throws Throwable;
-    Object invoke0(Object target) throws Throwable;
-    Object invoke1(Object target, Object arg1) throws Throwable;
+    Object invoke(Object receiver, Object[] args) throws Throwable;
+    Object invoke0(Object receiver) throws Throwable;
+    Object invoke1(Object receiver, Object arg1) throws Throwable;
     // ... invoke2 到 invoke9
 }
 
-public interface StaticFunctionInvoker extends FunctionInvoker {
+public interface ReceiverlessFunctionInvoker extends FunctionInvoker {
     Object invoke(Object[] args) throws Throwable;
     Object invoke0() throws Throwable;
     Object invoke1(Object arg1) throws Throwable;
     // ... invoke2 到 invoke9
 }
 
-public interface ConstructorFunctionInvoker extends FunctionInvoker {
-    Object invoke(Object[] args) throws Throwable;
-    Object invoke0() throws Throwable;
-    Object invoke1(Object arg1) throws Throwable;
-    // ... invoke2 到 invoke9
+public interface StaticFunctionInvoker extends ReceiverlessFunctionInvoker {
+}
+
+public interface ConstructorFunctionInvoker extends ReceiverlessFunctionInvoker {
 }
 ```
 
-`FunctionInvoker` 是顶级标记和元信息入口。`InstanceFunctionInvoker` 需要 target；`StaticFunctionInvoker` 和 `ConstructorFunctionInvoker` 不需要 target。`ConstructorFunctionInvoker` 不继承 `StaticFunctionInvoker`，二者只共享“无 receiver”的形态，不表达语义继承关系。
+`FunctionInvoker` 是顶级标记和元信息入口。`InstanceFunctionInvoker` 需要 receiver；`ReceiverlessFunctionInvoker` 表达无 receiver 调用；`StaticFunctionInvoker` 和 `ConstructorFunctionInvoker` 继承该无 receiver 形态。`ConstructorFunctionInvoker` 不继承 `StaticFunctionInvoker`，二者共享 arity API，但不表达语义继承关系。
 
 `FunctionInvokerFactory` 负责根据 `Method` 或 `Constructor` 创建具体 invoker。默认优先创建 `MethodHandle` invoker，并按调用形态拆分为实例方法、静态方法和构造器三条路径；如果访问权限、方法形态或平台差异导致创建失败，则降级到 reflection invoker。降级路径必须和现有 `FastInvoke.safeInvoke` / `FastInvoke.safeNewInstance` 的行为一致。
 
@@ -68,9 +67,9 @@ public interface ConstructorFunctionInvoker extends FunctionInvoker {
 
 | 策略 | 用途 | 说明 |
 | --- | --- | --- |
-| `MethodHandleInstanceFunctionInvoker` | 实例方法快速路径 | 实现 `InstanceFunctionInvoker`，初始化时 `unreflect(method)`，运行期 `invoke0` 到 `invoke9` 直接传入 target 和参数 |
-| `MethodHandleStaticFunctionInvoker` | 静态方法快速路径 | 实现 `StaticFunctionInvoker`，初始化时 `unreflect(method)`，运行期无 target，直接调用静态 `MethodHandle` |
-| `MethodHandleConstructorFunctionInvoker` | 构造器快速路径 | 实现 `ConstructorFunctionInvoker`，初始化时 `unreflectConstructor(constructor)`，运行期无 target，直接调用构造器 `MethodHandle` |
+| `MethodHandleInstanceFunctionInvoker` | 实例方法快速路径 | 实现 `InstanceFunctionInvoker`，初始化时 `unreflect(method)`，运行期 `invoke0` 到 `invoke9` 直接传入 receiver 和参数 |
+| `MethodHandleStaticFunctionInvoker` | 静态方法快速路径 | 实现 `StaticFunctionInvoker`，初始化时 `unreflect(method)`，运行期无 receiver，直接调用静态 `MethodHandle` |
+| `MethodHandleConstructorFunctionInvoker` | 构造器快速路径 | 实现 `ConstructorFunctionInvoker`，初始化时 `unreflectConstructor(constructor)`，运行期无 receiver，直接调用构造器 `MethodHandle` |
 | `ReflectionInstanceFunctionInvoker` | 实例方法保底路径 | 创建实例方法 `MethodHandle` 失败时回到 `Method.invoke` |
 | `ReflectionStaticFunctionInvoker` | 静态方法保底路径 | 创建静态方法 `MethodHandle` 失败时回到 `Method.invoke(null, args)` |
 | `ReflectionConstructorFunctionInvoker` | 构造器保底路径 | 创建构造器 `MethodHandle` 失败时回到 `Constructor.newInstance(args)` |
@@ -78,12 +77,12 @@ public interface ConstructorFunctionInvoker extends FunctionInvoker {
 单参数 fast path 的目标签名固定为：
 
 ```kotlin
-(target: Any, arg: Any?) -> Any?
+(receiver: Any, arg: Any?) -> Any?
 ```
 
 多参数通用路径继续接收 `Array<Any?>`。0 到 9 参数提供固定 arity fast path，覆盖框架内常见 handler 形态；超过 9 参数回到数组路径。
 
-异常语义保持现状。业务方法抛出的异常必须向上传递原始异常，不让 `InvocationTargetException` 泄漏到命令、事件、projection 或 saga 链路。`MethodHandle` 正常路径不做前置类型扫描；如果 MethodHandle 抛出 `WrongMethodTypeException`、`ClassCastException` 或 `NullPointerException`，再按旧反射语义检查 target、参数数量和参数类型，不合法时归一化为 `IllegalArgumentException`，合法时传播业务原始异常。
+异常语义保持现状。业务方法抛出的异常必须向上传递原始异常，不让 `InvocationTargetException` 泄漏到命令、事件、projection 或 saga 链路。`MethodHandle` 正常路径不做前置类型扫描；如果 MethodHandle 抛出 `WrongMethodTypeException`、`ClassCastException` 或 `NullPointerException`，再按旧反射语义检查 receiver、参数数量和参数类型，不合法时归一化为 `IllegalArgumentException`，合法时传播业务原始异常。
 
 ## FunctionAccessor 变更
 

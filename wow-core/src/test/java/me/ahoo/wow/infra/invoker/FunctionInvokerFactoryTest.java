@@ -44,6 +44,7 @@ class FunctionInvokerFactoryTest {
         FunctionInvoker invoker = FunctionInvokerFactory.create(method);
 
         assertThat(invoker).isInstanceOf(StaticFunctionInvoker.class);
+        assertThat(invoker).isInstanceOf(ReceiverlessFunctionInvoker.class);
         assertThat(invoker).isNotInstanceOf(InstanceFunctionInvoker.class);
         assertThat(invoker.parameterCount()).isEqualTo(1);
     }
@@ -55,6 +56,7 @@ class FunctionInvokerFactoryTest {
 
         ConstructorFunctionInvoker invoker = FunctionInvokerFactory.create(constructor);
 
+        assertThat(invoker).isInstanceOf(ReceiverlessFunctionInvoker.class);
         assertThat(invoker).isNotInstanceOf(StaticFunctionInvoker.class);
         assertThat(invoker.parameterCount()).isEqualTo(1);
     }

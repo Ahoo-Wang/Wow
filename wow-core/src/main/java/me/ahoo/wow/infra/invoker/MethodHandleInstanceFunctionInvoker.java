@@ -33,165 +33,166 @@ final class MethodHandleInstanceFunctionInvoker implements InstanceFunctionInvok
     }
 
     @Override
-    public Object invoke(Object target, Object[] args) throws Throwable {
+    public Object invoke(Object receiver, Object[] args) throws Throwable {
         Object[] actualArgs = FunctionInvocationSupport.actualArgs(args);
         try {
             if (actualArgs.length <= 9) {
-                return FunctionInvocationSupport.invokeByArgumentArray(this, target, actualArgs);
+                return FunctionInvocationSupport.invokeByArgumentArray(this, receiver, actualArgs);
             }
             Object[] arguments = new Object[actualArgs.length + 1];
-            arguments[0] = target;
+            arguments[0] = receiver;
             System.arraycopy(actualArgs, 0, arguments, 1, actualArgs.length);
             return handle.invokeWithArguments(arguments);
         } catch (Throwable error) {
-            throw normalize(error, target, actualArgs);
+            throw normalize(error, receiver, actualArgs);
         }
     }
 
     @Override
-    public Object invoke0(Object target) throws Throwable {
+    public Object invoke0(Object receiver) throws Throwable {
         try {
-            return handle.invoke(target);
+            return handle.invoke(receiver);
         } catch (Throwable error) {
-            throw normalize(error, target, FunctionInvocationSupport.EMPTY_ARGS);
+            throw normalize(error, receiver, FunctionInvocationSupport.EMPTY_ARGS);
         }
     }
 
     @Override
-    public Object invoke1(Object target, Object arg1) throws Throwable {
+    public Object invoke1(Object receiver, Object arg1) throws Throwable {
         try {
-            return handle.invoke(target, arg1);
+            return handle.invoke(receiver, arg1);
         } catch (Throwable error) {
-            throw normalize(error, target, arg1);
+            throw normalize(error, receiver, arg1);
         }
     }
 
     @Override
-    public Object invoke2(Object target, Object arg1, Object arg2) throws Throwable {
+    public Object invoke2(Object receiver, Object arg1, Object arg2) throws Throwable {
         try {
-            return handle.invoke(target, arg1, arg2);
+            return handle.invoke(receiver, arg1, arg2);
         } catch (Throwable error) {
-            throw normalize(error, target, arg1, arg2);
+            throw normalize(error, receiver, arg1, arg2);
         }
     }
 
     @Override
-    public Object invoke3(Object target, Object arg1, Object arg2, Object arg3) throws Throwable {
+    public Object invoke3(Object receiver, Object arg1, Object arg2, Object arg3) throws Throwable {
         try {
-            return handle.invoke(target, arg1, arg2, arg3);
+            return handle.invoke(receiver, arg1, arg2, arg3);
         } catch (Throwable error) {
-            throw normalize(error, target, arg1, arg2, arg3);
+            throw normalize(error, receiver, arg1, arg2, arg3);
         }
     }
 
     @Override
-    public Object invoke4(Object target, Object arg1, Object arg2, Object arg3, Object arg4) throws Throwable {
+    public Object invoke4(Object receiver, Object arg1, Object arg2, Object arg3, Object arg4) throws Throwable {
         try {
-            return handle.invoke(target, arg1, arg2, arg3, arg4);
+            return handle.invoke(receiver, arg1, arg2, arg3, arg4);
         } catch (Throwable error) {
-            throw normalize(error, target, arg1, arg2, arg3, arg4);
+            throw normalize(error, receiver, arg1, arg2, arg3, arg4);
         }
     }
 
     @Override
-    public Object invoke5(Object target, Object arg1, Object arg2, Object arg3, Object arg4, Object arg5)
+    public Object invoke5(Object receiver, Object arg1, Object arg2, Object arg3, Object arg4, Object arg5)
             throws Throwable {
         try {
-            return handle.invoke(target, arg1, arg2, arg3, arg4, arg5);
+            return handle.invoke(receiver, arg1, arg2, arg3, arg4, arg5);
         } catch (Throwable error) {
-            throw normalize(error, target, arg1, arg2, arg3, arg4, arg5);
+            throw normalize(error, receiver, arg1, arg2, arg3, arg4, arg5);
         }
     }
 
     @Override
-    public Object invoke6(Object target, Object arg1, Object arg2, Object arg3, Object arg4, Object arg5,
+    public Object invoke6(Object receiver, Object arg1, Object arg2, Object arg3, Object arg4, Object arg5,
                           Object arg6) throws Throwable {
         try {
-            return handle.invoke(target, arg1, arg2, arg3, arg4, arg5, arg6);
+            return handle.invoke(receiver, arg1, arg2, arg3, arg4, arg5, arg6);
         } catch (Throwable error) {
-            throw normalize(error, target, arg1, arg2, arg3, arg4, arg5, arg6);
+            throw normalize(error, receiver, arg1, arg2, arg3, arg4, arg5, arg6);
         }
     }
 
     @Override
-    public Object invoke7(Object target, Object arg1, Object arg2, Object arg3, Object arg4, Object arg5,
+    public Object invoke7(Object receiver, Object arg1, Object arg2, Object arg3, Object arg4, Object arg5,
                           Object arg6, Object arg7) throws Throwable {
         try {
-            return handle.invoke(target, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
+            return handle.invoke(receiver, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
         } catch (Throwable error) {
-            throw normalize(error, target, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
+            throw normalize(error, receiver, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
         }
     }
 
     @Override
-    public Object invoke8(Object target, Object arg1, Object arg2, Object arg3, Object arg4, Object arg5,
+    public Object invoke8(Object receiver, Object arg1, Object arg2, Object arg3, Object arg4, Object arg5,
                           Object arg6, Object arg7, Object arg8) throws Throwable {
         try {
-            return handle.invoke(target, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
+            return handle.invoke(receiver, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
         } catch (Throwable error) {
-            throw normalize(error, target, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
+            throw normalize(error, receiver, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
         }
     }
 
     @Override
-    public Object invoke9(Object target, Object arg1, Object arg2, Object arg3, Object arg4, Object arg5,
+    public Object invoke9(Object receiver, Object arg1, Object arg2, Object arg3, Object arg4, Object arg5,
                           Object arg6, Object arg7, Object arg8, Object arg9) throws Throwable {
         try {
-            return handle.invoke(target, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
+            return handle.invoke(receiver, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
         } catch (Throwable error) {
-            throw normalize(error, target, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
+            throw normalize(error, receiver, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
         }
     }
 
-    private Throwable normalize(Throwable error, Object target, Object[] args) {
-        return FunctionInvocationSupport.normalizeInvocationException(error, method, false, target, args);
+    private Throwable normalize(Throwable error, Object receiver, Object[] args) {
+        return FunctionInvocationSupport.normalizeInvocationException(error, method, false, receiver, args);
     }
 
-    private Throwable normalize(Throwable error, Object target, Object arg1) {
-        return FunctionInvocationSupport.normalizeInvocationException(error, method, false, target, arg1);
+    private Throwable normalize(Throwable error, Object receiver, Object arg1) {
+        return FunctionInvocationSupport.normalizeInvocationException(error, method, false, receiver, arg1);
     }
 
-    private Throwable normalize(Throwable error, Object target, Object arg1, Object arg2) {
-        return FunctionInvocationSupport.normalizeInvocationException(error, method, false, target, arg1, arg2);
+    private Throwable normalize(Throwable error, Object receiver, Object arg1, Object arg2) {
+        return FunctionInvocationSupport.normalizeInvocationException(error, method, false, receiver, arg1, arg2);
     }
 
-    private Throwable normalize(Throwable error, Object target, Object arg1, Object arg2, Object arg3) {
-        return FunctionInvocationSupport.normalizeInvocationException(error, method, false, target, arg1, arg2, arg3);
+    private Throwable normalize(Throwable error, Object receiver, Object arg1, Object arg2, Object arg3) {
+        return FunctionInvocationSupport.normalizeInvocationException(error, method, false, receiver, arg1, arg2,
+            arg3);
     }
 
-    private Throwable normalize(Throwable error, Object target, Object arg1, Object arg2, Object arg3,
+    private Throwable normalize(Throwable error, Object receiver, Object arg1, Object arg2, Object arg3,
                                 Object arg4) {
-        return FunctionInvocationSupport.normalizeInvocationException(error, method, false, target, arg1, arg2,
+        return FunctionInvocationSupport.normalizeInvocationException(error, method, false, receiver, arg1, arg2,
             arg3, arg4);
     }
 
-    private Throwable normalize(Throwable error, Object target, Object arg1, Object arg2, Object arg3,
+    private Throwable normalize(Throwable error, Object receiver, Object arg1, Object arg2, Object arg3,
                                 Object arg4, Object arg5) {
-        return FunctionInvocationSupport.normalizeInvocationException(error, method, false, target, arg1, arg2,
+        return FunctionInvocationSupport.normalizeInvocationException(error, method, false, receiver, arg1, arg2,
             arg3, arg4, arg5);
     }
 
-    private Throwable normalize(Throwable error, Object target, Object arg1, Object arg2, Object arg3,
+    private Throwable normalize(Throwable error, Object receiver, Object arg1, Object arg2, Object arg3,
                                 Object arg4, Object arg5, Object arg6) {
-        return FunctionInvocationSupport.normalizeInvocationException(error, method, false, target, arg1, arg2,
+        return FunctionInvocationSupport.normalizeInvocationException(error, method, false, receiver, arg1, arg2,
             arg3, arg4, arg5, arg6);
     }
 
-    private Throwable normalize(Throwable error, Object target, Object arg1, Object arg2, Object arg3,
+    private Throwable normalize(Throwable error, Object receiver, Object arg1, Object arg2, Object arg3,
                                 Object arg4, Object arg5, Object arg6, Object arg7) {
-        return FunctionInvocationSupport.normalizeInvocationException(error, method, false, target, arg1, arg2,
+        return FunctionInvocationSupport.normalizeInvocationException(error, method, false, receiver, arg1, arg2,
             arg3, arg4, arg5, arg6, arg7);
     }
 
-    private Throwable normalize(Throwable error, Object target, Object arg1, Object arg2, Object arg3,
+    private Throwable normalize(Throwable error, Object receiver, Object arg1, Object arg2, Object arg3,
                                 Object arg4, Object arg5, Object arg6, Object arg7, Object arg8) {
-        return FunctionInvocationSupport.normalizeInvocationException(error, method, false, target, arg1, arg2,
+        return FunctionInvocationSupport.normalizeInvocationException(error, method, false, receiver, arg1, arg2,
             arg3, arg4, arg5, arg6, arg7, arg8);
     }
 
-    private Throwable normalize(Throwable error, Object target, Object arg1, Object arg2, Object arg3,
+    private Throwable normalize(Throwable error, Object receiver, Object arg1, Object arg2, Object arg3,
                                 Object arg4, Object arg5, Object arg6, Object arg7, Object arg8, Object arg9) {
-        return FunctionInvocationSupport.normalizeInvocationException(error, method, false, target, arg1, arg2,
+        return FunctionInvocationSupport.normalizeInvocationException(error, method, false, receiver, arg1, arg2,
             arg3, arg4, arg5, arg6, arg7, arg8, arg9);
     }
 }

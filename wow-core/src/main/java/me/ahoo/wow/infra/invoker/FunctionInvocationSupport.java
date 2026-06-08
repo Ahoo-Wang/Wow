@@ -27,51 +27,30 @@ final class FunctionInvocationSupport {
         return args == null ? EMPTY_ARGS : args;
     }
 
-    static Object invokeByArgumentArray(InstanceFunctionInvoker invoker, Object target, Object[] args)
+    static Object invokeByArgumentArray(InstanceFunctionInvoker invoker, Object receiver, Object[] args)
             throws Throwable {
         Object[] actualArgs = actualArgs(args);
         return switch (actualArgs.length) {
-            case 0 -> invoker.invoke0(target);
-            case 1 -> invoker.invoke1(target, actualArgs[0]);
-            case 2 -> invoker.invoke2(target, actualArgs[0], actualArgs[1]);
-            case 3 -> invoker.invoke3(target, actualArgs[0], actualArgs[1], actualArgs[2]);
-            case 4 -> invoker.invoke4(target, actualArgs[0], actualArgs[1], actualArgs[2], actualArgs[3]);
-            case 5 -> invoker.invoke5(target, actualArgs[0], actualArgs[1], actualArgs[2], actualArgs[3],
+            case 0 -> invoker.invoke0(receiver);
+            case 1 -> invoker.invoke1(receiver, actualArgs[0]);
+            case 2 -> invoker.invoke2(receiver, actualArgs[0], actualArgs[1]);
+            case 3 -> invoker.invoke3(receiver, actualArgs[0], actualArgs[1], actualArgs[2]);
+            case 4 -> invoker.invoke4(receiver, actualArgs[0], actualArgs[1], actualArgs[2], actualArgs[3]);
+            case 5 -> invoker.invoke5(receiver, actualArgs[0], actualArgs[1], actualArgs[2], actualArgs[3],
                 actualArgs[4]);
-            case 6 -> invoker.invoke6(target, actualArgs[0], actualArgs[1], actualArgs[2], actualArgs[3],
+            case 6 -> invoker.invoke6(receiver, actualArgs[0], actualArgs[1], actualArgs[2], actualArgs[3],
                 actualArgs[4], actualArgs[5]);
-            case 7 -> invoker.invoke7(target, actualArgs[0], actualArgs[1], actualArgs[2], actualArgs[3],
+            case 7 -> invoker.invoke7(receiver, actualArgs[0], actualArgs[1], actualArgs[2], actualArgs[3],
                 actualArgs[4], actualArgs[5], actualArgs[6]);
-            case 8 -> invoker.invoke8(target, actualArgs[0], actualArgs[1], actualArgs[2], actualArgs[3],
+            case 8 -> invoker.invoke8(receiver, actualArgs[0], actualArgs[1], actualArgs[2], actualArgs[3],
                 actualArgs[4], actualArgs[5], actualArgs[6], actualArgs[7]);
-            case 9 -> invoker.invoke9(target, actualArgs[0], actualArgs[1], actualArgs[2], actualArgs[3],
+            case 9 -> invoker.invoke9(receiver, actualArgs[0], actualArgs[1], actualArgs[2], actualArgs[3],
                 actualArgs[4], actualArgs[5], actualArgs[6], actualArgs[7], actualArgs[8]);
-            default -> invoker.invoke(target, actualArgs);
+            default -> invoker.invoke(receiver, actualArgs);
         };
     }
 
-    static Object invokeByArgumentArray(StaticFunctionInvoker invoker, Object[] args) throws Throwable {
-        Object[] actualArgs = actualArgs(args);
-        return switch (actualArgs.length) {
-            case 0 -> invoker.invoke0();
-            case 1 -> invoker.invoke1(actualArgs[0]);
-            case 2 -> invoker.invoke2(actualArgs[0], actualArgs[1]);
-            case 3 -> invoker.invoke3(actualArgs[0], actualArgs[1], actualArgs[2]);
-            case 4 -> invoker.invoke4(actualArgs[0], actualArgs[1], actualArgs[2], actualArgs[3]);
-            case 5 -> invoker.invoke5(actualArgs[0], actualArgs[1], actualArgs[2], actualArgs[3], actualArgs[4]);
-            case 6 -> invoker.invoke6(actualArgs[0], actualArgs[1], actualArgs[2], actualArgs[3], actualArgs[4],
-                actualArgs[5]);
-            case 7 -> invoker.invoke7(actualArgs[0], actualArgs[1], actualArgs[2], actualArgs[3], actualArgs[4],
-                actualArgs[5], actualArgs[6]);
-            case 8 -> invoker.invoke8(actualArgs[0], actualArgs[1], actualArgs[2], actualArgs[3], actualArgs[4],
-                actualArgs[5], actualArgs[6], actualArgs[7]);
-            case 9 -> invoker.invoke9(actualArgs[0], actualArgs[1], actualArgs[2], actualArgs[3], actualArgs[4],
-                actualArgs[5], actualArgs[6], actualArgs[7], actualArgs[8]);
-            default -> invoker.invoke(actualArgs);
-        };
-    }
-
-    static Object invokeByArgumentArray(ConstructorFunctionInvoker invoker, Object[] args) throws Throwable {
+    static Object invokeByArgumentArray(ReceiverlessFunctionInvoker invoker, Object[] args) throws Throwable {
         Object[] actualArgs = actualArgs(args);
         return switch (actualArgs.length) {
             case 0 -> invoker.invoke0();
