@@ -48,6 +48,24 @@ class FunctionInvokerContractTest {
     }
 
     @Test
+    void methodHandleInvokersForLargeArityUseInvokeWithArguments() throws Throwable {
+        Method method = MethodHandleLargeArityTarget.class
+            .getDeclaredMethod("staticArity10", parameterTypes(10));
+        method.trySetAccessible();
+        StaticFunctionInvoker staticInvoker = (StaticFunctionInvoker) FunctionInvokerFactory.create(method);
+        assertThat(staticInvoker).isInstanceOf(MethodHandleStaticFunctionInvoker.class);
+        assertThat(staticInvoker.invoke(arguments(10))).isEqualTo(10);
+
+        Constructor<MethodHandleLargeArityTarget> constructor = MethodHandleLargeArityTarget.class
+            .getDeclaredConstructor(parameterTypes(10));
+        constructor.trySetAccessible();
+        ConstructorFunctionInvoker constructorInvoker = FunctionInvokerFactory.create(constructor);
+        assertThat(constructorInvoker).isInstanceOf(MethodHandleConstructorFunctionInvoker.class);
+        assertThat(((MethodHandleLargeArityTarget) constructorInvoker.invoke(arguments(10))).count)
+            .isEqualTo(10);
+    }
+
+    @Test
     void defaultArityMethodsDelegateToArrayInvocation() throws Throwable {
         RecordingInstanceInvoker instanceInvoker = new RecordingInstanceInvoker();
         RecordingReceiverlessInvoker receiverlessInvoker = new RecordingReceiverlessInvoker();
@@ -434,6 +452,24 @@ class FunctionInvokerContractTest {
         private ArityConstructedTarget(String arg1, String arg2, String arg3, String arg4, String arg5,
                                        String arg6, String arg7, String arg8, String arg9, String arg10) {
             this.arity = 10;
+        }
+    }
+
+    static class MethodHandleLargeArityTarget {
+        private final int count;
+
+        public MethodHandleLargeArityTarget() {
+            this.count = 0;
+        }
+
+        public MethodHandleLargeArityTarget(String arg1, String arg2, String arg3, String arg4, String arg5,
+                                            String arg6, String arg7, String arg8, String arg9, String arg10) {
+            this.count = 10;
+        }
+
+        public static int staticArity10(String arg1, String arg2, String arg3, String arg4, String arg5, String arg6,
+                                       String arg7, String arg8, String arg9, String arg10) {
+            return 10;
         }
     }
 }
