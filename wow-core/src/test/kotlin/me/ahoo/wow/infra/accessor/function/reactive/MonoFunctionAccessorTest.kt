@@ -101,67 +101,67 @@ class MonoFunctionAccessorTest {
     }
 
     @Test
-    fun `invokeSingle should use simple accessor for Mono return values`() {
+    fun `invoke1 should use simple accessor for Mono return values`() {
         val accessor = ReactiveAccessorFixture::monoEcho.toMonoFunctionAccessor<ReactiveAccessorFixture, String>()
 
         accessor.assert().isInstanceOf(SimpleMonoFunctionAccessor::class.java)
-        StepVerifier.create(accessor.invokeSingle(fixture, "wow"))
+        StepVerifier.create(accessor.invoke1(fixture, "wow"))
             .expectNext("mono wow")
             .verifyComplete()
     }
 
     @Test
-    fun `invokeSingle should use sync accessor`() {
+    fun `invoke1 should use sync accessor`() {
         val accessor = ReactiveAccessorFixture::syncEcho.toMonoFunctionAccessor<ReactiveAccessorFixture, String>()
 
         accessor.assert().isInstanceOf(SyncMonoFunctionAccessor::class.java)
-        StepVerifier.create(accessor.invokeSingle(fixture, "wow"))
+        StepVerifier.create(accessor.invoke1(fixture, "wow"))
             .expectNext("sync wow")
             .verifyComplete()
     }
 
     @Test
-    fun `invokeSingle should collect Flux`() {
+    fun `invoke1 should collect Flux`() {
         val accessor = ReactiveAccessorFixture::fluxEcho
             .toMonoFunctionAccessor<ReactiveAccessorFixture, List<String>>()
 
         accessor.assert().isInstanceOf(FluxMonoFunctionAccessor::class.java)
-        StepVerifier.create(accessor.invokeSingle(fixture, "wow"))
+        StepVerifier.create(accessor.invoke1(fixture, "wow"))
             .expectNext(listOf("flux wow", "flux wow"))
             .verifyComplete()
     }
 
     @Test
-    fun `invokeSingle should collect Publisher`() {
+    fun `invoke1 should collect Publisher`() {
         val accessor = ReactiveAccessorFixture::publisherEcho
             .toMonoFunctionAccessor<ReactiveAccessorFixture, List<String>>()
 
         accessor.assert().isInstanceOf(PublisherMonoFunctionAccessor::class.java)
-        StepVerifier.create(accessor.invokeSingle(fixture, "wow"))
+        StepVerifier.create(accessor.invoke1(fixture, "wow"))
             .expectNext(listOf("publisher wow", "publisher wow"))
             .verifyComplete()
     }
 
     @Test
-    fun `invokeSingle should preserve blocking accessor wrapper`() {
+    fun `invoke1 should preserve blocking accessor wrapper`() {
         val accessor = ReactiveAccessorFixture::blockingEcho.toMonoFunctionAccessor<ReactiveAccessorFixture, String>()
 
         accessor.assert().isInstanceOf(BlockingMonoFunctionAccessor::class.java)
-        StepVerifier.create(accessor.invokeSingle(fixture, "wow"))
+        StepVerifier.create(accessor.invoke1(fixture, "wow"))
             .expectNext("blocking wow")
             .verifyComplete()
     }
 
     @Test
-    fun `blocking invokeSingle should delegate to wrapped invokeSingle`() {
+    fun `blocking invoke1 should delegate to wrapped invoke1`() {
         val delegate = RecordingMonoFunctionAccessor()
         val accessor = BlockingMonoFunctionAccessor(delegate, Schedulers.immediate())
 
-        StepVerifier.create(accessor.invokeSingle(fixture, "wow"))
+        StepVerifier.create(accessor.invoke1(fixture, "wow"))
             .expectNext("single wow")
             .verifyComplete()
 
-        delegate.invokeSingleCount.assert().isEqualTo(1)
+        delegate.invoke1Count.assert().isEqualTo(1)
         delegate.invokeArrayCount.assert().isEqualTo(0)
     }
 }
@@ -204,7 +204,7 @@ private class ReactiveAccessorFixture {
 
 private class RecordingMonoFunctionAccessor : MonoFunctionAccessor<ReactiveAccessorFixture, Mono<String>> {
     var invokeArrayCount: Int = 0
-    var invokeSingleCount: Int = 0
+    var invoke1Count: Int = 0
 
     override val function = ReactiveAccessorFixture::syncEcho
 
@@ -216,11 +216,11 @@ private class RecordingMonoFunctionAccessor : MonoFunctionAccessor<ReactiveAcces
         return Mono.just("array ${args[0]}")
     }
 
-    override fun invokeSingle(
+    override fun invoke1(
         target: ReactiveAccessorFixture,
         arg: Any?
     ): Mono<String> {
-        invokeSingleCount++
+        invoke1Count++
         return Mono.just("single $arg")
     }
 }

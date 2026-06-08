@@ -37,7 +37,7 @@ class SimpleFunctionAccessorTest {
         val accessor = SimpleFunctionAccessor<FunctionAccessorFixture, String>(function)
         val fixture = FunctionAccessorFixture("hello")
 
-        accessor.invokeSingle(fixture, "wow").assert().isEqualTo("hello wow")
+        accessor.invoke1(fixture, "wow").assert().isEqualTo("hello wow")
     }
 
     @Test
@@ -47,7 +47,7 @@ class SimpleFunctionAccessorTest {
         val fixture = FunctionAccessorFixture("hello")
 
         val error = assertThrows<IllegalStateException> {
-            accessor.invokeSingle(fixture, "wow")
+            accessor.invoke1(fixture, "wow")
         }
         error.message.assert().isEqualTo("boom wow")
     }

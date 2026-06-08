@@ -11,7 +11,7 @@
 ## 设计目标
 
 1. 在 accessor 创建阶段完成 invoker 绑定，避免每次调用时重复判断和临时适配。
-2. 为单参数消息函数提供 `invokeSingle` / `invoke1` fast path，消除每次 `arrayOf(firstArgument)` 分配。
+2. 为单参数消息函数提供 `invoke1` fast path，消除每次 `arrayOf(firstArgument)` 分配。
 3. 使用缓存的 `MethodHandle` 作为首选执行路径，失败时安全降级到现有 reflection 行为。
 4. 保留多参数和注入参数函数的现有语义，不改变服务注入、消息参数解析或异常传播规则。
 5. 为构造器提供 0/1/2 参数 fast path，覆盖状态聚合构造和聚合模式 command root 构造。
@@ -33,7 +33,6 @@ interface MethodInvoker {
     fun invoke0(target: Any): Any?
     fun invoke1(target: Any, arg1: Any?): Any?
     // ... invoke2 到 invoke9
-    fun invokeSingle(target: Any, arg: Any?): Any?
 }
 ```
 
@@ -41,7 +40,7 @@ interface MethodInvoker {
 
 `FunctionAccessor` 持有并复用该 invoker。`SimpleFunctionAccessor` 和 `AbstractMonoFunctionAccessor` 在初始化时确保方法 accessible，然后创建一次 invoker。运行期只做目标对象、参数和返回值传递。
 
-`FastInvoke` 作为兼容入口保留。现有 `invoke`、`safeInvoke`、`newInstance`、`safeNewInstance` 可以继续存在，避免一次性扩大 API 破坏面。新的高频调用点应优先走 `FunctionAccessor.invokeSingle` 或构造器 fast path。
+`FastInvoke` 作为兼容入口保留。现有 `invoke`、`safeInvoke`、`newInstance`、`safeNewInstance` 可以继续存在，避免一次性扩大 API 破坏面。新的高频调用点应优先走 `FunctionAccessor.invoke1` 或构造器 fast path。
 
 ## Invoker 策略
 
@@ -68,7 +67,7 @@ interface MethodInvoker {
 `FunctionAccessor` 增加单参数 API：
 
 ```kotlin
-fun invokeSingle(target: T, arg: Any?): R
+fun invoke1(target: T, arg: Any?): R
 ```
 
 默认实现可以委托到 `invoke(target, arrayOf(arg))`，保证自定义实现无需立即修改。框架内置实现覆盖该方法，使用缓存 invoker 的 `invoke1`。
@@ -83,7 +82,7 @@ fun invokeSingle(target: T, arg: Any?): R
 
 ```kotlin
 val firstArgument = metadata.extractFirstArgument(exchange)
-return metadata.accessor.invokeSingle(processor, firstArgument)
+return metadata.accessor.invoke1(processor, firstArgument)
 ```
 
 这样命令函数、事件函数、状态 sourcing 函数、projection 函数和 saga 函数的无注入路径都能避免参数数组分配。
@@ -151,7 +150,7 @@ fun newInstance2(arg1: Any?, arg2: Any?): T
 新增或更新 `wow-core` 单元测试，覆盖以下行为：
 
 1. `MethodInvoker` 可调用 public 方法、private 方法、单参数方法、多参数方法和无参数方法。
-2. `invoke0`、`invoke1`、`invoke2`、`invokeSingle` 和 `invoke(args)` 返回值一致。
+2. `invoke0`、`invoke1`、`invoke2` 和 `invoke(args)` 返回值一致。
 3. 业务异常保持原始异常传播，不泄漏 `InvocationTargetException`。
 4. MethodHandle 调用形态错误继续暴露为 `IllegalArgumentException`，业务 `ClassCastException` 等运行时异常不被误包装。
 5. varargs 方法保持现有调用方式，传入 `Object[]{String[]}` 时结果不变。
@@ -180,7 +179,7 @@ fun newInstance2(arg1: Any?, arg2: Any?): T
 | `methodHandleArray` | 缓存 `MethodHandle` 多参数路径 |
 | `methodHandleSingle` | 缓存 `MethodHandle` 单参数路径 |
 | `functionAccessorInvoke` | 框架 `FunctionAccessor.invoke` 路径 |
-| `functionAccessorInvokeSingle` | 框架 `FunctionAccessor.invokeSingle` 路径 |
+| `functionAccessorInvoke1` | 框架 `FunctionAccessor.invoke1` 路径 |
 | `constructorInvokeArray` | 现有构造器数组路径 |
 | `constructorInvoke0/1/2` | 构造器 fast path |
 
@@ -212,7 +211,7 @@ fun newInstance2(arg1: Any?, arg2: Any?): T
 ## 验收标准
 
 1. `SimpleMessageFunctionAccessor` 无注入路径不再为第一个参数创建数组。
-2. `FunctionAccessor.invokeSingle` 使用缓存 invoker，而不是每次临时反射适配。
+2. `FunctionAccessor.invoke1` 使用缓存 invoker，而不是每次临时反射适配。
 3. `MethodHandle` 创建失败时自动 fallback 到 reflection，业务行为不变。
 4. 构造器 0/1/2 参数 fast path 覆盖状态聚合和聚合模式 command root 构造。
 5. `:wow-core:check` 通过。

@@ -77,8 +77,8 @@ open class AccessorComponentBenchmark {
     }
 
     @Benchmark
-    fun functionAccessorInvokeSingle(blackhole: Blackhole) {
-        blackhole.consume(functionAccessor.invokeSingle(target, argument))
+    fun functionAccessorInvoke1(blackhole: Blackhole) {
+        blackhole.consume(functionAccessor.invoke1(target, argument))
     }
 
     @Benchmark

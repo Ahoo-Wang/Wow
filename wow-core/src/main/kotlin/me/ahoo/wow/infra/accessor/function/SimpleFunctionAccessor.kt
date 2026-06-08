@@ -49,5 +49,5 @@ data class SimpleFunctionAccessor<T, R>(
     override fun invoke(target: T, args: Array<Any?>): R = invoker.invoke(target, args) as R
 
     @Suppress("UNCHECKED_CAST")
-    override fun invokeSingle(target: T, arg: Any?): R = invoker.invoke1(target, arg) as R
+    override fun invoke1(target: T, arg: Any?): R = invoker.invoke1(target, arg) as R
 }

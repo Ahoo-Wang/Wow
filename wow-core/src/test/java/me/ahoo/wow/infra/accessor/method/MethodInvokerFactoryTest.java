@@ -24,7 +24,7 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 class MethodInvokerFactoryTest {
 
     @Test
-    void invokeSinglePrivateMethod() throws Throwable {
+    void invoke1PrivateMethod() throws Throwable {
         Method method = Target.class.getDeclaredMethod("hidden", String.class);
         method.trySetAccessible();
         MethodInvoker invoker = MethodInvokerFactory.create(method);
@@ -77,7 +77,7 @@ class MethodInvokerFactoryTest {
     }
 
     @Test
-    void invokeSingleStaticMethodWithNullTarget() throws Throwable {
+    void invoke1StaticMethodWithNullTarget() throws Throwable {
         Method method = Target.class.getDeclaredMethod("staticHello", String.class);
         method.trySetAccessible();
         MethodInvoker invoker = MethodInvokerFactory.create(method);
@@ -100,7 +100,7 @@ class MethodInvokerFactoryTest {
     }
 
     @Test
-    void invokeSinglePropagatesBusinessException() throws NoSuchMethodException {
+    void invoke1PropagatesBusinessException() throws NoSuchMethodException {
         Method method = Target.class.getDeclaredMethod("boom", String.class);
         method.trySetAccessible();
         MethodInvoker invoker = MethodInvokerFactory.create(method);
@@ -112,7 +112,7 @@ class MethodInvokerFactoryTest {
     }
 
     @Test
-    void invokeSingleWithWrongArgumentTypeThrowsIllegalArgumentException() throws NoSuchMethodException {
+    void invoke1WithWrongArgumentTypeThrowsIllegalArgumentException() throws NoSuchMethodException {
         Method method = Target.class.getDeclaredMethod("hidden", String.class);
         method.trySetAccessible();
         MethodInvoker invoker = MethodInvokerFactory.create(method);
@@ -122,7 +122,7 @@ class MethodInvokerFactoryTest {
     }
 
     @Test
-    void invokeSingleWithWrongArityThrowsIllegalArgumentException() throws NoSuchMethodException {
+    void invoke1WithWrongArityThrowsIllegalArgumentException() throws NoSuchMethodException {
         Method method = Target.class.getDeclaredMethod("hello");
         method.trySetAccessible();
         MethodInvoker invoker = MethodInvokerFactory.create(method);
@@ -142,7 +142,7 @@ class MethodInvokerFactoryTest {
     }
 
     @Test
-    void invokeSingleWithNullInstanceTargetThrowsIllegalArgumentException() throws NoSuchMethodException {
+    void invoke1WithNullInstanceTargetThrowsIllegalArgumentException() throws NoSuchMethodException {
         Method method = Target.class.getDeclaredMethod("hidden", String.class);
         method.trySetAccessible();
         MethodInvoker invoker = MethodInvokerFactory.create(method);
@@ -152,7 +152,7 @@ class MethodInvokerFactoryTest {
     }
 
     @Test
-    void invokeSingleWithWrongInstanceTargetThrowsIllegalArgumentException() throws NoSuchMethodException {
+    void invoke1WithWrongInstanceTargetThrowsIllegalArgumentException() throws NoSuchMethodException {
         Method method = Target.class.getDeclaredMethod("hidden", String.class);
         method.trySetAccessible();
         MethodInvoker invoker = MethodInvokerFactory.create(method);
@@ -162,7 +162,7 @@ class MethodInvokerFactoryTest {
     }
 
     @Test
-    void invokeSinglePropagatesBusinessClassCastException() throws NoSuchMethodException {
+    void invoke1PropagatesBusinessClassCastException() throws NoSuchMethodException {
         Method method = Target.class.getDeclaredMethod("classCastBoom", Object.class);
         method.trySetAccessible();
         MethodInvoker invoker = MethodInvokerFactory.create(method);

@@ -99,5 +99,5 @@ interface FunctionAccessor<T, out R> : Named {
         args: Array<Any?> = emptyArray<Any?>()
     ): R = FastInvoke.safeInvoke(method, target, args)
 
-    fun invokeSingle(target: T, arg: Any?): R = invoke(target, arrayOf(arg))
+    fun invoke1(target: T, arg: Any?): R = invoke(target, arrayOf(arg))
 }

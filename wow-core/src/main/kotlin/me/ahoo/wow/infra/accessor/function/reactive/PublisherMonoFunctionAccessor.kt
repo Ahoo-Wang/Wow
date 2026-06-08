@@ -48,9 +48,9 @@ class PublisherMonoFunctionAccessor<T, D : Any>(
             invokeMethod<Publisher<Any>>(target, args).toFlux().collectList() as Mono<D>
         }
 
-    override fun invokeSingle(target: T, arg: Any?): Mono<D> =
+    override fun invoke1(target: T, arg: Any?): Mono<D> =
         Mono.defer {
             @Suppress("UNCHECKED_CAST")
-            invokeSingleMethod<Publisher<Any>>(target, arg).toFlux().collectList() as Mono<D>
+            invoke1Method<Publisher<Any>>(target, arg).toFlux().collectList() as Mono<D>
         }
 }

@@ -45,8 +45,8 @@ class FluxMonoFunctionAccessor<T, D : Any>(
             invokeMethod<Flux<D>>(target, args).collectList()
         }
 
-    override fun invokeSingle(target: T, arg: Any?): Mono<List<D>> =
+    override fun invoke1(target: T, arg: Any?): Mono<List<D>> =
         Mono.defer {
-            invokeSingleMethod<Flux<D>>(target, arg).collectList()
+            invoke1Method<Flux<D>>(target, arg).collectList()
         }
 }

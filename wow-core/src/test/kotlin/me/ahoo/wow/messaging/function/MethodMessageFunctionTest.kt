@@ -73,7 +73,7 @@ class MethodMessageFunctionTest {
 
         function(InvocationExchange(body = ParsedEventBody("body"))).assert().isEqualTo("body:body")
 
-        accessor.invokeSingleCount.assert().isEqualTo(1)
+        accessor.invoke1Count.assert().isEqualTo(1)
         accessor.invokeArrayCount.assert().isEqualTo(0)
         accessor.lastSingleArgument.assert().isEqualTo(ParsedEventBody("body"))
     }
@@ -97,7 +97,7 @@ class MethodMessageFunctionTest {
 
         function(exchange).assert().isEqualTo("event:named:typed")
 
-        accessor.invokeSingleCount.assert().isEqualTo(0)
+        accessor.invoke1Count.assert().isEqualTo(0)
         accessor.invokeArrayCount.assert().isEqualTo(1)
         accessor.lastArraySize.assert().isEqualTo(3)
     }
@@ -146,7 +146,7 @@ private class RecordingFunctionAccessor<P, R>(
 ) : FunctionAccessor<P, R> {
     var invokeArrayCount: Int = 0
         private set
-    var invokeSingleCount: Int = 0
+    var invoke1Count: Int = 0
         private set
     var lastArraySize: Int? = null
         private set
@@ -161,9 +161,9 @@ private class RecordingFunctionAccessor<P, R>(
         return delegate.invoke(target, args)
     }
 
-    override fun invokeSingle(target: P, arg: Any?): R {
-        invokeSingleCount++
+    override fun invoke1(target: P, arg: Any?): R {
+        invoke1Count++
         lastSingleArgument = arg
-        return delegate.invokeSingle(target, arg)
+        return delegate.invoke1(target, arg)
     }
 }
