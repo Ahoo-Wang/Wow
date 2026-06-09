@@ -681,7 +681,14 @@ fun renderGroupedBenchmarkReport(
                 "or claiming framework performance conclusions."
         )
     }
+    sb.appendLine(
+        "- Framework E2E results isolate command pipeline overhead with in-memory or noop stores; " +
+            "they are not production persistence capacity."
+    )
     sb.appendLine("- Infrastructure E2E results reflect real Redis or Mongo persistence paths when services are available.")
+    sb.appendLine(
+        "- No-snapshot growing-stream scenarios are diagnostics for replay pressure, not default E2E goals."
+    )
     sb.appendLine("- Component results explain bottlenecks and are not standalone performance goals.")
     sb.appendLine("- Smoke results are excluded from performance reports.")
     sb.appendLine()
@@ -788,6 +795,9 @@ tasks.register("generateBenchmarkReport") {
         sb.appendLine()
         sb.appendLine(
             "Framework performance conclusions use Full E2E results. " +
+                "Framework E2E isolates command pipeline overhead with in-memory or noop stores; " +
+                "Redis and Mongo Infrastructure E2E results reflect real persistence paths. " +
+                "No-snapshot growing-stream scenarios are diagnostics for replay pressure, not default E2E goals. " +
                 "Component benchmarks explain bottlenecks and Smoke only verifies benchmark entry health."
         )
         sb.appendLine()
