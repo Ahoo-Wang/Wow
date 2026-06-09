@@ -16,12 +16,11 @@ package me.ahoo.wow.redis.prepare
 import me.ahoo.wow.infra.prepare.PrepareKey
 import me.ahoo.wow.infra.prepare.PreparedValue
 import me.ahoo.wow.infra.prepare.PreparedValue.Companion.toTtlAt
+import me.ahoo.wow.redis.RedisScripts
 import me.ahoo.wow.redis.eventsourcing.RedisWrappedKey.wrap
 import me.ahoo.wow.redis.prepare.PrepareKeyConverter.toKey
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
-import org.springframework.core.io.ClassPathResource
-import org.springframework.core.io.Resource
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate
 import org.springframework.data.redis.core.script.RedisScript
 import reactor.core.publisher.Mono
@@ -35,27 +34,20 @@ class RedisPrepareKey<V : Any>(
     private val redisTemplate: ReactiveStringRedisTemplate
 ) : PrepareKey<V> {
     companion object {
-        private val RESOURCE_PREPARE_PREPARE: Resource = ClassPathResource("prepare_prepare.lua")
         val SCRIPT_PREPARE_PREPARE: RedisScript<Boolean> =
-            RedisScript.of(RESOURCE_PREPARE_PREPARE, Boolean::class.java)
+            RedisScripts.load("prepare_prepare.lua", Boolean::class.java)
 
-        private val RESOURCE_PREPARE_REPREPARE: Resource = ClassPathResource("prepare_reprepare.lua")
         val SCRIPT_PREPARE_REPREPARE: RedisScript<Boolean> =
-            RedisScript.of(RESOURCE_PREPARE_REPREPARE, Boolean::class.java)
+            RedisScripts.load("prepare_reprepare.lua", Boolean::class.java)
 
-        private val RESOURCE_PREPARE_REPREPARE_WITH_OLD_VALUE: Resource =
-            ClassPathResource("prepare_reprepare_with_old_value.lua")
         val SCRIPT_PREPARE_REPREPARE_WITH_OLD_VALUE: RedisScript<Boolean> =
-            RedisScript.of(RESOURCE_PREPARE_REPREPARE_WITH_OLD_VALUE, Boolean::class.java)
+            RedisScripts.load("prepare_reprepare_with_old_value.lua", Boolean::class.java)
 
-        private val RESOURCE_PREPARE_ROLLBACK: Resource = ClassPathResource("prepare_rollback.lua")
         val SCRIPT_PREPARE_ROLLBACK: RedisScript<Boolean> =
-            RedisScript.of(RESOURCE_PREPARE_ROLLBACK, Boolean::class.java)
+            RedisScripts.load("prepare_rollback.lua", Boolean::class.java)
 
-        private val RESOURCE_PREPARE_ROLLBACK_WITH_OLD_VALUE: Resource =
-            ClassPathResource("prepare_rollback_with_old_value.lua")
         val SCRIPT_PREPARE_ROLLBACK_WITH_OLD_VALUE: RedisScript<Boolean> =
-            RedisScript.of(RESOURCE_PREPARE_ROLLBACK_WITH_OLD_VALUE, Boolean::class.java)
+            RedisScripts.load("prepare_rollback_with_old_value.lua", Boolean::class.java)
     }
 
     private fun Map<String, String>.decode(): PreparedValue<V>? {
