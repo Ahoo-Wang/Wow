@@ -21,7 +21,7 @@ For the benchmarked `Cart` aggregate, the noop E2E path sends `AddCartItem`, whi
 
 ## Non-Goals
 
-- Do not change public API behavior or command wire contracts.
+- Do not change command wire contracts.
 - Do not redesign the broader command pipeline, dispatcher, retry, event sourcing, or wait-notification flow.
 - Do not add new dependencies.
 - Do not make formal performance claims from quick JMH results alone; quick results are directional.
@@ -35,6 +35,7 @@ Use "C boundaries, B scope":
 - Resolve and bind only the command function required by the current command type.
 - Resolve and bind error functions only on the error path.
 - Cache bound functions per aggregate instance, but create caches lazily so the resolver itself does not reintroduce eager fixed allocation.
+- Remove the old full-registry conversion methods instead of keeping compatibility adapters, so the model does not retain a second eager binding path.
 
 This keeps the architecture clean without turning the change into a broad framework rewrite.
 
@@ -60,7 +61,7 @@ The new resolver is an internal implementation detail:
 - starts without materialized command or error cache maps;
 - lazily allocates a command cache only after the first command function is bound;
 - lazily allocates an error cache only when an error handler is actually bound;
-- does not expose new public API.
+- does not expose a parallel full-registry API.
 
 ## Command Resolution Flow
 
@@ -108,7 +109,8 @@ This optimization is intentionally narrow. It should improve the command hot pat
 
 Behavior tests should cover:
 
-- constructing `SimpleCommandAggregate` does not require materializing a complete command or error registry;
+- `CommandAggregateMetadata` no longer exposes full command or error registry materialization methods;
+- constructing `SimpleCommandAggregate` does not materialize a complete command or error registry;
 - command functions are resolved by command type and still process normal commands;
 - after-command include, exclude, and order behavior remains unchanged;
 - default recover, delete, and apply-resource-tags command fallback behavior remains unchanged;
