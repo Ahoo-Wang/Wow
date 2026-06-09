@@ -52,7 +52,7 @@ class CommandAggregateMetadataTest {
     }
 
     @Test
-    fun `command function registry injects default internal command functions when absent`() {
+    fun `command function resolves explicit and default internal command functions by command type`() {
         val aggregateMetadata = aggregateMetadata<MockAfterCommandAggregate, MockAfterCommandAggregate>()
         val commandRoot = MockAfterCommandAggregate("aggregate-1")
         val stateAggregate = aggregateMetadata.toStateAggregate(commandRoot, version = 0)
@@ -63,14 +63,17 @@ class CommandAggregateMetadataTest {
             metadata = aggregateMetadata.command,
         )
 
-        val registry = aggregateMetadata.command.toCommandFunctionRegistry(commandAggregate)
-
-        registry.keys.assert().contains(
-            CreateCmd::class.java,
-            UpdateCmd::class.java,
-            DefaultRecoverAggregate::class.java,
-            DefaultDeleteAggregate::class.java,
-            DefaultApplyResourceTags::class.java,
-        )
+        aggregateMetadata.command.toCommandFunction(commandAggregate, CreateCmd::class.java)
+            .assert().isNotNull()
+        aggregateMetadata.command.toCommandFunction(commandAggregate, UpdateCmd::class.java)
+            .assert().isNotNull()
+        aggregateMetadata.command.toCommandFunction(commandAggregate, DefaultRecoverAggregate::class.java)
+            .assert().isNotNull()
+        aggregateMetadata.command.toCommandFunction(commandAggregate, DefaultDeleteAggregate::class.java)
+            .assert().isNotNull()
+        aggregateMetadata.command.toCommandFunction(commandAggregate, DefaultApplyResourceTags::class.java)
+            .assert().isNotNull()
+        aggregateMetadata.command.toCommandFunction(commandAggregate, String::class.java)
+            .assert().isNull()
     }
 }

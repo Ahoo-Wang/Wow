@@ -18,6 +18,7 @@ import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.annotation.AggregateId
 import me.ahoo.wow.api.annotation.AggregateVersion
 import me.ahoo.wow.api.annotation.CreateAggregate
+import me.ahoo.wow.api.annotation.OnError
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.modeling.aware.VersionAware
 
@@ -82,3 +83,32 @@ data class StateChanged(@AggregateId val id: String, val state: String)
 data class OtherStateChanged(@AggregateId val id: String, val otherState: String)
 
 class ExternalService
+
+class ErrorHandlingCommandAggregate(private val id: String) : VersionAware {
+    override var version: Int = Version.UNINITIALIZED_VERSION
+
+    fun id(): String = id
+
+    @Suppress("UNUSED_PARAMETER")
+    private fun onCommand(command: FailingCommand): StateChanged {
+        error("boom")
+    }
+
+    @Suppress("UNUSED_PARAMETER")
+    @OnError
+    private fun onError(command: FailingCommand, throwable: Throwable) {
+        handledErrorMessage = throwable.message
+    }
+
+    companion object {
+        var handledErrorMessage: String? = null
+            private set
+
+        fun reset() {
+            handledErrorMessage = null
+        }
+    }
+}
+
+@CreateAggregate
+data class FailingCommand(@AggregateId val id: String)

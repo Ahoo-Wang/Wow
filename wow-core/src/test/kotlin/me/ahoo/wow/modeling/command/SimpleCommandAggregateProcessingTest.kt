@@ -189,6 +189,30 @@ class SimpleCommandAggregateProcessingTest {
     }
 
     @Test
+    fun `error function resolves on error path and preserves original error propagation`() {
+        ErrorHandlingCommandAggregate.reset()
+        val aggregateMetadata = aggregateMetadata<ErrorHandlingCommandAggregate, ErrorHandlingCommandAggregate>()
+        val stateRoot = ErrorHandlingCommandAggregate("aggregate-1")
+        val stateAggregate = aggregateMetadata.toStateAggregate(stateRoot, version = 0)
+        val aggregate = SimpleCommandAggregate(
+            state = stateAggregate,
+            commandRoot = stateRoot,
+            eventStore = InMemoryEventStore(),
+            metadata = aggregateMetadata.command,
+        )
+
+        StepVerifier.create(
+            aggregate.process(SimpleServerCommandExchange(FailingCommand("aggregate-1").toCommandMessage()))
+        )
+            .expectErrorSatisfies { error ->
+                error.message.assert().isEqualTo("boom")
+            }
+            .verify()
+
+        ErrorHandlingCommandAggregate.handledErrorMessage.assert().isEqualTo("boom")
+    }
+
+    @Test
     fun `after command functions append events in configured order`() {
         aggregateVerifier<MockAfterCommandAggregate, MockAfterCommandAggregate>()
             .whenCommand(CreateCmd)
