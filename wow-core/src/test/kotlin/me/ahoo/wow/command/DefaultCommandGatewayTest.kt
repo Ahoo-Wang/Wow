@@ -96,6 +96,66 @@ class DefaultCommandGatewayTest {
     }
 
     @Test
+    fun `sendAndWaitForSent returns sent result without wait strategy side effects`() {
+        val commandBus = RecordingCommandBus()
+        val registrar = RecordingWaitStrategyRegistrar()
+        val notifier = RecordingCommandWaitNotifier()
+        val gateway = commandGateway(
+            commandBus = commandBus,
+            registrar = registrar,
+            notifier = notifier,
+        )
+        val command = TestCommandMessage(id = "command-id")
+
+        StepVerifier.create(gateway.sendAndWaitForSent(command))
+            .assertNext { result ->
+                result.stage.assert().isEqualTo(CommandStage.SENT)
+                result.waitCommandId.assert().isEqualTo("command-id")
+                result.commandId.assert().isEqualTo("command-id")
+                result.requestId.assert().isEqualTo(command.requestId)
+                result.errorCode.assert().isEqualTo("Ok")
+            }
+            .verifyComplete()
+
+        commandBus.sent.single().assert().isSameAs(command)
+        command.header["command_wait_id"].assert().isNull()
+        command.header["command_wait_endpoint"].assert().isNull()
+        command.header["command_wait_stage"].assert().isNull()
+        registrar.contains("command-id").assert().isFalse()
+        notifier.notifications.assert().isEmpty()
+    }
+
+    @Test
+    fun `sendAndWaitForSent maps command bus errors to command result exception`() {
+        val commandBus = RecordingCommandBus().apply {
+            sendResult = { Mono.error(IllegalStateException("bus failed")) }
+        }
+        val gateway = commandGateway(commandBus = commandBus)
+
+        StepVerifier.create(gateway.sendAndWaitForSent(TestCommandMessage(id = "command-id")))
+            .expectErrorSatisfies { error ->
+                error.assert().isInstanceOf(CommandResultException::class.java)
+                val exception = error as CommandResultException
+                exception.commandResult.stage.assert().isEqualTo(CommandStage.SENT)
+                exception.commandResult.waitCommandId.assert().isEqualTo("command-id")
+                exception.commandResult.commandId.assert().isEqualTo("command-id")
+            }
+            .verify()
+    }
+
+    @Test
+    fun `sendAndWaitForSent supports void commands`() {
+        val gateway = commandGateway()
+
+        StepVerifier.create(gateway.sendAndWaitForSent(TestCommandMessage(id = "void-command", isVoid = true)))
+            .assertNext { result ->
+                result.stage.assert().isEqualTo(CommandStage.SENT)
+                result.commandId.assert().isEqualTo("void-command")
+            }
+            .verifyComplete()
+    }
+
+    @Test
     fun `send with wait strategy maps command bus errors to command result exception and unregisters`() {
         val commandBus = RecordingCommandBus().apply {
             sendResult = { Mono.error(IllegalStateException("bus failed")) }

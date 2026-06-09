@@ -152,6 +152,26 @@ class DefaultCommandGateway(
                     }
             }
 
+    private fun CommandMessage<*>.toSentCommandResult(): CommandResult =
+        commandSentSignal(commandId).toResult(this)
+
+    override fun <C : Any> sendAndWaitForSent(command: CommandMessage<C>): Mono<CommandResult> {
+        return check(command)
+            .thenDefer {
+                commandBus.send(command)
+            }.thenDefer {
+                Mono.just(command.toSentCommandResult())
+            }.onErrorMap {
+                CommandResultException(
+                    it.toResult(
+                        waitCommandId = command.commandId,
+                        commandMessage = command,
+                    ),
+                    it,
+                )
+            }
+    }
+
     /**
      * Sends a command and waits for the final result.
      * Throws CommandResultException if the command execution fails.
