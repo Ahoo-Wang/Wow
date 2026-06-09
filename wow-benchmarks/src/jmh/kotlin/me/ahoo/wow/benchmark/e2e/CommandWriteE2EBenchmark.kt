@@ -98,6 +98,15 @@ open class CommandWriteE2EBenchmark {
     }
 
     @Benchmark
+    fun sendAndWaitSent(blackhole: Blackhole) {
+        blackhole.consumeWowResult(onError = { failures.incrementAndGet() }) {
+            commandDispatcherScenario.commandGateway
+                .sendAndWaitForSent(createCommandMessage())
+                .block()
+        }
+    }
+
+    @Benchmark
     fun sendAndWaitProcessed(blackhole: Blackhole) {
         blackhole.consumeWowResult(onError = { failures.incrementAndGet() }) {
             commandDispatcherScenario.commandGateway
