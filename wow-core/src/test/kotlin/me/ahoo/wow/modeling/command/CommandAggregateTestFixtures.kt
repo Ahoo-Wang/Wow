@@ -15,12 +15,16 @@ package me.ahoo.wow.modeling.command
 
 import com.google.common.base.Preconditions
 import me.ahoo.wow.api.Version
+import me.ahoo.wow.api.abac.AbacTags
+import me.ahoo.wow.api.abac.ApplyResourceTags
 import me.ahoo.wow.api.annotation.AggregateId
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.AggregateVersion
 import me.ahoo.wow.api.annotation.CreateAggregate
 import me.ahoo.wow.api.annotation.OnError
 import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.api.command.DeleteAggregate
+import me.ahoo.wow.api.command.RecoverAggregate
 import me.ahoo.wow.api.modeling.aware.VersionAware
 
 class MockCommandAggregate(private val id: String) : VersionAware {
@@ -84,6 +88,36 @@ data class StateChanged(@AggregateId val id: String, val state: String)
 data class OtherStateChanged(@AggregateId val id: String, val otherState: String)
 
 class ExternalService
+
+@AggregateRoot
+class CustomInternalCommandAggregate(private val id: String) : VersionAware {
+    override var version: Int = Version.UNINITIALIZED_VERSION
+
+    fun id(): String = id
+
+    @Suppress("UNUSED_PARAMETER")
+    private fun onCommand(command: CustomRecoverCommand): StateChanged =
+        StateChanged(command.id, "recovered")
+
+    @Suppress("UNUSED_PARAMETER")
+    private fun onCommand(command: CustomDeleteCommand): StateChanged =
+        StateChanged(command.id, "deleted")
+
+    @Suppress("UNUSED_PARAMETER")
+    private fun onCommand(command: CustomApplyResourceTagsCommand): StateChanged =
+        StateChanged(command.id, "tags")
+}
+
+data class CustomRecoverCommand(@AggregateId val id: String) : RecoverAggregate
+
+data class CustomDeleteCommand(@AggregateId val id: String) : DeleteAggregate
+
+data class CustomApplyResourceTagsCommand(
+    @AggregateId val id: String,
+    override val tags: AbacTags = emptyMap()
+) : ApplyResourceTags
+
+data class UndefinedCommand(@AggregateId val id: String)
 
 @AggregateRoot
 class ErrorHandlingCommandAggregate(private val id: String) : VersionAware {

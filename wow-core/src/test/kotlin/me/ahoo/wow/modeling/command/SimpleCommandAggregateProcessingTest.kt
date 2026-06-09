@@ -89,6 +89,66 @@ class SimpleCommandAggregateProcessingTest {
     }
 
     @Test
+    fun `process rejects undefined command after aggregate is initialized`() {
+        val aggregate = commandAggregate()
+        StepVerifier.create(
+            aggregate.process(SimpleServerCommandExchange(Create("aggregate-1", "created").toCommandMessage()))
+        )
+            .expectNextCount(1)
+            .verifyComplete()
+
+        StepVerifier.create(
+            aggregate.process(SimpleServerCommandExchange(UndefinedCommand("aggregate-1").toCommandMessage()))
+        )
+            .expectErrorSatisfies { error ->
+                error.assert().isInstanceOf(IllegalArgumentException::class.java)
+                error.message.assert().contains("Undefined command")
+            }
+            .verify()
+    }
+
+    @Test
+    fun `process rejects command when current command state is not stored`() {
+        val aggregate = commandAggregate()
+        aggregate.commandState = CommandState.SOURCED
+
+        StepVerifier.create(
+            aggregate.process(SimpleServerCommandExchange(Create("aggregate-1", "created").toCommandMessage()))
+        )
+            .expectErrorSatisfies { error ->
+                error.assert().isInstanceOf(IllegalStateException::class.java)
+                error.message.assert().contains("is not stored")
+            }
+            .verify()
+    }
+
+    @Test
+    fun `process rejects recovery command when aggregate is not deleted`() {
+        val aggregate = commandAggregate()
+        StepVerifier.create(
+            aggregate.process(SimpleServerCommandExchange(Create("aggregate-1", "created").toCommandMessage()))
+        )
+            .expectNextCount(1)
+            .verifyComplete()
+
+        StepVerifier.create(
+            aggregate.process(
+                SimpleServerCommandExchange(
+                    DefaultRecoverAggregate.toCommandMessage(
+                        aggregateId = "aggregate-1",
+                        namedAggregate = aggregate,
+                    )
+                )
+            )
+        )
+            .expectErrorSatisfies { error ->
+                error.assert().isInstanceOf(IllegalStateException::class.java)
+                error.message.assert().contains("is not deleted")
+            }
+            .verify()
+    }
+
+    @Test
     fun `process rejects owner and space mismatches after aggregate is initialized`() {
         val aggregate = commandAggregate()
         val create = Create("aggregate-1", "created").toCommandMessage(
@@ -230,6 +290,16 @@ class SimpleCommandAggregateProcessingTest {
             .whenCommand(CreateCmd)
             .expectEventType(CmdCreated::class.java, FirstAfter::class.java, LastAfter::class.java)
             .verify()
+    }
+
+    @Test
+    fun `to string includes state metadata and command state`() {
+        val aggregate = commandAggregate()
+        val string = aggregate.toString()
+
+        string.assert().contains("SimpleCommandAggregate(state=")
+        string.assert().contains("metadata=")
+        string.assert().contains("commandState=STORED")
     }
 
     private fun commandAggregate(

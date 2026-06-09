@@ -41,6 +41,9 @@
         "modeling_command_error_handling_aggregate": {
           "type": "me.ahoo.wow.modeling.command.ErrorHandlingCommandAggregate"
         },
+        "modeling_command_custom_internal_aggregate": {
+          "type": "me.ahoo.wow.modeling.command.CustomInternalCommandAggregate"
+        },
         "messaging_aggregate": {
           "scopes": [
             "me.ahoo.wow.messaging"

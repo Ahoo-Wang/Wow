@@ -23,6 +23,7 @@ import me.ahoo.wow.modeling.annotation.MockAfterCommandAggregate
 import me.ahoo.wow.modeling.annotation.MockAggregate
 import me.ahoo.wow.modeling.annotation.UpdateCmd
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
+import me.ahoo.wow.modeling.command.CustomInternalCommandAggregate
 import me.ahoo.wow.modeling.command.SimpleCommandAggregate
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory.toStateAggregate
 import org.junit.jupiter.api.Test
@@ -33,11 +34,13 @@ class CommandAggregateMetadataTest {
     fun `command aggregate metadata equality hash and string are based on aggregate type`() {
         val metadata = aggregateMetadata<MockAggregate, MockAggregate>().command
         val same = aggregateMetadata<MockAggregate, MockAggregate>().command
+        val different = aggregateMetadata<MockAfterCommandAggregate, MockAfterCommandAggregate>().command
 
         metadata.assert().isEqualTo(same)
         metadata.hashCode().assert().isEqualTo(MockAggregate::class.java.hashCode())
         metadata.toString().assert().isEqualTo("CommandAggregateMetadata(aggregateType=${metadata.aggregateType})")
         metadata.equals(Any()).assert().isFalse()
+        metadata.equals(different).assert().isFalse()
         metadata.processorName.assert().isEqualTo("MockAggregate")
     }
 
@@ -74,6 +77,29 @@ class CommandAggregateMetadataTest {
         aggregateMetadata.command.toCommandFunction(commandAggregate, DefaultApplyResourceTags::class.java)
             .assert().isNotNull()
         aggregateMetadata.command.toCommandFunction(commandAggregate, String::class.java)
+            .assert().isNull()
+    }
+
+    @Test
+    fun `default internal command functions are disabled when aggregate registers compatible commands`() {
+        val aggregateMetadata = aggregateMetadata<CustomInternalCommandAggregate, CustomInternalCommandAggregate>()
+        val commandRoot = CustomInternalCommandAggregate("aggregate-1")
+        val stateAggregate = aggregateMetadata.toStateAggregate(commandRoot, version = 0)
+        val commandAggregate = SimpleCommandAggregate(
+            state = stateAggregate,
+            commandRoot = commandRoot,
+            eventStore = InMemoryEventStore(),
+            metadata = aggregateMetadata.command,
+        )
+
+        aggregateMetadata.command.registeredRecoverAggregate.assert().isTrue()
+        aggregateMetadata.command.registeredDeleteAggregate.assert().isTrue()
+        aggregateMetadata.command.registeredApplyResourceTags.assert().isTrue()
+        aggregateMetadata.command.toCommandFunction(commandAggregate, DefaultRecoverAggregate::class.java)
+            .assert().isNull()
+        aggregateMetadata.command.toCommandFunction(commandAggregate, DefaultDeleteAggregate::class.java)
+            .assert().isNull()
+        aggregateMetadata.command.toCommandFunction(commandAggregate, DefaultApplyResourceTags::class.java)
             .assert().isNull()
     }
 }
