@@ -15,6 +15,7 @@ package me.ahoo.wow.reactor
 
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
 import java.util.concurrent.atomic.AtomicBoolean
@@ -90,6 +91,32 @@ class ReactorCheckpointTest {
                 environment = mapOf(ReactorCheckpoint.CHECKPOINT_LEVEL_ENV to "heavy"),
             )
             .assert().isEqualTo(CheckpointLevel.OFF)
+    }
+
+    @Test
+    fun `checkpoint level accepts case-insensitive trimmed values`() {
+        CheckpointLevel.parse(" light ")
+            .assert().isEqualTo(CheckpointLevel.LIGHT)
+    }
+
+    @Test
+    fun `checkpoint level defaults to off when configuration is blank`() {
+        ReactorCheckpoint
+            .checkpointLevel(
+                properties = mapOf(ReactorCheckpoint.CHECKPOINT_LEVEL_PROPERTY to " "),
+                environment = mapOf(ReactorCheckpoint.CHECKPOINT_LEVEL_ENV to ""),
+            )
+            .assert().isEqualTo(CheckpointLevel.OFF)
+    }
+
+    @Test
+    fun `checkpoint level rejects unsupported values`() {
+        val error = assertThrows<IllegalArgumentException> {
+            CheckpointLevel.parse("debug")
+        }
+
+        error.message.assert()
+            .isEqualTo("Unsupported Reactor checkpoint level[debug]. Supported values are: OFF, LIGHT, HEAVY.")
     }
 
     @Test
