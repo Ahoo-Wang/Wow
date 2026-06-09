@@ -23,6 +23,7 @@ import me.ahoo.wow.messaging.function.logErrorResume
 import me.ahoo.wow.modeling.command.dispatcher.CommandFilter
 import me.ahoo.wow.modeling.command.dispatcher.SendDomainEventStreamFilter
 import me.ahoo.wow.modeling.command.getCommandAggregate
+import me.ahoo.wow.reactor.checkpointIfEnabled
 import reactor.core.publisher.Mono
 
 /**
@@ -70,7 +71,7 @@ class SendStateEventFilter(
             }
             val stateEvent = eventStream.copy().toStateEvent(state)
             stateEventBus.send(stateEvent)
-                .checkpoint("Send Message[${eventStream.id}] [SendStateEventFilter]")
+                .checkpointIfEnabled { "Send Message[${eventStream.id}] [SendStateEventFilter]" }
                 .logErrorResume()
                 .then(Mono.defer { next.filter(exchange) })
         }

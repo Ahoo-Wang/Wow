@@ -20,6 +20,7 @@ import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.handler.ExchangeAck.finallyAck
 import me.ahoo.wow.modeling.command.AggregateProcessorFactory
+import me.ahoo.wow.reactor.checkpointIfEnabled
 import reactor.core.publisher.Mono
 
 @Order(ORDER_DEFAULT)
@@ -41,9 +42,9 @@ class AggregateProcessorFilter(
         exchange.setAggregateProcessor(aggregateProcessor)
         return aggregateProcessor
             .process(exchange)
-            .checkpoint(
+            .checkpointIfEnabled {
                 "[${aggregateProcessor.aggregateId}] Process Command[${exchange.message.id}] [AggregateProcessorFilter]"
-            )
+            }
             .finallyAck(exchange)
             .then(Mono.defer { next.filter(exchange) })
     }

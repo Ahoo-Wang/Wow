@@ -19,6 +19,7 @@ import me.ahoo.wow.api.annotation.Order
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.filter.FilterChain
+import me.ahoo.wow.reactor.checkpointIfEnabled
 import reactor.core.publisher.Mono
 
 @Order(ORDER_LAST, after = [AggregateProcessorFilter::class])
@@ -40,7 +41,7 @@ class SendDomainEventStreamFilter(
                 return@defer next.filter(exchange)
             }
             domainEventBus.send(eventStream)
-                .checkpoint("Send Message[${eventStream.id}] [SendDomainEventStreamFilter]")
+                .checkpointIfEnabled { "Send Message[${eventStream.id}] [SendDomainEventStreamFilter]" }
                 .then(Mono.defer { next.filter(exchange) })
         }
     }
