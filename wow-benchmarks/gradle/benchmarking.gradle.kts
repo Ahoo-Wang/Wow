@@ -273,6 +273,18 @@ fun formatMemoryBytes(bytes: Long?): String {
     return "${String.format(Locale.US, "%.1f", gib)} GiB"
 }
 
+fun benchmarkReportPath(file: File): String {
+    val projectRoot = layout.projectDirectory.asFile.toPath().toAbsolutePath().normalize()
+    val filePath = file.toPath().toAbsolutePath().normalize()
+    if (!filePath.startsWith(projectRoot)) {
+        return file.absolutePath
+    }
+    val relativePath = projectRoot.relativize(filePath)
+        .toString()
+        .replace(File.separatorChar, '/')
+    return "${project.name}/$relativePath"
+}
+
 fun StringBuilder.appendBenchmarkEnvironment(
     version: String,
     profile: BenchmarkRunProfile,
@@ -409,9 +421,10 @@ tasks.named("jmh") {
 
 val resultsDir = layout.projectDirectory.dir("results")
 val frameworkE2EBaselineJson = resultsDir.file("framework-e2e-baseline.json")
-val benchmarkReportFile = layout.projectDirectory.file("REPORT.md")
-val groupedBenchmarkReport = layout.buildDirectory.file("reports/jmh/grouped.md")
-val quickGroupedBenchmarkReport = layout.buildDirectory.file("reports/jmh/quick-grouped.md")
+val reportsDir = layout.projectDirectory.dir("reports")
+val benchmarkReportFile = reportsDir.file("quick-framework-e2e.md")
+val groupedBenchmarkReport = reportsDir.file("full-grouped.md")
+val quickGroupedBenchmarkReport = reportsDir.file("quick-grouped.md")
 
 data class BenchmarkResultFile(
     val threads: Int,
@@ -846,7 +859,7 @@ fun renderGroupedBenchmarkReport(
         sb.appendLine()
         group.resultFiles.forEach { resultFile ->
             val file = resultFile.resultFile.get().asFile
-            sb.appendLine("- **threads=${resultFile.threads} Result File**: `${file.absolutePath}`")
+            sb.appendLine("- **threads=${resultFile.threads} Result File**: `${benchmarkReportPath(file)}`")
             if (file.exists()) {
                 sb.appendLine("  - Last Modified: ${Instant.ofEpochMilli(file.lastModified())}")
             }
@@ -863,7 +876,7 @@ fun renderGroupedBenchmarkReport(
 }
 
 tasks.register("generateBenchmarkReport") {
-    description = "Generate benchmark REPORT.md from quick primary framework E2E JMH JSON results."
+    description = "Generate quick framework E2E benchmark report from JMH JSON results."
     group = "benchmark"
     mustRunAfter("benchmarkQuickE2E")
     outputs.file(benchmarkReportFile)
@@ -896,8 +909,10 @@ tasks.register("generateBenchmarkReport") {
         sb.appendLine()
         sb.appendBenchmarkTable(rows)
 
-        benchmarkReportFile.asFile.writeText(sb.toString())
-        logger.lifecycle("Benchmark report generated: ${benchmarkReportFile.asFile.absolutePath}")
+        val outputFile = benchmarkReportFile.asFile
+        outputFile.parentFile.mkdirs()
+        outputFile.writeText(sb.toString())
+        logger.lifecycle("Benchmark report generated: ${outputFile.absolutePath}")
     }
 }
 
@@ -908,7 +923,7 @@ tasks.register("generateGroupedBenchmarkReport") {
     outputs.file(groupedBenchmarkReport)
     outputs.upToDateWhen { false }
     doLast {
-        val outputFile = groupedBenchmarkReport.get().asFile
+        val outputFile = groupedBenchmarkReport.asFile
         outputFile.delete()
         val report = renderGroupedBenchmarkReport(
             groups = reportSuites.map { benchmarkResultGroup(it, fullProfile) },
@@ -927,7 +942,7 @@ tasks.register("generateQuickBenchmarkReport") {
     outputs.file(quickGroupedBenchmarkReport)
     outputs.upToDateWhen { false }
     doLast {
-        val outputFile = quickGroupedBenchmarkReport.get().asFile
+        val outputFile = quickGroupedBenchmarkReport.asFile
         outputFile.delete()
         val report = renderGroupedBenchmarkReport(
             groups = reportSuites.map { benchmarkResultGroup(it, quickProfile) },

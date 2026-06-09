@@ -32,7 +32,7 @@ Smoke is intentionally short and does not produce a performance report.
 ./gradlew :wow-benchmarks:benchmarkQuickE2E :wow-benchmarks:generateBenchmarkReport
 ```
 
-This writes the checked-in quick Framework E2E report to [`REPORT.md`](REPORT.md).
+This writes the checked-in quick Framework E2E report to [`reports/quick-framework-e2e.md`](reports/quick-framework-e2e.md).
 Treat it as directional local feedback; use Full E2E before making formal performance claims.
 
 ### Quick Bottleneck Diagnosis
@@ -44,7 +44,7 @@ Treat it as directional local feedback; use Full E2E before making formal perfor
 ./gradlew :wow-benchmarks:generateQuickBenchmarkReport
 ```
 
-The quick grouped report is written to `wow-benchmarks/build/reports/jmh/quick-grouped.md`.
+The quick grouped report is written to `wow-benchmarks/reports/quick-grouped.md`.
 
 ### Full Baseline Run
 
@@ -57,19 +57,19 @@ The quick grouped report is written to `wow-benchmarks/build/reports/jmh/quick-g
 
 Full runs are expensive. Prefer `--no-parallel` for stable measurements, especially on developer machines where parallel JMH tasks compete for CPU and memory.
 
-The full grouped report is written to `wow-benchmarks/build/reports/jmh/grouped.md`.
+The full grouped report is written to `wow-benchmarks/reports/full-grouped.md`.
 
 ## Reports And Results
 
 | Path | Contents | Commit Policy |
 |------|----------|---------------|
-| `wow-benchmarks/REPORT.md` | Generated quick Framework E2E report. | Commit when intentionally updating the visible benchmark report. |
-| `wow-benchmarks/build/reports/jmh/quick-grouped.md` | Local quick E2E/component/infrastructure grouped report. | Do not commit; build output. |
-| `wow-benchmarks/build/reports/jmh/grouped.md` | Local full grouped report. | Do not commit; build output. |
+| `wow-benchmarks/reports/quick-framework-e2e.md` | Generated quick Framework E2E report. | Commit when intentionally updating the visible benchmark report. |
+| `wow-benchmarks/reports/quick-grouped.md` | Generated quick E2E/component/infrastructure grouped report. | Commit when intentionally updating grouped benchmark evidence. |
+| `wow-benchmarks/reports/full-grouped.md` | Generated full E2E/component/infrastructure grouped report. | Commit when intentionally updating formal benchmark evidence. |
 | `wow-benchmarks/results/jmh/` | Local JMH JSON and human-readable outputs. | Do not commit generated run output. |
 | `wow-benchmarks/results/framework-e2e-baseline.json` | Framework E2E comparison baseline, when present. | Commit only intentional baseline updates. |
 
-`REPORT.md` is generated. Do not hand-edit benchmark rows; rerun the benchmark/report task instead.
+Files under `reports/*.md` are generated. Do not hand-edit benchmark rows; rerun the benchmark/report task instead.
 
 ## Reading The Report
 
