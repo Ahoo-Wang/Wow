@@ -25,30 +25,34 @@ internal class CommandFunctionResolver<C : Any>(
     private val metadata: CommandAggregateMetadata<C>,
     private val commandAggregate: CommandAggregate<C, *>
 ) {
-    private var commandFunctionCache: MutableMap<Class<*>, BoundCommandFunction<C>>? = null
-    private var errorFunctionCache: MutableMap<Class<*>, BoundErrorFunction<C>>? = null
+    private val commandFunctionCache = FunctionCache<BoundCommandFunction<C>>()
+    private val errorFunctionCache = FunctionCache<BoundErrorFunction<C>>()
 
     fun commandFunction(commandType: Class<*>): BoundCommandFunction<C>? {
-        commandFunctionCache?.get(commandType)?.let {
-            return it
+        return commandFunctionCache.get(commandType) {
+            metadata.toCommandFunction(commandAggregate, it)
         }
-        val commandFunction = metadata.toCommandFunction(commandAggregate, commandType) ?: return null
-        val cache = commandFunctionCache ?: HashMap<Class<*>, BoundCommandFunction<C>>(1).also {
-            commandFunctionCache = it
-        }
-        cache[commandType] = commandFunction
-        return commandFunction
     }
 
     fun errorFunction(commandType: Class<*>): BoundErrorFunction<C>? {
-        errorFunctionCache?.get(commandType)?.let {
+        return errorFunctionCache.get(commandType) {
+            metadata.toErrorFunction(commandAggregate.commandRoot, it)
+        }
+    }
+}
+
+internal class FunctionCache<F : Any> {
+    private var cache: MutableMap<Class<*>, F>? = null
+
+    fun get(functionType: Class<*>, resolver: (Class<*>) -> F?): F? {
+        cache?.get(functionType)?.let {
             return it
         }
-        val errorFunction = metadata.toErrorFunction(commandAggregate.commandRoot, commandType) ?: return null
-        val cache = errorFunctionCache ?: HashMap<Class<*>, BoundErrorFunction<C>>(1).also {
-            errorFunctionCache = it
+        val function = resolver(functionType) ?: return null
+        val currentCache = cache ?: HashMap<Class<*>, F>(1).also {
+            cache = it
         }
-        cache[commandType] = errorFunction
-        return errorFunction
+        currentCache[functionType] = function
+        return function
     }
 }
