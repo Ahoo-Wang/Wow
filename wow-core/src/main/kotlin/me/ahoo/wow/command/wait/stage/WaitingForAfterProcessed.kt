@@ -15,6 +15,8 @@ package me.ahoo.wow.command.wait.stage
 
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.WaitSignal
+import me.ahoo.wow.command.wait.lastSignalWithMergedResult
+import me.ahoo.wow.command.wait.mergedResult
 import reactor.core.publisher.Mono
 
 /**
@@ -47,12 +49,11 @@ abstract class WaitingForAfterProcessed : WaitingForStage() {
             if (signals.isEmpty()) {
                 return@mapNotNull null
             }
-            val result: MutableMap<String, Any> = mutableMapOf()
-            signals.forEach { signal ->
-                result.putAll(signal.result)
+            val waitingForSignal = waitingForSignal
+            if (waitingForSignal == null) {
+                return@mapNotNull signals.lastSignalWithMergedResult()
             }
-            val waitingForSignal = waitingForSignal ?: return@mapNotNull signals.last().copyResult(result)
-            waitingForSignal.copyResult(result)
+            waitingForSignal.copyResult(signals.mergedResult())
         }
     }
 

@@ -74,4 +74,37 @@ class SimpleWaitingForChainNotifyTest {
             }
             .verifyComplete()
     }
+
+    @Test
+    fun `chain waitingLast merges results from previous and final signals`() {
+        val chain = SimpleWaitingForChain.chain(
+            waitCommandId = "main-command",
+            function = testNamedFunction(),
+            tailStage = CommandStage.PROCESSED,
+            tailFunction = testNamedFunction(),
+        )
+        val processed = testSignal(
+            CommandStage.PROCESSED,
+            commandId = "main-command",
+            result = mapOf("processed" to 1),
+            signalTime = 1,
+        )
+        val saga = testSignal(
+            CommandStage.SAGA_HANDLED,
+            commandId = "main-command",
+            result = mapOf("saga" to 2),
+            signalTime = 2,
+        )
+
+        StepVerifier.create(chain.waitingLast())
+            .then {
+                chain.next(processed)
+                chain.next(saga)
+            }
+            .assertNext { signal ->
+                signal.stage.assert().isEqualTo(CommandStage.SAGA_HANDLED)
+                signal.result.assert().isEqualTo(mapOf("processed" to 1, "saga" to 2))
+            }
+            .verifyComplete()
+    }
 }

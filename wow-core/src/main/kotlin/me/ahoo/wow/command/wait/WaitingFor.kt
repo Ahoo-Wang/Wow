@@ -25,6 +25,29 @@ import reactor.core.publisher.Sinks.EmitFailureHandler
 import java.util.concurrent.atomic.AtomicReference
 import java.util.function.Consumer
 
+internal fun MutableList<WaitSignal>.lastSignalWithMergedResult(): WaitSignal? {
+    if (isEmpty()) {
+        return null
+    }
+    if (size == 1) {
+        val signal = first()
+        if (signal.result.isEmpty()) {
+            return signal
+        }
+        return signal.copyResult(signal.result.toMap())
+    }
+    sortBy { it.signalTime }
+    return last().copyResult(mergedResult())
+}
+
+internal fun Iterable<WaitSignal>.mergedResult(): Map<String, Any> {
+    val result: MutableMap<String, Any> = mutableMapOf()
+    forEach { signal ->
+        result.putAll(signal.result)
+    }
+    return result
+}
+
 /**
  * Abstract base class for wait strategies that wait for specific command processing stages.
  * Provides common functionality for managing wait signals, completion, and error handling.
@@ -63,15 +86,7 @@ abstract class WaitingFor : WaitStrategy {
 
     override fun waitingLast(): Mono<WaitSignal> {
         return waiting().collectList().mapNotNull { signals ->
-            if (signals.isEmpty()) {
-                return@mapNotNull null
-            }
-            signals.sortBy { it.signalTime }
-            val result: MutableMap<String, Any> = mutableMapOf()
-            signals.forEach { signal ->
-                result.putAll(signal.result)
-            }
-            signals.last().copyResult(result)
+            signals.lastSignalWithMergedResult()
         }
     }
 

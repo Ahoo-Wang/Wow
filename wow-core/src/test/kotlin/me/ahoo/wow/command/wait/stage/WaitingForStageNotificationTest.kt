@@ -35,6 +35,19 @@ class WaitingForStageNotificationTest {
     }
 
     @Test
+    fun `processed waitingLast returns single empty result signal without copying`() {
+        val strategy = WaitingForStage.processed("wait-id")
+        val processed = testSignal(CommandStage.PROCESSED)
+
+        StepVerifier.create(strategy.waitingLast())
+            .then { strategy.next(processed) }
+            .assertNext { signal ->
+                signal.assert().isSameAs(processed)
+            }
+            .verifyComplete()
+    }
+
+    @Test
     fun `snapshot strategy completes after processed and snapshot and returns merged result`() {
         val strategy = WaitingForStage.snapshot("wait-id")
         val processed = testSignal(CommandStage.PROCESSED, result = mapOf("processed" to 1), signalTime = 1)
@@ -48,6 +61,25 @@ class WaitingForStageNotificationTest {
             .assertNext { signal ->
                 signal.stage.assert().isEqualTo(CommandStage.SNAPSHOT)
                 signal.result.assert().isEqualTo(mapOf("processed" to 1, "snapshot" to 2))
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `snapshot waitingLast returns failed processed signal when previous stage fails`() {
+        val strategy = WaitingForStage.snapshot("wait-id")
+        val failedProcessed = testSignal(
+            CommandStage.PROCESSED,
+            errorCode = "failed",
+            errorMsg = "processed failed",
+        )
+
+        StepVerifier.create(strategy.waitingLast())
+            .then { strategy.next(failedProcessed) }
+            .assertNext { signal ->
+                signal.stage.assert().isEqualTo(CommandStage.PROCESSED)
+                signal.errorCode.assert().isEqualTo("failed")
+                signal.errorMsg.assert().isEqualTo("processed failed")
             }
             .verifyComplete()
     }
