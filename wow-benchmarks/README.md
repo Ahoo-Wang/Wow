@@ -35,6 +35,15 @@ Smoke is intentionally short and does not produce a performance report.
 This writes the checked-in quick Framework E2E report to [`results/reports/quick-framework-e2e.md`](results/reports/quick-framework-e2e.md).
 Treat it as directional local feedback; use Full E2E before making formal performance claims.
 
+### Infrastructure E2E Report
+
+```bash
+./gradlew :wow-benchmarks:benchmarkQuickInfrastructureE2E :wow-benchmarks:generateInfrastructureBenchmarkReport
+```
+
+This writes the checked-in quick Infrastructure E2E report to [`results/reports/quick-infrastructure-e2e.md`](results/reports/quick-infrastructure-e2e.md).
+Infrastructure E2E requires local Redis and MongoDB services and measures persistence-path behavior, not framework-only overhead.
+
 ### Quick Bottleneck Diagnosis
 
 ```bash
@@ -64,6 +73,7 @@ The full grouped report is written to `wow-benchmarks/results/reports/full-group
 | Path | Contents | Commit Policy |
 |------|----------|---------------|
 | `wow-benchmarks/results/reports/quick-framework-e2e.md` | Generated quick Framework E2E report. | Commit when intentionally updating the visible benchmark report. |
+| `wow-benchmarks/results/reports/quick-infrastructure-e2e.md` | Generated quick Infrastructure E2E report. | Commit when intentionally updating Redis/Mongo benchmark evidence. |
 | `wow-benchmarks/results/reports/quick-grouped.md` | Generated quick E2E/component/infrastructure grouped report. | Commit when intentionally updating grouped benchmark evidence. |
 | `wow-benchmarks/results/reports/full-grouped.md` | Generated full E2E/component/infrastructure grouped report. | Commit when intentionally updating formal benchmark evidence. |
 | `wow-benchmarks/results/jmh/` | Local JMH JSON and human-readable outputs. | Do not commit generated run output. |
