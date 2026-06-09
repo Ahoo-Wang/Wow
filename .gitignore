@@ -36,3 +36,6 @@ __pycache__/
 
 # Superpowers
 docs/superpowers/
+
+# Benchmark generated outputs
+wow-benchmarks/results/jmh/

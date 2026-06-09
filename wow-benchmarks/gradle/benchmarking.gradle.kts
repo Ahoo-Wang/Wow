@@ -1,5 +1,6 @@
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
+import com.sun.management.OperatingSystemMXBean as SunOperatingSystemMXBean
 import org.gradle.api.GradleException
 import org.gradle.api.file.RegularFile
 import org.gradle.api.provider.Provider
@@ -7,10 +8,13 @@ import org.gradle.api.tasks.JavaExec
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.jvm.tasks.Jar
 import java.io.File
+import java.lang.management.ManagementFactory
 import java.net.InetSocketAddress
 import java.net.Socket
 import java.time.Instant
-import java.time.LocalDate
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 import java.util.Locale
 
 data class BenchmarkRequiredService(
@@ -223,9 +227,11 @@ fun suiteResultFile(
     suite: BenchmarkSuite,
     threads: Int,
 ): Provider<RegularFile> {
-    return layout.buildDirectory.file(
-        "results/jmh/${profile.id}/${suite.id}/threads-$threads-${suite.resultFileName}"
-    )
+    return providers.provider {
+        layout.projectDirectory.file(
+            "results/jmh/${profile.id}/${suite.id}/threads-$threads-${suite.resultFileName}"
+        )
+    }
 }
 
 fun suiteHumanFile(
@@ -233,9 +239,11 @@ fun suiteHumanFile(
     suite: BenchmarkSuite,
     threads: Int,
 ): Provider<RegularFile> {
-    return layout.buildDirectory.file(
-        "reports/jmh/${profile.id}/${suite.id}/threads-$threads-${suite.humanFileName}"
-    )
+    return providers.provider {
+        layout.projectDirectory.file(
+            "results/jmh/${profile.id}/${suite.id}/threads-$threads-${suite.humanFileName}"
+        )
+    }
 }
 
 fun BenchmarkRunProfile.configSummary(): String {
@@ -246,6 +254,55 @@ fun BenchmarkRunProfile.configSummary(): String {
     }
     return "$warmup, measurement=${measurementIterations}x$measurementTime, " +
         "fork=$forks, threads=${threads.joinToString(",")}, modes=${benchmarkModes.joinToString(",")}"
+}
+
+fun reportDateTime(): String {
+    return ZonedDateTime.now()
+        .truncatedTo(ChronoUnit.SECONDS)
+        .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)
+}
+
+fun physicalMemoryBytes(): Long? {
+    val osBean = ManagementFactory.getOperatingSystemMXBean() as? SunOperatingSystemMXBean ?: return null
+    return runCatching {
+        osBean.totalMemorySize.takeIf { it > 0 }
+    }.getOrNull()
+}
+
+fun formatMemoryBytes(bytes: Long?): String {
+    if (bytes == null) {
+        return "unavailable"
+    }
+    val gib = bytes.toDouble() / 1024 / 1024 / 1024
+    return "${String.format(Locale.US, "%.1f", gib)} GiB"
+}
+
+fun benchmarkReportPath(file: File): String {
+    val projectRoot = layout.projectDirectory.asFile.toPath().toAbsolutePath().normalize()
+    val filePath = file.toPath().toAbsolutePath().normalize()
+    if (!filePath.startsWith(projectRoot)) {
+        return file.absolutePath
+    }
+    val relativePath = projectRoot.relativize(filePath)
+        .toString()
+        .replace(File.separatorChar, '/')
+    return "${project.name}/$relativePath"
+}
+
+fun StringBuilder.appendBenchmarkEnvironment(
+    version: String,
+    profile: BenchmarkRunProfile,
+) {
+    appendLine("## Environment")
+    appendLine("- **Version**: $version")
+    appendLine("- **JVM**: ${System.getProperty("java.vm.name")} ${System.getProperty("java.vm.version")}")
+    appendLine("- **OS**: ${System.getProperty("os.name")} ${System.getProperty("os.version")} ${System.getProperty("os.arch")}")
+    appendLine("- **DateTime**: ${reportDateTime()}")
+    appendLine("- **CPU Cores**: ${Runtime.getRuntime().availableProcessors()}")
+    appendLine("- **Physical Memory**: ${formatMemoryBytes(physicalMemoryBytes())}")
+    appendLine("- **Benchmark JVM Args**: `${benchmarkJvmArgs.joinToString(" ")}`")
+    appendLine("- **JMH Config**: ${profile.configSummary()}")
+    appendLine()
 }
 
 fun BenchmarkRunProfile.reportLabel(): String {
@@ -367,10 +424,12 @@ tasks.named("jmh") {
 }
 
 val resultsDir = layout.projectDirectory.dir("results")
-val frameworkE2EBaselineJson = resultsDir.file("framework-e2e-baseline.json")
-val readmeFile = layout.projectDirectory.file("README.md")
-val groupedBenchmarkReport = layout.buildDirectory.file("reports/jmh/grouped.md")
-val quickGroupedBenchmarkReport = layout.buildDirectory.file("reports/jmh/quick-grouped.md")
+val frameworkE2EBaselineJson = resultsDir.file("baselines/framework-e2e.json")
+val reportsDir = resultsDir.dir("reports")
+val benchmarkReportFile = reportsDir.file("quick-framework-e2e.md")
+val infrastructureBenchmarkReportFile = reportsDir.file("quick-infrastructure-e2e.md")
+val groupedBenchmarkReport = reportsDir.file("full-grouped.md")
+val quickGroupedBenchmarkReport = reportsDir.file("quick-grouped.md")
 
 data class BenchmarkResultFile(
     val threads: Int,
@@ -402,6 +461,12 @@ data class ParsedBenchmarkResult(
     val unit: String,
     val allocationBytesPerOp: Double?,
     val allocationErrorBytesPerOp: Double?,
+)
+
+data class FormattedBenchmarkScore(
+    val score: String,
+    val error: String,
+    val unit: String,
 )
 
 fun benchmarkResultGroup(suite: BenchmarkSuite, profile: BenchmarkRunProfile = fullProfile): BenchmarkResultGroup {
@@ -577,6 +642,50 @@ fun formatScoreError(scoreError: Double?): String {
     return scoreError?.let { "+/-${String.format(Locale.US, "%.2f", it)}" } ?: "-"
 }
 
+fun latencyUnitSeconds(unit: String): Double? {
+    return when (unit) {
+        "s" -> 1.0
+        "ms" -> 1.0e-3
+        "us" -> 1.0e-6
+        "ns" -> 1.0e-9
+        else -> null
+    }
+}
+
+fun latencyDisplayUnit(secondsPerOp: Double): String {
+    val absoluteSeconds = kotlin.math.abs(secondsPerOp)
+    return when {
+        absoluteSeconds == 0.0 -> "s"
+        absoluteSeconds < 1.0e-6 -> "ns"
+        absoluteSeconds < 1.0e-3 -> "us"
+        absoluteSeconds < 1.0 -> "ms"
+        else -> "s"
+    }
+}
+
+fun formatBenchmarkScore(score: Double, scoreError: Double?, unit: String): FormattedBenchmarkScore {
+    val latencySourceUnit = unit.removeSuffix("/op").takeIf { unit.endsWith("/op") }
+    val sourceSeconds = latencySourceUnit?.let { latencyUnitSeconds(it) }
+    if (sourceSeconds != null) {
+        val secondsPerOp = score * sourceSeconds
+        val displayUnit = latencyDisplayUnit(secondsPerOp)
+        val displaySeconds = latencyUnitSeconds(displayUnit)!!
+        val displayScore = secondsPerOp / displaySeconds
+        val displayError = scoreError?.let { "+/-${String.format(Locale.US, "%.2f", it * sourceSeconds / displaySeconds)}" }
+            ?: "-"
+        return FormattedBenchmarkScore(
+            score = String.format(Locale.US, "%.2f", displayScore),
+            error = displayError,
+            unit = "$displayUnit/op",
+        )
+    }
+    return FormattedBenchmarkScore(
+        score = String.format(Locale.US, "%.2f", score),
+        error = formatScoreError(scoreError),
+        unit = unit,
+    )
+}
+
 fun formatAllocationBytes(allocationBytesPerOp: Double?): String {
     return allocationBytesPerOp?.let { String.format(Locale.US, "%.1f B/op", it) } ?: "-"
 }
@@ -595,10 +704,11 @@ fun StringBuilder.appendBenchmarkTable(rows: List<ParsedBenchmarkResult>) {
             .thenBy { it.mode }
     )
         .forEach { row ->
+            val score = formatBenchmarkScore(row.score, row.scoreError, row.unit)
             appendLine(
                 "| ${row.suite.displayName} | ${row.displayName} | ${row.threads} | ${row.mode} | " +
-                    "${String.format(Locale.US, "%.2f", row.score)} | ${formatScoreError(row.scoreError)} | " +
-                    "${row.unit} | ${formatAllocationBytes(row.allocationBytesPerOp)} |"
+                    "${score.score} | ${score.error} | ${score.unit} | " +
+                    "${formatAllocationBytes(row.allocationBytesPerOp)} |"
             )
         }
 }
@@ -692,13 +802,7 @@ fun renderGroupedBenchmarkReport(
     sb.appendLine("- Component results explain bottlenecks and are not standalone performance goals.")
     sb.appendLine("- Smoke results are excluded from performance reports.")
     sb.appendLine()
-    sb.appendLine("## Environment")
-    sb.appendLine("- **Version**: $version")
-    sb.appendLine("- **JVM**: ${System.getProperty("java.vm.name")} ${System.getProperty("java.vm.version")}")
-    sb.appendLine("- **OS**: ${System.getProperty("os.name")} ${System.getProperty("os.arch")}")
-    sb.appendLine("- **Date**: ${LocalDate.now()}")
-    sb.appendLine("- **JMH Config**: ${reportProfile.configSummary()}")
-    sb.appendLine()
+    sb.appendBenchmarkEnvironment(version, reportProfile)
     if (frameworkRows.isNotEmpty()) {
         sb.appendLine("## Framework E2E Bottlenecks")
         sb.appendLine()
@@ -760,7 +864,7 @@ fun renderGroupedBenchmarkReport(
         sb.appendLine()
         group.resultFiles.forEach { resultFile ->
             val file = resultFile.resultFile.get().asFile
-            sb.appendLine("- **threads=${resultFile.threads} Result File**: `${file.absolutePath}`")
+            sb.appendLine("- **threads=${resultFile.threads} Result File**: `${benchmarkReportPath(file)}`")
             if (file.exists()) {
                 sb.appendLine("  - Last Modified: ${Instant.ofEpochMilli(file.lastModified())}")
             }
@@ -776,54 +880,93 @@ fun renderGroupedBenchmarkReport(
     return sb.toString()
 }
 
+fun renderSingleBenchmarkReport(
+    group: BenchmarkResultGroup,
+    title: String,
+    command: String,
+    description: String,
+): String {
+    val groupReport = parseBenchmarkGroup(JsonSlurper(), group)
+    if (groupReport.rows.isEmpty()) {
+        throw GradleException(
+            "No benchmark rows were available for ${group.suite.displayName}. " +
+                "Run ${group.suite.taskName(group.profile)} first."
+        )
+    }
+    val sb = StringBuilder()
+    sb.appendLine("<!--")
+    sb.appendLine("  This file is auto-generated by `$command`.")
+    sb.appendLine("  Do not manually edit benchmark results.")
+    sb.appendLine("-->")
+    sb.appendLine()
+    sb.appendLine("# $title")
+    sb.appendLine()
+    sb.appendLine(description)
+    sb.appendLine()
+    sb.appendBenchmarkEnvironment(project.version.toString(), group.profile)
+    sb.appendLine("## Results")
+    sb.appendLine()
+    sb.appendBenchmarkTable(groupReport.rows)
+    return sb.toString()
+}
+
 tasks.register("generateBenchmarkReport") {
-    description = "Generate benchmark README.md from primary framework E2E JMH JSON results."
+    description = "Generate quick framework E2E benchmark report from JMH JSON results."
     group = "benchmark"
+    mustRunAfter("benchmarkQuickE2E")
+    outputs.file(benchmarkReportFile)
+    outputs.upToDateWhen { false }
 
     doLast {
-        val group = benchmarkResultGroup(frameworkE2ESuite, fullProfile)
-        val groupReport = parseBenchmarkGroup(JsonSlurper(), group)
-        val rows = groupReport.rows
-
-        val sb = StringBuilder()
-        sb.appendLine("<!--")
-        sb.appendLine("  This file is auto-generated by `./gradlew :wow-benchmarks:generateBenchmarkReport`.")
-        sb.appendLine("  Do not manually edit benchmark results.")
-        sb.appendLine("-->")
-        sb.appendLine()
-        sb.appendLine("# Framework E2E Benchmark Report")
-        sb.appendLine()
-        sb.appendLine(
-            "Framework performance conclusions use Full E2E results. " +
-                "Framework E2E isolates command pipeline overhead with in-memory or noop stores; " +
-                "Redis and Mongo Infrastructure E2E results reflect real persistence paths. " +
-                "No-snapshot growing-stream scenarios are diagnostics for replay pressure, not default E2E goals. " +
-                "Component benchmarks explain bottlenecks and Smoke only verifies benchmark entry health."
+        val report = renderSingleBenchmarkReport(
+            group = benchmarkResultGroup(frameworkE2ESuite, quickProfile),
+            title = "Quick Framework E2E Benchmark Report",
+            command = "./gradlew :wow-benchmarks:benchmarkQuickE2E :wow-benchmarks:generateBenchmarkReport",
+            description = "Quick Framework E2E results are directional local feedback. " +
+                "Use Full E2E runs for formal performance conclusions. " +
+                "Framework E2E isolates command pipeline overhead with in-memory or noop stores.",
         )
-        sb.appendLine()
-        sb.appendLine("## Environment")
-        sb.appendLine("- **Version**: ${project.version}")
-        sb.appendLine("- **JVM**: ${System.getProperty("java.vm.name")} ${System.getProperty("java.vm.version")}")
-        sb.appendLine("- **OS**: ${System.getProperty("os.name")} ${System.getProperty("os.arch")}")
-        sb.appendLine("- **Date**: ${LocalDate.now()}")
-        sb.appendLine("- **JMH Config**: ${fullProfile.configSummary()}")
-        sb.appendLine()
-        sb.appendLine("## Results")
-        sb.appendLine()
-        sb.appendBenchmarkTable(rows)
 
-        readmeFile.asFile.writeText(sb.toString())
-        logger.lifecycle("Benchmark report generated: ${readmeFile.asFile.absolutePath}")
+        val outputFile = benchmarkReportFile.asFile
+        outputFile.parentFile.mkdirs()
+        outputFile.writeText(report)
+        logger.lifecycle("Benchmark report generated: ${outputFile.absolutePath}")
+    }
+}
+
+tasks.register("generateInfrastructureBenchmarkReport") {
+    description = "Generate quick infrastructure E2E benchmark report from JMH JSON results."
+    group = "benchmark"
+    mustRunAfter("benchmarkQuickInfrastructureE2E")
+    outputs.file(infrastructureBenchmarkReportFile)
+    outputs.upToDateWhen { false }
+
+    doLast {
+        val report = renderSingleBenchmarkReport(
+            group = benchmarkResultGroup(infrastructureE2ESuite, quickProfile),
+            title = "Quick Infrastructure E2E Benchmark Report",
+            command = "./gradlew :wow-benchmarks:benchmarkQuickInfrastructureE2E " +
+                ":wow-benchmarks:generateInfrastructureBenchmarkReport",
+            description = "Quick Infrastructure E2E results are directional local feedback for real Redis " +
+                "and Mongo persistence paths. They include local service and machine effects; " +
+                "use Full Infrastructure E2E for formal infrastructure conclusions.",
+        )
+
+        val outputFile = infrastructureBenchmarkReportFile.asFile
+        outputFile.parentFile.mkdirs()
+        outputFile.writeText(report)
+        logger.lifecycle("Infrastructure benchmark report generated: ${outputFile.absolutePath}")
     }
 }
 
 tasks.register("generateGroupedBenchmarkReport") {
     description = "Generate full grouped E2E and component benchmark reports from JMH JSON results."
     group = "benchmark"
+    mustRunAfter("benchmarkFullE2E", "benchmarkFullInfrastructureE2E", "benchmarkFullComponent")
     outputs.file(groupedBenchmarkReport)
     outputs.upToDateWhen { false }
     doLast {
-        val outputFile = groupedBenchmarkReport.get().asFile
+        val outputFile = groupedBenchmarkReport.asFile
         outputFile.delete()
         val report = renderGroupedBenchmarkReport(
             groups = reportSuites.map { benchmarkResultGroup(it, fullProfile) },
@@ -838,10 +981,11 @@ tasks.register("generateGroupedBenchmarkReport") {
 tasks.register("generateQuickBenchmarkReport") {
     description = "Generate quick grouped E2E and component benchmark report from quick JMH JSON results."
     group = "benchmark"
+    mustRunAfter("benchmarkQuickE2E", "benchmarkQuickInfrastructureE2E", "benchmarkQuickComponent")
     outputs.file(quickGroupedBenchmarkReport)
     outputs.upToDateWhen { false }
     doLast {
-        val outputFile = quickGroupedBenchmarkReport.get().asFile
+        val outputFile = quickGroupedBenchmarkReport.asFile
         outputFile.delete()
         val report = renderGroupedBenchmarkReport(
             groups = reportSuites.map { benchmarkResultGroup(it, quickProfile) },
