@@ -23,6 +23,7 @@ import me.ahoo.wow.command.wait.SimpleWaitSignal
 import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
 import me.ahoo.wow.command.wait.WaitSignal
 import me.ahoo.wow.command.wait.stage.WaitingForStage
+import me.ahoo.wow.messaging.DefaultHeader
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
@@ -73,6 +74,28 @@ open class WaitNotifyComponentBenchmark {
         blackhole.consume(result)
     }
 
+    @Benchmark
+    fun propagateSentWaitHeaders(blackhole: Blackhole) {
+        val waitStrategy = WaitingForStage.sent(BenchmarkIds.nextGlobalId())
+        val header = DefaultHeader.empty()
+        waitStrategy.propagate("", header)
+        blackhole.consume(header)
+    }
+
+    @Benchmark
+    fun waitForSent(blackhole: Blackhole) {
+        val waitStrategy = WaitingForStage.sent(BenchmarkIds.nextGlobalId())
+        SimpleWaitStrategyRegistrar.register(waitStrategy)
+        waitStrategy.onFinally {
+            SimpleWaitStrategyRegistrar.unregister(waitStrategy.waitCommandId)
+        }
+        val signal = sentSignal(waitStrategy.waitCommandId)
+        val result = notifier.notify("", signal)
+            .then(waitStrategy.waitingLast())
+            .block()
+        blackhole.consume(result)
+    }
+
     private fun waitSignal(waitCommandId: String): WaitSignal {
         return SimpleWaitSignal(
             id = BenchmarkIds.nextGlobalId(),
@@ -87,6 +110,24 @@ open class WaitNotifyComponentBenchmark {
                 name = "process",
             ),
             aggregateVersion = 1,
+            isLastProjection = true,
+        )
+    }
+
+    private fun sentSignal(waitCommandId: String): WaitSignal {
+        return SimpleWaitSignal(
+            id = BenchmarkIds.nextGlobalId(),
+            waitCommandId = waitCommandId,
+            commandId = waitCommandId,
+            aggregateId = BenchmarkAggregates.aggregateId(),
+            stage = CommandStage.SENT,
+            function = FunctionInfoData(
+                functionKind = FunctionKind.COMMAND,
+                contextName = BenchmarkAggregates.namedAggregate.contextName,
+                processorName = "BenchmarkCommandGateway",
+                name = "send",
+            ),
+            aggregateVersion = null,
             isLastProjection = true,
         )
     }

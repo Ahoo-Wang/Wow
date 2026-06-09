@@ -115,6 +115,7 @@ val smokeSuite = BenchmarkSuite(
         "me.ahoo.wow.benchmark.component.CommandMessageComponentBenchmark",
         "me.ahoo.wow.benchmark.component.AccessorComponentBenchmark",
         "me.ahoo.wow.benchmark.component.SerializationComponentBenchmark",
+        "me.ahoo.wow.benchmark.component.WaitNotifyComponentBenchmark",
         "me.ahoo.wow.benchmark.e2e.CommandWriteE2EBenchmark",
     ),
     resultFileName = "benchmark-smoke.json",
