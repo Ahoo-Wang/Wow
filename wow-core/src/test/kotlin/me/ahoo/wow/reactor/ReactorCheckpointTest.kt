@@ -19,14 +19,14 @@ import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
 import java.util.concurrent.atomic.AtomicBoolean
 
-class HotPathCheckpointTest {
+class ReactorCheckpointTest {
 
     @Test
     fun `checkpointIfEnabled returns source without evaluating description when level is off`() {
         val source = Mono.just("source")
         val descriptionEvaluated = AtomicBoolean(false)
 
-        val checkpointed = source.checkpointIfEnabled(level = HotPathCheckpointLevel.OFF) {
+        val checkpointed = source.checkpointIfEnabled(level = CheckpointLevel.OFF) {
             descriptionEvaluated.set(true)
             "checkpoint description"
         }
@@ -43,7 +43,7 @@ class HotPathCheckpointTest {
         val source = Mono.just("source")
         val descriptionEvaluated = AtomicBoolean(false)
 
-        val checkpointed = source.checkpointIfEnabled(level = HotPathCheckpointLevel.LIGHT) {
+        val checkpointed = source.checkpointIfEnabled(level = CheckpointLevel.LIGHT) {
             descriptionEvaluated.set(true)
             "checkpoint description"
         }
@@ -60,7 +60,7 @@ class HotPathCheckpointTest {
         val source = Mono.just("source")
         val descriptionEvaluated = AtomicBoolean(false)
 
-        val checkpointed = source.checkpointIfEnabled(level = HotPathCheckpointLevel.HEAVY) {
+        val checkpointed = source.checkpointIfEnabled(level = CheckpointLevel.HEAVY) {
             descriptionEvaluated.set(true)
             "checkpoint description"
         }
@@ -74,41 +74,41 @@ class HotPathCheckpointTest {
 
     @Test
     fun `checkpoint level config can be set by environment variable`() {
-        HotPathCheckpoint
+        ReactorCheckpoint
             .checkpointLevel(
                 properties = emptyMap(),
-                environment = mapOf(HotPathCheckpoint.CHECKPOINT_LEVEL_ENV to "heavy"),
+                environment = mapOf(ReactorCheckpoint.CHECKPOINT_LEVEL_ENV to "heavy"),
             )
-            .assert().isEqualTo(HotPathCheckpointLevel.HEAVY)
+            .assert().isEqualTo(CheckpointLevel.HEAVY)
     }
 
     @Test
     fun `checkpoint level system property takes precedence over environment variable`() {
-        HotPathCheckpoint
+        ReactorCheckpoint
             .checkpointLevel(
-                properties = mapOf(HotPathCheckpoint.CHECKPOINT_LEVEL_PROPERTY to "off"),
-                environment = mapOf(HotPathCheckpoint.CHECKPOINT_LEVEL_ENV to "heavy"),
+                properties = mapOf(ReactorCheckpoint.CHECKPOINT_LEVEL_PROPERTY to "off"),
+                environment = mapOf(ReactorCheckpoint.CHECKPOINT_LEVEL_ENV to "heavy"),
             )
-            .assert().isEqualTo(HotPathCheckpointLevel.OFF)
+            .assert().isEqualTo(CheckpointLevel.OFF)
     }
 
     @Test
-    fun `legacy detailed checkpoint property is ignored`() {
-        HotPathCheckpoint
+    fun `hot path checkpoint property is ignored`() {
+        ReactorCheckpoint
             .checkpointLevel(
-                properties = mapOf("wow.reactor.detailed-hotpath-checkpoints" to "true"),
+                properties = mapOf("wow.reactor.hotpath-checkpoint-level" to "heavy"),
                 environment = emptyMap(),
             )
-            .assert().isEqualTo(HotPathCheckpointLevel.OFF)
+            .assert().isEqualTo(CheckpointLevel.OFF)
     }
 
     @Test
-    fun `legacy detailed checkpoint environment variable is ignored`() {
-        HotPathCheckpoint
+    fun `hot path checkpoint environment variable is ignored`() {
+        ReactorCheckpoint
             .checkpointLevel(
                 properties = emptyMap(),
-                environment = mapOf("WOW_REACTOR_DETAILED_HOTPATH_CHECKPOINTS" to "true"),
+                environment = mapOf("WOW_REACTOR_HOTPATH_CHECKPOINT_LEVEL" to "heavy"),
             )
-            .assert().isEqualTo(HotPathCheckpointLevel.OFF)
+            .assert().isEqualTo(CheckpointLevel.OFF)
     }
 }

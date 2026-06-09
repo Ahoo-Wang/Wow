@@ -17,6 +17,7 @@ import jakarta.validation.Validator
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.command.validation.validateCommand
+import me.ahoo.wow.reactor.checkpointIfEnabled
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.toMono
 
@@ -59,7 +60,7 @@ class SimpleCommandMessageFactory(
             ?: return commandBuilder.toCommandMessage<TARGET>().toMono()
         validator.validateCommand(body)
         return rewriter.rewrite(commandBuilder)
-            .checkpoint("Rewrite $rewriter [SimpleCommandMessageFactory]")
+            .checkpointIfEnabled { "Rewrite $rewriter [SimpleCommandMessageFactory]" }
             .switchIfEmpty(
                 Mono.defer {
                     RewriteNoCommandException(commandBuilder = commandBuilder, rewriter = rewriter).toMono()

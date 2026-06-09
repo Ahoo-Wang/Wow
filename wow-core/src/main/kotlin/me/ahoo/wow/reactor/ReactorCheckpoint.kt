@@ -15,51 +15,51 @@ package me.ahoo.wow.reactor
 
 import reactor.core.publisher.Mono
 
-internal enum class HotPathCheckpointLevel {
+internal enum class CheckpointLevel {
     OFF,
     LIGHT,
     HEAVY,
     ;
 
     companion object {
-        fun parse(value: String): HotPathCheckpointLevel =
+        fun parse(value: String): CheckpointLevel =
             entries.firstOrNull { it.name.equals(value.trim(), ignoreCase = true) }
                 ?: throw IllegalArgumentException(
-                    "Unsupported hot path checkpoint level[$value]. " +
+                    "Unsupported Reactor checkpoint level[$value]. " +
                         "Supported values are: ${entries.joinToString { it.name }}."
                 )
     }
 }
 
-internal object HotPathCheckpoint {
-    const val CHECKPOINT_LEVEL_PROPERTY = "wow.reactor.hotpath-checkpoint-level"
-    const val CHECKPOINT_LEVEL_ENV = "WOW_REACTOR_HOTPATH_CHECKPOINT_LEVEL"
+internal object ReactorCheckpoint {
+    const val CHECKPOINT_LEVEL_PROPERTY = "wow.reactor.checkpoint-level"
+    const val CHECKPOINT_LEVEL_ENV = "WOW_REACTOR_CHECKPOINT_LEVEL"
 
-    val checkpointLevel: HotPathCheckpointLevel = checkpointLevel()
+    val checkpointLevel: CheckpointLevel = checkpointLevel()
 
     fun checkpointLevel(
         properties: Map<String, String?> = mapOf(
             CHECKPOINT_LEVEL_PROPERTY to System.getProperty(CHECKPOINT_LEVEL_PROPERTY),
         ),
         environment: Map<String, String?> = System.getenv(),
-    ): HotPathCheckpointLevel =
+    ): CheckpointLevel =
         properties[CHECKPOINT_LEVEL_PROPERTY].toCheckpointLevel()
             ?: environment[CHECKPOINT_LEVEL_ENV].toCheckpointLevel()
-            ?: HotPathCheckpointLevel.OFF
+            ?: CheckpointLevel.OFF
 
-    private fun String?.toCheckpointLevel(): HotPathCheckpointLevel? =
-        trimOrNull()?.let { HotPathCheckpointLevel.parse(it) }
+    private fun String?.toCheckpointLevel(): CheckpointLevel? =
+        trimOrNull()?.let { CheckpointLevel.parse(it) }
 
     private fun String?.trimOrNull(): String? =
         this?.trim()?.takeIf { it.isNotEmpty() }
 }
 
 internal inline fun <T : Any> Mono<T>.checkpointIfEnabled(
-    level: HotPathCheckpointLevel = HotPathCheckpoint.checkpointLevel,
+    level: CheckpointLevel = ReactorCheckpoint.checkpointLevel,
     description: () -> String,
 ): Mono<T> =
     when (level) {
-        HotPathCheckpointLevel.OFF -> this
-        HotPathCheckpointLevel.LIGHT -> checkpoint(description())
-        HotPathCheckpointLevel.HEAVY -> checkpoint(description(), true)
+        CheckpointLevel.OFF -> this
+        CheckpointLevel.LIGHT -> checkpoint(description())
+        CheckpointLevel.HEAVY -> checkpoint(description(), true)
     }
