@@ -20,11 +20,10 @@ import me.ahoo.wow.eventsourcing.AbstractEventStore
 import me.ahoo.wow.eventsourcing.EventVersionConflictException
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.naming.getContextAlias
+import me.ahoo.wow.redis.RedisScripts
 import me.ahoo.wow.redis.eventsourcing.EventStreamKeyConverter.toKey
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
-import org.springframework.core.io.ClassPathResource
-import org.springframework.core.io.Resource
 import org.springframework.data.domain.Range
 import org.springframework.data.redis.connection.Limit
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate
@@ -36,9 +35,8 @@ class RedisEventStore(
     private val redisTemplate: ReactiveStringRedisTemplate
 ) : AbstractEventStore() {
     companion object {
-        private val RESOURCE_EVENT_STEAM_APPEND: Resource = ClassPathResource("event_steam_append.lua")
         val SCRIPT_EVENT_STEAM_APPEND: RedisScript<String> =
-            RedisScript.of(RESOURCE_EVENT_STEAM_APPEND, String::class.java)
+            RedisScripts.load("event_steam_append.lua", String::class.java)
     }
 
     override fun appendStream(eventStream: DomainEventStream): Mono<Void> {
