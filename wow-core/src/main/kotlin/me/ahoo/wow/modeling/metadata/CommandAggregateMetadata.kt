@@ -35,6 +35,7 @@ import me.ahoo.wow.modeling.command.CommandFunction
 import me.ahoo.wow.modeling.command.DefaultApplyResourceTagsFunction
 import me.ahoo.wow.modeling.command.DefaultDeleteAggregateFunction
 import me.ahoo.wow.modeling.command.DefaultRecoverAggregateFunction
+import me.ahoo.wow.modeling.command.after.AfterCommandFunction
 import me.ahoo.wow.modeling.command.after.AfterCommandFunctionMetadata
 import me.ahoo.wow.modeling.command.after.AfterCommandFunctionMetadata.Companion.toAfterCommandFunction
 import reactor.core.publisher.Mono
@@ -108,70 +109,78 @@ data class CommandAggregateMetadata<C : Any>(
         (commandFunctionRegistry.keys.toList() + mountedCommands).sortedByOrder()
     }
 
-    fun toCommandFunctionRegistry(
-        commandAggregate: CommandAggregate<C, *>
-    ): Map<Class<*>, MessageFunction<C, ServerCommandExchange<*>, Mono<DomainEventStream>>> {
-        val allAfterCommandFunction =
-            afterCommandFunctionRegistry.map {
-                it.toAfterCommandFunction(commandAggregate.commandRoot)
-            }
+    internal fun toCommandFunction(
+        commandAggregate: CommandAggregate<C, *>,
+        commandType: Class<*>
+    ): MessageFunction<C, ServerCommandExchange<*>, Mono<DomainEventStream>>? {
+        commandFunctionRegistry[commandType]?.let { functionMetadata ->
+            val actualMessageFunction = functionMetadata
+                .toMessageFunction<C, ServerCommandExchange<*>, Mono<*>>(commandAggregate.commandRoot)
+            return CommandFunction(
+                delegate = actualMessageFunction,
+                commandAggregate = commandAggregate,
+                afterCommandFunctions = toAfterCommandFunctions(commandAggregate.commandRoot, commandType),
+            )
+        }
+        return toDefaultCommandFunction(commandAggregate, commandType)
+    }
 
-        return buildMap {
-            commandFunctionRegistry
-                .map {
-                    val actualMessageFunction = it.value
-                        .toMessageFunction<C, ServerCommandExchange<*>, Mono<*>>(commandAggregate.commandRoot)
-                    val afterCommandFunctions = allAfterCommandFunction
-                        .filter { function -> function.metadata.supportCommand(it.key) }
-                    it.key to CommandFunction(actualMessageFunction, commandAggregate, afterCommandFunctions)
-                }.also {
-                    putAll(it)
+    private fun toDefaultCommandFunction(
+        commandAggregate: CommandAggregate<C, *>,
+        commandType: Class<*>
+    ): MessageFunction<C, ServerCommandExchange<*>, Mono<DomainEventStream>>? {
+        return when (commandType) {
+            DefaultRecoverAggregate::class.java ->
+                if (registeredRecoverAggregate) {
+                    null
+                } else {
+                    DefaultRecoverAggregateFunction(
+                        commandAggregate,
+                        toAfterCommandFunctions(commandAggregate.commandRoot, commandType),
+                    )
                 }
 
-            if (!registeredRecoverAggregate) {
-                val afterCommandFunctions = allAfterCommandFunction
-                    .filter { function -> function.metadata.supportCommand(DefaultRecoverAggregate::class.java) }
-                put(
-                    DefaultRecoverAggregate::class.java,
-                    DefaultRecoverAggregateFunction(commandAggregate, afterCommandFunctions),
-                )
-            }
-            if (!registeredDeleteAggregate) {
-                val afterCommandFunctions = allAfterCommandFunction
-                    .filter { function -> function.metadata.supportCommand(DefaultDeleteAggregate::class.java) }
-                put(
-                    DefaultDeleteAggregate::class.java,
-                    DefaultDeleteAggregateFunction(commandAggregate, afterCommandFunctions),
-                )
-            }
-            if (!registeredApplyResourceTags) {
-                val afterCommandFunctions = allAfterCommandFunction
-                    .filter { function -> function.metadata.supportCommand(DefaultApplyResourceTags::class.java) }
-                put(
-                    DefaultApplyResourceTags::class.java,
-                    DefaultApplyResourceTagsFunction(commandAggregate, afterCommandFunctions),
-                )
-            }
+            DefaultDeleteAggregate::class.java ->
+                if (registeredDeleteAggregate) {
+                    null
+                } else {
+                    DefaultDeleteAggregateFunction(
+                        commandAggregate,
+                        toAfterCommandFunctions(commandAggregate.commandRoot, commandType),
+                    )
+                }
+
+            DefaultApplyResourceTags::class.java ->
+                if (registeredApplyResourceTags) {
+                    null
+                } else {
+                    DefaultApplyResourceTagsFunction(
+                        commandAggregate,
+                        toAfterCommandFunctions(commandAggregate.commandRoot, commandType),
+                    )
+                }
+
+            else -> null
         }
     }
 
-    /**
-     * Converts the error function registry into executable message functions.
-     *
-     * This method creates a map of error types to their corresponding message functions for error handling.
-     *
-     * @param commandAggregate The command aggregate instance to bind functions to.
-     * @return A map of error classes to their message functions.
-     */
-    fun toErrorFunctionRegistry(
-        commandAggregate: CommandAggregate<C, *>
-    ): Map<Class<*>, MessageFunction<C, ServerCommandExchange<*>, Mono<*>>> =
-        errorFunctionRegistry
-            .map {
-                val actualMessageFunction = it.value
-                    .toMessageFunction<C, ServerCommandExchange<*>, Mono<*>>(commandAggregate.commandRoot)
-                it.key to actualMessageFunction
-            }.toMap()
+    private fun toAfterCommandFunctions(
+        commandRoot: C,
+        commandType: Class<*>
+    ): List<AfterCommandFunction<C>> {
+        return afterCommandFunctionRegistry
+            .asSequence()
+            .filter { it.supportCommand(commandType) }
+            .map { it.toAfterCommandFunction(commandRoot) }
+            .toList()
+    }
+
+    internal fun toErrorFunction(
+        commandRoot: C,
+        commandType: Class<*>
+    ): MessageFunction<C, ServerCommandExchange<*>, Mono<*>>? =
+        errorFunctionRegistry[commandType]
+            ?.toMessageFunction<C, ServerCommandExchange<*>, Mono<*>>(commandRoot)
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
