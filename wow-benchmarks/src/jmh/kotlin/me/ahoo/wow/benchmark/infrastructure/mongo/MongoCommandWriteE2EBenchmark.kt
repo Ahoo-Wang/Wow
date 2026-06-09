@@ -61,15 +61,6 @@ open class MongoCommandWriteE2EBenchmark {
     }
 
     @Benchmark
-    fun sendAndWaitSent(blackHole: Blackhole) {
-        blackHole.consumeWowResult(onError = { failures.incrementAndGet() }) {
-            commandDispatcherScenario.commandGateway
-                .sendAndWaitForSent(BenchmarkCommands.newAggregateAddCartItem())
-                .block()
-        }
-    }
-
-    @Benchmark
     fun sendAndWaitProcessed(blackHole: Blackhole) {
         blackHole.consumeWowResult(onError = { failures.incrementAndGet() }) {
             commandDispatcherScenario.commandGateway

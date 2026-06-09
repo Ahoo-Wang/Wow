@@ -11,7 +11,7 @@ Quick Infrastructure E2E results are directional local feedback for real Redis a
 - **Version**: 8.4.0
 - **JVM**: OpenJDK 64-Bit Server VM 17.0.7+7-LTS
 - **OS**: Mac OS X 26.5.1 aarch64
-- **DateTime**: 2026-06-09T21:32:57+08:00
+- **DateTime**: 2026-06-09T22:01:52+08:00
 - **CPU Cores**: 14
 - **Physical Memory**: 24.0 GiB
 - **Benchmark JVM Args**: `-Xmx4g -Xms4g -XX:+UseG1GC -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints -XX:+AlwaysPreTouch`
@@ -21,19 +21,11 @@ Quick Infrastructure E2E results are directional local feedback for real Redis a
 
 | Suite | Benchmark | Threads | Mode | Score | Error | Unit | gc.alloc.rate.norm |
 |-------|-----------|---------|------|-------|-------|------|-------------------|
-| Infrastructure E2E | MongoCommandWriteE2EBenchmark.sendAndWaitProcessed | 1 | avgt | 395.03 | - | us/op | 42998.0 B/op |
-| Infrastructure E2E | MongoCommandWriteE2EBenchmark.sendAndWaitProcessed | 1 | thrpt | 2313.02 | - | ops/s | 43362.5 B/op |
-| Infrastructure E2E | MongoCommandWriteE2EBenchmark.sendAndWaitProcessed | 4 | avgt | 515.07 | - | us/op | 40570.4 B/op |
-| Infrastructure E2E | MongoCommandWriteE2EBenchmark.sendAndWaitProcessed | 4 | thrpt | 7433.05 | - | ops/s | 41004.9 B/op |
-| Infrastructure E2E | MongoCommandWriteE2EBenchmark.sendAndWaitSent | 1 | avgt | 2.40 | - | us/op | 8011.5 B/op |
-| Infrastructure E2E | MongoCommandWriteE2EBenchmark.sendAndWaitSent | 1 | thrpt | 422953.17 | - | ops/s | 7911.6 B/op |
-| Infrastructure E2E | MongoCommandWriteE2EBenchmark.sendAndWaitSent | 4 | avgt | 10.87 | - | us/op | 7902.9 B/op |
-| Infrastructure E2E | MongoCommandWriteE2EBenchmark.sendAndWaitSent | 4 | thrpt | 382362.85 | - | ops/s | 7910.3 B/op |
-| Infrastructure E2E | RedisCommandWriteE2EBenchmark.sendAndWaitProcessed | 1 | avgt | 262.00 | - | us/op | 8481.4 B/op |
-| Infrastructure E2E | RedisCommandWriteE2EBenchmark.sendAndWaitProcessed | 1 | thrpt | 3490.08 | - | ops/s | 8620.6 B/op |
-| Infrastructure E2E | RedisCommandWriteE2EBenchmark.sendAndWaitProcessed | 4 | avgt | 336.63 | - | us/op | 7165.4 B/op |
-| Infrastructure E2E | RedisCommandWriteE2EBenchmark.sendAndWaitProcessed | 4 | thrpt | 12004.46 | - | ops/s | 7231.3 B/op |
-| Infrastructure E2E | RedisCommandWriteE2EBenchmark.sendAndWaitSent | 1 | avgt | 2.26 | - | us/op | 6475.3 B/op |
-| Infrastructure E2E | RedisCommandWriteE2EBenchmark.sendAndWaitSent | 1 | thrpt | 434055.49 | - | ops/s | 6515.8 B/op |
-| Infrastructure E2E | RedisCommandWriteE2EBenchmark.sendAndWaitSent | 4 | avgt | 7.18 | - | us/op | 6581.0 B/op |
-| Infrastructure E2E | RedisCommandWriteE2EBenchmark.sendAndWaitSent | 4 | thrpt | 527518.16 | - | ops/s | 6525.3 B/op |
+| Infrastructure E2E | MongoCommandWriteE2EBenchmark.sendAndWaitProcessed | 1 | avgt | 415.17 | - | us/op | 43273.0 B/op |
+| Infrastructure E2E | MongoCommandWriteE2EBenchmark.sendAndWaitProcessed | 1 | thrpt | 2412.71 | - | ops/s | 43170.8 B/op |
+| Infrastructure E2E | MongoCommandWriteE2EBenchmark.sendAndWaitProcessed | 4 | avgt | 512.21 | - | us/op | 40562.3 B/op |
+| Infrastructure E2E | MongoCommandWriteE2EBenchmark.sendAndWaitProcessed | 4 | thrpt | 7427.19 | - | ops/s | 40884.5 B/op |
+| Infrastructure E2E | RedisCommandWriteE2EBenchmark.sendAndWaitProcessed | 1 | avgt | 278.20 | - | us/op | 8635.8 B/op |
+| Infrastructure E2E | RedisCommandWriteE2EBenchmark.sendAndWaitProcessed | 1 | thrpt | 3619.86 | - | ops/s | 8629.5 B/op |
+| Infrastructure E2E | RedisCommandWriteE2EBenchmark.sendAndWaitProcessed | 4 | avgt | 336.63 | - | us/op | 7160.1 B/op |
+| Infrastructure E2E | RedisCommandWriteE2EBenchmark.sendAndWaitProcessed | 4 | thrpt | 11853.65 | - | ops/s | 7188.5 B/op |
