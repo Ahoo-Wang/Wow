@@ -22,11 +22,11 @@ import java.util.concurrent.atomic.AtomicBoolean
 class HotPathCheckpointTest {
 
     @Test
-    fun `checkpointIfEnabled returns source without evaluating description when disabled`() {
+    fun `checkpointIfEnabled returns source without evaluating description when level is off`() {
         val source = Mono.just("source")
         val descriptionEvaluated = AtomicBoolean(false)
 
-        val checkpointed = source.checkpointIfEnabled(detailedEnabled = false) {
+        val checkpointed = source.checkpointIfEnabled(level = HotPathCheckpointLevel.OFF) {
             descriptionEvaluated.set(true)
             "checkpoint description"
         }
@@ -39,11 +39,11 @@ class HotPathCheckpointTest {
     }
 
     @Test
-    fun `checkpointIfEnabled applies checkpoint when enabled`() {
+    fun `checkpointIfEnabled applies light checkpoint when level is light`() {
         val source = Mono.just("source")
         val descriptionEvaluated = AtomicBoolean(false)
 
-        val checkpointed = source.checkpointIfEnabled(detailedEnabled = true) {
+        val checkpointed = source.checkpointIfEnabled(level = HotPathCheckpointLevel.LIGHT) {
             descriptionEvaluated.set(true)
             "checkpoint description"
         }
@@ -56,22 +56,59 @@ class HotPathCheckpointTest {
     }
 
     @Test
-    fun `detailed checkpoint config can be enabled by environment variable`() {
-        HotPathCheckpoint
-            .detailedCheckpointEnabled(
-                properties = emptyMap(),
-                environment = mapOf(HotPathCheckpoint.DETAILED_CHECKPOINT_ENV to "true"),
-            )
-            .assert().isTrue()
+    fun `checkpointIfEnabled applies heavy checkpoint when level is heavy`() {
+        val source = Mono.just("source")
+        val descriptionEvaluated = AtomicBoolean(false)
+
+        val checkpointed = source.checkpointIfEnabled(level = HotPathCheckpointLevel.HEAVY) {
+            descriptionEvaluated.set(true)
+            "checkpoint description"
+        }
+
+        checkpointed.assert().isNotSameAs(source)
+        descriptionEvaluated.get().assert().isTrue()
+        StepVerifier.create(checkpointed)
+            .expectNext("source")
+            .verifyComplete()
     }
 
     @Test
-    fun `detailed checkpoint system property takes precedence over environment variable`() {
+    fun `checkpoint level config can be set by environment variable`() {
         HotPathCheckpoint
-            .detailedCheckpointEnabled(
-                properties = mapOf(HotPathCheckpoint.DETAILED_CHECKPOINT_PROPERTY to "false"),
-                environment = mapOf(HotPathCheckpoint.DETAILED_CHECKPOINT_ENV to "true"),
+            .checkpointLevel(
+                properties = emptyMap(),
+                environment = mapOf(HotPathCheckpoint.CHECKPOINT_LEVEL_ENV to "heavy"),
             )
-            .assert().isFalse()
+            .assert().isEqualTo(HotPathCheckpointLevel.HEAVY)
+    }
+
+    @Test
+    fun `checkpoint level system property takes precedence over environment variable`() {
+        HotPathCheckpoint
+            .checkpointLevel(
+                properties = mapOf(HotPathCheckpoint.CHECKPOINT_LEVEL_PROPERTY to "off"),
+                environment = mapOf(HotPathCheckpoint.CHECKPOINT_LEVEL_ENV to "heavy"),
+            )
+            .assert().isEqualTo(HotPathCheckpointLevel.OFF)
+    }
+
+    @Test
+    fun `legacy detailed checkpoint config maps true to light`() {
+        HotPathCheckpoint
+            .checkpointLevel(
+                properties = mapOf(HotPathCheckpoint.DETAILED_CHECKPOINT_PROPERTY to "true"),
+                environment = emptyMap(),
+            )
+            .assert().isEqualTo(HotPathCheckpointLevel.LIGHT)
+    }
+
+    @Test
+    fun `legacy detailed checkpoint config maps false to off`() {
+        HotPathCheckpoint
+            .checkpointLevel(
+                properties = emptyMap(),
+                environment = mapOf(HotPathCheckpoint.DETAILED_CHECKPOINT_ENV to "false"),
+            )
+            .assert().isEqualTo(HotPathCheckpointLevel.OFF)
     }
 }

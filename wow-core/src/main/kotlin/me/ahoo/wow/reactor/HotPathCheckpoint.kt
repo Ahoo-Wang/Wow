@@ -15,43 +15,68 @@ package me.ahoo.wow.reactor
 
 import reactor.core.publisher.Mono
 
+internal enum class HotPathCheckpointLevel {
+    OFF,
+    LIGHT,
+    HEAVY,
+    ;
+
+    companion object {
+        fun parse(value: String): HotPathCheckpointLevel =
+            entries.firstOrNull { it.name.equals(value.trim(), ignoreCase = true) }
+                ?: throw IllegalArgumentException(
+                    "Unsupported hot path checkpoint level[$value]. " +
+                        "Supported values are: ${entries.joinToString { it.name }}."
+                )
+
+        fun parseLegacyBoolean(value: String): HotPathCheckpointLevel =
+            if (value.isEnabled()) LIGHT else OFF
+
+        private fun String.isEnabled(): Boolean =
+            when (trim().lowercase()) {
+                "true", "1", "yes", "on" -> true
+                else -> false
+            }
+    }
+}
+
 internal object HotPathCheckpoint {
+    const val CHECKPOINT_LEVEL_PROPERTY = "wow.reactor.hotpath-checkpoint-level"
+    const val CHECKPOINT_LEVEL_ENV = "WOW_REACTOR_HOTPATH_CHECKPOINT_LEVEL"
     const val DETAILED_CHECKPOINT_PROPERTY = "wow.reactor.detailed-hotpath-checkpoints"
     const val DETAILED_CHECKPOINT_ENV = "WOW_REACTOR_DETAILED_HOTPATH_CHECKPOINTS"
 
-    val detailedCheckpointEnabled: Boolean = detailedCheckpointEnabled()
+    val checkpointLevel: HotPathCheckpointLevel = checkpointLevel()
 
-    fun detailedCheckpointEnabled(
+    fun checkpointLevel(
         properties: Map<String, String?> = mapOf(
+            CHECKPOINT_LEVEL_PROPERTY to System.getProperty(CHECKPOINT_LEVEL_PROPERTY),
             DETAILED_CHECKPOINT_PROPERTY to System.getProperty(DETAILED_CHECKPOINT_PROPERTY),
         ),
         environment: Map<String, String?> = System.getenv(),
-    ): Boolean {
-        val propertyValue = properties[DETAILED_CHECKPOINT_PROPERTY]
-            ?.trim()
-            ?.takeIf { it.isNotEmpty() }
-        if (propertyValue != null) {
-            return propertyValue.isEnabled()
-        }
-        return environment[DETAILED_CHECKPOINT_ENV]
-            ?.trim()
-            ?.isEnabled()
-            ?: false
-    }
+    ): HotPathCheckpointLevel =
+        properties[CHECKPOINT_LEVEL_PROPERTY].toCheckpointLevel()
+            ?: environment[CHECKPOINT_LEVEL_ENV].toCheckpointLevel()
+            ?: properties[DETAILED_CHECKPOINT_PROPERTY].toLegacyCheckpointLevel()
+            ?: environment[DETAILED_CHECKPOINT_ENV].toLegacyCheckpointLevel()
+            ?: HotPathCheckpointLevel.OFF
 
-    private fun String.isEnabled(): Boolean =
-        when (lowercase()) {
-            "true", "1", "yes", "on" -> true
-            else -> false
-        }
+    private fun String?.toCheckpointLevel(): HotPathCheckpointLevel? =
+        trimOrNull()?.let { HotPathCheckpointLevel.parse(it) }
+
+    private fun String?.toLegacyCheckpointLevel(): HotPathCheckpointLevel? =
+        trimOrNull()?.let { HotPathCheckpointLevel.parseLegacyBoolean(it) }
+
+    private fun String?.trimOrNull(): String? =
+        this?.trim()?.takeIf { it.isNotEmpty() }
 }
 
 internal inline fun <T : Any> Mono<T>.checkpointIfEnabled(
-    detailedEnabled: Boolean = HotPathCheckpoint.detailedCheckpointEnabled,
+    level: HotPathCheckpointLevel = HotPathCheckpoint.checkpointLevel,
     description: () -> String,
 ): Mono<T> =
-    if (detailedEnabled) {
-        checkpoint(description())
-    } else {
-        this
+    when (level) {
+        HotPathCheckpointLevel.OFF -> this
+        HotPathCheckpointLevel.LIGHT -> checkpoint(description())
+        HotPathCheckpointLevel.HEAVY -> checkpoint(description(), true)
     }
