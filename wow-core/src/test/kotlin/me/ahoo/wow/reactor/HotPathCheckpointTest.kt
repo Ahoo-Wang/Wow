@@ -93,21 +93,21 @@ class HotPathCheckpointTest {
     }
 
     @Test
-    fun `legacy detailed checkpoint config maps true to light`() {
+    fun `legacy detailed checkpoint property is ignored`() {
         HotPathCheckpoint
             .checkpointLevel(
-                properties = mapOf(HotPathCheckpoint.DETAILED_CHECKPOINT_PROPERTY to "true"),
+                properties = mapOf("wow.reactor.detailed-hotpath-checkpoints" to "true"),
                 environment = emptyMap(),
             )
-            .assert().isEqualTo(HotPathCheckpointLevel.LIGHT)
+            .assert().isEqualTo(HotPathCheckpointLevel.OFF)
     }
 
     @Test
-    fun `legacy detailed checkpoint config maps false to off`() {
+    fun `legacy detailed checkpoint environment variable is ignored`() {
         HotPathCheckpoint
             .checkpointLevel(
                 properties = emptyMap(),
-                environment = mapOf(HotPathCheckpoint.DETAILED_CHECKPOINT_ENV to "false"),
+                environment = mapOf("WOW_REACTOR_DETAILED_HOTPATH_CHECKPOINTS" to "true"),
             )
             .assert().isEqualTo(HotPathCheckpointLevel.OFF)
     }
