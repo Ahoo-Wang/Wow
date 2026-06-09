@@ -59,8 +59,7 @@ class SimpleCommandAggregate<C : Any, S : Any>(
             processorName = processorName,
             name = SimpleCommandAggregate<*, *>::process.name,
         )
-    private val commandFunctionRegistry = metadata.toCommandFunctionRegistry(this)
-    private val errorFunctionRegistry = metadata.toErrorFunctionRegistry(this)
+    private val commandFunctionResolver = CommandFunctionResolver(metadata, this)
 
     @Volatile
     override var commandState = CommandState.STORED
@@ -117,7 +116,7 @@ class SimpleCommandAggregate<C : Any, S : Any>(
                     state.aggregateId,
                 ).toMono()
             }
-            val commandFunction = commandFunctionRegistry[commandType]
+            val commandFunction = commandFunctionResolver.commandFunction(commandType)
             requireNotNull(commandFunction) {
                 "Failed to process command[${message.id}]: Undefined command[${message.body.javaClass}]."
             }
@@ -154,7 +153,7 @@ class SimpleCommandAggregate<C : Any, S : Any>(
         return onErrorResume {
             exchange.setError(it)
             val errorFunction =
-                errorFunctionRegistry[commandType] ?: return@onErrorResume it.toMono<DomainEventStream>()
+                commandFunctionResolver.errorFunction(commandType) ?: return@onErrorResume it.toMono<DomainEventStream>()
             errorFunction.invoke(exchange).then(
                 Mono.defer {
                     exchange.getError()?.toMono() ?: it.toMono<DomainEventStream>()
