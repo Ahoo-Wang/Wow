@@ -35,6 +35,7 @@ import me.ahoo.wow.modeling.command.CommandFunction
 import me.ahoo.wow.modeling.command.DefaultApplyResourceTagsFunction
 import me.ahoo.wow.modeling.command.DefaultDeleteAggregateFunction
 import me.ahoo.wow.modeling.command.DefaultRecoverAggregateFunction
+import me.ahoo.wow.modeling.command.after.AfterCommandFunction
 import me.ahoo.wow.modeling.command.after.AfterCommandFunctionMetadata
 import me.ahoo.wow.modeling.command.after.AfterCommandFunctionMetadata.Companion.toAfterCommandFunction
 import reactor.core.publisher.Mono
@@ -107,6 +108,79 @@ data class CommandAggregateMetadata<C : Any>(
     val registeredCommands: List<Class<*>> by lazy {
         (commandFunctionRegistry.keys.toList() + mountedCommands).sortedByOrder()
     }
+
+    internal fun toCommandFunction(
+        commandAggregate: CommandAggregate<C, *>,
+        commandType: Class<*>
+    ): MessageFunction<C, ServerCommandExchange<*>, Mono<DomainEventStream>>? {
+        commandFunctionRegistry[commandType]?.let { functionMetadata ->
+            val actualMessageFunction = functionMetadata
+                .toMessageFunction<C, ServerCommandExchange<*>, Mono<*>>(commandAggregate.commandRoot)
+            return CommandFunction(
+                delegate = actualMessageFunction,
+                commandAggregate = commandAggregate,
+                afterCommandFunctions = toAfterCommandFunctions(commandAggregate.commandRoot, commandType),
+            )
+        }
+        return toDefaultCommandFunction(commandAggregate, commandType)
+    }
+
+    private fun toDefaultCommandFunction(
+        commandAggregate: CommandAggregate<C, *>,
+        commandType: Class<*>
+    ): MessageFunction<C, ServerCommandExchange<*>, Mono<DomainEventStream>>? {
+        return when (commandType) {
+            DefaultRecoverAggregate::class.java ->
+                if (registeredRecoverAggregate) {
+                    null
+                } else {
+                    DefaultRecoverAggregateFunction(
+                        commandAggregate,
+                        toAfterCommandFunctions(commandAggregate.commandRoot, commandType),
+                    )
+                }
+
+            DefaultDeleteAggregate::class.java ->
+                if (registeredDeleteAggregate) {
+                    null
+                } else {
+                    DefaultDeleteAggregateFunction(
+                        commandAggregate,
+                        toAfterCommandFunctions(commandAggregate.commandRoot, commandType),
+                    )
+                }
+
+            DefaultApplyResourceTags::class.java ->
+                if (registeredApplyResourceTags) {
+                    null
+                } else {
+                    DefaultApplyResourceTagsFunction(
+                        commandAggregate,
+                        toAfterCommandFunctions(commandAggregate.commandRoot, commandType),
+                    )
+                }
+
+            else -> null
+        }
+    }
+
+    private fun toAfterCommandFunctions(
+        commandRoot: C,
+        commandType: Class<*>
+    ): List<AfterCommandFunction<C>> {
+        return afterCommandFunctionRegistry
+            .asSequence()
+            .filter { it.supportCommand(commandType) }
+            .map { it.toAfterCommandFunction(commandRoot) }
+            .toList()
+    }
+
+    internal fun toErrorFunction(
+        commandRoot: C,
+        commandType: Class<*>
+    ): MessageFunction<C, ServerCommandExchange<*>, Mono<*>>? =
+        errorFunctionRegistry[commandType]
+            ?.toMessageFunction<C, ServerCommandExchange<*>, Mono<*>>(commandRoot)
 
     fun toCommandFunctionRegistry(
         commandAggregate: CommandAggregate<C, *>
