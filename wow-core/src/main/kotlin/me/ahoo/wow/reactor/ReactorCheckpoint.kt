@@ -54,7 +54,7 @@ internal object ReactorCheckpoint {
         this?.trim()?.takeIf { it.isNotEmpty() }
 }
 
-internal inline fun <T : Any> Mono<T>.checkpointIfEnabled(
+internal inline fun <T : Any> Mono<T>.checkpoint(
     level: CheckpointLevel = ReactorCheckpoint.checkpointLevel,
     description: () -> String,
 ): Mono<T> =

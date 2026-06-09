@@ -21,7 +21,7 @@ import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterType
 import me.ahoo.wow.messaging.handler.ExchangeAck.finallyAck
 import me.ahoo.wow.messaging.handler.ExchangeFilter
-import me.ahoo.wow.reactor.checkpointIfEnabled
+import me.ahoo.wow.reactor.checkpoint
 import reactor.core.publisher.Mono
 
 @FilterType(SnapshotDispatcher::class)
@@ -29,7 +29,7 @@ import reactor.core.publisher.Mono
 class SnapshotFunctionFilter(private val snapshotStrategy: SnapshotStrategy) : ExchangeFilter<StateEventExchange<*>> {
     override fun filter(exchange: StateEventExchange<*>, next: FilterChain<StateEventExchange<*>>): Mono<Void> {
         return snapshotStrategy.onEvent(exchange)
-            .checkpointIfEnabled { "OnEvent Message[${exchange.message.id}] [SnapshotFunctionFilter]" }
+            .checkpoint { "OnEvent Message[${exchange.message.id}] [SnapshotFunctionFilter]" }
             .finallyAck(exchange)
             .then(Mono.defer { next.filter(exchange) })
     }

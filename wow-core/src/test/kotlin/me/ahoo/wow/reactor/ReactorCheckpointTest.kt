@@ -22,11 +22,11 @@ import java.util.concurrent.atomic.AtomicBoolean
 class ReactorCheckpointTest {
 
     @Test
-    fun `checkpointIfEnabled returns source without evaluating description when level is off`() {
+    fun `checkpoint returns source without evaluating description when level is off`() {
         val source = Mono.just("source")
         val descriptionEvaluated = AtomicBoolean(false)
 
-        val checkpointed = source.checkpointIfEnabled(level = CheckpointLevel.OFF) {
+        val checkpointed = source.checkpoint(level = CheckpointLevel.OFF) {
             descriptionEvaluated.set(true)
             "checkpoint description"
         }
@@ -39,11 +39,11 @@ class ReactorCheckpointTest {
     }
 
     @Test
-    fun `checkpointIfEnabled applies light checkpoint when level is light`() {
+    fun `checkpoint applies light checkpoint when level is light`() {
         val source = Mono.just("source")
         val descriptionEvaluated = AtomicBoolean(false)
 
-        val checkpointed = source.checkpointIfEnabled(level = CheckpointLevel.LIGHT) {
+        val checkpointed = source.checkpoint(level = CheckpointLevel.LIGHT) {
             descriptionEvaluated.set(true)
             "checkpoint description"
         }
@@ -56,11 +56,11 @@ class ReactorCheckpointTest {
     }
 
     @Test
-    fun `checkpointIfEnabled applies heavy checkpoint when level is heavy`() {
+    fun `checkpoint applies heavy checkpoint when level is heavy`() {
         val source = Mono.just("source")
         val descriptionEvaluated = AtomicBoolean(false)
 
-        val checkpointed = source.checkpointIfEnabled(level = CheckpointLevel.HEAVY) {
+        val checkpointed = source.checkpoint(level = CheckpointLevel.HEAVY) {
             descriptionEvaluated.set(true)
             "checkpoint description"
         }
