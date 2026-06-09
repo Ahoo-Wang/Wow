@@ -20,6 +20,7 @@ import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.messaging.function.MessageFunction
 import me.ahoo.wow.modeling.command.after.AfterCommandFunction
 import me.ahoo.wow.modeling.materialize
+import me.ahoo.wow.reactor.checkpoint
 import reactor.core.publisher.Mono
 
 /**
@@ -59,9 +60,9 @@ class CommandFunction<C : Any>(
     override fun invokeCommand(exchange: ServerCommandExchange<*>): Mono<*> =
         delegate
             .invoke(exchange)
-            .checkpoint(
-                "[${commandAggregate.aggregateId}] Invoke $qualifiedName Command[${exchange.message.id}] [CommandFunction]",
-            )
+            .checkpoint {
+                "[${commandAggregate.aggregateId}] Invoke $qualifiedName Command[${exchange.message.id}] [CommandFunction]"
+            }
 
     override fun toString(): String = "CommandFunction(delegate=$delegate)"
 }

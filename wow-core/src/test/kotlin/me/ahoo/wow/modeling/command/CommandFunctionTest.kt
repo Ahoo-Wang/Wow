@@ -69,6 +69,22 @@ class CommandFunctionTest {
             .verifyComplete()
     }
 
+    @Test
+    fun `invokeCommand delegates with checkpoint wrapper`() {
+        val command = Create("aggregate-1", "created").toCommandMessage()
+        val exchange = SimpleServerCommandExchange(command)
+        val result = StateChanged("aggregate-1", "changed")
+        val function = CommandFunction(
+            delegate = delegateFunction(Mono.just(result)),
+            commandAggregate = commandAggregate(),
+            afterCommandFunctions = emptyList(),
+        )
+
+        StepVerifier.create(function.invokeCommand(exchange))
+            .expectNext(result)
+            .verifyComplete()
+    }
+
     private fun delegateFunction(result: Mono<*>): MessageFunction<MockCommandAggregate, ServerCommandExchange<*>, Mono<*>> {
         return TestCommandMessageFunction(result)
     }

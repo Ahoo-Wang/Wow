@@ -20,6 +20,7 @@ import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterType
 import me.ahoo.wow.ioc.ServiceProvider
 import me.ahoo.wow.messaging.handler.ExchangeFilter
+import me.ahoo.wow.reactor.checkpoint
 import reactor.core.publisher.Mono
 
 /**
@@ -65,7 +66,7 @@ open class DomainEventFunctionFilter(
         val eventFunction = checkNotNull(exchange.getEventFunction())
         return eventFunction
             .invoke(exchange)
-            .checkpoint("Invoke ${eventFunction.qualifiedName} [DomainEventFunctionFilter]")
+            .checkpoint { "Invoke ${eventFunction.qualifiedName} [DomainEventFunctionFilter]" }
             .then(Mono.defer { next.filter(exchange) })
     }
 }
