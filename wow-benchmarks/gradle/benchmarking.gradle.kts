@@ -227,9 +227,11 @@ fun suiteResultFile(
     suite: BenchmarkSuite,
     threads: Int,
 ): Provider<RegularFile> {
-    return layout.buildDirectory.file(
-        "results/jmh/${profile.id}/${suite.id}/threads-$threads-${suite.resultFileName}"
-    )
+    return providers.provider {
+        layout.projectDirectory.file(
+            "results/jmh/${profile.id}/${suite.id}/threads-$threads-${suite.resultFileName}"
+        )
+    }
 }
 
 fun suiteHumanFile(
@@ -237,9 +239,11 @@ fun suiteHumanFile(
     suite: BenchmarkSuite,
     threads: Int,
 ): Provider<RegularFile> {
-    return layout.buildDirectory.file(
-        "reports/jmh/${profile.id}/${suite.id}/threads-$threads-${suite.humanFileName}"
-    )
+    return providers.provider {
+        layout.projectDirectory.file(
+            "results/jmh/${profile.id}/${suite.id}/threads-$threads-${suite.humanFileName}"
+        )
+    }
 }
 
 fun BenchmarkRunProfile.configSummary(): String {
@@ -420,8 +424,8 @@ tasks.named("jmh") {
 }
 
 val resultsDir = layout.projectDirectory.dir("results")
-val frameworkE2EBaselineJson = resultsDir.file("framework-e2e-baseline.json")
-val reportsDir = layout.projectDirectory.dir("reports")
+val frameworkE2EBaselineJson = resultsDir.file("baselines/framework-e2e.json")
+val reportsDir = resultsDir.dir("reports")
 val benchmarkReportFile = reportsDir.file("quick-framework-e2e.md")
 val groupedBenchmarkReport = reportsDir.file("full-grouped.md")
 val quickGroupedBenchmarkReport = reportsDir.file("quick-grouped.md")
