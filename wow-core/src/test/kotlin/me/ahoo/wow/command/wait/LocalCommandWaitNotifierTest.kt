@@ -45,6 +45,25 @@ class LocalCommandWaitNotifierTest {
     }
 
     @Test
+    fun `notifyAndForget forwards local signal synchronously`() {
+        val registrar = RecordingWaitStrategyRegistrar()
+        val notifier = LocalCommandWaitNotifier(registrar)
+        val signal = testSignal(CommandStage.PROCESSED, waitCommandId = generateGlobalId())
+
+        notifier.notifyAndForget(TEST_ENDPOINT, signal)
+
+        registrar.signals.assert().containsExactly(signal)
+    }
+
+    @Test
+    fun `notifyAndForget swallows registrar failures`() {
+        val notifier = LocalCommandWaitNotifier(ThrowingWaitStrategyRegistrar())
+        val signal = testSignal(CommandStage.PROCESSED, waitCommandId = generateGlobalId())
+
+        notifier.notifyAndForget(TEST_ENDPOINT, signal)
+    }
+
+    @Test
     fun `cancelling notify before request does not forward signal`() {
         val registrar = RecordingWaitStrategyRegistrar()
         val notifier = LocalCommandWaitNotifier(registrar)
@@ -55,5 +74,19 @@ class LocalCommandWaitNotifierTest {
             .verify()
 
         registrar.signals.assert().isEmpty()
+    }
+
+    private class ThrowingWaitStrategyRegistrar : WaitStrategyRegistrar {
+        override fun register(waitStrategy: WaitStrategy): WaitStrategy? = null
+
+        override fun unregister(waitCommandId: String): WaitStrategy? = null
+
+        override fun get(waitCommandId: String): WaitStrategy? = null
+
+        override fun contains(waitCommandId: String): Boolean = false
+
+        override fun next(signal: WaitSignal): Boolean {
+            error("boom")
+        }
     }
 }
