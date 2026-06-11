@@ -101,8 +101,8 @@ sequenceDiagram
     participant AP as AggregateProcessor
     participant ES as EventStore
 
-    Client->>GW: send(command, waitStrategy)
-    Note over GW: Returns Mono immediately
+    Client->>GW: sendAndWait(command, waitStrategy)
+    Note over GW: Returns Mono<CommandResult>
     GW->>CB: dispatch(command)
     CB->>AP: process(command)
     AP->>AP: validate + execute onCommand
@@ -470,7 +470,7 @@ sequenceDiagram
     participant WS as WaitStrategy
 
     Client->>WF: POST /sales-order/{id} {CreateOrder}
-    WF->>GW: send(command, waitStrategy)
+    WF->>GW: sendAndWait(command, waitStrategy)
     GW->>CB: dispatch(commandMessage)
     CB->>AP: process(command)
 

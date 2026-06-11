@@ -143,7 +143,7 @@ class DefaultCommandGateway(
         command: CommandMessage<C>,
         waitStrategy: WaitStrategy
     ): Flux<CommandResult> =
-        send(command, waitStrategy)
+        sendWithWaitStrategy(command, waitStrategy)
             .thenMany(
                 waitStrategy
                     .waiting()
@@ -169,7 +169,7 @@ class DefaultCommandGateway(
         command: CommandMessage<C>,
         waitStrategy: WaitStrategy
     ): Mono<CommandResult> =
-        send(command, waitStrategy)
+        sendWithWaitStrategy(command, waitStrategy)
             .then(
                 waitStrategy
                     .waitingLast()
@@ -196,14 +196,8 @@ class DefaultCommandGateway(
      * @throws jakarta.validation.ConstraintViolationException if validation fails.
      * @throws IllegalArgumentException if the wait strategy doesn't support void commands when needed.
      *
-     * @sample
-     * ```
-     * val command = SimpleCommandMessage(body = MyCommand(), aggregateId = myAggregateId)
-     * val waitStrategy = SimpleWaitStrategy()
-     * gateway.send(command, waitStrategy).block()
-     * ```
      */
-    override fun <C : Any> send(
+    private fun <C : Any> sendWithWaitStrategy(
         command: CommandMessage<C>,
         waitStrategy: WaitStrategy
     ): Mono<Void> {

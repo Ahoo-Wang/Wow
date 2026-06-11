@@ -40,14 +40,14 @@ import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
 import java.util.concurrent.CopyOnWriteArrayList
 
-class TracingCommandGatewaySendTest {
+class TracingCommandGatewayWaitTest {
     @AfterEach
     fun resetOpenTelemetry() {
         GlobalOpenTelemetry.resetForTest()
     }
 
     @Test
-    fun `send with wait strategy traces original waiting stream`() {
+    fun `send and wait traces waiting stream`() {
         GlobalOpenTelemetry.resetForTest()
         val spanExporter = RecordingSpanExporter()
         val tracerProvider = SdkTracerProvider.builder()
@@ -73,8 +73,7 @@ class TracingCommandGatewaySendTest {
         val waitStrategy = WaitingForStage.sent(command.commandId)
 
         commandGateway
-            .send(command, waitStrategy)
-            .then(waitStrategy.waitingLast())
+            .sendAndWait(command, waitStrategy)
             .test()
             .expectNextCount(1)
             .verifyComplete()

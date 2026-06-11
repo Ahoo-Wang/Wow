@@ -22,23 +22,6 @@ The `CommandGateway` interface provides several methods for sending commands and
 The `toCommandMessage()` extension function converts a command body into a `CommandMessage`. This is provided by the Wow framework and handles setting up the command ID, aggregate ID, and other metadata.
 :::
 
-#### send(command, waitStrategy)
-
-The base method that sends a command with a specified wait strategy and returns `Mono<Void>`.
-It completes when the command has been sent successfully. Use `sendAndWait` or `sendAndWaitStream`
-when you want `CommandResult` values.
-
-```kotlin
-val command = CreateAccount(balance = 1000, name = "John").toCommandMessage()
-val waitStrategy = WaitingForStage.processed(command.commandId)
-
-commandGateway.send(command, waitStrategy)
-    .doOnSuccess {
-        println("Command sent: ${command.commandId}")
-    }
-    .subscribe()
-```
-
 #### sendAndWait(command, waitStrategy)
 
 Sends a command and waits for the final result. If the command fails, it throws a `CommandResultException`.
@@ -105,18 +88,6 @@ commandGateway.sendAndWaitForSnapshot(command)
 
 ## Core Concepts
 
-### Low-Level WaitStrategy Usage
-
-Use the same `WaitStrategy` instance when you need low-level custom waiting logic:
-
-```kotlin
-commandGateway.send(command, waitStrategy)
-    .thenMany(waitStrategy.waiting())
-    .filter { signal -> signal.stage == CommandStage.PROCESSED }
-    .next()
-    .subscribe()
-```
-
 ### CommandResult
 
 `CommandResult` represents the result of a command execution at a specific processing stage. It contains comprehensive information about the command processing outcome.
@@ -169,7 +140,6 @@ interface CommandBus : MessageBus<CommandMessage<*>, ServerCommandExchange<*>>
 
 // CommandGateway - extends CommandBus with additional features
 interface CommandGateway : CommandBus {
-    fun <C : Any> send(command: CommandMessage<C>, waitStrategy: WaitStrategy): Mono<Void>
     fun <C : Any> sendAndWait(command: CommandMessage<C>, waitStrategy: WaitStrategy): Mono<CommandResult>
     fun <C : Any> sendAndWaitStream(command: CommandMessage<C>, waitStrategy: WaitStrategy): Flux<CommandResult>
     // ... convenience methods
@@ -326,7 +296,7 @@ sequenceDiagram
 <!-- Sources:
 - CommandHandler.handle(): wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/CommandHandler.kt:26-60
 - DefaultCommandGateway.send(): wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt:114-126
-- DefaultCommandGateway.send(with waitStrategy): wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt:205-245
+- DefaultCommandGateway.sendAndWait()/sendAndWaitStream(): wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt:138-185
 - LocalFirstCommandBus.send(): wow-core/src/main/kotlin/me/ahoo/wow/command/LocalFirstCommandBus.kt:41-46
 - LocalFirstMessageBus.send(): wow-core/src/main/kotlin/me/ahoo/wow/messaging/LocalFirstMessageBus.kt:130-149
 - AbstractKafkaBus.receive(): wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/AbstractKafkaBus.kt:78-95

@@ -46,7 +46,7 @@ internal class DefaultCommandGatewayTest : CommandGatewaySpec() {
         val messageGateway = createMessageBus()
         val message = MockVoidCommand(generateGlobalId()).toCommandMessage()
         assertThrownBy<IllegalArgumentException> {
-            messageGateway.send(message, WaitingForStage.stage(message.commandId, CommandStage.PROCESSED, "", ""))
+            messageGateway.sendAndWait(message, WaitingForStage.stage(message.commandId, CommandStage.PROCESSED, "", ""))
         }
     }
 
