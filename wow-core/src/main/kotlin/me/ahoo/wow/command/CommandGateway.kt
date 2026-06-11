@@ -76,12 +76,13 @@ interface CommandGateway : CommandBus {
     /**
      * Sends a command message with a specified wait strategy.
      *
-     * This method sends the command to the appropriate aggregate processor and returns
-     * a Mono that completes when the command reaches the stage specified by the wait strategy.
+     * This method sends the command to the appropriate aggregate processor, registers the provided wait strategy,
+     * and returns a Mono that completes when the command is sent successfully. Callers can consume the wait strategy
+     * directly to observe processing signals.
      *
      * @param C the type of the command
      * @param command the command message to send
-     * @param waitStrategy the strategy defining how long to wait and what to wait for
+     * @param waitStrategy the strategy used to publish and consume processing signals
      * @return a Mono that completes when the command is sent successfully
      * @see WaitStrategy
      */

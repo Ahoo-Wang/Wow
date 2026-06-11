@@ -29,7 +29,7 @@ class TracingCommandGateway(override val delegate: CommandGateway) : Traced, Com
         command: CommandMessage<C>,
         waitStrategy: WaitStrategy
     ): Mono<Void> {
-        return delegate.send(command, waitStrategy.tracing(command))
+        return delegate.send(command, waitStrategy.tracing(command, traceSignals = true))
     }
 
     override fun <C : Any> sendAndWaitStream(
