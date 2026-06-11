@@ -144,13 +144,13 @@ class DefaultCommandGateway(
         waitStrategy: WaitStrategy
     ): Flux<CommandResult> =
         send(command, waitStrategy)
-            .flatMapMany {
+            .thenMany(
                 waitStrategy
                     .waiting()
                     .map { waitSignal ->
-                        waitSignal.toResult(it.message)
+                        waitSignal.toResult(command)
                     }
-            }
+            )
 
     /**
      * Sends a command and waits for the final result.
@@ -170,28 +170,28 @@ class DefaultCommandGateway(
         waitStrategy: WaitStrategy
     ): Mono<CommandResult> =
         send(command, waitStrategy)
-            .flatMap {
+            .then(
                 waitStrategy
                     .waitingLast()
                     .map { waitSignal ->
                         waitSignal
-                            .toResult(it.message)
+                            .toResult(command)
                             .apply {
                                 if (!succeeded) {
                                     throw CommandResultException(this)
                                 }
                             }
                     }
-            }
+            )
 
     /**
-     * Sends a command with a specific wait strategy and returns a command exchange for tracking.
+     * Sends a command with a specific wait strategy.
      * This method handles wait strategy registration, propagation, and cleanup.
      *
      * @param C The type of the command body.
      * @param command The command message to send.
      * @param waitStrategy The strategy defining how and what to wait for.
-     * @return A Mono emitting a ClientCommandExchange for tracking the command execution.
+     * @return A Mono that completes when the command is sent successfully.
      * @throws DuplicateRequestIdException if the command is not idempotent.
      * @throws jakarta.validation.ConstraintViolationException if validation fails.
      * @throws IllegalArgumentException if the wait strategy doesn't support void commands when needed.
@@ -200,20 +200,18 @@ class DefaultCommandGateway(
      * ```
      * val command = SimpleCommandMessage(body = MyCommand(), aggregateId = myAggregateId)
      * val waitStrategy = SimpleWaitStrategy()
-     * val exchange = gateway.send(command, waitStrategy).block()
-     * // Use exchange to track command progress
+     * gateway.send(command, waitStrategy).block()
      * ```
      */
     override fun <C : Any> send(
         command: CommandMessage<C>,
         waitStrategy: WaitStrategy
-    ): Mono<out ClientCommandExchange<C>> {
+    ): Mono<Void> {
         if (command.isVoid) {
             require(waitStrategy.supportVoidCommand) {
                 "The wait strategy[${waitStrategy.javaClass.simpleName}] for the void command must support void command."
             }
         }
-        val commandExchange: ClientCommandExchange<C> = SimpleClientCommandExchange(command, waitStrategy)
         return check(command)
             .thenDefer {
                 waitStrategy.propagate(commandWaitEndpoint.endpoint, command.header)
@@ -243,6 +241,6 @@ class DefaultCommandGateway(
                     ),
                     it,
                 )
-            }.thenReturn(commandExchange)
+            }
     }
 }

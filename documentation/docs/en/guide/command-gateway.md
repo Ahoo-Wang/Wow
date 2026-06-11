@@ -24,21 +24,19 @@ The `toCommandMessage()` extension function converts a command body into a `Comm
 
 #### send(command, waitStrategy)
 
-The base method that sends a command with a specified wait strategy and returns a `ClientCommandExchange`.
+The base method that sends a command with a specified wait strategy and returns `Mono<Void>`.
+It completes when the command has been sent successfully. Use `sendAndWait` or `sendAndWaitStream`
+when you want `CommandResult` values.
 
 ```kotlin
 val command = CreateAccount(balance = 1000, name = "John").toCommandMessage()
 val waitStrategy = WaitingForStage.processed(command.commandId)
 
 commandGateway.send(command, waitStrategy)
-    .flatMap { exchange ->
-        // Access the ClientCommandExchange
-        // Use the waitStrategy to get the command result
-        exchange.waitStrategy.waiting()
+    .doOnSuccess {
+        println("Command sent: ${command.commandId}")
     }
-    .subscribe { signal ->
-        println("Stage: ${signal.stage} - Succeeded: ${signal.succeeded}")
-    }
+    .subscribe()
 ```
 
 #### sendAndWait(command, waitStrategy)
@@ -107,35 +105,15 @@ commandGateway.sendAndWaitForSnapshot(command)
 
 ## Core Concepts
 
-### ClientCommandExchange
+### Low-Level WaitStrategy Usage
 
-`ClientCommandExchange` is the client-side exchange context returned when sending commands via `CommandGateway.send()`. It provides access to:
-
-- **message**: The original `CommandMessage` that was sent
-- **waitStrategy**: The `WaitStrategy` used to wait for command processing results
-- **attributes**: A mutable map for storing additional exchange-related data
-
-```kotlin
-interface ClientCommandExchange<C : Any> {
-    val message: CommandMessage<C>
-    val waitStrategy: WaitStrategy
-    val attributes: MutableMap<String, Any>
-}
-```
-
-Use `ClientCommandExchange` when you need low-level access to the wait strategy or want to implement custom waiting logic:
+Use the same `WaitStrategy` instance when you need low-level custom waiting logic:
 
 ```kotlin
 commandGateway.send(command, waitStrategy)
-    .flatMap { exchange ->
-        // Access the command message
-        val commandId = exchange.message.commandId
-        
-        // Use the wait strategy directly
-        exchange.waitStrategy.waiting()
-            .filter { signal -> signal.stage == CommandStage.PROCESSED }
-            .next()
-    }
+    .thenMany(waitStrategy.waiting())
+    .filter { signal -> signal.stage == CommandStage.PROCESSED }
+    .next()
     .subscribe()
 ```
 
@@ -191,7 +169,7 @@ interface CommandBus : MessageBus<CommandMessage<*>, ServerCommandExchange<*>>
 
 // CommandGateway - extends CommandBus with additional features
 interface CommandGateway : CommandBus {
-    fun <C : Any> send(command: CommandMessage<C>, waitStrategy: WaitStrategy): Mono<out ClientCommandExchange<C>>
+    fun <C : Any> send(command: CommandMessage<C>, waitStrategy: WaitStrategy): Mono<Void>
     fun <C : Any> sendAndWait(command: CommandMessage<C>, waitStrategy: WaitStrategy): Mono<CommandResult>
     fun <C : Any> sendAndWaitStream(command: CommandMessage<C>, waitStrategy: WaitStrategy): Flux<CommandResult>
     // ... convenience methods
@@ -304,7 +282,6 @@ sequenceDiagram
     Gateway->>Gateway: validate(commandBody)
     Note over Gateway: Jakarta Bean Validation<br>+ CommandValidator.validate()
 
-    Gateway->>Gateway: Create ClientCommandExchange
     Gateway->>Gateway: waitStrategy.propagate(endpoint, header)
     Gateway->>Registrar: register(waitStrategy)
     Gateway->>LFBus: send(command)

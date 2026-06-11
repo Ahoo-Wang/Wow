@@ -58,7 +58,7 @@ sequenceDiagram
     CG->>CB: send(command)
     CB-->>CG: 已发送
     CG->>CG: waitStrategy.next(sentSignal)
-    CG-->>Client: ClientCommandExchange
+    CG-->>Client: Mono<Void> 完成
 
 
 ```

@@ -16,7 +16,6 @@ import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.exception.ErrorInfo.Companion.isFailed
-import me.ahoo.wow.command.wait.WaitStrategy
 import me.ahoo.wow.event.DomainEventException.Companion.toException
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.messaging.handler.MessageExchange
@@ -35,43 +34,9 @@ import java.util.concurrent.ConcurrentHashMap
  * @param C the type of the command
  * @author ahoo wang
  * @see MessageExchange
- * @see ClientCommandExchange
  * @see ServerCommandExchange
  */
 interface CommandExchange<SOURCE : CommandExchange<SOURCE, C>, C : Any> : MessageExchange<SOURCE, CommandMessage<C>>
-
-/**
- * Client-side command exchange interface for commands sent from clients.
- *
- * This interface represents the exchange context for commands initiated by clients,
- * including the wait strategy that determines how the client should wait for results.
- *
- * @param C the type of the command
- * @property waitStrategy the strategy defining how to wait for command processing results
- * @see CommandExchange
- * @see WaitStrategy
- */
-interface ClientCommandExchange<C : Any> : CommandExchange<ClientCommandExchange<C>, C> {
-    val waitStrategy: WaitStrategy
-}
-
-/**
- * Simple implementation of ClientCommandExchange.
- *
- * This class provides a basic implementation of the client command exchange,
- * storing the command message, wait strategy, and any additional attributes.
- *
- * @param C the type of the command
- * @param message the command message being processed
- * @param waitStrategy the strategy for waiting on command results
- * @param attributes mutable map for storing additional exchange data
- * @see ClientCommandExchange
- */
-class SimpleClientCommandExchange<C : Any>(
-    override val message: CommandMessage<C>,
-    override val waitStrategy: WaitStrategy,
-    override val attributes: MutableMap<String, Any> = ConcurrentHashMap()
-) : ClientCommandExchange<C>
 
 const val COMMAND_INVOKE_RESULT_KEY = "__COMMAND_INVOKE_RESULT__"
 const val EVENT_STREAM_KEY = "__EVENT_STREAM__"
