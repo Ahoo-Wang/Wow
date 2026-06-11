@@ -76,7 +76,7 @@ class DefaultCommandGatewayTest {
     }
 
     @Test
-    fun `send with wait strategy propagates header registers strategy and returns exchange`() {
+    fun `send with wait strategy propagates header registers strategy and completes empty`() {
         val commandBus = RecordingCommandBus()
         val registrar = RecordingWaitStrategyRegistrar()
         val gateway = commandGateway(commandBus = commandBus, registrar = registrar)
@@ -84,10 +84,6 @@ class DefaultCommandGatewayTest {
         val command = TestCommandMessage(id = "command-id")
 
         StepVerifier.create(gateway.send(command, waitStrategy))
-            .assertNext { exchange ->
-                exchange.message.assert().isSameAs(command)
-                exchange.waitStrategy.assert().isSameAs(waitStrategy)
-            }
             .verifyComplete()
 
         commandBus.sent.single().assert().isSameAs(command)

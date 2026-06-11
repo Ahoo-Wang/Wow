@@ -82,14 +82,13 @@ interface CommandGateway : CommandBus {
      * @param C the type of the command
      * @param command the command message to send
      * @param waitStrategy the strategy defining how long to wait and what to wait for
-     * @return a Mono emitting the client command exchange when the wait condition is met
+     * @return a Mono that completes when the command is sent successfully
      * @see WaitStrategy
-     * @see ClientCommandExchange
      */
     fun <C : Any> send(
         command: CommandMessage<C>,
         waitStrategy: WaitStrategy
-    ): Mono<out ClientCommandExchange<C>>
+    ): Mono<Void>
 
     /**
      * Sends a command and returns a stream of command results as processing progresses.

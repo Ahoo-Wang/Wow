@@ -15,7 +15,6 @@ package me.ahoo.wow.opentelemetry.wait
 
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.command.ClientCommandExchange
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.ServerCommandExchange
@@ -29,7 +28,7 @@ class TracingCommandGateway(override val delegate: CommandGateway) : Traced, Com
     override fun <C : Any> send(
         command: CommandMessage<C>,
         waitStrategy: WaitStrategy
-    ): Mono<out ClientCommandExchange<C>> {
+    ): Mono<Void> {
         return delegate.send(command, waitStrategy.tracing(command))
     }
 
