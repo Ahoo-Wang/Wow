@@ -46,7 +46,7 @@ sequenceDiagram
     participant Idempotency as IdempotencyChecker
     participant CB as CommandBus
 
-    Client->>CG: send(command, waitStrategy)
+    Client->>CG: sendAndWait(command, waitStrategy)
     CG->>Idempotency: idempotencyCheck(command)
     Note right of Idempotency: Checks requestId uniqueness.<br>If duplicate: DuplicateRequestIdException
     Idempotency-->>CG: check passed
@@ -58,7 +58,7 @@ sequenceDiagram
     CG->>CB: send(command)
     CB-->>CG: sent
     CG->>CG: waitStrategy.next(sentSignal)
-    CG-->>Client: Mono<Void> completes
+    CG-->>Client: Mono<CommandResult>
 
 
 ```

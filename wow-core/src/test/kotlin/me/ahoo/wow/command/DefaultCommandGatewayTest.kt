@@ -76,23 +76,28 @@ class DefaultCommandGatewayTest {
     }
 
     @Test
-    fun `send with wait strategy propagates header registers strategy and completes empty`() {
+    fun `send and wait stream propagates header registers strategy and emits sent result`() {
         val commandBus = RecordingCommandBus()
         val registrar = RecordingWaitStrategyRegistrar()
         val gateway = commandGateway(commandBus = commandBus, registrar = registrar)
         val waitStrategy = WaitingForStage.processed("wait-command-id")
         val command = TestCommandMessage(id = "command-id")
 
-        StepVerifier.create(gateway.send(command, waitStrategy))
-            .verifyComplete()
+        StepVerifier.create(gateway.sendAndWaitStream(command, waitStrategy))
+            .expectNextCount(1)
+            .then {
+                registrar.get("wait-command-id").assert().isSameAs(waitStrategy)
+            }
+            .thenCancel()
+            .verify()
 
         commandBus.sent.single().assert().isSameAs(command)
         command.header["command_wait_endpoint"].assert().isEqualTo("test-command-wait-endpoint")
-        registrar.get("wait-command-id").assert().isSameAs(waitStrategy)
+        registrar.contains("wait-command-id").assert().isFalse()
     }
 
     @Test
-    fun `send with wait strategy maps command bus errors to command result exception and unregisters`() {
+    fun `send and wait stream maps command bus errors to command result exception and unregisters`() {
         val commandBus = RecordingCommandBus().apply {
             sendResult = { Mono.error(IllegalStateException("bus failed")) }
         }
@@ -100,7 +105,7 @@ class DefaultCommandGatewayTest {
         val gateway = commandGateway(commandBus = commandBus, registrar = registrar)
         val waitStrategy = WaitingForStage.processed("wait-command-id")
 
-        StepVerifier.create(gateway.send(TestCommandMessage(id = "command-id"), waitStrategy))
+        StepVerifier.create(gateway.sendAndWaitStream(TestCommandMessage(id = "command-id"), waitStrategy))
             .expectError(CommandResultException::class.java)
             .verify()
 
@@ -112,7 +117,7 @@ class DefaultCommandGatewayTest {
         val gateway = commandGateway()
 
         val exception = assertThrows<IllegalArgumentException> {
-            gateway.send(
+            gateway.sendAndWaitStream(
                 TestCommandMessage(id = "void-command", isVoid = true),
                 WaitingForStage.processed("wait-command-id"),
             )

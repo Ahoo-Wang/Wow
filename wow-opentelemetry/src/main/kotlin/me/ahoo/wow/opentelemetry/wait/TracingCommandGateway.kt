@@ -25,13 +25,6 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 class TracingCommandGateway(override val delegate: CommandGateway) : Traced, CommandGateway, Decorator<CommandGateway> {
-    override fun <C : Any> send(
-        command: CommandMessage<C>,
-        waitStrategy: WaitStrategy
-    ): Mono<Void> {
-        return delegate.send(command, waitStrategy.tracing(command, traceSignals = true))
-    }
-
     override fun <C : Any> sendAndWaitStream(
         command: CommandMessage<C>,
         waitStrategy: WaitStrategy

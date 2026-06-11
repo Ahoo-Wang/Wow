@@ -46,7 +46,7 @@ sequenceDiagram
     participant Idempotency as IdempotencyChecker
     participant CB as CommandBus
 
-    Client->>CG: send(command, waitStrategy)
+    Client->>CG: sendAndWait(command, waitStrategy)
     CG->>Idempotency: idempotencyCheck(command)
     Note right of Idempotency: 检查 requestId 唯一性。<br>若重复：DuplicateRequestIdException
     Idempotency-->>CG: 检查通过
@@ -58,7 +58,7 @@ sequenceDiagram
     CG->>CB: send(command)
     CB-->>CG: 已发送
     CG->>CG: waitStrategy.next(sentSignal)
-    CG-->>Client: Mono<Void> 完成
+    CG-->>Client: Mono<CommandResult>
 
 
 ```

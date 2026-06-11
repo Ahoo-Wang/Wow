@@ -78,7 +78,7 @@ graph TB
         CWN[CommandWaitNotifier<br>push-based, no polling]
     end
 
-    CG -->|"1. send(command, waitStrategy)"| WS
+    CG -->|"1. sendAndWait(command, waitStrategy)"| WS
     WS -->|"2. register + propagate"| CG
     S1 -->|"3. SENT signal"| CWN
     S2 -->|"4. PROCESSED signal"| CWN
@@ -379,7 +379,7 @@ sequenceDiagram
     participant CWN as CommandWaitNotifier
 
     Client->>WF: POST /command/{aggregateId}
-    WF->>CGW: send(commandMessage, waitStrategy)
+    WF->>CGW: sendAndWait(commandMessage, waitStrategy)
 
     rect rgb(30, 58, 95)
         Note over CGW,IC: Pre-Send Checks

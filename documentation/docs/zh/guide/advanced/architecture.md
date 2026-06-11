@@ -147,7 +147,7 @@ sequenceDiagram
     participant SF as SendDomainEventStreamFilter
     participant EB as EventBus
 
-    Client->>CG: send(command, waitStrategy)
+    Client->>CG: sendAndWait(command, waitStrategy)
     CG->>CB: route(command)
     Note over CB: TopicKind.COMMAND
     CB->>CD: dispatch(ServerCommandExchange)
