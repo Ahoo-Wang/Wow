@@ -15,7 +15,6 @@ package me.ahoo.wow.command.wait.stage
 
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.WaitSignal
-import reactor.core.publisher.Mono
 
 /**
  * Abstract base class for wait strategies that wait for a specific stage after command processing is complete.
@@ -42,18 +41,12 @@ abstract class WaitingForAfterProcessed : WaitingForStage() {
 
     open fun isWaitingFor(signal: WaitSignal): Boolean = signal.stage == stage
 
-    override fun waitingLast(): Mono<WaitSignal> {
-        return waiting().collectList().mapNotNull { signals ->
-            if (signals.isEmpty()) {
-                return@mapNotNull null
-            }
-            val result: MutableMap<String, Any> = mutableMapOf()
-            signals.forEach { signal ->
-                result.putAll(signal.result)
-            }
-            val waitingForSignal = waitingForSignal ?: return@mapNotNull signals.last().copyResult(result)
-            waitingForSignal.copyResult(result)
-        }
+    /**
+     * The final signal is the target-stage signal, not the chronologically last one: the
+     * target stage (e.g. PROJECTED) may be notified before PROCESSED arrives.
+     */
+    override fun resolveLastSignal(signals: List<WaitSignal>): WaitSignal {
+        return waitingForSignal ?: signals.last()
     }
 
     override fun next(signal: WaitSignal) {
