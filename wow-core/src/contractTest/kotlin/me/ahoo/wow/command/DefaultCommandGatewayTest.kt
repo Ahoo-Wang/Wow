@@ -51,6 +51,66 @@ internal class DefaultCommandGatewayTest : CommandGatewaySpec() {
     }
 
     @Test
+    fun `should return sent stage result when sendAndWaitForSent succeeds`() {
+        val message = createMessage()
+        verify {
+            sendAndWaitForSent(message)
+                .test()
+                .consumeNextWith {
+                    it.succeeded.assert().isTrue()
+                    it.stage.assert().isEqualTo(CommandStage.SENT)
+                    it.waitCommandId.assert().isEqualTo(message.commandId)
+                    it.commandId.assert().isEqualTo(message.commandId)
+                    it.requestId.assert().isEqualTo(message.requestId)
+                    it.aggregateId.assert().isEqualTo(message.aggregateId.id)
+                    it.function.assert().isEqualTo(COMMAND_GATEWAY_FUNCTION)
+                }
+                .verifyComplete()
+        }
+        waitStrategyRegistrar.contains(message.commandId).assert().isFalse()
+    }
+
+    @Test
+    fun `should support void command when sendAndWaitForSent`() {
+        val messageGateway = createMessageBus()
+        val message = MockVoidCommand(generateGlobalId()).toCommandMessage()
+        messageGateway.sendAndWaitForSent(message)
+            .test()
+            .consumeNextWith {
+                it.succeeded.assert().isTrue()
+                it.stage.assert().isEqualTo(CommandStage.SENT)
+            }
+            .verifyComplete()
+        waitStrategyRegistrar.contains(message.commandId).assert().isFalse()
+    }
+
+    @Test
+    fun `should wrap command bus error when sendAndWaitForSent`() {
+        val commandBus = mockk<CommandBus> {
+            every { send(any()) } returns IllegalArgumentException().toMono()
+        }
+        val commandGateway = DefaultCommandGateway(
+            commandWaitEndpoint = SimpleCommandWaitEndpoint(""),
+            commandBus = commandBus,
+            validator = TestValidator,
+            idempotencyCheckerProvider = DefaultAggregateIdempotencyCheckerProvider { idempotencyChecker },
+            waitStrategyRegistrar = waitStrategyRegistrar,
+            commandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar)
+        )
+        val message = createMessage()
+        commandGateway.sendAndWaitForSent(message)
+            .test()
+            .consumeErrorWith {
+                it.assert().isInstanceOf(CommandResultException::class.java)
+                val commandResult = (it as CommandResultException).commandResult
+                commandResult.stage.assert().isEqualTo(CommandStage.SENT)
+                commandResult.succeeded.assert().isFalse()
+            }
+            .verify()
+        waitStrategyRegistrar.contains(message.commandId).assert().isFalse()
+    }
+
+    @Test
     fun `should validate command body`() {
         val message = MockCommandBody().toCommandMessage()
         verify {

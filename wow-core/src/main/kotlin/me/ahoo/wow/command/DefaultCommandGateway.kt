@@ -17,12 +17,14 @@ import jakarta.validation.Validator
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.command.validation.CommandValidator
 import me.ahoo.wow.command.validation.validateCommand
+import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.CommandWaitEndpoint
 import me.ahoo.wow.command.wait.CommandWaitNotifier
 import me.ahoo.wow.command.wait.WaitStrategy
 import me.ahoo.wow.command.wait.WaitStrategyRegistrar
 import me.ahoo.wow.command.wait.extractWaitStrategy
 import me.ahoo.wow.command.wait.notifyAndForget
+import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.infra.idempotency.AggregateIdempotencyCheckerProvider
 import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.reactor.thenDefer
@@ -126,6 +128,49 @@ class DefaultCommandGateway(
                 commandWaitNotifier.notifyAndForget(waitStrategy, waitSignal)
             }
     }
+
+    /**
+     * Sends a command and completes with the SENT stage result as soon as the command bus accepts it.
+     *
+     * The SENT signal is synthesized by this gateway itself once [CommandBus.send] completes, so this
+     * fast path skips the wait-strategy registration, sink allocation, and wait-header propagation that
+     * [sendAndWait] requires. Downstream stage notifiers see no wait headers and therefore stay no-op,
+     * which matches the SENT-only contract: no stage after SENT is ever waited on.
+     *
+     * @param C The type of the command body.
+     * @param command The command message to send.
+     * @return A Mono emitting the SENT stage CommandResult.
+     * @throws CommandResultException if the pre-send checks fail or the command bus rejects the command.
+     */
+    override fun <C : Any> sendAndWaitForSent(command: CommandMessage<C>): Mono<CommandResult> =
+        check(command)
+            .thenDefer {
+                commandBus.send(command)
+            }.then(
+                Mono.fromCallable {
+                    CommandResult(
+                        id = generateGlobalId(),
+                        waitCommandId = command.commandId,
+                        stage = CommandStage.SENT,
+                        contextName = command.aggregateId.contextName,
+                        aggregateName = command.aggregateId.aggregateName,
+                        tenantId = command.aggregateId.tenantId,
+                        aggregateId = command.aggregateId.id,
+                        aggregateVersion = command.aggregateVersion,
+                        requestId = command.requestId,
+                        commandId = command.commandId,
+                        function = COMMAND_GATEWAY_FUNCTION,
+                    )
+                },
+            ).onErrorMap {
+                CommandResultException(
+                    it.toResult(
+                        waitCommandId = command.commandId,
+                        commandMessage = command,
+                    ),
+                    it,
+                )
+            }
 
     /**
      * Sends a command and returns a stream of command results as they become available.
