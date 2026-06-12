@@ -16,6 +16,7 @@ package me.ahoo.wow.command.wait
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.id.generateGlobalId
 import org.junit.jupiter.api.Test
+import reactor.kotlin.test.test
 import reactor.test.StepVerifier
 
 class LocalCommandWaitNotifierTest {
@@ -26,7 +27,8 @@ class LocalCommandWaitNotifierTest {
         val notifier = LocalCommandWaitNotifier(registrar)
         val signal = testSignal(CommandStage.PROCESSED, waitCommandId = generateGlobalId())
 
-        StepVerifier.create(notifier.notify(TEST_ENDPOINT, signal))
+        notifier.notify(TEST_ENDPOINT, signal)
+            .test()
             .verifyComplete()
 
         registrar.signals.assert().containsExactly(signal)
@@ -38,7 +40,8 @@ class LocalCommandWaitNotifierTest {
         val notifier = LocalCommandWaitNotifier(registrar)
         val signal = testSignal(CommandStage.PROCESSED, waitCommandId = "")
 
-        StepVerifier.create(notifier.notify(TEST_ENDPOINT, signal))
+        notifier.notify(TEST_ENDPOINT, signal)
+            .test()
             .verifyComplete()
 
         registrar.signals.assert().isEmpty()

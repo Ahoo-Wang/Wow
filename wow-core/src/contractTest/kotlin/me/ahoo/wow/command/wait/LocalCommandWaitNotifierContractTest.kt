@@ -20,7 +20,7 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.DefaultAggregateId
 import org.junit.jupiter.api.Test
-import reactor.test.StepVerifier
+import reactor.kotlin.test.test
 
 class LocalCommandWaitNotifierContractTest {
 
@@ -30,7 +30,8 @@ class LocalCommandWaitNotifierContractTest {
         val notifier = LocalCommandWaitNotifier(registrar)
         val signal = signal()
 
-        StepVerifier.create(notifier.notify(TEST_ENDPOINT, signal))
+        notifier.notify(TEST_ENDPOINT, signal)
+            .test()
             .verifyComplete()
 
         registrar.signals.assert().containsExactly(signal)
@@ -41,7 +42,8 @@ class LocalCommandWaitNotifierContractTest {
         val registrar = RecordingWaitStrategyRegistrar()
         val notifier = LocalCommandWaitNotifier(registrar)
 
-        StepVerifier.create(notifier.notify(TEST_ENDPOINT, signal(waitCommandId = "")))
+        notifier.notify(TEST_ENDPOINT, signal(waitCommandId = ""))
+            .test()
             .verifyComplete()
 
         registrar.signals.assert().isEmpty()
