@@ -14,18 +14,21 @@
 package me.ahoo.wow.command.wait
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.messaging.function.FunctionInfoData
+import me.ahoo.wow.api.messaging.function.FunctionKind
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.id.generateGlobalId
+import me.ahoo.wow.modeling.DefaultAggregateId
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
-import reactor.test.StepVerifier
 
-class LocalCommandWaitNotifierTest {
+class LocalCommandWaitNotifierContractTest {
 
     @Test
-    fun `notify completes and forwards local signal`() {
+    fun `notify forwards local signal`() {
         val registrar = RecordingWaitStrategyRegistrar()
         val notifier = LocalCommandWaitNotifier(registrar)
-        val signal = testSignal(CommandStage.PROCESSED, waitCommandId = generateGlobalId())
+        val signal = signal()
 
         notifier.notify(TEST_ENDPOINT, signal)
             .test()
@@ -35,12 +38,11 @@ class LocalCommandWaitNotifierTest {
     }
 
     @Test
-    fun `notify completes without forwarding non local signal`() {
+    fun `notify ignores non local signal`() {
         val registrar = RecordingWaitStrategyRegistrar()
         val notifier = LocalCommandWaitNotifier(registrar)
-        val signal = testSignal(CommandStage.PROCESSED, waitCommandId = "")
 
-        notifier.notify(TEST_ENDPOINT, signal)
+        notifier.notify(TEST_ENDPOINT, signal(waitCommandId = ""))
             .test()
             .verifyComplete()
 
@@ -51,7 +53,7 @@ class LocalCommandWaitNotifierTest {
     fun `notifyAndForget forwards local signal synchronously`() {
         val registrar = RecordingWaitStrategyRegistrar()
         val notifier = LocalCommandWaitNotifier(registrar)
-        val signal = testSignal(CommandStage.PROCESSED, waitCommandId = generateGlobalId())
+        val signal = signal()
 
         notifier.notifyAndForget(TEST_ENDPOINT, signal)
 
@@ -59,24 +61,57 @@ class LocalCommandWaitNotifierTest {
     }
 
     @Test
-    fun `notifyAndForget swallows registrar failures`() {
-        val notifier = LocalCommandWaitNotifier(ThrowingWaitStrategyRegistrar())
-        val signal = testSignal(CommandStage.PROCESSED, waitCommandId = generateGlobalId())
+    fun `notifyAndForget ignores non local signal`() {
+        val registrar = RecordingWaitStrategyRegistrar()
+        val notifier = LocalCommandWaitNotifier(registrar)
 
-        notifier.notifyAndForget(TEST_ENDPOINT, signal)
+        notifier.notifyAndForget(TEST_ENDPOINT, signal(waitCommandId = ""))
+
+        registrar.signals.assert().isEmpty()
     }
 
     @Test
-    fun `cancelling notify before request does not forward signal`() {
-        val registrar = RecordingWaitStrategyRegistrar()
-        val notifier = LocalCommandWaitNotifier(registrar)
-        val signal = testSignal(CommandStage.PROCESSED, waitCommandId = generateGlobalId())
+    fun `notifyAndForget swallows registrar failures`() {
+        val notifier = LocalCommandWaitNotifier(ThrowingWaitStrategyRegistrar())
 
-        StepVerifier.create(notifier.notify(TEST_ENDPOINT, signal), 0)
-            .thenCancel()
-            .verify()
+        notifier.notifyAndForget(TEST_ENDPOINT, signal())
+    }
 
-        registrar.signals.assert().isEmpty()
+    private fun signal(waitCommandId: String = generateGlobalId()): WaitSignal =
+        SimpleWaitSignal(
+            id = generateGlobalId(),
+            waitCommandId = waitCommandId,
+            commandId = waitCommandId,
+            aggregateId = DefaultAggregateId(TestNamedAggregate, "aggregate-id"),
+            stage = CommandStage.PROCESSED,
+            function = FunctionInfoData(
+                functionKind = FunctionKind.EVENT,
+                contextName = TestNamedAggregate.contextName,
+                processorName = "processor",
+                name = "function",
+            ),
+        )
+
+    private object TestNamedAggregate : NamedAggregate {
+        override val contextName: String = "context"
+        override val aggregateName: String = "aggregate"
+    }
+
+    private class RecordingWaitStrategyRegistrar : WaitStrategyRegistrar {
+        val signals: MutableList<WaitSignal> = mutableListOf()
+
+        override fun register(waitStrategy: WaitStrategy): WaitStrategy? = null
+
+        override fun unregister(waitCommandId: String): WaitStrategy? = null
+
+        override fun get(waitCommandId: String): WaitStrategy? = null
+
+        override fun contains(waitCommandId: String): Boolean = false
+
+        override fun next(signal: WaitSignal): Boolean {
+            signals += signal
+            return true
+        }
     }
 
     private class ThrowingWaitStrategyRegistrar : WaitStrategyRegistrar {
@@ -91,5 +126,9 @@ class LocalCommandWaitNotifierTest {
         override fun next(signal: WaitSignal): Boolean {
             error("boom")
         }
+    }
+
+    private companion object {
+        const val TEST_ENDPOINT = "test-endpoint"
     }
 }

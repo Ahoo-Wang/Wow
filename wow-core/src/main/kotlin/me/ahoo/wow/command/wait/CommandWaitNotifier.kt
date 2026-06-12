@@ -78,17 +78,41 @@ class LocalCommandWaitNotifier(
         waitSignal: WaitSignal
     ): Mono<Void> =
         Mono.fromRunnable {
-            if (isLocalWaitStrategy(waitSignal.waitCommandId)) {
-                log.debug {
-                    "Notify Local - waitSignal: $waitSignal"
-                }
-                waitStrategyRegistrar.next(waitSignal)
-            } else {
-                log.warn {
-                    "Ignore Notify - waitSignal: $waitSignal"
-                }
+            notifyLocal(waitSignal)
+        }
+
+    /**
+     * Local notification completes synchronously, so the fire-and-forget path skips the
+     * per-signal `Mono.fromRunnable` and subscriber allocations of the default implementation.
+     * Notification failures are logged instead of propagating to the notifying pipeline,
+     * matching the dropped-error semantics of `notify(...).subscribe()`.
+     */
+    @Suppress("TooGenericExceptionCaught")
+    override fun notifyAndForget(
+        commandWaitEndpoint: String,
+        waitSignal: WaitSignal
+    ) {
+        try {
+            notifyLocal(waitSignal)
+        } catch (error: Throwable) {
+            log.error(error) {
+                "NotifyAndForget failed - waitSignal: $waitSignal"
             }
         }
+    }
+
+    private fun notifyLocal(waitSignal: WaitSignal) {
+        if (isLocalWaitStrategy(waitSignal.waitCommandId)) {
+            log.debug {
+                "Notify Local - waitSignal: $waitSignal"
+            }
+            waitStrategyRegistrar.next(waitSignal)
+        } else {
+            log.warn {
+                "Ignore Notify - waitSignal: $waitSignal"
+            }
+        }
+    }
 }
 
 /**
