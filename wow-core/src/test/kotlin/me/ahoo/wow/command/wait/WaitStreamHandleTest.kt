@@ -40,7 +40,7 @@ class WaitStreamHandleTest {
     }
 
     @Test
-    fun replaySignalsForLateSubscriber() {
+    fun bufferSignalsForFirstLateSubscriber() {
         val handle = DefaultWaitStreamHandle(
             plan = CommandWait.processed("wait-id"),
             reducer = DefaultWaitSignalReducer(),
@@ -182,7 +182,7 @@ class WaitStreamHandleTest {
     }
 
     @Test
-    fun subscriberCancelDoesNotTerminateSharedStream() {
+    fun subscriberCancelTerminatesUnicastStream() {
         val terminated = AtomicInteger()
         val handle = DefaultWaitStreamHandle(
             plan = CommandWait.processed("wait-id"),
@@ -194,7 +194,25 @@ class WaitStreamHandleTest {
             .thenCancel()
             .verify()
 
-        terminated.get().assert().isEqualTo(0)
+        terminated.get().assert().isEqualTo(1)
+        handle.next(testSignal(CommandStage.PROCESSED))
+            .assert().isFalse()
+
+        StepVerifier.create(handle.stream())
+            .expectErrorSatisfies {
+                it.assert().isInstanceOf(IllegalStateException::class.java)
+            }
+            .verify()
+    }
+
+    @Test
+    fun secondStreamSubscriberFailsAfterComplete() {
+        val handle = DefaultWaitStreamHandle(
+            plan = CommandWait.processed("wait-id"),
+            reducer = DefaultWaitSignalReducer(),
+            onTerminate = {},
+        )
+
         handle.next(testSignal(CommandStage.PROCESSED))
             .assert().isTrue()
 
@@ -202,29 +220,11 @@ class WaitStreamHandleTest {
             .assertNext { it.stage.assert().isEqualTo(CommandStage.PROCESSED) }
             .verifyComplete()
 
-        handle.cancel()
-        terminated.get().assert().isEqualTo(1)
-    }
-
-    @Test
-    fun explicitCancelTerminatesStreamAfterSubscriberCancel() {
-        val terminated = AtomicInteger()
-        val handle = DefaultWaitStreamHandle(
-            plan = CommandWait.processed("wait-id"),
-            reducer = DefaultWaitSignalReducer(),
-            onTerminate = { terminated.incrementAndGet() },
-        )
-
         StepVerifier.create(handle.stream())
-            .thenCancel()
+            .expectErrorSatisfies {
+                it.assert().isInstanceOf(IllegalStateException::class.java)
+            }
             .verify()
-
-        terminated.get().assert().isEqualTo(0)
-        handle.cancel()
-        terminated.get().assert().isEqualTo(1)
-
-        StepVerifier.create(handle.stream())
-            .verifyComplete()
     }
 
     @Test

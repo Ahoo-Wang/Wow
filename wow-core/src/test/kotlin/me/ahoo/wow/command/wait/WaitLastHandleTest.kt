@@ -16,7 +16,6 @@ package me.ahoo.wow.command.wait
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import reactor.test.StepVerifier
-import java.time.Duration
 import java.util.concurrent.atomic.AtomicInteger
 
 class WaitLastHandleTest {
@@ -168,33 +167,29 @@ class WaitLastHandleTest {
     }
 
     @Test
-    fun cancellingOneAwaitSubscriberKeepsHandleActiveForOthers() {
-        val terminated = AtomicInteger()
+    fun secondAwaitSubscriberFailsAfterFinalSignal() {
         val handle = DefaultWaitLastHandle(
             plan = CommandWait.processed("wait-id"),
             reducer = DefaultWaitSignalReducer(),
-            onTerminate = { terminated.incrementAndGet() },
+            onTerminate = {},
         )
 
+        handle.next(testSignal(CommandStage.PROCESSED))
+            .assert().isTrue()
+
         StepVerifier.create(handle.await())
-            .then {
-                StepVerifier.create(handle.await())
-                    .thenCancel()
-                    .verify()
-                terminated.get().assert().isEqualTo(0)
-                handle.next(testSignal(CommandStage.PROCESSED))
-                    .assert().isTrue()
-            }
-            .assertNext {
-                it.stage.assert().isEqualTo(CommandStage.PROCESSED)
-            }
+            .assertNext { it.stage.assert().isEqualTo(CommandStage.PROCESSED) }
             .verifyComplete()
 
-        terminated.get().assert().isEqualTo(1)
+        StepVerifier.create(handle.await())
+            .expectErrorSatisfies {
+                it.assert().isInstanceOf(IllegalStateException::class.java)
+            }
+            .verify()
     }
 
     @Test
-    fun subscriberCancelTerminatesAndCompletesLateAwait() {
+    fun subscriberCancelTerminatesAndRejectsLateAwait() {
         val terminated = AtomicInteger()
         val handle = DefaultWaitLastHandle(
             plan = CommandWait.processed("wait-id"),
@@ -212,8 +207,10 @@ class WaitLastHandleTest {
         terminated.get().assert().isEqualTo(1)
 
         StepVerifier.create(handle.await())
-            .expectComplete()
-            .verify(Duration.ofSeconds(1))
+            .expectErrorSatisfies {
+                it.assert().isInstanceOf(IllegalStateException::class.java)
+            }
+            .verify()
     }
 
     @Test
