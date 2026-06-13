@@ -26,53 +26,53 @@ class LocalCommandWaitNotifierContractTest {
 
     @Test
     fun `notify forwards local signal`() {
-        val registrar = RecordingWaitStrategyRegistrar()
-        val notifier = LocalCommandWaitNotifier(registrar)
+        val coordinator = RecordingWaitCoordinator()
+        val notifier = LocalCommandWaitNotifier(coordinator)
         val signal = signal()
 
         notifier.notify(TEST_ENDPOINT, signal)
             .test()
             .verifyComplete()
 
-        registrar.signals.assert().containsExactly(signal)
+        coordinator.signals.assert().containsExactly(signal)
     }
 
     @Test
     fun `notify ignores non local signal`() {
-        val registrar = RecordingWaitStrategyRegistrar()
-        val notifier = LocalCommandWaitNotifier(registrar)
+        val coordinator = RecordingWaitCoordinator()
+        val notifier = LocalCommandWaitNotifier(coordinator)
 
         notifier.notify(TEST_ENDPOINT, signal(waitCommandId = ""))
             .test()
             .verifyComplete()
 
-        registrar.signals.assert().isEmpty()
+        coordinator.signals.assert().isEmpty()
     }
 
     @Test
     fun `notifyAndForget forwards local signal synchronously`() {
-        val registrar = RecordingWaitStrategyRegistrar()
-        val notifier = LocalCommandWaitNotifier(registrar)
+        val coordinator = RecordingWaitCoordinator()
+        val notifier = LocalCommandWaitNotifier(coordinator)
         val signal = signal()
 
         notifier.notifyAndForget(TEST_ENDPOINT, signal)
 
-        registrar.signals.assert().containsExactly(signal)
+        coordinator.signals.assert().containsExactly(signal)
     }
 
     @Test
     fun `notifyAndForget ignores non local signal`() {
-        val registrar = RecordingWaitStrategyRegistrar()
-        val notifier = LocalCommandWaitNotifier(registrar)
+        val coordinator = RecordingWaitCoordinator()
+        val notifier = LocalCommandWaitNotifier(coordinator)
 
         notifier.notifyAndForget(TEST_ENDPOINT, signal(waitCommandId = ""))
 
-        registrar.signals.assert().isEmpty()
+        coordinator.signals.assert().isEmpty()
     }
 
     @Test
-    fun `notifyAndForget swallows registrar failures`() {
-        val notifier = LocalCommandWaitNotifier(ThrowingWaitStrategyRegistrar())
+    fun `notifyAndForget swallows coordinator failures`() {
+        val notifier = LocalCommandWaitNotifier(ThrowingWaitCoordinator())
 
         notifier.notifyAndForget(TEST_ENDPOINT, signal())
     }
@@ -97,35 +97,35 @@ class LocalCommandWaitNotifierContractTest {
         override val aggregateName: String = "aggregate"
     }
 
-    private class RecordingWaitStrategyRegistrar : WaitStrategyRegistrar {
+    private class RecordingWaitCoordinator : WaitCoordinator {
         val signals: MutableList<WaitSignal> = mutableListOf()
 
-        override fun register(waitStrategy: WaitStrategy): WaitStrategy? = null
+        override fun createLast(plan: WaitPlan): WaitLastHandle =
+            error("not used")
 
-        override fun unregister(waitCommandId: String): WaitStrategy? = null
+        override fun createStream(plan: WaitPlan): WaitStreamHandle =
+            error("not used")
 
-        override fun get(waitCommandId: String): WaitStrategy? = null
-
-        override fun contains(waitCommandId: String): Boolean = false
-
-        override fun next(signal: WaitSignal): Boolean {
+        override fun signal(signal: WaitSignal): Boolean {
             signals += signal
             return true
         }
-    }
-
-    private class ThrowingWaitStrategyRegistrar : WaitStrategyRegistrar {
-        override fun register(waitStrategy: WaitStrategy): WaitStrategy? = null
-
-        override fun unregister(waitCommandId: String): WaitStrategy? = null
-
-        override fun get(waitCommandId: String): WaitStrategy? = null
 
         override fun contains(waitCommandId: String): Boolean = false
+    }
 
-        override fun next(signal: WaitSignal): Boolean {
+    private class ThrowingWaitCoordinator : WaitCoordinator {
+        override fun createLast(plan: WaitPlan): WaitLastHandle =
+            error("not used")
+
+        override fun createStream(plan: WaitPlan): WaitStreamHandle =
+            error("not used")
+
+        override fun signal(signal: WaitSignal): Boolean {
             error("boom")
         }
+
+        override fun contains(waitCommandId: String): Boolean = false
     }
 
     private companion object {

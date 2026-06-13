@@ -54,20 +54,24 @@ interface CommandWaitNotifier {
 
 /**
  * Local implementation of CommandWaitNotifier for in-process notifications.
- * This notifier forwards wait signals to registered wait strategies within the same JVM instance.
+ * This notifier forwards wait signals to registered wait handles within the same JVM instance.
  *
- * @param waitStrategyRegistrar The registrar containing active wait strategies.
+ * @param waitCoordinator The coordinator containing active wait handles.
  */
 class LocalCommandWaitNotifier(
-    private val waitStrategyRegistrar: WaitStrategyRegistrar
+    private val waitCoordinator: WaitCoordinator
 ) : CommandWaitNotifier {
     companion object {
         private val log = KotlinLogging.logger {}
     }
 
+    constructor(waitStrategyRegistrar: WaitStrategyRegistrar) : this(
+        WaitStrategyRegistrarCoordinator(waitStrategyRegistrar),
+    )
+
     /**
      * Notifies local wait strategies if the signal belongs to this JVM instance.
-     * Uses the wait strategy registrar to forward signals to waiting clients.
+     * Uses the wait coordinator to forward signals to waiting clients.
      *
      * @param commandWaitEndpoint The endpoint (ignored for local notifications).
      * @param waitSignal The signal to forward to local wait strategies.
@@ -106,13 +110,29 @@ class LocalCommandWaitNotifier(
             log.debug {
                 "Notify Local - waitSignal: $waitSignal"
             }
-            waitStrategyRegistrar.next(waitSignal)
+            waitCoordinator.signal(waitSignal)
         } else {
             log.warn {
                 "Ignore Notify - waitSignal: $waitSignal"
             }
         }
     }
+}
+
+private class WaitStrategyRegistrarCoordinator(
+    private val waitStrategyRegistrar: WaitStrategyRegistrar,
+) : WaitCoordinator {
+    override fun createLast(plan: WaitPlan): WaitLastHandle =
+        error("WaitStrategyRegistrar-backed coordinator does not create wait handles.")
+
+    override fun createStream(plan: WaitPlan): WaitStreamHandle =
+        error("WaitStrategyRegistrar-backed coordinator does not create wait handles.")
+
+    override fun signal(signal: WaitSignal): Boolean =
+        waitStrategyRegistrar.next(signal)
+
+    override fun contains(waitCommandId: String): Boolean =
+        waitCommandId in waitStrategyRegistrar
 }
 
 /**
