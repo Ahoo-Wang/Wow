@@ -17,13 +17,12 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import me.ahoo.test.asserts.assert
-import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.command.validation.CommandValidator
+import me.ahoo.wow.command.wait.CommandWait
 import me.ahoo.wow.command.wait.CommandStage
+import me.ahoo.wow.command.wait.DefaultWaitCoordinator
 import me.ahoo.wow.command.wait.LocalCommandWaitNotifier
 import me.ahoo.wow.command.wait.SimpleCommandWaitEndpoint
-import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
-import me.ahoo.wow.command.wait.stage.WaitingForStage
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.infra.idempotency.DefaultAggregateIdempotencyCheckerProvider
 import me.ahoo.wow.infra.idempotency.IdempotencyChecker
@@ -45,9 +44,10 @@ internal class DefaultCommandGatewayTest : CommandGatewaySpec() {
     fun `should throw when sending void command with waiting for stage`() {
         val messageGateway = createMessageBus()
         val message = MockVoidCommand(generateGlobalId()).toCommandMessage()
-        assertThrownBy<IllegalArgumentException> {
-            messageGateway.sendAndWait(message, WaitingForStage.stage(message.commandId, CommandStage.PROCESSED, "", ""))
-        }
+        messageGateway.sendAndWait(message, CommandWait.stage(message.commandId, CommandStage.PROCESSED, "", ""))
+            .test()
+            .expectError(IllegalArgumentException::class.java)
+            .verify()
     }
 
     @Test
@@ -67,7 +67,7 @@ internal class DefaultCommandGatewayTest : CommandGatewaySpec() {
                 }
                 .verifyComplete()
         }
-        waitStrategyRegistrar.contains(message.commandId).assert().isFalse()
+        waitCoordinator.contains(message.commandId).assert().isFalse()
     }
 
     @Test
@@ -81,7 +81,7 @@ internal class DefaultCommandGatewayTest : CommandGatewaySpec() {
                 it.stage.assert().isEqualTo(CommandStage.SENT)
             }
             .verifyComplete()
-        waitStrategyRegistrar.contains(message.commandId).assert().isFalse()
+        waitCoordinator.contains(message.commandId).assert().isFalse()
     }
 
     @Test
@@ -89,13 +89,14 @@ internal class DefaultCommandGatewayTest : CommandGatewaySpec() {
         val commandBus = mockk<CommandBus> {
             every { send(any()) } returns IllegalArgumentException().toMono()
         }
+        val waitCoordinator = DefaultWaitCoordinator()
         val commandGateway = DefaultCommandGateway(
             commandWaitEndpoint = SimpleCommandWaitEndpoint(""),
             commandBus = commandBus,
             validator = TestValidator,
             idempotencyCheckerProvider = DefaultAggregateIdempotencyCheckerProvider { idempotencyChecker },
-            waitStrategyRegistrar = waitStrategyRegistrar,
-            commandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar)
+            waitCoordinator = waitCoordinator,
+            commandWaitNotifier = LocalCommandWaitNotifier(waitCoordinator)
         )
         val message = createMessage()
         commandGateway.sendAndWaitForSent(message)
@@ -107,7 +108,7 @@ internal class DefaultCommandGatewayTest : CommandGatewaySpec() {
                 commandResult.succeeded.assert().isFalse()
             }
             .verify()
-        waitStrategyRegistrar.contains(message.commandId).assert().isFalse()
+        waitCoordinator.contains(message.commandId).assert().isFalse()
     }
 
     @Test
@@ -120,7 +121,7 @@ internal class DefaultCommandGatewayTest : CommandGatewaySpec() {
                 .verify()
         }
         Thread.sleep(5)
-        waitStrategyRegistrar.contains(message.commandId).assert().isFalse()
+        waitCoordinator.contains(message.commandId).assert().isFalse()
     }
 
     @Test
@@ -134,7 +135,7 @@ internal class DefaultCommandGatewayTest : CommandGatewaySpec() {
                 .verify()
         }
         Thread.sleep(5)
-        waitStrategyRegistrar.contains(message.commandId).assert().isFalse()
+        waitCoordinator.contains(message.commandId).assert().isFalse()
     }
 
     @Test
@@ -142,13 +143,14 @@ internal class DefaultCommandGatewayTest : CommandGatewaySpec() {
         val commandBus = mockk<CommandBus> {
             every { send(any()) } returns IllegalArgumentException().toMono()
         }
+        val waitCoordinator = DefaultWaitCoordinator()
         val commandGateway = DefaultCommandGateway(
             commandWaitEndpoint = SimpleCommandWaitEndpoint(""),
             commandBus = commandBus,
             validator = TestValidator,
             idempotencyCheckerProvider = DefaultAggregateIdempotencyCheckerProvider { idempotencyChecker },
-            waitStrategyRegistrar = waitStrategyRegistrar,
-            commandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar)
+            waitCoordinator = waitCoordinator,
+            commandWaitNotifier = LocalCommandWaitNotifier(waitCoordinator)
         )
         val message = createMessage()
         commandGateway.sendAndWaitForProcessed(message)
@@ -157,7 +159,7 @@ internal class DefaultCommandGatewayTest : CommandGatewaySpec() {
             .expectError(CommandResultException::class.java)
             .verify()
         Thread.sleep(10)
-        waitStrategyRegistrar.contains(message.commandId).assert().isFalse()
+        waitCoordinator.contains(message.commandId).assert().isFalse()
     }
 
     @Test
@@ -165,6 +167,7 @@ internal class DefaultCommandGatewayTest : CommandGatewaySpec() {
         val commandBus = mockk<CommandBus> {
             every { send(any()) } returns Mono.empty()
         }
+        val waitCoordinator = DefaultWaitCoordinator()
         val commandGateway = DefaultCommandGateway(
             commandWaitEndpoint = SimpleCommandWaitEndpoint(""),
             commandBus = commandBus,
@@ -172,8 +175,8 @@ internal class DefaultCommandGatewayTest : CommandGatewaySpec() {
             idempotencyCheckerProvider = DefaultAggregateIdempotencyCheckerProvider {
                 IdempotencyChecker { Mono.just(false) }
             },
-            waitStrategyRegistrar = waitStrategyRegistrar,
-            commandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar)
+            waitCoordinator = waitCoordinator,
+            commandWaitNotifier = LocalCommandWaitNotifier(waitCoordinator)
         )
 
         commandGateway.send(createMessage())

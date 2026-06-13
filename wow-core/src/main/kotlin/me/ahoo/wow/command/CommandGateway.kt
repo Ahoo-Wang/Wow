@@ -18,11 +18,11 @@ import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.messaging.function.FunctionInfoData
 import me.ahoo.wow.api.messaging.function.FunctionKind
+import me.ahoo.wow.command.wait.CommandWait
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.SimpleWaitSignal
 import me.ahoo.wow.command.wait.WaitSignal
-import me.ahoo.wow.command.wait.WaitStrategy
-import me.ahoo.wow.command.wait.stage.WaitingForStage
+import me.ahoo.wow.command.wait.WaitPlan
 import me.ahoo.wow.exception.toErrorInfo
 import me.ahoo.wow.id.generateGlobalId
 import reactor.core.publisher.Flux
@@ -65,11 +65,11 @@ fun CommandMessage<*>.commandSentSignal(
  *
  * The Command Gateway provides a high-level API for sending commands to aggregates
  * and optionally waiting for their processing results. It supports various waiting
- * strategies to control how long to wait and what stage of processing to wait for.
+ * plans to control how long to wait and what stage of processing to wait for.
  *
  * @author ahoo wang
  * @see CommandBus
- * @see WaitStrategy
+ * @see WaitPlan
  * @see CommandResult
  */
 interface CommandGateway : CommandBus {
@@ -81,14 +81,14 @@ interface CommandGateway : CommandBus {
      *
      * @param C the type of the command
      * @param command the command message to send
-     * @param waitStrategy the strategy defining the processing stages to monitor
+     * @param waitPlan the plan defining the processing stages to monitor
      * @return a Flux emitting CommandResult objects as the command progresses
      * @see CommandResult
-     * @see WaitStrategy
+     * @see WaitPlan
      */
     fun <C : Any> sendAndWaitStream(
         command: CommandMessage<C>,
-        waitStrategy: WaitStrategy
+        waitPlan: WaitPlan
     ): Flux<CommandResult>
 
     /**
@@ -99,17 +99,17 @@ interface CommandGateway : CommandBus {
      *
      * @param C the type of the command
      * @param command the command message to send
-     * @param waitStrategy the strategy defining what stage to wait for
+     * @param waitPlan the plan defining what stage to wait for
      * @return a Mono emitting the final CommandResult
      * @throws CommandResultException if the command processing fails
      * @see CommandResult
-     * @see WaitStrategy
+     * @see WaitPlan
      * @see CommandResultException
      */
     @Throws(CommandResultException::class)
     fun <C : Any> sendAndWait(
         command: CommandMessage<C>,
-        waitStrategy: WaitStrategy
+        waitPlan: WaitPlan
     ): Mono<CommandResult>
 
     /**
@@ -122,10 +122,10 @@ interface CommandGateway : CommandBus {
      * @param command the command message to send
      * @return a Mono emitting the CommandResult when the command is sent
      * @see sendAndWait
-     * @see WaitingForStage.sent
+     * @see CommandWait.sent
      */
     fun <C : Any> sendAndWaitForSent(command: CommandMessage<C>): Mono<CommandResult> =
-        sendAndWait(command, WaitingForStage.sent(command.commandId))
+        sendAndWait(command, CommandWait.sent(command.commandId))
 
     /**
      * Sends a command and waits until it is fully processed by the aggregate.
@@ -137,10 +137,10 @@ interface CommandGateway : CommandBus {
      * @param command the command message to send
      * @return a Mono emitting the CommandResult when processing is complete
      * @see sendAndWait
-     * @see WaitingForStage.processed
+     * @see CommandWait.processed
      */
     fun <C : Any> sendAndWaitForProcessed(command: CommandMessage<C>): Mono<CommandResult> =
-        sendAndWait(command, WaitingForStage.processed(command.commandId))
+        sendAndWait(command, CommandWait.processed(command.commandId))
 
     /**
      * Sends a command and waits until the aggregate state is snapshotted.
@@ -153,8 +153,8 @@ interface CommandGateway : CommandBus {
      * @param command the command message to send
      * @return a Mono emitting the CommandResult when snapshot is created
      * @see sendAndWait
-     * @see WaitingForStage.snapshot
+     * @see CommandWait.snapshot
      */
     fun <C : Any> sendAndWaitForSnapshot(command: CommandMessage<C>): Mono<CommandResult> =
-        sendAndWait(command, WaitingForStage.snapshot(command.commandId))
+        sendAndWait(command, CommandWait.snapshot(command.commandId))
 }

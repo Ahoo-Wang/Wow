@@ -17,18 +17,19 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.validation.NoOpValidator
+import me.ahoo.wow.command.wait.CommandWait
 import me.ahoo.wow.command.wait.CommandStage
+import me.ahoo.wow.command.wait.DefaultWaitCoordinator
 import me.ahoo.wow.command.wait.RecordingCommandWaitNotifier
-import me.ahoo.wow.command.wait.RecordingWaitStrategyRegistrar
 import me.ahoo.wow.command.wait.SimpleCommandWaitEndpoint
 import me.ahoo.wow.command.wait.TestCommandMessage
-import me.ahoo.wow.command.wait.stage.WaitingForStage
+import me.ahoo.wow.command.wait.WaitCoordinator
+import me.ahoo.wow.command.wait.testSignal
 import me.ahoo.wow.command.wait.waitStrategyHeader
 import me.ahoo.wow.infra.idempotency.AggregateIdempotencyCheckerProvider
 import me.ahoo.wow.infra.idempotency.IdempotencyChecker
 import me.ahoo.wow.infra.idempotency.NoOpIdempotencyChecker
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
@@ -76,24 +77,112 @@ class DefaultCommandGatewayTest {
     }
 
     @Test
-    fun `send and wait stream propagates header registers strategy and emits sent result`() {
+    fun `send and wait stream propagates header creates handle and emits results in order`() {
         val commandBus = RecordingCommandBus()
-        val registrar = RecordingWaitStrategyRegistrar()
-        val gateway = commandGateway(commandBus = commandBus, registrar = registrar)
-        val waitStrategy = WaitingForStage.processed("wait-command-id")
+        val waitCoordinator = DefaultWaitCoordinator()
+        val gateway = commandGateway(commandBus = commandBus, waitCoordinator = waitCoordinator)
+        val waitPlan = CommandWait.processed("wait-command-id")
         val command = TestCommandMessage(id = "command-id")
 
-        StepVerifier.create(gateway.sendAndWaitStream(command, waitStrategy))
-            .expectNextCount(1)
-            .then {
-                registrar.get("wait-command-id").assert().isSameAs(waitStrategy)
+        StepVerifier.create(gateway.sendAndWaitStream(command, waitPlan))
+            .assertNext {
+                it.stage.assert().isEqualTo(CommandStage.SENT)
+                it.commandId.assert().isEqualTo("command-id")
             }
-            .thenCancel()
-            .verify()
+            .then {
+                waitCoordinator.signal(
+                    testSignal(
+                        CommandStage.PROCESSED,
+                        waitCommandId = "wait-command-id",
+                        commandId = "command-id",
+                        signalTime = 2,
+                    )
+                ).assert().isTrue()
+            }
+            .assertNext { it.stage.assert().isEqualTo(CommandStage.PROCESSED) }
+            .verifyComplete()
 
         commandBus.sent.single().assert().isSameAs(command)
         command.header["command_wait_endpoint"].assert().isEqualTo("test-command-wait-endpoint")
-        registrar.contains("wait-command-id").assert().isFalse()
+        waitCoordinator.contains("wait-command-id").assert().isFalse()
+    }
+
+    @Test
+    fun `send and wait returns last result`() {
+        val waitCoordinator = DefaultWaitCoordinator()
+        val gateway = commandGateway(waitCoordinator = waitCoordinator)
+        val command = TestCommandMessage(id = "command-id")
+        val waitPlan = CommandWait.processed("wait-command-id")
+
+        StepVerifier.create(gateway.sendAndWait(command, waitPlan))
+            .then {
+                waitCoordinator.signal(
+                    testSignal(
+                        CommandStage.PROCESSED,
+                        waitCommandId = "wait-command-id",
+                        commandId = "command-id",
+                    )
+                ).assert().isTrue()
+            }
+            .assertNext {
+                it.stage.assert().isEqualTo(CommandStage.PROCESSED)
+                it.waitCommandId.assert().isEqualTo("wait-command-id")
+            }
+            .verifyComplete()
+
+        waitCoordinator.contains("wait-command-id").assert().isFalse()
+    }
+
+    @Test
+    fun `send and wait stream does not create handle or send command before subscription`() {
+        val commandBus = RecordingCommandBus()
+        val waitCoordinator = DefaultWaitCoordinator()
+        val gateway = commandGateway(commandBus = commandBus, waitCoordinator = waitCoordinator)
+
+        gateway.sendAndWaitStream(
+            TestCommandMessage(id = "command-id"),
+            CommandWait.processed("wait-command-id"),
+        )
+
+        waitCoordinator.contains("wait-command-id").assert().isFalse()
+        commandBus.sent.assert().isEmpty()
+    }
+
+    @Test
+    fun `send and wait does not create handle or send command before subscription`() {
+        val commandBus = RecordingCommandBus()
+        val waitCoordinator = DefaultWaitCoordinator()
+        val gateway = commandGateway(commandBus = commandBus, waitCoordinator = waitCoordinator)
+
+        gateway.sendAndWait(
+            TestCommandMessage(id = "command-id"),
+            CommandWait.processed("wait-command-id"),
+        )
+
+        waitCoordinator.contains("wait-command-id").assert().isFalse()
+        commandBus.sent.assert().isEmpty()
+    }
+
+    @Test
+    fun `duplicate wait id is reported as reactive error on subscription`() {
+        val waitCoordinator = DefaultWaitCoordinator()
+        val gateway = commandGateway(waitCoordinator = waitCoordinator)
+        val activeHandle = waitCoordinator.createLast(CommandWait.processed("wait-command-id"))
+
+        val result = gateway.sendAndWait(
+            TestCommandMessage(id = "command-id"),
+            CommandWait.processed("wait-command-id"),
+        )
+
+        StepVerifier.create(result)
+            .expectErrorSatisfies {
+                it.assert().isInstanceOf(IllegalArgumentException::class.java)
+                it.message.assert().isEqualTo("Wait handle already registered for waitCommandId[wait-command-id].")
+            }
+            .verify()
+
+        activeHandle.cancel()
+        waitCoordinator.contains("wait-command-id").assert().isFalse()
     }
 
     @Test
@@ -101,35 +190,77 @@ class DefaultCommandGatewayTest {
         val commandBus = RecordingCommandBus().apply {
             sendResult = { Mono.error(IllegalStateException("bus failed")) }
         }
-        val registrar = RecordingWaitStrategyRegistrar()
-        val gateway = commandGateway(commandBus = commandBus, registrar = registrar)
-        val waitStrategy = WaitingForStage.processed("wait-command-id")
+        val waitCoordinator = DefaultWaitCoordinator()
+        val gateway = commandGateway(commandBus = commandBus, waitCoordinator = waitCoordinator)
+        val waitPlan = CommandWait.processed("wait-command-id")
 
-        StepVerifier.create(gateway.sendAndWaitStream(TestCommandMessage(id = "command-id"), waitStrategy))
-            .expectError(CommandResultException::class.java)
+        StepVerifier.create(gateway.sendAndWaitStream(TestCommandMessage(id = "command-id"), waitPlan))
+            .expectErrorSatisfies {
+                it.assert().isInstanceOf(CommandResultException::class.java)
+                val result = (it as CommandResultException).commandResult
+                result.waitCommandId.assert().isEqualTo("wait-command-id")
+                result.stage.assert().isEqualTo(CommandStage.SENT)
+                result.succeeded.assert().isFalse()
+            }
             .verify()
 
-        registrar.contains("wait-command-id").assert().isFalse()
+        waitCoordinator.contains("wait-command-id").assert().isFalse()
+        waitCoordinator.createStream(CommandWait.processed("wait-command-id")).cancel()
     }
 
     @Test
-    fun `void command requires a wait strategy that supports void commands`() {
-        val gateway = commandGateway()
+    fun `void command requires a wait plan that supports void commands and releases handle`() {
+        val waitCoordinator = DefaultWaitCoordinator()
+        val gateway = commandGateway(waitCoordinator = waitCoordinator)
 
-        val exception = assertThrows<IllegalArgumentException> {
+        StepVerifier.create(
             gateway.sendAndWaitStream(
                 TestCommandMessage(id = "void-command", isVoid = true),
-                WaitingForStage.processed("wait-command-id"),
+                CommandWait.processed("wait-command-id"),
             )
-        }
+        )
+            .expectErrorSatisfies {
+                it.assert().isInstanceOf(IllegalArgumentException::class.java)
+                it.message.assert().contains("must support void command")
+            }
+            .verify()
 
-        exception.message.assert().contains("must support void command")
+        waitCoordinator.contains("wait-command-id").assert().isFalse()
+        waitCoordinator.createStream(CommandWait.processed("wait-command-id")).cancel()
+    }
+
+    @Test
+    fun `send and wait stream cancellation releases handle and allows wait id reuse`() {
+        val waitCoordinator = DefaultWaitCoordinator()
+        val gateway = commandGateway(waitCoordinator = waitCoordinator)
+
+        StepVerifier.create(
+            gateway.sendAndWaitStream(
+                TestCommandMessage(id = "command-id"),
+                CommandWait.processed("wait-command-id"),
+            )
+        )
+            .expectNextCount(1)
+            .thenCancel()
+            .verify()
+
+        waitCoordinator.contains("wait-command-id").assert().isFalse()
+
+        StepVerifier.create(
+            gateway.sendAndWaitStream(
+                TestCommandMessage(id = "another-command-id"),
+                CommandWait.processed("wait-command-id"),
+            )
+        )
+            .expectNextCount(1)
+            .thenCancel()
+            .verify()
     }
 
     private fun commandGateway(
         commandBus: RecordingCommandBus = RecordingCommandBus(),
         idempotencyChecker: IdempotencyChecker = NoOpIdempotencyChecker,
-        registrar: RecordingWaitStrategyRegistrar = RecordingWaitStrategyRegistrar(),
+        waitCoordinator: WaitCoordinator = DefaultWaitCoordinator(),
         notifier: RecordingCommandWaitNotifier = RecordingCommandWaitNotifier(),
     ): DefaultCommandGateway =
         DefaultCommandGateway(
@@ -137,7 +268,7 @@ class DefaultCommandGatewayTest {
             commandBus = commandBus,
             validator = NoOpValidator,
             idempotencyCheckerProvider = AggregateIdempotencyCheckerProvider { idempotencyChecker },
-            waitStrategyRegistrar = registrar,
+            waitCoordinator = waitCoordinator,
             commandWaitNotifier = notifier,
         )
 }
