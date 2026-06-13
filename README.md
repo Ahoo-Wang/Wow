@@ -68,7 +68,7 @@ Wow was built to change that. After years of production validation, it distills 
 | **Horizontal Scalability** | No sharding rules needed, business code unchanged when scaling out |
 | **Distributed Transactions** | Saga orchestration pattern for carefully managed multi-service transactions |
 | **Event Compensation** | Visual dashboard + automatic retry with configurable `RetrySpec` for eventual consistency |
-| **Read-Write Separation** | `SENT` / `PROCESSED` / `PROJECTED` wait strategies eliminate sync-delay guesswork |
+| **Read-Write Separation** | `SENT` / `PROCESSED` / `PROJECTED` wait plans eliminate sync-delay guesswork |
 | **Observability** | End-to-end OpenTelemetry integration for tracing, metrics, and debugging |
 | **Reactive** | Non-blocking async messaging with Project Reactor throughout the entire stack |
 | **Event Sourcing** | Full state history via event replay, enabling powerful audit and time-travel debugging |
@@ -80,13 +80,13 @@ Wow was built to change that. After years of production validation, it distills 
 
 ### Command Processing Propagation Chain
 
-<p align="center"><img src="documentation/docs/public/images/wait/WaitingForChain.svg" alt="Command Processing Chain" width="95%"/></p>
+<p align="center"><img src="documentation/docs/public/images/wait/CommandWaitChain.svg" alt="Command Processing Chain" width="95%"/></p>
 
 ## Performance
 
 Stress test of the example application (2 min):
 
-| Operation | Wait Strategy | Avg TPS | Peak TPS | Avg Latency |
+| Operation | Wait Plan | Avg TPS | Peak TPS | Avg Latency |
 |-----------|--------------|---------|----------|-------------|
 | Add To Cart | `SENT` | 59,625 | 82,312 | 29 ms |
 | Add To Cart | `PROCESSED` | 18,696 | 24,141 | 239 ms |

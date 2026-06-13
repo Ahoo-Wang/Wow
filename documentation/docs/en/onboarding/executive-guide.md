@@ -89,7 +89,7 @@ Wow provides a comprehensive set of capabilities out of the box. The table below
 | Capability | What It Provides | Module | Strategic Value | Source |
 |---|---|---|---|---|
 | **DDD Aggregate Modeling** | First-class support for aggregate roots, state aggregates, value objects, and domain events. Three modeling patterns: single-class, inheritance, aggregation. | `wow-core` | Eliminates boilerplate; developers write only domain logic | [CLAUDE.md:46-47](https://github.com/Ahoo-Wang/Wow/blob/main/CLAUDE.md#L46-L47) |
-| **Command Bus** | Reactive command routing with configurable wait strategies (SENT, PROCESSED, PROJECTED, SAGA_HANDLED). Local-first routing for performance. | `wow-core`, `wow-kafka` | Decouples command senders from handlers; enables fire-and-forget or synchronous semantics | [CLAUDE.md:46-47](https://github.com/Ahoo-Wang/Wow/blob/main/CLAUDE.md#L46-L47) |
+| **Command Bus** | Reactive command routing with configurable wait plans (SENT, PROCESSED, PROJECTED, SAGA_HANDLED). Local-first routing for performance. | `wow-core`, `wow-kafka` | Decouples command senders from handlers; enables fire-and-forget or synchronous semantics | [CLAUDE.md:46-47](https://github.com/Ahoo-Wang/Wow/blob/main/CLAUDE.md#L46-L47) |
 | **Event Store** | Append-only event persistence with optimistic concurrency control. Backends: MongoDB, Redis, R2DBC (PostgreSQL/MySQL/MariaDB). | `wow-mongo`, `wow-redis`, `wow-r2dbc` | Full audit trail; point-in-time state reconstruction; no data loss | [wiki/en/deep-dive/data/event-store.md](https://github.com/Ahoo-Wang/Wow/blob/main/wiki/en/deep-dive/data/event-store.md) |
 | **Snapshot Store** | Periodic state snapshots to accelerate aggregate loading. Configurable snapshot intervals. | `wow-core`, `wow-mongo`, `wow-redis` | Prevents long event replays for high-event-count aggregates; keeps latency predictable | [wiki/en/deep-dive/data/snapshot-store.md](https://github.com/Ahoo-Wang/Wow/blob/main/wiki/en/deep-dive/data/snapshot-store.md) |
 | **Projections** | Reactive event-to-read-model transformation pipelines. Targets: Elasticsearch, R2DBC, in-memory. | `wow-core`, `wow-elasticsearch` | Enables CQRS read-optimized views without manual sync logic | [wiki/en/guide/projection.md](https://github.com/Ahoo-Wang/Wow/blob/main/wiki/en/guide/projection.md) |
@@ -221,7 +221,7 @@ The build-vs-buy calculation for event-sourced infrastructure on the JVM is star
 | Component | Estimated Engineering Months | Wow Equivalent |
 |---|---|---|
 | Event store with optimistic concurrency + snapshots | 4-6 months | `wow-core` + backend (Mongo/Redis/R2DBC) |
-| Reactive command bus with wait strategies | 2-3 months | `wow-core` + `wow-kafka` |
+| Reactive command bus with wait plans | 2-3 months | `wow-core` + `wow-kafka` |
 | Projection pipeline with read model sync | 3-4 months | `wow-core` + `wow-elasticsearch` |
 | Saga orchestration with compensation | 3-5 months | `wow-core` + `compensation/` |
 | Compile-time code generation for routing/metadata | 2-3 months | `wow-compiler` |

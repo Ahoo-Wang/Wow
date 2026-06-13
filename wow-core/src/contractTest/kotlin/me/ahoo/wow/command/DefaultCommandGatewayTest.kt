@@ -125,7 +125,7 @@ internal class DefaultCommandGatewayTest : CommandGatewaySpec() {
     }
 
     @Test
-    fun `should remove wait strategy when cancelled`() {
+    fun `should remove wait handle when cancelled`() {
         val message = createMessage()
         verify {
             sendAndWaitForSent(message)

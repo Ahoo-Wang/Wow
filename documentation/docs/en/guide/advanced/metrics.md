@@ -90,7 +90,7 @@ class OrderService(
         return Mono.fromCallable {
             Timer.Sample.start(meterRegistry)
         }.flatMap { sample ->
-            commandGateway.sendAndWait(createOrderCommand, WaitStrategy.PROCESSED)
+            commandGateway.sendAndWait(createOrderCommand, CommandWait.processed(createOrderCommand.commandId))
                 .doOnSuccess { result ->
                     sample.stop(orderCreationTimer)
                     // Business success metrics

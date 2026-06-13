@@ -14,7 +14,7 @@ package me.ahoo.wow.spring.boot.starter.webflux
 
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.factory.CommandMessageFactory
-import me.ahoo.wow.command.wait.WaitStrategyRegistrar
+import me.ahoo.wow.command.wait.WaitCoordinator
 import me.ahoo.wow.event.compensation.StateEventCompensator
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
@@ -197,9 +197,9 @@ class WebFluxAutoConfiguration {
     @Order(Ordered.HIGHEST_PRECEDENCE)
     @ConditionalOnMissingBean(name = [COMMAND_WAIT_HANDLER_FUNCTION_FACTORY_BEAN_NAME])
     fun commandWaitHandlerFunctionFactory(
-        waitStrategyRegistrar: WaitStrategyRegistrar
+        waitCoordinator: WaitCoordinator
     ): CommandWaitHandlerFunctionFactory {
-        return CommandWaitHandlerFunctionFactory(waitStrategyRegistrar = waitStrategyRegistrar)
+        return CommandWaitHandlerFunctionFactory(waitCoordinator = waitCoordinator)
     }
 
     @Bean

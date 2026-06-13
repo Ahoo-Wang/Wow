@@ -14,11 +14,12 @@
 package me.ahoo.wow.command.wait.chain
 
 import me.ahoo.wow.api.messaging.Header
+import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.messaging.function.NamedFunctionInfoData
 import me.ahoo.wow.command.wait.COMMAND_WAIT_PREFIX
 import me.ahoo.wow.command.wait.CommandStage
-import me.ahoo.wow.command.wait.WaitStrategy
 import me.ahoo.wow.command.wait.propagateCommandWaitEndpoint
+import me.ahoo.wow.command.wait.requireExtractCommandWaitEndpoint
 import me.ahoo.wow.infra.ifNotBlank
 
 /**
@@ -30,10 +31,10 @@ import me.ahoo.wow.infra.ifNotBlank
  * @param function The function criteria for the stage (may be empty for non-function stages).
  */
 class WaitingChainTail(
-    override val stage: CommandStage,
-    override val function: NamedFunctionInfoData
-) : WaitStrategy.FunctionMaterialized {
-    override fun propagate(
+    val stage: CommandStage,
+    val function: NamedFunctionInfoData
+) {
+    fun propagate(
         commandWaitEndpoint: String,
         header: Header
     ) {
@@ -49,6 +50,13 @@ class WaitingChainTail(
         function.name.ifNotBlank {
             header.with(COMMAND_WAIT_TAIL_FUNCTION, it)
         }
+    }
+
+    fun propagate(
+        header: Header,
+        upstream: Message<*, *>
+    ) {
+        propagate(upstream.header.requireExtractCommandWaitEndpoint(), header)
     }
 
     companion object {
@@ -137,18 +145,5 @@ class WaitingChainTail(
                 function = NamedFunctionInfoData.EMPTY,
             )
         }
-    }
-
-    fun CommandStage.toWaitingChainTail(function: NamedFunctionInfoData = NamedFunctionInfoData.EMPTY): WaitingChainTail {
-        if (shouldWaitFunction) {
-            return WaitingChainTail(
-                stage = this,
-                function = function,
-            )
-        }
-        return WaitingChainTail(
-            stage = this,
-            function = NamedFunctionInfoData.EMPTY,
-        )
     }
 }

@@ -34,7 +34,7 @@ create CommandExchange
 
 CommandExchange <- CommandBus++
 Client <-- CommandExchange
-Client -> CommandExchange: WaitingFor \n 1. Sent \n 2. Aggregate \n 3. Projector
+Client -> CommandExchange: WaitPlan \n 1. Sent \n 2. Aggregate \n 3. Projector
 
 CommandExchange -> FeedbackBus: Subscribe
 

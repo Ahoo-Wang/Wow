@@ -566,7 +566,7 @@ wow:
 |---|---|
 | [配置参考](../../reference/config/kafka.md) | `wow.kafka.*` 的完整属性参考 |
 | [Spring Boot Starter](spring-boot-starter.md) | 自动配置和功能变体 |
-| [命令网关](../command-gateway.md) | 命令网关和等待策略 |
+| [命令网关](../command-gateway.md) | 命令网关和等待计划 |
 | [事件处理器](../event-processor.md) | 事件处理管道 |
 | [可观察性](../advanced/observability.md) | 监控和追踪集成 |
 | [配置](../configuration.md) | 框架配置原则 |

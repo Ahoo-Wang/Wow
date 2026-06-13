@@ -170,5 +170,5 @@ To solve this problem, *Wow* integrates *OpenTelemetry* to achieve end-to-end ob
 ### Command Processing Propagation Chain
 
 <p align="center" style="text-align:center;">
-  <img  width="95%" src="../../public/images/wait/WaitingForChain.svg" alt="Wow-WaitingForChain"/>
+  <img  width="95%" src="../../public/images/wait/CommandWaitChain.svg" alt="Wow-CommandWaitChain"/>
 </p>

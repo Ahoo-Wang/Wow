@@ -23,7 +23,7 @@ const val COMMAND_SEND_ENDPOINT = "wow/command/send"
 
 data class CommandRequest(
     val body: Any,
-    val waitStrategy: WaitStrategy = WaitStrategy(),
+    val waitPlan: WaitPlan = WaitPlan(),
     val aggregateId: String? = null,
     val aggregateVersion: Int? = null,
     val tenantId: String? = null,
@@ -55,7 +55,7 @@ data class CommandRequest(
         return@lazy URI.create("$serviceHost/$COMMAND_SEND_ENDPOINT")
     }
 
-    data class WaitStrategy(
+    data class WaitPlan(
         val waitStage: CommandStage = CommandStage.PROCESSED,
         val waitContext: String? = null,
         val waitProcessor: String? = null,

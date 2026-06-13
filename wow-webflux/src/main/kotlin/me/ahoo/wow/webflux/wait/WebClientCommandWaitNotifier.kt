@@ -15,9 +15,9 @@ package me.ahoo.wow.webflux.wait
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.command.wait.CommandWaitNotifier
+import me.ahoo.wow.command.wait.WaitCoordinator
 import me.ahoo.wow.command.wait.WaitSignal
-import me.ahoo.wow.command.wait.WaitStrategyRegistrar
-import me.ahoo.wow.command.wait.isLocalWaitStrategy
+import me.ahoo.wow.command.wait.isLocalWaitCommandId
 import me.ahoo.wow.messaging.handler.DEFAULT_RETRY_SPEC
 import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.client.WebClient
@@ -25,7 +25,7 @@ import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
 
 class WebClientCommandWaitNotifier(
-    private val waitStrategyRegistrar: WaitStrategyRegistrar,
+    private val waitCoordinator: WaitCoordinator,
     private val webClient: WebClient
 ) : CommandWaitNotifier {
     companion object {
@@ -34,11 +34,11 @@ class WebClientCommandWaitNotifier(
 
     override fun notify(commandWaitEndpoint: String, waitSignal: WaitSignal): Mono<Void> {
         return Mono.defer {
-            if (isLocalWaitStrategy(waitSignal.id)) {
+            if (isLocalWaitCommandId(waitSignal.waitCommandId)) {
                 log.debug {
                     "Notify Local - waitSignal: $waitSignal."
                 }
-                waitStrategyRegistrar.next(waitSignal)
+                waitCoordinator.signal(waitSignal)
                 return@defer Mono.empty()
             }
             log.debug {

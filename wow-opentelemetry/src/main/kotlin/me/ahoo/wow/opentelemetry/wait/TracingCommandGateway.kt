@@ -13,13 +13,16 @@
 
 package me.ahoo.wow.opentelemetry.wait
 
+import io.opentelemetry.context.Context
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.ServerCommandExchange
-import me.ahoo.wow.command.wait.WaitStrategy
+import me.ahoo.wow.command.wait.WaitPlan
 import me.ahoo.wow.infra.Decorator
+import me.ahoo.wow.opentelemetry.TraceFlux
+import me.ahoo.wow.opentelemetry.TraceMono
 import me.ahoo.wow.opentelemetry.Traced
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -27,16 +30,26 @@ import reactor.core.publisher.Mono
 class TracingCommandGateway(override val delegate: CommandGateway) : Traced, CommandGateway, Decorator<CommandGateway> {
     override fun <C : Any> sendAndWaitStream(
         command: CommandMessage<C>,
-        waitStrategy: WaitStrategy
+        waitPlan: WaitPlan
     ): Flux<CommandResult> {
-        return delegate.sendAndWaitStream(command, waitStrategy.tracing(command))
+        return TraceFlux(
+            parentContext = Context.current(),
+            instrumenter = WaitPlanInstrumenter.INSTRUMENTER,
+            request = command,
+            source = delegate.sendAndWaitStream(command, waitPlan),
+        )
     }
 
     override fun <C : Any> sendAndWait(
         command: CommandMessage<C>,
-        waitStrategy: WaitStrategy
+        waitPlan: WaitPlan
     ): Mono<CommandResult> {
-        return delegate.sendAndWait(command, waitStrategy.tracing(command))
+        return TraceMono(
+            parentContext = Context.current(),
+            instrumenter = WaitPlanInstrumenter.INSTRUMENTER,
+            request = command,
+            source = delegate.sendAndWait(command, waitPlan),
+        )
     }
 
     override fun send(message: CommandMessage<*>): Mono<Void> {

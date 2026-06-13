@@ -60,9 +60,9 @@ class Order(private val state: OrderState)
 | `@CommandRoute(method = PUT)`    | PUT         | `/{resource}/{command}`   |
 | `@CommandRoute(method = DELETE)` | DELETE      | `/{resource}/{command}`   |
 
-## Wait Strategy Integration
+## Wait Plan Integration
 
-The WebFlux extension supports specifying wait strategies through HTTP headers:
+The WebFlux extension supports specifying wait plans through HTTP headers:
 
 ```http
 POST /cart/123/add_cart_item
@@ -76,7 +76,7 @@ Command-Wait-Timeout: 30000
 }
 ```
 
-### Supported Wait Strategies
+### Supported Wait Plans
 
 - `SENT`: Command sent
 - `PROCESSED`: Command processed
@@ -131,9 +131,10 @@ class CustomController(
 
     @PostMapping("/custom/{id}")
     fun customCommand(@PathVariable id: String): Mono<CommandResult> {
+        val command = CustomCommand(id = id).toCommandMessage()
         return commandGateway.sendAndWait(
-            CustomCommand(id = id),
-            WaitStrategy.PROCESSED
+            command,
+            CommandWait.processed(command.commandId)
         )
     }
 }
@@ -165,11 +166,11 @@ logging:
 Automatically collects the following metrics:
 - Request latency and throughput
 - Error rate statistics
-- Wait strategy usage
+- Wait plan usage
 
 ## Best Practices
 
-1. **Use Wait Strategies**: Choose appropriate wait strategies based on business requirements
+1. **Use Wait Plans**: Choose appropriate wait plans based on business requirements
 2. **Error Handling**: Implement global exception handlers
 3. **Security**: Enable authentication and authorization checks
 4. **Monitoring**: Configure appropriate log levels and metrics collection

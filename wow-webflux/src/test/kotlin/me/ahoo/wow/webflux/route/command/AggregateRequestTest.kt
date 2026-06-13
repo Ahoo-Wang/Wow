@@ -18,10 +18,9 @@ import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.annotation.AggregateRoute
 import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.command.wait.ChainWaitTarget
 import me.ahoo.wow.command.wait.CommandStage
-import me.ahoo.wow.command.wait.chain.SimpleWaitingChain
-import me.ahoo.wow.command.wait.chain.SimpleWaitingForChain
-import me.ahoo.wow.command.wait.stage.WaitingForStage
+import me.ahoo.wow.command.wait.StageWaitTarget
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.CommonComponent
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent
@@ -235,7 +234,7 @@ class AggregateRequestTest {
     }
 
     @Test
-    fun `should extract waiting for stage wait strategy`() {
+    fun `should extract stage wait plan`() {
         val commandMessage = mockk<CommandMessage<Any>> {
             every { commandId } returns generateGlobalId()
             every { contextName } returns generateGlobalId()
@@ -244,17 +243,16 @@ class AggregateRequestTest {
         val request = MockServerRequest.builder()
             .header(CommandComponent.Header.WAIT_STAGE, CommandStage.SAGA_HANDLED.name)
             .build()
-        val waitStrategy = request.extractWaitStrategy(commandMessage)
-        waitStrategy.assert().isInstanceOf(WaitingForStage::class.java)
-        waitStrategy.waitCommandId.assert().isEqualTo(commandMessage.commandId)
-        val waitingForStageMaterialized = waitStrategy.materialized as WaitingForStage.Materialized
-        waitingForStageMaterialized.function.assert().isNotNull()
-        waitingForStageMaterialized.stage.assert().isEqualTo(CommandStage.SAGA_HANDLED)
-        waitingForStageMaterialized.function!!.contextName.assert().isEqualTo(commandMessage.contextName)
+        val waitPlan = request.extractWaitPlan(commandMessage)
+        waitPlan.waitCommandId.assert().isEqualTo(commandMessage.commandId)
+        val target = waitPlan.target as StageWaitTarget
+        target.function.assert().isNotNull()
+        target.stage.assert().isEqualTo(CommandStage.SAGA_HANDLED)
+        target.function!!.contextName.assert().isEqualTo(commandMessage.contextName)
     }
 
     @Test
-    fun `should extract simple waiting for chain strategy`() {
+    fun `should extract simple chain wait plan`() {
         val commandMessage = mockk<CommandMessage<Any>> {
             every { commandId } returns generateGlobalId()
             every { contextName } returns generateGlobalId()
@@ -264,13 +262,11 @@ class AggregateRequestTest {
             .header(CommandComponent.Header.WAIT_STAGE, CommandStage.SAGA_HANDLED.name)
             .header(CommandComponent.Header.WAIT_TAIL_STAGE, CommandStage.PROJECTED.name)
             .build()
-        val waitStrategy = request.extractWaitStrategy(commandMessage)
-        waitStrategy.assert().isInstanceOf(SimpleWaitingForChain::class.java)
-        waitStrategy.waitCommandId.assert().isEqualTo(commandMessage.commandId)
-        val simpleWaitingChain = waitStrategy.materialized as SimpleWaitingChain
-        simpleWaitingChain.function.assert().isNotNull()
-        simpleWaitingChain.function.contextName.assert().isEqualTo(commandMessage.contextName)
-        simpleWaitingChain.tail.stage.assert().isEqualTo(CommandStage.PROJECTED)
-        simpleWaitingChain.tail.function.contextName.assert().isEqualTo(commandMessage.contextName)
+        val waitPlan = request.extractWaitPlan(commandMessage)
+        waitPlan.waitCommandId.assert().isEqualTo(commandMessage.commandId)
+        val target = waitPlan.target as ChainWaitTarget
+        target.function.contextName.assert().isEqualTo(commandMessage.contextName)
+        target.tail.stage.assert().isEqualTo(CommandStage.PROJECTED)
+        target.tail.function.contextName.assert().isEqualTo(commandMessage.contextName)
     }
 }

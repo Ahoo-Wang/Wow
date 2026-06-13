@@ -25,7 +25,7 @@ import me.ahoo.wow.command.wait.SimpleCommandWaitEndpoint
 import me.ahoo.wow.command.wait.TestCommandMessage
 import me.ahoo.wow.command.wait.WaitCoordinator
 import me.ahoo.wow.command.wait.testSignal
-import me.ahoo.wow.command.wait.waitStrategyHeader
+import me.ahoo.wow.command.wait.waitPlanHeader
 import me.ahoo.wow.infra.idempotency.AggregateIdempotencyCheckerProvider
 import me.ahoo.wow.infra.idempotency.IdempotencyChecker
 import me.ahoo.wow.infra.idempotency.NoOpIdempotencyChecker
@@ -52,12 +52,12 @@ class DefaultCommandGatewayTest {
     }
 
     @Test
-    fun `send notifies extracted wait strategy after command is sent`() {
+    fun `send notifies extracted wait plan after command is sent`() {
         val notifier = RecordingCommandWaitNotifier()
         val gateway = commandGateway(notifier = notifier)
         val command = TestCommandMessage(
             id = "command-id",
-            header = waitStrategyHeader(
+            header = waitPlanHeader(
                 waitCommandId = "wait-command-id",
                 endpoint = "wait-endpoint",
                 stage = CommandStage.PROCESSED,

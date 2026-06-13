@@ -34,9 +34,9 @@ import reactor.core.publisher.Mono
 import reactor.util.context.Context
 
 /**
- * A Mono wrapper that automatically notifies wait strategies when command processing completes.
+ * A Mono wrapper that automatically notifies wait plans when command processing completes.
  * This class intercepts the completion of a Mono<Void> operation and sends appropriate
- * wait signals to registered wait strategies based on the processing stage and message exchange.
+ * wait signals based on the processing stage and message exchange.
  *
  * @param E The type of message exchange.
  * @param M The type of message in the exchange.
@@ -53,8 +53,8 @@ class MonoCommandWaitNotifier<E, M>(
 ) : Mono<Void>() where E : MessageExchange<*, M>, M : Message<*, *>, M : CommandId, M : NamedBoundedContext, M : AggregateIdCapable {
     override fun subscribe(actual: CoreSubscriber<in Void>) {
         val message = messageExchange.message
-        val waitStrategy = message.header.extractWaitStrategy() ?: return source.subscribe(actual)
-        if (!waitStrategy.waitStrategy.shouldNotify(processingStage)) {
+        val waitPlan = message.header.extractWaitPlan() ?: return source.subscribe(actual)
+        if (!waitPlan.plan.target.shouldNotify(processingStage)) {
             return source.subscribe(actual)
         }
 
@@ -62,7 +62,7 @@ class MonoCommandWaitNotifier<E, M>(
             CommandWaitNotifierSubscriber(
                 commandWaitNotifier = commandWaitNotifier,
                 processingStage = processingStage,
-                waitStrategy = waitStrategy,
+                waitPlan = waitPlan,
                 messageExchange = messageExchange,
                 actual = actual,
             ),
@@ -79,14 +79,14 @@ class MonoCommandWaitNotifier<E, M>(
  * @param M The type of message in the exchange.
  * @param commandWaitNotifier The notifier for sending wait signals.
  * @param processingStage The stage of processing being completed.
- * @param waitStrategy The extracted wait strategy containing notification details.
+ * @param waitPlan The extracted wait plan containing notification details.
  * @param messageExchange The message exchange with processing context.
  * @param actual The actual subscriber to delegate completion events to.
  */
 class CommandWaitNotifierSubscriber<E, M>(
     private val commandWaitNotifier: CommandWaitNotifier,
     private val processingStage: CommandStage,
-    private val waitStrategy: ExtractedWaitStrategy,
+    private val waitPlan: ExtractedWaitPlan,
     private val messageExchange: E,
     private val actual: CoreSubscriber<in Void>
 ) : BaseSubscriber<Void>() where E : MessageExchange<*, M>, M : Message<*, *>, M : CommandId, M : NamedBoundedContext, M : AggregateIdCapable {
@@ -138,7 +138,7 @@ class CommandWaitNotifierSubscriber<E, M>(
 
         val waitSignal = functionInfo.toWaitSignal(
             id = messageExchange.message.id,
-            waitCommandId = waitStrategy.waitCommandId,
+            waitCommandId = waitPlan.waitCommandId,
             commandId = messageExchange.message.commandId,
             aggregateId = messageExchange.message.aggregateId,
             stage = processingStage,
@@ -150,7 +150,7 @@ class CommandWaitNotifierSubscriber<E, M>(
             result = messageExchange.getCommandResult(),
             commands = getCommands()
         )
-        commandWaitNotifier.notifyAndForget(waitStrategy, waitSignal)
+        commandWaitNotifier.notifyAndForget(waitPlan, waitSignal)
     }
 
     override fun hookOnComplete() {
@@ -161,7 +161,7 @@ class CommandWaitNotifierSubscriber<E, M>(
 }
 
 /**
- * Extension function that wraps a Mono<Void> to automatically notify wait strategies on completion.
+ * Extension function that wraps a Mono<Void> to automatically notify wait plans on completion.
  * This provides a convenient way to add wait notification behavior to any Mono<Void> operation
  * in the command processing pipeline.
  *

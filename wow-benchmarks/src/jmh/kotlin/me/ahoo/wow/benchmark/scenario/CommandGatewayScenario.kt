@@ -21,10 +21,10 @@ import me.ahoo.wow.command.DefaultCommandGateway
 import me.ahoo.wow.command.InMemoryCommandBus
 import me.ahoo.wow.command.wait.CommandWaitEndpoint
 import me.ahoo.wow.command.wait.CommandWaitNotifier
+import me.ahoo.wow.command.wait.DefaultWaitCoordinator
 import me.ahoo.wow.command.wait.LocalCommandWaitNotifier
 import me.ahoo.wow.command.wait.SimpleCommandWaitEndpoint
-import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
-import me.ahoo.wow.command.wait.WaitStrategyRegistrar
+import me.ahoo.wow.command.wait.WaitCoordinator
 import me.ahoo.wow.infra.idempotency.AggregateIdempotencyCheckerProvider
 import me.ahoo.wow.infra.idempotency.DefaultAggregateIdempotencyCheckerProvider
 import me.ahoo.wow.infra.idempotency.NoOpIdempotencyChecker
@@ -36,7 +36,7 @@ class CommandGatewayScenario private constructor(
     val commandBus: CommandBus,
     val commandGateway: CommandGateway,
     val commandWaitNotifier: CommandWaitNotifier,
-    val waitStrategyRegistrar: WaitStrategyRegistrar,
+    val waitCoordinator: WaitCoordinator,
     private val subscription: Disposable?,
 ) : AutoCloseable {
 
@@ -52,8 +52,8 @@ class CommandGatewayScenario private constructor(
                 DefaultAggregateIdempotencyCheckerProvider {
                     NoOpIdempotencyChecker
                 },
-            waitStrategyRegistrar: WaitStrategyRegistrar = SimpleWaitStrategyRegistrar,
-            commandWaitNotifier: CommandWaitNotifier = LocalCommandWaitNotifier(waitStrategyRegistrar),
+            waitCoordinator: WaitCoordinator = DefaultWaitCoordinator(),
+            commandWaitNotifier: CommandWaitNotifier = LocalCommandWaitNotifier(waitCoordinator),
             commandWaitEndpoint: CommandWaitEndpoint = SimpleCommandWaitEndpoint(""),
             subscribeToCart: Boolean = true,
         ): CommandGatewayScenario {
@@ -61,7 +61,7 @@ class CommandGatewayScenario private constructor(
                 commandBus = InMemoryCommandBus(),
                 validator = validator,
                 idempotencyCheckerProvider = idempotencyCheckerProvider,
-                waitStrategyRegistrar = waitStrategyRegistrar,
+                waitCoordinator = waitCoordinator,
                 commandWaitNotifier = commandWaitNotifier,
                 commandWaitEndpoint = commandWaitEndpoint,
                 subscribeToCart = subscribeToCart,
@@ -75,8 +75,8 @@ class CommandGatewayScenario private constructor(
                 DefaultAggregateIdempotencyCheckerProvider {
                     NoOpIdempotencyChecker
                 },
-            waitStrategyRegistrar: WaitStrategyRegistrar = SimpleWaitStrategyRegistrar,
-            commandWaitNotifier: CommandWaitNotifier = LocalCommandWaitNotifier(waitStrategyRegistrar),
+            waitCoordinator: WaitCoordinator = DefaultWaitCoordinator(),
+            commandWaitNotifier: CommandWaitNotifier = LocalCommandWaitNotifier(waitCoordinator),
             commandWaitEndpoint: CommandWaitEndpoint = SimpleCommandWaitEndpoint(""),
             subscribeToCart: Boolean = true,
         ): CommandGatewayScenario {
@@ -85,7 +85,7 @@ class CommandGatewayScenario private constructor(
                 commandBus = commandBus,
                 validator = validator,
                 idempotencyCheckerProvider = idempotencyCheckerProvider,
-                waitStrategyRegistrar = waitStrategyRegistrar,
+                waitCoordinator = waitCoordinator,
                 commandWaitNotifier = commandWaitNotifier,
             )
             val subscription = if (subscribeToCart) {
@@ -99,7 +99,7 @@ class CommandGatewayScenario private constructor(
                 commandBus = commandBus,
                 commandGateway = commandGateway,
                 commandWaitNotifier = commandWaitNotifier,
-                waitStrategyRegistrar = waitStrategyRegistrar,
+                waitCoordinator = waitCoordinator,
                 subscription = subscription,
             )
         }

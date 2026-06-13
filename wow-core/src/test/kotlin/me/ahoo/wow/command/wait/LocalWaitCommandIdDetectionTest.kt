@@ -11,20 +11,21 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.command.wait.stage
+package me.ahoo.wow.command.wait
 
-import me.ahoo.wow.command.wait.CommandStage
+import me.ahoo.test.asserts.assert
+import me.ahoo.wow.id.generateGlobalId
+import org.junit.jupiter.api.Test
 
-/**
- * Wait strategy that waits for aggregate snapshots to be generated.
- * This strategy completes when both command processing and snapshot creation are finished.
- * Snapshots are used for performance optimization in high-throughput scenarios.
- *
- * @param waitCommandId The unique identifier for this wait strategy.
- */
-class WaitingForSnapshot(
-    override val waitCommandId: String
-) : WaitingForAfterProcessed() {
-    override val stage: CommandStage
-        get() = CommandStage.SNAPSHOT
+class LocalWaitCommandIdDetectionTest {
+
+    @Test
+    fun `blank command wait id is not local`() {
+        isLocalWaitCommandId("").assert().isFalse()
+    }
+
+    @Test
+    fun `generated global id is detected as local`() {
+        isLocalWaitCommandId(generateGlobalId()).assert().isTrue()
+    }
 }

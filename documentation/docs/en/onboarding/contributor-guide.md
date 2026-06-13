@@ -101,7 +101,7 @@ sequenceDiagram
     participant AP as AggregateProcessor
     participant ES as EventStore
 
-    Client->>GW: sendAndWait(command, waitStrategy)
+    Client->>GW: sendAndWait(command, waitPlan)
     Note over GW: Returns Mono<CommandResult>
     GW->>CB: dispatch(command)
     CB->>AP: process(command)
@@ -113,7 +113,7 @@ sequenceDiagram
     GW-->>Client: emit CommandResult
 ```
 
-<!-- Sources: CommandGateway.kt:89-92 (send), CommandAggregate.kt:65-82 (CommandState lifecycle), WaitStrategy.kt:60-81 (waiting) -->
+<!-- Sources: CommandGateway.kt:89-92 (send), CommandAggregate.kt:65-82 (CommandState lifecycle), WaitPlan.kt:60-81 (waiting) -->
 
 **Common Mono patterns in Wow:**
 
@@ -467,10 +467,10 @@ sequenceDiagram
     participant SAGG as StateAggregate
     participant ES as EventStore
     participant EB as EventBus
-    participant WS as WaitStrategy
+    participant WS as WaitPlan
 
     Client->>WF: POST /sales-order/{id} {CreateOrder}
-    WF->>GW: sendAndWait(command, waitStrategy)
+    WF->>GW: sendAndWait(command, waitPlan)
     GW->>CB: dispatch(commandMessage)
     CB->>AP: process(command)
 
@@ -506,7 +506,7 @@ sequenceDiagram
     WF-->>Client: HTTP 200 + result
 ```
 
-<!-- Sources: CommandGateway.kt:89-178, CommandAggregate.kt:41-53, CommandState.kt:65-118, WaitStrategy.kt:60-176, Order.kt:106-138, OrderState.kt:82-118 -->
+<!-- Sources: CommandGateway.kt:89-178, CommandAggregate.kt:41-53, CommandState.kt:65-118, WaitPlan.kt:60-176, Order.kt:106-138, OrderState.kt:82-118 -->
 
 ---
 
@@ -543,9 +543,9 @@ sequenceDiagram
 
 ---
 
-### Wait Strategies: Controlling Command Response Timing
+### Wait Plans: Controlling Command Response Timing
 
-The `WaitStrategy` interface controls how long the caller waits and what stage of processing triggers the response.
+The `WaitPlan` interface controls how long the caller waits and what stage of processing triggers the response.
 
 | Strategy | Method | Returns When | Use Case |
 |---|---|---|---|
@@ -553,13 +553,13 @@ The `WaitStrategy` interface controls how long the caller waits and what stage o
 | PROCESSED | `sendAndWaitForProcessed()` | Aggregate processed, events published | Synchronous request-response, read-your-writes |
 | SNAPSHOT | `sendAndWaitForSnapshot()` | State snapshot persisted | Ensuring durability before responding |
 
-<!-- Sources: CommandGateway.kt:145-177, WaitStrategy.kt:60-176 -->
+<!-- Sources: CommandGateway.kt:145-177, WaitPlan.kt:60-176 -->
 
 > [CommandGateway.kt:145-177](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt#L145-L177)
 
 Performance benchmarks from the README show the impact:
 
-| Scenario | WaitStrategy | Average TPS | Average Response Time |
+| Scenario | WaitPlan | Average TPS | Average Response Time |
 |---|---|---|---|
 | Add to Cart | SENT | 59,625 | 29 ms |
 | Add to Cart | PROCESSED | 18,696 | 239 ms |
@@ -580,9 +580,9 @@ Source: [README.md:70-99](https://github.com/Ahoo-Wang/Wow/blob/main/README.md#L
 | `DomainEvent<T>` | `wow-api` | Immutable fact about past state change, carries aggregate identity | [DomainEvent.kt:52](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/event/DomainEvent.kt#L52) |
 | `Message<SOURCE, T>` | `wow-api` | Generic message with header + body, fluent API | [Message.kt:38](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/messaging/Message.kt#L38) |
 | `CommandAggregate<C, S>` | `wow-core` | Runtime aggregate coordinating command ↔ state ↔ events | [CommandAggregate.kt:41](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/CommandAggregate.kt#L41) |
-| `CommandGateway` | `wow-core` | High-level send API with wait strategy support | [CommandGateway.kt:75](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt#L75) |
+| `CommandGateway` | `wow-core` | High-level send API with wait plan support | [CommandGateway.kt:75](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt#L75) |
 | `CommandBus` | `wow-core` | Low-level command dispatch | [CommandBus.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandBus.kt) |
-| `WaitStrategy` | `wow-core` | Controls how long to wait for command results | [WaitStrategy.kt:60](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitStrategy.kt#L60) |
+| `WaitPlan` | `wow-core` | Controls how long to wait for command results | [WaitPlan.kt:60](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitPlan.kt#L60) |
 | `CommandState` | `wow-core` | Aggregate lifecycle state machine: STORED → SOURCED → EXPIRED | [CommandAggregate.kt:65](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/CommandAggregate.kt#L65) |
 | `AggregateVerifier` | `wow-test` | Entry point for aggregate unit testing (Given-When-Expect) | [AggregateVerifier.kt:57](https://github.com/Ahoo-Wang/Wow/blob/main/test/wow-test/src/main/kotlin/me/ahoo/wow/test/AggregateVerifier.kt#L57) |
 | `SagaVerifier` | `wow-test` | Entry point for saga unit testing | [SagaVerifier.kt](https://github.com/Ahoo-Wang/Wow/blob/main/test/wow-test/src/main/kotlin/me/ahoo/wow/test/SagaVerifier.kt) |
@@ -1047,7 +1047,7 @@ allEvents!!.forEach { println("Event: ${it.body}") }
 | **Bounded Context** | A DDD term for a boundary within which a domain model is consistent. In Wow, defined by the `@BoundedContext` annotation and the `contextName` in `AggregateId`. | [AggregateId.kt:29](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/modeling/AggregateId.kt#L29) |
 | **Command** | A request to change the state of an aggregate. Represented by `CommandMessage<C>`. Commands are imperative: "Do this." | [CommandMessage.kt:53](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/command/CommandMessage.kt#L53) |
 | **Command Bus** | Low-level dispatch mechanism for commands. Transports commands to the appropriate aggregate processor. | [CommandBus.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandBus.kt) |
-| **Command Gateway** | High-level API for sending commands with wait strategy support. Returns `Mono<CommandResult>`. | [CommandGateway.kt:75](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt#L75) |
+| **Command Gateway** | High-level API for sending commands with wait plan support. Returns `Mono<CommandResult>`. | [CommandGateway.kt:75](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt#L75) |
 | **CQRS** | Command Query Responsibility Segregation. Commands (writes) are separated from queries (reads). Different models, different stores. | [CLAUDE.md:7](https://github.com/Ahoo-Wang/Wow/blob/main/CLAUDE.md#L7) |
 | **Domain Event** | An immutable fact about something that happened. Represented by `DomainEvent<T>`. Events are declarative: "This happened." | [DomainEvent.kt:52](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/event/DomainEvent.kt#L52) |
 | **Event Sourcing** | Storing state as a sequence of events. Current state = replay all events. Enables audit trail, temporal queries, and event-driven architectures. | [DomainEvent.kt:22-51](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/event/DomainEvent.kt#L22-L51) |
@@ -1057,7 +1057,7 @@ allEvents!!.forEach { println("Event: ${it.body}") }
 | **Saga** | A long-running business process that coordinates multiple aggregates. Listens to events and sends commands. Can be stateless (`@StatelessSaga`) or stateful. | [StatelessSaga.kt:69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/StatelessSaga.kt#L69) |
 | **Snapshot** | A point-in-time capture of aggregate state. Avoids replaying all events from the beginning. Automatically managed by the framework. | [CLAUDE.md:68](https://github.com/Ahoo-Wang/Wow/blob/main/CLAUDE.md#L68) |
 | **State Sourcing** | The process of applying domain events to reconstruct aggregate state. Functions annotated with `@OnSourcing`. Must be deterministic. | [OnSourcing.kt:59](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/OnSourcing.kt#L59) |
-| **Wait Strategy** | Controls when a command caller receives a response: SENT (accepted), PROCESSED (executed), or SNAPSHOT (persisted). | [WaitStrategy.kt:60](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitStrategy.kt#L60) |
+| **Wait Plan** | Controls when a command caller receives a response: SENT (accepted), PROCESSED (executed), or SNAPSHOT (persisted). | [WaitPlan.kt:60](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitPlan.kt#L60) |
 | **Compensation** | The process of recovering from failures in distributed sagas. Wow includes a compensation engine and a React dashboard for monitoring. | [compensation/ in settings.gradle.kts](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L56-L63) |
 
 ---
@@ -1124,7 +1124,7 @@ Use this table to navigate the codebase quickly.
 | [`config/detekt/detekt.yml`](https://github.com/Ahoo-Wang/Wow/blob/main/config/detekt/detekt.yml) | Static analysis rule configuration |
 | [`wow-api/src/main/kotlin/me/ahoo/wow/api/`](https://github.com/Ahoo-Wang/Wow/tree/main/wow-api/src/main/kotlin/me/ahoo/wow/api) | All API contracts: `CommandMessage`, `DomainEvent`, `AggregateId`, `Named`, annotations |
 | [`wow-api/.../annotation/`](https://github.com/Ahoo-Wang/Wow/tree/main/wow-api/src/main/kotlin/me/ahoo/wow/api/annotation) | Annotations: `@AggregateRoot`, `@OnCommand`, `@OnSourcing`, `@StatelessSaga`, `@Retry`, etc. |
-| [`wow-core/src/main/kotlin/me/ahoo/wow/command/`](https://github.com/Ahoo-Wang/Wow/tree/main/wow-core/src/main/kotlin/me/ahoo/wow/command) | `CommandGateway`, `CommandBus`, `WaitStrategy`, `CommandResult` |
+| [`wow-core/src/main/kotlin/me/ahoo/wow/command/`](https://github.com/Ahoo-Wang/Wow/tree/main/wow-core/src/main/kotlin/me/ahoo/wow/command) | `CommandGateway`, `CommandBus`, `WaitPlan`, `CommandResult` |
 | [`wow-core/.../modeling/command/CommandAggregate.kt`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/CommandAggregate.kt) | `CommandAggregate<C, S>` — the runtime aggregate that processes commands |
 | [`wow-core/.../modeling/state/`](https://github.com/Ahoo-Wang/Wow/tree/main/wow-core/src/main/kotlin/me/ahoo/wow/modeling/state) | `StateAggregate<S>` — the state container sourced from events |
 | [`test/wow-test/`](https://github.com/Ahoo-Wang/Wow/tree/main/test/wow-test/src/main/kotlin/me/ahoo/wow/test) | `AggregateSpec`, `AggregateVerifier`, `SagaSpec`, `SagaVerifier` |

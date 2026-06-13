@@ -16,7 +16,7 @@ package me.ahoo.wow.command.wait
 /**
  * Interface for defining command wait endpoints.
  * Command wait endpoints specify where command processing results should be sent
- * when using wait strategies in distributed scenarios.
+ * when using wait plans in distributed scenarios.
  */
 interface CommandWaitEndpoint {
     /**

@@ -25,7 +25,7 @@ import me.ahoo.wow.command.wait.WaitLastHandle
 import me.ahoo.wow.command.wait.WaitPlan
 import me.ahoo.wow.command.wait.WaitSignal
 import me.ahoo.wow.command.wait.WaitStreamHandle
-import me.ahoo.wow.command.wait.extractWaitStrategy
+import me.ahoo.wow.command.wait.extractWaitPlan
 import me.ahoo.wow.command.wait.notifyAndForget
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.infra.idempotency.AggregateIdempotencyCheckerProvider
@@ -109,7 +109,7 @@ class DefaultCommandGateway(
 
     /**
      * Sends a command message through the command bus after performing validation and idempotency checks.
-     * Notifies wait strategies if configured in the message header.
+     * Notifies wait plans if configured in the message header.
      *
      * @param message The command message to send.
      * @return A Mono that completes when the command is successfully sent.
@@ -122,13 +122,13 @@ class DefaultCommandGateway(
                 commandBus.send(message)
             }
             .doOnSuccess {
-                val waitStrategy = message.header.extractWaitStrategy() ?: return@doOnSuccess
-                val waitSignal = message.commandSentSignal(waitStrategy.waitCommandId)
-                commandWaitNotifier.notifyAndForget(waitStrategy, waitSignal)
+                val waitPlan = message.header.extractWaitPlan() ?: return@doOnSuccess
+                val waitSignal = message.commandSentSignal(waitPlan.waitCommandId)
+                commandWaitNotifier.notifyAndForget(waitPlan, waitSignal)
             }.doOnError {
-                val waitStrategy = message.header.extractWaitStrategy() ?: return@doOnError
-                val waitSignal = message.commandSentSignal(waitStrategy.waitCommandId, it)
-                commandWaitNotifier.notifyAndForget(waitStrategy, waitSignal)
+                val waitPlan = message.header.extractWaitPlan() ?: return@doOnError
+                val waitSignal = message.commandSentSignal(waitPlan.waitCommandId, it)
+                commandWaitNotifier.notifyAndForget(waitPlan, waitSignal)
             }
     }
 
@@ -136,7 +136,7 @@ class DefaultCommandGateway(
      * Sends a command and completes with the SENT stage result as soon as the command bus accepts it.
      *
      * The SENT signal is synthesized by this gateway itself once [CommandBus.send] completes, so this
-     * fast path skips the wait-strategy registration, sink allocation, and wait-header propagation that
+     * fast path skips the wait plan propagation, handle allocation, and wait-header propagation that
      * [sendAndWait] requires. Downstream stage notifiers see no wait headers and therefore stay no-op,
      * which matches the SENT-only contract: no stage after SENT is ever waited on.
      *
@@ -254,7 +254,7 @@ class DefaultCommandGateway(
     private fun <C : Any> sendWithWaitPlan(
         command: CommandMessage<C>,
         waitPlan: WaitPlan,
-        handleForCleanup: WaitHandleCallbacks
+        handleForCleanup: WaitCallbacks
     ): Mono<Void> {
         validateVoidCommandWaitPlan(command, waitPlan, handleForCleanup)
         return check(command)
@@ -284,7 +284,7 @@ class DefaultCommandGateway(
     private fun <C : Any> validateVoidCommandWaitPlan(
         command: CommandMessage<C>,
         waitPlan: WaitPlan,
-        handleForCleanup: WaitHandleCallbacks
+        handleForCleanup: WaitCallbacks
     ) {
         if (!command.isVoid || waitPlan.supportVoidCommand) {
             return
@@ -296,21 +296,21 @@ class DefaultCommandGateway(
         throw error
     }
 
-    private class WaitHandleCallbacks(
+    private class WaitCallbacks(
         val next: (WaitSignal) -> Boolean,
         val error: (Throwable) -> Unit,
         val cancel: () -> Unit,
     )
 
-    private fun WaitLastHandle.toCallbacks(): WaitHandleCallbacks =
-        WaitHandleCallbacks(
+    private fun WaitLastHandle.toCallbacks(): WaitCallbacks =
+        WaitCallbacks(
             next = ::next,
             error = ::error,
             cancel = ::cancel,
         )
 
-    private fun WaitStreamHandle.toCallbacks(): WaitHandleCallbacks =
-        WaitHandleCallbacks(
+    private fun WaitStreamHandle.toCallbacks(): WaitCallbacks =
+        WaitCallbacks(
             next = ::next,
             error = ::error,
             cancel = ::cancel,

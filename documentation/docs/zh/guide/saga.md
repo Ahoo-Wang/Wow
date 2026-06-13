@@ -445,9 +445,9 @@ SagaVerifier.sagaVerifier<OrderSaga>()
 | **维护成本** | 一个额外组件（Saga） | 无额外组件，但更难推理 |
 | **Wow 中的实现** | `@StatelessSaga` + `@OnEvent` 方法 | N/A（Wow 使用编排模式） |
 
-## 等待策略集成
+## 等待计划集成
 
-命令网关的 `WaitingForChain` 策略使客户端能够等待**整个 Saga 链**完成后再接收响应。这对于分布式操作中的端到端请求-响应语义特别有用。
+命令网关的 `CommandWaitChain` 策略使客户端能够等待**整个 Saga 链**完成后再接收响应。这对于分布式操作中的端到端请求-响应语义特别有用。
 
 例如，发起银行转账的客户端可以等待 Saga 处理完 `Prepared` 事件（在 Saga 处理器上等待 `SAGA_HANDLED`）且结果目标账户命令已完全处理（在尾部等待 `SNAPSHOT`）。
 
@@ -465,7 +465,7 @@ Command-Wait-Tail-Processor: TransferSaga
 | 页面 | 描述 |
 |---|---|
 | [事件补偿](event-compensation.md) | 完整的补偿生命周期、仪表板 UI、部署和 OpenAPI |
-| [命令网关](command-gateway.md) | 命令发送、等待策略以及用于 Saga 感知等待的 `WaitingForChain` |
+| [命令网关](command-gateway.md) | 命令发送、等待计划以及用于 Saga 感知等待的 `CommandWaitChain` |
 | [事件处理器](event-processor.md) | 非 Saga 用例的通用事件处理 |
 | [建模](modeling.md) | 使用聚合、命令和事件的领域建模 |
 | [测试套件](test-suite.md) | 包括 `AggregateSpec` 和 `SagaSpec` 的测试 DSL |

@@ -15,12 +15,13 @@ package me.ahoo.wow.webflux.wait
 
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.messaging.function.FunctionInfoData
 import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.SimpleWaitSignal
-import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
+import me.ahoo.wow.command.wait.WaitCoordinator
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -33,21 +34,25 @@ class CommandWaitHandlerFunctionTest {
 
     @Test
     fun `should handle wait signal request`() {
-        val commandWaitHandlerFunction = CommandWaitHandlerFunction(SimpleWaitStrategyRegistrar)
+        val waitCoordinator = mockk<WaitCoordinator> {
+            every { signal(any()) } returns true
+        }
+        val commandWaitHandlerFunction = CommandWaitHandlerFunction(waitCoordinator)
+        val signal = SimpleWaitSignal(
+            id = generateGlobalId(),
+            waitCommandId = generateGlobalId(),
+            commandId = "commandId",
+            aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
+            stage = CommandStage.SENT,
+            function = FunctionInfoData(
+                functionKind = FunctionKind.COMMAND,
+                contextName = "contextName",
+                processorName = "processorName",
+                name = "name"
+            ),
+        )
         val request = mockk<ServerRequest> {
-            every { bodyToMono(SimpleWaitSignal::class.java) } returns SimpleWaitSignal(
-                id = generateGlobalId(),
-                waitCommandId = generateGlobalId(),
-                commandId = "commandId",
-                aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(),
-                stage = CommandStage.SENT,
-                function = FunctionInfoData(
-                    functionKind = FunctionKind.COMMAND,
-                    contextName = "contextName",
-                    processorName = "processorName",
-                    name = "name"
-                ),
-            ).toMono()
+            every { bodyToMono(SimpleWaitSignal::class.java) } returns signal.toMono()
         }
         val response = commandWaitHandlerFunction.handle(request)
         response.test()
@@ -55,5 +60,6 @@ class CommandWaitHandlerFunctionTest {
                 it.statusCode().is2xxSuccessful.assert().isTrue()
             }
             .verifyComplete()
+        verify { waitCoordinator.signal(signal) }
     }
 }

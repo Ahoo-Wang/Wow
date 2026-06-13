@@ -15,11 +15,12 @@ package me.ahoo.wow.webflux.wait
 
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import me.ahoo.wow.api.messaging.function.FunctionInfoData
 import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.SimpleWaitSignal
-import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
+import me.ahoo.wow.command.wait.WaitCoordinator
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
@@ -34,7 +35,10 @@ class WebClientCommandWaitNotifierTest {
     @Test
     fun `should notify local wait signal`() {
         val webClient = mockk<WebClient>()
-        val commandWaitNotifier = WebClientCommandWaitNotifier(SimpleWaitStrategyRegistrar, webClient)
+        val waitCoordinator = mockk<WaitCoordinator> {
+            every { signal(any()) } returns true
+        }
+        val commandWaitNotifier = WebClientCommandWaitNotifier(waitCoordinator, webClient)
         val commandWaitEndpoint = "http://localhost:8080/command/wait"
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
@@ -52,6 +56,7 @@ class WebClientCommandWaitNotifierTest {
         commandWaitNotifier.notify(commandWaitEndpoint, waitSignal)
             .test()
             .verifyComplete()
+        verify { waitCoordinator.signal(waitSignal) }
     }
 
     @Test
@@ -68,7 +73,8 @@ class WebClientCommandWaitNotifierTest {
                     .retryWhen(any())
             } returns Mono.empty()
         }
-        val commandWaitNotifier = WebClientCommandWaitNotifier(SimpleWaitStrategyRegistrar, webClient)
+        val waitCoordinator = mockk<WaitCoordinator>(relaxed = true)
+        val commandWaitNotifier = WebClientCommandWaitNotifier(waitCoordinator, webClient)
 
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
@@ -86,5 +92,6 @@ class WebClientCommandWaitNotifierTest {
         commandWaitNotifier.notify(commandWaitEndpoint, waitSignal)
             .test()
             .verifyComplete()
+        verify(exactly = 0) { waitCoordinator.signal(any()) }
     }
 }

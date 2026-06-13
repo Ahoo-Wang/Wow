@@ -19,7 +19,7 @@ graph LR
     DEB --> PROJ["Projections"]
     DEB --> SAGA["Sagas"]
     DEB --> SNAP["Snapshots"]
-    ES --> WS["WaitStrategy<br>Notify"]
+    ES --> WS["WaitPlan<br>Notify"]
 
 
 
@@ -46,18 +46,18 @@ sequenceDiagram
     participant Idempotency as IdempotencyChecker
     participant CB as CommandBus
 
-    Client->>CG: sendAndWait(command, waitStrategy)
+    Client->>CG: sendAndWait(command, waitPlan)
     CG->>Idempotency: idempotencyCheck(command)
     Note right of Idempotency: Checks requestId uniqueness.<br>If duplicate: DuplicateRequestIdException
     Idempotency-->>CG: check passed
     CG->>Validator: validate(commandBody)
     Note right of Validator: Self-validation (CommandValidator)<br>+ Jakarta Bean Validation
     Validator-->>CG: validation passed
-    CG->>CG: waitStrategy.propagate(endpoint, header)
-    CG->>CG: waitStrategyRegistrar.register(waitStrategy)
+    CG->>CG: waitPlan.propagate(endpoint, header)
+    CG->>CG: waitPlanRegistrar.register(waitPlan)
     CG->>CB: send(command)
     CB-->>CG: sent
-    CG->>CG: waitStrategy.next(sentSignal)
+    CG->>CG: waitPlan.next(sentSignal)
     CG-->>Client: Mono<CommandResult>
 
 
@@ -83,11 +83,11 @@ The `DefaultCommandGateway` performs two levels of validation:
 
 Before sending, the gateway checks whether the command's `requestId` has already been processed for this aggregate. The `AggregateIdempotencyCheckerProvider` provides per-aggregate checkers. If a duplicate is detected, `DuplicateRequestIdException` is thrown. [[wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt:77](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt#L77)]
 
-### Wait Strategy Registration
+### Wait Plan Registration
 
-If a wait strategy is provided, the gateway:
+If a wait plan is provided, the gateway:
 1. Propagates the wait endpoint into the command message header
-2. Registers the strategy with `WaitStrategyRegistrar` for signal routing
+2. Registers the strategy with `WaitCoordinator` for signal routing
 3. Sets up cleanup on completion (success, error, or cancel)
 
 [[wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt:217](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt#L217)]
@@ -332,9 +332,9 @@ The snapshot strategy evaluates state events and creates snapshots when criteria
 
 [[wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/SimpleSnapshotStrategy.kt:25](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/SimpleSnapshotStrategy.kt#L25)]
 
-## Phase 6: Wait Strategy Notification
+## Phase 6: Wait Plan Notification
 
-After the command has been processed, the wait strategy receives signals at each processing stage:
+After the command has been processed, the wait plan receives signals at each processing stage:
 
 ```mermaid
 sequenceDiagram
@@ -343,7 +343,7 @@ sequenceDiagram
     participant CB as CommandBus
     participant AP as AggregateProcessor
     participant DEB as DomainEventBus
-    participant WS as WaitStrategy
+    participant WS as WaitPlan
     participant Client
 
     CG->>WS: register strategy
@@ -373,13 +373,13 @@ sequenceDiagram
 ```
 
 <!-- Sources:
-  wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitStrategy.kt:60
+  wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitPlan.kt:60
   wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt:205
 -->
 
 ### Wait Stages
 
-The `WaitStrategy` supports waiting at different processing stages:
+The `WaitPlan` supports waiting at different processing stages:
 
 | Stage | Meaning |
 |-------|---------|
@@ -388,17 +388,17 @@ The `WaitStrategy` supports waiting at different processing stages:
 | `PROJECTED` | Projections have processed the events |
 | `SNAPSHOT` | Snapshot has been created |
 
-The `WaitingForStage` factory creates strategies for each stage:
+The `CommandWait` factory creates strategies for each stage:
 
-- `WaitingForStage.sent(commandId)` — wait until the command is sent
-- `WaitingForStage.processed(commandId)` — wait until events are persisted
-- `WaitingForStage.snapshot(commandId)` — wait until snapshot is created
+- `CommandWait.sent(commandId)` — wait until the command is sent
+- `CommandWait.processed(commandId)` — wait until events are persisted
+- `CommandWait.snapshot(commandId)` — wait until snapshot is created
 
 [[wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt:145](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt#L145)]
 
 ### Signal Routing
 
-When a downstream processor (projection, saga, snapshot) completes, it sends a `WaitSignal` through the `CommandWaitNotifier`. The `WaitStrategyRegistrar` routes signals to the correct strategy based on `waitCommandId`. [[wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitStrategy.kt:104](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitStrategy.kt#L104)]
+When a downstream processor (projection, saga, snapshot) completes, it sends a `WaitSignal` through the `CommandWaitNotifier`. The `WaitCoordinator` routes signals to the correct strategy based on `waitCommandId`. [[wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitPlan.kt:104](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitPlan.kt#L104)]
 
 ## Aggregate Loading (Read Path)
 

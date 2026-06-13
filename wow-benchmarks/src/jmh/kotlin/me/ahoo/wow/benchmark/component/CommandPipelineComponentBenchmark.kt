@@ -20,9 +20,11 @@ import me.ahoo.wow.benchmark.fixture.BenchmarkIds
 import me.ahoo.wow.benchmark.scenario.CommandDispatcherScenario
 import me.ahoo.wow.benchmark.scenario.CommandPipelineScenario
 import me.ahoo.wow.command.validation.NoOpValidator
+import me.ahoo.wow.command.wait.CommandWait
+import me.ahoo.wow.command.wait.DefaultWaitCoordinator
 import me.ahoo.wow.command.wait.LocalCommandWaitNotifier
-import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
-import me.ahoo.wow.command.wait.stage.WaitingForStage
+import me.ahoo.wow.command.wait.SimpleCommandWaitEndpoint
+import me.ahoo.wow.command.wait.WaitCoordinator
 import me.ahoo.wow.event.InMemoryDomainEventBus
 import me.ahoo.wow.eventsourcing.NoopEventStore
 import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotRepository
@@ -40,6 +42,7 @@ import org.openjdk.jmh.infra.Blackhole
 open class CommandPipelineComponentBenchmark {
     private lateinit var commandDispatcherScenario: CommandDispatcherScenario
     private lateinit var commandPipelineScenario: CommandPipelineScenario
+    private lateinit var waitCoordinator: WaitCoordinator
 
     @Setup
     fun setup() {
@@ -49,7 +52,8 @@ open class CommandPipelineComponentBenchmark {
         val snapshotRepository = InMemorySnapshotRepository()
         val domainEventBus = InMemoryDomainEventBus()
         val stateEventBus = InMemoryStateEventBus()
-        val commandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar)
+        waitCoordinator = DefaultWaitCoordinator()
+        val commandWaitNotifier = LocalCommandWaitNotifier(waitCoordinator)
         commandDispatcherScenario = CommandDispatcherScenario.create(
             eventStore = eventStore,
             snapshotRepository = snapshotRepository,
@@ -57,6 +61,7 @@ open class CommandPipelineComponentBenchmark {
             stateEventBus = stateEventBus,
             validator = NoOpValidator,
             commandWaitNotifier = commandWaitNotifier,
+            waitCoordinator = waitCoordinator,
             idempotencyCheckerProvider = DefaultAggregateIdempotencyCheckerProvider {
                 BenchmarkIdempotency.bloomFilterChecker()
             },
@@ -120,16 +125,13 @@ open class CommandPipelineComponentBenchmark {
     @Benchmark
     fun handleAggregateAndNotifyProcessedWithLocalWait(blackhole: Blackhole) {
         val commandMessage = BenchmarkCommands.commandPathAddCartItem()
-        val waitStrategy = WaitingForStage.processed(commandMessage.commandId)
-        waitStrategy.propagate("", commandMessage.header)
-        SimpleWaitStrategyRegistrar.register(waitStrategy)
-        waitStrategy.onFinally {
-            SimpleWaitStrategyRegistrar.unregister(waitStrategy.waitCommandId)
-        }
+        val waitPlan = CommandWait.processed(commandMessage.commandId)
+        val handle = waitCoordinator.createLast(waitPlan)
+        waitPlan.propagate(SimpleCommandWaitEndpoint(""), commandMessage.header)
         val exchange = commandPipelineScenario.createServerExchange(commandMessage)
         val result = commandPipelineScenario.aggregateDomainStateAndProcessedNotifierHandler
             .handle(exchange)
-            .then(waitStrategy.waitingLast())
+            .then(handle.await())
             .block()
         blackhole.consume(result)
     }

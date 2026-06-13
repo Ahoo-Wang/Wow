@@ -14,7 +14,7 @@
 package me.ahoo.wow.webflux.wait
 
 import me.ahoo.wow.command.wait.SimpleWaitSignal
-import me.ahoo.wow.command.wait.WaitStrategyRegistrar
+import me.ahoo.wow.command.wait.WaitCoordinator
 import me.ahoo.wow.openapi.global.CommandWaitRouteSpec
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import org.springframework.http.MediaType
@@ -29,26 +29,26 @@ val EMPTY_OK = ServerResponse
     .build()
 
 class CommandWaitHandlerFunction(
-    private val waitStrategyRegistrar: WaitStrategyRegistrar
+    private val waitCoordinator: WaitCoordinator
 ) : HandlerFunction<ServerResponse> {
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         return request
             .bodyToMono(SimpleWaitSignal::class.java)
             .map {
-                waitStrategyRegistrar.next(it)
+                waitCoordinator.signal(it)
             }.flatMap {
                 EMPTY_OK
             }
     }
 }
 
-class CommandWaitHandlerFunctionFactory(private val waitStrategyRegistrar: WaitStrategyRegistrar) :
+class CommandWaitHandlerFunctionFactory(private val waitCoordinator: WaitCoordinator) :
     RouteHandlerFunctionFactory<CommandWaitRouteSpec> {
     override val supportedSpec: Class<CommandWaitRouteSpec>
         get() = CommandWaitRouteSpec::class.java
 
     override fun create(spec: CommandWaitRouteSpec): HandlerFunction<ServerResponse> {
-        return CommandWaitHandlerFunction(waitStrategyRegistrar)
+        return CommandWaitHandlerFunction(waitCoordinator)
     }
 }

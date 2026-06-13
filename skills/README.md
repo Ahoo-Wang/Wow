@@ -44,7 +44,7 @@ graph TD
 | `wow` | 总入口和路由器。识别 Wow 任务，按场景加载 workflow、review、debugging 或 reference。 |
 | `wow-development-workflow` | 端到端开发工作流。覆盖需求确认、源码发现、领域建模、Aggregate Flow、Saga Flow、测试、增强、审查和验证。 |
 | `wow-code-review` | Wow 语义优先的代码审查。重点检查事件溯源、聚合边界、Saga 编排、测试覆盖和 API metadata。 |
-| `wow-debugging` | Wow 管线问题定位。按命令、事件、溯源、Saga、等待策略、Query DSL、配置和测试阶段定位根因。 |
+| `wow-debugging` | Wow 管线问题定位。按命令、事件、溯源、Saga、等待计划、Query DSL、配置和测试阶段定位根因。 |
 
 ## 工作流哲学
 
@@ -65,7 +65,7 @@ graph TD
 | `modeling.md` | 聚合建模、命令/事件 metadata、字段能力接口、生命周期和路由。 |
 | `annotations.md` | Wow 注解，包括 `@Summary`、`@Description`、命令、溯源、Saga、Retry 等。 |
 | `testing.md` | `AggregateSpec`、`SagaSpec`、verifier、fork/ref 和 FluentAssert。 |
-| `command-gateway.md` | Command Gateway、等待策略、幂等、LocalFirst、HTTP wait header。 |
+| `command-gateway.md` | Command Gateway、等待计划、幂等、LocalFirst、HTTP wait header。 |
 | `dsl.md` | Query DSL、condition、pagination、projection、sort。 |
 | `configuration.md` | Spring Boot starter 与模块配置。 |
 | `prepare-key.md` | PrepareKey 唯一性和预留流程。 |
@@ -114,7 +114,7 @@ graph TD
 |------|----------|
 | API metadata | `wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/Summary.kt`, `Description.kt`; `wow-schema/src/main/kotlin/me/ahoo/wow/schema/*Resolver.kt` |
 | Command Gateway | `wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt`, `CommandResult.kt`; `wow-openapi/src/main/kotlin/me/ahoo/wow/openapi/aggregate/command/CommandComponent.kt` |
-| Wait Chain | `wow-core/src/main/kotlin/me/ahoo/wow/command/wait/chain/SimpleWaitingForChain.kt`; `wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt` |
+| Wait Chain | `wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandWait.kt`; `wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitPlan.kt`; `wow-core/src/main/kotlin/me/ahoo/wow/command/wait/chain/SimpleWaitingChain.kt`; `wow-core/src/main/kotlin/me/ahoo/wow/command/wait/chain/WaitingChainTail.kt`; `wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/AggregateRequest.kt` |
 | Testing DSL | `test/wow-test/src/main/kotlin/me/ahoo/wow/test/AggregateSpec.kt`, `SagaSpec.kt`, `AggregateVerifier.kt`, `SagaVerifier.kt` |
 | Query DSL | `wow-query/src/main/kotlin/me/ahoo/wow/query/dsl/`; `wow-query/src/main/kotlin/me/ahoo/wow/query/snapshot/QueryDsl.kt` |
 | Configuration | `wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/**/*Properties.kt` |

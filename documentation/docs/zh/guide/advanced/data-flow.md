@@ -19,7 +19,7 @@ graph LR
     DEB --> PROJ["投影"]
     DEB --> SAGA["Saga"]
     DEB --> SNAP["快照"]
-    ES --> WS["WaitStrategy<br>通知"]
+    ES --> WS["WaitPlan<br>通知"]
 
 
 
@@ -46,18 +46,18 @@ sequenceDiagram
     participant Idempotency as IdempotencyChecker
     participant CB as CommandBus
 
-    Client->>CG: sendAndWait(command, waitStrategy)
+    Client->>CG: sendAndWait(command, waitPlan)
     CG->>Idempotency: idempotencyCheck(command)
     Note right of Idempotency: 检查 requestId 唯一性。<br>若重复：DuplicateRequestIdException
     Idempotency-->>CG: 检查通过
     CG->>Validator: validate(commandBody)
     Note right of Validator: 自验证 (CommandValidator)<br>+ Jakarta Bean Validation
     Validator-->>CG: 验证通过
-    CG->>CG: waitStrategy.propagate(endpoint, header)
-    CG->>CG: waitStrategyRegistrar.register(waitStrategy)
+    CG->>CG: waitPlan.propagate(endpoint, header)
+    CG->>CG: waitPlanRegistrar.register(waitPlan)
     CG->>CB: send(command)
     CB-->>CG: 已发送
-    CG->>CG: waitStrategy.next(sentSignal)
+    CG->>CG: waitPlan.next(sentSignal)
     CG-->>Client: Mono<CommandResult>
 
 
@@ -83,12 +83,12 @@ sequenceDiagram
 
 发送前，Gateway 检查命令的 `requestId` 是否已在该聚合根上处理过。`AggregateIdempotencyCheckerProvider` 提供每个聚合的检查器。如果检测到重复，抛出 `DuplicateRequestIdException`。[[wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt:77](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt#L77)]
 
-### 等待策略注册
+### 等待计划注册
 
-如果提供了等待策略，Gateway：
+如果提供了等待计划，Gateway：
 
 1. 将等待端点传播到命令消息头
-2. 通过 `WaitStrategyRegistrar` 注册策略以进行信号路由
+2. 通过 `WaitCoordinator` 注册策略以进行信号路由
 3. 在完成（成功、错误或取消）时设置清理
 
 [[wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt:217](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt#L217)]
@@ -332,9 +332,9 @@ sequenceDiagram
 
 [[wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/SimpleSnapshotStrategy.kt:25](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/SimpleSnapshotStrategy.kt#L25)]
 
-## 阶段六：等待策略通知
+## 阶段六：等待计划通知
 
-命令处理完成后，等待策略在每个处理阶段接收信号：
+命令处理完成后，等待计划在每个处理阶段接收信号：
 
 ```mermaid
 sequenceDiagram
@@ -343,7 +343,7 @@ sequenceDiagram
     participant CB as CommandBus
     participant AP as AggregateProcessor
     participant DEB as DomainEventBus
-    participant WS as WaitStrategy
+    participant WS as WaitPlan
     participant Client as 客户端
 
     CG->>WS: 注册策略
@@ -373,13 +373,13 @@ sequenceDiagram
 ```
 
 <!-- Sources:
-  wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitStrategy.kt:60
+  wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitPlan.kt:60
   wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt:205
 -->
 
 ### 等待阶段
 
-`WaitStrategy` 支持在不同处理阶段等待：
+`WaitPlan` 支持在不同处理阶段等待：
 
 | 阶段 | 含义 |
 |-------|---------|
@@ -388,17 +388,17 @@ sequenceDiagram
 | `PROJECTED` | 投影已处理事件 |
 | `SNAPSHOT` | 快照已创建 |
 
-`WaitingForStage` 工厂为每个阶段创建策略：
+`CommandWait` 工厂为每个阶段创建策略：
 
-- `WaitingForStage.sent(commandId)` — 等待命令发送
-- `WaitingForStage.processed(commandId)` — 等待事件持久化
-- `WaitingForStage.snapshot(commandId)` — 等待快照创建
+- `CommandWait.sent(commandId)` — 等待命令发送
+- `CommandWait.processed(commandId)` — 等待事件持久化
+- `CommandWait.snapshot(commandId)` — 等待快照创建
 
 [[wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt:145](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt#L145)]
 
 ### 信号路由
 
-当下游处理器（投影、Saga、快照）完成时，它通过 `CommandWaitNotifier` 发送 `WaitSignal`。`WaitStrategyRegistrar` 根据 `waitCommandId` 将信号路由到正确的策略。[[wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitStrategy.kt:104](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitStrategy.kt#L104)]
+当下游处理器（投影、Saga、快照）完成时，它通过 `CommandWaitNotifier` 发送 `WaitSignal`。`WaitCoordinator` 根据 `waitCommandId` 将信号路由到正确的策略。[[wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitPlan.kt:104](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitPlan.kt#L104)]
 
 ## 聚合加载（读路径）
 

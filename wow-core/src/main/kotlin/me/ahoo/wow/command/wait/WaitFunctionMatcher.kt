@@ -11,20 +11,29 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.command.wait.stage
+package me.ahoo.wow.command.wait
 
-import me.ahoo.wow.command.wait.CommandStage
+import me.ahoo.wow.api.messaging.function.FunctionInfo
+import me.ahoo.wow.api.messaging.function.NamedFunctionInfo
+import me.ahoo.wow.infra.ifNotBlank
 
-/**
- * Wait strategy that waits for command processing to complete.
- * This is the most basic wait strategy that completes when the aggregate
- * has finished processing the command and generated any domain events.
- *
- * @param waitCommandId The unique identifier for this wait strategy.
- */
-class WaitingForProcessed(
-    override val waitCommandId: String
-) : WaitingForStage() {
-    override val stage: CommandStage
-        get() = CommandStage.PROCESSED
+fun NamedFunctionInfo?.matchesWaitFunction(function: FunctionInfo): Boolean {
+    if (this == null || isEmpty()) {
+        return true
+    }
+    contextName.ifNotBlank {
+        if (!isSameBoundedContext(function)) {
+            return false
+        }
+    }
+    processorName.ifNotBlank {
+        if (processorName != function.processorName) {
+            return false
+        }
+    }
+
+    name.ifNotBlank {
+        return name == function.name
+    }
+    return true
 }

@@ -30,7 +30,6 @@ import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.modeling.DefaultAggregateId
 import reactor.core.publisher.Mono
-import java.util.concurrent.ConcurrentHashMap
 
 internal const val TEST_CONTEXT = "test-context"
 internal const val TEST_AGGREGATE = "test-aggregate"
@@ -132,14 +131,6 @@ internal fun waitPlanHeader(
         .propagateWaitingStage(stage)
         .propagateWaitFunction(function)
 
-internal fun waitStrategyHeader(
-    waitCommandId: String = "wait-command-id",
-    endpoint: String = TEST_ENDPOINT,
-    stage: CommandStage,
-    function: NamedFunctionInfoData? = null,
-): Header =
-    waitPlanHeader(waitCommandId, endpoint, stage, function)
-
 internal fun testSignal(
     stage: CommandStage,
     waitCommandId: String = "wait-command-id",
@@ -184,28 +175,6 @@ internal class RecordingCommandWaitNotifier : CommandWaitNotifier {
         }
 }
 
-internal class RecordingWaitStrategyRegistrar : WaitStrategyRegistrar {
-    private val waitStrategies = ConcurrentHashMap<String, WaitStrategy>()
-    val signals: MutableList<WaitSignal> = mutableListOf()
-
-    override fun register(waitStrategy: WaitStrategy): WaitStrategy? =
-        waitStrategies.putIfAbsent(waitStrategy.waitCommandId, waitStrategy)
-
-    override fun unregister(waitCommandId: String): WaitStrategy? =
-        waitStrategies.remove(waitCommandId)
-
-    override fun get(waitCommandId: String): WaitStrategy? =
-        waitStrategies[waitCommandId]
-
-    override fun contains(waitCommandId: String): Boolean =
-        waitStrategies.containsKey(waitCommandId)
-
-    override fun next(signal: WaitSignal): Boolean {
-        signals += signal
-        return super.next(signal)
-    }
-}
-
 internal fun testCommandExchange(
     waitCommandId: String = "wait-command-id",
     stage: CommandStage = CommandStage.PROCESSED,
@@ -214,7 +183,7 @@ internal fun testCommandExchange(
     SimpleServerCommandExchange(
         TestCommandMessage(
             id = "command-id",
-            header = waitStrategyHeader(
+            header = waitPlanHeader(
                 waitCommandId = waitCommandId,
                 stage = stage,
                 function = function,
@@ -233,7 +202,7 @@ internal fun testDomainEventExchange(
     SimpleDomainEventExchange(
         TestDomainEvent(
             commandId = commandId,
-            header = waitStrategyHeader(
+            header = waitPlanHeader(
                 waitCommandId = waitCommandId,
                 stage = stage,
                 function = function,

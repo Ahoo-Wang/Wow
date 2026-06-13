@@ -190,7 +190,7 @@ internal class DefaultWaitSignalReducer : WaitSignalReducer {
     }
 
     private fun isMainChainSignal(target: ChainWaitTarget, signal: WaitSignal): Boolean =
-        signal.stage == target.stage && target.function.isWaitingForFunction(signal.function)
+        signal.stage == target.stage && target.function.matchesWaitFunction(signal.function)
 
     private fun WaitReductionState.materializeTailStates(
         target: ChainWaitTarget,

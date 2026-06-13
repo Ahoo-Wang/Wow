@@ -25,8 +25,6 @@ import me.ahoo.wow.benchmark.scenario.consumeWowResult
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.InMemoryCommandBus
 import me.ahoo.wow.command.validation.NoOpValidator
-import me.ahoo.wow.command.wait.LocalCommandWaitNotifier
-import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.InMemoryDomainEventBus
 import me.ahoo.wow.eventsourcing.EventStore
@@ -143,7 +141,6 @@ open class CommandWriteE2EBenchmark {
             stateEventBus = stateEventBus,
             schedulerSupplier = schedulerSupplier,
             validator = validator,
-            commandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar),
             idempotencyCheckerProvider = idempotencyCheckerProvider,
             namedAggregate = BenchmarkAggregates.cartMetadata.namedAggregate.materialize(),
         )
@@ -156,14 +153,12 @@ open class CommandWriteE2EBenchmark {
                 idempotencyCheckerProvider = DefaultAggregateIdempotencyCheckerProvider {
                     NoOpIdempotencyChecker
                 },
-                commandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar),
                 subscribeToCart = false,
             )
 
             "noop-store",
             "in-memory-new-aggregate",
             "in-memory-growing-stream" -> CommandGatewayScenario.create(
-                commandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar),
                 subscribeToCart = false,
             )
 

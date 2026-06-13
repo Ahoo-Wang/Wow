@@ -22,7 +22,7 @@ import reactor.test.StepVerifier
 class MonoCommandWaitNotifierTest {
 
     @Test
-    fun `source completes without notification when header has no wait strategy`() {
+    fun `source completes without notification when header has no wait plan`() {
         val notifier = RecordingCommandWaitNotifier()
         val exchange = testCommandExchange()
         exchange.message.header.clear()

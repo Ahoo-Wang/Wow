@@ -2,9 +2,9 @@
 
 ## Goal
 
-重设 command wait 架构，删除以 `WaitStrategy` 为中心的旧模型，改成以不可变等待计划、低分配 final wait、显式 streaming wait、集中协调器和纯语义 reducer 组成的新模型。
+重设 command wait 架构，删除旧的运行态等待模型，改成以不可变 `WaitPlan`、低分配 `WaitLastHandle`、显式 `WaitStreamHandle`、集中 `WaitCoordinator` 和纯语义 reducer 组成的新模型。
 
-这次设计接受 public API breaking change。目标不是保留旧 facade，而是在完成实现时清理 `WaitStrategy`、`WaitingFor` 继承树、`WaitStrategyRegistrar` 和 strategy 命名传播层带来的技术债。
+这次设计接受 public API breaking change。目标不是保留旧 facade，而是在完成实现时清理旧运行态类型继承树、旧 registrar 和旧命名传播层带来的技术债。
 
 性能验收仍以 `CommandWriteE2EBenchmark.sendAndWaitProcessed` 的 JMH `gc.alloc.rate.norm` 为主，吞吐量为辅助信号。`sendAndWait` final result 路径必须避免 `Flux.collectList()`、默认 unicast sink 和 streaming 成本。
 
@@ -12,12 +12,12 @@
 
 当前 wait 模型的问题不是单点实现低效，而是职责边界错误。
 
-1. `WaitStrategy` 同时描述“等什么”和“怎么运行”。它既负责 header propagation 和 shouldNotify，又暴露 `waiting()`、`waitingLast()`、`next()`、`complete()`、`error()`、`onFinally()` 等运行态方法。
-2. `WaitingFor` 构造时立即创建 unicast `Sinks.Many`。即使调用方只需要 final result，也先承担 streaming wait 的对象分配和生命周期成本。
-3. `waitingLast()` 由 `waiting().collectList()` 派生，导致 final wait 依赖流式实现、信号列表、排序和 copy 聚合。
-4. `WaitingForAfterProcessed`、`WaitingForStage`、`SimpleWaitingForChain` 把完成语义压进继承结构。stage、function、chain、fail-fast、result merge 分散在多个可变对象中。
-5. 生命周期分散在 `DefaultCommandGateway`、`WaitStrategyRegistrar`、`WaitingFor.onFinally` 和 `LocalCommandWaitNotifier` 之间。注册、传播、取消、错误和清理不能在一个边界内推理。
-6. 命名技术债明显：代码外观仍是 Strategy，但真实需求是 wait intent、runtime handle、notification dispatch 和 signal reduction。
+1. 旧模型同时描述“等什么”和“怎么运行”。它既负责 header propagation 和 shouldNotify，又暴露等待流、最终等待、信号推进、完成、错误和 finally hook 等运行态方法。
+2. 旧运行态构造时立即创建 unicast `Sinks.Many`。即使调用方只需要 final result，也先承担 streaming wait 的对象分配和生命周期成本。
+3. 旧 final wait 由 stream collection 派生，导致 final wait 依赖流式实现、信号列表、排序和 copy 聚合。
+4. 旧 stage/chain 继承结构把完成语义压进可变对象。stage、function、chain、fail-fast、result merge 分散在多个类中。
+5. 生命周期分散在 `DefaultCommandGateway`、旧 registrar、旧 finally hook 和 `LocalCommandWaitNotifier` 之间。注册、传播、取消、错误和清理不能在一个边界内推理。
+6. 命名技术债明显：代码外观仍像算法选择模式，但真实需求是 wait intent、runtime handle、notification dispatch 和 signal reduction。
 
 ## New Architecture
 
@@ -48,7 +48,7 @@ data class StageWaitTarget(...)
 data class ChainWaitTarget(...)
 ```
 
-现有 `WaitingForStage.processed(commandId)` 这类工厂迁移为 `CommandWait.processed(commandId)`，返回 `WaitPlan`。
+历史 stage factory 入口迁移为 `CommandWait.processed(commandId)` 这类方法，返回 `WaitPlan`。
 
 ### WaitLastHandle
 
@@ -226,25 +226,20 @@ object CommandWait {
 - wait chain
 - wait chain tail
 
-代码命名应从 `extractWaitStrategy()` 改为 `extractWaitPlan()`，从 `WaitStrategyMessagePropagator` 改为 `WaitPlanMessagePropagator` 或更具体的 `CommandWaitPlanPropagator`。
+代码命名统一使用 `extractWaitPlan()`、`WaitPlanMessagePropagator` 或更具体的 `CommandWaitPlanPropagator`。
 
 ## Technical Debt Cleanup
 
 实现完成时必须删除或替换以下旧概念，不能留下 deprecated facade：
 
-- `WaitStrategy`
-- `WaitStrategy.Materialized`
-- `WaitStrategy.FunctionMaterialized`
-- `WaitStrategyRegistrar`
-- `SimpleWaitStrategyRegistrar`
-- `WaitingFor`
-- `WaitingForStage`
-- `WaitingForAfterProcessed`
-- `WaitingForProcessed` / `WaitingForSnapshot` / `WaitingForProjected` / `WaitingForEventHandled` / `WaitingForSagaHandled` / `WaitingForSent`
-- `SimpleWaitingForChain` 运行态继承实现
-- `WaitStrategyMessagePropagator`
-- `TracingWaitStrategy`
-- 所有 `waiting()` / `waitingLast()` / `next()` / `complete()` / `onFinally()` 旧运行态 API
+- 旧 strategy-centered runtime contracts。
+- 旧 materialized/function materialized contracts。
+- 旧 registrar 和 simple registrar。
+- 旧 stage-specific runtime waiter hierarchy。
+- 旧 chain runtime inheritance implementation。
+- 旧 strategy-named message propagation。
+- 旧 tracing decorator。
+- 所有旧 stream/final wait、signal推进、completion 和 finally hook 运行态 API。
 
 允许保留的只有语义等价的新类型、工厂入口和协议字段。
 
@@ -259,7 +254,7 @@ object CommandWait {
 - chain wait 实现。
 - OpenTelemetry wait tracing 命名和包装点。
 - tests、contract tests、TCK 中的 wait API 使用。
-- example 和 documentation 中的 `WaitingForStage.*` 使用。
+- example 和 documentation 中的旧 stage factory 使用。
 
 不在本轮改变：
 
@@ -315,7 +310,7 @@ object CommandWait {
 - `WaitSignalReducer` 必须精确复刻旧 stage/chain 语义，否则会造成行为回归。
 - final handle 和 stream handle 分离后，两个路径必须共享 reducer，避免语义漂移。
 - local notify 的同步快路径必须保留，否则可能抵消架构收益。
-- OpenTelemetry 原先包装 `WaitStrategy`，需要移动到 coordinator/handle 边界。
+- OpenTelemetry wait tracing 需要移动到 coordinator/handle 边界。
 
 ## Decision
 
@@ -329,4 +324,4 @@ WaitCoordinator     注册、传播、分发、清理
 WaitSignalReducer   stage/chain/fail-fast/final signal 语义
 ```
 
-最终完成时删除 `WaitStrategy` 和相关技术债，不保留兼容 facade。
+最终完成时删除旧 runtime 技术债，不保留兼容 facade。

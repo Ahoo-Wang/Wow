@@ -18,8 +18,9 @@ import me.ahoo.wow.command.CommandOperator.operator
 import me.ahoo.wow.command.CommandOperator.withOperator
 import me.ahoo.wow.command.SimpleCommandMessage
 import me.ahoo.wow.command.wait.COMMAND_WAIT_ENDPOINT
+import me.ahoo.wow.command.wait.CommandWait
+import me.ahoo.wow.command.wait.CommandWaitEndpoint
 import me.ahoo.wow.command.wait.WAIT_COMMAND_ID
-import me.ahoo.wow.command.wait.stage.WaitingForStage
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.messaging.propagation.CommandRequestHeaderPropagator.Companion.remoteIp
 import me.ahoo.wow.messaging.propagation.CommandRequestHeaderPropagator.Companion.userAgent
@@ -47,7 +48,7 @@ class MessagePropagatorProviderTest {
             body = ProviderCommand,
             aggregateId = "wow-core-test.messaging_aggregate".toNamedAggregate().aggregateId("aggregate-id"),
         )
-        WaitingForStage.sent(upstream.commandId).propagate("wait-endpoint", upstream.header)
+        CommandWait.sent(upstream.commandId).propagate(TestCommandWaitEndpoint, upstream.header)
         val target = DefaultHeader.empty()
 
         target.propagate(upstream)
@@ -60,6 +61,10 @@ class MessagePropagatorProviderTest {
         target[WAIT_COMMAND_ID].assert().isEqualTo("command-id")
         target[COMMAND_WAIT_ENDPOINT].assert().isEqualTo("wait-endpoint")
     }
+}
+
+private object TestCommandWaitEndpoint : CommandWaitEndpoint {
+    override val endpoint: String = "wait-endpoint"
 }
 
 private object ProviderCommand

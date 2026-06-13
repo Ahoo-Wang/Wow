@@ -20,24 +20,25 @@ import me.ahoo.wow.command.wait.COMMAND_WAIT_ENDPOINT
 import me.ahoo.wow.command.wait.COMMAND_WAIT_FUNCTION
 import me.ahoo.wow.command.wait.COMMAND_WAIT_PROCESSOR
 import me.ahoo.wow.command.wait.COMMAND_WAIT_STAGE
+import me.ahoo.wow.command.wait.CommandWait
+import me.ahoo.wow.command.wait.CommandWaitEndpoint
 import me.ahoo.wow.command.wait.WAIT_COMMAND_ID
-import me.ahoo.wow.command.wait.stage.WaitingForStage
 import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.messaging.TestNamedMessage
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.toNamedAggregate
 import org.junit.jupiter.api.Test
 
-class WaitStrategyMessagePropagatorTest {
+class WaitPlanMessagePropagatorTest {
 
     @Test
-    fun `propagate copies extracted command wait strategy for command upstream`() {
+    fun `propagate copies extracted command wait plan for command upstream`() {
         val upstream = commandMessage()
-        WaitingForStage.projected(upstream.commandId, "context", "processor", "function")
-            .propagate("wait-endpoint", upstream.header)
+        CommandWait.projected(upstream.commandId, "context", "processor", "function")
+            .propagate(TestCommandWaitEndpoint, upstream.header)
         val target = DefaultHeader.empty()
 
-        WaitStrategyMessagePropagator().propagate(target, upstream)
+        WaitPlanMessagePropagator().propagate(target, upstream)
 
         target[WAIT_COMMAND_ID].assert().isEqualTo(upstream.commandId)
         target[COMMAND_WAIT_ENDPOINT].assert().isEqualTo("wait-endpoint")
@@ -48,23 +49,23 @@ class WaitStrategyMessagePropagatorTest {
     }
 
     @Test
-    fun `propagate ignores upstream messages without a complete wait strategy`() {
+    fun `propagate ignores upstream messages without a complete wait plan`() {
         val target = DefaultHeader.empty()
 
-        WaitStrategyMessagePropagator().propagate(target, TestNamedMessage())
+        WaitPlanMessagePropagator().propagate(target, TestNamedMessage())
 
         target[WAIT_COMMAND_ID].assert().isNull()
         target[COMMAND_WAIT_ENDPOINT].assert().isNull()
     }
 
     @Test
-    fun `propagate ignores extracted wait strategy when upstream is not a command message`() {
+    fun `propagate ignores extracted stage wait plan when upstream is not a command message`() {
         val upstream = commandMessage()
-        WaitingForStage.sent(upstream.commandId).propagate("wait-endpoint", upstream.header)
+        CommandWait.sent(upstream.commandId).propagate(TestCommandWaitEndpoint, upstream.header)
         val nonCommand = TestNamedMessage(header = upstream.header)
         val target = DefaultHeader.empty()
 
-        WaitStrategyMessagePropagator().propagate(target, nonCommand)
+        WaitPlanMessagePropagator().propagate(target, nonCommand)
 
         target[WAIT_COMMAND_ID].assert().isNull()
         target[COMMAND_WAIT_ENDPOINT].assert().isNull()
@@ -76,6 +77,10 @@ class WaitStrategyMessagePropagatorTest {
             body = WaitCommand,
             aggregateId = "wow-core-test.messaging_aggregate".toNamedAggregate().aggregateId("aggregate-id"),
         )
+
+    private object TestCommandWaitEndpoint : CommandWaitEndpoint {
+        override val endpoint: String = "wait-endpoint"
+    }
 }
 
 private object WaitCommand

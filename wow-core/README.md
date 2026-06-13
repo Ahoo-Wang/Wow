@@ -11,7 +11,7 @@ Wow Core is the foundational runtime module of the [Wow framework](https://githu
 
 This module provides:
 
-- **Command Processing**: Command gateway with validation, idempotency, and wait strategies
+- **Command Processing**: Command gateway with validation, idempotency, and wait plans
 - **Event Handling**: Domain event bus, dispatching, and processing pipelines
 - **Event Sourcing**: Event store implementations and state reconstruction
 - **Saga Orchestration**: Distributed transaction coordination using event-driven workflows
@@ -52,7 +52,7 @@ dependencies {
 
 ### Command Processing
 
-The `CommandGateway` provides comprehensive command handling with validation, idempotency, and flexible wait strategies:
+The `CommandGateway` provides comprehensive command handling with validation, idempotency, and flexible wait plans:
 
 ```kotlin
 // Send command with validation and idempotency checking
@@ -63,8 +63,8 @@ gateway.send(command)
     .doOnSuccess { println("Command sent successfully") }
     .subscribe()
 
-// Send and wait for completion with different strategies
-gateway.sendAndWait(command, WaitStrategy.PROCESSED)
+// Send and wait for completion with different plans
+gateway.sendAndWait(command, CommandWait.processed(command.commandId))
     .doOnNext { result ->
         if (result.succeeded) {
             println("Cart item added: ${result.commandId}")
@@ -73,7 +73,7 @@ gateway.sendAndWait(command, WaitStrategy.PROCESSED)
     .subscribe()
 
 // Stream command results in real-time
-gateway.sendAndWaitStream(command, WaitStrategy.PROCESSED)
+gateway.sendAndWaitStream(command, CommandWait.processed(command.commandId))
     .doOnNext { result ->
         println("Command stage: ${result.stage} - ${result.succeeded}")
     }
@@ -192,12 +192,12 @@ class CartSaga {
 ### Core Interfaces
 
 #### CommandGateway
-Central interface for sending commands with validation and wait strategies.
+Central interface for sending commands with validation and wait plans.
 
 **Key Methods:**
 - `send(command: CommandMessage)` - Send command asynchronously
-- `sendAndWait(command, waitStrategy)` - Send and wait for completion
-- `sendAndWaitStream(command, waitStrategy)` - Stream command results
+- `sendAndWait(command, waitPlan)` - Send and wait for completion
+- `sendAndWaitStream(command, waitPlan)` - Stream command results
 
 #### DomainEventBus
 Message bus for publishing and subscribing to domain event streams.
@@ -226,7 +226,7 @@ Updates query models in response to domain events.
 #### Command Processing
 - **Command Validation**: Jakarta validation integration
 - **Idempotency Checking**: Prevents duplicate command processing
-- **Wait Strategies**: `SENT`, `PROCESSED`, `PROJECTED` for different consistency levels
+- **Wait Plans**: `SENT`, `PROCESSED`, `PROJECTED` for different consistency levels
 
 #### Event Processing
 - **Event Dispatching**: Ordered event processing per aggregate
@@ -265,7 +265,7 @@ class CartController(
         // Stream command processing results in real-time
         return commandGateway.sendAndWaitStream(
             command,
-            waitStrategy = WaitingForStage.snapshot(command.commandId)
+            waitPlan = CommandWait.snapshot(command.commandId)
         )
     }
 

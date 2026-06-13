@@ -34,11 +34,11 @@ Wow is a **compiler-driven, fully reactive** CQRS + Event Sourcing framework. It
 
 ## 1. The Core Architectural Insight
 
-> **Wow treats the WaitStrategy as a first-class architectural primitive, creating a push-based notification pipeline that bridges the command and event buses in a single reactive chain.**
+> **Wow treats the WaitPlan as a first-class architectural primitive, creating a push-based notification pipeline that bridges the command and event buses in a single reactive chain.**
 
-Most CQRS frameworks treat "waiting for a command result" as an afterthought — a blocking `Future.get()` or a polling loop. Wow inverts this: the `WaitStrategy` is a **reactive sink** (`Sinks.Many<WaitSignal>`) that propagates through every stage of the processing lifecycle via push notifications.
+Most CQRS frameworks treat "waiting for a command result" as an afterthought — a blocking `Future.get()` or a polling loop. Wow inverts this: a `WaitPlan` describes the target stage, and `WaitCoordinator` creates an internal reactive handle that receives push notifications from every stage of the processing lifecycle.
 
-<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitingFor.kt:33-132, wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitStrategy.kt:60-176, wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt:25-86 -->
+<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitCoordinator.kt:24-101, wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitPlan.kt:60-176, wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt:25-86 -->
 
 ### Why This Matters
 
@@ -49,7 +49,7 @@ In a traditional CQRS setup:
 
 Wow unifies these concerns:
 1. Both commands and events flow through the same `MessageBus<M, E>` abstraction with the same `LocalFirst` routing optimization
-2. The `WaitStrategy` bridges the two pipelines — command sender subscribes to a reactive signal stream that downstream processors (aggregate, projector, saga handler) push into
+2. The `WaitPlan` bridges the two pipelines — command sender subscribes to a reactive signal stream that downstream processors (aggregate, projector, saga handler) push into
 3. Six distinct stages (`SENT`, `PROCESSED`, `SNAPSHOT`, `PROJECTED`, `EVENT_HANDLED`, `SAGA_HANDLED`) form a DAG with prerequisite dependencies, enabling partial-stage waiting
 
 The result: a caller can `sendAndWaitForSent()` at ~60k TPS (fire-and-forget into the bus) or `sendAndWaitForProcessed()` at ~18k TPS (full chain including aggregate execution, event publishing, projections, and sagas — all pushed back reactively).
@@ -60,8 +60,8 @@ graph TB
         CG[CommandGateway<br>send / sendAndWait / sendAndWaitStream]
     end
 
-    subgraph "WaitStrategy (Reactive Sink)"
-        WS[WaitingFor<br>Sinks.Many-WaitSignal-]
+    subgraph "WaitPlan + WaitCoordinator"
+        WS[Internal last/stream handle<br>reactive signal sink]
         WST[Waits for specific CommandStage]
     end
 
@@ -78,7 +78,7 @@ graph TB
         CWN[CommandWaitNotifier<br>push-based, no polling]
     end
 
-    CG -->|"1. sendAndWait(command, waitStrategy)"| WS
+    CG -->|"1. sendAndWait(command, waitPlan)"| WS
     WS -->|"2. register + propagate"| CG
     S1 -->|"3. SENT signal"| CWN
     S2 -->|"4. PROCESSED signal"| CWN
@@ -91,7 +91,7 @@ graph TB
 
 ```
 
-<!-- Sources: CommandStage.kt:25-86, WaitingFor.kt:33-132, WaitStrategy.kt:60-176, CommandGateway.kt:75-178, DefaultCommandGateway.kt:45-246, MonoCommandWaitNotifier.kt -->
+<!-- Sources: CommandStage.kt:25-86, WaitCoordinator.kt:24-101, WaitPlan.kt:60-176, CommandGateway.kt:75-178, DefaultCommandGateway.kt:45-246, MonoCommandWaitNotifier.kt -->
 
 ### Second-Order Insight: Compile-Time Metadata Generation
 
@@ -118,7 +118,7 @@ class WowEngine:
     """The processing pipeline: Command -> Validate -> Load Aggregate ->
        Execute -> Persist Events -> Publish Events -> Project -> Saga"""
 
-    def handle_command(self, command_msg: CommandMessage) -> Mono[CommandResult]:
+    def handle_command(self, command_msg: CommandMessage) -> Mono[CommandOutcome]:
 
         # 1. IDEMPOTENCY CHECK (Bloom filter or DB check)
         if self.idempotency_checker.is_duplicate(command_msg.request_id):
@@ -172,30 +172,35 @@ class WowEngine:
         # saga_handler subscribes to DomainEventBus, emits compensating commands
         # Sagas are stateless: listen for events, produce commands
 
-        return CommandResult(...)
+        return CommandOutcome(...)
 
 
-class WaitStrategy_Flow:
-    """How the WaitStrategy creates push-based notification pipeline"""
+class WaitPlan_Flow:
+    """How the WaitPlan creates a push-based notification pipeline"""
 
-    def send_with_wait(self, command, wait_strategy):
-        # Register the wait strategy (maps wait_command_id -> sink)
-        self.wait_registrar.register(wait_strategy)
+    def send_with_wait(self, command, wait_plan, stream=False):
+        # Create the internal handle for the selected plan and response mode
+        if stream:
+            handle = self.wait_coordinator.createStream(wait_plan)
+        else:
+            handle = self.wait_coordinator.createLast(wait_plan)
 
         # Propagate wait endpoint address into message header
-        wait_strategy.propagate(self.endpoint, command.header)
+        wait_plan.propagate(self.endpoint, command.header)
 
         # Send command to the bus
         self.command_bus.send(command)
 
-        # Each downstream processor calls: wait_notifier.notify(wait_strategy_id, signal)
-        # The wait strategy sink receives signals reactively:
+        # Each downstream processor calls: wait_notifier.notify(signal)
+        # WaitCoordinator routes matching signals to the handle:
         #   SENT -> PROCESSED -> PROJECTED -> EVENT_HANDLED -> SAGA_HANDLED -> [complete]
 
         # Caller receives either:
-        #   - A Mono[CommandResult] (single terminal result)
-        #   - A Flux[CommandResult] (streaming results as stages complete)
-        return wait_strategy.waiting_last()
+        #   - A Mono[CommandOutcome] (single terminal result)
+        #   - A Flux[CommandOutcome] (streaming results as stages complete)
+        if stream:
+            return handle.stream()
+        return handle.await()
 ```
 
 ---
@@ -244,7 +249,7 @@ graph TB
         PD[ProjectionDispatcher]
         SD[StatelessSagaDispatcher]
         SN[SnapshotDispatcher]
-        WS[WaitStrategy<br>+ CommandWaitNotifier]
+        WS[WaitPlan<br>+ CommandWaitNotifier]
     end
 
     subgraph "wow-api (Pure Contracts)"
@@ -335,7 +340,7 @@ graph TB
 | Module | Responsibility | Layer | Source |
 |---|---|---|---|
 | `wow-api` | Pure API contracts: `CommandMessage`, `DomainEvent`, `AggregateId`, all annotations | Foundation | [settings.gradle.kts:21](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L21) |
-| `wow-core` | Framework engine: command/event bus, event store abstractions, projections, sagas, wait strategies | Engine | [settings.gradle.kts:22](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L22) |
+| `wow-core` | Framework engine: command/event bus, event store abstractions, projections, sagas, wait plans | Engine | [settings.gradle.kts:22](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L22) |
 | `wow-compiler` | KSP processor: generates command routing, event metadata, OpenAPI specs at compile time | Dev-time | [settings.gradle.kts:26](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L26) |
 | `wow-spring` | Spring IoC integration: `SpringServiceProvider` bridge | Integration | [settings.gradle.kts:32](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L32) |
 | `wow-spring-boot-starter` | Auto-configuration with feature variants (`mongo-support`, `kafka-support`, etc.) | Integration | [settings.gradle.kts:34](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L34) |
@@ -355,7 +360,7 @@ graph TB
 
 ## 4. Command Processing Data Flow
 
-This sequence diagram traces the full lifecycle of a command from API call to final acknowledgment. Every stage is tracked by the `WaitStrategy`.
+This sequence diagram traces the full lifecycle of a command from API call to final acknowledgment. The `WaitPlan` describes the immutable wait intent; `WaitCoordinator` creates the runtime handle that receives stage signals.
 
 <!-- Sources: DefaultCommandGateway.kt:45-246, EventSourcingStateAggregateRepository.kt:41-148, AbstractEventStore.kt:26-140, DomainEventBus.kt, ProjectionDispatcher.kt, StatelessSagaHandler.kt -->
 
@@ -367,7 +372,9 @@ sequenceDiagram
     participant CGW as CommandGateway<br>(DefaultCommandGateway)
     participant IC as Idempotency Checker<br>(Bloom Filter)
     participant VAL as Validator<br>(Bean Validation)
-    participant WS as WaitStrategy<br>(Sinks.Many-WaitSignal-)
+    participant WP as WaitPlan<br>(immutable intent)
+    participant WC as WaitCoordinator
+    participant WH as WaitLastHandle / WaitStreamHandle<br>(runtime signal sink)
     participant CB as CommandBus<br>(LocalFirst)
     participant CD as CommandDispatcher
     participant ESR as EventSourcing<br>StateAggregateRepository
@@ -379,7 +386,7 @@ sequenceDiagram
     participant CWN as CommandWaitNotifier
 
     Client->>WF: POST /command/{aggregateId}
-    WF->>CGW: sendAndWait(commandMessage, waitStrategy)
+    WF->>CGW: sendAndWait(commandMessage, waitPlan)
 
     rect rgb(30, 58, 95)
         Note over CGW,IC: Pre-Send Checks
@@ -390,9 +397,10 @@ sequenceDiagram
     end
 
     rect rgb(45, 74, 62)
-        Note over CGW,WS: Wait Setup
-        CGW->>WS: propagate(waitEndpoint, header)
-        CGW->>WS: register(waitStrategy)
+        Note over CGW,WC: Wait Setup
+        CGW->>WP: propagate(waitEndpoint, header)
+        CGW->>WC: createLast/createStream(waitPlan)
+        WC-->>CGW: runtime handle
     end
 
     CGW->>CB: send(commandMessage)
@@ -405,9 +413,8 @@ sequenceDiagram
     CB-->>CGW: Mono[Void] (sent)
 
     rect rgb(90, 74, 46)
-        Note over CGW,WS: SENT Signal
-        CGW->>WS: next(SENT signal)
-        WS->>CWN: notifyAndForget(waitStrategy, SENT signal)
+        Note over CGW,WH: SENT Signal
+        CGW->>WH: next(SENT signal)
     end
 
     CB->>CD: dispatch(commandMessage)
@@ -432,17 +439,19 @@ sequenceDiagram
     ES-->>CD: Mono[Void]
 
     rect rgb(90, 74, 46)
-        Note over CD,WS: PROCESSED Signal
-        CD->>WS: next(PROCESSED signal)
-        WS->>CWN: notifyAndForget(PROCESSED signal)
+        Note over CD,WH: PROCESSED Signal
+        CD->>CWN: notifyAndForget(PROCESSED signal)
+        CWN->>WC: signal(PROCESSED signal)
+        WC->>WH: next(PROCESSED signal)
     end
 
     CD->>CD: source events onto aggregate state
 
     alt Snapshot strategy triggers
         CD->>SN: save(snapshot)
-        CD->>WS: next(SNAPSHOT signal)
-        WS->>CWN: notifyAndForget(SNAPSHOT signal)
+        CD->>CWN: notifyAndForget(SNAPSHOT signal)
+        CWN->>WC: signal(SNAPSHOT signal)
+        WC->>WH: next(SNAPSHOT signal)
     end
 
     CD->>DEB: send(domainEventStream)
@@ -450,23 +459,25 @@ sequenceDiagram
     par Projection Processing
         DEB->>PD: EventStreamExchange
         PD->>PD: update read model<br>(Elasticsearch/Mongo/R2DBC)
-        PD->>WS: next(PROJECTED signal)
-        WS->>CWN: notifyAndForget(PROJECTED signal)
+        PD->>CWN: notifyAndForget(PROJECTED signal)
+        CWN->>WC: signal(PROJECTED signal)
+        WC->>WH: next(PROJECTED signal)
     and Saga Processing
         DEB->>SD: EventStreamExchange
         SD->>SD: match events to saga handlers
         SD->>CB: send(compensating command)
-        SD->>WS: next(SAGA_HANDLED signal)
-        WS->>CWN: notifyAndForget(SAGA_HANDLED signal)
+        SD->>CWN: notifyAndForget(SAGA_HANDLED signal)
+        CWN->>WC: signal(SAGA_HANDLED signal)
+        WC->>WH: next(SAGA_HANDLED signal)
     end
 
-    WS->>WS: complete()
-    WS-->>CGW: Mono[CommandResult] (terminal)
-    CGW-->>WF: CommandResult
+    WH->>WH: complete()
+    WH-->>CGW: Mono/Flux command outcome
+    CGW-->>WF: command outcome
     WF-->>Client: HTTP 200 + result body
 ```
 
-<!-- Sources: DefaultCommandGateway.kt:45-246, LocalFirstMessageBus.kt:89-171, EventSourcingStateAggregateRepository.kt:41-148, AbstractEventStore.kt:26-140, DomainEventBus.kt:1-97, CommandStage.kt:25-86, WaitingFor.kt:33-132 -->
+<!-- Sources: DefaultCommandGateway.kt:45-246, LocalFirstMessageBus.kt:89-171, EventSourcingStateAggregateRepository.kt:41-148, AbstractEventStore.kt:26-140, DomainEventBus.kt:1-97, CommandStage.kt:25-86, WaitCoordinator.kt:24-101 -->
 
 ### Key Observations from the Flow
 
@@ -474,7 +485,7 @@ sequenceDiagram
 
 2. **The `LocalFirst` decision happens at the bus layer**, not the gateway. Both command and event buses share the identical `LocalFirstMessageBus` pattern ([LocalFirstMessageBus.kt:89-171](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/LocalFirstMessageBus.kt#L89-L171)). If the aggregate is local AND has subscribers, the message is delivered in-process first; a copy is then sent to the distributed bus for other instances.
 
-3. **Projections and sagas are decoupled from the command path.** They subscribe to the `DomainEventBus` as independent consumers. This is standard CQRS. The `WaitStrategy` re-couples them for the purpose of client notification only.
+3. **Projections and sagas are decoupled from the command path.** They subscribe to the `DomainEventBus` as independent consumers. This is standard CQRS. The wait coordinator and runtime handle re-couple them for the purpose of client notification only.
 
 ---
 
@@ -554,7 +565,7 @@ flowchart TB
 | **Command routing** | KSP compile-time code generation; zero reflection | Runtime annotation scanning + reflection | Runtime annotation scanning | Manual wiring |
 | **Event sourcing** | First-class: `EventStore` with 4 backend choices | First-class: Axon Server or JPA/JDBC | CDC-based (Debezium) or JDBC polling | Manual event tables + bus |
 | **Message bus** | Unified `MessageBus<M,E>` with `LocalFirst` routing | Separate `CommandBus` + `EventBus` abstractions | Separate command/event channels | Kafka/RabbitMQ manual wiring |
-| **Wait/notification** | Push-based `WaitStrategy` chain (6 stages) with reactive sinks | `CommandCallback` on send; `SubscriptionQuery` for streaming | Polling `CommandReplyOutcome` table | Custom correlation ID polling |
+| **Wait/notification** | Push-based `WaitPlan` chain (6 stages) with coordinated last/stream handles | `CommandCallback` on send; `SubscriptionQuery` for streaming | Polling `CommandReplyOutcome` table | Custom correlation ID polling |
 | **Snapshot strategy** | `VersionOffsetSnapshotStrategy` — snapshot every N versions | Configurable trigger (version count, time) | Snapshot via event upcaster | Manual |
 | **Saga / Process Manager** | Stateless sagas: compile-time event-to-command mapping via KSP | Stateful `Saga` with `@SagaEventHandler` and `@EndSaga` | `Saga` with event handlers and command producers | Custom orchestration |
 | **Testing** | `AggregateSpec` / `SagaSpec` with Given-When-Expect DSL + fork support | `AggregateTestFixture` / `SagaTestFixture` with Given-When-Then | Manual test setup | Manual |
@@ -669,7 +680,7 @@ All benchmarks run with MongoDB + Redis + Kafka on Kubernetes ([README.md:56-98]
 | **Event store backend outage** | Medium | All writes blocked; reads from cached projections may continue to serve | Health check on MongoDB/Redis/R2DBC connection | Multi-region replica sets; circuit breaker in reactive pipeline | [EventStoreAutoConfiguration.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/eventsourcing/store/EventStoreAutoConfiguration.kt) |
 | **Projection drift** | Medium | Read models diverge from event store truth | Automated reconciliation; compensation dashboard tracks failed events | `StateEventCompensator` / `DomainEventCompensator` replay failed events; Dashboard for manual retry | [compensation/ core](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/compensation) |
 | **Saga failure (no compensation)** | Medium | Distributed transaction left in inconsistent state | Compensation dashboard shows saga failures | Stateless sagas emit compensating commands on failure; dashboard allows manual retry with spec | [StatelessSagaHandler.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/StatelessSagaHandler.kt) |
-| **WaitStrategy memory leak** | Medium | Unbounded `Sinks.Many` accumulation if waiters never disconnect | `waitingLast()` timeout; JMX metrics on active waiters | `WaitingFor` uses `Sinks.unsafe().many().unicast().onBackpressureBuffer()` — if the sink is never completed, memory grows | [WaitingFor.kt:38-39](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitingFor.kt#L38-L39) |
+| **Wait handle lifecycle leak** | Medium | Runtime handle remains registered if waiters never disconnect or a terminal signal is never observed | wait timeout; JMX metrics on active waiters | `WaitCoordinator` unregisters internal last/stream handles on completion, error, or cancellation; missing termination keeps a handle active | [WaitCoordinator.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitCoordinator.kt) |
 | **JVM garbage collection pause** | Low (with G1GC tuning) | Tail latency spike; reactive timeouts triggered | GC logs; OpenTelemetry JVM metrics | `-Xmx2g` minimum ([gradle.properties:15](https://github.com/Ahoo-Wang/Wow/blob/main/gradle.properties#L15)); production tuning required |
 
 ### Security Considerations
@@ -710,7 +721,7 @@ When adopting Wow, use this format to document architectural decisions. Each dec
 - **Alternatives**: R2DBC (SQL familiarity but less natural for event append patterns). Redis (highest throughput but higher operational complexity for durability).
 - **Consequences**: MongoDB requires replica set for production durability. Single-document insert latency is the throughput ceiling (~20k TPS per node).
 
-**ADR-002: Wait Strategy Mode**
+**ADR-002: Wait Plan Mode**
 - **Context**: Choose between `SENT` and `PROCESSED` wait modes for command endpoints.
 - **Decision**: `SENT` for high-throughput ingestion endpoints (e.g., shopping cart additions, analytics events). `PROCESSED` for synchronous business confirmations (e.g., order creation where caller needs order ID + computed fields).
 - **Alternatives**: Always `PROCESSED` (safer but 3x lower throughput). Always `SENT` (faster but caller must implement separate confirmation polling).
@@ -766,7 +777,7 @@ When adopting Wow, use this format to document architectural decisions. Each dec
 ### Second Week: Deepen on the Engine
 
 6. **Read the `LocalFirstMessageBus`** at [LocalFirstMessageBus.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/LocalFirstMessageBus.kt#L89-L171). This is the most important implementation detail for understanding distributed vs local routing.
-7. **Study the `WaitStrategy` chain** at [WaitingFor.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitingFor.kt) and [CommandStage.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt). Understand how stages form a DAG.
+7. **Study the `WaitPlan` chain** at [WaitPlan.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitPlan.kt) and [CommandStage.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt). Understand how stages form a DAG.
 8. **Examine the auto-configuration** at [WowAutoConfiguration.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt) and all sub-configurations. This is how the framework wires itself into Spring Boot.
 9. **Review test examples** at [OrderTest.kt](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/test/kotlin/me/ahoo/wow/example/domain/order/tradition/OrderTest.kt) (aggregate tests) and [CartSagaSpec.kt](https://github.com/Ahoo-Wang/Wow/blob/main/example/example-domain/src/test/kotlin/me/ahoo/wow/example/domain/cart/CartSagaSpec.kt) (saga tests). The Given-When-Expect DSL with `fork` support is powerful.
 10. **Run the benchmark suite**: use `./gradlew :wow-benchmarks:benchmarkQuickE2E` and `./gradlew :wow-benchmarks:benchmarkQuickComponent` for quick feedback. Full analysis uses `./gradlew :wow-benchmarks:benchmarkFullE2E` and `./gradlew :wow-benchmarks:benchmarkFullComponent`.
@@ -779,7 +790,7 @@ When adopting Wow, use this format to document architectural decisions. Each dec
 |---|---|
 | [Architecture Guide](../guide/architecture.md) | High-level architecture overview for developers |
 | [Configuration Reference](../reference/config/basic.md) | Full `wow.*` configuration property reference |
-| [Command Configuration](../reference/config/command.md) | Command bus, gateway, wait strategy configuration |
+| [Command Configuration](../reference/config/command.md) | Command bus, gateway, wait plan configuration |
 | [Event Configuration](../reference/config/event.md) | Event bus, dispatcher configuration |
 | [Event Sourcing Configuration](../reference/config/eventsourcing.md) | Event store, snapshot, state configuration |
 | [Saga Guide](../guide/saga.md) | Stateless saga development guide |

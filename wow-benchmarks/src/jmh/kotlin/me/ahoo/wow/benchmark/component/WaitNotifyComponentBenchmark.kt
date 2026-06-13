@@ -17,12 +17,13 @@ import me.ahoo.wow.api.messaging.function.FunctionInfoData
 import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
 import me.ahoo.wow.benchmark.fixture.BenchmarkIds
+import me.ahoo.wow.command.wait.CommandWait
 import me.ahoo.wow.command.wait.CommandStage
+import me.ahoo.wow.command.wait.DefaultWaitCoordinator
 import me.ahoo.wow.command.wait.LocalCommandWaitNotifier
 import me.ahoo.wow.command.wait.SimpleWaitSignal
-import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
+import me.ahoo.wow.command.wait.WaitCoordinator
 import me.ahoo.wow.command.wait.WaitSignal
-import me.ahoo.wow.command.wait.stage.WaitingForStage
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
@@ -32,43 +33,38 @@ import org.openjdk.jmh.infra.Blackhole
 @State(Scope.Thread)
 open class WaitNotifyComponentBenchmark {
     private lateinit var notifier: LocalCommandWaitNotifier
+    private lateinit var waitCoordinator: WaitCoordinator
 
     @Setup
     fun setup() {
         BenchmarkIds.installDeterministicGlobalIdGenerator()
-        notifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar)
+        waitCoordinator = DefaultWaitCoordinator()
+        notifier = LocalCommandWaitNotifier(waitCoordinator)
     }
 
     @Benchmark
-    fun registerWaitStrategy(blackhole: Blackhole) {
-        val waitStrategy = WaitingForStage.processed(BenchmarkIds.nextGlobalId())
-        val previous = SimpleWaitStrategyRegistrar.register(waitStrategy)
-        SimpleWaitStrategyRegistrar.unregister(waitStrategy.waitCommandId)
-        blackhole.consume(previous)
+    fun registerWaitRegistration(blackhole: Blackhole) {
+        val waitPlan = CommandWait.processed(BenchmarkIds.nextGlobalId())
+        val handle = waitCoordinator.createLast(waitPlan)
+        handle.cancel()
+        blackhole.consume(handle)
     }
 
     @Benchmark
     fun notifyProcessed(blackhole: Blackhole) {
-        val waitStrategy = WaitingForStage.processed(BenchmarkIds.nextGlobalId())
-        SimpleWaitStrategyRegistrar.register(waitStrategy)
-        try {
-            val result = notifier.notify("", waitSignal(waitStrategy.waitCommandId)).block()
-            blackhole.consume(result)
-        } finally {
-            SimpleWaitStrategyRegistrar.unregister(waitStrategy.waitCommandId)
-        }
+        val waitPlan = CommandWait.processed(BenchmarkIds.nextGlobalId())
+        waitCoordinator.createLast(waitPlan)
+        val result = notifier.notify("", waitSignal(waitPlan.waitCommandId)).block()
+        blackhole.consume(result)
     }
 
     @Benchmark
     fun waitForProcessed(blackhole: Blackhole) {
-        val waitStrategy = WaitingForStage.processed(BenchmarkIds.nextGlobalId())
-        SimpleWaitStrategyRegistrar.register(waitStrategy)
-        waitStrategy.onFinally {
-            SimpleWaitStrategyRegistrar.unregister(waitStrategy.waitCommandId)
-        }
-        val signal = waitSignal(waitStrategy.waitCommandId)
+        val waitPlan = CommandWait.processed(BenchmarkIds.nextGlobalId())
+        val handle = waitCoordinator.createLast(waitPlan)
+        val signal = waitSignal(waitPlan.waitCommandId)
         val result = notifier.notify("", signal)
-            .then(waitStrategy.waitingLast())
+            .then(handle.await())
             .block()
         blackhole.consume(result)
     }

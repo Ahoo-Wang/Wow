@@ -47,7 +47,7 @@ sealed interface WaitTarget {
         if (!stage.shouldWaitFunction) {
             return true
         }
-        return waitingFunction.isWaitingForFunction(signal.function)
+        return waitingFunction.matchesWaitFunction(signal.function)
     }
 }
 

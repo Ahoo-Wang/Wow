@@ -37,7 +37,7 @@ import me.ahoo.wow.saga.stateless.StatelessSagaDispatcher
 import reactor.core.publisher.Mono
 
 /**
- * Abstract base class for filters that notify wait strategies about command processing completion.
+ * Abstract base class for filters that notify wait plans about command processing completion.
  * These filters intercept message processing pipelines and send notifications to waiting clients
  * when specific processing stages are reached.
  *
@@ -58,7 +58,7 @@ abstract class AbstractNotifierFilter<T : MessageExchange<*, M>, M>(
 }
 
 /**
- * Filter that notifies wait strategies when command processing is complete.
+ * Filter that notifies wait plans when command processing is complete.
  * Intercepts the command dispatcher pipeline to send PROCESSED stage notifications.
  *
  * @param commandWaitNotifier The notifier for sending wait signals.
@@ -70,7 +70,7 @@ class ProcessedNotifierFilter(
     AbstractNotifierFilter<ServerCommandExchange<*>, CommandMessage<*>>(CommandStage.PROCESSED, commandWaitNotifier)
 
 /**
- * Filter that notifies wait strategies when aggregate snapshots are generated.
+ * Filter that notifies wait plans when aggregate snapshots are generated.
  * Intercepts the snapshot dispatcher pipeline to send SNAPSHOT stage notifications.
  *
  * @param commandWaitNotifier The notifier for sending wait signals.
@@ -82,7 +82,7 @@ class SnapshotNotifierFilter(
 ) : AbstractNotifierFilter<StateEventExchange<*>, StateEvent<*>>(CommandStage.SNAPSHOT, commandWaitNotifier)
 
 /**
- * Filter that notifies wait strategies when projections are updated.
+ * Filter that notifies wait plans when projections are updated.
  * Intercepts the projection dispatcher pipeline to send PROJECTED stage notifications.
  *
  * @param commandWaitNotifier The notifier for sending wait signals.
@@ -94,7 +94,7 @@ class ProjectedNotifierFilter(
 ) : AbstractNotifierFilter<DomainEventExchange<Any>, DomainEvent<*>>(CommandStage.PROJECTED, commandWaitNotifier)
 
 /**
- * Filter that notifies wait strategies when domain events are handled by event processors.
+ * Filter that notifies wait plans when domain events are handled by event processors.
  * Intercepts the domain event dispatcher pipeline to send EVENT_HANDLED stage notifications.
  *
  * @param commandWaitNotifier The notifier for sending wait signals.
@@ -106,7 +106,7 @@ class EventHandledNotifierFilter(
 ) : AbstractNotifierFilter<DomainEventExchange<Any>, DomainEvent<*>>(CommandStage.EVENT_HANDLED, commandWaitNotifier)
 
 /**
- * Filter that notifies wait strategies when domain events are handled by sagas.
+ * Filter that notifies wait plans when domain events are handled by sagas.
  * Intercepts the stateless saga dispatcher pipeline to send SAGA_HANDLED stage notifications.
  *
  * @param commandWaitNotifier The notifier for sending wait signals.

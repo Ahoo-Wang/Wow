@@ -16,13 +16,13 @@ package me.ahoo.wow.command.wait
 /**
  * Functional interface for defining predicate logic to determine
  * whether notification should be sent during processing stages.
- * Used by wait strategies to decide if they should be notified about
+ * Used by wait plans to decide if they should be notified about
  * command processing progress at specific stages.
  */
 fun interface ProcessingStageShouldNotifyPredicate {
     /**
      * Evaluates whether notification is required for the given processing stage.
-     * This allows wait strategies to filter notifications based on their waiting criteria.
+     * This allows wait plans to filter notifications based on their waiting criteria.
      *
      * @param processingStage The command processing stage being evaluated.
      * @return true if notification should be sent for this stage, false otherwise.
@@ -33,7 +33,7 @@ fun interface ProcessingStageShouldNotifyPredicate {
 /**
  * Functional interface for defining predicate logic to determine
  * whether notification should be sent for specific wait signals.
- * Provides fine-grained control over when wait strategies receive notifications
+ * Provides fine-grained control over when wait plans receive notifications
  * based on the content and context of the signal.
  */
 fun interface WaitSignalShouldNotifyPredicate {
