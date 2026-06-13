@@ -23,7 +23,6 @@ import me.ahoo.wow.command.wait.CommandWaitNotifier
 import me.ahoo.wow.command.wait.WaitCoordinator
 import me.ahoo.wow.command.wait.WaitHandle
 import me.ahoo.wow.command.wait.WaitPlan
-import me.ahoo.wow.command.wait.WaitSignal
 import me.ahoo.wow.command.wait.extractWaitPlan
 import me.ahoo.wow.command.wait.notifyAndForget
 import me.ahoo.wow.id.generateGlobalId
@@ -192,7 +191,7 @@ class DefaultCommandGateway(
     ): Flux<CommandResult> =
         Flux.defer {
             val handle = waitCoordinator.createStream(waitPlan)
-            sendWithWaitPlan(command, waitPlan, handle.toCallbacks())
+            sendWithWaitPlan(command, waitPlan, handle)
                 .thenMany(
                     handle.stream().map { waitSignal ->
                         waitSignal.toResult(command)
@@ -221,7 +220,7 @@ class DefaultCommandGateway(
     ): Mono<CommandResult> =
         Mono.defer {
             val handle = waitCoordinator.createLast(waitPlan)
-            sendWithWaitPlan(command, waitPlan, handle.toCallbacks())
+            sendWithWaitPlan(command, waitPlan, handle)
                 .then(
                     handle.await()
                         .map { waitSignal ->
@@ -253,22 +252,22 @@ class DefaultCommandGateway(
     private fun <C : Any> sendWithWaitPlan(
         command: CommandMessage<C>,
         waitPlan: WaitPlan,
-        handleForCleanup: WaitCallbacks
+        waitHandle: WaitHandle
     ): Mono<Void> {
-        validateVoidCommandWaitPlan(command, waitPlan, handleForCleanup)
+        validateVoidCommandWaitPlan(command, waitPlan, waitHandle)
         return check(command)
             .thenDefer {
                 waitPlan.propagate(commandWaitEndpoint, command.header)
                 commandBus.send(command)
             }.doOnSuccess {
                 val waitSignal = command.commandSentSignal(waitPlan.waitCommandId)
-                handleForCleanup.next(waitSignal)
+                waitHandle.next(waitSignal)
             }.doOnError {
                 val waitSignal = command.commandSentSignal(waitPlan.waitCommandId, it)
-                handleForCleanup.next(waitSignal)
-                handleForCleanup.error(it)
+                waitHandle.next(waitSignal)
+                waitHandle.error(it)
             }.doOnCancel {
-                handleForCleanup.cancel()
+                waitHandle.cancel()
             }.onErrorMap {
                 CommandResultException(
                     it.toResult(
@@ -283,7 +282,7 @@ class DefaultCommandGateway(
     private fun <C : Any> validateVoidCommandWaitPlan(
         command: CommandMessage<C>,
         waitPlan: WaitPlan,
-        handleForCleanup: WaitCallbacks
+        waitHandle: WaitHandle
     ) {
         if (!command.isVoid || waitPlan.supportVoidCommand) {
             return
@@ -291,20 +290,7 @@ class DefaultCommandGateway(
         val error = IllegalArgumentException(
             "The wait plan[${waitPlan.javaClass.simpleName}] for the void command must support void command."
         )
-        handleForCleanup.error(error)
+        waitHandle.error(error)
         throw error
     }
-
-    private class WaitCallbacks(
-        val next: (WaitSignal) -> Boolean,
-        val error: (Throwable) -> Unit,
-        val cancel: () -> Unit,
-    )
-
-    private fun WaitHandle.toCallbacks(): WaitCallbacks =
-        WaitCallbacks(
-            next = ::next,
-            error = ::error,
-            cancel = ::cancel,
-        )
 }
