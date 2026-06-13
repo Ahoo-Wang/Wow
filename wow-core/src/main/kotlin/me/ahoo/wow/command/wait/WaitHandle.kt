@@ -223,13 +223,6 @@ private fun <T : Any> unicastStreamSink(queueLinkSize: Int): Sinks.Many<T> {
     return Sinks.many().unicast().onBackpressureBuffer(Queues.unbounded<T>(queueLinkSize).get())
 }
 
-private fun Sinks.EmitResult.requireEmission() {
-    if (this == Sinks.EmitResult.OK) {
-        return
-    }
-    orThrow()
-}
-
 private fun Sinks.EmitResult.toEmissionException(): Sinks.EmissionException =
     Sinks.EmissionException(this)
 
