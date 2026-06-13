@@ -1,122 +1,332 @@
-# Command Wait Refactor Design
+# Command Wait Architecture Redesign
 
 ## Goal
 
-重构 `wow-core/src/main/kotlin/me/ahoo/wow/command/wait/`，让等待策略的职责边界更清楚，同时保持命令等待热路径的性能不退化。主要验收指标是 `CommandWriteE2EBenchmark.sendAndWaitProcessed` 的 JMH `gc.alloc.rate.norm`，吞吐量作为辅助信号。
+重设 command wait 架构，删除以 `WaitStrategy` 为中心的旧模型，改成以不可变等待计划、低分配 final wait、显式 streaming wait、集中协调器和纯语义 reducer 组成的新模型。
 
-## Current Context
+这次设计接受 public API breaking change。目标不是保留旧 facade，而是在完成实现时清理 `WaitStrategy`、`WaitingFor` 继承树、`WaitStrategyRegistrar` 和 strategy 命名传播层带来的技术债。
 
-当前 `command/wait` 目录包含三类职责：
+性能验收仍以 `CommandWriteE2EBenchmark.sendAndWaitProcessed` 的 JMH `gc.alloc.rate.norm` 为主，吞吐量为辅助信号。`sendAndWait` final result 路径必须避免 `Flux.collectList()`、默认 unicast sink 和 streaming 成本。
 
-- 等待策略 API 和状态机：`WaitStrategy`、`WaitingFor`、`WaitingForStage`、`WaitingForAfterProcessed`、`SimpleWaitingForChain`。
-- 等待策略传播和提取：`ExtractedWaitStrategy`、header key、stage/function/chain materialized 策略。
-- 处理完成通知：`NotifierFilters`、`MonoCommandWaitNotifier`、`CommandWaitNotifier`、`WaitStrategyRegistrar`。
+## Current Problems
 
-主要结构问题是 `WaitingFor` 同时承担 sink 生命周期、信号缓存、最终信号聚合、完成状态和 finally hook 编排；`WaitingForAfterProcessed` 又覆盖了一套 `waitingLast()` 聚合逻辑。链式等待还维护自己的子状态。这个形态让行为边界和性能优化边界都不够清晰。
+当前 wait 模型的问题不是单点实现低效，而是职责边界错误。
 
-已知性能背景：当前 checked-in quick benchmark 报告中，Framework E2E `sendAndWaitProcessed` 约在 `5.0-6.9 KB/op` 分配区间。历史实验表明，降低等待路径分配的关键在于避免 `waitingLast()` 默认经过 `waiting().collectList()`，并让仅订阅 final signal 的路径不必创建流式 `Sinks.Many`。
+1. `WaitStrategy` 同时描述“等什么”和“怎么运行”。它既负责 header propagation 和 shouldNotify，又暴露 `waiting()`、`waitingLast()`、`next()`、`complete()`、`error()`、`onFinally()` 等运行态方法。
+2. `WaitingFor` 构造时立即创建 unicast `Sinks.Many`。即使调用方只需要 final result，也先承担 streaming wait 的对象分配和生命周期成本。
+3. `waitingLast()` 由 `waiting().collectList()` 派生，导致 final wait 依赖流式实现、信号列表、排序和 copy 聚合。
+4. `WaitingForAfterProcessed`、`WaitingForStage`、`SimpleWaitingForChain` 把完成语义压进继承结构。stage、function、chain、fail-fast、result merge 分散在多个可变对象中。
+5. 生命周期分散在 `DefaultCommandGateway`、`WaitStrategyRegistrar`、`WaitingFor.onFinally` 和 `LocalCommandWaitNotifier` 之间。注册、传播、取消、错误和清理不能在一个边界内推理。
+6. 命名技术债明显：代码外观仍是 Strategy，但真实需求是 wait intent、runtime handle、notification dispatch 和 signal reduction。
 
-## Scope
+## New Architecture
 
-- 保持 public API、包名、header 协议字段、等待策略语义兼容。
-- 只在 `wow-core` 的 command wait 模块内做职责拆分和必要测试调整。
-- 新增 `internal` 状态组件 `WaitSignalJournal`，但不暴露为外部 API。
-- 保留 `waiting()` 流式语义和 `waitingLast()` 最终信号语义。
-- 保留 `LocalCommandWaitNotifier.notifyAndForget()` 同步本地转发并捕获异常的快路径。
-- 最终用窄单元测试和 quick E2E benchmark 验证。
+### WaitPlan
 
-## Non-Goals
+`WaitPlan` 是不可变等待意图，不持有 sink，不接收 signal，不暴露运行态方法。
 
-- 不改变 Gradle 模块结构、feature variants、发布配置或 CI workflow。
-- 不改 wire/header 字段名称或跨进程等待协议。
-- 不引入新的第三方依赖。
-- 不把远端 wait notifier、WebFlux endpoint、Kafka/Mongo/Redis 等基础设施路径纳入本轮重构。
-- 不以组件 benchmark 作为主要收益结论；组件 benchmark 可辅助定位，但最终结论以 quick E2E 为准。
+职责：
 
-## Selected Approach
+- 保存 `waitCommandId`。
+- 描述目标 stage。
+- 描述可选 function 匹配条件。
+- 描述可选 chain tail。
+- 声明是否支持 void command。
+- 提供 header propagation 所需数据。
 
-采用“状态存储组件化，吸收低分配路径”的方案。
+建议形态：
 
-`WaitingFor` 和具体子类只表达“等什么”：阶段依赖、函数匹配、链式等待完成条件、前置阶段失败时的 fail-fast 规则。它们不直接管理 Reactor sink、信号列表或 final signal 聚合细节。
+```kotlin
+interface WaitPlan : WaitCommandIdCapable {
+    val target: WaitTarget
+    val supportVoidCommand: Boolean
+    fun propagate(endpoint: CommandWaitEndpoint, header: Header)
+}
 
-新增一个 `internal` 状态组件 `WaitSignalJournal`，只表达“怎么等”：缓存收到的 `WaitSignal`，为 `waiting()` 提供 replay 和后续流式信号，为 `waitingLast()` 提供 final `Mono`，维护 completed/failed/cancelled 状态，并支持终止后订阅的重放行为。
+sealed interface WaitTarget
+data class StageWaitTarget(...)
+data class ChainWaitTarget(...)
+```
 
-传播和通知层保持现有职责。`ExtractedWaitStrategy` 继续从 header 还原 materialized 策略；`MonoCommandWaitNotifier` 继续在处理阶段完成或失败时构造 `WaitSignal`；`CommandWaitNotifier.notifyAndForget(extracted, signal)` 继续先判断 `shouldNotify(signal)` 再通知 endpoint。
+现有 `WaitingForStage.processed(commandId)` 这类工厂迁移为 `CommandWait.processed(commandId)`，返回 `WaitPlan`。
 
-## State Model
+### WaitLastHandle
 
-`WaitSignalJournal` 维护四类状态：
+`WaitLastHandle` 是 final result 专用运行态。
 
-- `active`：可以接收信号，可以按订阅类型物化 sink。
-- `completed`：不再接收新信号；`waitingLast()` 返回 final signal 或 empty；`waiting()` replay 已缓存信号后完成。
-- `failed`：不再接收新信号；`waiting()` 和 `waitingLast()` 传播 terminal error。
-- `cancelled`：订阅取消后标记；后续信号忽略。
+职责：
 
-信号缓存使用轻量结构保存到达顺序。只有 `waiting()` 被订阅时才创建 `Sinks.Many`，用于 replay 后继续流式发送。`waitingLast()` 使用 `Sinks.One` 或已完成的 final result，避免 `Flux.collectList()` 成为默认 final wait 路径。
+- 暴露 `await(): Mono<WaitSignal>`。
+- 接收被 `WaitCoordinator` 分发的 signal。
+- 使用 `WaitSignalReducer` 更新 final state。
+- 完成、失败或取消时通知 coordinator 清理。
 
-`onFinally` 必须最多执行一次。hook 自身异常只记录日志，不影响命令处理管线。
+禁止事项：
 
-## Final Signal Rules
+- 不创建 `Flux` sink。
+- 不实现 `stream()`。
+- 不通过 `stream().collectList()` 得到 final result。
+- 不保存完整信号列表，除非 reducer 的具体语义必须保留多个信号的 result merge。
 
-- 普通 stage 默认从已缓存信号中选择 `signalTime` 最大的信号；如时间相同，保留后到达的信号。
-- 多个信号的 `result` 按到达顺序合并，后到达的同名 key 覆盖前面的 key。
-- 如果只有一个信号，`waitingLast()` 可以直接返回原信号，避免不必要 copy。
-- `WaitingForAfterProcessed` 的 final signal 优先使用目标 stage 的匹配信号，而不是按时间最后一个信号；这保持 snapshot/projected/eventHandled/sagaHandled 的现有语义。
-- 如果手动完成时还没有目标 stage 信号，则退回到已有信号中的最后语义。
-- `waiting()` 仍然发出所有收到的信号，不因 final signal 规则过滤中间信号。
+建议形态：
 
-## Chain Waiting
+```kotlin
+interface WaitLastHandle : WaitCommandIdCapable {
+    fun await(): Mono<WaitSignal>
+    fun cancel()
+}
+```
 
-`SimpleWaitingForChain` 保持现有外部行为：先等待主命令的 `SAGA_HANDLED` 匹配函数，再为 saga 发出的 tail commands 创建 tail stage 等待。所有 tail waiting 完成后主 chain 完成。
+### WaitStreamHandle
 
-本轮不改 chain header 协议。实现上可以让 chain 继续复用 `WaitingFor` 的 journal，并将“主 saga 是否完成、tail commands 是否全部完成”的判断留在 `SimpleWaitingForChain` 内。若需要调整 final signal 选择，必须先补测试锁住当前行为。
+`WaitStreamHandle` 是 progress stream 专用运行态。
 
-## Error Handling
+职责：
 
-- `next(signal)` 在策略完成、失败或取消后忽略新信号并记录 warn。
-- 前置阶段失败时继续 fail-fast complete，例如等待 `SNAPSHOT` 时 `PROCESSED` 失败会结束等待。
-- `error(Throwable)` 进入 failed terminal；已订阅和后订阅的 `waiting()` / `waitingLast()` 都能看到该 error。
-- 本地 `notifyAndForget` 继续捕获 registrar 异常，避免 fire-and-forget 通知破坏处理管线。
-- `MonoCommandWaitNotifier` 继续把 retry exhausted 包装错误还原为 cause，并用现有 `ErrorInfo` 转换逻辑生成失败信号。
+- 暴露 `stream(): Flux<WaitSignal>`。
+- 维护 replay、后续 signal 推送、完成、错误和取消。
+- 仍使用同一个 `WaitSignalReducer` 判断何时 complete。
+
+它是显式高成本路径。只有 `CommandGateway.sendAndWaitStream` 创建它。
+
+建议形态：
+
+```kotlin
+interface WaitStreamHandle : WaitCommandIdCapable {
+    fun stream(): Flux<WaitSignal>
+    fun cancel()
+}
+```
+
+`WaitLastHandle` 和 `WaitStreamHandle` 不互相继承，避免 final wait 被 streaming 语义污染。
+
+### WaitCoordinator
+
+`WaitCoordinator` 是 wait runtime 的唯一协调边界。
+
+职责：
+
+- 根据 `WaitPlan` 创建 `WaitLastHandle` 或 `WaitStreamHandle`。
+- 注册运行态 handle。
+- 在命令发送前传播 wait header。
+- 接收本地或远端 `WaitSignal` 并分发给 handle。
+- 处理 command send 成功/失败的 `SENT` signal。
+- 处理完成、错误、取消和 unregister。
+
+建议形态：
+
+```kotlin
+interface WaitCoordinator {
+    fun createLast(plan: WaitPlan): WaitLastHandle
+    fun createStream(plan: WaitPlan): WaitStreamHandle
+    fun propagate(plan: WaitPlan, endpoint: CommandWaitEndpoint, header: Header)
+    fun signal(signal: WaitSignal): Boolean
+    fun unregister(waitCommandId: String)
+}
+```
+
+`DefaultCommandGateway` 不再直接依赖 registrar，也不再通过 `onFinally` 清理旧策略。
+
+### WaitSignalReducer
+
+`WaitSignalReducer` 是纯语义组件，用来消除当前继承结构里的隐式状态规则。
+
+职责：
+
+- 判断 previous stage。
+- 执行前置阶段失败 fail-fast。
+- 判断目标 stage 是否满足。
+- 判断 function 是否匹配。
+- 处理 projection last-only。
+- 处理 chain 主 saga 和 tail commands 完成条件。
+- 合并 result，后到达 signal 覆盖同名 key。
+- 选择 final signal。
+
+建议形态：
+
+```kotlin
+interface WaitSignalReducer {
+    fun reduce(state: WaitReductionState, signal: WaitSignal): WaitReduction
+}
+
+data class WaitReduction(
+    val state: WaitReductionState,
+    val signals: List<WaitSignal> = emptyList(),
+    val completed: Boolean = false,
+    val finalSignal: WaitSignal? = null,
+    val error: Throwable? = null,
+)
+```
+
+final handle 可以只保存 reducer 必需的压缩状态；stream handle 可以额外 replay reducer 接受的信号。
+
+## Public API
+
+`CommandGateway` 改用 `WaitPlan`：
+
+```kotlin
+interface CommandGateway : CommandBus {
+    fun <C : Any> sendAndWait(
+        command: CommandMessage<C>,
+        waitPlan: WaitPlan
+    ): Mono<CommandResult>
+
+    fun <C : Any> sendAndWaitStream(
+        command: CommandMessage<C>,
+        waitPlan: WaitPlan
+    ): Flux<CommandResult>
+}
+```
+
+便捷 API 保留，但内部改为 plan：
+
+```kotlin
+fun <C : Any> sendAndWaitForProcessed(command: CommandMessage<C>): Mono<CommandResult> =
+    sendAndWait(command, CommandWait.processed(command.commandId))
+```
+
+新的工厂入口：
+
+```kotlin
+object CommandWait {
+    fun sent(waitCommandId: String): WaitPlan
+    fun processed(waitCommandId: String): WaitPlan
+    fun snapshot(waitCommandId: String): WaitPlan
+    fun projected(waitCommandId: String, contextName: String, processorName: String = "", functionName: String = ""): WaitPlan
+    fun eventHandled(waitCommandId: String, contextName: String, processorName: String = "", functionName: String = ""): WaitPlan
+    fun sagaHandled(waitCommandId: String, contextName: String, processorName: String = "", functionName: String = ""): WaitPlan
+    fun chain(waitCommandId: String, function: NamedFunctionInfoData, tail: WaitChainTail): WaitPlan
+}
+```
+
+## Signal Flow
+
+`sendAndWait`：
+
+1. Gateway 创建或接收 `WaitPlan`。
+2. Gateway 请求 `WaitCoordinator.createLast(plan)`。
+3. Coordinator 注册 `WaitLastHandle` 并传播 wait header。
+4. Gateway 执行 command check 和 command bus send。
+5. send 成功或失败时，coordinator 直接写入 `SENT` signal。
+6. 下游处理阶段通过 `CommandWaitNotifier` 发布 signal。
+7. Coordinator 按 `waitCommandId` 分发 signal。
+8. `WaitLastHandle` 通过 reducer 完成 final signal。
+9. Coordinator unregister。
+
+`sendAndWaitStream` 相同，但创建 `WaitStreamHandle`，并且 streaming sink 只在该路径存在。
+
+## Header And Wire Compatibility
+
+本设计第一阶段不改 header 字段含义，降低跨模块迁移风险。旧字段可以保留名称，内部提取结果改为 `WaitPlan`：
+
+- command wait endpoint
+- wait command id
+- wait stage
+- wait function
+- wait chain
+- wait chain tail
+
+代码命名应从 `extractWaitStrategy()` 改为 `extractWaitPlan()`，从 `WaitStrategyMessagePropagator` 改为 `WaitPlanMessagePropagator` 或更具体的 `CommandWaitPlanPropagator`。
+
+## Technical Debt Cleanup
+
+实现完成时必须删除或替换以下旧概念，不能留下 deprecated facade：
+
+- `WaitStrategy`
+- `WaitStrategy.Materialized`
+- `WaitStrategy.FunctionMaterialized`
+- `WaitStrategyRegistrar`
+- `SimpleWaitStrategyRegistrar`
+- `WaitingFor`
+- `WaitingForStage`
+- `WaitingForAfterProcessed`
+- `WaitingForProcessed` / `WaitingForSnapshot` / `WaitingForProjected` / `WaitingForEventHandled` / `WaitingForSagaHandled` / `WaitingForSent`
+- `SimpleWaitingForChain` 运行态继承实现
+- `WaitStrategyMessagePropagator`
+- `TracingWaitStrategy`
+- 所有 `waiting()` / `waitingLast()` / `next()` / `complete()` / `onFinally()` 旧运行态 API
+
+允许保留的只有语义等价的新类型、工厂入口和协议字段。
+
+## Migration Scope
+
+必须同步更新：
+
+- `wow-core` command wait runtime。
+- `DefaultCommandGateway` 生命周期编排。
+- `CommandWaitNotifier` 本地分发逻辑。
+- message propagation 提取和传播逻辑。
+- chain wait 实现。
+- OpenTelemetry wait tracing 命名和包装点。
+- tests、contract tests、TCK 中的 wait API 使用。
+- example 和 documentation 中的 `WaitingForStage.*` 使用。
+
+不在本轮改变：
+
+- Gradle module structure。
+- CI/publish 配置。
+- wire/header 字段名，除非实现中发现无法兼容。
+- 外部基础设施存储或 transport 行为。
 
 ## Testing
 
-优先补充或调整以下测试：
+单元测试重点：
 
-- Journal/lifecycle：完成前订阅、完成后订阅、取消、错误、空完成、单信号不 copy、多信号 result 合并、`waiting()` replay。
-- Stage strategy：`processed`、`snapshot`、`projected`、`eventHandled`、`sagaHandled` 的完成条件、函数匹配、projection last-only、前置失败 fail-fast。
-- Chain strategy：主 saga 匹配、tail command 创建、所有 tail 完成后 chain 完成、无 tail command 立即完成、非主命令 tail 信号分发。
-- Notification layer：filter 生成正确 stage signal，`LocalCommandWaitNotifier` 本地快路径行为不变，`notifyAndForget` 继续吞掉异常。
-- Propagation：stage/function/chain header 提取和传播兼容。
+- `WaitPlan` factory 和 header propagation/extraction。
+- `WaitSignalReducer` stage wait：sent、processed、snapshot、projected、eventHandled、sagaHandled。
+- reducer fail-fast：等待后续 stage 时 previous stage 失败应完成为失败 result。
+- reducer function matching。
+- reducer projection last-only。
+- reducer chain：主 saga 匹配、tail command 创建、所有 tail 完成、无 tail command 立即完成。
+- `WaitLastHandle`：无 stream sink、单信号完成、多信号 result merge、错误、取消、完成后 await。
+- `WaitStreamHandle`：replay、中间 signal、完成、错误、取消。
+- `WaitCoordinator`：register、signal dispatch、unregister、send 成功/失败 signal、本地同步 notify。
 
 建议验证命令：
 
 ```bash
 ./gradlew :wow-core:test --tests "me.ahoo.wow.command.wait.*"
 ./gradlew :wow-core:test --tests "me.ahoo.wow.messaging.propagation.*Wait*"
+./gradlew :wow-opentelemetry:test --tests "me.ahoo.wow.opentelemetry.wait.*"
 ```
 
-如果测试过滤表达式没有覆盖子包或在 Gradle/JUnit 下不匹配，改用更窄的具体测试类列表，或者运行 `./gradlew :wow-core:test`。
+如果测试过滤不覆盖子包，则运行 `./gradlew :wow-core:test`。
 
 ## Benchmark Validation
 
-实现完成后先读取 checked-in quick reports 作为背景，再运行 quick E2E。若要声明性能收益，必须使用同机同窗口 baseline 和 after-run 对比；checked-in report 只作为定位背景。主要看 `gc.alloc.rate.norm`，吞吐量只作为辅助。
+实现完成后用同机同窗口 baseline 验证，不用 checked-in report 直接声明收益。主要看 `gc.alloc.rate.norm`。
 
-推荐验证：
+推荐 quick E2E：
 
 ```bash
 ./gradlew :wow-benchmarks:benchmarkQuickE2E :wow-benchmarks:generateBenchmarkReport
 ```
 
-报告结论必须包含：
+若要声明性能收益，必须报告：
 
-- 同机同窗口 baseline；如果没有重跑 baseline，只能把 checked-in quick report 写成背景，不能据此声明收益。
-- 重构后的 quick E2E 数值。
-- `CommandWriteE2EBenchmark.sendAndWaitProcessed` matched scenarios 的 `gc.alloc.rate.norm` 对比。
-- 如果收益不明显或结果在噪声内，结论写成架构清洁且性能基本持平，不夸大 throughput 波动。
+- baseline commit 和 after commit。
+- `CommandWriteE2EBenchmark.sendAndWaitProcessed` 各 scenario 的 `gc.alloc.rate.norm`。
+- `sendAndWaitSent` 是否保持现有快路径水平。
+- throughput 只作为辅助，不盖过 allocation 结论。
 
-## Compatibility And Risks
+## Risks
 
-兼容性目标是外部 API 零变化。主要风险集中在 Reactor sink 生命周期、订阅取消、完成后订阅、错误重放和 `onFinally` 触发次数。实现必须先用测试锁住这些边界，再改状态组件。
+- 这是 public API breaking change，需要一次性迁移内部、测试、示例和文档。
+- `WaitSignalReducer` 必须精确复刻旧 stage/chain 语义，否则会造成行为回归。
+- final handle 和 stream handle 分离后，两个路径必须共享 reducer，避免语义漂移。
+- local notify 的同步快路径必须保留，否则可能抵消架构收益。
+- OpenTelemetry 原先包装 `WaitStrategy`，需要移动到 coordinator/handle 边界。
 
-另一个风险是过度吸收历史实验代码。历史实现只能作为参考，最终实现要适配当前 `main` 上的最近提交，尤其是本地 `notifyAndForget` 同步快路径。
+## Decision
+
+采用破坏性新架构：
+
+```text
+WaitPlan            不可变等待意图
+WaitLastHandle      final result 低分配运行态
+WaitStreamHandle    progress stream 运行态
+WaitCoordinator     注册、传播、分发、清理
+WaitSignalReducer   stage/chain/fail-fast/final signal 语义
+```
+
+最终完成时删除 `WaitStrategy` 和相关技术债，不保留兼容 facade。
