@@ -190,15 +190,22 @@ class DefaultCommandGateway(
         waitPlan: WaitPlan
     ): Flux<CommandResult> =
         Flux.defer {
-            val handle = waitCoordinator.createStream(waitPlan)
-            sendWithWaitPlan(command, waitPlan, handle)
+            validateVoidCommandWaitPlan(command, waitPlan)
+            check(command)
+                .mapToCommandResultException(command, waitPlan)
                 .thenMany(
-                    handle.stream().map { waitSignal ->
-                        waitSignal.toResult(command)
+                    Flux.defer {
+                        val handle = waitCoordinator.createStream(waitPlan)
+                        sendWithRegisteredWaitHandle(command, waitPlan, handle)
+                            .thenMany(
+                                handle.stream().map { waitSignal ->
+                                    waitSignal.toResult(command)
+                                }
+                            ).doOnCancel {
+                                handle.cancel()
+                            }
                     }
-                ).doOnCancel {
-                    handle.cancel()
-                }
+                )
         }
 
     /**
@@ -219,21 +226,28 @@ class DefaultCommandGateway(
         waitPlan: WaitPlan
     ): Mono<CommandResult> =
         Mono.defer {
-            val handle = waitCoordinator.createLast(waitPlan)
-            sendWithWaitPlan(command, waitPlan, handle)
+            validateVoidCommandWaitPlan(command, waitPlan)
+            check(command)
+                .mapToCommandResultException(command, waitPlan)
                 .then(
-                    handle.await()
-                        .map { waitSignal ->
-                            waitSignal.toResult(command)
-                                .apply {
-                                    if (!succeeded) {
-                                        throw CommandResultException(this)
+                    Mono.defer {
+                        val handle = waitCoordinator.createLast(waitPlan)
+                        sendWithRegisteredWaitHandle(command, waitPlan, handle)
+                            .then(
+                                handle.await()
+                                    .map { waitSignal ->
+                                        waitSignal.toResult(command)
+                                            .apply {
+                                                if (!succeeded) {
+                                                    throw CommandResultException(this)
+                                                }
+                                            }
                                     }
-                                }
-                        }
-                ).doOnCancel {
-                    handle.cancel()
-                }
+                            ).doOnCancel {
+                                handle.cancel()
+                            }
+                    }
+                )
         }
 
     /**
@@ -249,40 +263,29 @@ class DefaultCommandGateway(
      * @throws IllegalArgumentException if the wait plan doesn't support void commands when needed.
      *
      */
-    private fun <C : Any> sendWithWaitPlan(
+    private fun <C : Any> sendWithRegisteredWaitHandle(
         command: CommandMessage<C>,
         waitPlan: WaitPlan,
         waitHandle: WaitHandle
     ): Mono<Void> {
-        validateVoidCommandWaitPlan(command, waitPlan, waitHandle)
-        return check(command)
-            .thenDefer {
-                waitPlan.propagate(commandWaitEndpoint, command.header)
-                commandBus.send(command)
-            }.doOnSuccess {
-                val waitSignal = command.commandSentSignal(waitPlan.waitCommandId)
-                waitHandle.next(waitSignal)
-            }.doOnError {
-                val waitSignal = command.commandSentSignal(waitPlan.waitCommandId, it)
-                waitHandle.next(waitSignal)
-                waitHandle.error(it)
-            }.doOnCancel {
-                waitHandle.cancel()
-            }.onErrorMap {
-                CommandResultException(
-                    it.toResult(
-                        waitCommandId = waitPlan.waitCommandId,
-                        commandMessage = command,
-                    ),
-                    it,
-                )
-            }
+        return Mono.defer {
+            waitPlan.propagate(commandWaitEndpoint, command.header)
+            commandBus.send(command)
+        }.doOnSuccess {
+            val waitSignal = command.commandSentSignal(waitPlan.waitCommandId)
+            waitHandle.next(waitSignal)
+        }.doOnError {
+            val waitSignal = command.commandSentSignal(waitPlan.waitCommandId, it)
+            waitHandle.next(waitSignal)
+            waitHandle.error(it)
+        }.doOnCancel {
+            waitHandle.cancel()
+        }.mapToCommandResultException(command, waitPlan)
     }
 
     private fun <C : Any> validateVoidCommandWaitPlan(
         command: CommandMessage<C>,
-        waitPlan: WaitPlan,
-        waitHandle: WaitHandle
+        waitPlan: WaitPlan
     ) {
         if (!command.isVoid || waitPlan.supportVoidCommand) {
             return
@@ -290,7 +293,20 @@ class DefaultCommandGateway(
         val error = IllegalArgumentException(
             "The wait plan[${waitPlan.javaClass.simpleName}] for the void command must support void command."
         )
-        waitHandle.error(error)
         throw error
     }
+
+    private fun <T : Any, C : Any> Mono<T>.mapToCommandResultException(
+        command: CommandMessage<C>,
+        waitPlan: WaitPlan
+    ): Mono<T> =
+        onErrorMap {
+            CommandResultException(
+                it.toResult(
+                    waitCommandId = waitPlan.waitCommandId,
+                    commandMessage = command,
+                ),
+                it,
+            )
+        }
 }

@@ -27,6 +27,7 @@ import me.ahoo.wow.command.wait.WaitCoordinator
 import me.ahoo.wow.command.wait.extractWaitPlan
 import me.ahoo.wow.command.wait.testSignal
 import me.ahoo.wow.command.wait.waitPlanHeader
+import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.infra.idempotency.AggregateIdempotencyCheckerProvider
 import me.ahoo.wow.infra.idempotency.IdempotencyChecker
 import me.ahoo.wow.infra.idempotency.NoOpIdempotencyChecker
@@ -34,6 +35,7 @@ import org.junit.jupiter.api.Test
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
+import java.util.concurrent.atomic.AtomicInteger
 
 class DefaultCommandGatewayTest {
 
@@ -283,6 +285,35 @@ class DefaultCommandGatewayTest {
 
         activeHandle.cancel()
         waitCoordinator.contains("wait-command-id").assert().isFalse()
+    }
+
+    @Test
+    fun `in flight duplicate command reports duplicate request before wait registration conflict`() {
+        val idempotencyChecks = AtomicInteger()
+        val waitCoordinator = DefaultWaitCoordinator()
+        val gateway = commandGateway(
+            waitCoordinator = waitCoordinator,
+            idempotencyChecker = IdempotencyChecker {
+                Mono.just(idempotencyChecks.getAndIncrement() == 0)
+            },
+        )
+        val command = TestCommandMessage(id = "command-id")
+        val waitPlan = CommandWait.processed(command.commandId)
+        val firstSubscription = gateway.sendAndWait(command, waitPlan).subscribe()
+
+        waitCoordinator.contains(waitPlan.waitCommandId).assert().isTrue()
+
+        StepVerifier.create(gateway.sendAndWait(command, waitPlan))
+            .expectErrorSatisfies {
+                it.assert().isInstanceOf(CommandResultException::class.java)
+                val result = (it as CommandResultException).commandResult
+                result.errorCode.assert().isEqualTo(ErrorCodes.DUPLICATE_REQUEST_ID)
+                result.waitCommandId.assert().isEqualTo(waitPlan.waitCommandId)
+            }
+            .verify()
+
+        firstSubscription.dispose()
+        waitCoordinator.contains(waitPlan.waitCommandId).assert().isFalse()
     }
 
     @Test
