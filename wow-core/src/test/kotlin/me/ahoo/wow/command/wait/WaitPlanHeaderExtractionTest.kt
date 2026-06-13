@@ -21,6 +21,7 @@ import me.ahoo.wow.command.wait.chain.WaitingChainTail.Companion.COMMAND_WAIT_TA
 import me.ahoo.wow.command.wait.chain.WaitingChainTail.Companion.propagateWaitingChainTail
 import me.ahoo.wow.messaging.DefaultHeader
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 class WaitPlanHeaderExtractionTest {
     @Test
@@ -132,6 +133,84 @@ class WaitPlanHeaderExtractionTest {
         header.containsKey(COMMAND_WAIT_STAGE).assert().isFalse()
         header[COMMAND_WAIT_TAIL_STAGE].assert().isEqualTo(CommandStage.PROJECTED.name)
         header.extractWaitPlan()!!.plan.target.assert().isEqualTo(StageWaitTarget(CommandStage.PROJECTED, tailFunction))
+    }
+
+    @Test
+    fun requiredHeaderExtractionShouldFailWhenMissing() {
+        val header = DefaultHeader.empty()
+
+        val commandIdError = assertThrows<IllegalArgumentException> {
+            header.requireExtractWaitCommandId()
+        }
+        val endpointError = assertThrows<IllegalArgumentException> {
+            header.requireExtractCommandWaitEndpoint()
+        }
+
+        commandIdError.message.assert().isEqualTo("$WAIT_COMMAND_ID is required!")
+        endpointError.message.assert().isEqualTo("$COMMAND_WAIT_ENDPOINT is required!")
+    }
+
+    @Test
+    fun extractWaitPlanShouldReturnNullForIncompleteHeaders() {
+        DefaultHeader.empty()
+            .extractWaitPlan()
+            .assert().isNull()
+        DefaultHeader.empty()
+            .propagateWaitCommandId("wait-id")
+            .extractWaitPlan()
+            .assert().isNull()
+        DefaultHeader.empty()
+            .propagateWaitCommandId("wait-id")
+            .propagateCommandWaitEndpoint(TEST_ENDPOINT)
+            .extractWaitPlan()
+            .assert().isNull()
+    }
+
+    @Test
+    fun propagateStagePlanShouldOmitFunctionHeadersWhenNoFunctionIsRequired() {
+        val header = DefaultHeader.empty()
+
+        CommandWait.processed("wait-id")
+            .propagate(TestCommandWaitEndpoint, header)
+
+        header[WAIT_COMMAND_ID].assert().isEqualTo("wait-id")
+        header[COMMAND_WAIT_ENDPOINT].assert().isEqualTo(TEST_ENDPOINT)
+        header[COMMAND_WAIT_STAGE].assert().isEqualTo(CommandStage.PROCESSED.name)
+        header.containsKey(COMMAND_WAIT_CONTEXT).assert().isFalse()
+        header.containsKey(COMMAND_WAIT_PROCESSOR).assert().isFalse()
+        header.containsKey(COMMAND_WAIT_FUNCTION).assert().isFalse()
+        header.extractWaitPlan()!!.plan.target.assert().isEqualTo(StageWaitTarget(CommandStage.PROCESSED))
+    }
+
+    @Test
+    fun extractSentPlanShouldSupportVoidCommand() {
+        val header = waitPlanHeader(
+            waitCommandId = "wait-id",
+            endpoint = TEST_ENDPOINT,
+            stage = CommandStage.SENT,
+            function = testNamedFunction(),
+        )
+
+        val extracted = header.extractWaitPlan()!!
+
+        extracted.plan.supportVoidCommand.assert().isTrue()
+        extracted.plan.target.assert().isEqualTo(StageWaitTarget(CommandStage.SENT))
+    }
+
+    @Test
+    fun stagePlanShouldNotPropagateFromNonCommandUpstream() {
+        val extracted = ExtractedWaitPlan(
+            endpoint = TEST_ENDPOINT,
+            waitCommandId = "wait-id",
+            plan = CommandWait.processed("wait-id"),
+        )
+        val header = DefaultHeader.empty()
+
+        extracted.propagate(header, TestDomainEvent())
+
+        header.containsKey(WAIT_COMMAND_ID).assert().isFalse()
+        header.containsKey(COMMAND_WAIT_ENDPOINT).assert().isFalse()
+        header.containsKey(COMMAND_WAIT_STAGE).assert().isFalse()
     }
 
     private object TestCommandWaitEndpoint : CommandWaitEndpoint {

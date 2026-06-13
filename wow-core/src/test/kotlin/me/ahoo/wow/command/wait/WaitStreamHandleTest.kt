@@ -15,6 +15,7 @@ package me.ahoo.wow.command.wait
 
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import reactor.test.StepVerifier
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -74,6 +75,19 @@ class WaitStreamHandleTest {
             .assertNext { it.stage.assert().isEqualTo(CommandStage.SENT) }
             .assertNext { it.stage.assert().isEqualTo(CommandStage.PROCESSED) }
             .verifyComplete()
+    }
+
+    @Test
+    fun queueLinkSizeMustBePositive() {
+        val error = assertThrows<IllegalArgumentException> {
+            DefaultWaitStreamHandle(
+                plan = CommandWait.processed("wait-id"),
+                onTerminate = {},
+                queueLinkSize = 0,
+            )
+        }
+
+        error.message.assert().isEqualTo("Wait stream queueLinkSize must be greater than 0.")
     }
 
     @Test

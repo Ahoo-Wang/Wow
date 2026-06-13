@@ -24,6 +24,7 @@ import me.ahoo.wow.command.wait.RecordingCommandWaitNotifier
 import me.ahoo.wow.command.wait.SimpleCommandWaitEndpoint
 import me.ahoo.wow.command.wait.TestCommandMessage
 import me.ahoo.wow.command.wait.WaitCoordinator
+import me.ahoo.wow.command.wait.extractWaitPlan
 import me.ahoo.wow.command.wait.testSignal
 import me.ahoo.wow.command.wait.waitPlanHeader
 import me.ahoo.wow.infra.idempotency.AggregateIdempotencyCheckerProvider
@@ -74,6 +75,74 @@ class DefaultCommandGatewayTest {
         notification.signal.waitCommandId.assert().isEqualTo("wait-command-id")
         notification.signal.commandId.assert().isEqualTo("command-id")
         notification.signal.errorCode.assert().isEqualTo("Ok")
+    }
+
+    @Test
+    fun `send notifies extracted wait plan when command bus fails`() {
+        val notifier = RecordingCommandWaitNotifier()
+        val commandBus = RecordingCommandBus().apply {
+            sendResult = { Mono.error(IllegalStateException("bus failed")) }
+        }
+        val gateway = commandGateway(commandBus = commandBus, notifier = notifier)
+        val command = TestCommandMessage(
+            id = "command-id",
+            header = waitPlanHeader(
+                waitCommandId = "wait-command-id",
+                endpoint = "wait-endpoint",
+                stage = CommandStage.PROCESSED,
+            ),
+        )
+
+        StepVerifier.create(gateway.send(command))
+            .expectErrorSatisfies {
+                it.assert().isInstanceOf(IllegalStateException::class.java)
+            }
+            .verify()
+
+        notifier.notifications.assert().hasSize(1)
+        val notification = notifier.notifications.single()
+        notification.endpoint.assert().isEqualTo("wait-endpoint")
+        notification.signal.stage.assert().isEqualTo(CommandStage.SENT)
+        notification.signal.waitCommandId.assert().isEqualTo("wait-command-id")
+        notification.signal.succeeded.assert().isFalse()
+    }
+
+    @Test
+    fun `send and wait for sent returns synthesized sent result`() {
+        val commandBus = RecordingCommandBus()
+        val gateway = commandGateway(commandBus = commandBus)
+        val command = TestCommandMessage(id = "command-id")
+
+        StepVerifier.create(gateway.sendAndWaitForSent(command))
+            .assertNext {
+                it.waitCommandId.assert().isEqualTo("command-id")
+                it.commandId.assert().isEqualTo("command-id")
+                it.stage.assert().isEqualTo(CommandStage.SENT)
+                it.succeeded.assert().isTrue()
+            }
+            .verifyComplete()
+
+        commandBus.sent.single().assert().isSameAs(command)
+        command.header.extractWaitPlan().assert().isNull()
+    }
+
+    @Test
+    fun `send and wait for sent maps command bus errors to command result exception`() {
+        val commandBus = RecordingCommandBus().apply {
+            sendResult = { Mono.error(IllegalStateException("bus failed")) }
+        }
+        val gateway = commandGateway(commandBus = commandBus)
+
+        StepVerifier.create(gateway.sendAndWaitForSent(TestCommandMessage(id = "command-id")))
+            .expectErrorSatisfies {
+                it.assert().isInstanceOf(CommandResultException::class.java)
+                val result = (it as CommandResultException).commandResult
+                result.waitCommandId.assert().isEqualTo("command-id")
+                result.commandId.assert().isEqualTo("command-id")
+                result.stage.assert().isEqualTo(CommandStage.SENT)
+                result.succeeded.assert().isFalse()
+            }
+            .verify()
     }
 
     @Test
@@ -129,6 +198,37 @@ class DefaultCommandGatewayTest {
                 it.waitCommandId.assert().isEqualTo("wait-command-id")
             }
             .verifyComplete()
+
+        waitCoordinator.contains("wait-command-id").assert().isFalse()
+    }
+
+    @Test
+    fun `send and wait maps failed final signal to command result exception`() {
+        val waitCoordinator = DefaultWaitCoordinator()
+        val gateway = commandGateway(waitCoordinator = waitCoordinator)
+        val command = TestCommandMessage(id = "command-id")
+        val waitPlan = CommandWait.processed("wait-command-id")
+
+        StepVerifier.create(gateway.sendAndWait(command, waitPlan))
+            .then {
+                waitCoordinator.signal(
+                    testSignal(
+                        CommandStage.PROCESSED,
+                        waitCommandId = "wait-command-id",
+                        commandId = "command-id",
+                        errorCode = "FAILED",
+                        errorMsg = "processed failed",
+                    )
+                ).assert().isTrue()
+            }
+            .expectErrorSatisfies {
+                it.assert().isInstanceOf(CommandResultException::class.java)
+                val result = (it as CommandResultException).commandResult
+                result.waitCommandId.assert().isEqualTo("wait-command-id")
+                result.stage.assert().isEqualTo(CommandStage.PROCESSED)
+                result.succeeded.assert().isFalse()
+            }
+            .verify()
 
         waitCoordinator.contains("wait-command-id").assert().isFalse()
     }
@@ -255,6 +355,24 @@ class DefaultCommandGatewayTest {
             .expectNextCount(1)
             .thenCancel()
             .verify()
+    }
+
+    @Test
+    fun `send and wait cancellation releases handle and allows wait id reuse`() {
+        val waitCoordinator = DefaultWaitCoordinator()
+        val gateway = commandGateway(waitCoordinator = waitCoordinator)
+
+        StepVerifier.create(
+            gateway.sendAndWait(
+                TestCommandMessage(id = "command-id"),
+                CommandWait.processed("wait-command-id"),
+            )
+        )
+            .thenCancel()
+            .verify()
+
+        waitCoordinator.contains("wait-command-id").assert().isFalse()
+        waitCoordinator.createLast(CommandWait.processed("wait-command-id")).cancel()
     }
 
     private fun commandGateway(

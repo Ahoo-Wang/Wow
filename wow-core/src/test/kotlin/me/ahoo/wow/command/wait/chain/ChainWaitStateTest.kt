@@ -761,6 +761,154 @@ class ChainWaitStateTest {
         afterTailProcessed.finalSignal.stage.assert().isEqualTo(CommandStage.PROJECTED)
     }
 
+    @Test
+    fun completedChainReturnsStoredFinalSignalOnFurtherSignals() {
+        val state = chainState()
+        val processed = testSignal(
+            stage = CommandStage.PROCESSED,
+            waitCommandId = "main-command",
+            commandId = "main-command",
+        )
+        val main = testSignal(
+            stage = CommandStage.SAGA_HANDLED,
+            waitCommandId = "main-command",
+            commandId = "main-command",
+            function = testFunction(),
+            commands = emptyList(),
+        )
+        val lateSignal = testSignal(
+            stage = CommandStage.PROCESSED,
+            waitCommandId = "main-command",
+            commandId = "main-command",
+            result = mapOf("late" to true),
+        )
+
+        val afterProcessed = stateMachine.next(state, processed)
+        val afterMain = stateMachine.next(afterProcessed.state, main)
+        val repeated = stateMachine.next(afterMain.state, lateSignal)
+
+        afterMain.completed.assert().isTrue()
+        repeated.completed.assert().isTrue()
+        repeated.acceptedSignal.assert().isNull()
+        repeated.finalSignal.assert().isEqualTo(afterMain.finalSignal)
+        repeated.finalSignal!!.result["late"].assert().isNull()
+    }
+
+    @Test
+    fun failedPreviousMainSignalCompletesChainImmediately() {
+        val state = chainState()
+        val failedSent = testSignal(
+            stage = CommandStage.SENT,
+            waitCommandId = "main-command",
+            commandId = "main-command",
+            errorCode = "FAILED_SENT",
+            errorMsg = "sent failed",
+            result = mapOf("sent" to false),
+        )
+
+        val transition = stateMachine.next(state, failedSent)
+
+        transition.completed.assert().isTrue()
+        transition.acceptedSignal.assert().isEqualTo(failedSent)
+        transition.finalSignal!!.stage.assert().isEqualTo(CommandStage.SENT)
+        transition.finalSignal.succeeded.assert().isFalse()
+        transition.finalSignal.result["sent"].assert().isEqualTo(false)
+    }
+
+    @Test
+    fun unrelatedPendingTailSignalsAreIgnored() {
+        val state = chainState()
+        val differentWaitCommand = testSignal(
+            stage = CommandStage.PROCESSED,
+            waitCommandId = "other-wait-command",
+            commandId = "tail-1",
+        )
+        val wrongTailStage = testSignal(
+            stage = CommandStage.SNAPSHOT,
+            waitCommandId = "main-command",
+            commandId = "tail-1",
+        )
+
+        val afterDifferentWaitCommand = stateMachine.next(state, differentWaitCommand)
+        val afterWrongTailStage = stateMachine.next(afterDifferentWaitCommand.state, wrongTailStage)
+
+        afterDifferentWaitCommand.acceptedSignal.assert().isNull()
+        afterWrongTailStage.acceptedSignal.assert().isNull()
+        afterWrongTailStage.completed.assert().isFalse()
+    }
+
+    @Test
+    fun unconfirmedPendingTailSignalIsIgnoredWhenMainConfirmsDifferentTail() {
+        val state = chainState()
+        val unconfirmedTail = testSignal(
+            stage = CommandStage.PROCESSED,
+            waitCommandId = "main-command",
+            commandId = "unconfirmed-tail",
+            result = mapOf("unconfirmed" to true),
+        )
+        val processed = testSignal(
+            stage = CommandStage.PROCESSED,
+            waitCommandId = "main-command",
+            commandId = "main-command",
+        )
+        val main = testSignal(
+            stage = CommandStage.SAGA_HANDLED,
+            waitCommandId = "main-command",
+            commandId = "main-command",
+            function = testFunction(),
+            commands = listOf("tail-1"),
+        )
+        val confirmedTail = testSignal(
+            stage = CommandStage.PROCESSED,
+            waitCommandId = "main-command",
+            commandId = "tail-1",
+            result = mapOf("tail1" to true),
+        )
+
+        val afterUnconfirmedTail = stateMachine.next(state, unconfirmedTail)
+        val afterProcessed = stateMachine.next(afterUnconfirmedTail.state, processed)
+        val afterMain = stateMachine.next(afterProcessed.state, main)
+        val afterConfirmedTail = stateMachine.next(afterMain.state, confirmedTail)
+
+        afterUnconfirmedTail.acceptedSignal.assert().isEqualTo(unconfirmedTail)
+        afterMain.completed.assert().isFalse()
+        afterConfirmedTail.completed.assert().isTrue()
+        afterConfirmedTail.finalSignal!!.result["unconfirmed"].assert().isNull()
+        afterConfirmedTail.finalSignal.result["tail1"].assert().isEqualTo(true)
+    }
+
+    @Test
+    fun failedMainChainSignalCompletesAfterProcessedWithoutWaitingForTails() {
+        val state = chainState()
+        val processed = testSignal(
+            stage = CommandStage.PROCESSED,
+            waitCommandId = "main-command",
+            commandId = "main-command",
+            result = mapOf("processed" to true),
+        )
+        val failedMain = testSignal(
+            stage = CommandStage.SAGA_HANDLED,
+            waitCommandId = "main-command",
+            commandId = "main-command",
+            function = testFunction(),
+            commands = listOf("tail-1"),
+            errorCode = "FAILED_MAIN",
+            errorMsg = "main failed",
+            result = mapOf("main" to false),
+        )
+
+        val afterProcessed = stateMachine.next(state, processed)
+        val afterFailedMain = stateMachine.next(afterProcessed.state, failedMain)
+
+        afterFailedMain.completed.assert().isTrue()
+        afterFailedMain.acceptedSignal.assert().isEqualTo(failedMain)
+        afterFailedMain.finalSignal!!.commandId.assert().isEqualTo("main-command")
+        afterFailedMain.finalSignal.succeeded.assert().isFalse()
+        afterFailedMain.finalSignal.errorCode.assert().isEqualTo("FAILED_MAIN")
+        afterFailedMain.finalSignal.result["processed"].assert().isEqualTo(true)
+        afterFailedMain.finalSignal.result["main"].assert().isEqualTo(false)
+    }
+
     private fun chainState(tailStage: CommandStage = CommandStage.PROCESSED): ChainWaitState =
         ChainWaitState(
             CommandWait.chain("main-command", testNamedFunction(), tailStage, testNamedFunction()),
