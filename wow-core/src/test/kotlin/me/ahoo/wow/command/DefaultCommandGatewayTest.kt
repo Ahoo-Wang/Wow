@@ -17,8 +17,8 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.validation.NoOpValidator
-import me.ahoo.wow.command.wait.CommandWait
 import me.ahoo.wow.command.wait.CommandStage
+import me.ahoo.wow.command.wait.CommandWait
 import me.ahoo.wow.command.wait.DefaultWaitCoordinator
 import me.ahoo.wow.command.wait.RecordingCommandWaitNotifier
 import me.ahoo.wow.command.wait.SimpleCommandWaitEndpoint

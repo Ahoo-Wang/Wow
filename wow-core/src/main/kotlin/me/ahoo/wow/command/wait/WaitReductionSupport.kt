@@ -13,13 +13,14 @@
 
 package me.ahoo.wow.command.wait
 
-internal class DefaultWaitSignalReducer(
-    private val stageReducer: StageWaitSignalReducer = StageWaitSignalReducer(),
-    private val chainReducer: ChainWaitSignalReducer = ChainWaitSignalReducer(stageReducer),
-) : WaitSignalReducer {
-    override fun reduce(state: WaitReductionState, signal: WaitSignal): WaitReduction =
-        when (state.plan.target) {
-            is StageWaitTarget -> stageReducer.reduce(state, signal)
-            is ChainWaitTarget -> chainReducer.reduce(state, signal)
-        }
-}
+internal fun completed(
+    state: WaitReductionState,
+    acceptedSignal: WaitSignal,
+    finalSignal: WaitSignal,
+): WaitReduction =
+    WaitReduction(
+        state = state,
+        acceptedSignal = acceptedSignal,
+        completed = true,
+        finalSignal = finalSignal,
+    )

@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.command.wait
 
-import io.github.oshai.kotlinlogging.KotlinLogging
 import java.util.concurrent.ConcurrentHashMap
 
 interface WaitCoordinator {
@@ -27,12 +26,8 @@ interface WaitCoordinator {
 }
 
 class DefaultWaitCoordinator : WaitCoordinator {
-    companion object {
-        private val log = KotlinLogging.logger {}
-    }
-
     private val reducer: WaitSignalReducer
-    private val handles = ConcurrentHashMap<String, Any>()
+    private val handles = ConcurrentHashMap<String, WaitHandle>()
 
     constructor() {
         reducer = DefaultWaitSignalReducer()
@@ -60,7 +55,7 @@ class DefaultWaitCoordinator : WaitCoordinator {
         return handle
     }
 
-    private fun register(waitCommandId: String, handle: Any) {
+    private fun register(waitCommandId: String, handle: WaitHandle) {
         val previous = handles.putIfAbsent(waitCommandId, handle)
         require(previous == null) {
             "Wait handle already registered for waitCommandId[$waitCommandId]."
@@ -69,17 +64,10 @@ class DefaultWaitCoordinator : WaitCoordinator {
 
     override fun signal(signal: WaitSignal): Boolean {
         val handle = handles[signal.waitCommandId] ?: return false
-        return when (handle) {
-            is WaitLastHandle -> handle.next(signal)
-            is WaitStreamHandle -> handle.next(signal)
-            else -> {
-                log.warn { "Unknown wait handle type [${handle::class.qualifiedName}]." }
-                false
-            }
-        }
+        return handle.next(signal)
     }
 
-    private fun unregister(waitCommandId: String, handle: Any) {
+    private fun unregister(waitCommandId: String, handle: WaitHandle) {
         handles.remove(waitCommandId, handle)
     }
 

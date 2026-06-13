@@ -18,20 +18,19 @@ import reactor.core.publisher.Mono
 import reactor.core.publisher.SignalType
 import reactor.core.publisher.Sinks
 
-interface WaitLastHandle : WaitCommandIdCapable {
+interface WaitHandle : WaitCommandIdCapable {
     val plan: WaitPlan
-    fun await(): Mono<WaitSignal>
     fun next(signal: WaitSignal): Boolean
     fun error(throwable: Throwable)
     fun cancel()
 }
 
-interface WaitStreamHandle : WaitCommandIdCapable {
-    val plan: WaitPlan
+interface WaitLastHandle : WaitHandle {
+    fun await(): Mono<WaitSignal>
+}
+
+interface WaitStreamHandle : WaitHandle {
     fun stream(): Flux<WaitSignal>
-    fun next(signal: WaitSignal): Boolean
-    fun error(throwable: Throwable)
-    fun cancel()
 }
 
 internal class DefaultWaitLastHandle(

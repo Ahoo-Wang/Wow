@@ -18,11 +18,11 @@ import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.messaging.function.FunctionInfoData
 import me.ahoo.wow.api.messaging.function.FunctionKind
-import me.ahoo.wow.command.wait.CommandWait
 import me.ahoo.wow.command.wait.CommandStage
+import me.ahoo.wow.command.wait.CommandWait
 import me.ahoo.wow.command.wait.SimpleWaitSignal
-import me.ahoo.wow.command.wait.WaitSignal
 import me.ahoo.wow.command.wait.WaitPlan
+import me.ahoo.wow.command.wait.WaitSignal
 import me.ahoo.wow.exception.toErrorInfo
 import me.ahoo.wow.id.generateGlobalId
 import reactor.core.publisher.Flux

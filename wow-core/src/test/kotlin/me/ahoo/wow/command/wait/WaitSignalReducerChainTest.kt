@@ -16,8 +16,9 @@ package me.ahoo.wow.command.wait
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 
+@Suppress("LargeClass")
 class WaitSignalReducerChainTest {
-    private val reducer = DefaultWaitSignalReducer()
+    private val reducer = ChainWaitSignalReducer()
 
     @Test
     fun completeWhenMainSagaHasNoTailCommandsAfterProcessedObserved() {
@@ -696,7 +697,10 @@ class WaitSignalReducerChainTest {
         )
 
         val afterUnconfirmedTailProcessed = reducer.reduce(state, unconfirmedTailProcessed)
-        val afterUnconfirmedTailProjected = reducer.reduce(afterUnconfirmedTailProcessed.state, unconfirmedTailProjected)
+        val afterUnconfirmedTailProjected = reducer.reduce(
+            afterUnconfirmedTailProcessed.state,
+            unconfirmedTailProjected,
+        )
         val afterProcessed = reducer.reduce(afterUnconfirmedTailProjected.state, processed)
         val afterMain = reducer.reduce(afterProcessed.state, main)
 

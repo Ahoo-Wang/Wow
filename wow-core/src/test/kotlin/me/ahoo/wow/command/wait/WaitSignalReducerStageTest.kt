@@ -17,7 +17,7 @@ import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 
 class WaitSignalReducerStageTest {
-    private val reducer = DefaultWaitSignalReducer()
+    private val reducer = StageWaitSignalReducer()
 
     @Test
     fun completeProcessedWithMergedResult() {

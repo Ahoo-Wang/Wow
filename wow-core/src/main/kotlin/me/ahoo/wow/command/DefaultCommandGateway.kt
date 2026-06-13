@@ -21,10 +21,9 @@ import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.CommandWaitEndpoint
 import me.ahoo.wow.command.wait.CommandWaitNotifier
 import me.ahoo.wow.command.wait.WaitCoordinator
-import me.ahoo.wow.command.wait.WaitLastHandle
+import me.ahoo.wow.command.wait.WaitHandle
 import me.ahoo.wow.command.wait.WaitPlan
 import me.ahoo.wow.command.wait.WaitSignal
-import me.ahoo.wow.command.wait.WaitStreamHandle
 import me.ahoo.wow.command.wait.extractWaitPlan
 import me.ahoo.wow.command.wait.notifyAndForget
 import me.ahoo.wow.id.generateGlobalId
@@ -302,14 +301,7 @@ class DefaultCommandGateway(
         val cancel: () -> Unit,
     )
 
-    private fun WaitLastHandle.toCallbacks(): WaitCallbacks =
-        WaitCallbacks(
-            next = ::next,
-            error = ::error,
-            cancel = ::cancel,
-        )
-
-    private fun WaitStreamHandle.toCallbacks(): WaitCallbacks =
+    private fun WaitHandle.toCallbacks(): WaitCallbacks =
         WaitCallbacks(
             next = ::next,
             error = ::error,
