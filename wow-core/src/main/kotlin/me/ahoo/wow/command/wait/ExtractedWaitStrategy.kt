@@ -139,6 +139,9 @@ fun Header.propagateCommandWaitEndpoint(endpoint: String): Header = with(COMMAND
 
 /**
  * Extracts a complete wait strategy from the message header.
+ * This is the legacy strategy extraction path. New immutable wait-plan extraction
+ * is defined in ExtractedWaitPlan.kt.
+ *
  * Attempts to extract both simple waiting chain and waiting for stage strategies.
  *
  * @return An ExtractedWaitStrategy if all required components are found, null otherwise.

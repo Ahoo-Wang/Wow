@@ -120,7 +120,7 @@ internal data class TestDomainEvent(
     override val name: String = "WaitTestEvent"
 }
 
-internal fun waitStrategyHeader(
+internal fun waitPlanHeader(
     waitCommandId: String = "wait-command-id",
     endpoint: String = TEST_ENDPOINT,
     stage: CommandStage,
@@ -131,6 +131,14 @@ internal fun waitStrategyHeader(
         .propagateCommandWaitEndpoint(endpoint)
         .propagateWaitingStage(stage)
         .propagateWaitFunction(function)
+
+internal fun waitStrategyHeader(
+    waitCommandId: String = "wait-command-id",
+    endpoint: String = TEST_ENDPOINT,
+    stage: CommandStage,
+    function: NamedFunctionInfoData? = null,
+): Header =
+    waitPlanHeader(waitCommandId, endpoint, stage, function)
 
 internal fun testSignal(
     stage: CommandStage,

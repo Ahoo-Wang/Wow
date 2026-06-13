@@ -98,6 +98,23 @@ class WaitingChainTail(
             )
         }
 
+        fun Header.propagateWaitingChainTail(
+            stage: CommandStage,
+            function: NamedFunctionInfoData,
+        ): Header {
+            with(COMMAND_WAIT_TAIL_STAGE, stage.name)
+            function.contextName.ifNotBlank {
+                with(COMMAND_WAIT_TAIL_CONTEXT, it)
+            }
+            function.processorName.ifNotBlank {
+                with(COMMAND_WAIT_TAIL_PROCESSOR, it)
+            }
+            function.name.ifNotBlank {
+                with(COMMAND_WAIT_TAIL_FUNCTION, it)
+            }
+            return this
+        }
+
         /**
          * Converts a CommandStage to a WaitingChainTail with optional function criteria.
          * For stages that require function waiting, the provided function is used.
