@@ -167,7 +167,7 @@ class WaitLastHandleTest {
     }
 
     @Test
-    fun secondAwaitSubscriberFailsAfterFinalSignal() {
+    fun awaitFinalSignalAfterCompletion() {
         val handle = DefaultWaitLastHandle(
             plan = CommandWait.processed("wait-id"),
             reducer = DefaultWaitSignalReducer(),
@@ -180,16 +180,10 @@ class WaitLastHandleTest {
         StepVerifier.create(handle.await())
             .assertNext { it.stage.assert().isEqualTo(CommandStage.PROCESSED) }
             .verifyComplete()
-
-        StepVerifier.create(handle.await())
-            .expectErrorSatisfies {
-                it.assert().isInstanceOf(IllegalStateException::class.java)
-            }
-            .verify()
     }
 
     @Test
-    fun subscriberCancelTerminatesAndRejectsLateAwait() {
+    fun subscriberCancelTerminatesAndCompletesLateAwait() {
         val terminated = AtomicInteger()
         val handle = DefaultWaitLastHandle(
             plan = CommandWait.processed("wait-id"),
@@ -207,10 +201,7 @@ class WaitLastHandleTest {
         terminated.get().assert().isEqualTo(1)
 
         StepVerifier.create(handle.await())
-            .expectErrorSatisfies {
-                it.assert().isInstanceOf(IllegalStateException::class.java)
-            }
-            .verify()
+            .verifyComplete()
     }
 
     @Test

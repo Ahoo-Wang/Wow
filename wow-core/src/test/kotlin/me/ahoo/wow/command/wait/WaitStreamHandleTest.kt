@@ -58,6 +58,28 @@ class WaitStreamHandleTest {
     }
 
     @Test
+    fun bufferSignalsBeyondConfiguredQueueLinkSizeBeforeSubscriber() {
+        val terminated = AtomicInteger()
+        val handle = DefaultWaitStreamHandle(
+            plan = CommandWait.processed("wait-id"),
+            reducer = DefaultWaitSignalReducer(),
+            onTerminate = { terminated.incrementAndGet() },
+            queueLinkSize = 1,
+        )
+
+        handle.next(testSignal(CommandStage.SENT, signalTime = 1))
+            .assert().isTrue()
+        handle.next(testSignal(CommandStage.PROCESSED, signalTime = 2))
+            .assert().isTrue()
+
+        terminated.get().assert().isEqualTo(1)
+        StepVerifier.create(handle.stream())
+            .assertNext { it.stage.assert().isEqualTo(CommandStage.SENT) }
+            .assertNext { it.stage.assert().isEqualTo(CommandStage.PROCESSED) }
+            .verifyComplete()
+    }
+
+    @Test
     fun cancelCompletesStream() {
         val handle = DefaultWaitStreamHandle(
             plan = CommandWait.processed("wait-id"),

@@ -17,6 +17,7 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.SignalType
 import reactor.core.publisher.Sinks
+import reactor.util.concurrent.Queues
 
 interface WaitHandle : WaitCommandIdCapable {
     val plan: WaitPlan
@@ -29,8 +30,8 @@ interface WaitLastHandle : WaitHandle {
     /**
      * Awaits the final wait signal.
      *
-     * A wait handle is single-subscriber. Signals may arrive before subscription
-     * and are buffered for the first subscriber only.
+     * A wait handle is designed for a single subscriber. Signals may arrive
+     * before subscription, and the final result is retained for awaiting.
      */
     fun await(): Mono<WaitSignal>
 }
@@ -45,20 +46,21 @@ interface WaitStreamHandle : WaitHandle {
     fun stream(): Flux<WaitSignal>
 }
 
+const val DEFAULT_WAIT_STREAM_QUEUE_LINK_SIZE: Int = 16
+
 internal class DefaultWaitLastHandle(
     override val plan: WaitPlan,
     private val reducer: WaitSignalReducer,
     private val onTerminate: () -> Unit,
 ) : WaitLastHandle {
     override val waitCommandId: String = plan.waitCommandId
-    private val sink = unicastWaitSink<WaitSignal>()
+    private val sink = Sinks.one<WaitSignal>()
     private val lock = Any()
     private var state: WaitReductionState = WaitReductionState.initial(plan)
     private var terminated: Boolean = false
 
     override fun await(): Mono<WaitSignal> =
-        sink.asFlux()
-            .next()
+        sink.asMono()
             .doFinally { terminateOnSubscriberCancel(it) }
 
     private fun terminateOnSubscriberCancel(signalType: SignalType) {
@@ -76,10 +78,10 @@ internal class DefaultWaitLastHandle(
             val reduction = reducer.reduce(state, signal)
             state = reduction.state
             if (reduction.completed) {
-                reduction.finalSignal?.let {
-                    sink.tryEmitNext(it).requireEmission()
-                }
-                sink.tryEmitComplete().requireTerminalEmission()
+                val emitResult = reduction.finalSignal?.let {
+                    sink.tryEmitValue(it)
+                } ?: sink.tryEmitEmpty()
+                emitResult.requireTerminalEmission()
                 if (!terminated) {
                     terminated = true
                     shouldTerminate = true
@@ -103,7 +105,7 @@ internal class DefaultWaitLastHandle(
 
     override fun cancel() {
         terminateWithSink {
-            sink.tryEmitComplete().also {
+            sink.tryEmitEmpty().also {
                 it.requireTerminalEmission()
             }
         }
@@ -129,9 +131,10 @@ internal class DefaultWaitStreamHandle(
     override val plan: WaitPlan,
     private val reducer: WaitSignalReducer,
     private val onTerminate: () -> Unit,
+    queueLinkSize: Int = DEFAULT_WAIT_STREAM_QUEUE_LINK_SIZE,
 ) : WaitStreamHandle {
     override val waitCommandId: String = plan.waitCommandId
-    private val sink = unicastWaitSink<WaitSignal>()
+    private val sink = unicastStreamSink<WaitSignal>(queueLinkSize)
     private val lock = Any()
     private var state: WaitReductionState = WaitReductionState.initial(plan)
     private var terminated: Boolean = false
@@ -148,6 +151,7 @@ internal class DefaultWaitStreamHandle(
 
     override fun next(signal: WaitSignal): Boolean {
         var shouldTerminate = false
+        var emissionException: Sinks.EmissionException? = null
         val accepted = synchronized(lock) {
             if (terminated) {
                 return false
@@ -155,7 +159,13 @@ internal class DefaultWaitStreamHandle(
             val reduction = reducer.reduce(state, signal)
             state = reduction.state
             reduction.acceptedSignal?.let {
-                sink.tryEmitNext(it).requireEmission()
+                val emitResult = sink.tryEmitNext(it)
+                if (emitResult != Sinks.EmitResult.OK) {
+                    terminated = true
+                    shouldTerminate = true
+                    emissionException = emitResult.toEmissionException()
+                    return@synchronized true
+                }
             }
             if (reduction.completed) {
                 sink.tryEmitComplete().requireTerminalEmission()
@@ -166,8 +176,14 @@ internal class DefaultWaitStreamHandle(
             }
             reduction.acceptedSignal != null
         }
+        emissionException?.let {
+            sink.tryEmitError(it).requireTerminalEmission(it)
+        }
         if (shouldTerminate) {
             onTerminate()
+        }
+        emissionException?.let {
+            throw it
         }
         return accepted
     }
@@ -204,8 +220,12 @@ internal class DefaultWaitStreamHandle(
     }
 }
 
-private fun <T : Any> unicastWaitSink(): Sinks.Many<T> =
-    Sinks.many().unicast().onBackpressureBuffer<T>()
+private fun <T : Any> unicastStreamSink(queueLinkSize: Int): Sinks.Many<T> {
+    require(queueLinkSize > 0) {
+        "Wait stream queueLinkSize must be greater than 0."
+    }
+    return Sinks.many().unicast().onBackpressureBuffer(Queues.unbounded<T>(queueLinkSize).get())
+}
 
 private fun Sinks.EmitResult.requireEmission() {
     if (this == Sinks.EmitResult.OK) {
@@ -213,6 +233,9 @@ private fun Sinks.EmitResult.requireEmission() {
     }
     orThrow()
 }
+
+private fun Sinks.EmitResult.toEmissionException(): Sinks.EmissionException =
+    Sinks.EmissionException(this)
 
 private fun Sinks.EmitResult.requireTerminalEmission(cause: Throwable? = null) {
     if (this == Sinks.EmitResult.OK ||

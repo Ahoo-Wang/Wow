@@ -56,6 +56,26 @@ class WaitCoordinatorTest {
     }
 
     @Test
+    fun streamQueueLinkSizeConfiguresUnboundedBufferLinkSize() {
+        val coordinator = DefaultWaitCoordinator(
+            reducer = DefaultWaitSignalReducer(),
+            streamQueueLinkSize = 1,
+        )
+        val handle = coordinator.createStream(CommandWait.processed("wait-id"))
+
+        coordinator.signal(testSignal(CommandStage.SENT, waitCommandId = "wait-id", signalTime = 1))
+            .assert().isTrue()
+        coordinator.signal(testSignal(CommandStage.PROCESSED, waitCommandId = "wait-id", signalTime = 2))
+            .assert().isTrue()
+
+        coordinator.contains("wait-id").assert().isFalse()
+        StepVerifier.create(handle.stream())
+            .assertNext { it.stage.assert().isEqualTo(CommandStage.SENT) }
+            .assertNext { it.stage.assert().isEqualTo(CommandStage.PROCESSED) }
+            .verifyComplete()
+    }
+
+    @Test
     fun returnFalseWhenNoHandleExists() {
         val coordinator = DefaultWaitCoordinator(DefaultWaitSignalReducer())
 
