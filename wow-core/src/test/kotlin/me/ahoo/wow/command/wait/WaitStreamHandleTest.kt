@@ -23,7 +23,6 @@ class WaitStreamHandleTest {
     fun streamSignalsInOrderAndCompleteAtTarget() {
         val handle = DefaultWaitStreamHandle(
             plan = CommandWait.processed("wait-id"),
-            reducer = DefaultWaitSignalReducer(),
             onTerminate = {},
         )
 
@@ -43,7 +42,6 @@ class WaitStreamHandleTest {
     fun bufferSignalsForFirstLateSubscriber() {
         val handle = DefaultWaitStreamHandle(
             plan = CommandWait.processed("wait-id"),
-            reducer = DefaultWaitSignalReducer(),
             onTerminate = {},
         )
         handle.next(testSignal(CommandStage.SENT, signalTime = 1))
@@ -62,7 +60,6 @@ class WaitStreamHandleTest {
         val terminated = AtomicInteger()
         val handle = DefaultWaitStreamHandle(
             plan = CommandWait.processed("wait-id"),
-            reducer = DefaultWaitSignalReducer(),
             onTerminate = { terminated.incrementAndGet() },
             queueLinkSize = 1,
         )
@@ -83,7 +80,6 @@ class WaitStreamHandleTest {
     fun cancelCompletesStream() {
         val handle = DefaultWaitStreamHandle(
             plan = CommandWait.processed("wait-id"),
-            reducer = DefaultWaitSignalReducer(),
             onTerminate = {},
         )
 
@@ -96,7 +92,6 @@ class WaitStreamHandleTest {
     fun ignoredSignalReturnsFalse() {
         val handle = DefaultWaitStreamHandle(
             plan = CommandWait.processed("wait-id"),
-            reducer = DefaultWaitSignalReducer(),
             onTerminate = {},
         )
 
@@ -112,7 +107,6 @@ class WaitStreamHandleTest {
     fun signalAfterTerminationReturnsFalse() {
         val handle = DefaultWaitStreamHandle(
             plan = CommandWait.processed("wait-id"),
-            reducer = DefaultWaitSignalReducer(),
             onTerminate = {},
         )
 
@@ -127,7 +121,6 @@ class WaitStreamHandleTest {
         val terminated = AtomicInteger()
         val handle = DefaultWaitStreamHandle(
             plan = CommandWait.processed("wait-id"),
-            reducer = DefaultWaitSignalReducer(),
             onTerminate = { terminated.incrementAndGet() },
         )
 
@@ -146,7 +139,6 @@ class WaitStreamHandleTest {
         val terminated = AtomicInteger()
         val handle = DefaultWaitStreamHandle(
             plan = CommandWait.processed("wait-id"),
-            reducer = DefaultWaitSignalReducer(),
             onTerminate = { terminated.incrementAndGet() },
         )
 
@@ -169,7 +161,6 @@ class WaitStreamHandleTest {
         val error = IllegalStateException("boom")
         val handle = DefaultWaitStreamHandle(
             plan = CommandWait.processed("wait-id"),
-            reducer = DefaultWaitSignalReducer(),
             onTerminate = { terminated.incrementAndGet() },
         )
 
@@ -189,7 +180,6 @@ class WaitStreamHandleTest {
         val terminated = AtomicInteger()
         val handle = DefaultWaitStreamHandle(
             plan = CommandWait.processed("wait-id"),
-            reducer = DefaultWaitSignalReducer(),
             onTerminate = { terminated.incrementAndGet() },
         )
 
@@ -208,7 +198,6 @@ class WaitStreamHandleTest {
         val terminated = AtomicInteger()
         val handle = DefaultWaitStreamHandle(
             plan = CommandWait.processed("wait-id"),
-            reducer = DefaultWaitSignalReducer(),
             onTerminate = { terminated.incrementAndGet() },
         )
 
@@ -231,7 +220,6 @@ class WaitStreamHandleTest {
     fun secondStreamSubscriberFailsAfterComplete() {
         val handle = DefaultWaitStreamHandle(
             plan = CommandWait.processed("wait-id"),
-            reducer = DefaultWaitSignalReducer(),
             onTerminate = {},
         )
 
@@ -254,7 +242,6 @@ class WaitStreamHandleTest {
         val terminated = AtomicInteger()
         val handle = DefaultWaitStreamHandle(
             plan = CommandWait.processed("wait-id"),
-            reducer = DefaultWaitSignalReducer(),
             onTerminate = { terminated.incrementAndGet() },
         )
 
@@ -275,7 +262,6 @@ class WaitStreamHandleTest {
         val error = IllegalStateException("boom")
         val handle = DefaultWaitStreamHandle(
             plan = CommandWait.processed("wait-id"),
-            reducer = DefaultWaitSignalReducer(),
             onTerminate = { terminated.incrementAndGet() },
         )
 

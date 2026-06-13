@@ -21,7 +21,6 @@ class WaitHandleContractTest {
     fun lastHandleImplementsCommonHandleContract() {
         val handle = DefaultWaitLastHandle(
             plan = CommandWait.processed("wait-id"),
-            reducer = DefaultWaitSignalReducer(),
             onTerminate = {},
         )
 
@@ -38,7 +37,6 @@ class WaitHandleContractTest {
     fun streamHandleImplementsCommonHandleContract() {
         val handle = DefaultWaitStreamHandle(
             plan = CommandWait.processed("wait-id"),
-            reducer = DefaultWaitSignalReducer(),
             onTerminate = {},
         )
 

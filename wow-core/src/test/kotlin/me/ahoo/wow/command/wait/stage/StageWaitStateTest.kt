@@ -19,24 +19,28 @@ import me.ahoo.wow.command.wait.CommandWait
 import me.ahoo.wow.command.wait.TEST_CONTEXT
 import me.ahoo.wow.command.wait.TEST_FUNCTION
 import me.ahoo.wow.command.wait.TEST_PROCESSOR
-import me.ahoo.wow.command.wait.WaitReductionState
+import me.ahoo.wow.command.wait.WaitSignal
+import me.ahoo.wow.command.wait.WaitTransition
+import me.ahoo.wow.command.wait.acceptedSignal
+import me.ahoo.wow.command.wait.completed
+import me.ahoo.wow.command.wait.finalSignal
 import me.ahoo.wow.command.wait.testFunction
 import me.ahoo.wow.command.wait.testSignal
 import org.junit.jupiter.api.Test
 
-class WaitSignalReducerStageTest {
-    private val reducer = StageWaitSignalReducer()
+class StageWaitStateTest {
+    private val stateMachine = StageWaitStateDriver()
 
     @Test
     fun completeProcessedWithMergedResult() {
-        val state = WaitReductionState.initial(CommandWait.processed("wait-id"))
+        val state = StageWaitState(CommandWait.processed("wait-id"))
         val sent = testSignal(CommandStage.SENT, result = mapOf("sent" to true), signalTime = 1)
         val processed = testSignal(CommandStage.PROCESSED, result = mapOf("processed" to true), signalTime = 2)
 
-        val afterSent = reducer.reduce(state, sent)
+        val afterSent = stateMachine.next(state, sent)
         afterSent.completed.assert().isFalse()
 
-        val afterProcessed = reducer.reduce(afterSent.state, processed)
+        val afterProcessed = stateMachine.next(afterSent.state, processed)
         afterProcessed.completed.assert().isTrue()
         afterProcessed.finalSignal!!.stage.assert().isEqualTo(CommandStage.PROCESSED)
         afterProcessed.finalSignal.result["sent"].assert().isEqualTo(true)
@@ -45,14 +49,14 @@ class WaitSignalReducerStageTest {
 
     @Test
     fun assumesSignalsArePreRoutedByWaitCommandId() {
-        val state = WaitReductionState.initial(CommandWait.processed("wait-id"))
+        val state = StageWaitState(CommandWait.processed("wait-id"))
         val processed = testSignal(
             stage = CommandStage.PROCESSED,
             waitCommandId = "another-wait-id",
             result = mapOf("processed" to true),
         )
 
-        val reduction = reducer.reduce(state, processed)
+        val reduction = stateMachine.next(state, processed)
 
         reduction.completed.assert().isTrue()
         reduction.acceptedSignal.assert().isEqualTo(processed)
@@ -61,14 +65,14 @@ class WaitSignalReducerStageTest {
 
     @Test
     fun failFastWhenPreviousStageFails() {
-        val state = WaitReductionState.initial(CommandWait.snapshot("wait-id"))
+        val state = StageWaitState(CommandWait.snapshot("wait-id"))
         val failedProcessed = testSignal(
             stage = CommandStage.PROCESSED,
             errorCode = "FAILED",
             errorMsg = "processed failed",
         )
 
-        val reduction = reducer.reduce(state, failedProcessed)
+        val reduction = stateMachine.next(state, failedProcessed)
 
         reduction.completed.assert().isTrue()
         reduction.finalSignal!!.stage.assert().isEqualTo(CommandStage.PROCESSED)
@@ -77,7 +81,7 @@ class WaitSignalReducerStageTest {
 
     @Test
     fun waitForLastProjectionSignal() {
-        val state = WaitReductionState.initial(
+        val state = StageWaitState(
             CommandWait.projected("wait-id", TEST_CONTEXT, TEST_PROCESSOR, TEST_FUNCTION),
         )
         val processed = testSignal(CommandStage.PROCESSED)
@@ -94,12 +98,29 @@ class WaitSignalReducerStageTest {
             result = mapOf("last" to true),
         )
 
-        val afterProcessed = reducer.reduce(state, processed)
-        val afterFirst = reducer.reduce(afterProcessed.state, firstProjection)
-        val afterLast = reducer.reduce(afterFirst.state, lastProjection)
+        val afterProcessed = stateMachine.next(state, processed)
+        val afterFirst = stateMachine.next(afterProcessed.state, firstProjection)
+        val afterLast = stateMachine.next(afterFirst.state, lastProjection)
 
         afterFirst.completed.assert().isFalse()
         afterLast.completed.assert().isTrue()
         afterLast.finalSignal!!.result["last"].assert().isEqualTo(true)
     }
+}
+
+private class StageWaitStateDriver {
+    fun next(state: StageWaitState, signal: WaitSignal): StageWaitStateTransition =
+        StageWaitStateTransition(
+            state = state,
+            transition = state.next(signal),
+        )
+}
+
+private data class StageWaitStateTransition(
+    val state: StageWaitState,
+    private val transition: WaitTransition,
+) {
+    val acceptedSignal: WaitSignal? = transition.acceptedSignal
+    val completed: Boolean = transition.completed
+    val finalSignal: WaitSignal? = transition.finalSignal
 }

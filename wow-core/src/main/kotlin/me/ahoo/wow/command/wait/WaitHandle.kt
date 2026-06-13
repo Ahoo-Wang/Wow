@@ -50,13 +50,12 @@ const val DEFAULT_WAIT_STREAM_QUEUE_LINK_SIZE: Int = 16
 
 internal class DefaultWaitLastHandle(
     override val plan: WaitPlan,
-    private val reducer: WaitSignalReducer,
     private val onTerminate: () -> Unit,
 ) : WaitLastHandle {
     override val waitCommandId: String = plan.waitCommandId
     private val sink = Sinks.one<WaitSignal>()
     private val lock = Any()
-    private var state: WaitReductionState = WaitReductionState.initial(plan)
+    private val state: WaitState = createWaitState(plan)
     private var terminated: Boolean = false
 
     override fun await(): Mono<WaitSignal> =
@@ -75,10 +74,9 @@ internal class DefaultWaitLastHandle(
             if (terminated) {
                 return false
             }
-            val reduction = reducer.reduce(state, signal)
-            state = reduction.state
-            if (reduction.completed) {
-                val emitResult = reduction.finalSignal?.let {
+            val transition = state.next(signal)
+            if (transition.completed) {
+                val emitResult = transition.finalSignal?.let {
                     sink.tryEmitValue(it)
                 } ?: sink.tryEmitEmpty()
                 emitResult.requireTerminalEmission()
@@ -87,7 +85,7 @@ internal class DefaultWaitLastHandle(
                     shouldTerminate = true
                 }
             }
-            reduction.acceptedSignal != null
+            transition.acceptedSignal != null
         }
         if (shouldTerminate) {
             onTerminate()
@@ -129,14 +127,13 @@ internal class DefaultWaitLastHandle(
 
 internal class DefaultWaitStreamHandle(
     override val plan: WaitPlan,
-    private val reducer: WaitSignalReducer,
     private val onTerminate: () -> Unit,
     queueLinkSize: Int = DEFAULT_WAIT_STREAM_QUEUE_LINK_SIZE,
 ) : WaitStreamHandle {
     override val waitCommandId: String = plan.waitCommandId
     private val sink = unicastStreamSink<WaitSignal>(queueLinkSize)
     private val lock = Any()
-    private var state: WaitReductionState = WaitReductionState.initial(plan)
+    private val state: WaitState = createWaitState(plan)
     private var terminated: Boolean = false
 
     override fun stream(): Flux<WaitSignal> =
@@ -156,9 +153,8 @@ internal class DefaultWaitStreamHandle(
             if (terminated) {
                 return false
             }
-            val reduction = reducer.reduce(state, signal)
-            state = reduction.state
-            reduction.acceptedSignal?.let {
+            val transition = state.next(signal)
+            transition.acceptedSignal?.let {
                 val emitResult = sink.tryEmitNext(it)
                 if (emitResult != Sinks.EmitResult.OK) {
                     terminated = true
@@ -167,14 +163,14 @@ internal class DefaultWaitStreamHandle(
                     return@synchronized true
                 }
             }
-            if (reduction.completed) {
+            if (transition.completed) {
                 sink.tryEmitComplete().requireTerminalEmission()
                 if (!terminated) {
                     terminated = true
                     shouldTerminate = true
                 }
             }
-            reduction.acceptedSignal != null
+            transition.acceptedSignal != null
         }
         emissionException?.let {
             sink.tryEmitError(it).requireTerminalEmission(it)

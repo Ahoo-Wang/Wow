@@ -25,27 +25,14 @@ interface WaitCoordinator {
     operator fun contains(waitCommandId: String): Boolean
 }
 
-class DefaultWaitCoordinator : WaitCoordinator {
-    private val reducer: WaitSignalReducer
-    private val streamQueueLinkSize: Int
+class DefaultWaitCoordinator(
+    private val streamQueueLinkSize: Int = DEFAULT_WAIT_STREAM_QUEUE_LINK_SIZE,
+) : WaitCoordinator {
     private val handles = ConcurrentHashMap<String, WaitHandle>()
-
-    constructor(streamQueueLinkSize: Int = DEFAULT_WAIT_STREAM_QUEUE_LINK_SIZE) {
-        reducer = DefaultWaitSignalReducer()
-        this.streamQueueLinkSize = streamQueueLinkSize
-    }
-
-    internal constructor(
-        reducer: WaitSignalReducer,
-        streamQueueLinkSize: Int = DEFAULT_WAIT_STREAM_QUEUE_LINK_SIZE,
-    ) {
-        this.reducer = reducer
-        this.streamQueueLinkSize = streamQueueLinkSize
-    }
 
     override fun createLast(plan: WaitPlan): WaitLastHandle {
         lateinit var handle: WaitLastHandle
-        handle = DefaultWaitLastHandle(plan, reducer) {
+        handle = DefaultWaitLastHandle(plan) {
             unregister(plan.waitCommandId, handle)
         }
         register(plan.waitCommandId, handle)
@@ -56,7 +43,6 @@ class DefaultWaitCoordinator : WaitCoordinator {
         lateinit var handle: WaitStreamHandle
         handle = DefaultWaitStreamHandle(
             plan = plan,
-            reducer = reducer,
             onTerminate = {
                 unregister(plan.waitCommandId, handle)
             },

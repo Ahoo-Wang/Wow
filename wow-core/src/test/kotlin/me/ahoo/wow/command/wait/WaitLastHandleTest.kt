@@ -23,7 +23,6 @@ class WaitLastHandleTest {
     fun awaitFinalSignalWithoutStreamSink() {
         val handle = DefaultWaitLastHandle(
             plan = CommandWait.processed("wait-id"),
-            reducer = DefaultWaitSignalReducer(),
             onTerminate = {},
         )
 
@@ -46,7 +45,6 @@ class WaitLastHandleTest {
     fun cancelCompletesAwait() {
         val handle = DefaultWaitLastHandle(
             plan = CommandWait.processed("wait-id"),
-            reducer = DefaultWaitSignalReducer(),
             onTerminate = {},
         )
 
@@ -59,7 +57,6 @@ class WaitLastHandleTest {
     fun ignoredSignalReturnsFalse() {
         val handle = DefaultWaitLastHandle(
             plan = CommandWait.processed("wait-id"),
-            reducer = DefaultWaitSignalReducer(),
             onTerminate = {},
         )
 
@@ -75,7 +72,6 @@ class WaitLastHandleTest {
     fun signalAfterTerminationReturnsFalse() {
         val handle = DefaultWaitLastHandle(
             plan = CommandWait.processed("wait-id"),
-            reducer = DefaultWaitSignalReducer(),
             onTerminate = {},
         )
 
@@ -90,7 +86,6 @@ class WaitLastHandleTest {
         val terminated = AtomicInteger()
         val handle = DefaultWaitLastHandle(
             plan = CommandWait.processed("wait-id"),
-            reducer = DefaultWaitSignalReducer(),
             onTerminate = { terminated.incrementAndGet() },
         )
 
@@ -109,7 +104,6 @@ class WaitLastHandleTest {
         val terminated = AtomicInteger()
         val handle = DefaultWaitLastHandle(
             plan = CommandWait.processed("wait-id"),
-            reducer = DefaultWaitSignalReducer(),
             onTerminate = { terminated.incrementAndGet() },
         )
 
@@ -132,7 +126,6 @@ class WaitLastHandleTest {
         val error = IllegalStateException("boom")
         val handle = DefaultWaitLastHandle(
             plan = CommandWait.processed("wait-id"),
-            reducer = DefaultWaitSignalReducer(),
             onTerminate = { terminated.incrementAndGet() },
         )
 
@@ -152,7 +145,6 @@ class WaitLastHandleTest {
         val terminated = AtomicInteger()
         val handle = DefaultWaitLastHandle(
             plan = CommandWait.processed("wait-id"),
-            reducer = DefaultWaitSignalReducer(),
             onTerminate = { terminated.incrementAndGet() },
         )
 
@@ -170,7 +162,6 @@ class WaitLastHandleTest {
     fun awaitFinalSignalAfterCompletion() {
         val handle = DefaultWaitLastHandle(
             plan = CommandWait.processed("wait-id"),
-            reducer = DefaultWaitSignalReducer(),
             onTerminate = {},
         )
 
@@ -187,7 +178,6 @@ class WaitLastHandleTest {
         val terminated = AtomicInteger()
         val handle = DefaultWaitLastHandle(
             plan = CommandWait.processed("wait-id"),
-            reducer = DefaultWaitSignalReducer(),
             onTerminate = { terminated.incrementAndGet() },
         )
 
@@ -209,7 +199,6 @@ class WaitLastHandleTest {
         val terminated = AtomicInteger()
         val handle = DefaultWaitLastHandle(
             plan = CommandWait.processed("wait-id"),
-            reducer = DefaultWaitSignalReducer(),
             onTerminate = { terminated.incrementAndGet() },
         )
 
@@ -230,7 +219,6 @@ class WaitLastHandleTest {
         val error = IllegalStateException("boom")
         val handle = DefaultWaitLastHandle(
             plan = CommandWait.processed("wait-id"),
-            reducer = DefaultWaitSignalReducer(),
             onTerminate = { terminated.incrementAndGet() },
         )
 

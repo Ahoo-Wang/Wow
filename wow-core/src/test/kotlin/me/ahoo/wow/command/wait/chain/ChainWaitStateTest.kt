@@ -16,15 +16,19 @@ package me.ahoo.wow.command.wait.chain
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.CommandWait
-import me.ahoo.wow.command.wait.WaitReductionState
+import me.ahoo.wow.command.wait.WaitSignal
+import me.ahoo.wow.command.wait.WaitTransition
+import me.ahoo.wow.command.wait.acceptedSignal
+import me.ahoo.wow.command.wait.completed
+import me.ahoo.wow.command.wait.finalSignal
 import me.ahoo.wow.command.wait.testFunction
 import me.ahoo.wow.command.wait.testNamedFunction
 import me.ahoo.wow.command.wait.testSignal
 import org.junit.jupiter.api.Test
 
 @Suppress("LargeClass")
-class WaitSignalReducerChainTest {
-    private val reducer = ChainWaitSignalReducer()
+class ChainWaitStateTest {
+    private val stateMachine = ChainWaitStateDriver()
 
     @Test
     fun completeWhenMainSagaHasNoTailCommandsAfterProcessedObserved() {
@@ -42,8 +46,8 @@ class WaitSignalReducerChainTest {
             commandId = "main-command",
         )
 
-        val afterSagaOnly = reducer.reduce(state, saga)
-        val afterProcessed = reducer.reduce(afterSagaOnly.state, processed)
+        val afterSagaOnly = stateMachine.next(state, saga)
+        val afterProcessed = stateMachine.next(afterSagaOnly.state, processed)
 
         afterSagaOnly.completed.assert().isFalse()
         afterProcessed.completed.assert().isTrue()
@@ -79,10 +83,10 @@ class WaitSignalReducerChainTest {
             result = mapOf("tail2" to true),
         )
 
-        val afterMain = reducer.reduce(state, main)
-        val afterTail1 = reducer.reduce(afterMain.state, tail1)
-        val afterTail2 = reducer.reduce(afterTail1.state, tail2)
-        val afterProcessed = reducer.reduce(afterTail2.state, processed)
+        val afterMain = stateMachine.next(state, main)
+        val afterTail1 = stateMachine.next(afterMain.state, tail1)
+        val afterTail2 = stateMachine.next(afterTail1.state, tail2)
+        val afterProcessed = stateMachine.next(afterTail2.state, processed)
 
         afterMain.completed.assert().isFalse()
         afterTail1.completed.assert().isFalse()
@@ -116,9 +120,9 @@ class WaitSignalReducerChainTest {
             result = mapOf("main" to true),
         )
 
-        val afterTail = reducer.reduce(state, tail)
-        val afterProcessed = reducer.reduce(afterTail.state, processed)
-        val afterMain = reducer.reduce(afterProcessed.state, main)
+        val afterTail = stateMachine.next(state, tail)
+        val afterProcessed = stateMachine.next(afterTail.state, processed)
+        val afterMain = stateMachine.next(afterProcessed.state, main)
 
         afterTail.acceptedSignal.assert().isEqualTo(tail)
         afterTail.completed.assert().isFalse()
@@ -153,9 +157,9 @@ class WaitSignalReducerChainTest {
             commands = listOf("tail-1"),
         )
 
-        val afterTail = reducer.reduce(state, failedTail)
-        val afterProcessed = reducer.reduce(afterTail.state, processed)
-        val afterMain = reducer.reduce(afterProcessed.state, main)
+        val afterTail = stateMachine.next(state, failedTail)
+        val afterProcessed = stateMachine.next(afterTail.state, processed)
+        val afterMain = stateMachine.next(afterProcessed.state, main)
 
         afterTail.acceptedSignal.assert().isEqualTo(failedTail)
         afterTail.completed.assert().isFalse()
@@ -196,10 +200,10 @@ class WaitSignalReducerChainTest {
             commands = listOf("tail-1"),
         )
 
-        val afterTailProcessed = reducer.reduce(state, tailProcessed)
-        val afterTailProjected = reducer.reduce(afterTailProcessed.state, tailProjected)
-        val afterProcessed = reducer.reduce(afterTailProjected.state, processed)
-        val afterMain = reducer.reduce(afterProcessed.state, main)
+        val afterTailProcessed = stateMachine.next(state, tailProcessed)
+        val afterTailProjected = stateMachine.next(afterTailProcessed.state, tailProjected)
+        val afterProcessed = stateMachine.next(afterTailProjected.state, processed)
+        val afterMain = stateMachine.next(afterProcessed.state, main)
 
         afterTailProjected.completed.assert().isFalse()
         afterProcessed.completed.assert().isFalse()
@@ -240,10 +244,10 @@ class WaitSignalReducerChainTest {
             commands = listOf("tail-1"),
         )
 
-        val afterTailProcessed = reducer.reduce(state, failedTailProcessed)
-        val afterTailProjected = reducer.reduce(afterTailProcessed.state, tailProjected)
-        val afterProcessed = reducer.reduce(afterTailProjected.state, processed)
-        val afterMain = reducer.reduce(afterProcessed.state, main)
+        val afterTailProcessed = stateMachine.next(state, failedTailProcessed)
+        val afterTailProjected = stateMachine.next(afterTailProcessed.state, tailProjected)
+        val afterProcessed = stateMachine.next(afterTailProjected.state, processed)
+        val afterMain = stateMachine.next(afterProcessed.state, main)
 
         afterMain.completed.assert().isTrue()
         afterMain.finalSignal!!.commandId.assert().isEqualTo("tail-1")
@@ -281,10 +285,10 @@ class WaitSignalReducerChainTest {
             commands = listOf("tail-1"),
         )
 
-        val afterTailProcessed = reducer.reduce(state, tailProcessed)
-        val afterTailProjected = reducer.reduce(afterTailProcessed.state, failedTailProjected)
-        val afterProcessed = reducer.reduce(afterTailProjected.state, processed)
-        val afterMain = reducer.reduce(afterProcessed.state, main)
+        val afterTailProcessed = stateMachine.next(state, tailProcessed)
+        val afterTailProjected = stateMachine.next(afterTailProcessed.state, failedTailProjected)
+        val afterProcessed = stateMachine.next(afterTailProjected.state, processed)
+        val afterMain = stateMachine.next(afterProcessed.state, main)
 
         afterMain.completed.assert().isTrue()
         afterMain.finalSignal!!.commandId.assert().isEqualTo("tail-1")
@@ -320,10 +324,10 @@ class WaitSignalReducerChainTest {
             commands = listOf("tail-1", "tail-2"),
         )
 
-        val afterTail2 = reducer.reduce(state, tail2)
-        val afterTail1 = reducer.reduce(afterTail2.state, tail1)
-        val afterProcessed = reducer.reduce(afterTail1.state, processed)
-        val afterMain = reducer.reduce(afterProcessed.state, main)
+        val afterTail2 = stateMachine.next(state, tail2)
+        val afterTail1 = stateMachine.next(afterTail2.state, tail1)
+        val afterProcessed = stateMachine.next(afterTail1.state, processed)
+        val afterMain = stateMachine.next(afterProcessed.state, main)
 
         afterMain.completed.assert().isTrue()
         afterMain.finalSignal!!.result["winner"].assert().isEqualTo("tail-1")
@@ -352,9 +356,9 @@ class WaitSignalReducerChainTest {
             commands = listOf("tail-1"),
         )
 
-        val afterTail = reducer.reduce(state, tail)
-        val afterProcessed = reducer.reduce(afterTail.state, processed)
-        val afterMain = reducer.reduce(afterProcessed.state, main)
+        val afterTail = stateMachine.next(state, tail)
+        val afterProcessed = stateMachine.next(afterTail.state, processed)
+        val afterMain = stateMachine.next(afterProcessed.state, main)
 
         afterMain.completed.assert().isTrue()
         afterMain.finalSignal!!.result["winner"].assert().isEqualTo("processed")
@@ -390,10 +394,10 @@ class WaitSignalReducerChainTest {
             commands = listOf("tail-1", "tail-2"),
         )
 
-        val afterTail2 = reducer.reduce(state, failedTail2)
-        val afterTail1 = reducer.reduce(afterTail2.state, failedTail1)
-        val afterProcessed = reducer.reduce(afterTail1.state, processed)
-        val afterMain = reducer.reduce(afterProcessed.state, main)
+        val afterTail2 = stateMachine.next(state, failedTail2)
+        val afterTail1 = stateMachine.next(afterTail2.state, failedTail1)
+        val afterProcessed = stateMachine.next(afterTail1.state, processed)
+        val afterMain = stateMachine.next(afterProcessed.state, main)
 
         afterMain.completed.assert().isTrue()
         afterMain.finalSignal!!.commandId.assert().isEqualTo("tail-2")
@@ -430,10 +434,10 @@ class WaitSignalReducerChainTest {
             commandId = "main-command",
         )
 
-        val afterTail2 = reducer.reduce(state, failedTail2)
-        val afterTail1 = reducer.reduce(afterTail2.state, failedTail1)
-        val afterMain = reducer.reduce(afterTail1.state, main)
-        val afterProcessed = reducer.reduce(afterMain.state, processed)
+        val afterTail2 = stateMachine.next(state, failedTail2)
+        val afterTail1 = stateMachine.next(afterTail2.state, failedTail1)
+        val afterMain = stateMachine.next(afterTail1.state, main)
+        val afterProcessed = stateMachine.next(afterMain.state, processed)
 
         afterMain.completed.assert().isFalse()
         afterProcessed.completed.assert().isTrue()
@@ -481,11 +485,11 @@ class WaitSignalReducerChainTest {
             commandId = "main-command",
         )
 
-        val afterMain = reducer.reduce(state, main)
-        val afterTail1Projected = reducer.reduce(afterMain.state, tail1Projected)
-        val afterTail2Projected = reducer.reduce(afterTail1Projected.state, tail2Projected)
-        val afterTail1Processed = reducer.reduce(afterTail2Projected.state, tail1Processed)
-        val afterProcessed = reducer.reduce(afterTail1Processed.state, processed)
+        val afterMain = stateMachine.next(state, main)
+        val afterTail1Projected = stateMachine.next(afterMain.state, tail1Projected)
+        val afterTail2Projected = stateMachine.next(afterTail1Projected.state, tail2Projected)
+        val afterTail1Processed = stateMachine.next(afterTail2Projected.state, tail1Processed)
+        val afterProcessed = stateMachine.next(afterTail1Processed.state, processed)
 
         afterProcessed.completed.assert().isTrue()
         afterProcessed.finalSignal!!.commandId.assert().isEqualTo("tail-1")
@@ -523,10 +527,10 @@ class WaitSignalReducerChainTest {
             commandId = "tail-1",
         )
 
-        val afterMain = reducer.reduce(state, main)
-        val afterMainProcessed = reducer.reduce(afterMain.state, mainProcessed)
-        val afterFailedTailProjected = reducer.reduce(afterMainProcessed.state, failedTailProjected)
-        val afterTailProcessed = reducer.reduce(afterFailedTailProjected.state, tailProcessed)
+        val afterMain = stateMachine.next(state, main)
+        val afterMainProcessed = stateMachine.next(afterMain.state, mainProcessed)
+        val afterFailedTailProjected = stateMachine.next(afterMainProcessed.state, failedTailProjected)
+        val afterTailProcessed = stateMachine.next(afterFailedTailProjected.state, tailProcessed)
 
         afterFailedTailProjected.completed.assert().isFalse()
         afterTailProcessed.completed.assert().isTrue()
@@ -559,9 +563,9 @@ class WaitSignalReducerChainTest {
             commandId = "main-command",
         )
 
-        val afterMain = reducer.reduce(state, main)
-        val afterFailedTail = reducer.reduce(afterMain.state, failedTail)
-        val afterProcessed = reducer.reduce(afterFailedTail.state, processed)
+        val afterMain = stateMachine.next(state, main)
+        val afterFailedTail = stateMachine.next(afterMain.state, failedTail)
+        val afterProcessed = stateMachine.next(afterFailedTail.state, processed)
 
         afterFailedTail.completed.assert().isFalse()
         afterProcessed.completed.assert().isTrue()
@@ -598,14 +602,13 @@ class WaitSignalReducerChainTest {
             commandId = "main-command",
         )
 
-        val afterMain = reducer.reduce(state, main)
-        val afterTail1 = reducer.reduce(afterMain.state, tail1)
-        val afterDuplicateMain = reducer.reduce(afterTail1.state, main)
-        val afterTail2 = reducer.reduce(afterDuplicateMain.state, tail2)
-        val afterProcessed = reducer.reduce(afterTail2.state, processed)
+        val afterMain = stateMachine.next(state, main)
+        val afterTail1 = stateMachine.next(afterMain.state, tail1)
+        val afterDuplicateMain = stateMachine.next(afterTail1.state, main)
+        val afterTail2 = stateMachine.next(afterDuplicateMain.state, tail2)
+        val afterProcessed = stateMachine.next(afterTail2.state, processed)
 
-        afterDuplicateMain.state.tailStates["tail-1"].assert()
-            .isEqualTo(afterTail1.state.tailStates["tail-1"])
+        afterDuplicateMain.acceptedSignal.assert().isEqualTo(main)
         afterProcessed.completed.assert().isTrue()
         afterProcessed.finalSignal!!.result["tail1"].assert().isEqualTo(true)
         afterProcessed.finalSignal.result["tail2"].assert().isEqualTo(true)
@@ -641,13 +644,12 @@ class WaitSignalReducerChainTest {
             commandId = "main-command",
         )
 
-        val afterMain = reducer.reduce(state, main)
-        val afterTail = reducer.reduce(afterMain.state, tail)
-        val afterDuplicateTail = reducer.reduce(afterTail.state, duplicateTail)
-        val afterProcessed = reducer.reduce(afterDuplicateTail.state, processed)
+        val afterMain = stateMachine.next(state, main)
+        val afterTail = stateMachine.next(afterMain.state, tail)
+        val afterDuplicateTail = stateMachine.next(afterTail.state, duplicateTail)
+        val afterProcessed = stateMachine.next(afterDuplicateTail.state, processed)
 
-        afterDuplicateTail.state.tailStates["tail-1"].assert()
-            .isEqualTo(afterTail.state.tailStates["tail-1"])
+        afterDuplicateTail.acceptedSignal.assert().isNull()
         afterProcessed.completed.assert().isTrue()
         afterProcessed.finalSignal!!.succeeded.assert().isTrue()
         afterProcessed.finalSignal.result["tail1"].assert().isEqualTo(true)
@@ -665,7 +667,7 @@ class WaitSignalReducerChainTest {
             commands = listOf("tail-1"),
         )
 
-        val reduction = reducer.reduce(state, wrongMain)
+        val reduction = stateMachine.next(state, wrongMain)
 
         reduction.acceptedSignal.assert().isNull()
         reduction.state.assert().isEqualTo(state)
@@ -702,13 +704,13 @@ class WaitSignalReducerChainTest {
             commands = emptyList(),
         )
 
-        val afterUnconfirmedTailProcessed = reducer.reduce(state, unconfirmedTailProcessed)
-        val afterUnconfirmedTailProjected = reducer.reduce(
+        val afterUnconfirmedTailProcessed = stateMachine.next(state, unconfirmedTailProcessed)
+        val afterUnconfirmedTailProjected = stateMachine.next(
             afterUnconfirmedTailProcessed.state,
             unconfirmedTailProjected,
         )
-        val afterProcessed = reducer.reduce(afterUnconfirmedTailProjected.state, processed)
-        val afterMain = reducer.reduce(afterProcessed.state, main)
+        val afterProcessed = stateMachine.next(afterUnconfirmedTailProjected.state, processed)
+        val afterMain = stateMachine.next(afterProcessed.state, main)
 
         afterUnconfirmedTailProcessed.acceptedSignal.assert().isEqualTo(unconfirmedTailProcessed)
         afterUnconfirmedTailProjected.acceptedSignal.assert().isEqualTo(unconfirmedTailProjected)
@@ -748,10 +750,10 @@ class WaitSignalReducerChainTest {
             commandId = "tail-1",
         )
 
-        val afterMain = reducer.reduce(state, main)
-        val afterMainProcessed = reducer.reduce(afterMain.state, mainProcessed)
-        val afterTailProjected = reducer.reduce(afterMainProcessed.state, tailProjected)
-        val afterTailProcessed = reducer.reduce(afterTailProjected.state, tailProcessed)
+        val afterMain = stateMachine.next(state, main)
+        val afterMainProcessed = stateMachine.next(afterMain.state, mainProcessed)
+        val afterTailProjected = stateMachine.next(afterMainProcessed.state, tailProjected)
+        val afterTailProcessed = stateMachine.next(afterTailProjected.state, tailProcessed)
 
         afterTailProjected.completed.assert().isFalse()
         afterTailProcessed.completed.assert().isTrue()
@@ -759,8 +761,25 @@ class WaitSignalReducerChainTest {
         afterTailProcessed.finalSignal.stage.assert().isEqualTo(CommandStage.PROJECTED)
     }
 
-    private fun chainState(tailStage: CommandStage = CommandStage.PROCESSED): WaitReductionState =
-        WaitReductionState.initial(
+    private fun chainState(tailStage: CommandStage = CommandStage.PROCESSED): ChainWaitState =
+        ChainWaitState(
             CommandWait.chain("main-command", testNamedFunction(), tailStage, testNamedFunction()),
         )
+}
+
+private class ChainWaitStateDriver {
+    fun next(state: ChainWaitState, signal: WaitSignal): ChainWaitStateTransition =
+        ChainWaitStateTransition(
+            state = state,
+            transition = state.next(signal),
+        )
+}
+
+private data class ChainWaitStateTransition(
+    val state: ChainWaitState,
+    private val transition: WaitTransition,
+) {
+    val acceptedSignal: WaitSignal? = transition.acceptedSignal
+    val completed: Boolean = transition.completed
+    val finalSignal: WaitSignal? = transition.finalSignal
 }

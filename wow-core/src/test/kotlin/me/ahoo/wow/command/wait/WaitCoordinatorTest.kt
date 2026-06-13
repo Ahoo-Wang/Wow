@@ -21,7 +21,7 @@ import reactor.test.StepVerifier
 class WaitCoordinatorTest {
     @Test
     fun dispatchSignalToLastHandleAndUnregister() {
-        val coordinator = DefaultWaitCoordinator(DefaultWaitSignalReducer())
+        val coordinator = DefaultWaitCoordinator()
         val handle = coordinator.createLast(CommandWait.processed("wait-id"))
 
         StepVerifier.create(handle.await())
@@ -39,7 +39,7 @@ class WaitCoordinatorTest {
 
     @Test
     fun dispatchSignalToStreamHandleAndUnregister() {
-        val coordinator = DefaultWaitCoordinator(DefaultWaitSignalReducer())
+        val coordinator = DefaultWaitCoordinator()
         val handle = coordinator.createStream(CommandWait.processed("wait-id"))
 
         coordinator.signal(testSignal(CommandStage.SENT, waitCommandId = "wait-id", signalTime = 1))
@@ -57,10 +57,7 @@ class WaitCoordinatorTest {
 
     @Test
     fun streamQueueLinkSizeConfiguresUnboundedBufferLinkSize() {
-        val coordinator = DefaultWaitCoordinator(
-            reducer = DefaultWaitSignalReducer(),
-            streamQueueLinkSize = 1,
-        )
+        val coordinator = DefaultWaitCoordinator(streamQueueLinkSize = 1)
         val handle = coordinator.createStream(CommandWait.processed("wait-id"))
 
         coordinator.signal(testSignal(CommandStage.SENT, waitCommandId = "wait-id", signalTime = 1))
@@ -77,7 +74,7 @@ class WaitCoordinatorTest {
 
     @Test
     fun returnFalseWhenNoHandleExists() {
-        val coordinator = DefaultWaitCoordinator(DefaultWaitSignalReducer())
+        val coordinator = DefaultWaitCoordinator()
 
         coordinator.signal(testSignal(CommandStage.PROCESSED, waitCommandId = "missing"))
             .assert().isFalse()
@@ -85,7 +82,7 @@ class WaitCoordinatorTest {
 
     @Test
     fun ignoredSignalReturnsFalseAndKeepsHandleRegistered() {
-        val coordinator = DefaultWaitCoordinator(DefaultWaitSignalReducer())
+        val coordinator = DefaultWaitCoordinator()
         val handle = coordinator.createLast(CommandWait.processed("wait-id"))
 
         coordinator.signal(testSignal(CommandStage.PROJECTED, waitCommandId = "wait-id"))
@@ -98,7 +95,7 @@ class WaitCoordinatorTest {
 
     @Test
     fun duplicateRegistrationFails() {
-        val coordinator = DefaultWaitCoordinator(DefaultWaitSignalReducer())
+        val coordinator = DefaultWaitCoordinator()
 
         coordinator.createLast(CommandWait.processed("wait-id"))
         val error = assertThrows<IllegalArgumentException> {
@@ -110,7 +107,7 @@ class WaitCoordinatorTest {
 
     @Test
     fun completionThroughLastHandleUnregistersAndAllowsRegistration() {
-        val coordinator = DefaultWaitCoordinator(DefaultWaitSignalReducer())
+        val coordinator = DefaultWaitCoordinator()
         val handle = coordinator.createLast(CommandWait.processed("wait-id"))
 
         coordinator.contains("wait-id").assert().isTrue()
@@ -126,7 +123,7 @@ class WaitCoordinatorTest {
 
     @Test
     fun cancellationThroughStreamHandleUnregistersAndAllowsRegistration() {
-        val coordinator = DefaultWaitCoordinator(DefaultWaitSignalReducer())
+        val coordinator = DefaultWaitCoordinator()
         val handle = coordinator.createStream(CommandWait.processed("wait-id"))
 
         coordinator.contains("wait-id").assert().isTrue()
