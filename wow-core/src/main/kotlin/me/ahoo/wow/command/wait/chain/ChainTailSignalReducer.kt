@@ -11,9 +11,16 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.command.wait
+package me.ahoo.wow.command.wait.chain
 
-import me.ahoo.wow.command.wait.chain.WaitingChainTail
+import me.ahoo.wow.command.wait.ChainWaitTarget
+import me.ahoo.wow.command.wait.CommandWait
+import me.ahoo.wow.command.wait.PendingTailSignal
+import me.ahoo.wow.command.wait.StageWaitTarget
+import me.ahoo.wow.command.wait.WaitReduction
+import me.ahoo.wow.command.wait.WaitReductionState
+import me.ahoo.wow.command.wait.WaitSignal
+import me.ahoo.wow.command.wait.stage.StageWaitSignalReducer
 
 internal class ChainTailSignalReducer(
     private val stageReducer: StageWaitSignalReducer = StageWaitSignalReducer(),

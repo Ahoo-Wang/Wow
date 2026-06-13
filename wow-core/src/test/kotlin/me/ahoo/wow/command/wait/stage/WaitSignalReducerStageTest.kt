@@ -11,9 +11,17 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.command.wait
+package me.ahoo.wow.command.wait.stage
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.command.wait.CommandStage
+import me.ahoo.wow.command.wait.CommandWait
+import me.ahoo.wow.command.wait.TEST_CONTEXT
+import me.ahoo.wow.command.wait.TEST_FUNCTION
+import me.ahoo.wow.command.wait.TEST_PROCESSOR
+import me.ahoo.wow.command.wait.WaitReductionState
+import me.ahoo.wow.command.wait.testFunction
+import me.ahoo.wow.command.wait.testSignal
 import org.junit.jupiter.api.Test
 
 class WaitSignalReducerStageTest {

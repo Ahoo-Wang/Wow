@@ -13,6 +13,9 @@
 
 package me.ahoo.wow.command.wait
 
+import me.ahoo.wow.command.wait.chain.ChainWaitSignalReducer
+import me.ahoo.wow.command.wait.stage.StageWaitSignalReducer
+
 internal class DefaultWaitSignalReducer(
     private val stageReducer: StageWaitSignalReducer = StageWaitSignalReducer(),
     private val chainReducer: ChainWaitSignalReducer = ChainWaitSignalReducer(stageReducer),

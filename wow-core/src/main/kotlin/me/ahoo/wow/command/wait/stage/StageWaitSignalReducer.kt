@@ -11,7 +11,16 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.command.wait
+package me.ahoo.wow.command.wait.stage
+
+import me.ahoo.wow.command.wait.CommandStage
+import me.ahoo.wow.command.wait.StageWaitTarget
+import me.ahoo.wow.command.wait.WaitReduction
+import me.ahoo.wow.command.wait.WaitReductionState
+import me.ahoo.wow.command.wait.WaitSignal
+import me.ahoo.wow.command.wait.WaitSignalReducer
+import me.ahoo.wow.command.wait.WaitTarget
+import me.ahoo.wow.command.wait.completed
 
 internal class StageWaitSignalReducer : WaitSignalReducer {
     override fun reduce(state: WaitReductionState, signal: WaitSignal): WaitReduction {

@@ -11,7 +11,10 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.command.wait
+package me.ahoo.wow.command.wait.chain
+
+import me.ahoo.wow.command.wait.WaitReductionState
+import me.ahoo.wow.command.wait.WaitSignal
 
 internal class ChainResultAccumulator {
     fun activateNextSignalResult(state: WaitReductionState, signal: WaitSignal): WaitReductionState {

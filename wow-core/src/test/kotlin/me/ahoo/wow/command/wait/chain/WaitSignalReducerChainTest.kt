@@ -11,9 +11,15 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.command.wait
+package me.ahoo.wow.command.wait.chain
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.command.wait.CommandStage
+import me.ahoo.wow.command.wait.CommandWait
+import me.ahoo.wow.command.wait.WaitReductionState
+import me.ahoo.wow.command.wait.testFunction
+import me.ahoo.wow.command.wait.testNamedFunction
+import me.ahoo.wow.command.wait.testSignal
 import org.junit.jupiter.api.Test
 
 @Suppress("LargeClass")
