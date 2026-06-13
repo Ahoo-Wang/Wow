@@ -38,7 +38,7 @@ Wow is a **compiler-driven, fully reactive** CQRS + Event Sourcing framework. It
 
 Most CQRS frameworks treat "waiting for a command result" as an afterthought — a blocking `Future.get()` or a polling loop. Wow inverts this: a `WaitPlan` describes the target stage, and `WaitCoordinator` creates an internal reactive handle that receives push notifications from every stage of the processing lifecycle.
 
-<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitCoordinator.kt:24-101, wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitPlan.kt:60-176, wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt:25-86 -->
+<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitCoordinator.kt:18-72, wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitHandle.kt:22-223, wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitPlan.kt:20-71, wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt:25-123 -->
 
 ### Why This Matters
 
@@ -91,7 +91,7 @@ graph TB
 
 ```
 
-<!-- Sources: CommandStage.kt:25-86, WaitCoordinator.kt:24-101, WaitPlan.kt:60-176, CommandGateway.kt:75-178, DefaultCommandGateway.kt:45-246, MonoCommandWaitNotifier.kt -->
+<!-- Sources: CommandStage.kt:25-123, WaitCoordinator.kt:18-72, WaitHandle.kt:22-223, WaitPlan.kt:20-71, CommandGateway.kt:75-160, DefaultCommandGateway.kt:117-280, MonoCommandWaitNotifier.kt -->
 
 ### Second-Order Insight: Compile-Time Metadata Generation
 
@@ -477,7 +477,7 @@ sequenceDiagram
     WF-->>Client: HTTP 200 + result body
 ```
 
-<!-- Sources: DefaultCommandGateway.kt:45-246, LocalFirstMessageBus.kt:89-171, EventSourcingStateAggregateRepository.kt:41-148, AbstractEventStore.kt:26-140, DomainEventBus.kt:1-97, CommandStage.kt:25-86, WaitCoordinator.kt:24-101 -->
+<!-- Sources: DefaultCommandGateway.kt:117-280, LocalFirstMessageBus.kt:89-171, EventSourcingStateAggregateRepository.kt:41-148, AbstractEventStore.kt:26-140, DomainEventBus.kt:1-97, CommandStage.kt:25-123, WaitCoordinator.kt:18-72 -->
 
 ### Key Observations from the Flow
 

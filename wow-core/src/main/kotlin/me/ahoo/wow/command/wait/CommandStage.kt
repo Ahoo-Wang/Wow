@@ -126,7 +126,7 @@ enum class CommandStage {
  * Interface for objects that have an associated command stage.
  *
  * Classes implementing this interface can report their current command
- * processing stage, useful for tracking progress and waiting strategies.
+ * processing stage, useful for tracking wait-plan progress.
  *
  * @see CommandStage
  */

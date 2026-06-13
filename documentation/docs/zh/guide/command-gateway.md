@@ -189,7 +189,7 @@ graph TB
 - InMemoryCommandBus: wow-core/src/main/kotlin/me/ahoo/wow/command/InMemoryCommandBus.kt:31-50
 - KafkaCommandBus: wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/KafkaCommandBus.kt:27-45
 - AggregateDispatcher: wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt:80-275
-- WaitCoordinator: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitCoordinator.kt:24-101
+- WaitCoordinator: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitCoordinator.kt:18-72
 -->
 
 ### 消息总线层级
@@ -617,21 +617,37 @@ graph TB
     SWT[StageWaitTarget<br>单个处理阶段]
     CWT[ChainWaitTarget<br>Saga 阶段 + tail]
     CW[CommandWait<br>工厂方法]
-    HC[WaitCoordinator<br>创建 last/stream handle]
+    HC[WaitCoordinator<br>handle 注册表]
+    WH[WaitHandle<br>运行态契约]
+    WL[WaitLastHandle<br>Mono 最终结果]
+    WF[WaitStreamHandle<br>Flux 信号流]
+    ST[WaitState<br>状态机]
+    SWS[StageWaitState<br>单阶段]
+    CWS[ChainWaitState<br>Saga 链 tail]
 
     CW -->|creates| WS
     WS -->|target| SWT
     WS -->|target| CWT
-    WS -->|registered by| HC
+    HC -->|按 waitCommandId 注册| WH
+    WL -->|extends| WH
+    WF -->|extends| WH
+    WH -->|owns| ST
+    ST -->|stage target| SWS
+    ST -->|chain target| CWS
 
 ```
 
 <!-- Sources:
-- WaitPlan interface: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitPlan.kt:60-176
-- CommandWait: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandWait.kt:33-155
-- SimpleWaitingChain: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/chain/SimpleWaitingChain.kt:36-107
-- WaitCoordinator: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitCoordinator.kt:24-101
+- WaitPlan interface: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitPlan.kt:20-71
+- CommandWait: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandWait.kt:21-121
+- WaitHandle: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitHandle.kt:22-223
+- WaitState: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitState.kt:19-60
+- StageWaitState: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/stage/StageWaitState.kt:24-90
+- ChainWaitState: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/chain/ChainWaitState.kt:29-250
+- WaitCoordinator: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitCoordinator.kt:18-72
 -->
+
+运行时，`WaitPlan` 只表达不可变的等待意图。`WaitCoordinator` 为每个 `waitCommandId` 注册一个 `WaitHandle`；`sendAndWait` 使用 `WaitLastHandle`，`sendAndWaitStream` 使用 `WaitStreamHandle`。两种 handle 都是单订阅者运行态 sink。stream handle 使用 unicast sink，并通过 `DEFAULT_WAIT_STREAM_QUEUE_LINK_SIZE` 为第一个订阅者缓冲提前到达的信号。handle 内部持有可变的 `WaitState`，阶段和链式完成规则聚合在状态机内，而不是拆到外部 reducer。
 
 ### CommandWaitChain
 

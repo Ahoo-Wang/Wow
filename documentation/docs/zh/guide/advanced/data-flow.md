@@ -88,7 +88,7 @@ sequenceDiagram
 如果提供了等待计划，Gateway：
 
 1. 将等待端点传播到命令消息头
-2. 通过 `WaitCoordinator` 注册策略以进行信号路由
+2. 通过 `WaitCoordinator` 注册 `WaitHandle` 以进行信号路由
 3. 在完成（成功、错误或取消）时设置清理
 
 [[wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt:217](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt#L217)]
@@ -334,7 +334,7 @@ sequenceDiagram
 
 ## 阶段六：等待计划通知
 
-命令处理完成后，等待计划在每个处理阶段接收信号：
+命令处理完成后，已注册的等待 handle 在每个处理阶段接收信号：
 
 ```mermaid
 sequenceDiagram
@@ -343,38 +343,44 @@ sequenceDiagram
     participant CB as CommandBus
     participant AP as AggregateProcessor
     participant DEB as DomainEventBus
-    participant WS as WaitPlan
+    participant WC as WaitCoordinator
+    participant WH as WaitHandle
     participant Client as 客户端
 
-    CG->>WS: 注册策略
+    CG->>WC: createLast/createStream(waitPlan)
+    WC-->>CG: WaitLastHandle / WaitStreamHandle
     CG->>CB: send(command)
     CB-->>CG: 命令已接受
-    CG->>WS: next(SENT 信号)
-    WS-->>Client: stage=SENT
+    CG->>WH: next(SENT 信号)
+    WH-->>Client: stage=SENT
 
     CB->>AP: 处理命令
     AP-->>AP: 产生事件 + 持久化
-    AP->>WS: next(PROCESSED 信号)
-    WS-->>Client: stage=PROCESSED
+    AP->>WC: signal(PROCESSED 信号)
+    WC->>WH: next(PROCESSED 信号)
+    WH-->>Client: stage=PROCESSED
 
     AP->>DEB: 发布事件
     DEB->>DEB: 分发到投影
-    DEB->>WS: next(PROJECTED 信号)
-    WS-->>Client: stage=PROJECTED
+    DEB->>WC: signal(PROJECTED 信号)
+    WC->>WH: next(PROJECTED 信号)
+    WH-->>Client: stage=PROJECTED
 
     DEB->>DEB: 分发到快照
-    DEB->>WS: next(SNAPSHOT 信号)
-    WS-->>Client: stage=SNAPSHOT
+    DEB->>WC: signal(SNAPSHOT 信号)
+    WC->>WH: next(SNAPSHOT 信号)
+    WH-->>Client: stage=SNAPSHOT
 
-    WS->>WS: complete()
-    WS->>WS: 从注册器注销
+    WH->>WH: complete/error/cancel
+    WH->>WC: 注销
 
 
 ```
 
 <!-- Sources:
-  wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitPlan.kt:60
-  wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt:205
+  wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt:217-280
+  wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitCoordinator.kt:18-72
+  wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitHandle.kt:22-223
 -->
 
 ### 等待阶段
@@ -388,7 +394,7 @@ sequenceDiagram
 | `PROJECTED` | 投影已处理事件 |
 | `SNAPSHOT` | 快照已创建 |
 
-`CommandWait` 工厂为每个阶段创建策略：
+`CommandWait` 工厂为每个阶段创建 `WaitPlan`：
 
 - `CommandWait.sent(commandId)` — 等待命令发送
 - `CommandWait.processed(commandId)` — 等待事件持久化
@@ -398,7 +404,7 @@ sequenceDiagram
 
 ### 信号路由
 
-当下游处理器（投影、Saga、快照）完成时，它通过 `CommandWaitNotifier` 发送 `WaitSignal`。`WaitCoordinator` 根据 `waitCommandId` 将信号路由到正确的策略。[[wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitPlan.kt:104](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitPlan.kt#L104)]
+当下游处理器（投影、Saga、快照）完成时，它通过 `CommandWaitNotifier` 发送 `WaitSignal`。`WaitCoordinator` 根据 `waitCommandId` 查找已注册的 `WaitHandle`，并将信号转发给 handle。handle 内部持有 `WaitState` 状态机：`StageWaitState` 规约单阶段等待，`ChainWaitState` 跟踪 Saga 链 tail，并在主链信号确认 tail 命令 ID 后回放暂存的 tail 信号。[[WaitCoordinator.kt:62](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitCoordinator.kt#L62)] [[WaitState.kt:56](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitState.kt#L56)] [[ChainWaitState.kt:143](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/chain/ChainWaitState.kt#L143)]
 
 ## 聚合加载（读路径）
 

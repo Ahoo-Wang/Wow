@@ -467,10 +467,13 @@ sequenceDiagram
     participant SAGG as StateAggregate
     participant ES as EventStore
     participant EB as EventBus
-    participant WS as WaitPlan
+    participant WC as WaitCoordinator
+    participant WH as WaitHandle
 
     Client->>WF: POST /sales-order/{id} {CreateOrder}
     WF->>GW: sendAndWait(command, waitPlan)
+    GW->>WC: createLast/createStream(waitPlan)
+    WC-->>GW: wait handle
     GW->>CB: dispatch(commandMessage)
     CB->>AP: process(command)
 
@@ -500,13 +503,15 @@ sequenceDiagram
     AP->>EB: publish(eventStream)
     EB-->>AP: published
 
-    AP->>WS: signal(SENT / PROCESSED / SNAPSHOT)
-    WS-->>GW: wait signal
+    GW->>WH: signal(SENT)
+    AP->>WC: signal(PROCESSED / SNAPSHOT)
+    WC->>WH: next(signal)
+    WH-->>GW: wait signal
     GW-->>WF: CommandResult
     WF-->>Client: HTTP 200 + result
 ```
 
-<!-- Sources: CommandGateway.kt:89-178, CommandAggregate.kt:41-53, CommandState.kt:65-118, WaitPlan.kt:60-176, Order.kt:106-138, OrderState.kt:82-118 -->
+<!-- Sources: CommandGateway.kt:89-159, WaitCoordinator.kt:18-72, WaitHandle.kt:22-223, WaitPlan.kt:20-71, Order.kt:106-138, OrderState.kt:82-118 -->
 
 ---
 
@@ -547,15 +552,15 @@ sequenceDiagram
 
 `WaitPlan` 接口控制调用者等待多长时间以及处理的哪个阶段触发响应。
 
-| 策略 | 方法 | 返回时机 | 使用场景 |
+| 等待计划 | 方法 | 返回时机 | 使用场景 |
 |---|---|---|---|
 | SENT | `sendAndWaitForSent()` | 命令被总线接受时 | 即发即忘，高吞吐量 |
 | PROCESSED | `sendAndWaitForProcessed()` | 聚合处理完成，事件已发布时 | 同步请求-响应，写后读 |
 | SNAPSHOT | `sendAndWaitForSnapshot()` | 状态快照已持久化时 | 响应前确保持久性 |
 
-<!-- Sources: CommandGateway.kt:145-177, WaitPlan.kt:60-176 -->
+<!-- Sources: CommandGateway.kt:127-159, WaitPlan.kt:20-71 -->
 
-> [CommandGateway.kt:145-177](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt#L145-L177)
+> [CommandGateway.kt:127-159](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt#L127-L159)
 
 README 中的性能基准展示了其影响：
 

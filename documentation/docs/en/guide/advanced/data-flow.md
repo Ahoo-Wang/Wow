@@ -87,7 +87,7 @@ Before sending, the gateway checks whether the command's `requestId` has already
 
 If a wait plan is provided, the gateway:
 1. Propagates the wait endpoint into the command message header
-2. Registers the strategy with `WaitCoordinator` for signal routing
+2. Registers a `WaitHandle` with `WaitCoordinator` for signal routing
 3. Sets up cleanup on completion (success, error, or cancel)
 
 [[wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt:217](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt#L217)]
@@ -334,7 +334,7 @@ The snapshot strategy evaluates state events and creates snapshots when criteria
 
 ## Phase 6: Wait Plan Notification
 
-After the command has been processed, the wait plan receives signals at each processing stage:
+After the command has been processed, the registered wait handle receives signals at each processing stage:
 
 ```mermaid
 sequenceDiagram
@@ -343,38 +343,44 @@ sequenceDiagram
     participant CB as CommandBus
     participant AP as AggregateProcessor
     participant DEB as DomainEventBus
-    participant WS as WaitPlan
+    participant WC as WaitCoordinator
+    participant WH as WaitHandle
     participant Client
 
-    CG->>WS: register strategy
+    CG->>WC: createLast/createStream(waitPlan)
+    WC-->>CG: WaitLastHandle / WaitStreamHandle
     CG->>CB: send(command)
     CB-->>CG: command accepted
-    CG->>WS: next(SENT signal)
-    WS-->>Client: stage=SENT
+    CG->>WH: next(SENT signal)
+    WH-->>Client: stage=SENT
 
     CB->>AP: process command
     AP-->>AP: produce events + persist
-    AP->>WS: next(PROCESSED signal)
-    WS-->>Client: stage=PROCESSED
+    AP->>WC: signal(PROCESSED signal)
+    WC->>WH: next(PROCESSED signal)
+    WH-->>Client: stage=PROCESSED
 
     AP->>DEB: publish events
     DEB->>DEB: dispatch to projections
-    DEB->>WS: next(PROJECTED signal)
-    WS-->>Client: stage=PROJECTED
+    DEB->>WC: signal(PROJECTED signal)
+    WC->>WH: next(PROJECTED signal)
+    WH-->>Client: stage=PROJECTED
 
     DEB->>DEB: dispatch to snapshots
-    DEB->>WS: next(SNAPSHOT signal)
-    WS-->>Client: stage=SNAPSHOT
+    DEB->>WC: signal(SNAPSHOT signal)
+    WC->>WH: next(SNAPSHOT signal)
+    WH-->>Client: stage=SNAPSHOT
 
-    WS->>WS: complete()
-    WS->>WS: unregister from registrar
+    WH->>WH: complete/error/cancel
+    WH->>WC: unregister
 
 
 ```
 
 <!-- Sources:
-  wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitPlan.kt:60
-  wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt:205
+  wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt:217-280
+  wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitCoordinator.kt:18-72
+  wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitHandle.kt:22-223
 -->
 
 ### Wait Stages
@@ -388,7 +394,7 @@ The `WaitPlan` supports waiting at different processing stages:
 | `PROJECTED` | Projections have processed the events |
 | `SNAPSHOT` | Snapshot has been created |
 
-The `CommandWait` factory creates strategies for each stage:
+The `CommandWait` factory creates `WaitPlan` instances for each stage:
 
 - `CommandWait.sent(commandId)` — wait until the command is sent
 - `CommandWait.processed(commandId)` — wait until events are persisted
@@ -398,7 +404,7 @@ The `CommandWait` factory creates strategies for each stage:
 
 ### Signal Routing
 
-When a downstream processor (projection, saga, snapshot) completes, it sends a `WaitSignal` through the `CommandWaitNotifier`. The `WaitCoordinator` routes signals to the correct strategy based on `waitCommandId`. [[wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitPlan.kt:104](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitPlan.kt#L104)]
+When a downstream processor (projection, saga, snapshot) completes, it sends a `WaitSignal` through the `CommandWaitNotifier`. The `WaitCoordinator` looks up the registered `WaitHandle` by `waitCommandId` and forwards the signal to the handle. The handle owns a `WaitState` state machine: `StageWaitState` reduces single-stage waits, while `ChainWaitState` tracks the saga chain tail and replays pending tail signals once the main chain signal confirms the tail command IDs. [[WaitCoordinator.kt:62](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitCoordinator.kt#L62)] [[WaitState.kt:56](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitState.kt#L56)] [[ChainWaitState.kt:143](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/chain/ChainWaitState.kt#L143)]
 
 ## Aggregate Loading (Read Path)
 

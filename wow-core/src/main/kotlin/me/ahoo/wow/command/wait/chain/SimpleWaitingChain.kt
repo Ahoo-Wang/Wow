@@ -26,7 +26,7 @@ import me.ahoo.wow.command.wait.requireExtractCommandWaitEndpoint
 
 /**
  * A simple waiting chain that waits for saga handling completion followed by a tail stage.
- * This strategy combines waiting for saga processing with an additional stage/function criteria.
+ * This wait chain combines waiting for saga processing with an additional stage/function criteria.
  * The chain waits for SAGA_HANDLED stage with specific function matching, then waits for
  * the tail stage/function combination.
  *

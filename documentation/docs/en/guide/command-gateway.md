@@ -1,12 +1,12 @@
 ---
 title: Command Gateway
-description: The command gateway is the core component for receiving and sending commands, handling idempotency, waiting strategies, and validation.
+description: The command gateway is the core component for receiving and sending commands, handling idempotency, wait plans, and validation.
 ---
 
 # Command Gateway
 
 The command gateway is the core component in the system for receiving and sending commands, serving as the entry point for commands.
-It is an extension of the command bus, not only responsible for command transmission, but also adds a series of important responsibilities, including command idempotency, waiting strategies, and command validation.
+It is an extension of the command bus, not only responsible for command transmission, but also adds a series of important responsibilities, including command idempotency, wait plans, and command validation.
 
 ## Send Command
 
@@ -189,7 +189,7 @@ graph TB
 - InMemoryCommandBus: wow-core/src/main/kotlin/me/ahoo/wow/command/InMemoryCommandBus.kt:31-50
 - KafkaCommandBus: wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/KafkaCommandBus.kt:27-45
 - AggregateDispatcher: wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt:80-275
-- WaitCoordinator: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitCoordinator.kt:24-101
+- WaitCoordinator: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitCoordinator.kt:18-72
 -->
 
 ### Message Bus Hierarchy
@@ -516,13 +516,13 @@ wow:
         fpp: 0.00001
 ```
 
-## Waiting Strategies
+## Wait Plans
 
-*Command waiting strategy* refers to a strategy where the command gateway waits for the command execution result after sending the command.
+*Command wait plan* refers to the immutable plan that tells the command gateway which command stage should produce the response after a command is sent.
 
-*Command waiting strategy* is an important feature in the _Wow_ framework, aiming to solve the data synchronization delay problem in _CQRS_ and read-write separation modes.
+*Command wait plan* is an important feature in the _Wow_ framework, aiming to solve the data synchronization delay problem in _CQRS_ and read-write separation modes.
 
-Currently supported command waiting strategies include:
+Currently supported command wait plans include:
 
 ### CommandWait
 
@@ -617,21 +617,37 @@ graph TB
     SWT[StageWaitTarget<br>single processing stage]
     CWT[ChainWaitTarget<br>saga stage + tail]
     CW[CommandWait<br>factory methods]
-    HC[WaitCoordinator<br>creates last/stream handles]
+    HC[WaitCoordinator<br>handle registry]
+    WH[WaitHandle<br>runtime contract]
+    WL[WaitLastHandle<br>Mono final result]
+    WF[WaitStreamHandle<br>Flux signal stream]
+    ST[WaitState<br>state machine]
+    SWS[StageWaitState<br>single stage]
+    CWS[ChainWaitState<br>saga chain tail]
 
     CW -->|creates| WS
     WS -->|target| SWT
     WS -->|target| CWT
-    WS -->|registered by| HC
+    HC -->|registers by waitCommandId| WH
+    WL -->|extends| WH
+    WF -->|extends| WH
+    WH -->|owns| ST
+    ST -->|stage target| SWS
+    ST -->|chain target| CWS
 
 ```
 
 <!-- Sources:
-- WaitPlan interface: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitPlan.kt:60-176
-- CommandWait: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandWait.kt:33-155
-- SimpleWaitingChain: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/chain/SimpleWaitingChain.kt:36-107
-- WaitCoordinator: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitCoordinator.kt:24-101
+- WaitPlan interface: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitPlan.kt:20-71
+- CommandWait: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandWait.kt:21-121
+- WaitHandle: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitHandle.kt:22-223
+- WaitState: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitState.kt:19-60
+- StageWaitState: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/stage/StageWaitState.kt:24-90
+- ChainWaitState: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/chain/ChainWaitState.kt:29-250
+- WaitCoordinator: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitCoordinator.kt:18-72
 -->
+
+At runtime, `WaitPlan` remains immutable intent. `WaitCoordinator` registers exactly one `WaitHandle` per `waitCommandId`; `sendAndWait` uses `WaitLastHandle`, while `sendAndWaitStream` uses `WaitStreamHandle`. Both handles are single-subscriber runtime sinks. The stream handle uses a unicast sink and buffers early signals for the first subscriber with `DEFAULT_WAIT_STREAM_QUEUE_LINK_SIZE`. The handle owns the mutable `WaitState`, so stage and chain completion rules stay with the state machine instead of being split into an external reducer.
 
 ### CommandWaitChain
 
