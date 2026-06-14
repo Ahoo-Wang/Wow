@@ -67,6 +67,10 @@ internal object WebFluxBenchmarkSupport {
         }
     }
 
+    fun addCartItemCommandBody(): AddCartItem {
+        return AddCartItem(productId = "productId", quantity = 1)
+    }
+
     fun addCartItemRequest(): ServerRequest {
         return MockServerRequest.builder()
             .method(HttpMethod.POST)
@@ -74,7 +78,7 @@ internal object WebFluxBenchmarkSupport {
             .pathVariable(MessageRecords.OWNER_ID, BenchmarkAggregates.FIXED_AGGREGATE_ID)
             .principal(UserPrincipal("benchmark-user"))
             .header(CommandComponent.Header.WAIT_STAGE, CommandStage.SENT.name)
-            .body(AddCartItem(productId = "productId", quantity = 1).toMono())
+            .body(addCartItemCommandBody().toMono())
     }
 
     fun jsonRequest(): ServerRequest {
