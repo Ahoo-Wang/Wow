@@ -82,10 +82,7 @@ internal class StageWaitState(
         }
 
     private fun canComplete(): Boolean {
-        val finalSignal = finalSignal ?: return false
-        if (!finalSignal.succeeded && target.stage.isPrevious(finalSignal.stage)) {
-            return true
-        }
+        finalSignal ?: return false
         return !target.stage.isAfterProcessed || processed
     }
 

@@ -174,7 +174,7 @@ internal class ChainWaitState(
             return
         }
         for ((sequence, pendingSignal) in replaySignals) {
-            val currentTailState = tailStates[pendingSignal.commandId] ?: continue
+            val currentTailState = tailStates.getValue(pendingSignal.commandId)
             reduceTail(
                 signal = pendingSignal,
                 tailState = currentTailState,
@@ -234,9 +234,6 @@ internal class ChainWaitState(
     }
 
     private fun canComplete(): Boolean {
-        if (finalSignal != null) {
-            return true
-        }
         val mainChainSignal = mainChainSignal ?: return false
         if (!processed) {
             return false

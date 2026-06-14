@@ -123,6 +123,29 @@ class StageWaitStateTest {
         afterLast.completed.assert().isTrue()
         afterLast.finalSignal!!.result["last"].assert().isEqualTo(true)
     }
+
+    @Test
+    fun projectedSignalWaitsForProcessedBeforeCompleting() {
+        val state = StageWaitState(
+            CommandWait.projected("wait-id", TEST_CONTEXT, TEST_PROCESSOR, TEST_FUNCTION),
+        )
+        val lastProjection = testSignal(
+            stage = CommandStage.PROJECTED,
+            function = testFunction(),
+            isLastProjection = true,
+            result = mapOf("projected" to true),
+        )
+        val processed = testSignal(CommandStage.PROCESSED, result = mapOf("processed" to true))
+
+        val afterProjection = stateMachine.next(state, lastProjection)
+        val afterProcessed = stateMachine.next(afterProjection.state, processed)
+
+        afterProjection.completed.assert().isFalse()
+        afterProcessed.completed.assert().isTrue()
+        afterProcessed.finalSignal!!.stage.assert().isEqualTo(CommandStage.PROJECTED)
+        afterProcessed.finalSignal.result["projected"].assert().isEqualTo(true)
+        afterProcessed.finalSignal.result["processed"].assert().isEqualTo(true)
+    }
 }
 
 private class StageWaitStateDriver {
