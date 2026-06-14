@@ -36,7 +36,11 @@ Send a command:
 ```kotlin
 val request = CommandRequest(
     body = CreateOrder(orderId = "order-001", items = listOf(...)),
-    waitPlan = WaitPlan.projected()
+    waitPlan = CommandRequest.WaitPlan(
+        waitStage = CommandStage.PROJECTED,
+        waitContext = "order",
+        waitProcessor = "OrderProjector",
+    )
 )
 val result = orderCommandGateway.send(request).block()
 ```

@@ -649,10 +649,10 @@ graph TB
 
 At runtime, `WaitPlan` remains immutable intent. `WaitCoordinator` registers exactly one `WaitHandle` per `waitCommandId`; `sendAndWait` uses `WaitLastHandle`, while `sendAndWaitStream` uses `WaitStreamHandle`. Both handles are single-subscriber runtime sinks. The stream handle uses a unicast sink and buffers early signals for the first subscriber with `DEFAULT_WAIT_STREAM_QUEUE_LINK_SIZE`. The handle owns the mutable `WaitState`, so stage and chain completion rules stay with the state machine instead of being split into an external reducer.
 
-### CommandWaitChain
+### Chain Wait Plan
 
 <p align="center" style="text-align:center;">
-  <img  width="95%" src="../../public/images/wait/CommandWaitChain.svg" alt="CommandWaitChain"/>
+  <img  width="95%" src="../../public/images/wait/CommandWaitChain.svg" alt="Chain wait plan"/>
 </p>
 
 
@@ -723,10 +723,20 @@ data:{"id":"0V3oCVzX000100S","waitCommandId":"0V3oCVyv000100L","stage":"SNAPSHOT
 ```
 ```kotlin {1}
 val waitPlan = CommandWait.chain(
+    waitCommandId = message.commandId,
+    function = NamedFunctionInfoData(
+        contextName = "transfer-service",
+        processorName = "TransferSaga",
+        name = "onEvent",
+    ),
     tailStage = CommandStage.SNAPSHOT,
-    //...
+    tailFunction = NamedFunctionInfoData(
+        contextName = "wow",
+        processorName = "SnapshotDispatcher",
+        name = "save",
+    ),
 )
-commamdGateway.sendAndWait(message,waitPlan)
+commandGateway.sendAndWait(message, waitPlan)
 ```
 :::
 

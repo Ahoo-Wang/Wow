@@ -170,5 +170,5 @@ _Wow_ 提供的实时同步机制将数据实时同步至数据仓库（_ClickHo
 ### 命令处理传播链
 
 <p align="center" style="text-align:center;">
-  <img  width="95%" src="../../public/images/wait/CommandWaitChain.svg" alt="Wow-CommandWaitChain"/>
+  <img  width="95%" src="../../public/images/wait/CommandWaitChain.svg" alt="Wow 链式等待计划"/>
 </p>

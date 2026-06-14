@@ -71,7 +71,7 @@ CommandWait.eventHandled(...)
 CommandWait.sagaHandled(...)
 ```
 
-### CommandWaitChain
+### Chain wait plan
 
 Wait for a saga handler and for the downstream commands reported by that saga signal to reach a configured tail stage. Use it for request-reply semantics in distributed operations when a saga emits follow-up commands.
 

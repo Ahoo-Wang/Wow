@@ -63,7 +63,7 @@ gateway.send(command)
     .doOnSuccess { println("命令发送成功") }
     .subscribe()
 
-// 发送并等待完成，使用不同的策略
+// 发送并等待完成，使用不同的等待计划
 gateway.sendAndWait(command, CommandWait.processed(command.commandId))
     .doOnNext { result ->
         if (result.succeeded) {

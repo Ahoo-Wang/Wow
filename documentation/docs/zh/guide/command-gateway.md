@@ -649,10 +649,10 @@ graph TB
 
 运行时，`WaitPlan` 只表达不可变的等待意图。`WaitCoordinator` 为每个 `waitCommandId` 注册一个 `WaitHandle`；`sendAndWait` 使用 `WaitLastHandle`，`sendAndWaitStream` 使用 `WaitStreamHandle`。两种 handle 都是单订阅者运行态 sink。stream handle 使用 unicast sink，并通过 `DEFAULT_WAIT_STREAM_QUEUE_LINK_SIZE` 为第一个订阅者缓冲提前到达的信号。handle 内部持有可变的 `WaitState`，阶段和链式完成规则聚合在状态机内，而不是拆到外部 reducer。
 
-### CommandWaitChain
+### 链式等待计划
 
 <p align="center" style="text-align:center;">
-  <img  width="95%" src="../../public/images/wait/CommandWaitChain.svg" alt="CommandWaitChain"/>
+  <img  width="95%" src="../../public/images/wait/CommandWaitChain.svg" alt="链式等待计划"/>
 </p>
 
 
@@ -723,10 +723,20 @@ data:{"id":"0V3oCVzX000100S","waitCommandId":"0V3oCVyv000100L","stage":"SNAPSHOT
 ```
 ```kotlin {1}
 val waitPlan = CommandWait.chain(
+    waitCommandId = message.commandId,
+    function = NamedFunctionInfoData(
+        contextName = "transfer-service",
+        processorName = "TransferSaga",
+        name = "onEvent",
+    ),
     tailStage = CommandStage.SNAPSHOT,
-    //...
+    tailFunction = NamedFunctionInfoData(
+        contextName = "wow",
+        processorName = "SnapshotDispatcher",
+        name = "save",
+    ),
 )
-commamdGateway.sendAndWait(message,waitPlan)
+commandGateway.sendAndWait(message, waitPlan)
 ```
 :::
 
