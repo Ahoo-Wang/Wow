@@ -52,14 +52,13 @@ For each event stream:
 
 1. Source the event stream into the single replay aggregate.
 2. Convert the current aggregate state to an `ObjectNode`.
-3. Wrap that node in `StateJsonRecord`.
-4. Build the traced `StateEvent` from the original event stream and the
-   `StateJsonRecord`.
+3. Build the traced `StateEvent` from the original event stream and the frozen
+   `ObjectNode`.
 
-`StateEventJsonSerializer` already writes `value.state` through Jackson, and a
-`StateJsonRecord` serializes as the underlying JSON object. The HTTP response
-can therefore keep the same `state` JSON shape while avoiding typed state
-object graph allocation.
+`StateEventJsonSerializer` already writes `value.state` through Jackson, and an
+`ObjectNode` writes as the JSON object itself. The HTTP response can therefore
+keep the same `state` JSON shape while avoiding typed state object graph
+allocation.
 
 This is intentionally scoped to aggregate tracing response construction. It
 does not change aggregate sourcing, event stream storage, command handling, or
@@ -96,7 +95,7 @@ The production change should live in the existing aggregate tracing path:
 
 The implementation can add a small private helper near `trace(...)` if that
 keeps the handler readable, for example a helper that converts a sourced state
-aggregate into a `StateJsonRecord`.
+aggregate into an `ObjectNode` snapshot.
 
 Expected behavior:
 
@@ -106,7 +105,7 @@ Expected behavior:
   matching event stream.
 - The serialized `state` JSON remains equivalent to the current typed-state
   response.
-- The in-memory traced state value may become `StateJsonRecord` instead of the
+- The in-memory traced state value may become `ObjectNode` instead of the
   aggregate's concrete state class in this WebFlux path.
 
 ## Tests
@@ -127,7 +126,7 @@ Required coverage:
 
 Tests should assert response semantics rather than requiring every traced state
 to be the concrete aggregate state class, because the optimized representation
-is allowed to be `StateJsonRecord`.
+is allowed to be `ObjectNode`.
 
 ## Benchmark Verification
 
