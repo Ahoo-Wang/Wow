@@ -13,10 +13,15 @@
 
 package me.ahoo.wow.benchmark.webflux
 
+import me.ahoo.wow.api.abac.AbacTags
 import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
 import me.ahoo.wow.benchmark.fixture.BenchmarkEvents
 import me.ahoo.wow.event.DomainEventStream
+import me.ahoo.wow.eventsourcing.state.StateEvent
+import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.toStateEvent
+import me.ahoo.wow.example.domain.cart.CartState
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
+import me.ahoo.wow.serialization.deepCopy
 import me.ahoo.wow.webflux.route.state.AggregateTracingHandlerFunction.Companion.trace
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Level
@@ -32,10 +37,67 @@ open class AggregateTracingBenchmark {
     var eventCount: Int = 1
 
     private lateinit var eventStreams: List<DomainEventStream>
+    private lateinit var statesToCopy: List<CartState>
+    private lateinit var stateEventState: CartState
+    private lateinit var firstOperator: String
+    private var firstEventTime: Long = 0
+    private lateinit var tags: AbacTags
+    private var deleted: Boolean = false
 
     @Setup(Level.Iteration)
     fun setup() {
         eventStreams = BenchmarkEvents.eventStreams(eventCount = eventCount)
+        val stateAggregate = newCartStateAggregate()
+        val preparedStates = ArrayList<CartState>(eventCount)
+        for (eventStream in eventStreams) {
+            stateAggregate.onSourcing(eventStream)
+            preparedStates.add(
+                stateAggregate.state.deepCopy(BenchmarkAggregates.cartMetadata.state.aggregateType)
+            )
+        }
+        statesToCopy = preparedStates
+        stateEventState = preparedStates.last()
+        firstOperator = stateAggregate.firstOperator
+        firstEventTime = stateAggregate.firstEventTime
+        tags = stateAggregate.tags
+        deleted = stateAggregate.deleted
+    }
+
+    @Benchmark
+    fun sourceCartHistoryOnly(blackhole: Blackhole) {
+        val stateAggregate = newCartStateAggregate()
+        for (eventStream in eventStreams) {
+            stateAggregate.onSourcing(eventStream)
+        }
+        blackhole.consume(stateAggregate.state)
+    }
+
+    @Benchmark
+    fun copyCartStateOnly(blackhole: Blackhole) {
+        val copiedStates = ArrayList<CartState>(statesToCopy.size)
+        for (state in statesToCopy) {
+            copiedStates.add(
+                state.deepCopy(BenchmarkAggregates.cartMetadata.state.aggregateType)
+            )
+        }
+        blackhole.consume(copiedStates)
+    }
+
+    @Benchmark
+    fun stateEventCreationOnly(blackhole: Blackhole) {
+        val stateEvents = ArrayList<StateEvent<CartState>>(eventStreams.size)
+        for (eventStream in eventStreams) {
+            stateEvents.add(
+                eventStream.toStateEvent(
+                    state = stateEventState,
+                    firstOperator = firstOperator,
+                    firstEventTime = firstEventTime,
+                    tags = tags,
+                    deleted = deleted,
+                )
+            )
+        }
+        blackhole.consume(stateEvents)
     }
 
     @Benchmark
@@ -46,4 +108,9 @@ open class AggregateTracingBenchmark {
         )
         blackhole.consume(tracedStates)
     }
+
+    private fun newCartStateAggregate() = ConstructorStateAggregateFactory.create(
+        BenchmarkAggregates.cartMetadata.state,
+        eventStreams.first().aggregateId,
+    )
 }
