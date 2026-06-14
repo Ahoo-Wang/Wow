@@ -9,6 +9,8 @@ dependencies {
     implementation(project(":wow-test"))
     implementation(project(":wow-redis"))
     implementation(project(":wow-mongo"))
+    implementation(project(":wow-webflux"))
+    implementation("org.springframework:spring-test")
     jmh(libs.jmh.core)
     jmh(libs.jmh.generator.annprocess)
     jmh(libs.jmh.generator.bytecode)
