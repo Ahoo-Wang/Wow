@@ -38,7 +38,7 @@ open class CommandHandlerFunctionBenchmark {
     private lateinit var handlerFunction: CommandHandlerFunction
     private lateinit var preparedRequest: org.springframework.web.reactive.function.server.ServerRequest
     private lateinit var preparedCommandBody: AddCartItem
-    private lateinit var preparedCommandMessage: CommandMessage<AddCartItem>
+    private lateinit var preparedCommandMessage: CommandMessage<Any>
     private lateinit var preparedCommandResult: CommandResult
     private val failures = AtomicInteger()
 
@@ -55,12 +55,11 @@ open class CommandHandlerFunctionBenchmark {
         )
         preparedRequest = WebFluxBenchmarkSupport.addCartItemRequest()
         preparedCommandBody = WebFluxBenchmarkSupport.addCartItemCommandBody()
-        @Suppress("UNCHECKED_CAST")
         preparedCommandMessage = WebFluxBenchmarkSupport.commandMessageExtractor.extract(
             aggregateRouteMetadata = WebFluxBenchmarkSupport.cartAggregateRouteMetadata,
             commandBody = preparedCommandBody,
             request = preparedRequest,
-        ).block() as CommandMessage<AddCartItem>
+        ).block()!!
         preparedCommandResult = WebFluxBenchmarkSupport.commandResult(preparedCommandMessage)
     }
 
@@ -95,6 +94,7 @@ open class CommandHandlerFunctionBenchmark {
 
     @Benchmark
     fun sendWaitSentCoreFromExtractedMessage(blackhole: Blackhole) {
+        // The in-memory bus marks sent messages read-only, so each send needs a mutable header copy.
         val commandMessage = preparedCommandMessage.copy()
         val result = gatewayScenario.commandGateway
             .sendAndWait(
