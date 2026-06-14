@@ -22,6 +22,8 @@ import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.toStateEvent
 import me.ahoo.wow.example.domain.cart.CartState
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.serialization.deepCopy
+import me.ahoo.wow.serialization.toJsonNode
+import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.webflux.route.state.AggregateTracingHandlerFunction.Companion.trace
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Level
@@ -30,14 +32,18 @@ import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.infra.Blackhole
+import tools.jackson.databind.node.ObjectNode
 
 @State(Scope.Thread)
 open class AggregateTracingBenchmark {
     @Param("1", "10", "100")
     var eventCount: Int = 1
 
+    // Setup prepares read-only inputs; benchmark rows choose which cost to measure.
     private lateinit var eventStreams: List<DomainEventStream>
     private lateinit var statesToCopy: List<CartState>
+    private lateinit var jsonStateSnapshots: List<ObjectNode>
+    private lateinit var tracedHistory: List<StateEvent<ObjectNode>>
     private lateinit var stateEventState: CartState
     private lateinit var firstOperator: String
     private var firstEventTime: Long = 0
@@ -56,6 +62,13 @@ open class AggregateTracingBenchmark {
             )
         }
         statesToCopy = preparedStates
+        jsonStateSnapshots = preparedStates.map {
+            it.toJsonNode<ObjectNode>()
+        }
+        tracedHistory = BenchmarkAggregates.cartMetadata.state.trace(
+            ConstructorStateAggregateFactory,
+            eventStreams,
+        )
         stateEventState = preparedStates.last()
         firstOperator = stateAggregate.firstOperator
         firstEventTime = stateAggregate.firstEventTime
@@ -84,6 +97,15 @@ open class AggregateTracingBenchmark {
     }
 
     @Benchmark
+    fun jsonSnapshotCartStateOnly(blackhole: Blackhole) {
+        val snapshots = ArrayList<ObjectNode>(statesToCopy.size)
+        for (state in statesToCopy) {
+            snapshots.add(state.toJsonNode<ObjectNode>())
+        }
+        blackhole.consume(snapshots)
+    }
+
+    @Benchmark
     fun stateEventCreationOnly(blackhole: Blackhole) {
         val stateEvents = ArrayList<StateEvent<CartState>>(eventStreams.size)
         for (eventStream in eventStreams) {
@@ -98,6 +120,37 @@ open class AggregateTracingBenchmark {
             )
         }
         blackhole.consume(stateEvents)
+    }
+
+    @Benchmark
+    fun jsonSnapshotStateEventCreationOnly(blackhole: Blackhole) {
+        val stateEvents = ArrayList<StateEvent<ObjectNode>>(eventStreams.size)
+        for (index in eventStreams.indices) {
+            stateEvents.add(
+                eventStreams[index].toStateEvent(
+                    state = jsonStateSnapshots[index],
+                    firstOperator = firstOperator,
+                    firstEventTime = firstEventTime,
+                    tags = tags,
+                    deleted = deleted,
+                )
+            )
+        }
+        blackhole.consume(stateEvents)
+    }
+
+    @Benchmark
+    fun serializeTracedCartHistoryOnly(blackhole: Blackhole) {
+        blackhole.consume(tracedHistory.toJsonString())
+    }
+
+    @Benchmark
+    fun traceAndSerializeCartHistory(blackhole: Blackhole) {
+        val tracedStates = BenchmarkAggregates.cartMetadata.state.trace(
+            ConstructorStateAggregateFactory,
+            eventStreams,
+        )
+        blackhole.consume(tracedStates.toJsonString())
     }
 
     @Benchmark
