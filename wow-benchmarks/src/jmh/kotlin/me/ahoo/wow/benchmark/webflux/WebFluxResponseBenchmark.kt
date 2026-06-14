@@ -13,13 +13,17 @@
 
 package me.ahoo.wow.benchmark.webflux
 
+import me.ahoo.wow.command.CommandResult
+import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
+import me.ahoo.wow.webflux.route.toEventStreamResponse
 import me.ahoo.wow.webflux.route.command.toCommandResponse
 import me.ahoo.wow.webflux.route.toServerResponse
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.infra.Blackhole
+import org.springframework.http.codec.ServerSentEvent
 import reactor.core.publisher.Flux
 import reactor.kotlin.core.publisher.toMono
 
@@ -28,6 +32,15 @@ open class WebFluxResponseBenchmark {
     private val jsonRequest = WebFluxBenchmarkSupport.jsonRequest()
     private val sseRequest = WebFluxBenchmarkSupport.sseRequest()
     private val payloads = WebFluxBenchmarkSupport.responsePayloads()
+    private val commandResults = List(payloads.size) {
+        WebFluxBenchmarkSupport.commandResult()
+    }
+    private val serverSentEvents = commandResults.map {
+        it.toServerSentEvent()
+    }
+    private val preparedSseResponse = Flux.fromIterable(serverSentEvents)
+        .toEventStreamResponse(sseRequest, DefaultRequestExceptionHandler)
+        .block()!!
 
     @Benchmark
     fun monoCommandResultResponse(blackhole: Blackhole) {
@@ -47,6 +60,33 @@ open class WebFluxResponseBenchmark {
     }
 
     @Benchmark
+    fun commandResultSseEventMapping(blackhole: Blackhole) {
+        val events = Flux.fromIterable(commandResults)
+            .map {
+                it.toServerSentEvent()
+            }
+            .collectList()
+            .block()
+        blackhole.consume(events)
+    }
+
+    @Benchmark
+    fun commandResultSseServerResponseOnly(blackhole: Blackhole) {
+        val response = Flux.fromIterable(serverSentEvents)
+            .toEventStreamResponse(sseRequest, DefaultRequestExceptionHandler)
+            .block()
+        blackhole.consume(response)
+    }
+
+    @Benchmark
+    fun commandResultSseWriteToExchange(blackhole: Blackhole) {
+        preparedSseResponse
+            .writeTo(WebFluxBenchmarkSupport.sseExchange(), WebFluxBenchmarkSupport.sseResponseContext)
+            .block()
+        blackhole.consume(preparedSseResponse)
+    }
+
+    @Benchmark
     fun commandResultSseResponse(blackhole: Blackhole) {
         val response = Flux.range(1, payloads.size)
             .map { WebFluxBenchmarkSupport.commandResult() }
@@ -56,5 +96,13 @@ open class WebFluxResponseBenchmark {
             ?.writeTo(WebFluxBenchmarkSupport.sseExchange(), WebFluxBenchmarkSupport.sseResponseContext)
             ?.block()
         blackhole.consume(response)
+    }
+
+    private fun CommandResult.toServerSentEvent(): ServerSentEvent<String> {
+        return ServerSentEvent.builder<String>()
+            .id(id)
+            .event(stage.name)
+            .data(toJsonString())
+            .build()
     }
 }
