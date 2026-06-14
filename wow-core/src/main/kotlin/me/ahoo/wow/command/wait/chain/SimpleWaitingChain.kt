@@ -19,14 +19,14 @@ import me.ahoo.wow.api.messaging.Message
 import me.ahoo.wow.api.messaging.function.NamedFunctionInfoData
 import me.ahoo.wow.command.wait.COMMAND_WAIT_PREFIX
 import me.ahoo.wow.command.wait.CommandStage
-import me.ahoo.wow.command.wait.WaitStrategy
 import me.ahoo.wow.command.wait.chain.WaitingChainTail.Companion.extractWaitingChainTail
 import me.ahoo.wow.command.wait.extractWaitFunction
 import me.ahoo.wow.command.wait.propagateWaitFunction
+import me.ahoo.wow.command.wait.requireExtractCommandWaitEndpoint
 
 /**
  * A simple waiting chain that waits for saga handling completion followed by a tail stage.
- * This strategy combines waiting for saga processing with an additional stage/function criteria.
+ * This wait chain combines waiting for saga processing with an additional stage/function criteria.
  * The chain waits for SAGA_HANDLED stage with specific function matching, then waits for
  * the tail stage/function combination.
  *
@@ -35,14 +35,12 @@ import me.ahoo.wow.command.wait.propagateWaitFunction
  */
 class SimpleWaitingChain(
     val tail: WaitingChainTail,
-    override val function: NamedFunctionInfoData
-) : WaitStrategy.FunctionMaterialized {
-    override val stage: CommandStage
+    val function: NamedFunctionInfoData
+) {
+    val stage: CommandStage
         get() = CommandStage.SAGA_HANDLED
 
-    override fun shouldPropagate(upstream: Message<*, *>): Boolean = true
-
-    override fun propagate(
+    fun propagate(
         commandWaitEndpoint: String,
         header: Header
     ) {
@@ -52,12 +50,12 @@ class SimpleWaitingChain(
         tail.propagate(commandWaitEndpoint, header)
     }
 
-    override fun propagate(
+    fun propagate(
         header: Header,
         upstream: Message<*, *>
     ) {
         if (upstream is CommandMessage) {
-            super.propagate(header, upstream)
+            propagate(upstream.header.requireExtractCommandWaitEndpoint(), header)
         } else {
             tail.propagate(header, upstream)
         }
@@ -95,9 +93,9 @@ class SimpleWaitingChain(
          *
          * @return A SimpleWaitingChain if all required components are found, null otherwise.
          */
-        fun Header.extractSimpleWaitingChain(): WaitStrategy.FunctionMaterialized? {
+        fun Header.extractSimpleWaitingChain(): SimpleWaitingChain? {
             if (extractWaitChain() != SIMPLE_CHAIN) {
-                return extractWaitingChainTail()
+                return null
             }
             val tail = extractWaitingChainTail() ?: return null
             val function = extractWaitFunction()

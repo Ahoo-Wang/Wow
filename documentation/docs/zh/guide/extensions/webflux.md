@@ -60,9 +60,9 @@ class Order(private val state: OrderState)
 | `@CommandRoute(method = PUT)`    | PUT     | `/{resource}/{command}` |
 | `@CommandRoute(method = DELETE)` | DELETE  | `/{resource}/{command}` |
 
-## 等待策略集成
+## 等待计划集成
 
-WebFlux 扩展支持通过 HTTP 头指定等待策略：
+WebFlux 扩展支持通过 HTTP 头指定等待计划：
 
 ```http
 POST /cart/123/add_cart_item
@@ -76,7 +76,7 @@ Command-Wait-Timeout: 30000
 }
 ```
 
-### 支持的等待策略
+### 支持的等待计划
 
 - `SENT`: 命令发送完成
 - `PROCESSED`: 命令处理完成
@@ -131,9 +131,10 @@ class CustomController(
 
     @PostMapping("/custom/{id}")
     fun customCommand(@PathVariable id: String): Mono<CommandResult> {
+        val command = CustomCommand(id = id).toCommandMessage()
         return commandGateway.sendAndWait(
-            CustomCommand(id = id),
-            WaitStrategy.PROCESSED
+            command,
+            CommandWait.processed(command.commandId)
         )
     }
 }
@@ -165,11 +166,11 @@ logging:
 自动收集以下指标：
 - 请求延迟和吞吐量
 - 错误率统计
-- 等待策略使用情况
+- 等待计划使用情况
 
 ## 最佳实践
 
-1. **使用等待策略**: 根据业务需求选择合适的等待策略
+1. **使用等待计划**: 根据业务需求选择合适的等待计划
 2. **错误处理**: 实现全局异常处理器
 3. **安全**: 启用认证和授权检查
 4. **监控**: 配置适当的日志级别和指标收集

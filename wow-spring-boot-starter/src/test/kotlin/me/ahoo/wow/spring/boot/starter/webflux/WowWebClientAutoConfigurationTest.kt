@@ -15,8 +15,8 @@ package me.ahoo.wow.spring.boot.starter.webflux
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.command.wait.CommandWaitNotifier
-import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
-import me.ahoo.wow.command.wait.WaitStrategyRegistrar
+import me.ahoo.wow.command.wait.DefaultWaitCoordinator
+import me.ahoo.wow.command.wait.WaitCoordinator
 import me.ahoo.wow.spring.boot.starter.enableWow
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
@@ -30,7 +30,7 @@ class WowWebClientAutoConfigurationTest {
     fun `should load context with command wait notifier`() {
         contextRunner
             .enableWow()
-            .withBean(WaitStrategyRegistrar::class.java, { SimpleWaitStrategyRegistrar })
+            .withBean(WaitCoordinator::class.java, { DefaultWaitCoordinator() })
             .withUserConfiguration(
                 WebClientAutoConfiguration::class.java,
                 WowWebClientAutoConfiguration::class.java,

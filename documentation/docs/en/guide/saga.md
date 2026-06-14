@@ -445,9 +445,9 @@ The verifier pre-configures an in-memory command bus, test validator, and no-op 
 | **Maintenance cost** | One extra component (the saga) | No extra component, but harder to reason about |
 | **Implementation in Wow** | `@StatelessSaga` + `@OnEvent` methods | N/A (Wow uses orchestration) |
 
-## Wait Strategy Integration
+## Wait Plan Integration
 
-The command gateway's `WaitingForChain` strategy enables clients to wait for the **entire saga chain** to complete before receiving a response. This is especially powerful for end-to-end request-reply semantics in distributed operations.
+The command gateway's chain wait plan, created with `CommandWait.chain(...)`, enables clients to wait for the **entire saga chain** to complete before receiving a response. This is especially powerful for end-to-end request-reply semantics in distributed operations.
 
 For example, a client initiating a bank transfer can wait until both the saga has processed the `Prepared` event (waiting for `SAGA_HANDLED` at the saga processor) and the resulting target account command has been fully processed (waiting for `SNAPSHOT` on the tail).
 
@@ -465,7 +465,7 @@ This guarantees that when the HTTP response returns, the entire distributed tran
 | Page | Description |
 |---|---|
 | [Event Compensation](event-compensation.md) | Full compensation lifecycle, dashboard UI, deployment, and OpenAPI |
-| [Command Gateway](command-gateway.md) | Command sending, wait strategies, and `WaitingForChain` for saga-aware waiting |
+| [Command Gateway](command-gateway.md) | Command sending, wait plans, and `CommandWait.chain(...)` for saga-aware waiting |
 | [Event Processor](event-processor.md) | General event processing for non-saga use cases |
 | [Modeling](modeling.md) | Domain modeling with aggregates, commands, and events |
 | [Test Suite](test-suite.md) | Testing DSL including `AggregateSpec` and `SagaSpec` |

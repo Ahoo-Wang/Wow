@@ -121,9 +121,9 @@ flowchart TB
 @ConditionalOnMissingBean
 fun commandGateway(
     commandBus: CommandBus,
-    waitStrategyRegistrar: WaitStrategyRegistrar
+    waitPlanRegistrar: WaitCoordinator
 ): CommandGateway {
-    return DefaultCommandGateway(commandBus, waitStrategyRegistrar)
+    return DefaultCommandGateway(commandBus, waitPlanRegistrar)
 }
 
 @Bean
@@ -163,10 +163,10 @@ class CustomWowConfiguration {
     @Bean
     fun customCommandGateway(
         commandBus: CommandBus,
-        waitStrategyRegistrar: WaitStrategyRegistrar
+        waitPlanRegistrar: WaitCoordinator
     ): CommandGateway {
         // Custom implementation
-        return CustomCommandGateway(commandBus, waitStrategyRegistrar)
+        return CustomCommandGateway(commandBus, waitPlanRegistrar)
     }
 }
 ```

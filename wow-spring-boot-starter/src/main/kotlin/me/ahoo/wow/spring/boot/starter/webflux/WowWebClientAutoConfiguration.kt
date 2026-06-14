@@ -13,7 +13,7 @@
 package me.ahoo.wow.spring.boot.starter.webflux
 
 import me.ahoo.wow.command.wait.CommandWaitNotifier
-import me.ahoo.wow.command.wait.WaitStrategyRegistrar
+import me.ahoo.wow.command.wait.WaitCoordinator
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.webflux.wait.WebClientCommandWaitNotifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
@@ -35,9 +35,9 @@ class WowWebClientAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     fun commandWaitNotifier(
-        waitStrategyRegistrar: WaitStrategyRegistrar,
+        waitCoordinator: WaitCoordinator,
         webClientBuilder: WebClient.Builder
     ): CommandWaitNotifier {
-        return WebClientCommandWaitNotifier(waitStrategyRegistrar, webClientBuilder.build())
+        return WebClientCommandWaitNotifier(waitCoordinator, webClientBuilder.build())
     }
 }

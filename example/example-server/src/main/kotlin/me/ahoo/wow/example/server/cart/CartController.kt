@@ -19,7 +19,7 @@ import me.ahoo.wow.apiclient.query.queryState
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.toCommandMessage
-import me.ahoo.wow.command.wait.stage.WaitingForStage
+import me.ahoo.wow.command.wait.CommandWait
 import me.ahoo.wow.example.api.cart.AddCartItem
 import me.ahoo.wow.example.api.cart.CartData
 import me.ahoo.wow.example.api.client.CartQueryClient
@@ -74,7 +74,7 @@ class CartController(
         val command = addCartItem.toCommandMessage(ownerId = userId)
         return commandGateway.sendAndWaitStream(
             command,
-            waitStrategy = WaitingForStage.snapshot(command.commandId)
+            waitPlan = CommandWait.snapshot(command.commandId)
         )
     }
 }

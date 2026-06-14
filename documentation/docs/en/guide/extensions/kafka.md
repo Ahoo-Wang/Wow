@@ -566,7 +566,7 @@ wow:
 |---|---|
 | [Configuration Reference](../../reference/config/kafka.md) | Complete property reference for `wow.kafka.*` |
 | [Spring Boot Starter](spring-boot-starter.md) | Auto-configuration and feature variants |
-| [Command Gateway](../command-gateway.md) | Command gateway and wait strategies |
+| [Command Gateway](../command-gateway.md) | Command gateway and wait plans |
 | [Event Processor](../event-processor.md) | Event processing pipeline |
 | [Observability](../advanced/observability.md) | Monitoring and tracing integration |
 | [Configuration](../configuration.md) | Framework configuration principles |

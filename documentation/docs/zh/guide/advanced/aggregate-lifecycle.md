@@ -659,7 +659,7 @@ class Order(private val state: OrderState) {
 | 页面 | 描述 |
 |---|---|
 | [架构概述](./architecture) | Wow 框架整体架构和模块层级 |
-| [命令网关](../command-gateway) | 发送命令、等待策略和命令阶段 |
+| [命令网关](../command-gateway) | 发送命令、等待计划和命令阶段 |
 | [事件溯源](../eventstore) | 事件存储、快照和完全重放机制 |
 | [领域建模](../modeling) | 设计聚合、命令、事件和状态类 |
 | [Saga 编排](../saga) | 通过 Saga 实现分布式事务支持 |

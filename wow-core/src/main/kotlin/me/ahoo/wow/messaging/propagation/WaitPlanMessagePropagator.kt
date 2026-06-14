@@ -11,21 +11,21 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.command.wait
+package me.ahoo.wow.messaging.propagation
 
-import me.ahoo.test.asserts.assert
-import me.ahoo.wow.id.generateGlobalId
-import org.junit.jupiter.api.Test
+import me.ahoo.wow.api.messaging.Header
+import me.ahoo.wow.api.messaging.Message
+import me.ahoo.wow.command.wait.extractWaitPlan
 
-class LocalWaitStrategyDetectionTest {
-
-    @Test
-    fun `blank command wait id is not local`() {
-        isLocalWaitStrategy("").assert().isFalse()
-    }
-
-    @Test
-    fun `generated global id is detected as local`() {
-        isLocalWaitStrategy(generateGlobalId()).assert().isTrue()
+/**
+ * Propagates command wait plan headers from upstream messages.
+ */
+class WaitPlanMessagePropagator : MessagePropagator {
+    override fun propagate(
+        header: Header,
+        upstream: Message<*, *>
+    ) {
+        val waitPlan = upstream.header.extractWaitPlan() ?: return
+        waitPlan.propagate(header, upstream)
     }
 }

@@ -7,19 +7,19 @@ import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.opentelemetry.WowInstrumenter.INSTRUMENTATION_NAME_PREFIX
 
-object WaitStrategyInstrumenter {
+object WaitPlanInstrumenter {
     private const val INSTRUMENTATION_NAME = "${INSTRUMENTATION_NAME_PREFIX}wait"
 
     val INSTRUMENTER: Instrumenter<CommandMessage<*>, Unit> =
         Instrumenter.builder<CommandMessage<*>, Unit>(
             GlobalOpenTelemetry.get(),
             INSTRUMENTATION_NAME,
-            WaitStrategySpaceNameExtractor,
+            WaitPlanSpaceNameExtractor,
         ).setInstrumentationVersion(Wow.VERSION)
             .buildInstrumenter()
 }
 
-object WaitStrategySpaceNameExtractor : SpanNameExtractor<CommandMessage<*>> {
+object WaitPlanSpaceNameExtractor : SpanNameExtractor<CommandMessage<*>> {
     override fun extract(request: CommandMessage<*>): String {
         return "${request.aggregateName}.${request.name}.waiting"
     }

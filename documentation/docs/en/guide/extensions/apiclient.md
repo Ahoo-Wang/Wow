@@ -11,7 +11,7 @@ The API Client module provides a declarative RESTful client for Wow services bas
 
 - **Reactive and Synchronous APIs** — Choose between `Mono`-based reactive or blocking synchronous interfaces
 - **Service Discovery** — Built-in support via `@CoApi` and `@LoadBalanced` annotations
-- **Command Gateway** — Send commands with wait strategies through REST endpoints
+- **Command Gateway** — Send commands with wait plans through REST endpoints
 - **Snapshot Query** — Single, list, paged, and count query interfaces
 
 ## Installation
@@ -36,7 +36,11 @@ Send a command:
 ```kotlin
 val request = CommandRequest(
     body = CreateOrder(orderId = "order-001", items = listOf(...)),
-    waitStrategy = WaitStrategy.projected()
+    waitPlan = CommandRequest.WaitPlan(
+        waitStage = CommandStage.PROJECTED,
+        waitContext = "order",
+        waitProcessor = "OrderProjector",
+    )
 )
 val result = orderCommandGateway.send(request).block()
 ```

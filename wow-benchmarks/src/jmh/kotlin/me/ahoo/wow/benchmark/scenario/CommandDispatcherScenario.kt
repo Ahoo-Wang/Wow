@@ -24,11 +24,11 @@ import me.ahoo.wow.command.InMemoryCommandBus
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.wait.CommandWaitEndpoint
 import me.ahoo.wow.command.wait.CommandWaitNotifier
+import me.ahoo.wow.command.wait.DefaultWaitCoordinator
 import me.ahoo.wow.command.wait.LocalCommandWaitNotifier
 import me.ahoo.wow.command.wait.ProcessedNotifierFilter
 import me.ahoo.wow.command.wait.SimpleCommandWaitEndpoint
-import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
-import me.ahoo.wow.command.wait.WaitStrategyRegistrar
+import me.ahoo.wow.command.wait.WaitCoordinator
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.InMemoryDomainEventBus
 import me.ahoo.wow.eventsourcing.EventSourcingStateAggregateRepository
@@ -77,10 +77,10 @@ class CommandDispatcherScenario private constructor(
             idempotencyCheckerProvider: AggregateIdempotencyCheckerProvider =
                 DefaultAggregateIdempotencyCheckerProvider {
                     BenchmarkIdempotency.bloomFilterChecker()
-                },
+            },
             validator: Validator = TestValidator,
-            waitStrategyRegistrar: WaitStrategyRegistrar = SimpleWaitStrategyRegistrar,
-            commandWaitNotifier: CommandWaitNotifier = LocalCommandWaitNotifier(waitStrategyRegistrar),
+            waitCoordinator: WaitCoordinator = DefaultWaitCoordinator(),
+            commandWaitNotifier: CommandWaitNotifier = LocalCommandWaitNotifier(waitCoordinator),
             commandWaitEndpoint: CommandWaitEndpoint = SimpleCommandWaitEndpoint(""),
             namedAggregate: NamedAggregate = BenchmarkAggregates.cartMetadata.namedAggregate.materialize(),
         ): CommandDispatcherScenario {
@@ -88,7 +88,7 @@ class CommandDispatcherScenario private constructor(
                 commandBus = commandBus,
                 validator = validator,
                 idempotencyCheckerProvider = idempotencyCheckerProvider,
-                waitStrategyRegistrar = waitStrategyRegistrar,
+                waitCoordinator = waitCoordinator,
                 commandWaitNotifier = commandWaitNotifier,
                 commandWaitEndpoint = commandWaitEndpoint,
                 subscribeToCart = false,

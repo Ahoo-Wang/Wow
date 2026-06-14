@@ -9,10 +9,10 @@
 - Smoke results are excluded from performance reports.
 
 ## Environment
-- **Version**: 8.4.0
+- **Version**: 8.5.0
 - **JVM**: OpenJDK 64-Bit Server VM 17.0.7+7-LTS
 - **OS**: Mac OS X 26.5.1 aarch64
-- **DateTime**: 2026-06-09T22:01:58+08:00
+- **DateTime**: 2026-06-14T07:17:54+08:00
 - **CPU Cores**: 14
 - **Physical Memory**: 24.0 GiB
 - **Benchmark JVM Args**: `-Xmx4g -Xms4g -XX:+UseG1GC -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints -XX:+AlwaysPreTouch`
@@ -24,31 +24,31 @@
 
 | Suite | Threads | Benchmark | Score | Error | Unit |
 |-------|---------|-----------|-------|-------|------|
-| Primary Framework E2E | 1 | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=in-memory-new-aggregate) | 78993.02 | - | ops/s |
-| Primary Framework E2E | 1 | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=noop-store) | 86516.74 | - | ops/s |
-| Primary Framework E2E | 1 | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=ceiling) | 93867.83 | - | ops/s |
-| Primary Framework E2E | 4 | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=in-memory-new-aggregate) | 149550.09 | - | ops/s |
-| Primary Framework E2E | 4 | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=noop-store) | 160193.04 | - | ops/s |
-| Primary Framework E2E | 4 | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=ceiling) | 163467.67 | - | ops/s |
-| Primary Framework E2E | 1 | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=noop-store) | 756563.75 | - | ops/s |
-| Primary Framework E2E | 1 | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=in-memory-new-aggregate) | 820482.15 | - | ops/s |
-| Primary Framework E2E | 1 | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=ceiling) | 966652.09 | - | ops/s |
-| Primary Framework E2E | 4 | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=noop-store) | 1155402.19 | - | ops/s |
+| Primary Framework E2E | 1 | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=noop-store) | 75929.67 | - | ops/s |
+| Primary Framework E2E | 1 | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=in-memory-new-aggregate) | 77241.18 | - | ops/s |
+| Primary Framework E2E | 1 | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=ceiling) | 83146.29 | - | ops/s |
+| Primary Framework E2E | 4 | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=in-memory-new-aggregate) | 148235.13 | - | ops/s |
+| Primary Framework E2E | 4 | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=noop-store) | 161370.64 | - | ops/s |
+| Primary Framework E2E | 4 | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=ceiling) | 164696.13 | - | ops/s |
+| Primary Framework E2E | 1 | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=noop-store) | 1055378.98 | - | ops/s |
+| Primary Framework E2E | 1 | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=in-memory-new-aggregate) | 1220815.66 | - | ops/s |
+| Primary Framework E2E | 4 | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=ceiling) | 1232346.94 | - | ops/s |
+| Primary Framework E2E | 4 | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=noop-store) | 1363363.05 | - | ops/s |
 
 ### Highest Allocation
 
 | Suite | Threads | Benchmark | Mode | Allocation | Error | Score | Unit |
 |-------|---------|-----------|------|------------|-------|-------|------|
-| Primary Framework E2E | 4 | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=noop-store) | thrpt | 6940.7 B/op | - | 160193.04 | ops/s |
-| Primary Framework E2E | 1 | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=noop-store) | thrpt | 6920.2 B/op | - | 86516.74 | ops/s |
-| Primary Framework E2E | 4 | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=in-memory-new-aggregate) | thrpt | 6726.7 B/op | - | 149550.09 | ops/s |
-| Primary Framework E2E | 1 | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=in-memory-new-aggregate) | thrpt | 6688.3 B/op | - | 78993.02 | ops/s |
-| Primary Framework E2E | 4 | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=noop-store) | thrpt | 6254.7 B/op | - | 1155402.19 | ops/s |
-| Primary Framework E2E | 1 | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=noop-store) | thrpt | 6188.5 B/op | - | 756563.75 | ops/s |
-| Primary Framework E2E | 1 | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=in-memory-new-aggregate) | thrpt | 5964.2 B/op | - | 820482.15 | ops/s |
-| Primary Framework E2E | 4 | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=in-memory-new-aggregate) | thrpt | 5951.5 B/op | - | 1282237.95 | ops/s |
-| Primary Framework E2E | 1 | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=ceiling) | thrpt | 5297.9 B/op | - | 93867.83 | ops/s |
-| Primary Framework E2E | 4 | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=ceiling) | thrpt | 5279.3 B/op | - | 163467.67 | ops/s |
+| Primary Framework E2E | 1 | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=noop-store) | thrpt | 5315.9 B/op | - | 75929.67 | ops/s |
+| Primary Framework E2E | 4 | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=noop-store) | thrpt | 5315.8 B/op | - | 161370.64 | ops/s |
+| Primary Framework E2E | 1 | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=in-memory-new-aggregate) | thrpt | 5130.1 B/op | - | 77241.18 | ops/s |
+| Primary Framework E2E | 4 | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=in-memory-new-aggregate) | thrpt | 5007.1 B/op | - | 148235.13 | ops/s |
+| Primary Framework E2E | 4 | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=ceiling) | thrpt | 3718.5 B/op | - | 164696.13 | ops/s |
+| Primary Framework E2E | 1 | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=ceiling) | thrpt | 3715.6 B/op | - | 83146.29 | ops/s |
+| Primary Framework E2E | 4 | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=noop-store) | thrpt | 3262.2 B/op | - | 1363363.05 | ops/s |
+| Primary Framework E2E | 1 | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=noop-store) | thrpt | 3260.2 B/op | - | 1055378.98 | ops/s |
+| Primary Framework E2E | 4 | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=in-memory-new-aggregate) | thrpt | 3022.4 B/op | - | 1695841.49 | ops/s |
+| Primary Framework E2E | 1 | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=in-memory-new-aggregate) | thrpt | 3020.2 B/op | - | 1220815.66 | ops/s |
 
 ## Infrastructure E2E Bottlenecks
 
@@ -56,19 +56,19 @@
 
 | Suite | Threads | Benchmark | Score | Error | Unit |
 |-------|---------|-----------|-------|-------|------|
-| Infrastructure E2E | 1 | MongoCommandWriteE2EBenchmark.sendAndWaitProcessed | 2412.71 | - | ops/s |
-| Infrastructure E2E | 1 | RedisCommandWriteE2EBenchmark.sendAndWaitProcessed | 3619.86 | - | ops/s |
-| Infrastructure E2E | 4 | MongoCommandWriteE2EBenchmark.sendAndWaitProcessed | 7427.19 | - | ops/s |
-| Infrastructure E2E | 4 | RedisCommandWriteE2EBenchmark.sendAndWaitProcessed | 11853.65 | - | ops/s |
+| Infrastructure E2E | 1 | MongoCommandWriteE2EBenchmark.sendAndWaitProcessed | 2487.45 | - | ops/s |
+| Infrastructure E2E | 1 | RedisCommandWriteE2EBenchmark.sendAndWaitProcessed | 3787.72 | - | ops/s |
+| Infrastructure E2E | 4 | MongoCommandWriteE2EBenchmark.sendAndWaitProcessed | 7487.35 | - | ops/s |
+| Infrastructure E2E | 4 | RedisCommandWriteE2EBenchmark.sendAndWaitProcessed | 11936.06 | - | ops/s |
 
 ### Highest Allocation
 
 | Suite | Threads | Benchmark | Mode | Allocation | Error | Score | Unit |
 |-------|---------|-----------|------|------------|-------|-------|------|
-| Infrastructure E2E | 1 | MongoCommandWriteE2EBenchmark.sendAndWaitProcessed | thrpt | 43170.8 B/op | - | 2412.71 | ops/s |
-| Infrastructure E2E | 4 | MongoCommandWriteE2EBenchmark.sendAndWaitProcessed | thrpt | 40884.5 B/op | - | 7427.19 | ops/s |
-| Infrastructure E2E | 1 | RedisCommandWriteE2EBenchmark.sendAndWaitProcessed | thrpt | 8629.5 B/op | - | 3619.86 | ops/s |
-| Infrastructure E2E | 4 | RedisCommandWriteE2EBenchmark.sendAndWaitProcessed | thrpt | 7188.5 B/op | - | 11853.65 | ops/s |
+| Infrastructure E2E | 1 | MongoCommandWriteE2EBenchmark.sendAndWaitProcessed | thrpt | 41383.9 B/op | - | 2487.45 | ops/s |
+| Infrastructure E2E | 4 | MongoCommandWriteE2EBenchmark.sendAndWaitProcessed | thrpt | 38876.7 B/op | - | 7487.35 | ops/s |
+| Infrastructure E2E | 1 | RedisCommandWriteE2EBenchmark.sendAndWaitProcessed | thrpt | 6924.6 B/op | - | 3787.72 | ops/s |
+| Infrastructure E2E | 4 | RedisCommandWriteE2EBenchmark.sendAndWaitProcessed | thrpt | 5594.5 B/op | - | 11936.06 | ops/s |
 
 ## Group Details
 
@@ -76,49 +76,49 @@
 
 | Suite | Threads | Benchmark | Score | Error | Unit |
 |-------|---------|-----------|-------|-------|------|
-| Primary Framework E2E | 1 | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=in-memory-new-aggregate) | 78993.02 | - | ops/s |
-| Primary Framework E2E | 1 | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=noop-store) | 86516.74 | - | ops/s |
-| Primary Framework E2E | 1 | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=ceiling) | 93867.83 | - | ops/s |
-| Primary Framework E2E | 4 | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=in-memory-new-aggregate) | 149550.09 | - | ops/s |
-| Primary Framework E2E | 4 | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=noop-store) | 160193.04 | - | ops/s |
-| Primary Framework E2E | 4 | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=ceiling) | 163467.67 | - | ops/s |
-| Primary Framework E2E | 1 | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=noop-store) | 756563.75 | - | ops/s |
-| Primary Framework E2E | 1 | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=in-memory-new-aggregate) | 820482.15 | - | ops/s |
-| Primary Framework E2E | 1 | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=ceiling) | 966652.09 | - | ops/s |
-| Primary Framework E2E | 4 | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=noop-store) | 1155402.19 | - | ops/s |
+| Primary Framework E2E | 1 | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=noop-store) | 75929.67 | - | ops/s |
+| Primary Framework E2E | 1 | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=in-memory-new-aggregate) | 77241.18 | - | ops/s |
+| Primary Framework E2E | 1 | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=ceiling) | 83146.29 | - | ops/s |
+| Primary Framework E2E | 4 | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=in-memory-new-aggregate) | 148235.13 | - | ops/s |
+| Primary Framework E2E | 4 | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=noop-store) | 161370.64 | - | ops/s |
+| Primary Framework E2E | 4 | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=ceiling) | 164696.13 | - | ops/s |
+| Primary Framework E2E | 1 | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=noop-store) | 1055378.98 | - | ops/s |
+| Primary Framework E2E | 1 | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=in-memory-new-aggregate) | 1220815.66 | - | ops/s |
+| Primary Framework E2E | 4 | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=ceiling) | 1232346.94 | - | ops/s |
+| Primary Framework E2E | 4 | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=noop-store) | 1363363.05 | - | ops/s |
 
 ### Primary Framework E2E Highest Allocation
 
 | Suite | Threads | Benchmark | Mode | Allocation | Error | Score | Unit |
 |-------|---------|-----------|------|------------|-------|-------|------|
-| Primary Framework E2E | 4 | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=noop-store) | thrpt | 6940.7 B/op | - | 160193.04 | ops/s |
-| Primary Framework E2E | 1 | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=noop-store) | thrpt | 6920.2 B/op | - | 86516.74 | ops/s |
-| Primary Framework E2E | 4 | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=in-memory-new-aggregate) | thrpt | 6726.7 B/op | - | 149550.09 | ops/s |
-| Primary Framework E2E | 1 | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=in-memory-new-aggregate) | thrpt | 6688.3 B/op | - | 78993.02 | ops/s |
-| Primary Framework E2E | 4 | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=noop-store) | thrpt | 6254.7 B/op | - | 1155402.19 | ops/s |
-| Primary Framework E2E | 1 | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=noop-store) | thrpt | 6188.5 B/op | - | 756563.75 | ops/s |
-| Primary Framework E2E | 1 | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=in-memory-new-aggregate) | thrpt | 5964.2 B/op | - | 820482.15 | ops/s |
-| Primary Framework E2E | 4 | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=in-memory-new-aggregate) | thrpt | 5951.5 B/op | - | 1282237.95 | ops/s |
-| Primary Framework E2E | 1 | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=ceiling) | thrpt | 5297.9 B/op | - | 93867.83 | ops/s |
-| Primary Framework E2E | 4 | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=ceiling) | thrpt | 5279.3 B/op | - | 163467.67 | ops/s |
+| Primary Framework E2E | 1 | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=noop-store) | thrpt | 5315.9 B/op | - | 75929.67 | ops/s |
+| Primary Framework E2E | 4 | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=noop-store) | thrpt | 5315.8 B/op | - | 161370.64 | ops/s |
+| Primary Framework E2E | 1 | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=in-memory-new-aggregate) | thrpt | 5130.1 B/op | - | 77241.18 | ops/s |
+| Primary Framework E2E | 4 | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=in-memory-new-aggregate) | thrpt | 5007.1 B/op | - | 148235.13 | ops/s |
+| Primary Framework E2E | 4 | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=ceiling) | thrpt | 3718.5 B/op | - | 164696.13 | ops/s |
+| Primary Framework E2E | 1 | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=ceiling) | thrpt | 3715.6 B/op | - | 83146.29 | ops/s |
+| Primary Framework E2E | 4 | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=noop-store) | thrpt | 3262.2 B/op | - | 1363363.05 | ops/s |
+| Primary Framework E2E | 1 | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=noop-store) | thrpt | 3260.2 B/op | - | 1055378.98 | ops/s |
+| Primary Framework E2E | 4 | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=in-memory-new-aggregate) | thrpt | 3022.4 B/op | - | 1695841.49 | ops/s |
+| Primary Framework E2E | 1 | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=in-memory-new-aggregate) | thrpt | 3020.2 B/op | - | 1220815.66 | ops/s |
 
 ### Infrastructure E2E Lowest Throughput
 
 | Suite | Threads | Benchmark | Score | Error | Unit |
 |-------|---------|-----------|-------|-------|------|
-| Infrastructure E2E | 1 | MongoCommandWriteE2EBenchmark.sendAndWaitProcessed | 2412.71 | - | ops/s |
-| Infrastructure E2E | 1 | RedisCommandWriteE2EBenchmark.sendAndWaitProcessed | 3619.86 | - | ops/s |
-| Infrastructure E2E | 4 | MongoCommandWriteE2EBenchmark.sendAndWaitProcessed | 7427.19 | - | ops/s |
-| Infrastructure E2E | 4 | RedisCommandWriteE2EBenchmark.sendAndWaitProcessed | 11853.65 | - | ops/s |
+| Infrastructure E2E | 1 | MongoCommandWriteE2EBenchmark.sendAndWaitProcessed | 2487.45 | - | ops/s |
+| Infrastructure E2E | 1 | RedisCommandWriteE2EBenchmark.sendAndWaitProcessed | 3787.72 | - | ops/s |
+| Infrastructure E2E | 4 | MongoCommandWriteE2EBenchmark.sendAndWaitProcessed | 7487.35 | - | ops/s |
+| Infrastructure E2E | 4 | RedisCommandWriteE2EBenchmark.sendAndWaitProcessed | 11936.06 | - | ops/s |
 
 ### Infrastructure E2E Highest Allocation
 
 | Suite | Threads | Benchmark | Mode | Allocation | Error | Score | Unit |
 |-------|---------|-----------|------|------------|-------|-------|------|
-| Infrastructure E2E | 1 | MongoCommandWriteE2EBenchmark.sendAndWaitProcessed | thrpt | 43170.8 B/op | - | 2412.71 | ops/s |
-| Infrastructure E2E | 4 | MongoCommandWriteE2EBenchmark.sendAndWaitProcessed | thrpt | 40884.5 B/op | - | 7427.19 | ops/s |
-| Infrastructure E2E | 1 | RedisCommandWriteE2EBenchmark.sendAndWaitProcessed | thrpt | 8629.5 B/op | - | 3619.86 | ops/s |
-| Infrastructure E2E | 4 | RedisCommandWriteE2EBenchmark.sendAndWaitProcessed | thrpt | 7188.5 B/op | - | 11853.65 | ops/s |
+| Infrastructure E2E | 1 | MongoCommandWriteE2EBenchmark.sendAndWaitProcessed | thrpt | 41383.9 B/op | - | 2487.45 | ops/s |
+| Infrastructure E2E | 4 | MongoCommandWriteE2EBenchmark.sendAndWaitProcessed | thrpt | 38876.7 B/op | - | 7487.35 | ops/s |
+| Infrastructure E2E | 1 | RedisCommandWriteE2EBenchmark.sendAndWaitProcessed | thrpt | 6924.6 B/op | - | 3787.72 | ops/s |
+| Infrastructure E2E | 4 | RedisCommandWriteE2EBenchmark.sendAndWaitProcessed | thrpt | 5594.5 B/op | - | 11936.06 | ops/s |
 
 ## Primary Framework E2E Results
 
@@ -128,36 +128,36 @@
 - **Parsed Row Count**: 24
 
 - **threads=1 Result File**: `wow-benchmarks/results/jmh/quick/framework-e2e/threads-1-framework-e2e.json`
-  - Last Modified: 2026-06-09T13:56:48.567Z
+  - Last Modified: 2026-06-13T23:12:59.374Z
 - **threads=4 Result File**: `wow-benchmarks/results/jmh/quick/framework-e2e/threads-4-framework-e2e.json`
-  - Last Modified: 2026-06-09T13:59:40.993Z
+  - Last Modified: 2026-06-13T23:15:51.647Z
 
 | Suite | Benchmark | Threads | Mode | Score | Error | Unit | gc.alloc.rate.norm |
 |-------|-----------|---------|------|-------|-------|------|-------------------|
-| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=ceiling) | 1 | avgt | 10.98 | - | us/op | 5298.5 B/op |
-| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=ceiling) | 1 | thrpt | 93867.83 | - | ops/s | 5297.9 B/op |
-| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=ceiling) | 4 | avgt | 24.49 | - | us/op | 5303.2 B/op |
-| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=ceiling) | 4 | thrpt | 163467.67 | - | ops/s | 5279.3 B/op |
-| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=in-memory-new-aggregate) | 1 | avgt | 12.68 | - | us/op | 6712.2 B/op |
-| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=in-memory-new-aggregate) | 1 | thrpt | 78993.02 | - | ops/s | 6688.3 B/op |
-| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=in-memory-new-aggregate) | 4 | avgt | 26.39 | - | us/op | 6726.3 B/op |
-| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=in-memory-new-aggregate) | 4 | thrpt | 149550.09 | - | ops/s | 6726.7 B/op |
-| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=noop-store) | 1 | avgt | 11.89 | - | us/op | 6946.6 B/op |
-| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=noop-store) | 1 | thrpt | 86516.74 | - | ops/s | 6920.2 B/op |
-| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=noop-store) | 4 | avgt | 25.18 | - | us/op | 6829.2 B/op |
-| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=noop-store) | 4 | thrpt | 160193.04 | - | ops/s | 6940.7 B/op |
-| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=ceiling) | 1 | avgt | 1.04 | - | us/op | 5180.2 B/op |
-| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=ceiling) | 1 | thrpt | 966652.09 | - | ops/s | 5180.2 B/op |
-| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=ceiling) | 4 | avgt | 3.20 | - | us/op | 5182.2 B/op |
-| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=ceiling) | 4 | thrpt | 1180727.95 | - | ops/s | 5182.9 B/op |
-| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=in-memory-new-aggregate) | 1 | avgt | 1.26 | - | us/op | 5948.2 B/op |
-| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=in-memory-new-aggregate) | 1 | thrpt | 820482.15 | - | ops/s | 5964.2 B/op |
-| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=in-memory-new-aggregate) | 4 | avgt | 3.25 | - | us/op | 5951.6 B/op |
-| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=in-memory-new-aggregate) | 4 | thrpt | 1282237.95 | - | ops/s | 5951.5 B/op |
-| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=noop-store) | 1 | avgt | 1.25 | - | us/op | 6140.2 B/op |
-| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=noop-store) | 1 | thrpt | 756563.75 | - | ops/s | 6188.5 B/op |
-| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=noop-store) | 4 | avgt | 3.20 | - | us/op | 6190.5 B/op |
-| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=noop-store) | 4 | thrpt | 1155402.19 | - | ops/s | 6254.7 B/op |
+| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=ceiling) | 1 | avgt | 11.17 | - | us/op | 3714.6 B/op |
+| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=ceiling) | 1 | thrpt | 83146.29 | - | ops/s | 3715.6 B/op |
+| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=ceiling) | 4 | avgt | 24.28 | - | us/op | 3734.6 B/op |
+| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=ceiling) | 4 | thrpt | 164696.13 | - | ops/s | 3718.5 B/op |
+| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=in-memory-new-aggregate) | 1 | avgt | 12.76 | - | us/op | 5128.7 B/op |
+| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=in-memory-new-aggregate) | 1 | thrpt | 77241.18 | - | ops/s | 5130.1 B/op |
+| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=in-memory-new-aggregate) | 4 | avgt | 27.23 | - | us/op | 5079.2 B/op |
+| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=in-memory-new-aggregate) | 4 | thrpt | 148235.13 | - | ops/s | 5007.1 B/op |
+| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=noop-store) | 1 | avgt | 12.29 | - | us/op | 5253.5 B/op |
+| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=noop-store) | 1 | thrpt | 75929.67 | - | ops/s | 5315.9 B/op |
+| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=noop-store) | 4 | avgt | 24.87 | - | us/op | 5316.5 B/op |
+| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitProcessed (scenario=noop-store) | 4 | thrpt | 161370.64 | - | ops/s | 5315.8 B/op |
+| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=ceiling) | 1 | avgt | 652.08 | - | ns/op | 2252.2 B/op |
+| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=ceiling) | 1 | thrpt | 1450896.71 | - | ops/s | 2252.2 B/op |
+| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=ceiling) | 4 | avgt | 3.31 | - | us/op | 2253.4 B/op |
+| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=ceiling) | 4 | thrpt | 1232346.94 | - | ops/s | 2269.4 B/op |
+| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=in-memory-new-aggregate) | 1 | avgt | 741.86 | - | ns/op | 3020.2 B/op |
+| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=in-memory-new-aggregate) | 1 | thrpt | 1220815.66 | - | ops/s | 3020.2 B/op |
+| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=in-memory-new-aggregate) | 4 | avgt | 2.56 | - | us/op | 3054.2 B/op |
+| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=in-memory-new-aggregate) | 4 | thrpt | 1695841.49 | - | ops/s | 3022.4 B/op |
+| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=noop-store) | 1 | avgt | 814.48 | - | ns/op | 3260.2 B/op |
+| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=noop-store) | 1 | thrpt | 1055378.98 | - | ops/s | 3260.2 B/op |
+| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=noop-store) | 4 | avgt | 3.17 | - | us/op | 3262.3 B/op |
+| Primary Framework E2E | CommandWriteE2EBenchmark.sendAndWaitSent (scenario=noop-store) | 4 | thrpt | 1363363.05 | - | ops/s | 3262.2 B/op |
 
 ## Infrastructure E2E Results
 
@@ -167,20 +167,20 @@
 - **Parsed Row Count**: 8
 
 - **threads=1 Result File**: `wow-benchmarks/results/jmh/quick/infrastructure-e2e/threads-1-infrastructure-e2e.json`
-  - Last Modified: 2026-06-09T14:00:51.567Z
+  - Last Modified: 2026-06-13T23:16:52.976Z
 - **threads=4 Result File**: `wow-benchmarks/results/jmh/quick/infrastructure-e2e/threads-4-infrastructure-e2e.json`
-  - Last Modified: 2026-06-09T14:01:52.449Z
+  - Last Modified: 2026-06-13T23:17:54.354Z
 
 | Suite | Benchmark | Threads | Mode | Score | Error | Unit | gc.alloc.rate.norm |
 |-------|-----------|---------|------|-------|-------|------|-------------------|
-| Infrastructure E2E | MongoCommandWriteE2EBenchmark.sendAndWaitProcessed | 1 | avgt | 415.17 | - | us/op | 43273.0 B/op |
-| Infrastructure E2E | MongoCommandWriteE2EBenchmark.sendAndWaitProcessed | 1 | thrpt | 2412.71 | - | ops/s | 43170.8 B/op |
-| Infrastructure E2E | MongoCommandWriteE2EBenchmark.sendAndWaitProcessed | 4 | avgt | 512.21 | - | us/op | 40562.3 B/op |
-| Infrastructure E2E | MongoCommandWriteE2EBenchmark.sendAndWaitProcessed | 4 | thrpt | 7427.19 | - | ops/s | 40884.5 B/op |
-| Infrastructure E2E | RedisCommandWriteE2EBenchmark.sendAndWaitProcessed | 1 | avgt | 278.20 | - | us/op | 8635.8 B/op |
-| Infrastructure E2E | RedisCommandWriteE2EBenchmark.sendAndWaitProcessed | 1 | thrpt | 3619.86 | - | ops/s | 8629.5 B/op |
-| Infrastructure E2E | RedisCommandWriteE2EBenchmark.sendAndWaitProcessed | 4 | avgt | 336.63 | - | us/op | 7160.1 B/op |
-| Infrastructure E2E | RedisCommandWriteE2EBenchmark.sendAndWaitProcessed | 4 | thrpt | 11853.65 | - | ops/s | 7188.5 B/op |
+| Infrastructure E2E | MongoCommandWriteE2EBenchmark.sendAndWaitProcessed | 1 | avgt | 418.05 | - | us/op | 41424.2 B/op |
+| Infrastructure E2E | MongoCommandWriteE2EBenchmark.sendAndWaitProcessed | 1 | thrpt | 2487.45 | - | ops/s | 41383.9 B/op |
+| Infrastructure E2E | MongoCommandWriteE2EBenchmark.sendAndWaitProcessed | 4 | avgt | 526.03 | - | us/op | 38707.9 B/op |
+| Infrastructure E2E | MongoCommandWriteE2EBenchmark.sendAndWaitProcessed | 4 | thrpt | 7487.35 | - | ops/s | 38876.7 B/op |
+| Infrastructure E2E | RedisCommandWriteE2EBenchmark.sendAndWaitProcessed | 1 | avgt | 271.40 | - | us/op | 6939.5 B/op |
+| Infrastructure E2E | RedisCommandWriteE2EBenchmark.sendAndWaitProcessed | 1 | thrpt | 3787.72 | - | ops/s | 6924.6 B/op |
+| Infrastructure E2E | RedisCommandWriteE2EBenchmark.sendAndWaitProcessed | 4 | avgt | 335.38 | - | us/op | 5578.5 B/op |
+| Infrastructure E2E | RedisCommandWriteE2EBenchmark.sendAndWaitProcessed | 4 | thrpt | 11936.06 | - | ops/s | 5594.5 B/op |
 
 ## Component Results
 

@@ -1,6 +1,6 @@
 ---
 name: wow-debugging
-description: Use when Wow commands, events, sourcing, sagas, projections, wait strategies, Query DSL, retry policies, starter configuration, or tests fail, hang, skip handlers, produce unexpected state, or behave inconsistently
+description: Use when Wow commands, events, sourcing, sagas, projections, wait plans, Query DSL, retry policies, starter configuration, or tests fail, hang, skip handlers, produce unexpected state, or behave inconsistently
 ---
 
 # Wow Debugging
@@ -26,7 +26,7 @@ No fix before root cause. Reproduce, locate the failing stage, compare with a wo
 | Aggregate state wrong | Event payload, `@OnSourcing`, missing sourcing handler, snapshot/replay path. |
 | Saga not triggered | Event type, `@StatelessSaga`, `@OnEvent`, filter condition, bus subscription, `@Retry` policy. |
 | Projection not updated | Processor annotation, event/state-event type, repository call, retry policy. |
-| Wait strategy hangs | Wait command id, stage, context name, processor/function names, propagated headers. |
+| Wait plan hangs | Wait command id, stage, context name, processor/function names, propagated headers. |
 | Query returns wrong data | Query DSL condition, deletion guard, tenant/owner filters, projection fields, backend converter. |
 | Configuration ignored | `@ConfigurationProperties` prefix, feature capability, conditional annotations, active profile. |
 | Test fails unexpectedly | Test fixture state, owner/tenant id, fork/ref checkpoint, expected event order. |
@@ -37,7 +37,7 @@ Use source-first searches before edits:
 
 ```bash
 rg -n "@AggregateRoot|@OnCommand|@OnSourcing|@StatelessSaga|@ProjectionProcessor" . -g "*.kt"
-rg -n "WaitingForStage|SimpleWaitingForChain|Command-Wait" . -g "*.kt"
+rg -n "CommandWait|CommandWait.chain|Command-Wait" . -g "*.kt"
 rg -n "@ConfigurationProperties|ConditionalOn.*Enabled|class .*Properties" . -g "*.kt"
 rg -n "AggregateSpec<|SagaSpec<|expectEventType|expectCommand|expectNoCommand" . -g "*.kt"
 ```
@@ -59,7 +59,7 @@ For code fixes, prefer adding or tightening:
 
 - Changing annotations without checking generated/discovered metadata.
 - Fixing a projection when the event was never emitted.
-- Fixing wait strategy names before checking command ids.
+- Fixing wait plan names before checking command ids.
 - Adding retries before understanding the original failure.
 - Updating tests to match broken state.
 - Trying multiple fixes in one patch.

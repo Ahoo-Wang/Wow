@@ -34,14 +34,13 @@ class SimpleWaitingChainHeaderExtractionTest {
     }
 
     @Test
-    fun `non simple chain falls back to tail extraction`() {
+    fun `non simple chain extracts null`() {
         val header = DefaultHeader.empty()
         CommandStage.PROCESSED.toWaitingChainTail().propagate("endpoint", header)
 
         val extracted = header.extractSimpleWaitingChain()
 
-        extracted.assert().isNotNull()
-        extracted!!.stage.assert().isEqualTo(CommandStage.PROCESSED)
+        extracted.assert().isNull()
     }
 
     @Test
@@ -62,7 +61,7 @@ class SimpleWaitingChainHeaderExtractionTest {
             .with(me.ahoo.wow.command.wait.COMMAND_WAIT_FUNCTION, function.name)
         tail.propagate("endpoint", header)
 
-        val extracted = header.extractSimpleWaitingChain() as SimpleWaitingChain
+        val extracted = header.extractSimpleWaitingChain()!!
 
         extracted.function.assert().isEqualTo(function)
         extracted.tail.stage.assert().isEqualTo(CommandStage.PROJECTED)

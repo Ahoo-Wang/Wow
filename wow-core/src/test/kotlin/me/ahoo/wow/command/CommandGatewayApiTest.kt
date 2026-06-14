@@ -15,17 +15,34 @@ package me.ahoo.wow.command
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.command.CommandMessage
-import me.ahoo.wow.command.wait.WaitStrategy
+import me.ahoo.wow.command.wait.WaitPlan
 import org.junit.jupiter.api.Test
 
 class CommandGatewayApiTest {
     @Test
-    fun `command gateway does not expose low-level send with wait strategy`() {
-        val lowLevelSendMethods = CommandGateway::class.java.methods.filter { method ->
-            method.name == "send" &&
-                method.parameterTypes.contentEquals(arrayOf(CommandMessage::class.java, WaitStrategy::class.java))
+    fun sendAndWaitShouldUseWaitPlan() {
+        CommandGateway::class.java.methods.any { method ->
+            method.name == "sendAndWait" &&
+                method.parameterTypes.contentEquals(arrayOf(CommandMessage::class.java, WaitPlan::class.java))
+        }.assert().isTrue()
+    }
+
+    @Test
+    fun sendAndWaitStreamShouldUseWaitPlan() {
+        CommandGateway::class.java.methods.any { method ->
+            method.name == "sendAndWaitStream" &&
+                method.parameterTypes.contentEquals(arrayOf(CommandMessage::class.java, WaitPlan::class.java))
+        }.assert().isTrue()
+    }
+
+    @Test
+    fun `command gateway explicit wait APIs expose wait plan parameters`() {
+        val explicitWaitMethods = CommandGateway::class.java.methods.filter { method ->
+            method.name in setOf("sendAndWait", "sendAndWaitStream")
         }
 
-        lowLevelSendMethods.assert().isEmpty()
+        explicitWaitMethods.all { method ->
+            method.parameterTypes.any { it == WaitPlan::class.java }
+        }.assert().isTrue()
     }
 }

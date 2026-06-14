@@ -20,9 +20,10 @@ import me.ahoo.wow.command.validation.validateCommand
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.command.wait.CommandWaitEndpoint
 import me.ahoo.wow.command.wait.CommandWaitNotifier
-import me.ahoo.wow.command.wait.WaitStrategy
-import me.ahoo.wow.command.wait.WaitStrategyRegistrar
-import me.ahoo.wow.command.wait.extractWaitStrategy
+import me.ahoo.wow.command.wait.WaitCoordinator
+import me.ahoo.wow.command.wait.WaitHandle
+import me.ahoo.wow.command.wait.WaitPlan
+import me.ahoo.wow.command.wait.extractWaitPlan
 import me.ahoo.wow.command.wait.notifyAndForget
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.infra.idempotency.AggregateIdempotencyCheckerProvider
@@ -41,7 +42,7 @@ import reactor.core.publisher.Mono
  * @property commandBus The underlying command bus for sending commands.
  * @property validator The validator for command body validation.
  * @property idempotencyCheckerProvider Provider for checking command idempotency.
- * @property waitStrategyRegistrar Registrar for managing wait strategies.
+ * @property waitCoordinator Coordinator for managing wait handles.
  * @property commandWaitNotifier Notifier for command wait signals.
  */
 class DefaultCommandGateway(
@@ -49,7 +50,7 @@ class DefaultCommandGateway(
     private val commandBus: CommandBus,
     private val validator: Validator,
     private val idempotencyCheckerProvider: AggregateIdempotencyCheckerProvider,
-    private val waitStrategyRegistrar: WaitStrategyRegistrar,
+    private val waitCoordinator: WaitCoordinator,
     private val commandWaitNotifier: CommandWaitNotifier
 ) : CommandGateway,
     CommandBus by commandBus {
@@ -106,7 +107,7 @@ class DefaultCommandGateway(
 
     /**
      * Sends a command message through the command bus after performing validation and idempotency checks.
-     * Notifies wait strategies if configured in the message header.
+     * Notifies wait plans if configured in the message header.
      *
      * @param message The command message to send.
      * @return A Mono that completes when the command is successfully sent.
@@ -119,13 +120,13 @@ class DefaultCommandGateway(
                 commandBus.send(message)
             }
             .doOnSuccess {
-                val waitStrategy = message.header.extractWaitStrategy() ?: return@doOnSuccess
-                val waitSignal = message.commandSentSignal(waitStrategy.waitCommandId)
-                commandWaitNotifier.notifyAndForget(waitStrategy, waitSignal)
+                val waitPlan = message.header.extractWaitPlan() ?: return@doOnSuccess
+                val waitSignal = message.commandSentSignal(waitPlan.waitCommandId)
+                commandWaitNotifier.notifyAndForget(waitPlan, waitSignal)
             }.doOnError {
-                val waitStrategy = message.header.extractWaitStrategy() ?: return@doOnError
-                val waitSignal = message.commandSentSignal(waitStrategy.waitCommandId, it)
-                commandWaitNotifier.notifyAndForget(waitStrategy, waitSignal)
+                val waitPlan = message.header.extractWaitPlan() ?: return@doOnError
+                val waitSignal = message.commandSentSignal(waitPlan.waitCommandId, it)
+                commandWaitNotifier.notifyAndForget(waitPlan, waitSignal)
             }
     }
 
@@ -133,7 +134,7 @@ class DefaultCommandGateway(
      * Sends a command and completes with the SENT stage result as soon as the command bus accepts it.
      *
      * The SENT signal is synthesized by this gateway itself once [CommandBus.send] completes, so this
-     * fast path skips the wait-strategy registration, sink allocation, and wait-header propagation that
+     * fast path skips the wait plan propagation, handle allocation, and wait-header propagation that
      * [sendAndWait] requires. Downstream stage notifiers see no wait headers and therefore stay no-op,
      * which matches the SENT-only contract: no stage after SENT is ever waited on.
      *
@@ -178,24 +179,34 @@ class DefaultCommandGateway(
      *
      * @param C The type of the command body.
      * @param command The command message to send.
-     * @param waitStrategy The strategy defining how and what to wait for.
+     * @param waitPlan The plan defining how and what to wait for.
      * @return A Flux emitting CommandResult instances as they are produced.
      * @throws DuplicateRequestIdException if the command is not idempotent.
      * @throws jakarta.validation.ConstraintViolationException if validation fails.
-     * @throws IllegalArgumentException if the wait strategy doesn't support void commands when needed.
+     * @throws IllegalArgumentException if the wait plan doesn't support void commands when needed.
      */
     override fun <C : Any> sendAndWaitStream(
         command: CommandMessage<C>,
-        waitStrategy: WaitStrategy
+        waitPlan: WaitPlan
     ): Flux<CommandResult> =
-        sendWithWaitStrategy(command, waitStrategy)
-            .thenMany(
-                waitStrategy
-                    .waiting()
-                    .map { waitSignal ->
-                        waitSignal.toResult(command)
+        Flux.defer {
+            validateVoidCommandWaitPlan(command, waitPlan)
+            check(command)
+                .mapToCommandResultException(command, waitPlan)
+                .thenMany(
+                    Flux.defer {
+                        val handle = waitCoordinator.createStream(waitPlan)
+                        sendWithRegisteredWaitHandle(command, waitPlan, handle)
+                            .thenMany(
+                                handle.stream().map { waitSignal ->
+                                    waitSignal.toResult(command)
+                                }
+                            ).doOnCancel {
+                                handle.cancel()
+                            }
                     }
-            )
+                )
+        }
 
     /**
      * Sends a command and waits for the final result.
@@ -203,83 +214,99 @@ class DefaultCommandGateway(
      *
      * @param C The type of the command body.
      * @param command The command message to send.
-     * @param waitStrategy The strategy defining how and what to wait for.
+     * @param waitPlan The plan defining how and what to wait for.
      * @return A Mono emitting the final CommandResult.
      * @throws DuplicateRequestIdException if the command is not idempotent.
      * @throws jakarta.validation.ConstraintViolationException if validation fails.
-     * @throws IllegalArgumentException if the wait strategy doesn't support void commands when needed.
+     * @throws IllegalArgumentException if the wait plan doesn't support void commands when needed.
      * @throws CommandResultException if the command execution fails.
      */
     override fun <C : Any> sendAndWait(
         command: CommandMessage<C>,
-        waitStrategy: WaitStrategy
+        waitPlan: WaitPlan
     ): Mono<CommandResult> =
-        sendWithWaitStrategy(command, waitStrategy)
-            .then(
-                waitStrategy
-                    .waitingLast()
-                    .map { waitSignal ->
-                        waitSignal
-                            .toResult(command)
-                            .apply {
-                                if (!succeeded) {
-                                    throw CommandResultException(this)
-                                }
+        Mono.defer {
+            validateVoidCommandWaitPlan(command, waitPlan)
+            check(command)
+                .mapToCommandResultException(command, waitPlan)
+                .then(
+                    Mono.defer {
+                        val handle = waitCoordinator.createLast(waitPlan)
+                        sendWithRegisteredWaitHandle(command, waitPlan, handle)
+                            .then(
+                                handle.await()
+                                    .map { waitSignal ->
+                                        waitSignal.toResult(command)
+                                            .apply {
+                                                if (!succeeded) {
+                                                    throw CommandResultException(this)
+                                                }
+                                            }
+                                    }
+                            ).doOnCancel {
+                                handle.cancel()
                             }
                     }
-            )
+                )
+        }
 
     /**
-     * Sends a command with a specific wait strategy.
-     * This method handles wait strategy registration, propagation, and cleanup.
+     * Sends a command with a specific wait plan.
+     * This method handles wait plan propagation and handle cleanup.
      *
      * @param C The type of the command body.
      * @param command The command message to send.
-     * @param waitStrategy The strategy defining how and what to wait for.
+     * @param waitPlan The plan defining how and what to wait for.
      * @return A Mono that completes when the command is sent successfully.
      * @throws DuplicateRequestIdException if the command is not idempotent.
      * @throws jakarta.validation.ConstraintViolationException if validation fails.
-     * @throws IllegalArgumentException if the wait strategy doesn't support void commands when needed.
+     * @throws IllegalArgumentException if the wait plan doesn't support void commands when needed.
      *
      */
-    private fun <C : Any> sendWithWaitStrategy(
+    private fun <C : Any> sendWithRegisteredWaitHandle(
         command: CommandMessage<C>,
-        waitStrategy: WaitStrategy
+        waitPlan: WaitPlan,
+        waitHandle: WaitHandle
     ): Mono<Void> {
-        if (command.isVoid) {
-            require(waitStrategy.supportVoidCommand) {
-                "The wait strategy[${waitStrategy.javaClass.simpleName}] for the void command must support void command."
-            }
-        }
-        return check(command)
-            .thenDefer {
-                waitStrategy.propagate(commandWaitEndpoint.endpoint, command.header)
-                commandBus
-                    .send(command)
-                    .doOnSubscribe {
-                        waitStrategyRegistrar.register(waitStrategy)
-                        waitStrategy.onFinally {
-                            waitStrategyRegistrar.unregister(waitStrategy.waitCommandId)
-                        }
-                    }.doOnError {
-                        waitStrategyRegistrar.unregister(waitStrategy.waitCommandId)
-                    }.doOnCancel {
-                        waitStrategyRegistrar.unregister(waitStrategy.waitCommandId)
-                    }
-            }.doOnSuccess {
-                val waitSignal = command.commandSentSignal(waitStrategy.waitCommandId)
-                waitStrategy.next(waitSignal)
-            }.doOnError {
-                val waitSignal = command.commandSentSignal(waitStrategy.waitCommandId, it)
-                waitStrategy.next(waitSignal)
-            }.onErrorMap {
-                CommandResultException(
-                    it.toResult(
-                        waitCommandId = waitStrategy.waitCommandId,
-                        commandMessage = command,
-                    ),
-                    it,
-                )
-            }
+        return Mono.defer {
+            waitPlan.propagate(commandWaitEndpoint, command.header)
+            commandBus.send(command)
+        }.doOnSuccess {
+            val waitSignal = command.commandSentSignal(waitPlan.waitCommandId)
+            waitHandle.next(waitSignal)
+        }.doOnError {
+            val waitSignal = command.commandSentSignal(waitPlan.waitCommandId, it)
+            waitHandle.next(waitSignal)
+            waitHandle.error(it)
+        }.doOnCancel {
+            waitHandle.cancel()
+        }.mapToCommandResultException(command, waitPlan)
     }
+
+    private fun <C : Any> validateVoidCommandWaitPlan(
+        command: CommandMessage<C>,
+        waitPlan: WaitPlan
+    ) {
+        if (!command.isVoid || waitPlan.supportVoidCommand) {
+            return
+        }
+        val error = IllegalArgumentException(
+            "The wait plan[${waitPlan.javaClass.simpleName}] for the void command must support void command."
+        )
+        throw error
+    }
+
+    private fun <T : Any, C : Any> Mono<T>.mapToCommandResultException(
+        command: CommandMessage<C>,
+        waitPlan: WaitPlan
+    ): Mono<T> =
+        onErrorMap {
+            CommandResultException(
+                it.toResult(
+                    waitCommandId = waitPlan.waitCommandId,
+                    commandMessage = command,
+                ),
+                it,
+            )
+        }
 }

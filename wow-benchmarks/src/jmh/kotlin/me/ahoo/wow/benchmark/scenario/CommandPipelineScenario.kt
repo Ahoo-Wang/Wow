@@ -21,9 +21,9 @@ import me.ahoo.wow.benchmark.fixture.BenchmarkCommands
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.SimpleServerCommandExchange
 import me.ahoo.wow.command.wait.CommandWaitNotifier
+import me.ahoo.wow.command.wait.DefaultWaitCoordinator
 import me.ahoo.wow.command.wait.LocalCommandWaitNotifier
 import me.ahoo.wow.command.wait.ProcessedNotifierFilter
-import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.InMemoryDomainEventBus
@@ -83,7 +83,7 @@ class CommandPipelineScenario private constructor(
             snapshotRepository: SnapshotRepository = InMemorySnapshotRepository(),
             domainEventBus: DomainEventBus = InMemoryDomainEventBus(),
             stateEventBus: StateEventBus = InMemoryStateEventBus(),
-            commandWaitNotifier: CommandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar),
+            commandWaitNotifier: CommandWaitNotifier = LocalCommandWaitNotifier(DefaultWaitCoordinator()),
             aggregateMetadata: AggregateMetadata<*, *> = BenchmarkAggregates.cartMetadata,
             newAggregateCommandFactory: () -> CommandMessage<*> = BenchmarkCommands::commandPathAddCartItem,
         ): CommandPipelineScenario {

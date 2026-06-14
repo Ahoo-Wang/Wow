@@ -10,7 +10,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-me.ahoo.wow.messaging.propagation.WaitStrategyMessagePropagator
+me.ahoo.wow.messaging.propagation.WaitPlanMessagePropagator
 me.ahoo.wow.messaging.propagation.CommandOperatorMessagePropagator
 me.ahoo.wow.messaging.propagation.TraceMessagePropagator
 me.ahoo.wow.messaging.propagation.CommandRequestHeaderPropagator

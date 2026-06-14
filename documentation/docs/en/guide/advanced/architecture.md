@@ -100,7 +100,7 @@ The module hierarchy is defined in [settings.gradle.kts:19-63](https://github.co
 
 | Layer | Modules | Description | Source |
 |---|---|---|---|
-| **API Contracts** | `wow-api`, `wow-openapi` | Pure Kotlin interfaces and data classes. Zero framework dependencies. Defines `CommandMessage`, `DomainEvent`, `AggregateId`, `WaitStrategy`, etc. | [wow-api](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/Wow.kt) |
+| **API Contracts** | `wow-api`, `wow-openapi` | Pure Kotlin interfaces and data classes. Zero framework dependencies. Defines `CommandMessage`, `DomainEvent`, `AggregateId`, `WaitPlan`, etc. | [wow-api](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/Wow.kt) |
 | **Core Engine** | `wow-core` | Aggregate processing, command bus, event store abstraction, saga processing, projection dispatch, serialization. All reactive (Project Reactor). | [wow-core](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt) |
 | **Compile-Time** | `wow-compiler` | KSP processor. Generates command routing tables, event handler metadata, and OpenAPI specs from annotations at compile time. | [settings.gradle.kts:26](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L26) |
 | **Spring Integration** | `wow-spring`, `wow-spring-boot-starter` | Bridges the core engine into Spring's `ApplicationContext`. The starter provides auto-configuration with Gradle feature variants for optional capabilities. | [WowAutoConfiguration.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt) |
@@ -147,7 +147,7 @@ sequenceDiagram
     participant SF as SendDomainEventStreamFilter
     participant EB as EventBus
 
-    Client->>CG: sendAndWait(command, waitStrategy)
+    Client->>CG: sendAndWait(command, waitPlan)
     CG->>CB: route(command)
     Note over CB: TopicKind.COMMAND
     CB->>CD: dispatch(ServerCommandExchange)
@@ -174,7 +174,7 @@ sequenceDiagram
     Note over EB: Distribute to projections,<br>sagas, and event handlers
 
     EB-->>CG: WaitSignal (stage notification)
-    CG-->>Client: CommandResult (when waitStrategy satisfied)
+    CG-->>Client: CommandResult (when waitPlan satisfied)
 ```
 
 <!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt:75-178, wow-core/src/main/kotlin/me/ahoo/wow/command/CommandBus.kt:36-41, wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/AggregateProcessor.kt:32-49, wow-core/src/main/kotlin/me/ahoo/wow/modeling/command/SimpleCommandAggregate.kt:43-80, wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/modeling/AggregateAutoConfiguration.kt:50-156 -->
@@ -183,7 +183,7 @@ sequenceDiagram
 
 | Step | Component | Action | Source |
 |---|---|---|---|
-| 1 | **Client** | Sends a command with a `WaitStrategy` specifying how long to wait and at what stage | [CommandGateway.kt:89-91](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt#L89-L91) |
+| 1 | **Client** | Sends a command with a `WaitPlan` specifying how long to wait and at what stage | [CommandGateway.kt:89-91](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt#L89-L91) |
 | 2 | **CommandGateway** | Entry point implementing `CommandBus`. Routes command to the appropriate handler based on aggregate type | [CommandGateway.kt:75](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt#L75) |
 | 3 | **CommandDispatcher** | Bridges the command bus to the aggregate processor filter chain; configured in `AggregateAutoConfiguration` | [AggregateAutoConfiguration.kt:138-149](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/modeling/AggregateAutoConfiguration.kt#L138-L149) |
 | 4 | **AggregateProcessorFilter** | Constructs an `AggregateProcessor` for the target aggregate, handling sharding and retry logic | [AggregateAutoConfiguration.kt:91-96](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/modeling/AggregateAutoConfiguration.kt#L91-L96) |
@@ -192,7 +192,7 @@ sequenceDiagram
 | 7 | **Event Persistence** | `EventStore.append()` atomically writes the event stream, enforcing optimistic concurrency via version checks | [EventStore.kt:38-43](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt#L38-L43) |
 | 8 | **Snapshot + Publish** | After persistence, a snapshot is saved and domain events are published to the `EventBus` for downstream processing | [AggregateAutoConfiguration.kt:100-106](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/modeling/AggregateAutoConfiguration.kt#L100-L106) |
 
-### Wait Strategies and Command Stages
+### Wait Plans and Command Stages
 
 The `CommandGateway` supports waiting for the command to reach specific processing stages before returning to the client. This is critical for solving the read-write synchronization delay problem inherent in CQRS architectures.
 
@@ -226,7 +226,7 @@ stateDiagram-v2
 
 ```
 
-<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt:25-123, wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitStrategy.kt -->
+<!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt:25-123, wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitPlan.kt -->
 
 Each stage in `CommandStage` is defined as an enum with explicit prerequisite dependencies:
 
@@ -334,7 +334,7 @@ The Wow Framework follows the **Strategy Pattern** throughout: every infrastruct
 | **Event Bus** | `EventBus` / `DomainEventBus` | Distributes domain events to projections, sagas, and handlers | `InMemoryEventBus`, Kafka-backed, Redis-backed | [settings.gradle.kts:27](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L27) |
 | **Event Store** | `EventStore` | Persistent storage of event streams | MongoDB, Redis, R2DBC (PostgreSQL/MySQL/MariaDB) | [EventStore.kt:27](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt#L27) |
 | **Snapshot Repository** | `SnapshotRepository` | Snapshot storage for aggregate performance optimization | MongoDB, Redis, R2DBC | [settings.gradle.kts:28-30](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L28-L30) |
-| **Wait Strategy** | `WaitStrategy` | Controls command response timing | `WaitingForSent`, `WaitingForProcessed`, `WaitingForProjected`, etc. | [CommandStage.kt:25-123](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L25-L123) |
+| **Wait Plan** | `WaitPlan` | Controls command response timing | `StageWaitTarget`, `ChainWaitTarget`, `CommandWait` factories | [WaitPlan.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitPlan.kt) |
 | **ID Generator** | `IdGenerator` (via CosId) | Generates globally unique aggregate IDs | Snowflake, segment, etc. (via CosId integration) | `me.ahoo.cosid` |
 | **Serialization** | `MessageSerializer` | JSON serialization with type metadata | Jackson-based `JsonSerializer` | [wow-core serialization](https://github.com/Ahoo-Wang/Wow/tree/main/wow-core/src/main/kotlin/me/ahoo/wow/serialization) |
 
@@ -428,7 +428,7 @@ The architectural choices of the Wow Framework directly enable its performance p
 1. **Reactive (non-blocking) pipelines**: `Mono` and `Flux` throughout ensure no thread blocking, enabling high concurrency under load.
 2. **Snapshot optimization**: `SnapshotRepository` avoids replaying the full event history on every aggregate load.
 3. **Local-first routing**: `LocalFirstCommandBus` routes commands to local aggregate processors first, falling back to distributed routing only when necessary.
-4. **Wait strategy flexibility**: `SENT` wait mode achieves 59,000+ TPS for fire-and-forget scenarios, while `PROCESSED` mode trades throughput for stronger consistency guarantees at 18,000+ TPS.
+4. **Wait plan flexibility**: `SENT` wait mode achieves 59,000+ TPS for fire-and-forget scenarios, while `PROCESSED` mode trades throughput for stronger consistency guarantees at 18,000+ TPS.
 
 ## Related Pages
 
@@ -436,7 +436,7 @@ The architectural choices of the Wow Framework directly enable its performance p
 |---|---|
 | [Introduction](./introduction) | Overview of Wow framework features and value proposition |
 | [Domain Modeling](./modeling) | How to design aggregate roots, commands, and events |
-| [Command Gateway](../command-gateway) | Deep-dive into command sending and wait strategies |
+| [Command Gateway](../command-gateway) | Deep-dive into command sending and wait plans |
 | [Event Sourcing](./event-sourcing) | Event store, snapshots, and state rebuild mechanics |
 | [Saga Orchestration](./saga) | Distributed transaction support via sagas |
 | [Projections](./projection) | Building and updating read models |

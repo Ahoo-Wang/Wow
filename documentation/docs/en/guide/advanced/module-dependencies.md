@@ -12,7 +12,7 @@ The Wow framework is composed of over 20 Gradle modules, each with a single, wel
 | Module | Layer | Description |
 |--------|-------|-------------|
 | `wow-api` | API | Pure contracts: `CommandMessage`, `DomainEvent`, `AggregateId`, naming types. Zero dependencies. |
-| `wow-core` | Core | Framework engine: aggregates, command bus, event sourcing, projections, sagas, wait strategies. |
+| `wow-core` | Core | Framework engine: aggregates, command bus, event sourcing, projections, sagas, wait plans. |
 | `wow-spring` | Spring | Spring `ApplicationContext` bridge, bean registration. |
 | `wow-spring-boot-starter` | Spring | Auto-configuration with Gradle feature variants for optional infrastructure. |
 | `wow-kafka` | Infra | Distributed `CommandBus` and `DomainEventBus` via Apache Kafka. |
@@ -215,7 +215,7 @@ dependencies {
 
 [[wow-core/build.gradle.kts](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/build.gradle.kts)]
 
-Contains: `CommandGateway`, `CommandBus`, `EventStore`, `DomainEventBus`, `StateAggregate`, `CommandAggregate`, `ProjectionHandler`, `StatelessSagaHandler`, `WaitStrategy`, snapshot infrastructure, and the filter chain framework.
+Contains: `CommandGateway`, `CommandBus`, `EventStore`, `DomainEventBus`, `StateAggregate`, `CommandAggregate`, `ProjectionHandler`, `StatelessSagaHandler`, `WaitPlan`, snapshot infrastructure, and the filter chain framework.
 
 #### wow-query
 

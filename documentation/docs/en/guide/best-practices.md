@@ -14,7 +14,7 @@ description: Architecture and development best practices for building applicatio
 - **MongoDB**: As event store (EventStore), snapshot repository (SnapshotRepository)
   - **Scalability**: MongoDB's automatic sharding feature greatly reduces system scaling costs
   - **Read Model**: Setting snapshot strategy to `all` allows MongoDB-stored snapshots to be used directly as read models without additional projection processors
-  - **Waiting Strategy**: Combined with `SNAPSHOT` waiting strategy to achieve synchronous request waiting
+  - **Wait Plan**: Combined with a `SNAPSHOT` wait plan to achieve synchronous request waiting
   - **Applicable Scenarios**: Most business scenarios, except for some special query requirements (such as product search engines)
 
 - **Kafka**: As messaging engine, including `CommandBus`, `DomainEventBus`, `StateEventBus`

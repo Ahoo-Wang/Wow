@@ -70,7 +70,7 @@ Wow 正是为改变这一现状而生。历经多年生产环境验证，将 DDD
 | **水平伸缩** | 无需考虑分片规则，业务代码无需变更即可水平扩展 |
 | **分布式事务** | Saga 编排模式，精细管理复杂多服务间事务 |
 | **事件补偿** | 可视化控制台 + 可配置 `RetrySpec` 的自动补偿机制，确保最终一致性 |
-| **读写分离** | `SENT` / `PROCESSED` / `PROJECTED` 等待策略，彻底告别同步延迟猜测 |
+| **读写分离** | `SENT` / `PROCESSED` / `PROJECTED` 等待计划，彻底告别同步延迟猜测 |
 | **可观测性** | 集成 OpenTelemetry，实现端到端追踪、指标和调试 |
 | **响应式** | 全栈基于 Project Reactor 的非阻塞异步消息通信 |
 | **事件溯源** | 通过事件回放完整还原状态历史，支持强大的审计和时间旅行调试 |
@@ -82,13 +82,13 @@ Wow 正是为改变这一现状而生。历经多年生产环境验证，将 DDD
 
 ### 命令处理传播链
 
-<p align="center"><img src="documentation/docs/public/images/wait/WaitingForChain.svg" alt="Command Processing Chain" width="95%"/></p>
+<p align="center"><img src="documentation/docs/public/images/wait/CommandWaitChain.svg" alt="Command Processing Chain" width="95%"/></p>
 
 ## 性能测试
 
 示例应用压力测试（2 分钟）：
 
-| 操作 | 等待策略 | 平均 TPS | 峰值 TPS | 平均延迟 |
+| 操作 | 等待计划 | 平均 TPS | 峰值 TPS | 平均延迟 |
 |------|---------|---------|---------|---------|
 | 加入购物车 | `SENT` | 59,625 | 82,312 | 29 ms |
 | 加入购物车 | `PROCESSED` | 18,696 | 24,141 | 239 ms |

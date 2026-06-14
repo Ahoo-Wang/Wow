@@ -21,10 +21,11 @@ import me.ahoo.wow.command.DefaultCommandGateway
 import me.ahoo.wow.command.InMemoryCommandBus
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.toCommandMessage
+import me.ahoo.wow.command.wait.DefaultWaitCoordinator
 import me.ahoo.wow.command.wait.LocalCommandWaitNotifier
 import me.ahoo.wow.command.wait.ProcessedNotifierFilter
 import me.ahoo.wow.command.wait.SimpleCommandWaitEndpoint
-import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
+import me.ahoo.wow.command.wait.WaitCoordinator
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.InMemoryDomainEventBus
 import me.ahoo.wow.eventsourcing.EventSourcingStateAggregateRepository
@@ -80,7 +81,7 @@ abstract class CommandDispatcherSpec {
             BloomFilter.create(Funnels.stringFunnel(Charsets.UTF_8), 10000000)
         }
     protected val stateAggregateFactory: StateAggregateFactory = ConstructorStateAggregateFactory
-    protected val waitStrategyRegistrar = SimpleWaitStrategyRegistrar
+    protected val waitCoordinator: WaitCoordinator = DefaultWaitCoordinator()
     protected lateinit var aggregateProcessorFactory: AggregateProcessorFactory
     protected lateinit var commandBus: CommandBus
     protected lateinit var commandGateway: CommandGateway
@@ -98,8 +99,8 @@ abstract class CommandDispatcherSpec {
             commandBus = commandBus,
             validator = TestValidator,
             idempotencyCheckerProvider = DefaultAggregateIdempotencyCheckerProvider { idempotencyChecker },
-            waitStrategyRegistrar = waitStrategyRegistrar,
-            commandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar),
+            waitCoordinator = waitCoordinator,
+            commandWaitNotifier = LocalCommandWaitNotifier(waitCoordinator),
         )
         eventStore = createEventStore().metrizable()
         snapshotRepository = createSnapshotRepository().metrizable()
@@ -144,7 +145,7 @@ abstract class CommandDispatcherSpec {
         val chain = FilterChainBuilder<ServerCommandExchange<*>>()
             .addFilter(AggregateProcessorFilter(serviceProvider, aggregateProcessorFactory))
             .addFilter(SendDomainEventStreamFilter(domainEventBus))
-            .addFilter(ProcessedNotifierFilter(LocalCommandWaitNotifier(waitStrategyRegistrar)))
+            .addFilter(ProcessedNotifierFilter(LocalCommandWaitNotifier(waitCoordinator)))
             .build()
 
         val commandDispatcher = CommandDispatcher(

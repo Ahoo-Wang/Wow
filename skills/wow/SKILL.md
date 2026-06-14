@@ -7,7 +7,7 @@ description: |
   - DDD aggregates, command/event/state modeling, bounded contexts, tenant/owner routing
   - CQRS, Event Sourcing, event stores, snapshots, projections, read models
   - Saga orchestration, event processors, retry policy, PrepareKey
-  - Command gateway, wait strategies, command bus, WebFlux command endpoints
+  - Command gateway, wait plans, command bus, WebFlux command endpoints
   - Wow tests: AggregateSpec, SagaSpec, AggregateVerifier, SagaVerifier
   - Wow annotations such as @AggregateRoot, @OnCommand, @OnSourcing, @OnEvent, @StatelessSaga, @ProjectionProcessor, @EventProcessor, @AfterCommand, @OnError, @Retry, @BoundedContext, @CreateAggregate, @CommandRoute
 
@@ -41,7 +41,7 @@ rg -n "@ConfigurationProperties|class .*Properties" wow-spring-boot-starter -g "
 | Write AggregateSpec, SagaSpec, verifier, lifecycle tests, FluentAssert assertions | `references/testing.md` |
 | Build saga orchestration or cross-aggregate process behavior | `../wow-development-workflow/SKILL.md`, then `references/annotations.md` and `references/testing.md` |
 | Build projection or event processor behavior | `references/annotations.md`, then `references/testing.md` |
-| Use command gateway, wait strategy, wait chain, idempotency, HTTP wait headers | `references/command-gateway.md` |
+| Use command gateway, wait plan, wait chain, idempotency, HTTP wait headers | `references/command-gateway.md` |
 | Write Query DSL, pagination, projection, sort, query service calls | `references/dsl.md` |
 | Configure Spring Boot starter, storage, buses, feature switches | `references/configuration.md` |
 | Implement uniqueness or reservation with PrepareKey | `references/prepare-key.md` |
@@ -83,7 +83,7 @@ Before finishing Wow code changes, check:
 | `references/modeling.md` | Aggregate pattern, bounded context, lifecycle, routing, state rebuild |
 | `references/annotations.md` | Annotation parameters and handler conventions |
 | `references/testing.md` | AggregateSpec, SagaSpec, verifier APIs, fork/ref, FluentAssert |
-| `references/command-gateway.md` | Wait strategies, idempotency, LocalFirst, command rewriter, HTTP headers |
+| `references/command-gateway.md` | Wait plans, idempotency, LocalFirst, command rewriter, HTTP headers |
 | `references/dsl.md` | Query DSL operators, pagination, sort, projection, query execution |
 | `references/configuration.md` | Spring Boot starter configuration and feature switches |
 | `references/prepare-key.md` | PrepareKey uniqueness/reservation workflows |

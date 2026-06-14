@@ -18,9 +18,9 @@ import me.ahoo.wow.command.InMemoryCommandBus
 import me.ahoo.wow.command.factory.CommandMessageFactory
 import me.ahoo.wow.command.factory.SimpleCommandBuilderRewriterRegistry
 import me.ahoo.wow.command.factory.SimpleCommandMessageFactory
+import me.ahoo.wow.command.wait.DefaultWaitCoordinator
 import me.ahoo.wow.command.wait.LocalCommandWaitNotifier
 import me.ahoo.wow.command.wait.SimpleCommandWaitEndpoint
-import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
 import me.ahoo.wow.event.DomainEventExchange
 import me.ahoo.wow.event.annotation.eventProcessorMetadata
 import me.ahoo.wow.infra.idempotency.DefaultAggregateIdempotencyCheckerProvider
@@ -81,15 +81,17 @@ object SagaVerifier {
      * @throws Exception if gateway initialization fails
      */
     @JvmStatic
-    fun defaultCommandGateway(): CommandGateway =
-        DefaultCommandGateway(
+    fun defaultCommandGateway(): CommandGateway {
+        val waitCoordinator = DefaultWaitCoordinator()
+        return DefaultCommandGateway(
             commandWaitEndpoint = SimpleCommandWaitEndpoint("__StatelessSagaVerifier__"),
             commandBus = InMemoryCommandBus(),
             validator = TestValidator,
             idempotencyCheckerProvider = DefaultAggregateIdempotencyCheckerProvider { NoOpIdempotencyChecker },
-            waitStrategyRegistrar = SimpleWaitStrategyRegistrar,
-            commandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar),
+            waitCoordinator = waitCoordinator,
+            commandWaitNotifier = LocalCommandWaitNotifier(waitCoordinator),
         )
+    }
 
     /**
      * Creates a when stage for testing a stateless saga of this class type.

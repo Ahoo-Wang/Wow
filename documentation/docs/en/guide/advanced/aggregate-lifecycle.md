@@ -659,7 +659,7 @@ The `AggregateRoute.Owner.ALWAYS` setting on the `Order` aggregate ensures that 
 | Page | Description |
 |---|---|
 | [Architecture Overview](./architecture) | Overall Wow Framework architecture and module hierarchy |
-| [Command Gateway](../command-gateway) | Sending commands, wait strategies, and command stages |
+| [Command Gateway](../command-gateway) | Sending commands, wait plans, and command stages |
 | [Event Sourcing](../eventstore) | Event store, snapshots, and full replay mechanics |
 | [Domain Modeling](../modeling) | Designing aggregates, commands, events, and state classes |
 | [Saga Orchestration](../saga) | Distributed transaction support via sagas |

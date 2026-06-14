@@ -1,6 +1,6 @@
 # Command Gateway
 
-The command gateway is the core component for receiving and sending commands. It extends the command bus with idempotency, wait strategies, and command validation.
+The command gateway is the core component for receiving and sending commands. It extends the command bus with idempotency, command wait plans, and command validation.
 
 ## API Usage
 
@@ -33,26 +33,25 @@ commandGateway.sendAndWaitForSnapshot(command)
 ### Base Methods
 
 ```kotlin
-// Send with specific wait strategy
-commandGateway.send(command, waitStrategy)
-    .flatMap { exchange ->
-        exchange.waitStrategy.waiting()
-    }
+// Send and wait with a specific command wait plan
+commandGateway.sendAndWait(command, CommandWait.processed(command.commandId))
+    .doOnSuccess { result -> ... }
 
 // Send and wait for final result
-commandGateway.sendAndWait(command, waitStrategy)
+val waitPlan = CommandWait.snapshot(command.commandId)
+commandGateway.sendAndWait(command, waitPlan)
     .doOnSuccess { result -> ... }
 
 // Streaming updates as command progresses through stages
-commandGateway.sendAndWaitStream(command, waitStrategy)
+commandGateway.sendAndWaitStream(command, CommandWait.processed(command.commandId))
     .doOnNext { result ->
         println("Stage: ${result.stage} - Succeeded: ${result.succeeded}")
     }
 ```
 
-## Wait Strategies
+## Wait Plans
 
-### WaitingForStage
+### CommandWait
 
 | Stage | Signal Generated When |
 |-------|----------------------|
@@ -64,15 +63,15 @@ commandGateway.sendAndWaitStream(command, waitStrategy)
 | `SAGA_HANDLED` | Event processed by Saga |
 
 ```kotlin
-WaitingForStage.sent(commandId)
-WaitingForStage.processed(commandId)
-WaitingForStage.snapshot(commandId)
-WaitingForStage.projected(waitCommandId, contextName, processorName, functionName)
-WaitingForStage.eventHandled(...)
-WaitingForStage.sagaHandled(...)
+CommandWait.sent(commandId)
+CommandWait.processed(commandId)
+CommandWait.snapshot(commandId)
+CommandWait.projected(waitCommandId, contextName, processorName, functionName)
+CommandWait.eventHandled(...)
+CommandWait.sagaHandled(...)
 ```
 
-### WaitingForChain
+### Chain wait plan
 
 Wait for a saga handler and for the downstream commands reported by that saga signal to reach a configured tail stage. Use it for request-reply semantics in distributed operations when a saga emits follow-up commands.
 
@@ -93,7 +92,7 @@ Command-Wait-Tail-Function: onEvent
 Programmatic usage:
 
 ```kotlin
-val waitStrategy = SimpleWaitingForChain.chain(
+val waitPlan = CommandWait.chain(
     waitCommandId = command.commandId,
     function = NamedFunctionInfoData(
         contextName = "transfer",
@@ -107,7 +106,7 @@ val waitStrategy = SimpleWaitingForChain.chain(
         name = "onEvent",
     ),
 )
-commandGateway.sendAndWait(command, waitStrategy)
+commandGateway.sendAndWait(command, waitPlan)
 ```
 
 The completion guarantee is limited to the configured main saga function and the tail commands present in the saga wait signal. It does not prove that unrelated asynchronous work has finished.
@@ -117,7 +116,7 @@ The completion guarantee is limited to the configured main saga function and the
 | Feature | CommandBus | CommandGateway |
 |---------|------------|----------------|
 | Send commands | ✓ | ✓ |
-| Wait strategies | ✗ | ✓ |
+| Wait plans | ✗ | ✓ |
 | Command validation | ✗ | ✓ |
 | Idempotency checking | ✗ | ✓ |
 | Real-time result streaming | ✗ | ✓ |
@@ -283,7 +282,7 @@ The legacy misspelled `Command-Wait-Timout` header remains accepted for compatib
 
 ## Troubleshooting
 
-**Command times out**: Check aggregate dead-letter state, verify wait strategy, increase timeout.
+**Command times out**: Check aggregate dead-letter state, verify the command wait plan, increase timeout.
 
 **DuplicateRequestIdException**: Use unique `requestId` per command, wait for TTL expiration.
 

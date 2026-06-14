@@ -1,12 +1,12 @@
 ---
 title: Command Gateway
-description: The command gateway is the core component for receiving and sending commands, handling idempotency, waiting strategies, and validation.
+description: The command gateway is the core component for receiving and sending commands, handling idempotency, wait plans, and validation.
 ---
 
 # Command Gateway
 
 The command gateway is the core component in the system for receiving and sending commands, serving as the entry point for commands.
-It is an extension of the command bus, not only responsible for command transmission, but also adds a series of important responsibilities, including command idempotency, waiting strategies, and command validation.
+It is an extension of the command bus, not only responsible for command transmission, but also adds a series of important responsibilities, including command idempotency, wait plans, and command validation.
 
 ## Send Command
 
@@ -22,15 +22,15 @@ The `CommandGateway` interface provides several methods for sending commands and
 The `toCommandMessage()` extension function converts a command body into a `CommandMessage`. This is provided by the Wow framework and handles setting up the command ID, aggregate ID, and other metadata.
 :::
 
-#### sendAndWait(command, waitStrategy)
+#### sendAndWait(command, waitPlan)
 
 Sends a command and waits for the final result. If the command fails, it throws a `CommandResultException`.
 
 ```kotlin
 val command = CreateAccount(balance = 1000, name = "John").toCommandMessage()
-val waitStrategy = WaitingForStage.processed(command.commandId)
+val waitPlan = CommandWait.processed(command.commandId)
 
-commandGateway.sendAndWait(command, waitStrategy)
+commandGateway.sendAndWait(command, waitPlan)
     .doOnSuccess { result ->
         println("Command processed: ${result.commandId}")
         println("Aggregate Version: ${result.aggregateVersion}")
@@ -38,15 +38,15 @@ commandGateway.sendAndWait(command, waitStrategy)
     .subscribe()
 ```
 
-#### sendAndWaitStream(command, waitStrategy)
+#### sendAndWaitStream(command, waitPlan)
 
 Returns a `Flux<CommandResult>` for real-time streaming updates as the command progresses through different stages.
 
 ```kotlin
 val command = CreateAccount(balance = 1000, name = "John").toCommandMessage()
-val waitStrategy = WaitingForStage.snapshot(command.commandId)
+val waitPlan = CommandWait.snapshot(command.commandId)
 
-commandGateway.sendAndWaitStream(command, waitStrategy)
+commandGateway.sendAndWaitStream(command, waitPlan)
     .doOnNext { result ->
         println("Stage: ${result.stage} - Succeeded: ${result.succeeded}")
         println("Aggregate Version: ${result.aggregateVersion}")
@@ -56,7 +56,7 @@ commandGateway.sendAndWaitStream(command, waitStrategy)
 
 ### Convenience Methods
 
-The `CommandGateway` provides convenience methods that pre-configure common wait strategies:
+The `CommandGateway` provides convenience methods that pre-configure common wait plans:
 
 ```kotlin
 val command = CreateAccount(balance = 1000, name = "John").toCommandMessage()
@@ -116,7 +116,7 @@ A `CommandResult` is created from a `WaitSignal` via the `toResult()` extension 
 
 ### WaitSignal vs CommandResult
 
-- **WaitSignal**: Internal interface used within the wait strategy infrastructure. Contains processing stage information and is used for signaling between components.
+- **WaitSignal**: Internal interface used within the wait plan infrastructure. Contains processing stage information and is used for signaling between components.
 - **CommandResult**: Public API for command results. Created from `WaitSignal` and includes additional context like `requestId` and formatted aggregate information.
 
 ### CommandGateway vs CommandBus
@@ -126,13 +126,13 @@ A `CommandResult` is created from a `WaitSignal` via the `toResult()` extension 
 | Feature | CommandBus | CommandGateway |
 |---------|------------|----------------|
 | Send commands | Yes | Yes |
-| Wait strategies | No | Yes |
+| Wait plans | No | Yes |
 | Command validation | No | Yes |
 | Idempotency checking | No | Yes |
 | Real-time result streaming | No | Yes |
 | Convenience methods | No | Yes |
 
-Use `CommandBus` when you only need basic command routing. Use `CommandGateway` for full-featured command handling with wait strategies and validation.
+Use `CommandBus` when you only need basic command routing. Use `CommandGateway` for full-featured command handling with wait plans and validation.
 
 ```kotlin
 // CommandBus - basic routing only
@@ -140,8 +140,8 @@ interface CommandBus : MessageBus<CommandMessage<*>, ServerCommandExchange<*>>
 
 // CommandGateway - extends CommandBus with additional features
 interface CommandGateway : CommandBus {
-    fun <C : Any> sendAndWait(command: CommandMessage<C>, waitStrategy: WaitStrategy): Mono<CommandResult>
-    fun <C : Any> sendAndWaitStream(command: CommandMessage<C>, waitStrategy: WaitStrategy): Flux<CommandResult>
+    fun <C : Any> sendAndWait(command: CommandMessage<C>, waitPlan: WaitPlan): Mono<CommandResult>
+    fun <C : Any> sendAndWaitStream(command: CommandMessage<C>, waitPlan: WaitPlan): Flux<CommandResult>
     // ... convenience methods
 }
 ```
@@ -157,7 +157,7 @@ graph TB
     Client[Client / HTTP Request]
     Handler[CommandHandlerFunction<br>WebFlux Layer]
     Gateway[DefaultCommandGateway<br>Validation + Idempotency]
-    Registrar[WaitStrategyRegistrar<br>In-Memory Registry]
+    Registrar[WaitCoordinator<br>In-Memory Registry]
     LFBus[LocalFirstCommandBus]
     InMem[InMemoryCommandBus<br>Local Sink]
     Kafka[KafkaCommandBus<br>Distributed via Kafka]
@@ -166,7 +166,7 @@ graph TB
     Notifier[CommandWaitNotifier<br>Signal Propagation]
 
     Client -->|POST /aggregate/action| Handler
-    Handler -->|extractWaitStrategy + send| Gateway
+    Handler -->|extractWaitPlan + send| Gateway
     Gateway -->|1. validate<br>2. idempotencyCheck| Gateway
     Gateway -->|3. register| Registrar
     Gateway -->|4. send message| LFBus
@@ -189,7 +189,7 @@ graph TB
 - InMemoryCommandBus: wow-core/src/main/kotlin/me/ahoo/wow/command/InMemoryCommandBus.kt:31-50
 - KafkaCommandBus: wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/KafkaCommandBus.kt:27-45
 - AggregateDispatcher: wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt:80-275
-- WaitStrategyRegistrar: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitStrategyRegistrar.kt:24-101
+- WaitCoordinator: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitCoordinator.kt:18-72
 -->
 
 ### Message Bus Hierarchy
@@ -213,14 +213,14 @@ For the command domain specifically, `CommandBus` extends `MessageBus` with a fi
 | Component | Responsibility | Key File | Source |
 |---|---|---|---|
 | `CommandMessage` | Encapsulates command body, aggregate ID, version, idempotency metadata | `wow-api/.../command/CommandMessage.kt` | [Source](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/command/CommandMessage.kt#L53) |
-| `CommandGateway` | High-level send API with validation, idempotency, wait strategies | `wow-core/.../command/CommandGateway.kt` | [Source](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt#L75) |
+| `CommandGateway` | High-level send API with validation, idempotency, wait plans | `wow-core/.../command/CommandGateway.kt` | [Source](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt#L75) |
 | `DefaultCommandGateway` | Concrete implementation of `CommandGateway` | `wow-core/.../command/DefaultCommandGateway.kt` | [Source](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt#L45) |
 | `CommandBus` | Core message bus abstraction for routing commands | `wow-core/.../command/CommandBus.kt` | [Source](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandBus.kt#L36) |
 | `InMemoryCommandBus` | Local in-memory bus using Reactor sinks (unicast) | `wow-core/.../command/InMemoryCommandBus.kt` | [Source](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/InMemoryCommandBus.kt#L31) |
 | `LocalFirstCommandBus` | Tries local bus first, falls back to distributed | `wow-core/.../command/LocalFirstCommandBus.kt` | [Source](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/LocalFirstCommandBus.kt#L29) |
 | `KafkaCommandBus` | Distributed command bus over Apache Kafka | `wow-kafka/.../KafkaCommandBus.kt` | [Source](https://github.com/Ahoo-Wang/Wow/blob/main/wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/KafkaCommandBus.kt#L27) |
-| `WaitStrategy` | Defines how long and what stage to wait for command results | `wow-core/.../command/wait/WaitStrategy.kt` | [Source](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitStrategy.kt#L60) |
-| `WaitingForStage` | Single-stage wait strategy (SENT, PROCESSED, SNAPSHOT, etc.) | `wow-core/.../command/wait/stage/WaitingForStage.kt` | [Source](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/stage/WaitingForStage.kt#L33) |
+| `WaitPlan` | Defines how long and what stage to wait for command results | `wow-core/.../command/wait/WaitPlan.kt` | [Source](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitPlan.kt#L60) |
+| `CommandWait` | Factory for single-stage wait plans (SENT, PROCESSED, SNAPSHOT, etc.) | `wow-core/.../command/wait/CommandWait.kt` | [Source](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandWait.kt#L33) |
 | `SimpleWaitingChain` | Multi-stage chain (e.g., SAGA_HANDLED then SNAPSHOT) | `wow-core/.../command/wait/chain/SimpleWaitingChain.kt` | [Source](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/chain/SimpleWaitingChain.kt#L36) |
 | `CommandHandlerFunction` | Spring WebFlux handler that bridges HTTP to `CommandGateway` | `wow-webflux/.../command/CommandHandlerFunction.kt` | [Source](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/command/CommandHandlerFunction.kt#L39) |
 | `AggregateDispatcher` | Reactive dispatcher that consumes messages from the bus per-aggregate | `wow-core/.../messaging/dispatcher/AggregateDispatcher.kt` | [Source](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/dispatcher/AggregateDispatcher.kt#L80) |
@@ -235,7 +235,7 @@ sequenceDiagram
     actor Client
     participant Handler as CommandHandlerFunction
     participant Gateway as DefaultCommandGateway
-    participant Registrar as WaitStrategyRegistrar
+    participant Registrar as WaitCoordinator
     participant LFBus as LocalFirstCommandBus
     participant Kafka as KafkaCommandBus
     participant Dispatcher as AggregateDispatcher
@@ -243,17 +243,17 @@ sequenceDiagram
     participant Notifier as CommandWaitNotifier
 
     Client->>Handler: POST /{aggregate}/{action}
-    Handler->>Handler: Extract command body + wait strategy headers
-    Note over Handler: AggregateRequest.extractWaitStrategy()
-    Handler->>Gateway: sendAndWait(command, waitStrategy)
+    Handler->>Handler: Extract command body + wait plan headers
+    Note over Handler: AggregateRequest.extractWaitPlan()
+    Handler->>Gateway: sendAndWait(command, waitPlan)
     Note over Gateway: DefaultCommandGateway.send()
 
     Gateway->>Gateway: idempotencyCheck(requestId)
     Gateway->>Gateway: validate(commandBody)
     Note over Gateway: Jakarta Bean Validation<br>+ CommandValidator.validate()
 
-    Gateway->>Gateway: waitStrategy.propagate(endpoint, header)
-    Gateway->>Registrar: register(waitStrategy)
+    Gateway->>Gateway: waitPlan.propagate(endpoint, header)
+    Gateway->>Registrar: createLast(waitPlan)
     Gateway->>LFBus: send(command)
 
     alt Aggregate is local
@@ -276,7 +276,7 @@ sequenceDiagram
 
     Aggregate->>Notifier: WaitSignal(stage=PROCESSED)
     Notifier->>Registrar: next(waitSignal)
-    Registrar->>Gateway: waitStrategy.next(signal)
+    Registrar->>Gateway: waitCoordinator.signal(signal)
 
     opt Stage == SNAPSHOT
         Aggregate->>Notifier: WaitSignal(stage=SNAPSHOT)
@@ -287,7 +287,7 @@ sequenceDiagram
         Notifier->>Registrar: next(waitSignal)
     end
 
-    Gateway->>Gateway: waitStrategy.waitingLast() -> CommandResult
+    Gateway->>Gateway: handle.await() -> CommandResult
     Registrar->>Registrar: unregister(waitCommandId)
     Gateway->>Handler: Mono<CommandResult>
     Handler->>Client: HTTP 200 + JSON response
@@ -319,7 +319,7 @@ Both checks are implemented in the `check()` method at [DefaultCommandGateway.kt
 
 After the command is accepted by the command bus, the gateway publishes a `CommandStage.SENT` wait signal via the `CommandWaitNotifier`. This signal is published regardless of success or failure -- if an error occurs during sending, the signal carries the error information.
 
-For the overloaded `send(message)` (without explicit `WaitStrategy`), the gateway extracts a wait strategy from the message header (if one was propagated) and publishes the SENT signal. See [DefaultCommandGateway.kt:114-126](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt#L114).
+For the overloaded `send(message)` (without explicit `WaitPlan`), the gateway extracts a wait plan from the message header (if one was propagated) and publishes the SENT signal. See [DefaultCommandGateway.kt:114-126](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt#L114).
 
 ## Error Handling
 
@@ -328,7 +328,7 @@ For the overloaded `send(message)` (without explicit `WaitStrategy`), the gatewa
 When command processing fails, `sendAndWait` throws a `CommandResultException` containing the full `CommandResult` with error details.
 
 ```kotlin
-commandGateway.sendAndWait(command, waitStrategy)
+commandGateway.sendAndWait(command, waitPlan)
     .doOnError { error ->
         if (error is CommandResultException) {
             val result = error.commandResult
@@ -435,7 +435,7 @@ fun isTransientError(error: Throwable): Boolean {
 }
 ```
 
-4. **Handle timeout scenarios**: Configure appropriate timeouts for wait strategies.
+4. **Handle timeout scenarios**: Configure appropriate timeouts for wait plans.
 
 ```kotlin
 commandGateway.sendAndWaitForProcessed(command)
@@ -516,21 +516,21 @@ wow:
         fpp: 0.00001
 ```
 
-## Waiting Strategies
+## Wait Plans
 
-*Command waiting strategy* refers to a strategy where the command gateway waits for the command execution result after sending the command.
+*Command wait plan* refers to the immutable plan that tells the command gateway which command stage should produce the response after a command is sent.
 
-*Command waiting strategy* is an important feature in the _Wow_ framework, aiming to solve the data synchronization delay problem in _CQRS_ and read-write separation modes.
+*Command wait plan* is an important feature in the _Wow_ framework, aiming to solve the data synchronization delay problem in _CQRS_ and read-write separation modes.
 
-Currently supported command waiting strategies include:
+Currently supported command wait plans include:
 
-### WaitingForStage
+### CommandWait
 
 <p align="center" style="text-align:center;">
-  <img  width="95%" src="../../public/images/wait/WaitingForStage.svg" alt="WaitingForStage"/>
+  <img  width="95%" src="../../public/images/wait/CommandWait.svg" alt="CommandWait"/>
 </p>
 
-The waiting signals supported by `WaitingForStage` are as follows:
+The waiting signals supported by `CommandWait` are as follows:
 
 - `SENT`: Generates a completion signal when the command is published to the command bus/queue
 - `PROCESSED`: Generates a completion signal when the command is processed by the aggregate root
@@ -607,50 +607,52 @@ commamdGateway.sendAndWaitForProcessed(message)
 | `EVENT_HANDLED` | `[SENT, PROCESSED]` | External event handlers complete | No | Yes | Side-effect processing; notifications | [CommandStage.kt:72](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L72) |
 | `SAGA_HANDLED` | `[SENT, PROCESSED]` | Saga finished processing events | No | Yes | Distributed transaction completion | [CommandStage.kt:83](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandStage.kt#L83) |
 
-Stages with `shouldWaitFunction = true` (`PROJECTED`, `EVENT_HANDLED`, `SAGA_HANDLED`) apply additional filtering: the `WaitStrategy.FunctionMaterialized.shouldNotify(signal)` method checks that the signal's function metadata matches the expected function name, context name, and processor name. This is critical when multiple projectors or event handlers operate on the same aggregate -- the wait strategy only completes when the _specific_ function has finished, not any arbitrary one.
+Stages with `shouldWaitFunction = true` (`PROJECTED`, `EVENT_HANDLED`, `SAGA_HANDLED`) apply additional filtering: the `WaitTarget.shouldNotify(signal)` method checks that the signal's function metadata matches the expected function name, context name, and processor name. This is critical when multiple projectors or event handlers operate on the same aggregate -- the wait plan only completes when the _specific_ function has finished, not any arbitrary one.
 
-#### Wait Strategy Hierarchy
+#### Wait Plan Hierarchy
 
 ```mermaid
 graph TB
-    WS[WaitStrategy interface]
-    WF[WaitingFor abstract class]
-    WFS[WaitingForStage<br>Single-Stage Waiter]
-    SC[SimpleWaitingChain<br>Multi-Stage Chain]
+    WS[WaitPlan interface]
+    SWT[StageWaitTarget<br>single processing stage]
+    CWT[ChainWaitTarget<br>saga stage + tail]
+    CW[CommandWait<br>factory methods]
+    HC[WaitCoordinator<br>handle registry]
+    WH[WaitHandle<br>runtime contract]
+    WL[WaitLastHandle<br>Mono final result]
+    WF[WaitStreamHandle<br>Flux signal stream]
+    ST[WaitState<br>state machine]
+    SWS[StageWaitState<br>single stage]
+    CWS[ChainWaitState<br>saga chain tail]
 
-    WS -->|implements| WF
-    WF -->|extends| WFS
-    WS -->|FunctionMaterialized| SC
-
-    WFS_SENT[WaitingForSent<br>stage=SENT]
-    WFS_PROC[WaitingForProcessed<br>stage=PROCESSED]
-    WFS_SNAP[WaitingForSnapshot<br>stage=SNAPSHOT]
-    WFS_PROJ[WaitingForProjected<br>stage=PROJECTED]
-    WFS_EH[WaitingForEventHandled<br>stage=EVENT_HANDLED]
-    WFS_SH[WaitingForSagaHandled<br>stage=SAGA_HANDLED]
-
-    WFS --> WFS_SENT
-    WFS --> WFS_PROC
-    WFS --> WFS_SNAP
-    WFS --> WFS_PROJ
-    WFS --> WFS_EH
-    WFS --> WFS_SH
+    CW -->|creates| WS
+    WS -->|target| SWT
+    WS -->|target| CWT
+    HC -->|registers by waitCommandId| WH
+    WL -->|extends| WH
+    WF -->|extends| WH
+    WH -->|owns| ST
+    ST -->|stage target| SWS
+    ST -->|chain target| CWS
 
 ```
 
 <!-- Sources:
-- WaitStrategy interface: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitStrategy.kt:60-176
-- WaitingFor abstract class: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitingFor.kt:33-132
-- WaitingForStage: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/stage/WaitingForStage.kt:33-155
-- SimpleWaitingChain: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/chain/SimpleWaitingChain.kt:36-107
-- WaitingForSent: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/stage/WaitingForSent.kt:25-32
-- WaitingForProcessed: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/stage/WaitingForProcessed.kt:25-30
+- WaitPlan interface: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitPlan.kt:20-71
+- CommandWait: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/CommandWait.kt:21-121
+- WaitHandle: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitHandle.kt:22-223
+- WaitState: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitState.kt:19-60
+- StageWaitState: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/stage/StageWaitState.kt:24-90
+- ChainWaitState: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/chain/ChainWaitState.kt:29-250
+- WaitCoordinator: wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitCoordinator.kt:18-72
 -->
 
-### WaitingForChain
+At runtime, `WaitPlan` remains immutable intent. `WaitCoordinator` registers exactly one `WaitHandle` per `waitCommandId`; `sendAndWait` uses `WaitLastHandle`, while `sendAndWaitStream` uses `WaitStreamHandle`. Both handles are single-subscriber runtime sinks. The stream handle uses a unicast sink and buffers early signals for the first subscriber with `DEFAULT_WAIT_STREAM_QUEUE_LINK_SIZE`. The handle owns the mutable `WaitState`, so stage and chain completion rules stay with the state machine instead of being split into an external reducer.
+
+### Chain Wait Plan
 
 <p align="center" style="text-align:center;">
-  <img  width="95%" src="../../public/images/wait/WaitingForChain.svg" alt="WaitingForChain"/>
+  <img  width="95%" src="../../public/images/wait/CommandWaitChain.svg" alt="Chain wait plan"/>
 </p>
 
 
@@ -720,11 +722,21 @@ data:{"id":"0V3oCVzX000100S","waitCommandId":"0V3oCVyv000100L","stage":"SNAPSHOT
 
 ```
 ```kotlin {1}
-val waitStrategy = SimpleWaitingForChain.chain(
+val waitPlan = CommandWait.chain(
+    waitCommandId = message.commandId,
+    function = NamedFunctionInfoData(
+        contextName = "transfer-service",
+        processorName = "TransferSaga",
+        name = "onEvent",
+    ),
     tailStage = CommandStage.SNAPSHOT,
-    //...
+    tailFunction = NamedFunctionInfoData(
+        contextName = "wow",
+        processorName = "SnapshotDispatcher",
+        name = "save",
+    ),
 )
-commamdGateway.sendAndWait(message,waitStrategy)
+commandGateway.sendAndWait(message, waitPlan)
 ```
 :::
 
@@ -820,7 +832,7 @@ The `CommandHandlerFunction` is a Spring WebFlux `HandlerFunction` that bridges 
 
 2. **Command message construction**: The `CommandMessageExtractor` builds a `CommandMessage` from the aggregate route metadata, the request headers, and the command body.
 
-3. **Wait strategy extraction**: The `ServerRequest.extractWaitStrategy()` extension function reads the following HTTP headers:
+3. **Wait plan extraction**: The `ServerRequest.extractWaitPlan()` extension function reads the following HTTP headers:
 
 | Header | Purpose | Default | Source |
 |---|---|---|---|

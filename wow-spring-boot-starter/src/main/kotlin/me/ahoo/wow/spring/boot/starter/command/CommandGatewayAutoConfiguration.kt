@@ -22,14 +22,14 @@ import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.DefaultCommandGateway
 import me.ahoo.wow.command.wait.CommandWaitEndpoint
 import me.ahoo.wow.command.wait.CommandWaitNotifier
+import me.ahoo.wow.command.wait.DefaultWaitCoordinator
 import me.ahoo.wow.command.wait.EventHandledNotifierFilter
 import me.ahoo.wow.command.wait.LocalCommandWaitNotifier
 import me.ahoo.wow.command.wait.ProcessedNotifierFilter
 import me.ahoo.wow.command.wait.ProjectedNotifierFilter
 import me.ahoo.wow.command.wait.SagaHandledNotifierFilter
-import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
 import me.ahoo.wow.command.wait.SnapshotNotifierFilter
-import me.ahoo.wow.command.wait.WaitStrategyRegistrar
+import me.ahoo.wow.command.wait.WaitCoordinator
 import me.ahoo.wow.infra.idempotency.AggregateIdempotencyCheckerProvider
 import me.ahoo.wow.infra.idempotency.BloomFilterIdempotencyChecker
 import me.ahoo.wow.infra.idempotency.DefaultAggregateIdempotencyCheckerProvider
@@ -80,8 +80,8 @@ class CommandGatewayAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    fun waitStrategyRegistrar(): WaitStrategyRegistrar {
-        return SimpleWaitStrategyRegistrar
+    fun waitCoordinator(): WaitCoordinator {
+        return DefaultWaitCoordinator()
     }
 
     @Bean
@@ -92,8 +92,8 @@ class CommandGatewayAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingClass("me.ahoo.wow.webflux.route.command.CommandHandlerFunction")
-    fun commandWaitNotifier(waitStrategyRegistrar: WaitStrategyRegistrar): CommandWaitNotifier {
-        return LocalCommandWaitNotifier(waitStrategyRegistrar)
+    fun commandWaitNotifier(waitCoordinator: WaitCoordinator): CommandWaitNotifier {
+        return LocalCommandWaitNotifier(waitCoordinator)
     }
 
     @Bean
@@ -130,7 +130,7 @@ class CommandGatewayAutoConfiguration {
         commandBus: CommandBus,
         validator: Validator,
         idempotencyCheckerProvider: AggregateIdempotencyCheckerProvider,
-        waitStrategyRegistrar: WaitStrategyRegistrar,
+        waitCoordinator: WaitCoordinator,
         commandWaitNotifier: CommandWaitNotifier
     ): CommandGateway {
         return DefaultCommandGateway(
@@ -138,7 +138,7 @@ class CommandGatewayAutoConfiguration {
             commandBus = commandBus,
             validator = validator,
             idempotencyCheckerProvider = idempotencyCheckerProvider,
-            waitStrategyRegistrar = waitStrategyRegistrar,
+            waitCoordinator = waitCoordinator,
             commandWaitNotifier = commandWaitNotifier
         )
     }

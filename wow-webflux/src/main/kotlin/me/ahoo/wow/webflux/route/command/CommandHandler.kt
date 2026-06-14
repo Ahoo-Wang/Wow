@@ -44,17 +44,17 @@ class CommandHandler(
     }
 
     private fun sendCommand(commandMessage: CommandMessage<Any>, request: ServerRequest): Publisher<CommandResult> {
-        val waitStrategy = request.extractWaitStrategy(commandMessage)
+        val waitPlan = request.extractWaitPlan(commandMessage)
         val commandWaitTimeout = request.getWaitTimeout(timeout)
         if (request.isSse()) {
             return commandGateway.sendAndWaitStream(
                 command = commandMessage,
-                waitStrategy = waitStrategy
+                waitPlan = waitPlan
             ).timeout(commandWaitTimeout)
         }
         return commandGateway.sendAndWait(
             command = commandMessage,
-            waitStrategy = waitStrategy
+            waitPlan = waitPlan
         ).timeout(commandWaitTimeout)
     }
 }

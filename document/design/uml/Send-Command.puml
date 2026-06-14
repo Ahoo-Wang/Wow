@@ -11,7 +11,7 @@ actor User
 participant CommandGateway
 participant CommandValidator
 participant IdempotencyChecker
-participant WaitStrategyRegistrar
+participant WaitCoordinator
 queue CommandQueue
 
 CommandQueue++
@@ -19,7 +19,7 @@ User ++
 
 autonumber "[00]"
 
-User -> CommandGateway ++: sendAndWait(command,waitStrategy)
+User -> CommandGateway ++: sendAndWait(command,waitPlan)
 
 CommandGateway -> CommandValidator++: verify(command)
 CommandGateway <-- CommandValidator--: VerifyResult
@@ -32,10 +32,10 @@ else verification success
         User <-- CommandGateway: failed
     else check success
         CommandGateway -> CommandQueue: emit(Command)
-        CommandGateway <-- CommandQueue: CommandResult is a Future
-        CommandGateway -> WaitStrategyRegistrar++: register(commandId,commandResult)
-        CommandGateway <-- WaitStrategyRegistrar--
-        User <-- CommandGateway: Mono<CommandResult>
+        CommandGateway <-- CommandQueue: Reactive result
+        CommandGateway -> WaitCoordinator++: createLast/createStream(waitPlan)
+        CommandGateway <-- WaitCoordinator--
+        User <-- CommandGateway: Mono<Result>
     end
 end
 @enduml

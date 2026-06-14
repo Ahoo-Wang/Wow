@@ -80,7 +80,7 @@ However, sometimes 1 second cannot complete sync, which leads to **invalid** dat
 
 Using the _Wow_ framework, you can wait for the _PROJECTED_ signal to complete, then return the result to the user, handling data sync delay problems in a more elegant and efficient way.
 
-Learn more about [command waiting strategies](./command-gateway#waiting-strategies).
+Learn more about [command wait plans](./command-gateway#wait-plans).
 
 ### Engineering Quality
 
@@ -143,7 +143,7 @@ Learn more about [Wow Operation Audit](./bi#aggregate-commands).
 In the *Wow* framework, there are many key features, including but not limited to:
 
 - Command Gateway: In _CQRS_ mode, command response is usually a simple confirmation, informing the client that the write operation has been successfully processed (aggregate root processing stage), at this time the client refreshes the page and is likely unable to get the data (projection of query model to query database has not been completed). This is very unfriendly to the client.
-To solve this problem, *Wow* provides multiple command waiting strategies, such as `PROJECTED` signal can wait for projection completion.
+To solve this problem, *Wow* provides multiple command wait plans, such as a `PROJECTED` signal that waits for projection completion.
 - Event Driven: Provides event bus to handle event publishing and subscription, helping to achieve loose coupling communication between components, and projection of query models.
 - Aggregate Root Modeling: Uses aggregate root to organize and manage domain models, helping developers better divide and manage business logic.
 - Event Sourcing: Restores and tracks application state changes by recording and replaying events, achieving powerful data history recording and audit functions.
@@ -170,5 +170,5 @@ To solve this problem, *Wow* integrates *OpenTelemetry* to achieve end-to-end ob
 ### Command Processing Propagation Chain
 
 <p align="center" style="text-align:center;">
-  <img  width="95%" src="../../public/images/wait/WaitingForChain.svg" alt="Wow-WaitingForChain"/>
+  <img  width="95%" src="../../public/images/wait/CommandWaitChain.svg" alt="Wow chain wait plan"/>
 </p>

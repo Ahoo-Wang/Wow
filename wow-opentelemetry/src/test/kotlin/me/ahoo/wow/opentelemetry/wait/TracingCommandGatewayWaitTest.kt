@@ -26,10 +26,10 @@ import me.ahoo.wow.command.DefaultCommandGateway
 import me.ahoo.wow.command.InMemoryCommandBus
 import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.command.validation.NoOpValidator
+import me.ahoo.wow.command.wait.CommandWait
+import me.ahoo.wow.command.wait.DefaultWaitCoordinator
 import me.ahoo.wow.command.wait.LocalCommandWaitNotifier
 import me.ahoo.wow.command.wait.SimpleCommandWaitEndpoint
-import me.ahoo.wow.command.wait.SimpleWaitStrategyRegistrar
-import me.ahoo.wow.command.wait.stage.WaitingForStage
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.infra.idempotency.AggregateIdempotencyCheckerProvider
 import me.ahoo.wow.infra.idempotency.NoOpIdempotencyChecker
@@ -58,22 +58,23 @@ class TracingCommandGatewayWaitTest {
             .buildAndRegisterGlobal()
 
         val commandBus: CommandBus = InMemoryCommandBus().tracing()
+        val waitCoordinator = DefaultWaitCoordinator()
         val commandGateway = DefaultCommandGateway(
             commandWaitEndpoint = SimpleCommandWaitEndpoint("test-command-wait-endpoint"),
             commandBus = commandBus,
             validator = NoOpValidator,
             idempotencyCheckerProvider = AggregateIdempotencyCheckerProvider { NoOpIdempotencyChecker },
-            waitStrategyRegistrar = SimpleWaitStrategyRegistrar,
-            commandWaitNotifier = LocalCommandWaitNotifier(SimpleWaitStrategyRegistrar),
+            waitCoordinator = waitCoordinator,
+            commandWaitNotifier = LocalCommandWaitNotifier(waitCoordinator),
         ).tracing()
         val command = MockCreateAggregate(
             id = generateGlobalId(),
             data = generateGlobalId(),
         ).toCommandMessage()
-        val waitStrategy = WaitingForStage.sent(command.commandId)
+        val waitPlan = CommandWait.sent(command.commandId)
 
         commandGateway
-            .sendAndWait(command, waitStrategy)
+            .sendAndWait(command, waitPlan)
             .test()
             .expectNextCount(1)
             .verifyComplete()
