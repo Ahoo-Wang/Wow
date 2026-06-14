@@ -19,6 +19,7 @@ import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
+import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.example.api.cart.CartItem
 import me.ahoo.wow.example.api.cart.CartItemAdded
 import me.ahoo.wow.example.domain.cart.Cart
@@ -33,6 +34,8 @@ import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.openapi.aggregate.state.AggregateTracingRouteSpec
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.serialization.MessageRecords
+import me.ahoo.wow.serialization.toJsonString
+import me.ahoo.wow.serialization.toObjectNode
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockAggregateCreated
 import me.ahoo.wow.tck.mock.MockCommandAggregate
@@ -48,6 +51,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import reactor.kotlin.test.test
+import tools.jackson.databind.node.ObjectNode
 
 class AggregateTracingHandlerFunctionTest {
 
@@ -62,12 +66,28 @@ class AggregateTracingHandlerFunctionTest {
         )
 
         tracedStates.assert().hasSize(3)
-        tracedStates[0].state.items.map { it.productId }.assert().isEqualTo(listOf("product-1"))
-        tracedStates[1].state.items.map { it.productId }.assert().isEqualTo(listOf("product-1", "product-2"))
-        tracedStates[2].state.items.map { it.productId }.assert()
-            .isEqualTo(listOf("product-1", "product-2", "product-3"))
-        (tracedStates[0].state === tracedStates[2].state).assert().isFalse()
+        val firstState = tracedStates[0].state.assertJsonState()
+        val secondState = tracedStates[1].state.assertJsonState()
+        val thirdState = tracedStates[2].state.assertJsonState()
+
+        firstState.itemProductIds().assert().isEqualTo(listOf("product-1"))
+        secondState.itemProductIds().assert().isEqualTo(listOf("product-1", "product-2"))
+        thirdState.itemProductIds().assert().isEqualTo(listOf("product-1", "product-2", "product-3"))
+        (firstState === thirdState).assert().isFalse()
         stateAggregateFactory.createCount.assert().isEqualTo(1)
+    }
+
+    @Test
+    fun `trace should serialize json snapshot state with existing response shape`() {
+        val tracedStates = CART_AGGREGATE_METADATA.state.trace(
+            stateAggregateFactory = ConstructorStateAggregateFactory,
+            eventStreams = cartEventStreams(eventCount = 2),
+        )
+
+        val serializedState = tracedStates.last().serializedState()
+
+        (serializedState["actual"] == null).assert().isTrue()
+        serializedState.itemProductIds().assert().isEqualTo(listOf("product-1", "product-2"))
     }
 
     @Test
@@ -117,6 +137,22 @@ class AggregateTracingHandlerFunctionTest {
                         upstream = upstream,
                         aggregateVersion = version - 1,
                     )
+            }
+        }
+
+        fun Any.assertJsonState(): ObjectNode {
+            this.assert().isInstanceOf(ObjectNode::class.java)
+            return this as ObjectNode
+        }
+
+        fun StateEvent<*>.serializedState(): ObjectNode {
+            return toJsonString().toObjectNode()["state"] as ObjectNode
+        }
+
+        fun ObjectNode.itemProductIds(): List<String> {
+            val items = this["items"]
+            return (0 until items.size()).map { index ->
+                items[index]["productId"].asString()
             }
         }
     }
