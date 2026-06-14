@@ -18,8 +18,13 @@ import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.api.exception.ErrorInfo.Companion.isFailed
 import me.ahoo.wow.event.DomainEventException.Companion.toException
 import me.ahoo.wow.event.DomainEventStream
+import me.ahoo.wow.messaging.handler.COMMAND_RESULT_KEY
+import me.ahoo.wow.messaging.handler.ERROR_KEY
+import me.ahoo.wow.messaging.handler.FUNCTION_KEY
 import me.ahoo.wow.messaging.handler.MessageExchange
+import me.ahoo.wow.messaging.handler.SERVICE_PROVIDER_KEY
 import me.ahoo.wow.modeling.command.AggregateProcessor
+import me.ahoo.wow.modeling.command.COMMAND_AGGREGATE_KEY
 import me.ahoo.wow.modeling.command.getCommandAggregate
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import java.util.concurrent.ConcurrentHashMap
@@ -199,12 +204,137 @@ interface ServerCommandExchange<C : Any> : CommandExchange<ServerCommandExchange
  * This class provides a basic implementation of the server command exchange,
  * storing the command message and any additional attributes for command processing.
  *
+ * The well-known per-command attributes are stored in dedicated volatile fields instead of the
+ * [attributes] map, so the command processing hot path avoids per-put map node allocations.
+ * Only unknown attribute keys fall back to the [attributes] map; well-known keys present in a
+ * caller-provided map are migrated into fields on construction.
+ *
  * @param C the type of the command
  * @param message the command message being processed
  * @param attributes mutable map for storing additional exchange data
  * @see ServerCommandExchange
  */
+@Suppress("TooManyFunctions")
 class SimpleServerCommandExchange<C : Any>(
     override val message: CommandMessage<C>,
     override val attributes: MutableMap<String, Any> = ConcurrentHashMap()
-) : ServerCommandExchange<C>
+) : ServerCommandExchange<C> {
+    companion object {
+        private val UNKNOWN = Any()
+    }
+
+    @Volatile
+    private var aggregateMetadata: Any? = null
+
+    @Volatile
+    private var aggregateProcessor: Any? = null
+
+    @Volatile
+    private var commandInvokeResult: Any? = null
+
+    @Volatile
+    private var eventStream: Any? = null
+
+    @Volatile
+    private var aggregateVersion: Any? = null
+
+    @Volatile
+    private var commandAggregate: Any? = null
+
+    @Volatile
+    private var function: Any? = null
+
+    @Volatile
+    private var serviceProvider: Any? = null
+
+    @Volatile
+    private var error: Any? = null
+
+    @Volatile
+    private var commandResult: Any? = null
+
+    init {
+        if (attributes.isNotEmpty()) {
+            attributes.keys.toList().forEach { key ->
+                val value = attributes[key] ?: return@forEach
+                if (storeKnownAttribute(key, value)) {
+                    attributes.remove(key)
+                }
+            }
+        }
+    }
+
+    private fun storeKnownAttribute(key: String, value: Any): Boolean {
+        when (key) {
+            AGGREGATE_METADATA_KEY -> aggregateMetadata = value
+            AGGREGATE_PROCESSOR_KEY -> aggregateProcessor = value
+            COMMAND_INVOKE_RESULT_KEY -> commandInvokeResult = value
+            EVENT_STREAM_KEY -> eventStream = value
+            AGGREGATE_VERSION_KEY -> aggregateVersion = value
+            COMMAND_AGGREGATE_KEY -> commandAggregate = value
+            FUNCTION_KEY -> function = value
+            SERVICE_PROVIDER_KEY -> serviceProvider = value
+            ERROR_KEY -> error = value
+            COMMAND_RESULT_KEY -> commandResult = value
+            else -> return false
+        }
+        return true
+    }
+
+    private fun knownAttribute(key: String): Any? {
+        return when (key) {
+            AGGREGATE_METADATA_KEY -> aggregateMetadata
+            AGGREGATE_PROCESSOR_KEY -> aggregateProcessor
+            COMMAND_INVOKE_RESULT_KEY -> commandInvokeResult
+            EVENT_STREAM_KEY -> eventStream
+            AGGREGATE_VERSION_KEY -> aggregateVersion
+            COMMAND_AGGREGATE_KEY -> commandAggregate
+            FUNCTION_KEY -> function
+            SERVICE_PROVIDER_KEY -> serviceProvider
+            ERROR_KEY -> error
+            COMMAND_RESULT_KEY -> commandResult
+            else -> UNKNOWN
+        }
+    }
+
+    private fun removeKnownAttribute(key: String): Boolean {
+        when (key) {
+            AGGREGATE_METADATA_KEY -> aggregateMetadata = null
+            AGGREGATE_PROCESSOR_KEY -> aggregateProcessor = null
+            COMMAND_INVOKE_RESULT_KEY -> commandInvokeResult = null
+            EVENT_STREAM_KEY -> eventStream = null
+            AGGREGATE_VERSION_KEY -> aggregateVersion = null
+            COMMAND_AGGREGATE_KEY -> commandAggregate = null
+            FUNCTION_KEY -> function = null
+            SERVICE_PROVIDER_KEY -> serviceProvider = null
+            ERROR_KEY -> error = null
+            COMMAND_RESULT_KEY -> commandResult = null
+            else -> return false
+        }
+        return true
+    }
+
+    override fun setAttribute(key: String, value: Any): ServerCommandExchange<C> {
+        if (!storeKnownAttribute(key, value)) {
+            attributes[key] = value
+        }
+        return this
+    }
+
+    override fun <T> getAttribute(key: String): T? {
+        val known = knownAttribute(key)
+        @Suppress("UNCHECKED_CAST")
+        return if (known !== UNKNOWN) {
+            known as T?
+        } else {
+            attributes[key] as T?
+        }
+    }
+
+    override fun removeAttribute(key: String): ServerCommandExchange<C> {
+        if (!removeKnownAttribute(key)) {
+            attributes.remove(key)
+        }
+        return this
+    }
+}
