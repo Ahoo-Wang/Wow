@@ -80,6 +80,23 @@ class StageWaitStateTest {
     }
 
     @Test
+    fun completeWhenTargetStageFails() {
+        val state = StageWaitState(CommandWait.processed("wait-id"))
+        val failedProcessed = testSignal(
+            stage = CommandStage.PROCESSED,
+            errorCode = "FAILED",
+            errorMsg = "processed failed",
+        )
+
+        val reduction = stateMachine.next(state, failedProcessed)
+
+        reduction.completed.assert().isTrue()
+        reduction.acceptedSignal.assert().isEqualTo(failedProcessed)
+        reduction.finalSignal!!.stage.assert().isEqualTo(CommandStage.PROCESSED)
+        reduction.finalSignal.succeeded.assert().isFalse()
+    }
+
+    @Test
     fun waitForLastProjectionSignal() {
         val state = StageWaitState(
             CommandWait.projected("wait-id", TEST_CONTEXT, TEST_PROCESSOR, TEST_FUNCTION),

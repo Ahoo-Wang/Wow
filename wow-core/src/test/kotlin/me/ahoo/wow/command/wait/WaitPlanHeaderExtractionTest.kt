@@ -77,6 +77,19 @@ class WaitPlanHeaderExtractionTest {
     }
 
     @Test
+    fun extractSimpleChainHeaderWithoutTailShouldFallbackToStagePlan() {
+        val header = waitPlanHeader(
+            waitCommandId = "wait-id",
+            endpoint = TEST_ENDPOINT,
+            stage = CommandStage.PROCESSED,
+        ).with(COMMAND_WAIT_CHAIN, SIMPLE_CHAIN)
+
+        val extracted = header.extractWaitPlan()!!
+
+        extracted.plan.target.assert().isEqualTo(StageWaitTarget(CommandStage.PROCESSED))
+    }
+
+    @Test
     fun extractLegacyTailOnlyPlan() {
         val tailFunction = testNamedFunction(name = "tail-function")
         val header = DefaultHeader.empty()
@@ -89,6 +102,18 @@ class WaitPlanHeaderExtractionTest {
         header.containsKey(COMMAND_WAIT_STAGE).assert().isFalse()
         extracted.waitCommandId.assert().isEqualTo("wait-id")
         extracted.plan.target.assert().isEqualTo(StageWaitTarget(CommandStage.PROJECTED, tailFunction))
+    }
+
+    @Test
+    fun extractLegacyTailOnlyPlanShouldOmitFunctionForStageWithoutFunctionWait() {
+        val header = DefaultHeader.empty()
+            .propagateWaitCommandId("wait-id")
+            .propagateCommandWaitEndpoint(TEST_ENDPOINT)
+            .propagateWaitingChainTail(CommandStage.PROCESSED, testNamedFunction(name = "tail-function"))
+
+        val extracted = header.extractWaitPlan()!!
+
+        extracted.plan.target.assert().isEqualTo(StageWaitTarget(CommandStage.PROCESSED))
     }
 
     @Test
@@ -148,6 +173,16 @@ class WaitPlanHeaderExtractionTest {
 
         commandIdError.message.assert().isEqualTo("$WAIT_COMMAND_ID is required!")
         endpointError.message.assert().isEqualTo("$COMMAND_WAIT_ENDPOINT is required!")
+    }
+
+    @Test
+    fun requiredHeaderExtractionShouldReturnExistingValues() {
+        val header = DefaultHeader.empty()
+            .propagateWaitCommandId("wait-id")
+            .propagateCommandWaitEndpoint(TEST_ENDPOINT)
+
+        header.requireExtractWaitCommandId().assert().isEqualTo("wait-id")
+        header.requireExtractCommandWaitEndpoint().assert().isEqualTo(TEST_ENDPOINT)
     }
 
     @Test

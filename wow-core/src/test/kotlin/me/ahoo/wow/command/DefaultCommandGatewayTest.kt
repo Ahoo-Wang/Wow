@@ -15,6 +15,7 @@ package me.ahoo.wow.command
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.api.command.validation.CommandValidator
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.validation.NoOpValidator
 import me.ahoo.wow.command.wait.CommandStage
@@ -25,6 +26,7 @@ import me.ahoo.wow.command.wait.SimpleCommandWaitEndpoint
 import me.ahoo.wow.command.wait.TestCommandMessage
 import me.ahoo.wow.command.wait.WaitCoordinator
 import me.ahoo.wow.command.wait.extractWaitPlan
+import me.ahoo.wow.command.wait.testAggregateId
 import me.ahoo.wow.command.wait.testSignal
 import me.ahoo.wow.command.wait.waitPlanHeader
 import me.ahoo.wow.exception.ErrorCodes
@@ -52,6 +54,20 @@ class DefaultCommandGatewayTest {
             .verify()
 
         commandBus.sent.assert().isEmpty()
+    }
+
+    @Test
+    fun `send invokes self validating command body`() {
+        val validated = AtomicInteger()
+        val command = SelfValidatingCommandMessage(SelfValidatingCommand(validated))
+        val commandBus = RecordingCommandBus()
+        val gateway = commandGateway(commandBus = commandBus)
+
+        StepVerifier.create(gateway.send(command))
+            .verifyComplete()
+
+        validated.get().assert().isEqualTo(1)
+        commandBus.sent.single().assert().isSameAs(command)
     }
 
     @Test
@@ -389,6 +405,27 @@ class DefaultCommandGatewayTest {
     }
 
     @Test
+    fun `send and wait stream cancellation while command bus is pending releases handle`() {
+        val commandBus = RecordingCommandBus().apply {
+            sendResult = { Mono.never() }
+        }
+        val waitCoordinator = DefaultWaitCoordinator()
+        val gateway = commandGateway(commandBus = commandBus, waitCoordinator = waitCoordinator)
+
+        StepVerifier.create(
+            gateway.sendAndWaitStream(
+                TestCommandMessage(id = "command-id"),
+                CommandWait.processed("wait-command-id"),
+            )
+        )
+            .then { waitCoordinator.contains("wait-command-id").assert().isTrue() }
+            .thenCancel()
+            .verify()
+
+        waitCoordinator.contains("wait-command-id").assert().isFalse()
+    }
+
+    @Test
     fun `send and wait cancellation releases handle and allows wait id reuse`() {
         val waitCoordinator = DefaultWaitCoordinator()
         val gateway = commandGateway(waitCoordinator = waitCoordinator)
@@ -404,6 +441,27 @@ class DefaultCommandGatewayTest {
 
         waitCoordinator.contains("wait-command-id").assert().isFalse()
         waitCoordinator.createLast(CommandWait.processed("wait-command-id")).cancel()
+    }
+
+    @Test
+    fun `send and wait cancellation while command bus is pending releases handle`() {
+        val commandBus = RecordingCommandBus().apply {
+            sendResult = { Mono.never() }
+        }
+        val waitCoordinator = DefaultWaitCoordinator()
+        val gateway = commandGateway(commandBus = commandBus, waitCoordinator = waitCoordinator)
+
+        StepVerifier.create(
+            gateway.sendAndWait(
+                TestCommandMessage(id = "command-id"),
+                CommandWait.processed("wait-command-id"),
+            )
+        )
+            .then { waitCoordinator.contains("wait-command-id").assert().isTrue() }
+            .thenCancel()
+            .verify()
+
+        waitCoordinator.contains("wait-command-id").assert().isFalse()
     }
 
     private fun commandGateway(
@@ -433,4 +491,38 @@ private class RecordingCommandBus : CommandBus {
         }
 
     override fun receive(namedAggregates: Set<NamedAggregate>): Flux<ServerCommandExchange<*>> = Flux.empty()
+}
+
+private data class SelfValidatingCommand(
+    val validated: AtomicInteger,
+) : CommandValidator {
+    override fun validate() {
+        validated.incrementAndGet()
+    }
+}
+
+private class SelfValidatingCommandMessage(
+    override val body: SelfValidatingCommand,
+    private val delegate: TestCommandMessage = TestCommandMessage(id = "self-validating-command"),
+) : CommandMessage<SelfValidatingCommand> {
+    override val id: String = delegate.id
+    override val requestId: String = delegate.requestId
+    override val header = delegate.header
+    override val aggregateId = testAggregateId()
+    override val aggregateVersion: Int? = delegate.aggregateVersion
+    override val isCreate: Boolean = delegate.isCreate
+    override val allowCreate: Boolean = delegate.allowCreate
+    override val isVoid: Boolean = delegate.isVoid
+    override val ownerId: String = delegate.ownerId
+    override val spaceId: String = delegate.spaceId
+    override val createTime: Long = delegate.createTime
+    override val contextName: String = aggregateId.contextName
+    override val aggregateName: String = aggregateId.aggregateName
+    override val name: String = "SelfValidatingCommand"
+
+    override fun copy(): CommandMessage<SelfValidatingCommand> =
+        SelfValidatingCommandMessage(
+            body = body,
+            delegate = delegate.copy(header = header.copy()),
+        )
 }

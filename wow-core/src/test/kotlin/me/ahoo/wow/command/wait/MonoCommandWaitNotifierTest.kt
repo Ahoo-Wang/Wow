@@ -15,7 +15,10 @@ package me.ahoo.wow.command.wait
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.messaging.function.FunctionKind
+import me.ahoo.wow.saga.stateless.DefaultCommandStream
+import me.ahoo.wow.saga.stateless.setCommandStream
 import org.junit.jupiter.api.Test
+import reactor.core.Exceptions
 import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
 
@@ -56,6 +59,17 @@ class MonoCommandWaitNotifierTest {
     }
 
     @Test
+    fun `source completes without notification when processing stage is not needed`() {
+        val notifier = RecordingCommandWaitNotifier()
+        val exchange = testCommandExchange(stage = CommandStage.PROCESSED)
+
+        StepVerifier.create(Mono.empty<Void>().thenNotifyAndForget(notifier, CommandStage.PROJECTED, exchange))
+            .verifyComplete()
+
+        notifier.notifications.assert().isEmpty()
+    }
+
+    @Test
     fun `source error emits failed signal and propagates error`() {
         val notifier = RecordingCommandWaitNotifier()
         val exchange = testCommandExchange(stage = CommandStage.PROCESSED)
@@ -67,6 +81,74 @@ class MonoCommandWaitNotifierTest {
 
         notifier.notifications.assert().hasSize(1)
         notifier.notifications.single().signal.succeeded.assert().isFalse()
+    }
+
+    @Test
+    fun `retry exhausted source error unwraps cause before notifying`() {
+        val notifier = RecordingCommandWaitNotifier()
+        val exchange = testCommandExchange(stage = CommandStage.PROCESSED)
+        val cause = IllegalStateException("boom")
+        val retryExhausted = Exceptions.retryExhausted("retries exhausted", cause)
+
+        StepVerifier.create(
+            Mono.error<Void>(retryExhausted).thenNotifyAndForget(
+                notifier,
+                CommandStage.PROCESSED,
+                exchange,
+            )
+        )
+            .expectErrorMatches { it === cause }
+            .verify()
+
+        notifier.notifications.assert().hasSize(1)
+        notifier.notifications.single().signal.errorMsg.assert().contains("boom")
+    }
+
+    @Test
+    fun `source completion emits exchange error when present`() {
+        val notifier = RecordingCommandWaitNotifier()
+        val exchange = testCommandExchange(stage = CommandStage.PROCESSED)
+        exchange.setError(IllegalStateException("handled failed"))
+
+        StepVerifier.create(Mono.empty<Void>().thenNotifyAndForget(notifier, CommandStage.PROCESSED, exchange))
+            .verifyComplete()
+
+        notifier.notifications.assert().hasSize(1)
+        notifier.notifications.single().signal.succeeded.assert().isFalse()
+        notifier.notifications.single().signal.errorMsg.assert().contains("handled failed")
+    }
+
+    @Test
+    fun `source completion uses unknown function when exchange function is absent`() {
+        val notifier = RecordingCommandWaitNotifier()
+        val exchange = testCommandExchange(stage = CommandStage.PROCESSED)
+
+        StepVerifier.create(Mono.empty<Void>().thenNotifyAndForget(notifier, CommandStage.PROCESSED, exchange))
+            .verifyComplete()
+
+        notifier.notifications.assert().hasSize(1)
+        val function = notifier.notifications.single().signal.function
+        function.functionKind.assert().isEqualTo(FunctionKind.ERROR)
+        function.contextName.assert().isEqualTo(exchange.message.contextName)
+    }
+
+    @Test
+    fun `saga handled source completion includes generated command ids`() {
+        val notifier = RecordingCommandWaitNotifier()
+        val exchange = testDomainEventExchange(stage = CommandStage.SAGA_HANDLED, function = testNamedFunction())
+        exchange.setFunction(testFunction())
+        exchange.setCommandStream(
+            DefaultCommandStream(
+                domainEventId = exchange.message.id,
+                commands = listOf(TestCommandMessage(id = "generated-command-id")),
+            )
+        )
+
+        StepVerifier.create(Mono.empty<Void>().thenNotifyAndForget(notifier, CommandStage.SAGA_HANDLED, exchange))
+            .verifyComplete()
+
+        notifier.notifications.assert().hasSize(1)
+        notifier.notifications.single().signal.commands.assert().containsExactly("generated-command-id")
     }
 
     @Test

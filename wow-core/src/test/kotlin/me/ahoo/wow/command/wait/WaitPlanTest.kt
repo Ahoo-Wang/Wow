@@ -17,6 +17,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.command.wait.chain.ChainWaitState
 import me.ahoo.wow.command.wait.chain.WaitingChainTail.Companion.toWaitingChainTail
 import me.ahoo.wow.command.wait.stage.StageWaitState
+import me.ahoo.wow.messaging.DefaultHeader
 import org.junit.jupiter.api.Test
 
 class WaitPlanTest {
@@ -74,6 +75,20 @@ class WaitPlanTest {
             .target.assert().isEqualTo(StageWaitTarget(CommandStage.SNAPSHOT))
         CommandWait.stage("wait-id", "snapshot")
             .target.assert().isEqualTo(StageWaitTarget(CommandStage.SNAPSHOT))
+    }
+
+    @Test
+    fun waitPlanShouldPropagateHeaders() {
+        val header = DefaultHeader.empty()
+        val endpoint = SimpleCommandWaitEndpoint(TEST_ENDPOINT)
+        val waitPlan: WaitPlan = CommandWait.projected("wait-id", TEST_CONTEXT, TEST_PROCESSOR, TEST_FUNCTION)
+
+        waitPlan.propagate(endpoint, header)
+
+        header[WAIT_COMMAND_ID].assert().isEqualTo("wait-id")
+        header[COMMAND_WAIT_ENDPOINT].assert().isEqualTo(TEST_ENDPOINT)
+        header[COMMAND_WAIT_STAGE].assert().isEqualTo(CommandStage.PROJECTED.name)
+        header.extractWaitFunction().assert().isEqualTo(testNamedFunction())
     }
 
     @Test
