@@ -60,9 +60,9 @@ internal object AggregateTracingReplay {
             eventStreams
                 .takeUntilTail(tracingRequest.tailVersion)
                 .handle<StateEvent<ObjectNode>> { eventStream, sink ->
-                    val stateEvent = replayState.source(eventStream)
+                    val stateAggregate = replayState.source(eventStream)
                     if (eventStream.version >= tracingRequest.emitHeadVersion) {
-                        sink.next(stateEvent)
+                        sink.next(toStateEvent(eventStream, stateAggregate))
                     }
                 }
         }
@@ -84,12 +84,12 @@ internal object AggregateTracingReplay {
             eventStreams
                 .takeUntilTail(tracingRequest.tailVersion)
                 .doOnNext { eventStream ->
-                    val stateEvent = replayState.source(eventStream)
+                    val stateAggregate = replayState.source(eventStream)
                     if (eventStream.version >= tracingRequest.emitHeadVersion) {
                         if (tailBuffer.size == limit) {
                             tailBuffer.removeFirst()
                         }
-                        tailBuffer.addLast(stateEvent)
+                        tailBuffer.addLast(toStateEvent(eventStream, stateAggregate))
                     }
                 }
                 .thenMany(Flux.defer { Flux.fromIterable(tailBuffer) })
@@ -108,14 +108,14 @@ internal object AggregateTracingReplay {
     ) {
         private var stateAggregate: StateAggregate<S>? = null
 
-        fun source(eventStream: DomainEventStream): StateEvent<ObjectNode> {
+        fun source(eventStream: DomainEventStream): StateAggregate<S> {
             val aggregate = stateAggregate ?: stateAggregateFactory
                 .create(stateAggregateMetadata, eventStream.aggregateId)
                 .also {
                     stateAggregate = it
                 }
             aggregate.onSourcing(eventStream)
-            return toStateEvent(eventStream, aggregate)
+            return aggregate
         }
     }
 

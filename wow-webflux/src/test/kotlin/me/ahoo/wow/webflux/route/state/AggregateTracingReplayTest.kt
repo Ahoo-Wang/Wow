@@ -14,6 +14,7 @@
 package me.ahoo.wow.webflux.route.state
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.example.api.cart.CartItem
@@ -23,6 +24,9 @@ import me.ahoo.wow.example.domain.cart.CartState
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
+import me.ahoo.wow.modeling.metadata.StateAggregateMetadata
+import me.ahoo.wow.modeling.state.StateAggregate
+import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.test.aggregate.GivenInitializationCommand
 import me.ahoo.wow.webflux.route.policy.TracingRequest
 import org.junit.jupiter.api.Test
@@ -72,6 +76,20 @@ class AggregateTracingReplayTest {
                     .itemProductIds()
                     .assert()
                     .isEqualTo(listOf("product-1", "product-2", "product-3"))
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `explicit range replay should not serialize sourced prefix states`() {
+        AggregateTracingReplay.trace(
+            stateAggregateMetadata = CART_AGGREGATE_METADATA.state,
+            stateAggregateFactory = PrefixStateSerializationGuardFactory(minSerializableVersion = 2),
+            eventStreams = Flux.fromIterable(cartEventStreams(eventCount = 2)),
+            tracingRequest = TracingRequest(headVersion = 2, tailVersion = 2, limit = null),
+        ).test()
+            .consumeNextWith {
+                it.state.assertJsonState().itemProductIds().assert().isEqualTo(listOf("product-1", "product-2"))
             }
             .verifyComplete()
     }
@@ -135,6 +153,39 @@ class AggregateTracingReplayTest {
             return (0 until items.size()).map { index ->
                 items[index]["productId"].asString()
             }
+        }
+    }
+
+    private class PrefixStateSerializationGuardFactory(
+        private val minSerializableVersion: Int,
+        private val delegate: StateAggregateFactory = ConstructorStateAggregateFactory
+    ) : StateAggregateFactory {
+        override fun <S : Any> create(
+            metadata: StateAggregateMetadata<S>,
+            aggregateId: AggregateId
+        ): StateAggregate<S> {
+            return PrefixStateSerializationGuard(
+                delegate = delegate.create(metadata, aggregateId),
+                minSerializableVersion = minSerializableVersion,
+            )
+        }
+    }
+
+    private class PrefixStateSerializationGuard<S : Any>(
+        private val delegate: StateAggregate<S>,
+        private val minSerializableVersion: Int
+    ) : StateAggregate<S> by delegate {
+        override val state: S
+            get() {
+                check(delegate.version >= minSerializableVersion) {
+                    "Prefix state should not be serialized."
+                }
+                return delegate.state
+            }
+
+        override fun onSourcing(eventStream: DomainEventStream): StateAggregate<S> {
+            delegate.onSourcing(eventStream)
+            return this
         }
     }
 }
