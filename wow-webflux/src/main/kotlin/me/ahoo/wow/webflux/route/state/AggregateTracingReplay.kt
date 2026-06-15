@@ -25,7 +25,7 @@ import reactor.core.publisher.Flux
 import tools.jackson.databind.node.ObjectNode
 import java.util.ArrayDeque
 
-internal object AggregateTracingReplay {
+object AggregateTracingReplay {
 
     fun <S : Any> trace(
         stateAggregateMetadata: StateAggregateMetadata<S>,
@@ -70,7 +70,7 @@ internal object AggregateTracingReplay {
         )
     }
 
-    fun <S : Any> trace(
+    internal fun <S : Any> trace(
         stateAggregateMetadata: StateAggregateMetadata<S>,
         stateAggregateFactory: StateAggregateFactory,
         eventStreams: Flux<DomainEventStream>,

@@ -38,21 +38,6 @@ class BatchRegenerateSnapshotHandlerFunction(
     private val exceptionHandler: RequestExceptionHandler,
     private val batchExecutionPolicy: BatchExecutionPolicy
 ) : HandlerFunction<ServerResponse> {
-    constructor(
-        aggregateMetadata: AggregateMetadata<*, *>,
-        stateAggregateFactory: StateAggregateFactory,
-        eventStore: EventStore,
-        snapshotRepository: SnapshotRepository,
-        exceptionHandler: RequestExceptionHandler
-    ) : this(
-        aggregateMetadata = aggregateMetadata,
-        stateAggregateFactory = stateAggregateFactory,
-        eventStore = eventStore,
-        snapshotRepository = snapshotRepository,
-        exceptionHandler = exceptionHandler,
-        batchExecutionPolicy = BatchExecutionPolicy(),
-    )
-
     private val handler = RegenerateSnapshotHandler(
         aggregateMetadata = aggregateMetadata,
         stateAggregateFactory = stateAggregateFactory,
@@ -82,19 +67,6 @@ class BatchRegenerateSnapshotHandlerFunctionFactory(
     private val exceptionHandler: RequestExceptionHandler,
     private val batchExecutionPolicy: BatchExecutionPolicy
 ) : RouteHandlerFunctionFactory<BatchRegenerateSnapshotRouteSpec> {
-    constructor(
-        stateAggregateFactory: StateAggregateFactory,
-        eventStore: EventStore,
-        snapshotRepository: SnapshotRepository,
-        exceptionHandler: RequestExceptionHandler
-    ) : this(
-        stateAggregateFactory = stateAggregateFactory,
-        eventStore = eventStore,
-        snapshotRepository = snapshotRepository,
-        exceptionHandler = exceptionHandler,
-        batchExecutionPolicy = BatchExecutionPolicy(),
-    )
-
     override val supportedSpec: Class<BatchRegenerateSnapshotRouteSpec>
         get() = BatchRegenerateSnapshotRouteSpec::class.java
 

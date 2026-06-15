@@ -46,7 +46,7 @@ import me.ahoo.wow.test.aggregate.whenCommand
 import me.ahoo.wow.test.aggregateVerifier
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteTestFixtures
-import me.ahoo.wow.webflux.route.state.AggregateTracingHandlerFunction.Companion.trace
+import me.ahoo.wow.webflux.route.policy.TracingPolicy
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest
@@ -64,7 +64,8 @@ class AggregateTracingHandlerFunctionTest {
         val eventStreams = cartEventStreams(eventCount = 3)
         val stateAggregateFactory = CountingStateAggregateFactory()
 
-        val tracedStates = CART_AGGREGATE_METADATA.state.trace(
+        val tracedStates = AggregateTracingReplay.trace(
+            stateAggregateMetadata = CART_AGGREGATE_METADATA.state,
             stateAggregateFactory = stateAggregateFactory,
             eventStreams = eventStreams,
         )
@@ -83,7 +84,8 @@ class AggregateTracingHandlerFunctionTest {
 
     @Test
     fun `trace should serialize json snapshot state with existing response shape`() {
-        val tracedStates = CART_AGGREGATE_METADATA.state.trace(
+        val tracedStates = AggregateTracingReplay.trace(
+            stateAggregateMetadata = CART_AGGREGATE_METADATA.state,
             stateAggregateFactory = ConstructorStateAggregateFactory,
             eventStreams = cartEventStreams(eventCount = 2),
         )
@@ -98,7 +100,8 @@ class AggregateTracingHandlerFunctionTest {
     fun `windowed trace should replay prefix and emit only requested versions`() {
         val eventStreams = cartEventStreams(eventCount = 3)
 
-        CART_AGGREGATE_METADATA.state.trace(
+        AggregateTracingReplay.trace(
+            stateAggregateMetadata = CART_AGGREGATE_METADATA.state,
             stateAggregateFactory = ConstructorStateAggregateFactory,
             eventStreams = eventStreams,
             emitHeadVersion = 2,
@@ -133,7 +136,8 @@ class AggregateTracingHandlerFunctionTest {
         val handlerFunction = AggregateTracingHandlerFunctionFactory(
             ConstructorStateAggregateFactory,
             eventStore,
-            WebFluxRequestExceptionHandler()
+            WebFluxRequestExceptionHandler(),
+            TracingPolicy(),
         )
             .create(
                 AggregateTracingRouteSpec(
@@ -168,7 +172,8 @@ class AggregateTracingHandlerFunctionTest {
         val handlerFunction = AggregateTracingHandlerFunctionFactory(
             ConstructorStateAggregateFactory,
             eventStore,
-            WebFluxRequestExceptionHandler()
+            WebFluxRequestExceptionHandler(),
+            TracingPolicy(),
         ).create(
             AggregateTracingRouteSpec(
                 MOCK_AGGREGATE_METADATA,
