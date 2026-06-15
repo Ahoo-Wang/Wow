@@ -36,15 +36,8 @@ import me.ahoo.wow.webflux.route.command.extractor.DefaultCommandMessageExtracto
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpMethod
 import org.springframework.http.MediaType
-import org.springframework.http.codec.HttpMessageWriter
-import org.springframework.http.codec.ServerSentEventHttpMessageWriter
-import org.springframework.mock.http.server.reactive.MockServerHttpRequest
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
-import org.springframework.mock.web.server.MockServerWebExchange
-import org.springframework.web.reactive.function.server.HandlerStrategies
 import org.springframework.web.reactive.function.server.ServerRequest
-import org.springframework.web.reactive.function.server.ServerResponse
-import org.springframework.web.reactive.result.view.ViewResolver
 import reactor.kotlin.core.publisher.toMono
 
 internal object WebFluxBenchmarkSupport {
@@ -57,28 +50,6 @@ internal object WebFluxBenchmarkSupport {
         ),
         DefaultCommandBuilderExtractor,
     )
-
-    val sseResponseContext: ServerResponse.Context = object : ServerResponse.Context {
-        override fun messageWriters(): List<HttpMessageWriter<*>> {
-            return listOf(ServerSentEventHttpMessageWriter())
-        }
-
-        override fun viewResolvers(): List<ViewResolver> {
-            return emptyList()
-        }
-    }
-
-    val jsonResponseContext: ServerResponse.Context = object : ServerResponse.Context {
-        private val strategies = HandlerStrategies.withDefaults()
-
-        override fun messageWriters(): List<HttpMessageWriter<*>> {
-            return strategies.messageWriters()
-        }
-
-        override fun viewResolvers(): List<ViewResolver> {
-            return strategies.viewResolvers()
-        }
-    }
 
     fun addCartItemCommandBody(): AddCartItem {
         return AddCartItem(productId = "productId", quantity = 1)
@@ -102,16 +73,6 @@ internal object WebFluxBenchmarkSupport {
         return MockServerRequest.builder()
             .header(HttpHeaders.ACCEPT, MediaType.TEXT_EVENT_STREAM_VALUE)
             .build()
-    }
-
-    fun sseExchange(): MockServerWebExchange {
-        val request = MockServerHttpRequest.get("/benchmark-webflux-sse").build()
-        return MockServerWebExchange.builder(request).build()
-    }
-
-    fun jsonExchange(): MockServerWebExchange {
-        val request = MockServerHttpRequest.get("/benchmark-webflux-json").build()
-        return MockServerWebExchange.builder(request).build()
     }
 
     fun commandResult(commandMessage: CommandMessage<*> = BenchmarkCommands.fixedAggregateAddCartItem()): CommandResult {

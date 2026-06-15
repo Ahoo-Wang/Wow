@@ -43,7 +43,13 @@ data class BenchmarkRunProfile(
     val forks: Int,
     val threads: List<Int>,
     val benchmarkModes: List<String>,
-    val includeProfilers: Boolean,
+    val includeGcProfiler: Boolean,
+    val includeAsyncProfiler: Boolean,
+)
+
+data class BenchmarkReportSpec(
+    val suite: BenchmarkSuite,
+    val profile: BenchmarkRunProfile,
 )
 
 fun benchmarkThreadsProperty(propertyName: String, defaultThreads: List<Int>): List<Int> {
@@ -79,7 +85,8 @@ val smokeProfile = BenchmarkRunProfile(
     forks = 1,
     threads = listOf(1),
     benchmarkModes = listOf("thrpt"),
-    includeProfilers = false,
+    includeGcProfiler = false,
+    includeAsyncProfiler = false,
 )
 
 val quickProfile = BenchmarkRunProfile(
@@ -91,7 +98,21 @@ val quickProfile = BenchmarkRunProfile(
     forks = 1,
     threads = benchmarkThreadsProperty("benchmarkQuickThreads", listOf(1, 4)),
     benchmarkModes = listOf("thrpt", "avgt"),
-    includeProfilers = true,
+    includeGcProfiler = true,
+    includeAsyncProfiler = true,
+)
+
+val quickWebFluxProfile = BenchmarkRunProfile(
+    id = "quick",
+    warmupIterations = 0,
+    warmupTime = null,
+    measurementIterations = 1,
+    measurementTime = "2s",
+    forks = 1,
+    threads = benchmarkThreadsProperty("benchmarkQuickWebFluxThreads", listOf(1, 4)),
+    benchmarkModes = listOf("thrpt"),
+    includeGcProfiler = true,
+    includeAsyncProfiler = false,
 )
 
 val fullProfile = BenchmarkRunProfile(
@@ -103,7 +124,8 @@ val fullProfile = BenchmarkRunProfile(
     forks = 3,
     threads = benchmarkThreadsProperty("benchmarkThreads", listOf(1, 2, 4, 8)),
     benchmarkModes = listOf("thrpt", "avgt"),
-    includeProfilers = true,
+    includeGcProfiler = true,
+    includeAsyncProfiler = true,
 )
 
 val smokeSuite = BenchmarkSuite(
@@ -194,7 +216,26 @@ val webFluxSuite = BenchmarkSuite(
     performanceConclusionSource = false,
 )
 
+val quickWebFluxSuite = webFluxSuite.copy(
+    includeClasses = listOf(
+        "me.ahoo.wow.benchmark.webflux.CommandHandlerFunctionBenchmark.extractPreparedCommandMessage",
+        "me.ahoo.wow.benchmark.webflux.CommandHandlerFunctionBenchmark.sendWaitSentCoreFromExtractedMessage",
+        "me.ahoo.wow.benchmark.webflux.CommandHandlerFunctionBenchmark.commandResultJsonServerResponseOnly",
+        "me.ahoo.wow.benchmark.webflux.CommandHandlerFunctionBenchmark.handlePreparedAddCartItemRequestWaitSent",
+        "me.ahoo.wow.benchmark.webflux.WebFluxResponseBenchmark.commandResultSseServerResponseOnly",
+        "me.ahoo.wow.benchmark.webflux.WebFluxResponseBenchmark.fluxJsonStreamingArrayServerResponseOnly",
+        "me.ahoo.wow.benchmark.webflux.AggregateTracingBenchmark.traceAndSerializeCartHistory",
+        "me.ahoo.wow.benchmark.webflux.AggregateTracingBenchmark.traceWindowWithPrefixReplayAndSerialize",
+    )
+)
+
 val reportSuites = listOf(frameworkE2ESuite, infrastructureE2ESuite, componentSuite, webFluxSuite)
+val quickReportSpecs = listOf(
+    BenchmarkReportSpec(frameworkE2ESuite, quickProfile),
+    BenchmarkReportSpec(infrastructureE2ESuite, quickProfile),
+    BenchmarkReportSpec(componentSuite, quickProfile),
+    BenchmarkReportSpec(quickWebFluxSuite, quickWebFluxProfile),
+)
 
 val benchmarkJvmArgs = listOf(
     "-Xmx4g",
@@ -209,19 +250,23 @@ fun benchmarkIncludePattern(includes: List<String>): String {
     return includes.joinToString("|") { Regex.escape(it) + ".*" }
 }
 
-fun benchmarkProfilerArgs(includeProfilers: Boolean): List<String> {
-    if (!includeProfilers) {
+fun benchmarkProfilerArgs(includeGcProfiler: Boolean, includeAsyncProfiler: Boolean): List<String> {
+    if (!includeGcProfiler && !includeAsyncProfiler) {
         return emptyList()
     }
     val asyncProfilerLib = file("/opt/async-profiler/lib/libasyncProfiler.dylib")
     return buildList {
-        add("-prof")
-        add("gc")
-        add("-prof")
-        if (asyncProfilerLib.exists()) {
-            add("async:output=flamegraph;dir=build/profiling;event=cpu;libPath=${asyncProfilerLib.absolutePath}")
-        } else {
-            add("stack:lines=10;top=20")
+        if (includeGcProfiler) {
+            add("-prof")
+            add("gc")
+        }
+        if (includeAsyncProfiler) {
+            add("-prof")
+            if (asyncProfilerLib.exists()) {
+                add("async:output=flamegraph;dir=build/profiling;event=cpu;libPath=${asyncProfilerLib.absolutePath}")
+            } else {
+                add("stack:lines=10;top=20")
+            }
         }
     }
 }
@@ -268,8 +313,17 @@ fun BenchmarkRunProfile.configSummary(): String {
     } else {
         "warmup=${warmupIterations}x$warmupTime"
     }
+    val profilers = buildList {
+        if (includeGcProfiler) {
+            add("gc")
+        }
+        if (includeAsyncProfiler) {
+            add("async")
+        }
+    }.ifEmpty { listOf("none") }
     return "$warmup, measurement=${measurementIterations}x$measurementTime, " +
-        "fork=$forks, threads=${threads.joinToString(",")}, modes=${benchmarkModes.joinToString(",")}"
+        "fork=$forks, threads=${threads.joinToString(",")}, modes=${benchmarkModes.joinToString(",")}, " +
+        "profilers=${profilers.joinToString(",")}"
 }
 
 fun reportDateTime(): String {
@@ -307,7 +361,7 @@ fun benchmarkReportPath(file: File): String {
 
 fun StringBuilder.appendBenchmarkEnvironment(
     version: String,
-    profile: BenchmarkRunProfile,
+    profile: BenchmarkRunProfile?,
 ) {
     appendLine("## Environment")
     appendLine("- **Version**: $version")
@@ -317,7 +371,9 @@ fun StringBuilder.appendBenchmarkEnvironment(
     appendLine("- **CPU Cores**: ${Runtime.getRuntime().availableProcessors()}")
     appendLine("- **Physical Memory**: ${formatMemoryBytes(physicalMemoryBytes())}")
     appendLine("- **Benchmark JVM Args**: `${benchmarkJvmArgs.joinToString(" ")}`")
-    appendLine("- **JMH Config**: ${profile.configSummary()}")
+    if (profile != null) {
+        appendLine("- **JMH Config**: ${profile.configSummary()}")
+    }
     appendLine()
 }
 
@@ -391,7 +447,7 @@ fun registerBenchmarkThreadTask(
             add(benchmarkJvmArgs.joinToString(" "))
         }
         args(jmhArgs)
-        args(benchmarkProfilerArgs(profile.includeProfilers))
+        args(benchmarkProfilerArgs(profile.includeGcProfiler, profile.includeAsyncProfiler))
 
         outputs.file(resultFile)
         outputs.file(humanFile)
@@ -433,7 +489,7 @@ registerBenchmarkAggregateTask("benchmarkQuickInfrastructureE2E", infrastructure
 registerBenchmarkAggregateTask("benchmarkFullInfrastructureE2E", infrastructureE2ESuite, fullProfile)
 registerBenchmarkAggregateTask("benchmarkQuickComponent", componentSuite, quickProfile)
 registerBenchmarkAggregateTask("benchmarkFullComponent", componentSuite, fullProfile)
-registerBenchmarkAggregateTask("benchmarkQuickWebFlux", webFluxSuite, quickProfile)
+registerBenchmarkAggregateTask("benchmarkQuickWebFlux", quickWebFluxSuite, quickWebFluxProfile)
 registerBenchmarkAggregateTask("benchmarkFullWebFlux", webFluxSuite, fullProfile)
 
 tasks.named("jmh") {
@@ -447,6 +503,7 @@ val frameworkE2EBaselineJson = resultsDir.file("baselines/framework-e2e.json")
 val reportsDir = resultsDir.dir("reports")
 val benchmarkReportFile = reportsDir.file("quick-framework-e2e.md")
 val infrastructureBenchmarkReportFile = reportsDir.file("quick-infrastructure-e2e.md")
+val webFluxBenchmarkReportFile = reportsDir.file("quick-webflux.md")
 val groupedBenchmarkReport = reportsDir.file("full-grouped.md")
 val quickGroupedBenchmarkReport = reportsDir.file("quick-grouped.md")
 
@@ -778,12 +835,13 @@ fun renderGroupedBenchmarkReport(
     version: String,
 ): String {
     val parser = JsonSlurper()
-    val reportProfiles = groups.map { it.profile }.distinctBy { it.id }
-    if (reportProfiles.size != 1) {
-        throw GradleException("Grouped benchmark report requires one run profile, found: ${reportProfiles.map { it.id }}")
+    val reportProfileIds = groups.map { it.profile.id }.distinct()
+    if (reportProfileIds.size != 1) {
+        throw GradleException("Grouped benchmark report requires one run profile id, found: $reportProfileIds")
     }
-    val reportProfile = reportProfiles.single()
+    val reportProfile = groups.first().profile
     val reportLabel = reportProfile.reportLabel()
+    val reportProfileConfigs = groups.map { it.profile.configSummary() }.distinct()
     val parsedGroups = groups.map { parseBenchmarkGroup(parser, it) }
     val allRows = parsedGroups.flatMap { it.rows }
     val frameworkRows = parsedGroups
@@ -824,7 +882,18 @@ fun renderGroupedBenchmarkReport(
     sb.appendLine("- Component results explain bottlenecks and are not standalone performance goals.")
     sb.appendLine("- Smoke results are excluded from performance reports.")
     sb.appendLine()
-    sb.appendBenchmarkEnvironment(version, reportProfile)
+    sb.appendBenchmarkEnvironment(
+        version = version,
+        profile = reportProfile.takeIf { reportProfileConfigs.size == 1 },
+    )
+    if (reportProfileConfigs.size > 1) {
+        sb.appendLine("## Run Profiles")
+        sb.appendLine()
+        groups.forEach { group ->
+            sb.appendLine("- **${group.suite.displayName}**: ${group.profile.configSummary()}")
+        }
+        sb.appendLine()
+    }
     if (frameworkRows.isNotEmpty()) {
         sb.appendLine("## Framework E2E Bottlenecks")
         sb.appendLine()
@@ -891,6 +960,7 @@ fun renderGroupedBenchmarkReport(
         sb.appendLine("## ${group.suite.displayName} Results")
         sb.appendLine()
         sb.appendLine("- **Command**: `./gradlew :wow-benchmarks:${group.suite.taskName(group.profile)}`")
+        sb.appendLine("- **JMH Config**: ${group.profile.configSummary()}")
         val performanceConclusionSource = group.profile.id == fullProfile.id && group.suite.performanceConclusionSource
         sb.appendLine("- **Performance Conclusion Source**: ${if (performanceConclusionSource) "yes" else "no"}")
         sb.appendLine("- **Source Row Count**: ${groupReport.sourceRowCount}")
@@ -938,6 +1008,56 @@ fun renderSingleBenchmarkReport(
     sb.appendLine(description)
     sb.appendLine()
     sb.appendBenchmarkEnvironment(project.version.toString(), group.profile)
+    sb.appendLine("## Results")
+    sb.appendLine()
+    sb.appendBenchmarkTable(groupReport.rows)
+    return sb.toString()
+}
+
+fun renderBottleneckBenchmarkReport(
+    group: BenchmarkResultGroup,
+    title: String,
+    command: String,
+    description: String,
+): String {
+    val groupReport = parseBenchmarkGroup(JsonSlurper(), group)
+    if (groupReport.rows.isEmpty()) {
+        throw GradleException(
+            "No benchmark rows were available for ${group.suite.displayName}. " +
+                "Run ${group.suite.taskName(group.profile)} first."
+        )
+    }
+    val sb = StringBuilder()
+    sb.appendLine("<!--")
+    sb.appendLine("  This file is auto-generated by `$command`.")
+    sb.appendLine("  Do not manually edit benchmark results.")
+    sb.appendLine("-->")
+    sb.appendLine()
+    sb.appendLine("# $title")
+    sb.appendLine()
+    sb.appendLine(description)
+    sb.appendLine()
+    sb.appendBenchmarkEnvironment(project.version.toString(), group.profile)
+    sb.appendLine("## Source Files")
+    sb.appendLine()
+    group.resultFiles.forEach { resultFile ->
+        val file = resultFile.resultFile.get().asFile
+        sb.appendLine("- **threads=${resultFile.threads} Result File**: `${benchmarkReportPath(file)}`")
+        if (file.exists()) {
+            sb.appendLine("  - Last Modified: ${Instant.ofEpochMilli(file.lastModified())}")
+        }
+    }
+    sb.appendLine()
+    sb.appendLine("## Bottlenecks")
+    sb.appendLine()
+    sb.appendLine("### Lowest Throughput")
+    sb.appendLine()
+    sb.appendThroughputBottlenecks(groupReport.rows)
+    sb.appendLine()
+    sb.appendLine("### Highest Allocation")
+    sb.appendLine()
+    sb.appendAllocationBottlenecks(groupReport.rows)
+    sb.appendLine()
     sb.appendLine("## Results")
     sb.appendLine()
     sb.appendBenchmarkTable(groupReport.rows)
@@ -993,6 +1113,32 @@ tasks.register("generateInfrastructureBenchmarkReport") {
     }
 }
 
+tasks.register("generateQuickWebFluxBenchmarkReport") {
+    description = "Generate quick WebFlux benchmark report from JMH JSON results."
+    group = "benchmark"
+    mustRunAfter("benchmarkQuickWebFlux")
+    outputs.file(webFluxBenchmarkReportFile)
+    outputs.upToDateWhen { false }
+
+    doLast {
+        val report = renderBottleneckBenchmarkReport(
+            group = benchmarkResultGroup(quickWebFluxSuite, quickWebFluxProfile),
+            title = "Quick WebFlux Benchmark Report",
+            command = "./gradlew :wow-benchmarks:benchmarkQuickWebFlux " +
+                ":wow-benchmarks:generateQuickWebFluxBenchmarkReport",
+            description = "Quick WebFlux results are short-loop local feedback for command dispatch, " +
+                "response construction, and aggregate tracing hotspots. The profile keeps the JMH GC profiler " +
+                "so gc.alloc.rate.norm remains available, but skips async profiler flamegraphs; " +
+                "run Full WebFlux for the complete benchmark matrix.",
+        )
+
+        val outputFile = webFluxBenchmarkReportFile.asFile
+        outputFile.parentFile.mkdirs()
+        outputFile.writeText(report)
+        logger.lifecycle("Quick WebFlux benchmark report generated: ${outputFile.absolutePath}")
+    }
+}
+
 tasks.register("generateGroupedBenchmarkReport") {
     description = "Generate full grouped E2E and component benchmark reports from JMH JSON results."
     group = "benchmark"
@@ -1022,7 +1168,7 @@ tasks.register("generateQuickBenchmarkReport") {
         val outputFile = quickGroupedBenchmarkReport.asFile
         outputFile.delete()
         val report = renderGroupedBenchmarkReport(
-            groups = reportSuites.map { benchmarkResultGroup(it, quickProfile) },
+            groups = quickReportSpecs.map { benchmarkResultGroup(it.suite, it.profile) },
             version = project.version.toString(),
         )
         outputFile.parentFile.mkdirs()

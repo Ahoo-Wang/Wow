@@ -174,7 +174,7 @@ open class AggregateTracingBenchmark {
     }
 
     @Benchmark
-    fun suffixTraceWindowOnly(blackhole: Blackhole) {
+    fun traceStandaloneWindowOnly(blackhole: Blackhole) {
         val tracedStates = AggregateTracingReplay.trace(
             stateAggregateMetadata = BenchmarkAggregates.cartMetadata.state,
             stateAggregateFactory = ConstructorStateAggregateFactory,
@@ -184,22 +184,22 @@ open class AggregateTracingBenchmark {
     }
 
     @Benchmark
-    fun prefixReplayWindowedTraceCartHistory(blackhole: Blackhole) {
+    fun traceWindowWithPrefixReplayOnly(blackhole: Blackhole) {
         blackhole.consume(traceWindowedOutput())
     }
 
     @Benchmark
-    fun prefixReplayWindowedTraceAndSerialize(blackhole: Blackhole) {
+    fun traceWindowWithPrefixReplayAndSerialize(blackhole: Blackhole) {
         blackhole.consume(traceWindowedOutputToJsonString())
     }
 
     @Benchmark
-    fun directSerializeTraceCartHistory(blackhole: Blackhole) {
+    fun manualStreamingTraceAndSerializeCartHistory(blackhole: Blackhole) {
         blackhole.consume(traceFullOutputToJsonString())
     }
 
     @Benchmark
-    fun traceCartHistory(blackhole: Blackhole) {
+    fun traceCartHistoryOnly(blackhole: Blackhole) {
         val tracedStates = AggregateTracingReplay.trace(
             stateAggregateMetadata = BenchmarkAggregates.cartMetadata.state,
             stateAggregateFactory = ConstructorStateAggregateFactory,

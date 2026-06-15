@@ -26,7 +26,7 @@ open class WebFluxSmokeBenchmark {
     private val request = WebFluxBenchmarkSupport.jsonRequest()
 
     @Benchmark
-    fun monoCommandResultResponse(blackhole: Blackhole) {
+    fun monoCommandResultServerResponseOnly(blackhole: Blackhole) {
         val response = WebFluxBenchmarkSupport.commandResult()
             .toMono()
             .toServerResponse(request, WebFluxRequestExceptionHandler())

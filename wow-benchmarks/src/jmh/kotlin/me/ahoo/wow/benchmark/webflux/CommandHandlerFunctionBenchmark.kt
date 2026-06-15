@@ -16,6 +16,7 @@ package me.ahoo.wow.benchmark.webflux
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.benchmark.scenario.CommandGatewayScenario
 import me.ahoo.wow.command.CommandResult
+import me.ahoo.wow.command.SimpleCommandMessage
 import me.ahoo.wow.command.wait.CommandWait
 import me.ahoo.wow.example.api.cart.AddCartItem
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
@@ -33,6 +34,7 @@ import org.openjdk.jmh.infra.Blackhole
 import org.springframework.http.HttpStatus
 import reactor.core.publisher.Flux
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
 
 @State(Scope.Benchmark)
 open class CommandHandlerFunctionBenchmark {
@@ -40,13 +42,16 @@ open class CommandHandlerFunctionBenchmark {
     private lateinit var handlerFunction: CommandHandlerFunction
     private lateinit var preparedRequest: org.springframework.web.reactive.function.server.ServerRequest
     private lateinit var preparedCommandBody: AddCartItem
-    private lateinit var preparedCommandMessage: CommandMessage<Any>
+    private lateinit var preparedCommandMessage: SimpleCommandMessage<Any>
     private lateinit var preparedCommandResult: CommandResult
+    private val commandSequence = AtomicLong()
     private val failures = AtomicInteger()
 
     @Setup(Level.Iteration)
+    @Suppress("UNCHECKED_CAST")
     fun setup() {
         failures.set(0)
+        commandSequence.set(0)
         gatewayScenario = CommandGatewayScenario.create(subscribeToCart = false)
         handlerFunction = CommandHandlerFunction(
             aggregateRouteMetadata = WebFluxBenchmarkSupport.cartAggregateRouteMetadata,
@@ -62,7 +67,7 @@ open class CommandHandlerFunctionBenchmark {
             aggregateRouteMetadata = WebFluxBenchmarkSupport.cartAggregateRouteMetadata,
             commandBody = preparedCommandBody,
             request = preparedRequest,
-        ).block()!!
+        ).block()!! as SimpleCommandMessage<Any>
         preparedCommandResult = WebFluxBenchmarkSupport.commandResult(preparedCommandMessage)
     }
 
@@ -81,12 +86,7 @@ open class CommandHandlerFunctionBenchmark {
     }
 
     @Benchmark
-    fun buildAddCartItemRequest(blackhole: Blackhole) {
-        blackhole.consume(WebFluxBenchmarkSupport.addCartItemRequest())
-    }
-
-    @Benchmark
-    fun extractCommandMessage(blackhole: Blackhole) {
+    fun extractPreparedCommandMessage(blackhole: Blackhole) {
         val commandMessage = WebFluxBenchmarkSupport.commandMessageExtractor.extract(
             aggregateRouteMetadata = WebFluxBenchmarkSupport.cartAggregateRouteMetadata,
             commandBody = preparedCommandBody,
@@ -97,8 +97,7 @@ open class CommandHandlerFunctionBenchmark {
 
     @Benchmark
     fun sendWaitSentCoreFromExtractedMessage(blackhole: Blackhole) {
-        // The in-memory bus marks sent messages read-only, so each send needs a mutable header copy.
-        val commandMessage = preparedCommandMessage.copy()
+        val commandMessage = nextPreparedCommandMessage()
         val result = gatewayScenario.commandGateway
             .sendAndWait(
                 command = commandMessage,
@@ -108,8 +107,18 @@ open class CommandHandlerFunctionBenchmark {
         blackhole.consume(result)
     }
 
+    private fun nextPreparedCommandMessage(): CommandMessage<Any> {
+        val commandId = "${preparedCommandMessage.commandId}-${commandSequence.incrementAndGet()}"
+        return preparedCommandMessage.copy(
+            id = commandId,
+            requestId = commandId,
+            // The in-memory bus marks sent messages read-only, so each send needs a mutable header copy.
+            header = preparedCommandMessage.header.copy(),
+        )
+    }
+
     @Benchmark
-    fun commandResultJsonResponse(blackhole: Blackhole) {
+    fun commandResultJsonServerResponseOnly(blackhole: Blackhole) {
         val response = Flux.just(preparedCommandResult)
             .toCommandResponse(preparedRequest, WebFluxRequestExceptionHandler())
             .block()
@@ -117,9 +126,16 @@ open class CommandHandlerFunctionBenchmark {
     }
 
     @Benchmark
-    fun postAddCartItemWaitSent(blackhole: Blackhole) {
+    fun handlePreparedAddCartItemRequestWaitSent(blackhole: Blackhole) {
+        handleAddCartItemRequest(preparedRequest, blackhole)
+    }
+
+    private fun handleAddCartItemRequest(
+        request: org.springframework.web.reactive.function.server.ServerRequest,
+        blackhole: Blackhole,
+    ) {
         val response = runCatching {
-            handlerFunction.handle(WebFluxBenchmarkSupport.addCartItemRequest()).block()
+            handlerFunction.handle(request).block()
         }.onFailure {
             failures.incrementAndGet()
         }.getOrNull()
