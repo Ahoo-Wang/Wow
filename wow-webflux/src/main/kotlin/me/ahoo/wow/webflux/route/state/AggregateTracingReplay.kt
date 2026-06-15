@@ -30,6 +30,49 @@ internal object AggregateTracingReplay {
     fun <S : Any> trace(
         stateAggregateMetadata: StateAggregateMetadata<S>,
         stateAggregateFactory: StateAggregateFactory,
+        eventStreams: List<DomainEventStream>
+    ): List<StateEvent<ObjectNode>> {
+        if (eventStreams.isEmpty()) {
+            return listOf()
+        }
+        val replayState = ReplayState(stateAggregateMetadata, stateAggregateFactory)
+        return eventStreams.map { eventStream ->
+            val stateAggregate = replayState.source(eventStream)
+            toStateEvent(eventStream, stateAggregate)
+        }
+    }
+
+    fun <S : Any> trace(
+        stateAggregateMetadata: StateAggregateMetadata<S>,
+        stateAggregateFactory: StateAggregateFactory,
+        eventStreams: List<DomainEventStream>,
+        emitHeadVersion: Int,
+        tailVersion: Int
+    ): Flux<StateEvent<ObjectNode>> {
+        require(emitHeadVersion > 0) {
+            "emitHeadVersion must be greater than 0."
+        }
+        require(tailVersion >= 0) {
+            "tailVersion must be greater than or equal to 0."
+        }
+        if (eventStreams.isEmpty() || tailVersion < emitHeadVersion) {
+            return Flux.empty()
+        }
+        return trace(
+            stateAggregateMetadata = stateAggregateMetadata,
+            stateAggregateFactory = stateAggregateFactory,
+            eventStreams = Flux.fromIterable(eventStreams),
+            tracingRequest = TracingRequest(
+                headVersion = emitHeadVersion,
+                tailVersion = tailVersion,
+                limit = null,
+            ),
+        )
+    }
+
+    fun <S : Any> trace(
+        stateAggregateMetadata: StateAggregateMetadata<S>,
+        stateAggregateFactory: StateAggregateFactory,
         eventStreams: Flux<DomainEventStream>,
         tracingRequest: TracingRequest
     ): Flux<StateEvent<ObjectNode>> {
