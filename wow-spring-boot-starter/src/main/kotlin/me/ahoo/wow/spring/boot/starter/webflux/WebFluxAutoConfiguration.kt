@@ -57,6 +57,7 @@ import me.ahoo.wow.webflux.route.event.state.ResendStateEventFunctionFactory
 import me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.global.GetWowMetadataHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.global.GlobalIdHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.policy.BatchExecutionPolicy
 import me.ahoo.wow.webflux.route.query.DefaultRewriteRequestCondition
 import me.ahoo.wow.webflux.route.query.RewriteRequestCondition
 import me.ahoo.wow.webflux.route.snapshot.BatchRegenerateSnapshotHandlerFunctionFactory
@@ -148,6 +149,15 @@ class WebFluxAutoConfiguration {
     @ConditionalOnMissingBean
     fun exceptionHandler(errorStrategy: WebFluxErrorStrategy): RequestExceptionHandler {
         return WebFluxRequestExceptionHandler(errorStrategy)
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    fun batchExecutionPolicy(webFluxProperties: WebFluxProperties): BatchExecutionPolicy {
+        return BatchExecutionPolicy(
+            concurrency = webFluxProperties.batch.concurrency,
+            prefetch = webFluxProperties.batch.prefetch,
+        )
     }
 
     @Bean
@@ -427,13 +437,15 @@ class WebFluxAutoConfiguration {
         stateAggregateFactory: StateAggregateFactory,
         eventStore: EventStore,
         snapshotRepository: SnapshotRepository,
-        exceptionHandler: RequestExceptionHandler
+        exceptionHandler: RequestExceptionHandler,
+        batchExecutionPolicy: BatchExecutionPolicy
     ): BatchRegenerateSnapshotHandlerFunctionFactory {
         return BatchRegenerateSnapshotHandlerFunctionFactory(
             stateAggregateFactory = stateAggregateFactory,
             eventStore = eventStore,
             snapshotRepository = snapshotRepository,
-            exceptionHandler = exceptionHandler
+            exceptionHandler = exceptionHandler,
+            batchExecutionPolicy = batchExecutionPolicy
         )
     }
 
@@ -443,12 +455,14 @@ class WebFluxAutoConfiguration {
     fun resendStateEventFunctionFactory(
         snapshotRepository: SnapshotRepository,
         stateEventCompensator: StateEventCompensator,
-        exceptionHandler: RequestExceptionHandler
+        exceptionHandler: RequestExceptionHandler,
+        batchExecutionPolicy: BatchExecutionPolicy
     ): ResendStateEventFunctionFactory {
         return ResendStateEventFunctionFactory(
             snapshotRepository = snapshotRepository,
             stateEventCompensator = stateEventCompensator,
-            exceptionHandler = exceptionHandler
+            exceptionHandler = exceptionHandler,
+            batchExecutionPolicy = batchExecutionPolicy
         )
     }
 

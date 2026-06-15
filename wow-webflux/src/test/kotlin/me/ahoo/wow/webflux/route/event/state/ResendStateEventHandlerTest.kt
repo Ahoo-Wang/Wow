@@ -29,6 +29,7 @@ import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockAggregateCreated
 import me.ahoo.wow.tck.mock.MockCreateAggregate
 import me.ahoo.wow.tck.mock.MockStateAggregate
+import me.ahoo.wow.webflux.route.policy.BatchExecutionPolicy
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
 import java.time.Clock
@@ -62,7 +63,8 @@ class ResendStateEventHandlerTest {
                 stateAggregateFactory = ConstructorStateAggregateFactory,
                 eventStore = eventStore,
                 stateEventBus = InMemoryStateEventBus(),
-            )
+            ),
+            batchExecutionPolicy = BatchExecutionPolicy(),
         )
         handlerFunction.handle("(0)", 10)
             .test()

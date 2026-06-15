@@ -47,6 +47,7 @@ import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.exception.WebFluxErrorStrategy
 import me.ahoo.wow.webflux.route.command.appender.CommandRequestRemoteIpHeaderAppender
 import me.ahoo.wow.webflux.route.command.appender.CommandRequestUserAgentHeaderAppender
+import me.ahoo.wow.webflux.route.policy.BatchExecutionPolicy
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
@@ -93,6 +94,51 @@ internal class WebFluxAutoConfigurationTest {
                     .hasBean("commandRouterFunction")
                     .hasSingleBean(WebFluxErrorStrategy::class.java)
                     .hasSingleBean(RequestExceptionHandler::class.java)
+                    .hasSingleBean(BatchExecutionPolicy::class.java)
+                    .hasSingleBean(WebFluxProperties::class.java)
+                val batchExecutionPolicy = context.getBean(BatchExecutionPolicy::class.java)
+                batchExecutionPolicy.concurrency.assert().isOne()
+                batchExecutionPolicy.prefetch.assert().isOne()
+            }
+    }
+
+    @Test
+    fun `should bind batch execution policy properties`() {
+        contextRunner
+            .enableWow()
+            .withPropertyValues(
+                "${WebFluxProperties.PREFIX}.batch.concurrency=4",
+                "${WebFluxProperties.PREFIX}.batch.prefetch=8",
+            )
+            .withBean(CommandWaitNotifier::class.java, { mockk() })
+            .withBean(CommandGateway::class.java, { SagaVerifier.defaultCommandGateway() })
+            .withBean(StateAggregateFactory::class.java, { ConstructorStateAggregateFactory })
+            .withBean(SnapshotRepository::class.java, { NoOpSnapshotRepository })
+            .withBean(EventStore::class.java, { InMemoryEventStore() })
+            .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
+            .withBean(StateEventCompensator::class.java, { mockk() })
+            .withBean(EventCompensateSupporter::class.java, { mockk() })
+            .withBean(SnapshotQueryHandler::class.java, { spyk<SnapshotQueryHandler>() })
+            .withBean(EventStreamQueryHandler::class.java, { spyk<EventStreamQueryHandler>() })
+            .withBean(HostAddressSupplier::class.java, { LocalHostAddressSupplier.INSTANCE })
+            .withUserConfiguration(
+                CommandAutoConfiguration::class.java,
+                CommandGatewayAutoConfiguration::class.java,
+                EventSourcingAutoConfiguration::class.java,
+                AggregateAutoConfiguration::class.java,
+                OpenAPIAutoConfiguration::class.java,
+                WebFluxAutoConfiguration::class.java,
+            )
+            .run { context: AssertableApplicationContext ->
+                context.assert()
+                    .hasSingleBean(BatchExecutionPolicy::class.java)
+                    .hasSingleBean(WebFluxProperties::class.java)
+                val properties = context.getBean(WebFluxProperties::class.java)
+                properties.batch.concurrency.assert().isEqualTo(4)
+                properties.batch.prefetch.assert().isEqualTo(8)
+                val batchExecutionPolicy = context.getBean(BatchExecutionPolicy::class.java)
+                batchExecutionPolicy.concurrency.assert().isEqualTo(4)
+                batchExecutionPolicy.prefetch.assert().isEqualTo(8)
             }
     }
 
