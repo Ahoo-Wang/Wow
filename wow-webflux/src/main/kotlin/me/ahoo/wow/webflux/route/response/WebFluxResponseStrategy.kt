@@ -21,6 +21,7 @@ import me.ahoo.wow.openapi.CommonComponent.Header.ERROR_CODE
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.webflux.exception.ErrorHttpStatusMapping.toHttpStatus
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
+import me.ahoo.wow.webflux.route.acceptsEventStream
 import org.springframework.core.ParameterizedTypeReference
 import org.springframework.http.MediaType
 import org.springframework.http.codec.ServerSentEvent
@@ -124,10 +125,6 @@ internal object DefaultWebFluxResponseStrategy : WebFluxResponseStrategy {
             .header(ERROR_CODE, ErrorInfo.SUCCEEDED)
             .body(eventStream, StringServerSentEventType)
     }
-}
-
-private fun ServerRequest.acceptsEventStream(): Boolean {
-    return headers().accept().firstOrNull() == MediaType.TEXT_EVENT_STREAM
 }
 
 private fun ErrorInfo.toJsonResponse(): Mono<ServerResponse> {
