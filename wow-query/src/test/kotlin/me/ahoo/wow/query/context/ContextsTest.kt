@@ -17,6 +17,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.query.filter.Contexts.getRawRequest
 import me.ahoo.wow.query.filter.Contexts.writeRawRequest
 import org.junit.jupiter.api.Test
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 
@@ -29,6 +30,17 @@ class ContextsTest {
             Mono.empty<Void>()
         }.writeRawRequest(this)
             .test()
+            .verifyComplete()
+    }
+
+    @Test
+    fun `should write and read raw request from flux context`() {
+        Flux.deferContextual {
+            it.getRawRequest<ContextsTest>().assert().isEqualTo(this)
+            Flux.just(this)
+        }.writeRawRequest(this)
+            .test()
+            .expectNext(this)
             .verifyComplete()
     }
 

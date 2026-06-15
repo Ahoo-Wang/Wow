@@ -13,16 +13,27 @@
 
 package me.ahoo.wow.webflux.route.query
 
+import io.mockk.every
+import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.SingleQuery
+import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
+import me.ahoo.wow.query.filter.Contexts.getRawRequest
+import me.ahoo.wow.query.filter.QueryHandler
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteTestFixtures
 import org.junit.jupiter.api.Test
+import org.springframework.mock.http.server.reactive.MockServerHttpRequest
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
+import org.springframework.mock.web.server.MockServerWebExchange
+import org.springframework.web.reactive.function.server.HandlerStrategies
+import org.springframework.web.reactive.function.server.ServerRequest
+import org.springframework.web.reactive.function.server.ServerResponse
+import reactor.core.publisher.Flux
 import reactor.kotlin.core.publisher.toMono
 import reactor.kotlin.test.test
 
@@ -53,6 +64,45 @@ class QueryBodyExtractorTest {
             .test()
             .consumeNextWith {
                 it.statusCode().assert().isEqualTo(org.springframework.http.HttpStatus.OK)
+            }.verifyComplete()
+    }
+
+    @Test
+    fun `list query should keep raw request context until response body subscription`() {
+        val queryHandler = mockk<QueryHandler<Any>> {
+            every {
+                dynamicList(any(), any())
+            } returns Flux.deferContextual {
+                it.getRawRequest<ServerRequest>().assert().isNotNull()
+                Flux.just(mutableMapOf("context" to "ok").toDynamicDocument())
+            }
+        }
+        val handlerFunction = ListQueryHandlerFunctionFactory(
+            me.ahoo.wow.openapi.aggregate.snapshot.ListQuerySnapshotRouteSpec::class.java,
+            queryHandler,
+            DefaultRewriteRequestCondition,
+            DefaultRequestExceptionHandler
+        ).create(
+            me.ahoo.wow.openapi.aggregate.snapshot.ListQuerySnapshotRouteSpec(
+                MOCK_AGGREGATE_METADATA,
+                aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA,
+                appendTenantPath = true,
+                appendOwnerPath = false,
+                componentContext = me.ahoo.wow.openapi.context.OpenAPIComponentContext.default()
+            )
+        )
+
+        val request = MockServerRequest.builder()
+            .body(ListQuery(condition = Condition.ALL).toMono())
+
+        handlerFunction.handle(request)
+            .test()
+            .consumeNextWith {
+                val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/test").build())
+                it.writeTo(exchange, SERVER_RESPONSE_CONTEXT)
+                    .test()
+                    .verifyComplete()
+                exchange.response.bodyAsString.block()!!.assert().contains("context")
             }.verifyComplete()
     }
 
@@ -139,5 +189,13 @@ class QueryBodyExtractorTest {
                 // NoOp returns empty, which triggers throwNotFoundIfEmpty → 404
                 it.statusCode().assert().isEqualTo(org.springframework.http.HttpStatus.NOT_FOUND)
             }.verifyComplete()
+    }
+
+    private companion object {
+        private val SERVER_RESPONSE_CONTEXT = object : ServerResponse.Context {
+            private val strategies = HandlerStrategies.withDefaults()
+            override fun messageWriters() = strategies.messageWriters()
+            override fun viewResolvers() = strategies.viewResolvers()
+        }
     }
 }

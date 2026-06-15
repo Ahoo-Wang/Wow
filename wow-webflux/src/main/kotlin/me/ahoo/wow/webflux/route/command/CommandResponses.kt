@@ -14,12 +14,8 @@
 package me.ahoo.wow.webflux.route.command
 
 import me.ahoo.wow.command.CommandResult
-import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
-import me.ahoo.wow.webflux.route.errorResume
-import me.ahoo.wow.webflux.route.toEventStreamResponse
-import me.ahoo.wow.webflux.route.toServerResponse
-import org.springframework.http.codec.ServerSentEvent
+import me.ahoo.wow.webflux.route.response.DefaultWebFluxResponseStrategy
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Flux
@@ -29,17 +25,5 @@ fun Flux<CommandResult>.toCommandResponse(
     request: ServerRequest,
     exceptionHandler: RequestExceptionHandler
 ): Mono<ServerResponse> {
-    if (!request.isSse()) {
-        return this.next().toServerResponse(request, exceptionHandler)
-    }
-
-    val serverSentEventStream = this.map {
-        ServerSentEvent.builder<String>()
-            .id(it.id)
-            .event(it.stage.name)
-            .data(it.toJsonString())
-            .build()
-    }.errorResume(request, exceptionHandler)
-
-    return serverSentEventStream.toEventStreamResponse(request, exceptionHandler)
+    return DefaultWebFluxResponseStrategy.commandResult(this, request, exceptionHandler)
 }

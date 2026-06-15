@@ -42,7 +42,8 @@ class ListQueryHandlerFunction(
                 val query = rewriteRequestCondition.rewrite(aggregateMetadata, request, it)
                 val result = queryHandler.dynamicList(aggregateMetadata, query)
                 rewriteResult(result)
-            }.toServerResponse(request, exceptionHandler).writeRawRequest(request)
+            }.writeRawRequest(request)
+            .toServerResponse(request, exceptionHandler)
     }
 }
 
