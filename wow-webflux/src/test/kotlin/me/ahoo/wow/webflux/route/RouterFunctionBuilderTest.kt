@@ -13,47 +13,28 @@
 
 package me.ahoo.wow.webflux.route
 
+import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.eventsourcing.EventSourcingStateAggregateRepository
-import me.ahoo.wow.eventsourcing.InMemoryEventStore
-import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotRepository
-import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
+import me.ahoo.wow.openapi.RouteSpec
+import me.ahoo.wow.openapi.RouterSpecs
 import me.ahoo.wow.openapi.aggregate.state.LoadAggregateRouteSpec
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
-import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
-import me.ahoo.wow.webflux.route.state.LoadAggregateHandlerFunctionFactory
 import org.junit.jupiter.api.Test
+import org.springframework.web.reactive.function.server.HandlerFunction
+import org.springframework.web.reactive.function.server.ServerResponse
 
 class RouteHandlerFunctionRegistrarTest {
 
     @Test
-    fun `should register factory and retrieve by spec type`() {
-        val registrar = RouteHandlerFunctionRegistrar()
-        val stateRepository = EventSourcingStateAggregateRepository(
-            stateAggregateFactory = ConstructorStateAggregateFactory,
-            snapshotRepository = NoOpSnapshotRepository,
-            eventStore = InMemoryEventStore(),
-        )
-        val factory = LoadAggregateHandlerFunctionFactory(
-            stateAggregateRepository = stateRepository,
-            exceptionHandler = DefaultRequestExceptionHandler,
-        )
-        registrar.register(factory)
+    fun `should lookup constructor provided factory by spec type`() {
+        val factory = TestRouteHandlerFunctionFactory(LoadAggregateRouteSpec::class.java)
+        val registrar = RouteHandlerFunctionRegistrar(listOf(factory))
 
-        val loadAggregateSpec = LoadAggregateRouteSpec(
-            MOCK_AGGREGATE_METADATA,
-            aggregateRouteMetadata = MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata(),
-            componentContext = OpenAPIComponentContext.default()
-        )
-
-        val found = registrar.getFactory(loadAggregateSpec)
+        val found = registrar.getFactory(loadAggregateSpec())
         found.assert().isNotNull()
         found.assert().isSameAs(factory)
-        @Suppress("UNCHECKED_CAST")
-        val handlerFunction = (found as RouteHandlerFunctionFactory<LoadAggregateRouteSpec>).create(loadAggregateSpec)
-        handlerFunction.assert().isNotNull()
     }
 
     @Test
@@ -68,31 +49,12 @@ class RouteHandlerFunctionRegistrarTest {
     }
 
     @Test
-    fun `should overwrite factory when registering same spec type`() {
-        val registrar = RouteHandlerFunctionRegistrar()
-        val stateRepository = EventSourcingStateAggregateRepository(
-            stateAggregateFactory = ConstructorStateAggregateFactory,
-            snapshotRepository = NoOpSnapshotRepository,
-            eventStore = InMemoryEventStore(),
-        )
-        val factory1 = LoadAggregateHandlerFunctionFactory(
-            stateAggregateRepository = stateRepository,
-            exceptionHandler = DefaultRequestExceptionHandler,
-        )
-        val factory2 = LoadAggregateHandlerFunctionFactory(
-            stateAggregateRepository = stateRepository,
-            exceptionHandler = DefaultRequestExceptionHandler,
-        )
-        registrar.register(factory1)
-        registrar.register(factory2)
+    fun `should let later constructor factory overwrite earlier factory for same spec type`() {
+        val factory1 = TestRouteHandlerFunctionFactory(LoadAggregateRouteSpec::class.java)
+        val factory2 = TestRouteHandlerFunctionFactory(LoadAggregateRouteSpec::class.java)
+        val registrar = RouteHandlerFunctionRegistrar(listOf(factory1, factory2))
 
-        val loadAggregateSpec = LoadAggregateRouteSpec(
-            MOCK_AGGREGATE_METADATA,
-            aggregateRouteMetadata = MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata(),
-            componentContext = OpenAPIComponentContext.default()
-        )
-
-        val found = registrar.getFactory(loadAggregateSpec)
+        val found = registrar.getFactory(loadAggregateSpec())
         found.assert().isSameAs(factory2)
     }
 }
@@ -101,33 +63,55 @@ class RouterFunctionBuilderTest {
 
     @Test
     fun `should build router function with manually provided specs`() {
-        val registrar = RouteHandlerFunctionRegistrar()
-        val stateRepository = EventSourcingStateAggregateRepository(
-            stateAggregateFactory = ConstructorStateAggregateFactory,
-            snapshotRepository = NoOpSnapshotRepository,
-            eventStore = InMemoryEventStore(),
-        )
-        registrar.register(
-            LoadAggregateHandlerFunctionFactory(
-                stateAggregateRepository = stateRepository,
-                exceptionHandler = DefaultRequestExceptionHandler,
-            )
+        val registrar = RouteHandlerFunctionRegistrar(
+            listOf(TestRouteHandlerFunctionFactory(LoadAggregateRouteSpec::class.java))
         )
 
-        val aggregateRouteMetadata = MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata()
-        val loadAggregateSpec = LoadAggregateRouteSpec(
-            MOCK_AGGREGATE_METADATA,
-            aggregateRouteMetadata = aggregateRouteMetadata,
-            componentContext = OpenAPIComponentContext.default()
-        )
+        val loadAggregateSpec = loadAggregateSpec()
 
-        // Use RouterSpecs with manual route addition via iterable constructor
-        val routerSpecs = me.ahoo.wow.openapi.RouterSpecs(
+        val routerSpecs = RouterSpecs(
             MOCK_AGGREGATE_METADATA,
             routes = mutableListOf(loadAggregateSpec),
         )
         val builder = RouterFunctionBuilder(routerSpecs, registrar)
         val routerFunction = builder.build()
         routerFunction.assert().isNotNull()
+    }
+
+    @Test
+    fun `should report route details when factory is missing`() {
+        val loadAggregateSpec = loadAggregateSpec()
+        val routerSpecs = RouterSpecs(
+            MOCK_AGGREGATE_METADATA,
+            routes = mutableListOf(loadAggregateSpec),
+        )
+        val builder = RouterFunctionBuilder(routerSpecs, RouteHandlerFunctionRegistrar())
+
+        assertThrownBy<IllegalArgumentException> {
+            builder.build()
+        }.hasMessage(
+            "RouteHandlerFunctionFactory not found - " +
+                "method:[${loadAggregateSpec.method}], " +
+                "path:[${loadAggregateSpec.path}], " +
+                "spec:[${loadAggregateSpec::class.java.name}]."
+        )
+    }
+}
+
+private fun loadAggregateSpec(): LoadAggregateRouteSpec {
+    return LoadAggregateRouteSpec(
+        MOCK_AGGREGATE_METADATA,
+        aggregateRouteMetadata = MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata(),
+        componentContext = OpenAPIComponentContext.default()
+    )
+}
+
+private class TestRouteHandlerFunctionFactory<R : RouteSpec>(
+    override val supportedSpec: Class<R>
+) : RouteHandlerFunctionFactory<R> {
+    override fun create(spec: R): HandlerFunction<ServerResponse> {
+        return HandlerFunction {
+            ServerResponse.ok().build()
+        }
     }
 }
