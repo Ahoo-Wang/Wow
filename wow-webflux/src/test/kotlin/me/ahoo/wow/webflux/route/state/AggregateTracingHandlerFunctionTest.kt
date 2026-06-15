@@ -60,6 +60,16 @@ import tools.jackson.databind.node.ObjectNode
 class AggregateTracingHandlerFunctionTest {
 
     @Test
+    fun `factory should support aggregate tracing route spec`() {
+        AggregateTracingHandlerFunctionFactory(
+            ConstructorStateAggregateFactory,
+            InMemoryEventStore(),
+            WebFluxRequestExceptionHandler(),
+            TracingPolicy(),
+        ).supportedSpec.assert().isEqualTo(AggregateTracingRouteSpec::class.java)
+    }
+
+    @Test
     fun `trace should source event streams once and snapshot each historical state`() {
         val eventStreams = cartEventStreams(eventCount = 3)
         val stateAggregateFactory = CountingStateAggregateFactory()
@@ -150,6 +160,7 @@ class AggregateTracingHandlerFunctionTest {
         val request = MockServerRequest.builder()
             .pathVariable(MessageRecords.ID, aggregateId)
             .pathVariable(MessageRecords.TENANT_ID, TenantId.DEFAULT_TENANT_ID)
+            .queryParam(TracingPolicy.TAIL_VERSION, "1")
             .build()
         handlerFunction.handle(request)
             .test()

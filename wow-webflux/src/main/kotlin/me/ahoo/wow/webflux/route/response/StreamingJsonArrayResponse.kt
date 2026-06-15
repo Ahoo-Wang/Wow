@@ -79,10 +79,10 @@ internal class StreamingJsonArrayResponse<T : Any>(
             .map { it.toJsonString() }
             .index()
             .map {
-                if (it.t1 == 0L) {
-                    it.t2
-                } else {
+                if (it.t1 > 0L) {
                     ",${it.t2}"
+                } else {
+                    it.t2
                 }
             }
 
