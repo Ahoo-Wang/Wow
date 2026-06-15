@@ -39,7 +39,8 @@ interface CommandWaitNotifier {
 
     /**
      * Sends a wait signal notification asynchronously without waiting for completion.
-     * Uses bounded elastic scheduler to avoid blocking the calling thread.
+     * Implementations may override this method when their notification path needs a
+     * specialized fire-and-forget strategy.
      *
      * @param commandWaitEndpoint The endpoint address to notify.
      * @param waitSignal The signal containing processing result information.
