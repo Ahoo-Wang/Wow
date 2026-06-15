@@ -45,22 +45,6 @@ class DefaultGlobalExceptionHandler(
     }
 }
 
-object GlobalExceptionHandler : WebExceptionHandler, Ordered {
-    private val delegate = DefaultGlobalExceptionHandler(DefaultWebFluxErrorStrategy)
-
-    override fun handle(exchange: ServerWebExchange, ex: Throwable): Mono<Void> {
-        return delegate.handle(exchange, ex)
-    }
-
-    fun ServerHttpRequest.formatRequest(): String {
-        return "HTTP $method $uri"
-    }
-
-    override fun getOrder(): Int {
-        return delegate.order
-    }
-}
-
 fun BindingResult.toBindingErrorInfo(): ErrorInfo {
     val bindingErrors = fieldErrors.map { BindingError(it.field, it.defaultMessage.orEmpty()) }
     return ErrorInfo.of(ErrorCodes.ILLEGAL_ARGUMENT, errorMsg = "Field binding validation failed.", bindingErrors)

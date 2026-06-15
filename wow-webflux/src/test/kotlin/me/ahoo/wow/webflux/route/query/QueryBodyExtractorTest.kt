@@ -24,7 +24,7 @@ import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
 import me.ahoo.wow.query.filter.Contexts.getRawRequest
 import me.ahoo.wow.query.filter.QueryHandler
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
-import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
+import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteTestFixtures
 import org.junit.jupiter.api.Test
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest
@@ -46,7 +46,7 @@ class QueryBodyExtractorTest {
             me.ahoo.wow.openapi.aggregate.snapshot.CountSnapshotRouteSpec::class.java,
             RouteTestFixtures.snapshotQueryHandler,
             DefaultRewriteRequestCondition,
-            DefaultRequestExceptionHandler
+            WebFluxRequestExceptionHandler()
         ).create(
             me.ahoo.wow.openapi.aggregate.snapshot.CountSnapshotRouteSpec(
                 MOCK_AGGREGATE_METADATA,
@@ -81,7 +81,7 @@ class QueryBodyExtractorTest {
             me.ahoo.wow.openapi.aggregate.snapshot.ListQuerySnapshotRouteSpec::class.java,
             queryHandler,
             DefaultRewriteRequestCondition,
-            DefaultRequestExceptionHandler
+            WebFluxRequestExceptionHandler()
         ).create(
             me.ahoo.wow.openapi.aggregate.snapshot.ListQuerySnapshotRouteSpec(
                 MOCK_AGGREGATE_METADATA,
@@ -112,7 +112,7 @@ class QueryBodyExtractorTest {
             me.ahoo.wow.openapi.aggregate.snapshot.ListQuerySnapshotRouteSpec::class.java,
             RouteTestFixtures.snapshotQueryHandler,
             DefaultRewriteRequestCondition,
-            DefaultRequestExceptionHandler
+            WebFluxRequestExceptionHandler()
         ).create(
             me.ahoo.wow.openapi.aggregate.snapshot.ListQuerySnapshotRouteSpec(
                 MOCK_AGGREGATE_METADATA,
@@ -139,7 +139,7 @@ class QueryBodyExtractorTest {
             me.ahoo.wow.openapi.aggregate.snapshot.PagedQuerySnapshotRouteSpec::class.java,
             RouteTestFixtures.snapshotQueryHandler,
             DefaultRewriteRequestCondition,
-            DefaultRequestExceptionHandler
+            WebFluxRequestExceptionHandler()
         ).create(
             me.ahoo.wow.openapi.aggregate.snapshot.PagedQuerySnapshotRouteSpec(
                 MOCK_AGGREGATE_METADATA,
@@ -169,7 +169,7 @@ class QueryBodyExtractorTest {
             me.ahoo.wow.openapi.aggregate.snapshot.SingleSnapshotRouteSpec::class.java,
             RouteTestFixtures.snapshotQueryHandler,
             DefaultRewriteRequestCondition,
-            DefaultRequestExceptionHandler
+            WebFluxRequestExceptionHandler()
         ).create(
             me.ahoo.wow.openapi.aggregate.snapshot.SingleSnapshotRouteSpec(
                 MOCK_AGGREGATE_METADATA,

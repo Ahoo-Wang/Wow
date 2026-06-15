@@ -21,7 +21,7 @@ import me.ahoo.wow.openapi.aggregate.event.ListQueryEventStreamRouteSpec
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
-import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
+import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteTestFixtures
 import me.ahoo.wow.webflux.route.query.DefaultRewriteRequestCondition
 import org.junit.jupiter.api.Test
@@ -38,7 +38,7 @@ class ListQueryEventStreamHandlerFunctionTest {
             ListQueryEventStreamHandlerFunctionFactory(
                 eventStreamQueryHandler = RouteTestFixtures.eventStreamQueryHandler,
                 rewriteRequestCondition = DefaultRewriteRequestCondition,
-                exceptionHandler = DefaultRequestExceptionHandler
+                exceptionHandler = WebFluxRequestExceptionHandler()
             )
                 .create(
                     ListQueryEventStreamRouteSpec(

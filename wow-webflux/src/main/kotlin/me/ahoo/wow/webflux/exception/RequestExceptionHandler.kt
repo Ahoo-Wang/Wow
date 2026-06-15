@@ -38,15 +38,3 @@ class WebFluxRequestExceptionHandler(
         return errorStrategy.toServerResponse(request, throwable)
     }
 }
-
-object DefaultRequestExceptionHandler : RequestExceptionHandler {
-    private val delegate = WebFluxRequestExceptionHandler(DefaultWebFluxErrorStrategy)
-
-    fun ServerRequest.formatRequest(): String {
-        return "HTTP ${method()} ${uri()}"
-    }
-
-    override fun handle(request: ServerRequest, throwable: Throwable): Mono<ServerResponse> {
-        return delegate.handle(request, throwable)
-    }
-}

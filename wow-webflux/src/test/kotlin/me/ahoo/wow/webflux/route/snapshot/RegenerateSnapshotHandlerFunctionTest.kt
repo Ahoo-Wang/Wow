@@ -20,7 +20,7 @@ import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
-import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
+import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
@@ -35,7 +35,7 @@ class RegenerateSnapshotHandlerFunctionTest {
             ConstructorStateAggregateFactory,
             InMemoryEventStore(),
             NoOpSnapshotRepository,
-            DefaultRequestExceptionHandler,
+            WebFluxRequestExceptionHandler(),
         )
         val request = MockServerRequest.builder()
             .pathVariable(MessageRecords.ID, generateGlobalId())

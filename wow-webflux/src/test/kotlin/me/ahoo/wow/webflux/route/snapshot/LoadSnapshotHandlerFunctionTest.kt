@@ -21,7 +21,7 @@ import me.ahoo.wow.openapi.aggregate.snapshot.LoadSnapshotRouteSpec
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
-import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
+import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteTestFixtures
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpMethod
@@ -36,7 +36,7 @@ class LoadSnapshotHandlerFunctionTest {
     fun `should handle load snapshot request`() {
         val handlerFunction = LoadSnapshotHandlerFunctionFactory(
             snapshotQueryHandler = RouteTestFixtures.snapshotQueryHandler,
-            exceptionHandler = DefaultRequestExceptionHandler,
+            exceptionHandler = WebFluxRequestExceptionHandler(),
         ).create(
             LoadSnapshotRouteSpec(
                 MOCK_AGGREGATE_METADATA,

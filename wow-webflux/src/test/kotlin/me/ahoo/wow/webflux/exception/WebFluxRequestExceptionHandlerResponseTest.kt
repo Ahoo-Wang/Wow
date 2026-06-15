@@ -15,18 +15,25 @@ package me.ahoo.wow.webflux.exception
 
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
+import org.springframework.http.HttpMethod
+import org.springframework.http.HttpStatus
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import reactor.kotlin.test.test
+import java.net.URI
 
-class DefaultRequestExceptionHandlerTest {
+class WebFluxRequestExceptionHandlerResponseTest {
+
     @Test
-    fun `should handle request exception`() {
-        val request = MockServerRequest.builder().build()
-        val ex = IllegalArgumentException()
-        DefaultRequestExceptionHandler.handle(request, ex)
+    fun `should handle exception and return bad request`() {
+        val request = MockServerRequest.builder()
+            .method(HttpMethod.GET)
+            .uri(URI.create("http://localhost"))
+            .build()
+        WebFluxRequestExceptionHandler().handle(request, IllegalArgumentException("error"))
             .test()
             .consumeNextWith {
-                it.statusCode().is4xxClientError.assert().isTrue()
-            }.verifyComplete()
+                it.statusCode().assert().isEqualTo(HttpStatus.BAD_REQUEST)
+            }
+            .verifyComplete()
     }
 }

@@ -23,7 +23,7 @@ import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.CommonComponent.Header.ERROR_CODE
-import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
+import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
@@ -60,7 +60,7 @@ class CommandResponsesTest {
             ),
         ).toMono()
             .toFlux()
-            .toCommandResponse(serverRequest, DefaultRequestExceptionHandler)
+            .toCommandResponse(serverRequest, WebFluxRequestExceptionHandler())
             .test()
             .consumeNextWith {
                 it.statusCode().assert().isEqualTo(HttpStatus.OK)
@@ -100,7 +100,7 @@ class CommandResponsesTest {
             ),
         ).toMono()
             .toFlux()
-            .toCommandResponse(serverRequest, DefaultRequestExceptionHandler)
+            .toCommandResponse(serverRequest, WebFluxRequestExceptionHandler())
             .flatMap {
                 it.writeTo(serverWebExchange, responseContext)
             }
@@ -141,7 +141,7 @@ class CommandResponsesTest {
             .doOnNext {
                 throw TimeoutException()
             }
-            .toCommandResponse(serverRequest, DefaultRequestExceptionHandler)
+            .toCommandResponse(serverRequest, WebFluxRequestExceptionHandler())
             .flatMap {
                 it.writeTo(serverWebExchange, responseContext)
             }
@@ -179,7 +179,7 @@ class CommandResponsesTest {
             ),
         ).toMono()
             .toFlux()
-            .toCommandResponse(mockRequest, DefaultRequestExceptionHandler)
+            .toCommandResponse(mockRequest, WebFluxRequestExceptionHandler())
             .test()
             .consumeNextWith {
                 it.writeTo(serverWebExchange, responseContext).test().verifyComplete()

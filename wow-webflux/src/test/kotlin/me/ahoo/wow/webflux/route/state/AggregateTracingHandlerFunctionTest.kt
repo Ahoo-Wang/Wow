@@ -44,7 +44,7 @@ import me.ahoo.wow.tck.mock.MockStateAggregate
 import me.ahoo.wow.test.aggregate.GivenInitializationCommand
 import me.ahoo.wow.test.aggregate.whenCommand
 import me.ahoo.wow.test.aggregateVerifier
-import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
+import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteTestFixtures
 import me.ahoo.wow.webflux.route.state.AggregateTracingHandlerFunction.Companion.trace
 import org.junit.jupiter.api.Test
@@ -133,7 +133,7 @@ class AggregateTracingHandlerFunctionTest {
         val handlerFunction = AggregateTracingHandlerFunctionFactory(
             ConstructorStateAggregateFactory,
             eventStore,
-            DefaultRequestExceptionHandler
+            WebFluxRequestExceptionHandler()
         )
             .create(
                 AggregateTracingRouteSpec(
@@ -168,7 +168,7 @@ class AggregateTracingHandlerFunctionTest {
         val handlerFunction = AggregateTracingHandlerFunctionFactory(
             ConstructorStateAggregateFactory,
             eventStore,
-            DefaultRequestExceptionHandler
+            WebFluxRequestExceptionHandler()
         ).create(
             AggregateTracingRouteSpec(
                 MOCK_AGGREGATE_METADATA,
