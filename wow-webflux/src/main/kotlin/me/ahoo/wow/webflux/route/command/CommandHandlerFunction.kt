@@ -45,22 +45,6 @@ class CommandHandlerFunction(
     private val exceptionHandler: RequestExceptionHandler,
     private val commandWaitPolicy: CommandWaitPolicy
 ) : HandlerFunction<ServerResponse> {
-    constructor(
-        aggregateRouteMetadata: AggregateRouteMetadata<*>,
-        commandRouteMetadata: CommandRouteMetadata<out Any>,
-        commandGateway: CommandGateway,
-        commandMessageExtractor: CommandMessageExtractor,
-        exceptionHandler: RequestExceptionHandler,
-        timeout: Duration = DEFAULT_TIME_OUT
-    ) : this(
-        aggregateRouteMetadata = aggregateRouteMetadata,
-        commandRouteMetadata = commandRouteMetadata,
-        commandGateway = commandGateway,
-        commandMessageExtractor = commandMessageExtractor,
-        exceptionHandler = exceptionHandler,
-        commandWaitPolicy = CommandWaitPolicy(timeout)
-    )
-
     private val bodyExtractor = CommandBodyExtractor(commandRouteMetadata)
     private val handler = CommandHandler(commandGateway, commandMessageExtractor, commandWaitPolicy)
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
@@ -85,18 +69,6 @@ class CommandHandlerFunctionFactory(
     private val exceptionHandler: RequestExceptionHandler,
     private val commandWaitPolicy: CommandWaitPolicy
 ) : RouteHandlerFunctionFactory<CommandRouteSpec> {
-    constructor(
-        commandGateway: CommandGateway,
-        commandMessageExtractor: CommandMessageExtractor,
-        exceptionHandler: RequestExceptionHandler,
-        timeout: Duration = DEFAULT_TIME_OUT
-    ) : this(
-        commandGateway = commandGateway,
-        commandMessageExtractor = commandMessageExtractor,
-        exceptionHandler = exceptionHandler,
-        commandWaitPolicy = CommandWaitPolicy(timeout)
-    )
-
     override val supportedSpec: Class<CommandRouteSpec>
         get() = CommandRouteSpec::class.java
 

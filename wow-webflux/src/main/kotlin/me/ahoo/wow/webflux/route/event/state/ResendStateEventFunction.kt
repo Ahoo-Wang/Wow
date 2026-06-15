@@ -34,19 +34,6 @@ class ResendStateEventFunction(
     private val exceptionHandler: RequestExceptionHandler,
     private val batchExecutionPolicy: BatchExecutionPolicy
 ) : HandlerFunction<ServerResponse> {
-    constructor(
-        aggregateMetadata: AggregateMetadata<*, *>,
-        snapshotRepository: SnapshotRepository,
-        stateEventCompensator: StateEventCompensator,
-        exceptionHandler: RequestExceptionHandler
-    ) : this(
-        aggregateMetadata = aggregateMetadata,
-        snapshotRepository = snapshotRepository,
-        stateEventCompensator = stateEventCompensator,
-        exceptionHandler = exceptionHandler,
-        batchExecutionPolicy = BatchExecutionPolicy(),
-    )
-
     private val handler =
         ResendStateEventHandler(aggregateMetadata, snapshotRepository, stateEventCompensator, batchExecutionPolicy)
 
@@ -64,17 +51,6 @@ class ResendStateEventFunctionFactory(
     private val exceptionHandler: RequestExceptionHandler,
     private val batchExecutionPolicy: BatchExecutionPolicy
 ) : RouteHandlerFunctionFactory<ResendStateEventRouteSpec> {
-    constructor(
-        snapshotRepository: SnapshotRepository,
-        stateEventCompensator: StateEventCompensator,
-        exceptionHandler: RequestExceptionHandler
-    ) : this(
-        snapshotRepository = snapshotRepository,
-        stateEventCompensator = stateEventCompensator,
-        exceptionHandler = exceptionHandler,
-        batchExecutionPolicy = BatchExecutionPolicy(),
-    )
-
     override val supportedSpec: Class<ResendStateEventRouteSpec>
         get() = ResendStateEventRouteSpec::class.java
 

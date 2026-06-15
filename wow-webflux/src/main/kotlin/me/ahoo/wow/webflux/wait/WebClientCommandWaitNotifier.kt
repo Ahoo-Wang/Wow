@@ -27,15 +27,6 @@ class WebClientCommandWaitNotifier(
     private val webClient: WebClient,
     private val remoteWaitNotifyPolicy: RemoteWaitNotifyPolicy
 ) : CommandWaitNotifier {
-    constructor(
-        waitCoordinator: WaitCoordinator,
-        webClient: WebClient
-    ) : this(
-        waitCoordinator = waitCoordinator,
-        webClient = webClient,
-        remoteWaitNotifyPolicy = RemoteWaitNotifyPolicy()
-    )
-
     companion object {
         private val log = KotlinLogging.logger {}
     }

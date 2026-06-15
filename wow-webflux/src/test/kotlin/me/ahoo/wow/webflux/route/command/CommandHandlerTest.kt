@@ -68,7 +68,8 @@ class CommandHandlerTest {
                     commandBuilderRewriterRegistry = SimpleCommandBuilderRewriterRegistry()
                 ),
                 commandBuilderExtractor = DefaultCommandBuilderExtractor
-            )
+            ),
+            commandWaitPolicy = CommandWaitPolicy(DEFAULT_TIME_OUT),
         )
         commandHandler.handle(
             request,
@@ -101,7 +102,8 @@ class CommandHandlerTest {
                     commandBuilderRewriterRegistry = SimpleCommandBuilderRewriterRegistry()
                 ),
                 commandBuilderExtractor = DefaultCommandBuilderExtractor
-            )
+            ),
+            CommandWaitPolicy(DEFAULT_TIME_OUT),
         )
         commandHandler.handle(
             request,
@@ -166,7 +168,8 @@ class CommandHandlerTest {
                     SimpleCommandBuilderRewriterRegistry()
                 ),
                 commandBuilderExtractor = DefaultCommandBuilderExtractor
-            )
+            ),
+            commandWaitPolicy = CommandWaitPolicy(DEFAULT_TIME_OUT),
         )
         commandHandler.handle(
             request,

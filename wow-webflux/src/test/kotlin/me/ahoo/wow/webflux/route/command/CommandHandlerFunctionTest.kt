@@ -33,6 +33,7 @@ import me.ahoo.wow.test.SagaVerifier
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.command.extractor.DefaultCommandBuilderExtractor
 import me.ahoo.wow.webflux.route.command.extractor.DefaultCommandMessageExtractor
+import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
@@ -58,6 +59,7 @@ class CommandHandlerFunctionTest {
                 DefaultCommandBuilderExtractor
             ),
             WebFluxRequestExceptionHandler(),
+            CommandWaitPolicy(DEFAULT_TIME_OUT),
         )
 
         val request = MockServerRequest.builder()

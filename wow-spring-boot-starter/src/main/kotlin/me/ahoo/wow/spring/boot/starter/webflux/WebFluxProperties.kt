@@ -25,15 +25,6 @@ class WebFluxProperties(
     var globalError: GlobalError = GlobalError(),
     var batch: Batch = Batch()
 ) : EnabledCapable {
-    constructor(
-        enabled: Boolean,
-        globalError: GlobalError
-    ) : this(
-        enabled = enabled,
-        globalError = globalError,
-        batch = Batch(),
-    )
-
     companion object {
         const val PREFIX = "${Wow.WOW_PREFIX}webflux"
         const val COMMAND_REQUEST_APPENDER_PREFIX = "$PREFIX.command.request.appender"

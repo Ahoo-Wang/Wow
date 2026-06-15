@@ -25,7 +25,6 @@ import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.publisher.switchIfEmpty
-import java.time.Duration
 
 /**
  * [org.springframework.web.reactive.result.method.annotation.RequestMappingHandlerMapping]
@@ -38,18 +37,6 @@ class CommandFacadeHandlerFunction(
     private val exceptionHandler: RequestExceptionHandler,
     private val commandWaitPolicy: CommandWaitPolicy
 ) : HandlerFunction<ServerResponse> {
-    constructor(
-        commandGateway: CommandGateway,
-        commandMessageExtractor: CommandMessageExtractor,
-        exceptionHandler: RequestExceptionHandler,
-        timeout: Duration = DEFAULT_TIME_OUT
-    ) : this(
-        commandGateway = commandGateway,
-        commandMessageExtractor = commandMessageExtractor,
-        exceptionHandler = exceptionHandler,
-        commandWaitPolicy = CommandWaitPolicy(timeout)
-    )
-
     private val handler = CommandHandler(
         commandGateway = commandGateway,
         commandMessageExtractor = commandMessageExtractor,
@@ -71,18 +58,6 @@ class CommandFacadeHandlerFunctionFactory(
     private val exceptionHandler: RequestExceptionHandler,
     private val commandWaitPolicy: CommandWaitPolicy
 ) : RouteHandlerFunctionFactory<CommandFacadeRouteSpec> {
-    constructor(
-        commandGateway: CommandGateway,
-        commandMessageExtractor: CommandMessageExtractor,
-        exceptionHandler: RequestExceptionHandler,
-        timeout: Duration = DEFAULT_TIME_OUT
-    ) : this(
-        commandGateway = commandGateway,
-        commandMessageExtractor = commandMessageExtractor,
-        exceptionHandler = exceptionHandler,
-        commandWaitPolicy = CommandWaitPolicy(timeout)
-    )
-
     override val supportedSpec: Class<CommandFacadeRouteSpec>
         get() = CommandFacadeRouteSpec::class.java
 

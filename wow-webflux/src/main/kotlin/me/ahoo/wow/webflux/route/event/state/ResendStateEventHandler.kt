@@ -33,17 +33,6 @@ class ResendStateEventHandler(
     private val stateEventCompensator: StateEventCompensator,
     private val batchExecutionPolicy: BatchExecutionPolicy
 ) {
-    constructor(
-        aggregateMetadata: AggregateMetadata<*, *>,
-        snapshotRepository: SnapshotRepository,
-        stateEventCompensator: StateEventCompensator
-    ) : this(
-        aggregateMetadata = aggregateMetadata,
-        snapshotRepository = snapshotRepository,
-        stateEventCompensator = stateEventCompensator,
-        batchExecutionPolicy = BatchExecutionPolicy(),
-    )
-
     companion object {
         private val RESEND_FUNCTION =
             FunctionInfoData(

@@ -22,23 +22,12 @@ import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
 import org.reactivestreams.Publisher
 import org.springframework.web.reactive.function.server.ServerRequest
 import reactor.core.publisher.Flux
-import java.time.Duration
 
 class CommandHandler(
     private val commandGateway: CommandGateway,
     private val commandMessageExtractor: CommandMessageExtractor,
     private val commandWaitPolicy: CommandWaitPolicy
 ) {
-    constructor(
-        commandGateway: CommandGateway,
-        commandMessageExtractor: CommandMessageExtractor,
-        timeout: Duration = DEFAULT_TIME_OUT
-    ) : this(
-        commandGateway = commandGateway,
-        commandMessageExtractor = commandMessageExtractor,
-        commandWaitPolicy = CommandWaitPolicy(timeout)
-    )
-
     fun handle(
         request: ServerRequest,
         commandBody: Any,
