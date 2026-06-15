@@ -29,9 +29,11 @@ import me.ahoo.wow.spring.boot.starter.ENABLED_SUFFIX_KEY
 import me.ahoo.wow.spring.boot.starter.command.CommandAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.kafka.KafkaProperties
 import me.ahoo.wow.spring.boot.starter.openapi.OpenAPIAutoConfiguration
-import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
-import me.ahoo.wow.webflux.exception.GlobalExceptionHandler
+import me.ahoo.wow.webflux.exception.DefaultGlobalExceptionHandler
+import me.ahoo.wow.webflux.exception.DefaultWebFluxErrorStrategy
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
+import me.ahoo.wow.webflux.exception.WebFluxErrorStrategy
+import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionRegistrar
 import me.ahoo.wow.webflux.route.RouterFunctionBuilder
@@ -138,14 +140,20 @@ class WebFluxAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    fun exceptionHandler(): RequestExceptionHandler {
-        return DefaultRequestExceptionHandler
+    fun webFluxErrorStrategy(): WebFluxErrorStrategy {
+        return DefaultWebFluxErrorStrategy
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    fun exceptionHandler(errorStrategy: WebFluxErrorStrategy): RequestExceptionHandler {
+        return WebFluxRequestExceptionHandler(errorStrategy)
     }
 
     @Bean
     @ConditionalOnWebfluxGlobalErrorEnabled
-    fun globalExceptionHandler(): WebExceptionHandler {
-        return GlobalExceptionHandler
+    fun globalExceptionHandler(errorStrategy: WebFluxErrorStrategy): WebExceptionHandler {
+        return DefaultGlobalExceptionHandler(errorStrategy)
     }
 
     @Bean

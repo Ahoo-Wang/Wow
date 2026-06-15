@@ -44,11 +44,22 @@ import me.ahoo.wow.spring.boot.starter.webflux.WebFluxProperties.Companion.GLOBA
 import me.ahoo.wow.test.SagaVerifier
 import me.ahoo.wow.webflux.exception.GlobalExceptionHandler
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
+import me.ahoo.wow.webflux.exception.WebFluxErrorStrategy
 import me.ahoo.wow.webflux.route.command.appender.CommandRequestRemoteIpHeaderAppender
 import me.ahoo.wow.webflux.route.command.appender.CommandRequestUserAgentHeaderAppender
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
+import org.springframework.http.HttpStatus
+import org.springframework.mock.http.server.reactive.MockServerHttpRequest
+import org.springframework.mock.web.reactive.function.server.MockServerRequest
+import org.springframework.mock.web.server.MockServerWebExchange
+import org.springframework.web.reactive.function.server.ServerRequest
+import org.springframework.web.reactive.function.server.ServerResponse
+import org.springframework.web.server.ServerWebExchange
+import org.springframework.web.server.WebExceptionHandler
+import reactor.core.publisher.Mono
+import reactor.kotlin.test.test
 
 internal class WebFluxAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
@@ -78,9 +89,58 @@ internal class WebFluxAutoConfigurationTest {
             )
             .run { context: AssertableApplicationContext ->
                 context.assert()
-                    .hasSingleBean(GlobalExceptionHandler::class.java)
+                    .hasSingleBean(WebExceptionHandler::class.java)
                     .hasBean("commandRouterFunction")
+                    .hasSingleBean(WebFluxErrorStrategy::class.java)
                     .hasSingleBean(RequestExceptionHandler::class.java)
+            }
+    }
+
+    @Test
+    fun `should use custom webflux error strategy`() {
+        val customErrorStrategy = TestWebFluxErrorStrategy()
+        contextRunner
+            .enableWow()
+            .withBean(WebFluxErrorStrategy::class.java, { customErrorStrategy })
+            .withBean(CommandWaitNotifier::class.java, { mockk() })
+            .withBean(CommandGateway::class.java, { SagaVerifier.defaultCommandGateway() })
+            .withBean(StateAggregateFactory::class.java, { ConstructorStateAggregateFactory })
+            .withBean(SnapshotRepository::class.java, { NoOpSnapshotRepository })
+            .withBean(EventStore::class.java, { InMemoryEventStore() })
+            .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
+            .withBean(StateEventCompensator::class.java, { mockk() })
+            .withBean(EventCompensateSupporter::class.java, { mockk() })
+            .withBean(SnapshotQueryHandler::class.java, { spyk<SnapshotQueryHandler>() })
+            .withBean(EventStreamQueryHandler::class.java, { spyk<EventStreamQueryHandler>() })
+            .withBean(HostAddressSupplier::class.java, { LocalHostAddressSupplier.INSTANCE })
+            .withUserConfiguration(
+                CommandAutoConfiguration::class.java,
+                CommandGatewayAutoConfiguration::class.java,
+                EventSourcingAutoConfiguration::class.java,
+                AggregateAutoConfiguration::class.java,
+                OpenAPIAutoConfiguration::class.java,
+                WebFluxAutoConfiguration::class.java,
+            )
+            .run { context: AssertableApplicationContext ->
+                context.assert()
+                    .hasSingleBean(WebFluxErrorStrategy::class.java)
+                    .hasSingleBean(RequestExceptionHandler::class.java)
+                    .hasSingleBean(WebExceptionHandler::class.java)
+                context.getBean(WebFluxErrorStrategy::class.java).assert().isSameAs(customErrorStrategy)
+                context.getBean(RequestExceptionHandler::class.java)
+                    .handle(MockServerRequest.builder().build(), IllegalArgumentException("bad"))
+                    .test()
+                    .consumeNextWith {
+                        it.statusCode().assert().isEqualTo(HttpStatus.I_AM_A_TEAPOT)
+                    }
+                    .verifyComplete()
+
+                val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/test").build())
+                context.getBean(WebExceptionHandler::class.java)
+                    .handle(exchange, IllegalArgumentException("bad"))
+                    .test()
+                    .verifyComplete()
+                exchange.response.statusCode.assert().isEqualTo(HttpStatus.I_AM_A_TEAPOT)
             }
     }
 
@@ -150,8 +210,20 @@ internal class WebFluxAutoConfigurationTest {
             .run { context: AssertableApplicationContext ->
                 context.assert()
                     .doesNotHaveBean(GlobalExceptionHandler::class.java)
+                    .doesNotHaveBean(WebExceptionHandler::class.java)
                     .hasBean("commandRouterFunction")
                     .hasSingleBean(RequestExceptionHandler::class.java)
             }
+    }
+
+    private class TestWebFluxErrorStrategy : WebFluxErrorStrategy {
+        override fun toServerResponse(request: ServerRequest, throwable: Throwable): Mono<ServerResponse> {
+            return ServerResponse.status(HttpStatus.I_AM_A_TEAPOT).build()
+        }
+
+        override fun writeToExchange(exchange: ServerWebExchange, throwable: Throwable): Mono<Void> {
+            exchange.response.statusCode = HttpStatus.I_AM_A_TEAPOT
+            return Mono.empty()
+        }
     }
 }
