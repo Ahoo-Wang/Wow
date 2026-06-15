@@ -21,6 +21,7 @@ import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.openapi.BatchComponent
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
+import me.ahoo.wow.webflux.route.policy.BatchExecutionPolicy
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
@@ -36,6 +37,7 @@ class BatchRegenerateSnapshotHandlerFunctionTest {
             eventStore = InMemoryEventStore(),
             snapshotRepository = NoOpSnapshotRepository,
             exceptionHandler = DefaultRequestExceptionHandler,
+            batchExecutionPolicy = BatchExecutionPolicy(),
         )
 
         val request = MockServerRequest.builder()

@@ -23,14 +23,27 @@ import me.ahoo.wow.messaging.compensation.CompensationTarget
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.BatchResult
 import me.ahoo.wow.webflux.exception.onErrorMapBatchTaskException
+import me.ahoo.wow.webflux.route.policy.BatchExecutionPolicy
 import me.ahoo.wow.webflux.route.toBatchResult
 import reactor.core.publisher.Mono
 
 class ResendStateEventHandler(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val snapshotRepository: SnapshotRepository,
-    private val stateEventCompensator: StateEventCompensator
+    private val stateEventCompensator: StateEventCompensator,
+    private val batchExecutionPolicy: BatchExecutionPolicy
 ) {
+    constructor(
+        aggregateMetadata: AggregateMetadata<*, *>,
+        snapshotRepository: SnapshotRepository,
+        stateEventCompensator: StateEventCompensator
+    ) : this(
+        aggregateMetadata = aggregateMetadata,
+        snapshotRepository = snapshotRepository,
+        stateEventCompensator = stateEventCompensator,
+        batchExecutionPolicy = BatchExecutionPolicy(),
+    )
+
     companion object {
         private val RESEND_FUNCTION =
             FunctionInfoData(
@@ -44,13 +57,15 @@ class ResendStateEventHandler(
     fun handle(afterId: String, limit: Int): Mono<BatchResult> {
         val target = CompensationTarget(function = RESEND_FUNCTION)
         return snapshotRepository.scanAggregateId(aggregateMetadata.namedAggregate, afterId, limit)
-            .flatMapSequential { aggregateId ->
-                stateEventCompensator.resend(
-                    aggregateId = aggregateId,
-                    target = target,
-                    headVersion = DEFAULT_HEAD_VERSION,
-                    tailVersion = Int.MAX_VALUE
-                ).thenReturn(aggregateId).onErrorMapBatchTaskException(aggregateId)
+            .let { scanFlux ->
+                batchExecutionPolicy.apply(scanFlux) { aggregateId ->
+                    stateEventCompensator.resend(
+                        aggregateId = aggregateId,
+                        target = target,
+                        headVersion = DEFAULT_HEAD_VERSION,
+                        tailVersion = Int.MAX_VALUE
+                    ).thenReturn(aggregateId).onErrorMapBatchTaskException(aggregateId)
+                }
             }.toBatchResult(afterId)
     }
 }

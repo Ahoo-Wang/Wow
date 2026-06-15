@@ -20,6 +20,7 @@ import me.ahoo.wow.openapi.BatchComponent
 import me.ahoo.wow.openapi.aggregate.event.state.ResendStateEventRouteSpec
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.policy.BatchExecutionPolicy
 import me.ahoo.wow.webflux.route.toServerResponse
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -30,10 +31,24 @@ class ResendStateEventFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val snapshotRepository: SnapshotRepository,
     private val stateEventCompensator: StateEventCompensator,
-    private val exceptionHandler: RequestExceptionHandler
+    private val exceptionHandler: RequestExceptionHandler,
+    private val batchExecutionPolicy: BatchExecutionPolicy
 ) : HandlerFunction<ServerResponse> {
+    constructor(
+        aggregateMetadata: AggregateMetadata<*, *>,
+        snapshotRepository: SnapshotRepository,
+        stateEventCompensator: StateEventCompensator,
+        exceptionHandler: RequestExceptionHandler
+    ) : this(
+        aggregateMetadata = aggregateMetadata,
+        snapshotRepository = snapshotRepository,
+        stateEventCompensator = stateEventCompensator,
+        exceptionHandler = exceptionHandler,
+        batchExecutionPolicy = BatchExecutionPolicy(),
+    )
+
     private val handler =
-        ResendStateEventHandler(aggregateMetadata, snapshotRepository, stateEventCompensator)
+        ResendStateEventHandler(aggregateMetadata, snapshotRepository, stateEventCompensator, batchExecutionPolicy)
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         val afterId = request.pathVariable(BatchComponent.PathVariable.BATCH_AFTER_ID)
@@ -46,8 +61,20 @@ class ResendStateEventFunction(
 class ResendStateEventFunctionFactory(
     private val snapshotRepository: SnapshotRepository,
     private val stateEventCompensator: StateEventCompensator,
-    private val exceptionHandler: RequestExceptionHandler
+    private val exceptionHandler: RequestExceptionHandler,
+    private val batchExecutionPolicy: BatchExecutionPolicy
 ) : RouteHandlerFunctionFactory<ResendStateEventRouteSpec> {
+    constructor(
+        snapshotRepository: SnapshotRepository,
+        stateEventCompensator: StateEventCompensator,
+        exceptionHandler: RequestExceptionHandler
+    ) : this(
+        snapshotRepository = snapshotRepository,
+        stateEventCompensator = stateEventCompensator,
+        exceptionHandler = exceptionHandler,
+        batchExecutionPolicy = BatchExecutionPolicy(),
+    )
+
     override val supportedSpec: Class<ResendStateEventRouteSpec>
         get() = ResendStateEventRouteSpec::class.java
 
@@ -57,6 +84,7 @@ class ResendStateEventFunctionFactory(
             snapshotRepository = snapshotRepository,
             stateEventCompensator = stateEventCompensator,
             exceptionHandler = exceptionHandler,
+            batchExecutionPolicy = batchExecutionPolicy,
         )
     }
 }
