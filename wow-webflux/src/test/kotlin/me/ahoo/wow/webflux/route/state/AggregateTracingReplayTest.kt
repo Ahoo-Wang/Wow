@@ -30,12 +30,70 @@ import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.test.aggregate.GivenInitializationCommand
 import me.ahoo.wow.webflux.route.policy.TracingRequest
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Sinks
 import reactor.kotlin.test.test
 import tools.jackson.databind.node.ObjectNode
 
 class AggregateTracingReplayTest {
+
+    @Test
+    fun `list replay should return empty history when event streams are empty`() {
+        val tracedStates = AggregateTracingReplay.trace(
+            stateAggregateMetadata = CART_AGGREGATE_METADATA.state,
+            stateAggregateFactory = ConstructorStateAggregateFactory,
+            eventStreams = emptyList(),
+        )
+
+        tracedStates.assert().isEmpty()
+    }
+
+    @Test
+    fun `windowed list replay should reject invalid bounds`() {
+        assertThrows<IllegalArgumentException> {
+            AggregateTracingReplay.trace(
+                stateAggregateMetadata = CART_AGGREGATE_METADATA.state,
+                stateAggregateFactory = ConstructorStateAggregateFactory,
+                eventStreams = cartEventStreams(eventCount = 1),
+                emitHeadVersion = 0,
+                tailVersion = 1,
+            )
+        }
+        assertThrows<IllegalArgumentException> {
+            AggregateTracingReplay.trace(
+                stateAggregateMetadata = CART_AGGREGATE_METADATA.state,
+                stateAggregateFactory = ConstructorStateAggregateFactory,
+                eventStreams = cartEventStreams(eventCount = 1),
+                emitHeadVersion = 1,
+                tailVersion = -1,
+            )
+        }
+    }
+
+    @Test
+    fun `windowed list replay should return empty history when range is empty`() {
+        AggregateTracingReplay.trace(
+            stateAggregateMetadata = CART_AGGREGATE_METADATA.state,
+            stateAggregateFactory = ConstructorStateAggregateFactory,
+            eventStreams = cartEventStreams(eventCount = 1),
+            emitHeadVersion = 2,
+            tailVersion = 1,
+        ).test()
+            .verifyComplete()
+    }
+
+    @Test
+    fun `windowed list replay should return empty history when events are empty`() {
+        AggregateTracingReplay.trace(
+            stateAggregateMetadata = CART_AGGREGATE_METADATA.state,
+            stateAggregateFactory = ConstructorStateAggregateFactory,
+            eventStreams = emptyList(),
+            emitHeadVersion = 1,
+            tailVersion = 1,
+        ).test()
+            .verifyComplete()
+    }
 
     @Test
     fun `full history replay should emit before source completes`() {
@@ -125,6 +183,24 @@ class AggregateTracingReplayTest {
             eventStreams = Flux.fromIterable(cartEventStreams(eventCount = 2)),
             tracingRequest = TracingRequest(headVersion = null, tailVersion = null, limit = 0),
         ).test()
+            .verifyComplete()
+    }
+
+    @Test
+    fun `tail limit replay should source prefix before emit head`() {
+        AggregateTracingReplay.trace(
+            stateAggregateMetadata = CART_AGGREGATE_METADATA.state,
+            stateAggregateFactory = ConstructorStateAggregateFactory,
+            eventStreams = Flux.fromIterable(cartEventStreams(eventCount = 4)),
+            tracingRequest = TracingRequest(headVersion = 4, tailVersion = null, limit = 3),
+        ).test()
+            .consumeNextWith {
+                it.version.assert().isEqualTo(4)
+                it.state.assertJsonState()
+                    .itemProductIds()
+                    .assert()
+                    .isEqualTo(listOf("product-1", "product-2", "product-3", "product-4"))
+            }
             .verifyComplete()
     }
 

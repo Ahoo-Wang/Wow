@@ -29,9 +29,6 @@ internal data class TracingRequest(
     val emitHeadVersion: Int
         get() = headVersion ?: TracingPolicy.DEFAULT_HEAD_VERSION
 
-    val hasLimit: Boolean
-        get() = limit != null
-
     fun toRange(totalVersion: Int): TracingRange {
         val effectiveTailVersion = if (totalVersion <= TracingPolicy.EMPTY_TAIL_VERSION) {
             TracingPolicy.EMPTY_TAIL_VERSION

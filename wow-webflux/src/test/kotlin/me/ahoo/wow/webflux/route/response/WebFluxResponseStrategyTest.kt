@@ -43,6 +43,7 @@ class WebFluxResponseStrategyTest {
                 it.statusCode().assert().isEqualTo(HttpStatus.OK)
                 it.headers().contentType.assert().isEqualTo(MediaType.APPLICATION_JSON)
                 it.headers().getFirst(ERROR_CODE).assert().isEqualTo(ErrorInfo.SUCCEEDED)
+                it.cookies().assert().isEmpty()
             }
             .verifyComplete()
     }
@@ -51,7 +52,7 @@ class WebFluxResponseStrategyTest {
     fun `json array response should write finite flux as json array`() {
         DefaultWebFluxResponseStrategy
             .jsonArray(
-                Flux.just(BodyValue("one"), BodyValue("two")),
+                Flux.just(BodyValue("one"), BodyValue("two"), BodyValue("three")),
                 MockServerRequest.builder().build(),
                 WebFluxRequestExceptionHandler()
             )
@@ -60,7 +61,7 @@ class WebFluxResponseStrategyTest {
                 it.statusCode().assert().isEqualTo(HttpStatus.OK)
                 it.headers().contentType.assert().isEqualTo(MediaType.APPLICATION_JSON)
                 it.headers().getFirst(ERROR_CODE).assert().isEqualTo(ErrorInfo.SUCCEEDED)
-                it.writeBody().assert().isEqualTo("""[{"name":"one"},{"name":"two"}]""")
+                it.writeBody().assert().isEqualTo("""[{"name":"one"},{"name":"two"},{"name":"three"}]""")
             }
             .verifyComplete()
     }

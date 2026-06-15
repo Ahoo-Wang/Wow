@@ -92,7 +92,6 @@ class TracingPolicyTest {
         tracingRequest.emitHeadVersion.assert().isEqualTo(10)
         tracingRequest.tailVersion.assert().isEqualTo(20)
         tracingRequest.limit.assert().isEqualTo(5)
-        tracingRequest.hasLimit.assert().isTrue()
     }
 
     @Test
@@ -103,7 +102,6 @@ class TracingPolicyTest {
         tracingRequest.emitHeadVersion.assert().isOne()
         tracingRequest.tailVersion.assert().isNull()
         tracingRequest.limit.assert().isNull()
-        tracingRequest.hasLimit.assert().isFalse()
     }
 
     @Test
@@ -111,7 +109,6 @@ class TracingPolicyTest {
         val tracingRequest = TracingPolicy().request(request("limit" to "0"))
 
         tracingRequest.limit.assert().isZero()
-        tracingRequest.hasLimit.assert().isTrue()
     }
 
     @Test
@@ -130,6 +127,12 @@ class TracingPolicyTest {
         }
         assertThrows<IllegalArgumentException> {
             TracingPolicy().range(request("limit" to "-1"), totalVersion = 100)
+        }
+        assertThrows<IllegalArgumentException> {
+            TracingPolicy().range(request("headVersion" to " "), totalVersion = 100)
+        }
+        assertThrows<IllegalArgumentException> {
+            TracingPolicy().range(request("tailVersion" to "bad"), totalVersion = 100)
         }
     }
 

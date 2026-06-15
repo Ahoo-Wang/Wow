@@ -76,12 +76,13 @@ object AggregateTracingReplay {
         eventStreams: Flux<DomainEventStream>,
         tracingRequest: TracingRequest
     ): Flux<StateEvent<ObjectNode>> {
-        if (tracingRequest.hasLimit) {
+        tracingRequest.limit?.let { limit ->
             return traceTailLimit(
                 stateAggregateMetadata = stateAggregateMetadata,
                 stateAggregateFactory = stateAggregateFactory,
                 eventStreams = eventStreams,
                 tracingRequest = tracingRequest,
+                limit = limit,
             )
         }
         return traceStreamingRange(
@@ -115,9 +116,9 @@ object AggregateTracingReplay {
         stateAggregateMetadata: StateAggregateMetadata<S>,
         stateAggregateFactory: StateAggregateFactory,
         eventStreams: Flux<DomainEventStream>,
-        tracingRequest: TracingRequest
+        tracingRequest: TracingRequest,
+        limit: Int
     ): Flux<StateEvent<ObjectNode>> {
-        val limit = tracingRequest.limit ?: return Flux.empty()
         if (limit == 0) {
             return Flux.empty()
         }

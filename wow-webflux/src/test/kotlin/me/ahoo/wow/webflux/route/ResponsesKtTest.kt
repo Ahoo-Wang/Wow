@@ -30,6 +30,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
+import org.springframework.http.codec.ServerSentEvent
 import org.springframework.http.codec.ServerSentEventHttpMessageWriter
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
@@ -139,6 +140,36 @@ class ResponsesKtTest {
                 it.statusCode().assert().isEqualTo(HttpStatus.OK)
                 it.headers().contentType.assert().isEqualTo(MediaType.TEXT_EVENT_STREAM)
                 it.headers().getFirst(ERROR_CODE).assert().isEqualTo(ErrorInfo.SUCCEEDED)
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `should convert server sent event flux to event stream response`() {
+        val mockRequest = MockServerRequest.builder().build()
+
+        emptyList<ServerSentEvent<String>>()
+            .toFlux()
+            .toEventStreamResponse(mockRequest, WebFluxRequestExceptionHandler())
+            .test()
+            .consumeNextWith {
+                it.statusCode().assert().isEqualTo(HttpStatus.OK)
+                it.headers().contentType.assert().isEqualTo(MediaType.TEXT_EVENT_STREAM)
+                it.headers().getFirst(ERROR_CODE).assert().isEqualTo(ErrorInfo.SUCCEEDED)
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `should resume server sent event stream errors`() {
+        val mockRequest = MockServerRequest.builder().build()
+
+        IllegalArgumentException("bad").toFlux<ServerSentEvent<String>>()
+            .errorResume(mockRequest, WebFluxRequestExceptionHandler())
+            .test()
+            .consumeNextWith {
+                it.event().assert().isEqualTo(ErrorCodes.ILLEGAL_ARGUMENT)
+                it.data().assert().contains(ErrorCodes.ILLEGAL_ARGUMENT)
             }
             .verifyComplete()
     }
