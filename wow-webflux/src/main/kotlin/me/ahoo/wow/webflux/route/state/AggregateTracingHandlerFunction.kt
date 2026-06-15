@@ -15,18 +15,17 @@ package me.ahoo.wow.webflux.route.state
 
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.eventsourcing.EventStore.Companion.DEFAULT_TAIL_VERSION
 import me.ahoo.wow.eventsourcing.state.StateEvent
-import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.toStateEvent
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.metadata.StateAggregateMetadata
-import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.openapi.aggregate.state.AggregateTracingRouteSpec
-import me.ahoo.wow.serialization.toJsonNode
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.context.WowWebRequestContext
 import me.ahoo.wow.webflux.route.policy.TracingPolicy
+import me.ahoo.wow.webflux.route.policy.TracingRequest
 import me.ahoo.wow.webflux.route.toServerResponse
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -57,20 +56,18 @@ class AggregateTracingHandlerFunction(
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         val context = WowWebRequestContext.of(request, aggregateMetadata)
+        val tracingRequest = tracingPolicy.request(request)
         return eventStore
             .load(
                 aggregateId = context.aggregateId,
+                tailVersion = tracingRequest.tailVersion ?: DEFAULT_TAIL_VERSION,
             )
-            // Temporary materialization is bounded to one aggregate history; tracing output streams the requested window.
-            .collectList()
-            .flatMapMany { eventStreams ->
-                val totalVersion = eventStreams.lastOrNull()?.version ?: 0
-                val range = tracingPolicy.range(request, totalVersion)
-                aggregateMetadata.state.trace(
+            .let { eventStreams ->
+                AggregateTracingReplay.trace(
+                    stateAggregateMetadata = aggregateMetadata.state,
                     stateAggregateFactory = stateAggregateFactory,
                     eventStreams = eventStreams,
-                    emitHeadVersion = range.emitHeadVersion,
-                    tailVersion = range.tailVersion,
+                    tracingRequest = tracingRequest,
                 )
             }.toServerResponse(request, exceptionHandler)
     }
@@ -87,13 +84,7 @@ class AggregateTracingHandlerFunction(
             val stateAggregate = stateAggregateFactory.create(this, eventStreams.first().aggregateId)
             return eventStreams.map { eventStream ->
                 stateAggregate.onSourcing(eventStream)
-                eventStream.toStateEvent(
-                    state = stateAggregate.state.toJsonNode<ObjectNode>(),
-                    firstOperator = stateAggregate.firstOperator,
-                    firstEventTime = stateAggregate.firstEventTime,
-                    tags = stateAggregate.tags,
-                    deleted = stateAggregate.deleted,
-                )
+                AggregateTracingReplay.toStateEvent(eventStream, stateAggregate)
             }
         }
 
@@ -112,31 +103,15 @@ class AggregateTracingHandlerFunction(
             if (eventStreams.isEmpty() || tailVersion < emitHeadVersion) {
                 return Flux.empty()
             }
-
-            return Flux.defer {
-                val stateAggregate = stateAggregateFactory.create(this, eventStreams.first().aggregateId)
-                Flux.fromIterable(eventStreams)
-                    .handle<StateEvent<ObjectNode>> { eventStream, sink ->
-                        if (eventStream.version > tailVersion) {
-                            return@handle
-                        }
-                        stateAggregate.onSourcing(eventStream)
-                        if (eventStream.version >= emitHeadVersion) {
-                            sink.next(eventStream.toStateEvent(stateAggregate))
-                        }
-                    }
-            }
-        }
-
-        private fun <S : Any> DomainEventStream.toStateEvent(
-            stateAggregate: StateAggregate<S>
-        ): StateEvent<ObjectNode> {
-            return toStateEvent(
-                state = stateAggregate.state.toJsonNode<ObjectNode>(),
-                firstOperator = stateAggregate.firstOperator,
-                firstEventTime = stateAggregate.firstEventTime,
-                tags = stateAggregate.tags,
-                deleted = stateAggregate.deleted,
+            return AggregateTracingReplay.trace(
+                stateAggregateMetadata = this,
+                stateAggregateFactory = stateAggregateFactory,
+                eventStreams = Flux.fromIterable(eventStreams),
+                tracingRequest = TracingRequest(
+                    headVersion = emitHeadVersion,
+                    tailVersion = tailVersion,
+                    limit = null,
+                ),
             )
         }
     }

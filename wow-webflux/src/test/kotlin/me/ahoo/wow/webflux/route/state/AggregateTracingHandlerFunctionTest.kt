@@ -156,6 +156,40 @@ class AggregateTracingHandlerFunctionTest {
             }.verifyComplete()
     }
 
+    @Test
+    fun `handler tracing response should remain streaming server response`() {
+        val eventStore = InMemoryEventStore()
+        val aggregateId = generateGlobalId()
+        aggregateVerifier<MockCommandAggregate, MockStateAggregate>(eventStore = eventStore)
+            .whenCommand(MockCreateAggregate(id = aggregateId, data = "test-data"))
+            .expectNoError()
+            .expectEventType(MockAggregateCreated::class.java)
+            .verify()
+        val handlerFunction = AggregateTracingHandlerFunctionFactory(
+            ConstructorStateAggregateFactory,
+            eventStore,
+            DefaultRequestExceptionHandler
+        ).create(
+            AggregateTracingRouteSpec(
+                MOCK_AGGREGATE_METADATA,
+                aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA,
+                componentContext = OpenAPIComponentContext.default()
+            )
+        )
+
+        val request = MockServerRequest.builder()
+            .pathVariable(MessageRecords.ID, aggregateId)
+            .pathVariable(MessageRecords.TENANT_ID, TenantId.DEFAULT_TENANT_ID)
+            .build()
+
+        handlerFunction.handle(request)
+            .test()
+            .consumeNextWith {
+                it::class.java.name.assert().contains("StreamingJsonArrayResponse")
+            }
+            .verifyComplete()
+    }
+
     private companion object {
         val CART_AGGREGATE_METADATA = aggregateMetadata<Cart, CartState>()
         val SERVER_RESPONSE_CONTEXT = object : ServerResponse.Context {
