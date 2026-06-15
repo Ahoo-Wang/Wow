@@ -132,7 +132,11 @@ class WebFluxResponseStrategyTest {
             .build()
 
         DefaultWebFluxResponseStrategy
-            .sse(Flux.error<ServerSentEvent<String>>(IllegalArgumentException("bad")), request, WebFluxRequestExceptionHandler())
+            .sse(
+                Flux.error<ServerSentEvent<String>>(IllegalArgumentException("bad")),
+                request,
+                WebFluxRequestExceptionHandler()
+            )
             .test()
             .consumeNextWith {
                 val body = it.writeBody()

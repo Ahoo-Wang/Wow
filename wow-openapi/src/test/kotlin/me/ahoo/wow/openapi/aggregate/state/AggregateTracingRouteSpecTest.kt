@@ -16,10 +16,10 @@ package me.ahoo.wow.openapi.aggregate.state
 import io.swagger.v3.oas.annotations.enums.ParameterIn
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.Wow
+import me.ahoo.wow.naming.MaterializedNamedBoundedContext
 import me.ahoo.wow.openapi.BatchComponent.Parameter.batchLimitPathParameter
 import me.ahoo.wow.openapi.BatchComponent.Parameter.headVersionPathParameter
 import me.ahoo.wow.openapi.BatchComponent.Parameter.tailVersionPathParameter
-import me.ahoo.wow.naming.MaterializedNamedBoundedContext
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata

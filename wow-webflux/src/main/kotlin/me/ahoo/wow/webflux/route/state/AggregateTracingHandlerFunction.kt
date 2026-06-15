@@ -36,21 +36,25 @@ class AggregateTracingHandlerFunction(
     private val tracingPolicy: TracingPolicy
 ) : HandlerFunction<ServerResponse> {
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
-        val context = WowWebRequestContext.of(request, aggregateMetadata)
-        val tracingRequest = tracingPolicy.request(request)
-        return eventStore
-            .load(
-                aggregateId = context.aggregateId,
-                tailVersion = tracingRequest.tailVersion ?: DEFAULT_TAIL_VERSION,
-            )
-            .let { eventStreams ->
-                AggregateTracingReplay.trace(
-                    stateAggregateMetadata = aggregateMetadata.state,
-                    stateAggregateFactory = stateAggregateFactory,
-                    eventStreams = eventStreams,
-                    tracingRequest = tracingRequest,
+        return Mono.defer {
+            val context = WowWebRequestContext.of(request, aggregateMetadata)
+            val tracingRequest = tracingPolicy.request(request)
+            eventStore
+                .load(
+                    aggregateId = context.aggregateId,
+                    tailVersion = tracingRequest.tailVersion ?: DEFAULT_TAIL_VERSION,
                 )
-            }.toServerResponse(request, exceptionHandler)
+                .let { eventStreams ->
+                    AggregateTracingReplay.trace(
+                        stateAggregateMetadata = aggregateMetadata.state,
+                        stateAggregateFactory = stateAggregateFactory,
+                        eventStreams = eventStreams,
+                        tracingRequest = tracingRequest,
+                    )
+                }.toServerResponse(request, exceptionHandler)
+        }.onErrorResume {
+            exceptionHandler.handle(request, it)
+        }
     }
 }
 
