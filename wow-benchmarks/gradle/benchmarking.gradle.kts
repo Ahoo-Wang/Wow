@@ -116,6 +116,7 @@ val smokeSuite = BenchmarkSuite(
         "me.ahoo.wow.benchmark.component.AccessorComponentBenchmark",
         "me.ahoo.wow.benchmark.component.SerializationComponentBenchmark",
         "me.ahoo.wow.benchmark.e2e.CommandWriteE2EBenchmark",
+        "me.ahoo.wow.benchmark.webflux.WebFluxSmokeBenchmark",
     ),
     resultFileName = "benchmark-smoke.json",
     humanFileName = "benchmark-smoke-human.txt",
@@ -178,7 +179,22 @@ val componentSuite = BenchmarkSuite(
     performanceConclusionSource = false,
 )
 
-val reportSuites = listOf(frameworkE2ESuite, infrastructureE2ESuite, componentSuite)
+val webFluxSuite = BenchmarkSuite(
+    id = "webflux",
+    displayName = "WebFlux Adapter",
+    commandName = "benchmarkFullWebFlux",
+    includeClasses = listOf(
+        "me.ahoo.wow.benchmark.webflux.CommandHandlerFunctionBenchmark",
+        "me.ahoo.wow.benchmark.webflux.WebFluxResponseBenchmark",
+        "me.ahoo.wow.benchmark.webflux.AggregateTracingBenchmark",
+    ),
+    resultFileName = "webflux.json",
+    humanFileName = "webflux-human.txt",
+    requiredForGroupedReport = false,
+    performanceConclusionSource = false,
+)
+
+val reportSuites = listOf(frameworkE2ESuite, infrastructureE2ESuite, componentSuite, webFluxSuite)
 
 val benchmarkJvmArgs = listOf(
     "-Xmx4g",
@@ -325,6 +341,7 @@ fun BenchmarkSuite.taskName(profile: BenchmarkRunProfile): String {
         frameworkE2ESuite.id -> "benchmark${profileLabel}E2E"
         infrastructureE2ESuite.id -> "benchmark${profileLabel}InfrastructureE2E"
         componentSuite.id -> "benchmark${profileLabel}Component"
+        webFluxSuite.id -> "benchmark${profileLabel}WebFlux"
         else -> commandName
     }
 }
@@ -416,6 +433,8 @@ registerBenchmarkAggregateTask("benchmarkQuickInfrastructureE2E", infrastructure
 registerBenchmarkAggregateTask("benchmarkFullInfrastructureE2E", infrastructureE2ESuite, fullProfile)
 registerBenchmarkAggregateTask("benchmarkQuickComponent", componentSuite, quickProfile)
 registerBenchmarkAggregateTask("benchmarkFullComponent", componentSuite, fullProfile)
+registerBenchmarkAggregateTask("benchmarkQuickWebFlux", webFluxSuite, quickProfile)
+registerBenchmarkAggregateTask("benchmarkFullWebFlux", webFluxSuite, fullProfile)
 
 tasks.named("jmh") {
     enabled = false
@@ -776,6 +795,9 @@ fun renderGroupedBenchmarkReport(
     val infrastructureRows = parsedGroups
         .filter { it.group.suite.id == infrastructureE2ESuite.id }
         .flatMap { it.rows }
+    val webFluxRows = parsedGroups
+        .filter { it.group.suite.id == webFluxSuite.id }
+        .flatMap { it.rows }
     if (allRows.isEmpty()) {
         throw GradleException("No benchmark rows were available for grouped report generation.")
     }
@@ -837,6 +859,18 @@ fun renderGroupedBenchmarkReport(
         sb.appendLine("### Highest Allocation")
         sb.appendLine()
         sb.appendAllocationBottlenecks(infrastructureRows)
+        sb.appendLine()
+    }
+    if (webFluxRows.isNotEmpty()) {
+        sb.appendLine("## WebFlux Adapter Bottlenecks")
+        sb.appendLine()
+        sb.appendLine("### Lowest Throughput")
+        sb.appendLine()
+        sb.appendThroughputBottlenecks(webFluxRows)
+        sb.appendLine()
+        sb.appendLine("### Highest Allocation")
+        sb.appendLine()
+        sb.appendAllocationBottlenecks(webFluxRows)
         sb.appendLine()
     }
     sb.appendLine("## Group Details")
@@ -962,7 +996,7 @@ tasks.register("generateInfrastructureBenchmarkReport") {
 tasks.register("generateGroupedBenchmarkReport") {
     description = "Generate full grouped E2E and component benchmark reports from JMH JSON results."
     group = "benchmark"
-    mustRunAfter("benchmarkFullE2E", "benchmarkFullInfrastructureE2E", "benchmarkFullComponent")
+    mustRunAfter("benchmarkFullE2E", "benchmarkFullInfrastructureE2E", "benchmarkFullComponent", "benchmarkFullWebFlux")
     outputs.file(groupedBenchmarkReport)
     outputs.upToDateWhen { false }
     doLast {
@@ -981,7 +1015,7 @@ tasks.register("generateGroupedBenchmarkReport") {
 tasks.register("generateQuickBenchmarkReport") {
     description = "Generate quick grouped E2E and component benchmark report from quick JMH JSON results."
     group = "benchmark"
-    mustRunAfter("benchmarkQuickE2E", "benchmarkQuickInfrastructureE2E", "benchmarkQuickComponent")
+    mustRunAfter("benchmarkQuickE2E", "benchmarkQuickInfrastructureE2E", "benchmarkQuickComponent", "benchmarkQuickWebFlux")
     outputs.file(quickGroupedBenchmarkReport)
     outputs.upToDateWhen { false }
     doLast {

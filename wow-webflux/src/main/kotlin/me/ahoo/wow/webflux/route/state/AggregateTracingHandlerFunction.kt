@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.webflux.route.state
 
-import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.state.StateEvent
@@ -24,7 +23,7 @@ import me.ahoo.wow.modeling.metadata.StateAggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.openapi.aggregate.state.AggregateTracingRouteSpec
 import me.ahoo.wow.serialization.MessageRecords
-import me.ahoo.wow.serialization.deepCopy
+import me.ahoo.wow.serialization.toJsonNode
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.getTenantIdOrDefault
@@ -33,6 +32,7 @@ import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
+import tools.jackson.databind.node.ObjectNode
 
 class AggregateTracingHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
@@ -56,33 +56,22 @@ class AggregateTracingHandlerFunction(
 
     companion object {
 
-        private fun <S : Any> StateAggregateMetadata<S>.sourcing(
-            aggregateId: AggregateId,
-            stateAggregateFactory: StateAggregateFactory,
-            eventStreams: List<DomainEventStream>
-        ): StateEvent<S> {
-            val stateAggregate = stateAggregateFactory.create(this, aggregateId)
-            eventStreams.forEach {
-                stateAggregate.onSourcing(it)
-            }
-            return eventStreams.last().toStateEvent(stateAggregate)
-        }
-
         fun <S : Any> StateAggregateMetadata<S>.trace(
             stateAggregateFactory: StateAggregateFactory,
             eventStreams: List<DomainEventStream>
-        ): List<StateEvent<S>> {
+        ): List<StateEvent<ObjectNode>> {
             if (eventStreams.isEmpty()) {
                 return listOf()
             }
-            val aggregateId = eventStreams.first().aggregateId
-            return List(eventStreams.size) { index ->
-                sourcing(
-                    aggregateId,
-                    stateAggregateFactory,
-                    eventStreams.take(index + 1).map {
-                        it.deepCopy(DomainEventStream::class.java)
-                    }
+            val stateAggregate = stateAggregateFactory.create(this, eventStreams.first().aggregateId)
+            return eventStreams.map { eventStream ->
+                stateAggregate.onSourcing(eventStream)
+                eventStream.toStateEvent(
+                    state = stateAggregate.state.toJsonNode<ObjectNode>(),
+                    firstOperator = stateAggregate.firstOperator,
+                    firstEventTime = stateAggregate.firstEventTime,
+                    tags = stateAggregate.tags,
+                    deleted = stateAggregate.deleted,
                 )
             }
         }
