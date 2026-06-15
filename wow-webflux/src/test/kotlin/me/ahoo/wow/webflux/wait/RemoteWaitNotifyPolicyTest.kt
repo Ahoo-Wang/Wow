@@ -13,15 +13,20 @@
 
 package me.ahoo.wow.webflux.wait
 
-import me.ahoo.wow.messaging.handler.DEFAULT_RETRY_SPEC
+import org.junit.jupiter.api.Test
 import reactor.core.publisher.Mono
-import reactor.core.scheduler.Scheduler
-import reactor.core.scheduler.Schedulers
-import reactor.util.retry.Retry
+import reactor.kotlin.test.test
 
-class RemoteWaitNotifyPolicy(
-    val retry: Retry = DEFAULT_RETRY_SPEC,
-    val scheduler: Scheduler = Schedulers.immediate()
-) {
-    fun <T : Any> apply(publisher: Mono<T>): Mono<T> = publisher.retryWhen(retry).subscribeOn(scheduler)
+class RemoteWaitNotifyPolicyTest {
+
+    @Test
+    fun `default policy should not switch subscription thread`() {
+        val callerThreadName = Thread.currentThread().name
+
+        RemoteWaitNotifyPolicy()
+            .apply(Mono.fromCallable { Thread.currentThread().name })
+            .test()
+            .expectNext(callerThreadName)
+            .verifyComplete()
+    }
 }
