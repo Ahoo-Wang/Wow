@@ -115,14 +115,15 @@ internal object AggregateTracingReplay {
                     stateAggregate = it
                 }
             aggregate.onSourcing(eventStream)
-            return eventStream.toStateEvent(aggregate)
+            return toStateEvent(eventStream, aggregate)
         }
     }
 
-    internal fun <S : Any> DomainEventStream.toStateEvent(
+    internal fun <S : Any> toStateEvent(
+        eventStream: DomainEventStream,
         stateAggregate: StateAggregate<S>
     ): StateEvent<ObjectNode> {
-        return toStateEvent(
+        return eventStream.toStateEvent(
             state = stateAggregate.state.toJsonNode<ObjectNode>(),
             firstOperator = stateAggregate.firstOperator,
             firstEventTime = stateAggregate.firstEventTime,
