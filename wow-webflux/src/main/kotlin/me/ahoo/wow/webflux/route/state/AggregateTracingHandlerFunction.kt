@@ -25,7 +25,6 @@ import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.context.WowWebRequestContext
 import me.ahoo.wow.webflux.route.policy.TracingPolicy
-import me.ahoo.wow.webflux.route.policy.TracingRequest
 import me.ahoo.wow.webflux.route.toServerResponse
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -78,14 +77,7 @@ class AggregateTracingHandlerFunction(
             stateAggregateFactory: StateAggregateFactory,
             eventStreams: List<DomainEventStream>
         ): List<StateEvent<ObjectNode>> {
-            if (eventStreams.isEmpty()) {
-                return listOf()
-            }
-            val stateAggregate = stateAggregateFactory.create(this, eventStreams.first().aggregateId)
-            return eventStreams.map { eventStream ->
-                stateAggregate.onSourcing(eventStream)
-                AggregateTracingReplay.toStateEvent(eventStream, stateAggregate)
-            }
+            return AggregateTracingReplay.trace(this, stateAggregateFactory, eventStreams)
         }
 
         fun <S : Any> StateAggregateMetadata<S>.trace(
@@ -94,24 +86,12 @@ class AggregateTracingHandlerFunction(
             emitHeadVersion: Int,
             tailVersion: Int
         ): Flux<StateEvent<ObjectNode>> {
-            require(emitHeadVersion > 0) {
-                "emitHeadVersion must be greater than 0."
-            }
-            require(tailVersion >= 0) {
-                "tailVersion must be greater than or equal to 0."
-            }
-            if (eventStreams.isEmpty() || tailVersion < emitHeadVersion) {
-                return Flux.empty()
-            }
             return AggregateTracingReplay.trace(
-                stateAggregateMetadata = this,
-                stateAggregateFactory = stateAggregateFactory,
-                eventStreams = Flux.fromIterable(eventStreams),
-                tracingRequest = TracingRequest(
-                    headVersion = emitHeadVersion,
-                    tailVersion = tailVersion,
-                    limit = null,
-                ),
+                this,
+                stateAggregateFactory,
+                eventStreams,
+                emitHeadVersion,
+                tailVersion,
             )
         }
     }
