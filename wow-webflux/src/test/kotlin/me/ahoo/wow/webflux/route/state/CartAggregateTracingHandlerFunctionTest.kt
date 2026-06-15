@@ -31,7 +31,11 @@ import me.ahoo.wow.test.aggregateVerifier
 import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
+import org.springframework.mock.http.server.reactive.MockServerHttpRequest
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
+import org.springframework.mock.web.server.MockServerWebExchange
+import org.springframework.web.reactive.function.server.HandlerStrategies
+import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.kotlin.test.test
 
 class CartAggregateTracingHandlerFunctionTest {
@@ -39,6 +43,11 @@ class CartAggregateTracingHandlerFunctionTest {
     companion object {
         val CART_AGGREGATE_METADATA = aggregateMetadata<Cart, CartState>()
         val CART_AGGREGATE_ROUTE_METADATA = Cart::class.java.aggregateRouteMetadata()
+        val SERVER_RESPONSE_CONTEXT = object : ServerResponse.Context {
+            private val strategies = HandlerStrategies.withDefaults()
+            override fun messageWriters() = strategies.messageWriters()
+            override fun viewResolvers() = strategies.viewResolvers()
+        }
     }
 
     @Test
@@ -72,6 +81,12 @@ class CartAggregateTracingHandlerFunctionTest {
             .test()
             .consumeNextWith {
                 it.statusCode().assert().isEqualTo(HttpStatus.OK)
+                val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/test").build())
+                it.writeTo(exchange, SERVER_RESPONSE_CONTEXT)
+                    .test()
+                    .verifyComplete()
+                exchange.response.bodyAsString.block()!!.assert().contains("product-1")
             }.verifyComplete()
     }
+
 }

@@ -17,16 +17,14 @@ import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.toStateEvent
-import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.metadata.StateAggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.openapi.aggregate.state.AggregateTracingRouteSpec
-import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.toJsonNode
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.command.getTenantIdOrDefault
+import me.ahoo.wow.webflux.route.context.WowWebRequestContext
 import me.ahoo.wow.webflux.route.toServerResponse
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -42,12 +40,10 @@ class AggregateTracingHandlerFunction(
 ) : HandlerFunction<ServerResponse> {
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
-        val tenantId = request.getTenantIdOrDefault(aggregateMetadata)
-        val id = request.pathVariable(MessageRecords.ID)
-        val aggregateId = aggregateMetadata.aggregateId(id = id, tenantId = tenantId)
+        val context = WowWebRequestContext.of(request, aggregateMetadata)
         return eventStore
             .load(
-                aggregateId = aggregateId,
+                aggregateId = context.aggregateId,
             ).collectList()
             .map {
                 aggregateMetadata.state.trace(stateAggregateFactory, it)
