@@ -15,14 +15,17 @@ package me.ahoo.wow.webflux.route
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.openapi.RouteSpec
-import java.util.concurrent.ConcurrentHashMap
 
-class RouteHandlerFunctionRegistrar {
+class RouteHandlerFunctionRegistrar(
+    factories: Collection<RouteHandlerFunctionFactory<*>> = emptyList()
+) {
     companion object {
         private val log = KotlinLogging.logger {}
     }
 
-    private val factories = ConcurrentHashMap<Class<out RouteSpec>, RouteHandlerFunctionFactory<*>>()
+    private val factories: MutableMap<Class<out RouteSpec>, RouteHandlerFunctionFactory<*>> =
+        factories.associateBy { it.supportedSpec }.toMutableMap()
+
     fun register(routeHandlerFunctionFactory: RouteHandlerFunctionFactory<*>) {
         val previous = factories.put(routeHandlerFunctionFactory.supportedSpec, routeHandlerFunctionFactory)
         log.info {
