@@ -226,6 +226,7 @@ val quickWebFluxSuite = webFluxSuite.copy(
         "me.ahoo.wow.benchmark.webflux.WebFluxResponseBenchmark.fluxJsonStreamingArrayServerResponseOnly",
         "me.ahoo.wow.benchmark.webflux.AggregateTracingBenchmark.traceAndSerializeCartHistory",
         "me.ahoo.wow.benchmark.webflux.AggregateTracingBenchmark.traceWindowWithPrefixReplayAndSerialize",
+        "me.ahoo.wow.benchmark.webflux.AggregateTracingBenchmark.handleTailLimitRequestAndSerialize",
     )
 )
 

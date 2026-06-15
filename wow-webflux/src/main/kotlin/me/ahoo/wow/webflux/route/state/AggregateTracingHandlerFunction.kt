@@ -15,6 +15,7 @@ package me.ahoo.wow.webflux.route.state
 
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.EventStore.Companion.DEFAULT_TAIL_VERSION
+import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.openapi.aggregate.state.AggregateTracingRouteSpec
@@ -22,11 +23,14 @@ import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.context.WowWebRequestContext
 import me.ahoo.wow.webflux.route.policy.TracingPolicy
+import me.ahoo.wow.webflux.route.policy.TracingRequest
 import me.ahoo.wow.webflux.route.toServerResponse
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import tools.jackson.databind.node.ObjectNode
 
 class AggregateTracingHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
@@ -39,7 +43,20 @@ class AggregateTracingHandlerFunction(
         return Mono.defer {
             val context = WowWebRequestContext.of(request, aggregateMetadata)
             val tracingRequest = tracingPolicy.request(request)
-            eventStore
+            trace(context, tracingRequest)
+                .toServerResponse(request, exceptionHandler)
+        }.onErrorResume {
+            exceptionHandler.handle(request, it)
+        }
+    }
+
+    private fun trace(
+        context: WowWebRequestContext,
+        tracingRequest: TracingRequest
+    ): Flux<StateEvent<ObjectNode>> {
+        val limit = tracingRequest.limit
+        if (limit == null) {
+            return eventStore
                 .load(
                     aggregateId = context.aggregateId,
                     tailVersion = tracingRequest.tailVersion ?: DEFAULT_TAIL_VERSION,
@@ -51,10 +68,34 @@ class AggregateTracingHandlerFunction(
                         eventStreams = eventStreams,
                         tracingRequest = tracingRequest,
                     )
-                }.toServerResponse(request, exceptionHandler)
-        }.onErrorResume {
-            exceptionHandler.handle(request, it)
+                }
         }
+        if (limit == 0) {
+            return Flux.empty()
+        }
+        return eventStore.last(context.aggregateId)
+            .map { it.version }
+            .defaultIfEmpty(TracingPolicy.EMPTY_TAIL_VERSION)
+            .flatMapMany { totalVersion ->
+                val range = tracingRequest.toRange(totalVersion)
+                if (range.tailVersion < range.emitHeadVersion) {
+                    return@flatMapMany Flux.empty()
+                }
+                AggregateTracingReplay.trace(
+                    stateAggregateMetadata = aggregateMetadata.state,
+                    stateAggregateFactory = stateAggregateFactory,
+                    eventStreams = eventStore.load(
+                        aggregateId = context.aggregateId,
+                        headVersion = range.replayHeadVersion,
+                        tailVersion = range.tailVersion,
+                    ),
+                    tracingRequest = TracingRequest(
+                        headVersion = range.emitHeadVersion,
+                        tailVersion = range.tailVersion,
+                        limit = null,
+                    ),
+                )
+            }
     }
 }
 

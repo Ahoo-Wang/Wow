@@ -18,6 +18,7 @@ import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.toDomainEventStream
+import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.example.api.cart.CartItem
@@ -56,6 +57,8 @@ import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import org.springframework.mock.web.server.MockServerWebExchange
 import org.springframework.web.reactive.function.server.HandlerStrategies
 import org.springframework.web.reactive.function.server.ServerResponse
+import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 import tools.jackson.databind.node.ObjectNode
 
@@ -240,6 +243,70 @@ class AggregateTracingHandlerFunctionTest {
             .verifyComplete()
     }
 
+    @Test
+    fun `handler tail limit should not serialize discarded prefix states`() {
+        val eventStreams = cartEventStreams(eventCount = 4)
+        val aggregateId = eventStreams.first().aggregateId
+        val handlerFunction = AggregateTracingHandlerFunctionFactory(
+            PrefixStateSerializationGuardFactory(minSerializableVersion = 3),
+            FixtureEventStore(eventStreams),
+            WebFluxRequestExceptionHandler(),
+            TracingPolicy(),
+        ).create(
+            AggregateTracingRouteSpec(
+                CART_AGGREGATE_METADATA,
+                aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA,
+                componentContext = OpenAPIComponentContext.default()
+            )
+        )
+
+        val request = MockServerRequest.builder()
+            .pathVariable(MessageRecords.ID, aggregateId.id)
+            .pathVariable(MessageRecords.TENANT_ID, aggregateId.tenantId)
+            .queryParam(TracingPolicy.LIMIT, "2")
+            .build()
+
+        handlerFunction.handle(request)
+            .test()
+            .consumeNextWith {
+                val body = it.writeToString()
+                body.assert().contains("\"version\":3")
+                body.assert().contains("\"version\":4")
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    fun `handler zero tail limit should emit empty history`() {
+        val eventStreams = cartEventStreams(eventCount = 2)
+        val aggregateId = eventStreams.first().aggregateId
+        val handlerFunction = AggregateTracingHandlerFunctionFactory(
+            ConstructorStateAggregateFactory,
+            FixtureEventStore(eventStreams),
+            WebFluxRequestExceptionHandler(),
+            TracingPolicy(),
+        ).create(
+            AggregateTracingRouteSpec(
+                CART_AGGREGATE_METADATA,
+                aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA,
+                componentContext = OpenAPIComponentContext.default()
+            )
+        )
+
+        val request = MockServerRequest.builder()
+            .pathVariable(MessageRecords.ID, aggregateId.id)
+            .pathVariable(MessageRecords.TENANT_ID, aggregateId.tenantId)
+            .queryParam(TracingPolicy.LIMIT, "0")
+            .build()
+
+        handlerFunction.handle(request)
+            .test()
+            .consumeNextWith {
+                it.writeToString().assert().isEqualTo("[]")
+            }
+            .verifyComplete()
+    }
+
     private companion object {
         val CART_AGGREGATE_METADATA = aggregateMetadata<Cart, CartState>()
         val SERVER_RESPONSE_CONTEXT = object : ServerResponse.Context {
@@ -285,6 +352,36 @@ class AggregateTracingHandlerFunctionTest {
         }
     }
 
+    private class FixtureEventStore(
+        private val eventStreams: List<DomainEventStream>
+    ) : EventStore {
+        override fun append(eventStream: DomainEventStream): Mono<Void> {
+            return Mono.empty()
+        }
+
+        override fun load(
+            aggregateId: AggregateId,
+            headVersion: Int,
+            tailVersion: Int
+        ): Flux<DomainEventStream> {
+            return Flux.fromIterable(eventStreams)
+                .filter { it.version in headVersion..tailVersion }
+        }
+
+        override fun load(
+            aggregateId: AggregateId,
+            headEventTime: Long,
+            tailEventTime: Long
+        ): Flux<DomainEventStream> {
+            return Flux.fromIterable(eventStreams)
+                .filter { it.createTime in headEventTime..tailEventTime }
+        }
+
+        override fun last(aggregateId: AggregateId): Mono<DomainEventStream> {
+            return Mono.justOrEmpty(eventStreams.lastOrNull())
+        }
+    }
+
     private class CountingStateAggregateFactory(
         private val delegate: StateAggregateFactory = ConstructorStateAggregateFactory
     ) : StateAggregateFactory {
@@ -297,6 +394,39 @@ class AggregateTracingHandlerFunctionTest {
         ): StateAggregate<S> {
             createCount++
             return delegate.create(metadata, aggregateId)
+        }
+    }
+
+    private class PrefixStateSerializationGuardFactory(
+        private val minSerializableVersion: Int,
+        private val delegate: StateAggregateFactory = ConstructorStateAggregateFactory
+    ) : StateAggregateFactory {
+        override fun <S : Any> create(
+            metadata: StateAggregateMetadata<S>,
+            aggregateId: AggregateId
+        ): StateAggregate<S> {
+            return PrefixStateSerializationGuard(
+                delegate = delegate.create(metadata, aggregateId),
+                minSerializableVersion = minSerializableVersion,
+            )
+        }
+    }
+
+    private class PrefixStateSerializationGuard<S : Any>(
+        private val delegate: StateAggregate<S>,
+        private val minSerializableVersion: Int
+    ) : StateAggregate<S> by delegate {
+        override val state: S
+            get() {
+                check(delegate.version >= minSerializableVersion) {
+                    "Discarded prefix state should not be serialized."
+                }
+                return delegate.state
+            }
+
+        override fun onSourcing(eventStream: DomainEventStream): StateAggregate<S> {
+            delegate.onSourcing(eventStream)
+            return this
         }
     }
 }

@@ -15,18 +15,24 @@ package me.ahoo.wow.benchmark.webflux
 
 import me.ahoo.wow.api.abac.AbacTags
 import me.ahoo.wow.api.event.DomainEvent
+import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
 import me.ahoo.wow.benchmark.fixture.BenchmarkEvents
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.SimpleDomainEvent
 import me.ahoo.wow.event.SimpleDomainEventStream
+import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.toStateEvent
 import me.ahoo.wow.example.domain.cart.CartState
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
+import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.deepCopy
 import me.ahoo.wow.serialization.toJsonNode
 import me.ahoo.wow.serialization.toJsonString
+import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
+import me.ahoo.wow.webflux.route.policy.TracingPolicy
+import me.ahoo.wow.webflux.route.state.AggregateTracingHandlerFunction
 import me.ahoo.wow.webflux.route.state.AggregateTracingReplay
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Level
@@ -35,6 +41,14 @@ import org.openjdk.jmh.annotations.Scope
 import org.openjdk.jmh.annotations.Setup
 import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.infra.Blackhole
+import org.springframework.mock.http.server.reactive.MockServerHttpRequest
+import org.springframework.mock.web.reactive.function.server.MockServerRequest
+import org.springframework.mock.web.server.MockServerWebExchange
+import org.springframework.web.reactive.function.server.HandlerStrategies
+import org.springframework.web.reactive.function.server.ServerRequest
+import org.springframework.web.reactive.function.server.ServerResponse
+import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 import tools.jackson.databind.node.ObjectNode
 
 @State(Scope.Thread)
@@ -54,6 +68,8 @@ open class AggregateTracingBenchmark {
     private lateinit var statesToCopy: List<CartState>
     private lateinit var jsonStateSnapshots: List<ObjectNode>
     private lateinit var tracedHistory: List<StateEvent<ObjectNode>>
+    private lateinit var tailLimitHandlerFunction: AggregateTracingHandlerFunction
+    private lateinit var tailLimitRequest: ServerRequest
     private lateinit var stateEventState: CartState
     private lateinit var firstOperator: String
     private var firstEventTime: Long = 0
@@ -88,6 +104,19 @@ open class AggregateTracingBenchmark {
             stateAggregateFactory = ConstructorStateAggregateFactory,
             eventStreams = eventStreams,
         )
+        tailLimitHandlerFunction = AggregateTracingHandlerFunction(
+            aggregateMetadata = BenchmarkAggregates.cartMetadata,
+            stateAggregateFactory = ConstructorStateAggregateFactory,
+            eventStore = FixtureEventStore(eventStreams),
+            exceptionHandler = WebFluxRequestExceptionHandler(),
+            tracingPolicy = TracingPolicy(),
+        )
+        val aggregateId = eventStreams.first().aggregateId
+        tailLimitRequest = MockServerRequest.builder()
+            .pathVariable(MessageRecords.ID, aggregateId.id)
+            .pathVariable(MessageRecords.TENANT_ID, aggregateId.tenantId)
+            .queryParam(TracingPolicy.LIMIT, traceWindowSize.toString())
+            .build()
         stateEventState = preparedStates.last()
         firstOperator = stateAggregate.firstOperator
         firstEventTime = stateAggregate.firstEventTime
@@ -194,6 +223,12 @@ open class AggregateTracingBenchmark {
     }
 
     @Benchmark
+    fun handleTailLimitRequestAndSerialize(blackhole: Blackhole) {
+        val response = tailLimitHandlerFunction.handle(tailLimitRequest).block()!!
+        blackhole.consume(response.writeToString())
+    }
+
+    @Benchmark
     fun manualStreamingTraceAndSerializeCartHistory(blackhole: Blackhole) {
         blackhole.consume(traceFullOutputToJsonString())
     }
@@ -279,4 +314,48 @@ open class AggregateTracingBenchmark {
         BenchmarkAggregates.cartMetadata.state,
         eventStreams.first().aggregateId,
     )
+
+    private fun ServerResponse.writeToString(): String {
+        val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/benchmark").build())
+        writeTo(exchange, SERVER_RESPONSE_CONTEXT).block()
+        return exchange.response.bodyAsString.block()!!
+    }
+
+    private class FixtureEventStore(
+        private val eventStreams: List<DomainEventStream>
+    ) : EventStore {
+        override fun append(eventStream: DomainEventStream): Mono<Void> {
+            return Mono.empty()
+        }
+
+        override fun load(
+            aggregateId: AggregateId,
+            headVersion: Int,
+            tailVersion: Int
+        ): Flux<DomainEventStream> {
+            return Flux.fromIterable(eventStreams)
+                .filter { it.version in headVersion..tailVersion }
+        }
+
+        override fun load(
+            aggregateId: AggregateId,
+            headEventTime: Long,
+            tailEventTime: Long
+        ): Flux<DomainEventStream> {
+            return Flux.fromIterable(eventStreams)
+                .filter { it.createTime in headEventTime..tailEventTime }
+        }
+
+        override fun last(aggregateId: AggregateId): Mono<DomainEventStream> {
+            return Mono.justOrEmpty(eventStreams.lastOrNull())
+        }
+    }
+
+    private companion object {
+        val SERVER_RESPONSE_CONTEXT = object : ServerResponse.Context {
+            private val strategies = HandlerStrategies.withDefaults()
+            override fun messageWriters() = strategies.messageWriters()
+            override fun viewResolvers() = strategies.viewResolvers()
+        }
+    }
 }
