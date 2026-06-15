@@ -41,6 +41,7 @@ import org.springframework.http.codec.ServerSentEventHttpMessageWriter
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import org.springframework.mock.web.server.MockServerWebExchange
+import org.springframework.web.reactive.function.server.HandlerStrategies
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import org.springframework.web.reactive.result.view.ViewResolver
@@ -64,6 +65,18 @@ internal object WebFluxBenchmarkSupport {
 
         override fun viewResolvers(): List<ViewResolver> {
             return emptyList()
+        }
+    }
+
+    val jsonResponseContext: ServerResponse.Context = object : ServerResponse.Context {
+        private val strategies = HandlerStrategies.withDefaults()
+
+        override fun messageWriters(): List<HttpMessageWriter<*>> {
+            return strategies.messageWriters()
+        }
+
+        override fun viewResolvers(): List<ViewResolver> {
+            return strategies.viewResolvers()
         }
     }
 
@@ -93,6 +106,11 @@ internal object WebFluxBenchmarkSupport {
 
     fun sseExchange(): MockServerWebExchange {
         val request = MockServerHttpRequest.get("/benchmark-webflux-sse").build()
+        return MockServerWebExchange.builder(request).build()
+    }
+
+    fun jsonExchange(): MockServerWebExchange {
+        val request = MockServerHttpRequest.get("/benchmark-webflux-json").build()
         return MockServerWebExchange.builder(request).build()
     }
 

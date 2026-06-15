@@ -52,10 +52,13 @@ open class WebFluxResponseBenchmark {
     }
 
     @Benchmark
-    fun fluxJsonCollectListResponse(blackhole: Blackhole) {
+    fun fluxJsonStreamingArrayResponse(blackhole: Blackhole) {
         val response = Flux.fromIterable(payloads)
             .toServerResponse(jsonRequest, DefaultRequestExceptionHandler)
             .block()
+        response
+            ?.writeTo(WebFluxBenchmarkSupport.jsonExchange(), WebFluxBenchmarkSupport.jsonResponseContext)
+            ?.block()
         blackhole.consume(response)
     }
 
