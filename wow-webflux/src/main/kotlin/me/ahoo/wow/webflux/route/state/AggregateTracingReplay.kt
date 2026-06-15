@@ -23,7 +23,6 @@ import me.ahoo.wow.serialization.toJsonNode
 import me.ahoo.wow.webflux.route.policy.TracingRequest
 import reactor.core.publisher.Flux
 import tools.jackson.databind.node.ObjectNode
-import java.util.ArrayDeque
 
 object AggregateTracingReplay {
 
@@ -76,14 +75,8 @@ object AggregateTracingReplay {
         eventStreams: Flux<DomainEventStream>,
         tracingRequest: TracingRequest
     ): Flux<StateEvent<ObjectNode>> {
-        tracingRequest.limit?.let { limit ->
-            return traceTailLimit(
-                stateAggregateMetadata = stateAggregateMetadata,
-                stateAggregateFactory = stateAggregateFactory,
-                eventStreams = eventStreams,
-                tracingRequest = tracingRequest,
-                limit = limit,
-            )
+        require(tracingRequest.limit == null) {
+            "tail limit must be resolved to an explicit range before replay."
         }
         return traceStreamingRange(
             stateAggregateMetadata = stateAggregateMetadata,
@@ -101,42 +94,13 @@ object AggregateTracingReplay {
     ): Flux<StateEvent<ObjectNode>> {
         return Flux.defer {
             val replayState = ReplayState(stateAggregateMetadata, stateAggregateFactory)
-            eventStreams
-                .takeUntilTail(tracingRequest.tailVersion)
-                .handle<StateEvent<ObjectNode>> { eventStream, sink ->
-                    val stateAggregate = replayState.source(eventStream)
-                    if (eventStream.version >= tracingRequest.emitHeadVersion) {
-                        sink.next(toStateEvent(eventStream, stateAggregate))
-                    }
+            val boundedEventStreams = eventStreams.takeUntilTail(tracingRequest.tailVersion)
+            boundedEventStreams.handle<StateEvent<ObjectNode>> { eventStream, sink ->
+                val stateAggregate = replayState.source(eventStream)
+                if (eventStream.version >= tracingRequest.emitHeadVersion) {
+                    sink.next(toStateEvent(eventStream, stateAggregate))
                 }
-        }
-    }
-
-    private fun <S : Any> traceTailLimit(
-        stateAggregateMetadata: StateAggregateMetadata<S>,
-        stateAggregateFactory: StateAggregateFactory,
-        eventStreams: Flux<DomainEventStream>,
-        tracingRequest: TracingRequest,
-        limit: Int
-    ): Flux<StateEvent<ObjectNode>> {
-        if (limit == 0) {
-            return Flux.empty()
-        }
-        return Flux.defer {
-            val replayState = ReplayState(stateAggregateMetadata, stateAggregateFactory)
-            val tailBuffer = ArrayDeque<StateEvent<ObjectNode>>(limit)
-            eventStreams
-                .takeUntilTail(tracingRequest.tailVersion)
-                .doOnNext { eventStream ->
-                    val stateAggregate = replayState.source(eventStream)
-                    if (eventStream.version >= tracingRequest.emitHeadVersion) {
-                        if (tailBuffer.size == limit) {
-                            tailBuffer.removeFirst()
-                        }
-                        tailBuffer.addLast(toStateEvent(eventStream, stateAggregate))
-                    }
-                }
-                .thenMany(Flux.defer { Flux.fromIterable(tailBuffer) })
+            }
         }
     }
 

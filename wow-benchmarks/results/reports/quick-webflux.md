@@ -11,7 +11,7 @@ Quick WebFlux results are short-loop local feedback for command dispatch, respon
 - **Version**: 8.5.0
 - **JVM**: OpenJDK 64-Bit Server VM 17.0.7+7-LTS
 - **OS**: Mac OS X 26.5.1 aarch64
-- **DateTime**: 2026-06-15T21:27:39+08:00
+- **DateTime**: 2026-06-15T21:49:10+08:00
 - **CPU Cores**: 14
 - **Physical Memory**: 24.0 GiB
 - **Benchmark JVM Args**: `-Xmx4g -Xms4g -XX:+UseG1GC -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints -XX:+AlwaysPreTouch`
@@ -20,9 +20,9 @@ Quick WebFlux results are short-loop local feedback for command dispatch, respon
 ## Source Files
 
 - **threads=1 Result File**: `wow-benchmarks/results/jmh/quick/webflux/threads-1-webflux.json`
-  - Last Modified: 2026-06-15T13:24:18.746Z
+  - Last Modified: 2026-06-15T13:48:27.673Z
 - **threads=4 Result File**: `wow-benchmarks/results/jmh/quick/webflux/threads-4-webflux.json`
-  - Last Modified: 2026-06-15T13:24:54.268Z
+  - Last Modified: 2026-06-15T13:49:10.787Z
 
 ## Bottlenecks
 
@@ -30,57 +30,63 @@ Quick WebFlux results are short-loop local feedback for command dispatch, respon
 
 | Suite | Threads | Benchmark | Score | Error | Unit |
 |-------|---------|-----------|-------|-------|------|
-| WebFlux Adapter | 1 | AggregateTracingBenchmark.traceAndSerializeCartHistory (eventCount=100, traceWindowSize=10) | 1216.70 | - | ops/s |
-| WebFlux Adapter | 4 | AggregateTracingBenchmark.traceAndSerializeCartHistory (eventCount=100, traceWindowSize=10) | 4886.69 | - | ops/s |
-| WebFlux Adapter | 1 | AggregateTracingBenchmark.traceWindowWithPrefixReplayAndSerialize (eventCount=100, traceWindowSize=10) | 6817.02 | - | ops/s |
-| WebFlux Adapter | 4 | AggregateTracingBenchmark.traceWindowWithPrefixReplayAndSerialize (eventCount=100, traceWindowSize=10) | 32322.85 | - | ops/s |
-| WebFlux Adapter | 1 | AggregateTracingBenchmark.traceWindowWithPrefixReplayAndSerialize (eventCount=10, traceWindowSize=10) | 36928.93 | - | ops/s |
-| WebFlux Adapter | 1 | AggregateTracingBenchmark.traceAndSerializeCartHistory (eventCount=10, traceWindowSize=10) | 49647.99 | - | ops/s |
-| WebFlux Adapter | 1 | CommandHandlerFunctionBenchmark.handlePreparedAddCartItemRequestWaitSent | 73731.73 | - | ops/s |
-| WebFlux Adapter | 4 | CommandHandlerFunctionBenchmark.handlePreparedAddCartItemRequestWaitSent | 145438.45 | - | ops/s |
-| WebFlux Adapter | 4 | AggregateTracingBenchmark.traceWindowWithPrefixReplayAndSerialize (eventCount=10, traceWindowSize=10) | 166207.33 | - | ops/s |
-| WebFlux Adapter | 4 | AggregateTracingBenchmark.traceAndSerializeCartHistory (eventCount=10, traceWindowSize=10) | 170032.86 | - | ops/s |
+| WebFlux Adapter | 1 | AggregateTracingBenchmark.traceAndSerializeCartHistory (eventCount=100, traceWindowSize=10) | 1246.42 | - | ops/s |
+| WebFlux Adapter | 1 | AggregateTracingBenchmark.handleTailLimitRequestAndSerialize (eventCount=100, traceWindowSize=10) | 3748.45 | - | ops/s |
+| WebFlux Adapter | 4 | AggregateTracingBenchmark.traceAndSerializeCartHistory (eventCount=100, traceWindowSize=10) | 5223.25 | - | ops/s |
+| WebFlux Adapter | 1 | AggregateTracingBenchmark.traceWindowWithPrefixReplayAndSerialize (eventCount=100, traceWindowSize=10) | 7695.94 | - | ops/s |
+| WebFlux Adapter | 1 | AggregateTracingBenchmark.handleTailLimitRequestAndSerialize (eventCount=10, traceWindowSize=10) | 8863.68 | - | ops/s |
+| WebFlux Adapter | 4 | AggregateTracingBenchmark.handleTailLimitRequestAndSerialize (eventCount=100, traceWindowSize=10) | 12269.68 | - | ops/s |
+| WebFlux Adapter | 1 | AggregateTracingBenchmark.handleTailLimitRequestAndSerialize (eventCount=1, traceWindowSize=10) | 15564.47 | - | ops/s |
+| WebFlux Adapter | 4 | AggregateTracingBenchmark.handleTailLimitRequestAndSerialize (eventCount=10, traceWindowSize=10) | 17132.12 | - | ops/s |
+| WebFlux Adapter | 4 | AggregateTracingBenchmark.handleTailLimitRequestAndSerialize (eventCount=1, traceWindowSize=10) | 33719.93 | - | ops/s |
+| WebFlux Adapter | 4 | AggregateTracingBenchmark.traceWindowWithPrefixReplayAndSerialize (eventCount=100, traceWindowSize=10) | 34062.36 | - | ops/s |
 
 ### Highest Allocation
 
 | Suite | Threads | Benchmark | Mode | Allocation | Error | Score | Unit |
 |-------|---------|-----------|------|------------|-------|-------|------|
-| WebFlux Adapter | 1 | AggregateTracingBenchmark.traceAndSerializeCartHistory (eventCount=100, traceWindowSize=10) | thrpt | 2989704.3 B/op | - | 1216.70 | ops/s |
-| WebFlux Adapter | 4 | AggregateTracingBenchmark.traceAndSerializeCartHistory (eventCount=100, traceWindowSize=10) | thrpt | 2963967.5 B/op | - | 4886.69 | ops/s |
-| WebFlux Adapter | 1 | AggregateTracingBenchmark.traceWindowWithPrefixReplayAndSerialize (eventCount=100, traceWindowSize=10) | thrpt | 447879.2 B/op | - | 6817.02 | ops/s |
-| WebFlux Adapter | 4 | AggregateTracingBenchmark.traceWindowWithPrefixReplayAndSerialize (eventCount=100, traceWindowSize=10) | thrpt | 444441.4 B/op | - | 32322.85 | ops/s |
-| WebFlux Adapter | 1 | AggregateTracingBenchmark.traceWindowWithPrefixReplayAndSerialize (eventCount=10, traceWindowSize=10) | thrpt | 38420.0 B/op | - | 36928.93 | ops/s |
-| WebFlux Adapter | 4 | AggregateTracingBenchmark.traceWindowWithPrefixReplayAndSerialize (eventCount=10, traceWindowSize=10) | thrpt | 37584.0 B/op | - | 166207.33 | ops/s |
-| WebFlux Adapter | 1 | AggregateTracingBenchmark.traceAndSerializeCartHistory (eventCount=10, traceWindowSize=10) | thrpt | 37513.2 B/op | - | 49647.99 | ops/s |
-| WebFlux Adapter | 4 | AggregateTracingBenchmark.traceAndSerializeCartHistory (eventCount=10, traceWindowSize=10) | thrpt | 37085.4 B/op | - | 170032.86 | ops/s |
-| WebFlux Adapter | 1 | CommandHandlerFunctionBenchmark.handlePreparedAddCartItemRequestWaitSent | thrpt | 12396.1 B/op | - | 73731.73 | ops/s |
-| WebFlux Adapter | 4 | CommandHandlerFunctionBenchmark.handlePreparedAddCartItemRequestWaitSent | thrpt | 12032.8 B/op | - | 145438.45 | ops/s |
+| WebFlux Adapter | 1 | AggregateTracingBenchmark.traceAndSerializeCartHistory (eventCount=100, traceWindowSize=10) | thrpt | 2994104.9 B/op | - | 1246.42 | ops/s |
+| WebFlux Adapter | 4 | AggregateTracingBenchmark.traceAndSerializeCartHistory (eventCount=100, traceWindowSize=10) | thrpt | 2963757.6 B/op | - | 5223.25 | ops/s |
+| WebFlux Adapter | 1 | AggregateTracingBenchmark.handleTailLimitRequestAndSerialize (eventCount=100, traceWindowSize=10) | thrpt | 767252.4 B/op | - | 3748.45 | ops/s |
+| WebFlux Adapter | 4 | AggregateTracingBenchmark.handleTailLimitRequestAndSerialize (eventCount=100, traceWindowSize=10) | thrpt | 759940.9 B/op | - | 12269.68 | ops/s |
+| WebFlux Adapter | 1 | AggregateTracingBenchmark.traceWindowWithPrefixReplayAndSerialize (eventCount=100, traceWindowSize=10) | thrpt | 447251.4 B/op | - | 7695.94 | ops/s |
+| WebFlux Adapter | 4 | AggregateTracingBenchmark.traceWindowWithPrefixReplayAndSerialize (eventCount=100, traceWindowSize=10) | thrpt | 444410.5 B/op | - | 34062.36 | ops/s |
+| WebFlux Adapter | 1 | AggregateTracingBenchmark.handleTailLimitRequestAndSerialize (eventCount=10, traceWindowSize=10) | thrpt | 174182.7 B/op | - | 8863.68 | ops/s |
+| WebFlux Adapter | 4 | AggregateTracingBenchmark.handleTailLimitRequestAndSerialize (eventCount=10, traceWindowSize=10) | thrpt | 170949.1 B/op | - | 17132.12 | ops/s |
+| WebFlux Adapter | 1 | AggregateTracingBenchmark.handleTailLimitRequestAndSerialize (eventCount=1, traceWindowSize=10) | thrpt | 83564.9 B/op | - | 15564.47 | ops/s |
+| WebFlux Adapter | 4 | AggregateTracingBenchmark.handleTailLimitRequestAndSerialize (eventCount=1, traceWindowSize=10) | thrpt | 82524.4 B/op | - | 33719.93 | ops/s |
 
 ## Results
 
 | Suite | Benchmark | Threads | Mode | Score | Error | Unit | gc.alloc.rate.norm |
 |-------|-----------|---------|------|-------|-------|------|-------------------|
-| WebFlux Adapter | AggregateTracingBenchmark.traceAndSerializeCartHistory (eventCount=1, traceWindowSize=10) | 1 | thrpt | 474078.48 | - | ops/s | 3358.2 B/op |
-| WebFlux Adapter | AggregateTracingBenchmark.traceAndSerializeCartHistory (eventCount=1, traceWindowSize=10) | 4 | thrpt | 1697461.19 | - | ops/s | 3280.2 B/op |
-| WebFlux Adapter | AggregateTracingBenchmark.traceAndSerializeCartHistory (eventCount=10, traceWindowSize=10) | 1 | thrpt | 49647.99 | - | ops/s | 37513.2 B/op |
-| WebFlux Adapter | AggregateTracingBenchmark.traceAndSerializeCartHistory (eventCount=10, traceWindowSize=10) | 4 | thrpt | 170032.86 | - | ops/s | 37085.4 B/op |
-| WebFlux Adapter | AggregateTracingBenchmark.traceAndSerializeCartHistory (eventCount=100, traceWindowSize=10) | 1 | thrpt | 1216.70 | - | ops/s | 2989704.3 B/op |
-| WebFlux Adapter | AggregateTracingBenchmark.traceAndSerializeCartHistory (eventCount=100, traceWindowSize=10) | 4 | thrpt | 4886.69 | - | ops/s | 2963967.5 B/op |
-| WebFlux Adapter | AggregateTracingBenchmark.traceWindowWithPrefixReplayAndSerialize (eventCount=1, traceWindowSize=10) | 1 | thrpt | 469881.94 | - | ops/s | 3893.4 B/op |
-| WebFlux Adapter | AggregateTracingBenchmark.traceWindowWithPrefixReplayAndSerialize (eventCount=1, traceWindowSize=10) | 4 | thrpt | 1558330.36 | - | ops/s | 3820.3 B/op |
-| WebFlux Adapter | AggregateTracingBenchmark.traceWindowWithPrefixReplayAndSerialize (eventCount=10, traceWindowSize=10) | 1 | thrpt | 36928.93 | - | ops/s | 38420.0 B/op |
-| WebFlux Adapter | AggregateTracingBenchmark.traceWindowWithPrefixReplayAndSerialize (eventCount=10, traceWindowSize=10) | 4 | thrpt | 166207.33 | - | ops/s | 37584.0 B/op |
-| WebFlux Adapter | AggregateTracingBenchmark.traceWindowWithPrefixReplayAndSerialize (eventCount=100, traceWindowSize=10) | 1 | thrpt | 6817.02 | - | ops/s | 447879.2 B/op |
-| WebFlux Adapter | AggregateTracingBenchmark.traceWindowWithPrefixReplayAndSerialize (eventCount=100, traceWindowSize=10) | 4 | thrpt | 32322.85 | - | ops/s | 444441.4 B/op |
-| WebFlux Adapter | CommandHandlerFunctionBenchmark.commandResultJsonServerResponseOnly | 1 | thrpt | 620428.10 | - | ops/s | 4551.1 B/op |
-| WebFlux Adapter | CommandHandlerFunctionBenchmark.commandResultJsonServerResponseOnly | 4 | thrpt | 1642976.65 | - | ops/s | 4478.3 B/op |
-| WebFlux Adapter | CommandHandlerFunctionBenchmark.extractPreparedCommandMessage | 1 | thrpt | 3031262.78 | - | ops/s | 1385.5 B/op |
-| WebFlux Adapter | CommandHandlerFunctionBenchmark.extractPreparedCommandMessage | 4 | thrpt | 5775100.84 | - | ops/s | 1377.0 B/op |
-| WebFlux Adapter | CommandHandlerFunctionBenchmark.handlePreparedAddCartItemRequestWaitSent | 1 | thrpt | 73731.73 | - | ops/s | 12396.1 B/op |
-| WebFlux Adapter | CommandHandlerFunctionBenchmark.handlePreparedAddCartItemRequestWaitSent | 4 | thrpt | 145438.45 | - | ops/s | 12032.8 B/op |
-| WebFlux Adapter | CommandHandlerFunctionBenchmark.sendWaitSentCoreFromExtractedMessage | 1 | thrpt | 824552.38 | - | ops/s | 4140.1 B/op |
-| WebFlux Adapter | CommandHandlerFunctionBenchmark.sendWaitSentCoreFromExtractedMessage | 4 | thrpt | 1087305.57 | - | ops/s | 4157.1 B/op |
-| WebFlux Adapter | WebFluxResponseBenchmark.commandResultSseServerResponseOnly | 1 | thrpt | 1227075.73 | - | ops/s | 3312.2 B/op |
-| WebFlux Adapter | WebFluxResponseBenchmark.commandResultSseServerResponseOnly | 4 | thrpt | 5453012.62 | - | ops/s | 3317.6 B/op |
-| WebFlux Adapter | WebFluxResponseBenchmark.fluxJsonStreamingArrayServerResponseOnly | 1 | thrpt | 3570447.86 | - | ops/s | 1065.3 B/op |
-| WebFlux Adapter | WebFluxResponseBenchmark.fluxJsonStreamingArrayServerResponseOnly | 4 | thrpt | 17724582.69 | - | ops/s | 1067.8 B/op |
+| WebFlux Adapter | AggregateTracingBenchmark.handleTailLimitRequestAndSerialize (eventCount=1, traceWindowSize=10) | 1 | thrpt | 15564.47 | - | ops/s | 83564.9 B/op |
+| WebFlux Adapter | AggregateTracingBenchmark.handleTailLimitRequestAndSerialize (eventCount=1, traceWindowSize=10) | 4 | thrpt | 33719.93 | - | ops/s | 82524.4 B/op |
+| WebFlux Adapter | AggregateTracingBenchmark.handleTailLimitRequestAndSerialize (eventCount=10, traceWindowSize=10) | 1 | thrpt | 8863.68 | - | ops/s | 174182.7 B/op |
+| WebFlux Adapter | AggregateTracingBenchmark.handleTailLimitRequestAndSerialize (eventCount=10, traceWindowSize=10) | 4 | thrpt | 17132.12 | - | ops/s | 170949.1 B/op |
+| WebFlux Adapter | AggregateTracingBenchmark.handleTailLimitRequestAndSerialize (eventCount=100, traceWindowSize=10) | 1 | thrpt | 3748.45 | - | ops/s | 767252.4 B/op |
+| WebFlux Adapter | AggregateTracingBenchmark.handleTailLimitRequestAndSerialize (eventCount=100, traceWindowSize=10) | 4 | thrpt | 12269.68 | - | ops/s | 759940.9 B/op |
+| WebFlux Adapter | AggregateTracingBenchmark.traceAndSerializeCartHistory (eventCount=1, traceWindowSize=10) | 1 | thrpt | 699260.96 | - | ops/s | 3325.2 B/op |
+| WebFlux Adapter | AggregateTracingBenchmark.traceAndSerializeCartHistory (eventCount=1, traceWindowSize=10) | 4 | thrpt | 1566835.85 | - | ops/s | 3310.7 B/op |
+| WebFlux Adapter | AggregateTracingBenchmark.traceAndSerializeCartHistory (eventCount=10, traceWindowSize=10) | 1 | thrpt | 52082.92 | - | ops/s | 38008.2 B/op |
+| WebFlux Adapter | AggregateTracingBenchmark.traceAndSerializeCartHistory (eventCount=10, traceWindowSize=10) | 4 | thrpt | 178663.35 | - | ops/s | 37317.9 B/op |
+| WebFlux Adapter | AggregateTracingBenchmark.traceAndSerializeCartHistory (eventCount=100, traceWindowSize=10) | 1 | thrpt | 1246.42 | - | ops/s | 2994104.9 B/op |
+| WebFlux Adapter | AggregateTracingBenchmark.traceAndSerializeCartHistory (eventCount=100, traceWindowSize=10) | 4 | thrpt | 5223.25 | - | ops/s | 2963757.6 B/op |
+| WebFlux Adapter | AggregateTracingBenchmark.traceWindowWithPrefixReplayAndSerialize (eventCount=1, traceWindowSize=10) | 1 | thrpt | 598618.82 | - | ops/s | 3873.3 B/op |
+| WebFlux Adapter | AggregateTracingBenchmark.traceWindowWithPrefixReplayAndSerialize (eventCount=1, traceWindowSize=10) | 4 | thrpt | 1692471.74 | - | ops/s | 3841.8 B/op |
+| WebFlux Adapter | AggregateTracingBenchmark.traceWindowWithPrefixReplayAndSerialize (eventCount=10, traceWindowSize=10) | 1 | thrpt | 49002.91 | - | ops/s | 38112.4 B/op |
+| WebFlux Adapter | AggregateTracingBenchmark.traceWindowWithPrefixReplayAndSerialize (eventCount=10, traceWindowSize=10) | 4 | thrpt | 171195.53 | - | ops/s | 37571.4 B/op |
+| WebFlux Adapter | AggregateTracingBenchmark.traceWindowWithPrefixReplayAndSerialize (eventCount=100, traceWindowSize=10) | 1 | thrpt | 7695.94 | - | ops/s | 447251.4 B/op |
+| WebFlux Adapter | AggregateTracingBenchmark.traceWindowWithPrefixReplayAndSerialize (eventCount=100, traceWindowSize=10) | 4 | thrpt | 34062.36 | - | ops/s | 444410.5 B/op |
+| WebFlux Adapter | CommandHandlerFunctionBenchmark.commandResultJsonServerResponseOnly | 1 | thrpt | 602269.77 | - | ops/s | 4591.4 B/op |
+| WebFlux Adapter | CommandHandlerFunctionBenchmark.commandResultJsonServerResponseOnly | 4 | thrpt | 1823362.80 | - | ops/s | 4487.1 B/op |
+| WebFlux Adapter | CommandHandlerFunctionBenchmark.extractPreparedCommandMessage | 1 | thrpt | 3215517.24 | - | ops/s | 1384.6 B/op |
+| WebFlux Adapter | CommandHandlerFunctionBenchmark.extractPreparedCommandMessage | 4 | thrpt | 6813218.63 | - | ops/s | 1375.4 B/op |
+| WebFlux Adapter | CommandHandlerFunctionBenchmark.handlePreparedAddCartItemRequestWaitSent | 1 | thrpt | 69529.44 | - | ops/s | 12577.1 B/op |
+| WebFlux Adapter | CommandHandlerFunctionBenchmark.handlePreparedAddCartItemRequestWaitSent | 4 | thrpt | 109465.04 | - | ops/s | 12379.0 B/op |
+| WebFlux Adapter | CommandHandlerFunctionBenchmark.sendWaitSentCoreFromExtractedMessage | 1 | thrpt | 730310.19 | - | ops/s | 4180.6 B/op |
+| WebFlux Adapter | CommandHandlerFunctionBenchmark.sendWaitSentCoreFromExtractedMessage | 4 | thrpt | 1084916.13 | - | ops/s | 4157.0 B/op |
+| WebFlux Adapter | WebFluxResponseBenchmark.commandResultSseServerResponseOnly | 1 | thrpt | 1404239.32 | - | ops/s | 3304.8 B/op |
+| WebFlux Adapter | WebFluxResponseBenchmark.commandResultSseServerResponseOnly | 4 | thrpt | 6777847.90 | - | ops/s | 3315.3 B/op |
+| WebFlux Adapter | WebFluxResponseBenchmark.fluxJsonStreamingArrayServerResponseOnly | 1 | thrpt | 3993415.41 | - | ops/s | 1064.0 B/op |
+| WebFlux Adapter | WebFluxResponseBenchmark.fluxJsonStreamingArrayServerResponseOnly | 4 | thrpt | 18911452.55 | - | ops/s | 1067.7 B/op |

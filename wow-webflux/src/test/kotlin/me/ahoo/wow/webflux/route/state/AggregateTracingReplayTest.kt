@@ -153,12 +153,26 @@ class AggregateTracingReplayTest {
     }
 
     @Test
-    fun `tail limit replay should emit only bounded tail states`() {
+    fun `streaming replay should require tail limit to be resolved before replay`() {
+        val error = assertThrows<IllegalArgumentException> {
+            AggregateTracingReplay.trace(
+                stateAggregateMetadata = CART_AGGREGATE_METADATA.state,
+                stateAggregateFactory = ConstructorStateAggregateFactory,
+                eventStreams = Flux.fromIterable(cartEventStreams(eventCount = 4)),
+                tracingRequest = TracingRequest(headVersion = null, tailVersion = null, limit = 2),
+            )
+        }
+
+        error.message.assert().isEqualTo("tail limit must be resolved to an explicit range before replay.")
+    }
+
+    @Test
+    fun `windowed replay should emit tail window with sourced prefix`() {
         AggregateTracingReplay.trace(
             stateAggregateMetadata = CART_AGGREGATE_METADATA.state,
             stateAggregateFactory = ConstructorStateAggregateFactory,
             eventStreams = Flux.fromIterable(cartEventStreams(eventCount = 4)),
-            tracingRequest = TracingRequest(headVersion = null, tailVersion = null, limit = 2),
+            tracingRequest = TracingRequest(headVersion = 3, tailVersion = 4, limit = null),
         ).collectList()
             .test()
             .consumeNextWith { tracedStates ->
@@ -168,35 +182,6 @@ class AggregateTracingReplayTest {
                     .assert()
                     .isEqualTo(listOf("product-1", "product-2", "product-3"))
                 tracedStates[1].state.assertJsonState()
-                    .itemProductIds()
-                    .assert()
-                    .isEqualTo(listOf("product-1", "product-2", "product-3", "product-4"))
-            }
-            .verifyComplete()
-    }
-
-    @Test
-    fun `zero tail limit replay should emit empty history`() {
-        AggregateTracingReplay.trace(
-            stateAggregateMetadata = CART_AGGREGATE_METADATA.state,
-            stateAggregateFactory = ConstructorStateAggregateFactory,
-            eventStreams = Flux.fromIterable(cartEventStreams(eventCount = 2)),
-            tracingRequest = TracingRequest(headVersion = null, tailVersion = null, limit = 0),
-        ).test()
-            .verifyComplete()
-    }
-
-    @Test
-    fun `tail limit replay should source prefix before emit head`() {
-        AggregateTracingReplay.trace(
-            stateAggregateMetadata = CART_AGGREGATE_METADATA.state,
-            stateAggregateFactory = ConstructorStateAggregateFactory,
-            eventStreams = Flux.fromIterable(cartEventStreams(eventCount = 4)),
-            tracingRequest = TracingRequest(headVersion = 4, tailVersion = null, limit = 3),
-        ).test()
-            .consumeNextWith {
-                it.version.assert().isEqualTo(4)
-                it.state.assertJsonState()
                     .itemProductIds()
                     .assert()
                     .isEqualTo(listOf("product-1", "product-2", "product-3", "product-4"))
