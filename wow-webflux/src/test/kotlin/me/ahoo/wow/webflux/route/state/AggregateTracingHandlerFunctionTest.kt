@@ -49,7 +49,11 @@ import me.ahoo.wow.webflux.route.RouteTestFixtures
 import me.ahoo.wow.webflux.route.state.AggregateTracingHandlerFunction.Companion.trace
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
+import org.springframework.mock.http.server.reactive.MockServerHttpRequest
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
+import org.springframework.mock.web.server.MockServerWebExchange
+import org.springframework.web.reactive.function.server.HandlerStrategies
+import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.kotlin.test.test
 import tools.jackson.databind.node.ObjectNode
 
@@ -91,10 +95,35 @@ class AggregateTracingHandlerFunctionTest {
     }
 
     @Test
+    fun `windowed trace should replay prefix and emit only requested versions`() {
+        val eventStreams = cartEventStreams(eventCount = 3)
+
+        CART_AGGREGATE_METADATA.state.trace(
+            stateAggregateFactory = ConstructorStateAggregateFactory,
+            eventStreams = eventStreams,
+            emitHeadVersion = 2,
+            tailVersion = 3,
+        ).collectList()
+            .test()
+            .consumeNextWith { tracedStates ->
+                tracedStates.assert().hasSize(2)
+                tracedStates[0].state.assertJsonState()
+                    .itemProductIds()
+                    .assert()
+                    .isEqualTo(listOf("product-1", "product-2"))
+                tracedStates[1].state.assertJsonState()
+                    .itemProductIds()
+                    .assert()
+                    .isEqualTo(listOf("product-1", "product-2", "product-3"))
+            }.verifyComplete()
+    }
+
+    @Test
     fun `should handle aggregate tracing request`() {
         val eventStore = InMemoryEventStore()
+        val aggregateId = generateGlobalId()
         aggregateVerifier<MockCommandAggregate, MockStateAggregate>(eventStore = eventStore)
-            .whenCommand(MockCreateAggregate(id = generateGlobalId(), data = "test-data"))
+            .whenCommand(MockCreateAggregate(id = aggregateId, data = "test-data"))
             .expectNoError()
             .expectEventType(MockAggregateCreated::class.java)
             .expectState {
@@ -115,18 +144,25 @@ class AggregateTracingHandlerFunctionTest {
             )
 
         val request = MockServerRequest.builder()
-            .pathVariable(MessageRecords.ID, generateGlobalId())
+            .pathVariable(MessageRecords.ID, aggregateId)
             .pathVariable(MessageRecords.TENANT_ID, TenantId.DEFAULT_TENANT_ID)
             .build()
         handlerFunction.handle(request)
             .test()
             .consumeNextWith {
                 it.statusCode().assert().isEqualTo(HttpStatus.OK)
+                val body = it.writeToString()
+                body.assert().contains("test-data")
             }.verifyComplete()
     }
 
     private companion object {
         val CART_AGGREGATE_METADATA = aggregateMetadata<Cart, CartState>()
+        val SERVER_RESPONSE_CONTEXT = object : ServerResponse.Context {
+            private val strategies = HandlerStrategies.withDefaults()
+            override fun messageWriters() = strategies.messageWriters()
+            override fun viewResolvers() = strategies.viewResolvers()
+        }
 
         fun cartEventStreams(eventCount: Int): List<DomainEventStream> {
             val aggregateId = CART_AGGREGATE_METADATA.aggregateId("trace-cart")
@@ -154,6 +190,14 @@ class AggregateTracingHandlerFunctionTest {
             return (0 until items.size()).map { index ->
                 items[index]["productId"].asString()
             }
+        }
+
+        fun ServerResponse.writeToString(): String {
+            val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/test").build())
+            writeTo(exchange, SERVER_RESPONSE_CONTEXT)
+                .test()
+                .verifyComplete()
+            return exchange.response.bodyAsString.block()!!
         }
     }
 
