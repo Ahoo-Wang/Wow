@@ -14,9 +14,12 @@
 package me.ahoo.wow.benchmark.webflux
 
 import me.ahoo.wow.api.abac.AbacTags
+import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
 import me.ahoo.wow.benchmark.fixture.BenchmarkEvents
 import me.ahoo.wow.event.DomainEventStream
+import me.ahoo.wow.event.SimpleDomainEvent
+import me.ahoo.wow.event.SimpleDomainEventStream
 import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.toStateEvent
 import me.ahoo.wow.example.domain.cart.CartState
@@ -39,8 +42,13 @@ open class AggregateTracingBenchmark {
     @Param("1", "10", "100")
     var eventCount: Int = 1
 
+    @Param("10")
+    var traceWindowSize: Int = 10
+
     // Setup prepares read-only inputs; benchmark rows choose which cost to measure.
     private lateinit var eventStreams: List<DomainEventStream>
+    private lateinit var traceWindowEventStreams: List<DomainEventStream>
+    private var traceWindowStartIndex: Int = 0
     private lateinit var statesToCopy: List<CartState>
     private lateinit var jsonStateSnapshots: List<ObjectNode>
     private lateinit var tracedHistory: List<StateEvent<ObjectNode>>
@@ -53,6 +61,12 @@ open class AggregateTracingBenchmark {
     @Setup(Level.Iteration)
     fun setup() {
         eventStreams = BenchmarkEvents.eventStreams(eventCount = eventCount)
+        traceWindowStartIndex = (eventStreams.size - traceWindowSize).coerceAtLeast(0)
+        // The suffix-only row replays this window as a standalone sequence, so versions must be contiguous.
+        traceWindowEventStreams = eventStreams.subList(traceWindowStartIndex, eventStreams.size)
+            .mapIndexed { index, eventStream ->
+                eventStream.withTraceVersion(version = index + 1)
+            }
         val stateAggregate = newCartStateAggregate()
         val preparedStates = ArrayList<CartState>(eventCount)
         for (eventStream in eventStreams) {
@@ -154,12 +168,114 @@ open class AggregateTracingBenchmark {
     }
 
     @Benchmark
+    fun suffixTraceWindowOnly(blackhole: Blackhole) {
+        val tracedStates = BenchmarkAggregates.cartMetadata.state.trace(
+            ConstructorStateAggregateFactory,
+            traceWindowEventStreams,
+        )
+        blackhole.consume(tracedStates)
+    }
+
+    @Benchmark
+    fun prefixReplayWindowedTraceCartHistory(blackhole: Blackhole) {
+        blackhole.consume(traceWindowedOutput())
+    }
+
+    @Benchmark
+    fun prefixReplayWindowedTraceAndSerialize(blackhole: Blackhole) {
+        blackhole.consume(traceWindowedOutputToJsonString())
+    }
+
+    @Benchmark
+    fun directSerializeTraceCartHistory(blackhole: Blackhole) {
+        blackhole.consume(traceFullOutputToJsonString())
+    }
+
+    @Benchmark
     fun traceCartHistory(blackhole: Blackhole) {
         val tracedStates = BenchmarkAggregates.cartMetadata.state.trace(
             ConstructorStateAggregateFactory,
             eventStreams,
         )
         blackhole.consume(tracedStates)
+    }
+
+    private fun traceWindowedOutput(): List<StateEvent<ObjectNode>> {
+        val stateAggregate = newCartStateAggregate()
+        val stateEvents = ArrayList<StateEvent<ObjectNode>>(eventStreams.size - traceWindowStartIndex)
+        for (index in eventStreams.indices) {
+            val eventStream = eventStreams[index]
+            stateAggregate.onSourcing(eventStream)
+            if (index >= traceWindowStartIndex) {
+                stateEvents.add(
+                    eventStream.toStateEvent(
+                        state = stateAggregate.state.toJsonNode<ObjectNode>(),
+                        firstOperator = stateAggregate.firstOperator,
+                        firstEventTime = stateAggregate.firstEventTime,
+                        tags = stateAggregate.tags,
+                        deleted = stateAggregate.deleted,
+                    )
+                )
+            }
+        }
+        return stateEvents
+    }
+
+    private fun traceWindowedOutputToJsonString(): String {
+        return traceOutputToJsonString(traceWindowStartIndex)
+    }
+
+    private fun traceFullOutputToJsonString(): String {
+        return traceOutputToJsonString(outputStartIndex = 0)
+    }
+
+    private fun traceOutputToJsonString(outputStartIndex: Int): String {
+        val stateAggregate = newCartStateAggregate()
+        val json = StringBuilder()
+        json.append('[')
+        var emitted = false
+        for (index in eventStreams.indices) {
+            val eventStream = eventStreams[index]
+            stateAggregate.onSourcing(eventStream)
+            if (index >= outputStartIndex) {
+                if (emitted) {
+                    json.append(',')
+                } else {
+                    emitted = true
+                }
+                json.append(
+                    eventStream.toStateEvent(
+                        state = stateAggregate.state.toJsonNode<ObjectNode>(),
+                        firstOperator = stateAggregate.firstOperator,
+                        firstEventTime = stateAggregate.firstEventTime,
+                        tags = stateAggregate.tags,
+                        deleted = stateAggregate.deleted,
+                    ).toJsonString()
+                )
+            }
+        }
+        json.append(']')
+        return json.toString()
+    }
+
+    private fun DomainEventStream.withTraceVersion(version: Int): DomainEventStream {
+        return SimpleDomainEventStream(
+            id = id,
+            requestId = requestId,
+            header = header.copy(),
+            body = map { it.withTraceVersion(version) },
+        )
+    }
+
+    private fun DomainEvent<*>.withTraceVersion(version: Int): DomainEvent<*> {
+        return when (this) {
+            is SimpleDomainEvent<*> -> copy(
+                header = header.copy(),
+                version = version,
+            )
+
+            else -> error("Unsupported benchmark event type: ${javaClass.name}")
+        }
     }
 
     private fun newCartStateAggregate() = ConstructorStateAggregateFactory.create(
