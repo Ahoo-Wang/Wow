@@ -24,6 +24,7 @@ import me.ahoo.wow.example.api.cart.CartItem
 import me.ahoo.wow.example.api.cart.CartItemAdded
 import me.ahoo.wow.example.domain.cart.Cart
 import me.ahoo.wow.example.domain.cart.CartState
+import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
@@ -31,6 +32,7 @@ import me.ahoo.wow.modeling.metadata.StateAggregateMetadata
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.modeling.state.StateAggregateFactory
+import me.ahoo.wow.openapi.CommonComponent.Header.ERROR_CODE
 import me.ahoo.wow.openapi.aggregate.state.AggregateTracingRouteSpec
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.serialization.MessageRecords
@@ -67,6 +69,38 @@ class AggregateTracingHandlerFunctionTest {
             WebFluxRequestExceptionHandler(),
             TracingPolicy(),
         ).supportedSpec.assert().isEqualTo(AggregateTracingRouteSpec::class.java)
+    }
+
+    @Test
+    fun `handler should route invalid tracing query through exception handler`() {
+        val aggregateId = generateGlobalId()
+        val handlerFunction = AggregateTracingHandlerFunctionFactory(
+            ConstructorStateAggregateFactory,
+            InMemoryEventStore(),
+            WebFluxRequestExceptionHandler(),
+            TracingPolicy(),
+        ).create(
+            AggregateTracingRouteSpec(
+                MOCK_AGGREGATE_METADATA,
+                aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA,
+                componentContext = OpenAPIComponentContext.default()
+            )
+        )
+
+        val request = MockServerRequest.builder()
+            .pathVariable(MessageRecords.ID, aggregateId)
+            .pathVariable(MessageRecords.TENANT_ID, TenantId.DEFAULT_TENANT_ID)
+            .queryParam(TracingPolicy.HEAD_VERSION, "bad")
+            .build()
+
+        handlerFunction.handle(request)
+            .test()
+            .consumeNextWith {
+                it.statusCode().assert().isEqualTo(HttpStatus.BAD_REQUEST)
+                it.headers().getFirst(ERROR_CODE).assert().isEqualTo(ErrorCodes.ILLEGAL_ARGUMENT)
+                it.writeToString().assert().contains("headVersion must be an integer.")
+            }
+            .verifyComplete()
     }
 
     @Test

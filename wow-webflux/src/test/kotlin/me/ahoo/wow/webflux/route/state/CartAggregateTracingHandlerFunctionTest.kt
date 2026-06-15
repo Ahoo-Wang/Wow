@@ -90,5 +90,4 @@ class CartAggregateTracingHandlerFunctionTest {
                 exchange.response.bodyAsString.block()!!.assert().contains("product-1")
             }.verifyComplete()
     }
-
 }

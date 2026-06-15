@@ -23,8 +23,8 @@ import me.ahoo.wow.example.domain.cart.Cart
 import me.ahoo.wow.example.domain.cart.CartState
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
-import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.metadata.StateAggregateMetadata
+import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.test.aggregate.GivenInitializationCommand

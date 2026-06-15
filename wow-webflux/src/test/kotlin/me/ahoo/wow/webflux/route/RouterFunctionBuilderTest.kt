@@ -13,8 +13,8 @@
 
 package me.ahoo.wow.webflux.route
 
-import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.RouterSpecs
 import me.ahoo.wow.openapi.aggregate.state.LoadAggregateRouteSpec

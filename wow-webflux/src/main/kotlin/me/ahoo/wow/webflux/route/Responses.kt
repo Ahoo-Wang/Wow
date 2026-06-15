@@ -20,7 +20,6 @@ import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.webflux.exception.ErrorHttpStatusMapping.toHttpStatus
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.response.DefaultWebFluxResponseStrategy
-import me.ahoo.wow.webflux.route.response.errorResume as responseErrorResume
 import org.springframework.core.ParameterizedTypeReference
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
@@ -29,6 +28,7 @@ import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import me.ahoo.wow.webflux.route.response.errorResume as responseErrorResume
 
 object StringServerSentEventType : ParameterizedTypeReference<ServerSentEvent<String>>()
 

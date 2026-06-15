@@ -19,8 +19,8 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedQuery
-import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
+import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.query.filter.Contexts.getRawRequest
 import me.ahoo.wow.query.filter.QueryHandler
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
