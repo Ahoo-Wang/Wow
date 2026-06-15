@@ -15,12 +15,12 @@ package me.ahoo.wow.webflux.route
 
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.exception.toErrorInfo
-import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.CommonComponent.Header.ERROR_CODE
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.webflux.exception.ErrorHttpStatusMapping.toHttpStatus
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
-import me.ahoo.wow.webflux.route.command.isSse
+import me.ahoo.wow.webflux.route.response.DefaultWebFluxResponseStrategy
+import me.ahoo.wow.webflux.route.response.errorResume as responseErrorResume
 import org.springframework.core.ParameterizedTypeReference
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
@@ -29,7 +29,6 @@ import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
-import reactor.kotlin.core.publisher.toMono
 
 object StringServerSentEventType : ParameterizedTypeReference<ServerSentEvent<String>>()
 
@@ -54,56 +53,26 @@ fun Mono<*>.toServerResponse(
     request: ServerRequest,
     exceptionHandler: RequestExceptionHandler
 ): Mono<ServerResponse> {
-    return flatMap {
-        if (it is ErrorInfo) {
-            return@flatMap it.toServerResponse()
-        }
-        ServerResponse.ok()
-            .contentType(MediaType.APPLICATION_JSON)
-            .header(ERROR_CODE, ErrorInfo.SUCCEEDED)
-            .bodyValue(it.toJsonString())
-    }.onErrorResume {
-        exceptionHandler.handle(request, it)
-    }
+    return DefaultWebFluxResponseStrategy.singleJson(this, request, exceptionHandler)
 }
 
 fun <T : Any> Flux<T>.toServerResponse(
     request: ServerRequest,
     exceptionHandler: RequestExceptionHandler
 ): Mono<ServerResponse> {
-    if (!request.isSse()) {
-        return this.collectList().toServerResponse(request, exceptionHandler)
-    }
-    return this.map {
-        ServerSentEvent.builder<String>()
-            .data(it.toJsonString())
-            .build()
-    }.toEventStreamResponse(request, exceptionHandler)
+    return DefaultWebFluxResponseStrategy.jsonArray(this, request, exceptionHandler)
 }
 
 fun Flux<ServerSentEvent<String>>.toEventStreamResponse(
     request: ServerRequest,
     exceptionHandler: RequestExceptionHandler
 ): Mono<ServerResponse> {
-    val eventStream = this.errorResume(request, exceptionHandler)
-    return ServerResponse.ok()
-        .contentType(MediaType.TEXT_EVENT_STREAM)
-        .header(ERROR_CODE, ErrorInfo.SUCCEEDED)
-        .body(eventStream, StringServerSentEventType)
+    return DefaultWebFluxResponseStrategy.sse(this, request, exceptionHandler)
 }
 
 fun Flux<ServerSentEvent<String>>.errorResume(
     request: ServerRequest,
     exceptionHandler: RequestExceptionHandler
 ): Flux<ServerSentEvent<String>> {
-    return onErrorResume {
-        val errorInfo = it.toErrorInfo()
-        val serverSendEventMono = ServerSentEvent.builder<String>()
-            .id(generateGlobalId())
-            .event(errorInfo.errorCode)
-            .data(errorInfo.toJsonString())
-            .build().toMono()
-
-        exceptionHandler.handle(request, it).then(serverSendEventMono)
-    }
+    return this.responseErrorResume(request, exceptionHandler)
 }

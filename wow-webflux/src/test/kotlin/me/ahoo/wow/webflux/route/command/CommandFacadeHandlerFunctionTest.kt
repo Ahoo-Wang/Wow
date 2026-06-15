@@ -31,9 +31,10 @@ import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MockCommandAggregate
 import me.ahoo.wow.tck.mock.MockCreateAggregate
 import me.ahoo.wow.test.SagaVerifier
-import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
+import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.command.extractor.DefaultCommandBuilderExtractor
 import me.ahoo.wow.webflux.route.command.extractor.DefaultCommandMessageExtractor
+import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
@@ -57,7 +58,8 @@ class CommandFacadeHandlerFunctionTest {
                 ),
                 DefaultCommandBuilderExtractor
             ),
-            exceptionHandler = DefaultRequestExceptionHandler
+            exceptionHandler = WebFluxRequestExceptionHandler(),
+            commandWaitPolicy = CommandWaitPolicy(DEFAULT_TIME_OUT),
         ).create(CommandFacadeRouteSpec(OpenAPIComponentContext.default()))
         val request = MockServerRequest.builder()
             .method(HttpMethod.POST)

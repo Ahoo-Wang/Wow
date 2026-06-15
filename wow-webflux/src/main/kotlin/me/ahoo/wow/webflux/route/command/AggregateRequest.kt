@@ -26,7 +26,7 @@ import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.CommonComponent
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.serialization.MessageRecords
-import org.springframework.http.MediaType
+import me.ahoo.wow.webflux.route.acceptsEventStream
 import org.springframework.web.reactive.function.server.ServerRequest
 import java.time.Duration
 import java.util.*
@@ -97,7 +97,7 @@ fun ServerRequest.getLocalFirst(): Boolean? {
 }
 
 fun ServerRequest.isSse(): Boolean {
-    return headers().accept().firstOrNull() == MediaType.TEXT_EVENT_STREAM
+    return acceptsEventStream()
 }
 
 fun ServerRequest.getWaitTimeout(default: Duration = DEFAULT_TIME_OUT): Duration {

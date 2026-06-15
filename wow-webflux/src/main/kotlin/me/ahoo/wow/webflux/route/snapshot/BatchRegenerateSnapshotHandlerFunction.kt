@@ -22,6 +22,7 @@ import me.ahoo.wow.openapi.aggregate.snapshot.BatchRegenerateSnapshotRouteSpec
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.exception.onErrorMapBatchTaskException
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.policy.BatchExecutionPolicy
 import me.ahoo.wow.webflux.route.toBatchResult
 import me.ahoo.wow.webflux.route.toServerResponse
 import org.springframework.web.reactive.function.server.HandlerFunction
@@ -34,7 +35,8 @@ class BatchRegenerateSnapshotHandlerFunction(
     private val stateAggregateFactory: StateAggregateFactory,
     private val eventStore: EventStore,
     private val snapshotRepository: SnapshotRepository,
-    private val exceptionHandler: RequestExceptionHandler
+    private val exceptionHandler: RequestExceptionHandler,
+    private val batchExecutionPolicy: BatchExecutionPolicy
 ) : HandlerFunction<ServerResponse> {
     private val handler = RegenerateSnapshotHandler(
         aggregateMetadata = aggregateMetadata,
@@ -50,8 +52,10 @@ class BatchRegenerateSnapshotHandlerFunction(
             namedAggregate = aggregateMetadata.namedAggregate,
             afterId = afterId,
             limit = limit,
-        ).flatMapSequential { aggregateId ->
-            handler.handle(aggregateId).thenReturn(aggregateId).onErrorMapBatchTaskException(aggregateId)
+        ).let { scanFlux ->
+            batchExecutionPolicy.apply(scanFlux) { aggregateId ->
+                handler.handle(aggregateId).thenReturn(aggregateId).onErrorMapBatchTaskException(aggregateId)
+            }
         }.toBatchResult(afterId).toServerResponse(request, exceptionHandler)
     }
 }
@@ -60,7 +64,8 @@ class BatchRegenerateSnapshotHandlerFunctionFactory(
     private val stateAggregateFactory: StateAggregateFactory,
     private val eventStore: EventStore,
     private val snapshotRepository: SnapshotRepository,
-    private val exceptionHandler: RequestExceptionHandler
+    private val exceptionHandler: RequestExceptionHandler,
+    private val batchExecutionPolicy: BatchExecutionPolicy
 ) : RouteHandlerFunctionFactory<BatchRegenerateSnapshotRouteSpec> {
     override val supportedSpec: Class<BatchRegenerateSnapshotRouteSpec>
         get() = BatchRegenerateSnapshotRouteSpec::class.java
@@ -72,6 +77,7 @@ class BatchRegenerateSnapshotHandlerFunctionFactory(
             eventStore = eventStore,
             snapshotRepository = snapshotRepository,
             exceptionHandler = exceptionHandler,
+            batchExecutionPolicy = batchExecutionPolicy,
         )
     }
 }

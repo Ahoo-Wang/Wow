@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.filter
 
+import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.util.context.ContextView
 
@@ -20,6 +21,12 @@ object Contexts {
     private const val RAW_REQUEST_KEY = "__RAW_REQUEST___"
 
     fun <T : Any> Mono<T>.writeRawRequest(request: Any): Mono<T> {
+        return this.contextWrite {
+            it.put(RAW_REQUEST_KEY, request)
+        }
+    }
+
+    fun <T : Any> Flux<T>.writeRawRequest(request: Any): Flux<T> {
         return this.contextWrite {
             it.put(RAW_REQUEST_KEY, request)
         }

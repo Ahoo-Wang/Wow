@@ -13,55 +13,46 @@
 
 package me.ahoo.wow.webflux.exception
 
-import io.github.oshai.kotlinlogging.KotlinLogging
-import me.ahoo.wow.api.exception.BindingError
 import me.ahoo.wow.api.exception.ErrorInfo
-import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.exception.toErrorInfo
 import me.ahoo.wow.openapi.CommonComponent
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.webflux.exception.ErrorHttpStatusMapping.toHttpStatus
-import org.springframework.core.Ordered
+import me.ahoo.wow.webflux.route.toServerResponse
 import org.springframework.http.MediaType
-import org.springframework.http.server.reactive.ServerHttpRequest
 import org.springframework.validation.BindingResult
+import org.springframework.web.reactive.function.server.ServerRequest
+import org.springframework.web.reactive.function.server.ServerResponse
 import org.springframework.web.server.ServerWebExchange
-import org.springframework.web.server.WebExceptionHandler
 import reactor.core.publisher.Mono
 
-object GlobalExceptionHandler : WebExceptionHandler, Ordered {
-    private val log = KotlinLogging.logger {}
+interface WebFluxErrorStrategy {
+    fun toServerResponse(request: ServerRequest, throwable: Throwable): Mono<ServerResponse>
+    fun writeToExchange(exchange: ServerWebExchange, throwable: Throwable): Mono<Void>
+}
 
-    override fun handle(exchange: ServerWebExchange, ex: Throwable): Mono<Void> {
-        log.warn(ex) {
-            exchange.request.formatRequest()
-        }
-        if (exchange.response.isCommitted) {
+object DefaultWebFluxErrorStrategy : WebFluxErrorStrategy {
+    override fun toServerResponse(request: ServerRequest, throwable: Throwable): Mono<ServerResponse> {
+        return throwable.toWebFluxErrorInfo().toServerResponse()
+    }
+
+    override fun writeToExchange(exchange: ServerWebExchange, throwable: Throwable): Mono<Void> {
+        val response = exchange.response
+        if (response.isCommitted) {
             return Mono.empty()
         }
 
-        val errorInfo = when (ex) {
-            is BindingResult -> ex.toBindingErrorInfo()
-            else -> ex.toErrorInfo()
-        }
-        val status = errorInfo.toHttpStatus()
-        val response = exchange.response
-        response.statusCode = status
+        val errorInfo = throwable.toWebFluxErrorInfo()
+        response.statusCode = errorInfo.toHttpStatus()
         response.headers.contentType = MediaType.APPLICATION_JSON
         response.headers.set(CommonComponent.Header.ERROR_CODE, errorInfo.errorCode)
         return response.writeWith(Mono.just(response.bufferFactory().wrap(errorInfo.toJsonString().toByteArray())))
     }
-
-    fun ServerHttpRequest.formatRequest(): String {
-        return "HTTP $method $uri"
-    }
-
-    override fun getOrder(): Int {
-        return -2
-    }
 }
 
-fun BindingResult.toBindingErrorInfo(): ErrorInfo {
-    val bindingErrors = fieldErrors.map { BindingError(it.field, it.defaultMessage.orEmpty()) }
-    return ErrorInfo.of(ErrorCodes.ILLEGAL_ARGUMENT, errorMsg = "Field binding validation failed.", bindingErrors)
+private fun Throwable.toWebFluxErrorInfo(): ErrorInfo {
+    return when (this) {
+        is BindingResult -> toBindingErrorInfo()
+        else -> toErrorInfo()
+    }
 }

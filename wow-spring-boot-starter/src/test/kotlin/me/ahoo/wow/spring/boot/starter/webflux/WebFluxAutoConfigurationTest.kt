@@ -30,6 +30,16 @@ import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
+import me.ahoo.wow.openapi.RouteSpec
+import me.ahoo.wow.openapi.aggregate.command.CommandFacadeRouteSpec
+import me.ahoo.wow.openapi.aggregate.event.LoadEventStreamRouteSpec
+import me.ahoo.wow.openapi.aggregate.event.state.ResendStateEventRouteSpec
+import me.ahoo.wow.openapi.aggregate.snapshot.LoadSnapshotRouteSpec
+import me.ahoo.wow.openapi.aggregate.snapshot.RegenerateSnapshotRouteSpec
+import me.ahoo.wow.openapi.aggregate.state.LoadAggregateRouteSpec
+import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.openapi.global.GenerateGlobalIdRouteSpec
+import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.spring.boot.starter.ENABLED_SUFFIX_KEY
@@ -40,15 +50,39 @@ import me.ahoo.wow.spring.boot.starter.eventsourcing.EventSourcingAutoConfigurat
 import me.ahoo.wow.spring.boot.starter.kafka.KafkaProperties
 import me.ahoo.wow.spring.boot.starter.modeling.AggregateAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.openapi.OpenAPIAutoConfiguration
+import me.ahoo.wow.spring.boot.starter.webflux.route.CommandRouteModule
+import me.ahoo.wow.spring.boot.starter.webflux.route.EventRouteModule
+import me.ahoo.wow.spring.boot.starter.webflux.route.GlobalRouteModule
+import me.ahoo.wow.spring.boot.starter.webflux.route.QueryRouteModule
+import me.ahoo.wow.spring.boot.starter.webflux.route.SnapshotRouteModule
+import me.ahoo.wow.spring.boot.starter.webflux.route.StateRouteModule
 import me.ahoo.wow.spring.boot.starter.webflux.WebFluxProperties.Companion.GLOBAL_ERROR_ENABLED
+import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.test.SagaVerifier
-import me.ahoo.wow.webflux.exception.GlobalExceptionHandler
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
+import me.ahoo.wow.webflux.exception.WebFluxErrorStrategy
 import me.ahoo.wow.webflux.route.command.appender.CommandRequestRemoteIpHeaderAppender
 import me.ahoo.wow.webflux.route.command.appender.CommandRequestUserAgentHeaderAppender
+import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.RouteHandlerFunctionRegistrar
+import me.ahoo.wow.webflux.route.policy.BatchExecutionPolicy
+import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
+import me.ahoo.wow.webflux.route.policy.TracingPolicy
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
+import org.springframework.http.HttpStatus
+import org.springframework.mock.http.server.reactive.MockServerHttpRequest
+import org.springframework.mock.web.reactive.function.server.MockServerRequest
+import org.springframework.mock.web.server.MockServerWebExchange
+import org.springframework.web.reactive.function.server.HandlerFunction
+import org.springframework.web.reactive.function.server.ServerRequest
+import org.springframework.web.reactive.function.server.ServerResponse
+import org.springframework.web.server.ServerWebExchange
+import org.springframework.web.server.WebExceptionHandler
+import reactor.core.publisher.Mono
+import reactor.kotlin.test.test
+import java.time.Duration
 
 internal class WebFluxAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
@@ -78,9 +112,154 @@ internal class WebFluxAutoConfigurationTest {
             )
             .run { context: AssertableApplicationContext ->
                 context.assert()
-                    .hasSingleBean(GlobalExceptionHandler::class.java)
+                    .hasSingleBean(WebExceptionHandler::class.java)
                     .hasBean("commandRouterFunction")
+                    .hasSingleBean(WebFluxErrorStrategy::class.java)
                     .hasSingleBean(RequestExceptionHandler::class.java)
+                    .hasSingleBean(RouteHandlerFunctionRegistrar::class.java)
+                    .hasSingleBean(CommandRouteModule::class.java)
+                    .hasSingleBean(StateRouteModule::class.java)
+                    .hasSingleBean(QueryRouteModule::class.java)
+                    .hasSingleBean(SnapshotRouteModule::class.java)
+                    .hasSingleBean(EventRouteModule::class.java)
+                    .hasSingleBean(GlobalRouteModule::class.java)
+                    .hasSingleBean(CommandWaitPolicy::class.java)
+                    .hasSingleBean(TracingPolicy::class.java)
+                    .hasSingleBean(BatchExecutionPolicy::class.java)
+                    .hasSingleBean(WebFluxProperties::class.java)
+                val batchExecutionPolicy = context.getBean(BatchExecutionPolicy::class.java)
+                batchExecutionPolicy.concurrency.assert().isOne()
+                batchExecutionPolicy.prefetch.assert().isOne()
+
+                val componentContext = OpenAPIComponentContext.default()
+                val aggregateRouteMetadata = MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata()
+                listOf(
+                    CommandFacadeRouteSpec(componentContext),
+                    LoadAggregateRouteSpec(MOCK_AGGREGATE_METADATA, aggregateRouteMetadata, componentContext),
+                    LoadSnapshotRouteSpec(MOCK_AGGREGATE_METADATA, aggregateRouteMetadata, componentContext),
+                    LoadEventStreamRouteSpec(MOCK_AGGREGATE_METADATA, aggregateRouteMetadata, componentContext),
+                    RegenerateSnapshotRouteSpec(MOCK_AGGREGATE_METADATA, aggregateRouteMetadata, componentContext),
+                    ResendStateEventRouteSpec(MOCK_AGGREGATE_METADATA, aggregateRouteMetadata, componentContext),
+                    GenerateGlobalIdRouteSpec(componentContext),
+                ).forEach {
+                    context.assertRouteFactoryRegistered(it)
+                }
+            }
+    }
+
+    @Test
+    fun `should bind batch execution policy properties`() {
+        contextRunner
+            .enableWow()
+            .withPropertyValues(
+                "${WebFluxProperties.PREFIX}.batch.concurrency=4",
+                "${WebFluxProperties.PREFIX}.batch.prefetch=8",
+            )
+            .withBean(CommandWaitNotifier::class.java, { mockk() })
+            .withBean(CommandGateway::class.java, { SagaVerifier.defaultCommandGateway() })
+            .withBean(StateAggregateFactory::class.java, { ConstructorStateAggregateFactory })
+            .withBean(SnapshotRepository::class.java, { NoOpSnapshotRepository })
+            .withBean(EventStore::class.java, { InMemoryEventStore() })
+            .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
+            .withBean(StateEventCompensator::class.java, { mockk() })
+            .withBean(EventCompensateSupporter::class.java, { mockk() })
+            .withBean(SnapshotQueryHandler::class.java, { spyk<SnapshotQueryHandler>() })
+            .withBean(EventStreamQueryHandler::class.java, { spyk<EventStreamQueryHandler>() })
+            .withBean(HostAddressSupplier::class.java, { LocalHostAddressSupplier.INSTANCE })
+            .withUserConfiguration(
+                CommandAutoConfiguration::class.java,
+                CommandGatewayAutoConfiguration::class.java,
+                EventSourcingAutoConfiguration::class.java,
+                AggregateAutoConfiguration::class.java,
+                OpenAPIAutoConfiguration::class.java,
+                WebFluxAutoConfiguration::class.java,
+            )
+            .run { context: AssertableApplicationContext ->
+                context.assert()
+                    .hasSingleBean(BatchExecutionPolicy::class.java)
+                    .hasSingleBean(WebFluxProperties::class.java)
+                val properties = context.getBean(WebFluxProperties::class.java)
+                properties.batch.concurrency.assert().isEqualTo(4)
+                properties.batch.prefetch.assert().isEqualTo(8)
+                val batchExecutionPolicy = context.getBean(BatchExecutionPolicy::class.java)
+                batchExecutionPolicy.concurrency.assert().isEqualTo(4)
+                batchExecutionPolicy.prefetch.assert().isEqualTo(8)
+            }
+    }
+
+    @Test
+    fun `should let standalone route factory override module factory for same spec`() {
+        val customFactory = TestRouteHandlerFunctionFactory(CommandFacadeRouteSpec::class.java)
+        webFluxContextRunner()
+            .withBean(RouteHandlerFunctionFactory::class.java, { customFactory })
+            .run { context: AssertableApplicationContext ->
+                val registrar = context.getBean(RouteHandlerFunctionRegistrar::class.java)
+                val spec = CommandFacadeRouteSpec(OpenAPIComponentContext.default())
+                registrar.getFactory(spec).assert().isSameAs(customFactory)
+            }
+    }
+
+    @Test
+    fun `should use custom command wait and tracing policies`() {
+        val customCommandWaitPolicy = CommandWaitPolicy(Duration.ofMillis(10))
+        val customTracingPolicy = TracingPolicy()
+        webFluxContextRunner()
+            .withBean(CommandWaitPolicy::class.java, { customCommandWaitPolicy })
+            .withBean(TracingPolicy::class.java, { customTracingPolicy })
+            .run { context: AssertableApplicationContext ->
+                context.assert()
+                    .hasSingleBean(CommandWaitPolicy::class.java)
+                    .hasSingleBean(TracingPolicy::class.java)
+                context.getBean(CommandWaitPolicy::class.java).assert().isSameAs(customCommandWaitPolicy)
+                context.getBean(TracingPolicy::class.java).assert().isSameAs(customTracingPolicy)
+            }
+    }
+
+    @Test
+    fun `should use custom webflux error strategy`() {
+        val customErrorStrategy = TestWebFluxErrorStrategy()
+        contextRunner
+            .enableWow()
+            .withBean(WebFluxErrorStrategy::class.java, { customErrorStrategy })
+            .withBean(CommandWaitNotifier::class.java, { mockk() })
+            .withBean(CommandGateway::class.java, { SagaVerifier.defaultCommandGateway() })
+            .withBean(StateAggregateFactory::class.java, { ConstructorStateAggregateFactory })
+            .withBean(SnapshotRepository::class.java, { NoOpSnapshotRepository })
+            .withBean(EventStore::class.java, { InMemoryEventStore() })
+            .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
+            .withBean(StateEventCompensator::class.java, { mockk() })
+            .withBean(EventCompensateSupporter::class.java, { mockk() })
+            .withBean(SnapshotQueryHandler::class.java, { spyk<SnapshotQueryHandler>() })
+            .withBean(EventStreamQueryHandler::class.java, { spyk<EventStreamQueryHandler>() })
+            .withBean(HostAddressSupplier::class.java, { LocalHostAddressSupplier.INSTANCE })
+            .withUserConfiguration(
+                CommandAutoConfiguration::class.java,
+                CommandGatewayAutoConfiguration::class.java,
+                EventSourcingAutoConfiguration::class.java,
+                AggregateAutoConfiguration::class.java,
+                OpenAPIAutoConfiguration::class.java,
+                WebFluxAutoConfiguration::class.java,
+            )
+            .run { context: AssertableApplicationContext ->
+                context.assert()
+                    .hasSingleBean(WebFluxErrorStrategy::class.java)
+                    .hasSingleBean(RequestExceptionHandler::class.java)
+                    .hasSingleBean(WebExceptionHandler::class.java)
+                context.getBean(WebFluxErrorStrategy::class.java).assert().isSameAs(customErrorStrategy)
+                context.getBean(RequestExceptionHandler::class.java)
+                    .handle(MockServerRequest.builder().build(), IllegalArgumentException("bad"))
+                    .test()
+                    .consumeNextWith {
+                        it.statusCode().assert().isEqualTo(HttpStatus.I_AM_A_TEAPOT)
+                    }
+                    .verifyComplete()
+
+                val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/test").build())
+                context.getBean(WebExceptionHandler::class.java)
+                    .handle(exchange, IllegalArgumentException("bad"))
+                    .test()
+                    .verifyComplete()
+                exchange.response.statusCode.assert().isEqualTo(HttpStatus.I_AM_A_TEAPOT)
             }
     }
 
@@ -149,9 +328,59 @@ internal class WebFluxAutoConfigurationTest {
             )
             .run { context: AssertableApplicationContext ->
                 context.assert()
-                    .doesNotHaveBean(GlobalExceptionHandler::class.java)
+                    .doesNotHaveBean(WebExceptionHandler::class.java)
                     .hasBean("commandRouterFunction")
                     .hasSingleBean(RequestExceptionHandler::class.java)
             }
+    }
+
+    private class TestWebFluxErrorStrategy : WebFluxErrorStrategy {
+        override fun toServerResponse(request: ServerRequest, throwable: Throwable): Mono<ServerResponse> {
+            return ServerResponse.status(HttpStatus.I_AM_A_TEAPOT).build()
+        }
+
+        override fun writeToExchange(exchange: ServerWebExchange, throwable: Throwable): Mono<Void> {
+            exchange.response.statusCode = HttpStatus.I_AM_A_TEAPOT
+            return Mono.empty()
+        }
+    }
+
+    private fun webFluxContextRunner(): ApplicationContextRunner {
+        return contextRunner
+            .enableWow()
+            .withBean(CommandWaitNotifier::class.java, { mockk() })
+            .withBean(CommandGateway::class.java, { SagaVerifier.defaultCommandGateway() })
+            .withBean(StateAggregateFactory::class.java, { ConstructorStateAggregateFactory })
+            .withBean(SnapshotRepository::class.java, { NoOpSnapshotRepository })
+            .withBean(EventStore::class.java, { InMemoryEventStore() })
+            .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
+            .withBean(StateEventCompensator::class.java, { mockk() })
+            .withBean(EventCompensateSupporter::class.java, { mockk() })
+            .withBean(SnapshotQueryHandler::class.java, { spyk<SnapshotQueryHandler>() })
+            .withBean(EventStreamQueryHandler::class.java, { spyk<EventStreamQueryHandler>() })
+            .withBean(HostAddressSupplier::class.java, { LocalHostAddressSupplier.INSTANCE })
+            .withUserConfiguration(
+                CommandAutoConfiguration::class.java,
+                CommandGatewayAutoConfiguration::class.java,
+                EventSourcingAutoConfiguration::class.java,
+                AggregateAutoConfiguration::class.java,
+                OpenAPIAutoConfiguration::class.java,
+                WebFluxAutoConfiguration::class.java,
+            )
+    }
+
+    private fun AssertableApplicationContext.assertRouteFactoryRegistered(spec: RouteSpec) {
+        val registrar = getBean(RouteHandlerFunctionRegistrar::class.java)
+        registrar.getFactory(spec).assert().isNotNull()
+    }
+
+    private class TestRouteHandlerFunctionFactory<R : RouteSpec>(
+        override val supportedSpec: Class<R>
+    ) : RouteHandlerFunctionFactory<R> {
+        override fun create(spec: R): HandlerFunction<ServerResponse> {
+            return HandlerFunction {
+                ServerResponse.ok().build()
+            }
+        }
     }
 }

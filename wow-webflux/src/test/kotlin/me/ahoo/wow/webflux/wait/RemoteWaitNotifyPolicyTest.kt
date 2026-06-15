@@ -11,29 +11,22 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.webflux.exception
+package me.ahoo.wow.webflux.wait
 
-import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
-import org.springframework.http.HttpMethod
-import org.springframework.http.HttpStatus
-import org.springframework.mock.web.reactive.function.server.MockServerRequest
+import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
-import java.net.URI
 
-class DefaultExceptionHandlerTest {
+class RemoteWaitNotifyPolicyTest {
 
     @Test
-    fun `should handle exception and return bad request`() {
-        val request = MockServerRequest.builder()
-            .method(HttpMethod.GET)
-            .uri(URI.create("http://localhost"))
-            .build()
-        DefaultRequestExceptionHandler.handle(request, IllegalArgumentException("error"))
+    fun `default policy should not switch subscription thread`() {
+        val callerThreadName = Thread.currentThread().name
+
+        RemoteWaitNotifyPolicy()
+            .apply(Mono.fromCallable { Thread.currentThread().name })
             .test()
-            .consumeNextWith {
-                it.statusCode().assert().isEqualTo(HttpStatus.BAD_REQUEST)
-            }
+            .expectNext(callerThreadName)
             .verifyComplete()
     }
 }

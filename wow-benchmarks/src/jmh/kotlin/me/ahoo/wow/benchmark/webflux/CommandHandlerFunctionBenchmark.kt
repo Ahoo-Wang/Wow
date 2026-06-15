@@ -18,9 +18,11 @@ import me.ahoo.wow.benchmark.scenario.CommandGatewayScenario
 import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.command.wait.CommandWait
 import me.ahoo.wow.example.api.cart.AddCartItem
-import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
+import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
+import me.ahoo.wow.webflux.route.command.DEFAULT_TIME_OUT
 import me.ahoo.wow.webflux.route.command.CommandHandlerFunction
 import me.ahoo.wow.webflux.route.command.toCommandResponse
+import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Level
 import org.openjdk.jmh.annotations.Scope
@@ -51,7 +53,8 @@ open class CommandHandlerFunctionBenchmark {
             commandRouteMetadata = WebFluxBenchmarkSupport.addCartItemRouteMetadata,
             commandGateway = gatewayScenario.commandGateway,
             commandMessageExtractor = WebFluxBenchmarkSupport.commandMessageExtractor,
-            exceptionHandler = DefaultRequestExceptionHandler,
+            exceptionHandler = WebFluxRequestExceptionHandler(),
+            commandWaitPolicy = CommandWaitPolicy(DEFAULT_TIME_OUT),
         )
         preparedRequest = WebFluxBenchmarkSupport.addCartItemRequest()
         preparedCommandBody = WebFluxBenchmarkSupport.addCartItemCommandBody()
@@ -108,7 +111,7 @@ open class CommandHandlerFunctionBenchmark {
     @Benchmark
     fun commandResultJsonResponse(blackhole: Blackhole) {
         val response = Flux.just(preparedCommandResult)
-            .toCommandResponse(preparedRequest, DefaultRequestExceptionHandler)
+            .toCommandResponse(preparedRequest, WebFluxRequestExceptionHandler())
             .block()
         blackhole.consume(response)
     }

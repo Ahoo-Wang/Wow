@@ -18,6 +18,7 @@ import me.ahoo.wow.command.wait.CommandWaitNotifier
 import me.ahoo.wow.command.wait.DefaultWaitCoordinator
 import me.ahoo.wow.command.wait.WaitCoordinator
 import me.ahoo.wow.spring.boot.starter.enableWow
+import me.ahoo.wow.webflux.wait.RemoteWaitNotifyPolicy
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
@@ -38,6 +39,27 @@ class WowWebClientAutoConfigurationTest {
             .run { context: AssertableApplicationContext ->
                 context.assert()
                     .hasSingleBean(CommandWaitNotifier::class.java)
+                    .hasSingleBean(RemoteWaitNotifyPolicy::class.java)
+            }
+    }
+
+    @Test
+    fun `should use custom remote wait notify policy`() {
+        val remoteWaitNotifyPolicy = RemoteWaitNotifyPolicy()
+        contextRunner
+            .enableWow()
+            .withBean(RemoteWaitNotifyPolicy::class.java, { remoteWaitNotifyPolicy })
+            .withBean(WaitCoordinator::class.java, { DefaultWaitCoordinator() })
+            .withUserConfiguration(
+                WebClientAutoConfiguration::class.java,
+                WowWebClientAutoConfiguration::class.java,
+            )
+            .run { context: AssertableApplicationContext ->
+                context.assert()
+                    .hasSingleBean(CommandWaitNotifier::class.java)
+                    .hasSingleBean(RemoteWaitNotifyPolicy::class.java)
+                context.getBean(RemoteWaitNotifyPolicy::class.java)
+                    .assert().isSameAs(remoteWaitNotifyPolicy)
             }
     }
 }

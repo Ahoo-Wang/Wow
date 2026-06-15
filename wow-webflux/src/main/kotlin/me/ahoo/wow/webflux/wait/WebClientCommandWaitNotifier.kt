@@ -18,15 +18,14 @@ import me.ahoo.wow.command.wait.CommandWaitNotifier
 import me.ahoo.wow.command.wait.WaitCoordinator
 import me.ahoo.wow.command.wait.WaitSignal
 import me.ahoo.wow.command.wait.isLocalWaitCommandId
-import me.ahoo.wow.messaging.handler.DEFAULT_RETRY_SPEC
 import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.client.WebClient
 import reactor.core.publisher.Mono
-import reactor.core.scheduler.Schedulers
 
 class WebClientCommandWaitNotifier(
     private val waitCoordinator: WaitCoordinator,
-    private val webClient: WebClient
+    private val webClient: WebClient,
+    private val remoteWaitNotifyPolicy: RemoteWaitNotifyPolicy
 ) : CommandWaitNotifier {
     companion object {
         private val log = KotlinLogging.logger {}
@@ -51,8 +50,7 @@ class WebClientCommandWaitNotifier(
                 .bodyValue(waitSignal)
                 .retrieve()
                 .bodyToMono(Void::class.java)
-                .retryWhen(DEFAULT_RETRY_SPEC)
-                .subscribeOn(Schedulers.boundedElastic())
+                .let { remoteWaitNotifyPolicy.apply(it) }
         }
     }
 }

@@ -21,6 +21,7 @@ import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.extractor.CommandBodyExtractor
 import me.ahoo.wow.webflux.route.command.extractor.CommandMessageExtractor
+import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.RouterFunctions
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -42,10 +43,10 @@ class CommandHandlerFunction(
     private val commandGateway: CommandGateway,
     private val commandMessageExtractor: CommandMessageExtractor,
     private val exceptionHandler: RequestExceptionHandler,
-    private val timeout: Duration = DEFAULT_TIME_OUT
+    private val commandWaitPolicy: CommandWaitPolicy
 ) : HandlerFunction<ServerResponse> {
     private val bodyExtractor = CommandBodyExtractor(commandRouteMetadata)
-    private val handler = CommandHandler(commandGateway, commandMessageExtractor, timeout)
+    private val handler = CommandHandler(commandGateway, commandMessageExtractor, commandWaitPolicy)
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         return if (commandRouteMetadata.pathVariableMetadata.isEmpty() && commandRouteMetadata.headerVariableMetadata.isEmpty()) {
             request.bodyToMono(commandRouteMetadata.commandMetadata.commandType)
@@ -66,7 +67,7 @@ class CommandHandlerFunctionFactory(
     private val commandGateway: CommandGateway,
     private val commandMessageExtractor: CommandMessageExtractor,
     private val exceptionHandler: RequestExceptionHandler,
-    private val timeout: Duration = DEFAULT_TIME_OUT
+    private val commandWaitPolicy: CommandWaitPolicy
 ) : RouteHandlerFunctionFactory<CommandRouteSpec> {
     override val supportedSpec: Class<CommandRouteSpec>
         get() = CommandRouteSpec::class.java
@@ -79,7 +80,7 @@ class CommandHandlerFunctionFactory(
             commandGateway = commandGateway,
             commandMessageExtractor = commandMessageExtractor,
             exceptionHandler = exceptionHandler,
-            timeout = timeout
+            commandWaitPolicy = commandWaitPolicy
         )
     }
 }

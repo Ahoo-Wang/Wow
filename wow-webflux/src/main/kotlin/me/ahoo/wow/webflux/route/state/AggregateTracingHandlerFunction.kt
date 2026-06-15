@@ -13,75 +13,52 @@
 
 package me.ahoo.wow.webflux.route.state
 
-import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.eventsourcing.state.StateEvent
-import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.toStateEvent
-import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.eventsourcing.EventStore.Companion.DEFAULT_TAIL_VERSION
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
-import me.ahoo.wow.modeling.metadata.StateAggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.openapi.aggregate.state.AggregateTracingRouteSpec
-import me.ahoo.wow.serialization.MessageRecords
-import me.ahoo.wow.serialization.toJsonNode
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.command.getTenantIdOrDefault
+import me.ahoo.wow.webflux.route.context.WowWebRequestContext
+import me.ahoo.wow.webflux.route.policy.TracingPolicy
 import me.ahoo.wow.webflux.route.toServerResponse
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.core.publisher.Mono
-import tools.jackson.databind.node.ObjectNode
 
 class AggregateTracingHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val stateAggregateFactory: StateAggregateFactory,
     private val eventStore: EventStore,
-    private val exceptionHandler: RequestExceptionHandler
+    private val exceptionHandler: RequestExceptionHandler,
+    private val tracingPolicy: TracingPolicy
 ) : HandlerFunction<ServerResponse> {
-
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
-        val tenantId = request.getTenantIdOrDefault(aggregateMetadata)
-        val id = request.pathVariable(MessageRecords.ID)
-        val aggregateId = aggregateMetadata.aggregateId(id = id, tenantId = tenantId)
+        val context = WowWebRequestContext.of(request, aggregateMetadata)
+        val tracingRequest = tracingPolicy.request(request)
         return eventStore
             .load(
-                aggregateId = aggregateId,
-            ).collectList()
-            .map {
-                aggregateMetadata.state.trace(stateAggregateFactory, it)
-            }.toServerResponse(request, exceptionHandler)
-    }
-
-    companion object {
-
-        fun <S : Any> StateAggregateMetadata<S>.trace(
-            stateAggregateFactory: StateAggregateFactory,
-            eventStreams: List<DomainEventStream>
-        ): List<StateEvent<ObjectNode>> {
-            if (eventStreams.isEmpty()) {
-                return listOf()
-            }
-            val stateAggregate = stateAggregateFactory.create(this, eventStreams.first().aggregateId)
-            return eventStreams.map { eventStream ->
-                stateAggregate.onSourcing(eventStream)
-                eventStream.toStateEvent(
-                    state = stateAggregate.state.toJsonNode<ObjectNode>(),
-                    firstOperator = stateAggregate.firstOperator,
-                    firstEventTime = stateAggregate.firstEventTime,
-                    tags = stateAggregate.tags,
-                    deleted = stateAggregate.deleted,
+                aggregateId = context.aggregateId,
+                tailVersion = tracingRequest.tailVersion ?: DEFAULT_TAIL_VERSION,
+            )
+            .let { eventStreams ->
+                AggregateTracingReplay.trace(
+                    stateAggregateMetadata = aggregateMetadata.state,
+                    stateAggregateFactory = stateAggregateFactory,
+                    eventStreams = eventStreams,
+                    tracingRequest = tracingRequest,
                 )
-            }
-        }
+            }.toServerResponse(request, exceptionHandler)
     }
 }
 
 class AggregateTracingHandlerFunctionFactory(
     private val stateAggregateFactory: StateAggregateFactory,
     private val eventStore: EventStore,
-    private val exceptionHandler: RequestExceptionHandler
+    private val exceptionHandler: RequestExceptionHandler,
+    private val tracingPolicy: TracingPolicy
 ) : RouteHandlerFunctionFactory<AggregateTracingRouteSpec> {
     override val supportedSpec: Class<AggregateTracingRouteSpec>
         get() = AggregateTracingRouteSpec::class.java
@@ -91,7 +68,8 @@ class AggregateTracingHandlerFunctionFactory(
             spec.aggregateMetadata,
             stateAggregateFactory,
             eventStore,
-            exceptionHandler
+            exceptionHandler,
+            tracingPolicy,
         )
     }
 }

@@ -24,7 +24,7 @@ import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
-import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
+import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
@@ -42,7 +42,7 @@ class LoadVersionedAggregateHandlerFunctionTest {
                 snapshotRepository = NoOpSnapshotRepository,
                 eventStore = InMemoryEventStore(),
             ),
-            exceptionHandler = DefaultRequestExceptionHandler,
+            exceptionHandler = WebFluxRequestExceptionHandler(),
         ).create(
             LoadVersionedAggregateRouteSpec(
                 MOCK_AGGREGATE_METADATA,

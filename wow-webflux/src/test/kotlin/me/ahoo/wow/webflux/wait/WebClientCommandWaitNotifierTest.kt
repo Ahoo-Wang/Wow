@@ -26,6 +26,7 @@ import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
+import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.client.WebClient
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
@@ -38,7 +39,8 @@ class WebClientCommandWaitNotifierTest {
         val waitCoordinator = mockk<WaitCoordinator> {
             every { signal(any()) } returns true
         }
-        val commandWaitNotifier = WebClientCommandWaitNotifier(waitCoordinator, webClient)
+        val remoteWaitNotifyPolicy = mockk<RemoteWaitNotifyPolicy>(relaxed = true)
+        val commandWaitNotifier = WebClientCommandWaitNotifier(waitCoordinator, webClient, remoteWaitNotifyPolicy)
         val commandWaitEndpoint = "http://localhost:8080/command/wait"
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
@@ -57,24 +59,30 @@ class WebClientCommandWaitNotifierTest {
             .test()
             .verifyComplete()
         verify { waitCoordinator.signal(waitSignal) }
+        verify(exactly = 0) { webClient.post() }
+        verify(exactly = 0) { remoteWaitNotifyPolicy.apply(any<Mono<Void>>()) }
     }
 
     @Test
     fun `should notify remote wait signal`() {
         val commandWaitEndpoint = "http://localhost:8080/command/wait"
-        val webClient = mockk<WebClient> {
-            every {
-                post()
-                    .uri(commandWaitEndpoint)
-                    .contentType(any())
-                    .bodyValue(any())
-                    .retrieve()
-                    .bodyToMono(Void::class.java)
-                    .retryWhen(any())
-            } returns Mono.empty()
+        val requestBodyUriSpec = mockk<WebClient.RequestBodyUriSpec>()
+        val requestBodySpec = mockk<WebClient.RequestBodySpec>()
+        val requestHeadersSpec = mockk<WebClient.RequestHeadersSpec<*>>()
+        val responseSpec = mockk<WebClient.ResponseSpec>()
+        val webClient = mockk<WebClient>()
+        every { webClient.post() } returns requestBodyUriSpec
+        every { requestBodyUriSpec.uri(commandWaitEndpoint) } returns requestBodySpec
+        every { requestBodySpec.contentType(MediaType.APPLICATION_JSON) } returns requestBodySpec
+        every { requestBodySpec.bodyValue(any()) } returns requestHeadersSpec
+        every { requestHeadersSpec.retrieve() } returns responseSpec
+        val remoteResponse = Mono.empty<Void>()
+        every { responseSpec.bodyToMono(Void::class.java) } returns remoteResponse
+        val remoteWaitNotifyPolicy = mockk<RemoteWaitNotifyPolicy> {
+            every { apply(any<Mono<Void>>()) } answers { firstArg<Mono<Void>>() }
         }
         val waitCoordinator = mockk<WaitCoordinator>(relaxed = true)
-        val commandWaitNotifier = WebClientCommandWaitNotifier(waitCoordinator, webClient)
+        val commandWaitNotifier = WebClientCommandWaitNotifier(waitCoordinator, webClient, remoteWaitNotifyPolicy)
 
         val waitSignal = SimpleWaitSignal(
             id = generateGlobalId(),
@@ -93,5 +101,6 @@ class WebClientCommandWaitNotifierTest {
             .test()
             .verifyComplete()
         verify(exactly = 0) { waitCoordinator.signal(any()) }
+        verify(exactly = 1) { remoteWaitNotifyPolicy.apply(remoteResponse) }
     }
 }

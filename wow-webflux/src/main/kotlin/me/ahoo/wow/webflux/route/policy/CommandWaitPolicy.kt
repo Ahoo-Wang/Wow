@@ -11,22 +11,18 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.webflux.exception
+package me.ahoo.wow.webflux.route.policy
 
-import me.ahoo.test.asserts.assert
-import org.junit.jupiter.api.Test
-import org.springframework.mock.web.reactive.function.server.MockServerRequest
-import reactor.kotlin.test.test
+import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.command.wait.WaitPlan
+import me.ahoo.wow.webflux.route.command.extractWaitPlan
+import me.ahoo.wow.webflux.route.command.getWaitTimeout
+import org.springframework.web.reactive.function.server.ServerRequest
+import java.time.Duration
 
-class DefaultRequestExceptionHandlerTest {
-    @Test
-    fun `should handle request exception`() {
-        val request = MockServerRequest.builder().build()
-        val ex = IllegalArgumentException()
-        DefaultRequestExceptionHandler.handle(request, ex)
-            .test()
-            .consumeNextWith {
-                it.statusCode().is4xxClientError.assert().isTrue()
-            }.verifyComplete()
-    }
+class CommandWaitPolicy(private val defaultTimeout: Duration) {
+    fun waitPlan(request: ServerRequest, commandMessage: CommandMessage<Any>): WaitPlan =
+        request.extractWaitPlan(commandMessage)
+
+    fun timeout(request: ServerRequest): Duration = request.getWaitTimeout(defaultTimeout)
 }

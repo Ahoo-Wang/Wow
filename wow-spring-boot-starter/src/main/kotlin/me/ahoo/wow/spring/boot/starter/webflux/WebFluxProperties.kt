@@ -22,7 +22,8 @@ import org.springframework.boot.context.properties.bind.DefaultValue
 @ConfigurationProperties(prefix = WebFluxProperties.PREFIX)
 class WebFluxProperties(
     @DefaultValue("true") override var enabled: Boolean = true,
-    var globalError: GlobalError = GlobalError()
+    var globalError: GlobalError = GlobalError(),
+    var batch: Batch = Batch()
 ) : EnabledCapable {
     companion object {
         const val PREFIX = "${Wow.WOW_PREFIX}webflux"
@@ -34,4 +35,11 @@ class WebFluxProperties(
         @DefaultValue("true")
         override var enabled: Boolean = true
     ) : EnabledCapable
+
+    data class Batch(
+        @DefaultValue("1")
+        var concurrency: Int = 1,
+        @DefaultValue("1")
+        var prefetch: Int = 1
+    )
 }

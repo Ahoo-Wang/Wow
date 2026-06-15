@@ -25,7 +25,7 @@ import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.exception.toErrorInfo
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.CommonComponent.Header.ERROR_CODE
-import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
+import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
@@ -84,7 +84,7 @@ class ResponsesKtTest {
 
             )
         ).toMono()
-            .toServerResponse(MockServerRequest.builder().build(), DefaultRequestExceptionHandler)
+            .toServerResponse(MockServerRequest.builder().build(), WebFluxRequestExceptionHandler())
             .test()
             .consumeNextWith {
                 it.statusCode().assert().isEqualTo(HttpStatus.OK)
@@ -108,7 +108,7 @@ class ResponsesKtTest {
         }
         listOf(generateGlobalId())
             .toFlux()
-            .toServerResponse(mockRequest, DefaultRequestExceptionHandler)
+            .toServerResponse(mockRequest, WebFluxRequestExceptionHandler())
             .test()
             .consumeNextWith {
                 it.writeTo(serverWebExchange, responseContext).test().verifyComplete()
@@ -132,7 +132,7 @@ class ResponsesKtTest {
             } returns listOf(ServerSentEventHttpMessageWriter())
         }
         IllegalArgumentException().toFlux<String>()
-            .toServerResponse(mockRequest, DefaultRequestExceptionHandler)
+            .toServerResponse(mockRequest, WebFluxRequestExceptionHandler())
             .test()
             .consumeNextWith {
                 it.writeTo(serverWebExchange, responseContext).test().verifyComplete()

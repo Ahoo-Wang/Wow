@@ -43,7 +43,8 @@ class RouterFunctionBuilder(
 
             @Suppress("UNCHECKED_CAST")
             val factory = requireNotNull(routeHandlerFunctionRegistrar.getFactory(routeSpec)) {
-                "RouteHandlerFunctionFactory not found for routeSpec:$routeSpec"
+                "RouteHandlerFunctionFactory not found - method:[${routeSpec.method}], " +
+                    "path:[${routeSpec.path}], spec:[${routeSpec::class.java.name}]."
             } as RouteHandlerFunctionFactory<RouteSpec>
             val handlerFunction = factory.create(routeSpec)
             routerFunctionBuilder.route(

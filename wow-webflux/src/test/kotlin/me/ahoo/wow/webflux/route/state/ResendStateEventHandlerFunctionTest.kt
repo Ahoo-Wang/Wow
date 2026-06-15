@@ -22,7 +22,8 @@ import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.openapi.BatchComponent
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
-import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
+import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
+import me.ahoo.wow.webflux.route.policy.BatchExecutionPolicy
 import me.ahoo.wow.webflux.route.event.state.ResendStateEventFunction
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
@@ -42,7 +43,8 @@ class ResendStateEventHandlerFunctionTest {
                 eventStore = eventStore,
                 stateEventBus = InMemoryStateEventBus(),
             ),
-            exceptionHandler = DefaultRequestExceptionHandler,
+            exceptionHandler = WebFluxRequestExceptionHandler(),
+            batchExecutionPolicy = BatchExecutionPolicy(),
         )
 
         val request = MockServerRequest.builder()
