@@ -18,6 +18,7 @@ import jakarta.validation.Validator
 import jakarta.validation.executable.ExecutableValidator
 import jakarta.validation.metadata.BeanDescriptor
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.annotation.AggregateName
 import me.ahoo.wow.command.factory.CommandBuilder.Companion.commandBuilder
 import me.ahoo.wow.messaging.DefaultHeader
@@ -66,6 +67,22 @@ class SimpleCommandMessageFactoryTest {
             }.verifyComplete()
 
         validator.validatedBodies.assert().isEmpty()
+    }
+
+    @Test
+    fun `should create message as create when builder expected version is uninitialized`() {
+        val factory = SimpleCommandMessageFactory(RecordingValidator(), MapCommandBuilderRewriterRegistry())
+        val builder = FactoryMessageCommand("payload")
+            .commandBuilder()
+            .id("command-1")
+            .aggregateVersion(Version.UNINITIALIZED_VERSION)
+            .namedAggregate(MaterializedNamedAggregate("factory", "account"))
+
+        StepVerifier.create(factory.create<FactoryMessageCommand>(builder))
+            .assertNext { message ->
+                message.isCreate.assert().isTrue()
+                message.aggregateVersion.assert().isEqualTo(Version.UNINITIALIZED_VERSION)
+            }.verifyComplete()
     }
 
     @Test

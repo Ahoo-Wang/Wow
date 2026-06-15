@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.benchmark.fixture
 
+import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.command.CommandMessage
 import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.example.api.cart.AddCartItem
@@ -26,6 +27,7 @@ object BenchmarkCommands {
             requestId = id,
             aggregateId = BenchmarkAggregates.FIXED_AGGREGATE_ID,
             namedAggregate = BenchmarkAggregates.namedAggregate,
+            aggregateVersion = null,
         )
     }
 
@@ -62,12 +64,14 @@ object BenchmarkCommands {
         requestId: String?,
         aggregateId: String?,
         namedAggregate: MaterializedNamedAggregate?,
+        aggregateVersion: Int? = Version.UNINITIALIZED_VERSION,
     ): CommandMessage<AddCartItem> {
         return AddCartItem(productId = "productId").toCommandMessage(
             id = id,
             requestId = requestId,
             aggregateId = aggregateId,
             namedAggregate = namedAggregate,
+            aggregateVersion = aggregateVersion,
         )
     }
 }
