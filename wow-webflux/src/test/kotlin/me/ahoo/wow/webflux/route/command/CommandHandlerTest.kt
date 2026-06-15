@@ -14,11 +14,16 @@
 package me.ahoo.wow.webflux.route.command
 
 import com.sun.security.auth.UserPrincipal
+import io.mockk.every
+import io.mockk.mockk
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.command.CommandMessage
+import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.factory.SimpleCommandBuilderRewriterRegistry
 import me.ahoo.wow.command.factory.SimpleCommandMessageFactory
 import me.ahoo.wow.command.validation.NoOpValidator
 import me.ahoo.wow.command.wait.CommandStage
+import me.ahoo.wow.command.wait.WaitPlan
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
@@ -26,14 +31,18 @@ import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockCreateAggregate
 import me.ahoo.wow.test.SagaVerifier
+import me.ahoo.wow.webflux.route.command.extractor.CommandMessageExtractor
 import me.ahoo.wow.webflux.route.command.extractor.DefaultCommandBuilderExtractor
 import me.ahoo.wow.webflux.route.command.extractor.DefaultCommandMessageExtractor
+import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
+import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 import java.time.Duration
+import java.util.concurrent.TimeoutException
 
 class CommandHandlerTest {
 
@@ -100,6 +109,38 @@ class CommandHandlerTest {
             MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata()
         ).test()
             .verifyTimeout(Duration.ofMillis(200))
+    }
+
+    @Test
+    fun `should use command wait policy timeout`() {
+        val request = MockServerRequest.builder().build()
+        val commandMessage = mockk<CommandMessage<Any>> {
+            every { commandId } returns generateGlobalId()
+            every { contextName } returns "contextName"
+        }
+        val commandGateway = mockk<CommandGateway> {
+            every {
+                sendAndWait(commandMessage, any<WaitPlan>())
+            } returns Mono.never()
+        }
+        val commandMessageExtractor = mockk<CommandMessageExtractor> {
+            every {
+                extract(any(), any(), any())
+            } returns Mono.just(commandMessage)
+        }
+        val commandHandler = CommandHandler(
+            commandGateway = commandGateway,
+            commandMessageExtractor = commandMessageExtractor,
+            commandWaitPolicy = CommandWaitPolicy(Duration.ofMillis(20))
+        )
+
+        commandHandler.handle(
+            request,
+            MockCreateAggregate(generateGlobalId(), generateGlobalId()),
+            MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata()
+        ).test()
+            .expectError(TimeoutException::class.java)
+            .verify(Duration.ofMillis(500))
     }
 
     @Test

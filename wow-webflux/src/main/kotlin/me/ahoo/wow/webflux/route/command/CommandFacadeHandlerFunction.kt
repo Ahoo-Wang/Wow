@@ -19,6 +19,7 @@ import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.extractor.CommandFacadeBodyExtractor
 import me.ahoo.wow.webflux.route.command.extractor.CommandMessageExtractor
+import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
@@ -35,13 +36,24 @@ class CommandFacadeHandlerFunction(
     private val commandGateway: CommandGateway,
     private val commandMessageExtractor: CommandMessageExtractor,
     private val exceptionHandler: RequestExceptionHandler,
-    private val timeout: Duration = DEFAULT_TIME_OUT
+    private val commandWaitPolicy: CommandWaitPolicy
 ) : HandlerFunction<ServerResponse> {
+    constructor(
+        commandGateway: CommandGateway,
+        commandMessageExtractor: CommandMessageExtractor,
+        exceptionHandler: RequestExceptionHandler,
+        timeout: Duration = DEFAULT_TIME_OUT
+    ) : this(
+        commandGateway = commandGateway,
+        commandMessageExtractor = commandMessageExtractor,
+        exceptionHandler = exceptionHandler,
+        commandWaitPolicy = CommandWaitPolicy(timeout)
+    )
 
     private val handler = CommandHandler(
         commandGateway = commandGateway,
         commandMessageExtractor = commandMessageExtractor,
-        timeout = timeout
+        commandWaitPolicy = commandWaitPolicy
     )
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
@@ -57,8 +69,20 @@ class CommandFacadeHandlerFunctionFactory(
     private val commandGateway: CommandGateway,
     private val commandMessageExtractor: CommandMessageExtractor,
     private val exceptionHandler: RequestExceptionHandler,
-    private val timeout: Duration = DEFAULT_TIME_OUT
+    private val commandWaitPolicy: CommandWaitPolicy
 ) : RouteHandlerFunctionFactory<CommandFacadeRouteSpec> {
+    constructor(
+        commandGateway: CommandGateway,
+        commandMessageExtractor: CommandMessageExtractor,
+        exceptionHandler: RequestExceptionHandler,
+        timeout: Duration = DEFAULT_TIME_OUT
+    ) : this(
+        commandGateway = commandGateway,
+        commandMessageExtractor = commandMessageExtractor,
+        exceptionHandler = exceptionHandler,
+        commandWaitPolicy = CommandWaitPolicy(timeout)
+    )
+
     override val supportedSpec: Class<CommandFacadeRouteSpec>
         get() = CommandFacadeRouteSpec::class.java
 
@@ -67,7 +91,7 @@ class CommandFacadeHandlerFunctionFactory(
             commandGateway = commandGateway,
             commandMessageExtractor = commandMessageExtractor,
             exceptionHandler = exceptionHandler,
-            timeout = timeout
+            commandWaitPolicy = commandWaitPolicy
         )
     }
 }
