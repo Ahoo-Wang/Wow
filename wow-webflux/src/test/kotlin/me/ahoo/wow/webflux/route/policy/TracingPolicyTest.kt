@@ -79,6 +79,42 @@ class TracingPolicyTest {
     }
 
     @Test
+    fun `should parse tracing request options`() {
+        val tracingRequest = TracingPolicy().request(
+            request(
+                "headVersion" to "10",
+                "tailVersion" to "20",
+                "limit" to "5",
+            )
+        )
+
+        tracingRequest.headVersion.assert().isEqualTo(10)
+        tracingRequest.emitHeadVersion.assert().isEqualTo(10)
+        tracingRequest.tailVersion.assert().isEqualTo(20)
+        tracingRequest.limit.assert().isEqualTo(5)
+        tracingRequest.hasLimit.assert().isTrue()
+    }
+
+    @Test
+    fun `should parse default tracing request options`() {
+        val tracingRequest = TracingPolicy().request(request())
+
+        tracingRequest.headVersion.assert().isNull()
+        tracingRequest.emitHeadVersion.assert().isOne()
+        tracingRequest.tailVersion.assert().isNull()
+        tracingRequest.limit.assert().isNull()
+        tracingRequest.hasLimit.assert().isFalse()
+    }
+
+    @Test
+    fun `should parse zero limit as empty tail window`() {
+        val tracingRequest = TracingPolicy().request(request("limit" to "0"))
+
+        tracingRequest.limit.assert().isZero()
+        tracingRequest.hasLimit.assert().isTrue()
+    }
+
+    @Test
     fun `should reject invalid query options`() {
         assertThrows<IllegalArgumentException> {
             TracingPolicy().range(request("headVersion" to "0"), totalVersion = 100)

@@ -21,9 +21,43 @@ data class TracingRange(
     val tailVersion: Int
 )
 
+internal data class TracingRequest(
+    val headVersion: Int?,
+    val tailVersion: Int?,
+    val limit: Int?
+) {
+    val emitHeadVersion: Int
+        get() = headVersion ?: TracingPolicy.DEFAULT_HEAD_VERSION
+
+    val hasLimit: Boolean
+        get() = limit != null
+
+    fun toRange(totalVersion: Int): TracingRange {
+        val effectiveTailVersion = if (totalVersion <= TracingPolicy.EMPTY_TAIL_VERSION) {
+            TracingPolicy.EMPTY_TAIL_VERSION
+        } else {
+            tailVersion?.coerceAtMost(totalVersion) ?: totalVersion
+        }
+        val effectiveEmitHeadVersion = limit?.let {
+            val limitedHeadVersion = effectiveTailVersion - it + 1
+            maxOf(emitHeadVersion, limitedHeadVersion)
+        } ?: emitHeadVersion
+
+        return TracingRange(
+            replayHeadVersion = TracingPolicy.DEFAULT_HEAD_VERSION,
+            emitHeadVersion = effectiveEmitHeadVersion,
+            tailVersion = effectiveTailVersion,
+        )
+    }
+}
+
 class TracingPolicy {
 
     fun range(request: ServerRequest, totalVersion: Int): TracingRange {
+        return request(request).toRange(totalVersion)
+    }
+
+    internal fun request(request: ServerRequest): TracingRequest {
         val headVersion = request.queryInt(HEAD_VERSION)
         val tailVersion = request.queryInt(TAIL_VERSION)
         val limit = request.queryInt(LIMIT)
@@ -46,19 +80,10 @@ class TracingPolicy {
             }
         }
 
-        val effectiveTailVersion = effectiveTailVersion(
-            requestedTailVersion = tailVersion,
-            totalVersion = totalVersion,
-        )
-        val effectiveEmitHeadVersion = limit?.let {
-            val limitedHeadVersion = effectiveTailVersion - it + 1
-            maxOf(emitHeadVersion, limitedHeadVersion)
-        } ?: emitHeadVersion
-
-        return TracingRange(
-            replayHeadVersion = DEFAULT_HEAD_VERSION,
-            emitHeadVersion = effectiveEmitHeadVersion,
-            tailVersion = effectiveTailVersion,
+        return TracingRequest(
+            headVersion = headVersion,
+            tailVersion = tailVersion,
+            limit = limit,
         )
     }
 
@@ -71,13 +96,6 @@ class TracingPolicy {
                 it.toIntOrNull() ?: throw IllegalArgumentException("$name must be an integer.")
             }
             .orElse(null)
-    }
-
-    private fun effectiveTailVersion(requestedTailVersion: Int?, totalVersion: Int): Int {
-        if (totalVersion <= EMPTY_TAIL_VERSION) {
-            return EMPTY_TAIL_VERSION
-        }
-        return requestedTailVersion?.coerceAtMost(totalVersion) ?: totalVersion
     }
 
     companion object {
