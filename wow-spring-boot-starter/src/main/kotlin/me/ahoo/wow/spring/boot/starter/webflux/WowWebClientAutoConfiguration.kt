@@ -15,6 +15,7 @@ package me.ahoo.wow.spring.boot.starter.webflux
 import me.ahoo.wow.command.wait.CommandWaitNotifier
 import me.ahoo.wow.command.wait.WaitCoordinator
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
+import me.ahoo.wow.webflux.wait.RemoteWaitNotifyPolicy
 import me.ahoo.wow.webflux.wait.WebClientCommandWaitNotifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
@@ -34,10 +35,17 @@ class WowWebClientAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    fun remoteWaitNotifyPolicy(): RemoteWaitNotifyPolicy {
+        return RemoteWaitNotifyPolicy()
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
     fun commandWaitNotifier(
         waitCoordinator: WaitCoordinator,
-        webClientBuilder: WebClient.Builder
+        webClientBuilder: WebClient.Builder,
+        remoteWaitNotifyPolicy: RemoteWaitNotifyPolicy
     ): CommandWaitNotifier {
-        return WebClientCommandWaitNotifier(waitCoordinator, webClientBuilder.build())
+        return WebClientCommandWaitNotifier(waitCoordinator, webClientBuilder.build(), remoteWaitNotifyPolicy)
     }
 }

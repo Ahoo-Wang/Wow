@@ -18,6 +18,7 @@ import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.CommandResult
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.webflux.route.command.extractor.CommandMessageExtractor
+import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
 import org.reactivestreams.Publisher
 import org.springframework.web.reactive.function.server.ServerRequest
 import reactor.core.publisher.Flux
@@ -26,8 +27,17 @@ import java.time.Duration
 class CommandHandler(
     private val commandGateway: CommandGateway,
     private val commandMessageExtractor: CommandMessageExtractor,
-    private val timeout: Duration = DEFAULT_TIME_OUT
+    private val commandWaitPolicy: CommandWaitPolicy
 ) {
+    constructor(
+        commandGateway: CommandGateway,
+        commandMessageExtractor: CommandMessageExtractor,
+        timeout: Duration = DEFAULT_TIME_OUT
+    ) : this(
+        commandGateway = commandGateway,
+        commandMessageExtractor = commandMessageExtractor,
+        commandWaitPolicy = CommandWaitPolicy(timeout)
+    )
 
     fun handle(
         request: ServerRequest,
@@ -44,8 +54,8 @@ class CommandHandler(
     }
 
     private fun sendCommand(commandMessage: CommandMessage<Any>, request: ServerRequest): Publisher<CommandResult> {
-        val waitPlan = request.extractWaitPlan(commandMessage)
-        val commandWaitTimeout = request.getWaitTimeout(timeout)
+        val waitPlan = commandWaitPolicy.waitPlan(request, commandMessage)
+        val commandWaitTimeout = commandWaitPolicy.timeout(request)
         if (request.isSse()) {
             return commandGateway.sendAndWaitStream(
                 command = commandMessage,
