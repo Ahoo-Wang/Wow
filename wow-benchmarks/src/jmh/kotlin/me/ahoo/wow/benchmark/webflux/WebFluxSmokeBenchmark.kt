@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.benchmark.webflux
 
-import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
+import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.toServerResponse
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Scope
@@ -29,7 +29,7 @@ open class WebFluxSmokeBenchmark {
     fun monoCommandResultResponse(blackhole: Blackhole) {
         val response = WebFluxBenchmarkSupport.commandResult()
             .toMono()
-            .toServerResponse(request, DefaultRequestExceptionHandler)
+            .toServerResponse(request, WebFluxRequestExceptionHandler())
             .block()
         blackhole.consume(response)
     }

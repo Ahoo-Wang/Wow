@@ -59,7 +59,6 @@ import me.ahoo.wow.spring.boot.starter.webflux.route.StateRouteModule
 import me.ahoo.wow.spring.boot.starter.webflux.WebFluxProperties.Companion.GLOBAL_ERROR_ENABLED
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.test.SagaVerifier
-import me.ahoo.wow.webflux.exception.GlobalExceptionHandler
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.exception.WebFluxErrorStrategy
 import me.ahoo.wow.webflux.route.command.appender.CommandRequestRemoteIpHeaderAppender
@@ -329,7 +328,6 @@ internal class WebFluxAutoConfigurationTest {
             )
             .run { context: AssertableApplicationContext ->
                 context.assert()
-                    .doesNotHaveBean(GlobalExceptionHandler::class.java)
                     .doesNotHaveBean(WebExceptionHandler::class.java)
                     .hasBean("commandRouterFunction")
                     .hasSingleBean(RequestExceptionHandler::class.java)

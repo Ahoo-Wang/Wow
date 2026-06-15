@@ -34,11 +34,11 @@ import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 import java.net.URI
 
-class GlobalExceptionHandlerTest {
+class DefaultGlobalExceptionHandlerTest {
 
     @Test
     fun `should get handler order`() {
-        GlobalExceptionHandler.order.assert().isEqualTo(-2)
+        DefaultGlobalExceptionHandler().order.assert().isEqualTo(-2)
     }
 
     @Test
@@ -62,7 +62,7 @@ class GlobalExceptionHandlerTest {
             every { getResponse() } returns response
         }
 
-        GlobalExceptionHandler.handle(exchange, IllegalArgumentException("error"))
+        DefaultGlobalExceptionHandler().handle(exchange, IllegalArgumentException("error"))
             .test()
             .verifyComplete()
 
@@ -90,7 +90,7 @@ class GlobalExceptionHandlerTest {
             every { getResponse() } returns response
         }
 
-        GlobalExceptionHandler.handle(exchange, IllegalArgumentException("error"))
+        DefaultGlobalExceptionHandler().handle(exchange, IllegalArgumentException("error"))
             .test()
             .verifyComplete()
     }
@@ -118,7 +118,7 @@ class GlobalExceptionHandlerTest {
         val bindingResult = mockk<BindingResult> {
             every { fieldErrors } returns listOf(FieldError("objectName", "file", "error"))
         }
-        GlobalExceptionHandler.handle(exchange, BindException(bindingResult))
+        DefaultGlobalExceptionHandler().handle(exchange, BindException(bindingResult))
             .test()
             .verifyComplete()
 

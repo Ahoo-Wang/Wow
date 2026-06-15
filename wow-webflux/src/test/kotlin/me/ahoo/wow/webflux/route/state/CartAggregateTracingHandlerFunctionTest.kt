@@ -28,7 +28,7 @@ import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.test.aggregate.whenCommand
 import me.ahoo.wow.test.aggregateVerifier
-import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
+import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest
@@ -64,7 +64,7 @@ class CartAggregateTracingHandlerFunctionTest {
         val handlerFunction = AggregateTracingHandlerFunctionFactory(
             ConstructorStateAggregateFactory,
             eventStore,
-            DefaultRequestExceptionHandler
+            WebFluxRequestExceptionHandler()
         ).create(
             AggregateTracingRouteSpec(
                 CART_AGGREGATE_METADATA,

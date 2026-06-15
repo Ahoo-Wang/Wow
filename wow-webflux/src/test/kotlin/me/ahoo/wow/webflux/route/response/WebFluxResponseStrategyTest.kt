@@ -17,7 +17,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.exception.ErrorInfo
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.openapi.CommonComponent.Header.ERROR_CODE
-import me.ahoo.wow.webflux.exception.DefaultRequestExceptionHandler
+import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
@@ -37,7 +37,7 @@ class WebFluxResponseStrategyTest {
     @Test
     fun `json array response should be created immediately for never flux`() {
         DefaultWebFluxResponseStrategy
-            .jsonArray(Flux.never<String>(), MockServerRequest.builder().build(), DefaultRequestExceptionHandler)
+            .jsonArray(Flux.never<String>(), MockServerRequest.builder().build(), WebFluxRequestExceptionHandler())
             .test()
             .consumeNextWith {
                 it.statusCode().assert().isEqualTo(HttpStatus.OK)
@@ -53,7 +53,7 @@ class WebFluxResponseStrategyTest {
             .jsonArray(
                 Flux.just(BodyValue("one"), BodyValue("two")),
                 MockServerRequest.builder().build(),
-                DefaultRequestExceptionHandler
+                WebFluxRequestExceptionHandler()
             )
             .test()
             .consumeNextWith {
@@ -68,7 +68,7 @@ class WebFluxResponseStrategyTest {
     @Test
     fun `json array response should write empty flux as empty json array`() {
         DefaultWebFluxResponseStrategy
-            .jsonArray(Flux.empty<BodyValue>(), MockServerRequest.builder().build(), DefaultRequestExceptionHandler)
+            .jsonArray(Flux.empty<BodyValue>(), MockServerRequest.builder().build(), WebFluxRequestExceptionHandler())
             .test()
             .consumeNextWith {
                 it.writeBody().assert().isEqualTo("[]")
@@ -82,7 +82,7 @@ class WebFluxResponseStrategyTest {
             .jsonArray(
                 Flux.error<BodyValue>(IllegalArgumentException("bad")),
                 MockServerRequest.builder().build(),
-                DefaultRequestExceptionHandler
+                WebFluxRequestExceptionHandler()
             )
             .test()
             .consumeNextWith {
@@ -100,7 +100,7 @@ class WebFluxResponseStrategyTest {
             .jsonArray(
                 Flux.just(BodyValue("one")).concatWith(Mono.error<BodyValue> { IllegalArgumentException("bad") }),
                 MockServerRequest.builder().build(),
-                DefaultRequestExceptionHandler
+                WebFluxRequestExceptionHandler()
             )
             .block()!!
 
@@ -114,7 +114,7 @@ class WebFluxResponseStrategyTest {
             .build()
 
         DefaultWebFluxResponseStrategy
-            .sse(Flux.empty(), request, DefaultRequestExceptionHandler)
+            .sse(Flux.empty(), request, WebFluxRequestExceptionHandler())
             .test()
             .consumeNextWith {
                 it.statusCode().assert().isEqualTo(HttpStatus.OK)
@@ -131,7 +131,7 @@ class WebFluxResponseStrategyTest {
             .build()
 
         DefaultWebFluxResponseStrategy
-            .sse(Flux.error<ServerSentEvent<String>>(IllegalArgumentException("bad")), request, DefaultRequestExceptionHandler)
+            .sse(Flux.error<ServerSentEvent<String>>(IllegalArgumentException("bad")), request, WebFluxRequestExceptionHandler())
             .test()
             .consumeNextWith {
                 val body = it.writeBody()
