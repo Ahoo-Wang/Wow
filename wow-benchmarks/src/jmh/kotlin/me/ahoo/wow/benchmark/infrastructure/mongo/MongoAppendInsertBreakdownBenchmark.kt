@@ -17,11 +17,9 @@ import com.mongodb.reactivestreams.client.MongoCollection
 import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
 import me.ahoo.wow.benchmark.fixture.BenchmarkEvents
 import me.ahoo.wow.infrastructure.mongo.MongoBenchmarkFixture
-import me.ahoo.wow.infrastructure.mongo.RawBsonEventStreamRecords
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toEventStreamCollectionName
 import me.ahoo.wow.mongo.toDocument
 import org.bson.Document
-import org.bson.RawBsonDocument
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Level
 import org.openjdk.jmh.annotations.Scope
@@ -35,14 +33,12 @@ import reactor.kotlin.core.publisher.toMono
 open class MongoAppendInsertBreakdownBenchmark {
     private lateinit var fixture: MongoBenchmarkFixture
     private lateinit var documentCollection: MongoCollection<Document>
-    private lateinit var rawBsonCollection: MongoCollection<RawBsonDocument>
 
     @Setup(Level.Iteration)
     fun setup() {
         fixture = MongoBenchmarkFixture()
         val collectionName = BenchmarkAggregates.namedAggregate.toEventStreamCollectionName()
         documentCollection = fixture.database.getCollection(collectionName)
-        rawBsonCollection = fixture.database.getCollection(collectionName, RawBsonDocument::class.java)
     }
 
     @TearDown(Level.Iteration)
@@ -55,18 +51,6 @@ open class MongoAppendInsertBreakdownBenchmark {
         val eventStream = BenchmarkEvents.singleEventStream()
         val result = documentCollection
             .insertOne(eventStream.toDocument())
-            .toMono()
-            .block()
-        checkNotNull(result)
-        check(result.wasAcknowledged())
-        blackhole.consume(result)
-    }
-
-    @Benchmark
-    fun eventStreamToRawBsonInsert(blackhole: Blackhole) {
-        val eventStream = BenchmarkEvents.singleEventStream()
-        val result = rawBsonCollection
-            .insertOne(RawBsonEventStreamRecords.toRawBsonDocument(eventStream))
             .toMono()
             .block()
         checkNotNull(result)

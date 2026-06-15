@@ -16,15 +16,11 @@ package me.ahoo.wow.benchmark.component
 import me.ahoo.wow.api.event.DomainEvent
 import me.ahoo.wow.benchmark.fixture.BenchmarkEvents
 import me.ahoo.wow.event.DomainEventStream
-import me.ahoo.wow.infrastructure.mongo.RawBsonEventStreamRecords
 import me.ahoo.wow.mongo.toDocument
-import me.ahoo.wow.mongo.toDomainEventStream
 import me.ahoo.wow.serialization.toJsonNode
-import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toLinkedHashMap
 import org.bson.BsonBinaryWriter
 import org.bson.Document
-import org.bson.RawBsonDocument
 import org.bson.codecs.DocumentCodec
 import org.bson.codecs.EncoderContext
 import org.bson.io.BasicOutputBuffer
@@ -48,21 +44,6 @@ open class MongoAppendPathBreakdownBenchmark {
         eventStream = BenchmarkEvents.singleEventStream()
         domainEvent = eventStream.body.single()
         eventDocument = eventStream.toDocument()
-        verifyEncodedCompatibility()
-    }
-
-    private fun verifyEncodedCompatibility() {
-        val documentEncoded = RawBsonDocument(encodeDocument(eventDocument))
-            .decode(documentCodec)
-            .toDomainEventStream()
-            .toJsonString()
-        val rawEncoded = RawBsonEventStreamRecords.toRawBsonDocument(eventStream)
-            .decode(documentCodec)
-            .toDomainEventStream()
-            .toJsonString()
-        check(documentEncoded == rawEncoded) {
-            "Document codec bytes and Raw BSON bytes must decode to the same DomainEventStream."
-        }
     }
 
     @Benchmark
@@ -88,11 +69,6 @@ open class MongoAppendPathBreakdownBenchmark {
     @Benchmark
     fun eventStreamToDocumentToBsonBytes(blackhole: Blackhole) {
         blackhole.consume(encodeDocument(eventStream.toDocument()))
-    }
-
-    @Benchmark
-    fun eventStreamToRawBsonDocument(blackhole: Blackhole) {
-        blackhole.consume(RawBsonEventStreamRecords.toRawBsonDocument(eventStream))
     }
 
     private fun encodeDocument(document: Document): ByteArray {

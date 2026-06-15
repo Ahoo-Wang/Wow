@@ -101,6 +101,7 @@ fun <C : Any> C.toCommandMessage(
         } else {
             metadata.aggregateVersionGetter?.get(this) ?: aggregateVersion
         }
+    val isCreate = metadata.isCreate || expectedAggregateVersion == Version.UNINITIALIZED_VERSION
 
     return SimpleCommandMessage(
         id = id,
@@ -113,7 +114,7 @@ fun <C : Any> C.toCommandMessage(
         spaceId = spaceId.orDefaultSpaceId(),
         aggregateVersion = expectedAggregateVersion,
         name = metadata.name,
-        isCreate = metadata.isCreate,
+        isCreate = isCreate,
         allowCreate = metadata.allowCreate,
         isVoid = metadata.isVoid,
     ).ensureTraceId()

@@ -19,7 +19,6 @@ import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.NoopEventStore
 import me.ahoo.wow.infrastructure.mongo.MongoBenchmarkFixture
-import me.ahoo.wow.infrastructure.mongo.RawBsonMongoEventStore
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.mongo.MongoEventStore
 import org.openjdk.jmh.annotations.Benchmark
@@ -37,7 +36,6 @@ open class MongoEventStoreLoadBenchmark {
         "noop-load-empty",
         "in-memory-load-empty",
         "mongo-load-empty",
-        "raw-bson-delegate-load-empty",
     )
     lateinit var scenario: String
 
@@ -52,20 +50,15 @@ open class MongoEventStoreLoadBenchmark {
         eventStore = when (scenario) {
             "noop-load-empty" -> NoopEventStore
             "in-memory-load-empty" -> InMemoryEventStore()
-            "mongo-load-empty" -> createMongoEventStore(rawBson = false)
-            "raw-bson-delegate-load-empty" -> createMongoEventStore(rawBson = true)
+            "mongo-load-empty" -> createMongoEventStore()
             else -> error("Unsupported Mongo event store load scenario: $scenario")
         }
     }
 
-    private fun createMongoEventStore(rawBson: Boolean): EventStore {
+    private fun createMongoEventStore(): EventStore {
         val mongoFixture = MongoBenchmarkFixture()
         fixture = mongoFixture
-        return if (rawBson) {
-            RawBsonMongoEventStore(mongoFixture.database)
-        } else {
-            MongoEventStore(mongoFixture.database)
-        }
+        return MongoEventStore(mongoFixture.database)
     }
 
     @TearDown(Level.Iteration)

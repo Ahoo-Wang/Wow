@@ -22,7 +22,6 @@ import me.ahoo.wow.eventsourcing.NoopEventStore
 import me.ahoo.wow.infra.idempotency.DefaultAggregateIdempotencyCheckerProvider
 import me.ahoo.wow.infra.idempotency.NoOpIdempotencyChecker
 import me.ahoo.wow.infrastructure.mongo.MongoBenchmarkFixture
-import me.ahoo.wow.infrastructure.mongo.RawBsonMongoEventStore
 import me.ahoo.wow.mongo.MongoEventStore
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Level
@@ -41,7 +40,6 @@ open class CommandWriteFrameworkBreakdownBenchmark {
         "noop-store",
         "in-memory-new-aggregate",
         "mongo",
-        "raw-bson-mongo",
     )
     lateinit var scenario: String
 
@@ -64,21 +62,15 @@ open class CommandWriteFrameworkBreakdownBenchmark {
 
             "noop-store" -> CommandDispatcherScenario.create(eventStore = NoopEventStore)
             "in-memory-new-aggregate" -> CommandDispatcherScenario.create(eventStore = InMemoryEventStore())
-            "mongo" -> createMongoScenario(rawBson = false)
-            "raw-bson-mongo" -> createMongoScenario(rawBson = true)
+            "mongo" -> createMongoScenario()
             else -> error("Unsupported command write framework breakdown scenario: $scenario")
         }
     }
 
-    private fun createMongoScenario(rawBson: Boolean): CommandDispatcherScenario {
+    private fun createMongoScenario(): CommandDispatcherScenario {
         val mongoFixture = MongoBenchmarkFixture()
         fixture = mongoFixture
-        val eventStore = if (rawBson) {
-            RawBsonMongoEventStore(mongoFixture.database)
-        } else {
-            MongoEventStore(mongoFixture.database)
-        }
-        return CommandDispatcherScenario.create(eventStore = eventStore)
+        return CommandDispatcherScenario.create(eventStore = MongoEventStore(mongoFixture.database))
     }
 
     @TearDown(Level.Iteration)
@@ -115,8 +107,7 @@ open class CommandWriteFrameworkBreakdownBenchmark {
             "noop-store" -> BenchmarkCommands.commandPathAddCartItem()
 
             "in-memory-new-aggregate",
-            "mongo",
-            "raw-bson-mongo" -> BenchmarkCommands.newAggregateAddCartItem()
+            "mongo" -> BenchmarkCommands.newAggregateAddCartItem()
 
             else -> error("Unsupported command write framework breakdown scenario: $scenario")
         }

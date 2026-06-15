@@ -166,7 +166,6 @@ val infrastructureE2ESuite = BenchmarkSuite(
     includeClasses = listOf(
         "me.ahoo.wow.benchmark.infrastructure.redis.RedisCommandWriteE2EBenchmark",
         "me.ahoo.wow.benchmark.infrastructure.mongo.MongoCommandWriteE2EBenchmark",
-        "me.ahoo.wow.benchmark.infrastructure.mongo.RawBsonMongoCommandWriteE2EBenchmark",
     ),
     resultFileName = "infrastructure-e2e.json",
     humanFileName = "infrastructure-e2e-human.txt",

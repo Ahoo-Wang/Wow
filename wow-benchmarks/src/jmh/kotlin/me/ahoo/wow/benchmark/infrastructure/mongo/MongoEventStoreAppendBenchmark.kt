@@ -16,7 +16,6 @@ package me.ahoo.wow.benchmark.infrastructure.mongo
 import me.ahoo.wow.benchmark.fixture.BenchmarkEvents
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.infrastructure.mongo.MongoBenchmarkFixture
-import me.ahoo.wow.infrastructure.mongo.RawBsonMongoEventStore
 import me.ahoo.wow.mongo.MongoEventStore
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.Level
@@ -30,13 +29,11 @@ import org.openjdk.jmh.infra.Blackhole
 open class MongoEventStoreAppendBenchmark {
     private lateinit var fixture: MongoBenchmarkFixture
     private lateinit var mongoEventStore: EventStore
-    private lateinit var rawBsonEventStore: EventStore
 
     @Setup(Level.Iteration)
     fun setup() {
         fixture = MongoBenchmarkFixture()
         mongoEventStore = MongoEventStore(fixture.database)
-        rawBsonEventStore = RawBsonMongoEventStore(fixture.database)
     }
 
     @TearDown(Level.Iteration)
@@ -47,14 +44,6 @@ open class MongoEventStoreAppendBenchmark {
     @Benchmark
     fun mongoEventStoreAppend(blackhole: Blackhole) {
         val result = mongoEventStore
-            .append(BenchmarkEvents.singleEventStream())
-            .block()
-        blackhole.consume(result)
-    }
-
-    @Benchmark
-    fun rawBsonMongoEventStoreAppend(blackhole: Blackhole) {
-        val result = rawBsonEventStore
             .append(BenchmarkEvents.singleEventStream())
             .block()
         blackhole.consume(result)

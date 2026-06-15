@@ -111,6 +111,16 @@ class CommandFactoryTest {
     }
 
     @Test
+    fun `should mark command as create when expected aggregate version is uninitialized`() {
+        val message = UpsertAccountCommand(id = "account-1")
+            .toCommandMessage(aggregateVersion = Version.UNINITIALIZED_VERSION)
+
+        message.isCreate.assert().isTrue()
+        message.allowCreate.assert().isTrue()
+        message.aggregateVersion.assert().isEqualTo(Version.UNINITIALIZED_VERSION)
+    }
+
+    @Test
     fun `should default tenant owner and space ids`() {
         val message = AccountCommand(id = "account-1").toCommandMessage()
 
