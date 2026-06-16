@@ -187,7 +187,9 @@ internal class WebFluxAutoConfigurationTest {
             .withBean(HttpRouteHandlerFunctionFactory::class.java, { customFactory })
             .run { context: AssertableApplicationContext ->
                 val registrar = context.getBean(RouteHandlerFunctionRegistrar::class.java)
-                registrar.getHttpFactory(BuiltInHttpRouteHandlerKeys.Global.COMMAND_FACADE).assert().isSameAs(customFactory)
+                registrar.getHttpFactory(
+                    BuiltInHttpRouteHandlerKeys.Global.COMMAND_FACADE
+                ).assert().isSameAs(customFactory)
             }
     }
 

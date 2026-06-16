@@ -15,9 +15,12 @@ package me.ahoo.wow.openapi.catalog
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.contract.HttpParameter
 import me.ahoo.wow.openapi.contract.HttpParameterLocation
 import me.ahoo.wow.openapi.contract.HttpRouteContract
+import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
+import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 
 internal class RouteCatalogTest {
@@ -78,6 +81,20 @@ internal class RouteCatalogTest {
         val contributors = RouteContributors.sort(listOf(first, sameOrder, second))
 
         contributors.map { it.id }.assert().isEqualTo(listOf("same-order", "second", "first"))
+    }
+
+    @Test
+    fun `should contribute empty route lists by default`() {
+        val contributor = testContributor(id = "empty", order = 0)
+        val componentContext = OpenAPIComponentContext.default(false)
+        val aggregateRouteMetadata = MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata()
+
+        contributor.contributeGlobal(MOCK_AGGREGATE_METADATA, componentContext).assert().isEmpty()
+        contributor.contributeAggregate(
+            MOCK_AGGREGATE_METADATA,
+            aggregateRouteMetadata,
+            componentContext
+        ).assert().isEmpty()
     }
 
     private fun testContributor(id: String, order: Int): RouteContributor {

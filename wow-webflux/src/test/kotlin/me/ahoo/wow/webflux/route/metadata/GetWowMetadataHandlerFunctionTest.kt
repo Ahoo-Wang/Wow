@@ -15,8 +15,8 @@ package me.ahoo.wow.webflux.route.metadata
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
-import me.ahoo.wow.webflux.route.testGlobalRouteContract
 import me.ahoo.wow.webflux.route.global.GetWowMetadataHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.testGlobalRouteContract
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
