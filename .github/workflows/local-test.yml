@@ -25,7 +25,10 @@ on:
       - 'wow-*/**'
       - 'test/**'
       - 'example/**'
-      - 'compensation/**'
+      - 'compensation/wow-compensation-api/**'
+      - 'compensation/wow-compensation-core/**'
+      - 'compensation/wow-compensation-domain/**'
+      - 'compensation/wow-compensation-server/**'
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
