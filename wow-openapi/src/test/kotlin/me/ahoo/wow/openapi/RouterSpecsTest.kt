@@ -21,9 +21,14 @@ import io.swagger.v3.oas.models.Paths
 import io.swagger.v3.oas.models.SpecVersion
 import io.swagger.v3.oas.models.info.Info
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.naming.MaterializedNamedBoundedContext
 import me.ahoo.wow.openapi.RouterSpecs.Companion.DEFAULT_OPENAPI_INFO_TITLE
+import me.ahoo.wow.openapi.catalog.RouteCategory
+import me.ahoo.wow.openapi.catalog.RouteContributor
+import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.openapi.contract.HttpRouteContract
 import org.junit.jupiter.api.Test
 
 internal class RouterSpecsTest {
@@ -129,6 +134,64 @@ internal class RouterSpecsTest {
         catalogOperation.description.assert().isEqualTo(legacyOperation.description)
     }
 
+    @Test
+    fun `should build catalog from explicit contributors without legacy service loader`() {
+        val contributor = object : RouteContributor {
+            override val id: String = "test-global"
+            override val category: RouteCategory = RouteCategory.GLOBAL
+            override val order: Int = 0
+
+            override fun contributeGlobal(
+                currentContext: NamedBoundedContext,
+                componentContext: OpenAPIComponentContext
+            ): List<HttpRouteContract> {
+                return listOf(
+                    HttpRouteContract(
+                        routeId = "test-global",
+                        method = Https.Method.GET,
+                        path = "/test-global",
+                        handlerKey = "test-global"
+                    )
+                )
+            }
+        }
+
+        val routerSpecs = RouterSpecs(namedContext, routeContributors = listOf(contributor)).build()
+        val catalog = routerSpecs.toRouteCatalog()
+
+        catalog.routes.map { it.routeId }.assert().isEqualTo(listOf("test-global"))
+        routerSpecs.iterator().hasNext().assert().isFalse()
+    }
+
+    @Test
+    fun `catalog merge should finish components after explicit contributors run`() {
+        val contributor = object : RouteContributor {
+            override val id: String = "component-lifecycle"
+            override val category: RouteCategory = RouteCategory.GLOBAL
+            override val order: Int = 0
+
+            override fun contributeGlobal(
+                currentContext: NamedBoundedContext,
+                componentContext: OpenAPIComponentContext
+            ): List<HttpRouteContract> {
+                componentContext.schema(ContributorLifecycleSchema::class.java)
+                return listOf(
+                    HttpRouteContract(
+                        routeId = "component-lifecycle",
+                        method = Https.Method.GET,
+                        path = "/component-lifecycle",
+                        handlerKey = "component-lifecycle"
+                    )
+                )
+            }
+        }
+        val openAPI = OpenAPI()
+
+        RouterSpecs(namedContext, routeContributors = listOf(contributor)).build().mergeOpenAPIFromCatalog(openAPI)
+
+        openAPI.components.schemas.assert().isNotEmpty()
+    }
+
     private fun String?.isNotNullOrBlank(): Boolean {
         return isNullOrBlank().not()
     }
@@ -149,4 +212,6 @@ internal class RouterSpecsTest {
     private fun PathItem.operation(method: String): Operation {
         return operations().first { (operationMethod, _) -> operationMethod == method }.second
     }
+
+    private data class ContributorLifecycleSchema(val value: String = "")
 }

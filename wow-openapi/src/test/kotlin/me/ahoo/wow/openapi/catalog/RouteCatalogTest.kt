@@ -68,4 +68,23 @@ internal class RouteCatalogTest {
             )
         }
     }
+
+    @Test
+    fun `should sort contributors in explicit order`() {
+        val first = testContributor(id = "first", order = 20)
+        val second = testContributor(id = "second", order = 10)
+        val sameOrder = testContributor(id = "same-order", order = 10)
+
+        val contributors = RouteContributors.sort(listOf(first, sameOrder, second))
+
+        contributors.map { it.id }.assert().isEqualTo(listOf("same-order", "second", "first"))
+    }
+
+    private fun testContributor(id: String, order: Int): RouteContributor {
+        return object : RouteContributor {
+            override val id: String = id
+            override val category: RouteCategory = RouteCategory.GLOBAL
+            override val order: Int = order
+        }
+    }
 }
