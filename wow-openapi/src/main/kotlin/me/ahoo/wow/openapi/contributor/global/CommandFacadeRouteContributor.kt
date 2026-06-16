@@ -15,11 +15,11 @@ package me.ahoo.wow.openapi.contributor.global
 
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.openapi.Https
-import me.ahoo.wow.openapi.aggregate.command.CommandFacadeRouteSpec
-import me.ahoo.wow.openapi.aggregate.command.CommandFacadeRouteSpecFactory
 import me.ahoo.wow.openapi.catalog.RouteCategory
 import me.ahoo.wow.openapi.catalog.RouteContributor
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
+import me.ahoo.wow.openapi.contract.BuiltInHttpRoutePaths
 import me.ahoo.wow.openapi.contract.HttpContent
 import me.ahoo.wow.openapi.contract.HttpRequestBody
 import me.ahoo.wow.openapi.contract.HttpRouteContract
@@ -40,8 +40,8 @@ object CommandFacadeRouteContributor : RouteContributor {
             HttpRouteContract(
                 routeId = wowRouteId("command", "send"),
                 method = Https.Method.POST,
-                path = CommandFacadeRouteSpecFactory.PATH,
-                handlerKey = CommandFacadeRouteSpec::class.java.name,
+                path = BuiltInHttpRoutePaths.Global.COMMAND_SEND,
+                handlerKey = BuiltInHttpRouteHandlerKeys.Global.COMMAND_FACADE,
                 summary = "Unified Sending Endpoint For Command Messages",
                 parameters = componentContext.commandFacadeParameterRefs(),
                 requestBody = HttpRequestBody(

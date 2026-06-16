@@ -23,10 +23,10 @@ import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.PathBuilder
 import me.ahoo.wow.openapi.RouteIdSpec
 import me.ahoo.wow.openapi.Tags.toTags
-import me.ahoo.wow.openapi.aggregate.command.CommandRouteSpec
 import me.ahoo.wow.openapi.catalog.RouteCategory
 import me.ahoo.wow.openapi.catalog.RouteContributor
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpContent
 import me.ahoo.wow.openapi.contract.HttpParameter
 import me.ahoo.wow.openapi.contract.HttpParameterLocation
@@ -117,7 +117,7 @@ private class CommandRouteContractFactory(
                 .build(),
             method = commandRouteMetadata.method,
             path = commandPath(),
-            handlerKey = CommandRouteSpec::class.java.name,
+            handlerKey = BuiltInHttpRouteHandlerKeys.Command.COMMAND,
             summary = summary(),
             description = commandRouteMetadata.description,
             accept = listOf(Https.MediaType.APPLICATION_JSON, Https.MediaType.TEXT_EVENT_STREAM),

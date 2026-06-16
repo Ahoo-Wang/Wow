@@ -14,12 +14,11 @@
 package me.ahoo.wow.webflux.route.command
 
 import me.ahoo.wow.command.CommandGateway
-import me.ahoo.wow.openapi.aggregate.command.CommandFacadeRouteSpec
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.extractor.CommandFacadeBodyExtractor
 import me.ahoo.wow.webflux.route.command.extractor.CommandMessageExtractor
 import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
@@ -60,15 +59,8 @@ class CommandFacadeHandlerFunctionFactory(
     private val commandMessageExtractor: CommandMessageExtractor,
     private val exceptionHandler: RequestExceptionHandler,
     private val commandWaitPolicy: CommandWaitPolicy
-) : RouteHandlerFunctionFactory<CommandFacadeRouteSpec>, HttpRouteHandlerFunctionFactory {
-    override val supportedSpec: Class<CommandFacadeRouteSpec>
-        get() = CommandFacadeRouteSpec::class.java
-    override val handlerKey: String
-        get() = supportedSpec.name
-
-    override fun create(spec: CommandFacadeRouteSpec): HandlerFunction<ServerResponse> {
-        return createHandlerFunction()
-    }
+) : HttpRouteHandlerFunctionFactory {
+    override val handlerKey: String = BuiltInHttpRouteHandlerKeys.Global.COMMAND_FACADE
 
     override fun create(
         contract: HttpRouteContract,

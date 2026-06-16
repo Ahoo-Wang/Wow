@@ -13,17 +13,17 @@
 
 package me.ahoo.wow.openapi.contributor.global
 
-import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.catalog.RouteCategory
 import me.ahoo.wow.openapi.catalog.RouteContributor
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
+import me.ahoo.wow.openapi.contract.BuiltInHttpRoutePaths
 import me.ahoo.wow.openapi.contract.HttpContent
 import me.ahoo.wow.openapi.contract.HttpResponse
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpSchema
-import me.ahoo.wow.openapi.global.GenerateGlobalIdRouteSpec
 
 object GenerateGlobalIdRouteContributor : RouteContributor {
     override val id: String = "global.global-id"
@@ -38,8 +38,8 @@ object GenerateGlobalIdRouteContributor : RouteContributor {
             HttpRouteContract(
                 routeId = wowRouteId("global_id", "generate"),
                 method = Https.Method.GET,
-                path = "/${Wow.WOW}/id/global",
-                handlerKey = GenerateGlobalIdRouteSpec::class.java.name,
+                path = BuiltInHttpRoutePaths.Global.GLOBAL_ID,
+                handlerKey = BuiltInHttpRouteHandlerKeys.Global.GLOBAL_ID,
                 summary = "Generate Global ID",
                 accept = listOf(Https.MediaType.TEXT_PLAIN),
                 responses = listOf(

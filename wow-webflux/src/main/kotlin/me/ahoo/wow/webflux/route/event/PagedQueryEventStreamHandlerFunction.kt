@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.webflux.route.event
 
-import me.ahoo.wow.openapi.aggregate.event.PagedQueryEventStreamRouteSpec
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.query.PagedQueryHandlerFunctionFactory
@@ -23,9 +23,9 @@ class PagedQueryEventStreamHandlerFunctionFactory(
     eventStreamQueryHandler: EventStreamQueryHandler,
     rewriteRequestCondition: RewriteRequestCondition,
     exceptionHandler: RequestExceptionHandler
-) : PagedQueryHandlerFunctionFactory<PagedQueryEventStreamRouteSpec>(
-    PagedQueryEventStreamRouteSpec::class.java,
-    eventStreamQueryHandler,
-    rewriteRequestCondition,
-    exceptionHandler
+) : PagedQueryHandlerFunctionFactory(
+    handlerKey = BuiltInHttpRouteHandlerKeys.Event.PAGED_QUERY,
+    queryHandler = eventStreamQueryHandler,
+    rewriteRequestCondition = rewriteRequestCondition,
+    exceptionHandler = exceptionHandler
 )

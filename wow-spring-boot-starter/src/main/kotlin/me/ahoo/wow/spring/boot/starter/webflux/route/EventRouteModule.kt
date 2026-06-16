@@ -17,7 +17,7 @@ import me.ahoo.wow.event.compensation.StateEventCompensator
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
-import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.EventCompensateHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.state.ResendStateEventFunctionFactory
 import me.ahoo.wow.webflux.route.policy.BatchExecutionPolicy
@@ -29,7 +29,7 @@ class EventRouteModule(
     exceptionHandler: RequestExceptionHandler,
     batchExecutionPolicy: BatchExecutionPolicy
 ) : WebFluxRouteModule {
-    override val factories: List<RouteHandlerFunctionFactory<*>> = listOf(
+    override val httpFactories: List<HttpRouteHandlerFunctionFactory> = listOf(
         ResendStateEventFunctionFactory(
             snapshotRepository = snapshotRepository,
             stateEventCompensator = stateEventCompensator,

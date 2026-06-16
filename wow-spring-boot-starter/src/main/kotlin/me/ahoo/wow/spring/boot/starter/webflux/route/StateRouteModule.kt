@@ -17,7 +17,7 @@ import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
-import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.policy.TracingPolicy
 import me.ahoo.wow.webflux.route.state.AggregateTracingHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.state.LoadAggregateHandlerFunctionFactory
@@ -31,7 +31,7 @@ class StateRouteModule(
     exceptionHandler: RequestExceptionHandler,
     tracingPolicy: TracingPolicy
 ) : WebFluxRouteModule {
-    override val factories: List<RouteHandlerFunctionFactory<*>> = listOf(
+    override val httpFactories: List<HttpRouteHandlerFunctionFactory> = listOf(
         LoadAggregateHandlerFunctionFactory(
             stateAggregateRepository = stateAggregateRepository,
             exceptionHandler = exceptionHandler

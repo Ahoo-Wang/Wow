@@ -14,14 +14,13 @@
 package me.ahoo.wow.webflux.route.command
 
 import me.ahoo.wow.command.CommandGateway
-import me.ahoo.wow.openapi.aggregate.command.CommandRouteSpec
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.openapi.metadata.CommandRouteMetadata
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.extractor.CommandBodyExtractor
 import me.ahoo.wow.webflux.route.command.extractor.CommandMessageExtractor
 import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
@@ -72,19 +71,8 @@ class CommandHandlerFunctionFactory(
     private val commandMessageExtractor: CommandMessageExtractor,
     private val exceptionHandler: RequestExceptionHandler,
     private val commandWaitPolicy: CommandWaitPolicy
-) : RouteHandlerFunctionFactory<CommandRouteSpec>, HttpRouteHandlerFunctionFactory {
-    override val supportedSpec: Class<CommandRouteSpec>
-        get() = CommandRouteSpec::class.java
-    override val handlerKey: String
-        get() = supportedSpec.name
-
-    @Suppress("UNCHECKED_CAST")
-    override fun create(spec: CommandRouteSpec): HandlerFunction<ServerResponse> {
-        return create(
-            aggregateRouteMetadata = spec.aggregateRouteMetadata,
-            commandRouteMetadata = spec.commandRouteMetadata as CommandRouteMetadata<Any>
-        )
-    }
+) : HttpRouteHandlerFunctionFactory {
+    override val handlerKey: String = BuiltInHttpRouteHandlerKeys.Command.COMMAND
 
     @Suppress("UNCHECKED_CAST")
     override fun create(

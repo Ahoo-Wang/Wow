@@ -18,13 +18,12 @@ import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.openapi.BatchComponent
-import me.ahoo.wow.openapi.aggregate.snapshot.BatchRegenerateSnapshotRouteSpec
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.exception.onErrorMapBatchTaskException
 import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.policy.BatchExecutionPolicy
 import me.ahoo.wow.webflux.route.requireAggregateHandlerMetadata
 import me.ahoo.wow.webflux.route.toBatchResult
@@ -70,15 +69,8 @@ class BatchRegenerateSnapshotHandlerFunctionFactory(
     private val snapshotRepository: SnapshotRepository,
     private val exceptionHandler: RequestExceptionHandler,
     private val batchExecutionPolicy: BatchExecutionPolicy
-) : RouteHandlerFunctionFactory<BatchRegenerateSnapshotRouteSpec>, HttpRouteHandlerFunctionFactory {
-    override val supportedSpec: Class<BatchRegenerateSnapshotRouteSpec>
-        get() = BatchRegenerateSnapshotRouteSpec::class.java
-    override val handlerKey: String
-        get() = supportedSpec.name
-
-    override fun create(spec: BatchRegenerateSnapshotRouteSpec): HandlerFunction<ServerResponse> {
-        return create(spec.aggregateMetadata)
-    }
+) : HttpRouteHandlerFunctionFactory {
+    override val handlerKey: String = BuiltInHttpRouteHandlerKeys.Snapshot.BATCH_REGENERATE
 
     override fun create(
         contract: HttpRouteContract,

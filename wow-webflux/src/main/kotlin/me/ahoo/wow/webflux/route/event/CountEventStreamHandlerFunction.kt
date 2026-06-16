@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.webflux.route.event
 
-import me.ahoo.wow.openapi.aggregate.event.CountEventStreamRouteSpec
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.query.CountQueryHandlerFunctionFactory
@@ -23,9 +23,9 @@ class CountEventStreamHandlerFunctionFactory(
     eventStreamQueryHandler: EventStreamQueryHandler,
     rewriteRequestCondition: RewriteRequestCondition,
     exceptionHandler: RequestExceptionHandler
-) : CountQueryHandlerFunctionFactory<CountEventStreamRouteSpec>(
-    CountEventStreamRouteSpec::class.java,
-    eventStreamQueryHandler,
-    rewriteRequestCondition,
-    exceptionHandler
+) : CountQueryHandlerFunctionFactory(
+    handlerKey = BuiltInHttpRouteHandlerKeys.Event.COUNT,
+    queryHandler = eventStreamQueryHandler,
+    rewriteRequestCondition = rewriteRequestCondition,
+    exceptionHandler = exceptionHandler
 )

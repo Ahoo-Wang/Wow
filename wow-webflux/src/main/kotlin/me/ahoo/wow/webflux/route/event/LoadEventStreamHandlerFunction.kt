@@ -15,7 +15,7 @@ package me.ahoo.wow.webflux.route.event
 
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.BatchComponent
-import me.ahoo.wow.openapi.aggregate.event.LoadEventStreamRouteSpec
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.query.dsl.listQuery
@@ -23,7 +23,6 @@ import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.getTenantIdOrDefault
 import me.ahoo.wow.webflux.route.requireAggregateHandlerMetadata
 import me.ahoo.wow.webflux.route.toServerResponse
@@ -60,15 +59,8 @@ class LoadEventStreamHandlerFunction(
 class LoadEventStreamHandlerFunctionFactory(
     private val eventStreamQueryHandler: EventStreamQueryHandler,
     private val exceptionHandler: RequestExceptionHandler
-) : RouteHandlerFunctionFactory<LoadEventStreamRouteSpec>, HttpRouteHandlerFunctionFactory {
-    override val supportedSpec: Class<LoadEventStreamRouteSpec>
-        get() = LoadEventStreamRouteSpec::class.java
-    override val handlerKey: String
-        get() = supportedSpec.name
-
-    override fun create(spec: LoadEventStreamRouteSpec): HandlerFunction<ServerResponse> {
-        return create(spec.aggregateMetadata)
-    }
+) : HttpRouteHandlerFunctionFactory {
+    override val handlerKey: String = BuiltInHttpRouteHandlerKeys.Event.LOAD
 
     override fun create(
         contract: HttpRouteContract,

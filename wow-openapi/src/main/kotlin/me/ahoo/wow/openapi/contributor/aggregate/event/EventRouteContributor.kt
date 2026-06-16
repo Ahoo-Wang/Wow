@@ -20,15 +20,10 @@ import me.ahoo.wow.openapi.BatchComponent.PathVariable.HEAD_VERSION
 import me.ahoo.wow.openapi.BatchComponent.PathVariable.TAIL_VERSION
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.RouteIdSpec
-import me.ahoo.wow.openapi.aggregate.event.CountEventStreamRouteSpec
-import me.ahoo.wow.openapi.aggregate.event.EventCompensateRouteSpec
-import me.ahoo.wow.openapi.aggregate.event.ListQueryEventStreamRouteSpec
-import me.ahoo.wow.openapi.aggregate.event.LoadEventStreamRouteSpec
-import me.ahoo.wow.openapi.aggregate.event.PagedQueryEventStreamRouteSpec
-import me.ahoo.wow.openapi.aggregate.event.state.ResendStateEventRouteSpec
 import me.ahoo.wow.openapi.catalog.RouteCategory
 import me.ahoo.wow.openapi.catalog.RouteContributor
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpParameter
 import me.ahoo.wow.openapi.contract.HttpRequestBody
 import me.ahoo.wow.openapi.contract.HttpResponse
@@ -90,7 +85,7 @@ object EventRouteContributor : RouteContributor {
                 currentContext = currentContext,
                 aggregateRouteMetadata = aggregateRouteMetadata,
                 componentContext = componentContext,
-                routeSpecType = CountEventStreamRouteSpec::class.java,
+                handlerKey = BuiltInHttpRouteHandlerKeys.Event.COUNT,
                 resourceName = EVENT,
                 operation = "count",
                 operationSummary = "Count Event Stream",
@@ -104,7 +99,7 @@ object EventRouteContributor : RouteContributor {
                 currentContext = currentContext,
                 aggregateRouteMetadata = aggregateRouteMetadata,
                 componentContext = componentContext,
-                routeSpecType = ListQueryEventStreamRouteSpec::class.java,
+                handlerKey = BuiltInHttpRouteHandlerKeys.Event.LIST_QUERY,
                 resourceName = EVENT,
                 operation = "list_query",
                 operationSummary = "List Query Event Stream",
@@ -119,7 +114,7 @@ object EventRouteContributor : RouteContributor {
                 currentContext = currentContext,
                 aggregateRouteMetadata = aggregateRouteMetadata,
                 componentContext = componentContext,
-                routeSpecType = PagedQueryEventStreamRouteSpec::class.java,
+                handlerKey = BuiltInHttpRouteHandlerKeys.Event.PAGED_QUERY,
                 resourceName = EVENT,
                 operation = "paged_query",
                 operationSummary = "Paged Query Event Stream",
@@ -141,7 +136,7 @@ object EventRouteContributor : RouteContributor {
             currentContext = currentContext,
             aggregateRouteMetadata = aggregateRouteMetadata,
             componentContext = componentContext,
-            routeSpecType = LoadEventStreamRouteSpec::class.java,
+            handlerKey = BuiltInHttpRouteHandlerKeys.Event.LOAD,
             resourceName = EVENT_STREAM,
             operation = "load",
             operationSummary = "Load Event Stream",
@@ -168,7 +163,7 @@ object EventRouteContributor : RouteContributor {
             currentContext = currentContext,
             aggregateRouteMetadata = aggregateRouteMetadata,
             componentContext = componentContext,
-            routeSpecType = EventCompensateRouteSpec::class.java,
+            handlerKey = BuiltInHttpRouteHandlerKeys.Event.COMPENSATE,
             operation = "compensate",
             operationSummary = "Event Compensate",
             method = Https.Method.PUT,
@@ -194,7 +189,7 @@ object EventRouteContributor : RouteContributor {
             currentContext = currentContext,
             aggregateRouteMetadata = aggregateRouteMetadata,
             componentContext = componentContext,
-            routeSpecType = ResendStateEventRouteSpec::class.java,
+            handlerKey = BuiltInHttpRouteHandlerKeys.Event.RESEND_STATE,
             resourceName = STATE_EVENT,
             operation = "resend",
             operationSummary = "Resend State Event",
@@ -216,7 +211,7 @@ object EventRouteContributor : RouteContributor {
         currentContext: NamedBoundedContext,
         aggregateRouteMetadata: AggregateRouteMetadata<*>,
         componentContext: OpenAPIComponentContext,
-        routeSpecType: Class<*>,
+        handlerKey: String,
         operation: String,
         operationSummary: String,
         resourceName: String = "",
@@ -247,7 +242,7 @@ object EventRouteContributor : RouteContributor {
                 appendIdPath = appendIdPath,
                 appendPathSuffix = appendPathSuffix
             ),
-            handlerKey = routeSpecType.name,
+            handlerKey = handlerKey,
             summary = tenantOwnerSummary(operationSummary, appendTenantPath, appendOwnerPath),
             accept = accept,
             parameters = componentContext.aggregateParameters(

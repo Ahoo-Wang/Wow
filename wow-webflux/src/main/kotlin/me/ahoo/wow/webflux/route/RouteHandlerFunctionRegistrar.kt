@@ -14,39 +14,22 @@
 package me.ahoo.wow.webflux.route
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import me.ahoo.wow.openapi.RouteSpec
 
 class RouteHandlerFunctionRegistrar(
-    factories: Collection<RouteHandlerFunctionFactory<*>> = emptyList(),
     httpFactories: Collection<HttpRouteHandlerFunctionFactory> = emptyList()
 ) {
-    constructor(factories: Collection<RouteHandlerFunctionFactory<*>>) : this(factories, emptyList())
-
     companion object {
         private val log = KotlinLogging.logger {}
     }
 
-    private val factories: MutableMap<Class<out RouteSpec>, RouteHandlerFunctionFactory<*>> =
-        factories.associateBy { it.supportedSpec }.toMutableMap()
     private val httpFactories: MutableMap<String, HttpRouteHandlerFunctionFactory> =
         httpFactories.associateBy { it.handlerKey }.toMutableMap()
-
-    fun register(routeHandlerFunctionFactory: RouteHandlerFunctionFactory<*>) {
-        val previous = factories.put(routeHandlerFunctionFactory.supportedSpec, routeHandlerFunctionFactory)
-        log.info {
-            "Register - supportedSpec:[${routeHandlerFunctionFactory.supportedSpec}] - previous:[$previous],current:[$routeHandlerFunctionFactory]."
-        }
-    }
 
     fun registerHttpFactory(httpRouteHandlerFunctionFactory: HttpRouteHandlerFunctionFactory) {
         val previous = httpFactories.put(httpRouteHandlerFunctionFactory.handlerKey, httpRouteHandlerFunctionFactory)
         log.info {
             "Register - handlerKey:[${httpRouteHandlerFunctionFactory.handlerKey}] - previous:[$previous],current:[$httpRouteHandlerFunctionFactory]."
         }
-    }
-
-    fun getFactory(spec: RouteSpec): RouteHandlerFunctionFactory<*>? {
-        return factories[spec::class.java]
     }
 
     fun getHttpFactory(handlerKey: String): HttpRouteHandlerFunctionFactory? {

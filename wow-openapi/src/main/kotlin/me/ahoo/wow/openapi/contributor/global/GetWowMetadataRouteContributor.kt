@@ -13,18 +13,18 @@
 
 package me.ahoo.wow.openapi.contributor.global
 
-import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.configuration.WowMetadata
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.catalog.RouteCategory
 import me.ahoo.wow.openapi.catalog.RouteContributor
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
+import me.ahoo.wow.openapi.contract.BuiltInHttpRoutePaths
 import me.ahoo.wow.openapi.contract.HttpContent
 import me.ahoo.wow.openapi.contract.HttpResponse
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpSchema
-import me.ahoo.wow.openapi.global.GetWowMetadataRouteSpec
 
 object GetWowMetadataRouteContributor : RouteContributor {
     override val id: String = "global.metadata"
@@ -40,8 +40,8 @@ object GetWowMetadataRouteContributor : RouteContributor {
             HttpRouteContract(
                 routeId = wowRouteId("metadata", "get"),
                 method = Https.Method.GET,
-                path = "/${Wow.WOW}/metadata",
-                handlerKey = GetWowMetadataRouteSpec::class.java.name,
+                path = BuiltInHttpRoutePaths.Global.METADATA,
+                handlerKey = BuiltInHttpRouteHandlerKeys.Global.METADATA,
                 summary = "Get Wow Metadata",
                 responses = listOf(
                     HttpResponse(

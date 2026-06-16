@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.webflux.route.snapshot
 
-import me.ahoo.wow.openapi.aggregate.snapshot.PagedQuerySnapshotStateRouteSpec
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.query.snapshot.toStateDocumentPagedList
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
@@ -24,8 +24,8 @@ class PagedQuerySnapshotStateHandlerFunctionFactory(
     snapshotQueryHandler: SnapshotQueryHandler,
     rewriteRequestCondition: RewriteRequestCondition,
     exceptionHandler: RequestExceptionHandler
-) : PagedQueryHandlerFunctionFactory<PagedQuerySnapshotStateRouteSpec>(
-    supportedSpec = PagedQuerySnapshotStateRouteSpec::class.java,
+) : PagedQueryHandlerFunctionFactory(
+    handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.PAGED_QUERY_STATE,
     queryHandler = snapshotQueryHandler,
     rewriteRequestCondition = rewriteRequestCondition,
     exceptionHandler = exceptionHandler,

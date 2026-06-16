@@ -19,13 +19,12 @@ import me.ahoo.wow.exception.throwNotFoundIfEmpty
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
-import me.ahoo.wow.openapi.aggregate.snapshot.RegenerateSnapshotRouteSpec
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.getTenantIdOrDefault
 import me.ahoo.wow.webflux.route.requireAggregateHandlerMetadata
 import me.ahoo.wow.webflux.route.toServerResponse
@@ -64,15 +63,8 @@ class RegenerateSnapshotHandlerFunctionFactory(
     private val eventStore: EventStore,
     private val snapshotRepository: SnapshotRepository,
     private val exceptionHandler: RequestExceptionHandler
-) : RouteHandlerFunctionFactory<RegenerateSnapshotRouteSpec>, HttpRouteHandlerFunctionFactory {
-    override val supportedSpec: Class<RegenerateSnapshotRouteSpec>
-        get() = RegenerateSnapshotRouteSpec::class.java
-    override val handlerKey: String
-        get() = supportedSpec.name
-
-    override fun create(spec: RegenerateSnapshotRouteSpec): HandlerFunction<ServerResponse> {
-        return create(spec.aggregateMetadata)
-    }
+) : HttpRouteHandlerFunctionFactory {
+    override val handlerKey: String = BuiltInHttpRouteHandlerKeys.Snapshot.REGENERATE
 
     override fun create(
         contract: HttpRouteContract,

@@ -16,7 +16,7 @@ package me.ahoo.wow.spring.boot.starter.webflux.route
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.wait.WaitCoordinator
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
-import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.CommandFacadeHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.CommandHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.extractor.CommandMessageExtractor
@@ -30,7 +30,7 @@ class CommandRouteModule(
     exceptionHandler: RequestExceptionHandler,
     commandWaitPolicy: CommandWaitPolicy
 ) : WebFluxRouteModule {
-    override val factories: List<RouteHandlerFunctionFactory<*>> = listOf(
+    override val httpFactories: List<HttpRouteHandlerFunctionFactory> = listOf(
         CommandWaitHandlerFunctionFactory(waitCoordinator = waitCoordinator),
         CommandFacadeHandlerFunctionFactory(
             commandGateway = commandGateway,

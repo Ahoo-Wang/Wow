@@ -14,11 +14,10 @@
 package me.ahoo.wow.webflux.route.global
 
 import me.ahoo.wow.id.GlobalIdGenerator
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
-import me.ahoo.wow.openapi.global.GenerateGlobalIdRouteSpec
 import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -34,17 +33,8 @@ class GlobalIdHandlerFunction : HandlerFunction<ServerResponse> {
     }
 }
 
-class GlobalIdHandlerFunctionFactory :
-    RouteHandlerFunctionFactory<GenerateGlobalIdRouteSpec>,
-    HttpRouteHandlerFunctionFactory {
-    override val supportedSpec: Class<GenerateGlobalIdRouteSpec>
-        get() = GenerateGlobalIdRouteSpec::class.java
-    override val handlerKey: String
-        get() = supportedSpec.name
-
-    override fun create(spec: GenerateGlobalIdRouteSpec): HandlerFunction<ServerResponse> {
-        return createHandlerFunction()
-    }
+class GlobalIdHandlerFunctionFactory : HttpRouteHandlerFunctionFactory {
+    override val handlerKey: String = BuiltInHttpRouteHandlerKeys.Global.GLOBAL_ID
 
     override fun create(
         contract: HttpRouteContract,

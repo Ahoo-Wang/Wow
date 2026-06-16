@@ -25,8 +25,8 @@ import me.ahoo.wow.openapi.contract.HttpRequestBody
 import me.ahoo.wow.openapi.contract.HttpResponse
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpSchema
-import me.ahoo.wow.openapi.global.CommandWaitRouteSpec
-import me.ahoo.wow.openapi.global.CommandWaitRouteSpecFactory
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
+import me.ahoo.wow.openapi.contract.BuiltInHttpRoutePaths
 
 object CommandWaitRouteContributor : RouteContributor {
     override val id: String = "global.command-wait"
@@ -42,8 +42,8 @@ object CommandWaitRouteContributor : RouteContributor {
             HttpRouteContract(
                 routeId = wowRouteId("command", "wait"),
                 method = Https.Method.POST,
-                path = CommandWaitRouteSpecFactory.PATH,
-                handlerKey = CommandWaitRouteSpec::class.java.name,
+                path = BuiltInHttpRoutePaths.Global.COMMAND_WAIT,
+                handlerKey = BuiltInHttpRouteHandlerKeys.Global.COMMAND_WAIT,
                 summary = "The receiving endpoint of the wait signal",
                 requestBody = HttpRequestBody(
                     content = listOf(

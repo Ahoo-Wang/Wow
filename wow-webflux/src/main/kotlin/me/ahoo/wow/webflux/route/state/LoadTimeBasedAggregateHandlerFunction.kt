@@ -16,7 +16,7 @@ package me.ahoo.wow.webflux.route.state
 import me.ahoo.wow.exception.throwNotFoundIfEmpty
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.state.StateAggregateRepository
-import me.ahoo.wow.openapi.aggregate.state.LoadTimeBasedAggregateRouteSpec
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
@@ -24,7 +24,6 @@ import me.ahoo.wow.query.mask.tryMask
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.getAggregateId
 import me.ahoo.wow.webflux.route.command.getTenantIdOrDefault
 import me.ahoo.wow.webflux.route.requireAggregateHandlerMetadata
@@ -63,15 +62,8 @@ class LoadTimeBasedAggregateHandlerFunction(
 class LoadTimeBasedAggregateHandlerFunctionFactory(
     private val stateAggregateRepository: StateAggregateRepository,
     private val exceptionHandler: RequestExceptionHandler
-) : RouteHandlerFunctionFactory<LoadTimeBasedAggregateRouteSpec>, HttpRouteHandlerFunctionFactory {
-    override val supportedSpec: Class<LoadTimeBasedAggregateRouteSpec>
-        get() = LoadTimeBasedAggregateRouteSpec::class.java
-    override val handlerKey: String
-        get() = supportedSpec.name
-
-    override fun create(spec: LoadTimeBasedAggregateRouteSpec): HandlerFunction<ServerResponse> {
-        return create(spec.aggregateRouteMetadata)
-    }
+) : HttpRouteHandlerFunctionFactory {
+    override val handlerKey: String = BuiltInHttpRouteHandlerKeys.State.LOAD_TIME_BASED_AGGREGATE
 
     override fun create(
         contract: HttpRouteContract,

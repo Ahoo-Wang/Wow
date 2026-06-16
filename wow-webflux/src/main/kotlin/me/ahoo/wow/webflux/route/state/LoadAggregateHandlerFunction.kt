@@ -15,13 +15,12 @@ package me.ahoo.wow.webflux.route.state
 
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.modeling.state.StateAggregateRepository
-import me.ahoo.wow.openapi.aggregate.state.LoadAggregateRouteSpec
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.requireAggregateHandlerMetadata
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -42,15 +41,8 @@ class LoadAggregateHandlerFunction(
 class LoadAggregateHandlerFunctionFactory(
     private val stateAggregateRepository: StateAggregateRepository,
     private val exceptionHandler: RequestExceptionHandler
-) : RouteHandlerFunctionFactory<LoadAggregateRouteSpec>, HttpRouteHandlerFunctionFactory {
-    override val supportedSpec: Class<LoadAggregateRouteSpec>
-        get() = LoadAggregateRouteSpec::class.java
-    override val handlerKey: String
-        get() = supportedSpec.name
-
-    override fun create(spec: LoadAggregateRouteSpec): HandlerFunction<ServerResponse> {
-        return create(spec.aggregateRouteMetadata)
-    }
+) : HttpRouteHandlerFunctionFactory {
+    override val handlerKey: String = BuiltInHttpRouteHandlerKeys.State.LOAD_AGGREGATE
 
     override fun create(
         contract: HttpRouteContract,

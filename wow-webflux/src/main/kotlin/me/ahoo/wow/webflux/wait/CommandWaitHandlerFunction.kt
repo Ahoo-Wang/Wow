@@ -15,11 +15,10 @@ package me.ahoo.wow.webflux.wait
 
 import me.ahoo.wow.command.wait.SimpleWaitSignal
 import me.ahoo.wow.command.wait.WaitCoordinator
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
-import me.ahoo.wow.openapi.global.CommandWaitRouteSpec
 import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -47,16 +46,8 @@ class CommandWaitHandlerFunction(
 }
 
 class CommandWaitHandlerFunctionFactory(private val waitCoordinator: WaitCoordinator) :
-    RouteHandlerFunctionFactory<CommandWaitRouteSpec>,
     HttpRouteHandlerFunctionFactory {
-    override val supportedSpec: Class<CommandWaitRouteSpec>
-        get() = CommandWaitRouteSpec::class.java
-    override val handlerKey: String
-        get() = supportedSpec.name
-
-    override fun create(spec: CommandWaitRouteSpec): HandlerFunction<ServerResponse> {
-        return createHandlerFunction()
-    }
+    override val handlerKey: String = BuiltInHttpRouteHandlerKeys.Global.COMMAND_WAIT
 
     override fun create(
         contract: HttpRouteContract,

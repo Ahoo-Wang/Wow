@@ -13,17 +13,17 @@
 
 package me.ahoo.wow.openapi.contributor.global
 
-import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.catalog.RouteCategory
 import me.ahoo.wow.openapi.catalog.RouteContributor
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
+import me.ahoo.wow.openapi.contract.BuiltInHttpRoutePaths
 import me.ahoo.wow.openapi.contract.HttpContent
 import me.ahoo.wow.openapi.contract.HttpResponse
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpSchema
-import me.ahoo.wow.openapi.global.GenerateBIScriptRouteSpec
 
 object GenerateBIScriptRouteContributor : RouteContributor {
     override val id: String = "global.bi-script"
@@ -38,8 +38,8 @@ object GenerateBIScriptRouteContributor : RouteContributor {
             HttpRouteContract(
                 routeId = wowRouteId("bi_script", "generate"),
                 method = Https.Method.GET,
-                path = "/${Wow.WOW}/bi/script",
-                handlerKey = GenerateBIScriptRouteSpec::class.java.name,
+                path = BuiltInHttpRoutePaths.Global.BI_SCRIPT,
+                handlerKey = BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT,
                 summary = "Generate BI Sync Script",
                 accept = listOf(Https.MediaType.APPLICATION_SQL),
                 responses = listOf(

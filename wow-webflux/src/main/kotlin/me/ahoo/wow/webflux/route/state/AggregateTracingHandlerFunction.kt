@@ -18,12 +18,11 @@ import me.ahoo.wow.eventsourcing.EventStore.Companion.DEFAULT_TAIL_VERSION
 import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
-import me.ahoo.wow.openapi.aggregate.state.AggregateTracingRouteSpec
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.context.WowWebRequestContext
 import me.ahoo.wow.webflux.route.policy.TracingPolicy
 import me.ahoo.wow.webflux.route.policy.TracingRequest
@@ -108,15 +107,8 @@ class AggregateTracingHandlerFunctionFactory(
     private val eventStore: EventStore,
     private val exceptionHandler: RequestExceptionHandler,
     private val tracingPolicy: TracingPolicy
-) : RouteHandlerFunctionFactory<AggregateTracingRouteSpec>, HttpRouteHandlerFunctionFactory {
-    override val supportedSpec: Class<AggregateTracingRouteSpec>
-        get() = AggregateTracingRouteSpec::class.java
-    override val handlerKey: String
-        get() = supportedSpec.name
-
-    override fun create(spec: AggregateTracingRouteSpec): HandlerFunction<ServerResponse> {
-        return create(spec.aggregateMetadata)
-    }
+) : HttpRouteHandlerFunctionFactory {
+    override val handlerKey: String = BuiltInHttpRouteHandlerKeys.State.AGGREGATE_TRACING
 
     override fun create(
         contract: HttpRouteContract,

@@ -20,19 +20,10 @@ import me.ahoo.wow.openapi.BatchComponent.PathVariable.BATCH_AFTER_ID
 import me.ahoo.wow.openapi.BatchComponent.PathVariable.BATCH_LIMIT
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.RouteIdSpec
-import me.ahoo.wow.openapi.aggregate.snapshot.BatchRegenerateSnapshotRouteSpec
-import me.ahoo.wow.openapi.aggregate.snapshot.CountSnapshotRouteSpec
-import me.ahoo.wow.openapi.aggregate.snapshot.ListQuerySnapshotRouteSpec
-import me.ahoo.wow.openapi.aggregate.snapshot.ListQuerySnapshotStateRouteSpec
-import me.ahoo.wow.openapi.aggregate.snapshot.LoadSnapshotRouteSpec
-import me.ahoo.wow.openapi.aggregate.snapshot.PagedQuerySnapshotRouteSpec
-import me.ahoo.wow.openapi.aggregate.snapshot.PagedQuerySnapshotStateRouteSpec
-import me.ahoo.wow.openapi.aggregate.snapshot.RegenerateSnapshotRouteSpec
-import me.ahoo.wow.openapi.aggregate.snapshot.SingleSnapshotRouteSpec
-import me.ahoo.wow.openapi.aggregate.snapshot.SingleSnapshotStateRouteSpec
 import me.ahoo.wow.openapi.catalog.RouteCategory
 import me.ahoo.wow.openapi.catalog.RouteContributor
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpContent
 import me.ahoo.wow.openapi.contract.HttpParameter
 import me.ahoo.wow.openapi.contract.HttpRequestBody
@@ -97,7 +88,7 @@ object SnapshotRouteContributor : RouteContributor {
                 currentContext = currentContext,
                 aggregateRouteMetadata = aggregateRouteMetadata,
                 componentContext = componentContext,
-                routeSpecType = CountSnapshotRouteSpec::class.java,
+                handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.COUNT,
                 resourceName = SNAPSHOT,
                 operation = "count",
                 operationSummary = "Count Snapshot",
@@ -130,7 +121,7 @@ object SnapshotRouteContributor : RouteContributor {
             currentContext = currentContext,
             aggregateRouteMetadata = aggregateRouteMetadata,
             componentContext = componentContext,
-            routeSpecType = ListQuerySnapshotRouteSpec::class.java,
+            handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.LIST_QUERY,
             resourceName = SNAPSHOT,
             operation = "list_query",
             operationSummary = "List Query Snapshot",
@@ -155,7 +146,7 @@ object SnapshotRouteContributor : RouteContributor {
             currentContext = currentContext,
             aggregateRouteMetadata = aggregateRouteMetadata,
             componentContext = componentContext,
-            routeSpecType = ListQuerySnapshotStateRouteSpec::class.java,
+            handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.LIST_QUERY_STATE,
             resourceName = SNAPSHOT_STATE,
             operation = "list_query",
             operationSummary = "List Query Snapshot State",
@@ -178,7 +169,7 @@ object SnapshotRouteContributor : RouteContributor {
             currentContext = currentContext,
             aggregateRouteMetadata = aggregateRouteMetadata,
             componentContext = componentContext,
-            routeSpecType = PagedQuerySnapshotRouteSpec::class.java,
+            handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.PAGED_QUERY,
             resourceName = SNAPSHOT,
             operation = "paged_query",
             operationSummary = "Paged Query Snapshot",
@@ -202,7 +193,7 @@ object SnapshotRouteContributor : RouteContributor {
             currentContext = currentContext,
             aggregateRouteMetadata = aggregateRouteMetadata,
             componentContext = componentContext,
-            routeSpecType = PagedQuerySnapshotStateRouteSpec::class.java,
+            handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.PAGED_QUERY_STATE,
             resourceName = SNAPSHOT_STATE,
             operation = "paged_query",
             operationSummary = "Paged Query Snapshot State",
@@ -224,7 +215,7 @@ object SnapshotRouteContributor : RouteContributor {
             currentContext = currentContext,
             aggregateRouteMetadata = aggregateRouteMetadata,
             componentContext = componentContext,
-            routeSpecType = SingleSnapshotRouteSpec::class.java,
+            handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.SINGLE,
             resourceName = SNAPSHOT,
             operation = "single",
             operationSummary = "Single Snapshot",
@@ -251,7 +242,7 @@ object SnapshotRouteContributor : RouteContributor {
             currentContext = currentContext,
             aggregateRouteMetadata = aggregateRouteMetadata,
             componentContext = componentContext,
-            routeSpecType = SingleSnapshotStateRouteSpec::class.java,
+            handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.SINGLE_STATE,
             resourceName = SNAPSHOT_STATE,
             operation = "single",
             operationSummary = "Single Snapshot State",
@@ -277,7 +268,7 @@ object SnapshotRouteContributor : RouteContributor {
             currentContext = currentContext,
             aggregateRouteMetadata = aggregateRouteMetadata,
             componentContext = componentContext,
-            routeSpecType = LoadSnapshotRouteSpec::class.java,
+            handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.LOAD,
             resourceName = SNAPSHOT,
             operation = "load",
             operationSummary = "Get Snapshot",
@@ -299,7 +290,7 @@ object SnapshotRouteContributor : RouteContributor {
             currentContext = currentContext,
             aggregateRouteMetadata = aggregateRouteMetadata,
             componentContext = componentContext,
-            routeSpecType = RegenerateSnapshotRouteSpec::class.java,
+            handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.REGENERATE,
             resourceName = SNAPSHOT,
             operation = "regenerate",
             operationSummary = "Regenerate Aggregate Snapshot",
@@ -324,7 +315,7 @@ object SnapshotRouteContributor : RouteContributor {
             currentContext = currentContext,
             aggregateRouteMetadata = aggregateRouteMetadata,
             componentContext = componentContext,
-            routeSpecType = BatchRegenerateSnapshotRouteSpec::class.java,
+            handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.BATCH_REGENERATE,
             resourceName = SNAPSHOT,
             operation = "batch_regenerate",
             operationSummary = "Batch Regenerate Aggregate Snapshot",
@@ -347,7 +338,7 @@ object SnapshotRouteContributor : RouteContributor {
         currentContext: NamedBoundedContext,
         aggregateRouteMetadata: AggregateRouteMetadata<*>,
         componentContext: OpenAPIComponentContext,
-        routeSpecType: Class<*>,
+        handlerKey: String,
         resourceName: String,
         operation: String,
         operationSummary: String,
@@ -378,7 +369,7 @@ object SnapshotRouteContributor : RouteContributor {
                 appendIdPath = appendIdPath,
                 appendPathSuffix = appendPathSuffix
             ),
-            handlerKey = routeSpecType.name,
+            handlerKey = handlerKey,
             summary = tenantOwnerSummary(operationSummary, appendTenantPath, appendOwnerPath),
             accept = accept,
             parameters = componentContext.aggregateParameters(

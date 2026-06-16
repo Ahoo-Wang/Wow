@@ -20,13 +20,10 @@ import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.RouteIdSpec
-import me.ahoo.wow.openapi.aggregate.state.AggregateTracingRouteSpec
-import me.ahoo.wow.openapi.aggregate.state.LoadAggregateRouteSpec
-import me.ahoo.wow.openapi.aggregate.state.LoadTimeBasedAggregateRouteSpec
-import me.ahoo.wow.openapi.aggregate.state.LoadVersionedAggregateRouteSpec
 import me.ahoo.wow.openapi.catalog.RouteCategory
 import me.ahoo.wow.openapi.catalog.RouteContributor
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpContent
 import me.ahoo.wow.openapi.contract.HttpParameter
 import me.ahoo.wow.openapi.contract.HttpParameterLocation
@@ -74,7 +71,7 @@ object StateRouteContributor : RouteContributor {
             currentContext = currentContext,
             aggregateRouteMetadata = aggregateRouteMetadata,
             componentContext = componentContext,
-            routeSpecType = AggregateTracingRouteSpec::class.java,
+            handlerKey = BuiltInHttpRouteHandlerKeys.State.AGGREGATE_TRACING,
             resourceName = "aggregate_tracing",
             operation = "get",
             summary = "Get Aggregate Tracing",
@@ -98,7 +95,7 @@ object StateRouteContributor : RouteContributor {
             currentContext = currentContext,
             aggregateRouteMetadata = aggregateRouteMetadata,
             componentContext = componentContext,
-            routeSpecType = LoadAggregateRouteSpec::class.java,
+            handlerKey = BuiltInHttpRouteHandlerKeys.State.LOAD_AGGREGATE,
             resourceName = "aggregate",
             operation = "load",
             summary = "Load State Aggregate",
@@ -122,7 +119,7 @@ object StateRouteContributor : RouteContributor {
             currentContext = currentContext,
             aggregateRouteMetadata = aggregateRouteMetadata,
             componentContext = componentContext,
-            routeSpecType = LoadVersionedAggregateRouteSpec::class.java,
+            handlerKey = BuiltInHttpRouteHandlerKeys.State.LOAD_VERSIONED_AGGREGATE,
             resourceName = "versioned_aggregate",
             operation = "load",
             summary = "Load Versioned State Aggregate",
@@ -147,7 +144,7 @@ object StateRouteContributor : RouteContributor {
             currentContext = currentContext,
             aggregateRouteMetadata = aggregateRouteMetadata,
             componentContext = componentContext,
-            routeSpecType = LoadTimeBasedAggregateRouteSpec::class.java,
+            handlerKey = BuiltInHttpRouteHandlerKeys.State.LOAD_TIME_BASED_AGGREGATE,
             resourceName = "time_based_aggregate",
             operation = "load",
             summary = "Load Time Based State Aggregate",
@@ -167,7 +164,7 @@ object StateRouteContributor : RouteContributor {
         currentContext: NamedBoundedContext,
         aggregateRouteMetadata: AggregateRouteMetadata<*>,
         componentContext: OpenAPIComponentContext,
-        routeSpecType: Class<*>,
+        handlerKey: String,
         resourceName: String,
         operation: String,
         summary: String,
@@ -194,7 +191,7 @@ object StateRouteContributor : RouteContributor {
                 appendIdPath = appendIdPath,
                 appendPathSuffix = appendPathSuffix
             ),
-            handlerKey = routeSpecType.name,
+            handlerKey = handlerKey,
             summary = summary,
             produce = listOf(Https.MediaType.APPLICATION_JSON),
             parameters = componentContext.aggregateParameters(
