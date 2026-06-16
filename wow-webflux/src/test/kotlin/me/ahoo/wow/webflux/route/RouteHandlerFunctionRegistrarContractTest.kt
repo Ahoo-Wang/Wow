@@ -14,8 +14,13 @@
 package me.ahoo.wow.webflux.route
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.openapi.RouteSpec
+import me.ahoo.wow.openapi.aggregate.state.LoadAggregateRouteSpec
+import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
+import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
+import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerResponse
@@ -33,15 +38,59 @@ class RouteHandlerFunctionRegistrarContractTest {
     }
 
     @Test
+    fun `should let later constructor http factory overwrite earlier factory for same handler key`() {
+        val factory1 = TestHttpRouteHandlerFunctionFactory("handler.key")
+        val factory2 = TestHttpRouteHandlerFunctionFactory("handler.key")
+        val registrar = RouteHandlerFunctionRegistrar(httpFactories = listOf(factory1, factory2))
+
+        val found = registrar.getHttpFactory("handler.key")
+
+        found.assert().isSameAs(factory2)
+    }
+
+    @Test
     fun `should let registered http factory overwrite existing factory for same handler key`() {
         val factory1 = TestHttpRouteHandlerFunctionFactory("handler.key")
         val factory2 = TestHttpRouteHandlerFunctionFactory("handler.key")
         val registrar = RouteHandlerFunctionRegistrar(httpFactories = listOf(factory1))
 
-        registrar.register(factory2)
+        registrar.registerHttpFactory(factory2)
 
         val found = registrar.getHttpFactory("handler.key")
         found.assert().isSameAs(factory2)
+    }
+
+    @Test
+    fun `should keep spec factory and http factory registries independent`() {
+        val specFactory = TestContractRouteHandlerFunctionFactory(LoadAggregateRouteSpec::class.java)
+        val httpFactory = TestHttpRouteHandlerFunctionFactory("handler.key")
+        val registrar = RouteHandlerFunctionRegistrar(
+            factories = listOf(specFactory),
+            httpFactories = listOf(httpFactory)
+        )
+
+        registrar.getFactory(loadAggregateSpec()).assert().isSameAs(specFactory)
+        registrar.getHttpFactory("handler.key").assert().isSameAs(httpFactory)
+    }
+
+    @Test
+    fun `should expose old single collection jvm constructor`() {
+        val oldConstructor = RouteHandlerFunctionRegistrar::class.java.constructors.singleOrNull {
+            it.parameterTypes.contentEquals(arrayOf(Collection::class.java))
+        }
+
+        oldConstructor.assert().isNotNull()
+    }
+
+    @Test
+    fun `should register dual interface factory through explicit http registration`() {
+        val factory = TestDualRouteHandlerFunctionFactory()
+        val registrar = RouteHandlerFunctionRegistrar()
+
+        registrar.registerHttpFactory(factory)
+
+        registrar.getHttpFactory(factory.handlerKey).assert().isSameAs(factory)
+        registrar.getFactory(loadAggregateSpec()).assert().isNull()
     }
 
     @Test
@@ -62,6 +111,24 @@ class RouteHandlerFunctionRegistrarContractTest {
     }
 }
 
+private fun loadAggregateSpec(): LoadAggregateRouteSpec {
+    return LoadAggregateRouteSpec(
+        MOCK_AGGREGATE_METADATA,
+        aggregateRouteMetadata = MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata(),
+        componentContext = OpenAPIComponentContext.default()
+    )
+}
+
+private class TestContractRouteHandlerFunctionFactory<R : RouteSpec>(
+    override val supportedSpec: Class<R>
+) : RouteHandlerFunctionFactory<R> {
+    override fun create(spec: R): HandlerFunction<ServerResponse> {
+        return HandlerFunction {
+            ServerResponse.ok().build()
+        }
+    }
+}
+
 private class TestHttpRouteHandlerFunctionFactory(
     override val handlerKey: String
 ) : HttpRouteHandlerFunctionFactory {
@@ -74,6 +141,28 @@ private class TestHttpRouteHandlerFunctionFactory(
     ): HandlerFunction<ServerResponse> {
         createdContract = contract
         createdMetadata = metadata
+        return HandlerFunction {
+            ServerResponse.ok().build()
+        }
+    }
+}
+
+private class TestDualRouteHandlerFunctionFactory :
+    RouteHandlerFunctionFactory<LoadAggregateRouteSpec>,
+    HttpRouteHandlerFunctionFactory {
+    override val supportedSpec: Class<LoadAggregateRouteSpec> = LoadAggregateRouteSpec::class.java
+    override val handlerKey: String = "handler.key"
+
+    override fun create(spec: LoadAggregateRouteSpec): HandlerFunction<ServerResponse> {
+        return HandlerFunction {
+            ServerResponse.ok().build()
+        }
+    }
+
+    override fun create(
+        contract: HttpRouteContract,
+        metadata: HttpRouteHandlerMetadata
+    ): HandlerFunction<ServerResponse> {
         return HandlerFunction {
             ServerResponse.ok().build()
         }

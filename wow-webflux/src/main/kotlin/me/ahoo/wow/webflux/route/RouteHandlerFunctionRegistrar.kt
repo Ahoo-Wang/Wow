@@ -20,6 +20,8 @@ class RouteHandlerFunctionRegistrar(
     factories: Collection<RouteHandlerFunctionFactory<*>> = emptyList(),
     httpFactories: Collection<HttpRouteHandlerFunctionFactory> = emptyList()
 ) {
+    constructor(factories: Collection<RouteHandlerFunctionFactory<*>>) : this(factories, emptyList())
+
     companion object {
         private val log = KotlinLogging.logger {}
     }
@@ -36,10 +38,10 @@ class RouteHandlerFunctionRegistrar(
         }
     }
 
-    fun register(routeHandlerFunctionFactory: HttpRouteHandlerFunctionFactory) {
-        val previous = httpFactories.put(routeHandlerFunctionFactory.handlerKey, routeHandlerFunctionFactory)
+    fun registerHttpFactory(httpRouteHandlerFunctionFactory: HttpRouteHandlerFunctionFactory) {
+        val previous = httpFactories.put(httpRouteHandlerFunctionFactory.handlerKey, httpRouteHandlerFunctionFactory)
         log.info {
-            "Register - handlerKey:[${routeHandlerFunctionFactory.handlerKey}] - previous:[$previous],current:[$routeHandlerFunctionFactory]."
+            "Register - handlerKey:[${httpRouteHandlerFunctionFactory.handlerKey}] - previous:[$previous],current:[$httpRouteHandlerFunctionFactory]."
         }
     }
 
