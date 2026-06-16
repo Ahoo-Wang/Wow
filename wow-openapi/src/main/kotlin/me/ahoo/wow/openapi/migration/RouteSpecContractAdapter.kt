@@ -22,6 +22,8 @@ import io.swagger.v3.oas.models.parameters.Parameter
 import io.swagger.v3.oas.models.parameters.RequestBody
 import io.swagger.v3.oas.models.responses.ApiResponse
 import me.ahoo.wow.openapi.RouteSpec
+import me.ahoo.wow.openapi.aggregate.AggregateRouteSpec
+import me.ahoo.wow.openapi.aggregate.command.CommandRouteSpec
 import me.ahoo.wow.openapi.catalog.RouteCatalog
 import me.ahoo.wow.openapi.catalog.RouteCatalogBuilder
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
@@ -37,6 +39,7 @@ import me.ahoo.wow.openapi.contract.HttpParameterLocation
 import me.ahoo.wow.openapi.contract.HttpRequestBody
 import me.ahoo.wow.openapi.contract.HttpResponse
 import me.ahoo.wow.openapi.contract.HttpRouteContract
+import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.openapi.contract.HttpSchema
 import me.ahoo.wow.openapi.contract.HttpTag
 
@@ -68,7 +71,7 @@ class RouteSpecContractAdapter(private val componentContext: OpenAPIComponentCon
             routeId = routeSpec.id,
             method = routeSpec.method,
             path = routeSpec.path,
-            handlerKey = routeSpec.id,
+            handlerKey = routeSpec::class.java.name,
             summary = routeSpec.summary,
             description = routeSpec.description,
             pathSummary = pathRouteSpec.summary,
@@ -82,8 +85,24 @@ class RouteSpecContractAdapter(private val componentContext: OpenAPIComponentCon
             responses = routeSpec.responses.toHttpResponses(),
             tags = routeSpec.tags.map { tag ->
                 HttpTag(name = tag.name, description = tag.description)
-            }
+            },
+            handlerMetadata = routeSpec.toHttpRouteHandlerMetadata()
         )
+    }
+
+    private fun RouteSpec.toHttpRouteHandlerMetadata(): HttpRouteHandlerMetadata {
+        return when (this) {
+            is CommandRouteSpec -> HttpRouteHandlerMetadata.Command(
+                aggregateRouteMetadata = aggregateRouteMetadata,
+                commandRouteMetadata = commandRouteMetadata
+            )
+
+            is AggregateRouteSpec -> HttpRouteHandlerMetadata.Aggregate(
+                aggregateRouteMetadata = aggregateRouteMetadata
+            )
+
+            else -> HttpRouteHandlerMetadata.None
+        }
     }
 
     private fun RouteSpec.toHttpParameters(): List<HttpParameter> {

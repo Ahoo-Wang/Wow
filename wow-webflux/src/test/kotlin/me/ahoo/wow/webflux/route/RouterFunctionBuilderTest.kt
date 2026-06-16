@@ -71,7 +71,9 @@ class RouterFunctionBuilderTest {
             routes = mutableListOf(loadAggregateSpec),
         )
         val contract = routerSpecs.toRouteCatalog().routes.single()
-        val factory = TestBuilderHttpRouteHandlerFunctionFactory(contract.handlerKey)
+        val expectedHandlerKey = LoadAggregateRouteSpec::class.java.name
+        contract.handlerKey.assert().isEqualTo(expectedHandlerKey)
+        val factory = TestBuilderHttpRouteHandlerFunctionFactory(expectedHandlerKey)
         val registrar = RouteHandlerFunctionRegistrar(httpFactories = listOf(factory))
 
         val builder = RouterFunctionBuilder(routerSpecs, registrar)
@@ -79,7 +81,8 @@ class RouterFunctionBuilderTest {
 
         routerFunction.assert().isNotNull()
         factory.createdContract.assert().isEqualTo(contract)
-        factory.createdMetadata.assert().isSameAs(contract.handlerMetadata)
+        factory.createdMetadata.assert().isEqualTo(contract.handlerMetadata)
+        factory.createdMetadata.assert().isSameAs(factory.createdContract.handlerMetadata)
     }
 
     @Test

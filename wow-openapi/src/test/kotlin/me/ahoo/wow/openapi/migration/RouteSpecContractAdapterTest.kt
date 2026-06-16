@@ -30,9 +30,16 @@ import me.ahoo.wow.naming.MaterializedNamedBoundedContext
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.RouterSpecs
+import me.ahoo.wow.openapi.aggregate.command.CommandRouteSpec
+import me.ahoo.wow.openapi.aggregate.state.LoadAggregateRouteSpec
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.contract.HttpParameterLocation
+import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.openapi.contract.HttpSchema
+import me.ahoo.wow.openapi.global.GenerateGlobalIdRouteSpec
+import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
+import me.ahoo.wow.openapi.metadata.commandRouteMetadata
+import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
 
 internal class RouteSpecContractAdapterTest {
@@ -46,6 +53,44 @@ internal class RouteSpecContractAdapterTest {
 
         catalog.routes.assert().hasSize(routerSpecs.count())
         catalog.routes.all { it.handlerKey.isNotBlank() }.assert().isTrue()
+    }
+
+    @Test
+    fun `should adapt command route handler key and metadata`() {
+        val routeSpec = commandRouteSpec()
+
+        val contract = RouteSpecContractAdapter(routeSpec.componentContext).toContract(routeSpec)
+
+        contract.routeId.assert().isEqualTo(routeSpec.id)
+        contract.handlerKey.assert().isEqualTo(CommandRouteSpec::class.java.name)
+        contract.handlerMetadata.assert().isInstanceOf(HttpRouteHandlerMetadata.Command::class.java)
+        val metadata = contract.handlerMetadata as HttpRouteHandlerMetadata.Command
+        metadata.aggregateRouteMetadata.assert().isSameAs(routeSpec.aggregateRouteMetadata)
+        metadata.commandRouteMetadata.assert().isSameAs(routeSpec.commandRouteMetadata)
+    }
+
+    @Test
+    fun `should adapt aggregate route handler key and metadata`() {
+        val routeSpec = loadAggregateRouteSpec()
+
+        val contract = RouteSpecContractAdapter(routeSpec.componentContext).toContract(routeSpec)
+
+        contract.routeId.assert().isEqualTo(routeSpec.id)
+        contract.handlerKey.assert().isEqualTo(LoadAggregateRouteSpec::class.java.name)
+        contract.handlerMetadata.assert().isInstanceOf(HttpRouteHandlerMetadata.Aggregate::class.java)
+        val metadata = contract.handlerMetadata as HttpRouteHandlerMetadata.Aggregate
+        metadata.aggregateRouteMetadata.assert().isSameAs(routeSpec.aggregateRouteMetadata)
+    }
+
+    @Test
+    fun `should adapt global route handler metadata as none`() {
+        val routeSpec = GenerateGlobalIdRouteSpec(OpenAPIComponentContext.default())
+
+        val contract = RouteSpecContractAdapter(routeSpec.componentContext).toContract(routeSpec)
+
+        contract.routeId.assert().isEqualTo(routeSpec.id)
+        contract.handlerKey.assert().isEqualTo(GenerateGlobalIdRouteSpec::class.java.name)
+        contract.handlerMetadata.assert().isSameAs(HttpRouteHandlerMetadata.None)
     }
 
     @Test
@@ -275,5 +320,27 @@ internal class RouteSpecContractAdapterTest {
         return Schema<Any>().also {
             it.`$ref` = "#/components/schemas/$key"
         }
+    }
+
+    private fun commandRouteSpec(): CommandRouteSpec {
+        val componentContext = OpenAPIComponentContext.default()
+        val aggregateRouteMetadata = MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata()
+        val commandRouteMetadata = MOCK_AGGREGATE_METADATA.command.registeredCommands
+            .first()
+            .commandRouteMetadata()
+        return CommandRouteSpec(
+            currentContext = MOCK_AGGREGATE_METADATA,
+            aggregateRouteMetadata = aggregateRouteMetadata,
+            commandRouteMetadata = commandRouteMetadata,
+            componentContext = componentContext
+        )
+    }
+
+    private fun loadAggregateRouteSpec(): LoadAggregateRouteSpec {
+        return LoadAggregateRouteSpec(
+            currentContext = MOCK_AGGREGATE_METADATA,
+            aggregateRouteMetadata = MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata(),
+            componentContext = OpenAPIComponentContext.default()
+        )
     }
 }

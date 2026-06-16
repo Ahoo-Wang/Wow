@@ -284,13 +284,14 @@ class WebFluxAutoConfiguration {
         httpFactories: ObjectProvider<HttpRouteHandlerFunctionFactory>
     ): RouteHandlerFunctionRegistrar {
         val mergedFactories = mutableListOf<RouteHandlerFunctionFactory<*>>()
+        val mergedHttpFactories = mutableListOf<HttpRouteHandlerFunctionFactory>()
         routeModules.orderedStream().forEach { routeModule ->
             mergedFactories.addAll(routeModule.factories)
+            mergedHttpFactories.addAll(routeModule.factories.filterIsInstance<HttpRouteHandlerFunctionFactory>())
         }
         factories.orderedStream().forEach { factory ->
             mergedFactories.add(factory)
         }
-        val mergedHttpFactories = mutableListOf<HttpRouteHandlerFunctionFactory>()
         httpFactories.orderedStream().forEach { factory ->
             mergedHttpFactories.add(factory)
         }
