@@ -29,6 +29,10 @@ import me.ahoo.wow.openapi.OpenAPIExtensions.withExtensions
 import me.ahoo.wow.openapi.aggregate.AggregateRouteSpecFactory
 import me.ahoo.wow.openapi.aggregate.AggregateRouteSpecFactoryProvider
 import me.ahoo.wow.openapi.aggregate.command.CommandRouteSpecFactory
+import me.ahoo.wow.openapi.aggregate.state.AggregateTracingRouteSpecFactory
+import me.ahoo.wow.openapi.aggregate.state.LoadAggregateRouteSpecFactory
+import me.ahoo.wow.openapi.aggregate.state.LoadTimeBasedAggregateRouteSpecFactory
+import me.ahoo.wow.openapi.aggregate.state.LoadVersionedAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.catalog.RouteCatalog
 import me.ahoo.wow.openapi.catalog.RouteCatalogBuilder
 import me.ahoo.wow.openapi.catalog.RouteCategory
@@ -252,6 +256,10 @@ class RouterSpecs(
     private fun isMigratedLegacyAggregateFactory(factory: AggregateRouteSpecFactory): Boolean {
         return when (factory) {
             is CommandRouteSpecFactory -> explicitContributors(RouteCategory.COMMAND).isNotEmpty()
+            is AggregateTracingRouteSpecFactory,
+            is LoadAggregateRouteSpecFactory,
+            is LoadVersionedAggregateRouteSpecFactory,
+            is LoadTimeBasedAggregateRouteSpecFactory -> explicitContributors(RouteCategory.STATE).isNotEmpty()
             else -> false
         }
     }

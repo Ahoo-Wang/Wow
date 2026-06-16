@@ -19,10 +19,12 @@ import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.naming.getContextAlias
 import me.ahoo.wow.openapi.CommonComponent.Header.SPACE_ID
+import me.ahoo.wow.openapi.CommonComponent.Parameter.createTimePathParameter
 import me.ahoo.wow.openapi.CommonComponent.Parameter.idPathParameter
 import me.ahoo.wow.openapi.CommonComponent.Parameter.ownerIdPathParameter
 import me.ahoo.wow.openapi.CommonComponent.Parameter.spaceIdHeaderParameter
 import me.ahoo.wow.openapi.CommonComponent.Parameter.tenantIdPathParameter
+import me.ahoo.wow.openapi.CommonComponent.Parameter.versionPathParameter
 import me.ahoo.wow.openapi.PathBuilder
 import me.ahoo.wow.openapi.Tags.toTags
 import me.ahoo.wow.openapi.aggregate.ID_PATH_VARIABLE
@@ -112,6 +114,16 @@ internal fun OpenAPIComponentContext.aggregateParameters(
             )
         }
     }
+}
+
+internal fun OpenAPIComponentContext.versionPathParameterRef(): HttpParameter {
+    versionPathParameter()
+    return componentPathParameter(MessageRecords.VERSION)
+}
+
+internal fun OpenAPIComponentContext.createTimePathParameterRef(): HttpParameter {
+    createTimePathParameter()
+    return componentPathParameter(MessageRecords.CREATE_TIME)
 }
 
 private fun componentPathParameter(name: String): HttpParameter {

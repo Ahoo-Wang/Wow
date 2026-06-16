@@ -32,7 +32,10 @@ import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.RouterSpecs
 import me.ahoo.wow.openapi.aggregate.command.CommandFacadeRouteSpec
 import me.ahoo.wow.openapi.aggregate.command.CommandRouteSpec
+import me.ahoo.wow.openapi.aggregate.state.AggregateTracingRouteSpec
 import me.ahoo.wow.openapi.aggregate.state.LoadAggregateRouteSpec
+import me.ahoo.wow.openapi.aggregate.state.LoadTimeBasedAggregateRouteSpec
+import me.ahoo.wow.openapi.aggregate.state.LoadVersionedAggregateRouteSpec
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.contract.HttpParameterLocation
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
@@ -48,6 +51,19 @@ import org.junit.jupiter.api.Test
 
 internal class RouteSpecContractAdapterTest {
     private val currentContext = MaterializedNamedBoundedContext("example-service")
+    private val explicitGlobalHandlerKeys = mapOf(
+        "wow.command.wait" to CommandWaitRouteSpec::class.java.name,
+        "wow.command.send" to CommandFacadeRouteSpec::class.java.name,
+        "wow.metadata.get" to GetWowMetadataRouteSpec::class.java.name,
+        "wow.global_id.generate" to GenerateGlobalIdRouteSpec::class.java.name,
+        "wow.bi_script.generate" to GenerateBIScriptRouteSpec::class.java.name
+    )
+    private val stateHandlerKeys = setOf(
+        AggregateTracingRouteSpec::class.java.name,
+        LoadAggregateRouteSpec::class.java.name,
+        LoadVersionedAggregateRouteSpec::class.java.name,
+        LoadTimeBasedAggregateRouteSpec::class.java.name
+    )
 
     @Test
     fun `should adapt router specs to route catalog`() {
@@ -55,21 +71,22 @@ internal class RouteSpecContractAdapterTest {
 
         val catalog = routerSpecs.toRouteCatalog()
 
-        val explicitGlobalHandlerKeys = mapOf(
-            "wow.command.wait" to CommandWaitRouteSpec::class.java.name,
-            "wow.command.send" to CommandFacadeRouteSpec::class.java.name,
-            "wow.metadata.get" to GetWowMetadataRouteSpec::class.java.name,
-            "wow.global_id.generate" to GenerateGlobalIdRouteSpec::class.java.name,
-            "wow.bi_script.generate" to GenerateBIScriptRouteSpec::class.java.name
-        )
         val explicitCommandRoutes = catalog.routes.filter {
             it.handlerKey == CommandRouteSpec::class.java.name
         }
+        val explicitStateRoutes = catalog.routes.filter {
+            it.handlerKey in stateHandlerKeys
+        }
         explicitCommandRoutes.assert().isNotEmpty()
+        explicitStateRoutes.assert().isNotEmpty()
         catalog.routes.assert().hasSize(
-            routerSpecs.count() + explicitGlobalHandlerKeys.size + explicitCommandRoutes.size
+            routerSpecs.count() + explicitGlobalHandlerKeys.size + explicitCommandRoutes.size +
+                explicitStateRoutes.size
         )
         val handlerKeysByRouteId = catalog.routes.associate { it.routeId to it.handlerKey }
+        routerSpecs.forEach { routeSpec ->
+            handlerKeysByRouteId[routeSpec.id].assert().isEqualTo(routeSpec::class.java.name)
+        }
         explicitGlobalHandlerKeys.forEach { (routeId, handlerKey) ->
             handlerKeysByRouteId[routeId].assert().isEqualTo(handlerKey)
         }
@@ -86,6 +103,17 @@ internal class RouteSpecContractAdapterTest {
 
         commandRoutes.assert().isNotEmpty()
         commandRoutes.any { it.routeId == "example.order.create_order" }.assert().isTrue()
+    }
+
+    @Test
+    fun `should contribute state routes outside legacy route specs`() {
+        val routerSpecs = RouterSpecs(currentContext).build()
+
+        routerSpecs.any { it::class.java.name in stateHandlerKeys }.assert().isFalse()
+        val catalogRoutes = routerSpecs.toRouteCatalog().routes
+        stateHandlerKeys.forEach { handlerKey ->
+            catalogRoutes.any { it.handlerKey == handlerKey }.assert().isTrue()
+        }
     }
 
     @Test
