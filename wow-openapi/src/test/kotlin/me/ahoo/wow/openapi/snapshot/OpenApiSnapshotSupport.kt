@@ -44,9 +44,15 @@ internal object OpenApiSnapshotSupport {
     private fun assertSnapshot(canonical: String, snapshotPath: Path) {
         snapshotPath.parent.createDirectories()
         val actual = pretty(canonical)
-        if (updateSnapshots || !snapshotPath.exists()) {
+        if (updateSnapshots) {
             snapshotPath.writeText(actual)
             return
+        }
+        if (!snapshotPath.exists()) {
+            throw AssertionError(
+                "Missing OpenAPI compatibility snapshot: $snapshotPath. " +
+                    "Run with -Dwow.snapshot.update=true to create or update snapshots."
+            )
         }
         actual.assert().isEqualTo(snapshotPath.readText())
     }
