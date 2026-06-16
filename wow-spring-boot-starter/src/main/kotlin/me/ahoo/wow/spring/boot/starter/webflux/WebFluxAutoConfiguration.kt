@@ -41,6 +41,7 @@ import me.ahoo.wow.webflux.exception.DefaultWebFluxErrorStrategy
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.exception.WebFluxErrorStrategy
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
+import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionRegistrar
 import me.ahoo.wow.webflux.route.RouterFunctionBuilder
@@ -279,7 +280,8 @@ class WebFluxAutoConfiguration {
     @Bean
     fun routeHandlerFunctionRegistrar(
         routeModules: ObjectProvider<WebFluxRouteModule>,
-        factories: ObjectProvider<RouteHandlerFunctionFactory<*>>
+        factories: ObjectProvider<RouteHandlerFunctionFactory<*>>,
+        httpFactories: ObjectProvider<HttpRouteHandlerFunctionFactory>
     ): RouteHandlerFunctionRegistrar {
         val mergedFactories = mutableListOf<RouteHandlerFunctionFactory<*>>()
         routeModules.orderedStream().forEach { routeModule ->
@@ -288,7 +290,14 @@ class WebFluxAutoConfiguration {
         factories.orderedStream().forEach { factory ->
             mergedFactories.add(factory)
         }
-        return RouteHandlerFunctionRegistrar(mergedFactories)
+        val mergedHttpFactories = mutableListOf<HttpRouteHandlerFunctionFactory>()
+        httpFactories.orderedStream().forEach { factory ->
+            mergedHttpFactories.add(factory)
+        }
+        return RouteHandlerFunctionRegistrar(
+            factories = mergedFactories,
+            httpFactories = mergedHttpFactories
+        )
     }
 
     @Bean

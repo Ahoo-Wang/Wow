@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.webflux.route
 
-import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.RouterSpecs
 import org.springframework.http.HttpMethod
 import org.springframework.http.MediaType
@@ -33,20 +32,19 @@ class RouterFunctionBuilder(
 
     fun build(): RouterFunction<ServerResponse> {
         val routerFunctionBuilder = RouterFunctions.route()
-        for (routeSpec in routerSpecs) {
-            val acceptMediaTypes = MediaType.parseMediaTypes(routeSpec.accept).toTypedArray()
+        for (contract in routerSpecs.toRouteCatalog().routes) {
+            val acceptMediaTypes = MediaType.parseMediaTypes(contract.accept).toTypedArray()
             val acceptPredicate = RequestPredicates.accept(*acceptMediaTypes)
-            val httpMethod = HttpMethod.valueOf(routeSpec.method)
-            val requestPredicate = RequestPredicates.path(routeSpec.path)
+            val httpMethod = HttpMethod.valueOf(contract.method)
+            val requestPredicate = RequestPredicates.path(contract.path)
                 .and(RequestPredicates.method(httpMethod))
                 .and(acceptPredicate)
 
-            @Suppress("UNCHECKED_CAST")
-            val factory = requireNotNull(routeHandlerFunctionRegistrar.getFactory(routeSpec)) {
-                "RouteHandlerFunctionFactory not found - method:[${routeSpec.method}], " +
-                    "path:[${routeSpec.path}], spec:[${routeSpec::class.java.name}]."
-            } as RouteHandlerFunctionFactory<RouteSpec>
-            val handlerFunction = factory.create(routeSpec)
+            val factory = requireNotNull(routeHandlerFunctionRegistrar.getHttpFactory(contract.handlerKey)) {
+                "HttpRouteHandlerFunctionFactory not found - handlerKey:[${contract.handlerKey}], " +
+                    "method:[${contract.method}], path:[${contract.path}], routeId:[${contract.routeId}]."
+            }
+            val handlerFunction = factory.create(contract, contract.handlerMetadata)
             routerFunctionBuilder.route(
                 requestPredicate,
                 handlerFunction

@@ -19,6 +19,8 @@ import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.RouterSpecs
 import me.ahoo.wow.openapi.aggregate.state.LoadAggregateRouteSpec
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.openapi.contract.HttpRouteContract
+import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
@@ -63,19 +65,21 @@ class RouterFunctionBuilderTest {
 
     @Test
     fun `should build router function with manually provided specs`() {
-        val registrar = RouteHandlerFunctionRegistrar(
-            listOf(TestRouteHandlerFunctionFactory(LoadAggregateRouteSpec::class.java))
-        )
-
         val loadAggregateSpec = loadAggregateSpec()
-
         val routerSpecs = RouterSpecs(
             MOCK_AGGREGATE_METADATA,
             routes = mutableListOf(loadAggregateSpec),
         )
+        val contract = routerSpecs.toRouteCatalog().routes.single()
+        val factory = TestBuilderHttpRouteHandlerFunctionFactory(contract.handlerKey)
+        val registrar = RouteHandlerFunctionRegistrar(httpFactories = listOf(factory))
+
         val builder = RouterFunctionBuilder(routerSpecs, registrar)
         val routerFunction = builder.build()
+
         routerFunction.assert().isNotNull()
+        factory.createdContract.assert().isEqualTo(contract)
+        factory.createdMetadata.assert().isSameAs(contract.handlerMetadata)
     }
 
     @Test
@@ -86,14 +90,16 @@ class RouterFunctionBuilderTest {
             routes = mutableListOf(loadAggregateSpec),
         )
         val builder = RouterFunctionBuilder(routerSpecs, RouteHandlerFunctionRegistrar())
+        val contract = routerSpecs.toRouteCatalog().routes.single()
 
         assertThrownBy<IllegalArgumentException> {
             builder.build()
         }.hasMessage(
-            "RouteHandlerFunctionFactory not found - " +
-                "method:[${loadAggregateSpec.method}], " +
-                "path:[${loadAggregateSpec.path}], " +
-                "spec:[${loadAggregateSpec::class.java.name}]."
+            "HttpRouteHandlerFunctionFactory not found - " +
+                "handlerKey:[${contract.handlerKey}], " +
+                "method:[${contract.method}], " +
+                "path:[${contract.path}], " +
+                "routeId:[${contract.routeId}]."
         )
     }
 }
@@ -110,6 +116,24 @@ private class TestRouteHandlerFunctionFactory<R : RouteSpec>(
     override val supportedSpec: Class<R>
 ) : RouteHandlerFunctionFactory<R> {
     override fun create(spec: R): HandlerFunction<ServerResponse> {
+        return HandlerFunction {
+            ServerResponse.ok().build()
+        }
+    }
+}
+
+private class TestBuilderHttpRouteHandlerFunctionFactory(
+    override val handlerKey: String
+) : HttpRouteHandlerFunctionFactory {
+    lateinit var createdContract: HttpRouteContract
+    lateinit var createdMetadata: HttpRouteHandlerMetadata
+
+    override fun create(
+        contract: HttpRouteContract,
+        metadata: HttpRouteHandlerMetadata
+    ): HandlerFunction<ServerResponse> {
+        createdContract = contract
+        createdMetadata = metadata
         return HandlerFunction {
             ServerResponse.ok().build()
         }
