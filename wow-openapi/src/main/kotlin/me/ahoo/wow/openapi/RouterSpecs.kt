@@ -23,10 +23,12 @@ import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.modeling.getContextAliasPrefix
 import me.ahoo.wow.openapi.OpenAPIExtensions.withExtensions
 import me.ahoo.wow.openapi.aggregate.AggregateRouteSpecFactoryProvider
+import me.ahoo.wow.openapi.catalog.RouteCatalog
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.context.OpenAPIComponentContextCapable
 import me.ahoo.wow.openapi.global.GlobalRouteSpecFactoryProvider
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
+import me.ahoo.wow.openapi.migration.RouteSpecContractAdapter
 import me.ahoo.wow.schema.typed.AggregatedFields
 
 class RouterSpecs(
@@ -142,5 +144,9 @@ class RouterSpecs(
         buildGlobalRouteSpec()
         buildAggregateRouteSpec()
         return this
+    }
+
+    fun toRouteCatalog(): RouteCatalog {
+        return RouteSpecContractAdapter(componentContext).toRouteCatalog(routes)
     }
 }
