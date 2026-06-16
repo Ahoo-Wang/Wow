@@ -121,7 +121,6 @@ private class CommandRouteContractFactory(
             summary = summary(),
             description = commandRouteMetadata.description,
             accept = listOf(Https.MediaType.APPLICATION_JSON, Https.MediaType.TEXT_EVENT_STREAM),
-            produce = listOf(Https.MediaType.APPLICATION_JSON, Https.MediaType.TEXT_EVENT_STREAM),
             parameters = parameters(),
             requestBody = requestBody(),
             responses = componentContext.commandResponseRefs(),

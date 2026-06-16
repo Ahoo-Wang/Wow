@@ -30,6 +30,15 @@ internal class HttpRouteContractTest {
     }
 
     @Test
+    fun `should not carry unused route metadata fields`() {
+        val fieldNames = HttpRouteContract::class.java.declaredFields.map { it.name }.toSet()
+
+        fieldNames.assert().doesNotContain("category")
+        fieldNames.assert().doesNotContain("produce")
+        fieldNames.assert().doesNotContain("resourceScope")
+    }
+
+    @Test
     fun `should keep parameter model independent from swagger`() {
         val parameter = HttpParameter(
             name = "Command-Type",

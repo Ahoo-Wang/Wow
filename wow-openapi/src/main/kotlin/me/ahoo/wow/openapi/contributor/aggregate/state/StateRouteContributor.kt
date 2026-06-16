@@ -193,7 +193,6 @@ object StateRouteContributor : RouteContributor {
             ),
             handlerKey = handlerKey,
             summary = summary,
-            produce = listOf(Https.MediaType.APPLICATION_JSON),
             parameters = componentContext.aggregateParameters(
                 aggregateRouteMetadata = aggregateRouteMetadata,
                 appendTenantPath = appendTenantPath,

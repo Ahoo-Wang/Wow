@@ -28,7 +28,6 @@ import me.ahoo.wow.openapi.catalog.RouteCategory
 import me.ahoo.wow.openapi.catalog.RouteContributor
 import me.ahoo.wow.openapi.catalog.RouteContributors
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
-import me.ahoo.wow.openapi.context.OpenAPIComponentContextCapable
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contributor.DefaultRouteContributors
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
@@ -37,10 +36,10 @@ import me.ahoo.wow.schema.typed.AggregatedFields
 
 class RouterSpecs(
     private val currentContext: NamedBoundedContext,
-    override val componentContext: OpenAPIComponentContext =
+    val componentContext: OpenAPIComponentContext =
         OpenAPIComponentContext.default(false, defaultSchemaNamePrefix = currentContext.getContextAliasPrefix()),
     val routeContributors: List<RouteContributor> = DefaultRouteContributors.all()
-) : OpenAPIComponentContextCapable {
+) {
     companion object {
         const val DEFAULT_OPENAPI_INFO_TITLE = "OpenAPI definition"
     }

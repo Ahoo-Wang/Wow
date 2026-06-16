@@ -25,15 +25,12 @@ data class HttpRouteContract(
     val description: String = "",
     val pathSummary: String = summary,
     val pathDescription: String = description,
-    val category: String = "",
     val accept: List<String> = listOf("application/json"),
-    val produce: List<String> = emptyList(),
     val parameters: List<HttpParameter> = emptyList(),
     val requestBody: HttpRequestBody? = null,
     val responses: List<HttpResponse> = emptyList(),
     val tags: List<HttpTag> = emptyList(),
-    val handlerMetadata: HttpRouteHandlerMetadata = HttpRouteHandlerMetadata.None,
-    val resourceScope: String = ""
+    val handlerMetadata: HttpRouteHandlerMetadata = HttpRouteHandlerMetadata.None
 ) {
     val routeKey: String
         get() = "$method $path"
