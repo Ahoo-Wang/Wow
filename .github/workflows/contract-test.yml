@@ -59,7 +59,7 @@ jobs:
         run: ./gradlew allContractTest :code-coverage-report:contractCoverageReport --stacktrace
 
       - name: Upload contract coverage
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         if: success()
         with:
           token: ${{ secrets.CODECOV_TOKEN }}

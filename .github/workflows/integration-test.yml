@@ -64,7 +64,7 @@ jobs:
         run: ./gradlew allIntegrationTest :code-coverage-report:integrationCoverageReport --stacktrace
 
       - name: Upload integration coverage
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         if: success()
         with:
           token: ${{ secrets.CODECOV_TOKEN }}

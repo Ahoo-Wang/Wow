@@ -57,7 +57,7 @@ jobs:
         run: ./gradlew allLocalTest :code-coverage-report:localCoverageReport --stacktrace
 
       - name: Upload local coverage
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         if: success()
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
