@@ -17,13 +17,17 @@ import me.ahoo.wow.exception.throwNotFoundIfEmpty
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.openapi.aggregate.state.LoadTimeBasedAggregateRouteSpec
+import me.ahoo.wow.openapi.contract.HttpRouteContract
+import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.query.mask.tryMask
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
+import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.getAggregateId
 import me.ahoo.wow.webflux.route.command.getTenantIdOrDefault
+import me.ahoo.wow.webflux.route.requireAggregateHandlerMetadata
 import me.ahoo.wow.webflux.route.toServerResponse
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -59,13 +63,26 @@ class LoadTimeBasedAggregateHandlerFunction(
 class LoadTimeBasedAggregateHandlerFunctionFactory(
     private val stateAggregateRepository: StateAggregateRepository,
     private val exceptionHandler: RequestExceptionHandler
-) : RouteHandlerFunctionFactory<LoadTimeBasedAggregateRouteSpec> {
+) : RouteHandlerFunctionFactory<LoadTimeBasedAggregateRouteSpec>, HttpRouteHandlerFunctionFactory {
     override val supportedSpec: Class<LoadTimeBasedAggregateRouteSpec>
         get() = LoadTimeBasedAggregateRouteSpec::class.java
+    override val handlerKey: String
+        get() = supportedSpec.name
 
     override fun create(spec: LoadTimeBasedAggregateRouteSpec): HandlerFunction<ServerResponse> {
+        return create(spec.aggregateRouteMetadata)
+    }
+
+    override fun create(
+        contract: HttpRouteContract,
+        metadata: HttpRouteHandlerMetadata
+    ): HandlerFunction<ServerResponse> {
+        return create(metadata.requireAggregateHandlerMetadata(handlerKey).aggregateRouteMetadata)
+    }
+
+    private fun create(aggregateRouteMetadata: AggregateRouteMetadata<*>): HandlerFunction<ServerResponse> {
         return LoadTimeBasedAggregateHandlerFunction(
-            spec.aggregateRouteMetadata,
+            aggregateRouteMetadata,
             stateAggregateRepository,
             exceptionHandler
         )

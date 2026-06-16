@@ -17,11 +17,15 @@ import me.ahoo.wow.api.query.DynamicDocument
 import me.ahoo.wow.exception.throwNotFoundIfEmpty
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.aggregate.AggregateRouteSpec
+import me.ahoo.wow.openapi.contract.HttpRouteContract
+import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.query.filter.Contexts.writeRawRequest
 import me.ahoo.wow.query.filter.QueryHandler
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
+import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.query.QueryBodyExtractor.Companion.SINGLE_QUERY_EXTRACTOR
+import me.ahoo.wow.webflux.route.requireAggregateHandlerMetadata
 import me.ahoo.wow.webflux.route.toServerResponse
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -54,10 +58,24 @@ open class SingleQueryHandlerFunctionFactory<SPEC : AggregateRouteSpec>(
     private val rewriteRequestCondition: RewriteRequestCondition,
     private val exceptionHandler: RequestExceptionHandler,
     private val rewriteResult: (Mono<DynamicDocument>) -> Mono<DynamicDocument> = { it }
-) : RouteHandlerFunctionFactory<SPEC> {
+) : RouteHandlerFunctionFactory<SPEC>, HttpRouteHandlerFunctionFactory {
+    override val handlerKey: String
+        get() = supportedSpec.name
+
     override fun create(spec: SPEC): HandlerFunction<ServerResponse> {
+        return create(spec.aggregateMetadata)
+    }
+
+    override fun create(
+        contract: HttpRouteContract,
+        metadata: HttpRouteHandlerMetadata
+    ): HandlerFunction<ServerResponse> {
+        return create(metadata.requireAggregateHandlerMetadata(handlerKey).aggregateRouteMetadata.aggregateMetadata)
+    }
+
+    private fun create(aggregateMetadata: AggregateMetadata<*, *>): HandlerFunction<ServerResponse> {
         return SingleQueryHandlerFunction(
-            aggregateMetadata = spec.aggregateMetadata,
+            aggregateMetadata = aggregateMetadata,
             queryHandler = queryHandler,
             rewriteRequestCondition = rewriteRequestCondition,
             exceptionHandler = exceptionHandler,

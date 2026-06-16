@@ -15,13 +15,17 @@ package me.ahoo.wow.webflux.route.command
 
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.openapi.aggregate.command.CommandRouteSpec
+import me.ahoo.wow.openapi.contract.HttpRouteContract
+import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.openapi.metadata.CommandRouteMetadata
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
+import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.extractor.CommandBodyExtractor
 import me.ahoo.wow.webflux.route.command.extractor.CommandMessageExtractor
 import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
+import me.ahoo.wow.webflux.route.requireCommandHandlerMetadata
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.RouterFunctions
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -68,15 +72,39 @@ class CommandHandlerFunctionFactory(
     private val commandMessageExtractor: CommandMessageExtractor,
     private val exceptionHandler: RequestExceptionHandler,
     private val commandWaitPolicy: CommandWaitPolicy
-) : RouteHandlerFunctionFactory<CommandRouteSpec> {
+) : RouteHandlerFunctionFactory<CommandRouteSpec>, HttpRouteHandlerFunctionFactory {
     override val supportedSpec: Class<CommandRouteSpec>
         get() = CommandRouteSpec::class.java
+    override val handlerKey: String
+        get() = supportedSpec.name
 
     @Suppress("UNCHECKED_CAST")
     override fun create(spec: CommandRouteSpec): HandlerFunction<ServerResponse> {
-        return CommandHandlerFunction(
+        return create(
             aggregateRouteMetadata = spec.aggregateRouteMetadata,
-            commandRouteMetadata = spec.commandRouteMetadata as CommandRouteMetadata<Any>,
+            commandRouteMetadata = spec.commandRouteMetadata as CommandRouteMetadata<Any>
+        )
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    override fun create(
+        contract: HttpRouteContract,
+        metadata: HttpRouteHandlerMetadata
+    ): HandlerFunction<ServerResponse> {
+        val commandMetadata = metadata.requireCommandHandlerMetadata(handlerKey)
+        return create(
+            aggregateRouteMetadata = commandMetadata.aggregateRouteMetadata,
+            commandRouteMetadata = commandMetadata.commandRouteMetadata as CommandRouteMetadata<Any>
+        )
+    }
+
+    private fun create(
+        aggregateRouteMetadata: AggregateRouteMetadata<*>,
+        commandRouteMetadata: CommandRouteMetadata<Any>
+    ): HandlerFunction<ServerResponse> {
+        return CommandHandlerFunction(
+            aggregateRouteMetadata = aggregateRouteMetadata,
+            commandRouteMetadata = commandRouteMetadata,
             commandGateway = commandGateway,
             commandMessageExtractor = commandMessageExtractor,
             exceptionHandler = exceptionHandler,

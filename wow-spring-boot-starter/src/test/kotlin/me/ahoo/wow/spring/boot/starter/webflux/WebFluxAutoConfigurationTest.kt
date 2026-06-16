@@ -407,6 +407,7 @@ internal class WebFluxAutoConfigurationTest {
     private fun AssertableApplicationContext.assertRouteFactoryRegistered(spec: RouteSpec) {
         val registrar = getBean(RouteHandlerFunctionRegistrar::class.java)
         registrar.getFactory(spec).assert().isNotNull()
+        registrar.getHttpFactory(spec::class.java.name).assert().isNotNull()
     }
 
     private class TestRouteHandlerFunctionFactory<R : RouteSpec>(
