@@ -16,6 +16,7 @@ package me.ahoo.wow.openapi
 import io.swagger.v3.oas.models.Components
 import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.oas.models.Paths
+import io.swagger.v3.oas.models.SpecVersion
 import io.swagger.v3.oas.models.info.Info
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.id.generateGlobalId
@@ -76,5 +77,24 @@ internal class RouterSpecsTest {
         openAPI.info.assert().isSameAs(info)
         openAPI.paths.assert().isSameAs(paths)
         openAPI.components.assert().isSameAs(components)
+    }
+
+    @Test
+    fun `should merge route catalog into open api preserving metadata and components`() {
+        val info = Info().title("Custom Title").description("Custom Description")
+        val paths = Paths()
+        val components = Components()
+        val openAPI = OpenAPI().info(info).paths(paths).components(components)
+
+        RouterSpecs(namedContext).build().mergeOpenAPIFromCatalog(openAPI)
+
+        openAPI.specVersion.assert().isEqualTo(SpecVersion.V31)
+        openAPI.info.assert().isSameAs(info)
+        openAPI.info.title.assert().isEqualTo("Custom Title")
+        openAPI.info.description.assert().isEqualTo("Custom Description")
+        openAPI.paths.assert().isSameAs(paths)
+        openAPI.components.assert().isSameAs(components)
+        openAPI.paths.assert().isNotEmpty()
+        openAPI.components.schemas.assert().isNotEmpty()
     }
 }

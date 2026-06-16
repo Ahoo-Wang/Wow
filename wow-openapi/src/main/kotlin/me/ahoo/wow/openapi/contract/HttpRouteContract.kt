@@ -59,6 +59,7 @@ data class HttpRequestBody(
     val required: Boolean = false,
     val description: String? = null,
     val content: List<HttpContent> = emptyList(),
+    val contentDeclared: Boolean = content.isNotEmpty(),
     val componentRef: kotlin.String? = null
 )
 
@@ -67,6 +68,7 @@ data class HttpResponse(
     val description: String? = null,
     val headers: List<HttpHeader> = emptyList(),
     val content: List<HttpContent> = emptyList(),
+    val contentDeclared: Boolean = content.isNotEmpty(),
     val componentRef: kotlin.String? = null
 )
 
@@ -88,6 +90,8 @@ sealed interface HttpSchema {
     data object Boolean : HttpSchema
     data object Long : HttpSchema
     data object Object : HttpSchema
+    data object Unspecified : HttpSchema
+    data class Formatted(val format: kotlin.String) : HttpSchema
     data class TypeRef(val mainTargetType: Type, val typeParameters: List<Type> = emptyList()) : HttpSchema
     data class Array(val item: HttpSchema) : HttpSchema
     data class ComponentRef(val key: kotlin.String) : HttpSchema

@@ -105,10 +105,12 @@ class OpenApiRenderer {
             }
         }
         return RequestBody()
-            .required(required)
             .description(description)
             .also {
-                if (content.isNotEmpty()) {
+                if (required) {
+                    it.required(required)
+                }
+                if (contentDeclared) {
                     it.content(content.toContent())
                 }
             }
@@ -134,7 +136,7 @@ class OpenApiRenderer {
                 if (headers.isNotEmpty()) {
                     it.headers(headers.toHeaders())
                 }
-                if (content.isNotEmpty()) {
+                if (contentDeclared) {
                     it.content(content.toContent())
                 }
             }
@@ -175,6 +177,8 @@ class OpenApiRenderer {
             HttpSchema.Integer -> IntegerSchema()
             HttpSchema.Long -> IntegerSchema().format("int64")
             HttpSchema.Object -> ObjectSchema()
+            HttpSchema.Unspecified -> Schema<Any>()
+            is HttpSchema.Formatted -> Schema<Any>().format(format)
             is HttpSchema.TypeRef -> ObjectSchema()
             is HttpSchema.Array -> ArraySchema().items(item.toSchema())
             is HttpSchema.ComponentRef -> Schema<Any>().also {

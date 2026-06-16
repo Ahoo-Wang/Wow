@@ -236,6 +236,41 @@ internal class RouteSpecContractAdapterTest {
         response.headers.single().componentRef.assert().isEqualTo("ResultHeader")
     }
 
+    @Test
+    fun `should preserve inline schema shape and declared empty content`() {
+        val context = OpenAPIComponentContext.default(inline = true)
+        val routeSpec = object : RouteSpec {
+            override val id: String = "test.inline_schema_shape"
+            override val path: String = "/test/{id}/{customerId}"
+            override val method: String = Https.Method.POST
+            override val summary: String = "Inline schema shape"
+            override val parameters: List<Parameter> = listOf(
+                Parameter()
+                    .name("id")
+                    .`in`(ParameterIn.PATH.toString())
+                    .schema(Schema<Any>()),
+                Parameter()
+                    .name("customerId")
+                    .`in`(ParameterIn.PATH.toString())
+                    .schema(Schema<Any>().format("int32"))
+            )
+            override val requestBody: RequestBody = RequestBody().content(Content())
+            override val responses: ApiResponses = ApiResponses()
+                .addApiResponse(Https.Code.OK, ApiResponse().content(Content()))
+        }
+
+        val contract = RouteSpecContractAdapter(context).toContract(routeSpec)
+
+        contract.parameters.first { it.name == "id" }.schema.assert()
+            .isEqualTo(HttpSchema.Unspecified)
+        contract.parameters.first { it.name == "customerId" }.schema.assert()
+            .isEqualTo(HttpSchema.Formatted("int32"))
+        contract.requestBody!!.contentDeclared.assert().isTrue()
+        contract.requestBody.content.assert().isEmpty()
+        contract.responses.single().contentDeclared.assert().isTrue()
+        contract.responses.single().content.assert().isEmpty()
+    }
+
     private fun schemaRef(key: String): Schema<Any> {
         return Schema<Any>().also {
             it.`$ref` = "#/components/schemas/$key"

@@ -18,6 +18,10 @@ import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.oas.models.Paths
 import io.swagger.v3.oas.models.SpecVersion
 import io.swagger.v3.oas.models.info.Info
+import io.swagger.v3.oas.models.parameters.Parameter
+import io.swagger.v3.oas.models.parameters.RequestBody
+import io.swagger.v3.oas.models.responses.ApiResponses
+import io.swagger.v3.oas.models.tags.Tag
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.modeling.getContextAliasPrefix
@@ -29,6 +33,7 @@ import me.ahoo.wow.openapi.context.OpenAPIComponentContextCapable
 import me.ahoo.wow.openapi.global.GlobalRouteSpecFactoryProvider
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.openapi.migration.RouteSpecContractAdapter
+import me.ahoo.wow.openapi.render.OpenApiRenderer
 import me.ahoo.wow.schema.typed.AggregatedFields
 
 class RouterSpecs(
@@ -98,7 +103,7 @@ class RouterSpecs(
         this.info = info
     }
 
-    fun mergeOpenAPI(openAPI: OpenAPI) {
+    private fun prepareOpenAPI(openAPI: OpenAPI) {
         openAPI.apply {
             specVersion(SpecVersion.V31)
             ensureInfo()
@@ -109,16 +114,9 @@ class RouterSpecs(
                 components = Components()
             }
         }
-        val groupedPathRoutes = routes.groupBy {
-            it.path
-        }
-        for ((path, routeSpecs) in groupedPathRoutes) {
-            openAPI.paths.addPathItem(path, routeSpecs.toPathItem())
-        }
-        routes.flatMap { it.tags }.distinctBy { it.name }.forEach {
-            openAPI.addTagsItem(it)
-        }
-        componentContext.finish()
+    }
+
+    private fun mergeFinishedComponents(openAPI: OpenAPI) {
         componentContext.schemas.forEach { (name, schema) ->
             openAPI.components.addSchemas(name, schema)
         }
@@ -136,6 +134,50 @@ class RouterSpecs(
         }
     }
 
+    private fun finishAndMergeComponents(openAPI: OpenAPI) {
+        componentContext.finish()
+        mergeFinishedComponents(openAPI)
+    }
+
+    private fun initializeRouteComponents(): List<RouteSpec> {
+        return routes.map { route ->
+            InitializedRouteSpec(
+                id = route.id,
+                path = route.path,
+                method = route.method,
+                summary = route.summary,
+                description = route.description,
+                tags = route.tags,
+                accept = route.accept,
+                parameters = route.parameters,
+                requestBody = route.requestBody,
+                responses = route.responses
+            )
+        }
+    }
+
+    fun mergeOpenAPI(openAPI: OpenAPI) {
+        prepareOpenAPI(openAPI)
+        val groupedPathRoutes = routes.groupBy {
+            it.path
+        }
+        for ((path, routeSpecs) in groupedPathRoutes) {
+            openAPI.paths.addPathItem(path, routeSpecs.toPathItem())
+        }
+        routes.flatMap { it.tags }.distinctBy { it.name }.forEach {
+            openAPI.addTagsItem(it)
+        }
+        finishAndMergeComponents(openAPI)
+    }
+
+    fun mergeOpenAPIFromCatalog(openAPI: OpenAPI) {
+        prepareOpenAPI(openAPI)
+        val initializedRoutes = initializeRouteComponents()
+        componentContext.finish()
+        OpenApiRenderer().render(toRouteCatalog(initializedRoutes), openAPI)
+        mergeFinishedComponents(openAPI)
+    }
+
     fun build(): RouterSpecs {
         if (built) {
             return this
@@ -147,6 +189,23 @@ class RouterSpecs(
     }
 
     fun toRouteCatalog(): RouteCatalog {
-        return RouteSpecContractAdapter(componentContext).toRouteCatalog(routes)
+        return toRouteCatalog(routes)
+    }
+
+    private fun toRouteCatalog(routeSpecs: Iterable<RouteSpec>): RouteCatalog {
+        return RouteSpecContractAdapter(componentContext).toRouteCatalog(routeSpecs)
     }
 }
+
+private data class InitializedRouteSpec(
+    override val id: String,
+    override val path: String,
+    override val method: String,
+    override val summary: String,
+    override val description: String,
+    override val tags: List<Tag>,
+    override val accept: List<String>,
+    override val parameters: List<Parameter>,
+    override val requestBody: RequestBody?,
+    override val responses: ApiResponses
+) : RouteSpec

@@ -34,7 +34,7 @@ internal class OpenApiCompatibilitySnapshotTest {
     @Test
     fun `generated openapi should match example domain compatibility snapshot`() {
         val openAPI = OpenAPI()
-        RouterSpecs(currentContext).build().mergeOpenAPI(openAPI)
+        RouterSpecs(currentContext).build().mergeOpenAPIFromCatalog(openAPI)
 
         assertOpenApiSnapshot(
             openAPI = openAPI,

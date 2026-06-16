@@ -222,6 +222,46 @@ internal class OpenApiRendererTest {
     }
 
     @Test
+    fun `should render inline schema shape and declared empty content`() {
+        val openAPI = OpenAPI()
+
+        OpenApiRenderer().render(
+            RouteCatalog(
+                listOf(
+                    route(
+                        path = "/test/{id}/{customerId}",
+                        parameters = listOf(
+                            HttpParameter(
+                                name = "id",
+                                location = HttpParameterLocation.PATH,
+                                required = true,
+                                schema = HttpSchema.Unspecified
+                            ),
+                            HttpParameter(
+                                name = "customerId",
+                                location = HttpParameterLocation.PATH,
+                                required = true,
+                                schema = HttpSchema.Formatted("int32")
+                            )
+                        ),
+                        requestBody = HttpRequestBody(contentDeclared = true),
+                        responses = listOf(HttpResponse(statusCode = Https.Code.OK, contentDeclared = true))
+                    )
+                )
+            ),
+            openAPI
+        )
+
+        val operation = openAPI.paths["/test/{id}/{customerId}"]!!.get
+        val parameters = operation.parameters.associateBy { it.name }
+        parameters["id"]!!.schema.type.assert().isNull()
+        parameters["customerId"]!!.schema.type.assert().isNull()
+        parameters["customerId"]!!.schema.format.assert().isEqualTo("int32")
+        operation.requestBody.content.assert().isEmpty()
+        operation.responses[Https.Code.OK]!!.content.assert().isEmpty()
+    }
+
+    @Test
     fun `should not render empty response headers and content`() {
         val openAPI = OpenAPI()
 

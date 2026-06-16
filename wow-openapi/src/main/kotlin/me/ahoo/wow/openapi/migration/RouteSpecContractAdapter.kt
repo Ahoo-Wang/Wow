@@ -157,10 +157,12 @@ class RouteSpecContractAdapter(private val componentContext: OpenAPIComponentCon
     private fun RequestBody?.toHttpRequestBody(): HttpRequestBody? {
         val componentRef = componentKey(this?.`$ref`, COMPONENTS_REQUEST_BODIES_REF)
         val requestBody = resolveRequestBody() ?: return null
+        val content = requestBody.content.toHttpContent()
         return HttpRequestBody(
             required = requestBody.required == true,
             description = requestBody.description,
-            content = requestBody.content.toHttpContent(),
+            content = content,
+            contentDeclared = requestBody.content != null,
             componentRef = componentRef
         )
     }
@@ -169,11 +171,13 @@ class RouteSpecContractAdapter(private val componentContext: OpenAPIComponentCon
         return map { (statusCode, response) ->
             val componentRef = componentKey(response.`$ref`, COMPONENTS_RESPONSES_REF)
             val resolvedResponse = response.resolveResponse()
+            val content = resolvedResponse?.content.toHttpContent()
             HttpResponse(
                 statusCode = statusCode,
                 description = resolvedResponse?.description,
                 headers = resolvedResponse?.headers.toHttpHeaders(),
-                content = resolvedResponse?.content.toHttpContent(),
+                content = content,
+                contentDeclared = resolvedResponse?.content != null,
                 componentRef = componentRef
             )
         }
@@ -212,13 +216,16 @@ class RouteSpecContractAdapter(private val componentContext: OpenAPIComponentCon
 
     private fun Schema<*>?.toHttpSchema(): HttpSchema {
         if (this == null) {
-            return HttpSchema.Object
+            return HttpSchema.Unspecified
         }
         componentKey(`$ref`, COMPONENTS_SCHEMAS_REF)?.let {
             return HttpSchema.ComponentRef(it)
         }
         if (this is ArraySchema) {
             return HttpSchema.Array(items.toHttpSchema())
+        }
+        format?.takeIf { type.isNullOrBlank() }?.let {
+            return HttpSchema.Formatted(it)
         }
         return when (type) {
             "string" -> HttpSchema.String
@@ -230,7 +237,8 @@ class RouteSpecContractAdapter(private val componentContext: OpenAPIComponentCon
                     HttpSchema.Integer
                 }
             }
-            else -> HttpSchema.Object
+            "object" -> HttpSchema.Object
+            else -> HttpSchema.Unspecified
         }
     }
 

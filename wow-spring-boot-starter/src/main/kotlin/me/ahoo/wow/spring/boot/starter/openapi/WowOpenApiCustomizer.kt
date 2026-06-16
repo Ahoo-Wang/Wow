@@ -19,6 +19,6 @@ import org.springdoc.core.customizers.OpenApiCustomizer
 
 class WowOpenApiCustomizer(private var routerSpecs: RouterSpecs) : OpenApiCustomizer {
     override fun customise(openApi: OpenAPI) {
-        routerSpecs.mergeOpenAPI(openApi)
+        routerSpecs.mergeOpenAPIFromCatalog(openApi)
     }
 }
