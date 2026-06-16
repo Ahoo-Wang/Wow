@@ -45,7 +45,8 @@ data class HttpParameter(
     val required: Boolean = false,
     val schema: HttpSchema = HttpSchema.String,
     val description: String? = null,
-    val example: Any? = null
+    val example: Any? = null,
+    val componentRef: kotlin.String? = null
 )
 
 enum class HttpParameterLocation {
@@ -57,20 +58,23 @@ enum class HttpParameterLocation {
 data class HttpRequestBody(
     val required: Boolean = false,
     val description: String? = null,
-    val content: List<HttpContent> = emptyList()
+    val content: List<HttpContent> = emptyList(),
+    val componentRef: kotlin.String? = null
 )
 
 data class HttpResponse(
     val statusCode: String,
     val description: String? = null,
     val headers: List<HttpHeader> = emptyList(),
-    val content: List<HttpContent> = emptyList()
+    val content: List<HttpContent> = emptyList(),
+    val componentRef: kotlin.String? = null
 )
 
 data class HttpHeader(
     val name: String,
     val schema: HttpSchema = HttpSchema.String,
-    val description: String? = null
+    val description: String? = null,
+    val componentRef: kotlin.String? = null
 )
 
 data class HttpContent(

@@ -172,6 +172,70 @@ internal class OpenApiRendererTest {
     }
 
     @Test
+    fun `should preserve operation component references`() {
+        val openAPI = OpenAPI()
+
+        OpenApiRenderer().render(
+            RouteCatalog(
+                listOf(
+                    route(
+                        path = "/test/{id}",
+                        parameters = listOf(
+                            HttpParameter(
+                                name = "id",
+                                location = HttpParameterLocation.PATH,
+                                required = true,
+                                componentRef = "PathParameter"
+                            )
+                        ),
+                        requestBody = HttpRequestBody(componentRef = "TestRequestBody"),
+                        responses = listOf(
+                            HttpResponse(
+                                statusCode = Https.Code.OK,
+                                componentRef = "TestResponse"
+                            ),
+                            HttpResponse(
+                                statusCode = Https.Code.BAD_REQUEST,
+                                headers = listOf(
+                                    HttpHeader(
+                                        name = "X-Error",
+                                        componentRef = "ErrorHeader"
+                                    )
+                                )
+                            )
+                        )
+                    )
+                )
+            ),
+            openAPI
+        )
+
+        val operation = openAPI.paths["/test/{id}"]!!.get
+        operation.parameters.single().`$ref`.assert()
+            .isEqualTo("#/components/parameters/PathParameter")
+        operation.requestBody.`$ref`.assert()
+            .isEqualTo("#/components/requestBodies/TestRequestBody")
+        operation.responses[Https.Code.OK]!!.`$ref`.assert()
+            .isEqualTo("#/components/responses/TestResponse")
+        operation.responses[Https.Code.BAD_REQUEST]!!.headers["X-Error"]!!.`$ref`.assert()
+            .isEqualTo("#/components/headers/ErrorHeader")
+    }
+
+    @Test
+    fun `should not render empty response headers and content`() {
+        val openAPI = OpenAPI()
+
+        OpenApiRenderer().render(
+            RouteCatalog(listOf(route())),
+            openAPI
+        )
+
+        val response = openAPI.paths["/test"]!!.get.responses[Https.Code.OK]!!
+        response.headers.assert().isNull()
+        response.content.assert().isNull()
+    }
+
+    @Test
     fun `should render supported http methods`() {
         val openAPI = OpenAPI()
         val methods = listOf(

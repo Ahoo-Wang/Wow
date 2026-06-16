@@ -174,7 +174,7 @@ internal class RouteSpecContractAdapterTest {
                 )
         }
 
-        val contract = RouteSpecContractAdapter(context).toContract(routeSpec)
+        val contract = RouteSpecContractAdapter(context).toRouteCatalog(listOf(routeSpec)).routes.single()
 
         contract.parameters.first { it.name == "id" }.schema.assert()
             .isEqualTo(HttpSchema.ComponentRef("PathParameterSchema"))
@@ -189,6 +189,51 @@ internal class RouteSpecContractAdapterTest {
             .isEqualTo(HttpSchema.ComponentRef("ResponseContentSchema"))
         response.content.first { it.mediaType == Https.MediaType.TEXT_EVENT_STREAM }.schema.assert()
             .isEqualTo(HttpSchema.Array(HttpSchema.ComponentRef("ArrayItemSchema")))
+    }
+
+    @Test
+    fun `should preserve operation component references`() {
+        val context = OpenAPIComponentContext.default(inline = false)
+        val routeSpec = object : RouteSpec {
+            override val id: String = "test.operation_refs"
+            override val path: String = "/test/{id}"
+            override val method: String = Https.Method.POST
+            override val summary: String = "Operation refs"
+            override val parameters: List<Parameter> = listOf(
+                context.parameter("PathParameter") {
+                    name("id")
+                    `in`(ParameterIn.PATH.toString())
+                    schema(StringSchema())
+                }
+            )
+            override val requestBody: RequestBody = context.requestBody("TestRequestBody") {
+                content(Https.MediaType.APPLICATION_JSON, StringSchema())
+            }
+            override val responses: ApiResponses = ApiResponses()
+                .addApiResponse(
+                    Https.Code.OK,
+                    context.response("TestResponse") {
+                        header(
+                            "X-Result",
+                            context.header("ResultHeader") {
+                                schema(StringSchema())
+                            }
+                        )
+                        content(Https.MediaType.APPLICATION_JSON, StringSchema())
+                    }
+                )
+        }
+
+        val contract = RouteSpecContractAdapter(context).toContract(routeSpec)
+
+        val parameter = contract.parameters.single()
+        parameter.componentRef.assert().isEqualTo("PathParameter")
+        parameter.name.assert().isEqualTo("id")
+        parameter.location.assert().isEqualTo(HttpParameterLocation.PATH)
+        contract.requestBody!!.componentRef.assert().isEqualTo("TestRequestBody")
+        val response = contract.responses.single()
+        response.componentRef.assert().isEqualTo("TestResponse")
+        response.headers.single().componentRef.assert().isEqualTo("ResultHeader")
     }
 
     private fun schemaRef(key: String): Schema<Any> {

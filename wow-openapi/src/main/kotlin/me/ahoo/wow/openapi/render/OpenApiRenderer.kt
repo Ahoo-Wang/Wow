@@ -76,6 +76,11 @@ class OpenApiRenderer {
     }
 
     private fun HttpParameter.toParameter(): Parameter {
+        componentRef?.let { componentRef ->
+            return Parameter().also {
+                it.`$ref` = COMPONENTS_PARAMETERS_REF + componentRef
+            }
+        }
         return Parameter()
             .name(name)
             .`in`(location.toParameterIn())
@@ -94,10 +99,19 @@ class OpenApiRenderer {
     }
 
     private fun HttpRequestBody.toRequestBody(): RequestBody {
+        componentRef?.let { componentRef ->
+            return RequestBody().also {
+                it.`$ref` = COMPONENTS_REQUEST_BODIES_REF + componentRef
+            }
+        }
         return RequestBody()
             .required(required)
             .description(description)
-            .content(content.toContent())
+            .also {
+                if (content.isNotEmpty()) {
+                    it.content(content.toContent())
+                }
+            }
     }
 
     private fun List<HttpResponse>.toApiResponses(): ApiResponses {
@@ -109,18 +123,38 @@ class OpenApiRenderer {
     }
 
     private fun HttpResponse.toApiResponse(): ApiResponse {
+        componentRef?.let { componentRef ->
+            return ApiResponse().also {
+                it.`$ref` = COMPONENTS_RESPONSES_REF + componentRef
+            }
+        }
         return ApiResponse()
             .description(description)
-            .headers(headers.toHeaders())
-            .content(content.toContent())
+            .also {
+                if (headers.isNotEmpty()) {
+                    it.headers(headers.toHeaders())
+                }
+                if (content.isNotEmpty()) {
+                    it.content(content.toContent())
+                }
+            }
     }
 
     private fun List<HttpHeader>.toHeaders(): Map<String, Header> {
         return associate { header ->
-            header.name to Header()
-                .description(header.description)
-                .schema(header.schema.toSchema())
+            header.name to header.toHeader()
         }
+    }
+
+    private fun HttpHeader.toHeader(): Header {
+        componentRef?.let { componentRef ->
+            return Header().also {
+                it.`$ref` = COMPONENTS_HEADERS_REF + componentRef
+            }
+        }
+        return Header()
+            .description(description)
+            .schema(schema.toSchema())
     }
 
     private fun List<HttpContent>.toContent(): Content {
@@ -165,5 +199,9 @@ class OpenApiRenderer {
 
     companion object {
         private const val COMPONENTS_SCHEMAS_REF = "#/components/schemas/"
+        private const val COMPONENTS_PARAMETERS_REF = "#/components/parameters/"
+        private const val COMPONENTS_REQUEST_BODIES_REF = "#/components/requestBodies/"
+        private const val COMPONENTS_RESPONSES_REF = "#/components/responses/"
+        private const val COMPONENTS_HEADERS_REF = "#/components/headers/"
     }
 }

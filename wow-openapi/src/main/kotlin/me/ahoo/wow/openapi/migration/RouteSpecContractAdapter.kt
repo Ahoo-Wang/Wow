@@ -69,7 +69,8 @@ class RouteSpecContractAdapter(private val componentContext: OpenAPIComponentCon
 
     private fun RouteSpec.toHttpParameters(): List<HttpParameter> {
         val parameters = parameters.mapNotNull { parameter ->
-            parameter.resolveParameter().toHttpParameter()
+            val componentRef = parameter.componentKey(COMPONENTS_PARAMETERS_REF)
+            parameter.resolveParameter().toHttpParameter(componentRef)
         }.distinctBy {
             it.location to it.name
         }.toMutableList()
@@ -136,7 +137,7 @@ class RouteSpecContractAdapter(private val componentContext: OpenAPIComponentCon
             ?: this
     }
 
-    private fun Parameter?.toHttpParameter(): HttpParameter? {
+    private fun Parameter?.toHttpParameter(componentRef: String? = null): HttpParameter? {
         if (this == null) {
             return null
         }
@@ -148,38 +149,45 @@ class RouteSpecContractAdapter(private val componentContext: OpenAPIComponentCon
             required = required == true || location == HttpParameterLocation.PATH,
             schema = schema.toHttpSchema(),
             description = description,
-            example = example ?: schema?.example
+            example = example ?: schema?.example,
+            componentRef = componentRef
         )
     }
 
     private fun RequestBody?.toHttpRequestBody(): HttpRequestBody? {
+        val componentRef = componentKey(this?.`$ref`, COMPONENTS_REQUEST_BODIES_REF)
         val requestBody = resolveRequestBody() ?: return null
         return HttpRequestBody(
             required = requestBody.required == true,
             description = requestBody.description,
-            content = requestBody.content.toHttpContent()
+            content = requestBody.content.toHttpContent(),
+            componentRef = componentRef
         )
     }
 
     private fun Map<String, ApiResponse>.toHttpResponses(): List<HttpResponse> {
         return map { (statusCode, response) ->
+            val componentRef = componentKey(response.`$ref`, COMPONENTS_RESPONSES_REF)
             val resolvedResponse = response.resolveResponse()
             HttpResponse(
                 statusCode = statusCode,
                 description = resolvedResponse?.description,
                 headers = resolvedResponse?.headers.toHttpHeaders(),
-                content = resolvedResponse?.content.toHttpContent()
+                content = resolvedResponse?.content.toHttpContent(),
+                componentRef = componentRef
             )
         }
     }
 
     private fun Map<String, Header>?.toHttpHeaders(): List<HttpHeader> {
         return this?.map { (name, header) ->
+            val componentRef = componentKey(header.`$ref`, COMPONENTS_HEADERS_REF)
             val resolvedHeader = header.resolveHeader()
             HttpHeader(
                 name = name,
                 schema = resolvedHeader?.schema.toHttpSchema(),
-                description = resolvedHeader?.description
+                description = resolvedHeader?.description,
+                componentRef = componentRef
             )
         } ?: emptyList()
     }
@@ -230,6 +238,10 @@ class RouteSpecContractAdapter(private val componentContext: OpenAPIComponentCon
         return ref?.takeIf { it.startsWith(prefix) }
             ?.removePrefix(prefix)
             ?.takeIf { it.isNotBlank() }
+    }
+
+    private fun Parameter.componentKey(prefix: String): String? {
+        return componentKey(`$ref`, prefix)
     }
 
     companion object {
