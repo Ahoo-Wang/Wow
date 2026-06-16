@@ -69,6 +69,7 @@ class RouterFunctionBuilderTest {
         val routerSpecs = RouterSpecs(
             MOCK_AGGREGATE_METADATA,
             routes = mutableListOf(loadAggregateSpec),
+            routeContributors = emptyList()
         )
         val contract = routerSpecs.toRouteCatalog().routes.single()
         val expectedHandlerKey = LoadAggregateRouteSpec::class.java.name
@@ -91,6 +92,7 @@ class RouterFunctionBuilderTest {
         val routerSpecs = RouterSpecs(
             MOCK_AGGREGATE_METADATA,
             routes = mutableListOf(loadAggregateSpec),
+            routeContributors = emptyList()
         )
         val builder = RouterFunctionBuilder(routerSpecs, RouteHandlerFunctionRegistrar())
         val contract = routerSpecs.toRouteCatalog().routes.single()

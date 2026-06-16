@@ -194,7 +194,9 @@ class RouterSpecs(
         }
         built = true
         if (legacyRouteSpecAdapterEnabled()) {
-            buildGlobalRouteSpec()
+            if (explicitGlobalContributors().isEmpty()) {
+                buildGlobalRouteSpec()
+            }
             buildAggregateRouteSpec()
         }
         return this
@@ -241,6 +243,12 @@ class RouterSpecs(
 
     private fun legacyRouteSpecAdapterEnabled(): Boolean {
         return orderedRouteContributors.any { it.id == LegacyRouteContributor.id }
+    }
+
+    private fun explicitGlobalContributors(): List<RouteContributor> {
+        return orderedRouteContributors.filter { contributor ->
+            contributor.category == RouteCategory.GLOBAL && contributor.id != LegacyRouteContributor.id
+        }
     }
 }
 

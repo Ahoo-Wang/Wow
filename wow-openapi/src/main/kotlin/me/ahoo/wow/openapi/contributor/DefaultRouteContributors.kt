@@ -14,10 +14,20 @@
 package me.ahoo.wow.openapi.contributor
 
 import me.ahoo.wow.openapi.catalog.RouteContributor
+import me.ahoo.wow.openapi.contributor.global.CommandFacadeRouteContributor
+import me.ahoo.wow.openapi.contributor.global.CommandWaitRouteContributor
+import me.ahoo.wow.openapi.contributor.global.GenerateBIScriptRouteContributor
+import me.ahoo.wow.openapi.contributor.global.GenerateGlobalIdRouteContributor
+import me.ahoo.wow.openapi.contributor.global.GetWowMetadataRouteContributor
 
 object DefaultRouteContributors {
     fun all(): List<RouteContributor> {
         return listOf(
+            CommandWaitRouteContributor,
+            CommandFacadeRouteContributor,
+            GetWowMetadataRouteContributor,
+            GenerateGlobalIdRouteContributor,
+            GenerateBIScriptRouteContributor,
             LegacyRouteContributor
         )
     }

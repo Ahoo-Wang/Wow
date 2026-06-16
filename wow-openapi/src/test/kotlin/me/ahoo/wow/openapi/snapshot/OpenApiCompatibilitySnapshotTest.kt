@@ -19,6 +19,7 @@ import io.swagger.v3.oas.models.parameters.Parameter
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.naming.MaterializedNamedBoundedContext
 import me.ahoo.wow.openapi.RouterSpecs
+import me.ahoo.wow.openapi.contract.HttpParameter
 import me.ahoo.wow.openapi.snapshot.OpenApiSnapshotSupport.assertContractSnapshot
 import me.ahoo.wow.openapi.snapshot.OpenApiSnapshotSupport.assertOpenApiSnapshot
 import me.ahoo.wow.openapi.snapshot.OpenApiSnapshotSupport.resourcePath
@@ -45,15 +46,15 @@ internal class OpenApiCompatibilitySnapshotTest {
     @Test
     fun `generated route contracts should match example domain compatibility snapshot`() {
         val routerSpecs = RouterSpecs(currentContext).build()
-        val routeShape = routerSpecs.map { route ->
+        val routeShape = routerSpecs.toRouteCatalog().routes.map { route ->
             mapOf(
-                "id" to route.id,
+                "id" to route.routeId,
                 "path" to route.path,
                 "method" to route.method,
                 "accept" to route.accept,
                 "parameterNames" to route.parameters.map(::parameterIdentity),
                 "requestBody" to (route.requestBody != null),
-                "responseCodes" to route.responses.keys.sorted(),
+                "responseCodes" to route.responses.map { it.statusCode }.sorted(),
                 "tagNames" to route.tags.map { it.name }.sorted()
             )
         }.sortedWith(
@@ -105,5 +106,12 @@ internal class OpenApiCompatibilitySnapshotTest {
         val name = parameter.name?.takeIf { it.isNotBlank() } ?: "<unknown-name>"
         val required = parameter.required?.toString() ?: "<unknown-required>"
         return "$location:$name:$required"
+    }
+
+    private fun parameterIdentity(parameter: HttpParameter): String {
+        parameter.componentRef?.takeIf { it.isNotBlank() }?.let {
+            return "ref:#/components/parameters/$it"
+        }
+        return "${parameter.location.name.lowercase()}:${parameter.name}:${parameter.required}"
     }
 }

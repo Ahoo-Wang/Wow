@@ -30,13 +30,17 @@ import me.ahoo.wow.naming.MaterializedNamedBoundedContext
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.RouterSpecs
+import me.ahoo.wow.openapi.aggregate.command.CommandFacadeRouteSpec
 import me.ahoo.wow.openapi.aggregate.command.CommandRouteSpec
 import me.ahoo.wow.openapi.aggregate.state.LoadAggregateRouteSpec
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.contract.HttpParameterLocation
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.openapi.contract.HttpSchema
+import me.ahoo.wow.openapi.global.CommandWaitRouteSpec
+import me.ahoo.wow.openapi.global.GenerateBIScriptRouteSpec
 import me.ahoo.wow.openapi.global.GenerateGlobalIdRouteSpec
+import me.ahoo.wow.openapi.global.GetWowMetadataRouteSpec
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.openapi.metadata.commandRouteMetadata
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -51,7 +55,18 @@ internal class RouteSpecContractAdapterTest {
 
         val catalog = routerSpecs.toRouteCatalog()
 
-        catalog.routes.assert().hasSize(routerSpecs.count())
+        val explicitGlobalHandlerKeys = mapOf(
+            "wow.command.wait" to CommandWaitRouteSpec::class.java.name,
+            "wow.command.send" to CommandFacadeRouteSpec::class.java.name,
+            "wow.metadata.get" to GetWowMetadataRouteSpec::class.java.name,
+            "wow.global_id.generate" to GenerateGlobalIdRouteSpec::class.java.name,
+            "wow.bi_script.generate" to GenerateBIScriptRouteSpec::class.java.name
+        )
+        catalog.routes.assert().hasSize(routerSpecs.count() + explicitGlobalHandlerKeys.size)
+        val handlerKeysByRouteId = catalog.routes.associate { it.routeId to it.handlerKey }
+        explicitGlobalHandlerKeys.forEach { (routeId, handlerKey) ->
+            handlerKeysByRouteId[routeId].assert().isEqualTo(handlerKey)
+        }
         catalog.routes.all { it.handlerKey.isNotBlank() }.assert().isTrue()
     }
 
