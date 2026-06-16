@@ -133,6 +133,27 @@ Infrastructure E2E benchmarks require local services:
 | Redis | `localhost:6379` |
 | MongoDB | `localhost:27017` |
 
+For Redis, use the benchmark Docker profile:
+
+```bash
+docker compose -f wow-benchmarks/docker/compose.redis.yml up -d
+```
+
+The Redis profile pins `redis:7.4.9-alpine`, uses tmpfs-backed data, disables
+RDB/AOF persistence, and sets `io-threads=2` with threaded reads. This keeps
+local Docker CPU contention lower during the `threads=1,4` infrastructure runs.
+
+For MongoDB, use the benchmark Docker profile:
+
+```bash
+docker compose -f wow-benchmarks/docker/compose.mongo.yml up -d
+```
+
+The MongoDB profile pins `mongo:8.3.4`, uses tmpfs-backed data, keeps the
+WiredTiger cache at 2 GiB, disables diagnostic and TTL background work, and
+disables WiredTiger collection and journal compression to reduce local CPU
+overhead in write-heavy infrastructure benchmarks.
+
 If these services are not running, use Framework E2E and Component benchmarks instead.
 
 ## Baseline Utilities

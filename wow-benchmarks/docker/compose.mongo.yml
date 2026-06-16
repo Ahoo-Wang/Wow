@@ -1,0 +1,39 @@
+name: wow-benchmarks-mongo
+
+services:
+  mongo:
+    image: mongo:8.3.4
+    container_name: wow-benchmark-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: root
+    tmpfs:
+      - /data/db:rw,noexec,nosuid,size=4096m
+      - /data/configdb:rw,noexec,nosuid,size=512m
+    command:
+      - mongod
+      - --auth
+      - --bind_ip_all
+      - --wiredTigerCacheSizeGB
+      - "2"
+      - --wiredTigerCollectionBlockCompressor
+      - none
+      - --wiredTigerJournalCompressor
+      - none
+      - --setParameter
+      - diagnosticDataCollectionEnabled=false
+      - --setParameter
+      - ttlMonitorEnabled=false
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >
+          mongosh --quiet -u root -p root --authenticationDatabase admin
+          --eval 'db.adminCommand({ ping: 1 }).ok' | grep -q 1
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s

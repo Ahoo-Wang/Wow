@@ -1,0 +1,27 @@
+name: wow-benchmarks-redis
+
+services:
+  redis:
+    image: redis:7.4.9-alpine
+    container_name: wow-benchmark-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./redis.conf:/usr/local/etc/redis/redis.conf:ro
+    tmpfs:
+      - /data:rw,noexec,nosuid,size=1024m
+    sysctls:
+      net.core.somaxconn: "1024"
+    command:
+      - redis-server
+      - /usr/local/etc/redis/redis.conf
+    healthcheck:
+      test:
+        - CMD
+        - redis-cli
+        - ping
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
