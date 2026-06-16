@@ -154,7 +154,6 @@ internal class RouterSpecsTest {
         val catalog = routerSpecs.toRouteCatalog()
 
         catalog.routes.map { it.routeId }.assert().isEqualTo(listOf("test-global"))
-        routerSpecs.iterator().hasNext().assert().isFalse()
     }
 
     @Test

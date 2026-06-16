@@ -18,37 +18,10 @@ import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.oas.models.Paths
 import io.swagger.v3.oas.models.SpecVersion
 import io.swagger.v3.oas.models.info.Info
-import io.swagger.v3.oas.models.parameters.Parameter
-import io.swagger.v3.oas.models.parameters.RequestBody
-import io.swagger.v3.oas.models.responses.ApiResponses
-import io.swagger.v3.oas.models.tags.Tag
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.modeling.getContextAliasPrefix
 import me.ahoo.wow.openapi.OpenAPIExtensions.withExtensions
-import me.ahoo.wow.openapi.aggregate.AggregateRouteSpecFactory
-import me.ahoo.wow.openapi.aggregate.AggregateRouteSpecFactoryProvider
-import me.ahoo.wow.openapi.aggregate.command.CommandRouteSpecFactory
-import me.ahoo.wow.openapi.aggregate.event.CountEventStreamRouteSpecFactory
-import me.ahoo.wow.openapi.aggregate.event.EventCompensateRouteSpecFactory
-import me.ahoo.wow.openapi.aggregate.event.ListQueryEventStreamRouteSpecFactory
-import me.ahoo.wow.openapi.aggregate.event.LoadEventStreamRouteSpecFactory
-import me.ahoo.wow.openapi.aggregate.event.PagedQueryEventStreamRouteSpecFactory
-import me.ahoo.wow.openapi.aggregate.event.state.ResendStateEventRouteSpecFactory
-import me.ahoo.wow.openapi.aggregate.snapshot.BatchRegenerateSnapshotRouteSpecFactory
-import me.ahoo.wow.openapi.aggregate.snapshot.CountSnapshotRouteSpecFactory
-import me.ahoo.wow.openapi.aggregate.snapshot.ListQuerySnapshotRouteSpecFactory
-import me.ahoo.wow.openapi.aggregate.snapshot.ListQuerySnapshotStateRouteSpecFactory
-import me.ahoo.wow.openapi.aggregate.snapshot.LoadSnapshotRouteSpecFactory
-import me.ahoo.wow.openapi.aggregate.snapshot.PagedQuerySnapshotRouteSpecFactory
-import me.ahoo.wow.openapi.aggregate.snapshot.PagedQuerySnapshotStateRouteSpecFactory
-import me.ahoo.wow.openapi.aggregate.snapshot.RegenerateSnapshotRouteSpecFactory
-import me.ahoo.wow.openapi.aggregate.snapshot.SingleSnapshotRouteSpecFactory
-import me.ahoo.wow.openapi.aggregate.snapshot.SingleSnapshotStateRouteSpecFactory
-import me.ahoo.wow.openapi.aggregate.state.AggregateTracingRouteSpecFactory
-import me.ahoo.wow.openapi.aggregate.state.LoadAggregateRouteSpecFactory
-import me.ahoo.wow.openapi.aggregate.state.LoadTimeBasedAggregateRouteSpecFactory
-import me.ahoo.wow.openapi.aggregate.state.LoadVersionedAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.catalog.RouteCatalog
 import me.ahoo.wow.openapi.catalog.RouteCatalogBuilder
 import me.ahoo.wow.openapi.catalog.RouteCategory
@@ -58,20 +31,16 @@ import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.context.OpenAPIComponentContextCapable
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contributor.DefaultRouteContributors
-import me.ahoo.wow.openapi.contributor.LegacyRouteContributor
-import me.ahoo.wow.openapi.global.GlobalRouteSpecFactoryProvider
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
-import me.ahoo.wow.openapi.migration.RouteSpecContractAdapter
 import me.ahoo.wow.openapi.render.OpenApiRenderer
 import me.ahoo.wow.schema.typed.AggregatedFields
 
 class RouterSpecs(
     private val currentContext: NamedBoundedContext,
-    private val routes: MutableList<RouteSpec> = mutableListOf(),
     override val componentContext: OpenAPIComponentContext =
         OpenAPIComponentContext.default(false, defaultSchemaNamePrefix = currentContext.getContextAliasPrefix()),
     val routeContributors: List<RouteContributor> = DefaultRouteContributors.all()
-) : OpenAPIComponentContextCapable, Iterable<RouteSpec> by routes {
+) : OpenAPIComponentContextCapable {
     companion object {
         const val DEFAULT_OPENAPI_INFO_TITLE = "OpenAPI definition"
     }
@@ -79,33 +48,6 @@ class RouterSpecs(
     @Volatile
     private var built: Boolean = false
     private val orderedRouteContributors: List<RouteContributor> = RouteContributors.sort(routeContributors)
-
-    private fun buildGlobalRouteSpec() {
-        GlobalRouteSpecFactoryProvider(componentContext).get().forEach {
-            it.create(currentContext).forEach { routeSpec ->
-                routes.add(routeSpec)
-            }
-        }
-    }
-
-    @Suppress("TooGenericExceptionCaught")
-    private fun buildAggregateRouteSpec() {
-        val aggregateRouteSpecFactories = AggregateRouteSpecFactoryProvider(componentContext).get()
-            .filterNot(::isMigratedLegacyAggregateFactory)
-        MetadataSearcher.namedAggregateType.forEach { aggregateEntry ->
-            val aggregateType = aggregateEntry.value
-            val aggregateRouteMetadata = aggregateType.aggregateRouteMetadata()
-            if (aggregateRouteMetadata.enabled.not()) {
-                return@forEach
-            }
-            componentContext.schema(AggregatedFields::class.java, aggregateType)
-            aggregateRouteSpecFactories.forEach { aggregateRouteSpecFactory ->
-                aggregateRouteSpecFactory.create(currentContext, aggregateRouteMetadata).forEach { routeSpec ->
-                    routes.add(routeSpec)
-                }
-            }
-        }
-    }
 
     private fun serviceVersion(): String? {
         val firstLocalAggregateType = MetadataSearcher.namedAggregateType.filter {
@@ -166,48 +108,15 @@ class RouterSpecs(
         }
     }
 
-    private fun finishAndMergeComponents(openAPI: OpenAPI) {
-        componentContext.finish()
-        mergeFinishedComponents(openAPI)
-    }
-
-    private fun initializeRouteComponents(): List<RouteSpec> {
-        return routes.map { route ->
-            InitializedRouteSpec(
-                id = route.id,
-                path = route.path,
-                method = route.method,
-                summary = route.summary,
-                description = route.description,
-                tags = route.tags,
-                accept = route.accept,
-                parameters = route.parameters,
-                requestBody = route.requestBody,
-                responses = route.responses
-            )
-        }
-    }
-
     fun mergeOpenAPI(openAPI: OpenAPI) {
-        prepareOpenAPI(openAPI)
-        val groupedPathRoutes = routes.groupBy {
-            it.path
-        }
-        for ((path, routeSpecs) in groupedPathRoutes) {
-            openAPI.paths.addPathItem(path, routeSpecs.toPathItem())
-        }
-        routes.flatMap { it.tags }.distinctBy { it.name }.forEach {
-            openAPI.addTagsItem(it)
-        }
-        finishAndMergeComponents(openAPI)
+        mergeOpenAPIFromCatalog(openAPI)
     }
 
     fun mergeOpenAPIFromCatalog(openAPI: OpenAPI) {
         prepareOpenAPI(openAPI)
-        val initializedRoutes = initializeRouteComponents()
         val contributedRoutes = collectContributedRoutes()
         componentContext.finish()
-        OpenApiRenderer(componentContext).render(toRouteCatalog(initializedRoutes, contributedRoutes), openAPI)
+        OpenApiRenderer(componentContext).render(toRouteCatalog(contributedRoutes), openAPI)
         componentContext.finish()
         mergeFinishedComponents(openAPI)
     }
@@ -217,27 +126,15 @@ class RouterSpecs(
             return this
         }
         built = true
-        if (legacyRouteSpecAdapterEnabled()) {
-            if (explicitContributors(RouteCategory.GLOBAL).isEmpty()) {
-                buildGlobalRouteSpec()
-            }
-            buildAggregateRouteSpec()
-        }
         return this
     }
 
     fun toRouteCatalog(): RouteCatalog {
-        return toRouteCatalog(routes, collectContributedRoutes())
+        return toRouteCatalog(collectContributedRoutes())
     }
 
-    private fun toRouteCatalog(
-        routeSpecs: Iterable<RouteSpec>,
-        contributedRoutes: Iterable<HttpRouteContract>
-    ): RouteCatalog {
-        val builder = RouteCatalogBuilder()
-            .addAll(contributedRoutes)
-            .addAll(RouteSpecContractAdapter(componentContext).toRouteCatalog(routeSpecs).routes)
-        return builder.build()
+    private fun toRouteCatalog(contributedRoutes: Iterable<HttpRouteContract>): RouteCatalog {
+        return RouteCatalogBuilder().addAll(contributedRoutes).build()
     }
 
     private fun collectContributedRoutes(): List<HttpRouteContract> {
@@ -264,54 +161,4 @@ class RouterSpecs(
         }
         return builder.build().routes
     }
-
-    private fun legacyRouteSpecAdapterEnabled(): Boolean {
-        return orderedRouteContributors.any { it.id == LegacyRouteContributor.id }
-    }
-
-    private fun isMigratedLegacyAggregateFactory(factory: AggregateRouteSpecFactory): Boolean {
-        return when (factory) {
-            is CommandRouteSpecFactory -> explicitContributors(RouteCategory.COMMAND).isNotEmpty()
-            is AggregateTracingRouteSpecFactory,
-            is LoadAggregateRouteSpecFactory,
-            is LoadVersionedAggregateRouteSpecFactory,
-            is LoadTimeBasedAggregateRouteSpecFactory -> explicitContributors(RouteCategory.STATE).isNotEmpty()
-            is CountSnapshotRouteSpecFactory,
-            is ListQuerySnapshotRouteSpecFactory,
-            is PagedQuerySnapshotRouteSpecFactory,
-            is SingleSnapshotRouteSpecFactory,
-            is ListQuerySnapshotStateRouteSpecFactory,
-            is PagedQuerySnapshotStateRouteSpecFactory,
-            is SingleSnapshotStateRouteSpecFactory,
-            is LoadSnapshotRouteSpecFactory,
-            is RegenerateSnapshotRouteSpecFactory,
-            is BatchRegenerateSnapshotRouteSpecFactory -> explicitContributors(RouteCategory.SNAPSHOT).isNotEmpty()
-            is CountEventStreamRouteSpecFactory,
-            is ListQueryEventStreamRouteSpecFactory,
-            is PagedQueryEventStreamRouteSpecFactory,
-            is LoadEventStreamRouteSpecFactory,
-            is EventCompensateRouteSpecFactory,
-            is ResendStateEventRouteSpecFactory -> explicitContributors(RouteCategory.EVENT).isNotEmpty()
-            else -> false
-        }
-    }
-
-    private fun explicitContributors(category: RouteCategory): List<RouteContributor> {
-        return orderedRouteContributors.filter { contributor ->
-            contributor.category == category && contributor.id != LegacyRouteContributor.id
-        }
-    }
 }
-
-private data class InitializedRouteSpec(
-    override val id: String,
-    override val path: String,
-    override val method: String,
-    override val summary: String,
-    override val description: String,
-    override val tags: List<Tag>,
-    override val accept: List<String>,
-    override val parameters: List<Parameter>,
-    override val requestBody: RequestBody?,
-    override val responses: ApiResponses
-) : RouteSpec

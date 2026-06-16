@@ -35,8 +35,7 @@ object DefaultRouteContributors {
             CommandRouteContributor,
             StateRouteContributor,
             SnapshotRouteContributor,
-            EventRouteContributor,
-            LegacyRouteContributor
+            EventRouteContributor
         )
     }
 }

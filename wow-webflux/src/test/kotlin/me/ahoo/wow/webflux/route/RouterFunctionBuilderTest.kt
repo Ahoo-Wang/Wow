@@ -15,9 +15,13 @@ package me.ahoo.wow.webflux.route
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.api.naming.NamedBoundedContext
+import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.RouterSpecs
 import me.ahoo.wow.openapi.aggregate.state.LoadAggregateRouteSpec
+import me.ahoo.wow.openapi.catalog.RouteCategory
+import me.ahoo.wow.openapi.catalog.RouteContributor
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
@@ -65,13 +69,8 @@ class RouterFunctionBuilderTest {
 
     @Test
     fun `should build router function with manually provided specs`() {
-        val loadAggregateSpec = loadAggregateSpec()
-        val routerSpecs = RouterSpecs(
-            MOCK_AGGREGATE_METADATA,
-            routes = mutableListOf(loadAggregateSpec),
-            routeContributors = emptyList()
-        )
-        val contract = routerSpecs.toRouteCatalog().routes.single()
+        val contract = loadAggregateContract()
+        val routerSpecs = routerSpecsWith(contract)
         val expectedHandlerKey = LoadAggregateRouteSpec::class.java.name
         contract.handlerKey.assert().isEqualTo(expectedHandlerKey)
         val factory = TestBuilderHttpRouteHandlerFunctionFactory(expectedHandlerKey)
@@ -88,14 +87,9 @@ class RouterFunctionBuilderTest {
 
     @Test
     fun `should report route details when factory is missing`() {
-        val loadAggregateSpec = loadAggregateSpec()
-        val routerSpecs = RouterSpecs(
-            MOCK_AGGREGATE_METADATA,
-            routes = mutableListOf(loadAggregateSpec),
-            routeContributors = emptyList()
-        )
+        val contract = loadAggregateContract()
+        val routerSpecs = routerSpecsWith(contract)
         val builder = RouterFunctionBuilder(routerSpecs, RouteHandlerFunctionRegistrar())
-        val contract = routerSpecs.toRouteCatalog().routes.single()
 
         assertThrownBy<IllegalArgumentException> {
             builder.build()
@@ -107,6 +101,25 @@ class RouterFunctionBuilderTest {
                 "routeId:[${contract.routeId}]."
         )
     }
+}
+
+private fun loadAggregateContract(): HttpRouteContract {
+    return HttpRouteContract(
+        routeId = "test.load",
+        method = Https.Method.GET,
+        path = "/test",
+        handlerKey = LoadAggregateRouteSpec::class.java.name,
+        handlerMetadata = HttpRouteHandlerMetadata.Aggregate(
+            MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata()
+        )
+    )
+}
+
+private fun routerSpecsWith(contract: HttpRouteContract): RouterSpecs {
+    return RouterSpecs(
+        currentContext = MOCK_AGGREGATE_METADATA,
+        routeContributors = listOf(StaticRouteContributor(contract))
+    ).build()
 }
 
 private fun loadAggregateSpec(): LoadAggregateRouteSpec {
@@ -124,6 +137,19 @@ private class TestRouteHandlerFunctionFactory<R : RouteSpec>(
         return HandlerFunction {
             ServerResponse.ok().build()
         }
+    }
+}
+
+private class StaticRouteContributor(private val contract: HttpRouteContract) : RouteContributor {
+    override val id: String = "test-static"
+    override val category: RouteCategory = RouteCategory.GLOBAL
+    override val order: Int = 0
+
+    override fun contributeGlobal(
+        currentContext: NamedBoundedContext,
+        componentContext: OpenAPIComponentContext
+    ): List<HttpRouteContract> {
+        return listOf(contract)
     }
 }
 
