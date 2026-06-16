@@ -15,6 +15,7 @@ concurrency:
 permissions:
   contents: read
   checks: write
+  id-token: write
 env:
   CI: GITHUB_ACTIONS
 jobs:
@@ -38,7 +39,7 @@ jobs:
         run: ./gradlew codeCoverageReport --stacktrace
 
       - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action@v2.23.0
+        uses: EnricoMi/publish-unit-test-result-action@v2.24.0
         if: always()
         with:
           comment_mode: off
@@ -50,9 +51,9 @@ jobs:
             **/build/test-results/integrationTest/**/*.xml
 
       - name: Upload Code Coverage Report to Codecov
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
+          use_oidc: true
           flags: full
           name: full-coverage
           fail_ci_if_error: true

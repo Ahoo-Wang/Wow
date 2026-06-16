@@ -40,6 +40,7 @@ concurrency:
   cancel-in-progress: true
 permissions:
   contents: read
+  id-token: write
 env:
   CI: GITHUB_ACTIONS
 
@@ -64,10 +65,10 @@ jobs:
         run: ./gradlew allIntegrationTest :code-coverage-report:integrationCoverageReport --stacktrace
 
       - name: Upload integration coverage
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         if: success()
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
+          use_oidc: true
           flags: integration
           name: integration-tests
           fail_ci_if_error: true
