@@ -17,7 +17,8 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.openapi.RouteSpec
 
 class RouteHandlerFunctionRegistrar(
-    factories: Collection<RouteHandlerFunctionFactory<*>> = emptyList()
+    factories: Collection<RouteHandlerFunctionFactory<*>> = emptyList(),
+    httpFactories: Collection<HttpRouteHandlerFunctionFactory> = emptyList()
 ) {
     companion object {
         private val log = KotlinLogging.logger {}
@@ -25,6 +26,8 @@ class RouteHandlerFunctionRegistrar(
 
     private val factories: MutableMap<Class<out RouteSpec>, RouteHandlerFunctionFactory<*>> =
         factories.associateBy { it.supportedSpec }.toMutableMap()
+    private val httpFactories: MutableMap<String, HttpRouteHandlerFunctionFactory> =
+        httpFactories.associateBy { it.handlerKey }.toMutableMap()
 
     fun register(routeHandlerFunctionFactory: RouteHandlerFunctionFactory<*>) {
         val previous = factories.put(routeHandlerFunctionFactory.supportedSpec, routeHandlerFunctionFactory)
@@ -33,7 +36,18 @@ class RouteHandlerFunctionRegistrar(
         }
     }
 
+    fun register(routeHandlerFunctionFactory: HttpRouteHandlerFunctionFactory) {
+        val previous = httpFactories.put(routeHandlerFunctionFactory.handlerKey, routeHandlerFunctionFactory)
+        log.info {
+            "Register - handlerKey:[${routeHandlerFunctionFactory.handlerKey}] - previous:[$previous],current:[$routeHandlerFunctionFactory]."
+        }
+    }
+
     fun getFactory(spec: RouteSpec): RouteHandlerFunctionFactory<*>? {
         return factories[spec::class.java]
+    }
+
+    fun getHttpFactory(handlerKey: String): HttpRouteHandlerFunctionFactory? {
+        return httpFactories[handlerKey]
     }
 }
