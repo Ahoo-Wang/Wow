@@ -27,6 +27,7 @@ import me.ahoo.wow.openapi.catalog.RouteCatalogBuilder
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext.Companion.COMPONENTS_HEADERS_REF
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext.Companion.COMPONENTS_PARAMETERS_REF
+import me.ahoo.wow.openapi.context.OpenAPIComponentContext.Companion.COMPONENTS_PREFIX
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext.Companion.COMPONENTS_REQUEST_BODIES_REF
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext.Companion.COMPONENTS_RESPONSES_REF
 import me.ahoo.wow.openapi.contract.HttpContent
@@ -205,8 +206,8 @@ class RouteSpecContractAdapter(private val componentContext: OpenAPIComponentCon
         if (this == null) {
             return HttpSchema.Object
         }
-        `$ref`?.takeIf { it.isNotBlank() }?.let {
-            return HttpSchema.Object
+        componentKey(`$ref`, COMPONENTS_SCHEMAS_REF)?.let {
+            return HttpSchema.ComponentRef(it)
         }
         if (this is ArraySchema) {
             return HttpSchema.Array(items.toHttpSchema())
@@ -233,5 +234,6 @@ class RouteSpecContractAdapter(private val componentContext: OpenAPIComponentCon
 
     companion object {
         private val PATH_VARIABLE_REGEX = Regex("\\{([^}]+)}")
+        private const val COMPONENTS_SCHEMAS_REF = "${COMPONENTS_PREFIX}schemas/"
     }
 }

@@ -14,8 +14,11 @@
 package me.ahoo.wow.openapi.migration
 
 import io.swagger.v3.oas.annotations.enums.ParameterIn
+import io.swagger.v3.oas.models.headers.Header
+import io.swagger.v3.oas.models.media.ArraySchema
 import io.swagger.v3.oas.models.media.Content
 import io.swagger.v3.oas.models.media.MediaType
+import io.swagger.v3.oas.models.media.Schema
 import io.swagger.v3.oas.models.media.StringSchema
 import io.swagger.v3.oas.models.parameters.Parameter
 import io.swagger.v3.oas.models.parameters.RequestBody
@@ -29,6 +32,7 @@ import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.RouterSpecs
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.contract.HttpParameterLocation
+import me.ahoo.wow.openapi.contract.HttpSchema
 import org.junit.jupiter.api.Test
 
 internal class RouteSpecContractAdapterTest {
@@ -124,5 +128,72 @@ internal class RouteSpecContractAdapterTest {
             .assert().isEqualTo(listOf(Https.MediaType.APPLICATION_JSON))
         contract.responses.map { it.statusCode }.assert().isEqualTo(listOf(Https.Code.OK))
         contract.produce.assert().isEqualTo(listOf(Https.MediaType.TEXT_EVENT_STREAM))
+    }
+
+    @Test
+    fun `should preserve schema component references`() {
+        val context = OpenAPIComponentContext.default(inline = true)
+        val routeSpec = object : RouteSpec {
+            override val id: String = "test.schema_refs"
+            override val path: String = "/test/{id}"
+            override val method: String = Https.Method.POST
+            override val summary: String = "Schema refs"
+            override val parameters: List<Parameter> = listOf(
+                Parameter()
+                    .name("id")
+                    .`in`(ParameterIn.PATH.toString())
+                    .schema(schemaRef("PathParameterSchema")),
+                Parameter()
+                    .name("filter")
+                    .`in`(ParameterIn.QUERY.toString())
+                    .schema(schemaRef("ParameterSchema"))
+            )
+            override val requestBody: RequestBody = RequestBody()
+                .content(
+                    Content().addMediaType(
+                        Https.MediaType.APPLICATION_JSON,
+                        MediaType().schema(schemaRef("RequestBodySchema"))
+                    )
+                )
+            override val responses: ApiResponses = ApiResponses()
+                .addApiResponse(
+                    Https.Code.OK,
+                    ApiResponse()
+                        .addHeaderObject("X-Result", Header().schema(schemaRef("ResponseHeaderSchema")))
+                        .content(
+                            Content()
+                                .addMediaType(
+                                    Https.MediaType.APPLICATION_JSON,
+                                    MediaType().schema(schemaRef("ResponseContentSchema"))
+                                )
+                                .addMediaType(
+                                    Https.MediaType.TEXT_EVENT_STREAM,
+                                    MediaType().schema(ArraySchema().items(schemaRef("ArrayItemSchema")))
+                                )
+                        )
+                )
+        }
+
+        val contract = RouteSpecContractAdapter(context).toContract(routeSpec)
+
+        contract.parameters.first { it.name == "id" }.schema.assert()
+            .isEqualTo(HttpSchema.ComponentRef("PathParameterSchema"))
+        contract.parameters.first { it.name == "filter" }.schema.assert()
+            .isEqualTo(HttpSchema.ComponentRef("ParameterSchema"))
+        contract.requestBody!!.content.single().schema.assert()
+            .isEqualTo(HttpSchema.ComponentRef("RequestBodySchema"))
+        val response = contract.responses.single()
+        response.headers.single().schema.assert()
+            .isEqualTo(HttpSchema.ComponentRef("ResponseHeaderSchema"))
+        response.content.first { it.mediaType == Https.MediaType.APPLICATION_JSON }.schema.assert()
+            .isEqualTo(HttpSchema.ComponentRef("ResponseContentSchema"))
+        response.content.first { it.mediaType == Https.MediaType.TEXT_EVENT_STREAM }.schema.assert()
+            .isEqualTo(HttpSchema.Array(HttpSchema.ComponentRef("ArrayItemSchema")))
+    }
+
+    private fun schemaRef(key: String): Schema<Any> {
+        return Schema<Any>().also {
+            it.`$ref` = "#/components/schemas/$key"
+        }
     }
 }

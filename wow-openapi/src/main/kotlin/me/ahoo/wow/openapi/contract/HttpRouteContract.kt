@@ -86,5 +86,5 @@ sealed interface HttpSchema {
     data object Object : HttpSchema
     data class TypeRef(val mainTargetType: Type, val typeParameters: List<Type> = emptyList()) : HttpSchema
     data class Array(val item: HttpSchema) : HttpSchema
-    data class ComponentRef(val key: String) : HttpSchema
+    data class ComponentRef(val key: kotlin.String) : HttpSchema
 }
