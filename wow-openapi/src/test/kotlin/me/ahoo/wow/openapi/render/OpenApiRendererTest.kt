@@ -14,6 +14,8 @@
 package me.ahoo.wow.openapi.render
 
 import io.swagger.v3.oas.models.OpenAPI
+import io.swagger.v3.oas.models.PathItem
+import io.swagger.v3.oas.models.Paths
 import io.swagger.v3.oas.models.SpecVersion
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.openapi.Https
@@ -289,6 +291,23 @@ internal class OpenApiRendererTest {
         pathItem.post.description.assert().isEqualTo("Post description")
         pathItem.get.summary.assert().isEqualTo("Get summary")
         pathItem.get.description.assert().isEqualTo("Get description")
+    }
+
+    @Test
+    fun `should preserve existing path metadata when route metadata is blank`() {
+        val existingPathItem = PathItem()
+            .summary("Existing summary")
+            .description("Existing description")
+        val openAPI = OpenAPI().paths(Paths().addPathItem("/test", existingPathItem))
+
+        OpenApiRenderer().render(
+            RouteCatalog(listOf(route())),
+            openAPI
+        )
+
+        val pathItem = openAPI.paths["/test"]!!
+        pathItem.summary.assert().isEqualTo("Existing summary")
+        pathItem.description.assert().isEqualTo("Existing description")
     }
 
     @Test

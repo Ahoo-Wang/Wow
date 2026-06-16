@@ -45,9 +45,10 @@ class RouterSpecs(
         const val DEFAULT_OPENAPI_INFO_TITLE = "OpenAPI definition"
     }
 
-    @Volatile
-    private var built: Boolean = false
     private val orderedRouteContributors: List<RouteContributor> = RouteContributors.sort(routeContributors)
+    private val routeCatalog: RouteCatalog by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+        toRouteCatalog(collectContributedRoutes())
+    }
 
     private fun serviceVersion(): String? {
         val firstLocalAggregateType = MetadataSearcher.namedAggregateType.filter {
@@ -114,23 +115,20 @@ class RouterSpecs(
 
     fun mergeOpenAPIFromCatalog(openAPI: OpenAPI) {
         prepareOpenAPI(openAPI)
-        val contributedRoutes = collectContributedRoutes()
+        val catalog = toRouteCatalog()
         componentContext.finish()
-        OpenApiRenderer(componentContext).render(toRouteCatalog(contributedRoutes), openAPI)
+        OpenApiRenderer(componentContext).render(catalog, openAPI)
         componentContext.finish()
         mergeFinishedComponents(openAPI)
     }
 
     fun build(): RouterSpecs {
-        if (built) {
-            return this
-        }
-        built = true
+        toRouteCatalog()
         return this
     }
 
     fun toRouteCatalog(): RouteCatalog {
-        return toRouteCatalog(collectContributedRoutes())
+        return routeCatalog
     }
 
     private fun toRouteCatalog(contributedRoutes: Iterable<HttpRouteContract>): RouteCatalog {

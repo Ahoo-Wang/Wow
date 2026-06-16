@@ -71,11 +71,11 @@ class Order(private val state: OrderState)
 class Cart(private val state: CartState)
 ```
 
-## 全局路由规范
+## 全局路由
 
-### GetWowMetadataRouteSpec
+### 获取 Wow 元数据
 
-`GetWowMetadataRouteSpec` 提供了通过 RESTful API 获取 *Wow 编译时元数据*的能力，以便验证 Wow 元数据(`WowMetadata`)
+该路由提供了通过 RESTful API 获取 *Wow 编译时元数据*的能力，以便验证 Wow 元数据(`WowMetadata`)
 定义的正确性。
 
 ::: code-group
@@ -163,9 +163,9 @@ curl -X 'GET' \
 
 :::
 
-### GenerateBIScriptRouteSpec
+### 生成 BI 同步脚本
 
-`GenerateBIScriptRouteSpec` 提供了通过 RESTful API 生成*BI同步脚本*的能力。
+该路由提供了通过 RESTful API 生成*BI同步脚本*的能力。
 
 ::: code-group
 
@@ -534,9 +534,9 @@ FROM bi_db.example_order_state_last;
 
 :::
 
-### GenerateGlobalIdRouteSpec
+### 生成全局 ID
 
-`GenerateGlobalIdRouteSpec` 提供了通过 RESTful API 生成*全局ID*的能力。
+该路由提供了通过 RESTful API 生成*全局ID*的能力。
 
 ::: code-group
 

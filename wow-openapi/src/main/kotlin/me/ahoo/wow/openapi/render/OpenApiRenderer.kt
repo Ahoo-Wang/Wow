@@ -54,8 +54,12 @@ class OpenApiRenderer(private val componentContext: OpenAPIComponentContext? = n
         catalog.routes.groupBy { it.path }.forEach { (path, routes) ->
             val pathItem = openAPI.paths[path] ?: PathItem()
             val pathMetadata = routes.first()
-            pathItem.summary = pathMetadata.pathSummary
-            pathItem.description = pathMetadata.pathDescription
+            pathMetadata.pathSummary.takeIf { it.isNotBlank() }?.let {
+                pathItem.summary = it
+            }
+            pathMetadata.pathDescription.takeIf { it.isNotBlank() }?.let {
+                pathItem.description = it
+            }
             routes.forEach { route ->
                 pathItem.addOperation(route.method, route.toOperation())
             }

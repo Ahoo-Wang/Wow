@@ -157,6 +157,18 @@ internal class RouterSpecsTest {
     }
 
     @Test
+    fun `should materialize route catalog once and reuse it`() {
+        val contributor = CountingRouteContributor()
+
+        val routerSpecs = RouterSpecs(namedContext, routeContributors = listOf(contributor)).build()
+        val firstCatalog = routerSpecs.toRouteCatalog()
+        val secondCatalog = routerSpecs.toRouteCatalog()
+
+        firstCatalog.assert().isSameAs(secondCatalog)
+        contributor.globalContributions.assert().isEqualTo(1)
+    }
+
+    @Test
     fun `catalog merge should finish components after explicit contributors run`() {
         val contributor = object : RouteContributor {
             override val id: String = "component-lifecycle"
@@ -203,4 +215,27 @@ internal class RouterSpecsTest {
     }
 
     private data class ContributorLifecycleSchema(val value: String = "")
+
+    private class CountingRouteContributor : RouteContributor {
+        var globalContributions: Int = 0
+            private set
+        override val id: String = "counting-global"
+        override val category: RouteCategory = RouteCategory.GLOBAL
+        override val order: Int = 0
+
+        override fun contributeGlobal(
+            currentContext: NamedBoundedContext,
+            componentContext: OpenAPIComponentContext
+        ): List<HttpRouteContract> {
+            globalContributions++
+            return listOf(
+                HttpRouteContract(
+                    routeId = "counting-global",
+                    method = Https.Method.GET,
+                    path = "/counting-global",
+                    handlerKey = "counting-global"
+                )
+            )
+        }
+    }
 }
