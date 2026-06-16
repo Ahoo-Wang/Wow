@@ -17,7 +17,7 @@ import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.cosid.machine.HostAddressSupplier
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.openapi.global.CommandWaitRouteSpecFactory
+import me.ahoo.wow.openapi.contract.BuiltInHttpRoutePaths
 import org.junit.jupiter.api.Test
 import org.springframework.boot.web.server.context.WebServerInitializedEvent
 
@@ -36,7 +36,7 @@ class ServerCommandWaitEndpointTest {
         }
         serverCommandWaitEndpoint.onApplicationEvent(event)
         serverCommandWaitEndpoint.endpoint.assert().isEqualTo(
-            "http://$hostAddress:8080${CommandWaitRouteSpecFactory.PATH}"
+            "http://$hostAddress:8080${BuiltInHttpRoutePaths.Global.COMMAND_WAIT}"
         )
     }
 }

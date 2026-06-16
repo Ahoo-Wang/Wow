@@ -21,11 +21,12 @@ import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.SimpleDynamicDocument.Companion.toDynamicDocument
 import me.ahoo.wow.api.query.SingleQuery
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.query.filter.Contexts.getRawRequest
 import me.ahoo.wow.query.filter.QueryHandler
-import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteTestFixtures
+import me.ahoo.wow.webflux.route.testAggregateRouteContract
 import org.junit.jupiter.api.Test
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
@@ -43,17 +44,14 @@ class QueryBodyExtractorTest {
     fun `should extract condition via count handler`() {
         // Test condition extraction through CountQueryHandlerFunction end-to-end
         val handlerFunction = CountQueryHandlerFunctionFactory(
-            me.ahoo.wow.openapi.aggregate.snapshot.CountSnapshotRouteSpec::class.java,
-            RouteTestFixtures.snapshotQueryHandler,
-            DefaultRewriteRequestCondition,
-            WebFluxRequestExceptionHandler()
+            handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.COUNT,
+            queryHandler = RouteTestFixtures.snapshotQueryHandler,
+            rewriteRequestCondition = DefaultRewriteRequestCondition,
+            exceptionHandler = WebFluxRequestExceptionHandler()
         ).create(
-            me.ahoo.wow.openapi.aggregate.snapshot.CountSnapshotRouteSpec(
-                MOCK_AGGREGATE_METADATA,
-                aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA,
-                appendTenantPath = true,
-                appendOwnerPath = false,
-                componentContext = me.ahoo.wow.openapi.context.OpenAPIComponentContext.default()
+            testAggregateRouteContract(
+                handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.COUNT,
+                aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA
             )
         )
 
@@ -78,17 +76,14 @@ class QueryBodyExtractorTest {
             }
         }
         val handlerFunction = ListQueryHandlerFunctionFactory(
-            me.ahoo.wow.openapi.aggregate.snapshot.ListQuerySnapshotRouteSpec::class.java,
-            queryHandler,
-            DefaultRewriteRequestCondition,
-            WebFluxRequestExceptionHandler()
+            handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.LIST_QUERY,
+            queryHandler = queryHandler,
+            rewriteRequestCondition = DefaultRewriteRequestCondition,
+            exceptionHandler = WebFluxRequestExceptionHandler()
         ).create(
-            me.ahoo.wow.openapi.aggregate.snapshot.ListQuerySnapshotRouteSpec(
-                MOCK_AGGREGATE_METADATA,
-                aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA,
-                appendTenantPath = true,
-                appendOwnerPath = false,
-                componentContext = me.ahoo.wow.openapi.context.OpenAPIComponentContext.default()
+            testAggregateRouteContract(
+                handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.LIST_QUERY,
+                aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA
             )
         )
 
@@ -109,17 +104,14 @@ class QueryBodyExtractorTest {
     @Test
     fun `should extract list query via list handler`() {
         val handlerFunction = ListQueryHandlerFunctionFactory(
-            me.ahoo.wow.openapi.aggregate.snapshot.ListQuerySnapshotRouteSpec::class.java,
-            RouteTestFixtures.snapshotQueryHandler,
-            DefaultRewriteRequestCondition,
-            WebFluxRequestExceptionHandler()
+            handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.LIST_QUERY,
+            queryHandler = RouteTestFixtures.snapshotQueryHandler,
+            rewriteRequestCondition = DefaultRewriteRequestCondition,
+            exceptionHandler = WebFluxRequestExceptionHandler()
         ).create(
-            me.ahoo.wow.openapi.aggregate.snapshot.ListQuerySnapshotRouteSpec(
-                MOCK_AGGREGATE_METADATA,
-                aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA,
-                appendTenantPath = true,
-                appendOwnerPath = false,
-                componentContext = me.ahoo.wow.openapi.context.OpenAPIComponentContext.default()
+            testAggregateRouteContract(
+                handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.LIST_QUERY,
+                aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA
             )
         )
 
@@ -136,17 +128,14 @@ class QueryBodyExtractorTest {
     @Test
     fun `should extract paged query via paged handler`() {
         val handlerFunction = PagedQueryHandlerFunctionFactory(
-            me.ahoo.wow.openapi.aggregate.snapshot.PagedQuerySnapshotRouteSpec::class.java,
-            RouteTestFixtures.snapshotQueryHandler,
-            DefaultRewriteRequestCondition,
-            WebFluxRequestExceptionHandler()
+            handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.PAGED_QUERY,
+            queryHandler = RouteTestFixtures.snapshotQueryHandler,
+            rewriteRequestCondition = DefaultRewriteRequestCondition,
+            exceptionHandler = WebFluxRequestExceptionHandler()
         ).create(
-            me.ahoo.wow.openapi.aggregate.snapshot.PagedQuerySnapshotRouteSpec(
-                MOCK_AGGREGATE_METADATA,
-                aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA,
-                appendTenantPath = true,
-                appendOwnerPath = false,
-                componentContext = me.ahoo.wow.openapi.context.OpenAPIComponentContext.default()
+            testAggregateRouteContract(
+                handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.PAGED_QUERY,
+                aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA
             )
         )
 
@@ -166,17 +155,14 @@ class QueryBodyExtractorTest {
         // so throwNotFoundIfEmpty() results in 404 NOT_FOUND.
         // This tests that the body extraction and query pipeline work correctly.
         val handlerFunction = SingleQueryHandlerFunctionFactory(
-            me.ahoo.wow.openapi.aggregate.snapshot.SingleSnapshotRouteSpec::class.java,
-            RouteTestFixtures.snapshotQueryHandler,
-            DefaultRewriteRequestCondition,
-            WebFluxRequestExceptionHandler()
+            handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.SINGLE,
+            queryHandler = RouteTestFixtures.snapshotQueryHandler,
+            rewriteRequestCondition = DefaultRewriteRequestCondition,
+            exceptionHandler = WebFluxRequestExceptionHandler()
         ).create(
-            me.ahoo.wow.openapi.aggregate.snapshot.SingleSnapshotRouteSpec(
-                MOCK_AGGREGATE_METADATA,
-                aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA,
-                appendTenantPath = true,
-                appendOwnerPath = false,
-                componentContext = me.ahoo.wow.openapi.context.OpenAPIComponentContext.default()
+            testAggregateRouteContract(
+                handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.SINGLE,
+                aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA
             )
         )
 

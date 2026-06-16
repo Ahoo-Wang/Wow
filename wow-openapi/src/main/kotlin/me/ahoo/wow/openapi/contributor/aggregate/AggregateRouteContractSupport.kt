@@ -27,15 +27,18 @@ import me.ahoo.wow.openapi.CommonComponent.Parameter.tenantIdPathParameter
 import me.ahoo.wow.openapi.CommonComponent.Parameter.versionPathParameter
 import me.ahoo.wow.openapi.PathBuilder
 import me.ahoo.wow.openapi.Tags.toTags
-import me.ahoo.wow.openapi.aggregate.ID_PATH_VARIABLE
-import me.ahoo.wow.openapi.aggregate.OWNER_PATH_PREFIX
-import me.ahoo.wow.openapi.aggregate.TENANT_PATH_PREFIX
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.contract.HttpParameter
 import me.ahoo.wow.openapi.contract.HttpParameterLocation
 import me.ahoo.wow.openapi.contract.HttpTag
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.serialization.MessageRecords
+
+private const val TENANT_PATH_VARIABLE = "{${MessageRecords.TENANT_ID}}"
+private const val TENANT_PATH_PREFIX = "tenant/$TENANT_PATH_VARIABLE"
+private const val OWNER_PATH_VARIABLE = "{${MessageRecords.OWNER_ID}}"
+private const val OWNER_PATH_PREFIX = "owner/$OWNER_PATH_VARIABLE"
+private const val ID_PATH_VARIABLE = "{${MessageRecords.ID}}"
 
 internal fun AggregateRouteMetadata<*>.defaultAppendTenantPath(): Boolean {
     return aggregateMetadata.staticTenantId.isNullOrBlank()

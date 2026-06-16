@@ -24,13 +24,13 @@ import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.messaging.compensation.CompensationTarget
 import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
-import me.ahoo.wow.openapi.aggregate.event.EventCompensateRouteSpec
-import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.event.EventCompensateHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.testAggregateRouteContract
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
@@ -56,10 +56,9 @@ class EventCompensateHandlerFunctionTest {
             ),
             exceptionHandler = WebFluxRequestExceptionHandler(),
         ).create(
-            EventCompensateRouteSpec(
-                currentContext = MOCK_AGGREGATE_METADATA,
-                aggregateRouteMetadata = MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata(),
-                componentContext = OpenAPIComponentContext.default()
+            testAggregateRouteContract(
+                handlerKey = BuiltInHttpRouteHandlerKeys.Event.COMPENSATE,
+                aggregateRouteMetadata = MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata()
             )
         )
 

@@ -16,29 +16,12 @@ package me.ahoo.wow.openapi.converter
 import io.swagger.v3.core.converter.ModelConverters
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.openapi.BatchResult
-import me.ahoo.wow.openapi.context.CurrentOpenAPIComponentContext
-import me.ahoo.wow.openapi.context.OpenAPIComponentContext
-import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 
 internal class WowSchemaConverterTest {
 
-    @AfterEach
-    fun tearDown() {
-        CurrentOpenAPIComponentContext.current = null
-    }
-
     @Test
-    fun `should resolve schema for batch result using open api component context`() {
-        CurrentOpenAPIComponentContext.current = OpenAPIComponentContext.default(false)
-        val schemas = ModelConverters.getInstance(true).read(BatchResult::class.java)
-        CurrentOpenAPIComponentContext.current = null
-        schemas.assert().containsKey("wow.openapi.BatchResult")
-    }
-
-    @Test
-    fun `should resolve schema without current context using model converters`() {
-        CurrentOpenAPIComponentContext.current = null
+    fun `should delegate schema resolution to model converters`() {
         val schemas = ModelConverters.getInstance(true).read(BatchResult::class.java)
         schemas.assert().containsKey("wow.openapi.BatchResult")
     }

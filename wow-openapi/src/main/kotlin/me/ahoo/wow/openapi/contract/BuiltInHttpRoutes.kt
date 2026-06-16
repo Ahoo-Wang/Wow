@@ -26,7 +26,7 @@ object BuiltInHttpRoutePaths {
 }
 
 object BuiltInHttpRouteHandlerKeys {
-    private const val OPENAPI = "me.ahoo.wow.openapi"
+    private const val OPENAPI = "wow.openapi"
     private const val GLOBAL = "$OPENAPI.global"
     private const val AGGREGATE_COMMAND = "$OPENAPI.aggregate.command"
     private const val AGGREGATE_STATE = "$OPENAPI.aggregate.state"
@@ -34,43 +34,43 @@ object BuiltInHttpRouteHandlerKeys {
     private const val AGGREGATE_EVENT = "$OPENAPI.aggregate.event"
 
     object Global {
-        const val COMMAND_WAIT = "$GLOBAL.CommandWaitRouteSpec"
-        const val COMMAND_FACADE = "$AGGREGATE_COMMAND.CommandFacadeRouteSpec"
-        const val METADATA = "$GLOBAL.GetWowMetadataRouteSpec"
-        const val GLOBAL_ID = "$GLOBAL.GenerateGlobalIdRouteSpec"
-        const val BI_SCRIPT = "$GLOBAL.GenerateBIScriptRouteSpec"
+        const val COMMAND_WAIT = "$GLOBAL.command.wait"
+        const val COMMAND_FACADE = "$GLOBAL.command.facade"
+        const val METADATA = "$GLOBAL.metadata.get"
+        const val GLOBAL_ID = "$GLOBAL.id.generate"
+        const val BI_SCRIPT = "$GLOBAL.bi.script.generate"
     }
 
     object Command {
-        const val COMMAND = "$AGGREGATE_COMMAND.CommandRouteSpec"
+        const val COMMAND = "$AGGREGATE_COMMAND.dispatch"
     }
 
     object State {
-        const val AGGREGATE_TRACING = "$AGGREGATE_STATE.AggregateTracingRouteSpec"
-        const val LOAD_AGGREGATE = "$AGGREGATE_STATE.LoadAggregateRouteSpec"
-        const val LOAD_VERSIONED_AGGREGATE = "$AGGREGATE_STATE.LoadVersionedAggregateRouteSpec"
-        const val LOAD_TIME_BASED_AGGREGATE = "$AGGREGATE_STATE.LoadTimeBasedAggregateRouteSpec"
+        const val AGGREGATE_TRACING = "$AGGREGATE_STATE.tracing"
+        const val LOAD_AGGREGATE = "$AGGREGATE_STATE.load"
+        const val LOAD_VERSIONED_AGGREGATE = "$AGGREGATE_STATE.load.versioned"
+        const val LOAD_TIME_BASED_AGGREGATE = "$AGGREGATE_STATE.load.time-based"
     }
 
     object Snapshot {
-        const val COUNT = "$AGGREGATE_SNAPSHOT.CountSnapshotRouteSpec"
-        const val LIST_QUERY = "$AGGREGATE_SNAPSHOT.ListQuerySnapshotRouteSpec"
-        const val LIST_QUERY_STATE = "$AGGREGATE_SNAPSHOT.ListQuerySnapshotStateRouteSpec"
-        const val PAGED_QUERY = "$AGGREGATE_SNAPSHOT.PagedQuerySnapshotRouteSpec"
-        const val PAGED_QUERY_STATE = "$AGGREGATE_SNAPSHOT.PagedQuerySnapshotStateRouteSpec"
-        const val SINGLE = "$AGGREGATE_SNAPSHOT.SingleSnapshotRouteSpec"
-        const val SINGLE_STATE = "$AGGREGATE_SNAPSHOT.SingleSnapshotStateRouteSpec"
-        const val LOAD = "$AGGREGATE_SNAPSHOT.LoadSnapshotRouteSpec"
-        const val REGENERATE = "$AGGREGATE_SNAPSHOT.RegenerateSnapshotRouteSpec"
-        const val BATCH_REGENERATE = "$AGGREGATE_SNAPSHOT.BatchRegenerateSnapshotRouteSpec"
+        const val COUNT = "$AGGREGATE_SNAPSHOT.count"
+        const val LIST_QUERY = "$AGGREGATE_SNAPSHOT.list-query"
+        const val LIST_QUERY_STATE = "$AGGREGATE_SNAPSHOT.list-query-state"
+        const val PAGED_QUERY = "$AGGREGATE_SNAPSHOT.paged-query"
+        const val PAGED_QUERY_STATE = "$AGGREGATE_SNAPSHOT.paged-query-state"
+        const val SINGLE = "$AGGREGATE_SNAPSHOT.single"
+        const val SINGLE_STATE = "$AGGREGATE_SNAPSHOT.single-state"
+        const val LOAD = "$AGGREGATE_SNAPSHOT.load"
+        const val REGENERATE = "$AGGREGATE_SNAPSHOT.regenerate"
+        const val BATCH_REGENERATE = "$AGGREGATE_SNAPSHOT.batch-regenerate"
     }
 
     object Event {
-        const val COUNT = "$AGGREGATE_EVENT.CountEventStreamRouteSpec"
-        const val LIST_QUERY = "$AGGREGATE_EVENT.ListQueryEventStreamRouteSpec"
-        const val PAGED_QUERY = "$AGGREGATE_EVENT.PagedQueryEventStreamRouteSpec"
-        const val LOAD = "$AGGREGATE_EVENT.LoadEventStreamRouteSpec"
-        const val COMPENSATE = "$AGGREGATE_EVENT.EventCompensateRouteSpec"
-        const val RESEND_STATE = "$AGGREGATE_EVENT.state.ResendStateEventRouteSpec"
+        const val COUNT = "$AGGREGATE_EVENT.count"
+        const val LIST_QUERY = "$AGGREGATE_EVENT.list-query"
+        const val PAGED_QUERY = "$AGGREGATE_EVENT.paged-query"
+        const val LOAD = "$AGGREGATE_EVENT.load"
+        const val COMPENSATE = "$AGGREGATE_EVENT.compensate"
+        const val RESEND_STATE = "$AGGREGATE_EVENT.state.resend"
     }
 }

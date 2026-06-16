@@ -18,13 +18,12 @@ import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.id.GlobalIdGenerator
 import me.ahoo.wow.id.generateGlobalId
-import me.ahoo.wow.openapi.aggregate.snapshot.ListQuerySnapshotRouteSpec
-import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.serialization.MessageRecords
-import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteTestFixtures
 import me.ahoo.wow.webflux.route.query.DefaultRewriteRequestCondition
+import me.ahoo.wow.webflux.route.testAggregateRouteContract
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
@@ -40,12 +39,9 @@ class ListQuerySnapshotHandlerFunctionTest {
             rewriteRequestCondition = DefaultRewriteRequestCondition,
             exceptionHandler = WebFluxRequestExceptionHandler(),
         ).create(
-            ListQuerySnapshotRouteSpec(
-                MOCK_AGGREGATE_METADATA,
-                aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA,
-                appendTenantPath = true,
-                appendOwnerPath = false,
-                componentContext = OpenAPIComponentContext.default()
+            testAggregateRouteContract(
+                handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.LIST_QUERY,
+                aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA
             )
         )
         val request = MockServerRequest.builder()

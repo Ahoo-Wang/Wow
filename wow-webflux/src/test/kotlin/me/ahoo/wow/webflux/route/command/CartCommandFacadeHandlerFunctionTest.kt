@@ -26,12 +26,12 @@ import me.ahoo.wow.example.api.cart.AddCartItem
 import me.ahoo.wow.example.domain.cart.Cart
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent
-import me.ahoo.wow.openapi.aggregate.command.CommandFacadeRouteSpec
-import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.test.SagaVerifier
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
+import me.ahoo.wow.webflux.route.testGlobalRouteContract
 import me.ahoo.wow.webflux.route.command.extractor.DefaultCommandBuilderExtractor
 import me.ahoo.wow.webflux.route.command.extractor.DefaultCommandMessageExtractor
 import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
@@ -58,7 +58,7 @@ class CartCommandFacadeHandlerFunctionTest {
             ),
             exceptionHandler = WebFluxRequestExceptionHandler(),
             commandWaitPolicy = CommandWaitPolicy(DEFAULT_TIME_OUT),
-        ).create(CommandFacadeRouteSpec(OpenAPIComponentContext.default()))
+        ).create(testGlobalRouteContract(BuiltInHttpRouteHandlerKeys.Global.COMMAND_FACADE))
 
         val aggregateId = generateGlobalId()
         val request = MockServerRequest.builder()

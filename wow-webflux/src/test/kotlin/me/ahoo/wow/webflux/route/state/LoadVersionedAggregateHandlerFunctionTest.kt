@@ -19,12 +19,12 @@ import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotRepository
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
-import me.ahoo.wow.openapi.aggregate.state.LoadVersionedAggregateRouteSpec
-import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
+import me.ahoo.wow.webflux.route.testAggregateRouteContract
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
@@ -44,10 +44,9 @@ class LoadVersionedAggregateHandlerFunctionTest {
             ),
             exceptionHandler = WebFluxRequestExceptionHandler(),
         ).create(
-            LoadVersionedAggregateRouteSpec(
-                MOCK_AGGREGATE_METADATA,
-                aggregateRouteMetadata = MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata(),
-                componentContext = OpenAPIComponentContext.default()
+            testAggregateRouteContract(
+                handlerKey = BuiltInHttpRouteHandlerKeys.State.LOAD_VERSIONED_AGGREGATE,
+                aggregateRouteMetadata = MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata()
             )
         )
 

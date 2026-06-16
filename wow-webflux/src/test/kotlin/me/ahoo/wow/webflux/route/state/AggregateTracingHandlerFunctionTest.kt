@@ -34,8 +34,9 @@ import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregate
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.openapi.CommonComponent.Header.ERROR_CODE
-import me.ahoo.wow.openapi.aggregate.state.AggregateTracingRouteSpec
-import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
+import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
+import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObjectNode
@@ -49,6 +50,7 @@ import me.ahoo.wow.test.aggregate.whenCommand
 import me.ahoo.wow.test.aggregateVerifier
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteTestFixtures
+import me.ahoo.wow.webflux.route.testAggregateRouteContract
 import me.ahoo.wow.webflux.route.policy.TracingPolicy
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
@@ -71,7 +73,7 @@ class AggregateTracingHandlerFunctionTest {
             InMemoryEventStore(),
             WebFluxRequestExceptionHandler(),
             TracingPolicy(),
-        ).supportedSpec.assert().isEqualTo(AggregateTracingRouteSpec::class.java)
+        ).handlerKey.assert().isEqualTo(BuiltInHttpRouteHandlerKeys.State.AGGREGATE_TRACING)
     }
 
     @Test
@@ -83,11 +85,7 @@ class AggregateTracingHandlerFunctionTest {
             WebFluxRequestExceptionHandler(),
             TracingPolicy(),
         ).create(
-            AggregateTracingRouteSpec(
-                MOCK_AGGREGATE_METADATA,
-                aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA,
-                componentContext = OpenAPIComponentContext.default()
-            )
+            mockTracingContract(Cart::class.java.aggregateRouteMetadata())
         )
 
         val request = MockServerRequest.builder()
@@ -187,11 +185,7 @@ class AggregateTracingHandlerFunctionTest {
             TracingPolicy(),
         )
             .create(
-                AggregateTracingRouteSpec(
-                    MOCK_AGGREGATE_METADATA,
-                    aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA,
-                    componentContext = OpenAPIComponentContext.default()
-                )
+                mockTracingContract()
             )
 
         val request = MockServerRequest.builder()
@@ -223,11 +217,7 @@ class AggregateTracingHandlerFunctionTest {
             WebFluxRequestExceptionHandler(),
             TracingPolicy(),
         ).create(
-            AggregateTracingRouteSpec(
-                MOCK_AGGREGATE_METADATA,
-                aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA,
-                componentContext = OpenAPIComponentContext.default()
-            )
+            mockTracingContract(Cart::class.java.aggregateRouteMetadata())
         )
 
         val request = MockServerRequest.builder()
@@ -253,11 +243,7 @@ class AggregateTracingHandlerFunctionTest {
             WebFluxRequestExceptionHandler(),
             TracingPolicy(),
         ).create(
-            AggregateTracingRouteSpec(
-                CART_AGGREGATE_METADATA,
-                aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA,
-                componentContext = OpenAPIComponentContext.default()
-            )
+            mockTracingContract()
         )
 
         val request = MockServerRequest.builder()
@@ -286,11 +272,7 @@ class AggregateTracingHandlerFunctionTest {
             WebFluxRequestExceptionHandler(),
             TracingPolicy(),
         ).create(
-            AggregateTracingRouteSpec(
-                CART_AGGREGATE_METADATA,
-                aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA,
-                componentContext = OpenAPIComponentContext.default()
-            )
+            mockTracingContract()
         )
 
         val request = MockServerRequest.builder()
@@ -326,6 +308,13 @@ class AggregateTracingHandlerFunctionTest {
                     )
             }
         }
+
+        fun mockTracingContract(
+            aggregateRouteMetadata: AggregateRouteMetadata<*> = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA
+        ) = testAggregateRouteContract(
+            handlerKey = BuiltInHttpRouteHandlerKeys.State.AGGREGATE_TRACING,
+            aggregateRouteMetadata = aggregateRouteMetadata
+        )
 
         fun Any.assertJsonState(): ObjectNode {
             this.assert().isInstanceOf(ObjectNode::class.java)
