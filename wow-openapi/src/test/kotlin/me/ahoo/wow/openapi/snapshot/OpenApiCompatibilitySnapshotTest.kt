@@ -22,8 +22,8 @@ import me.ahoo.wow.openapi.RouterSpecs
 import me.ahoo.wow.openapi.snapshot.OpenApiSnapshotSupport.assertContractSnapshot
 import me.ahoo.wow.openapi.snapshot.OpenApiSnapshotSupport.assertOpenApiSnapshot
 import me.ahoo.wow.openapi.snapshot.OpenApiSnapshotSupport.resourcePath
-import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assumptions.assumeFalse
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.nio.file.Files
 
