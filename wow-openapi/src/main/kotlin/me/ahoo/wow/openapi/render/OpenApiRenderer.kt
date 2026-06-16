@@ -33,6 +33,7 @@ import io.swagger.v3.oas.models.responses.ApiResponses
 import io.swagger.v3.oas.models.tags.Tag
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.catalog.RouteCatalog
+import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.contract.HttpContent
 import me.ahoo.wow.openapi.contract.HttpHeader
 import me.ahoo.wow.openapi.contract.HttpParameter
@@ -42,7 +43,7 @@ import me.ahoo.wow.openapi.contract.HttpResponse
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpSchema
 
-class OpenApiRenderer {
+class OpenApiRenderer(private val componentContext: OpenAPIComponentContext? = null) {
 
     fun render(catalog: RouteCatalog, openAPI: OpenAPI): OpenAPI {
         openAPI.specVersion(SpecVersion.V31)
@@ -184,7 +185,9 @@ class OpenApiRenderer {
             HttpSchema.Object -> ObjectSchema()
             HttpSchema.Unspecified -> Schema<Any>()
             is HttpSchema.Formatted -> Schema<Any>().format(format)
-            is HttpSchema.TypeRef -> ObjectSchema()
+            is HttpSchema.TypeRef -> requireNotNull(componentContext) {
+                "OpenAPIComponentContext is required to render TypeRef schema."
+            }.schema(mainTargetType, *typeParameters.toTypedArray())
             is HttpSchema.Array -> ArraySchema().items(item.toSchema())
             is HttpSchema.ComponentRef -> Schema<Any>().also {
                 it.`$ref` = COMPONENTS_SCHEMAS_REF + key

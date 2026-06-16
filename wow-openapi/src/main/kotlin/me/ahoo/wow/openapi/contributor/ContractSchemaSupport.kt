@@ -11,20 +11,11 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.openapi.contributor.global
+package me.ahoo.wow.openapi.contributor
 
-import me.ahoo.wow.api.Wow
-import me.ahoo.wow.openapi.RouteIdSpec
-import me.ahoo.wow.openapi.contract.HttpTag
+import me.ahoo.wow.openapi.contract.HttpSchema
+import java.lang.reflect.Type
 
-internal fun wowRouteId(resourceName: String, operation: String): String {
-    return RouteIdSpec()
-        .prefix(Wow.WOW)
-        .resourceName(resourceName)
-        .operation(operation)
-        .build()
-}
-
-internal fun wowTags(): List<HttpTag> {
-    return listOf(HttpTag(Wow.WOW, "Wow framework internal interface"))
+internal fun schemaRef(mainTargetType: Type): HttpSchema {
+    return HttpSchema.TypeRef(mainTargetType)
 }

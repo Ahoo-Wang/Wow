@@ -26,7 +26,9 @@ import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.modeling.getContextAliasPrefix
 import me.ahoo.wow.openapi.OpenAPIExtensions.withExtensions
+import me.ahoo.wow.openapi.aggregate.AggregateRouteSpecFactory
 import me.ahoo.wow.openapi.aggregate.AggregateRouteSpecFactoryProvider
+import me.ahoo.wow.openapi.aggregate.command.CommandRouteSpecFactory
 import me.ahoo.wow.openapi.catalog.RouteCatalog
 import me.ahoo.wow.openapi.catalog.RouteCatalogBuilder
 import me.ahoo.wow.openapi.catalog.RouteCategory
@@ -69,6 +71,7 @@ class RouterSpecs(
     @Suppress("TooGenericExceptionCaught")
     private fun buildAggregateRouteSpec() {
         val aggregateRouteSpecFactories = AggregateRouteSpecFactoryProvider(componentContext).get()
+            .filterNot(::isMigratedLegacyAggregateFactory)
         MetadataSearcher.namedAggregateType.forEach { aggregateEntry ->
             val aggregateType = aggregateEntry.value
             val aggregateRouteMetadata = aggregateType.aggregateRouteMetadata()
@@ -184,7 +187,8 @@ class RouterSpecs(
         val initializedRoutes = initializeRouteComponents()
         val contributedRoutes = collectContributedRoutes()
         componentContext.finish()
-        OpenApiRenderer().render(toRouteCatalog(initializedRoutes, contributedRoutes), openAPI)
+        OpenApiRenderer(componentContext).render(toRouteCatalog(initializedRoutes, contributedRoutes), openAPI)
+        componentContext.finish()
         mergeFinishedComponents(openAPI)
     }
 
@@ -194,7 +198,7 @@ class RouterSpecs(
         }
         built = true
         if (legacyRouteSpecAdapterEnabled()) {
-            if (explicitGlobalContributors().isEmpty()) {
+            if (explicitContributors(RouteCategory.GLOBAL).isEmpty()) {
                 buildGlobalRouteSpec()
             }
             buildAggregateRouteSpec()
@@ -245,9 +249,16 @@ class RouterSpecs(
         return orderedRouteContributors.any { it.id == LegacyRouteContributor.id }
     }
 
-    private fun explicitGlobalContributors(): List<RouteContributor> {
+    private fun isMigratedLegacyAggregateFactory(factory: AggregateRouteSpecFactory): Boolean {
+        return when (factory) {
+            is CommandRouteSpecFactory -> explicitContributors(RouteCategory.COMMAND).isNotEmpty()
+            else -> false
+        }
+    }
+
+    private fun explicitContributors(category: RouteCategory): List<RouteContributor> {
         return orderedRouteContributors.filter { contributor ->
-            contributor.category == RouteCategory.GLOBAL && contributor.id != LegacyRouteContributor.id
+            contributor.category == category && contributor.id != LegacyRouteContributor.id
         }
     }
 }

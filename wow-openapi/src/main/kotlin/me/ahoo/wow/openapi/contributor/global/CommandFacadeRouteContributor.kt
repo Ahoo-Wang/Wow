@@ -24,6 +24,8 @@ import me.ahoo.wow.openapi.contract.HttpContent
 import me.ahoo.wow.openapi.contract.HttpRequestBody
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpSchema
+import me.ahoo.wow.openapi.contributor.commandFacadeParameterRefs
+import me.ahoo.wow.openapi.contributor.commandResponseRefs
 
 object CommandFacadeRouteContributor : RouteContributor {
     override val id: String = "global.command-facade"
@@ -41,7 +43,7 @@ object CommandFacadeRouteContributor : RouteContributor {
                 path = CommandFacadeRouteSpecFactory.PATH,
                 handlerKey = CommandFacadeRouteSpec::class.java.name,
                 summary = "Unified Sending Endpoint For Command Messages",
-                parameters = componentContext.commandFacadeParameters(),
+                parameters = componentContext.commandFacadeParameterRefs(),
                 requestBody = HttpRequestBody(
                     description = "Command Message Body",
                     content = listOf(HttpContent(Https.MediaType.APPLICATION_JSON, HttpSchema.Object))

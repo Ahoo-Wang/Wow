@@ -62,12 +62,30 @@ internal class RouteSpecContractAdapterTest {
             "wow.global_id.generate" to GenerateGlobalIdRouteSpec::class.java.name,
             "wow.bi_script.generate" to GenerateBIScriptRouteSpec::class.java.name
         )
-        catalog.routes.assert().hasSize(routerSpecs.count() + explicitGlobalHandlerKeys.size)
+        val explicitCommandRoutes = catalog.routes.filter {
+            it.handlerKey == CommandRouteSpec::class.java.name
+        }
+        explicitCommandRoutes.assert().isNotEmpty()
+        catalog.routes.assert().hasSize(
+            routerSpecs.count() + explicitGlobalHandlerKeys.size + explicitCommandRoutes.size
+        )
         val handlerKeysByRouteId = catalog.routes.associate { it.routeId to it.handlerKey }
         explicitGlobalHandlerKeys.forEach { (routeId, handlerKey) ->
             handlerKeysByRouteId[routeId].assert().isEqualTo(handlerKey)
         }
         catalog.routes.all { it.handlerKey.isNotBlank() }.assert().isTrue()
+    }
+
+    @Test
+    fun `should contribute command routes outside legacy route specs`() {
+        val routerSpecs = RouterSpecs(currentContext).build()
+
+        routerSpecs.any { it is CommandRouteSpec }.assert().isFalse()
+        val commandRoutes = routerSpecs.toRouteCatalog().routes
+            .filter { it.handlerKey == CommandRouteSpec::class.java.name }
+
+        commandRoutes.assert().isNotEmpty()
+        commandRoutes.any { it.routeId == "example.order.create_order" }.assert().isTrue()
     }
 
     @Test

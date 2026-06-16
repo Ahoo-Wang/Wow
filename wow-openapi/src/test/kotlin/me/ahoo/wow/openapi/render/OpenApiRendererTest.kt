@@ -18,6 +18,7 @@ import io.swagger.v3.oas.models.SpecVersion
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.catalog.RouteCatalog
+import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.contract.HttpContent
 import me.ahoo.wow.openapi.contract.HttpHeader
 import me.ahoo.wow.openapi.contract.HttpParameter
@@ -140,6 +141,36 @@ internal class OpenApiRendererTest {
             .content[Https.MediaType.TEXT_EVENT_STREAM]!!.schema
         arraySchema.type.assert().isEqualTo("array")
         arraySchema.items.`$ref`.assert().isEqualTo("#/components/schemas/EventSchema")
+    }
+
+    @Test
+    fun `should render type ref schemas through component context`() {
+        val componentContext = OpenAPIComponentContext.default()
+        val openAPI = OpenAPI()
+
+        OpenApiRenderer(componentContext).render(
+            RouteCatalog(
+                listOf(
+                    route(
+                        method = Https.Method.POST,
+                        requestBody = HttpRequestBody(
+                            content = listOf(
+                                HttpContent(
+                                    mediaType = Https.MediaType.APPLICATION_JSON,
+                                    schema = HttpSchema.TypeRef(TypeRefFixture::class.java)
+                                )
+                            )
+                        )
+                    )
+                )
+            ),
+            openAPI
+        )
+        componentContext.finish()
+
+        openAPI.paths["/test"]!!.post.requestBody.content[Https.MediaType.APPLICATION_JSON]!!
+            .schema.`$ref`.assert().startsWith("#/components/schemas/")
+        componentContext.schemas.keys.any { it.contains("TypeRefFixture") }.assert().isTrue()
     }
 
     @Test
@@ -379,4 +410,6 @@ internal class OpenApiRendererTest {
             tags = tags
         )
     }
+
+    private data class TypeRefFixture(val value: String = "")
 }
