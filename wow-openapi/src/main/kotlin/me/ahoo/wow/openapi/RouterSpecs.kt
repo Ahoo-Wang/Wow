@@ -29,6 +29,16 @@ import me.ahoo.wow.openapi.OpenAPIExtensions.withExtensions
 import me.ahoo.wow.openapi.aggregate.AggregateRouteSpecFactory
 import me.ahoo.wow.openapi.aggregate.AggregateRouteSpecFactoryProvider
 import me.ahoo.wow.openapi.aggregate.command.CommandRouteSpecFactory
+import me.ahoo.wow.openapi.aggregate.snapshot.BatchRegenerateSnapshotRouteSpecFactory
+import me.ahoo.wow.openapi.aggregate.snapshot.CountSnapshotRouteSpecFactory
+import me.ahoo.wow.openapi.aggregate.snapshot.ListQuerySnapshotRouteSpecFactory
+import me.ahoo.wow.openapi.aggregate.snapshot.ListQuerySnapshotStateRouteSpecFactory
+import me.ahoo.wow.openapi.aggregate.snapshot.LoadSnapshotRouteSpecFactory
+import me.ahoo.wow.openapi.aggregate.snapshot.PagedQuerySnapshotRouteSpecFactory
+import me.ahoo.wow.openapi.aggregate.snapshot.PagedQuerySnapshotStateRouteSpecFactory
+import me.ahoo.wow.openapi.aggregate.snapshot.RegenerateSnapshotRouteSpecFactory
+import me.ahoo.wow.openapi.aggregate.snapshot.SingleSnapshotRouteSpecFactory
+import me.ahoo.wow.openapi.aggregate.snapshot.SingleSnapshotStateRouteSpecFactory
 import me.ahoo.wow.openapi.aggregate.state.AggregateTracingRouteSpecFactory
 import me.ahoo.wow.openapi.aggregate.state.LoadAggregateRouteSpecFactory
 import me.ahoo.wow.openapi.aggregate.state.LoadTimeBasedAggregateRouteSpecFactory
@@ -260,6 +270,16 @@ class RouterSpecs(
             is LoadAggregateRouteSpecFactory,
             is LoadVersionedAggregateRouteSpecFactory,
             is LoadTimeBasedAggregateRouteSpecFactory -> explicitContributors(RouteCategory.STATE).isNotEmpty()
+            is CountSnapshotRouteSpecFactory,
+            is ListQuerySnapshotRouteSpecFactory,
+            is PagedQuerySnapshotRouteSpecFactory,
+            is SingleSnapshotRouteSpecFactory,
+            is ListQuerySnapshotStateRouteSpecFactory,
+            is PagedQuerySnapshotStateRouteSpecFactory,
+            is SingleSnapshotStateRouteSpecFactory,
+            is LoadSnapshotRouteSpecFactory,
+            is RegenerateSnapshotRouteSpecFactory,
+            is BatchRegenerateSnapshotRouteSpecFactory -> explicitContributors(RouteCategory.SNAPSHOT).isNotEmpty()
             else -> false
         }
     }

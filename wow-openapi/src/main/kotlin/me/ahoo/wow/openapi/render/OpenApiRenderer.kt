@@ -192,6 +192,7 @@ class OpenApiRenderer(private val componentContext: OpenAPIComponentContext? = n
             is HttpSchema.ComponentRef -> Schema<Any>().also {
                 it.`$ref` = COMPONENTS_SCHEMAS_REF + key
             }
+            is HttpSchema.Raw -> schema
         }
     }
 

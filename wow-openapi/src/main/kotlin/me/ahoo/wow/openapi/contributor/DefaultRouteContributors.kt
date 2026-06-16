@@ -15,6 +15,7 @@ package me.ahoo.wow.openapi.contributor
 
 import me.ahoo.wow.openapi.catalog.RouteContributor
 import me.ahoo.wow.openapi.contributor.aggregate.command.CommandRouteContributor
+import me.ahoo.wow.openapi.contributor.aggregate.snapshot.SnapshotRouteContributor
 import me.ahoo.wow.openapi.contributor.aggregate.state.StateRouteContributor
 import me.ahoo.wow.openapi.contributor.global.CommandFacadeRouteContributor
 import me.ahoo.wow.openapi.contributor.global.CommandWaitRouteContributor
@@ -32,6 +33,7 @@ object DefaultRouteContributors {
             GenerateBIScriptRouteContributor,
             CommandRouteContributor,
             StateRouteContributor,
+            SnapshotRouteContributor,
             LegacyRouteContributor
         )
     }

@@ -32,6 +32,16 @@ import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.RouterSpecs
 import me.ahoo.wow.openapi.aggregate.command.CommandFacadeRouteSpec
 import me.ahoo.wow.openapi.aggregate.command.CommandRouteSpec
+import me.ahoo.wow.openapi.aggregate.snapshot.BatchRegenerateSnapshotRouteSpec
+import me.ahoo.wow.openapi.aggregate.snapshot.CountSnapshotRouteSpec
+import me.ahoo.wow.openapi.aggregate.snapshot.ListQuerySnapshotRouteSpec
+import me.ahoo.wow.openapi.aggregate.snapshot.ListQuerySnapshotStateRouteSpec
+import me.ahoo.wow.openapi.aggregate.snapshot.LoadSnapshotRouteSpec
+import me.ahoo.wow.openapi.aggregate.snapshot.PagedQuerySnapshotRouteSpec
+import me.ahoo.wow.openapi.aggregate.snapshot.PagedQuerySnapshotStateRouteSpec
+import me.ahoo.wow.openapi.aggregate.snapshot.RegenerateSnapshotRouteSpec
+import me.ahoo.wow.openapi.aggregate.snapshot.SingleSnapshotRouteSpec
+import me.ahoo.wow.openapi.aggregate.snapshot.SingleSnapshotStateRouteSpec
 import me.ahoo.wow.openapi.aggregate.state.AggregateTracingRouteSpec
 import me.ahoo.wow.openapi.aggregate.state.LoadAggregateRouteSpec
 import me.ahoo.wow.openapi.aggregate.state.LoadTimeBasedAggregateRouteSpec
@@ -64,6 +74,18 @@ internal class RouteSpecContractAdapterTest {
         LoadVersionedAggregateRouteSpec::class.java.name,
         LoadTimeBasedAggregateRouteSpec::class.java.name
     )
+    private val snapshotHandlerKeys = setOf(
+        CountSnapshotRouteSpec::class.java.name,
+        ListQuerySnapshotRouteSpec::class.java.name,
+        PagedQuerySnapshotRouteSpec::class.java.name,
+        SingleSnapshotRouteSpec::class.java.name,
+        ListQuerySnapshotStateRouteSpec::class.java.name,
+        PagedQuerySnapshotStateRouteSpec::class.java.name,
+        SingleSnapshotStateRouteSpec::class.java.name,
+        LoadSnapshotRouteSpec::class.java.name,
+        RegenerateSnapshotRouteSpec::class.java.name,
+        BatchRegenerateSnapshotRouteSpec::class.java.name
+    )
 
     @Test
     fun `should adapt router specs to route catalog`() {
@@ -77,11 +99,15 @@ internal class RouteSpecContractAdapterTest {
         val explicitStateRoutes = catalog.routes.filter {
             it.handlerKey in stateHandlerKeys
         }
+        val explicitSnapshotRoutes = catalog.routes.filter {
+            it.handlerKey in snapshotHandlerKeys
+        }
         explicitCommandRoutes.assert().isNotEmpty()
         explicitStateRoutes.assert().isNotEmpty()
+        explicitSnapshotRoutes.assert().isNotEmpty()
         catalog.routes.assert().hasSize(
             routerSpecs.count() + explicitGlobalHandlerKeys.size + explicitCommandRoutes.size +
-                explicitStateRoutes.size
+                explicitStateRoutes.size + explicitSnapshotRoutes.size
         )
         val handlerKeysByRouteId = catalog.routes.associate { it.routeId to it.handlerKey }
         routerSpecs.forEach { routeSpec ->
@@ -112,6 +138,17 @@ internal class RouteSpecContractAdapterTest {
         routerSpecs.any { it::class.java.name in stateHandlerKeys }.assert().isFalse()
         val catalogRoutes = routerSpecs.toRouteCatalog().routes
         stateHandlerKeys.forEach { handlerKey ->
+            catalogRoutes.any { it.handlerKey == handlerKey }.assert().isTrue()
+        }
+    }
+
+    @Test
+    fun `should contribute snapshot routes outside legacy route specs`() {
+        val routerSpecs = RouterSpecs(currentContext).build()
+
+        routerSpecs.any { it::class.java.name in snapshotHandlerKeys }.assert().isFalse()
+        val catalogRoutes = routerSpecs.toRouteCatalog().routes
+        snapshotHandlerKeys.forEach { handlerKey ->
             catalogRoutes.any { it.handlerKey == handlerKey }.assert().isTrue()
         }
     }

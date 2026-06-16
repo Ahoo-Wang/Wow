@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.openapi.contract
 
+import io.swagger.v3.oas.models.media.Schema
 import java.lang.reflect.Type
 
 data class HttpRouteContract(
@@ -99,4 +100,5 @@ sealed interface HttpSchema {
     data class TypeRef(val mainTargetType: Type, val typeParameters: List<Type> = emptyList()) : HttpSchema
     data class Array(val item: HttpSchema) : HttpSchema
     data class ComponentRef(val key: kotlin.String) : HttpSchema
+    data class Raw(val schema: Schema<*>) : HttpSchema
 }
