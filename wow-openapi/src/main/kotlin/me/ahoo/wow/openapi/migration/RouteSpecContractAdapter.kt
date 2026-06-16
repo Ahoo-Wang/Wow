@@ -43,17 +43,36 @@ import me.ahoo.wow.openapi.contract.HttpTag
 class RouteSpecContractAdapter(private val componentContext: OpenAPIComponentContext) {
 
     fun toRouteCatalog(routeSpecs: Iterable<RouteSpec>): RouteCatalog {
+        val routeSpecList = routeSpecs.toList()
+        val pathMetadata = routeSpecList.groupBy { it.path }.mapValues { (_, routes) ->
+            routes.first()
+        }
         return RouteCatalogBuilder()
-            .addAll(routeSpecs.map(::toContract))
+            .addAll(
+                routeSpecList.map { routeSpec ->
+                    toContract(
+                        routeSpec,
+                        pathMetadata.getValue(routeSpec.path)
+                    )
+                }
+            )
             .build()
     }
 
     fun toContract(routeSpec: RouteSpec): HttpRouteContract {
+        return toContract(routeSpec, routeSpec)
+    }
+
+    private fun toContract(routeSpec: RouteSpec, pathRouteSpec: RouteSpec): HttpRouteContract {
         return HttpRouteContract(
             routeId = routeSpec.id,
             method = routeSpec.method,
             path = routeSpec.path,
             handlerKey = routeSpec.id,
+            summary = routeSpec.summary,
+            description = routeSpec.description,
+            pathSummary = pathRouteSpec.summary,
+            pathDescription = pathRouteSpec.description,
             accept = routeSpec.accept,
             produce = routeSpec.responses.toHttpResponses()
                 .flatMap { response -> response.content.map { it.mediaType } }

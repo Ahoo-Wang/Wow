@@ -52,6 +52,9 @@ class OpenApiRenderer {
 
         catalog.routes.groupBy { it.path }.forEach { (path, routes) ->
             val pathItem = openAPI.paths[path] ?: PathItem()
+            val pathMetadata = routes.first()
+            pathItem.summary = pathMetadata.pathSummary
+            pathItem.description = pathMetadata.pathDescription
             routes.forEach { route ->
                 pathItem.addOperation(route.method, route.toOperation())
             }
@@ -69,6 +72,8 @@ class OpenApiRenderer {
 
     private fun HttpRouteContract.toOperation() = io.swagger.v3.oas.models.Operation().also { operation ->
         operation.operationId = routeId
+        operation.summary = summary
+        operation.description = description
         operation.tags = tags.map { it.name }
         operation.parameters = parameters.map { it.toParameter() }
         operation.requestBody = requestBody?.toRequestBody()

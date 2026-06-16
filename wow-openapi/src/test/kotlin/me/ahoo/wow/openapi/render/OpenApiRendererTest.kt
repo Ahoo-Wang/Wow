@@ -222,6 +222,45 @@ internal class OpenApiRendererTest {
     }
 
     @Test
+    fun `should render route and path descriptions`() {
+        val openAPI = OpenAPI()
+
+        OpenApiRenderer().render(
+            RouteCatalog(
+                listOf(
+                    route(
+                        routeId = "test.post",
+                        method = Https.Method.POST,
+                        path = "/test",
+                        summary = "Post summary",
+                        description = "Post description",
+                        pathSummary = "Path summary",
+                        pathDescription = "Path description"
+                    ),
+                    route(
+                        routeId = "test.get",
+                        method = Https.Method.GET,
+                        path = "/test",
+                        summary = "Get summary",
+                        description = "Get description",
+                        pathSummary = "Path summary",
+                        pathDescription = "Path description"
+                    )
+                )
+            ),
+            openAPI
+        )
+
+        val pathItem = openAPI.paths["/test"]!!
+        pathItem.summary.assert().isEqualTo("Path summary")
+        pathItem.description.assert().isEqualTo("Path description")
+        pathItem.post.summary.assert().isEqualTo("Post summary")
+        pathItem.post.description.assert().isEqualTo("Post description")
+        pathItem.get.summary.assert().isEqualTo("Get summary")
+        pathItem.get.description.assert().isEqualTo("Get description")
+    }
+
+    @Test
     fun `should render inline schema shape and declared empty content`() {
         val openAPI = OpenAPI()
 
@@ -316,6 +355,10 @@ internal class OpenApiRendererTest {
         routeId: String = "test.route",
         method: String = Https.Method.GET,
         path: String = "/test",
+        summary: String = "",
+        description: String = "",
+        pathSummary: String = summary,
+        pathDescription: String = description,
         parameters: List<HttpParameter> = emptyList(),
         requestBody: HttpRequestBody? = null,
         responses: List<HttpResponse> = listOf(HttpResponse(statusCode = Https.Code.OK)),
@@ -326,6 +369,10 @@ internal class OpenApiRendererTest {
             method = method,
             path = path,
             handlerKey = routeId,
+            summary = summary,
+            description = description,
+            pathSummary = pathSummary,
+            pathDescription = pathDescription,
             parameters = parameters,
             requestBody = requestBody,
             responses = responses,

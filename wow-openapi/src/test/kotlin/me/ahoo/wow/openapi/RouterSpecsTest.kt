@@ -15,6 +15,8 @@ package me.ahoo.wow.openapi
 
 import io.swagger.v3.oas.models.Components
 import io.swagger.v3.oas.models.OpenAPI
+import io.swagger.v3.oas.models.Operation
+import io.swagger.v3.oas.models.PathItem
 import io.swagger.v3.oas.models.Paths
 import io.swagger.v3.oas.models.SpecVersion
 import io.swagger.v3.oas.models.info.Info
@@ -96,5 +98,55 @@ internal class RouterSpecsTest {
         openAPI.components.assert().isSameAs(components)
         openAPI.paths.assert().isNotEmpty()
         openAPI.components.schemas.assert().isNotEmpty()
+    }
+
+    @Test
+    fun `catalog merge should preserve route descriptions from legacy merge`() {
+        val legacyOpenAPI = OpenAPI()
+        val catalogOpenAPI = OpenAPI()
+
+        RouterSpecs(namedContext).build().mergeOpenAPI(legacyOpenAPI)
+        RouterSpecs(namedContext).build().mergeOpenAPIFromCatalog(catalogOpenAPI)
+
+        val (path, legacyPathItem) = legacyOpenAPI.paths.entries.first { (_, pathItem) ->
+            pathItem.summary.isNotNullOrBlank() || pathItem.description.isNotNullOrBlank()
+        }
+        val catalogPathItem = catalogOpenAPI.paths[path]!!
+        catalogPathItem.summary.assert().isEqualTo(legacyPathItem.summary)
+        catalogPathItem.description.assert().isEqualTo(legacyPathItem.description)
+
+        val (operationPath, operationMethod, legacyOperation) = legacyOpenAPI.paths.entries.asSequence()
+            .flatMap { (pathName, pathItem) ->
+                pathItem.operations().asSequence().map { (method, operation) ->
+                    Triple(pathName, method, operation)
+                }
+            }
+            .first { (_, _, operation) ->
+                operation.summary.isNotNullOrBlank() || operation.description.isNotNullOrBlank()
+            }
+        val catalogOperation = catalogOpenAPI.paths[operationPath]!!.operation(operationMethod)
+        catalogOperation.summary.assert().isEqualTo(legacyOperation.summary)
+        catalogOperation.description.assert().isEqualTo(legacyOperation.description)
+    }
+
+    private fun String?.isNotNullOrBlank(): Boolean {
+        return isNullOrBlank().not()
+    }
+
+    private fun PathItem.operations(): List<Pair<String, Operation>> {
+        return listOfNotNull(
+            get?.let { Https.Method.GET to it },
+            post?.let { Https.Method.POST to it },
+            put?.let { Https.Method.PUT to it },
+            delete?.let { Https.Method.DELETE to it },
+            options?.let { Https.Method.OPTIONS to it },
+            head?.let { Https.Method.HEAD to it },
+            patch?.let { Https.Method.PATCH to it },
+            trace?.let { Https.Method.TRACE to it }
+        )
+    }
+
+    private fun PathItem.operation(method: String): Operation {
+        return operations().first { (operationMethod, _) -> operationMethod == method }.second
     }
 }
