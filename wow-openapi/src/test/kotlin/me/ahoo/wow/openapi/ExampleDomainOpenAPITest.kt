@@ -49,7 +49,7 @@ internal class ExampleDomainOpenAPITest {
 
         @Test
         fun `should not generate routes for disabled route aggregate`() {
-            val disabledPaths = routerSpecs.filter {
+            val disabledPaths = catalogRoutes().filter {
                 it.path.contains("disabled_route_aggregate")
             }
             disabledPaths.assert().isEmpty()
@@ -58,7 +58,7 @@ internal class ExampleDomainOpenAPITest {
 
         @Test
         fun `should generate expected route count`() {
-            routerSpecs.assert().hasSizeGreaterThanOrEqualTo(20)
+            catalogRoutes().assert().hasSizeGreaterThanOrEqualTo(20)
         }
 
         @Test
@@ -75,8 +75,8 @@ internal class ExampleDomainOpenAPITest {
         fun `should generate cart routes without default tenant path`() {
             // Cart has @StaticTenantId → default appendTenantPath=false
             // MockVariableCommand overrides with appendTenantPath=ALWAYS, so exclude it
-            val cartRoutes = routerSpecs.filter {
-                it.path.contains("/cart") && !it.id.contains("mock_variable_command")
+            val cartRoutes = catalogRoutes().filter {
+                it.path.contains("/cart") && !it.routeId.contains("mock_variable_command")
             }
             cartRoutes.assert().isNotEmpty()
             cartRoutes.forEach {
@@ -86,7 +86,7 @@ internal class ExampleDomainOpenAPITest {
 
         @Test
         fun `should generate order routes with spaced resource name`() {
-            val orderRoutes = routerSpecs.filter {
+            val orderRoutes = catalogRoutes().filter {
                 it.path.contains("sales-order")
             }
             orderRoutes.assert().isNotEmpty()
@@ -94,7 +94,7 @@ internal class ExampleDomainOpenAPITest {
 
         @Test
         fun `should set correct tags for cart`() {
-            val cartRoutes = routerSpecs.filter {
+            val cartRoutes = catalogRoutes().filter {
                 it.path.contains("/cart")
             }
             val tagNames = cartRoutes.flatMap { it.tags.map { tag -> tag.name } }.toSet()
@@ -161,6 +161,8 @@ internal class ExampleDomainOpenAPITest {
             it.routeId == routeId
         }
     }
+
+    private fun catalogRoutes() = routerSpecs.toRouteCatalog().routes
 
     @Nested
     inner class Schemas {

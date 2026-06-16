@@ -23,14 +23,33 @@ import me.ahoo.wow.openapi.QueryComponent.RequestBody.aggregatedCountQueryReques
 import me.ahoo.wow.openapi.QueryComponent.RequestBody.aggregatedListQueryRequestBody
 import me.ahoo.wow.openapi.QueryComponent.RequestBody.aggregatedPagedQueryRequestBody
 import me.ahoo.wow.openapi.QueryComponent.RequestBody.aggregatedSingleQueryRequestBody
+import me.ahoo.wow.openapi.QueryComponent.RequestBody.countQueryRequestBody
+import me.ahoo.wow.openapi.QueryComponent.RequestBody.listQueryRequestBody
+import me.ahoo.wow.openapi.QueryComponent.RequestBody.pagedQueryRequestBody
 import me.ahoo.wow.openapi.QueryComponent.Response.countQueryResponse
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.contract.HttpContent
 import me.ahoo.wow.openapi.contract.HttpRequestBody
 import me.ahoo.wow.openapi.contract.HttpResponse
 import me.ahoo.wow.openapi.contract.HttpSchema
+import me.ahoo.wow.schema.typed.AggregatedDomainEventStream
 import me.ahoo.wow.schema.web.ServerSentEventNonNullData
 import java.lang.reflect.Type
+
+internal fun OpenAPIComponentContext.countQueryRequestBodyRef(): HttpRequestBody {
+    countQueryRequestBody()
+    return HttpRequestBody(componentRef = QueryComponent.COUNT_QUERY_KEY)
+}
+
+internal fun OpenAPIComponentContext.listQueryRequestBodyRef(): HttpRequestBody {
+    listQueryRequestBody()
+    return HttpRequestBody(componentRef = QueryComponent.LIST_QUERY_KEY)
+}
+
+internal fun OpenAPIComponentContext.pagedQueryRequestBodyRef(): HttpRequestBody {
+    pagedQueryRequestBody()
+    return HttpRequestBody(componentRef = QueryComponent.PAGED_QUERY_KEY)
+}
 
 internal fun OpenAPIComponentContext.aggregatedCountQueryRequestBodyRef(
     aggregateMetadata: AggregateMetadata<*, *>
@@ -65,6 +84,28 @@ internal fun OpenAPIComponentContext.countQueryResponseRef(): HttpResponse {
     return HttpResponse(
         statusCode = Https.Code.OK,
         componentRef = QueryComponent.COUNT_QUERY_KEY
+    )
+}
+
+internal fun OpenAPIComponentContext.eventStreamListResponse(
+    aggregateMetadata: AggregateMetadata<*, *>
+): HttpResponse {
+    return listResponse(
+        AggregatedDomainEventStream::class.java,
+        aggregateMetadata.command.aggregateType
+    )
+}
+
+internal fun OpenAPIComponentContext.eventStreamPagedResponse(
+    aggregateMetadata: AggregateMetadata<*, *>
+): HttpResponse {
+    return responseWithJson(
+        schema = HttpSchema.Raw(
+            schema(
+                PagedList::class.java,
+                resolveType(AggregatedDomainEventStream::class.java, aggregateMetadata.command.aggregateType)
+            )
+        )
     )
 }
 

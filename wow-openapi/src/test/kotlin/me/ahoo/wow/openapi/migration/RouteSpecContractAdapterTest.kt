@@ -32,6 +32,12 @@ import me.ahoo.wow.openapi.RouteSpec
 import me.ahoo.wow.openapi.RouterSpecs
 import me.ahoo.wow.openapi.aggregate.command.CommandFacadeRouteSpec
 import me.ahoo.wow.openapi.aggregate.command.CommandRouteSpec
+import me.ahoo.wow.openapi.aggregate.event.CountEventStreamRouteSpec
+import me.ahoo.wow.openapi.aggregate.event.EventCompensateRouteSpec
+import me.ahoo.wow.openapi.aggregate.event.ListQueryEventStreamRouteSpec
+import me.ahoo.wow.openapi.aggregate.event.LoadEventStreamRouteSpec
+import me.ahoo.wow.openapi.aggregate.event.PagedQueryEventStreamRouteSpec
+import me.ahoo.wow.openapi.aggregate.event.state.ResendStateEventRouteSpec
 import me.ahoo.wow.openapi.aggregate.snapshot.BatchRegenerateSnapshotRouteSpec
 import me.ahoo.wow.openapi.aggregate.snapshot.CountSnapshotRouteSpec
 import me.ahoo.wow.openapi.aggregate.snapshot.ListQuerySnapshotRouteSpec
@@ -86,6 +92,14 @@ internal class RouteSpecContractAdapterTest {
         RegenerateSnapshotRouteSpec::class.java.name,
         BatchRegenerateSnapshotRouteSpec::class.java.name
     )
+    private val eventHandlerKeys = setOf(
+        CountEventStreamRouteSpec::class.java.name,
+        ListQueryEventStreamRouteSpec::class.java.name,
+        PagedQueryEventStreamRouteSpec::class.java.name,
+        LoadEventStreamRouteSpec::class.java.name,
+        EventCompensateRouteSpec::class.java.name,
+        ResendStateEventRouteSpec::class.java.name
+    )
 
     @Test
     fun `should adapt router specs to route catalog`() {
@@ -102,12 +116,16 @@ internal class RouteSpecContractAdapterTest {
         val explicitSnapshotRoutes = catalog.routes.filter {
             it.handlerKey in snapshotHandlerKeys
         }
+        val explicitEventRoutes = catalog.routes.filter {
+            it.handlerKey in eventHandlerKeys
+        }
         explicitCommandRoutes.assert().isNotEmpty()
         explicitStateRoutes.assert().isNotEmpty()
         explicitSnapshotRoutes.assert().isNotEmpty()
+        explicitEventRoutes.assert().isNotEmpty()
         catalog.routes.assert().hasSize(
             routerSpecs.count() + explicitGlobalHandlerKeys.size + explicitCommandRoutes.size +
-                explicitStateRoutes.size + explicitSnapshotRoutes.size
+                explicitStateRoutes.size + explicitSnapshotRoutes.size + explicitEventRoutes.size
         )
         val handlerKeysByRouteId = catalog.routes.associate { it.routeId to it.handlerKey }
         routerSpecs.forEach { routeSpec ->
@@ -149,6 +167,17 @@ internal class RouteSpecContractAdapterTest {
         routerSpecs.any { it::class.java.name in snapshotHandlerKeys }.assert().isFalse()
         val catalogRoutes = routerSpecs.toRouteCatalog().routes
         snapshotHandlerKeys.forEach { handlerKey ->
+            catalogRoutes.any { it.handlerKey == handlerKey }.assert().isTrue()
+        }
+    }
+
+    @Test
+    fun `should contribute event routes outside legacy route specs`() {
+        val routerSpecs = RouterSpecs(currentContext).build()
+
+        routerSpecs.any { it::class.java.name in eventHandlerKeys }.assert().isFalse()
+        val catalogRoutes = routerSpecs.toRouteCatalog().routes
+        eventHandlerKeys.forEach { handlerKey ->
             catalogRoutes.any { it.handlerKey == handlerKey }.assert().isTrue()
         }
     }

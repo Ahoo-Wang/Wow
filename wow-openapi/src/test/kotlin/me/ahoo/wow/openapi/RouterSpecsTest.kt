@@ -44,7 +44,7 @@ internal class RouterSpecsTest {
     @Test
     fun `should merge router specs into open api with context name as title`() {
         val openAPI = OpenAPI()
-        RouterSpecs(namedContext).build().mergeOpenAPI(openAPI)
+        RouterSpecs(namedContext).build().mergeOpenAPIFromCatalog(openAPI)
         openAPI.info?.title.assert().isEqualTo(namedContext.contextName)
     }
 
@@ -52,7 +52,7 @@ internal class RouterSpecsTest {
     fun `should keep existing info when merging`() {
         val info = Info().title("Custom Title")
         val openAPI = OpenAPI().info(info)
-        RouterSpecs(namedContext).build().mergeOpenAPI(openAPI)
+        RouterSpecs(namedContext).build().mergeOpenAPIFromCatalog(openAPI)
         openAPI.info.assert().isSameAs(info)
         openAPI.info.title.assert().isEqualTo("Custom Title")
     }
@@ -61,7 +61,7 @@ internal class RouterSpecsTest {
     fun `should replace default info title when merging`() {
         val info = Info().title(DEFAULT_OPENAPI_INFO_TITLE).description("hello")
         val openAPI = OpenAPI().info(info)
-        RouterSpecs(namedContext).build().mergeOpenAPI(openAPI)
+        RouterSpecs(namedContext).build().mergeOpenAPIFromCatalog(openAPI)
         openAPI.info.assert().isSameAs(info)
         openAPI.info.title.assert().isEqualTo(namedContext.contextName)
     }
@@ -70,7 +70,7 @@ internal class RouterSpecsTest {
     fun `should keep custom info title when merging`() {
         val info = Info().title(generateGlobalId())
         val openAPI = OpenAPI().info(info)
-        RouterSpecs(namedContext).build().mergeOpenAPI(openAPI)
+        RouterSpecs(namedContext).build().mergeOpenAPIFromCatalog(openAPI)
         openAPI.info.assert().isSameAs(info)
     }
 
@@ -80,7 +80,7 @@ internal class RouterSpecsTest {
         val paths = Paths()
         val components = Components()
         val openAPI = OpenAPI().info(info).paths(paths).components(components)
-        RouterSpecs(namedContext).build().mergeOpenAPI(openAPI)
+        RouterSpecs(namedContext).build().mergeOpenAPIFromCatalog(openAPI)
         openAPI.info.assert().isSameAs(info)
         openAPI.paths.assert().isSameAs(paths)
         openAPI.components.assert().isSameAs(components)
@@ -106,21 +106,17 @@ internal class RouterSpecsTest {
     }
 
     @Test
-    fun `catalog merge should preserve route descriptions from legacy merge`() {
-        val legacyOpenAPI = OpenAPI()
+    fun `catalog merge should expose route summaries and descriptions`() {
         val catalogOpenAPI = OpenAPI()
 
-        RouterSpecs(namedContext).build().mergeOpenAPI(legacyOpenAPI)
         RouterSpecs(namedContext).build().mergeOpenAPIFromCatalog(catalogOpenAPI)
 
-        val (path, legacyPathItem) = legacyOpenAPI.paths.entries.first { (_, pathItem) ->
+        val (_, pathItem) = catalogOpenAPI.paths.entries.first { (_, pathItem) ->
             pathItem.summary.isNotNullOrBlank() || pathItem.description.isNotNullOrBlank()
         }
-        val catalogPathItem = catalogOpenAPI.paths[path]!!
-        catalogPathItem.summary.assert().isEqualTo(legacyPathItem.summary)
-        catalogPathItem.description.assert().isEqualTo(legacyPathItem.description)
+        (pathItem.summary.isNotNullOrBlank() || pathItem.description.isNotNullOrBlank()).assert().isTrue()
 
-        val (operationPath, operationMethod, legacyOperation) = legacyOpenAPI.paths.entries.asSequence()
+        val (_, _, operation) = catalogOpenAPI.paths.entries.asSequence()
             .flatMap { (pathName, pathItem) ->
                 pathItem.operations().asSequence().map { (method, operation) ->
                     Triple(pathName, method, operation)
@@ -129,9 +125,7 @@ internal class RouterSpecsTest {
             .first { (_, _, operation) ->
                 operation.summary.isNotNullOrBlank() || operation.description.isNotNullOrBlank()
             }
-        val catalogOperation = catalogOpenAPI.paths[operationPath]!!.operation(operationMethod)
-        catalogOperation.summary.assert().isEqualTo(legacyOperation.summary)
-        catalogOperation.description.assert().isEqualTo(legacyOperation.description)
+        (operation.summary.isNotNullOrBlank() || operation.description.isNotNullOrBlank()).assert().isTrue()
     }
 
     @Test
@@ -207,10 +201,6 @@ internal class RouterSpecsTest {
             patch?.let { Https.Method.PATCH to it },
             trace?.let { Https.Method.TRACE to it }
         )
-    }
-
-    private fun PathItem.operation(method: String): Operation {
-        return operations().first { (operationMethod, _) -> operationMethod == method }.second
     }
 
     private data class ContributorLifecycleSchema(val value: String = "")

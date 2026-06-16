@@ -29,6 +29,12 @@ import me.ahoo.wow.openapi.OpenAPIExtensions.withExtensions
 import me.ahoo.wow.openapi.aggregate.AggregateRouteSpecFactory
 import me.ahoo.wow.openapi.aggregate.AggregateRouteSpecFactoryProvider
 import me.ahoo.wow.openapi.aggregate.command.CommandRouteSpecFactory
+import me.ahoo.wow.openapi.aggregate.event.CountEventStreamRouteSpecFactory
+import me.ahoo.wow.openapi.aggregate.event.EventCompensateRouteSpecFactory
+import me.ahoo.wow.openapi.aggregate.event.ListQueryEventStreamRouteSpecFactory
+import me.ahoo.wow.openapi.aggregate.event.LoadEventStreamRouteSpecFactory
+import me.ahoo.wow.openapi.aggregate.event.PagedQueryEventStreamRouteSpecFactory
+import me.ahoo.wow.openapi.aggregate.event.state.ResendStateEventRouteSpecFactory
 import me.ahoo.wow.openapi.aggregate.snapshot.BatchRegenerateSnapshotRouteSpecFactory
 import me.ahoo.wow.openapi.aggregate.snapshot.CountSnapshotRouteSpecFactory
 import me.ahoo.wow.openapi.aggregate.snapshot.ListQuerySnapshotRouteSpecFactory
@@ -280,6 +286,12 @@ class RouterSpecs(
             is LoadSnapshotRouteSpecFactory,
             is RegenerateSnapshotRouteSpecFactory,
             is BatchRegenerateSnapshotRouteSpecFactory -> explicitContributors(RouteCategory.SNAPSHOT).isNotEmpty()
+            is CountEventStreamRouteSpecFactory,
+            is ListQueryEventStreamRouteSpecFactory,
+            is PagedQueryEventStreamRouteSpecFactory,
+            is LoadEventStreamRouteSpecFactory,
+            is EventCompensateRouteSpecFactory,
+            is ResendStateEventRouteSpecFactory -> explicitContributors(RouteCategory.EVENT).isNotEmpty()
             else -> false
         }
     }

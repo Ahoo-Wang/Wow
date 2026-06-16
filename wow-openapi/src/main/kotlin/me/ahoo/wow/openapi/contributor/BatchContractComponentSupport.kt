@@ -16,8 +16,12 @@ package me.ahoo.wow.openapi.contributor
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.openapi.BatchComponent.Parameter.batchAfterIdPathParameter
 import me.ahoo.wow.openapi.BatchComponent.Parameter.batchLimitPathParameter
+import me.ahoo.wow.openapi.BatchComponent.Parameter.headVersionPathParameter
+import me.ahoo.wow.openapi.BatchComponent.Parameter.tailVersionPathParameter
 import me.ahoo.wow.openapi.BatchComponent.PathVariable.BATCH_AFTER_ID
 import me.ahoo.wow.openapi.BatchComponent.PathVariable.BATCH_LIMIT
+import me.ahoo.wow.openapi.BatchComponent.PathVariable.HEAD_VERSION
+import me.ahoo.wow.openapi.BatchComponent.PathVariable.TAIL_VERSION
 import me.ahoo.wow.openapi.BatchComponent.Response.batchResultResponse
 import me.ahoo.wow.openapi.Https
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
@@ -33,6 +37,16 @@ internal fun OpenAPIComponentContext.batchAfterIdPathParameterRef(): HttpParamet
 internal fun OpenAPIComponentContext.batchLimitPathParameterRef(): HttpParameter {
     batchLimitPathParameter()
     return batchPathParameterRef(BATCH_LIMIT)
+}
+
+internal fun OpenAPIComponentContext.headVersionPathParameterRef(): HttpParameter {
+    headVersionPathParameter()
+    return batchPathParameterRef(HEAD_VERSION)
+}
+
+internal fun OpenAPIComponentContext.tailVersionPathParameterRef(): HttpParameter {
+    tailVersionPathParameter()
+    return batchPathParameterRef(TAIL_VERSION)
 }
 
 internal fun OpenAPIComponentContext.batchResultResponseRef(): HttpResponse {
