@@ -35,6 +35,7 @@ concurrency:
   cancel-in-progress: true
 permissions:
   contents: read
+  id-token: write
 env:
   CI: GITHUB_ACTIONS
 
@@ -62,7 +63,7 @@ jobs:
         uses: codecov/codecov-action@v7
         if: success()
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
+          use_oidc: true
           flags: contract
           name: contract-tests
           fail_ci_if_error: true

@@ -15,6 +15,7 @@ concurrency:
 permissions:
   contents: read
   checks: write
+  id-token: write
 env:
   CI: GITHUB_ACTIONS
 jobs:
@@ -52,7 +53,7 @@ jobs:
       - name: Upload Code Coverage Report to Codecov
         uses: codecov/codecov-action@v7
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
+          use_oidc: true
           flags: full
           name: full-coverage
           fail_ci_if_error: true
