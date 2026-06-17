@@ -67,4 +67,17 @@ class SchemaMergerTest {
         target.name.assert().isNull()
         target.type.assert().isEqualTo("string")
     }
+
+    @Test
+    fun `should keep enum and examples unchanged to preserve current merge behavior`() {
+        val source = io.swagger.v3.oas.models.media.Schema<String>()
+        source._enum(listOf("A", "B"))
+        source.examples(listOf("sample"))
+
+        val target = io.swagger.v3.oas.models.media.Schema<String>()
+        source.mergeTo(target)
+
+        target.enum.assert().isNull()
+        target.examples.assert().isNull()
+    }
 }

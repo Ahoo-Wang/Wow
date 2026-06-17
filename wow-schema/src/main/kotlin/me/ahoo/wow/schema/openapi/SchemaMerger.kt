@@ -49,7 +49,6 @@ object SchemaMerger {
         target.deprecated(deprecated)
         target.xml(xml)
         target.extensions(extensions)
-//        target._enum(enum)
         target.discriminator(discriminator)
         target.exampleSetFlag((exampleSetFlag))
         target.prefixItems(prefixItems)
@@ -84,7 +83,6 @@ object SchemaMerger {
         target.dependentSchemas(dependentSchemas)
         target.dependentRequired(dependentRequired)
         target.`$comment`(`$comment`)
-//        target.examples(examples)
         target.booleanSchemaValue(booleanSchemaValue)
     }
 }
