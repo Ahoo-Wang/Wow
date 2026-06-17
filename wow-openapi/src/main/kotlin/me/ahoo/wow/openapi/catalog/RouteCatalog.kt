@@ -15,10 +15,11 @@ package me.ahoo.wow.openapi.catalog
 
 import me.ahoo.wow.openapi.contract.HttpParameterLocation
 import me.ahoo.wow.openapi.contract.HttpRouteContract
+import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 
 class RouteCatalog(routes: List<HttpRouteContract>) : Iterable<HttpRouteContract> {
     val routes: List<HttpRouteContract> = routes
-        .sortedWith(compareBy<HttpRouteContract> { it.path }.thenBy { it.method }.thenBy { it.routeId })
+        .sortedWith(COMPARATOR)
         .also(::validate)
 
     override fun iterator(): Iterator<HttpRouteContract> {
@@ -62,5 +63,18 @@ class RouteCatalog(routes: List<HttpRouteContract>) : Iterable<HttpRouteContract
         require(missingTemplates.isEmpty()) {
             "Route [${route.routeId}] path parameters missing path variables: $missingTemplates."
         }
+    }
+
+    private companion object {
+        private val COMPARATOR: Comparator<HttpRouteContract> = compareBy<HttpRouteContract> { it.priority }
+            .thenBy { it.path }
+            .thenBy { it.method }
+            .thenBy { it.routeId }
+
+        private val HttpRouteContract.priority: Int
+            get() = when (handlerMetadata) {
+                is HttpRouteHandlerMetadata.Command -> 0
+                else -> 1
+            }
     }
 }

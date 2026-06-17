@@ -19,8 +19,11 @@ import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.openapi.contract.HttpParameter
 import me.ahoo.wow.openapi.contract.HttpParameterLocation
 import me.ahoo.wow.openapi.contract.HttpRouteContract
+import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
+import me.ahoo.wow.openapi.metadata.commandRouteMetadata
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
+import me.ahoo.wow.tck.mock.MockCreateAggregate
 import org.junit.jupiter.api.Test
 
 internal class RouteCatalogTest {
@@ -34,6 +37,33 @@ internal class RouteCatalogTest {
         )
 
         catalog.routes.map { it.routeId }.assert().isEqualTo(listOf("a", "b"))
+    }
+
+    @Test
+    fun `should sort command routes before non command routes`() {
+        val catalog = RouteCatalog(
+            listOf(
+                HttpRouteContract(
+                    routeId = "cart.event.count",
+                    method = "POST",
+                    path = "/cart/event/count",
+                    handlerKey = "event.count"
+                ),
+                HttpRouteContract(
+                    routeId = "cart.snapshot.count",
+                    method = "POST",
+                    path = "/cart/snapshot/count",
+                    handlerKey = "snapshot.count"
+                ),
+                commandRoute(
+                    routeId = "cart.add_cart_item",
+                    path = "/owner/{ownerId}/cart/add_cart_item"
+                )
+            )
+        )
+
+        catalog.routes.map { it.routeId }.assert()
+            .isEqualTo(listOf("cart.add_cart_item", "cart.event.count", "cart.snapshot.count"))
     }
 
     @Test
@@ -103,5 +133,19 @@ internal class RouteCatalogTest {
             override val category: RouteCategory = RouteCategory.GLOBAL
             override val order: Int = order
         }
+    }
+
+    private fun commandRoute(routeId: String, path: String): HttpRouteContract {
+        return HttpRouteContract(
+            routeId = routeId,
+            method = "POST",
+            path = path,
+            handlerKey = "command",
+            parameters = listOf(HttpParameter("ownerId", HttpParameterLocation.PATH)),
+            handlerMetadata = HttpRouteHandlerMetadata.Command(
+                aggregateRouteMetadata = MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata(),
+                commandRouteMetadata = MockCreateAggregate::class.java.commandRouteMetadata()
+            )
+        )
     }
 }
