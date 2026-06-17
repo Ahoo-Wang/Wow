@@ -22,6 +22,9 @@ import me.ahoo.wow.messaging.DefaultHeader
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.serialization.event.DomainEventRecords
+import me.ahoo.wow.serialization.event.EventTypeDescriptor
+import me.ahoo.wow.serialization.event.EventTypeId
+import me.ahoo.wow.serialization.event.EventTypeRegistry
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.node.ObjectNode
 
@@ -54,6 +57,30 @@ internal class JsonSerializerEventTest {
     }
 
     @Test
+    fun `domain event deserializer should prefer derived event type over body type`() {
+        val event = domainEvent(sequence = 1, isLast = true)
+        val node = event.toJsonNode<ObjectNode>()
+        val typeId = EventTypeId("sales", "Order", "OrderCreated")
+        node.put(MessageRecords.BODY_TYPE, LegacyOrderCreated::class.java.name)
+        EventTypeRegistry.register(
+            EventTypeDescriptor(
+                typeId = typeId,
+                eventType = OrderCreated::class.java,
+                revision = "1",
+            )
+        )
+
+        try {
+            val decoded = node.toJsonString().toObject<DomainEvent<*>>()
+
+            decoded.body.assert().isInstanceOf(OrderCreated::class.java)
+            (decoded.body as OrderCreated).orderId.assert().isEqualTo("order-1")
+        } finally {
+            EventTypeRegistry.unregister(typeId)
+        }
+    }
+
+    @Test
     fun `event stream deserializer should derive event sequence and last flag from body order`() {
         val first = domainEvent(id = "event-1", sequence = 9, isLast = true)
         val second = domainEvent(id = "event-2", sequence = 9, isLast = true)
@@ -74,6 +101,52 @@ internal class JsonSerializerEventTest {
         decoded.body[1].isLast.assert().isTrue()
         decoded.body[1].aggregateId.assert().isEqualTo(stream.aggregateId)
         decoded.body[1].version.assert().isEqualTo(stream.version)
+    }
+
+    @Test
+    fun `event stream serializer should not write type id field`() {
+        val stream = SimpleDomainEventStream(
+            id = "stream-1",
+            requestId = "request-1",
+            header = DefaultHeader.empty(),
+            body = listOf(domainEvent(sequence = 1, isLast = true)),
+        )
+
+        val node = stream.toJsonNode<ObjectNode>()
+        val eventNode = node[MessageRecords.BODY][0] as ObjectNode
+
+        (eventNode["typeId"] == null).assert().isTrue()
+        eventNode[MessageRecords.BODY_TYPE].asString().assert().isEqualTo(OrderCreated::class.java.name)
+    }
+
+    @Test
+    fun `event stream deserializer should prefer derived event type over body type`() {
+        val stream = SimpleDomainEventStream(
+            id = "stream-1",
+            requestId = "request-1",
+            header = DefaultHeader.empty(),
+            body = listOf(domainEvent(sequence = 1, isLast = true)),
+        )
+        val node = stream.toJsonNode<ObjectNode>()
+        val eventNode = node[MessageRecords.BODY][0] as ObjectNode
+        val typeId = EventTypeId("sales", "Order", "OrderCreated")
+        eventNode.put(MessageRecords.BODY_TYPE, LegacyOrderCreated::class.java.name)
+        EventTypeRegistry.register(
+            EventTypeDescriptor(
+                typeId = typeId,
+                eventType = OrderCreated::class.java,
+                revision = "1",
+            )
+        )
+
+        try {
+            val decoded = node.toJsonString().toObject<DomainEventStream>()
+
+            decoded.first().body.assert().isInstanceOf(OrderCreated::class.java)
+            (decoded.first().body as OrderCreated).orderId.assert().isEqualTo("order-1")
+        } finally {
+            EventTypeRegistry.unregister(typeId)
+        }
     }
 
     private fun domainEvent(
@@ -100,4 +173,6 @@ internal class JsonSerializerEventTest {
     }
 
     private data class OrderCreated(val orderId: String)
+
+    private data class LegacyOrderCreated(val orderId: String)
 }
