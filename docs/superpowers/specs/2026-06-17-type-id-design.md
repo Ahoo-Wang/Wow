@@ -77,9 +77,8 @@ event://sales/order/order_created
 
 1. 从 `contextName + aggregateName + name` 派生 `EventTypeId`，并结合 `revision` 形成 `EventTypeKey`。
 2. 优先通过注册表解析 `EventTypeKey`。
-3. 如果没有精确的 `revision` 匹配，则按 `EventTypeId` 解析，并允许事件升级器在对象转换前迁移 `body`。
-4. 如果派生 TypeId 无法解析，则 fallback 到历史 `bodyType`。
-5. 如果两条路径都失败，则保留为 `JsonDomainEvent`。
+3. 如果没有精确的 `revision` 匹配，则 fallback 到历史 `bodyType`，避免把历史 revision 的 JSON 猜测映射到当前事件类。
+4. 如果两条路径都失败，则保留为 `JsonDomainEvent`。
 
 这样既能继续读取旧事件记录，也能让新记录走稳定的契约优先路径。
 
@@ -90,14 +89,14 @@ event://sales/order/order_created
 对事件来说：
 
 ```text
-EventTypeId(contextName, aggregateName, name) -> EventTypeDescriptor
+EventTypeKey(EventTypeId(contextName, aggregateName, name), revision) -> EventTypeDescriptor
 ```
 
-`EventTypeDescriptor` 至少应包含当前运行时类和当前 `revision`。如果 Wow 后续需要更严格的版本协商，可以再扩展支持的 revision 元数据。
+`EventTypeDescriptor` 至少应包含当前运行时类和当前 `revision`。不同 revision 可以有不同 descriptor；只有精确 `EventTypeKey` 命中时才绕过 `bodyType`。
 
 注册表不应要求业务代码逐个事件手动注册。框架运行时应从现有 `WowMetadata` 的事件类型集合和事件元数据自动构建注册表；手动 `register` 只作为测试、扩展 SPI 或特殊集成入口。
 
-注册表必须检测同一个 `EventTypeId` 的重复映射并快速失败，因为两个运行时类声明同一个契约身份会让事件重放变得歧义。
+注册表必须检测同一个 `EventTypeKey` 的重复映射并快速失败，因为两个运行时类声明同一个契约版本会让事件重放变得歧义。
 
 ## 兼容性
 
@@ -105,7 +104,7 @@ EventTypeId(contextName, aggregateName, name) -> EventTypeDescriptor
 
 现有记录必须继续可读：
 
-- 能派生 `EventTypeId` 的记录，优先走契约身份注册表。
+- 能派生 `EventTypeId` 且 `revision` 精确匹配的记录，优先走契约身份注册表。
 - 无法通过契约身份解析的记录，继续通过 `bodyType` 反序列化。
 
 第一阶段不应从现有 API 和 schema 中移除 `bodyType`，也不应要求 BI 脚本新增 `type_id`。如果未来跨语言或跨系统交换需要显式暴露契约身份，再考虑把派生值序列化为字段。
@@ -147,7 +146,7 @@ contextName + aggregateName + name
 
 - 新事件序列化不新增 `typeId` 字段，并继续保留 `bodyType`
 - 事件流反序列化能从 `contextName + aggregateName + name` 派生 `EventTypeId`
-- 反序列化在派生 TypeId 和 `bodyType` 指向不同类型时优先使用派生 TypeId
+- 反序列化在派生 `EventTypeKey` 精确命中且 `bodyType` 指向不同类型时优先使用派生 TypeId
 - 无法通过派生 TypeId 解析的历史记录仍通过 `bodyType` 反序列化
 - 未知派生 TypeId 且未知 `bodyType` 时保留为 `JsonDomainEvent`
 - 事件升级器可以通过修改 `name` 或 `revision` 影响派生 TypeId/TypeKey

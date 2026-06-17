@@ -59,10 +59,16 @@ class EventTypeRegistryTest {
             EventTypeRegistry.resolve(descriptor.typeId, FIXTURE_EVENT_REVISION)
                 .assert().isEqualTo(FixtureRevisedEvent::class.java)
             EventTypeRegistry.resolve(descriptor.typeId, "older-revision")
-                .assert().isEqualTo(FixtureRevisedEvent::class.java)
+                .assert().isNull()
         } finally {
             EventTypeRegistry.unregister(descriptor.typeId)
         }
+    }
+
+    @Test
+    fun `event type name should reject package scope entries`() {
+        FixtureRevisedEvent::class.java.name.isEventTypeName().assert().isTrue()
+        "me.ahoo.sales.order.event".isEventTypeName().assert().isFalse()
     }
 
     @Test
@@ -90,6 +96,40 @@ class EventTypeRegistryTest {
         } finally {
             EventTypeRegistry.unregister(descriptor.typeId)
         }
+    }
+
+    @Test
+    fun `register should ignore package scope entries from wow metadata`() {
+        val metadata = WowMetadata(
+            contexts = mapOf(
+                "event" to BoundedContext(
+                    aggregates = mapOf(
+                        "fixture" to Aggregate(
+                            events = setOf("me.ahoo.wow.event")
+                        )
+                    )
+                )
+            )
+        )
+
+        EventTypeRegistry.register(metadata).assert().isEmpty()
+    }
+
+    @Test
+    fun `register should ignore event classes that fail linking`() {
+        val metadata = WowMetadata(
+            contexts = mapOf(
+                "event" to BoundedContext(
+                    aggregates = mapOf(
+                        "fixture" to Aggregate(
+                            events = setOf(LinkingFailedEvent::class.java.name)
+                        )
+                    )
+                )
+            )
+        )
+
+        EventTypeRegistry.register(metadata).assert().isEmpty()
     }
 
     @Test
@@ -121,5 +161,41 @@ class EventTypeRegistryTest {
         }
     }
 
+    @Test
+    fun `register should allow same event type id with different revisions`() {
+        val typeId = EventTypeId("event", "fixture", FIXTURE_EVENT_NAME)
+        EventTypeRegistry.register(
+            EventTypeDescriptor(
+                typeId = typeId,
+                eventType = FixtureRevisedEvent::class.java,
+                revision = FIXTURE_EVENT_REVISION,
+            )
+        )
+        EventTypeRegistry.register(
+            EventTypeDescriptor(
+                typeId = typeId,
+                eventType = ConflictingFixtureEvent::class.java,
+                revision = "next-revision",
+            )
+        )
+
+        try {
+            EventTypeRegistry.resolve(typeId, FIXTURE_EVENT_REVISION)
+                .assert().isEqualTo(FixtureRevisedEvent::class.java)
+            EventTypeRegistry.resolve(typeId, "next-revision")
+                .assert().isEqualTo(ConflictingFixtureEvent::class.java)
+        } finally {
+            EventTypeRegistry.unregister(typeId)
+        }
+    }
+
     private data class ConflictingFixtureEvent(val value: String = "value")
+
+    private class LinkingFailedEvent private constructor(private val value: String = "value") {
+        companion object {
+            init {
+                throw NoClassDefFoundError("missing.Dependency")
+            }
+        }
+    }
 }

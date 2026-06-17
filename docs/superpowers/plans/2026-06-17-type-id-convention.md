@@ -4,7 +4,7 @@
 
 **Goal:** 引入派生式事件 TypeId，让领域事件反序列化优先按 `contextName + aggregateName + name + revision` 解析运行时类型，并在失败时继续 fallback 到 `bodyType`。
 
-**Architecture:** 第一阶段不新增 `typeId` JSON 字段，也不改 Schema/OpenAPI/BI。新增一个小型事件类型身份和值对象注册表，运行时由框架从 `MetadataSearcher.metadata` 自动注册事件类型，业务代码不需要逐个事件手动注册。`DomainEventRecord` 在事件升级后先用派生 `EventTypeId` 查注册表，再回退到现有 `bodyType -> Class.forName()` 路径。事件流中的单个事件通过 `StreamDomainEventRecord` 继承流级 `contextName` 和 `aggregateName`，因此同一解析逻辑可同时覆盖单事件和事件流。
+**Architecture:** 第一阶段不新增 `typeId` JSON 字段，也不改 Schema/OpenAPI/BI。新增一个小型事件类型身份和值对象注册表，运行时由框架从 `MetadataSearcher.metadata` 自动注册事件类型，业务代码不需要逐个事件手动注册。`DomainEventRecord` 在事件升级后先用派生 `EventTypeId + revision` 形成的 `EventTypeKey` 查注册表，精确匹配失败时再回退到现有 `bodyType -> Class.forName()` 路径。事件流中的单个事件通过 `StreamDomainEventRecord` 继承流级 `contextName` 和 `aggregateName`，因此同一解析逻辑可同时覆盖单事件和事件流。
 
 **Tech Stack:** Kotlin 2.3.20、JUnit Jupiter、`me.ahoo.test:fluent-assert-core`、Jackson tools、Gradle `:wow-core:test`。
 
@@ -16,11 +16,12 @@
   - 定义 `EventTypeId`、`EventTypeKey`、`EventTypeDescriptor`、`EventTypeRegistry`。
   - 提供 `DomainEventRecord.toEventTypeId()` 扩展，统一从现有字段派生身份。
   - `resolve()` 首次调用时从 `MetadataSearcher.metadata` 自动加载事件类型。
-  - 注册表使用 `ConcurrentHashMap`，重复 `EventTypeId` 但不同 descriptor 时快速失败。
+  - 注册表使用 `ConcurrentHashMap`，重复 `EventTypeKey` 但不同 descriptor 时快速失败。
+  - `Aggregate.events` 中的 package scope 条目不做类加载；不可链接的事件类安全跳过并保留 `bodyType` fallback。
 - Create: `wow-core/src/test/kotlin/me/ahoo/wow/serialization/event/EventTypeRegistryTest.kt`
   - 覆盖 TypeId 派生、注册解析、重复注册失败。
 - Modify: `wow-core/src/main/kotlin/me/ahoo/wow/serialization/event/DomainEventRecord.kt`
-  - 将 `toDomainEventObject()` 的类型解析从单一路径改为“派生 TypeId 优先，`bodyType` fallback”。
+  - 将 `toDomainEventObject()` 的类型解析从单一路径改为“派生 EventTypeKey 精确匹配优先，`bodyType` fallback”。
 - Modify: `wow-core/src/test/kotlin/me/ahoo/wow/serialization/JsonSerializerEventTest.kt`
   - 覆盖单事件反序列化优先使用派生 TypeId。
   - 覆盖事件流反序列化优先使用派生 TypeId。
@@ -102,7 +103,7 @@ class EventTypeRegistryTest {
             EventTypeRegistry.resolve(descriptor.typeId, FIXTURE_EVENT_REVISION)
                 .assert().isEqualTo(FixtureRevisedEvent::class.java)
             EventTypeRegistry.resolve(descriptor.typeId, "older-revision")
-                .assert().isEqualTo(FixtureRevisedEvent::class.java)
+                .assert().isNull()
         } finally {
             EventTypeRegistry.unregister(descriptor.typeId)
         }
@@ -241,7 +242,6 @@ data class EventTypeDescriptor(
 
 object EventTypeRegistry {
     private val log = KotlinLogging.logger {}
-    private val descriptors = ConcurrentHashMap<EventTypeId, EventTypeDescriptor>()
     private val keyDescriptors = ConcurrentHashMap<EventTypeKey, EventTypeDescriptor>()
     private val metadataLoaded = AtomicBoolean(false)
 
@@ -264,7 +264,6 @@ object EventTypeRegistry {
     }
 
     fun register(descriptor: EventTypeDescriptor): EventTypeDescriptor {
-        register(descriptors, descriptor.typeId, descriptor)
         register(keyDescriptors, descriptor.key, descriptor)
         return descriptor
     }
@@ -286,6 +285,9 @@ object EventTypeRegistry {
         aggregateName: String,
         eventTypeName: String
     ): EventTypeDescriptor? {
+        if (eventTypeName.isEventTypeName().not()) {
+            return null
+        }
         val eventType = try {
             Class.forName(eventTypeName)
         } catch (classNotFoundException: ClassNotFoundException) {
@@ -293,9 +295,13 @@ object EventTypeRegistry {
                 "Event type[$eventTypeName] not found at current runtime, ignore registration."
             }
             return null
+        } catch (linkageError: LinkageError) {
+            log.warn(linkageError) {
+                "Event type[$eventTypeName] can not be linked at current runtime, ignore registration."
+            }
+            return null
         }
-        @Suppress("UNCHECKED_CAST")
-        val metadata = (eventType as Class<Any>).toEventMetadata()
+        val metadata = eventType.toEventMetadataUnsafe()
         return register(
             contextName = contextName,
             aggregateName = aggregateName,
@@ -321,10 +327,7 @@ object EventTypeRegistry {
 
     fun resolve(typeId: EventTypeId, revision: String): Class<*>? {
         ensureMetadataLoaded()
-        keyDescriptors[EventTypeKey(typeId, revision)]?.let {
-            return it.eventType
-        }
-        return descriptors[typeId]?.eventType
+        return keyDescriptors[EventTypeKey(typeId, revision)]?.eventType
     }
 
     private fun ensureMetadataLoaded() {
@@ -334,10 +337,20 @@ object EventTypeRegistry {
     }
 
     internal fun unregister(typeId: EventTypeId) {
-        descriptors.remove(typeId)?.let {
-            keyDescriptors.remove(it.key)
+        keyDescriptors.keys.removeIf {
+            it.typeId == typeId
         }
     }
+}
+
+@Suppress("UNCHECKED_CAST")
+private fun Class<*>.toEventMetadataUnsafe(): EventMetadata<*> {
+    return (this as Class<Any>).toEventMetadata()
+}
+
+internal fun String.isEventTypeName(): Boolean {
+    val typeName = substringAfterLast('.')
+    return typeName.firstOrNull()?.isUpperCase() == true
 }
 
 fun DomainEventRecord.toEventTypeId(): EventTypeId {

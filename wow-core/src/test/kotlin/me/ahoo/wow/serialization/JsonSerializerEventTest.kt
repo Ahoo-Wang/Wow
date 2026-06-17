@@ -81,6 +81,30 @@ internal class JsonSerializerEventTest {
     }
 
     @Test
+    fun `domain event deserializer should fall back to body type when revision differs`() {
+        val event = domainEvent(sequence = 1, isLast = true)
+        val node = event.toJsonNode<ObjectNode>()
+        val typeId = EventTypeId("sales", "Order", "OrderCreated")
+        node.put(MessageRecords.BODY_TYPE, LegacyOrderCreated::class.java.name)
+        EventTypeRegistry.register(
+            EventTypeDescriptor(
+                typeId = typeId,
+                eventType = OrderCreated::class.java,
+                revision = "2",
+            )
+        )
+
+        try {
+            val decoded = node.toJsonString().toObject<DomainEvent<*>>()
+
+            decoded.body.assert().isInstanceOf(LegacyOrderCreated::class.java)
+            (decoded.body as LegacyOrderCreated).orderId.assert().isEqualTo("order-1")
+        } finally {
+            EventTypeRegistry.unregister(typeId)
+        }
+    }
+
+    @Test
     fun `event stream deserializer should derive event sequence and last flag from body order`() {
         val first = domainEvent(id = "event-1", sequence = 9, isLast = true)
         val second = domainEvent(id = "event-2", sequence = 9, isLast = true)

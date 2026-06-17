@@ -56,7 +56,6 @@ data class EventTypeDescriptor(
 
 object EventTypeRegistry {
     private val log = KotlinLogging.logger {}
-    private val descriptors = ConcurrentHashMap<EventTypeId, EventTypeDescriptor>()
     private val keyDescriptors = ConcurrentHashMap<EventTypeKey, EventTypeDescriptor>()
     private val metadataLoaded = AtomicBoolean(false)
 
@@ -79,7 +78,6 @@ object EventTypeRegistry {
     }
 
     fun register(descriptor: EventTypeDescriptor): EventTypeDescriptor {
-        register(descriptors, descriptor.typeId, descriptor)
         register(keyDescriptors, descriptor.key, descriptor)
         return descriptor
     }
@@ -98,10 +96,7 @@ object EventTypeRegistry {
 
     fun resolve(typeId: EventTypeId, revision: String): Class<*>? {
         ensureMetadataLoaded()
-        keyDescriptors[EventTypeKey(typeId, revision)]?.let {
-            return it.eventType
-        }
-        return descriptors[typeId]?.eventType
+        return keyDescriptors[EventTypeKey(typeId, revision)]?.eventType
     }
 
     private fun registerEventType(
@@ -109,6 +104,9 @@ object EventTypeRegistry {
         aggregateName: String,
         eventTypeName: String
     ): EventTypeDescriptor? {
+        if (eventTypeName.isEventTypeName().not()) {
+            return null
+        }
         val eventType = try {
             Class.forName(eventTypeName)
         } catch (classNotFoundException: ClassNotFoundException) {
@@ -116,9 +114,14 @@ object EventTypeRegistry {
                 "Event type[$eventTypeName] not found at current runtime, ignore registration."
             }
             return null
+        } catch (linkageError: LinkageError) {
+            log.warn(linkageError) {
+                "Event type[$eventTypeName] can not be linked at current runtime, ignore registration."
+            }
+            return null
         }
-        @Suppress("UNCHECKED_CAST")
-        val metadata = (eventType as Class<Any>).toEventMetadata()
+
+        val metadata = eventType.toEventMetadataUnsafe()
         return register(
             contextName = contextName,
             aggregateName = aggregateName,
@@ -149,10 +152,20 @@ object EventTypeRegistry {
     }
 
     internal fun unregister(typeId: EventTypeId) {
-        descriptors.remove(typeId)?.let {
-            keyDescriptors.remove(it.key)
+        keyDescriptors.keys.removeIf {
+            it.typeId == typeId
         }
     }
+}
+
+@Suppress("UNCHECKED_CAST")
+private fun Class<*>.toEventMetadataUnsafe(): EventMetadata<*> {
+    return (this as Class<Any>).toEventMetadata()
+}
+
+internal fun String.isEventTypeName(): Boolean {
+    val typeName = substringAfterLast('.')
+    return typeName.firstOrNull()?.isUpperCase() == true
 }
 
 fun DomainEventRecord.toEventTypeId(): EventTypeId {
