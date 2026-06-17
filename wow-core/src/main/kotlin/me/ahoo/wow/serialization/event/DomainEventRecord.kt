@@ -32,6 +32,7 @@ import me.ahoo.wow.serialization.NamedBoundedContextMessageRecord
 import me.ahoo.wow.serialization.OwnerIdRecord
 import me.ahoo.wow.serialization.SpaceIdRecord
 import me.ahoo.wow.serialization.toObject
+import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
 
 object DomainEventRecords {
@@ -72,33 +73,46 @@ interface DomainEventRecord :
         return upgradedRecord.toDomainEventObject()
     }
 
+    @Suppress("UNCHECKED_CAST")
     private fun toDomainEventObject(): DomainEvent<Any> {
         val aggregateId = toAggregateId()
-        val bodyType = try {
-            bodyType.toType<Any>()
-        } catch (classNotFoundException: ClassNotFoundException) {
-            @Suppress("UNCHECKED_CAST")
-            return JsonDomainEvent(
-                id = id,
-                header = toMessageHeader(),
-                bodyType = bodyType,
-                body = body,
-                aggregateId = aggregateId,
-                ownerId = ownerId,
-                spaceId = spaceId,
-                version = version,
-                sequence = sequence,
-                isLast = isLast,
-                revision = revision,
-                commandId = commandId,
-                name = name,
-                createTime = createTime,
-            ) as DomainEvent<Any>
-        }
+        val bodyType = resolveBodyType()
+            ?: return toJsonDomainEvent(aggregateId, body) as DomainEvent<Any>
         return SimpleDomainEvent(
             id = id,
             header = toMessageHeader(),
             body = body.toObject(bodyType),
+            aggregateId = aggregateId,
+            ownerId = ownerId,
+            spaceId = spaceId,
+            version = version,
+            sequence = sequence,
+            isLast = isLast,
+            revision = revision,
+            commandId = commandId,
+            name = name,
+            createTime = createTime,
+        )
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun resolveBodyType(): Class<Any>? {
+        EventTypeRegistry.resolve(toEventTypeId(), revision)?.let {
+            return it as Class<Any>
+        }
+        return try {
+            bodyType.toType<Any>()
+        } catch (classNotFoundException: ClassNotFoundException) {
+            null
+        }
+    }
+
+    private fun toJsonDomainEvent(aggregateId: AggregateId, body: JsonNode): JsonDomainEvent {
+        return JsonDomainEvent(
+            id = id,
+            header = toMessageHeader(),
+            bodyType = bodyType,
+            body = body,
             aggregateId = aggregateId,
             ownerId = ownerId,
             spaceId = spaceId,
