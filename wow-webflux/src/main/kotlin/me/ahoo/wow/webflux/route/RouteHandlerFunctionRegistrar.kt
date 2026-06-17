@@ -14,6 +14,7 @@
 package me.ahoo.wow.webflux.route
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.wow.openapi.contract.HttpRouteContract
 
 class RouteHandlerFunctionRegistrar(
     httpFactories: Collection<HttpRouteHandlerFunctionFactory> = emptyList()
@@ -34,5 +35,16 @@ class RouteHandlerFunctionRegistrar(
 
     fun getHttpFactory(handlerKey: String): HttpRouteHandlerFunctionFactory? {
         return httpFactories[handlerKey]
+    }
+
+    fun requireHttpFactory(contract: HttpRouteContract): HttpRouteHandlerFunctionFactory {
+        return getHttpFactory(contract.handlerKey)
+            ?: throw IllegalArgumentException(
+                "HttpRouteHandlerFunctionFactory not found - " +
+                    "handlerKey:[${contract.handlerKey}], " +
+                    "method:[${contract.method}], " +
+                    "path:[${contract.path}], " +
+                    "routeId:[${contract.routeId}]."
+            )
     }
 }

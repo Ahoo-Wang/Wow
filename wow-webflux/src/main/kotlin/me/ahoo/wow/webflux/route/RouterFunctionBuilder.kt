@@ -14,9 +14,6 @@
 package me.ahoo.wow.webflux.route
 
 import me.ahoo.wow.openapi.RouterSpecs
-import org.springframework.http.HttpMethod
-import org.springframework.http.MediaType
-import org.springframework.web.reactive.function.server.RequestPredicates
 import org.springframework.web.reactive.function.server.RouterFunction
 import org.springframework.web.reactive.function.server.RouterFunctions
 import org.springframework.web.reactive.function.server.ServerResponse
@@ -27,27 +24,17 @@ import org.springframework.web.reactive.function.server.ServerResponse
 @Suppress("LongParameterList")
 class RouterFunctionBuilder(
     private val routerSpecs: RouterSpecs,
-    private val routeHandlerFunctionRegistrar: RouteHandlerFunctionRegistrar
+    routeHandlerFunctionRegistrar: RouteHandlerFunctionRegistrar,
+    private val routeMaterializer: HttpRouteMaterializer = HttpRouteMaterializer(routeHandlerFunctionRegistrar)
 ) {
 
     fun build(): RouterFunction<ServerResponse> {
         val routerFunctionBuilder = RouterFunctions.route()
         for (contract in routerSpecs.toRouteCatalog().routes) {
-            val acceptMediaTypes = MediaType.parseMediaTypes(contract.accept).toTypedArray()
-            val acceptPredicate = RequestPredicates.accept(*acceptMediaTypes)
-            val httpMethod = HttpMethod.valueOf(contract.method)
-            val requestPredicate = RequestPredicates.path(contract.path)
-                .and(RequestPredicates.method(httpMethod))
-                .and(acceptPredicate)
-
-            val factory = requireNotNull(routeHandlerFunctionRegistrar.getHttpFactory(contract.handlerKey)) {
-                "HttpRouteHandlerFunctionFactory not found - handlerKey:[${contract.handlerKey}], " +
-                    "method:[${contract.method}], path:[${contract.path}], routeId:[${contract.routeId}]."
-            }
-            val handlerFunction = factory.create(contract, contract.handlerMetadata)
+            val binding = routeMaterializer.materialize(contract)
             routerFunctionBuilder.route(
-                requestPredicate,
-                handlerFunction
+                binding.predicate,
+                binding.handlerFunction
             )
         }
         return routerFunctionBuilder.build()
