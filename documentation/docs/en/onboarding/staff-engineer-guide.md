@@ -12,7 +12,7 @@ const { site } = useData()
 # Staff Engineer Onboarding Guide
 
 **Audience**: Staff / Principal / Lead Engineers evaluating or adopting Wow for production systems.
-**Version**: Wow `8.3.8` (Spring Boot 4.x, Kotlin 2.3, JVM 17+)
+**Version**: Wow `8.6.0` (Spring Boot 4.x, Kotlin 2.3, JVM 17+)
 
 ## TL;DR
 
@@ -559,7 +559,7 @@ flowchart TB
 
 ### Side-by-Side: Wow vs Axon Framework vs Eventuate vs Manual CQRS+ES
 
-| Dimension | Wow (`8.3.8`) | Axon Framework (`4.x`) | Eventuate Tram | Manual (DIY) |
+| Dimension | Wow (`8.6.0`) | Axon Framework (`4.x`) | Eventuate Tram | Manual (DIY) |
 |---|---|---|---|---|
 | **Language / Platform** | Kotlin 2.3, JVM 17+, reactive (Project Reactor) | Java/Kotlin, supports both blocking and reactive | Java, Spring Boot | Any |
 | **Command routing** | KSP compile-time code generation; zero reflection | Runtime annotation scanning + reflection | Runtime annotation scanning | Manual wiring |

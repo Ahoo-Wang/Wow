@@ -12,7 +12,7 @@ const { site } = useData()
 # 资深工程师入门指南
 
 **受众**：正在评估或采用 Wow 用于生产系统的资深 / 首席 / 技术主管工程师。
-**版本**：Wow `8.3.8`（Spring Boot 4.x、Kotlin 2.3、JVM 17+）
+**版本**：Wow `8.6.0`（Spring Boot 4.x、Kotlin 2.3、JVM 17+）
 
 ## 摘要
 
@@ -559,7 +559,7 @@ flowchart TB
 
 ### 并排比较：Wow vs Axon Framework vs Eventuate vs 手动 CQRS+ES
 
-| 维度 | Wow（`8.3.8`） | Axon Framework（`4.x`） | Eventuate Tram | 手动（自建） |
+| 维度 | Wow（`8.6.0`） | Axon Framework（`4.x`） | Eventuate Tram | 手动（自建） |
 |---|---|---|---|---|
 | **语言 / 平台** | Kotlin 2.3，JVM 17+，响应式（Project Reactor） | Java/Kotlin，支持阻塞和响应式 | Java，Spring Boot | 任意 |
 | **命令路由** | KSP 编译时代码生成；零反射 | 运行时注解扫描 + 反射 | 运行时注解扫描 | 手动接线 |

@@ -22,7 +22,7 @@ onMounted(() => {
 
 **Audience**: VP/Director-level engineering leaders evaluating the Wow Framework for organizational adoption.
 
-**Updated**: May 2026 | **Version**: 8.3.8 | **License**: Apache 2.0
+**Updated**: June 2026 | **Version**: 8.6.0 | **License**: Apache 2.0
 
 ---
 
@@ -501,7 +501,7 @@ Choose the first bounded context carefully. The ideal pilot:
 
 | Metric | Value | Source |
 |---|---|---|
-| **Version** | 8.3.8 | [gradle.properties:23](https://github.com/Ahoo-Wang/Wow/blob/main/gradle.properties#L23) |
+| **Version** | 8.6.0 | [gradle.properties:23](https://github.com/Ahoo-Wang/Wow/blob/main/gradle.properties#L23) |
 | **License** | Apache 2.0 | [gradle.properties:28-29](https://github.com/Ahoo-Wang/Wow/blob/main/gradle.properties#L28-L29) |
 | **Language** | Kotlin 2.3 / JVM 17+ | [CLAUDE.md:100](https://github.com/Ahoo-Wang/Wow/blob/main/CLAUDE.md#L100) |
 | **Framework** | Spring Boot 4.x | [CLAUDE.md:3](https://github.com/Ahoo-Wang/Wow/blob/main/CLAUDE.md#L3) |

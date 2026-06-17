@@ -3,7 +3,7 @@
 [![Build Status](https://github.com/Ahoo-Wang/Wow/workflows/CI/badge.svg)](https://github.com/Ahoo-Wang/Wow/actions)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Maven Central](https://img.shields.io/maven-central/v/me.ahoo.wow/wow-test)](https://central.sonatype.com/artifact/me.ahoo.wow/wow-test)
-[![Version](https://img.shields.io/badge/version-6.5.2-blue.svg)](https://github.com/Ahoo-Wang/Wow/releases)
+[![Version](https://img.shields.io/badge/version-8.6.0-blue.svg)](https://github.com/Ahoo-Wang/Wow/releases)
 
 WOW 框架的综合测试库，提供基于 Given/When/Expect 模式的领域聚合和无状态 Saga 测试的流畅 DSL。
 
