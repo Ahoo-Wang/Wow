@@ -67,6 +67,7 @@ abstract class NoMetadataRouteHandlerFunctionFactorySupport(
         contract: HttpRouteContract,
         metadata: HttpRouteHandlerMetadata
     ): HandlerFunction<ServerResponse> {
+        metadata.requireNoHandlerMetadata(handlerKey)
         return create(contract)
     }
 

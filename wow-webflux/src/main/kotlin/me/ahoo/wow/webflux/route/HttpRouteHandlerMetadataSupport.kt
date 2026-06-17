@@ -29,6 +29,13 @@ internal fun HttpRouteHandlerMetadata.requireCommandHandlerMetadata(
         ?: invalidHandlerMetadata(handlerKey, HttpRouteHandlerMetadata.Command::class.java)
 }
 
+internal fun HttpRouteHandlerMetadata.requireNoHandlerMetadata(
+    handlerKey: String
+): HttpRouteHandlerMetadata.None {
+    return this as? HttpRouteHandlerMetadata.None
+        ?: invalidHandlerMetadata(handlerKey, HttpRouteHandlerMetadata.None::class.java)
+}
+
 private fun invalidHandlerMetadata(
     handlerKey: String,
     expected: Class<out HttpRouteHandlerMetadata>

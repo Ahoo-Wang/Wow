@@ -62,6 +62,24 @@ class HttpRouteHandlerMetadataSupportTest {
         error.message.assert().contains(HttpRouteHandlerMetadata.Command::class.java.name)
     }
 
+    @Test
+    fun `should require no handler metadata`() {
+        val metadata = HttpRouteHandlerMetadata.None
+
+        metadata.requireNoHandlerMetadata("global.handler").assert().isSameAs(metadata)
+    }
+
+    @Test
+    fun `should reject handler metadata when none is expected`() {
+        val error = assertThrows<IllegalStateException> {
+            HttpRouteHandlerMetadata.Aggregate(aggregateRouteMetadata)
+                .requireNoHandlerMetadata("global.handler")
+        }
+
+        error.message.assert().contains("handlerKey:[global.handler]")
+        error.message.assert().contains(HttpRouteHandlerMetadata.None::class.java.name)
+    }
+
     private val aggregateRouteMetadata =
         MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata()
 }

@@ -82,13 +82,37 @@ class RouteHandlerFunctionFactorySupportTest {
     }
 
     @Test
-    fun `no metadata support should ignore metadata shape`() {
+    fun `no metadata support should pass none metadata to creator`() {
         val factory = TestNoMetadataFactory("global.handler")
-        val contract = routeContract(factory.handlerKey, HttpRouteHandlerMetadata.Aggregate(aggregateRouteMetadata))
+        val contract = routeContract(factory.handlerKey, HttpRouteHandlerMetadata.None)
 
         factory.create(contract)
 
         factory.createdContract.assert().isSameAs(contract)
+    }
+
+    @Test
+    fun `no metadata support should reject metadata`() {
+        val factory = TestNoMetadataFactory("global.handler")
+        val commandMetadata = HttpRouteHandlerMetadata.Command(
+            aggregateRouteMetadata = aggregateRouteMetadata,
+            commandRouteMetadata = MockCreateAggregate::class.java.commandRouteMetadata()
+        )
+        val metadataShapes = listOf(
+            HttpRouteHandlerMetadata.Aggregate(aggregateRouteMetadata),
+            commandMetadata
+        )
+
+        metadataShapes.forEach { metadata ->
+            val contract = routeContract(factory.handlerKey, metadata)
+
+            val error = assertThrows<IllegalStateException> {
+                factory.create(contract)
+            }
+
+            error.message.assert().contains("handlerKey:[global.handler]")
+            error.message.assert().contains(HttpRouteHandlerMetadata.None::class.java.name)
+        }
     }
 
     private fun routeContract(
