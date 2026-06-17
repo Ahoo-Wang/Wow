@@ -19,8 +19,12 @@ import tools.jackson.databind.node.ObjectNode
 object WowSchemaLoader {
     private const val WOW_SCHEMA_PATH_PREFIX = "META-INF/wow-schema/"
 
+    private fun resourcePath(resourceName: String): String {
+        return "$WOW_SCHEMA_PATH_PREFIX$resourceName.json"
+    }
+
     fun loadAsString(resourceName: String): String {
-        val resourcePath = "$WOW_SCHEMA_PATH_PREFIX$resourceName.json"
+        val resourcePath = resourcePath(resourceName)
         val resourceURL = this.javaClass.classLoader.getResource(resourcePath)
         requireNotNull(resourceURL) {
             "Can not find wow schema resource: $resourcePath"

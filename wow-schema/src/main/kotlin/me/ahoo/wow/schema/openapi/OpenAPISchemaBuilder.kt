@@ -16,15 +16,11 @@ package me.ahoo.wow.schema.openapi
 import com.fasterxml.classmate.ResolvedType
 import com.github.victools.jsonschema.generator.SchemaGenerator
 import com.github.victools.jsonschema.generator.TypeContext
-import io.swagger.v3.core.util.ObjectMapperFactory
 import io.swagger.v3.oas.models.media.Schema
 import me.ahoo.wow.schema.SchemaGeneratorBuilder
 import me.ahoo.wow.schema.naming.DefaultSchemaNamePrefixCapable
 import me.ahoo.wow.schema.naming.SchemaNamingModule
-import me.ahoo.wow.schema.openapi.SchemaMerger.mergeTo
-import me.ahoo.wow.serialization.toLinkedHashMap
 import tools.jackson.databind.JsonNode
-import tools.jackson.databind.node.ObjectNode
 import java.lang.reflect.Type
 
 class OpenAPISchemaBuilder(
@@ -44,10 +40,11 @@ class OpenAPISchemaBuilder(
     override val inline: Boolean
         get() = schemaGenerator.config.shouldInlineAllSchemas()
     private val schemaBuilder = schemaGenerator.buildMultipleSchemaDefinitions()
-    private val schemaReferences: MutableList<SchemaReference> = mutableListOf()
-    private val openAPIObjectMapper = ObjectMapperFactory.create(null, true)
+    private val schemaConverter = OpenAPISchemaConverter()
+    private val schemaReferences = SchemaReferenceRegistry(schemaConverter)
+
     fun JsonNode.toSchema(): Schema<*> {
-        return openAPIObjectMapper.convertValue(this.toLinkedHashMap(), Schema::class.java)
+        return schemaConverter.toSchema(this)
     }
 
     fun resolveType(mainTargetType: Type, vararg typeParameters: Type): ResolvedType {
@@ -60,24 +57,14 @@ class OpenAPISchemaBuilder(
             return schemaGenerator.generateSchema(resolvedType).toSchema()
         }
         val refSchemaNode = schemaBuilder.createSchemaReference(resolvedType)
-        val schemaReference = SchemaReference(resolvedType, refSchemaNode.toSchema(), refSchemaNode)
-        schemaReferences.add(schemaReference)
-        return schemaReference.schema
+        return schemaReferences.track(refSchemaNode)
     }
 
     fun build(): Map<String, Schema<*>> {
         val collectedDefs = schemaBuilder.collectDefinitions(definitionPath)
-        for (schemaReference in schemaReferences) {
-            schemaReference.merge()
-        }
+        schemaReferences.mergeAll()
         return collectedDefs.properties().associate { (name, node) ->
-            name to node.toSchema()
-        }
-    }
-
-    inner class SchemaReference(val type: ResolvedType, val schema: Schema<*>, val node: ObjectNode) {
-        fun merge() {
-            node.toSchema().mergeTo(schema)
+            name to schemaConverter.toSchema(node)
         }
     }
 }
