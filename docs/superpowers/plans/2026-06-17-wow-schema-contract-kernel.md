@@ -12,35 +12,35 @@
 
 ## 文件结构
 
-- Modify: `wow-schema/src/main/kotlin/me/ahoo/wow/schema/SchemaGeneratorBuilder.kt`  
+- Modify: `wow-schema/src/main/kotlin/me/ahoo/wow/schema/SchemaGeneratorBuilder.kt`
   保留 public builder facade，把 VicTools config 创建委托给 internal factory，并消除重复 `configBuilder.build()`。
-- Create: `wow-schema/src/main/kotlin/me/ahoo/wow/schema/SchemaGeneratorConfigFactory.kt`  
+- Create: `wow-schema/src/main/kotlin/me/ahoo/wow/schema/SchemaGeneratorConfigFactory.kt`
   internal factory，集中创建 `SchemaGeneratorConfigBuilder`、安装模块、安装 options、执行 customizer。
-- Create: `wow-schema/src/test/kotlin/me/ahoo/wow/schema/SchemaGeneratorConfigFactoryTest.kt`  
+- Create: `wow-schema/src/test/kotlin/me/ahoo/wow/schema/SchemaGeneratorConfigFactoryTest.kt`
   验证 factory 会应用 customizer，并能生成与 builder 生命周期一致的 config。
-- Modify: `wow-schema/src/main/kotlin/me/ahoo/wow/schema/WowModule.kt`  
+- Modify: `wow-schema/src/main/kotlin/me/ahoo/wow/schema/WowModule.kt`
   保留 VicTools module entry point，把 typed provider 注册委托给 registry。
-- Create: `wow-schema/src/main/kotlin/me/ahoo/wow/schema/WowDefinitionProviderRegistry.kt`  
+- Create: `wow-schema/src/main/kotlin/me/ahoo/wow/schema/WowDefinitionProviderRegistry.kt`
   internal registry，按稳定顺序列出 Wow typed definition providers。
-- Create: `wow-schema/src/test/kotlin/me/ahoo/wow/schema/WowDefinitionProviderRegistryTest.kt`  
+- Create: `wow-schema/src/test/kotlin/me/ahoo/wow/schema/WowDefinitionProviderRegistryTest.kt`
   锁定 provider 注册顺序，防止 schema 输出顺序漂移。
-- Modify: `wow-schema/src/main/kotlin/me/ahoo/wow/schema/openapi/OpenAPISchemaBuilder.kt`  
+- Modify: `wow-schema/src/main/kotlin/me/ahoo/wow/schema/openapi/OpenAPISchemaBuilder.kt`
   保留 `resolveType()`、`generateSchema()`、`build()`，把 conversion 和 reference tracking 委托给 helper。
-- Create: `wow-schema/src/main/kotlin/me/ahoo/wow/schema/openapi/OpenAPISchemaConverter.kt`  
+- Create: `wow-schema/src/main/kotlin/me/ahoo/wow/schema/openapi/OpenAPISchemaConverter.kt`
   internal JSON Schema node 到 Swagger `Schema` 的转换器。
-- Create: `wow-schema/src/main/kotlin/me/ahoo/wow/schema/openapi/SchemaReferenceRegistry.kt`  
+- Create: `wow-schema/src/main/kotlin/me/ahoo/wow/schema/openapi/SchemaReferenceRegistry.kt`
   internal reference tracking helper，集中跟踪并 merge reference schema。
-- Create: `wow-schema/src/test/kotlin/me/ahoo/wow/schema/openapi/OpenAPISchemaConverterTest.kt`  
+- Create: `wow-schema/src/test/kotlin/me/ahoo/wow/schema/openapi/OpenAPISchemaConverterTest.kt`
   验证转换器保留 schema type 和 properties。
-- Modify: `wow-schema/src/test/kotlin/me/ahoo/wow/schema/openapi/OpenAPISchemaBuilderTest.kt`  
+- Modify: `wow-schema/src/test/kotlin/me/ahoo/wow/schema/openapi/OpenAPISchemaBuilderTest.kt`
   保持现有 reference、inline、recursive schema 行为不变。
-- Modify: `wow-schema/src/main/kotlin/me/ahoo/wow/schema/openapi/SchemaMerger.kt`  
+- Modify: `wow-schema/src/main/kotlin/me/ahoo/wow/schema/openapi/SchemaMerger.kt`
   移除注释残留，保持字段级 merge 行为。
-- Modify: `wow-schema/src/test/kotlin/me/ahoo/wow/schema/openapi/SchemaMergerTest.kt`  
+- Modify: `wow-schema/src/test/kotlin/me/ahoo/wow/schema/openapi/SchemaMergerTest.kt`
   显式锁定当前不 merge `enum`、`examples` 的行为。
-- Modify: `wow-schema/src/main/kotlin/me/ahoo/wow/schema/WowSchemaLoader.kt`  
+- Modify: `wow-schema/src/main/kotlin/me/ahoo/wow/schema/WowSchemaLoader.kt`
   抽出 resource path 构造，保持资源路径兼容。
-- Modify: `wow-schema/src/test/kotlin/me/ahoo/wow/schema/WowSchemaLoaderTest.kt`  
+- Modify: `wow-schema/src/test/kotlin/me/ahoo/wow/schema/WowSchemaLoaderTest.kt`
   增加成功加载、按类型加载、缺失资源失败路径测试。
 
 ## Task 1: 建立兼容性基线
