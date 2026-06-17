@@ -16,8 +16,7 @@ package me.ahoo.wow.webflux.route.global
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
-import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
-import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.NoMetadataRouteHandlerFunctionFactorySupport
 import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -33,17 +32,12 @@ class GetWowMetadataHandlerFunction : HandlerFunction<ServerResponse> {
     }
 }
 
-class GetWowMetadataHandlerFunctionFactory : HttpRouteHandlerFunctionFactory {
-    override val handlerKey: String = BuiltInHttpRouteHandlerKeys.Global.METADATA
+class GetWowMetadataHandlerFunctionFactory :
+    NoMetadataRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.Global.METADATA) {
 
     override fun create(
-        contract: HttpRouteContract,
-        metadata: HttpRouteHandlerMetadata
+        contract: HttpRouteContract
     ): HandlerFunction<ServerResponse> {
-        return createHandlerFunction()
-    }
-
-    private fun createHandlerFunction(): HandlerFunction<ServerResponse> {
         return GetWowMetadataHandlerFunction()
     }
 }

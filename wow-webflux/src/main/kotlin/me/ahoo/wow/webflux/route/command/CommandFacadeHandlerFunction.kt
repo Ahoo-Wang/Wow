@@ -16,9 +16,8 @@ package me.ahoo.wow.webflux.route.command
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
-import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
-import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.NoMetadataRouteHandlerFunctionFactorySupport
 import me.ahoo.wow.webflux.route.command.extractor.CommandFacadeBodyExtractor
 import me.ahoo.wow.webflux.route.command.extractor.CommandMessageExtractor
 import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
@@ -59,17 +58,11 @@ class CommandFacadeHandlerFunctionFactory(
     private val commandMessageExtractor: CommandMessageExtractor,
     private val exceptionHandler: RequestExceptionHandler,
     private val commandWaitPolicy: CommandWaitPolicy
-) : HttpRouteHandlerFunctionFactory {
-    override val handlerKey: String = BuiltInHttpRouteHandlerKeys.Global.COMMAND_FACADE
+) : NoMetadataRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.Global.COMMAND_FACADE) {
 
     override fun create(
-        contract: HttpRouteContract,
-        metadata: HttpRouteHandlerMetadata
+        contract: HttpRouteContract
     ): HandlerFunction<ServerResponse> {
-        return createHandlerFunction()
-    }
-
-    private fun createHandlerFunction(): HandlerFunction<ServerResponse> {
         return CommandFacadeHandlerFunction(
             commandGateway = commandGateway,
             commandMessageExtractor = commandMessageExtractor,
