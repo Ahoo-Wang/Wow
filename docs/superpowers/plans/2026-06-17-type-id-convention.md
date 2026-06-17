@@ -4,7 +4,7 @@
 
 **Goal:** 引入派生式事件 TypeId，让领域事件反序列化优先按 `contextName + aggregateName + name + revision` 解析运行时类型，并在失败时继续 fallback 到 `bodyType`。
 
-**Architecture:** 第一阶段不新增 `typeId` JSON 字段，也不改 Schema/OpenAPI/BI。新增一个小型事件类型身份和值对象注册表，`DomainEventRecord` 在事件升级后先用派生 `EventTypeId` 查注册表，再回退到现有 `bodyType -> Class.forName()` 路径。事件流中的单个事件通过 `StreamDomainEventRecord` 继承流级 `contextName` 和 `aggregateName`，因此同一解析逻辑可同时覆盖单事件和事件流。
+**Architecture:** 第一阶段不新增 `typeId` JSON 字段，也不改 Schema/OpenAPI/BI。新增一个小型事件类型身份和值对象注册表，运行时由框架从 `MetadataSearcher.metadata` 自动注册事件类型，业务代码不需要逐个事件手动注册。`DomainEventRecord` 在事件升级后先用派生 `EventTypeId` 查注册表，再回退到现有 `bodyType -> Class.forName()` 路径。事件流中的单个事件通过 `StreamDomainEventRecord` 继承流级 `contextName` 和 `aggregateName`，因此同一解析逻辑可同时覆盖单事件和事件流。
 
 **Tech Stack:** Kotlin 2.3.20、JUnit Jupiter、`me.ahoo.test:fluent-assert-core`、Jackson tools、Gradle `:wow-core:test`。
 
@@ -15,6 +15,7 @@
 - Create: `wow-core/src/main/kotlin/me/ahoo/wow/serialization/event/EventTypeId.kt`
   - 定义 `EventTypeId`、`EventTypeKey`、`EventTypeDescriptor`、`EventTypeRegistry`。
   - 提供 `DomainEventRecord.toEventTypeId()` 扩展，统一从现有字段派生身份。
+  - `resolve()` 首次调用时从 `MetadataSearcher.metadata` 自动加载事件类型。
   - 注册表使用 `ConcurrentHashMap`，重复 `EventTypeId` 但不同 descriptor 时快速失败。
 - Create: `wow-core/src/test/kotlin/me/ahoo/wow/serialization/event/EventTypeRegistryTest.kt`
   - 覆盖 TypeId 派生、注册解析、重复注册失败。
@@ -56,6 +57,9 @@
 package me.ahoo.wow.serialization.event
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.configuration.Aggregate
+import me.ahoo.wow.configuration.BoundedContext
+import me.ahoo.wow.configuration.WowMetadata
 import me.ahoo.wow.event.FIXTURE_EVENT_NAME
 import me.ahoo.wow.event.FIXTURE_EVENT_REVISION
 import me.ahoo.wow.event.FixtureRevisedEvent
@@ -99,6 +103,33 @@ class EventTypeRegistryTest {
                 .assert().isEqualTo(FixtureRevisedEvent::class.java)
             EventTypeRegistry.resolve(descriptor.typeId, "older-revision")
                 .assert().isEqualTo(FixtureRevisedEvent::class.java)
+        } finally {
+            EventTypeRegistry.unregister(descriptor.typeId)
+        }
+    }
+
+    @Test
+    fun `register should load descriptors from wow metadata`() {
+        val metadata = WowMetadata(
+            contexts = mapOf(
+                "event" to BoundedContext(
+                    aggregates = mapOf(
+                        "fixture" to Aggregate(
+                            events = setOf(FixtureRevisedEvent::class.java.name)
+                        )
+                    )
+                )
+            )
+        )
+        val descriptors = EventTypeRegistry.register(metadata)
+        val descriptor = descriptors.single()
+
+        try {
+            descriptor.typeId.assert().isEqualTo(
+                EventTypeId("event", "fixture", FIXTURE_EVENT_NAME)
+            )
+            descriptor.eventType.assert().isEqualTo(FixtureRevisedEvent::class.java)
+            descriptor.revision.assert().isEqualTo(FIXTURE_EVENT_REVISION)
         } finally {
             EventTypeRegistry.unregister(descriptor.typeId)
         }
@@ -167,8 +198,13 @@ Expected: 编译失败，提示 `EventTypeId`、`EventTypeRegistry` 或 `EventTy
 
 package me.ahoo.wow.serialization.event
 
+import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.wow.configuration.WowMetadata
+import me.ahoo.wow.configuration.MetadataSearcher
+import me.ahoo.wow.event.annotation.toEventMetadata
 import me.ahoo.wow.event.metadata.EventMetadata
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 
 data class EventTypeId(
     val contextName: String,
@@ -204,8 +240,10 @@ data class EventTypeDescriptor(
 }
 
 object EventTypeRegistry {
+    private val log = KotlinLogging.logger {}
     private val descriptors = ConcurrentHashMap<EventTypeId, EventTypeDescriptor>()
     private val keyDescriptors = ConcurrentHashMap<EventTypeKey, EventTypeDescriptor>()
+    private val metadataLoaded = AtomicBoolean(false)
 
     fun register(
         contextName: String,
@@ -231,6 +269,40 @@ object EventTypeRegistry {
         return descriptor
     }
 
+    fun register(metadata: WowMetadata): List<EventTypeDescriptor> {
+        return metadata.contexts.flatMap { contextEntry ->
+            val contextName = contextEntry.key
+            contextEntry.value.aggregates.flatMap { aggregateEntry ->
+                val aggregateName = aggregateEntry.key
+                aggregateEntry.value.events.mapNotNull { eventTypeName ->
+                    registerEventType(contextName, aggregateName, eventTypeName)
+                }
+            }
+        }
+    }
+
+    private fun registerEventType(
+        contextName: String,
+        aggregateName: String,
+        eventTypeName: String
+    ): EventTypeDescriptor? {
+        val eventType = try {
+            Class.forName(eventTypeName)
+        } catch (classNotFoundException: ClassNotFoundException) {
+            log.warn(classNotFoundException) {
+                "Event type[$eventTypeName] not found at current runtime, ignore registration."
+            }
+            return null
+        }
+        @Suppress("UNCHECKED_CAST")
+        val metadata = (eventType as Class<Any>).toEventMetadata()
+        return register(
+            contextName = contextName,
+            aggregateName = aggregateName,
+            metadata = metadata,
+        )
+    }
+
     private fun <K> register(
         registry: ConcurrentHashMap<K, EventTypeDescriptor>,
         key: K,
@@ -248,10 +320,17 @@ object EventTypeRegistry {
     }
 
     fun resolve(typeId: EventTypeId, revision: String): Class<*>? {
+        ensureMetadataLoaded()
         keyDescriptors[EventTypeKey(typeId, revision)]?.let {
             return it.eventType
         }
         return descriptors[typeId]?.eventType
+    }
+
+    private fun ensureMetadataLoaded() {
+        if (metadataLoaded.compareAndSet(false, true)) {
+            register(MetadataSearcher.metadata)
+        }
     }
 
     internal fun unregister(typeId: EventTypeId) {

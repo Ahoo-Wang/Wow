@@ -95,7 +95,7 @@ EventTypeId(contextName, aggregateName, name) -> EventTypeDescriptor
 
 `EventTypeDescriptor` 至少应包含当前运行时类和当前 `revision`。如果 Wow 后续需要更严格的版本协商，可以再扩展支持的 revision 元数据。
 
-注册表可以从现有事件元数据扫描构建。后续 KSP 生成的 `WowMetadata` 可以包含显式的事件契约条目，从而减少运行时反射查找。
+注册表不应要求业务代码逐个事件手动注册。框架运行时应从现有 `WowMetadata` 的事件类型集合和事件元数据自动构建注册表；手动 `register` 只作为测试、扩展 SPI 或特殊集成入口。
 
 注册表必须检测同一个 `EventTypeId` 的重复映射并快速失败，因为两个运行时类声明同一个契约身份会让事件重放变得歧义。
 
@@ -157,7 +157,7 @@ contextName + aggregateName + name
 ## 迁移路径
 
 1. 定义派生 TypeId 规约，不新增 `typeId` 字段。
-2. 按稳定事件身份注册事件类。
+2. 框架从 `WowMetadata` 自动注册事件类。
 3. 让反序列化优先使用派生 TypeId。
 4. 派生 TypeId 无法解析时继续 fallback 到 `bodyType`。
 5. 明确约束：`contextName + aggregateName + name` 一旦进入事件日志，就视为事件契约身份，不能随意改名。
