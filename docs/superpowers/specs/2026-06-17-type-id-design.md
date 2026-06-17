@@ -1,50 +1,50 @@
-# TypeId Design
+# TypeId 设计
 
-## Background
+## 背景
 
-Wow domain event serialization currently writes `bodyType` as the JVM fully qualified class name of the event body. Deserialization resolves that value through `Class.forName()` and then converts the JSON body to the resolved class. This works inside a stable JVM codebase, but it couples long-lived event records to package names, class names, and module layout.
+Wow 当前在领域事件序列化时，会把 `bodyType` 写成事件体的 JVM 全限定类名。反序列化时再通过 `Class.forName()` 解析这个值，并把 JSON `body` 转换成解析到的运行时类型。这在类名和包结构稳定的单 JVM 代码库里可以工作，但会把长期保存的事件记录绑定到包名、类名和模块结构上。
 
-The existing model already has more stable domain metadata:
+现有模型其实已经有更稳定的领域元数据：
 
 - `contextName`
 - `aggregateName`
 - `name`
 - `revision`
 
-The goal of `TypeId` is to make that stable identity explicit, while preserving compatibility with existing records that only contain `bodyType`.
+`TypeId` 的目标，是把这类稳定身份显式化，同时继续兼容只包含 `bodyType` 的历史记录。
 
-## Decision
+## 决策
 
-Introduce `TypeId` as the stable identity of a message contract.
+引入 `TypeId`，把它作为消息契约的稳定身份。
 
-`TypeId` is not a Java class alias. It identifies the domain message contract that the payload conforms to. Runtime classes remain an implementation detail used after the contract identity is resolved.
+`TypeId` 不是 Java 类别名。它标识的是载荷遵循的领域消息契约；运行时类只是在契约身份解析之后用于对象转换的实现细节。
 
-For domain events, the canonical identity should be derived from:
+对领域事件来说，规范身份应从以下字段派生：
 
 ```text
 contextName + aggregateName + name
 ```
 
-`revision` remains separate and identifies the schema version of that contract.
+`revision` 保持独立，用来标识该契约的结构版本。
 
-## Concepts
+## 概念
 
-| Concept | Meaning | Stability |
+| 概念 | 含义 | 稳定性 |
 | --- | --- | --- |
-| `typeId` | Stable message contract identity, for example `event://sales/order/order_created` | Stable |
-| `revision` | Schema version of the contract, for example `1.0.0` | Evolves intentionally |
-| `bodyType` | Runtime JVM class name, for example `me.ahoo.example.OrderCreated` | Legacy/runtime hint |
-| `name` | Existing Wow message name, usually derived from `@Name` or class name conversion | Stable if users treat it as contract name |
+| `typeId` | 稳定的消息契约身份，例如 `event://sales/order/order_created` | 稳定 |
+| `revision` | 契约结构版本，例如 `1.0.0` | 有意演进 |
+| `bodyType` | 运行时 JVM 类名，例如 `me.ahoo.example.OrderCreated` | 历史兼容/运行时提示 |
+| `name` | Wow 现有消息名，通常来自 `@Name` 或类名转换 | 用户将其视为契约名时稳定 |
 
-## Scope
+## 范围
 
-The first implementation should focus on domain events and event streams because event records are long-lived and replay-sensitive.
+第一阶段实现应聚焦领域事件和事件流，因为事件记录生命周期长，并且直接影响事件重放。
 
-Commands can adopt the same concept later, but command messages are usually shorter-lived. Adding command support in the first pass is optional and should not block the event-sourcing fix.
+命令后续也可以采用同一个概念，但命令消息通常生命周期更短。第一阶段支持命令是可选项，不应阻塞事件溯源侧的解耦。
 
-## Serialization Shape
+## 序列化形态
 
-New event records should include `typeId` alongside the existing fields:
+新的事件记录应在现有字段之外写入 `typeId`：
 
 ```json
 {
@@ -57,98 +57,98 @@ New event records should include `typeId` alongside the existing fields:
 }
 ```
 
-`bodyType` should remain during the compatibility window. It can still help old consumers and can serve as a fallback when the new registry cannot resolve a `typeId`.
+兼容窗口内应保留 `bodyType`。它仍可帮助旧消费者，也可以在新的注册表无法解析 `typeId` 时作为 fallback。
 
-## Resolution Order
+## 解析顺序
 
-Domain event deserialization should resolve the body class in this order:
+领域事件反序列化应按以下顺序解析事件体类型：
 
-1. If `typeId` exists, resolve `typeId + revision` from a registry.
-2. If no exact revision match exists, resolve by `typeId` and allow an event upgrader to migrate the body before object conversion.
-3. If `typeId` is missing or unresolved, fall back to legacy `bodyType`.
-4. If both paths fail, preserve the record as `JsonDomainEvent`.
+1. 如果存在 `typeId`，优先通过注册表解析 `typeId + revision`。
+2. 如果没有精确的 `revision` 匹配，则按 `typeId` 解析，并允许事件升级器在对象转换前迁移 `body`。
+3. 如果 `typeId` 缺失或无法解析，则 fallback 到历史 `bodyType`。
+4. 如果两条路径都失败，则保留为 `JsonDomainEvent`。
 
-This keeps old event records readable and gives new records a stable contract-first path.
+这样既能继续读取旧事件记录，也能让新记录走稳定的契约优先路径。
 
-## Registry
+## 注册表
 
-Introduce a registry that maps stable identities to runtime types.
+引入一个注册表，把稳定身份映射到运行时类型。
 
-For events:
+对事件来说：
 
 ```text
 EventTypeId(contextName, aggregateName, name) -> EventTypeDescriptor
 ```
 
-`EventTypeDescriptor` should contain at least the current runtime class and the current revision. It can later grow supported-revision metadata if Wow needs stricter version negotiation.
+`EventTypeDescriptor` 至少应包含当前运行时类和当前 `revision`。如果 Wow 后续需要更严格的版本协商，可以再扩展支持的 revision 元数据。
 
-The registry can be built from existing event metadata scanning. Later, KSP-generated `WowMetadata` can include explicit type-id entries to make runtime lookup less reflective.
+注册表可以从现有事件元数据扫描构建。后续 KSP 生成的 `WowMetadata` 可以包含显式的 type-id 条目，从而减少运行时反射查找。
 
-The registry must detect duplicate mappings for the same `typeId` and fail fast, because two runtime classes claiming the same contract identity would make replay ambiguous.
+注册表必须检测同一个 `typeId` 的重复映射并快速失败，因为两个运行时类声明同一个契约身份会让事件重放变得歧义。
 
-## Compatibility
+## 兼容性
 
-Existing records without `typeId` must continue to deserialize through `bodyType`.
+不包含 `typeId` 的历史记录必须继续通过 `bodyType` 反序列化。
 
-Existing APIs and schemas that expose `bodyType` should not remove it in the first pass. Schema and OpenAPI generation can add `typeId` as a new required field only for new typed message schemas after the compatibility strategy is explicit. For a safer first step, generated schemas can expose `typeId` as optional while serializers write it for new records.
+第一阶段不应从现有 API 和 schema 中移除 `bodyType`。Schema 和 OpenAPI 生成可以在兼容策略明确之后，针对新的 typed message schema 把 `typeId` 加为 required 字段。更稳妥的第一步，是生成的 schema 先把 `typeId` 暴露为 optional，同时序列化器对新记录写入该字段。
 
-BI scripts should keep extracting `bodyType` and may add `type_id` in a later migration.
+BI 脚本应继续提取 `bodyType`，并可在后续迁移中新增 `type_id`。
 
-## Event Upgrading
+## 事件升级
 
-Event upgraders currently run before object conversion and can mutate `bodyType`, `name`, `revision`, and `body`.
+事件升级器当前在对象转换前运行，并且可以修改 `bodyType`、`name`、`revision` 和 `body`。
 
-With `TypeId`, upgraders should be able to mutate `typeId` as well. This supports:
+引入 `TypeId` 后，升级器也应能修改 `typeId`。这可以支持：
 
-- renaming an event contract
-- splitting an old event contract into a dropped or replacement contract
-- migrating from legacy class-name identity to stable contract identity
+- 重命名事件契约
+- 把旧事件契约拆分为 dropped 事件或替代契约
+- 从历史类名身份迁移到稳定契约身份
 
-Upgrade lookup should continue to use the existing stable tuple:
+升级器查找应继续使用现有稳定元组：
 
 ```text
 contextName + aggregateName + name
 ```
 
-That avoids requiring old records to have `typeId` before an upgrader can run.
+这样可以避免要求旧记录必须先拥有 `typeId` 才能运行升级器。
 
-## Error Handling
+## 错误处理
 
-Unknown `typeId` should not crash query or transport use cases. It should produce `JsonDomainEvent`, preserving:
+未知 `typeId` 不应导致查询或传输场景崩溃。应生成 `JsonDomainEvent`，并保留：
 
-- original `typeId`, if present
-- original `bodyType`, if present
+- 原始 `typeId`，如果存在
+- 原始 `bodyType`，如果存在
 - `name`
 - `revision`
-- JSON `body`
+- JSON 形态的 `body`
 
-Replay-sensitive paths should continue to behave according to current semantics: if the body remains `JsonNode`, normal sourcing functions keyed by runtime event class will not run. This is acceptable only when no registry or upgrader can resolve the event.
+重放敏感路径应继续遵循当前语义：如果 `body` 仍是 `JsonNode`，按运行时事件类索引的普通 sourcing 函数不会执行。只有在注册表和升级器都无法解析事件时，这种行为才是可接受的。
 
-## Testing
+## 测试
 
-Focused tests should cover:
+需要覆盖的聚焦测试：
 
-- new event serialization writes `typeId` and keeps `bodyType`
-- event stream serialization writes per-event `typeId`
-- deserialization prefers `typeId` over mismatched `bodyType`
-- legacy records without `typeId` still deserialize through `bodyType`
-- unknown `typeId` and unknown `bodyType` preserve `JsonDomainEvent`
-- event upgraders can change `typeId`
-- duplicate registry entries fail fast
-- schema generation either preserves compatibility or explicitly snapshots the new field
+- 新事件序列化写入 `typeId`，同时保留 `bodyType`
+- 事件流序列化为每个事件写入 `typeId`
+- 反序列化在 `typeId` 和 `bodyType` 不一致时优先使用 `typeId`
+- 不包含 `typeId` 的历史记录仍通过 `bodyType` 反序列化
+- 未知 `typeId` 且未知 `bodyType` 时保留为 `JsonDomainEvent`
+- 事件升级器可以修改 `typeId`
+- 重复注册表条目快速失败
+- schema 生成要么保持兼容，要么显式更新快照以包含新字段
 
-## Migration Path
+## 迁移路径
 
-1. Add `typeId` support without removing `bodyType`.
-2. Register event classes by stable event identity.
-3. Make deserialization prefer `typeId`.
-4. Update schema/OpenAPI snapshots to include `typeId` according to compatibility policy.
-5. Add BI extraction for `type_id` without removing `body_type`.
-6. Consider deprecating `bodyType` only after external consumers have migrated.
+1. 增加 `typeId` 支持，但不移除 `bodyType`。
+2. 按稳定事件身份注册事件类。
+3. 让反序列化优先使用 `typeId`。
+4. 按兼容策略更新 schema/OpenAPI 快照，使其包含 `typeId`。
+5. 为 BI 新增 `type_id` 提取，同时保留 `body_type`。
+6. 只有在外部消费者完成迁移后，才考虑废弃 `bodyType`。
 
-## Non-Goals
+## 非目标
 
-- Do not remove `bodyType` in the first implementation.
-- Do not rewrite existing persisted events.
-- Do not make TypeId a direct alias for JVM FQCN.
-- Do not require commands to migrate in the first pass.
+- 第一阶段不移除 `bodyType`。
+- 不重写已经持久化的事件。
+- 不把 TypeId 做成 JVM FQCN 的直接别名。
+- 第一阶段不强制命令一起迁移。
