@@ -22,9 +22,8 @@ import me.ahoo.wow.query.dsl.listQuery
 import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
-import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
 import me.ahoo.wow.webflux.route.command.getTenantIdOrDefault
-import me.ahoo.wow.webflux.route.requireAggregateHandlerMetadata
 import me.ahoo.wow.webflux.route.toServerResponse
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -59,14 +58,12 @@ class LoadEventStreamHandlerFunction(
 class LoadEventStreamHandlerFunctionFactory(
     private val eventStreamQueryHandler: EventStreamQueryHandler,
     private val exceptionHandler: RequestExceptionHandler
-) : HttpRouteHandlerFunctionFactory {
-    override val handlerKey: String = BuiltInHttpRouteHandlerKeys.Event.LOAD
-
+) : AggregateRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.Event.LOAD) {
     override fun create(
         contract: HttpRouteContract,
-        metadata: HttpRouteHandlerMetadata
+        metadata: HttpRouteHandlerMetadata.Aggregate
     ): HandlerFunction<ServerResponse> {
-        return create(metadata.requireAggregateHandlerMetadata(handlerKey).aggregateRouteMetadata.aggregateMetadata)
+        return create(aggregateMetadata(metadata))
     }
 
     private fun create(aggregateMetadata: AggregateMetadata<*, *>): HandlerFunction<ServerResponse> {

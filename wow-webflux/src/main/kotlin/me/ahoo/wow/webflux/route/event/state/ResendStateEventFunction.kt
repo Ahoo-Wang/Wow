@@ -21,9 +21,8 @@ import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
-import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
 import me.ahoo.wow.webflux.route.policy.BatchExecutionPolicy
-import me.ahoo.wow.webflux.route.requireAggregateHandlerMetadata
 import me.ahoo.wow.webflux.route.toServerResponse
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -53,14 +52,12 @@ class ResendStateEventFunctionFactory(
     private val stateEventCompensator: StateEventCompensator,
     private val exceptionHandler: RequestExceptionHandler,
     private val batchExecutionPolicy: BatchExecutionPolicy
-) : HttpRouteHandlerFunctionFactory {
-    override val handlerKey: String = BuiltInHttpRouteHandlerKeys.Event.RESEND_STATE
-
+) : AggregateRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.Event.RESEND_STATE) {
     override fun create(
         contract: HttpRouteContract,
-        metadata: HttpRouteHandlerMetadata
+        metadata: HttpRouteHandlerMetadata.Aggregate
     ): HandlerFunction<ServerResponse> {
-        return create(metadata.requireAggregateHandlerMetadata(handlerKey).aggregateRouteMetadata.aggregateMetadata)
+        return create(aggregateMetadata(metadata))
     }
 
     private fun create(aggregateMetadata: AggregateMetadata<*, *>): HandlerFunction<ServerResponse> {
