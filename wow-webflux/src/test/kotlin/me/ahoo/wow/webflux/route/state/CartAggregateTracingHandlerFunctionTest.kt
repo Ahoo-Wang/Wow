@@ -22,14 +22,14 @@ import me.ahoo.wow.example.domain.cart.CartState
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
-import me.ahoo.wow.openapi.aggregate.state.AggregateTracingRouteSpec
-import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.test.aggregate.whenCommand
 import me.ahoo.wow.test.aggregateVerifier
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.policy.TracingPolicy
+import me.ahoo.wow.webflux.route.testAggregateRouteContract
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest
@@ -68,10 +68,9 @@ class CartAggregateTracingHandlerFunctionTest {
             WebFluxRequestExceptionHandler(),
             TracingPolicy(),
         ).create(
-            AggregateTracingRouteSpec(
-                CART_AGGREGATE_METADATA,
-                aggregateRouteMetadata = CART_AGGREGATE_ROUTE_METADATA,
-                componentContext = OpenAPIComponentContext.default()
+            testAggregateRouteContract(
+                handlerKey = BuiltInHttpRouteHandlerKeys.State.AGGREGATE_TRACING,
+                aggregateRouteMetadata = CART_AGGREGATE_ROUTE_METADATA
             )
         )
 

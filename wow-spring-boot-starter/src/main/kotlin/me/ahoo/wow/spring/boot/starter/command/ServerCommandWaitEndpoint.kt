@@ -15,7 +15,7 @@ package me.ahoo.wow.spring.boot.starter.command
 
 import me.ahoo.cosid.machine.HostAddressSupplier
 import me.ahoo.wow.command.wait.CommandWaitEndpoint
-import me.ahoo.wow.openapi.global.CommandWaitRouteSpecFactory
+import me.ahoo.wow.openapi.contract.BuiltInHttpRoutePaths
 import org.springframework.boot.web.server.context.WebServerInitializedEvent
 import org.springframework.context.ApplicationListener
 import kotlin.properties.Delegates
@@ -24,7 +24,7 @@ class ServerCommandWaitEndpoint(hostAddressSupplier: HostAddressSupplier) :
     CommandWaitEndpoint,
     ApplicationListener<WebServerInitializedEvent> {
     override val endpoint: String by lazy {
-        "http://$ipAddress:$port${CommandWaitRouteSpecFactory.PATH}"
+        "http://$ipAddress:$port${BuiltInHttpRoutePaths.Global.COMMAND_WAIT}"
     }
     private val ipAddress = hostAddressSupplier.hostAddress
     private var port by Delegates.notNull<Int>()

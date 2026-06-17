@@ -17,12 +17,11 @@ import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.id.generateGlobalId
-import me.ahoo.wow.openapi.aggregate.snapshot.LoadSnapshotRouteSpec
-import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.serialization.MessageRecords
-import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteTestFixtures
+import me.ahoo.wow.webflux.route.testAggregateRouteContract
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
@@ -38,10 +37,9 @@ class LoadSnapshotHandlerFunctionTest {
             snapshotQueryHandler = RouteTestFixtures.snapshotQueryHandler,
             exceptionHandler = WebFluxRequestExceptionHandler(),
         ).create(
-            LoadSnapshotRouteSpec(
-                MOCK_AGGREGATE_METADATA,
-                aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA,
-                componentContext = OpenAPIComponentContext.default()
+            testAggregateRouteContract(
+                handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.LOAD,
+                aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA
             )
         )
         val request = mockk<ServerRequest> {

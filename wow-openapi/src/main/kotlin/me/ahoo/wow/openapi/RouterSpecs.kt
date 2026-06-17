@@ -22,50 +22,31 @@ import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.modeling.getContextAliasPrefix
 import me.ahoo.wow.openapi.OpenAPIExtensions.withExtensions
-import me.ahoo.wow.openapi.aggregate.AggregateRouteSpecFactoryProvider
+import me.ahoo.wow.openapi.catalog.RouteCatalog
+import me.ahoo.wow.openapi.catalog.RouteCatalogBuilder
+import me.ahoo.wow.openapi.catalog.RouteCategory
+import me.ahoo.wow.openapi.catalog.RouteContributor
+import me.ahoo.wow.openapi.catalog.RouteContributors
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
-import me.ahoo.wow.openapi.context.OpenAPIComponentContextCapable
-import me.ahoo.wow.openapi.global.GlobalRouteSpecFactoryProvider
+import me.ahoo.wow.openapi.contract.HttpRouteContract
+import me.ahoo.wow.openapi.contributor.DefaultRouteContributors
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
+import me.ahoo.wow.openapi.render.OpenApiRenderer
 import me.ahoo.wow.schema.typed.AggregatedFields
 
 class RouterSpecs(
     private val currentContext: NamedBoundedContext,
-    private val routes: MutableList<RouteSpec> = mutableListOf(),
-    override val componentContext: OpenAPIComponentContext =
-        OpenAPIComponentContext.default(false, defaultSchemaNamePrefix = currentContext.getContextAliasPrefix())
-) : OpenAPIComponentContextCapable, Iterable<RouteSpec> by routes {
+    val componentContext: OpenAPIComponentContext =
+        OpenAPIComponentContext.default(false, defaultSchemaNamePrefix = currentContext.getContextAliasPrefix()),
+    val routeContributors: List<RouteContributor> = DefaultRouteContributors.all()
+) {
     companion object {
         const val DEFAULT_OPENAPI_INFO_TITLE = "OpenAPI definition"
     }
 
-    @Volatile
-    private var built: Boolean = false
-
-    private fun buildGlobalRouteSpec() {
-        GlobalRouteSpecFactoryProvider(componentContext).get().forEach {
-            it.create(currentContext).forEach { routeSpec ->
-                routes.add(routeSpec)
-            }
-        }
-    }
-
-    @Suppress("TooGenericExceptionCaught")
-    private fun buildAggregateRouteSpec() {
-        val aggregateRouteSpecFactories = AggregateRouteSpecFactoryProvider(componentContext).get()
-        MetadataSearcher.namedAggregateType.forEach { aggregateEntry ->
-            val aggregateType = aggregateEntry.value
-            val aggregateRouteMetadata = aggregateType.aggregateRouteMetadata()
-            if (aggregateRouteMetadata.enabled.not()) {
-                return@forEach
-            }
-            componentContext.schema(AggregatedFields::class.java, aggregateType)
-            aggregateRouteSpecFactories.forEach { aggregateRouteSpecFactory ->
-                aggregateRouteSpecFactory.create(currentContext, aggregateRouteMetadata).forEach { routeSpec ->
-                    routes.add(routeSpec)
-                }
-            }
-        }
+    private val orderedRouteContributors: List<RouteContributor> = RouteContributors.sort(routeContributors)
+    private val routeCatalog: RouteCatalog by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+        toRouteCatalog(collectContributedRoutes())
     }
 
     private fun serviceVersion(): String? {
@@ -96,7 +77,7 @@ class RouterSpecs(
         this.info = info
     }
 
-    fun mergeOpenAPI(openAPI: OpenAPI) {
+    private fun prepareOpenAPI(openAPI: OpenAPI) {
         openAPI.apply {
             specVersion(SpecVersion.V31)
             ensureInfo()
@@ -107,16 +88,9 @@ class RouterSpecs(
                 components = Components()
             }
         }
-        val groupedPathRoutes = routes.groupBy {
-            it.path
-        }
-        for ((path, routeSpecs) in groupedPathRoutes) {
-            openAPI.paths.addPathItem(path, routeSpecs.toPathItem())
-        }
-        routes.flatMap { it.tags }.distinctBy { it.name }.forEach {
-            openAPI.addTagsItem(it)
-        }
-        componentContext.finish()
+    }
+
+    private fun mergeFinishedComponents(openAPI: OpenAPI) {
         componentContext.schemas.forEach { (name, schema) ->
             openAPI.components.addSchemas(name, schema)
         }
@@ -134,13 +108,54 @@ class RouterSpecs(
         }
     }
 
+    fun mergeOpenAPI(openAPI: OpenAPI) {
+        mergeOpenAPIFromCatalog(openAPI)
+    }
+
+    fun mergeOpenAPIFromCatalog(openAPI: OpenAPI) {
+        prepareOpenAPI(openAPI)
+        val catalog = toRouteCatalog()
+        componentContext.finish()
+        OpenApiRenderer(componentContext).render(catalog, openAPI)
+        componentContext.finish()
+        mergeFinishedComponents(openAPI)
+    }
+
     fun build(): RouterSpecs {
-        if (built) {
-            return this
-        }
-        built = true
-        buildGlobalRouteSpec()
-        buildAggregateRouteSpec()
+        toRouteCatalog()
         return this
+    }
+
+    fun toRouteCatalog(): RouteCatalog {
+        return routeCatalog
+    }
+
+    private fun toRouteCatalog(contributedRoutes: Iterable<HttpRouteContract>): RouteCatalog {
+        return RouteCatalogBuilder().addAll(contributedRoutes).build()
+    }
+
+    private fun collectContributedRoutes(): List<HttpRouteContract> {
+        val builder = RouteCatalogBuilder()
+        orderedRouteContributors.filter { it.category == RouteCategory.GLOBAL }.forEach { contributor ->
+            builder.addAll(contributor.contributeGlobal(currentContext, componentContext))
+        }
+        val aggregateContributors = orderedRouteContributors.filter { it.category != RouteCategory.GLOBAL }
+        if (aggregateContributors.isEmpty()) {
+            return builder.build().routes
+        }
+        MetadataSearcher.namedAggregateType.forEach { aggregateEntry ->
+            val aggregateType = aggregateEntry.value
+            val aggregateRouteMetadata = aggregateType.aggregateRouteMetadata()
+            if (aggregateRouteMetadata.enabled.not()) {
+                return@forEach
+            }
+            componentContext.schema(AggregatedFields::class.java, aggregateType)
+            aggregateContributors.forEach { contributor ->
+                builder.addAll(
+                    contributor.contributeAggregate(currentContext, aggregateRouteMetadata, componentContext)
+                )
+            }
+        }
+        return builder.build().routes
     }
 }

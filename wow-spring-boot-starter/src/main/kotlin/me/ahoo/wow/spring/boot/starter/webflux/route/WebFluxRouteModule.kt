@@ -13,8 +13,8 @@
 
 package me.ahoo.wow.spring.boot.starter.webflux.route
 
-import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
 
 interface WebFluxRouteModule {
-    val factories: List<RouteHandlerFunctionFactory<*>>
+    val httpFactories: List<HttpRouteHandlerFunctionFactory>
 }

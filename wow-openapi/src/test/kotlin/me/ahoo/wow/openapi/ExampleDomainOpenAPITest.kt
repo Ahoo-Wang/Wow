@@ -34,7 +34,7 @@ internal class ExampleDomainOpenAPITest {
     fun setUp() {
         routerSpecs = RouterSpecs(namedContext).build()
         openAPI = OpenAPI()
-        routerSpecs.mergeOpenAPI(openAPI)
+        routerSpecs.mergeOpenAPIFromCatalog(openAPI)
     }
 
     @Nested
@@ -49,7 +49,7 @@ internal class ExampleDomainOpenAPITest {
 
         @Test
         fun `should not generate routes for disabled route aggregate`() {
-            val disabledPaths = routerSpecs.filter {
+            val disabledPaths = catalogRoutes().filter {
                 it.path.contains("disabled_route_aggregate")
             }
             disabledPaths.assert().isEmpty()
@@ -58,7 +58,7 @@ internal class ExampleDomainOpenAPITest {
 
         @Test
         fun `should generate expected route count`() {
-            routerSpecs.assert().hasSizeGreaterThanOrEqualTo(20)
+            catalogRoutes().assert().hasSizeGreaterThanOrEqualTo(20)
         }
 
         @Test
@@ -75,8 +75,8 @@ internal class ExampleDomainOpenAPITest {
         fun `should generate cart routes without default tenant path`() {
             // Cart has @StaticTenantId → default appendTenantPath=false
             // MockVariableCommand overrides with appendTenantPath=ALWAYS, so exclude it
-            val cartRoutes = routerSpecs.filter {
-                it.path.contains("/cart") && !it.id.contains("mock_variable_command")
+            val cartRoutes = catalogRoutes().filter {
+                it.path.contains("/cart") && !it.routeId.contains("mock_variable_command")
             }
             cartRoutes.assert().isNotEmpty()
             cartRoutes.forEach {
@@ -86,7 +86,7 @@ internal class ExampleDomainOpenAPITest {
 
         @Test
         fun `should generate order routes with spaced resource name`() {
-            val orderRoutes = routerSpecs.filter {
+            val orderRoutes = catalogRoutes().filter {
                 it.path.contains("sales-order")
             }
             orderRoutes.assert().isNotEmpty()
@@ -94,7 +94,7 @@ internal class ExampleDomainOpenAPITest {
 
         @Test
         fun `should set correct tags for cart`() {
-            val cartRoutes = routerSpecs.filter {
+            val cartRoutes = catalogRoutes().filter {
                 it.path.contains("/cart")
             }
             val tagNames = cartRoutes.flatMap { it.tags.map { tag -> tag.name } }.toSet()
@@ -112,9 +112,7 @@ internal class ExampleDomainOpenAPITest {
 
         @Test
         fun `should generate create order as POST with empty action`() {
-            val route = routerSpecs.find {
-                it.id == "example.order.create_order"
-            }
+            val route = findRoute("example.order.create_order")
             route.assert().isNotNull()
             route!!.method.assert().isEqualTo(Https.Method.POST)
             route.path.assert().contains("sales-order")
@@ -124,9 +122,7 @@ internal class ExampleDomainOpenAPITest {
 
         @Test
         fun `should generate change address as PUT`() {
-            val route = routerSpecs.find {
-                it.id == "example.order.change_address"
-            }
+            val route = findRoute("example.order.change_address")
             route.assert().isNotNull()
             route!!.method.assert().isEqualTo(Https.Method.PUT)
             route.path.assert().contains("address")
@@ -134,9 +130,7 @@ internal class ExampleDomainOpenAPITest {
 
         @Test
         fun `should generate ship order as POST with package action`() {
-            val route = routerSpecs.find {
-                it.id == "example.order.ship_order"
-            }
+            val route = findRoute("example.order.ship_order")
             route.assert().isNotNull()
             route!!.method.assert().isEqualTo(Https.Method.POST)
             route.path.assert().contains("package")
@@ -144,9 +138,7 @@ internal class ExampleDomainOpenAPITest {
 
         @Test
         fun `should generate pay order as POST with pay action`() {
-            val route = routerSpecs.find {
-                it.id == "example.order.pay_order"
-            }
+            val route = findRoute("example.order.pay_order")
             route.assert().isNotNull()
             route!!.method.assert().isEqualTo(Https.Method.POST)
             route.path.assert().contains("pay")
@@ -154,21 +146,23 @@ internal class ExampleDomainOpenAPITest {
 
         @Test
         fun `should generate add cart item as POST`() {
-            val route = routerSpecs.find {
-                it.id == "example.cart.add_cart_item"
-            }
+            val route = findRoute("example.cart.add_cart_item")
             route.assert().isNotNull()
             route!!.method.assert().isEqualTo(Https.Method.POST)
         }
 
         @Test
         fun `should generate view cart route`() {
-            val route = routerSpecs.find {
-                it.id == "example.cart.view_cart"
-            }
+            val route = findRoute("example.cart.view_cart")
             route.assert().isNotNull()
         }
+
+        private fun findRoute(routeId: String) = routerSpecs.toRouteCatalog().routes.find {
+            it.routeId == routeId
+        }
     }
+
+    private fun catalogRoutes() = routerSpecs.toRouteCatalog().routes
 
     @Nested
     inner class Schemas {

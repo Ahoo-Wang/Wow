@@ -14,6 +14,7 @@
 package me.ahoo.wow.spring.boot.starter.webflux.route
 
 import me.ahoo.wow.spring.boot.starter.kafka.KafkaProperties
+import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.global.GetWowMetadataHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.global.GlobalIdHandlerFunctionFactory
@@ -28,7 +29,7 @@ class GlobalRouteModule(kafkaProperties: KafkaProperties?) : WebFluxRouteModule 
         )
     }
 
-    override val factories = listOf(
+    override val httpFactories: List<HttpRouteHandlerFunctionFactory> = listOf(
         GlobalIdHandlerFunctionFactory(),
         generateBIScriptHandlerFunctionFactory,
         GetWowMetadataHandlerFunctionFactory(),

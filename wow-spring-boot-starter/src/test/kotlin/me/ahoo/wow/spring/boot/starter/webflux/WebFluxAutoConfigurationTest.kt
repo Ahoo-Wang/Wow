@@ -30,16 +30,9 @@ import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
-import me.ahoo.wow.openapi.RouteSpec
-import me.ahoo.wow.openapi.aggregate.command.CommandFacadeRouteSpec
-import me.ahoo.wow.openapi.aggregate.event.LoadEventStreamRouteSpec
-import me.ahoo.wow.openapi.aggregate.event.state.ResendStateEventRouteSpec
-import me.ahoo.wow.openapi.aggregate.snapshot.LoadSnapshotRouteSpec
-import me.ahoo.wow.openapi.aggregate.snapshot.RegenerateSnapshotRouteSpec
-import me.ahoo.wow.openapi.aggregate.state.LoadAggregateRouteSpec
-import me.ahoo.wow.openapi.context.OpenAPIComponentContext
-import me.ahoo.wow.openapi.global.GenerateGlobalIdRouteSpec
-import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
+import me.ahoo.wow.openapi.contract.HttpRouteContract
+import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.spring.boot.starter.ENABLED_SUFFIX_KEY
@@ -57,11 +50,11 @@ import me.ahoo.wow.spring.boot.starter.webflux.route.GlobalRouteModule
 import me.ahoo.wow.spring.boot.starter.webflux.route.QueryRouteModule
 import me.ahoo.wow.spring.boot.starter.webflux.route.SnapshotRouteModule
 import me.ahoo.wow.spring.boot.starter.webflux.route.StateRouteModule
-import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
+import me.ahoo.wow.spring.boot.starter.webflux.route.WebFluxRouteModule
 import me.ahoo.wow.test.SagaVerifier
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.exception.WebFluxErrorStrategy
-import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionRegistrar
 import me.ahoo.wow.webflux.route.command.appender.CommandRequestRemoteIpHeaderAppender
 import me.ahoo.wow.webflux.route.command.appender.CommandRequestUserAgentHeaderAppender
@@ -69,6 +62,7 @@ import me.ahoo.wow.webflux.route.policy.BatchExecutionPolicy
 import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
 import me.ahoo.wow.webflux.route.policy.TracingPolicy
 import org.junit.jupiter.api.Test
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.http.HttpStatus
@@ -83,6 +77,7 @@ import org.springframework.web.server.WebExceptionHandler
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 import java.time.Duration
+import java.util.stream.Stream
 
 internal class WebFluxAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
@@ -131,18 +126,16 @@ internal class WebFluxAutoConfigurationTest {
                 batchExecutionPolicy.concurrency.assert().isOne()
                 batchExecutionPolicy.prefetch.assert().isOne()
 
-                val componentContext = OpenAPIComponentContext.default()
-                val aggregateRouteMetadata = MOCK_AGGREGATE_METADATA.command.aggregateType.aggregateRouteMetadata()
                 listOf(
-                    CommandFacadeRouteSpec(componentContext),
-                    LoadAggregateRouteSpec(MOCK_AGGREGATE_METADATA, aggregateRouteMetadata, componentContext),
-                    LoadSnapshotRouteSpec(MOCK_AGGREGATE_METADATA, aggregateRouteMetadata, componentContext),
-                    LoadEventStreamRouteSpec(MOCK_AGGREGATE_METADATA, aggregateRouteMetadata, componentContext),
-                    RegenerateSnapshotRouteSpec(MOCK_AGGREGATE_METADATA, aggregateRouteMetadata, componentContext),
-                    ResendStateEventRouteSpec(MOCK_AGGREGATE_METADATA, aggregateRouteMetadata, componentContext),
-                    GenerateGlobalIdRouteSpec(componentContext),
-                ).forEach {
-                    context.assertRouteFactoryRegistered(it)
+                    BuiltInHttpRouteHandlerKeys.Global.COMMAND_FACADE,
+                    BuiltInHttpRouteHandlerKeys.State.LOAD_AGGREGATE,
+                    BuiltInHttpRouteHandlerKeys.Snapshot.LOAD,
+                    BuiltInHttpRouteHandlerKeys.Event.LOAD,
+                    BuiltInHttpRouteHandlerKeys.Snapshot.REGENERATE,
+                    BuiltInHttpRouteHandlerKeys.Event.RESEND_STATE,
+                    BuiltInHttpRouteHandlerKeys.Global.GLOBAL_ID,
+                ).forEach { handlerKey ->
+                    context.assertRouteFactoryRegistered(handlerKey)
                 }
             }
     }
@@ -188,15 +181,35 @@ internal class WebFluxAutoConfigurationTest {
     }
 
     @Test
-    fun `should let standalone route factory override module factory for same spec`() {
-        val customFactory = TestRouteHandlerFunctionFactory(CommandFacadeRouteSpec::class.java)
+    fun `should let standalone route factory override module factory for same handler key`() {
+        val customFactory = TestHttpRouteHandlerFunctionFactory(BuiltInHttpRouteHandlerKeys.Global.COMMAND_FACADE)
         webFluxContextRunner()
-            .withBean(RouteHandlerFunctionFactory::class.java, { customFactory })
+            .withBean(HttpRouteHandlerFunctionFactory::class.java, { customFactory })
             .run { context: AssertableApplicationContext ->
                 val registrar = context.getBean(RouteHandlerFunctionRegistrar::class.java)
-                val spec = CommandFacadeRouteSpec(OpenAPIComponentContext.default())
-                registrar.getFactory(spec).assert().isSameAs(customFactory)
+                registrar.getHttpFactory(
+                    BuiltInHttpRouteHandlerKeys.Global.COMMAND_FACADE
+                ).assert().isSameAs(customFactory)
             }
+    }
+
+    @Test
+    fun `should register http factories exposed by route modules`() {
+        val moduleOnlyFactory = TestHttpRouteHandlerFunctionFactory("module.only")
+        val moduleOverriddenFactory = TestHttpRouteHandlerFunctionFactory("override.key")
+        val standaloneOverrideFactory = TestHttpRouteHandlerFunctionFactory("override.key")
+        val routeModule = object : WebFluxRouteModule {
+            override val httpFactories: List<HttpRouteHandlerFunctionFactory> =
+                listOf(moduleOnlyFactory, moduleOverriddenFactory)
+        }
+
+        val registrar = WebFluxAutoConfiguration().routeHandlerFunctionRegistrar(
+            routeModules = TestObjectProvider(listOf(routeModule)),
+            httpFactories = TestObjectProvider(listOf(standaloneOverrideFactory))
+        )
+
+        registrar.getHttpFactory("module.only").assert().isSameAs(moduleOnlyFactory)
+        registrar.getHttpFactory("override.key").assert().isSameAs(standaloneOverrideFactory)
     }
 
     @Test
@@ -369,18 +382,29 @@ internal class WebFluxAutoConfigurationTest {
             )
     }
 
-    private fun AssertableApplicationContext.assertRouteFactoryRegistered(spec: RouteSpec) {
+    private fun AssertableApplicationContext.assertRouteFactoryRegistered(handlerKey: String) {
         val registrar = getBean(RouteHandlerFunctionRegistrar::class.java)
-        registrar.getFactory(spec).assert().isNotNull()
+        registrar.getHttpFactory(handlerKey).assert().isNotNull()
     }
 
-    private class TestRouteHandlerFunctionFactory<R : RouteSpec>(
-        override val supportedSpec: Class<R>
-    ) : RouteHandlerFunctionFactory<R> {
-        override fun create(spec: R): HandlerFunction<ServerResponse> {
+    private class TestHttpRouteHandlerFunctionFactory(
+        override val handlerKey: String
+    ) : HttpRouteHandlerFunctionFactory {
+        override fun create(
+            contract: HttpRouteContract,
+            metadata: HttpRouteHandlerMetadata
+        ): HandlerFunction<ServerResponse> {
             return HandlerFunction {
                 ServerResponse.ok().build()
             }
+        }
+    }
+
+    private class TestObjectProvider<T : Any>(
+        private val values: List<T>
+    ) : ObjectProvider<T> {
+        override fun stream(): Stream<T> {
+            return values.stream()
         }
     }
 }

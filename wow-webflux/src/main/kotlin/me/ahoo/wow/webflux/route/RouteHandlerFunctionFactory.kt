@@ -13,11 +13,16 @@
 
 package me.ahoo.wow.webflux.route
 
-import me.ahoo.wow.openapi.RouteSpec
+import me.ahoo.wow.openapi.contract.HttpRouteContract
+import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerResponse
 
-interface RouteHandlerFunctionFactory<R : RouteSpec> {
-    val supportedSpec: Class<R>
-    fun create(spec: R): HandlerFunction<ServerResponse>
+interface HttpRouteHandlerFunctionFactory {
+    val handlerKey: String
+
+    fun create(
+        contract: HttpRouteContract,
+        metadata: HttpRouteHandlerMetadata = contract.handlerMetadata
+    ): HandlerFunction<ServerResponse>
 }

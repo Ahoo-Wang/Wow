@@ -15,12 +15,20 @@ package me.ahoo.wow.openapi
 
 import io.swagger.v3.oas.models.Components
 import io.swagger.v3.oas.models.OpenAPI
+import io.swagger.v3.oas.models.Operation
+import io.swagger.v3.oas.models.PathItem
 import io.swagger.v3.oas.models.Paths
+import io.swagger.v3.oas.models.SpecVersion
 import io.swagger.v3.oas.models.info.Info
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.naming.MaterializedNamedBoundedContext
 import me.ahoo.wow.openapi.RouterSpecs.Companion.DEFAULT_OPENAPI_INFO_TITLE
+import me.ahoo.wow.openapi.catalog.RouteCategory
+import me.ahoo.wow.openapi.catalog.RouteContributor
+import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.openapi.contract.HttpRouteContract
 import org.junit.jupiter.api.Test
 
 internal class RouterSpecsTest {
@@ -36,7 +44,7 @@ internal class RouterSpecsTest {
     @Test
     fun `should merge router specs into open api with context name as title`() {
         val openAPI = OpenAPI()
-        RouterSpecs(namedContext).build().mergeOpenAPI(openAPI)
+        RouterSpecs(namedContext).build().mergeOpenAPIFromCatalog(openAPI)
         openAPI.info?.title.assert().isEqualTo(namedContext.contextName)
     }
 
@@ -44,7 +52,7 @@ internal class RouterSpecsTest {
     fun `should keep existing info when merging`() {
         val info = Info().title("Custom Title")
         val openAPI = OpenAPI().info(info)
-        RouterSpecs(namedContext).build().mergeOpenAPI(openAPI)
+        RouterSpecs(namedContext).build().mergeOpenAPIFromCatalog(openAPI)
         openAPI.info.assert().isSameAs(info)
         openAPI.info.title.assert().isEqualTo("Custom Title")
     }
@@ -53,7 +61,7 @@ internal class RouterSpecsTest {
     fun `should replace default info title when merging`() {
         val info = Info().title(DEFAULT_OPENAPI_INFO_TITLE).description("hello")
         val openAPI = OpenAPI().info(info)
-        RouterSpecs(namedContext).build().mergeOpenAPI(openAPI)
+        RouterSpecs(namedContext).build().mergeOpenAPIFromCatalog(openAPI)
         openAPI.info.assert().isSameAs(info)
         openAPI.info.title.assert().isEqualTo(namedContext.contextName)
     }
@@ -62,7 +70,7 @@ internal class RouterSpecsTest {
     fun `should keep custom info title when merging`() {
         val info = Info().title(generateGlobalId())
         val openAPI = OpenAPI().info(info)
-        RouterSpecs(namedContext).build().mergeOpenAPI(openAPI)
+        RouterSpecs(namedContext).build().mergeOpenAPIFromCatalog(openAPI)
         openAPI.info.assert().isSameAs(info)
     }
 
@@ -72,9 +80,162 @@ internal class RouterSpecsTest {
         val paths = Paths()
         val components = Components()
         val openAPI = OpenAPI().info(info).paths(paths).components(components)
-        RouterSpecs(namedContext).build().mergeOpenAPI(openAPI)
+        RouterSpecs(namedContext).build().mergeOpenAPIFromCatalog(openAPI)
         openAPI.info.assert().isSameAs(info)
         openAPI.paths.assert().isSameAs(paths)
         openAPI.components.assert().isSameAs(components)
+    }
+
+    @Test
+    fun `should merge route catalog into open api preserving metadata and components`() {
+        val info = Info().title("Custom Title").description("Custom Description")
+        val paths = Paths()
+        val components = Components()
+        val openAPI = OpenAPI().info(info).paths(paths).components(components)
+
+        RouterSpecs(namedContext).build().mergeOpenAPIFromCatalog(openAPI)
+
+        openAPI.specVersion.assert().isEqualTo(SpecVersion.V31)
+        openAPI.info.assert().isSameAs(info)
+        openAPI.info.title.assert().isEqualTo("Custom Title")
+        openAPI.info.description.assert().isEqualTo("Custom Description")
+        openAPI.paths.assert().isSameAs(paths)
+        openAPI.components.assert().isSameAs(components)
+        openAPI.paths.assert().isNotEmpty()
+        openAPI.components.schemas.assert().isNotEmpty()
+    }
+
+    @Test
+    fun `catalog merge should expose route summaries and descriptions`() {
+        val catalogOpenAPI = OpenAPI()
+
+        RouterSpecs(namedContext).build().mergeOpenAPIFromCatalog(catalogOpenAPI)
+
+        val (_, pathItem) = catalogOpenAPI.paths.entries.first { (_, pathItem) ->
+            pathItem.summary.isNotNullOrBlank() || pathItem.description.isNotNullOrBlank()
+        }
+        (pathItem.summary.isNotNullOrBlank() || pathItem.description.isNotNullOrBlank()).assert().isTrue()
+
+        val (_, _, operation) = catalogOpenAPI.paths.entries.asSequence()
+            .flatMap { (pathName, pathItem) ->
+                pathItem.operations().asSequence().map { (method, operation) ->
+                    Triple(pathName, method, operation)
+                }
+            }
+            .first { (_, _, operation) ->
+                operation.summary.isNotNullOrBlank() || operation.description.isNotNullOrBlank()
+            }
+        (operation.summary.isNotNullOrBlank() || operation.description.isNotNullOrBlank()).assert().isTrue()
+    }
+
+    @Test
+    fun `should build catalog from explicit contributors without legacy service loader`() {
+        val contributor = object : RouteContributor {
+            override val id: String = "test-global"
+            override val category: RouteCategory = RouteCategory.GLOBAL
+            override val order: Int = 0
+
+            override fun contributeGlobal(
+                currentContext: NamedBoundedContext,
+                componentContext: OpenAPIComponentContext
+            ): List<HttpRouteContract> {
+                return listOf(
+                    HttpRouteContract(
+                        routeId = "test-global",
+                        method = Https.Method.GET,
+                        path = "/test-global",
+                        handlerKey = "test-global"
+                    )
+                )
+            }
+        }
+
+        val routerSpecs = RouterSpecs(namedContext, routeContributors = listOf(contributor)).build()
+        val catalog = routerSpecs.toRouteCatalog()
+
+        catalog.routes.map { it.routeId }.assert().isEqualTo(listOf("test-global"))
+    }
+
+    @Test
+    fun `should materialize route catalog once and reuse it`() {
+        val contributor = CountingRouteContributor()
+
+        val routerSpecs = RouterSpecs(namedContext, routeContributors = listOf(contributor)).build()
+        val firstCatalog = routerSpecs.toRouteCatalog()
+        val secondCatalog = routerSpecs.toRouteCatalog()
+
+        firstCatalog.assert().isSameAs(secondCatalog)
+        contributor.globalContributions.assert().isEqualTo(1)
+    }
+
+    @Test
+    fun `catalog merge should finish components after explicit contributors run`() {
+        val contributor = object : RouteContributor {
+            override val id: String = "component-lifecycle"
+            override val category: RouteCategory = RouteCategory.GLOBAL
+            override val order: Int = 0
+
+            override fun contributeGlobal(
+                currentContext: NamedBoundedContext,
+                componentContext: OpenAPIComponentContext
+            ): List<HttpRouteContract> {
+                componentContext.schema(ContributorLifecycleSchema::class.java)
+                return listOf(
+                    HttpRouteContract(
+                        routeId = "component-lifecycle",
+                        method = Https.Method.GET,
+                        path = "/component-lifecycle",
+                        handlerKey = "component-lifecycle"
+                    )
+                )
+            }
+        }
+        val openAPI = OpenAPI()
+
+        RouterSpecs(namedContext, routeContributors = listOf(contributor)).build().mergeOpenAPIFromCatalog(openAPI)
+
+        openAPI.components.schemas.assert().isNotEmpty()
+    }
+
+    private fun String?.isNotNullOrBlank(): Boolean {
+        return isNullOrBlank().not()
+    }
+
+    private fun PathItem.operations(): List<Pair<String, Operation>> {
+        return listOfNotNull(
+            get?.let { Https.Method.GET to it },
+            post?.let { Https.Method.POST to it },
+            put?.let { Https.Method.PUT to it },
+            delete?.let { Https.Method.DELETE to it },
+            options?.let { Https.Method.OPTIONS to it },
+            head?.let { Https.Method.HEAD to it },
+            patch?.let { Https.Method.PATCH to it },
+            trace?.let { Https.Method.TRACE to it }
+        )
+    }
+
+    private data class ContributorLifecycleSchema(val value: String = "")
+
+    private class CountingRouteContributor : RouteContributor {
+        var globalContributions: Int = 0
+            private set
+        override val id: String = "counting-global"
+        override val category: RouteCategory = RouteCategory.GLOBAL
+        override val order: Int = 0
+
+        override fun contributeGlobal(
+            currentContext: NamedBoundedContext,
+            componentContext: OpenAPIComponentContext
+        ): List<HttpRouteContract> {
+            globalContributions++
+            return listOf(
+                HttpRouteContract(
+                    routeId = "counting-global",
+                    method = Https.Method.GET,
+                    path = "/counting-global",
+                    handlerKey = "counting-global"
+                )
+            )
+        }
     }
 }

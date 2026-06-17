@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.webflux.route.snapshot
 
-import me.ahoo.wow.openapi.aggregate.snapshot.ListQuerySnapshotStateRouteSpec
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.query.snapshot.toStateDocument
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
@@ -24,8 +24,8 @@ class ListQuerySnapshotStateHandlerFunctionFactory(
     snapshotQueryHandler: SnapshotQueryHandler,
     rewriteRequestCondition: RewriteRequestCondition,
     exceptionHandler: RequestExceptionHandler
-) : ListQueryHandlerFunctionFactory<ListQuerySnapshotStateRouteSpec>(
-    supportedSpec = ListQuerySnapshotStateRouteSpec::class.java,
+) : ListQueryHandlerFunctionFactory(
+    handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.LIST_QUERY_STATE,
     queryHandler = snapshotQueryHandler,
     rewriteRequestCondition = rewriteRequestCondition,
     exceptionHandler = exceptionHandler,

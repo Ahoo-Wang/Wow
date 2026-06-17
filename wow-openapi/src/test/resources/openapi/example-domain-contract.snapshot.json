@@ -1,0 +1,1747 @@
+[ {
+  "accept" : [ "application/json" ],
+  "id" : "example.cart.event.count",
+  "method" : "POST",
+  "parameterNames" : [ ],
+  "path" : "/cart/event/count",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "customer", "example.cart" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "example.cart.event.list_query",
+  "method" : "POST",
+  "parameterNames" : [ ],
+  "path" : "/cart/event/list",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "customer", "example.cart" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.cart.event.paged_query",
+  "method" : "POST",
+  "parameterNames" : [ ],
+  "path" : "/cart/event/paged",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "customer", "example.cart" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.cart.snapshot.count",
+  "method" : "POST",
+  "parameterNames" : [ ],
+  "path" : "/cart/snapshot/count",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "408", "429" ],
+  "tagNames" : [ "customer", "example.cart" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "example.cart.snapshot.list_query",
+  "method" : "POST",
+  "parameterNames" : [ ],
+  "path" : "/cart/snapshot/list",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "customer", "example.cart" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "example.cart.snapshot_state.list_query",
+  "method" : "POST",
+  "parameterNames" : [ ],
+  "path" : "/cart/snapshot/list/state",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "customer", "example.cart" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.cart.snapshot.paged_query",
+  "method" : "POST",
+  "parameterNames" : [ ],
+  "path" : "/cart/snapshot/paged",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "customer", "example.cart" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.cart.snapshot_state.paged_query",
+  "method" : "POST",
+  "parameterNames" : [ ],
+  "path" : "/cart/snapshot/paged/state",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "customer", "example.cart" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.cart.snapshot.single",
+  "method" : "POST",
+  "parameterNames" : [ ],
+  "path" : "/cart/snapshot/single",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "404" ],
+  "tagNames" : [ "customer", "example.cart" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.cart.snapshot_state.single",
+  "method" : "POST",
+  "parameterNames" : [ ],
+  "path" : "/cart/snapshot/single/state",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "404" ],
+  "tagNames" : [ "customer", "example.cart" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.cart.snapshot.batch_regenerate",
+  "method" : "PUT",
+  "parameterNames" : [ "ref:#/components/parameters/wow.afterId", "ref:#/components/parameters/wow.limit" ],
+  "path" : "/cart/snapshot/{afterId}/{limit}",
+  "requestBody" : false,
+  "responseCodes" : [ "200", "408" ],
+  "tagNames" : [ "customer", "example.cart" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.cart.state_event.resend",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.afterId", "ref:#/components/parameters/wow.limit" ],
+  "path" : "/cart/state/{afterId}/{limit}",
+  "requestBody" : false,
+  "responseCodes" : [ "200", "408" ],
+  "tagNames" : [ "customer", "example.cart" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "example.cart.event_stream.load",
+  "method" : "GET",
+  "parameterNames" : [ "ref:#/components/parameters/wow.id", "ref:#/components/parameters/wow.headVersion", "ref:#/components/parameters/wow.tailVersion" ],
+  "path" : "/cart/{id}/event/{headVersion}/{tailVersion}",
+  "requestBody" : false,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "customer", "example.cart" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.cart.snapshot.regenerate",
+  "method" : "PUT",
+  "parameterNames" : [ "ref:#/components/parameters/wow.id" ],
+  "path" : "/cart/{id}/snapshot",
+  "requestBody" : false,
+  "responseCodes" : [ "200", "404" ],
+  "tagNames" : [ "customer", "example.cart" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.cart.aggregate_tracing.get",
+  "method" : "GET",
+  "parameterNames" : [ "ref:#/components/parameters/wow.id", "ref:#/components/parameters/wow.aggregate-tracing.headVersion", "ref:#/components/parameters/wow.aggregate-tracing.tailVersion", "ref:#/components/parameters/wow.aggregate-tracing.limit" ],
+  "path" : "/cart/{id}/state/tracing",
+  "requestBody" : false,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "customer", "example.cart" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.cart.compensate",
+  "method" : "PUT",
+  "parameterNames" : [ "ref:#/components/parameters/wow.id", "ref:#/components/parameters/wow.version" ],
+  "path" : "/cart/{id}/{version}/compensate",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "400" ],
+  "tagNames" : [ "customer", "example.cart" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "example.cart.default_delete_aggregate",
+  "method" : "DELETE",
+  "parameterNames" : [ "ref:#/components/parameters/wow.ownerId", "ref:#/components/parameters/wow.Command-Wait-Stage", "ref:#/components/parameters/wow.Command-Wait-Context", "ref:#/components/parameters/wow.Command-Wait-Processor", "ref:#/components/parameters/wow.Command-Wait-Function", "ref:#/components/parameters/wow.Command-Wait-Timeout", "ref:#/components/parameters/wow.Command-Wait-Tail-Stage", "ref:#/components/parameters/wow.Command-Wait-Tail-Context", "ref:#/components/parameters/wow.Command-Wait-Tail-Processor", "ref:#/components/parameters/wow.Command-Wait-Tail-Function", "ref:#/components/parameters/wow.Command-Aggregate-Id", "ref:#/components/parameters/wow.Command-Aggregate-Version", "ref:#/components/parameters/wow.Command-Request-Id", "ref:#/components/parameters/wow.Command-Local-First", "ref:#/components/parameters/wow.Accept" ],
+  "path" : "/owner/{ownerId}/cart",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "400", "404", "408", "409", "410", "429" ],
+  "tagNames" : [ "customer", "example.cart" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "example.cart.add_cart_item",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.ownerId", "ref:#/components/parameters/wow.Command-Wait-Stage", "ref:#/components/parameters/wow.Command-Wait-Context", "ref:#/components/parameters/wow.Command-Wait-Processor", "ref:#/components/parameters/wow.Command-Wait-Function", "ref:#/components/parameters/wow.Command-Wait-Timeout", "ref:#/components/parameters/wow.Command-Wait-Tail-Stage", "ref:#/components/parameters/wow.Command-Wait-Tail-Context", "ref:#/components/parameters/wow.Command-Wait-Tail-Processor", "ref:#/components/parameters/wow.Command-Wait-Tail-Function", "ref:#/components/parameters/wow.Command-Aggregate-Id", "ref:#/components/parameters/wow.Command-Aggregate-Version", "ref:#/components/parameters/wow.Command-Request-Id", "ref:#/components/parameters/wow.Command-Local-First", "ref:#/components/parameters/wow.Accept" ],
+  "path" : "/owner/{ownerId}/cart/add_cart_item",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "400", "404", "408", "409", "410", "429" ],
+  "tagNames" : [ "customer", "example.cart" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "example.cart.change_quantity",
+  "method" : "PUT",
+  "parameterNames" : [ "ref:#/components/parameters/wow.ownerId", "ref:#/components/parameters/wow.Command-Wait-Stage", "ref:#/components/parameters/wow.Command-Wait-Context", "ref:#/components/parameters/wow.Command-Wait-Processor", "ref:#/components/parameters/wow.Command-Wait-Function", "ref:#/components/parameters/wow.Command-Wait-Timeout", "ref:#/components/parameters/wow.Command-Wait-Tail-Stage", "ref:#/components/parameters/wow.Command-Wait-Tail-Context", "ref:#/components/parameters/wow.Command-Wait-Tail-Processor", "ref:#/components/parameters/wow.Command-Wait-Tail-Function", "ref:#/components/parameters/wow.Command-Aggregate-Id", "ref:#/components/parameters/wow.Command-Aggregate-Version", "ref:#/components/parameters/wow.Command-Request-Id", "ref:#/components/parameters/wow.Command-Local-First", "ref:#/components/parameters/wow.Accept" ],
+  "path" : "/owner/{ownerId}/cart/change_quantity",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "400", "404", "408", "409", "410", "429" ],
+  "tagNames" : [ "customer", "example.cart" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.cart.owner.event.count",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.ownerId" ],
+  "path" : "/owner/{ownerId}/cart/event/count",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "customer", "example.cart" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "example.cart.owner.event.list_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.ownerId" ],
+  "path" : "/owner/{ownerId}/cart/event/list",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "customer", "example.cart" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.cart.owner.event.paged_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.ownerId" ],
+  "path" : "/owner/{ownerId}/cart/event/paged",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "customer", "example.cart" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "example.cart.mounted_command",
+  "method" : "PUT",
+  "parameterNames" : [ "ref:#/components/parameters/wow.ownerId", "ref:#/components/parameters/wow.Command-Wait-Stage", "ref:#/components/parameters/wow.Command-Wait-Context", "ref:#/components/parameters/wow.Command-Wait-Processor", "ref:#/components/parameters/wow.Command-Wait-Function", "ref:#/components/parameters/wow.Command-Wait-Timeout", "ref:#/components/parameters/wow.Command-Wait-Tail-Stage", "ref:#/components/parameters/wow.Command-Wait-Tail-Context", "ref:#/components/parameters/wow.Command-Wait-Tail-Processor", "ref:#/components/parameters/wow.Command-Wait-Tail-Function", "ref:#/components/parameters/wow.Command-Aggregate-Id", "ref:#/components/parameters/wow.Command-Aggregate-Version", "ref:#/components/parameters/wow.Command-Request-Id", "ref:#/components/parameters/wow.Command-Local-First", "ref:#/components/parameters/wow.Accept" ],
+  "path" : "/owner/{ownerId}/cart/mounted_command",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "400", "404", "408", "409", "410", "429" ],
+  "tagNames" : [ "customer", "example.cart" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "example.cart.default_recover_aggregate",
+  "method" : "PUT",
+  "parameterNames" : [ "ref:#/components/parameters/wow.ownerId", "ref:#/components/parameters/wow.Command-Wait-Stage", "ref:#/components/parameters/wow.Command-Wait-Context", "ref:#/components/parameters/wow.Command-Wait-Processor", "ref:#/components/parameters/wow.Command-Wait-Function", "ref:#/components/parameters/wow.Command-Wait-Timeout", "ref:#/components/parameters/wow.Command-Wait-Tail-Stage", "ref:#/components/parameters/wow.Command-Wait-Tail-Context", "ref:#/components/parameters/wow.Command-Wait-Tail-Processor", "ref:#/components/parameters/wow.Command-Wait-Tail-Function", "ref:#/components/parameters/wow.Command-Aggregate-Id", "ref:#/components/parameters/wow.Command-Aggregate-Version", "ref:#/components/parameters/wow.Command-Request-Id", "ref:#/components/parameters/wow.Command-Local-First", "ref:#/components/parameters/wow.Accept" ],
+  "path" : "/owner/{ownerId}/cart/recover",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "400", "404", "408", "409", "410", "429" ],
+  "tagNames" : [ "customer", "example.cart" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "example.cart.remove_cart_item",
+  "method" : "PUT",
+  "parameterNames" : [ "ref:#/components/parameters/wow.ownerId", "ref:#/components/parameters/wow.Command-Wait-Stage", "ref:#/components/parameters/wow.Command-Wait-Context", "ref:#/components/parameters/wow.Command-Wait-Processor", "ref:#/components/parameters/wow.Command-Wait-Function", "ref:#/components/parameters/wow.Command-Wait-Timeout", "ref:#/components/parameters/wow.Command-Wait-Tail-Stage", "ref:#/components/parameters/wow.Command-Wait-Tail-Context", "ref:#/components/parameters/wow.Command-Wait-Tail-Processor", "ref:#/components/parameters/wow.Command-Wait-Tail-Function", "ref:#/components/parameters/wow.Command-Aggregate-Id", "ref:#/components/parameters/wow.Command-Aggregate-Version", "ref:#/components/parameters/wow.Command-Request-Id", "ref:#/components/parameters/wow.Command-Local-First", "ref:#/components/parameters/wow.Accept" ],
+  "path" : "/owner/{ownerId}/cart/remove_cart_item",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "400", "404", "408", "409", "410", "429" ],
+  "tagNames" : [ "customer", "example.cart" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.cart.owner.snapshot.load",
+  "method" : "GET",
+  "parameterNames" : [ "ref:#/components/parameters/wow.ownerId" ],
+  "path" : "/owner/{ownerId}/cart/snapshot",
+  "requestBody" : false,
+  "responseCodes" : [ "200", "404" ],
+  "tagNames" : [ "customer", "example.cart" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.cart.owner.snapshot.count",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.ownerId" ],
+  "path" : "/owner/{ownerId}/cart/snapshot/count",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "408", "429" ],
+  "tagNames" : [ "customer", "example.cart" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "example.cart.owner.snapshot.list_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.ownerId" ],
+  "path" : "/owner/{ownerId}/cart/snapshot/list",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "customer", "example.cart" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "example.cart.owner.snapshot_state.list_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.ownerId" ],
+  "path" : "/owner/{ownerId}/cart/snapshot/list/state",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "customer", "example.cart" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.cart.owner.snapshot.paged_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.ownerId" ],
+  "path" : "/owner/{ownerId}/cart/snapshot/paged",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "customer", "example.cart" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.cart.owner.snapshot_state.paged_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.ownerId" ],
+  "path" : "/owner/{ownerId}/cart/snapshot/paged/state",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "customer", "example.cart" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.cart.owner.snapshot.single",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.ownerId" ],
+  "path" : "/owner/{ownerId}/cart/snapshot/single",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "404" ],
+  "tagNames" : [ "customer", "example.cart" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.cart.owner.snapshot_state.single",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.ownerId" ],
+  "path" : "/owner/{ownerId}/cart/snapshot/single/state",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "404" ],
+  "tagNames" : [ "customer", "example.cart" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.cart.aggregate.load",
+  "method" : "GET",
+  "parameterNames" : [ "ref:#/components/parameters/wow.ownerId" ],
+  "path" : "/owner/{ownerId}/cart/state",
+  "requestBody" : false,
+  "responseCodes" : [ "200", "400", "404" ],
+  "tagNames" : [ "customer", "example.cart" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.cart.time_based_aggregate.load",
+  "method" : "GET",
+  "parameterNames" : [ "ref:#/components/parameters/wow.ownerId", "ref:#/components/parameters/wow.createTime" ],
+  "path" : "/owner/{ownerId}/cart/state/time/{createTime}",
+  "requestBody" : false,
+  "responseCodes" : [ "200", "400", "404" ],
+  "tagNames" : [ "customer", "example.cart" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.cart.versioned_aggregate.load",
+  "method" : "GET",
+  "parameterNames" : [ "ref:#/components/parameters/wow.ownerId", "ref:#/components/parameters/wow.version" ],
+  "path" : "/owner/{ownerId}/cart/state/{version}",
+  "requestBody" : false,
+  "responseCodes" : [ "200", "400", "404" ],
+  "tagNames" : [ "customer", "example.cart" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "example.cart.default_apply_resource_tags",
+  "method" : "PUT",
+  "parameterNames" : [ "ref:#/components/parameters/wow.ownerId", "ref:#/components/parameters/wow.Command-Wait-Stage", "ref:#/components/parameters/wow.Command-Wait-Context", "ref:#/components/parameters/wow.Command-Wait-Processor", "ref:#/components/parameters/wow.Command-Wait-Function", "ref:#/components/parameters/wow.Command-Wait-Timeout", "ref:#/components/parameters/wow.Command-Wait-Tail-Stage", "ref:#/components/parameters/wow.Command-Wait-Tail-Context", "ref:#/components/parameters/wow.Command-Wait-Tail-Processor", "ref:#/components/parameters/wow.Command-Wait-Tail-Function", "ref:#/components/parameters/wow.Command-Aggregate-Id", "ref:#/components/parameters/wow.Command-Aggregate-Version", "ref:#/components/parameters/wow.Command-Request-Id", "ref:#/components/parameters/wow.Command-Local-First", "ref:#/components/parameters/wow.Accept" ],
+  "path" : "/owner/{ownerId}/cart/tags",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "400", "404", "408", "409", "410", "429" ],
+  "tagNames" : [ "customer", "example.cart" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "example.cart.view_cart",
+  "method" : "PUT",
+  "parameterNames" : [ "ref:#/components/parameters/wow.ownerId", "ref:#/components/parameters/wow.Command-Wait-Stage", "ref:#/components/parameters/wow.Command-Wait-Context", "ref:#/components/parameters/wow.Command-Wait-Processor", "ref:#/components/parameters/wow.Command-Wait-Function", "ref:#/components/parameters/wow.Command-Wait-Timeout", "ref:#/components/parameters/wow.Command-Wait-Tail-Stage", "ref:#/components/parameters/wow.Command-Wait-Tail-Context", "ref:#/components/parameters/wow.Command-Wait-Tail-Processor", "ref:#/components/parameters/wow.Command-Wait-Tail-Function", "ref:#/components/parameters/wow.Command-Aggregate-Id", "ref:#/components/parameters/wow.Command-Aggregate-Version", "ref:#/components/parameters/wow.Command-Request-Id", "ref:#/components/parameters/wow.Command-Local-First", "ref:#/components/parameters/wow.Accept" ],
+  "path" : "/owner/{ownerId}/cart/view_cart",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "400", "404", "408", "409", "410", "429" ],
+  "tagNames" : [ "customer", "example.cart" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.order.owner.event.count",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.ownerId", "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/owner/{ownerId}/sales-order/event/count",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "example.order.owner.event.list_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.ownerId", "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/owner/{ownerId}/sales-order/event/list",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.order.owner.event.paged_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.ownerId", "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/owner/{ownerId}/sales-order/event/paged",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.order.owner.snapshot.count",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.ownerId", "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/owner/{ownerId}/sales-order/snapshot/count",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "408", "429" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "example.order.owner.snapshot.list_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.ownerId", "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/owner/{ownerId}/sales-order/snapshot/list",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "example.order.owner.snapshot_state.list_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.ownerId", "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/owner/{ownerId}/sales-order/snapshot/list/state",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.order.owner.snapshot.paged_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.ownerId", "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/owner/{ownerId}/sales-order/snapshot/paged",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.order.owner.snapshot_state.paged_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.ownerId", "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/owner/{ownerId}/sales-order/snapshot/paged/state",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.order.owner.snapshot.single",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.ownerId", "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/owner/{ownerId}/sales-order/snapshot/single",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "404" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.order.owner.snapshot_state.single",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.ownerId", "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/owner/{ownerId}/sales-order/snapshot/single/state",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "404" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.order.event.count",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/sales-order/event/count",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "example.order.event.list_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/sales-order/event/list",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.order.event.paged_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/sales-order/event/paged",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.order.snapshot.count",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/sales-order/snapshot/count",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "408", "429" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "example.order.snapshot.list_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/sales-order/snapshot/list",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "example.order.snapshot_state.list_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/sales-order/snapshot/list/state",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.order.snapshot.paged_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/sales-order/snapshot/paged",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.order.snapshot_state.paged_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/sales-order/snapshot/paged/state",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.order.snapshot.single",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/sales-order/snapshot/single",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "404" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.order.snapshot_state.single",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/sales-order/snapshot/single/state",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "404" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.order.snapshot.batch_regenerate",
+  "method" : "PUT",
+  "parameterNames" : [ "ref:#/components/parameters/wow.Wow-Space-Id", "ref:#/components/parameters/wow.afterId", "ref:#/components/parameters/wow.limit" ],
+  "path" : "/sales-order/snapshot/{afterId}/{limit}",
+  "requestBody" : false,
+  "responseCodes" : [ "200", "408" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.order.state_event.resend",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.Wow-Space-Id", "ref:#/components/parameters/wow.afterId", "ref:#/components/parameters/wow.limit" ],
+  "path" : "/sales-order/state/{afterId}/{limit}",
+  "requestBody" : false,
+  "responseCodes" : [ "200", "408" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.mock_aggregate.event.count",
+  "method" : "POST",
+  "parameterNames" : [ ],
+  "path" : "/tck/mock_aggregate/event/count",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.mock_aggregate" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "tck.mock_aggregate.event.list_query",
+  "method" : "POST",
+  "parameterNames" : [ ],
+  "path" : "/tck/mock_aggregate/event/list",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.mock_aggregate" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.mock_aggregate.event.paged_query",
+  "method" : "POST",
+  "parameterNames" : [ ],
+  "path" : "/tck/mock_aggregate/event/paged",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.mock_aggregate" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.mock_aggregate.snapshot.count",
+  "method" : "POST",
+  "parameterNames" : [ ],
+  "path" : "/tck/mock_aggregate/snapshot/count",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "408", "429" ],
+  "tagNames" : [ "tck.mock_aggregate" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "tck.mock_aggregate.snapshot.list_query",
+  "method" : "POST",
+  "parameterNames" : [ ],
+  "path" : "/tck/mock_aggregate/snapshot/list",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.mock_aggregate" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "tck.mock_aggregate.snapshot_state.list_query",
+  "method" : "POST",
+  "parameterNames" : [ ],
+  "path" : "/tck/mock_aggregate/snapshot/list/state",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.mock_aggregate" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.mock_aggregate.snapshot.paged_query",
+  "method" : "POST",
+  "parameterNames" : [ ],
+  "path" : "/tck/mock_aggregate/snapshot/paged",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.mock_aggregate" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.mock_aggregate.snapshot_state.paged_query",
+  "method" : "POST",
+  "parameterNames" : [ ],
+  "path" : "/tck/mock_aggregate/snapshot/paged/state",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.mock_aggregate" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.mock_aggregate.snapshot.single",
+  "method" : "POST",
+  "parameterNames" : [ ],
+  "path" : "/tck/mock_aggregate/snapshot/single",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "404" ],
+  "tagNames" : [ "tck.mock_aggregate" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.mock_aggregate.snapshot_state.single",
+  "method" : "POST",
+  "parameterNames" : [ ],
+  "path" : "/tck/mock_aggregate/snapshot/single/state",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "404" ],
+  "tagNames" : [ "tck.mock_aggregate" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.mock_aggregate.snapshot.batch_regenerate",
+  "method" : "PUT",
+  "parameterNames" : [ "ref:#/components/parameters/wow.afterId", "ref:#/components/parameters/wow.limit" ],
+  "path" : "/tck/mock_aggregate/snapshot/{afterId}/{limit}",
+  "requestBody" : false,
+  "responseCodes" : [ "200", "408" ],
+  "tagNames" : [ "tck.mock_aggregate" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.mock_aggregate.state_event.resend",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.afterId", "ref:#/components/parameters/wow.limit" ],
+  "path" : "/tck/mock_aggregate/state/{afterId}/{limit}",
+  "requestBody" : false,
+  "responseCodes" : [ "200", "408" ],
+  "tagNames" : [ "tck.mock_aggregate" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.modeling_command_aggregate_with_tenant_id.event.count",
+  "method" : "POST",
+  "parameterNames" : [ ],
+  "path" : "/tck/modeling_command_aggregate_with_tenant_id/event/count",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "tck.modeling_command_aggregate_with_tenant_id.event.list_query",
+  "method" : "POST",
+  "parameterNames" : [ ],
+  "path" : "/tck/modeling_command_aggregate_with_tenant_id/event/list",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.modeling_command_aggregate_with_tenant_id.event.paged_query",
+  "method" : "POST",
+  "parameterNames" : [ ],
+  "path" : "/tck/modeling_command_aggregate_with_tenant_id/event/paged",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.modeling_command_aggregate_with_tenant_id.snapshot.count",
+  "method" : "POST",
+  "parameterNames" : [ ],
+  "path" : "/tck/modeling_command_aggregate_with_tenant_id/snapshot/count",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "408", "429" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "tck.modeling_command_aggregate_with_tenant_id.snapshot.list_query",
+  "method" : "POST",
+  "parameterNames" : [ ],
+  "path" : "/tck/modeling_command_aggregate_with_tenant_id/snapshot/list",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "tck.modeling_command_aggregate_with_tenant_id.snapshot_state.list_query",
+  "method" : "POST",
+  "parameterNames" : [ ],
+  "path" : "/tck/modeling_command_aggregate_with_tenant_id/snapshot/list/state",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.modeling_command_aggregate_with_tenant_id.snapshot.paged_query",
+  "method" : "POST",
+  "parameterNames" : [ ],
+  "path" : "/tck/modeling_command_aggregate_with_tenant_id/snapshot/paged",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.modeling_command_aggregate_with_tenant_id.snapshot_state.paged_query",
+  "method" : "POST",
+  "parameterNames" : [ ],
+  "path" : "/tck/modeling_command_aggregate_with_tenant_id/snapshot/paged/state",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.modeling_command_aggregate_with_tenant_id.snapshot.single",
+  "method" : "POST",
+  "parameterNames" : [ ],
+  "path" : "/tck/modeling_command_aggregate_with_tenant_id/snapshot/single",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "404" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.modeling_command_aggregate_with_tenant_id.snapshot_state.single",
+  "method" : "POST",
+  "parameterNames" : [ ],
+  "path" : "/tck/modeling_command_aggregate_with_tenant_id/snapshot/single/state",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "404" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.modeling_command_aggregate_with_tenant_id.snapshot.batch_regenerate",
+  "method" : "PUT",
+  "parameterNames" : [ "ref:#/components/parameters/wow.afterId", "ref:#/components/parameters/wow.limit" ],
+  "path" : "/tck/modeling_command_aggregate_with_tenant_id/snapshot/{afterId}/{limit}",
+  "requestBody" : false,
+  "responseCodes" : [ "200", "408" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.modeling_command_aggregate_with_tenant_id.state_event.resend",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.afterId", "ref:#/components/parameters/wow.limit" ],
+  "path" : "/tck/modeling_command_aggregate_with_tenant_id/state/{afterId}/{limit}",
+  "requestBody" : false,
+  "responseCodes" : [ "200", "408" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.modeling_command_aggregate_without_ctor_parameters.event.count",
+  "method" : "POST",
+  "parameterNames" : [ ],
+  "path" : "/tck/modeling_command_aggregate_without_ctor_parameters/event/count",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "tck.modeling_command_aggregate_without_ctor_parameters.event.list_query",
+  "method" : "POST",
+  "parameterNames" : [ ],
+  "path" : "/tck/modeling_command_aggregate_without_ctor_parameters/event/list",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.modeling_command_aggregate_without_ctor_parameters.event.paged_query",
+  "method" : "POST",
+  "parameterNames" : [ ],
+  "path" : "/tck/modeling_command_aggregate_without_ctor_parameters/event/paged",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.modeling_command_aggregate_without_ctor_parameters.snapshot.count",
+  "method" : "POST",
+  "parameterNames" : [ ],
+  "path" : "/tck/modeling_command_aggregate_without_ctor_parameters/snapshot/count",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "408", "429" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "tck.modeling_command_aggregate_without_ctor_parameters.snapshot.list_query",
+  "method" : "POST",
+  "parameterNames" : [ ],
+  "path" : "/tck/modeling_command_aggregate_without_ctor_parameters/snapshot/list",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "tck.modeling_command_aggregate_without_ctor_parameters.snapshot_state.list_query",
+  "method" : "POST",
+  "parameterNames" : [ ],
+  "path" : "/tck/modeling_command_aggregate_without_ctor_parameters/snapshot/list/state",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.modeling_command_aggregate_without_ctor_parameters.snapshot.paged_query",
+  "method" : "POST",
+  "parameterNames" : [ ],
+  "path" : "/tck/modeling_command_aggregate_without_ctor_parameters/snapshot/paged",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.modeling_command_aggregate_without_ctor_parameters.snapshot_state.paged_query",
+  "method" : "POST",
+  "parameterNames" : [ ],
+  "path" : "/tck/modeling_command_aggregate_without_ctor_parameters/snapshot/paged/state",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.modeling_command_aggregate_without_ctor_parameters.snapshot.single",
+  "method" : "POST",
+  "parameterNames" : [ ],
+  "path" : "/tck/modeling_command_aggregate_without_ctor_parameters/snapshot/single",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "404" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.modeling_command_aggregate_without_ctor_parameters.snapshot_state.single",
+  "method" : "POST",
+  "parameterNames" : [ ],
+  "path" : "/tck/modeling_command_aggregate_without_ctor_parameters/snapshot/single/state",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "404" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.modeling_command_aggregate_without_ctor_parameters.snapshot.batch_regenerate",
+  "method" : "PUT",
+  "parameterNames" : [ "ref:#/components/parameters/wow.afterId", "ref:#/components/parameters/wow.limit" ],
+  "path" : "/tck/modeling_command_aggregate_without_ctor_parameters/snapshot/{afterId}/{limit}",
+  "requestBody" : false,
+  "responseCodes" : [ "200", "408" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.modeling_command_aggregate_without_ctor_parameters.state_event.resend",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.afterId", "ref:#/components/parameters/wow.limit" ],
+  "path" : "/tck/modeling_command_aggregate_without_ctor_parameters/state/{afterId}/{limit}",
+  "requestBody" : false,
+  "responseCodes" : [ "200", "408" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.mock_aggregate.tenant.event.count",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId" ],
+  "path" : "/tck/tenant/{tenantId}/mock_aggregate/event/count",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.mock_aggregate" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "tck.mock_aggregate.tenant.event.list_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId" ],
+  "path" : "/tck/tenant/{tenantId}/mock_aggregate/event/list",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.mock_aggregate" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.mock_aggregate.tenant.event.paged_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId" ],
+  "path" : "/tck/tenant/{tenantId}/mock_aggregate/event/paged",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.mock_aggregate" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "tck.mock_aggregate.mock_change_aggregate",
+  "method" : "PUT",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.Command-Wait-Stage", "ref:#/components/parameters/wow.Command-Wait-Context", "ref:#/components/parameters/wow.Command-Wait-Processor", "ref:#/components/parameters/wow.Command-Wait-Function", "ref:#/components/parameters/wow.Command-Wait-Timeout", "ref:#/components/parameters/wow.Command-Wait-Tail-Stage", "ref:#/components/parameters/wow.Command-Wait-Tail-Context", "ref:#/components/parameters/wow.Command-Wait-Tail-Processor", "ref:#/components/parameters/wow.Command-Wait-Tail-Function", "ref:#/components/parameters/wow.Command-Aggregate-Id", "ref:#/components/parameters/wow.Command-Aggregate-Version", "ref:#/components/parameters/wow.Command-Request-Id", "ref:#/components/parameters/wow.Command-Local-First", "ref:#/components/parameters/wow.Accept" ],
+  "path" : "/tck/tenant/{tenantId}/mock_aggregate/mock_change_aggregate",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "400", "404", "408", "409", "410", "429" ],
+  "tagNames" : [ "tck.mock_aggregate" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "tck.mock_aggregate.mock_create_aggregate",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.Command-Wait-Stage", "ref:#/components/parameters/wow.Command-Wait-Context", "ref:#/components/parameters/wow.Command-Wait-Processor", "ref:#/components/parameters/wow.Command-Wait-Function", "ref:#/components/parameters/wow.Command-Wait-Timeout", "ref:#/components/parameters/wow.Command-Wait-Tail-Stage", "ref:#/components/parameters/wow.Command-Wait-Tail-Context", "ref:#/components/parameters/wow.Command-Wait-Tail-Processor", "ref:#/components/parameters/wow.Command-Wait-Tail-Function", "ref:#/components/parameters/wow.Command-Aggregate-Id", "ref:#/components/parameters/wow.Command-Aggregate-Version", "ref:#/components/parameters/wow.Command-Request-Id", "ref:#/components/parameters/wow.Command-Local-First", "ref:#/components/parameters/wow.Accept" ],
+  "path" : "/tck/tenant/{tenantId}/mock_aggregate/mock_create_aggregate",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "400", "404", "408", "409", "410", "429" ],
+  "tagNames" : [ "tck.mock_aggregate" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.mock_aggregate.tenant.snapshot.count",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId" ],
+  "path" : "/tck/tenant/{tenantId}/mock_aggregate/snapshot/count",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "408", "429" ],
+  "tagNames" : [ "tck.mock_aggregate" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "tck.mock_aggregate.tenant.snapshot.list_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId" ],
+  "path" : "/tck/tenant/{tenantId}/mock_aggregate/snapshot/list",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.mock_aggregate" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "tck.mock_aggregate.tenant.snapshot_state.list_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId" ],
+  "path" : "/tck/tenant/{tenantId}/mock_aggregate/snapshot/list/state",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.mock_aggregate" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.mock_aggregate.tenant.snapshot.paged_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId" ],
+  "path" : "/tck/tenant/{tenantId}/mock_aggregate/snapshot/paged",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.mock_aggregate" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.mock_aggregate.tenant.snapshot_state.paged_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId" ],
+  "path" : "/tck/tenant/{tenantId}/mock_aggregate/snapshot/paged/state",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.mock_aggregate" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.mock_aggregate.tenant.snapshot.single",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId" ],
+  "path" : "/tck/tenant/{tenantId}/mock_aggregate/snapshot/single",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "404" ],
+  "tagNames" : [ "tck.mock_aggregate" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.mock_aggregate.tenant.snapshot_state.single",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId" ],
+  "path" : "/tck/tenant/{tenantId}/mock_aggregate/snapshot/single/state",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "404" ],
+  "tagNames" : [ "tck.mock_aggregate" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "tck.mock_aggregate.default_delete_aggregate",
+  "method" : "DELETE",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.id", "ref:#/components/parameters/wow.Command-Wait-Stage", "ref:#/components/parameters/wow.Command-Wait-Context", "ref:#/components/parameters/wow.Command-Wait-Processor", "ref:#/components/parameters/wow.Command-Wait-Function", "ref:#/components/parameters/wow.Command-Wait-Timeout", "ref:#/components/parameters/wow.Command-Wait-Tail-Stage", "ref:#/components/parameters/wow.Command-Wait-Tail-Context", "ref:#/components/parameters/wow.Command-Wait-Tail-Processor", "ref:#/components/parameters/wow.Command-Wait-Tail-Function", "ref:#/components/parameters/wow.Command-Aggregate-Id", "ref:#/components/parameters/wow.Command-Aggregate-Version", "ref:#/components/parameters/wow.Command-Request-Id", "ref:#/components/parameters/wow.Command-Local-First", "ref:#/components/parameters/wow.Accept" ],
+  "path" : "/tck/tenant/{tenantId}/mock_aggregate/{id}",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "400", "404", "408", "409", "410", "429" ],
+  "tagNames" : [ "tck.mock_aggregate" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "tck.mock_aggregate.tenant.event_stream.load",
+  "method" : "GET",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.id", "ref:#/components/parameters/wow.headVersion", "ref:#/components/parameters/wow.tailVersion" ],
+  "path" : "/tck/tenant/{tenantId}/mock_aggregate/{id}/event/{headVersion}/{tailVersion}",
+  "requestBody" : false,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.mock_aggregate" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "tck.mock_aggregate.mock_void_command",
+  "method" : "PUT",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.id", "ref:#/components/parameters/wow.Command-Wait-Stage", "ref:#/components/parameters/wow.Command-Wait-Context", "ref:#/components/parameters/wow.Command-Wait-Processor", "ref:#/components/parameters/wow.Command-Wait-Function", "ref:#/components/parameters/wow.Command-Wait-Timeout", "ref:#/components/parameters/wow.Command-Wait-Tail-Stage", "ref:#/components/parameters/wow.Command-Wait-Tail-Context", "ref:#/components/parameters/wow.Command-Wait-Tail-Processor", "ref:#/components/parameters/wow.Command-Wait-Tail-Function", "ref:#/components/parameters/wow.Command-Aggregate-Id", "ref:#/components/parameters/wow.Command-Aggregate-Version", "ref:#/components/parameters/wow.Command-Request-Id", "ref:#/components/parameters/wow.Command-Local-First", "ref:#/components/parameters/wow.Accept" ],
+  "path" : "/tck/tenant/{tenantId}/mock_aggregate/{id}/mock_void_command",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "400", "404", "408", "409", "410", "429" ],
+  "tagNames" : [ "tck.mock_aggregate" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "tck.mock_aggregate.default_recover_aggregate",
+  "method" : "PUT",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.id", "ref:#/components/parameters/wow.Command-Wait-Stage", "ref:#/components/parameters/wow.Command-Wait-Context", "ref:#/components/parameters/wow.Command-Wait-Processor", "ref:#/components/parameters/wow.Command-Wait-Function", "ref:#/components/parameters/wow.Command-Wait-Timeout", "ref:#/components/parameters/wow.Command-Wait-Tail-Stage", "ref:#/components/parameters/wow.Command-Wait-Tail-Context", "ref:#/components/parameters/wow.Command-Wait-Tail-Processor", "ref:#/components/parameters/wow.Command-Wait-Tail-Function", "ref:#/components/parameters/wow.Command-Aggregate-Id", "ref:#/components/parameters/wow.Command-Aggregate-Version", "ref:#/components/parameters/wow.Command-Request-Id", "ref:#/components/parameters/wow.Command-Local-First", "ref:#/components/parameters/wow.Accept" ],
+  "path" : "/tck/tenant/{tenantId}/mock_aggregate/{id}/recover",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "400", "404", "408", "409", "410", "429" ],
+  "tagNames" : [ "tck.mock_aggregate" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.mock_aggregate.tenant.snapshot.load",
+  "method" : "GET",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.id" ],
+  "path" : "/tck/tenant/{tenantId}/mock_aggregate/{id}/snapshot",
+  "requestBody" : false,
+  "responseCodes" : [ "200", "404" ],
+  "tagNames" : [ "tck.mock_aggregate" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.mock_aggregate.tenant.snapshot.regenerate",
+  "method" : "PUT",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.id" ],
+  "path" : "/tck/tenant/{tenantId}/mock_aggregate/{id}/snapshot",
+  "requestBody" : false,
+  "responseCodes" : [ "200", "404" ],
+  "tagNames" : [ "tck.mock_aggregate" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.mock_aggregate.tenant.aggregate.load",
+  "method" : "GET",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.id" ],
+  "path" : "/tck/tenant/{tenantId}/mock_aggregate/{id}/state",
+  "requestBody" : false,
+  "responseCodes" : [ "200", "400", "404" ],
+  "tagNames" : [ "tck.mock_aggregate" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.mock_aggregate.tenant.time_based_aggregate.load",
+  "method" : "GET",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.id", "ref:#/components/parameters/wow.createTime" ],
+  "path" : "/tck/tenant/{tenantId}/mock_aggregate/{id}/state/time/{createTime}",
+  "requestBody" : false,
+  "responseCodes" : [ "200", "400", "404" ],
+  "tagNames" : [ "tck.mock_aggregate" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.mock_aggregate.tenant.aggregate_tracing.get",
+  "method" : "GET",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.id", "ref:#/components/parameters/wow.aggregate-tracing.headVersion", "ref:#/components/parameters/wow.aggregate-tracing.tailVersion", "ref:#/components/parameters/wow.aggregate-tracing.limit" ],
+  "path" : "/tck/tenant/{tenantId}/mock_aggregate/{id}/state/tracing",
+  "requestBody" : false,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.mock_aggregate" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.mock_aggregate.tenant.versioned_aggregate.load",
+  "method" : "GET",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.id", "ref:#/components/parameters/wow.version" ],
+  "path" : "/tck/tenant/{tenantId}/mock_aggregate/{id}/state/{version}",
+  "requestBody" : false,
+  "responseCodes" : [ "200", "400", "404" ],
+  "tagNames" : [ "tck.mock_aggregate" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "tck.mock_aggregate.default_apply_resource_tags",
+  "method" : "PUT",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.id", "ref:#/components/parameters/wow.Command-Wait-Stage", "ref:#/components/parameters/wow.Command-Wait-Context", "ref:#/components/parameters/wow.Command-Wait-Processor", "ref:#/components/parameters/wow.Command-Wait-Function", "ref:#/components/parameters/wow.Command-Wait-Timeout", "ref:#/components/parameters/wow.Command-Wait-Tail-Stage", "ref:#/components/parameters/wow.Command-Wait-Tail-Context", "ref:#/components/parameters/wow.Command-Wait-Tail-Processor", "ref:#/components/parameters/wow.Command-Wait-Tail-Function", "ref:#/components/parameters/wow.Command-Aggregate-Id", "ref:#/components/parameters/wow.Command-Aggregate-Version", "ref:#/components/parameters/wow.Command-Request-Id", "ref:#/components/parameters/wow.Command-Local-First", "ref:#/components/parameters/wow.Accept" ],
+  "path" : "/tck/tenant/{tenantId}/mock_aggregate/{id}/tags",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "400", "404", "408", "409", "410", "429" ],
+  "tagNames" : [ "tck.mock_aggregate" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.mock_aggregate.tenant.compensate",
+  "method" : "PUT",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.id", "ref:#/components/parameters/wow.version" ],
+  "path" : "/tck/tenant/{tenantId}/mock_aggregate/{id}/{version}/compensate",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "400" ],
+  "tagNames" : [ "tck.mock_aggregate" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.modeling_command_aggregate_with_tenant_id.tenant.event.count",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId" ],
+  "path" : "/tck/tenant/{tenantId}/modeling_command_aggregate_with_tenant_id/event/count",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "tck.modeling_command_aggregate_with_tenant_id.tenant.event.list_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId" ],
+  "path" : "/tck/tenant/{tenantId}/modeling_command_aggregate_with_tenant_id/event/list",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.modeling_command_aggregate_with_tenant_id.tenant.event.paged_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId" ],
+  "path" : "/tck/tenant/{tenantId}/modeling_command_aggregate_with_tenant_id/event/paged",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.modeling_command_aggregate_with_tenant_id.tenant.snapshot.count",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId" ],
+  "path" : "/tck/tenant/{tenantId}/modeling_command_aggregate_with_tenant_id/snapshot/count",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "408", "429" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "tck.modeling_command_aggregate_with_tenant_id.tenant.snapshot.list_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId" ],
+  "path" : "/tck/tenant/{tenantId}/modeling_command_aggregate_with_tenant_id/snapshot/list",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "tck.modeling_command_aggregate_with_tenant_id.tenant.snapshot_state.list_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId" ],
+  "path" : "/tck/tenant/{tenantId}/modeling_command_aggregate_with_tenant_id/snapshot/list/state",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.modeling_command_aggregate_with_tenant_id.tenant.snapshot.paged_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId" ],
+  "path" : "/tck/tenant/{tenantId}/modeling_command_aggregate_with_tenant_id/snapshot/paged",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.modeling_command_aggregate_with_tenant_id.tenant.snapshot_state.paged_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId" ],
+  "path" : "/tck/tenant/{tenantId}/modeling_command_aggregate_with_tenant_id/snapshot/paged/state",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.modeling_command_aggregate_with_tenant_id.tenant.snapshot.single",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId" ],
+  "path" : "/tck/tenant/{tenantId}/modeling_command_aggregate_with_tenant_id/snapshot/single",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "404" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.modeling_command_aggregate_with_tenant_id.tenant.snapshot_state.single",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId" ],
+  "path" : "/tck/tenant/{tenantId}/modeling_command_aggregate_with_tenant_id/snapshot/single/state",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "404" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "tck.modeling_command_aggregate_with_tenant_id.default_delete_aggregate",
+  "method" : "DELETE",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.id", "ref:#/components/parameters/wow.Command-Wait-Stage", "ref:#/components/parameters/wow.Command-Wait-Context", "ref:#/components/parameters/wow.Command-Wait-Processor", "ref:#/components/parameters/wow.Command-Wait-Function", "ref:#/components/parameters/wow.Command-Wait-Timeout", "ref:#/components/parameters/wow.Command-Wait-Tail-Stage", "ref:#/components/parameters/wow.Command-Wait-Tail-Context", "ref:#/components/parameters/wow.Command-Wait-Tail-Processor", "ref:#/components/parameters/wow.Command-Wait-Tail-Function", "ref:#/components/parameters/wow.Command-Aggregate-Id", "ref:#/components/parameters/wow.Command-Aggregate-Version", "ref:#/components/parameters/wow.Command-Request-Id", "ref:#/components/parameters/wow.Command-Local-First", "ref:#/components/parameters/wow.Accept" ],
+  "path" : "/tck/tenant/{tenantId}/modeling_command_aggregate_with_tenant_id/{id}",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "400", "404", "408", "409", "410", "429" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "tck.modeling_command_aggregate_with_tenant_id.tenant.event_stream.load",
+  "method" : "GET",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.id", "ref:#/components/parameters/wow.headVersion", "ref:#/components/parameters/wow.tailVersion" ],
+  "path" : "/tck/tenant/{tenantId}/modeling_command_aggregate_with_tenant_id/{id}/event/{headVersion}/{tailVersion}",
+  "requestBody" : false,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "tck.modeling_command_aggregate_with_tenant_id.default_recover_aggregate",
+  "method" : "PUT",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.id", "ref:#/components/parameters/wow.Command-Wait-Stage", "ref:#/components/parameters/wow.Command-Wait-Context", "ref:#/components/parameters/wow.Command-Wait-Processor", "ref:#/components/parameters/wow.Command-Wait-Function", "ref:#/components/parameters/wow.Command-Wait-Timeout", "ref:#/components/parameters/wow.Command-Wait-Tail-Stage", "ref:#/components/parameters/wow.Command-Wait-Tail-Context", "ref:#/components/parameters/wow.Command-Wait-Tail-Processor", "ref:#/components/parameters/wow.Command-Wait-Tail-Function", "ref:#/components/parameters/wow.Command-Aggregate-Id", "ref:#/components/parameters/wow.Command-Aggregate-Version", "ref:#/components/parameters/wow.Command-Request-Id", "ref:#/components/parameters/wow.Command-Local-First", "ref:#/components/parameters/wow.Accept" ],
+  "path" : "/tck/tenant/{tenantId}/modeling_command_aggregate_with_tenant_id/{id}/recover",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "400", "404", "408", "409", "410", "429" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.modeling_command_aggregate_with_tenant_id.tenant.snapshot.load",
+  "method" : "GET",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.id" ],
+  "path" : "/tck/tenant/{tenantId}/modeling_command_aggregate_with_tenant_id/{id}/snapshot",
+  "requestBody" : false,
+  "responseCodes" : [ "200", "404" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.modeling_command_aggregate_with_tenant_id.tenant.snapshot.regenerate",
+  "method" : "PUT",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.id" ],
+  "path" : "/tck/tenant/{tenantId}/modeling_command_aggregate_with_tenant_id/{id}/snapshot",
+  "requestBody" : false,
+  "responseCodes" : [ "200", "404" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.modeling_command_aggregate_with_tenant_id.tenant.aggregate.load",
+  "method" : "GET",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.id" ],
+  "path" : "/tck/tenant/{tenantId}/modeling_command_aggregate_with_tenant_id/{id}/state",
+  "requestBody" : false,
+  "responseCodes" : [ "200", "400", "404" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.modeling_command_aggregate_with_tenant_id.tenant.time_based_aggregate.load",
+  "method" : "GET",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.id", "ref:#/components/parameters/wow.createTime" ],
+  "path" : "/tck/tenant/{tenantId}/modeling_command_aggregate_with_tenant_id/{id}/state/time/{createTime}",
+  "requestBody" : false,
+  "responseCodes" : [ "200", "400", "404" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.modeling_command_aggregate_with_tenant_id.tenant.aggregate_tracing.get",
+  "method" : "GET",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.id", "ref:#/components/parameters/wow.aggregate-tracing.headVersion", "ref:#/components/parameters/wow.aggregate-tracing.tailVersion", "ref:#/components/parameters/wow.aggregate-tracing.limit" ],
+  "path" : "/tck/tenant/{tenantId}/modeling_command_aggregate_with_tenant_id/{id}/state/tracing",
+  "requestBody" : false,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.modeling_command_aggregate_with_tenant_id.tenant.versioned_aggregate.load",
+  "method" : "GET",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.id", "ref:#/components/parameters/wow.version" ],
+  "path" : "/tck/tenant/{tenantId}/modeling_command_aggregate_with_tenant_id/{id}/state/{version}",
+  "requestBody" : false,
+  "responseCodes" : [ "200", "400", "404" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "tck.modeling_command_aggregate_with_tenant_id.default_apply_resource_tags",
+  "method" : "PUT",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.id", "ref:#/components/parameters/wow.Command-Wait-Stage", "ref:#/components/parameters/wow.Command-Wait-Context", "ref:#/components/parameters/wow.Command-Wait-Processor", "ref:#/components/parameters/wow.Command-Wait-Function", "ref:#/components/parameters/wow.Command-Wait-Timeout", "ref:#/components/parameters/wow.Command-Wait-Tail-Stage", "ref:#/components/parameters/wow.Command-Wait-Tail-Context", "ref:#/components/parameters/wow.Command-Wait-Tail-Processor", "ref:#/components/parameters/wow.Command-Wait-Tail-Function", "ref:#/components/parameters/wow.Command-Aggregate-Id", "ref:#/components/parameters/wow.Command-Aggregate-Version", "ref:#/components/parameters/wow.Command-Request-Id", "ref:#/components/parameters/wow.Command-Local-First", "ref:#/components/parameters/wow.Accept" ],
+  "path" : "/tck/tenant/{tenantId}/modeling_command_aggregate_with_tenant_id/{id}/tags",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "400", "404", "408", "409", "410", "429" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.modeling_command_aggregate_with_tenant_id.tenant.compensate",
+  "method" : "PUT",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.id", "ref:#/components/parameters/wow.version" ],
+  "path" : "/tck/tenant/{tenantId}/modeling_command_aggregate_with_tenant_id/{id}/{version}/compensate",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "400" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_with_tenant_id" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.modeling_command_aggregate_without_ctor_parameters.tenant.event.count",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId" ],
+  "path" : "/tck/tenant/{tenantId}/modeling_command_aggregate_without_ctor_parameters/event/count",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "tck.modeling_command_aggregate_without_ctor_parameters.tenant.event.list_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId" ],
+  "path" : "/tck/tenant/{tenantId}/modeling_command_aggregate_without_ctor_parameters/event/list",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.modeling_command_aggregate_without_ctor_parameters.tenant.event.paged_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId" ],
+  "path" : "/tck/tenant/{tenantId}/modeling_command_aggregate_without_ctor_parameters/event/paged",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.modeling_command_aggregate_without_ctor_parameters.tenant.snapshot.count",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId" ],
+  "path" : "/tck/tenant/{tenantId}/modeling_command_aggregate_without_ctor_parameters/snapshot/count",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "408", "429" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "tck.modeling_command_aggregate_without_ctor_parameters.tenant.snapshot.list_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId" ],
+  "path" : "/tck/tenant/{tenantId}/modeling_command_aggregate_without_ctor_parameters/snapshot/list",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "tck.modeling_command_aggregate_without_ctor_parameters.tenant.snapshot_state.list_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId" ],
+  "path" : "/tck/tenant/{tenantId}/modeling_command_aggregate_without_ctor_parameters/snapshot/list/state",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.modeling_command_aggregate_without_ctor_parameters.tenant.snapshot.paged_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId" ],
+  "path" : "/tck/tenant/{tenantId}/modeling_command_aggregate_without_ctor_parameters/snapshot/paged",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.modeling_command_aggregate_without_ctor_parameters.tenant.snapshot_state.paged_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId" ],
+  "path" : "/tck/tenant/{tenantId}/modeling_command_aggregate_without_ctor_parameters/snapshot/paged/state",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.modeling_command_aggregate_without_ctor_parameters.tenant.snapshot.single",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId" ],
+  "path" : "/tck/tenant/{tenantId}/modeling_command_aggregate_without_ctor_parameters/snapshot/single",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "404" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.modeling_command_aggregate_without_ctor_parameters.tenant.snapshot_state.single",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId" ],
+  "path" : "/tck/tenant/{tenantId}/modeling_command_aggregate_without_ctor_parameters/snapshot/single/state",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "404" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "tck.modeling_command_aggregate_without_ctor_parameters.default_delete_aggregate",
+  "method" : "DELETE",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.id", "ref:#/components/parameters/wow.Command-Wait-Stage", "ref:#/components/parameters/wow.Command-Wait-Context", "ref:#/components/parameters/wow.Command-Wait-Processor", "ref:#/components/parameters/wow.Command-Wait-Function", "ref:#/components/parameters/wow.Command-Wait-Timeout", "ref:#/components/parameters/wow.Command-Wait-Tail-Stage", "ref:#/components/parameters/wow.Command-Wait-Tail-Context", "ref:#/components/parameters/wow.Command-Wait-Tail-Processor", "ref:#/components/parameters/wow.Command-Wait-Tail-Function", "ref:#/components/parameters/wow.Command-Aggregate-Id", "ref:#/components/parameters/wow.Command-Aggregate-Version", "ref:#/components/parameters/wow.Command-Request-Id", "ref:#/components/parameters/wow.Command-Local-First", "ref:#/components/parameters/wow.Accept" ],
+  "path" : "/tck/tenant/{tenantId}/modeling_command_aggregate_without_ctor_parameters/{id}",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "400", "404", "408", "409", "410", "429" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "tck.modeling_command_aggregate_without_ctor_parameters.tenant.event_stream.load",
+  "method" : "GET",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.id", "ref:#/components/parameters/wow.headVersion", "ref:#/components/parameters/wow.tailVersion" ],
+  "path" : "/tck/tenant/{tenantId}/modeling_command_aggregate_without_ctor_parameters/{id}/event/{headVersion}/{tailVersion}",
+  "requestBody" : false,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "tck.modeling_command_aggregate_without_ctor_parameters.default_recover_aggregate",
+  "method" : "PUT",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.id", "ref:#/components/parameters/wow.Command-Wait-Stage", "ref:#/components/parameters/wow.Command-Wait-Context", "ref:#/components/parameters/wow.Command-Wait-Processor", "ref:#/components/parameters/wow.Command-Wait-Function", "ref:#/components/parameters/wow.Command-Wait-Timeout", "ref:#/components/parameters/wow.Command-Wait-Tail-Stage", "ref:#/components/parameters/wow.Command-Wait-Tail-Context", "ref:#/components/parameters/wow.Command-Wait-Tail-Processor", "ref:#/components/parameters/wow.Command-Wait-Tail-Function", "ref:#/components/parameters/wow.Command-Aggregate-Id", "ref:#/components/parameters/wow.Command-Aggregate-Version", "ref:#/components/parameters/wow.Command-Request-Id", "ref:#/components/parameters/wow.Command-Local-First", "ref:#/components/parameters/wow.Accept" ],
+  "path" : "/tck/tenant/{tenantId}/modeling_command_aggregate_without_ctor_parameters/{id}/recover",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "400", "404", "408", "409", "410", "429" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.modeling_command_aggregate_without_ctor_parameters.tenant.snapshot.load",
+  "method" : "GET",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.id" ],
+  "path" : "/tck/tenant/{tenantId}/modeling_command_aggregate_without_ctor_parameters/{id}/snapshot",
+  "requestBody" : false,
+  "responseCodes" : [ "200", "404" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.modeling_command_aggregate_without_ctor_parameters.tenant.snapshot.regenerate",
+  "method" : "PUT",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.id" ],
+  "path" : "/tck/tenant/{tenantId}/modeling_command_aggregate_without_ctor_parameters/{id}/snapshot",
+  "requestBody" : false,
+  "responseCodes" : [ "200", "404" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.modeling_command_aggregate_without_ctor_parameters.tenant.aggregate.load",
+  "method" : "GET",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.id" ],
+  "path" : "/tck/tenant/{tenantId}/modeling_command_aggregate_without_ctor_parameters/{id}/state",
+  "requestBody" : false,
+  "responseCodes" : [ "200", "400", "404" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.modeling_command_aggregate_without_ctor_parameters.tenant.time_based_aggregate.load",
+  "method" : "GET",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.id", "ref:#/components/parameters/wow.createTime" ],
+  "path" : "/tck/tenant/{tenantId}/modeling_command_aggregate_without_ctor_parameters/{id}/state/time/{createTime}",
+  "requestBody" : false,
+  "responseCodes" : [ "200", "400", "404" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.modeling_command_aggregate_without_ctor_parameters.tenant.aggregate_tracing.get",
+  "method" : "GET",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.id", "ref:#/components/parameters/wow.aggregate-tracing.headVersion", "ref:#/components/parameters/wow.aggregate-tracing.tailVersion", "ref:#/components/parameters/wow.aggregate-tracing.limit" ],
+  "path" : "/tck/tenant/{tenantId}/modeling_command_aggregate_without_ctor_parameters/{id}/state/tracing",
+  "requestBody" : false,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.modeling_command_aggregate_without_ctor_parameters.tenant.versioned_aggregate.load",
+  "method" : "GET",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.id", "ref:#/components/parameters/wow.version" ],
+  "path" : "/tck/tenant/{tenantId}/modeling_command_aggregate_without_ctor_parameters/{id}/state/{version}",
+  "requestBody" : false,
+  "responseCodes" : [ "200", "400", "404" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "tck.modeling_command_aggregate_without_ctor_parameters.default_apply_resource_tags",
+  "method" : "PUT",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.id", "ref:#/components/parameters/wow.Command-Wait-Stage", "ref:#/components/parameters/wow.Command-Wait-Context", "ref:#/components/parameters/wow.Command-Wait-Processor", "ref:#/components/parameters/wow.Command-Wait-Function", "ref:#/components/parameters/wow.Command-Wait-Timeout", "ref:#/components/parameters/wow.Command-Wait-Tail-Stage", "ref:#/components/parameters/wow.Command-Wait-Tail-Context", "ref:#/components/parameters/wow.Command-Wait-Tail-Processor", "ref:#/components/parameters/wow.Command-Wait-Tail-Function", "ref:#/components/parameters/wow.Command-Aggregate-Id", "ref:#/components/parameters/wow.Command-Aggregate-Version", "ref:#/components/parameters/wow.Command-Request-Id", "ref:#/components/parameters/wow.Command-Local-First", "ref:#/components/parameters/wow.Accept" ],
+  "path" : "/tck/tenant/{tenantId}/modeling_command_aggregate_without_ctor_parameters/{id}/tags",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "400", "404", "408", "409", "410", "429" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "tck.modeling_command_aggregate_without_ctor_parameters.tenant.compensate",
+  "method" : "PUT",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.id", "ref:#/components/parameters/wow.version" ],
+  "path" : "/tck/tenant/{tenantId}/modeling_command_aggregate_without_ctor_parameters/{id}/{version}/compensate",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "400" ],
+  "tagNames" : [ "tck.modeling_command_aggregate_without_ctor_parameters" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "example.cart.mock_variable_command",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.ownerId", "path:customerId:true", "path:id:true", "path:mockEnum:true", "header:headerEnumParameter:true", "header:headerParameter:true", "ref:#/components/parameters/wow.Command-Wait-Stage", "ref:#/components/parameters/wow.Command-Wait-Context", "ref:#/components/parameters/wow.Command-Wait-Processor", "ref:#/components/parameters/wow.Command-Wait-Function", "ref:#/components/parameters/wow.Command-Wait-Timeout", "ref:#/components/parameters/wow.Command-Wait-Tail-Stage", "ref:#/components/parameters/wow.Command-Wait-Tail-Context", "ref:#/components/parameters/wow.Command-Wait-Tail-Processor", "ref:#/components/parameters/wow.Command-Wait-Tail-Function", "ref:#/components/parameters/wow.Command-Aggregate-Id", "ref:#/components/parameters/wow.Command-Aggregate-Version", "ref:#/components/parameters/wow.Command-Request-Id", "ref:#/components/parameters/wow.Command-Local-First", "ref:#/components/parameters/wow.Accept" ],
+  "path" : "/tenant/{tenantId}/owner/{ownerId}/cart/{id}/{customerId}/{mockEnum}",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "400", "404", "408", "409", "410", "429" ],
+  "tagNames" : [ "customer", "example.cart" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "example.order.create_order",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.ownerId", "ref:#/components/parameters/wow.Wow-Space-Id", "ref:#/components/parameters/wow.Command-Wait-Stage", "ref:#/components/parameters/wow.Command-Wait-Context", "ref:#/components/parameters/wow.Command-Wait-Processor", "ref:#/components/parameters/wow.Command-Wait-Function", "ref:#/components/parameters/wow.Command-Wait-Timeout", "ref:#/components/parameters/wow.Command-Wait-Tail-Stage", "ref:#/components/parameters/wow.Command-Wait-Tail-Context", "ref:#/components/parameters/wow.Command-Wait-Tail-Processor", "ref:#/components/parameters/wow.Command-Wait-Tail-Function", "ref:#/components/parameters/wow.Command-Aggregate-Id", "ref:#/components/parameters/wow.Command-Aggregate-Version", "ref:#/components/parameters/wow.Command-Request-Id", "ref:#/components/parameters/wow.Command-Local-First", "ref:#/components/parameters/wow.Accept" ],
+  "path" : "/tenant/{tenantId}/owner/{ownerId}/sales-order",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "400", "404", "408", "409", "410", "429" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "example.order.default_delete_aggregate",
+  "method" : "DELETE",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.ownerId", "ref:#/components/parameters/wow.id", "ref:#/components/parameters/wow.Wow-Space-Id", "ref:#/components/parameters/wow.Command-Wait-Stage", "ref:#/components/parameters/wow.Command-Wait-Context", "ref:#/components/parameters/wow.Command-Wait-Processor", "ref:#/components/parameters/wow.Command-Wait-Function", "ref:#/components/parameters/wow.Command-Wait-Timeout", "ref:#/components/parameters/wow.Command-Wait-Tail-Stage", "ref:#/components/parameters/wow.Command-Wait-Tail-Context", "ref:#/components/parameters/wow.Command-Wait-Tail-Processor", "ref:#/components/parameters/wow.Command-Wait-Tail-Function", "ref:#/components/parameters/wow.Command-Aggregate-Id", "ref:#/components/parameters/wow.Command-Aggregate-Version", "ref:#/components/parameters/wow.Command-Request-Id", "ref:#/components/parameters/wow.Command-Local-First", "ref:#/components/parameters/wow.Accept" ],
+  "path" : "/tenant/{tenantId}/owner/{ownerId}/sales-order/{id}",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "400", "404", "408", "409", "410", "429" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "example.order.change_address",
+  "method" : "PUT",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.ownerId", "ref:#/components/parameters/wow.id", "ref:#/components/parameters/wow.Wow-Space-Id", "ref:#/components/parameters/wow.Command-Wait-Stage", "ref:#/components/parameters/wow.Command-Wait-Context", "ref:#/components/parameters/wow.Command-Wait-Processor", "ref:#/components/parameters/wow.Command-Wait-Function", "ref:#/components/parameters/wow.Command-Wait-Timeout", "ref:#/components/parameters/wow.Command-Wait-Tail-Stage", "ref:#/components/parameters/wow.Command-Wait-Tail-Context", "ref:#/components/parameters/wow.Command-Wait-Tail-Processor", "ref:#/components/parameters/wow.Command-Wait-Tail-Function", "ref:#/components/parameters/wow.Command-Aggregate-Id", "ref:#/components/parameters/wow.Command-Aggregate-Version", "ref:#/components/parameters/wow.Command-Request-Id", "ref:#/components/parameters/wow.Command-Local-First", "ref:#/components/parameters/wow.Accept" ],
+  "path" : "/tenant/{tenantId}/owner/{ownerId}/sales-order/{id}/address",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "400", "404", "408", "409", "410", "429" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "example.order.receipt_order",
+  "method" : "PATCH",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.ownerId", "ref:#/components/parameters/wow.id", "ref:#/components/parameters/wow.Wow-Space-Id", "ref:#/components/parameters/wow.Command-Wait-Stage", "ref:#/components/parameters/wow.Command-Wait-Context", "ref:#/components/parameters/wow.Command-Wait-Processor", "ref:#/components/parameters/wow.Command-Wait-Function", "ref:#/components/parameters/wow.Command-Wait-Timeout", "ref:#/components/parameters/wow.Command-Wait-Tail-Stage", "ref:#/components/parameters/wow.Command-Wait-Tail-Context", "ref:#/components/parameters/wow.Command-Wait-Tail-Processor", "ref:#/components/parameters/wow.Command-Wait-Tail-Function", "ref:#/components/parameters/wow.Command-Aggregate-Id", "ref:#/components/parameters/wow.Command-Aggregate-Version", "ref:#/components/parameters/wow.Command-Request-Id", "ref:#/components/parameters/wow.Command-Local-First", "ref:#/components/parameters/wow.Accept" ],
+  "path" : "/tenant/{tenantId}/owner/{ownerId}/sales-order/{id}/package",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "400", "404", "408", "409", "410", "429" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "example.order.default_recover_aggregate",
+  "method" : "PUT",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.ownerId", "ref:#/components/parameters/wow.id", "ref:#/components/parameters/wow.Wow-Space-Id", "ref:#/components/parameters/wow.Command-Wait-Stage", "ref:#/components/parameters/wow.Command-Wait-Context", "ref:#/components/parameters/wow.Command-Wait-Processor", "ref:#/components/parameters/wow.Command-Wait-Function", "ref:#/components/parameters/wow.Command-Wait-Timeout", "ref:#/components/parameters/wow.Command-Wait-Tail-Stage", "ref:#/components/parameters/wow.Command-Wait-Tail-Context", "ref:#/components/parameters/wow.Command-Wait-Tail-Processor", "ref:#/components/parameters/wow.Command-Wait-Tail-Function", "ref:#/components/parameters/wow.Command-Aggregate-Id", "ref:#/components/parameters/wow.Command-Aggregate-Version", "ref:#/components/parameters/wow.Command-Request-Id", "ref:#/components/parameters/wow.Command-Local-First", "ref:#/components/parameters/wow.Accept" ],
+  "path" : "/tenant/{tenantId}/owner/{ownerId}/sales-order/{id}/recover",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "400", "404", "408", "409", "410", "429" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.order.tenant.owner.snapshot.load",
+  "method" : "GET",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.ownerId", "ref:#/components/parameters/wow.id", "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/tenant/{tenantId}/owner/{ownerId}/sales-order/{id}/snapshot",
+  "requestBody" : false,
+  "responseCodes" : [ "200", "404" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.order.tenant.aggregate.load",
+  "method" : "GET",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.ownerId", "ref:#/components/parameters/wow.id", "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/tenant/{tenantId}/owner/{ownerId}/sales-order/{id}/state",
+  "requestBody" : false,
+  "responseCodes" : [ "200", "400", "404" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.order.tenant.time_based_aggregate.load",
+  "method" : "GET",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.ownerId", "ref:#/components/parameters/wow.id", "ref:#/components/parameters/wow.Wow-Space-Id", "ref:#/components/parameters/wow.createTime" ],
+  "path" : "/tenant/{tenantId}/owner/{ownerId}/sales-order/{id}/state/time/{createTime}",
+  "requestBody" : false,
+  "responseCodes" : [ "200", "400", "404" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.order.tenant.versioned_aggregate.load",
+  "method" : "GET",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.ownerId", "ref:#/components/parameters/wow.id", "ref:#/components/parameters/wow.Wow-Space-Id", "ref:#/components/parameters/wow.version" ],
+  "path" : "/tenant/{tenantId}/owner/{ownerId}/sales-order/{id}/state/{version}",
+  "requestBody" : false,
+  "responseCodes" : [ "200", "400", "404" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "example.order.default_apply_resource_tags",
+  "method" : "PUT",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.ownerId", "ref:#/components/parameters/wow.id", "ref:#/components/parameters/wow.Wow-Space-Id", "ref:#/components/parameters/wow.Command-Wait-Stage", "ref:#/components/parameters/wow.Command-Wait-Context", "ref:#/components/parameters/wow.Command-Wait-Processor", "ref:#/components/parameters/wow.Command-Wait-Function", "ref:#/components/parameters/wow.Command-Wait-Timeout", "ref:#/components/parameters/wow.Command-Wait-Tail-Stage", "ref:#/components/parameters/wow.Command-Wait-Tail-Context", "ref:#/components/parameters/wow.Command-Wait-Tail-Processor", "ref:#/components/parameters/wow.Command-Wait-Tail-Function", "ref:#/components/parameters/wow.Command-Aggregate-Id", "ref:#/components/parameters/wow.Command-Aggregate-Version", "ref:#/components/parameters/wow.Command-Request-Id", "ref:#/components/parameters/wow.Command-Local-First", "ref:#/components/parameters/wow.Accept" ],
+  "path" : "/tenant/{tenantId}/owner/{ownerId}/sales-order/{id}/tags",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "400", "404", "408", "409", "410", "429" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.order.tenant.event.count",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/tenant/{tenantId}/sales-order/event/count",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "example.order.tenant.event.list_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/tenant/{tenantId}/sales-order/event/list",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.order.tenant.event.paged_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/tenant/{tenantId}/sales-order/event/paged",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.order.tenant.snapshot.count",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/tenant/{tenantId}/sales-order/snapshot/count",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "408", "429" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "example.order.tenant.snapshot.list_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/tenant/{tenantId}/sales-order/snapshot/list",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "example.order.tenant.snapshot_state.list_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/tenant/{tenantId}/sales-order/snapshot/list/state",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.order.tenant.snapshot.paged_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/tenant/{tenantId}/sales-order/snapshot/paged",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.order.tenant.snapshot_state.paged_query",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/tenant/{tenantId}/sales-order/snapshot/paged/state",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.order.tenant.snapshot.single",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/tenant/{tenantId}/sales-order/snapshot/single",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "404" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.order.tenant.snapshot_state.single",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/tenant/{tenantId}/sales-order/snapshot/single/state",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "404" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "example.order.tenant.event_stream.load",
+  "method" : "GET",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.id", "ref:#/components/parameters/wow.Wow-Space-Id", "ref:#/components/parameters/wow.headVersion", "ref:#/components/parameters/wow.tailVersion" ],
+  "path" : "/tenant/{tenantId}/sales-order/{id}/event/{headVersion}/{tailVersion}",
+  "requestBody" : false,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "example.order.ship_order",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.id", "ref:#/components/parameters/wow.Wow-Space-Id", "ref:#/components/parameters/wow.Command-Wait-Stage", "ref:#/components/parameters/wow.Command-Wait-Context", "ref:#/components/parameters/wow.Command-Wait-Processor", "ref:#/components/parameters/wow.Command-Wait-Function", "ref:#/components/parameters/wow.Command-Wait-Timeout", "ref:#/components/parameters/wow.Command-Wait-Tail-Stage", "ref:#/components/parameters/wow.Command-Wait-Tail-Context", "ref:#/components/parameters/wow.Command-Wait-Tail-Processor", "ref:#/components/parameters/wow.Command-Wait-Tail-Function", "ref:#/components/parameters/wow.Command-Aggregate-Id", "ref:#/components/parameters/wow.Command-Aggregate-Version", "ref:#/components/parameters/wow.Command-Request-Id", "ref:#/components/parameters/wow.Command-Local-First", "ref:#/components/parameters/wow.Accept" ],
+  "path" : "/tenant/{tenantId}/sales-order/{id}/package",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "400", "404", "408", "409", "410", "429" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json", "text/event-stream" ],
+  "id" : "example.order.pay_order",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.id", "ref:#/components/parameters/wow.Wow-Space-Id", "ref:#/components/parameters/wow.Command-Wait-Stage", "ref:#/components/parameters/wow.Command-Wait-Context", "ref:#/components/parameters/wow.Command-Wait-Processor", "ref:#/components/parameters/wow.Command-Wait-Function", "ref:#/components/parameters/wow.Command-Wait-Timeout", "ref:#/components/parameters/wow.Command-Wait-Tail-Stage", "ref:#/components/parameters/wow.Command-Wait-Tail-Context", "ref:#/components/parameters/wow.Command-Wait-Tail-Processor", "ref:#/components/parameters/wow.Command-Wait-Tail-Function", "ref:#/components/parameters/wow.Command-Aggregate-Id", "ref:#/components/parameters/wow.Command-Aggregate-Version", "ref:#/components/parameters/wow.Command-Request-Id", "ref:#/components/parameters/wow.Command-Local-First", "ref:#/components/parameters/wow.Accept" ],
+  "path" : "/tenant/{tenantId}/sales-order/{id}/pay",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "400", "404", "408", "409", "410", "429" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.order.tenant.snapshot.regenerate",
+  "method" : "PUT",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.id", "ref:#/components/parameters/wow.Wow-Space-Id" ],
+  "path" : "/tenant/{tenantId}/sales-order/{id}/snapshot",
+  "requestBody" : false,
+  "responseCodes" : [ "200", "404" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.order.tenant.aggregate_tracing.get",
+  "method" : "GET",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.id", "ref:#/components/parameters/wow.Wow-Space-Id", "ref:#/components/parameters/wow.aggregate-tracing.headVersion", "ref:#/components/parameters/wow.aggregate-tracing.tailVersion", "ref:#/components/parameters/wow.aggregate-tracing.limit" ],
+  "path" : "/tenant/{tenantId}/sales-order/{id}/state/tracing",
+  "requestBody" : false,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "example.order.tenant.compensate",
+  "method" : "PUT",
+  "parameterNames" : [ "ref:#/components/parameters/wow.tenantId", "ref:#/components/parameters/wow.id", "ref:#/components/parameters/wow.Wow-Space-Id", "ref:#/components/parameters/wow.version" ],
+  "path" : "/tenant/{tenantId}/sales-order/{id}/{version}/compensate",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "400" ],
+  "tagNames" : [ "example.order" ]
+}, {
+  "accept" : [ "application/sql" ],
+  "id" : "wow.bi_script.generate",
+  "method" : "GET",
+  "parameterNames" : [ ],
+  "path" : "/wow/bi/script",
+  "requestBody" : false,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "wow" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "wow.command.send",
+  "method" : "POST",
+  "parameterNames" : [ "ref:#/components/parameters/wow.Command-Type", "ref:#/components/parameters/wow.Command-Wait-Stage", "ref:#/components/parameters/wow.Command-Wait-Context", "ref:#/components/parameters/wow.Command-Wait-Processor", "ref:#/components/parameters/wow.Command-Wait-Function", "ref:#/components/parameters/wow.Command-Wait-Timeout", "ref:#/components/parameters/wow.Command-Wait-Tail-Stage", "ref:#/components/parameters/wow.Command-Wait-Tail-Context", "ref:#/components/parameters/wow.Command-Wait-Tail-Processor", "ref:#/components/parameters/wow.Command-Wait-Tail-Function", "ref:#/components/parameters/wow.Command-Aggregate-Id", "ref:#/components/parameters/wow.Command-Aggregate-Version", "ref:#/components/parameters/wow.Command-Request-Id", "ref:#/components/parameters/wow.Command-Local-First", "ref:#/components/parameters/wow.Accept", "ref:#/components/parameters/wow.Command-Tenant-Id", "ref:#/components/parameters/wow.Wow-Space-Id", "ref:#/components/parameters/wow.Command-Owner-Id", "ref:#/components/parameters/wow.Command-Aggregate-Context", "ref:#/components/parameters/wow.Command-Aggregate-Name" ],
+  "path" : "/wow/command/send",
+  "requestBody" : true,
+  "responseCodes" : [ "200", "400", "404", "408", "409", "410", "429" ],
+  "tagNames" : [ "wow" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "wow.command.wait",
+  "method" : "POST",
+  "parameterNames" : [ ],
+  "path" : "/wow/command/wait",
+  "requestBody" : true,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "wow" ]
+}, {
+  "accept" : [ "text/plain" ],
+  "id" : "wow.global_id.generate",
+  "method" : "GET",
+  "parameterNames" : [ ],
+  "path" : "/wow/id/global",
+  "requestBody" : false,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "wow" ]
+}, {
+  "accept" : [ "application/json" ],
+  "id" : "wow.metadata.get",
+  "method" : "GET",
+  "parameterNames" : [ ],
+  "path" : "/wow/metadata",
+  "requestBody" : false,
+  "responseCodes" : [ "200" ],
+  "tagNames" : [ "wow" ]
+} ]

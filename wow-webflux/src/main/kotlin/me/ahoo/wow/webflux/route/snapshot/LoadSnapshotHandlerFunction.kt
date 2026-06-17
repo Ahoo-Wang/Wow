@@ -14,15 +14,18 @@
 package me.ahoo.wow.webflux.route.snapshot
 
 import me.ahoo.wow.exception.throwNotFoundIfEmpty
-import me.ahoo.wow.openapi.aggregate.snapshot.LoadSnapshotRouteSpec
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
+import me.ahoo.wow.openapi.contract.HttpRouteContract
+import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
-import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.command.getAggregateId
 import me.ahoo.wow.webflux.route.command.getOwnerId
 import me.ahoo.wow.webflux.route.command.getTenantIdOrDefault
+import me.ahoo.wow.webflux.route.requireAggregateHandlerMetadata
 import me.ahoo.wow.webflux.route.toServerResponse
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -57,11 +60,17 @@ class LoadSnapshotHandlerFunction(
 class LoadSnapshotHandlerFunctionFactory(
     private val snapshotQueryHandler: SnapshotQueryHandler,
     private val exceptionHandler: RequestExceptionHandler
-) : RouteHandlerFunctionFactory<LoadSnapshotRouteSpec> {
-    override val supportedSpec: Class<LoadSnapshotRouteSpec>
-        get() = LoadSnapshotRouteSpec::class.java
+) : HttpRouteHandlerFunctionFactory {
+    override val handlerKey: String = BuiltInHttpRouteHandlerKeys.Snapshot.LOAD
 
-    override fun create(spec: LoadSnapshotRouteSpec): HandlerFunction<ServerResponse> {
-        return LoadSnapshotHandlerFunction(spec.aggregateRouteMetadata, snapshotQueryHandler, exceptionHandler)
+    override fun create(
+        contract: HttpRouteContract,
+        metadata: HttpRouteHandlerMetadata
+    ): HandlerFunction<ServerResponse> {
+        return create(metadata.requireAggregateHandlerMetadata(handlerKey).aggregateRouteMetadata)
+    }
+
+    private fun create(aggregateRouteMetadata: AggregateRouteMetadata<*>): HandlerFunction<ServerResponse> {
+        return LoadSnapshotHandlerFunction(aggregateRouteMetadata, snapshotQueryHandler, exceptionHandler)
     }
 }

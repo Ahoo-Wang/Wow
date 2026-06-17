@@ -33,7 +33,7 @@ implementation 'me.ahoo.wow:wow-openapi'
 
 ## RESTful URL PATH Spec
 
-`[tenant/{tenantId}]/[space/{spaceId}]/[owner/{ownerId}]/resource/[{resourceId}]/action`
+`[tenant/{tenantId}]/[owner/{ownerId}]/resource/[{resourceId}]/action`
 
 ### Tenant Resources
 
@@ -41,7 +41,7 @@ When an aggregate root is a tenant resource (not marked with static tenant ID), 
 
 ### Space Resources
 
-When an aggregate root is marked with space ID, the automatically generated RESTful API will add the `space/{spaceId}` path prefix.
+When an aggregate root is marked with space ID, the automatically generated RESTful API will add the `Wow-Space-Id` header parameter.
 
 ### Owner Resources
 
@@ -62,11 +62,11 @@ When the aggregate root ID is the same as the owner ID, the automatically genera
 class Cart(private val state: CartState)
 ```
 
-## Global Route Specifications
+## Global Routes
 
-### GetWowMetadataRouteSpec
+### Get Wow Metadata
 
-`GetWowMetadataRouteSpec` provides the ability to obtain *Wow compile-time metadata* through RESTful API to verify the correctness of Wow metadata (`WowMetadata`) definitions.
+This route provides the ability to obtain *Wow compile-time metadata* through RESTful API to verify the correctness of Wow metadata (`WowMetadata`) definitions.
 
 ::: code-group
 ```shell [OpenAPI]
@@ -150,9 +150,9 @@ curl -X 'GET' \
 ```
 :::
 
-### GenerateBIScriptRouteSpec
+### Generate BI Sync Script
 
-`GenerateBIScriptRouteSpec` provides the ability to generate *BI synchronization scripts* through RESTful API.
+This route provides the ability to generate *BI synchronization scripts* through RESTful API.
 
 ::: code-group
 ```shell [OpenAPI]
@@ -403,9 +403,9 @@ FROM bi_db.example_order_state_last;
 ```
 :::
 
-### GenerateGlobalIdRouteSpec
+### Generate Global ID
 
-`GenerateGlobalIdRouteSpec` provides the ability to generate *global IDs* through RESTful API.
+This route provides the ability to generate *global IDs* through RESTful API.
 
 ::: code-group
 ```shell [OpenAPI]

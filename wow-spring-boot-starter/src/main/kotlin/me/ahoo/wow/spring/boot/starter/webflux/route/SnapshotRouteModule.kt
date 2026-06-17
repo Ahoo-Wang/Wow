@@ -17,6 +17,7 @@ import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
+import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.policy.BatchExecutionPolicy
 import me.ahoo.wow.webflux.route.snapshot.BatchRegenerateSnapshotHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.snapshot.RegenerateSnapshotHandlerFunctionFactory
@@ -28,7 +29,7 @@ class SnapshotRouteModule(
     exceptionHandler: RequestExceptionHandler,
     batchExecutionPolicy: BatchExecutionPolicy
 ) : WebFluxRouteModule {
-    override val factories = listOf(
+    override val httpFactories: List<HttpRouteHandlerFunctionFactory> = listOf(
         RegenerateSnapshotHandlerFunctionFactory(
             stateAggregateFactory = stateAggregateFactory,
             eventStore = eventStore,

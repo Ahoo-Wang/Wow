@@ -25,8 +25,7 @@ import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.openapi.BatchComponent
-import me.ahoo.wow.openapi.aggregate.snapshot.BatchRegenerateSnapshotRouteSpec
-import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockAggregateCreated
 import me.ahoo.wow.tck.mock.MockCommandAggregate
@@ -37,6 +36,7 @@ import me.ahoo.wow.test.aggregateVerifier
 import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.RouteTestFixtures
 import me.ahoo.wow.webflux.route.policy.BatchExecutionPolicy
+import me.ahoo.wow.webflux.route.testAggregateRouteContract
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
@@ -56,12 +56,11 @@ class BatchRegenerateSnapshotHandlerFunctionTest {
             batchExecutionPolicy = BatchExecutionPolicy(),
         )
 
-        factory.supportedSpec.assert().isEqualTo(BatchRegenerateSnapshotRouteSpec::class.java)
+        factory.handlerKey.assert().isEqualTo(BuiltInHttpRouteHandlerKeys.Snapshot.BATCH_REGENERATE)
         factory.create(
-            BatchRegenerateSnapshotRouteSpec(
-                currentContext = MOCK_AGGREGATE_METADATA,
-                aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA,
-                componentContext = OpenAPIComponentContext.default(),
+            testAggregateRouteContract(
+                handlerKey = BuiltInHttpRouteHandlerKeys.Snapshot.BATCH_REGENERATE,
+                aggregateRouteMetadata = RouteTestFixtures.MOCK_AGGREGATE_ROUTE_METADATA
             )
         ).assert().isInstanceOf(BatchRegenerateSnapshotHandlerFunction::class.java)
     }

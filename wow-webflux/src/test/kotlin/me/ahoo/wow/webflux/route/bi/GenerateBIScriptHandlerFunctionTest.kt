@@ -14,9 +14,9 @@
 package me.ahoo.wow.webflux.route.bi
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.openapi.context.OpenAPIComponentContext
-import me.ahoo.wow.openapi.global.GenerateBIScriptRouteSpec
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.testGlobalRouteContract
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
@@ -26,9 +26,7 @@ class GenerateBIScriptHandlerFunctionTest {
     @Test
     fun `should handle generate bi script request`() {
         val handlerFunction = GenerateBIScriptHandlerFunctionFactory().create(
-            GenerateBIScriptRouteSpec(
-                OpenAPIComponentContext.default()
-            )
+            testGlobalRouteContract(BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT)
         )
         val request = MockServerRequest.builder()
             .build()
@@ -44,7 +42,7 @@ class GenerateBIScriptHandlerFunctionTest {
     fun `should handle generate bi script when empty`() {
         val handlerFunction =
             GenerateBIScriptHandlerFunctionFactory().create(
-                GenerateBIScriptRouteSpec(OpenAPIComponentContext.default())
+                testGlobalRouteContract(BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT)
             )
         val request = MockServerRequest.builder().build()
         handlerFunction.handle(request)

@@ -14,9 +14,9 @@
 package me.ahoo.wow.webflux.route.id
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.openapi.context.OpenAPIComponentContext
-import me.ahoo.wow.openapi.global.GenerateGlobalIdRouteSpec
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.webflux.route.global.GlobalIdHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.testGlobalRouteContract
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
@@ -26,9 +26,7 @@ class GlobalIdHandlerFunctionTest {
     @Test
     fun `should handle generate global id request`() {
         val handlerFunction = GlobalIdHandlerFunctionFactory().create(
-            GenerateGlobalIdRouteSpec(
-                componentContext = OpenAPIComponentContext.default()
-            )
+            testGlobalRouteContract(BuiltInHttpRouteHandlerKeys.Global.GLOBAL_ID)
         )
         val request = MockServerRequest.builder().build()
         handlerFunction.handle(request)

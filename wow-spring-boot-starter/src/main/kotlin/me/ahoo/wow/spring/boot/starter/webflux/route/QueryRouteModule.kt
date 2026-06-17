@@ -16,6 +16,7 @@ package me.ahoo.wow.spring.boot.starter.webflux.route
 import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
+import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.CountEventStreamHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.ListQueryEventStreamHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.event.LoadEventStreamHandlerFunctionFactory
@@ -36,7 +37,7 @@ class QueryRouteModule(
     rewriteRequestCondition: RewriteRequestCondition,
     exceptionHandler: RequestExceptionHandler
 ) : WebFluxRouteModule {
-    override val factories = listOf(
+    override val httpFactories: List<HttpRouteHandlerFunctionFactory> = listOf(
         LoadSnapshotHandlerFunctionFactory(
             snapshotQueryHandler = snapshotQueryHandler,
             exceptionHandler = exceptionHandler

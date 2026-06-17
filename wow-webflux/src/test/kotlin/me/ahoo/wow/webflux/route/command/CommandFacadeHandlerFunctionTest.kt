@@ -24,8 +24,7 @@ import me.ahoo.wow.command.validation.NoOpValidator
 import me.ahoo.wow.command.wait.CommandStage
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.openapi.aggregate.command.CommandComponent
-import me.ahoo.wow.openapi.aggregate.command.CommandFacadeRouteSpec
-import me.ahoo.wow.openapi.context.OpenAPIComponentContext
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.openapi.metadata.aggregateRouteMetadata
 import me.ahoo.wow.serialization.MessageRecords
 import me.ahoo.wow.tck.mock.MockCommandAggregate
@@ -35,6 +34,7 @@ import me.ahoo.wow.webflux.exception.WebFluxRequestExceptionHandler
 import me.ahoo.wow.webflux.route.command.extractor.DefaultCommandBuilderExtractor
 import me.ahoo.wow.webflux.route.command.extractor.DefaultCommandMessageExtractor
 import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
+import me.ahoo.wow.webflux.route.testGlobalRouteContract
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
@@ -60,7 +60,7 @@ class CommandFacadeHandlerFunctionTest {
             ),
             exceptionHandler = WebFluxRequestExceptionHandler(),
             commandWaitPolicy = CommandWaitPolicy(DEFAULT_TIME_OUT),
-        ).create(CommandFacadeRouteSpec(OpenAPIComponentContext.default()))
+        ).create(testGlobalRouteContract(BuiltInHttpRouteHandlerKeys.Global.COMMAND_FACADE))
         val request = MockServerRequest.builder()
             .method(HttpMethod.POST)
             .pathVariable(MessageRecords.TENANT_ID, generateGlobalId())

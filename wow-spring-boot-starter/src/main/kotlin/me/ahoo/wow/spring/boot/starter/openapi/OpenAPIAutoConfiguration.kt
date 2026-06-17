@@ -16,7 +16,6 @@ package me.ahoo.wow.spring.boot.starter.openapi
 import me.ahoo.wow.api.naming.NamedBoundedContext
 import me.ahoo.wow.modeling.getContextAliasPrefix
 import me.ahoo.wow.openapi.RouterSpecs
-import me.ahoo.wow.openapi.context.CurrentOpenAPIComponentContext
 import me.ahoo.wow.openapi.context.OpenAPIComponentContext
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration.Companion.WOW_CURRENT_BOUNDED_CONTEXT
 import org.springframework.beans.factory.annotation.Qualifier
@@ -40,7 +39,6 @@ class OpenAPIAutoConfiguration {
                 inline = false,
                 defaultSchemaNamePrefix = currentContext.getContextAliasPrefix()
             )
-        CurrentOpenAPIComponentContext.current = openAPIComponentContext
         return openAPIComponentContext
     }
 

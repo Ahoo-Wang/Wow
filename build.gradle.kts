@@ -199,6 +199,9 @@ configure(libraryProjects) {
         testLogging {
             exceptionFormat = TestExceptionFormat.FULL
         }
+        System.getProperty("wow.snapshot.update")?.let {
+            systemProperty("wow.snapshot.update", it)
+        }
         // fix logging missing code for JacocoPlugin
         jvmArgs = listOf("-Dlogback.configurationFile=${rootProject.rootDir}/config/logback.xml")
         retry {

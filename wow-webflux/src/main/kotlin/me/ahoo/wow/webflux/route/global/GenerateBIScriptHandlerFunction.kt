@@ -16,8 +16,10 @@ package me.ahoo.wow.webflux.route.global
 import me.ahoo.wow.bi.ScriptEngine
 import me.ahoo.wow.bi.ScriptTemplateEngine
 import me.ahoo.wow.configuration.MetadataSearcher
-import me.ahoo.wow.openapi.global.GenerateBIScriptRouteSpec
-import me.ahoo.wow.webflux.route.RouteHandlerFunctionFactory
+import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
+import me.ahoo.wow.openapi.contract.HttpRouteContract
+import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
+import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
 import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -45,11 +47,17 @@ class GenerateBIScriptHandlerFunction(private val kafkaBootstrapServers: String,
 class GenerateBIScriptHandlerFunctionFactory(
     private val kafkaBootstrapServers: String = ScriptTemplateEngine.DEFAULT_KAFKA_BOOTSTRAP_SERVERS,
     private val topicPrefix: String = ScriptTemplateEngine.DEFAULT_TOPIC_PREFIX,
-) : RouteHandlerFunctionFactory<GenerateBIScriptRouteSpec> {
-    override val supportedSpec: Class<GenerateBIScriptRouteSpec>
-        get() = GenerateBIScriptRouteSpec::class.java
+) : HttpRouteHandlerFunctionFactory {
+    override val handlerKey: String = BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT
 
-    override fun create(spec: GenerateBIScriptRouteSpec): HandlerFunction<ServerResponse> {
+    override fun create(
+        contract: HttpRouteContract,
+        metadata: HttpRouteHandlerMetadata
+    ): HandlerFunction<ServerResponse> {
+        return createHandlerFunction()
+    }
+
+    private fun createHandlerFunction(): HandlerFunction<ServerResponse> {
         return GenerateBIScriptHandlerFunction(kafkaBootstrapServers, topicPrefix)
     }
 }
