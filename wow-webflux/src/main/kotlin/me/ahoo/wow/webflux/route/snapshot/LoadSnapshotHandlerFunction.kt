@@ -21,11 +21,10 @@ import me.ahoo.wow.openapi.metadata.AggregateRouteMetadata
 import me.ahoo.wow.query.dsl.singleQuery
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
-import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
+import me.ahoo.wow.webflux.route.AggregateRouteHandlerFunctionFactorySupport
 import me.ahoo.wow.webflux.route.command.getAggregateId
 import me.ahoo.wow.webflux.route.command.getOwnerId
 import me.ahoo.wow.webflux.route.command.getTenantIdOrDefault
-import me.ahoo.wow.webflux.route.requireAggregateHandlerMetadata
 import me.ahoo.wow.webflux.route.toServerResponse
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -60,14 +59,12 @@ class LoadSnapshotHandlerFunction(
 class LoadSnapshotHandlerFunctionFactory(
     private val snapshotQueryHandler: SnapshotQueryHandler,
     private val exceptionHandler: RequestExceptionHandler
-) : HttpRouteHandlerFunctionFactory {
-    override val handlerKey: String = BuiltInHttpRouteHandlerKeys.Snapshot.LOAD
-
+) : AggregateRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.Snapshot.LOAD) {
     override fun create(
         contract: HttpRouteContract,
-        metadata: HttpRouteHandlerMetadata
+        metadata: HttpRouteHandlerMetadata.Aggregate
     ): HandlerFunction<ServerResponse> {
-        return create(metadata.requireAggregateHandlerMetadata(handlerKey).aggregateRouteMetadata)
+        return create(aggregateRouteMetadata(metadata))
     }
 
     private fun create(aggregateRouteMetadata: AggregateRouteMetadata<*>): HandlerFunction<ServerResponse> {

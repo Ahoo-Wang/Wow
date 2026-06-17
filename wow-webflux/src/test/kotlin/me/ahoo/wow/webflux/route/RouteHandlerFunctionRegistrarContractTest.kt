@@ -17,6 +17,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.openapi.contract.HttpRouteContract
 import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.ServerResponse
 
@@ -80,6 +81,30 @@ class RouteHandlerFunctionRegistrarContractTest {
 
         factory.createdContract.assert().isSameAs(contract)
         factory.createdMetadata.assert().isSameAs(contract.handlerMetadata)
+    }
+
+    @Test
+    fun `should require http factory with route diagnostics`() {
+        val contract = HttpRouteContract(
+            routeId = "route",
+            method = "POST",
+            path = "/route/{id}",
+            handlerKey = "missing.handler",
+            handlerMetadata = HttpRouteHandlerMetadata.None
+        )
+        val registrar = RouteHandlerFunctionRegistrar()
+
+        val error = assertThrows<IllegalArgumentException> {
+            registrar.requireHttpFactory(contract)
+        }
+
+        error.message.assert().isEqualTo(
+            "HttpRouteHandlerFunctionFactory not found - " +
+                "handlerKey:[${contract.handlerKey}], " +
+                "method:[${contract.method}], " +
+                "path:[${contract.path}], " +
+                "routeId:[${contract.routeId}]."
+        )
     }
 }
 
