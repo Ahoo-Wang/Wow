@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.schema.openapi
 
-import com.fasterxml.classmate.ResolvedType
 import io.swagger.v3.oas.models.media.Schema
 import me.ahoo.wow.schema.openapi.SchemaMerger.mergeTo
 import tools.jackson.databind.node.ObjectNode
@@ -23,8 +22,8 @@ internal class SchemaReferenceRegistry(
 ) {
     private val references: MutableList<SchemaReference> = mutableListOf()
 
-    fun track(type: ResolvedType, node: ObjectNode): Schema<*> {
-        val reference = SchemaReference(type, schemaConverter.toSchema(node), node)
+    fun track(node: ObjectNode): Schema<*> {
+        val reference = SchemaReference(schemaConverter.toSchema(node), node)
         references.add(reference)
         return reference.schema
     }
@@ -36,7 +35,6 @@ internal class SchemaReferenceRegistry(
     }
 
     private class SchemaReference(
-        val type: ResolvedType,
         val schema: Schema<*>,
         val node: ObjectNode
     ) {

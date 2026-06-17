@@ -13,8 +13,10 @@ import me.ahoo.wow.schema.CreateTestAggregate
 import me.ahoo.wow.schema.SchemaGeneratorBuilder
 import me.ahoo.wow.schema.TestState
 import me.ahoo.wow.schema.TreeNodeFixture
+import me.ahoo.wow.serialization.toObject
 import org.junit.jupiter.api.Test
 import org.springframework.http.codec.ServerSentEvent
+import tools.jackson.databind.node.ObjectNode
 
 class OpenAPISchemaBuilderTest {
 
@@ -129,5 +131,20 @@ class OpenAPISchemaBuilderTest {
         val componentsSchemas = openAPISchemaBuilder.build()
         val schema = componentsSchemas["wow.schema.AnnotationFixture"]
         arrayTypeSchema.types.assert().contains("array")
+    }
+
+    @Test
+    @Suppress("DEPRECATION")
+    fun `should expose schema reference compatibility type`() {
+        val openAPISchemaBuilder = OpenAPISchemaBuilder()
+        val resolvedType = openAPISchemaBuilder.resolveType(CreateTestAggregate::class.java)
+        val node = "{}".toObject<ObjectNode>()
+        val schema = io.swagger.v3.oas.models.media.Schema<Any>()
+
+        val schemaReference = openAPISchemaBuilder.SchemaReference(resolvedType, schema, node)
+
+        schemaReference.type.assert().isSameAs(resolvedType)
+        schemaReference.schema.assert().isSameAs(schema)
+        schemaReference.node.assert().isSameAs(node)
     }
 }

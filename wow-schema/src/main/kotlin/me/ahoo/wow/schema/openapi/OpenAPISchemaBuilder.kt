@@ -20,7 +20,9 @@ import io.swagger.v3.oas.models.media.Schema
 import me.ahoo.wow.schema.SchemaGeneratorBuilder
 import me.ahoo.wow.schema.naming.DefaultSchemaNamePrefixCapable
 import me.ahoo.wow.schema.naming.SchemaNamingModule
+import me.ahoo.wow.schema.openapi.SchemaMerger.mergeTo
 import tools.jackson.databind.JsonNode
+import tools.jackson.databind.node.ObjectNode
 import java.lang.reflect.Type
 
 class OpenAPISchemaBuilder(
@@ -57,7 +59,7 @@ class OpenAPISchemaBuilder(
             return schemaGenerator.generateSchema(resolvedType).toSchema()
         }
         val refSchemaNode = schemaBuilder.createSchemaReference(resolvedType)
-        return schemaReferences.track(resolvedType, refSchemaNode)
+        return schemaReferences.track(refSchemaNode)
     }
 
     fun build(): Map<String, Schema<*>> {
@@ -65,6 +67,15 @@ class OpenAPISchemaBuilder(
         schemaReferences.mergeAll()
         return collectedDefs.properties().associate { (name, node) ->
             name to schemaConverter.toSchema(node)
+        }
+    }
+
+    @Deprecated(
+        message = "SchemaReference is an internal implementation detail and will be removed in a future major version."
+    )
+    inner class SchemaReference(val type: ResolvedType, val schema: Schema<*>, val node: ObjectNode) {
+        fun merge() {
+            node.toSchema().mergeTo(schema)
         }
     }
 }
