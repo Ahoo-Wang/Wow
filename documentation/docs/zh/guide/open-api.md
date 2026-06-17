@@ -50,7 +50,7 @@ implementation 'me.ahoo.wow:wow-openapi'
 
 ### 空间资源
 
-当聚合根为空间资源时，自动生成的 RESTful API 会添加 `Wow-Space-Id` 请求头前缀。
+当聚合根为空间资源时，自动生成的 RESTful API 会添加 `Wow-Space-Id` 请求头参数。
 
 ### 拥有者资源
 

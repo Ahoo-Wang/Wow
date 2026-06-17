@@ -40,9 +40,9 @@ class RouteCatalog(routes: List<HttpRouteContract>) : Iterable<HttpRouteContract
         routes.groupBy { it.routeKey }
             .filterValues { it.size > 1 }
             .forEach { (routeKey, duplicates) ->
-                require(duplicates.size == 1) {
+                throw IllegalArgumentException(
                     "Duplicate route [$routeKey]: ${duplicates.joinToString { it.routeId }}."
-                }
+                )
             }
     }
 
