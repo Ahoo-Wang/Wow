@@ -37,33 +37,6 @@ import java.util.function.Consumer
  * Jackson, Jakarta Validation, Swagger2, Kotlin, Joda Money, and Wow-specific modules.
  */
 class SchemaGeneratorBuilder {
-    companion object {
-        /**
-         * Extension function to conditionally add a module to the config builder.
-         */
-        /**
-         * Conditionally adds a module to the schema generator config builder if not null.
-         */
-        private fun SchemaGeneratorConfigBuilder.withModule(
-            module: com.github.victools.jsonschema.generator.Module?
-        ): SchemaGeneratorConfigBuilder {
-            module?.let {
-                this.with(it)
-            }
-            return this
-        }
-
-        /**
-         * Adds a list of options to the schema generator config builder.
-         */
-        private fun SchemaGeneratorConfigBuilder.withOptions(options: List<Option>): SchemaGeneratorConfigBuilder {
-            options.forEach {
-                this.with(it)
-            }
-            return this
-        }
-    }
-
     /** Whether to use OpenAPI 3.1 specification. */
     var openapi31: Boolean = true
         private set
@@ -193,20 +166,8 @@ class SchemaGeneratorBuilder {
      * This method must be called before accessing requiredTypeContent.
      */
     fun build(): SchemaGenerator {
-        val configBuilder =
-            SchemaGeneratorConfigBuilder(schemaVersion, optionPreset)
-                .withModule(jacksonModule)
-                .withModule(jakartaValidationModule)
-                .withModule(swagger2Module)
-                .withModule(kotlinModule)
-                .withModule(jodaMoneyModule)
-                .withModule(wowModule)
-                .withModule(schemaNamingModule)
-                .withOptions(options)
-        configBuilder.forFields()
-        customizer?.accept(configBuilder)
-        val config = configBuilder.build()
+        val config = SchemaGeneratorConfigFactory.create(this).build()
         typeContext = TypeContextFactory.createDefaultTypeContext(config)
-        return SchemaGenerator(configBuilder.build(), typeContext)
+        return SchemaGenerator(config, typeContext)
     }
 }
