@@ -19,7 +19,7 @@ import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.RequestPredicate
 import org.springframework.web.reactive.function.server.RequestPredicates
 
-class HttpRoutePredicateFactory {
+internal class HttpRoutePredicateFactory {
     fun create(contract: HttpRouteContract): RequestPredicate {
         val acceptMediaTypes = MediaType.parseMediaTypes(contract.accept).toTypedArray()
         val httpMethod = HttpMethod.valueOf(contract.method)

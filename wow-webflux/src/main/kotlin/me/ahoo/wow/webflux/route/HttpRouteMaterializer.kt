@@ -18,12 +18,12 @@ import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.RequestPredicate
 import org.springframework.web.reactive.function.server.ServerResponse
 
-data class HttpRouteBinding(
+internal data class HttpRouteBinding(
     val predicate: RequestPredicate,
     val handlerFunction: HandlerFunction<ServerResponse>
 )
 
-class HttpRouteMaterializer(
+internal class HttpRouteMaterializer(
     private val routeHandlerFunctionRegistrar: RouteHandlerFunctionRegistrar,
     private val predicateFactory: HttpRoutePredicateFactory = HttpRoutePredicateFactory()
 ) {

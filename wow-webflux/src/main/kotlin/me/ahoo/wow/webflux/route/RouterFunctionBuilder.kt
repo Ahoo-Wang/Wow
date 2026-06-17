@@ -24,9 +24,9 @@ import org.springframework.web.reactive.function.server.ServerResponse
 @Suppress("LongParameterList")
 class RouterFunctionBuilder(
     private val routerSpecs: RouterSpecs,
-    routeHandlerFunctionRegistrar: RouteHandlerFunctionRegistrar,
-    private val routeMaterializer: HttpRouteMaterializer = HttpRouteMaterializer(routeHandlerFunctionRegistrar)
+    routeHandlerFunctionRegistrar: RouteHandlerFunctionRegistrar
 ) {
+    private val routeMaterializer = HttpRouteMaterializer(routeHandlerFunctionRegistrar)
 
     fun build(): RouterFunction<ServerResponse> {
         val routerFunctionBuilder = RouterFunctions.route()

@@ -37,7 +37,7 @@ class RouteHandlerFunctionRegistrar(
         return httpFactories[handlerKey]
     }
 
-    fun requireHttpFactory(contract: HttpRouteContract): HttpRouteHandlerFunctionFactory {
+    internal fun requireHttpFactory(contract: HttpRouteContract): HttpRouteHandlerFunctionFactory {
         return getHttpFactory(contract.handlerKey)
             ?: throw IllegalArgumentException(
                 "HttpRouteHandlerFunctionFactory not found - " +
