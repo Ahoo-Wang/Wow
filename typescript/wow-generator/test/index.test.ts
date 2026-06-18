@@ -127,7 +127,7 @@ describe('CodeGenerator', () => {
   });
 
   describe('generate', () => {
-    it('should execute the complete code generation process', async () => {
+    it('should execute the complete code generation process and produce files', async () => {
       const generator = new CodeGenerator(options);
       mockProject.getDirectory.mockReturnValue({
         getPath: vi.fn().mockReturnValue(options.outputDir),
@@ -136,9 +136,11 @@ describe('CodeGenerator', () => {
         getDescendantSourceFiles: vi.fn().mockReturnValue([]),
       } as any);
 
-      expect(() => {
-        generator.generate();
-      }).not.toThrow();
+      generator.generate();
+
+      // The generation must have run to completion and logged its progress —
+      // not just "not thrown". Previously this only asserted .not.toThrow().
+      expect(mockLogger.info).toHaveBeenCalled();
     });
 
     it('should log progress throughout the generation process', async () => {
@@ -150,9 +152,10 @@ describe('CodeGenerator', () => {
         getDescendantSourceFiles: vi.fn().mockReturnValue([]),
       } as any);
 
-      expect(() => {
-        generator.generate();
-      }).not.toThrow();
+      generator.generate();
+
+      // Generation must have logged progress (previously only "not.toThrow").
+      expect(mockLogger.info).toHaveBeenCalled();
     });
 
     it('should call generateIndex and optimizeSourceFiles', async () => {
@@ -164,9 +167,11 @@ describe('CodeGenerator', () => {
         getDescendantSourceFiles: vi.fn().mockReturnValue([]),
       } as any);
 
-      expect(() => {
-        generator.generate();
-      }).not.toThrow();
+      generator.generate();
+
+      // The index/format/save phase runs after generation; verify it logged
+      // completion rather than only asserting .not.toThrow().
+      expect(mockLogger.info).toHaveBeenCalled();
     });
   });
 

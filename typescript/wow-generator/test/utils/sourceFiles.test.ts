@@ -35,14 +35,8 @@ vi.mock('../../src/model', () => ({
   IMPORT_WOW_PATH: '@ahoo-wang/fetcher-wow/types.ts',
 }));
 
-// Mock @ahoo-wang/fetcher
-vi.mock('@ahoo-wang/fetcher', async importOriginal => {
-  const actual = await importOriginal();
-  return {
-    ...(actual as any),
-    combineURLs: vi.fn((...args: string[]) => args.join('/')),
-  };
-});
+// NOTE: @ahoo-wang/fetcher is NOT mocked here — the real combineURLs runs so
+// that path-joining behavior (slash collapsing) is exercised, not hidden.
 
 const mockProject = {
   getSourceFile: vi.fn(),

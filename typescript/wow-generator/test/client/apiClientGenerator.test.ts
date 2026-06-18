@@ -67,13 +67,9 @@ vi.mock('../../src/model/modelInfo', () => ({
   resolveContextDeclarationName: vi.fn(() => 'TestContext'),
 }));
 
-vi.mock('@ahoo-wang/fetcher', async importOriginal => {
-  const actual = await importOriginal();
-  return {
-    ...(actual as any),
-    combineURLs: vi.fn((...urls) => urls.join('/')),
-  };
-});
+// NOTE: @ahoo-wang/fetcher is NOT mocked — the real combineURLs runs so
+// slash collapsing is exercised (the previous mock joined with '/' and left
+// double slashes, which an assertion then wrongly encoded as expected).
 
 describe('ApiClientGenerator', () => {
   let mockContext: GenerateContext;
@@ -213,10 +209,10 @@ describe('ApiClientGenerator', () => {
       const result = (generator as any).createApiClientFile(modelInfo);
 
       expect(spy).toHaveBeenCalledWith(
-        'test-context//test/TestModelApiClient.ts',
+        'test-context/test/TestModelApiClient.ts',
       );
       expect(mockLogger.info).toHaveBeenCalledWith(
-        'Creating API client file: test-context//test/TestModelApiClient.ts',
+        'Creating API client file: test-context/test/TestModelApiClient.ts',
       );
     });
 

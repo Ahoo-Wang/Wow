@@ -132,7 +132,7 @@ describe('schemas', () => {
       const schema: Schema = {
         oneOf: [{ type: 'string' }, { type: 'number' }],
       };
-      expect(isOneOf(schema)).toBe(true);
+      expect(isUnion(schema)).toBe(true);
     });
 
     it('should return false for non-union schemas', () => {
