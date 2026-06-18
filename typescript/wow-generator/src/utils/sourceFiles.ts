@@ -12,7 +12,7 @@
  */
 
 import { combineURLs } from '@ahoo-wang/fetcher';
-import { join, relative, sep } from 'path';
+import { isAbsolute, join, relative, resolve, sep } from 'path';
 import type { JSDocableNode, Project, SourceFile } from 'ts-morph';
 import type { ModelInfo } from '../model';
 import type { Reference, Schema } from '@ahoo-wang/fetcher-openapi';
@@ -32,6 +32,40 @@ export function getModelFileName(modelInfo: ModelInfo): string {
 }
 
 /**
+ * Guards against path traversal: `filePath` derives from a (possibly remote /
+ * attacker-controlled) OpenAPI schema key. After joining with `outputDir`, the
+ * resolved path must remain INSIDE `outputDir` — otherwise a key like
+ * `../../etc/cron.d/pwn` would let `createSourceFile` write or clobber files
+ * outside the output directory.
+ *
+ * `fileName` is the value actually handed to ts-morph (`combineURLs(outputDir,
+ * filePath)`), so it is what gets written. We resolve THAT path (not a second
+ * join against outputDir) and verify it stays under outputDir — otherwise the
+ * checked path and the written path can diverge for relative outputDir values.
+ *
+ * @throws Error if the resolved path escapes `outputDir`
+ */
+function assertWithinOutputDir(outputDir: string, fileName: string): void {
+  // `combineURLs` yields a URL-style path (forward slashes); normalize to the
+  // platform filesystem path before resolving.
+  const normalized = fileName.split('/').join(sep);
+  const base = resolve(outputDir);
+  // fileName already includes the outputDir prefix (it is the write target),
+  // so resolve it directly (relative to cwd, or absolute as-is) — do NOT join
+  // base again, which would double the prefix and check the wrong location.
+  const target = resolve(normalized);
+  const rel = relative(base, target);
+  // An empty relative path means target === base (a directory, not a file);
+  // a path starting with '..' or an absolute path escapes the base.
+  const escapes = rel === '' || rel.startsWith('..') || isAbsolute(rel);
+  if (escapes) {
+    throw new Error(
+      `Path traversal detected: "${fileName}" resolves outside the output directory "${outputDir}".`,
+    );
+  }
+}
+
+/**
  * Gets or creates a source file in the project.
  * @param project - The ts-morph project
  * @param outputDir - The output directory
@@ -44,6 +78,7 @@ export function getOrCreateSourceFile(
   filePath: string,
 ): SourceFile {
   const fileName = combineURLs(outputDir, filePath);
+  assertWithinOutputDir(outputDir, fileName);
   const file = project.getSourceFile(fileName);
   if (file) {
     return file;

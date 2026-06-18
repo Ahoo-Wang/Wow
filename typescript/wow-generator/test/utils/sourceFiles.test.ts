@@ -117,6 +117,41 @@ describe('sourceFiles', () => {
       );
       expect(result).toBe(mockSourceFile);
     });
+
+    // BUG (path traversal): `filePath` derives from a (possibly remote /
+    // attacker-controlled) OpenAPI schema key. Without containment, a key like
+    // "../../etc/cron.d/pwn" lets `project.createSourceFile(..., { overwrite:
+    // true })` write or clobber files OUTSIDE outputDir.
+    it('should reject path traversal that escapes the output directory (.. segments)', () => {
+      const project = mockProject as any;
+      project.getSourceFile.mockReturnValue(undefined);
+      project.getSourceFile.mockClear();
+      project.createSourceFile.mockClear();
+
+      expect(() =>
+        getOrCreateSourceFile(project, '/output', '../../../etc/passwd'),
+      ).toThrow();
+
+      // Nothing must have been written outside the output directory.
+      expect(project.createSourceFile).not.toHaveBeenCalled();
+    });
+
+    // Regression (review): with a RELATIVE output dir (e.g. `src/generated`),
+    // the containment check used to double-join the base prefix, so the
+    // checked path diverged from the actually-written path. Traversal must be
+    // rejected for relative output dirs too.
+    it('should reject path traversal for a relative output directory', () => {
+      const project = mockProject as any;
+      project.getSourceFile.mockReturnValue(undefined);
+      project.getSourceFile.mockClear();
+      project.createSourceFile.mockClear();
+
+      expect(() =>
+        getOrCreateSourceFile(project, 'src/generated', '../../etc/evil'),
+      ).toThrow();
+
+      expect(project.createSourceFile).not.toHaveBeenCalled();
+    });
   });
 
   describe('addImport', () => {
