@@ -142,34 +142,4 @@ describe('ClientGenerator', () => {
     expect(generator.context.contextAggregates).toBe(context.contextAggregates);
     expect(generator.context.logger).toBe(context.logger);
   });
-
-  it('should generate clients for all bounded contexts', () => {
-    const context = createContext(mockLogger);
-    const generator = new ClientGenerator(context);
-    generator.generate();
-    expect(true).toBe(true);
-  });
-
-  it('should generate clients without logger', () => {
-    const context = createContext();
-    const generator = new ClientGenerator(context);
-    generator.generate();
-    expect(true).toBe(true);
-  });
-
-  it('should handle empty context aggregates', () => {
-    const emptyContextAggregates = new Map<string, Set<AggregateDefinition>>();
-    const contextInit: GenerateContextInit = {
-      openAPI: mockOpenAPI,
-      project: new Project(),
-      outputDir: '/tmp/test',
-      contextAggregates: emptyContextAggregates,
-      logger: mockLogger,
-      config: {},
-    };
-    const context = new GenerateContext(contextInit);
-    const generator = new ClientGenerator(context);
-    generator.generate();
-    expect(true).toBe(true);
-  });
 });

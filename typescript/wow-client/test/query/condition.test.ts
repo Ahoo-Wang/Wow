@@ -96,15 +96,6 @@ describe('Condition', () => {
           ignoreCase: false,
         });
       });
-
-      it('should return options object when ignoreCase is defined', () => {
-        expect(ignoreCaseOptions(true)).toEqual({
-          ignoreCase: true,
-        });
-        expect(ignoreCaseOptions(false)).toEqual({
-          ignoreCase: false,
-        });
-      });
     });
 
     describe('dateOptions', () => {

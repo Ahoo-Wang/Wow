@@ -18,6 +18,9 @@ export default mergeConfig(
   viteConfig,
   defineConfig({
     test: {
+      clearMocks: true,
+      restoreMocks: true,
+      unstubGlobals: true,
       coverage: {
         exclude: [
           ...configDefaults.exclude,

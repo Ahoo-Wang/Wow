@@ -11,6 +11,9 @@ export default mergeConfig(
       },
     },
     test: {
+      clearMocks: true,
+      restoreMocks: true,
+      unstubGlobals: true,
       coverage: {
         exclude: [
           ...configDefaults.exclude,
