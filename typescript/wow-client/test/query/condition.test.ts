@@ -13,7 +13,6 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  all,
   ConditionOptionKey,
   dateOptions,
   DeletionState,
@@ -56,6 +55,10 @@ describe('Condition', () => {
 
   describe('Conditions Utility Methods', () => {
     describe('ignoreCaseOptions', () => {
+      it('should return undefined when ignoreCase is undefined', () => {
+        expect(ignoreCaseOptions(undefined)).toBeUndefined();
+      });
+
       it('should return options object when ignoreCase is defined', () => {
         expect(ignoreCaseOptions(true)).toEqual({
           ignoreCase: true,
@@ -88,10 +91,6 @@ describe('Condition', () => {
           datePattern: 'yyyy-MM-dd',
           zoneId: 'UTC',
         });
-      });
-
-      it('should return ALL condition from all()', () => {
-        expect(all()).toEqual({ operator: Operator.ALL });
       });
     });
 
