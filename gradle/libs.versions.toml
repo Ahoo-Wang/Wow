@@ -14,7 +14,7 @@ kotlin-logging = "8.0.4"
 swagger = "2.2.51"
 springdoc = "3.0.3"
 jsonschema-generator = "5.0.0"
-json-schema-validator = "3.0.4"
+json-schema-validator = "3.0.5"
 kotlinx-coroutines = "1.11.0"
 reactor-kafka = "1.3.25"
 # testing
