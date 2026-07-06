@@ -18,6 +18,7 @@ import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockAggregateChanged
 import me.ahoo.wow.test.aggregate.GivenInitializationCommand
@@ -31,7 +32,7 @@ class EventStoreTest {
     @Test
     fun `default exists request id scans loaded event streams`() {
         val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId("aggregate-1")
-        val eventStore = ScanningEventStore(
+        val eventStore: EventStore = ScanningEventStore(
             listOf(
                 eventStream(aggregateId, "request-1"),
                 eventStream(aggregateId, "request-2"),
@@ -49,27 +50,50 @@ class EventStoreTest {
     @Test
     fun `default load uses full version range`() {
         val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId("aggregate-1")
-        val eventStore = ScanningEventStore(emptyList())
+        val scanningEventStore = ScanningEventStore(emptyList())
+        val eventStore: EventStore = scanningEventStore
 
         StepVerifier.create(eventStore.load(aggregateId))
             .verifyComplete()
 
-        eventStore.lastHeadVersion.assert().isEqualTo(EventStore.DEFAULT_HEAD_VERSION)
-        eventStore.lastTailVersion.assert().isEqualTo(EventStore.DEFAULT_TAIL_VERSION)
+        scanningEventStore.lastHeadVersion.assert().isEqualTo(EventStore.DEFAULT_HEAD_VERSION)
+        scanningEventStore.lastTailVersion.assert().isEqualTo(EventStore.DEFAULT_TAIL_VERSION)
     }
 
     @Test
     fun `default single loads requested version`() {
         val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId("aggregate-1")
         val eventStream = eventStream(aggregateId, "request-1")
-        val eventStore = ScanningEventStore(listOf(eventStream))
+        val scanningEventStore = ScanningEventStore(listOf(eventStream))
+        val eventStore: EventStore = scanningEventStore
 
         StepVerifier.create(eventStore.single(aggregateId, version = 2))
             .expectNext(eventStream)
             .verifyComplete()
 
-        eventStore.lastHeadVersion.assert().isEqualTo(2)
-        eventStore.lastTailVersion.assert().isEqualTo(2)
+        scanningEventStore.lastHeadVersion.assert().isEqualTo(2)
+        scanningEventStore.lastTailVersion.assert().isEqualTo(2)
+    }
+
+    @Test
+    fun `default scan aggregate id fails when not implemented`() {
+        val eventStore: EventStore = ScanningEventStore(emptyList())
+
+        StepVerifier.create(
+            eventStore.scanAggregateId(
+                MOCK_AGGREGATE_METADATA.materialize(),
+                afterId = "aggregate-1",
+                limit = 1,
+            )
+        )
+            .expectErrorSatisfies {
+                it.assert().isInstanceOf(UnsupportedOperationException::class.java)
+                it.message.assert()
+                    .isEqualTo(
+                        "EventStore scanAggregateId is not supported. EventStore: ${eventStore::class.java.name}",
+                    )
+            }
+            .verify()
     }
 
     private fun eventStream(

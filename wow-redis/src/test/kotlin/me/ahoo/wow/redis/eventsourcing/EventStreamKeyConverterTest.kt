@@ -21,6 +21,7 @@ import me.ahoo.wow.redis.eventsourcing.EventStreamKeyConverter.toKey
 import me.ahoo.wow.redis.eventsourcing.EventStreamKeyConverter.toKeyPrefix
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 class EventStreamKeyConverterTest {
     private val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId("id", "tenantId")
@@ -53,5 +54,27 @@ class EventStreamKeyConverterTest {
     fun `should convert aggregate tenant index key`() {
         val actual = aggregateId.toAggregateTenantIndexKey()
         actual.assert().isEqualTo("tck.mock_aggregate:es:tenants")
+    }
+
+    @Test
+    fun `should convert key to aggregate id`() {
+        val actual = EventStreamKeyConverter.toAggregateId(
+            aggregateId,
+            "tck.mock_aggregate:es:{id@tenantId}",
+        )
+
+        actual.assert().isEqualTo(aggregateId)
+    }
+
+    @Test
+    fun `should reject invalid aggregate id key`() {
+        val error = assertThrows<IllegalArgumentException> {
+            EventStreamKeyConverter.toAggregateId(
+                aggregateId,
+                "tck.mock_aggregate:es:{id}",
+            )
+        }
+
+        error.message.assert().isEqualTo("Invalid key:tck.mock_aggregate:es:{id}")
     }
 }
