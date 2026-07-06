@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.mongo
 
+import com.mongodb.reactivestreams.client.MongoDatabase
+import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 
@@ -25,5 +27,6 @@ class MongoSnapshotRepositoryCompatibilityTest {
         MongoSnapshotRepository.NAME.assert().isEqualTo(MongoSnapshotStore.NAME)
         MongoSnapshotRepository.DEFAULT_REPLACE_OPTIONS.assert()
             .isSameAs(MongoSnapshotStore.DEFAULT_REPLACE_OPTIONS)
+        MongoSnapshotRepository(mockk<MongoDatabase>()).name.assert().isEqualTo(MongoSnapshotStore.NAME)
     }
 }

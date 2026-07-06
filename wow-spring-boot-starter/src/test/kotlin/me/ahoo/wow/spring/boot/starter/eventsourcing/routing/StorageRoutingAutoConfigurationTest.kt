@@ -12,6 +12,8 @@
  */
 package me.ahoo.wow.spring.boot.starter.eventsourcing.routing
 
+import io.mockk.every
+import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
@@ -38,6 +40,7 @@ import org.springframework.boot.test.context.assertj.AssertableApplicationContex
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.core.type.AnnotatedTypeMetadata
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
@@ -142,6 +145,21 @@ class StorageRoutingAutoConfigurationTest {
                 context.containsBean(REDIS_SNAPSHOT_STORE_BEAN).assert().isFalse()
                 context.containsBean(IN_MEMORY_SNAPSHOT_STORE_BEAN).assert().isFalse()
             }
+    }
+
+    @Test
+    fun `storage routing condition should not match without storage annotation`() {
+        val metadata = mockk<AnnotatedTypeMetadata> {
+            every {
+                getAnnotationAttributes(any<String>())
+            } returns null
+        }
+
+        val outcome = OnStorageRoutingStorageCondition()
+            .getMatchOutcome(mockk(), metadata)
+
+        outcome.isMatch.assert().isFalse()
+        outcome.message.assert().contains("No storage routing condition annotation")
     }
 
     @Test

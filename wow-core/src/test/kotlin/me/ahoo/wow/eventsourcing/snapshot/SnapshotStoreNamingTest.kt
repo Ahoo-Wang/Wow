@@ -14,6 +14,7 @@
 package me.ahoo.wow.eventsourcing.snapshot
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.Version.Companion.UNINITIALIZED_VERSION
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory.toStateAggregate
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -32,6 +33,9 @@ class SnapshotStoreNamingTest {
         )
 
         NoOpSnapshotStore.name.assert().isEqualTo("no_op")
+        StepVerifier.create(NoOpSnapshotStore.getVersion(aggregateId))
+            .expectNext(UNINITIALIZED_VERSION)
+            .verifyComplete()
         StepVerifier.create(NoOpSnapshotStore.load<Any>(aggregateId))
             .verifyComplete()
         StepVerifier.create(NoOpSnapshotStore.save(SimpleSnapshot(stateAggregate)))

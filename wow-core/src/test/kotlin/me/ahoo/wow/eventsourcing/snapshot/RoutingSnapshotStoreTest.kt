@@ -30,6 +30,16 @@ class RoutingSnapshotStoreTest {
     private val invoice = MaterializedNamedAggregate("billing", "Invoice")
 
     @Test
+    fun `name should expose stable routing name`() {
+        val routingStore = routingSnapshotStore(
+            defaultStore = RecordingSnapshotStore(),
+            orderStore = RecordingSnapshotStore(),
+        )
+
+        routingStore.name.assert().isEqualTo(RoutingSnapshotStore.NAME)
+    }
+
+    @Test
     fun `load chooses configured store`() {
         val defaultStore = RecordingSnapshotStore()
         val orderStore = RecordingSnapshotStore()
