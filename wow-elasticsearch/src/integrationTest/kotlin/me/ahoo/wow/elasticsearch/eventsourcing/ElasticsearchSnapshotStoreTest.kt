@@ -15,20 +15,20 @@ package me.ahoo.wow.elasticsearch.eventsourcing
 
 import me.ahoo.wow.elasticsearch.ReactiveElasticsearchClients
 import me.ahoo.wow.elasticsearch.TemplateInitializer.initSnapshotTemplate
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.tck.container.ElasticsearchTestFixture
-import me.ahoo.wow.tck.eventsourcing.snapshot.SnapshotRepositorySpec
+import me.ahoo.wow.tck.eventsourcing.snapshot.SnapshotStoreSpec
 import org.junit.jupiter.api.extension.RegisterExtension
 
-internal class ElasticsearchSnapshotRepositoryTest : SnapshotRepositorySpec() {
+internal class ElasticsearchSnapshotStoreTest : SnapshotStoreSpec() {
     @JvmField
     @RegisterExtension
     val elasticsearch = ElasticsearchTestFixture()
 
-    override fun createSnapshotRepository(): SnapshotRepository {
+    override fun createSnapshotStore(): SnapshotStore {
         val elasticsearchClient = ReactiveElasticsearchClients.createReactiveElasticsearchClient(elasticsearch)
         elasticsearchClient.initSnapshotTemplate()
-        return ElasticsearchSnapshotRepository(
+        return ElasticsearchSnapshotStore(
             elasticsearchClient = elasticsearchClient
         )
     }

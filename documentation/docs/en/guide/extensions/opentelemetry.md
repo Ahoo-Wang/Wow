@@ -27,7 +27,7 @@ The _OpenTelemetry_ module of the Wow framework provides a series of instrumente
 - `ProjectionInstrumenter`: Projection instrumenter, used to record projection operations.
 - `StatelessSagaInstrumenter`: Stateless Saga instrumenter, used to record stateless Saga operations.
 - `SnapshotInstrumenter`: Snapshot instrumenter, used to record snapshot operations.
-- `SnapshotRepositoryInstrumenter`: Snapshot repository instrumenter, used to record snapshot repository operations.
+- `SnapshotStoreInstrumenter`: Snapshot store instrumenter, used to record snapshot store operations.
 
 Supports the following attribute tags:
 

@@ -1,6 +1,6 @@
 ---
 title: Mongo
-description: MongoDB 扩展，为生产环境提供 EventStore 和 SnapshotRepository 实现。
+description: MongoDB 扩展，为生产环境提供 EventStore 和 SnapshotStore 实现。
 ---
 
 # Mongo
@@ -9,7 +9,7 @@ _Mongo_ 扩展提供对 MongoDB 的支持，是推荐的用于生产环境的事
 
 - `EventStore` - 事件存储
 - `EventStreamQueryService` - 事件流查询服务
-- `SnapshotRepository` - 快照仓库
+- `SnapshotStore` - 快照存储
 - `SnapshotQueryService` - 快照查询服务
 - `PrepareKey` - 基于 TTL 过期机制的分布式键预留
 
@@ -41,7 +41,7 @@ graph TB
     subgraph Impl["wow-mongo 实现"]
         direction LR
         MES["MongoEventStore"]
-        MSR["MongoSnapshotRepository"]
+        MSR["MongoSnapshotStore"]
         MPK["MongoPrepareKey"]
         MESQ["MongoEventStreamQueryService"]
         MSQS["MongoSnapshotQueryService"]
@@ -90,7 +90,7 @@ implementation 'org.springframework.boot:spring-boot-starter-data-mongodb-reacti
 | 组件 | 实现的契约 | 关键文件 | 职责 |
 |---|---|---|---|
 | `MongoEventStore` | `AbstractEventStore` | [MongoEventStore.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/MongoEventStore.kt) | 追加、加载和查询领域事件流 |
-| `MongoSnapshotRepository` | `SnapshotRepository` | [MongoSnapshotRepository.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/MongoSnapshotRepository.kt) | 保存、加载和版本检查聚合快照 |
+| `MongoSnapshotStore` | `SnapshotStore` | [MongoSnapshotStore.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/MongoSnapshotStore.kt) | 保存、加载和版本检查聚合快照 |
 | `MongoPrepareKey` | `PrepareKey<V>` | [MongoPrepareKey.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/prepare/MongoPrepareKey.kt) | 基于 TTL 过期机制的分布式键预留 |
 | `MongoEventStreamQueryService` | `EventStreamQueryService` | [MongoEventStreamQueryService.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/query/event/MongoEventStreamQueryService.kt) | 原始事件流的动态查询 |
 | `MongoSnapshotQueryService` | `SnapshotQueryService<S>` | [MongoSnapshotQueryService.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/query/snapshot/MongoSnapshotQueryService.kt) | 将快照作为物化读模型进行动态查询 |
@@ -417,14 +417,14 @@ classDiagram
         +last(AggregateId) Mono~DomainEventStream~
     }
 
-    class SnapshotRepository {
+    class SnapshotStore {
         <<interface>>
         +load(AggregateId) Mono~Snapshot~
         +save(Snapshot) Mono~Void~
         +scanAggregateId(NamedAggregate, String, Int) Flux~AggregateId~
     }
 
-    class MongoSnapshotRepository {
+    class MongoSnapshotStore {
         -database: MongoDatabase
         +load(AggregateId) Mono~Snapshot~
         +save(Snapshot) Mono~Void~
@@ -467,13 +467,13 @@ classDiagram
     }
 
     AbstractEventStore <|-- MongoEventStore
-    SnapshotRepository <|.. MongoSnapshotRepository
+    SnapshotStore <|.. MongoSnapshotStore
     PrepareKey <|.. MongoPrepareKey
     AbstractMongoQueryService <|-- MongoEventStreamQueryService
     AbstractMongoQueryService <|-- MongoSnapshotQueryService
 ```
 
-类层级揭示了两层抽象：**Wow 核心接口**（`AbstractEventStore`、`SnapshotRepository`、`PrepareKey`、`QueryService`）以存储无关的方式定义了框架契约，而 **Mongo 特定实现** 将这些契约映射到 MongoDB 的响应式驱动原语（`insertOne`、`replaceOne`、`find`、`countDocuments`）。
+类层级揭示了两层抽象：**Wow 核心接口**（`AbstractEventStore`、`SnapshotStore`、`PrepareKey`、`QueryService`）以存储无关的方式定义了框架契约，而 **Mongo 特定实现** 将这些契约映射到 MongoDB 的响应式驱动原语（`insertOne`、`replaceOne`、`find`、`countDocuments`）。
 
 ## 索引优化建议
 

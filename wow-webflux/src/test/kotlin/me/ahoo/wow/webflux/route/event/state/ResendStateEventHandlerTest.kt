@@ -18,7 +18,7 @@ import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.event.compensation.StateEventCompensator
 import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
-import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
@@ -38,13 +38,13 @@ class ResendStateEventHandlerTest {
 
     @Test
     fun `should resend state events for aggregate`() {
-        val snapshotRepository = InMemorySnapshotRepository()
+        val snapshotStore = InMemorySnapshotStore()
         val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(generateGlobalId())
         val stateAggregate =
             ConstructorStateAggregateFactory.create(MOCK_AGGREGATE_METADATA.state, aggregateId)
         val snapshot: Snapshot<MockStateAggregate> =
             SimpleSnapshot(stateAggregate, Clock.systemUTC().millis())
-        snapshotRepository.save(snapshot)
+        snapshotStore.save(snapshot)
             .test()
             .verifyComplete()
 
@@ -58,7 +58,7 @@ class ResendStateEventHandlerTest {
         eventStore.appendStream(eventStream).test().verifyComplete()
         val handlerFunction = ResendStateEventHandler(
             aggregateMetadata = MOCK_AGGREGATE_METADATA,
-            snapshotRepository = snapshotRepository,
+            snapshotStore = snapshotStore,
             stateEventCompensator = StateEventCompensator(
                 stateAggregateFactory = ConstructorStateAggregateFactory,
                 eventStore = eventStore,

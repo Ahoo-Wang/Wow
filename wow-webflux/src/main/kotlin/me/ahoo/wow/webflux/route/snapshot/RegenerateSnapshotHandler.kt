@@ -17,7 +17,7 @@ import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import reactor.core.publisher.Mono
@@ -26,7 +26,7 @@ class RegenerateSnapshotHandler(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val stateAggregateFactory: StateAggregateFactory,
     private val eventStore: EventStore,
-    private val snapshotRepository: SnapshotRepository
+    private val snapshotStore: SnapshotStore
 ) {
 
     fun handle(aggregateId: AggregateId): Mono<Snapshot<*>> {
@@ -44,7 +44,7 @@ class RegenerateSnapshotHandler(
             it.initialized
         }.flatMap {
             val snapshot = SimpleSnapshot(it)
-            snapshotRepository.save(snapshot).thenReturn(snapshot)
+            snapshotStore.save(snapshot).thenReturn(snapshot)
         }
     }
 }

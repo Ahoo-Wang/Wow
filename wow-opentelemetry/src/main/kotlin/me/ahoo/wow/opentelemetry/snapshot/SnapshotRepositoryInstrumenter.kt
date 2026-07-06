@@ -10,46 +10,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package me.ahoo.wow.opentelemetry.snapshot
 
-import io.opentelemetry.api.GlobalOpenTelemetry
-import io.opentelemetry.instrumentation.api.instrumenter.Instrumenter
-import io.opentelemetry.instrumentation.api.instrumenter.SpanNameExtractor
-import me.ahoo.wow.api.Wow
-import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.opentelemetry.AggregateIdAttributesExtractor
-import me.ahoo.wow.opentelemetry.WowInstrumenter.INSTRUMENTATION_NAME_PREFIX
+@Deprecated("Use SnapshotStoreInstrumenter.", ReplaceWith("SnapshotStoreInstrumenter"))
+typealias SnapshotRepositoryInstrumenter = SnapshotStoreInstrumenter
 
-object SnapshotRepositoryInstrumenter {
-    private const val INSTRUMENTATION_NAME = "${INSTRUMENTATION_NAME_PREFIX}snapshotRepository"
-    val SAVE_INSTRUMENTER: Instrumenter<AggregateId, Unit> =
-        Instrumenter.builder<AggregateId, Unit>(
-            GlobalOpenTelemetry.get(),
-            INSTRUMENTATION_NAME,
-            SnapshotRepositorySaveSpanNameExtractor,
-        ).addAttributesExtractor(AggregateIdAttributesExtractor)
-            .setInstrumentationVersion(Wow.VERSION)
-            .buildInstrumenter()
+@Deprecated("Use SnapshotStoreSaveSpanNameExtractor.", ReplaceWith("SnapshotStoreSaveSpanNameExtractor"))
+typealias SnapshotRepositorySaveSpanNameExtractor = SnapshotStoreSaveSpanNameExtractor
 
-    val LOAD_INSTRUMENTER: Instrumenter<AggregateId, Unit> =
-        Instrumenter.builder<AggregateId, Unit>(
-            GlobalOpenTelemetry.get(),
-            INSTRUMENTATION_NAME,
-            SnapshotRepositoryLoadSpanNameExtractor,
-        ).addAttributesExtractor(AggregateIdAttributesExtractor)
-            .setInstrumentationVersion(Wow.VERSION)
-            .buildInstrumenter()
-}
-
-object SnapshotRepositorySaveSpanNameExtractor : SpanNameExtractor<AggregateId> {
-    override fun extract(request: AggregateId): String {
-        return "${request.aggregateName}.snapshot.save"
-    }
-}
-
-object SnapshotRepositoryLoadSpanNameExtractor : SpanNameExtractor<AggregateId> {
-    override fun extract(request: AggregateId): String {
-        return "${request.aggregateName}.snapshot.load"
-    }
-}
+@Deprecated("Use SnapshotStoreLoadSpanNameExtractor.", ReplaceWith("SnapshotStoreLoadSpanNameExtractor"))
+typealias SnapshotRepositoryLoadSpanNameExtractor = SnapshotStoreLoadSpanNameExtractor

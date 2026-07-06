@@ -14,7 +14,7 @@
 package me.ahoo.wow.spring.boot.starter.webflux.route
 
 import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.webflux.exception.RequestExceptionHandler
 import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
@@ -25,7 +25,7 @@ import me.ahoo.wow.webflux.route.snapshot.RegenerateSnapshotHandlerFunctionFacto
 class SnapshotRouteModule(
     stateAggregateFactory: StateAggregateFactory,
     eventStore: EventStore,
-    snapshotRepository: SnapshotRepository,
+    snapshotStore: SnapshotStore,
     exceptionHandler: RequestExceptionHandler,
     batchExecutionPolicy: BatchExecutionPolicy
 ) : WebFluxRouteModule {
@@ -33,13 +33,13 @@ class SnapshotRouteModule(
         RegenerateSnapshotHandlerFunctionFactory(
             stateAggregateFactory = stateAggregateFactory,
             eventStore = eventStore,
-            snapshotRepository = snapshotRepository,
+            snapshotStore = snapshotStore,
             exceptionHandler = exceptionHandler
         ),
         BatchRegenerateSnapshotHandlerFunctionFactory(
             stateAggregateFactory = stateAggregateFactory,
             eventStore = eventStore,
-            snapshotRepository = snapshotRepository,
+            snapshotStore = snapshotStore,
             exceptionHandler = exceptionHandler,
             batchExecutionPolicy = batchExecutionPolicy
         ),

@@ -16,8 +16,8 @@ The Wow framework is composed of over 20 Gradle modules, each with a single, wel
 | `wow-spring` | Spring | Spring `ApplicationContext` bridge, bean registration. |
 | `wow-spring-boot-starter` | Spring | Auto-configuration with Gradle feature variants for optional infrastructure. |
 | `wow-kafka` | Infra | Distributed `CommandBus` and `DomainEventBus` via Apache Kafka. |
-| `wow-mongo` | Infra | `EventStore`, `SnapshotRepository`, projection storage via MongoDB. |
-| `wow-redis` | Infra | `EventStore` and `SnapshotRepository` via Redis / Lettuce. |
+| `wow-mongo` | Infra | `EventStore`, `SnapshotStore`, projection storage via MongoDB. |
+| `wow-redis` | Infra | `EventStore` and `SnapshotStore` via Redis / Lettuce. |
 | `wow-r2dbc` | Infra | `EventStore` via R2DBC (MariaDB, PostgreSQL). |
 | `wow-elasticsearch` | Infra | Projection indexing via Elasticsearch. |
 | `wow-webflux` | Infra | Spring WebFlux command endpoint integration. |
@@ -281,14 +281,14 @@ graph TB
         CB["CommandBus"]
         DEB["DomainEventBus"]
         ES["EventStore"]
-        SR["SnapshotRepository"]
+        SR["SnapshotStore"]
     end
 
     subgraph Implementations["Infrastructure Implementations"]
         direction TB
         K["wow-kafka<br>KafkaCommandBus<br>KafkaDomainEventBus"]
-        M["wow-mongo<br>MongoEventStore<br>MongoSnapshotRepository"]
-        R["wow-redis<br>RedisEventStore<br>RedisSnapshotRepository"]
+        M["wow-mongo<br>MongoEventStore<br>MongoSnapshotStore"]
+        R["wow-redis<br>RedisEventStore<br>RedisSnapshotStore"]
         R2["wow-r2dbc<br>R2dbcEventStore"]
     end
 
@@ -314,8 +314,8 @@ graph TB
 | Module | Implements | External Dependency |
 |--------|-----------|-------------------|
 | `wow-kafka` | `DistributedCommandBus`, `DistributedDomainEventBus` | `reactor-kafka` |
-| `wow-mongo` | `EventStore`, `SnapshotRepository` | `mongodb-driver-reactivestreams` |
-| `wow-redis` | `EventStore`, `SnapshotRepository` | `spring-data-redis`, `lettuce-core` |
+| `wow-mongo` | `EventStore`, `SnapshotStore` | `mongodb-driver-reactivestreams` |
+| `wow-redis` | `EventStore`, `SnapshotStore` | `spring-data-redis`, `lettuce-core` |
 | `wow-r2dbc` | `EventStore` | `r2dbc-spi`, `r2dbc-pool`, `r2dbc-proxy` |
 | `wow-elasticsearch` | Projection storage | `spring-data-elasticsearch` |
 | `wow-webflux` | Command endpoints | `spring-webflux` |

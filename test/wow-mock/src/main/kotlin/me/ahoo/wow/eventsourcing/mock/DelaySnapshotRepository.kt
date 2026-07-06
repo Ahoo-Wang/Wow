@@ -10,40 +10,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package me.ahoo.wow.eventsourcing.mock
 
-import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotRepository
-import me.ahoo.wow.eventsourcing.snapshot.Snapshot
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
-import me.ahoo.wow.infra.Decorator
-import reactor.core.publisher.Flux
-import reactor.core.publisher.Mono
-import java.time.Duration
-
-class DelaySnapshotRepository(
-    private val delaySupplier: () -> Duration = { Duration.ofMillis(5) },
-    override val delegate: SnapshotRepository = InMemorySnapshotRepository()
-) :
-    SnapshotRepository, Decorator<SnapshotRepository> {
-    companion object {
-        const val NAME = "delay"
-    }
-
-    override val name: String
-        get() = NAME
-
-    override fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>> {
-        return delegate.load<S>(aggregateId).delaySubscription(delaySupplier())
-    }
-
-    override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> {
-        return delegate.save(snapshot).delaySubscription(delaySupplier())
-    }
-
-    override fun scanAggregateId(namedAggregate: NamedAggregate, afterId: String, limit: Int): Flux<AggregateId> {
-        return delegate.scanAggregateId(namedAggregate, afterId, limit).delaySubscription(delaySupplier())
-    }
-}
+@Deprecated("Use DelaySnapshotStore.", ReplaceWith("DelaySnapshotStore"))
+typealias DelaySnapshotRepository = DelaySnapshotStore

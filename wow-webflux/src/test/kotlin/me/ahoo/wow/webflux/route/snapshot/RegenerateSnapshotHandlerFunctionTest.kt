@@ -15,7 +15,7 @@ package me.ahoo.wow.webflux.route.snapshot
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
-import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotStore
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.serialization.MessageRecords
@@ -34,7 +34,7 @@ class RegenerateSnapshotHandlerFunctionTest {
             MOCK_AGGREGATE_METADATA,
             ConstructorStateAggregateFactory,
             InMemoryEventStore(),
-            NoOpSnapshotRepository,
+            NoOpSnapshotStore,
             WebFluxRequestExceptionHandler(),
         )
         val request = MockServerRequest.builder()

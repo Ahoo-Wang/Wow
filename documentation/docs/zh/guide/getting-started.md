@@ -54,7 +54,7 @@ implementation 'me.ahoo.wow:wow-kafka'
 ```
 :::
 
-2. 使用 _MongoDB_ 作为事件存储以及快照仓库
+2. 使用 _MongoDB_ 作为事件存储以及快照存储
 
 ::: code-group
 ```kotlin [Gradle(Kotlin)]

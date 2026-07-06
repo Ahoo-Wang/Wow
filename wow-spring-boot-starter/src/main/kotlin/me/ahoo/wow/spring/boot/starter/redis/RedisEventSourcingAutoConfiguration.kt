@@ -14,19 +14,22 @@
 package me.ahoo.wow.spring.boot.starter.redis
 
 import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.infra.prepare.PrepareKeyFactory
 import me.ahoo.wow.redis.eventsourcing.RedisEventStore
-import me.ahoo.wow.redis.eventsourcing.RedisSnapshotRepository
+import me.ahoo.wow.redis.eventsourcing.RedisSnapshotStore
 import me.ahoo.wow.redis.prepare.RedisPrepareKeyFactory
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.ConditionalOnEventStoreStorage
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.ConditionalOnSnapshotStoreStorage
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStoreBinding
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.ConditionalOnSnapshotEnabled
-import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotProperties
-import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreProperties
 import me.ahoo.wow.spring.boot.starter.prepare.ConditionalOnPrepareEnabled
 import me.ahoo.wow.spring.boot.starter.prepare.PrepareProperties
 import me.ahoo.wow.spring.boot.starter.prepare.PrepareStorage
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
@@ -44,22 +47,35 @@ import org.springframework.data.redis.core.ReactiveStringRedisTemplate
 class RedisEventSourcingAutoConfiguration {
 
     @Bean
-    @ConditionalOnProperty(
-        EventStoreProperties.STORAGE,
-        havingValue = StorageType.REDIS_NAME,
-    )
-    fun redisEventStore(redisTemplate: ReactiveStringRedisTemplate): EventStore {
+    @ConditionalOnEventStoreStorage(StorageType.REDIS)
+    fun redisEventStore(redisTemplate: ReactiveStringRedisTemplate): RedisEventStore {
         return RedisEventStore(redisTemplate)
     }
 
     @Bean
+    @ConditionalOnEventStoreStorage(StorageType.REDIS)
+    fun redisEventStoreBinding(
+        @Qualifier("redisEventStore")
+        eventStore: EventStore
+    ): EventStoreBinding {
+        return EventStoreBinding.storage(StorageType.REDIS, eventStore)
+    }
+
+    @Bean(name = ["redisSnapshotStore", "redisSnapshotRepository"])
     @ConditionalOnSnapshotEnabled
-    @ConditionalOnProperty(
-        SnapshotProperties.STORAGE,
-        havingValue = StorageType.REDIS_NAME,
-    )
-    fun redisSnapshotRepository(redisTemplate: ReactiveStringRedisTemplate): SnapshotRepository {
-        return RedisSnapshotRepository(redisTemplate)
+    @ConditionalOnSnapshotStoreStorage(StorageType.REDIS)
+    fun redisSnapshotStore(redisTemplate: ReactiveStringRedisTemplate): RedisSnapshotStore {
+        return RedisSnapshotStore(redisTemplate)
+    }
+
+    @Bean
+    @ConditionalOnSnapshotEnabled
+    @ConditionalOnSnapshotStoreStorage(StorageType.REDIS)
+    fun redisSnapshotStoreBinding(
+        @Qualifier("redisSnapshotStore")
+        snapshotStore: SnapshotStore
+    ): SnapshotStoreBinding {
+        return SnapshotStoreBinding.storage(StorageType.REDIS, snapshotStore)
     }
 
     @Bean

@@ -21,7 +21,7 @@ import me.ahoo.wow.event.DistributedDomainEventBus
 import me.ahoo.wow.event.LocalDomainEventBus
 import me.ahoo.wow.event.dispatcher.DomainEventHandler
 import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStrategy
 import me.ahoo.wow.eventsourcing.snapshot.dispatcher.SnapshotHandler
 import me.ahoo.wow.eventsourcing.state.DistributedStateEventBus
@@ -205,14 +205,14 @@ object Metrics {
         }
 
     /**
-     * Wraps a SnapshotRepository with metrics collection capabilities.
-     * Returns a MetricSnapshotRepository that collects metrics on snapshot storage operations.
+     * Wraps a SnapshotStore with metrics collection capabilities.
+     * Returns a MetricSnapshotStore that collects metrics on snapshot storage operations.
      *
-     * @return the metrizable snapshot repository
+     * @return the metrizable snapshot store
      */
-    fun SnapshotRepository.metrizable(): SnapshotRepository =
+    fun SnapshotStore.metrizable(): SnapshotStore =
         metrizable {
-            MetricSnapshotRepository(this)
+            MetricSnapshotStore(this)
         }
 
     /**
@@ -300,7 +300,7 @@ object Metrics {
                 is DistributedStateEventBus -> metrizable()
                 is EventStore -> metrizable()
                 is SnapshotStrategy -> metrizable()
-                is SnapshotRepository -> metrizable()
+                is SnapshotStore -> metrizable()
                 is CommandHandler -> metrizable()
                 is SnapshotHandler -> metrizable()
                 is DomainEventHandler -> metrizable()

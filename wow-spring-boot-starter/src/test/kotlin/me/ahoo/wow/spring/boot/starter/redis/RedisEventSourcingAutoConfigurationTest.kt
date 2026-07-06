@@ -16,10 +16,13 @@ package me.ahoo.wow.spring.boot.starter.redis
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.redis.eventsourcing.RedisEventStore
-import me.ahoo.wow.redis.eventsourcing.RedisSnapshotRepository
+import me.ahoo.wow.redis.eventsourcing.RedisSnapshotStore
 import me.ahoo.wow.redis.prepare.RedisPrepareKeyFactory
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStoreBinding
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBinding
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.StorageRoutingProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreProperties
 import me.ahoo.wow.spring.boot.starter.prepare.PrepareProperties
@@ -50,8 +53,77 @@ class RedisEventSourcingAutoConfigurationTest {
             .run { context: AssertableApplicationContext ->
                 context.assert()
                     .hasSingleBean(RedisEventStore::class.java)
-                    .hasSingleBean(RedisSnapshotRepository::class.java)
+                    .hasBean("redisSnapshotStore")
+                    .hasBean("redisSnapshotRepository")
+                    .hasSingleBean(RedisSnapshotStore::class.java)
+                    .hasSingleBean(EventStoreBinding::class.java)
+                    .hasSingleBean(SnapshotStoreBinding::class.java)
                     .hasSingleBean(RedisPrepareKeyFactory::class.java)
+                val eventStore = context.getBean(RedisEventStore::class.java)
+                val eventBinding = context.getBean(EventStoreBinding::class.java)
+                eventBinding.storage.assert().isEqualTo(StorageType.REDIS)
+                eventBinding.eventStore.assert().isSameAs(eventStore)
+
+                val snapshotStore = context.getBean(RedisSnapshotStore::class.java)
+                val snapshotBinding = context.getBean(SnapshotStoreBinding::class.java)
+                snapshotBinding.storage.assert().isEqualTo(StorageType.REDIS)
+                snapshotBinding.snapshotStore.assert().isSameAs(snapshotStore)
+            }
+    }
+
+    @Test
+    fun `should load redis event store when aggregate event route uses redis`() {
+        contextRunner
+            .enableWow()
+            .withPropertyValues(
+                "${EventStoreProperties.STORAGE}=${StorageType.MONGO_NAME}",
+                "${SnapshotProperties.STORAGE}=${StorageType.MONGO_NAME}",
+                "${StorageRoutingProperties.AGGREGATES}.order.event.storage=${StorageType.REDIS_NAME}",
+            )
+            .withBean(ReactiveStringRedisTemplate::class.java, {
+                mockk<ReactiveStringRedisTemplate>()
+            })
+            .withUserConfiguration(
+                RedisEventSourcingAutoConfiguration::class.java,
+            )
+            .run { context: AssertableApplicationContext ->
+                context.assert()
+                    .hasSingleBean(RedisEventStore::class.java)
+                    .hasSingleBean(EventStoreBinding::class.java)
+                    .doesNotHaveBean(RedisSnapshotStore::class.java)
+                    .doesNotHaveBean(SnapshotStoreBinding::class.java)
+                val eventStore = context.getBean(RedisEventStore::class.java)
+                val eventBinding = context.getBean(EventStoreBinding::class.java)
+                eventBinding.storage.assert().isEqualTo(StorageType.REDIS)
+                eventBinding.eventStore.assert().isSameAs(eventStore)
+            }
+    }
+
+    @Test
+    fun `should load redis snapshot store when aggregate snapshot route uses redis`() {
+        contextRunner
+            .enableWow()
+            .withPropertyValues(
+                "${EventStoreProperties.STORAGE}=${StorageType.MONGO_NAME}",
+                "${SnapshotProperties.STORAGE}=${StorageType.MONGO_NAME}",
+                "${StorageRoutingProperties.AGGREGATES}.cart.snapshot.storage=${StorageType.REDIS_NAME}",
+            )
+            .withBean(ReactiveStringRedisTemplate::class.java, {
+                mockk<ReactiveStringRedisTemplate>()
+            })
+            .withUserConfiguration(
+                RedisEventSourcingAutoConfiguration::class.java,
+            )
+            .run { context: AssertableApplicationContext ->
+                context.assert()
+                    .doesNotHaveBean(RedisEventStore::class.java)
+                    .doesNotHaveBean(EventStoreBinding::class.java)
+                    .hasSingleBean(RedisSnapshotStore::class.java)
+                    .hasSingleBean(SnapshotStoreBinding::class.java)
+                val snapshotStore = context.getBean(RedisSnapshotStore::class.java)
+                val snapshotBinding = context.getBean(SnapshotStoreBinding::class.java)
+                snapshotBinding.storage.assert().isEqualTo(StorageType.REDIS)
+                snapshotBinding.snapshotStore.assert().isSameAs(snapshotStore)
             }
     }
 }

@@ -11,7 +11,7 @@ The _Redis_ extension provides support for Redis, suitable for scenarios requiri
 - `DomainEventBus` - Domain event bus
 - `StateEventBus` - State event bus
 - `EventStore` - Event storage
-- `SnapshotRepository` - Snapshot repository
+- `SnapshotStore` - Snapshot store
 - `PrepareKey` - Prepare key
 
 ## Architecture Overview

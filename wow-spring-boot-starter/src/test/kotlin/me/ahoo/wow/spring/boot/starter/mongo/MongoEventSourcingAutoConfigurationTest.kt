@@ -17,9 +17,12 @@ import com.mongodb.reactivestreams.client.MongoClient
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.mongo.MongoEventStore
-import me.ahoo.wow.mongo.MongoSnapshotRepository
+import me.ahoo.wow.mongo.MongoSnapshotStore
 import me.ahoo.wow.mongo.prepare.MongoPrepareKeyFactory
 import me.ahoo.wow.spring.boot.starter.enableWow
+import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStoreBinding
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBinding
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
@@ -47,8 +50,21 @@ class MongoEventSourcingAutoConfigurationTest {
             .run { context: AssertableApplicationContext ->
                 context.assert()
                     .hasSingleBean(MongoEventStore::class.java)
-                    .hasSingleBean(MongoSnapshotRepository::class.java)
+                    .hasBean("mongoSnapshotStore")
+                    .hasBean("mongoSnapshotRepository")
+                    .hasSingleBean(MongoSnapshotStore::class.java)
+                    .hasSingleBean(EventStoreBinding::class.java)
+                    .hasSingleBean(SnapshotStoreBinding::class.java)
                     .hasSingleBean(MongoPrepareKeyFactory::class.java)
+                val eventStore = context.getBean(MongoEventStore::class.java)
+                val eventBinding = context.getBean(EventStoreBinding::class.java)
+                eventBinding.storage.assert().isEqualTo(StorageType.MONGO)
+                eventBinding.eventStore.assert().isSameAs(eventStore)
+
+                val snapshotStore = context.getBean(MongoSnapshotStore::class.java)
+                val snapshotBinding = context.getBean(SnapshotStoreBinding::class.java)
+                snapshotBinding.storage.assert().isEqualTo(StorageType.MONGO)
+                snapshotBinding.snapshotStore.assert().isSameAs(snapshotStore)
             }
     }
 }

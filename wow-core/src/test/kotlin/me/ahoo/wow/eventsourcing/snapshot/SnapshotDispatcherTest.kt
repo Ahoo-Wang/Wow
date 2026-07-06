@@ -41,7 +41,7 @@ class SnapshotDispatcherTest {
     fun `dispatcher receives state events and saves snapshots through handler chain`() {
         val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId("snapshot-dispatcher")
         val stateEventBus = InMemoryStateEventBus()
-        val repository = SignalingSnapshotRepository()
+        val repository = SignalingSnapshotStore()
         val chain = FilterChainBuilder<me.ahoo.wow.eventsourcing.state.StateEventExchange<*>>()
             .addFilter(SnapshotFunctionFilter(SimpleSnapshotStrategy(repository)))
             .filterCondition(SnapshotDispatcher::class)
@@ -77,8 +77,8 @@ class SnapshotDispatcherTest {
             .verifyComplete()
     }
 
-    private class SignalingSnapshotRepository : SnapshotRepository {
-        private val delegate = InMemorySnapshotRepository()
+    private class SignalingSnapshotStore : SnapshotStore {
+        private val delegate = InMemorySnapshotStore()
         val saved: Sinks.One<Snapshot<*>> = Sinks.one()
 
         override val name: String = "signaling"

@@ -431,7 +431,7 @@ class OrderState(val id: String) : StatusCapable<OrderStatus> {
 ```mermaid
 flowchart TD
     A["加载聚合"] --> B{"快照存在<br>且 tailVersion == MAX_VALUE?"}
-    B -->|"是"| C["从 SnapshotRepository<br>加载快照"]
+    B -->|"是"| C["从 SnapshotStore<br>加载快照"]
     B -->|"否"| D["通过 StateAggregateFactory<br>创建新实例"]
     C --> E["获取快照版本<br>（例如 version = 50）"]
     E --> F["加载增量事件<br>从版本 51 到 tailVersion"]
@@ -664,5 +664,5 @@ class Order(private val state: OrderState) {
 | [领域建模](../modeling) | 设计聚合、命令、事件和状态类 |
 | [Saga 编排](../saga) | 通过 Saga 实现分布式事务支持 |
 | [配置参考：事件溯源](../../reference/config/eventsourcing) | 事件溯源配置属性 |
-| [配置参考：快照](../../reference/config/snapshot) | 快照仓库配置 |
+| [配置参考：快照](../../reference/config/snapshot) | 快照存储配置 |
 | [测试](../test-suite) | AggregateSpec 和 Given-When-Expect 测试 DSL |

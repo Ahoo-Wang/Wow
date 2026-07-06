@@ -244,7 +244,7 @@ graph TB
         DEB[DomainEventBus<br>LocalFirstDomainEventBus]
         ESR[EventSourcingState<br>AggregateRepository]
         ES[EventStore<br>AbstractEventStore]
-        SR[SnapshotRepository]
+        SR[SnapshotStore]
         CD[CommandDispatcher]
         PD[ProjectionDispatcher]
         SD[StatelessSagaDispatcher]
@@ -378,7 +378,7 @@ sequenceDiagram
     participant CB as CommandBus<br>(LocalFirst)
     participant CD as CommandDispatcher
     participant ESR as EventSourcing<br>StateAggregateRepository
-    participant SN as SnapshotRepository
+    participant SN as SnapshotStore
     participant ES as EventStore<br>(Mongo/Redis/R2DBC)
     participant DEB as DomainEventBus<br>(LocalFirst)
     participant PD as ProjectionDispatcher
@@ -513,7 +513,7 @@ flowchart TB
 
     subgraph "可扩展性策略"
         SHARD[AggregateIdSharding<br>CosIdShardingDecorator<br>+ CosId 雪花ID]
-        SNAP[SnapshotRepository<br>VersionOffsetSnapshotStrategy<br>每 N 个版本快照一次]
+        SNAP[SnapshotStore<br>VersionOffsetSnapshotStrategy<br>每 N 个版本快照一次]
     end
 
     subgraph "关键行为"
@@ -549,7 +549,7 @@ flowchart TB
 |---|---|---|---|
 | **单聚合写吞吐量** | 单个聚合由乐观并发序列化；无法并行写入同一聚合 | 热点聚合会成为瓶颈 | [EventStore.kt:38-43](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt#L38-L43) |
 | **多聚合写扩展** | `AggregateIdSharding` 将不同聚合路由到不同存储分片（如 CosId 雪花 -> 哈希 -> 分片） | 分片分布质量取决于 ID 生成方案 | [AggregateIdSharding.kt:82-104](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/sharding/AggregateIdSharding.kt#L82-L104) |
-| **读扩展（长聚合）** | `SnapshotRepository` 存储定期状态快照；仅重放自上次快照以来的事件 | 快照策略必须根据聚合类型调优 | [VersionOffsetSnapshotStrategy.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/VersionOffsetSnapshotStrategy.kt) |
+| **读扩展（长聚合）** | `SnapshotStore` 存储定期状态快照；仅重放自上次快照以来的事件 | 快照策略必须根据聚合类型调优 | [VersionOffsetSnapshotStrategy.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/VersionOffsetSnapshotStrategy.kt) |
 | **事件总线扇出** | `LocalFirst` 首先路由到本地消费者（零网络跳转），然后通过 Kafka/Redis 分发 | Kafka 分区排序必须与聚合 ID 对齐以保持按聚合排序 | [LocalFirstMessageBus.kt:129-170](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/LocalFirstMessageBus.kt#L129-L170) |
 | **存储后端选择** | MongoDB（文档模型自然契合事件）、Redis（最高吞吐量，内存）、R2DBC（SQL，运维熟悉） | 每种后端有不同的延迟/吞吐量/运维特性 | [settings.gradle.kts:27-30](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L27-L30) |
 

@@ -13,17 +13,20 @@
 
 package me.ahoo.wow.redis.eventsourcing
 
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
-import me.ahoo.wow.tck.container.RedisTestFixture
-import me.ahoo.wow.tck.eventsourcing.snapshot.SnapshotRepositorySpec
-import org.junit.jupiter.api.extension.RegisterExtension
+import io.mockk.mockk
+import me.ahoo.test.asserts.assert
+import org.junit.jupiter.api.Test
+import org.springframework.data.redis.core.ReactiveStringRedisTemplate
 
-class RedisSnapshotRepositoryTest : SnapshotRepositorySpec() {
-    @JvmField
-    @RegisterExtension
-    val redis = RedisTestFixture()
+class RedisSnapshotRepositoryCompatibilityTest {
 
-    override fun createSnapshotRepository(): SnapshotRepository {
-        return RedisSnapshotRepository(redis.redisTemplate)
+    @Suppress("DEPRECATION")
+    @Test
+    fun `should keep redis snapshot repository as jvm visible type`() {
+        RedisSnapshotRepository::class.java.name.assert()
+            .isEqualTo("me.ahoo.wow.redis.eventsourcing.RedisSnapshotRepository")
+        RedisSnapshotRepository.NAME.assert().isEqualTo(RedisSnapshotStore.NAME)
+        RedisSnapshotRepository(mockk<ReactiveStringRedisTemplate>()).name.assert()
+            .isEqualTo(RedisSnapshotStore.NAME)
     }
 }

@@ -15,8 +15,8 @@ package me.ahoo.wow.elasticsearch.query.snapshot
 
 import me.ahoo.wow.elasticsearch.ReactiveElasticsearchClients
 import me.ahoo.wow.elasticsearch.TemplateInitializer.initSnapshotTemplate
-import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotRepository
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStore
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.tck.container.ElasticsearchTestFixture
 import me.ahoo.wow.tck.query.SnapshotQueryServiceSpec
@@ -42,7 +42,7 @@ class ElasticsearchSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
         return ElasticsearchSnapshotQueryServiceFactory(elasticsearchClient)
     }
 
-    override fun createSnapshotRepository(): SnapshotRepository {
-        return ElasticsearchSnapshotRepository(elasticsearchClient)
+    override fun createSnapshotStore(): SnapshotStore {
+        return ElasticsearchSnapshotStore(elasticsearchClient)
     }
 }

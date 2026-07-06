@@ -19,11 +19,13 @@ import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.elasticsearch.IndexTemplateInitializer
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchEventStore
-import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotRepository
+import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStore
 import me.ahoo.wow.elasticsearch.query.event.ElasticsearchEventStreamQueryServiceFactory
 import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryServiceFactory
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStoreBinding
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreProperties
 import org.junit.jupiter.api.Test
@@ -65,8 +67,22 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
                     .hasSingleBean(ElasticsearchEventStore::class.java)
                     .hasSingleBean(ElasticsearchEventStreamQueryServiceFactory::class.java)
                     .hasSingleBean(IndexTemplateInitializer::class.java)
-                    .hasSingleBean(ElasticsearchSnapshotRepository::class.java)
+                    .hasBean("elasticsearchSnapshotStore")
+                    .hasBean("elasticsearchSnapshotRepository")
+                    .hasSingleBean(ElasticsearchSnapshotStore::class.java)
+                    .hasSingleBean(EventStoreBinding::class.java)
+                    .hasSingleBean(SnapshotStoreBinding::class.java)
                     .hasSingleBean(ElasticsearchSnapshotQueryServiceFactory::class.java)
+                context.containsBean("snapshotRepository").assert().isFalse()
+                val eventStore = context.getBean(ElasticsearchEventStore::class.java)
+                val eventBinding = context.getBean(EventStoreBinding::class.java)
+                eventBinding.storage.assert().isEqualTo(StorageType.ELASTICSEARCH)
+                eventBinding.eventStore.assert().isSameAs(eventStore)
+
+                val snapshotStore = context.getBean(ElasticsearchSnapshotStore::class.java)
+                val snapshotBinding = context.getBean(SnapshotStoreBinding::class.java)
+                snapshotBinding.storage.assert().isEqualTo(StorageType.ELASTICSEARCH)
+                snapshotBinding.snapshotStore.assert().isSameAs(snapshotStore)
             }
     }
 }

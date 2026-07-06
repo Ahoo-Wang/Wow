@@ -17,10 +17,11 @@ import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.mock.DelayEventStore
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
-import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreProperties
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.ConditionalOnEventStoreStorage
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStoreBinding
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Bean
 
 @AutoConfiguration
@@ -29,11 +30,17 @@ import org.springframework.context.annotation.Bean
 class MockEventStoreAutoConfiguration {
 
     @Bean
-    @ConditionalOnProperty(
-        EventStoreProperties.STORAGE,
-        havingValue = StorageType.DELAY_NAME,
-    )
-    fun delayEventStore(): EventStore {
+    @ConditionalOnEventStoreStorage(StorageType.DELAY)
+    fun delayEventStore(): DelayEventStore {
         return DelayEventStore()
+    }
+
+    @Bean
+    @ConditionalOnEventStoreStorage(StorageType.DELAY)
+    fun delayEventStoreBinding(
+        @Qualifier("delayEventStore")
+        eventStore: EventStore
+    ): EventStoreBinding {
+        return EventStoreBinding.storage(StorageType.DELAY, eventStore)
     }
 }

@@ -244,7 +244,7 @@ graph TB
         DEB[DomainEventBus<br>LocalFirstDomainEventBus]
         ESR[EventSourcingState<br>AggregateRepository]
         ES[EventStore<br>AbstractEventStore]
-        SR[SnapshotRepository]
+        SR[SnapshotStore]
         CD[CommandDispatcher]
         PD[ProjectionDispatcher]
         SD[StatelessSagaDispatcher]
@@ -378,7 +378,7 @@ sequenceDiagram
     participant CB as CommandBus<br>(LocalFirst)
     participant CD as CommandDispatcher
     participant ESR as EventSourcing<br>StateAggregateRepository
-    participant SN as SnapshotRepository
+    participant SN as SnapshotStore
     participant ES as EventStore<br>(Mongo/Redis/R2DBC)
     participant DEB as DomainEventBus<br>(LocalFirst)
     participant PD as ProjectionDispatcher
@@ -513,7 +513,7 @@ flowchart TB
 
     subgraph "Scalability Strategies"
         SHARD[AggregateIdSharding<br>CosIdShardingDecorator<br>+ CosId snowflake ID]
-        SNAP[SnapshotRepository<br>VersionOffsetSnapshotStrategy<br>snapshot every N versions]
+        SNAP[SnapshotStore<br>VersionOffsetSnapshotStrategy<br>snapshot every N versions]
     end
 
     subgraph "Key Behaviors"
@@ -549,7 +549,7 @@ flowchart TB
 |---|---|---|---|
 | **Per-aggregate write throughput** | Single aggregate is serialized by optimistic concurrency; no parallel writes to same aggregate | Hot aggregates will bottleneck | [EventStore.kt:38-43](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt#L38-L43) |
 | **Multi-aggregate write scaling** | `AggregateIdSharding` routes different aggregates to different storage shards (e.g., CosId snowflake -> hash -> shard) | Shard distribution quality depends on ID generation scheme | [AggregateIdSharding.kt:82-104](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/sharding/AggregateIdSharding.kt#L82-L104) |
-| **Read scaling (long aggregates)** | `SnapshotRepository` stores periodic state snapshots; replay only events since last snapshot | Snapshot strategy must be tuned per aggregate type | [VersionOffsetSnapshotStrategy.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/VersionOffsetSnapshotStrategy.kt) |
+| **Read scaling (long aggregates)** | `SnapshotStore` stores periodic state snapshots; replay only events since last snapshot | Snapshot strategy must be tuned per aggregate type | [VersionOffsetSnapshotStrategy.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/VersionOffsetSnapshotStrategy.kt) |
 | **Event bus fan-out** | `LocalFirst` routes to local consumers first (zero network hop), then distributes via Kafka/Redis | Kafka partition ordering must align with aggregate ID to preserve per-aggregate order | [LocalFirstMessageBus.kt:129-170](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/LocalFirstMessageBus.kt#L129-L170) |
 | **Storage backend choice** | MongoDB (document model fits events naturally), Redis (highest throughput, in-memory), R2DBC (SQL, operational familiarity) | Each has different latency/throughput/ops profiles | [settings.gradle.kts:27-30](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L27-L30) |
 

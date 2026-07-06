@@ -14,7 +14,7 @@
 package me.ahoo.wow.webflux.route.event.state
 
 import me.ahoo.wow.event.compensation.StateEventCompensator
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.BatchComponent
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
@@ -31,13 +31,13 @@ import reactor.core.publisher.Mono
 
 class ResendStateEventFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
-    private val snapshotRepository: SnapshotRepository,
+    private val snapshotStore: SnapshotStore,
     private val stateEventCompensator: StateEventCompensator,
     private val exceptionHandler: RequestExceptionHandler,
     private val batchExecutionPolicy: BatchExecutionPolicy
 ) : HandlerFunction<ServerResponse> {
     private val handler =
-        ResendStateEventHandler(aggregateMetadata, snapshotRepository, stateEventCompensator, batchExecutionPolicy)
+        ResendStateEventHandler(aggregateMetadata, snapshotStore, stateEventCompensator, batchExecutionPolicy)
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         val afterId = request.pathVariable(BatchComponent.PathVariable.BATCH_AFTER_ID)
@@ -48,7 +48,7 @@ class ResendStateEventFunction(
 }
 
 class ResendStateEventFunctionFactory(
-    private val snapshotRepository: SnapshotRepository,
+    private val snapshotStore: SnapshotStore,
     private val stateEventCompensator: StateEventCompensator,
     private val exceptionHandler: RequestExceptionHandler,
     private val batchExecutionPolicy: BatchExecutionPolicy
@@ -63,7 +63,7 @@ class ResendStateEventFunctionFactory(
     private fun create(aggregateMetadata: AggregateMetadata<*, *>): HandlerFunction<ServerResponse> {
         return ResendStateEventFunction(
             aggregateMetadata = aggregateMetadata,
-            snapshotRepository = snapshotRepository,
+            snapshotStore = snapshotStore,
             stateEventCompensator = stateEventCompensator,
             exceptionHandler = exceptionHandler,
             batchExecutionPolicy = batchExecutionPolicy,

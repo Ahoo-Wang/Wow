@@ -19,8 +19,8 @@ import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.event.InMemoryDomainEventBus
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
-import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotRepository
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotStore
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.modeling.command.AggregateProcessorFactory
 import me.ahoo.wow.modeling.command.CommandAggregateFactory
@@ -47,7 +47,7 @@ internal class AggregateAutoConfigurationTest {
         contextRunner
             .enableWow()
             .withBean(StateAggregateFactory::class.java, { ConstructorStateAggregateFactory })
-            .withBean(SnapshotRepository::class.java, { NoOpSnapshotRepository })
+            .withBean(SnapshotStore::class.java, { NoOpSnapshotStore })
             .withBean(EventStore::class.java, { InMemoryEventStore() })
             .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
             .withBean(CommandGateway::class.java, { SagaVerifier.defaultCommandGateway() })

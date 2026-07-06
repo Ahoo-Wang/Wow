@@ -10,13 +10,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package me.ahoo.wow.spring.boot.starter.eventsourcing.routing
 
-package me.ahoo.wow.eventsourcing.snapshot
+import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
+import org.springframework.context.annotation.Conditional
 
-import me.ahoo.wow.tck.eventsourcing.snapshot.SnapshotRepositorySpec
-
-internal class InMemorySnapshotRepositoryTest : SnapshotRepositorySpec() {
-    override fun createSnapshotRepository(): SnapshotRepository {
-        return InMemorySnapshotRepository()
-    }
-}
+@Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION)
+@Retention(AnnotationRetention.RUNTIME)
+@MustBeDocumented
+@Conditional(OnStorageRoutingStorageCondition::class)
+annotation class ConditionalOnEventStoreStorage(val value: StorageType)

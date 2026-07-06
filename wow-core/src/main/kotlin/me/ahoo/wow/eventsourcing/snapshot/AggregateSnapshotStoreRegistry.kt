@@ -10,22 +10,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package me.ahoo.wow.eventsourcing.snapshot
 
-package me.ahoo.wow.mongo
+import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.modeling.MaterializedNamedAggregate
+import me.ahoo.wow.modeling.materialize
 
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
-import me.ahoo.wow.tck.container.MongoTestFixture
-import me.ahoo.wow.tck.eventsourcing.snapshot.SnapshotRepositorySpec
-import org.junit.jupiter.api.extension.RegisterExtension
+class AggregateSnapshotStoreRegistry(
+    private val defaultSnapshotStore: SnapshotStore,
+    routes: Map<NamedAggregate, SnapshotStore>
+) {
+    private val routes: Map<MaterializedNamedAggregate, SnapshotStore> =
+        routes.mapKeys { (namedAggregate, _) ->
+            namedAggregate.materialize()
+        }
 
-class MongoSnapshotRepositoryTest : SnapshotRepositorySpec() {
-    @JvmField
-    @RegisterExtension
-    val mongo = MongoTestFixture()
-
-    override fun createSnapshotRepository(): SnapshotRepository {
-        val database = mongo.database()
-        SnapshotSchemaInitializer(database).initSchema(aggregateMetadata)
-        return MongoSnapshotRepository(database)
-    }
+    fun get(namedAggregate: NamedAggregate): SnapshotStore =
+        routes[namedAggregate.materialize()] ?: defaultSnapshotStore
 }

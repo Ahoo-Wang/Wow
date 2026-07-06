@@ -59,7 +59,7 @@ Creates a snapshot when the difference between the aggregate root version and th
 
 ```kotlin
 class VersionOffsetSnapshotStrategy(
-    private val snapshotRepository: SnapshotRepository,
+    private val snapshotStore: SnapshotStore,
     private val versionOffset: Int = 5
 ) : SnapshotStrategy
 ```
@@ -70,7 +70,7 @@ Creates a snapshot for every state event.
 
 ```kotlin
 class SimpleSnapshotStrategy(
-    private val snapshotRepository: SnapshotRepository
+    private val snapshotStore: SnapshotStore
 ) : SnapshotStrategy
 ```
 
@@ -99,12 +99,12 @@ stateDiagram-v2
 
 <!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/event/snapshot/SnapshotHandler.kt -->
 
-## Snapshot Repository
+## Snapshot Store
 
-The snapshot repository is responsible for storing and retrieving snapshots.
+The snapshot store is responsible for storing and retrieving snapshots.
 
 ```kotlin
-interface SnapshotRepository : Named, AggregateIdScanner {
+interface SnapshotStore : Named, AggregateIdScanner {
     fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>>
     fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void>
     fun getVersion(aggregateId: AggregateId): Mono<Int>
@@ -114,7 +114,7 @@ interface SnapshotRepository : Named, AggregateIdScanner {
 ### In-Memory Implementation
 
 ```kotlin
-class InMemorySnapshotRepository : SnapshotRepository {
+class InMemorySnapshotStore : SnapshotStore {
     private val aggregateIdMapSnapshot = ConcurrentHashMap<AggregateId, String>()
 
     override fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>> =
@@ -142,7 +142,7 @@ class InMemorySnapshotRepository : SnapshotRepository {
 1. **State Event Publishing**: When aggregate root state changes, publish state events
 2. **Strategy Evaluation**: Snapshot strategy evaluates whether a snapshot needs to be created
 3. **Snapshot Creation**: If needed, create a snapshot of the current state
-4. **Snapshot Storage**: Save the snapshot to the snapshot repository
+4. **Snapshot Storage**: Save the snapshot to the snapshot store
 
 ## Configuration
 
@@ -169,13 +169,13 @@ Snapshots greatly optimize aggregate root loading performance:
 ```kotlin
 class EventSourcingOrderRepository(
     private val eventStore: EventStore,
-    private val snapshotRepository: SnapshotRepository
+    private val snapshotStore: SnapshotStore
 ) : OrderRepository {
 
     override fun load(orderId: String): Mono<OrderState> {
         val aggregateId = AggregateId("order", orderId)
 
-        return snapshotRepository.load<OrderState>(aggregateId)
+        return snapshotStore.load<OrderState>(aggregateId)
             .flatMap { snapshot ->
                 // Only replay events after the snapshot version
                 eventStore.load(aggregateId, snapshot.version + 1)

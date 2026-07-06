@@ -31,8 +31,8 @@ import me.ahoo.wow.event.InMemoryDomainEventBus
 import me.ahoo.wow.eventsourcing.EventSourcingStateAggregateRepository
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
-import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotRepository
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotStore
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.filter.FilterChainBuilder
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.infra.idempotency.BloomFilterIdempotencyChecker
@@ -86,7 +86,7 @@ abstract class CommandDispatcherSpec {
     protected lateinit var commandBus: CommandBus
     protected lateinit var commandGateway: CommandGateway
     protected lateinit var eventStore: EventStore
-    protected lateinit var snapshotRepository: SnapshotRepository
+    protected lateinit var snapshotStore: SnapshotStore
     protected lateinit var stateAggregateRepository: StateAggregateRepository
     protected lateinit var commandAggregateFactory: CommandAggregateFactory
     protected lateinit var domainEventBus: DomainEventBus
@@ -103,8 +103,8 @@ abstract class CommandDispatcherSpec {
             commandWaitNotifier = LocalCommandWaitNotifier(waitCoordinator),
         )
         eventStore = createEventStore().metrizable()
-        snapshotRepository = createSnapshotRepository().metrizable()
-        stateAggregateRepository = createStateAggregateRepository(stateAggregateFactory, snapshotRepository, eventStore)
+        snapshotStore = createSnapshotStore().metrizable()
+        stateAggregateRepository = createStateAggregateRepository(stateAggregateFactory, snapshotStore, eventStore)
         commandAggregateFactory =
             createCommandAggregateFactory(eventStore)
         aggregateProcessorFactory =
@@ -118,15 +118,18 @@ abstract class CommandDispatcherSpec {
 
     protected open fun createEventStore(): EventStore = InMemoryEventStore()
 
-    protected open fun createSnapshotRepository(): SnapshotRepository = InMemorySnapshotRepository()
+    protected open fun createSnapshotStore(): SnapshotStore = createSnapshotRepository()
+
+    @Deprecated("Use createSnapshotStore().", ReplaceWith("createSnapshotStore()"))
+    protected open fun createSnapshotRepository(): SnapshotStore = InMemorySnapshotStore()
 
     protected fun createStateAggregateRepository(
         stateAggregateFactory: StateAggregateFactory,
-        snapshotRepository: SnapshotRepository,
+        snapshotStore: SnapshotStore,
         eventStore: EventStore
     ): StateAggregateRepository = EventSourcingStateAggregateRepository(
         stateAggregateFactory,
-        snapshotRepository,
+        snapshotStore,
         eventStore,
     )
 

@@ -59,7 +59,7 @@ sequenceDiagram
 
 ```kotlin
 class VersionOffsetSnapshotStrategy(
-    private val snapshotRepository: SnapshotRepository,
+    private val snapshotStore: SnapshotStore,
     private val versionOffset: Int = 5
 ) : SnapshotStrategy
 ```
@@ -70,7 +70,7 @@ class VersionOffsetSnapshotStrategy(
 
 ```kotlin
 class SimpleSnapshotStrategy(
-    private val snapshotRepository: SnapshotRepository
+    private val snapshotStore: SnapshotStore
 ) : SnapshotStrategy
 ```
 
@@ -99,12 +99,12 @@ stateDiagram-v2
 
 <!-- Sources: wow-core/src/main/kotlin/me/ahoo/wow/event/snapshot/SnapshotHandler.kt -->
 
-## 快照仓库
+## 快照存储
 
-快照仓库负责存储和检索快照。
+快照存储负责存储和检索快照。
 
 ```kotlin
-interface SnapshotRepository : Named, AggregateIdScanner {
+interface SnapshotStore : Named, AggregateIdScanner {
     fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>>
     fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void>
     fun getVersion(aggregateId: AggregateId): Mono<Int>
@@ -114,7 +114,7 @@ interface SnapshotRepository : Named, AggregateIdScanner {
 ### 内存实现
 
 ```kotlin
-class InMemorySnapshotRepository : SnapshotRepository {
+class InMemorySnapshotStore : SnapshotStore {
     private val aggregateIdMapSnapshot = ConcurrentHashMap<AggregateId, String>()
 
     override fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>> =
@@ -142,7 +142,7 @@ class InMemorySnapshotRepository : SnapshotRepository {
 1. **状态事件发布**：当聚合根状态变化时，发布状态事件
 2. **策略评估**：快照策略评估是否需要创建快照
 3. **快照创建**：如需要，创建当前状态的快照
-4. **快照存储**：将快照保存到快照仓库
+4. **快照存储**：将快照保存到快照存储
 
 ## 配置
 
@@ -169,13 +169,13 @@ wow:
 ```kotlin
 class EventSourcingOrderRepository(
     private val eventStore: EventStore,
-    private val snapshotRepository: SnapshotRepository
+    private val snapshotStore: SnapshotStore
 ) : OrderRepository {
 
     override fun load(orderId: String): Mono<OrderState> {
         val aggregateId = AggregateId("order", orderId)
 
-        return snapshotRepository.load<OrderState>(aggregateId)
+        return snapshotStore.load<OrderState>(aggregateId)
             .flatMap { snapshot ->
                 // 只重放快照版本之后的事件
                 eventStore.load(aggregateId, snapshot.version + 1)

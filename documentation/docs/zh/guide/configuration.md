@@ -195,6 +195,51 @@ wow:
       storage: mongo
 ```
 
+### 聚合存储路由配置
+
+`wow.eventsourcing.storage-routing` 是可选配置。未配置某个聚合或某个通道时，Wow 会继续使用 `wow.eventsourcing.store.storage` 或 `wow.eventsourcing.snapshot.storage` 中对应的全局默认值。
+
+| 属性 | 类型 | 默认值 | 描述 |
+|------|------|--------|------|
+| `wow.eventsourcing.storage-routing.aggregates.*.event.storage` | StorageType | | 指定某个聚合的 EventStore 后端 |
+| `wow.eventsourcing.storage-routing.aggregates.*.event.binding` | String | | 指定某个聚合的命名 EventStore binding |
+| `wow.eventsourcing.storage-routing.aggregates.*.snapshot.storage` | StorageType | | 指定某个聚合的 SnapshotStore 后端 |
+| `wow.eventsourcing.storage-routing.aggregates.*.snapshot.binding` | String | | 指定某个聚合的命名 SnapshotStore binding |
+
+```yaml
+wow:
+  context-name: order-service
+  eventsourcing:
+    store:
+      storage: mongo
+    snapshot:
+      enabled: true
+      storage: mongo
+    storage-routing:
+      aggregates:
+        order:
+          event:
+            storage: redis
+        cart:
+          snapshot:
+            storage: redis
+        audit:
+          event:
+            binding: archive-event-store
+          snapshot:
+            binding: archive-snapshot-store
+```
+
+- `order` 会使用当前 `wow.context-name` 解析为 `order-service.order`。
+- 也可以直接使用 `order-service.order` 这样的完整聚合键；YAML 中必要时给 key 加引号。
+- `event` 路由只影响该聚合的 `EventStore`；`snapshot` 路由只影响该聚合的 `SnapshotStore`。
+- `event.storage` 与 `snapshot.storage` 使用 `StorageType` 枚举：`mongo`、`redis`、`r2dbc`、`elasticsearch`、`in_memory`、`delay`。
+- `event.binding` 与 `snapshot.binding` 指向由应用代码或基础设施自动配置注册的命名自定义 binding。
+- 同一个 `event` 或 `snapshot` 通道内，`storage` 与 `binding` 互斥。
+- 存储路由只选择已有后端类型或 binding。后端连接配置仍属于 `wow.mongo`、`wow.redis`、`wow.r2dbc`、`wow.elasticsearch` 等后端配置。
+- 把路由切换到另一个后端不会迁移已有事件流或快照数据。
+- 快照抽象已重命名为 `SnapshotStore`。旧的 `SnapshotRepository` Kotlin 兼容别名仅作为过渡保留，新代码不应再使用。
+
 ## 基础设施配置
 
 ### Kafka 配置
