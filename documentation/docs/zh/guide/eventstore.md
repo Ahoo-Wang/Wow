@@ -64,7 +64,7 @@ interface DomainEventStream : EventMessage<DomainEventStream, List<DomainEvent<*
 | `DomainEvent` | 关于聚合内过去业务行为的不可变事实 | [DomainEvent.kt:52-95](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/event/DomainEvent.kt#L52-L95) |
 | `DomainEventStream` | 单个命令产生的有序领域事件批次 | [DomainEventStream.kt:51-125](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/DomainEventStream.kt#L51-L125) |
 | `EventStore` | 追加和加载事件流的核心接口 | [EventStore.kt:27-98](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt#L27-L98) |
-| `SnapshotRepository` | 通过带版本的快照检查点优化聚合加载 | [SnapshotRepository.kt:27-58](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/SnapshotRepository.kt#L27-L58) |
+| `SnapshotStore` | 通过带版本的快照检查点优化聚合加载 | [SnapshotStore.kt:27-58](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/SnapshotStore.kt#L27-L58) |
 
 ## 聚合状态重建
 
@@ -87,7 +87,7 @@ flowchart TD
 
 `EventSourcingStateAggregateRepository` 实现了这种重建机制：
 
-1. **快照优先加载**：在请求最新版本时，仓库首先从快照仓库加载。如果存在快照，它将作为增量重放的起点。
+1. **快照优先加载**：在请求最新版本时，仓库首先从快照存储加载。如果存在快照，它将作为增量重放的起点。
 2. **全新聚合创建**：如果不存在快照，通过 `StateAggregateFactory` 创建新的聚合实例。
 3. **事件应用**：事件按版本顺序重放，每次调用 `stateAggregate.onSourcing(it)` 来变更内存中的状态。
 
@@ -102,7 +102,7 @@ sequenceDiagram
     participant CommandGateway
     participant Aggregate as 聚合
     participant EventStore as 事件存储
-    participant SnapshotRepo as 快照仓库
+    participant SnapshotStore as 快照存储
     participant DomainEventBus as 领域事件总线
     participant Projection as 投影
     participant Saga
@@ -110,8 +110,8 @@ sequenceDiagram
     Client->>CommandGateway: 发送命令
     CommandGateway->>EventStore: 加载聚合事件（直到 tailVersion）
     EventStore-->>CommandGateway: Flux of DomainEventStream（按版本排序）
-    CommandGateway->>SnapshotRepo: 加载最新快照
-    SnapshotRepo-->>CommandGateway: 快照（或空）
+    CommandGateway->>SnapshotStore: 加载最新快照
+    SnapshotStore-->>CommandGateway: 快照（或空）
     CommandGateway->>Aggregate: 应用事件重建状态
     CommandGateway->>Aggregate: 处理命令 -> 产生新的 DomainEventStream
     Aggregate-->>CommandGateway: DomainEventStream（新事件）

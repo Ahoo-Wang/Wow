@@ -88,16 +88,16 @@ class RedisEventStoreTest : EventStoreSpec() {
 }
 ```
 
-### SnapshotRepository
+### SnapshotStore
 
 ```kotlin
-class RedisSnapshotRepositoryTest : SnapshotRepositorySpec() {
+class RedisSnapshotStoreTest : SnapshotStoreSpec() {
     @JvmField
     @RegisterExtension
     val redis = RedisTestFixture()
 
-    override fun createSnapshotRepository(): SnapshotRepository {
-        return RedisSnapshotRepository(redis.redisTemplate)
+    override fun createSnapshotStore(): SnapshotStore {
+        return RedisSnapshotStore(redis.redisTemplate)
     }
 }
 ```

@@ -283,13 +283,13 @@ class CartController(
 ```kotlin
 class EventSourcingOrderRepository(
     private val eventStore: EventStore,
-    private val snapshotRepository: SnapshotRepository
+    private val snapshotStore: SnapshotStore
 ) : OrderRepository {
 
     override fun load(orderId: String): Mono<OrderState> {
         val aggregateId = AggregateId("order", orderId)
 
-        return snapshotRepository.load(aggregateId)
+        return snapshotStore.load(aggregateId)
             .flatMap { snapshot ->
                 // Load events after snapshot version
                 eventStore.load(aggregateId, snapshot.version + 1)

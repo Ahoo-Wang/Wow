@@ -27,7 +27,7 @@ Wow 框架的 _OpenTelemetry_ 模块通过提供一系列仪表器（_Instrument
 - `ProjectionInstrumenter`: 投影仪表器，用于记录投影的操作。
 - `StatelessSagaInstrumenter`: 无状态Saga仪表器，用于记录无状态Saga的操作。
 - `SnapshotInstrumenter`: 快照仪表器，用于记录快照的操作。
-- `SnapshotRepositoryInstrumenter`: 快照仓储仪表器，用于记录快照仓储的操作。
+- `SnapshotStoreInstrumenter`: 快照存储仪表器，用于记录快照存储的操作。
 
 支持以下属性标签：
 

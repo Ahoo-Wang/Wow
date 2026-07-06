@@ -112,7 +112,7 @@ The module hierarchy is defined in [settings.gradle.kts:19-63](https://github.co
 
 ### Design Principles Enforced by Module Separation
 
-1. **Dependency Inversion**: Core modules depend on abstractions (`CommandBus`, `EventStore`, `SnapshotRepository`), not concrete implementations. Infrastructure modules provide the implementations and are discovered at runtime via Spring's `@ConditionalOnClass` auto-configuration.
+1. **Dependency Inversion**: Core modules depend on abstractions (`CommandBus`, `EventStore`, `SnapshotStore`), not concrete implementations. Infrastructure modules provide the implementations and are discovered at runtime via Spring's `@ConditionalOnClass` auto-configuration.
 2. **Open-Closed Principle**: New storage backends or message transports can be added as new modules without touching core code.
 3. **Single Responsibility**: Each module has exactly one reason to change. `wow-mongo` handles MongoDB event storage; `wow-kafka` handles Kafka message transport; they never overlap.
 
@@ -140,7 +140,7 @@ sequenceDiagram
     participant CD as CommandDispatcher
     participant AF as AggregateProcessorFilter
     participant AP as AggregateProcessor
-    participant SR as SnapshotRepository
+    participant SR as SnapshotStore
     participant ES as EventStore
     participant SA as StateAggregate
     participant CA as CommandAggregate
@@ -282,7 +282,7 @@ Wow implements a full event sourcing pattern where the aggregate state is derive
 ```mermaid
 flowchart TD
     A["Load Aggregate"] --> B{"Snapshot exists?"}
-    B -->|"Yes"| C["Load Snapshot<br>from SnapshotRepository"]
+    B -->|"Yes"| C["Load Snapshot<br>from SnapshotStore"]
     B -->|"No"| D["Create Initial State<br>via StateAggregateFactory"]
     C --> E["Get snapshot version"]
     E --> F["Load incremental events<br>EventStore.load(aggregateId, version+1)"]
@@ -304,7 +304,7 @@ flowchart TD
 
 The `EventSourcingStateAggregateRepository` orchestrates this flow. Its loading process works as follows:
 
-1. For the latest version (tailVersion = `Int.MAX_VALUE`), it first attempts to load from the `SnapshotRepository`.
+1. For the latest version (tailVersion = `Int.MAX_VALUE`), it first attempts to load from the `SnapshotStore`.
 2. If no snapshot exists, it creates a new aggregate instance via `StateAggregateFactory`.
 3. Events from the `EventStore` are applied sequentially starting from the aggregate's expected next version.
 
@@ -333,7 +333,7 @@ The Wow Framework follows the **Strategy Pattern** throughout: every infrastruct
 | **Command Bus** | `CommandBus` / `DistributedCommandBus` | Routes commands to aggregate processors | `InMemoryCommandBus`, `LocalFirstCommandBus`, Kafka-backed | [CommandBus.kt:36-69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandBus.kt#L36-L69) |
 | **Event Bus** | `EventBus` / `DomainEventBus` | Distributes domain events to projections, sagas, and handlers | `InMemoryEventBus`, Kafka-backed, Redis-backed | [settings.gradle.kts:27](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L27) |
 | **Event Store** | `EventStore` | Persistent storage of event streams | MongoDB, Redis, R2DBC (PostgreSQL/MySQL/MariaDB) | [EventStore.kt:27](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt#L27) |
-| **Snapshot Repository** | `SnapshotRepository` | Snapshot storage for aggregate performance optimization | MongoDB, Redis, R2DBC | [settings.gradle.kts:28-30](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L28-L30) |
+| **Snapshot Store** | `SnapshotStore` | Snapshot storage for aggregate performance optimization | MongoDB, Redis, R2DBC | [settings.gradle.kts:28-30](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L28-L30) |
 | **Wait Plan** | `WaitPlan` | Controls command response timing | `StageWaitTarget`, `ChainWaitTarget`, `CommandWait` factories | [WaitPlan.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitPlan.kt) |
 | **ID Generator** | `IdGenerator` (via CosId) | Generates globally unique aggregate IDs | Snowflake, segment, etc. (via CosId integration) | `me.ahoo.cosid` |
 | **Serialization** | `MessageSerializer` | JSON serialization with type metadata | Jackson-based `JsonSerializer` | [wow-core serialization](https://github.com/Ahoo-Wang/Wow/tree/main/wow-core/src/main/kotlin/me/ahoo/wow/serialization) |
@@ -348,7 +348,7 @@ The `wow-spring-boot-starter` module uses Gradle feature variants to declare opt
 | `AggregateAutoConfiguration` | `@ConditionalOnWowEnabled` | `StateAggregateFactory`, `StateAggregateRepository`, `CommandAggregateFactory`, `AggregateProcessorFactory`, `CommandDispatcher`, filter chain | [AggregateAutoConfiguration.kt:50-156](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/modeling/AggregateAutoConfiguration.kt#L50-L156) |
 | `EventAutoConfiguration` | `@ConditionalOnWowEnabled` | Event bus, event dispatcher, event processor registry | [EventAutoConfiguration.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/event/EventAutoConfiguration.kt) |
 | `KafkaAutoConfiguration` | `@ConditionalOnKafkaEnabled` | Kafka command bus, Kafka event bus | [KafkaAutoConfiguration.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/kafka/KafkaAutoConfiguration.kt) |
-| `MongoEventSourcingAutoConfiguration` | `@ConditionalOnMongoEnabled` | MongoDB event store, MongoDB snapshot repository | [MongoEventSourcingAutoConfiguration.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/mongo/MongoEventSourcingAutoConfiguration.kt) |
+| `MongoEventSourcingAutoConfiguration` | `@ConditionalOnMongoEnabled` | MongoDB event store, MongoDB snapshot store | [MongoEventSourcingAutoConfiguration.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/mongo/MongoEventSourcingAutoConfiguration.kt) |
 | `WebFluxAutoConfiguration` | `@ConditionalOnWebfluxEnabled` | Command routing handler functions, OpenAPI endpoints | [WebFluxAutoConfiguration.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/webflux/WebFluxAutoConfiguration.kt) |
 
 ## CQRS Separation in Action
@@ -426,7 +426,7 @@ The compiler integrates with `wow-openapi` to automatically generate OpenAPI spe
 The architectural choices of the Wow Framework directly enable its performance profile. Key design decisions that impact performance:
 
 1. **Reactive (non-blocking) pipelines**: `Mono` and `Flux` throughout ensure no thread blocking, enabling high concurrency under load.
-2. **Snapshot optimization**: `SnapshotRepository` avoids replaying the full event history on every aggregate load.
+2. **Snapshot optimization**: `SnapshotStore` avoids replaying the full event history on every aggregate load.
 3. **Local-first routing**: `LocalFirstCommandBus` routes commands to local aggregate processors first, falling back to distributed routing only when necessary.
 4. **Wait plan flexibility**: `SENT` wait mode achieves 59,000+ TPS for fire-and-forget scenarios, while `PROCESSED` mode trades throughput for stronger consistency guarantees at 18,000+ TPS.
 

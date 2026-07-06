@@ -47,7 +47,7 @@ flowchart TB
         CB[CommandBus]
         EB[EventBus]
         ES[EventStore]
-        SR[SnapshotRepository]
+        SR[SnapshotStore]
     end
     
     WC --> CC
@@ -130,12 +130,12 @@ fun commandGateway(
 @ConditionalOnMissingBean
 fun stateAggregateRepository(
     stateAggregateFactory: StateAggregateFactory,
-    snapshotRepository: SnapshotRepository,
+    snapshotStore: SnapshotStore,
     eventStore: EventStore
 ): StateAggregateRepository {
     return EventSourcingStateAggregateRepository(
         stateAggregateFactory,
-        snapshotRepository,
+        snapshotStore,
         eventStore
     )
 }

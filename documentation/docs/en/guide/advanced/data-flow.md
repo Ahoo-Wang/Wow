@@ -414,7 +414,7 @@ When an aggregate needs to be loaded for a new command, the framework reconstruc
 sequenceDiagram
     autonumber
     participant Factory as AggregateProcessorFactory
-    participant SR as SnapshotRepository
+    participant SR as SnapshotStore
     participant ES as EventStore
     participant SA as StateAggregate
 
@@ -441,7 +441,7 @@ sequenceDiagram
 
 <!-- Sources:
   wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStoreStateAggregateRepository.kt
-  wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/SnapshotRepository.kt:27
+  wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/SnapshotStore.kt:27
   wow-core/src/main/kotlin/me/ahoo/wow/modeling/state/StateAggregate.kt:31
 -->
 

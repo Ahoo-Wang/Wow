@@ -1,6 +1,6 @@
 ---
 title: Mongo
-description: MongoDB extension providing EventStore and SnapshotRepository for production environments.
+description: MongoDB extension providing EventStore and SnapshotStore for production environments.
 ---
 
 # Mongo
@@ -9,7 +9,7 @@ The _Mongo_ extension provides support for MongoDB and is the recommended event 
 
 - `EventStore` - Event storage
 - `EventStreamQueryService` - Event stream query service
-- `SnapshotRepository` - Snapshot repository
+- `SnapshotStore` - Snapshot store
 - `SnapshotQueryService` - Snapshot query service
 - `PrepareKey` - Distributed key reservation with TTL-based expiration
 
@@ -41,7 +41,7 @@ graph TB
     subgraph Impl["wow-mongo Implementations"]
         direction LR
         MES["MongoEventStore"]
-        MSR["MongoSnapshotRepository"]
+        MSR["MongoSnapshotStore"]
         MPK["MongoPrepareKey"]
         MESQ["MongoEventStreamQueryService"]
         MSQS["MongoSnapshotQueryService"]
@@ -90,7 +90,7 @@ implementation 'org.springframework.boot:spring-boot-starter-data-mongodb-reacti
 | Component | Contract Implemented | Key File | Responsibility |
 |---|---|---|---|
 | `MongoEventStore` | `AbstractEventStore` | [MongoEventStore.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/MongoEventStore.kt) | Append, load, and query domain event streams |
-| `MongoSnapshotRepository` | `SnapshotRepository` | [MongoSnapshotRepository.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/MongoSnapshotRepository.kt) | Save, load, and version-check aggregate snapshots |
+| `MongoSnapshotStore` | `SnapshotStore` | [MongoSnapshotStore.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/MongoSnapshotStore.kt) | Save, load, and version-check aggregate snapshots |
 | `MongoPrepareKey` | `PrepareKey<V>` | [MongoPrepareKey.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/prepare/MongoPrepareKey.kt) | Distributed key reservation with TTL-based expiration |
 | `MongoEventStreamQueryService` | `EventStreamQueryService` | [MongoEventStreamQueryService.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/query/event/MongoEventStreamQueryService.kt) | Dynamic querying of raw event streams |
 | `MongoSnapshotQueryService` | `SnapshotQueryService<S>` | [MongoSnapshotQueryService.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/query/snapshot/MongoSnapshotQueryService.kt) | Dynamic querying of snapshots as materialized read models |
@@ -417,14 +417,14 @@ classDiagram
         +last(AggregateId) Mono~DomainEventStream~
     }
 
-    class SnapshotRepository {
+    class SnapshotStore {
         <<interface>>
         +load(AggregateId) Mono~Snapshot~
         +save(Snapshot) Mono~Void~
         +scanAggregateId(NamedAggregate, String, Int) Flux~AggregateId~
     }
 
-    class MongoSnapshotRepository {
+    class MongoSnapshotStore {
         -database: MongoDatabase
         +load(AggregateId) Mono~Snapshot~
         +save(Snapshot) Mono~Void~
@@ -467,13 +467,13 @@ classDiagram
     }
 
     AbstractEventStore <|-- MongoEventStore
-    SnapshotRepository <|.. MongoSnapshotRepository
+    SnapshotStore <|.. MongoSnapshotStore
     PrepareKey <|.. MongoPrepareKey
     AbstractMongoQueryService <|-- MongoEventStreamQueryService
     AbstractMongoQueryService <|-- MongoSnapshotQueryService
 ```
 
-The class hierarchy reveals two layers of abstraction: the **Wow core interfaces** (`AbstractEventStore`, `SnapshotRepository`, `PrepareKey`, `QueryService`) define the framework contract in a storage-agnostic way, while the **Mongo-specific implementations** map those contracts onto MongoDB's reactive driver primitives (`insertOne`, `replaceOne`, `find`, `countDocuments`).
+The class hierarchy reveals two layers of abstraction: the **Wow core interfaces** (`AbstractEventStore`, `SnapshotStore`, `PrepareKey`, `QueryService`) define the framework contract in a storage-agnostic way, while the **Mongo-specific implementations** map those contracts onto MongoDB's reactive driver primitives (`insertOne`, `replaceOne`, `find`, `countDocuments`).
 
 ## Index Optimization Recommendations
 

@@ -54,7 +54,7 @@ implementation 'me.ahoo.wow:wow-kafka'
 ```
 :::
 
-2. Use _MongoDB_ as event store and snapshot repository
+2. Use _MongoDB_ as event store and snapshot store
 
 ::: code-group
 ```kotlin [Gradle(Kotlin)]

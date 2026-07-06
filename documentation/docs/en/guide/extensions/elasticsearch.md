@@ -9,7 +9,7 @@ The _Elasticsearch_ extension provides support for _Elasticsearch_, suitable for
 
 - `EventStore` - Event storage
 - `EventStreamQueryService` - Event stream query service
-- `SnapshotRepository` - Snapshot repository
+- `SnapshotStore` - Snapshot store
 - `SnapshotQueryService` - Snapshot query service
 
 ## Architecture Overview

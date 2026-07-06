@@ -64,7 +64,7 @@ Key characteristics:
 | `DomainEvent` | Immutable fact about a past business action within an aggregate | [DomainEvent.kt:52-95](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/event/DomainEvent.kt#L52-L95) |
 | `DomainEventStream` | Ordered batch of domain events produced by a single command | [DomainEventStream.kt:51-125](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/DomainEventStream.kt#L51-L125) |
 | `EventStore` | Core interface for appending and loading event streams | [EventStore.kt:27-98](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt#L27-L98) |
-| `SnapshotRepository` | Optimizes aggregate loading with versioned state checkpoints | [SnapshotRepository.kt:27-58](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/SnapshotRepository.kt#L27-L58) |
+| `SnapshotStore` | Optimizes aggregate loading with versioned state checkpoints | [SnapshotStore.kt:27-58](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/SnapshotStore.kt#L27-L58) |
 
 ## Aggregate State Reconstruction
 
@@ -87,7 +87,7 @@ flowchart TD
 
 The `EventSourcingStateAggregateRepository` implements this reconstruction:
 
-1. **Snapshot-first loading**: When requesting the latest version, the repository first loads from the snapshot repository. If a snapshot exists, it serves as the starting point for incremental replay.
+1. **Snapshot-first loading**: When requesting the latest version, the repository first loads from the snapshot store. If a snapshot exists, it serves as the starting point for incremental replay.
 2. **Fresh aggregate creation**: If no snapshot exists, a new aggregate instance is created via the `StateAggregateFactory`.
 3. **Event application**: Events are replayed in version order, each calling `stateAggregate.onSourcing(it)` to mutate the in-memory state.
 
@@ -102,7 +102,7 @@ sequenceDiagram
     participant CommandGateway
     participant Aggregate
     participant EventStore
-    participant SnapshotRepo
+    participant SnapshotStore
     participant DomainEventBus
     participant Projection
     participant Saga
@@ -110,8 +110,8 @@ sequenceDiagram
     Client->>CommandGateway: Send Command
     CommandGateway->>EventStore: Load aggregate events (up to tailVersion)
     EventStore-->>CommandGateway: Flux of DomainEventStream (sorted by version)
-    CommandGateway->>SnapshotRepo: Load latest snapshot
-    SnapshotRepo-->>CommandGateway: Snapshot (or empty)
+    CommandGateway->>SnapshotStore: Load latest snapshot
+    SnapshotStore-->>CommandGateway: Snapshot (or empty)
     CommandGateway->>Aggregate: Apply events to reconstruct state
     CommandGateway->>Aggregate: Handle command -> produce new DomainEventStream
     Aggregate-->>CommandGateway: DomainEventStream (new events)

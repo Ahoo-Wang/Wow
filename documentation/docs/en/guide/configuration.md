@@ -195,6 +195,51 @@ wow:
       storage: mongo
 ```
 
+### Aggregate Storage Routing
+
+`wow.eventsourcing.storage-routing` is optional. When an aggregate or channel is not configured, Wow keeps using the corresponding global default from `wow.eventsourcing.store.storage` or `wow.eventsourcing.snapshot.storage`.
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `wow.eventsourcing.storage-routing.aggregates.*.event.storage` | StorageType | | EventStore backend for one aggregate |
+| `wow.eventsourcing.storage-routing.aggregates.*.event.binding` | String | | Named EventStore binding for one aggregate |
+| `wow.eventsourcing.storage-routing.aggregates.*.snapshot.storage` | StorageType | | SnapshotStore backend for one aggregate |
+| `wow.eventsourcing.storage-routing.aggregates.*.snapshot.binding` | String | | Named SnapshotStore binding for one aggregate |
+
+```yaml
+wow:
+  context-name: order-service
+  eventsourcing:
+    store:
+      storage: mongo
+    snapshot:
+      enabled: true
+      storage: mongo
+    storage-routing:
+      aggregates:
+        order:
+          event:
+            storage: redis
+        cart:
+          snapshot:
+            storage: redis
+        audit:
+          event:
+            binding: archive-event-store
+          snapshot:
+            binding: archive-snapshot-store
+```
+
+- `order` resolves to `order-service.order` by using the current `wow.context-name`.
+- Full aggregate keys such as `order-service.order` are also accepted. Quote the key in YAML when needed.
+- `event` routes only affect the aggregate `EventStore`; `snapshot` routes only affect the aggregate `SnapshotStore`.
+- `event.storage` and `snapshot.storage` use the `StorageType` enum: `mongo`, `redis`, `r2dbc`, `elasticsearch`, `in_memory`, or `delay`.
+- `event.binding` and `snapshot.binding` point to named custom bindings registered by application code or infrastructure auto-configuration.
+- `storage` and `binding` are mutually exclusive inside the same `event` or `snapshot` channel.
+- Storage routing selects an existing backend type or binding. Backend connection settings still belong to the backend sections such as `wow.mongo`, `wow.redis`, `wow.r2dbc`, or `wow.elasticsearch`.
+- Changing a route to another backend does not migrate existing event streams or snapshots.
+- The snapshot abstraction is now named `SnapshotStore`. Deprecated `SnapshotRepository` Kotlin compatibility aliases remain transitional and should not be used in new code.
+
 ## Infrastructure Configuration
 
 ### Kafka Configuration

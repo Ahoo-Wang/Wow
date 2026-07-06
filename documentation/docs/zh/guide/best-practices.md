@@ -11,7 +11,7 @@ description: 基于 Wow 框架构建应用的架构与开发最佳实践。
 
 #### 生产环境推荐配置
 
-- **MongoDB**: 作为事件存储（EventStore）、快照存储（SnapshotRepository）
+- **MongoDB**: 作为事件存储（EventStore）、快照存储（SnapshotStore）
   - **伸缩性**: MongoDB 的自动分片特性极大地降低了系统的伸缩成本
   - **读模型**: 将快照策略设置为 `all`，可以直接将 MongoDB 存储的快照作为读模型使用，无需额外编写投影处理器
   - **等待计划**: 结合 `SNAPSHOT` 等待计划，实现请求的同步等待

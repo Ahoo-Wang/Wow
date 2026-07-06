@@ -11,7 +11,7 @@ description: Architecture and development best practices for building applicatio
 
 #### Production Environment Recommended Configuration
 
-- **MongoDB**: As event store (EventStore), snapshot repository (SnapshotRepository)
+- **MongoDB**: As event store (EventStore), snapshot store (SnapshotStore)
   - **Scalability**: MongoDB's automatic sharding feature greatly reduces system scaling costs
   - **Read Model**: Setting snapshot strategy to `all` allows MongoDB-stored snapshots to be used directly as read models without additional projection processors
   - **Wait Plan**: Combined with a `SNAPSHOT` wait plan to achieve synchronous request waiting

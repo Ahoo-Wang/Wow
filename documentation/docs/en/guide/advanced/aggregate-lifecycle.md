@@ -431,7 +431,7 @@ When an existing aggregate receives a non-create command, the framework must loa
 ```mermaid
 flowchart TD
     A["Load Aggregate"] --> B{"Snapshot exists<br>AND tailVersion == MAX_VALUE?"}
-    B -->|"Yes"| C["Load Snapshot<br>from SnapshotRepository"]
+    B -->|"Yes"| C["Load Snapshot<br>from SnapshotStore"]
     B -->|"No"| D["Create fresh instance<br>via StateAggregateFactory"]
     C --> E["Get snapshot version<br>(e.g., version = 50)"]
     E --> F["Load incremental events<br>from version 51 to tailVersion"]
@@ -664,5 +664,5 @@ The `AggregateRoute.Owner.ALWAYS` setting on the `Order` aggregate ensures that 
 | [Domain Modeling](../modeling) | Designing aggregates, commands, events, and state classes |
 | [Saga Orchestration](../saga) | Distributed transaction support via sagas |
 | [Configuration Reference: Event Sourcing](../../reference/config/eventsourcing) | Event sourcing configuration properties |
-| [Configuration Reference: Snapshot](../../reference/config/snapshot) | Snapshot repository configuration |
+| [Configuration Reference: Snapshot](../../reference/config/snapshot) | Snapshot store configuration |
 | [Testing](../test-suite) | AggregateSpec and Given-When-Expect testing DSL |

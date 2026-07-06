@@ -1,0 +1,84 @@
+{
+  "groups": [
+    {
+      "name": "wow.eventsourcing.storage-routing",
+      "type": "me.ahoo.wow.spring.boot.starter.eventsourcing.routing.StorageRoutingProperties",
+      "description": "Aggregate-level EventStore and SnapshotStore routing."
+    },
+    {
+      "name": "wow.eventsourcing.storage-routing.aggregates",
+      "type": "java.util.Map<java.lang.String,me.ahoo.wow.spring.boot.starter.eventsourcing.routing.AggregateStorageRouteProperties>",
+      "description": "Aggregate routes keyed by aggregate name in the current context or by fully qualified context.aggregate name."
+    }
+  ],
+  "properties": [
+    {
+      "name": "wow.eventsourcing.storage-routing.aggregates.*.event.storage",
+      "type": "me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType",
+      "description": "EventStore backend type for this aggregate. Selects an existing backend type; it does not define backend connection settings."
+    },
+    {
+      "name": "wow.eventsourcing.storage-routing.aggregates.*.event.binding",
+      "type": "java.lang.String",
+      "description": "Named EventStore binding for this aggregate. The binding must be provided by application code or auto-configuration."
+    },
+    {
+      "name": "wow.eventsourcing.storage-routing.aggregates.*.snapshot.storage",
+      "type": "me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType",
+      "description": "SnapshotStore backend type for this aggregate. Selects an existing backend type; it does not define backend connection settings."
+    },
+    {
+      "name": "wow.eventsourcing.storage-routing.aggregates.*.snapshot.binding",
+      "type": "java.lang.String",
+      "description": "Named SnapshotStore binding for this aggregate. The binding must be provided by application code or auto-configuration."
+    }
+  ],
+  "hints": [
+    {
+      "name": "wow.eventsourcing.storage-routing.aggregates.*.event.storage",
+      "values": [
+        {
+          "value": "mongo"
+        },
+        {
+          "value": "redis"
+        },
+        {
+          "value": "r2dbc"
+        },
+        {
+          "value": "elasticsearch"
+        },
+        {
+          "value": "in_memory"
+        },
+        {
+          "value": "delay"
+        }
+      ]
+    },
+    {
+      "name": "wow.eventsourcing.storage-routing.aggregates.*.snapshot.storage",
+      "values": [
+        {
+          "value": "mongo"
+        },
+        {
+          "value": "redis"
+        },
+        {
+          "value": "r2dbc"
+        },
+        {
+          "value": "elasticsearch"
+        },
+        {
+          "value": "in_memory"
+        },
+        {
+          "value": "delay"
+        }
+      ]
+    }
+  ]
+}
