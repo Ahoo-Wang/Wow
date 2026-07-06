@@ -428,11 +428,11 @@ wow:
 wow:
   eventsourcing:
     store:
-      storage: mongo  # mongo, redis, r2dbc, in_memory, delay
+      storage: mongo  # mongo, redis, elasticsearch, in_memory, delay
     snapshot:
+      storage: mongo  # mongo, redis, elasticsearch, in_memory, delay
       enabled: true  # 启用快照优化
       strategy: all  # all, version_offset
-      storage: mongo  # mongo, redis, r2dbc, elasticsearch, in_memory, delay
       version-offset: 5  # 快照的版本偏移量
     state:
       bus:

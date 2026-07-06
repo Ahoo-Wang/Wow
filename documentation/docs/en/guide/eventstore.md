@@ -147,13 +147,11 @@ classDiagram
     class InMemoryEventStore
     class MongoEventStore
     class RedisEventStore
-    class R2dbcEventStore
 
     EventStore <|.. AbstractEventStore : implements
     AbstractEventStore <|-- InMemoryEventStore : extends
     AbstractEventStore <|-- MongoEventStore : extends
     AbstractEventStore <|-- RedisEventStore : extends
-    AbstractEventStore <|-- R2dbcEventStore : extends
 ```
 
 The `AbstractEventStore` applies the **template method pattern** to centralize cross-cutting concerns:
@@ -187,15 +185,14 @@ stateDiagram-v2
 
 ## Implementation Comparison
 
-| Feature | MongoDB | Redis | R2DBC | In-Memory |
-|---|---|---|---|---|
-| **Persistence** | Durable (disk) | Configurable | Durable (SQL) | Volatile (memory) |
-| **Version range query** | Yes | Yes (ZRANGEBYSCORE) | Yes (SQL BETWEEN) | Yes (in-memory) |
-| **Time range query** | Yes | No | Yes (SQL BETWEEN) | Yes (in-memory) |
-| **Concurrency control** | Unique compound index | Lua script (atomic) | Unique SQL index | Synchronized map |
-| **Sharding support** | Sharded collections | Redis cluster | `ShardingEventStreamSchema` | N/A |
-| **Production readiness** | High | Medium | High | Dev/Test only |
-| **Key class** | [MongoEventStore.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/MongoEventStore.kt#L32) | [RedisEventStore.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-redis/src/main/kotlin/me/ahoo/wow/redis/eventsourcing/RedisEventStore.kt#L35) | [R2dbcEventStore.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-r2dbc/src/main/kotlin/me/ahoo/wow/r2dbc/R2dbcEventStore.kt#L34) | [InMemoryEventStore.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/InMemoryEventStore.kt#L30) |
+| Feature | MongoDB | Redis | In-Memory |
+|---|---|---|---|
+| **Persistence** | Durable (disk) | Configurable | Volatile (memory) |
+| **Version range query** | Yes | Yes (ZRANGEBYSCORE) | Yes (in-memory) |
+| **Time range query** | Yes | No | Yes (in-memory) |
+| **Concurrency control** | Unique compound index | Lua script (atomic) | Synchronized map |
+| **Sharding support** | Sharded collections | Redis cluster | N/A |
+| **Production readiness** | High | Medium | Dev/Test only |
 
 ### Storage Schema Per Implementation
 
@@ -203,7 +200,6 @@ stateDiagram-v2
 
 **Redis** stores event streams in a **sorted set** keyed by aggregate ID. Each member is a JSON-serialized `DomainEventStream`, scored by version number. Append operations use a Lua script for atomicity — checking version conflicts and duplicate request IDs in a single transaction ([RedisEventStore.kt:44-65](https://github.com/Ahoo-Wang/Wow/blob/main/wow-redis/src/main/kotlin/me/ahoo/wow/redis/eventsourcing/RedisEventStore.kt#L44-L65)). Time-range loading is not supported.
 
-**R2DBC** uses a relational table per aggregate type (`<aggregateName>_event_stream`). Unique indexes on `(aggregate_id, version)` and `request_id` enforce the same invariants. The `ShardingEventStreamSchema` variant supports table sharding for horizontally scaled deployments ([EventStreamSchema.kt:47-53](https://github.com/Ahoo-Wang/Wow/blob/main/wow-r2dbc/src/main/kotlin/me/ahoo/wow/r2dbc/EventStreamSchema.kt#L47-L53)).
 
 ## Configuration
 
@@ -211,7 +207,7 @@ stateDiagram-v2
 wow:
   eventsourcing:
     store:
-      storage: mongo  # Event store type (mongo, r2dbc, redis, in_memory)
+      storage: mongo
     snapshot:
       enabled: true
       strategy: version_offset  # all, version_offset
@@ -229,17 +225,15 @@ wow:
 
 ## Best Practices
 
-1. **Choose the right backend**: MongoDB and R2DBC are recommended for production. MongoDB for schema flexibility and horizontal scaling. R2DBC if your organization operates relational databases. Redis for high-throughput, lower-data-volume scenarios.
+1. **Enable snapshots for long-lived aggregates**: Set `strategy` to `version_offset` with offset 5-20 to avoid linear degradation for aggregates with many events.
 
-2. **Enable snapshots for long-lived aggregates**: Set `strategy` to `version_offset` with offset 5-20 to avoid linear degradation for aggregates with many events.
+2. **Monitor version conflicts**: Occasional `EventVersionConflictException`s are normal. High frequency indicates contention — consider redesigning aggregate boundaries.
 
-3. **Monitor version conflicts**: Occasional `EventVersionConflictException`s are normal. High frequency indicates contention — consider redesigning aggregate boundaries.
+3. **Leverage request idempotency**: The `requestId` field guarantees that retrying a command does not produce duplicate events — essential for at-least-once delivery.
 
-4. **Leverage request idempotency**: The `requestId` field guarantees that retrying a command does not produce duplicate events — essential for at-least-once delivery.
+4. **Keep events immutable and declarative**: Events should represent simple facts rather than conditional logic. The aggregate's sourcing function simply overlays events onto state.
 
-5. **Keep events immutable and declarative**: Events should represent simple facts rather than conditional logic. The aggregate's sourcing function simply overlays events onto state.
-
-6. **Use In-Memory for testing only**: `InMemoryEventStore` is thread-safe but volatile. Do not deploy to production.
+5. **Use In-Memory for testing only**: `InMemoryEventStore` is thread-safe but volatile. Do not deploy to production.
 
 ## Related Topics
 

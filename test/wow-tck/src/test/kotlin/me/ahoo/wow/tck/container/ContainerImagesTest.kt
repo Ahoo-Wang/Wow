@@ -25,6 +25,5 @@ class ContainerImagesTest {
         ContainerImages.ELASTICSEARCH_REPOSITORY.assert().isEqualTo("docker.elastic.co/elasticsearch/elasticsearch")
         ContainerImages.ELASTICSEARCH_TAG.assert().isEqualTo("9.2.6")
         ContainerImages.REDIS.assert().isEqualTo("redis:7.4-alpine")
-        ContainerImages.MARIADB.assert().isEqualTo("mariadb:10.6.4")
     }
 }

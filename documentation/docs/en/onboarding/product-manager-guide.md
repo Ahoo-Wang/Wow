@@ -228,10 +228,10 @@ Wow integrates with your existing infrastructure. Your team can choose the stora
 
 | Capability | Available Options | Notes |
 |---|---|---|
-| **Event Storage** (where the audit trail lives) | MongoDB, Redis, MariaDB, PostgreSQL, MySQL | Choose based on your existing infrastructure. All options are production-ready. |
+| **Event Storage** (where the audit trail lives) | MongoDB, Redis, Elasticsearch | Choose based on your existing infrastructure and access patterns. |
 | **Message Transport** (how services communicate) | Apache Kafka | Used for distributing events and commands between services. |
 | **Query / Search** (how data is displayed to users) | MongoDB, Elasticsearch | Optimized read models for fast queries. |
-| **Snapshot Storage** (performance optimization) | MongoDB, Redis, MariaDB, PostgreSQL, MySQL | Speeds up loading of aggregate state for frequently accessed objects. |
+| **Snapshot Storage** (performance optimization) | MongoDB, Redis, Elasticsearch | Speeds up loading of aggregate state for frequently accessed objects. |
 | **Observability** | OpenTelemetry (tracing, metrics, logging) | Integrates with Jaeger, Zipkin, Prometheus, Grafana, and other OpenTelemetry-compatible tools. |
 | **ID Generation** | CosId (Snowflake, segment-based) | Globally unique IDs for every business object. No collisions across services. |
 | **Data Warehouse** | ClickHouse (via `wow-bi` module) | Auto-generated ETL scripts for business intelligence. |
@@ -280,7 +280,7 @@ This section explains what data Wow handles, where it lives, and what you need t
 
 | Data Category | What It Contains | Storage Location | Retention |
 |---|---|---|---|
-| **Domain Events** | Records of every business decision: "Order #1234 was created by Customer A at 3:14 PM." Includes the full context of what changed and why. | Configured event store (MongoDB, Redis, PostgreSQL, etc.) | Permanent by default; configurable retention policy |
+| **Domain Events** | Records of every business decision: "Order #1234 was created by Customer A at 3:14 PM." Includes the full context of what changed and why. | Configured event store (MongoDB, Redis, Elasticsearch, etc.) | Permanent by default; configurable retention policy |
 | **Aggregate Snapshots** | Compressed summaries of the current state of each business object, created periodically to speed up loading. | Configured snapshot store (same options as event store) | Replaced on each new snapshot; old snapshots can be pruned |
 | **Read Models** | Optimized representations of business data for fast querying. For example, a "Pending Orders" view for the warehouse team. | Elasticsearch or MongoDB | Updated in near real time as events flow through the system |
 | **Compensation Records** | Details of every failed business operation: what failed, when, how many retry attempts, and the current status. | Same event store as domain events | Historical record; can be cleared for resolved entries |
@@ -418,7 +418,7 @@ A: This depends on your business volume. As a rough estimate, each business oper
 
 **Q: What happens if the database runs out of space?**
 
-A: Event store backends (MongoDB, Redis, PostgreSQL) have their own scaling mechanisms. You can also archive older events to cold storage (object storage, data warehouse) and configure retention policies. The critical insight: events are append-only, so the write path is never slowed by data volume — only the read path for historical queries is affected, and snapshots mitigate that.
+A: Event store backends (MongoDB, Redis, Elasticsearch) have their own scaling mechanisms. You can also archive older events to cold storage (object storage, data warehouse) and configure retention policies. The critical insight: events are append-only, so the write path is never slowed by data volume — only the read path for historical queries is affected, and snapshots mitigate that.
 
 ---
 

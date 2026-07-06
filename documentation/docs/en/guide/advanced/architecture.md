@@ -17,11 +17,9 @@ Wow's architecture is built around a single core principle: **"Domain Model as a
 | **wow-api** | Pure API contracts: `CommandMessage`, `DomainEvent`, `AggregateId`, `NamedBoundedContext` | `wow-api` module | [Wow.kt:26-45](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/Wow.kt#L26-L45) |
 | **wow-core** | Framework engine: aggregates, command bus, event store, projections, sagas, serialization | `wow-core` module | [CommandGateway.kt:75-178](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt#L75-L178) |
 | **wow-spring** | Spring Framework integration layer | `wow-spring` module | [settings.gradle.kts:32](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L32) |
-| **wow-spring-boot-starter** | Auto-configuration with feature capabilities (Mongo, Kafka, Redis, R2DBC, etc.) | `wow-spring-boot-starter` module | [AggregateAutoConfiguration.kt:50-156](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/modeling/AggregateAutoConfiguration.kt#L50-L156) |
 | **wow-compiler** | KSP processor: generates command routing, event metadata, OpenAPI specs at compile time | `wow-compiler` module | [settings.gradle.kts:26](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L26) |
 | **wow-test** | Unit testing DSL: `AggregateSpec` / `SagaSpec` with Given-When-Expect pattern | `test/wow-test` | [settings.gradle.kts:44-45](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L44-L45) |
 | **wow-kafka** | Command/event bus implementation via Apache Kafka | `wow-kafka` module | [settings.gradle.kts:27](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L27) |
-| **wow-mongo / wow-redis / wow-r2dbc** | Event store and snapshot store backends | `wow-mongo`, `wow-redis`, `wow-r2dbc` modules | [settings.gradle.kts:28-30](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L28-L30) |
 | **wow-elasticsearch** | Projection (read model) storage via Elasticsearch | `wow-elasticsearch` module | [settings.gradle.kts:31](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L31) |
 | **wow-opentelemetry** | End-to-end tracing and observability | `wow-opentelemetry` module | [settings.gradle.kts:35](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L35) |
 | **wow-cosec** | Authorization and access control | `wow-cosec` module | [settings.gradle.kts:40](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L40) |
@@ -49,7 +47,6 @@ flowchart TB
         E1["wow-kafka<br>Kafka command/event bus"]
         E2["wow-mongo<br>MongoDB event store"]
         E3["wow-redis<br>Redis event store"]
-        E4["wow-r2dbc<br>R2DBC event store"]
         E5["wow-elasticsearch<br>Elasticsearch projection"]
         E6["wow-webflux<br>WebFlux command endpoint"]
         E7["wow-cosec<br>Authorization"]
@@ -104,7 +101,6 @@ The module hierarchy is defined in [settings.gradle.kts:19-63](https://github.co
 | **Core Engine** | `wow-core` | Aggregate processing, command bus, event store abstraction, saga processing, projection dispatch, serialization. All reactive (Project Reactor). | [wow-core](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandGateway.kt) |
 | **Compile-Time** | `wow-compiler` | KSP processor. Generates command routing tables, event handler metadata, and OpenAPI specs from annotations at compile time. | [settings.gradle.kts:26](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L26) |
 | **Spring Integration** | `wow-spring`, `wow-spring-boot-starter` | Bridges the core engine into Spring's `ApplicationContext`. The starter provides auto-configuration with Gradle feature variants for optional capabilities. | [WowAutoConfiguration.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowAutoConfiguration.kt) |
-| **Infrastructure** | `wow-kafka`, `wow-mongo`, `wow-redis`, `wow-r2dbc`, `wow-elasticsearch`, `wow-webflux` | Concrete implementations of core abstractions. Pluggable via classpath detection. | [settings.gradle.kts:27-34](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L27-L34) |
 | **Observability** | `wow-opentelemetry` | End-to-end tracing, metrics, and logging integration via OpenTelemetry. | [settings.gradle.kts:35](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L35) |
 | **Security** | `wow-cosec` | Command/query authorization with policy-based access control. | [settings.gradle.kts:40](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L40) |
 | **Testing** | `wow-test`, `wow-tck`, `wow-mock` | Aggregate and saga testing DSL; Technology Compatibility Kit for integration tests; in-memory mock implementations. | [settings.gradle.kts:44-49](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L44-L49) |
@@ -332,8 +328,6 @@ The Wow Framework follows the **Strategy Pattern** throughout: every infrastruct
 |---|---|---|---|---|
 | **Command Bus** | `CommandBus` / `DistributedCommandBus` | Routes commands to aggregate processors | `InMemoryCommandBus`, `LocalFirstCommandBus`, Kafka-backed | [CommandBus.kt:36-69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/CommandBus.kt#L36-L69) |
 | **Event Bus** | `EventBus` / `DomainEventBus` | Distributes domain events to projections, sagas, and handlers | `InMemoryEventBus`, Kafka-backed, Redis-backed | [settings.gradle.kts:27](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L27) |
-| **Event Store** | `EventStore` | Persistent storage of event streams | MongoDB, Redis, R2DBC (PostgreSQL/MySQL/MariaDB) | [EventStore.kt:27](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt#L27) |
-| **Snapshot Store** | `SnapshotStore` | Snapshot storage for aggregate performance optimization | MongoDB, Redis, R2DBC | [settings.gradle.kts:28-30](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L28-L30) |
 | **Wait Plan** | `WaitPlan` | Controls command response timing | `StageWaitTarget`, `ChainWaitTarget`, `CommandWait` factories | [WaitPlan.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitPlan.kt) |
 | **ID Generator** | `IdGenerator` (via CosId) | Generates globally unique aggregate IDs | Snowflake, segment, etc. (via CosId integration) | `me.ahoo.cosid` |
 | **Serialization** | `MessageSerializer` | JSON serialization with type metadata | Jackson-based `JsonSerializer` | [wow-core serialization](https://github.com/Ahoo-Wang/Wow/tree/main/wow-core/src/main/kotlin/me/ahoo/wow/serialization) |
@@ -368,7 +362,6 @@ flowchart LR
     end
 
     subgraph READ["Read Side (Query)"]
-        PP["ProjectionProcessor"] --> RM[("Read Model<br>Elasticsearch / R2DBC")]
         SP["SagaProcessor"] --> CG["CommandGateway"]
         QS["QueryService"] --> RM
     end

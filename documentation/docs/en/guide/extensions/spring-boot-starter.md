@@ -71,7 +71,6 @@ flowchart TB
 | `KafkaAutoConfiguration` | Kafka configuration | Classpath contains Kafka |
 | `MongoAutoConfiguration` | MongoDB configuration | Classpath contains MongoDB |
 | `RedisAutoConfiguration` | Redis configuration | Classpath contains Redis |
-| `R2dbcAutoConfiguration` | R2DBC configuration | Classpath contains R2DBC |
 | `WebFluxAutoConfiguration` | WebFlux configuration | Classpath contains WebFlux |
 
 ## Complete Configuration Properties

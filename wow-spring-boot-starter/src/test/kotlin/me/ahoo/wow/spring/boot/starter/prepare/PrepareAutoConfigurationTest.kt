@@ -38,7 +38,6 @@ import me.ahoo.wow.spring.boot.starter.openapi.OpenAPIAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.opentelemetry.WowOpenTelemetryAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.projection.ProjectionDispatcherAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.query.QueryAutoConfiguration
-import me.ahoo.wow.spring.boot.starter.r2dbc.R2dbcAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.saga.StatelessSagaAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.webflux.WebFluxAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.webflux.WowWebClientAutoConfiguration
@@ -153,8 +152,6 @@ class PrepareAutoConfigurationTest {
         MetricsAutoConfiguration::class,
         CommandGatewayAutoConfiguration::class,
         WowOpenTelemetryAutoConfiguration::class,
-        R2dbcAutoConfiguration::class,
-        org.springframework.boot.r2dbc.autoconfigure.R2dbcAutoConfiguration::class,
         OpenAPIAutoConfiguration::class,
         WebFluxAutoConfiguration::class,
         WowWebClientAutoConfiguration::class,

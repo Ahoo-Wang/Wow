@@ -39,7 +39,7 @@ wow:
         local-first:
           enabled: true
     store:
-      storage: mongo               # Event store type: mongo, r2dbc, redis, elasticsearch, in_memory, delay
+      storage: mongo               # Event store type: mongo, redis, elasticsearch, in_memory, delay
     snapshot:
       enabled: true
       strategy: all                # all, version_offset
@@ -62,10 +62,6 @@ wow:
   redis:
     enabled: true
 
-  r2dbc:
-    enabled: true
-    datasource:
-      type: simple                 # simple or sharding
 
   elasticsearch:
     enabled: true
@@ -173,7 +169,7 @@ wow:
 wow:
   eventsourcing:
     store:
-      storage: mongo    # mongo, r2dbc, redis, elasticsearch, in_memory, delay
+      storage: mongo    # mongo, redis, elasticsearch, in_memory, delay
 ```
 
 ### Snapshot Configuration
@@ -233,10 +229,8 @@ wow:
 - `order` resolves to `order-service.order` by using the current `wow.context-name`.
 - Full aggregate keys such as `order-service.order` are also accepted. Quote the key in YAML when needed.
 - `event` routes only affect the aggregate `EventStore`; `snapshot` routes only affect the aggregate `SnapshotStore`.
-- `event.storage` and `snapshot.storage` use the `StorageType` enum: `mongo`, `redis`, `r2dbc`, `elasticsearch`, `in_memory`, or `delay`.
 - `event.binding` and `snapshot.binding` point to named custom bindings registered by application code or infrastructure auto-configuration.
 - `storage` and `binding` are mutually exclusive inside the same `event` or `snapshot` channel.
-- Storage routing selects an existing backend type or binding. Backend connection settings still belong to the backend sections such as `wow.mongo`, `wow.redis`, `wow.r2dbc`, or `wow.elasticsearch`.
 - Changing a route to another backend does not migrate existing event streams or snapshots.
 - The snapshot abstraction is now named `SnapshotStore`. Deprecated `SnapshotRepository` Kotlin compatibility aliases remain transitional and should not be used in new code.
 
@@ -293,20 +287,6 @@ wow:
     enabled: true
 ```
 
-### R2DBC Configuration
-
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `wow.r2dbc.enabled` | Boolean | `true` | Enable R2DBC support |
-| `wow.r2dbc.datasource.type` | Type | `simple` | simple or sharding |
-
-```yaml
-wow:
-  r2dbc:
-    enabled: true
-    datasource:
-      type: simple
-```
 
 ### Elasticsearch Configuration
 
@@ -388,7 +368,6 @@ For event stores and snapshots:
 | Type | Description |
 |------|-------------|
 | `mongo` | MongoDB (recommended for event store) |
-| `r2dbc` | R2DBC-compatible databases |
 | `redis` | Redis for high-performance scenarios |
 | `elasticsearch` | Elasticsearch for full-text search |
 
@@ -406,8 +385,6 @@ spring:
       host: localhost
       port: 6379
 
-  r2dbc:
-    url: r2dbc:pool:mysql://localhost:3306/wow_db
 
   elasticsearch:
     uris:
@@ -448,10 +425,6 @@ wow:
   mongo:
     enabled: true
     auto-init-schema: true
-  r2dbc:
-    enabled: true
-    datasource:
-      type: simple
   elasticsearch:
     enabled: true
   compensation:
@@ -540,7 +513,6 @@ For detailed configuration of specific modules, see:
 - [MongoDB Extension](./extensions/mongo)
 - [Redis Extension](./extensions/redis)
 - [Elasticsearch Extension](./extensions/elasticsearch)
-- [R2DBC Extension](./extensions/r2bdc)
 - [Event Compensation](./event-compensation)
 - [Command Configuration](./reference/config/command)
 - [Event Configuration](./reference/config/event)

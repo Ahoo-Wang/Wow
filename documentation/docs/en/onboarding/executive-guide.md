@@ -90,9 +90,7 @@ Wow provides a comprehensive set of capabilities out of the box. The table below
 |---|---|---|---|---|
 | **DDD Aggregate Modeling** | First-class support for aggregate roots, state aggregates, value objects, and domain events. Three modeling patterns: single-class, inheritance, aggregation. | `wow-core` | Eliminates boilerplate; developers write only domain logic | [CLAUDE.md:46-47](https://github.com/Ahoo-Wang/Wow/blob/main/CLAUDE.md#L46-L47) |
 | **Command Bus** | Reactive command routing with configurable wait plans (SENT, PROCESSED, PROJECTED, SAGA_HANDLED). Local-first routing for performance. | `wow-core`, `wow-kafka` | Decouples command senders from handlers; enables fire-and-forget or synchronous semantics | [CLAUDE.md:46-47](https://github.com/Ahoo-Wang/Wow/blob/main/CLAUDE.md#L46-L47) |
-| **Event Store** | Append-only event persistence with optimistic concurrency control. Backends: MongoDB, Redis, R2DBC (PostgreSQL/MySQL/MariaDB). | `wow-mongo`, `wow-redis`, `wow-r2dbc` | Full audit trail; point-in-time state reconstruction; no data loss | [wiki/en/deep-dive/data/event-store.md](https://github.com/Ahoo-Wang/Wow/blob/main/wiki/en/deep-dive/data/event-store.md) |
 | **Snapshot Store** | Periodic state snapshots to accelerate aggregate loading. Configurable snapshot intervals. | `wow-core`, `wow-mongo`, `wow-redis` | Prevents long event replays for high-event-count aggregates; keeps latency predictable | [wiki/en/deep-dive/data/snapshot-store.md](https://github.com/Ahoo-Wang/Wow/blob/main/wiki/en/deep-dive/data/snapshot-store.md) |
-| **Projections** | Reactive event-to-read-model transformation pipelines. Targets: Elasticsearch, R2DBC, in-memory. | `wow-core`, `wow-elasticsearch` | Enables CQRS read-optimized views without manual sync logic | [wiki/en/guide/projection.md](https://github.com/Ahoo-Wang/Wow/blob/main/wiki/en/guide/projection.md) |
 | **Saga Orchestration** | Distributed transaction support via event-driven choreography. Automatic compensation on failure. | `wow-core` | Enables multi-aggregate business transactions without distributed locking | [wiki/en/guide/saga.md](https://github.com/Ahoo-Wang/Wow/blob/main/wiki/en/guide/saga.md) |
 | **Event Compensation** | Failure tracking, automatic retry, and a React-based dashboard for operational visibility. | `compensation/` modules | Operational safety net for saga failures; reduces MTTR for production incidents | [wiki/en/guide/event-compensation.md](https://github.com/Ahoo-Wang/Wow/blob/main/wiki/en/guide/event-compensation.md) |
 | **Compile-Time Codegen** | KSP processor generates command routing tables, event handler metadata, and OpenAPI specs. Zero runtime reflection. | `wow-compiler` | Faster startup; type-safety at build time; automatic API documentation | [CLAUDE.md:48](https://github.com/Ahoo-Wang/Wow/blob/main/CLAUDE.md#L48) |
@@ -138,7 +136,6 @@ graph TB
         F1["L0: Contracts<br>wow-api<br>Pure interfaces"]
         F2["L1: Core Engine<br>wow-core<br>Aggregates, Command Bus<br>Event Store, Projections<br>Sagas"]
         F3["L2: Compile-Time<br>wow-compiler<br>KSP Code Generation"]
-        F4["L3: Infrastructure<br>wow-kafka, wow-mongo<br>wow-redis, wow-r2dbc<br>wow-elasticsearch"]
         F5["L4: Spring Integration<br>wow-spring-boot-starter<br>wow-webflux<br>wow-opentelemetry"]
         F6["L5: Extensions<br>wow-cosec, wow-cocache<br>wow-schema, wow-openapi<br>wow-bi, wow-apiclient"]
         F7["L6: Testing & Ops<br>wow-test, wow-tck<br>compensation/*"]
@@ -171,11 +168,9 @@ Every technology adoption carries risk. The following assessment evaluates Wow a
 | **Technical** | Single-maintainer risk (small core team) | High | Medium | Apache 2.0 license enables forking; Maven Central published artifacts are immutable; comprehensive test suite (80%+ coverage) ensures stability regardless of contributor count | [codecov](https://codecov.io/gh/Ahoo-Wang/Wow), [Maven Central](https://central.sonatype.com/artifact/me.ahoo.wow/wow-core) |
 | **Technical** | Kotlin/JVM talent market constraints | Medium | Medium | Kotlin interops seamlessly with Java; Wow includes a [Java example project](https://github.com/Ahoo-Wang/Wow/tree/main/example/transfer); Kotlin adoption is growing in enterprise Spring shops | [CLAUDE.md:98](https://github.com/Ahoo-Wang/Wow/blob/main/CLAUDE.md#L98), [example/transfer](https://github.com/Ahoo-Wang/Wow/tree/main/example/transfer) |
 | **Technical** | Kafka dependency for production | Medium | Low | Kafka is optional -- Redis Streams and in-memory buses are available; LocalFirst mode routes commands locally before falling back to distributed bus; Kafka is a mature, well-understood infrastructure component | [wiki/en/reference/config/basic.md:36-44](https://github.com/Ahoo-Wang/Wow/blob/main/wiki/en/reference/config/basic.md#L36-L44) |
-| **Technical** | Event store migration complexity | High | Low | Event store interfaces are abstracted; switching from MongoDB to R2DBC requires configuration changes, not domain rewrites; append-only nature means data can be replicated between backends | [wiki/en/deep-dive/data/event-store.md](https://github.com/Ahoo-Wang/Wow/blob/main/wiki/en/deep-dive/data/event-store.md) |
 | **Technical** | Reactive programming learning curve | Medium | High | All command/event paths are non-blocking via Project Reactor; developers unfamiliar with reactive patterns need ramp-up; testing DSL abstracts much of the complexity; `Mono`/`Flux` are well-documented in Spring ecosystem | [wiki/en/guide/architecture.md:73-76](https://github.com/Ahoo-Wang/Wow/blob/main/wiki/en/guide/architecture.md#L73-L76) |
 | **Operational** | Event store unbounded growth | Medium | High | Snapshots reduce replay cost; event store partitioning by aggregate ID; event archival strategies can be implemented at the application level; the framework does not pressure auto-delete (retention is a feature, not a bug) | [wiki/en/deep-dive/data/snapshot-store.md](https://github.com/Ahoo-Wang/Wow/blob/main/wiki/en/deep-dive/data/snapshot-store.md) |
 | **Operational** | Debugging event-sourced systems | Medium | Medium | Compensation dashboard provides event-level visibility; OpenTelemetry tracing follows command-to-event-to-projection paths; point-in-time state reconstruction enables replay-based debugging | [wiki/en/guide/event-compensation.md](https://github.com/Ahoo-Wang/Wow/blob/main/wiki/en/guide/event-compensation.md) |
-| **Operational** | Infrastructure complexity (Kafka + MongoDB + Elasticsearch) | Medium | Medium | For smaller deployments, Redis + R2DBC can replace MongoDB + Elasticsearch; in-memory mode suffices for development and testing; the framework auto-configures based on classpath, so unused backends have zero overhead | [wiki/en/reference/config/](https://github.com/Ahoo-Wang/Wow/tree/main/wiki/en/reference/config/) |
 | **Adoption** | Team resistance to DDD/CQRS/ES paradigm | High | High | Start with a single bounded context (the incremental adoption strategy detailed below); the testing DSL makes correctness visible; success with one context builds organizational confidence; Wow's compile-time code generation eliminates CRUD-style boilerplate that teams default to | See Adoption Strategy section below |
 | **Adoption** | Version upgrade risk (8.x to 9.x) | Medium | Low | Semantic versioning; migration guides documented; the framework's clean module separation means internal API breaks are unlikely to cascade to domain code | [wiki/en/guide/migration.md](https://github.com/Ahoo-Wang/Wow/blob/main/wiki/en/guide/migration.md) |
 | **Adoption** | Competition from Axon Framework (larger community) | Low | Medium | Axon has a larger community but is commercially motivated (AxonIQ); Wow is Apache 2.0 with no commercial entity behind it, eliminating vendor-lock concerns; Wow's compile-time code generation and reactive-first architecture are differentiators | [wiki/en/reference/cqrs.md:18-19](https://github.com/Ahoo-Wang/Wow/blob/main/wiki/en/reference/cqrs.md#L18-L19) |
@@ -220,7 +215,6 @@ The build-vs-buy calculation for event-sourced infrastructure on the JVM is star
 
 | Component | Estimated Engineering Months | Wow Equivalent |
 |---|---|---|
-| Event store with optimistic concurrency + snapshots | 4-6 months | `wow-core` + backend (Mongo/Redis/R2DBC) |
 | Reactive command bus with wait plans | 2-3 months | `wow-core` + `wow-kafka` |
 | Projection pipeline with read model sync | 3-4 months | `wow-core` + `wow-elasticsearch` |
 | Saga orchestration with compensation | 3-5 months | `wow-core` + `compensation/` |
@@ -283,13 +277,11 @@ graph TB
 | Component | Infrastructure Requirement | Estimated Monthly Cost (Cloud) | Notes |
 |---|---|---|---|
 | **Kafka** | 3-node cluster (production) | $300-800/mo | Can use managed (Confluent, MSK); lower for Redis Streams alternative |
-| **MongoDB** | Replica set or Atlas | $150-500/mo | Can use R2DBC (PostgreSQL) as lower-cost alternative |
 | **Elasticsearch** | 2-3 node cluster | $200-600/mo | Optional; only needed if using Elasticsearch projections |
 | **Application** | Standard Spring Boot containers | Variable | Scales horizontally; JVM 17 with modest heap requirements |
 | **Observability** | OpenTelemetry collector + Prometheus | $100-300/mo | Integrates with existing observability stack |
 | **Compensation** | Embedded in application | $0 incremental | Dashboard is served from the same application instance |
 
-Total infrastructure cost for a modest production deployment: **$750-2,200/month** plus application hosting. The architecture supports incremental infrastructure investment -- start with Redis + R2DBC on a single server, add Kafka and MongoDB as throughput requirements grow.
 
 <!-- Sources: README.md:20-25, wiki/en/reference/config/, CLAUDE.md:59-65 -->
 
@@ -298,7 +290,6 @@ Total infrastructure cost for a modest production deployment: **$750-2,200/month
 | Dimension | Characteristic | How Wow Handles It |
 |---|---|---|
 | **Write throughput** | ~60K TPS per instance (SENT mode) | Horizontal scaling adds instances; Kafka partitions by aggregate ID; no cross-instance coordination |
-| **Read throughput** | Limited by projection store (Elasticsearch/R2DBC) | Projections decoupled from writes; read replicas; CoCache caching layer |
 | **Aggregate count** | Event store grows linearly per aggregate | Snapshots bound replay cost; event store partitioning by aggregate ID; archival strategies possible |
 | **Event history depth** | Long-lived aggregates accumulate events | Snapshots at configurable intervals; only incremental events replayed since last snapshot |
 | **Team scaling** | Each bounded context is independently deployable | Module-per-context pattern; teams own their domain without coordination |
@@ -351,7 +342,6 @@ The [Wow Project Template](https://github.com/Ahoo-Wang/wow-project-template) an
 | **Language** | Kotlin first (Java compatible) | Java first (Kotlin compatible) | Java/Kotlin | Scala/Java |
 | **CQRS Separation** | Built-in: command bus + event bus + projection pipeline | Built-in: command gateway + event bus + query handlers | You build everything | You build the ES/CQRS layer on top |
 | **Event Sourcing** | Full: event store, snapshot store, state rebuild, optimistic concurrency | Full: event store, snapshot, upcasting, tracking tokens | You build everything | You build everything |
-| **Event Store Backends** | MongoDB, Redis, R2DBC (PostgreSQL/MySQL/MariaDB) | Axon Server, JPA, JDBC, MongoDB | Whatever you implement | Whatever you implement |
 | **Message Bus** | Kafka, Redis Streams, In-Memory | Axon Server, Kafka, RabbitMQ, gRPC | Whatever you implement | Akka Cluster, Kafka |
 | **Compile-Time Processing** | KSP: routing tables, event metadata, OpenAPI specs | Limited (annotation processing) | None | None |
 | **Testing Framework** | `AggregateSpec` + `SagaSpec` (Given-When-Expect) | `AggregateTestFixture` + `SagaTestFixture` (Given-When-Then) | You build or use generic JUnit | Akka TestKit (actor-focused) |
@@ -432,7 +422,6 @@ Choose the first bounded context carefully. The ideal pilot:
 
 | Phase | Event Store | Message Bus | Projection Store | Monitoring |
 |---|---|---|---|---|
-| **Development** | R2DBC (embedded PostgreSQL) | In-Memory | In-Memory | Logging |
 | **Staging** | MongoDB (single node) | Kafka (single broker) | Elasticsearch (single node) | OpenTelemetry + Jaeger |
 | **Production** | MongoDB replica set or Atlas | Kafka cluster (3+ brokers) | Elasticsearch cluster | OpenTelemetry + Prometheus + Grafana |
 | **Enterprise** | Multi-region MongoDB | Multi-region Kafka | Multi-region Elasticsearch | Full observability stack with alerting |

@@ -135,7 +135,6 @@ class InMemorySnapshotStore : SnapshotStore {
 |---------|--------|--------|
 | MongoDB | `wow-mongo` | Production-ready |
 | Redis | `wow-redis` | Production-ready |
-| R2DBC | `wow-r2dbc` | Production-ready |
 
 ## Snapshot Processing Flow
 
@@ -152,7 +151,6 @@ wow:
     snapshot:
       enabled: true  # Whether to enable snapshots
       strategy: all  # Snapshot strategy (all, version_offset)
-      storage: mongo  # Snapshot storage (mongo, redis, r2dbc, elasticsearch, in_memory, delay)
       version-offset: 5  # Version offset (only valid for version_offset strategy)
 ```
 

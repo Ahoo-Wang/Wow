@@ -649,5 +649,4 @@ wow:
 | [Event Sourcing Configuration](../../reference/config/eventsourcing.md) | Storage backend selection (`wow.eventsourcing.store.storage`) |
 | [Snapshot Configuration](../../reference/config/snapshot.md) | Snapshot strategies and storage backend selection |
 | [Redis Extension](redis.md) | Alternative event store and snapshot backend |
-| [R2DBC Extension](r2dbc.md) | SQL-based event store alternative |
 | [Spring Boot Starter](spring-boot-starter.md) | Auto-configuration and feature variants |

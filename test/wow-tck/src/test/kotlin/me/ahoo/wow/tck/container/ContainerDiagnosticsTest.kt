@@ -60,6 +60,10 @@ class ContainerDiagnosticsTest {
     private class DescribedContainer : GenericContainer<DescribedContainer>(
         DockerImageName.parse(ContainerImages.REDIS),
     ) {
+        override fun getDockerImageName(): String {
+            return ContainerImages.REDIS
+        }
+
         override fun isRunning(): Boolean {
             return false
         }

@@ -135,7 +135,6 @@ class InMemorySnapshotStore : SnapshotStore {
 |---------|--------|--------|
 | MongoDB | `wow-mongo` | 生产就绪 |
 | Redis | `wow-redis` | 生产就绪 |
-| R2DBC | `wow-r2dbc` | 生产就绪 |
 
 ## 快照处理流程
 
@@ -152,7 +151,6 @@ wow:
     snapshot:
       enabled: true  # 是否启用快照
       strategy: all  # 快照策略 (all, version_offset)
-      storage: mongo  # 快照存储 (mongo, redis, r2dbc, elasticsearch, in_memory, delay)
       version-offset: 5  # 版本偏移（仅对 version_offset 策略有效）
 ```
 

@@ -19,5 +19,4 @@ object ContainerImages {
     const val ELASTICSEARCH_REPOSITORY = "docker.elastic.co/elasticsearch/elasticsearch"
     const val ELASTICSEARCH_TAG = "9.2.6"
     const val REDIS = "redis:7.4-alpine"
-    const val MARIADB = "mariadb:10.6.4"
 }
