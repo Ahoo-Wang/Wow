@@ -16,6 +16,7 @@ package me.ahoo.wow.mongo
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Projections
 import com.mongodb.client.model.ReplaceOptions
+import com.mongodb.client.model.Sorts
 import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.wow.api.Version.Companion.UNINITIALIZED_VERSION
 import me.ahoo.wow.api.modeling.AggregateId
@@ -99,6 +100,7 @@ class MongoSnapshotStore(private val database: MongoDatabase) : SnapshotStore {
         val snapshotCollectionName = namedAggregate.toSnapshotCollectionName()
         return database.getCollection(snapshotCollectionName)
             .find(Filters.gt(Documents.ID_FIELD, afterId))
+            .sort(Sorts.ascending(Documents.ID_FIELD))
             .projection(Projections.include(MessageRecords.TENANT_ID))
             .limit(limit)
             .toFlux()

@@ -239,4 +239,29 @@ abstract class SnapshotStoreSpec {
             }
             .verifyComplete()
     }
+
+    @Test
+    open fun scanAggregateIdShouldReturnLexicographicalOrder() {
+        val snapshotStore = createSnapshotStore().metrizable()
+        val aggregateIds = listOf("003", "001", "004", "002").map {
+            aggregateMetadata.aggregateId(it)
+        }
+        aggregateIds.forEach { aggregateId ->
+            val stateAggregate = stateAggregateFactory.create(aggregateMetadata.state, aggregateId)
+            snapshotStore.save(SimpleSnapshot(stateAggregate, Clock.systemUTC().millis()))
+                .test()
+                .verifyComplete()
+        }
+
+        snapshotStore.scanAggregateId(aggregateMetadata, afterId = "001", limit = 2)
+            .collectList()
+            .test()
+            .consumeNextWith {
+                it.assert().containsExactly(
+                    aggregateMetadata.aggregateId("002"),
+                    aggregateMetadata.aggregateId("003"),
+                )
+            }
+            .verifyComplete()
+    }
 }

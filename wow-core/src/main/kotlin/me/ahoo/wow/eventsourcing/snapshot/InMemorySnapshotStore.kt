@@ -53,8 +53,8 @@ class InMemorySnapshotStore : SnapshotStore {
      * @return a Mono emitting the snapshot or empty if not found
      */
     override fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>> =
-        Mono.fromCallable {
-            aggregateIdMapSnapshot[aggregateId]?.toObject<Snapshot<S>>()
+        Mono.defer {
+            Mono.justOrEmpty(aggregateIdMapSnapshot[aggregateId]?.toObject<Snapshot<S>>())
         }
 
     /**
