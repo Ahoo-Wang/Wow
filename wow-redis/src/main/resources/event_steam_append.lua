@@ -8,10 +8,14 @@ local aggregateName = ARGV[2];
 local requestId = ARGV[3];
 local version = tonumber(ARGV[4]);
 local value = ARGV[5];
+local aggregateId = ARGV[6];
+local tenantId = ARGV[7];
 
 local eventStreamPrefixKey = contextAlias .. "." .. aggregateName .. ":es";
 
 local eventStreamKey = eventStreamPrefixKey .. ":" .. aggregateIdKey
+local aggregateIdIndexKey = eventStreamPrefixKey .. ":ids"
+local aggregateTenantIndexKey = eventStreamPrefixKey .. ":tenants"
 
 local count = redis.call("ZCARD", eventStreamKey)
 if count ~= (version - 1) then
@@ -25,4 +29,6 @@ if added == 0 then
 end
 
 local result = redis.call("ZADD", eventStreamKey, version, value);
+redis.call("ZADD", aggregateIdIndexKey, 0, aggregateId);
+redis.call("HSET", aggregateTenantIndexKey, aggregateId, tenantId);
 return tostring(result)

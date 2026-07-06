@@ -18,19 +18,20 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.DuplicateRequestIdException
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.AbstractEventStore
+import me.ahoo.wow.eventsourcing.AggregateIdScanner
 import me.ahoo.wow.eventsourcing.EventVersionConflictException
 import me.ahoo.wow.exception.ErrorCodes
+import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.naming.getContextAlias
 import me.ahoo.wow.redis.RedisScripts
+import me.ahoo.wow.redis.eventsourcing.EventStreamKeyConverter.toAggregateIdIndexKey
+import me.ahoo.wow.redis.eventsourcing.EventStreamKeyConverter.toAggregateTenantIndexKey
 import me.ahoo.wow.redis.eventsourcing.EventStreamKeyConverter.toKey
-import me.ahoo.wow.redis.eventsourcing.EventStreamKeyConverter.toKeyPrefix
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
 import org.springframework.data.domain.Range
-import org.springframework.data.redis.connection.DataType
 import org.springframework.data.redis.connection.Limit
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate
-import org.springframework.data.redis.core.ScanOptions
 import org.springframework.data.redis.core.script.RedisScript
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -44,7 +45,8 @@ class RedisEventStore(
     }
 
     override fun appendStream(eventStream: DomainEventStream): Mono<Void> {
-        val aggregateKey = eventStream.aggregateId.toKey()
+        val aggregateId = eventStream.aggregateId
+        val aggregateKey = aggregateId.toKey()
         return redisTemplate.execute(
             SCRIPT_EVENT_STEAM_APPEND,
             listOf(aggregateKey),
@@ -54,6 +56,8 @@ class RedisEventStore(
                 eventStream.requestId,
                 eventStream.version.toString(),
                 eventStream.toJsonString(),
+                aggregateId.id,
+                aggregateId.tenantId,
             ),
         ).doOnNext {
             when (it) {
@@ -102,18 +106,33 @@ class RedisEventStore(
         afterId: String,
         limit: Int
     ): Flux<AggregateId> {
-        val keyPrefix = namedAggregate.toKeyPrefix()
-        val options = ScanOptions.scanOptions()
-            .match("$keyPrefix*")
-            .type(DataType.ZSET)
-            .count(limit.toLong())
-            .build()
-        return redisTemplate.scan(options)
-            .map {
-                EventStreamKeyConverter.toAggregateId(namedAggregate, it)
-            }.filter {
-                it.id > afterId
-            }.sort(compareBy { it.id })
-            .take(limit.toLong())
+        val aggregateIdIndexKey = namedAggregate.toAggregateIdIndexKey()
+        val aggregateTenantIndexKey = namedAggregate.toAggregateTenantIndexKey()
+        val range = Range.open(afterId, AggregateIdScanner.LAST_ID)
+        val rangeLimit = Limit.limit().count(limit)
+        return redisTemplate.opsForZSet()
+            .rangeByLex(aggregateIdIndexKey, range, rangeLimit)
+            .collectList()
+            .flatMapMany { aggregateIds ->
+                if (aggregateIds.isEmpty()) {
+                    Flux.empty()
+                } else {
+                    redisTemplate.opsForHash<String, String>()
+                        .multiGet(aggregateTenantIndexKey, aggregateIds)
+                        .flatMapMany { tenantIds ->
+                            require(tenantIds.size == aggregateIds.size) {
+                                "Invalid aggregate tenant index [$aggregateTenantIndexKey]."
+                            }
+                            Flux.fromIterable(
+                                aggregateIds.mapIndexed { index, id ->
+                                    val tenantId = checkNotNull(tenantIds[index]) {
+                                        "Missing tenantId for aggregateId [$id] in [$aggregateTenantIndexKey]."
+                                    }
+                                    namedAggregate.aggregateId(id, tenantId)
+                                }
+                            )
+                        }
+                }
+            }
     }
 }

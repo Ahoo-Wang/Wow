@@ -15,6 +15,8 @@ package me.ahoo.wow.redis.eventsourcing
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.redis.eventsourcing.EventStreamKeyConverter.toAggregateIdIndexKey
+import me.ahoo.wow.redis.eventsourcing.EventStreamKeyConverter.toAggregateTenantIndexKey
 import me.ahoo.wow.redis.eventsourcing.EventStreamKeyConverter.toKey
 import me.ahoo.wow.redis.eventsourcing.EventStreamKeyConverter.toKeyPrefix
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -39,5 +41,17 @@ class EventStreamKeyConverterTest {
     fun `should convert event stream key`() {
         val actual = EventStreamKeyConverter.convert(aggregateId)
         actual.assert().isEqualTo("tck.mock_aggregate:es:{id@tenantId}")
+    }
+
+    @Test
+    fun `should convert aggregate id index key`() {
+        val actual = aggregateId.toAggregateIdIndexKey()
+        actual.assert().isEqualTo("tck.mock_aggregate:es:ids")
+    }
+
+    @Test
+    fun `should convert aggregate tenant index key`() {
+        val actual = aggregateId.toAggregateTenantIndexKey()
+        actual.assert().isEqualTo("tck.mock_aggregate:es:tenants")
     }
 }

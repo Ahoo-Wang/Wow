@@ -26,6 +26,14 @@ object EventStreamKeyConverter : AggregateKeyConverter {
         return "${toStringWithAlias()}${DELIMITER}es$DELIMITER"
     }
 
+    fun NamedAggregate.toAggregateIdIndexKey(): String {
+        return "${toStringWithAlias()}${DELIMITER}es${DELIMITER}ids"
+    }
+
+    fun NamedAggregate.toAggregateTenantIndexKey(): String {
+        return "${toStringWithAlias()}${DELIMITER}es${DELIMITER}tenants"
+    }
+
     fun AggregateId.toKey(): String {
         return "${id}$ID_DELIMITER$tenantId".wrap()
     }
