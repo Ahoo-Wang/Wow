@@ -23,10 +23,10 @@ description: 事件存储是事件溯源架构的核心持久化引擎 -- 不可
 
 ## 核心接口
 
-`EventStore` 接口定义了事件存储的核心操作：
+`EventStore` 接口定义了事件存储的核心操作，并承担按命名聚合分页扫描聚合 ID 的职责：
 
 ```kotlin
-interface EventStore {
+interface EventStore : AggregateIdScanner {
     fun append(eventStream: DomainEventStream): Mono<Void>
     fun load(
         aggregateId: AggregateId,
@@ -38,6 +38,12 @@ interface EventStore {
         headEventTime: Long,
         tailEventTime: Long
     ): Flux<DomainEventStream>
+    fun last(aggregateId: AggregateId): Mono<DomainEventStream>
+    fun scanAggregateId(
+        namedAggregate: NamedAggregate,
+        afterId: String = AggregateIdScanner.FIRST_ID,
+        limit: Int = 10
+    ): Flux<AggregateId>
 }
 ```
 
@@ -63,7 +69,7 @@ interface DomainEventStream : EventMessage<DomainEventStream, List<DomainEvent<*
 |---|---|---|
 | `DomainEvent` | 关于聚合内过去业务行为的不可变事实 | [DomainEvent.kt:52-95](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/event/DomainEvent.kt#L52-L95) |
 | `DomainEventStream` | 单个命令产生的有序领域事件批次 | [DomainEventStream.kt:51-125](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/DomainEventStream.kt#L51-L125) |
-| `EventStore` | 追加和加载事件流的核心接口 | [EventStore.kt:27-98](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt#L27-L98) |
+| `EventStore` | 追加、加载事件流并扫描聚合 ID 的核心接口 | [EventStore.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt) |
 | `SnapshotStore` | 通过带版本的快照检查点优化聚合加载 | [SnapshotStore.kt:27-58](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/SnapshotStore.kt#L27-L58) |
 
 ## 聚合状态重建
@@ -136,6 +142,7 @@ classDiagram
         +append(DomainEventStream) Mono~Void~
         +load(AggregateId, headVersion, tailVersion) Flux~DomainEventStream~
         +load(AggregateId, headEventTime, tailEventTime) Flux~DomainEventStream~
+        +scanAggregateId(NamedAggregate, String, Int) Flux~AggregateId~
     }
     class AbstractEventStore {
         <<abstract>>

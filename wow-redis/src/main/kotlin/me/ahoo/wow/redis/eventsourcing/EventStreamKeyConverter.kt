@@ -15,8 +15,10 @@ package me.ahoo.wow.redis.eventsourcing
 
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.redis.eventsourcing.RedisWrappedKey.wrap
+import me.ahoo.wow.redis.eventsourcing.RedisWrappedKey.unwrap
 
 object EventStreamKeyConverter : AggregateKeyConverter {
     const val ID_DELIMITER = "@"
@@ -30,5 +32,14 @@ object EventStreamKeyConverter : AggregateKeyConverter {
 
     override fun convert(aggregateId: AggregateId): String {
         return "${aggregateId.toKeyPrefix()}${aggregateId.toKey()}"
+    }
+
+    fun toAggregateId(namedAggregate: NamedAggregate, key: String): AggregateId {
+        val prefix = namedAggregate.toKeyPrefix()
+        val idWithTenantId = key.removePrefix(prefix).unwrap()
+        idWithTenantId.split(ID_DELIMITER).let {
+            require(it.size == 2) { "Invalid key:$key" }
+            return namedAggregate.aggregateId(it[0], it[1])
+        }
     }
 }

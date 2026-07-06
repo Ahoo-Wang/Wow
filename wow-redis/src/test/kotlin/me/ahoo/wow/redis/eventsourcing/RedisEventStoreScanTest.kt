@@ -23,19 +23,19 @@ import org.springframework.data.redis.core.ReactiveStringRedisTemplate
 import reactor.core.publisher.Flux
 import reactor.kotlin.test.test
 
-class RedisSnapshotStoreScanTest {
+class RedisEventStoreScanTest {
 
     @Test
     fun `scan aggregate id should sort redis scan result before limiting`() {
         val namedAggregate = MaterializedNamedAggregate("order-service", "order")
         val redisTemplate = mockk<ReactiveStringRedisTemplate>()
         val keys = listOf("003", "002", "004").map {
-            DefaultSnapshotKeyConverter.convert(namedAggregate.aggregateId(it))
+            EventStreamKeyConverter.convert(namedAggregate.aggregateId(it))
         }
         every { redisTemplate.scan(any()) } returns Flux.fromIterable(keys)
-        val snapshotStore = RedisSnapshotStore(redisTemplate)
+        val eventStore = RedisEventStore(redisTemplate)
 
-        snapshotStore.scanAggregateId(namedAggregate, afterId = "001", limit = 2)
+        eventStore.scanAggregateId(namedAggregate, afterId = "001", limit = 2)
             .collectList()
             .test()
             .consumeNextWith {

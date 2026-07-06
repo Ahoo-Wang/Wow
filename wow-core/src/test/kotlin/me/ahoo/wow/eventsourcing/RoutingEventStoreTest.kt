@@ -120,6 +120,23 @@ class RoutingEventStoreTest {
     }
 
     @Test
+    fun `scan aggregate id chooses configured store`() {
+        val defaultStore = RecordingEventStore()
+        val orderStore = RecordingEventStore()
+        val routingStore = routingEventStore(defaultStore, orderStore)
+
+        StepVerifier.create(routingStore.scanAggregateId(order, afterId = "order-0", limit = 2))
+            .expectNext(order.aggregateId("routed-1"))
+            .verifyComplete()
+
+        orderStore.lastOperation.assert().isEqualTo("scanAggregateId")
+        orderStore.lastNamedAggregate.assert().isEqualTo(order)
+        orderStore.lastAfterId.assert().isEqualTo("order-0")
+        orderStore.lastLimit.assert().isEqualTo(2)
+        defaultStore.lastOperation.assert().isNull()
+    }
+
+    @Test
     fun `missing route uses default event store`() {
         val defaultStore = RecordingEventStore()
         val orderStore = RecordingEventStore()
@@ -167,6 +184,9 @@ class RoutingEventStoreTest {
     ) : EventStore {
         var lastOperation: String? = null
         var lastAggregateId: AggregateId? = null
+        var lastNamedAggregate: NamedAggregate? = null
+        var lastAfterId: String? = null
+        var lastLimit: Int? = null
 
         override fun append(eventStream: DomainEventStream): Mono<Void> {
             record("append", eventStream.aggregateId)
@@ -204,6 +224,18 @@ class RoutingEventStoreTest {
         override fun existsRequestId(aggregateId: AggregateId, requestId: String): Mono<Boolean> {
             record("existsRequestId", aggregateId)
             return failure?.let { Mono.error(it) } ?: Mono.just(false)
+        }
+
+        override fun scanAggregateId(
+            namedAggregate: NamedAggregate,
+            afterId: String,
+            limit: Int
+        ): Flux<AggregateId> {
+            lastOperation = "scanAggregateId"
+            lastNamedAggregate = namedAggregate
+            lastAfterId = afterId
+            lastLimit = limit
+            return failure?.let { Flux.error(it) } ?: Flux.just(namedAggregate.aggregateId("routed-1"))
         }
 
         private fun record(operation: String, aggregateId: AggregateId) {

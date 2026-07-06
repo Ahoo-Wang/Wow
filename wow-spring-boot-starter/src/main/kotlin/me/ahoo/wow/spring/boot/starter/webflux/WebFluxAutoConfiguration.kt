@@ -252,14 +252,14 @@ class WebFluxAutoConfiguration {
     @Order(Ordered.HIGHEST_PRECEDENCE)
     @ConditionalOnMissingBean
     fun eventRouteModule(
-        snapshotStore: SnapshotStore,
+        eventStore: EventStore,
         stateEventCompensator: StateEventCompensator,
         eventCompensateSupporter: EventCompensateSupporter,
         exceptionHandler: RequestExceptionHandler,
         batchExecutionPolicy: BatchExecutionPolicy
     ): EventRouteModule {
         return EventRouteModule(
-            snapshotStore = snapshotStore,
+            eventStore = eventStore,
             stateEventCompensator = stateEventCompensator,
             eventCompensateSupporter = eventCompensateSupporter,
             exceptionHandler = exceptionHandler,

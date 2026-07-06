@@ -17,7 +17,6 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.event.compensation.StateEventCompensator
 import me.ahoo.wow.eventsourcing.AggregateIdScanner.Companion.FIRST_ID
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
-import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotStore
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.openapi.BatchComponent
@@ -37,7 +36,7 @@ class ResendStateEventHandlerFunctionTest {
         val eventStore = InMemoryEventStore()
         val handlerFunction = ResendStateEventFunction(
             aggregateMetadata = MOCK_AGGREGATE_METADATA,
-            snapshotStore = NoOpSnapshotStore,
+            eventStore = eventStore,
             stateEventCompensator = StateEventCompensator(
                 stateAggregateFactory = ConstructorStateAggregateFactory,
                 eventStore = eventStore,

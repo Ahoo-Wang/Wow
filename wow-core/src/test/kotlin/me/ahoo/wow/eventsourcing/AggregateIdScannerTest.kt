@@ -14,14 +14,11 @@
 package me.ahoo.wow.eventsourcing
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotStore
-import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.materialize
-import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory.toStateAggregate
 import me.ahoo.wow.modeling.toNamedAggregate
+import me.ahoo.wow.tck.event.MockDomainEventStreams.generateEventStream
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
-import me.ahoo.wow.tck.mock.MockStateAggregate
 import org.junit.jupiter.api.Test
 import reactor.test.StepVerifier
 
@@ -37,29 +34,24 @@ class AggregateIdScannerTest {
 
     @Test
     fun `in memory scanner honors aggregate name after id and limit boundaries`() {
-        val repository = InMemorySnapshotStore()
+        val eventStore = InMemoryEventStore()
         val namedAggregate = MOCK_AGGREGATE_METADATA.materialize()
         val matchingIds = listOf("a", "b", "c").map { namedAggregate.aggregateId(it) }
         val otherAggregateId = "other.fixture".toNamedAggregate().aggregateId("b")
 
         (matchingIds + otherAggregateId).forEach { aggregateId ->
-            val stateAggregate = MOCK_AGGREGATE_METADATA.state.toStateAggregate(
-                aggregateId = aggregateId,
-                state = MockStateAggregate(aggregateId.id),
-                version = 1,
-            )
-            StepVerifier.create(repository.save(SimpleSnapshot(stateAggregate)))
+            StepVerifier.create(eventStore.append(generateEventStream(aggregateId)))
                 .verifyComplete()
         }
 
-        StepVerifier.create(repository.scanAggregateId(namedAggregate, afterId = "a", limit = 1))
+        StepVerifier.create(eventStore.scanAggregateId(namedAggregate, afterId = "a", limit = 1))
             .assertNext {
                 it.id.assert().isEqualTo("b")
                 it.assert().isEqualTo(matchingIds[1])
             }
             .verifyComplete()
         StepVerifier.create(
-            repository.scanAggregateId(
+            eventStore.scanAggregateId(
                 namedAggregate,
                 afterId = AggregateIdScanner.LAST_ID,
                 limit = 10,

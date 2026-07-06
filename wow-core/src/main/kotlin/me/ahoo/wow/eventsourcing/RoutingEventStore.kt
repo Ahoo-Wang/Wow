@@ -13,6 +13,7 @@
 package me.ahoo.wow.eventsourcing
 
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.event.DomainEventStream
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -45,4 +46,11 @@ class RoutingEventStore(
 
     override fun last(aggregateId: AggregateId): Mono<DomainEventStream> =
         registry.get(aggregateId.namedAggregate).last(aggregateId)
+
+    override fun scanAggregateId(
+        namedAggregate: NamedAggregate,
+        afterId: String,
+        limit: Int
+    ): Flux<AggregateId> =
+        registry.get(namedAggregate).scanAggregateId(namedAggregate, afterId, limit)
 }

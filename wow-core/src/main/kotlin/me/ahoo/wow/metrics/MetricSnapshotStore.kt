@@ -15,10 +15,8 @@ package me.ahoo.wow.metrics
 
 import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
-import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 /**
@@ -84,27 +82,5 @@ class MetricSnapshotStore(
             .name(Wow.WOW_PREFIX + "snapshot.save")
             .tagSource()
             .tag(Metrics.AGGREGATE_KEY, snapshot.aggregateId.aggregateName)
-            .metrics()
-
-    /**
-     * Scans for aggregate IDs in the snapshot store starting after the specified ID
-     * and collects metrics on the operation.
-     * Metrics collected include timing and tags for aggregate identification.
-     *
-     * @param namedAggregate the named aggregate to scan for
-     * @param afterId the aggregate ID to start scanning after
-     * @param limit the maximum number of aggregate IDs to return
-     * @return a Flux of aggregate IDs
-     */
-    override fun scanAggregateId(
-        namedAggregate: NamedAggregate,
-        afterId: String,
-        limit: Int
-    ): Flux<AggregateId> =
-        delegate
-            .scanAggregateId(namedAggregate, afterId, limit)
-            .name(Wow.WOW_PREFIX + "snapshot.scanAggregateId")
-            .tagSource()
-            .tag(Metrics.AGGREGATE_KEY, namedAggregate.aggregateName)
             .metrics()
 }

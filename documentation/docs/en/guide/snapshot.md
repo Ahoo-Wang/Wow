@@ -101,10 +101,10 @@ stateDiagram-v2
 
 ## Snapshot Store
 
-The snapshot store is responsible for storing and retrieving snapshots.
+The snapshot store is responsible for storing and retrieving snapshots. Batch aggregate ID scanning belongs to `EventStore.scanAggregateId(...)`, not to the snapshot store.
 
 ```kotlin
-interface SnapshotStore : Named, AggregateIdScanner {
+interface SnapshotStore : Named {
     fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>>
     fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void>
     fun getVersion(aggregateId: AggregateId): Mono<Int>

@@ -15,11 +15,15 @@ package me.ahoo.wow.mongo
 
 import com.mongodb.MongoWriteException
 import com.mongodb.client.model.Filters
+import com.mongodb.client.model.Projections
 import com.mongodb.client.model.Sorts
 import com.mongodb.reactivestreams.client.MongoDatabase
+import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.AbstractEventStore
+import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toEventStreamCollectionName
 import me.ahoo.wow.serialization.MessageRecords
 import org.bson.Document
@@ -122,6 +126,37 @@ class MongoEventStore(private val database: MongoDatabase) : AbstractEventStore(
             .toMono()
             .map {
                 documentToDomainEventStream(aggregateId, it)
+            }
+    }
+
+    override fun scanAggregateId(
+        namedAggregate: NamedAggregate,
+        afterId: String,
+        limit: Int
+    ): Flux<AggregateId> {
+        val eventStreamCollectionName = namedAggregate.toEventStreamCollectionName()
+        return database.getCollection(eventStreamCollectionName)
+            .find(
+                Filters.and(
+                    Filters.eq(MessageRecords.CONTEXT_NAME, namedAggregate.contextName),
+                    Filters.eq(MessageRecords.AGGREGATE_NAME, namedAggregate.aggregateName),
+                    Filters.eq(MessageRecords.VERSION, Version.INITIAL_VERSION),
+                    Filters.gt(MessageRecords.AGGREGATE_ID, afterId),
+                )
+            )
+            .sort(Sorts.ascending(MessageRecords.AGGREGATE_ID))
+            .projection(
+                Projections.include(
+                    MessageRecords.AGGREGATE_ID,
+                    MessageRecords.TENANT_ID
+                )
+            )
+            .limit(limit)
+            .toFlux()
+            .map {
+                val aggregateId = it.getString(MessageRecords.AGGREGATE_ID)
+                val tenantId = it.getString(MessageRecords.TENANT_ID)
+                namedAggregate.aggregateId(aggregateId, tenantId)
             }
     }
 }

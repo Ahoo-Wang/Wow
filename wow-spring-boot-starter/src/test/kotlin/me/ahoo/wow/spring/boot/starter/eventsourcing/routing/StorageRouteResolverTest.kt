@@ -465,12 +465,6 @@ private class NoOpSnapshotStore(
     override fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>> = Mono.empty()
 
     override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> = Mono.empty()
-
-    override fun scanAggregateId(
-        namedAggregate: NamedAggregate,
-        afterId: String,
-        limit: Int
-    ): Flux<AggregateId> = Flux.empty()
 }
 
 private class RecordingEventStreamQueryServiceFactory : EventStreamQueryServiceFactory {

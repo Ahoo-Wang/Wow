@@ -18,9 +18,6 @@ import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.event.compensation.StateEventCompensator
 import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
-import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotStore
-import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
-import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.state.InMemoryStateEventBus
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
@@ -28,26 +25,15 @@ import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockAggregateCreated
 import me.ahoo.wow.tck.mock.MockCreateAggregate
-import me.ahoo.wow.tck.mock.MockStateAggregate
 import me.ahoo.wow.webflux.route.policy.BatchExecutionPolicy
 import org.junit.jupiter.api.Test
 import reactor.kotlin.test.test
-import java.time.Clock
 
 class ResendStateEventHandlerTest {
 
     @Test
     fun `should resend state events for aggregate`() {
-        val snapshotStore = InMemorySnapshotStore()
         val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(generateGlobalId())
-        val stateAggregate =
-            ConstructorStateAggregateFactory.create(MOCK_AGGREGATE_METADATA.state, aggregateId)
-        val snapshot: Snapshot<MockStateAggregate> =
-            SimpleSnapshot(stateAggregate, Clock.systemUTC().millis())
-        snapshotStore.save(snapshot)
-            .test()
-            .verifyComplete()
-
         val eventStore = InMemoryEventStore()
         val commandMessage = MockCreateAggregate("1", "data").toCommandMessage(
             aggregateId = aggregateId.id,
@@ -58,7 +44,7 @@ class ResendStateEventHandlerTest {
         eventStore.appendStream(eventStream).test().verifyComplete()
         val handlerFunction = ResendStateEventHandler(
             aggregateMetadata = MOCK_AGGREGATE_METADATA,
-            snapshotStore = snapshotStore,
+            eventStore = eventStore,
             stateEventCompensator = StateEventCompensator(
                 stateAggregateFactory = ConstructorStateAggregateFactory,
                 eventStore = eventStore,

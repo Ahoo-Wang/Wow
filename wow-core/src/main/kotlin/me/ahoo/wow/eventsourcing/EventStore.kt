@@ -14,6 +14,7 @@
 package me.ahoo.wow.eventsourcing
 
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.DuplicateRequestIdException
 import me.ahoo.wow.event.DomainEventStream
 import reactor.core.publisher.Flux
@@ -24,7 +25,9 @@ import reactor.core.publisher.Mono
  * Provides methods to append events and load event streams by aggregate ID and version/time ranges.
  * @author ahoo wang
  */
-interface EventStore : RequestIdExistenceChecker {
+interface EventStore :
+    RequestIdExistenceChecker,
+    AggregateIdScanner {
     /**
      * Appends a domain event stream to the event store.
      * Ensures transaction consistency and handles version conflicts.
@@ -96,6 +99,17 @@ interface EventStore : RequestIdExistenceChecker {
      *  Loads the last domain event stream for the specified aggregate.
      */
     fun last(aggregateId: AggregateId): Mono<DomainEventStream>
+
+    override fun scanAggregateId(
+        namedAggregate: NamedAggregate,
+        afterId: String,
+        limit: Int
+    ): Flux<AggregateId> =
+        Flux.error(
+            UnsupportedOperationException(
+                "EventStore scanAggregateId is not supported. EventStore: ${this::class.java.name}"
+            )
+        )
 
     companion object {
         /**

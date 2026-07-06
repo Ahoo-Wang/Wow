@@ -15,7 +15,6 @@ package me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshotStrategy
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
@@ -43,7 +42,6 @@ import org.springframework.boot.test.context.assertj.AssertableApplicationContex
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 internal class SnapshotAutoConfigurationTest {
@@ -174,12 +172,5 @@ internal class SnapshotAutoConfigurationTest {
 
         override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> =
             delegate.save(snapshot)
-
-        override fun scanAggregateId(
-            namedAggregate: NamedAggregate,
-            afterId: String,
-            limit: Int
-        ): Flux<AggregateId> =
-            delegate.scanAggregateId(namedAggregate, afterId, limit)
     }
 }

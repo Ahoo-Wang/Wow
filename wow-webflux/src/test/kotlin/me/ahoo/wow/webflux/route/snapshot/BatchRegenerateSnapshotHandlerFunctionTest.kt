@@ -15,7 +15,6 @@ package me.ahoo.wow.webflux.route.snapshot
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.eventsourcing.AggregateIdScanner.Companion.FIRST_ID
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotStore
@@ -40,7 +39,6 @@ import me.ahoo.wow.webflux.route.testAggregateRouteContract
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
-import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 
@@ -96,9 +94,7 @@ class BatchRegenerateSnapshotHandlerFunctionTest {
             .expectNoError()
             .expectEventType(MockAggregateCreated::class.java)
             .verify()
-        val snapshotStore = CapturingSnapshotStore(
-            aggregateIds = listOf(MOCK_AGGREGATE_METADATA.aggregateId(aggregateId))
-        )
+        val snapshotStore = CapturingSnapshotStore()
         val handlerFunction = BatchRegenerateSnapshotHandlerFunction(
             aggregateMetadata = MOCK_AGGREGATE_METADATA,
             stateAggregateFactory = ConstructorStateAggregateFactory,
@@ -126,9 +122,7 @@ class BatchRegenerateSnapshotHandlerFunctionTest {
         savedSnapshot.version.assert().isOne()
     }
 
-    private class CapturingSnapshotStore(
-        private val aggregateIds: List<AggregateId>
-    ) : SnapshotStore {
+    private class CapturingSnapshotStore : SnapshotStore {
         override val name: String
             get() = "capturing"
 
@@ -142,20 +136,6 @@ class BatchRegenerateSnapshotHandlerFunctionTest {
             return Mono.fromRunnable {
                 savedSnapshots += snapshot
             }
-        }
-
-        override fun scanAggregateId(
-            namedAggregate: NamedAggregate,
-            afterId: String,
-            limit: Int
-        ): Flux<AggregateId> {
-            return Flux.fromIterable(
-                aggregateIds.asSequence()
-                    .filter { it.isSameAggregateName(namedAggregate) }
-                    .filter { it.id > afterId }
-                    .take(limit)
-                    .toList()
-            )
         }
     }
 }

@@ -14,7 +14,6 @@ package me.ahoo.wow.eventsourcing
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
@@ -29,7 +28,6 @@ import me.ahoo.wow.modeling.state.StateAggregateRepository
 import me.ahoo.wow.tck.eventsourcing.StateAggregateRepositorySpec
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
-import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -58,12 +56,6 @@ internal class EventSourcingStateAggregateRepositoryTest : StateAggregateReposit
                 Mono.just(snapshot as Snapshot<S>)
 
             override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> = Mono.empty()
-
-            override fun scanAggregateId(
-                namedAggregate: NamedAggregate,
-                afterId: String,
-                limit: Int
-            ): Flux<AggregateId> = Flux.empty()
         }
         val createCount = AtomicInteger()
         val stateAggregateFactory = object : StateAggregateFactory {

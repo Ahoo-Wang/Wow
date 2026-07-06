@@ -14,16 +14,11 @@
 package me.ahoo.wow.redis.eventsourcing
 
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
-import me.ahoo.wow.redis.eventsourcing.DefaultSnapshotKeyConverter.toKeyPrefix
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
-import org.springframework.data.redis.connection.DataType
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate
-import org.springframework.data.redis.core.ScanOptions
-import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 class RedisSnapshotStore(
@@ -49,24 +44,5 @@ class RedisSnapshotStore(
         return redisTemplate.opsForValue()
             .set(snapshotKey, snapshot.toJsonString())
             .then()
-    }
-
-    override fun scanAggregateId(
-        namedAggregate: NamedAggregate,
-        afterId: String,
-        limit: Int
-    ): Flux<AggregateId> {
-        val keyPrefix = namedAggregate.toKeyPrefix()
-        val keyPattern = "$keyPrefix*"
-        val options = ScanOptions.scanOptions().match(keyPattern)
-            .type(DataType.STRING)
-            .count(limit.toLong()).build()
-        return redisTemplate.scan(options)
-            .map {
-                DefaultSnapshotKeyConverter.toAggregateId(namedAggregate, it)
-            }.filter {
-                it.id > afterId
-            }.sort(compareBy { it.id })
-            .take(limit.toLong())
     }
 }
