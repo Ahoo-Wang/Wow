@@ -23,6 +23,7 @@ import io.opentelemetry.sdk.trace.export.SpanExporter
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.DefaultCommandGateway
+import me.ahoo.wow.command.DefaultRequestIdChecker
 import me.ahoo.wow.command.InMemoryCommandBus
 import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.command.validation.NoOpValidator
@@ -63,7 +64,9 @@ class TracingCommandGatewayWaitTest {
             commandWaitEndpoint = SimpleCommandWaitEndpoint("test-command-wait-endpoint"),
             commandBus = commandBus,
             validator = NoOpValidator,
-            idempotencyCheckerProvider = AggregateIdempotencyCheckerProvider { NoOpIdempotencyChecker },
+            requestIdChecker = DefaultRequestIdChecker(
+                idempotencyCheckerProvider = AggregateIdempotencyCheckerProvider { NoOpIdempotencyChecker },
+            ),
             waitCoordinator = waitCoordinator,
             commandWaitNotifier = LocalCommandWaitNotifier(waitCoordinator),
         ).tracing()
