@@ -64,11 +64,18 @@ class MongoEventStore(private val database: MongoDatabase) : AbstractEventStore(
             }
     }
 
+    private fun aggregateIdentityFilter(aggregateId: AggregateId): Bson {
+        return Filters.and(
+            Filters.eq(MessageRecords.AGGREGATE_ID, aggregateId.id),
+            Filters.eq(MessageRecords.TENANT_ID, aggregateId.tenantId),
+        )
+    }
+
     override fun loadStream(aggregateId: AggregateId, headVersion: Int, tailVersion: Int): Flux<DomainEventStream> {
         return findStream(
             aggregateId = aggregateId,
             filter = Filters.and(
-                Filters.eq(MessageRecords.AGGREGATE_ID, aggregateId.id),
+                aggregateIdentityFilter(aggregateId),
                 Filters.gte(MessageRecords.VERSION, headVersion),
                 Filters.lte(MessageRecords.VERSION, tailVersion),
             )
@@ -83,17 +90,32 @@ class MongoEventStore(private val database: MongoDatabase) : AbstractEventStore(
         return findStream(
             aggregateId = aggregateId,
             filter = Filters.and(
-                Filters.eq(MessageRecords.AGGREGATE_ID, aggregateId.id),
+                aggregateIdentityFilter(aggregateId),
                 Filters.gte(MessageRecords.CREATE_TIME, headEventTime),
                 Filters.lte(MessageRecords.CREATE_TIME, tailEventTime),
             )
         )
     }
 
+    override fun existsRequestId(aggregateId: AggregateId, requestId: String): Mono<Boolean> {
+        val eventStreamCollectionName = aggregateId.toEventStreamCollectionName()
+        return database.getCollection(eventStreamCollectionName)
+            .find(
+                Filters.and(
+                    aggregateIdentityFilter(aggregateId),
+                    Filters.eq(MessageRecords.REQUEST_ID, requestId),
+                )
+            )
+            .limit(1)
+            .first()
+            .toMono()
+            .hasElement()
+    }
+
     override fun last(aggregateId: AggregateId): Mono<DomainEventStream> {
         val eventStreamCollectionName = aggregateId.toEventStreamCollectionName()
         return database.getCollection(eventStreamCollectionName)
-            .find(Filters.eq(MessageRecords.AGGREGATE_ID, aggregateId.id))
+            .find(aggregateIdentityFilter(aggregateId))
             .sort(Sorts.descending(MessageRecords.VERSION))
             .limit(1)
             .first()

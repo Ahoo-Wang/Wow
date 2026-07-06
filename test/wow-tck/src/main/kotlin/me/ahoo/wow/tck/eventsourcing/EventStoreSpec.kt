@@ -180,6 +180,66 @@ abstract class EventStoreSpec {
     }
 
     @Test
+    fun existsRequestId() {
+        val eventStore = createEventStore().metrizable()
+        val aggregateId = namedAggregate.aggregateId()
+        val eventStream =
+            MockAggregateCreated(generateGlobalId()).toDomainEventStream(
+                GivenInitializationCommand(aggregateId, requestId = generateGlobalId()),
+                Version.UNINITIALIZED_VERSION,
+            )
+        eventStore.append(eventStream)
+            .test()
+            .verifyComplete()
+
+        eventStore.existsRequestId(aggregateId, eventStream.requestId)
+            .test()
+            .expectNext(true)
+            .verifyComplete()
+        eventStore.existsRequestId(aggregateId, generateGlobalId())
+            .test()
+            .expectNext(false)
+            .verifyComplete()
+        eventStore.existsRequestId(namedAggregate.aggregateId(), eventStream.requestId)
+            .test()
+            .expectNext(false)
+            .verifyComplete()
+    }
+
+    @Test
+    fun appendEventStreamWhenSameRequestIdAcrossDifferentAggregates() {
+        val requestId = generateGlobalId()
+        val firstAggregateId = namedAggregate.aggregateId(generateGlobalId())
+        val secondAggregateId = namedAggregate.aggregateId(generateGlobalId())
+        val firstStream =
+            MockAggregateCreated(generateGlobalId()).toDomainEventStream(
+                GivenInitializationCommand(firstAggregateId, requestId = requestId),
+                Version.UNINITIALIZED_VERSION,
+            )
+        val secondStream =
+            MockAggregateCreated(generateGlobalId()).toDomainEventStream(
+                GivenInitializationCommand(secondAggregateId, requestId = requestId),
+                Version.UNINITIALIZED_VERSION,
+            )
+
+        eventStore.append(firstStream)
+            .test()
+            .verifyComplete()
+        eventStore.append(secondStream)
+            .test()
+            .verifyComplete()
+
+        eventStore.existsRequestId(firstAggregateId, requestId)
+            .test()
+            .expectNext(true)
+            .verifyComplete()
+        eventStore.existsRequestId(secondAggregateId, requestId)
+            .test()
+            .expectNext(true)
+            .verifyComplete()
+    }
+
+    @Test
     fun appendEventStreamWhenParallel() {
         val eventStore = createEventStore().metrizable()
         Flux.range(0, TIMES)

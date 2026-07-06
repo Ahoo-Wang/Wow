@@ -94,7 +94,9 @@ internal class DefaultCommandGatewayTest : CommandGatewaySpec() {
             commandWaitEndpoint = SimpleCommandWaitEndpoint(""),
             commandBus = commandBus,
             validator = TestValidator,
-            idempotencyCheckerProvider = DefaultAggregateIdempotencyCheckerProvider { idempotencyChecker },
+            requestIdChecker = DefaultRequestIdChecker(
+                DefaultAggregateIdempotencyCheckerProvider { idempotencyChecker },
+            ),
             waitCoordinator = waitCoordinator,
             commandWaitNotifier = LocalCommandWaitNotifier(waitCoordinator)
         )
@@ -148,7 +150,9 @@ internal class DefaultCommandGatewayTest : CommandGatewaySpec() {
             commandWaitEndpoint = SimpleCommandWaitEndpoint(""),
             commandBus = commandBus,
             validator = TestValidator,
-            idempotencyCheckerProvider = DefaultAggregateIdempotencyCheckerProvider { idempotencyChecker },
+            requestIdChecker = DefaultRequestIdChecker(
+                DefaultAggregateIdempotencyCheckerProvider { idempotencyChecker },
+            ),
             waitCoordinator = waitCoordinator,
             commandWaitNotifier = LocalCommandWaitNotifier(waitCoordinator)
         )
@@ -172,9 +176,11 @@ internal class DefaultCommandGatewayTest : CommandGatewaySpec() {
             commandWaitEndpoint = SimpleCommandWaitEndpoint(""),
             commandBus = commandBus,
             validator = TestValidator,
-            idempotencyCheckerProvider = DefaultAggregateIdempotencyCheckerProvider {
-                IdempotencyChecker { Mono.just(false) }
-            },
+            requestIdChecker = DefaultRequestIdChecker(
+                DefaultAggregateIdempotencyCheckerProvider {
+                    IdempotencyChecker { false }
+                },
+            ),
             waitCoordinator = waitCoordinator,
             commandWaitNotifier = LocalCommandWaitNotifier(waitCoordinator)
         )

@@ -40,6 +40,9 @@ class RoutingEventStore(
     override fun single(aggregateId: AggregateId, version: Int): Mono<DomainEventStream> =
         registry.get(aggregateId.namedAggregate).single(aggregateId, version)
 
+    override fun existsRequestId(aggregateId: AggregateId, requestId: String): Mono<Boolean> =
+        registry.get(aggregateId.namedAggregate).existsRequestId(aggregateId, requestId)
+
     override fun last(aggregateId: AggregateId): Mono<DomainEventStream> =
         registry.get(aggregateId.namedAggregate).last(aggregateId)
 }

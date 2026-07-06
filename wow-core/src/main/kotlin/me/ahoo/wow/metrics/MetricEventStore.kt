@@ -91,6 +91,15 @@ class MetricEventStore(
             .tag(Metrics.AGGREGATE_KEY, aggregateId.aggregateName)
             .metrics()
 
+    override fun existsRequestId(aggregateId: AggregateId, requestId: String): Mono<Boolean> {
+        return delegate
+            .existsRequestId(aggregateId, requestId)
+            .name(Wow.WOW_PREFIX + "eventstore.exists.request.id")
+            .tagSource()
+            .tag(Metrics.AGGREGATE_KEY, aggregateId.aggregateName)
+            .metrics()
+    }
+
     override fun last(aggregateId: AggregateId): Mono<DomainEventStream> {
         return delegate
             .last(aggregateId)

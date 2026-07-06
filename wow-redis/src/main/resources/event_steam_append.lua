@@ -18,7 +18,7 @@ if count ~= (version - 1) then
     return "EventVersionConflict";
 end
 
-local requestIdxKey = eventStreamPrefixKey .. ":req_idx"
+local requestIdxKey = eventStreamKey .. ":req_idx"
 local added = redis.call("SADD", requestIdxKey, requestId)
 if added == 0 then
     return "DuplicateRequestId";

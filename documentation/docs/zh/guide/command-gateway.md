@@ -235,6 +235,7 @@ sequenceDiagram
     actor Client
     participant Handler as CommandHandlerFunction
     participant Gateway as DefaultCommandGateway
+    participant Store as EventStore
     participant Registrar as WaitCoordinator
     participant LFBus as LocalFirstCommandBus
     participant Kafka as KafkaCommandBus
@@ -249,6 +250,9 @@ sequenceDiagram
     Note over Gateway: DefaultCommandGateway.send()
 
     Gateway->>Gateway: idempotencyCheck(requestId)
+    opt 预检命中重复
+        Gateway->>Store: existsRequestId(aggregateId, requestId)
+    end
     Gateway->>Gateway: validate(commandBody)
     Note over Gateway: Jakarta Bean Validation<br>+ CommandValidator.validate()
 
@@ -307,7 +311,7 @@ sequenceDiagram
 
 `DefaultCommandGateway` 在命令到达总线之前强制执行严格的发送前管道：
 
-1. **幂等性检查** -- 获取聚合类型的 `IdempotencyChecker`，检查 `requestId` 是否已被处理。如果已处理，则立即抛出 `DuplicateRequestIdException`。
+1. **幂等性检查** -- 获取聚合类型的 `IdempotencyChecker`，先快速预检 `requestId`。当预检命中重复时，网关会通过 `EventStore.existsRequestId(aggregateId, requestId)` 进行确认，只有事件存储也确认存在时才抛出 `DuplicateRequestIdException`，避免 BloomFilter 等预检结构的误判阻断合法命令。
 
 2. **验证** -- 两阶段验证：
    - **自验证**：如果命令体实现了 `CommandValidator`，则首先调用其 `validate()` 方法。这允许进行特定于领域的编程验证。

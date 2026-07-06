@@ -18,6 +18,7 @@ import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.DefaultCommandGateway
+import me.ahoo.wow.command.DefaultRequestIdChecker
 import me.ahoo.wow.command.InMemoryCommandBus
 import me.ahoo.wow.command.wait.CommandWaitEndpoint
 import me.ahoo.wow.command.wait.CommandWaitNotifier
@@ -84,7 +85,7 @@ class CommandGatewayScenario private constructor(
                 commandWaitEndpoint = commandWaitEndpoint,
                 commandBus = commandBus,
                 validator = validator,
-                idempotencyCheckerProvider = idempotencyCheckerProvider,
+                requestIdChecker = DefaultRequestIdChecker(idempotencyCheckerProvider),
                 waitCoordinator = waitCoordinator,
                 commandWaitNotifier = commandWaitNotifier,
             )

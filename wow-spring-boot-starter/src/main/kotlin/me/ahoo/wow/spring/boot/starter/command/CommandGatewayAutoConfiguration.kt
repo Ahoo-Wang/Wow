@@ -20,6 +20,8 @@ import me.ahoo.cosid.machine.HostAddressSupplier
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.DefaultCommandGateway
+import me.ahoo.wow.command.DefaultRequestIdChecker
+import me.ahoo.wow.command.RequestIdChecker
 import me.ahoo.wow.command.wait.CommandWaitEndpoint
 import me.ahoo.wow.command.wait.CommandWaitNotifier
 import me.ahoo.wow.command.wait.DefaultWaitCoordinator
@@ -30,12 +32,15 @@ import me.ahoo.wow.command.wait.ProjectedNotifierFilter
 import me.ahoo.wow.command.wait.SagaHandledNotifierFilter
 import me.ahoo.wow.command.wait.SnapshotNotifierFilter
 import me.ahoo.wow.command.wait.WaitCoordinator
+import me.ahoo.wow.eventsourcing.NoopRequestIdExistenceChecker
+import me.ahoo.wow.eventsourcing.RequestIdExistenceChecker
 import me.ahoo.wow.infra.idempotency.AggregateIdempotencyCheckerProvider
 import me.ahoo.wow.infra.idempotency.BloomFilterIdempotencyChecker
 import me.ahoo.wow.infra.idempotency.DefaultAggregateIdempotencyCheckerProvider
 import me.ahoo.wow.infra.idempotency.NoOpIdempotencyChecker
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.ENABLED_SUFFIX_KEY
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingClass
@@ -76,6 +81,20 @@ class CommandGatewayAutoConfiguration {
                 )
             }
         }
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    fun requestIdChecker(
+        idempotencyCheckerProvider: AggregateIdempotencyCheckerProvider,
+        requestIdExistenceCheckerProvider: ObjectProvider<RequestIdExistenceChecker>,
+    ): RequestIdChecker {
+        return DefaultRequestIdChecker(
+            idempotencyCheckerProvider = idempotencyCheckerProvider,
+            requestIdExistenceChecker = requestIdExistenceCheckerProvider.getIfAvailable {
+                NoopRequestIdExistenceChecker
+            },
+        )
     }
 
     @Bean
@@ -129,17 +148,17 @@ class CommandGatewayAutoConfiguration {
         commandWaitEndpoint: CommandWaitEndpoint,
         commandBus: CommandBus,
         validator: Validator,
-        idempotencyCheckerProvider: AggregateIdempotencyCheckerProvider,
+        requestIdChecker: RequestIdChecker,
         waitCoordinator: WaitCoordinator,
-        commandWaitNotifier: CommandWaitNotifier
+        commandWaitNotifier: CommandWaitNotifier,
     ): CommandGateway {
         return DefaultCommandGateway(
             commandWaitEndpoint = commandWaitEndpoint,
             commandBus = commandBus,
             validator = validator,
-            idempotencyCheckerProvider = idempotencyCheckerProvider,
+            requestIdChecker = requestIdChecker,
             waitCoordinator = waitCoordinator,
-            commandWaitNotifier = commandWaitNotifier
+            commandWaitNotifier = commandWaitNotifier,
         )
     }
 }

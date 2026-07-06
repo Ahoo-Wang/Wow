@@ -104,6 +104,22 @@ class RoutingEventStoreTest {
     }
 
     @Test
+    fun `exists request id chooses configured store`() {
+        val defaultStore = RecordingEventStore()
+        val orderStore = RecordingEventStore()
+        val aggregateId = order.aggregateId("order-1")
+        val routingStore = routingEventStore(defaultStore, orderStore)
+
+        StepVerifier.create(routingStore.existsRequestId(aggregateId, "request-1"))
+            .expectNext(false)
+            .verifyComplete()
+
+        orderStore.lastOperation.assert().isEqualTo("existsRequestId")
+        orderStore.lastAggregateId.assert().isEqualTo(aggregateId)
+        defaultStore.lastOperation.assert().isNull()
+    }
+
+    @Test
     fun `missing route uses default event store`() {
         val defaultStore = RecordingEventStore()
         val orderStore = RecordingEventStore()
@@ -183,6 +199,11 @@ class RoutingEventStoreTest {
         override fun last(aggregateId: AggregateId): Mono<DomainEventStream> {
             record("last", aggregateId)
             return failure?.let { Mono.error(it) } ?: Mono.empty()
+        }
+
+        override fun existsRequestId(aggregateId: AggregateId, requestId: String): Mono<Boolean> {
+            record("existsRequestId", aggregateId)
+            return failure?.let { Mono.error(it) } ?: Mono.just(false)
         }
 
         private fun record(operation: String, aggregateId: AggregateId) {
