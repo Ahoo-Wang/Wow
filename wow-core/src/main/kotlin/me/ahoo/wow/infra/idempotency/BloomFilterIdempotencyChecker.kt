@@ -76,8 +76,8 @@ class BloomFilterIdempotencyChecker(
             "Create new BloomFilter."
         }
         return bloomFilterSupplier().also {
-            bloomFilter = it
             expiresAt = now + ttlNanos
+            bloomFilter = it
         }
     }
 

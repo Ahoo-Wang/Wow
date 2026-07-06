@@ -52,10 +52,8 @@ interface EventStore : RequestIdExistenceChecker {
      * @param requestId the request identifier to check
      * @return a Mono emitting true if the request ID already exists for this aggregate
      */
-    override fun existsRequestId(
-        aggregateId: AggregateId,
-        requestId: String
-    ): Mono<Boolean> = load(aggregateId).any { it.requestId == requestId }
+    override fun existsRequestId(aggregateId: AggregateId, requestId: String): Mono<Boolean> =
+        load(aggregateId).any { it.requestId == requestId }
 
     /**
      * Loads domain event streams for the specified aggregate within the given version range.
