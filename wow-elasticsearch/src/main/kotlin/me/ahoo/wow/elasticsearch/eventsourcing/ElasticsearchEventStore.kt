@@ -172,7 +172,7 @@ class ElasticsearchEventStore(
                     .hits()
                     .hits()
                     .firstOrNull()
-            ?.source()
+                    ?.source()
             }
     }
 

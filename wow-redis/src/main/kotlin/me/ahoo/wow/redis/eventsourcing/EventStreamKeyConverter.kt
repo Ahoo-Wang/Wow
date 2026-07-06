@@ -17,8 +17,8 @@ import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.toStringWithAlias
-import me.ahoo.wow.redis.eventsourcing.RedisWrappedKey.wrap
 import me.ahoo.wow.redis.eventsourcing.RedisWrappedKey.unwrap
+import me.ahoo.wow.redis.eventsourcing.RedisWrappedKey.wrap
 
 object EventStreamKeyConverter : AggregateKeyConverter {
     const val ID_DELIMITER = "@"
