@@ -98,7 +98,9 @@ class ElasticsearchEventSourcingAutoConfiguration(private val elasticsearchPrope
     @Bean
     @ConditionalOnSnapshotEnabled
     @ConditionalOnSnapshotStoreStorage(StorageType.ELASTICSEARCH)
-    fun elasticsearchSnapshotStoreBinding(elasticsearchSnapshotStore: ElasticsearchSnapshotStore): SnapshotStoreBinding {
+    fun elasticsearchSnapshotStoreBinding(
+        elasticsearchSnapshotStore: ElasticsearchSnapshotStore
+    ): SnapshotStoreBinding {
         return SnapshotStoreBinding.storage(StorageType.ELASTICSEARCH, elasticsearchSnapshotStore)
     }
 

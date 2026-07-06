@@ -181,7 +181,9 @@ class StorageRoutingAutoConfigurationTest {
     @Test
     fun `snapshot route should create primary routing snapshot store`() {
         routingContextRunner
-            .withPropertyValues("${StorageRoutingProperties.AGGREGATES}.cart.snapshot.storage=${StorageType.REDIS_NAME}")
+            .withPropertyValues(
+                "${StorageRoutingProperties.AGGREGATES}.cart.snapshot.storage=${StorageType.REDIS_NAME}"
+            )
             .run { context: AssertableApplicationContext ->
                 context.assert()
                     .doesNotHaveBean(RoutingEventStore::class.java)
