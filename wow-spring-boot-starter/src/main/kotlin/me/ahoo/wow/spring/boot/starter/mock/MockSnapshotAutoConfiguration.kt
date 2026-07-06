@@ -14,14 +14,13 @@
 package me.ahoo.wow.spring.boot.starter.mock
 
 import me.ahoo.wow.eventsourcing.mock.DelaySnapshotStore
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.ConditionalOnSnapshotStoreStorage
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.ConditionalOnSnapshotEnabled
-import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotProperties
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Bean
 
 @AutoConfiguration
@@ -31,11 +30,14 @@ import org.springframework.context.annotation.Bean
 class MockSnapshotAutoConfiguration {
 
     @Bean(name = ["delaySnapshotStore", "delaySnapshotRepository"])
-    @ConditionalOnProperty(
-        value = [SnapshotProperties.STORAGE],
-        havingValue = StorageType.DELAY_NAME,
-    )
-    fun delaySnapshotStore(): SnapshotStore {
+    @ConditionalOnSnapshotStoreStorage(StorageType.DELAY)
+    fun delaySnapshotStore(): DelaySnapshotStore {
         return DelaySnapshotStore()
+    }
+
+    @Bean
+    @ConditionalOnSnapshotStoreStorage(StorageType.DELAY)
+    fun delaySnapshotStoreBinding(delaySnapshotStore: DelaySnapshotStore): SnapshotStoreBinding {
+        return SnapshotStoreBinding.storage(StorageType.DELAY, delaySnapshotStore)
     }
 }

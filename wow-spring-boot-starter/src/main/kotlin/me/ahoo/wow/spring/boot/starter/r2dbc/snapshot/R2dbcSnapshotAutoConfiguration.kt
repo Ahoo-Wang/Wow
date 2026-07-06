@@ -15,7 +15,6 @@ package me.ahoo.wow.spring.boot.starter.r2dbc.snapshot
 
 import io.r2dbc.spi.ConnectionFactory
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.r2dbc.ConnectionFactoryRegistrar
 import me.ahoo.wow.r2dbc.R2dbcSnapshotStore
 import me.ahoo.wow.r2dbc.ShardingDatabase
@@ -28,8 +27,9 @@ import me.ahoo.wow.sharding.ShardingRegistrar
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.ConditionalOnSnapshotStoreStorage
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.ConditionalOnSnapshotEnabled
-import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotProperties
 import me.ahoo.wow.spring.boot.starter.r2dbc.ConditionalOnR2dbcEnabled
 import me.ahoo.wow.spring.boot.starter.r2dbc.DataSourceProperties
 import me.ahoo.wow.spring.boot.starter.r2dbc.ShardingDataSourcingAutoConfiguration
@@ -47,18 +47,20 @@ import org.springframework.context.annotation.Configuration
 @ConditionalOnR2dbcEnabled
 @ConditionalOnSnapshotEnabled
 @ConditionalOnClass(R2dbcSnapshotStore::class)
-@ConditionalOnProperty(
-    SnapshotProperties.STORAGE,
-    havingValue = StorageType.R2DBC_NAME,
-)
+@ConditionalOnSnapshotStoreStorage(StorageType.R2DBC)
 class R2dbcSnapshotAutoConfiguration {
 
     @Bean(name = ["r2dbcSnapshotStore", "r2dbcSnapshotRepository"])
     fun r2dbcSnapshotStore(
         snapshotDatabase: SnapshotDatabase,
         snapshotSchema: SnapshotSchema
-    ): SnapshotStore {
+    ): R2dbcSnapshotStore {
         return R2dbcSnapshotStore(snapshotDatabase, snapshotSchema)
+    }
+
+    @Bean
+    fun r2dbcSnapshotStoreBinding(r2dbcSnapshotStore: R2dbcSnapshotStore): SnapshotStoreBinding {
+        return SnapshotStoreBinding.storage(StorageType.R2DBC, r2dbcSnapshotStore)
     }
 
     @Configuration

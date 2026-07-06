@@ -32,6 +32,8 @@ import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.WowProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.ConditionalOnSnapshotStoreStorage
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBinding
 import me.ahoo.wow.spring.command.SnapshotDispatcherLauncher
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
@@ -50,12 +52,15 @@ class SnapshotAutoConfiguration(
 ) {
 
     @Bean(name = ["inMemorySnapshotStore", "inMemorySnapshotRepository"])
-    @ConditionalOnProperty(
-        value = [SnapshotProperties.STORAGE],
-        havingValue = StorageType.IN_MEMORY_NAME,
-    )
-    fun inMemorySnapshotStore(): SnapshotStore {
+    @ConditionalOnSnapshotStoreStorage(StorageType.IN_MEMORY)
+    fun inMemorySnapshotStore(): InMemorySnapshotStore {
         return InMemorySnapshotStore()
+    }
+
+    @Bean
+    @ConditionalOnSnapshotStoreStorage(StorageType.IN_MEMORY)
+    fun inMemorySnapshotStoreBinding(inMemorySnapshotStore: InMemorySnapshotStore): SnapshotStoreBinding {
+        return SnapshotStoreBinding.storage(StorageType.IN_MEMORY, inMemorySnapshotStore)
     }
 
     @Bean

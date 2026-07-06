@@ -20,6 +20,8 @@ import me.ahoo.wow.r2dbc.R2dbcEventStore
 import me.ahoo.wow.r2dbc.R2dbcSnapshotStore
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStoreBinding
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreProperties
 import org.junit.jupiter.api.Test
@@ -47,6 +49,17 @@ internal class R2dbcAutoConfigurationTest {
                     .hasBean("r2dbcSnapshotStore")
                     .hasBean("r2dbcSnapshotRepository")
                     .hasSingleBean(R2dbcSnapshotStore::class.java)
+                    .hasSingleBean(EventStoreBinding::class.java)
+                    .hasSingleBean(SnapshotStoreBinding::class.java)
+                val eventStore = context.getBean(R2dbcEventStore::class.java)
+                val eventBinding = context.getBean(EventStoreBinding::class.java)
+                eventBinding.storage.assert().isEqualTo(StorageType.R2DBC)
+                eventBinding.eventStore.assert().isSameAs(eventStore)
+
+                val snapshotStore = context.getBean(R2dbcSnapshotStore::class.java)
+                val snapshotBinding = context.getBean(SnapshotStoreBinding::class.java)
+                snapshotBinding.storage.assert().isEqualTo(StorageType.R2DBC)
+                snapshotBinding.snapshotStore.assert().isSameAs(snapshotStore)
             }
     }
 }

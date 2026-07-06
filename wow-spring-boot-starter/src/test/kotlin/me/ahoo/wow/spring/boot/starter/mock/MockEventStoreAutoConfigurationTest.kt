@@ -4,6 +4,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.eventsourcing.mock.DelayEventStore
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStoreBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreProperties
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
@@ -25,6 +26,11 @@ class MockEventStoreAutoConfigurationTest {
             .run { context: AssertableApplicationContext ->
                 context.assert()
                     .hasSingleBean(DelayEventStore::class.java)
+                    .hasSingleBean(EventStoreBinding::class.java)
+                val eventStore = context.getBean(DelayEventStore::class.java)
+                val binding = context.getBean(EventStoreBinding::class.java)
+                binding.storage.assert().isEqualTo(StorageType.DELAY)
+                binding.eventStore.assert().isSameAs(eventStore)
             }
     }
 }

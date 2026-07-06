@@ -15,7 +15,6 @@ package me.ahoo.wow.spring.boot.starter.r2dbc.eventstore
 
 import io.r2dbc.spi.ConnectionFactory
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.r2dbc.ConnectionFactoryRegistrar
 import me.ahoo.wow.r2dbc.EventStreamDatabase
 import me.ahoo.wow.r2dbc.EventStreamSchema
@@ -28,7 +27,8 @@ import me.ahoo.wow.sharding.ShardingRegistrar
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.WowAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
-import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreProperties
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.ConditionalOnEventStoreStorage
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStoreBinding
 import me.ahoo.wow.spring.boot.starter.r2dbc.ConditionalOnR2dbcEnabled
 import me.ahoo.wow.spring.boot.starter.r2dbc.DataSourceProperties
 import me.ahoo.wow.spring.boot.starter.r2dbc.ShardingDataSourcingAutoConfiguration
@@ -45,15 +45,17 @@ import org.springframework.context.annotation.Configuration
 @ConditionalOnWowEnabled
 @ConditionalOnR2dbcEnabled
 @ConditionalOnClass(R2dbcEventStore::class)
-@ConditionalOnProperty(
-    EventStoreProperties.STORAGE,
-    havingValue = StorageType.R2DBC_NAME,
-)
+@ConditionalOnEventStoreStorage(StorageType.R2DBC)
 class R2dbcEventStoreAutoConfiguration {
 
     @Bean
-    fun eventStore(eventStreamDatabase: EventStreamDatabase, eventStreamSchema: EventStreamSchema): EventStore {
+    fun eventStore(eventStreamDatabase: EventStreamDatabase, eventStreamSchema: EventStreamSchema): R2dbcEventStore {
         return R2dbcEventStore(eventStreamDatabase, eventStreamSchema)
+    }
+
+    @Bean
+    fun r2dbcEventStoreBinding(eventStore: R2dbcEventStore): EventStoreBinding {
+        return EventStoreBinding.storage(StorageType.R2DBC, eventStore)
     }
 
     @Configuration

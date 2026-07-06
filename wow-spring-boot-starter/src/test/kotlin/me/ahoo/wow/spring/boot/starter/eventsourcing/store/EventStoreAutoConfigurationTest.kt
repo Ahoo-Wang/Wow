@@ -17,6 +17,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStoreBinding
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
@@ -37,6 +38,11 @@ class EventStoreAutoConfigurationTest {
             .run { context: AssertableApplicationContext ->
                 context.assert()
                     .hasSingleBean(InMemoryEventStore::class.java)
+                    .hasSingleBean(EventStoreBinding::class.java)
+                val eventStore = context.getBean(InMemoryEventStore::class.java)
+                val binding = context.getBean(EventStoreBinding::class.java)
+                binding.storage.assert().isEqualTo(StorageType.IN_MEMORY)
+                binding.eventStore.assert().isSameAs(eventStore)
             }
     }
 }

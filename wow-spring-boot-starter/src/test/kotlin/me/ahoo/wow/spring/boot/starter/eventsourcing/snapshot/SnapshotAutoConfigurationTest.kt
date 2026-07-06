@@ -29,6 +29,7 @@ import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.event.EventAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.event.EventProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreProperties
 import me.ahoo.wow.spring.command.SnapshotDispatcherLauncher
@@ -67,6 +68,11 @@ internal class SnapshotAutoConfigurationTest {
                     .hasSingleBean(SnapshotHandler::class.java)
                     .hasSingleBean(SnapshotDispatcher::class.java)
                     .hasSingleBean(SnapshotDispatcherLauncher::class.java)
+                    .hasSingleBean(SnapshotStoreBinding::class.java)
+                val snapshotStore = context.getBean(InMemorySnapshotStore::class.java)
+                val binding = context.getBean(SnapshotStoreBinding::class.java)
+                binding.storage.assert().isEqualTo(StorageType.IN_MEMORY)
+                binding.snapshotStore.assert().isSameAs(snapshotStore)
             }
     }
 
@@ -98,6 +104,11 @@ internal class SnapshotAutoConfigurationTest {
                     .hasSingleBean(SnapshotHandler::class.java)
                     .hasSingleBean(SnapshotDispatcher::class.java)
                     .hasSingleBean(SnapshotDispatcherLauncher::class.java)
+                    .hasSingleBean(SnapshotStoreBinding::class.java)
+                val snapshotStore = context.getBean(InMemorySnapshotStore::class.java)
+                val binding = context.getBean(SnapshotStoreBinding::class.java)
+                binding.storage.assert().isEqualTo(StorageType.IN_MEMORY)
+                binding.snapshotStore.assert().isSameAs(snapshotStore)
             }
     }
 }

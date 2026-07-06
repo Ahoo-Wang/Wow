@@ -15,8 +15,6 @@ package me.ahoo.wow.spring.boot.starter.mongo
 
 import com.mongodb.reactivestreams.client.MongoClient
 import com.mongodb.reactivestreams.client.MongoDatabase
-import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.infra.prepare.PrepareKeyFactory
 import me.ahoo.wow.mongo.EventStreamSchemaInitializer
 import me.ahoo.wow.mongo.MongoEventStore
@@ -29,6 +27,10 @@ import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.ConditionalOnEventStoreStorage
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.ConditionalOnSnapshotStoreStorage
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStoreBinding
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.ConditionalOnSnapshotEnabled
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotProperties
 import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreProperties
@@ -52,20 +54,22 @@ import org.springframework.context.annotation.Bean
 class MongoEventSourcingAutoConfiguration(private val mongoProperties: MongoProperties) {
 
     @Bean
-    @ConditionalOnProperty(
-        EventStoreProperties.STORAGE,
-        matchIfMissing = true,
-        havingValue = StorageType.MONGO_NAME,
-    )
+    @ConditionalOnEventStoreStorage(StorageType.MONGO)
     fun mongoEventStore(
         mongoClient: MongoClient,
         dataMongoProperties: org.springframework.boot.mongodb.autoconfigure.MongoProperties?
-    ): EventStore {
+    ): MongoEventStore {
         val eventStoreDatabase = getEventStreamDatabase(dataMongoProperties, mongoClient)
         if (mongoProperties.autoInitSchema) {
             EventStreamSchemaInitializer(eventStoreDatabase).initAll()
         }
         return MongoEventStore(eventStoreDatabase)
+    }
+
+    @Bean
+    @ConditionalOnEventStoreStorage(StorageType.MONGO)
+    fun mongoEventStoreBinding(mongoEventStore: MongoEventStore): EventStoreBinding {
+        return EventStoreBinding.storage(StorageType.MONGO, mongoEventStore)
     }
 
     @Bean
@@ -96,20 +100,23 @@ class MongoEventSourcingAutoConfiguration(private val mongoProperties: MongoProp
 
     @Bean(name = ["mongoSnapshotStore", "mongoSnapshotRepository"])
     @ConditionalOnSnapshotEnabled
-    @ConditionalOnProperty(
-        SnapshotProperties.STORAGE,
-        matchIfMissing = true,
-        havingValue = StorageType.MONGO_NAME,
-    )
+    @ConditionalOnSnapshotStoreStorage(StorageType.MONGO)
     fun mongoSnapshotStore(
         mongoClient: MongoClient,
         dataMongoProperties: org.springframework.boot.mongodb.autoconfigure.MongoProperties?
-    ): SnapshotStore {
+    ): MongoSnapshotStore {
         val snapshotDatabase = getMongoSnapshotDatabase(dataMongoProperties, mongoClient)
         if (mongoProperties.autoInitSchema) {
             SnapshotSchemaInitializer(snapshotDatabase).initAll()
         }
         return MongoSnapshotStore(snapshotDatabase)
+    }
+
+    @Bean
+    @ConditionalOnSnapshotEnabled
+    @ConditionalOnSnapshotStoreStorage(StorageType.MONGO)
+    fun mongoSnapshotStoreBinding(mongoSnapshotStore: MongoSnapshotStore): SnapshotStoreBinding {
+        return SnapshotStoreBinding.storage(StorageType.MONGO, mongoSnapshotStore)
     }
 
     @Bean

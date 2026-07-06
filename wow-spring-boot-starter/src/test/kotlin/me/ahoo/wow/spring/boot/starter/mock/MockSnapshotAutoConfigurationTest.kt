@@ -4,6 +4,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.eventsourcing.mock.DelaySnapshotStore
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotProperties
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
@@ -27,6 +28,11 @@ class MockSnapshotAutoConfigurationTest {
                     .hasBean("delaySnapshotStore")
                     .hasBean("delaySnapshotRepository")
                     .hasSingleBean(DelaySnapshotStore::class.java)
+                    .hasSingleBean(SnapshotStoreBinding::class.java)
+                val snapshotStore = context.getBean(DelaySnapshotStore::class.java)
+                val binding = context.getBean(SnapshotStoreBinding::class.java)
+                binding.storage.assert().isEqualTo(StorageType.DELAY)
+                binding.snapshotStore.assert().isSameAs(snapshotStore)
             }
     }
 }
