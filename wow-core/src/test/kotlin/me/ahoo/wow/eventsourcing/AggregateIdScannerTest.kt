@@ -33,6 +33,22 @@ class AggregateIdScannerTest {
     }
 
     @Test
+    fun `event store scanner exposes default arguments`() {
+        val eventStore: EventStore = InMemoryEventStore()
+        val namedAggregate = MOCK_AGGREGATE_METADATA.materialize()
+        val aggregateId = namedAggregate.aggregateId("default-arguments")
+
+        StepVerifier.create(eventStore.append(generateEventStream(aggregateId)))
+            .verifyComplete()
+
+        StepVerifier.create(eventStore.scanAggregateId(namedAggregate))
+            .assertNext {
+                it.assert().isEqualTo(aggregateId)
+            }
+            .verifyComplete()
+    }
+
+    @Test
     fun `in memory scanner honors aggregate name after id and limit boundaries`() {
         val eventStore = InMemoryEventStore()
         val namedAggregate = MOCK_AGGREGATE_METADATA.materialize()
