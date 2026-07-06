@@ -2,7 +2,7 @@
 
 ## 背景
 
-Wow 当前通过全局配置选择唯一事件存储和快照仓库：
+Wow 当前通过全局配置选择唯一事件存储和快照存储：
 
 ```yaml
 wow:
@@ -13,7 +13,7 @@ wow:
       storage: mongo
 ```
 
-对应代码也按单例注入：
+对应代码也按单例注入。当前代码里的快照存储接口名仍是 `SnapshotRepository`：
 
 - `AggregateAutoConfiguration.stateAggregateRepository(...)` 注入一个 `SnapshotRepository` 和一个 `EventStore`，创建 `EventSourcingStateAggregateRepository`。
 - `AggregateAutoConfiguration.commandAggregateFactory(...)` 注入一个 `EventStore`，创建 `SimpleCommandAggregateFactory`。
@@ -22,9 +22,11 @@ wow:
 
 这说明当前模型的限制不是核心 port 缺少聚合身份，而是运行时装配只有全局后端。`EventStore.append(eventStream)`、`EventStore.load(aggregateId)`、`SnapshotRepository.load(aggregateId)`、`SnapshotRepository.save(snapshot)` 已经能拿到 `AggregateId` 或 `NamedAggregate`，可以在 port 外层做路由。
 
+设计目标命名将 `SnapshotRepository` 收敛为 `SnapshotStore`。`Store` 与 `EventStore` 对齐，更准确表达“快照事实的存取端口”，避免 `Repository` 与领域仓储、查询仓储混用。
+
 ## 目标
 
-支持按聚合配置 `EventStore` 和 `SnapshotRepository`，并保持现有默认行为：
+支持按聚合配置 `EventStore` 和 `SnapshotStore`，并保持现有默认行为：
 
 - 未配置聚合路由时，行为与当前版本一致。
 - 聚合未出现在路由配置中时，使用全局默认后端。
@@ -35,7 +37,8 @@ wow:
 
 ## 非目标
 
-- 不修改 `EventStore` / `SnapshotRepository` 接口签名。
+- 不修改 `EventStore` 方法签名。
+- `SnapshotRepository` 重命名为 `SnapshotStore`，实现时需要提供清晰迁移路径。
 - 不把存储选择放入 `@AggregateRoot` 或聚合元数据。
 - 不在聚合配置里声明数据库连接、Redis 连接或 R2DBC 数据源细节。
 - 第一阶段不支持 `event: redis` 这类 scalar 简写，避免类型提示和扩展模型混杂。
@@ -70,7 +73,7 @@ wow:
           event:
             binding: archive-event-store
           snapshot:
-            binding: archive-snapshot-repository
+            binding: archive-snapshot-store
 ```
 
 语义：
@@ -106,9 +109,9 @@ data class StorageChannelRouteProperties(
 新增运行时路由组件：
 
 - `RoutingEventStore : EventStore`
-- `RoutingSnapshotRepository : SnapshotRepository`
+- `RoutingSnapshotStore : SnapshotStore`
 - `AggregateEventStoreRegistry`
-- `AggregateSnapshotRepositoryRegistry`
+- `AggregateSnapshotStoreRegistry`
 
 新增后端绑定组件：
 
@@ -119,10 +122,10 @@ data class EventStoreBinding(
     val eventStore: EventStore
 )
 
-data class SnapshotRepositoryBinding(
+data class SnapshotStoreBinding(
     val name: String,
     val storage: StorageType?,
-    val snapshotRepository: SnapshotRepository
+    val snapshotStore: SnapshotStore
 )
 ```
 
@@ -131,8 +134,8 @@ data class SnapshotRepositoryBinding(
 路由开启条件：
 
 - `wow.eventsourcing.storage-routing.aggregates` 非空时启用路由。
-- 路由开启时，`RoutingEventStore` 和 `RoutingSnapshotRepository` 作为主 `EventStore` / `SnapshotRepository` 注入。
-- 具体后端通过 `EventStoreBinding` / `SnapshotRepositoryBinding` 注入路由组件，避免路由代理把自身当成可选后端。
+- 路由开启时，`RoutingEventStore` 和 `RoutingSnapshotStore` 作为主 `EventStore` / `SnapshotStore` 注入。
+- 具体后端通过 `EventStoreBinding` / `SnapshotStoreBinding` 注入路由组件，避免路由代理把自身当成可选后端。
 
 ## 后端解析
 
@@ -145,7 +148,7 @@ data class SnapshotRepositoryBinding(
 `binding` 解析规则：
 
 1. `event.binding` 查找 `EventStoreBinding.name`。
-2. `snapshot.binding` 查找 `SnapshotRepositoryBinding.name`。
+2. `snapshot.binding` 查找 `SnapshotStoreBinding.name`。
 3. 找不到时启动失败。
 
 多实例场景使用 `binding`：
@@ -162,13 +165,13 @@ fun archiveEventStoreBinding(
     )
 
 @Bean
-fun archiveSnapshotRepositoryBinding(
-    archiveSnapshotRepository: SnapshotRepository
-): SnapshotRepositoryBinding =
-    SnapshotRepositoryBinding(
-        name = "archive-snapshot-repository",
+fun archiveSnapshotStoreBinding(
+    archiveSnapshotStore: SnapshotStore
+): SnapshotStoreBinding =
+    SnapshotStoreBinding(
+        name = "archive-snapshot-store",
         storage = null,
-        snapshotRepository = archiveSnapshotRepository,
+        snapshotStore = archiveSnapshotStore,
     )
 ```
 
@@ -177,11 +180,11 @@ fun archiveSnapshotRepositoryBinding(
 ```mermaid
 flowchart TD
     Command["CommandMessage / AggregateId"] --> EventRoute["RoutingEventStore"]
-    SnapshotLoad["load(aggregateId)"] --> SnapshotRoute["RoutingSnapshotRepository"]
+    SnapshotLoad["load(aggregateId)"] --> SnapshotRoute["RoutingSnapshotStore"]
     SnapshotSave["save(snapshot)"] --> SnapshotRoute
 
     EventRoute --> EventRegistry["AggregateEventStoreRegistry"]
-    SnapshotRoute --> SnapshotRegistry["AggregateSnapshotRepositoryRegistry"]
+    SnapshotRoute --> SnapshotRegistry["AggregateSnapshotStoreRegistry"]
 
     EventRegistry --> EventConfigured{"event route configured?"}
     SnapshotRegistry --> SnapshotConfigured{"snapshot route configured?"}
@@ -189,19 +192,19 @@ flowchart TD
     EventConfigured -->|"yes"| EventOverride["configured EventStore"]
     EventConfigured -->|"no"| DefaultEvent["default EventStore"]
 
-    SnapshotConfigured -->|"yes"| SnapshotOverride["configured SnapshotRepository"]
-    SnapshotConfigured -->|"no"| DefaultSnapshot["default SnapshotRepository"]
+    SnapshotConfigured -->|"yes"| SnapshotOverride["configured SnapshotStore"]
+    SnapshotConfigured -->|"no"| DefaultSnapshot["default SnapshotStore"]
 ```
 
 委托规则：
 
 - `RoutingEventStore.append(eventStream)` 从 `eventStream.aggregateId.namedAggregate` 路由。
 - `RoutingEventStore.load(...)`、`last(...)`、`single(...)` 从 `aggregateId.namedAggregate` 路由。
-- `RoutingSnapshotRepository.load(...)`、`getVersion(...)` 从 `aggregateId.namedAggregate` 路由。
-- `RoutingSnapshotRepository.save(snapshot)` 从 `snapshot.aggregateId.namedAggregate` 路由。
-- `RoutingSnapshotRepository.scanAggregateId(namedAggregate, ...)` 直接按参数路由。
+- `RoutingSnapshotStore.load(...)`、`getVersion(...)` 从 `aggregateId.namedAggregate` 路由。
+- `RoutingSnapshotStore.save(snapshot)` 从 `snapshot.aggregateId.namedAggregate` 路由。
+- `RoutingSnapshotStore.scanAggregateId(namedAggregate, ...)` 直接按参数路由。
 
-补偿、WebFlux 管理路由、聚合加载、命令持久化只要注入主 `EventStore` / `SnapshotRepository`，就会使用同一套路由规则。
+补偿、WebFlux 管理路由、聚合加载、命令持久化只要注入主 `EventStore` / `SnapshotStore`，就会使用同一套路由规则。
 
 ## 启动校验
 
@@ -222,12 +225,12 @@ flowchart TD
 第一阶段应保持现有无路由行为完全不变。开启路由后：
 
 - `StorageRoutingProperties` 由 `wow-spring-boot-starter` 绑定。
-- `StorageRoutingAutoConfiguration` 创建 `RoutingEventStore` / `RoutingSnapshotRepository`。
-- 各后端自动配置为可用后端注册 `EventStoreBinding` / `SnapshotRepositoryBinding`。
+- `StorageRoutingAutoConfiguration` 创建 `RoutingEventStore` / `RoutingSnapshotStore`。
+- 各后端自动配置为可用后端注册 `EventStoreBinding` / `SnapshotStoreBinding`。
 - 默认后端由现有 `wow.eventsourcing.store.storage` 与 `wow.eventsourcing.snapshot.storage` 选择。
 - 非默认 `StorageType` 只有在路由配置引用它时才需要创建对应 binding，避免未使用后端因为连接配置缺失而影响启动。
 
-实现时需要避免多个 `EventStore` 或 `SnapshotRepository` bean 造成歧义。路由开启后，对框架内部注入点应让路由代理成为主 bean；具体后端通过 binding 列表被路由组件消费。
+实现时需要避免多个 `EventStore` 或 `SnapshotStore` bean 造成歧义。路由开启后，对框架内部注入点应让路由代理成为主 bean；具体后端通过 binding 列表被路由组件消费。
 
 ## 测试
 
@@ -235,26 +238,34 @@ flowchart TD
 
 - `RoutingEventStore.append/load/last/single` 按 `NamedAggregate` 委托到配置后端。
 - `RoutingEventStore` 未配置聚合或未配置 `event` channel 时回落默认后端。
-- `RoutingSnapshotRepository.load/getVersion/save/scanAggregateId` 按 `NamedAggregate` 委托到配置后端。
-- `RoutingSnapshotRepository` 未配置聚合或未配置 `snapshot` channel 时回落默认后端。
+- `RoutingSnapshotStore.load/getVersion/save/scanAggregateId` 按 `NamedAggregate` 委托到配置后端。
+- `RoutingSnapshotStore` 未配置聚合或未配置 `snapshot` channel 时回落默认后端。
 - 底层异常不被路由层吞掉或包装成不兼容异常。
 
 Starter 配置测试：
 
 - `order.event.storage=redis` 只覆盖事件存储，快照回落默认。
-- `cart.snapshot.storage=redis` 只覆盖快照仓库，事件回落默认。
-- `audit.event.binding=archive-event-store` 和 `audit.snapshot.binding=archive-snapshot-repository` 使用命名 binding。
+- `cart.snapshot.storage=redis` 只覆盖快照存储，事件回落默认。
+- `audit.event.binding=archive-event-store` 和 `audit.snapshot.binding=archive-snapshot-store` 使用命名 binding。
 - `order` 在 `wow.context-name=order-service` 下解析为 `order-service.order`。
 - 完整 `order-service.order` key 可以直接解析。
 - 未配置聚合走默认后端。
 - 非法聚合 key、空 channel、同时配置 `storage` 和 `binding`、不存在 binding、不可用 `StorageType` 都启动失败。
 - `snapshot.enabled=false` 且存在 `snapshot` 路由时启动失败。
 
-不需要重跑每个后端的完整 TCK 语义。具体 `EventStore` 与 `SnapshotRepository` 后端契约仍由现有 TCK 负责；本设计新增测试聚焦路由选择和配置绑定。
+不需要重跑每个后端的完整 TCK 语义。具体 `EventStore` 与 `SnapshotStore` 后端契约仍由现有 TCK 负责；本设计新增测试聚焦路由选择和配置绑定。
 
 ## 兼容性与迁移
 
 现有应用不配置 `wow.eventsourcing.storage-routing.aggregates` 时，不感知该功能。
+
+`SnapshotRepository` 到 `SnapshotStore` 是公开 API 命名变更。实现计划需要明确迁移策略：
+
+1. 新增 `SnapshotStore` 作为目标接口名称。
+2. 将框架内部注入点、路由组件、后端实现和文档统一迁移到 `SnapshotStore`。
+3. 为源代码迁移提供一轮兼容桥接，例如保留已废弃的 `SnapshotRepository` 名称作为过渡入口，并在文档中标明后续移除窗口。
+4. TCK 与测试命名同步迁移为 `SnapshotStoreSpec`，但保留对兼容桥接的最小测试，确保旧名称在过渡期可用。
+5. 发布说明必须标注这是命名层面的破坏性变更或过渡性弃用，避免用户误以为只是内部重构。
 
 迁移到聚合路由时建议先只覆盖一个低风险聚合的单 channel：
 
