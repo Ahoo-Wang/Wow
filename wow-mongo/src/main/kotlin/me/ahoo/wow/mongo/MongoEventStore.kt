@@ -90,6 +90,22 @@ class MongoEventStore(private val database: MongoDatabase) : AbstractEventStore(
         )
     }
 
+    override fun existsRequestId(aggregateId: AggregateId, requestId: String): Mono<Boolean> {
+        val eventStreamCollectionName = aggregateId.toEventStreamCollectionName()
+        return database.getCollection(eventStreamCollectionName)
+            .find(
+                Filters.and(
+                    Filters.eq(MessageRecords.AGGREGATE_ID, aggregateId.id),
+                    Filters.eq(MessageRecords.TENANT_ID, aggregateId.tenantId),
+                    Filters.eq(MessageRecords.REQUEST_ID, requestId),
+                )
+            )
+            .limit(1)
+            .first()
+            .toMono()
+            .hasElement()
+    }
+
     override fun last(aggregateId: AggregateId): Mono<DomainEventStream> {
         val eventStreamCollectionName = aggregateId.toEventStreamCollectionName()
         return database.getCollection(eventStreamCollectionName)

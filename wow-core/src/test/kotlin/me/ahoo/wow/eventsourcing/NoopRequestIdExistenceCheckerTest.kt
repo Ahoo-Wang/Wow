@@ -11,16 +11,17 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.infra.idempotency
+package me.ahoo.wow.eventsourcing
 
-import me.ahoo.test.asserts.assert
+import me.ahoo.wow.command.wait.testAggregateId
 import org.junit.jupiter.api.Test
+import reactor.test.StepVerifier
 
-class NoOpIdempotencyCheckerTest {
-
+class NoopRequestIdExistenceCheckerTest {
     @Test
-    fun `should always allow repeated elements`() {
-        NoOpIdempotencyChecker.check("request-1").assert().isTrue()
-        NoOpIdempotencyChecker.check("request-1").assert().isTrue()
+    fun `should fail closed when request id existence is unavailable`() {
+        StepVerifier.create(NoopRequestIdExistenceChecker.existsRequestId(testAggregateId(), "request-1"))
+            .expectNext(true)
+            .verifyComplete()
     }
 }

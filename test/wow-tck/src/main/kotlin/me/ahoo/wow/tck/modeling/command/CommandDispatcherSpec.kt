@@ -18,6 +18,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.DefaultCommandGateway
+import me.ahoo.wow.command.DefaultRequestIdChecker
 import me.ahoo.wow.command.InMemoryCommandBus
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.toCommandMessage
@@ -98,7 +99,9 @@ abstract class CommandDispatcherSpec {
             commandWaitEndpoint = SimpleCommandWaitEndpoint(""),
             commandBus = commandBus,
             validator = TestValidator,
-            idempotencyCheckerProvider = DefaultAggregateIdempotencyCheckerProvider { idempotencyChecker },
+            requestIdChecker = DefaultRequestIdChecker(
+                DefaultAggregateIdempotencyCheckerProvider { idempotencyChecker },
+            ),
             waitCoordinator = waitCoordinator,
             commandWaitNotifier = LocalCommandWaitNotifier(waitCoordinator),
         )

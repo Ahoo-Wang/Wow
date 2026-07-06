@@ -15,20 +15,49 @@ package me.ahoo.wow.infra.idempotency
 
 import com.google.common.hash.BloomFilter
 import com.google.common.hash.Funnels
+import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
-import reactor.test.StepVerifier
 import java.time.Duration
+import java.util.concurrent.atomic.AtomicInteger
 
 class BloomFilterIdempotencyCheckerTest {
 
     @Test
     fun `should allow first element and reject duplicate element in cached filter`() {
+        val creations = AtomicInteger()
         val checker = BloomFilterIdempotencyChecker(Duration.ofMinutes(1)) {
+            creations.incrementAndGet()
             BloomFilter.create(Funnels.stringFunnel(Charsets.UTF_8), 100)
         }
 
-        StepVerifier.create(checker.check("request-1").concatWith(checker.check("request-1")))
-            .expectNext(true, false)
-            .verifyComplete()
+        checker.check("request-1").assert().isTrue()
+        checker.check("request-1").assert().isFalse()
+        creations.get().assert().isEqualTo(1)
+    }
+
+    @Test
+    fun `should refresh cached filter after ttl expires`() {
+        val creations = AtomicInteger()
+        val checker = BloomFilterIdempotencyChecker(Duration.ZERO) {
+            creations.incrementAndGet()
+            BloomFilter.create(Funnels.stringFunnel(Charsets.UTF_8), 100)
+        }
+
+        checker.check("request-1").assert().isTrue()
+        checker.check("request-1").assert().isTrue()
+        creations.get().assert().isGreaterThan(1)
+    }
+
+    @Test
+    fun `should treat negative ttl as expired cache`() {
+        val creations = AtomicInteger()
+        val checker = BloomFilterIdempotencyChecker(Duration.ofNanos(-1)) {
+            creations.incrementAndGet()
+            BloomFilter.create(Funnels.stringFunnel(Charsets.UTF_8), 100)
+        }
+
+        checker.check("request-1").assert().isTrue()
+        checker.check("request-1").assert().isTrue()
+        creations.get().assert().isGreaterThan(1)
     }
 }

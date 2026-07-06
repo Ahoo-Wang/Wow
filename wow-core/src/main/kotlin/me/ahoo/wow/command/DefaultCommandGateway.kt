@@ -26,8 +26,6 @@ import me.ahoo.wow.command.wait.WaitPlan
 import me.ahoo.wow.command.wait.extractWaitPlan
 import me.ahoo.wow.command.wait.notifyAndForget
 import me.ahoo.wow.id.generateGlobalId
-import me.ahoo.wow.infra.idempotency.AggregateIdempotencyCheckerProvider
-import me.ahoo.wow.modeling.materialize
 import me.ahoo.wow.reactor.thenDefer
 import me.ahoo.wow.reactor.thenRunnable
 import reactor.core.publisher.Flux
@@ -41,7 +39,7 @@ import reactor.core.publisher.Mono
  * @property commandWaitEndpoint The endpoint for command waiting functionality.
  * @property commandBus The underlying command bus for sending commands.
  * @property validator The validator for command body validation.
- * @property idempotencyCheckerProvider Provider for checking command idempotency.
+ * @property requestIdChecker Checker for command request ID idempotency.
  * @property waitCoordinator Coordinator for managing wait handles.
  * @property commandWaitNotifier Notifier for command wait signals.
  */
@@ -49,9 +47,9 @@ class DefaultCommandGateway(
     private val commandWaitEndpoint: CommandWaitEndpoint,
     private val commandBus: CommandBus,
     private val validator: Validator,
-    private val idempotencyCheckerProvider: AggregateIdempotencyCheckerProvider,
+    private val requestIdChecker: RequestIdChecker,
     private val waitCoordinator: WaitCoordinator,
-    private val commandWaitNotifier: CommandWaitNotifier
+    private val commandWaitNotifier: CommandWaitNotifier,
 ) : CommandGateway,
     CommandBus by commandBus {
     /**
@@ -78,17 +76,17 @@ class DefaultCommandGateway(
      * @throws DuplicateRequestIdException if the command request ID is not unique.
      */
     private fun idempotencyCheck(command: CommandMessage<*>): Mono<Void> =
-        idempotencyCheckerProvider
-            .getChecker(command.aggregateId.namedAggregate.materialize())
-            .check(command.requestId)
-            .doOnNext {
+        requestIdChecker
+            .check(command.aggregateId, command.requestId)
+            .flatMap {
                 /*
                  * 检查命令幂等性，如果该命令通过幂等性检查则返回 {@code true},表示该命令不重复.
                  */
-                if (!it) {
-                    throw DuplicateRequestIdException(command.aggregateId, command.requestId)
+                if (it) {
+                    return@flatMap Mono.empty<Void>()
                 }
-            }.then()
+                Mono.error(DuplicateRequestIdException(command.aggregateId, command.requestId))
+            }
 
     /**
      * Performs comprehensive pre-send checks including idempotency and validation.

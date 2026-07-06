@@ -24,12 +24,18 @@ import me.ahoo.wow.command.wait.DefaultWaitCoordinator
 import me.ahoo.wow.command.wait.RecordingCommandWaitNotifier
 import me.ahoo.wow.command.wait.SimpleCommandWaitEndpoint
 import me.ahoo.wow.command.wait.TestCommandMessage
+import me.ahoo.wow.command.wait.WaitTestEvent
 import me.ahoo.wow.command.wait.WaitCoordinator
 import me.ahoo.wow.command.wait.extractWaitPlan
 import me.ahoo.wow.command.wait.testAggregateId
 import me.ahoo.wow.command.wait.testSignal
 import me.ahoo.wow.command.wait.waitPlanHeader
+import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.exception.ErrorCodes
+import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.eventsourcing.InMemoryEventStore
+import me.ahoo.wow.eventsourcing.NoopRequestIdExistenceChecker
+import me.ahoo.wow.eventsourcing.RequestIdExistenceChecker
 import me.ahoo.wow.infra.idempotency.AggregateIdempotencyCheckerProvider
 import me.ahoo.wow.infra.idempotency.IdempotencyChecker
 import me.ahoo.wow.infra.idempotency.NoOpIdempotencyChecker
@@ -46,10 +52,93 @@ class DefaultCommandGatewayTest {
         val commandBus = RecordingCommandBus()
         val gateway = commandGateway(
             commandBus = commandBus,
-            idempotencyChecker = IdempotencyChecker { Mono.just(false) },
+            requestIdChecker = RequestIdChecker { _, _ -> Mono.just(false) },
         )
 
         StepVerifier.create(gateway.send(TestCommandMessage(id = "duplicate-command")))
+            .expectError(DuplicateRequestIdException::class.java)
+            .verify()
+
+        commandBus.sent.assert().isEmpty()
+    }
+
+    @Test
+    fun `send continues when idempotency precheck rejects but event store has no request id`() {
+        val commandBus = RecordingCommandBus()
+        val command = TestCommandMessage(id = "precheck-false-positive")
+        val gateway = commandGateway(
+            commandBus = commandBus,
+            idempotencyChecker = IdempotencyChecker { false },
+            eventStore = InMemoryEventStore(),
+        )
+
+        StepVerifier.create(gateway.send(command))
+            .verifyComplete()
+
+        commandBus.sent.single().assert().isSameAs(command)
+    }
+
+    @Test
+    fun `send reevaluates idempotency precheck for each subscription`() {
+        val idempotencyChecks = AtomicInteger()
+        val commandBus = RecordingCommandBus()
+        val command = TestCommandMessage(id = "resubscribe-command")
+        val gateway = commandGateway(
+            commandBus = commandBus,
+            idempotencyChecker = IdempotencyChecker {
+                idempotencyChecks.incrementAndGet() == 1
+            },
+        )
+        val result = gateway.send(command)
+
+        StepVerifier.create(result)
+            .verifyComplete()
+        StepVerifier.create(result)
+            .expectError(DuplicateRequestIdException::class.java)
+            .verify()
+
+        idempotencyChecks.get().assert().isEqualTo(2)
+        commandBus.sent.assert().containsExactly(command)
+    }
+
+    @Test
+    fun `send confirms rejected idempotency precheck with request id existence checker`() {
+        val commandBus = RecordingCommandBus()
+        val command = TestCommandMessage(id = "request-id-existence-checker")
+        val gateway = commandGateway(
+            commandBus = commandBus,
+            idempotencyChecker = IdempotencyChecker { false },
+            requestIdExistenceChecker = RequestIdExistenceChecker { aggregateId, requestId ->
+                aggregateId.assert().isEqualTo(command.aggregateId)
+                requestId.assert().isEqualTo(command.requestId)
+                Mono.just(false)
+            },
+        )
+
+        StepVerifier.create(gateway.send(command))
+            .verifyComplete()
+
+        commandBus.sent.single().assert().isSameAs(command)
+    }
+
+    @Test
+    fun `send rejects duplicate when idempotency precheck rejects and event store has request id`() {
+        val commandBus = RecordingCommandBus()
+        val eventStore = InMemoryEventStore()
+        val command = TestCommandMessage(id = "stored-request")
+        eventStore.append(
+            WaitTestEvent().toDomainEventStream(
+                upstream = command,
+                aggregateVersion = 0,
+            )
+        ).block()
+        val gateway = commandGateway(
+            commandBus = commandBus,
+            idempotencyChecker = IdempotencyChecker { false },
+            eventStore = eventStore,
+        )
+
+        StepVerifier.create(gateway.send(command))
             .expectError(DuplicateRequestIdException::class.java)
             .verify()
 
@@ -310,7 +399,7 @@ class DefaultCommandGatewayTest {
         val gateway = commandGateway(
             waitCoordinator = waitCoordinator,
             idempotencyChecker = IdempotencyChecker {
-                Mono.just(idempotencyChecks.getAndIncrement() == 0)
+                idempotencyChecks.getAndIncrement() == 0
             },
         )
         val command = TestCommandMessage(id = "command-id")
@@ -469,12 +558,18 @@ class DefaultCommandGatewayTest {
         idempotencyChecker: IdempotencyChecker = NoOpIdempotencyChecker,
         waitCoordinator: WaitCoordinator = DefaultWaitCoordinator(),
         notifier: RecordingCommandWaitNotifier = RecordingCommandWaitNotifier(),
+        eventStore: EventStore? = null,
+        requestIdExistenceChecker: RequestIdExistenceChecker = eventStore ?: NoopRequestIdExistenceChecker,
+        requestIdChecker: RequestIdChecker = DefaultRequestIdChecker(
+            idempotencyCheckerProvider = AggregateIdempotencyCheckerProvider { idempotencyChecker },
+            requestIdExistenceChecker = requestIdExistenceChecker,
+        ),
     ): DefaultCommandGateway =
         DefaultCommandGateway(
             commandWaitEndpoint = SimpleCommandWaitEndpoint("test-command-wait-endpoint"),
             commandBus = commandBus,
             validator = NoOpValidator,
-            idempotencyCheckerProvider = AggregateIdempotencyCheckerProvider { idempotencyChecker },
+            requestIdChecker = requestIdChecker,
             waitCoordinator = waitCoordinator,
             commandWaitNotifier = notifier,
         )

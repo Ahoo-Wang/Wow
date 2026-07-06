@@ -26,7 +26,7 @@ class MongoEventStoreTest : EventStoreSpec() {
 
     override fun createEventStore(): EventStore {
         val database = mongo.database()
-        EventStreamSchemaInitializer(database, true).initSchema(namedAggregate)
+        EventStreamSchemaInitializer(database).initSchema(namedAggregate)
         return MongoEventStore(database).metrizable()
     }
 }

@@ -235,6 +235,7 @@ sequenceDiagram
     actor Client
     participant Handler as CommandHandlerFunction
     participant Gateway as DefaultCommandGateway
+    participant Store as EventStore
     participant Registrar as WaitCoordinator
     participant LFBus as LocalFirstCommandBus
     participant Kafka as KafkaCommandBus
@@ -249,6 +250,9 @@ sequenceDiagram
     Note over Gateway: DefaultCommandGateway.send()
 
     Gateway->>Gateway: idempotencyCheck(requestId)
+    opt Precheck reports duplicate
+        Gateway->>Store: existsRequestId(aggregateId, requestId)
+    end
     Gateway->>Gateway: validate(commandBody)
     Note over Gateway: Jakarta Bean Validation<br>+ CommandValidator.validate()
 
@@ -307,7 +311,7 @@ sequenceDiagram
 
 The `DefaultCommandGateway` enforces a strict pre-send pipeline before the command reaches the bus:
 
-1. **Idempotency check** -- Retrieves an `IdempotencyChecker` for the aggregate type and checks if the `requestId` has already been processed. If it has, a `DuplicateRequestIdException` is thrown immediately.
+1. **Idempotency check** -- Retrieves an `IdempotencyChecker` for the aggregate type and quickly prechecks the `requestId`. When the precheck reports a duplicate, the gateway confirms it through `EventStore.existsRequestId(aggregateId, requestId)`. A `DuplicateRequestIdException` is thrown only when the event store also confirms the request exists, avoiding false-positive blocks from precheck structures such as BloomFilter.
 
 2. **Validation** -- Two-phase validation:
    - **Self-validation**: If the command body implements `CommandValidator`, its `validate()` method is called first. This allows domain-specific, programmatic validation.

@@ -79,6 +79,11 @@ class RedisEventStore(
         throw UnsupportedOperationException()
     }
 
+    override fun existsRequestId(aggregateId: AggregateId, requestId: String): Mono<Boolean> {
+        val requestIdxKey = "${EventStreamKeyConverter.convert(aggregateId)}:req_idx"
+        return redisTemplate.opsForSet().isMember(requestIdxKey, requestId)
+    }
+
     override fun last(aggregateId: AggregateId): Mono<DomainEventStream> {
         val key = EventStreamKeyConverter.convert(aggregateId)
         val range = Range.closed<Long>(0, 0)

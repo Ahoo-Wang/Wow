@@ -14,6 +14,7 @@ package me.ahoo.wow.test
 
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.DefaultCommandGateway
+import me.ahoo.wow.command.DefaultRequestIdChecker
 import me.ahoo.wow.command.InMemoryCommandBus
 import me.ahoo.wow.command.factory.CommandMessageFactory
 import me.ahoo.wow.command.factory.SimpleCommandBuilderRewriterRegistry
@@ -87,7 +88,9 @@ object SagaVerifier {
             commandWaitEndpoint = SimpleCommandWaitEndpoint("__StatelessSagaVerifier__"),
             commandBus = InMemoryCommandBus(),
             validator = TestValidator,
-            idempotencyCheckerProvider = DefaultAggregateIdempotencyCheckerProvider { NoOpIdempotencyChecker },
+            requestIdChecker = DefaultRequestIdChecker(
+                DefaultAggregateIdempotencyCheckerProvider { NoOpIdempotencyChecker },
+            ),
             waitCoordinator = waitCoordinator,
             commandWaitNotifier = LocalCommandWaitNotifier(waitCoordinator),
         )

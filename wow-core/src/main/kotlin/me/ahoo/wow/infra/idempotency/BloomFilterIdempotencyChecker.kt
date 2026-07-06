@@ -14,7 +14,6 @@ package me.ahoo.wow.infra.idempotency
 
 import com.google.common.hash.BloomFilter
 import io.github.oshai.kotlinlogging.KotlinLogging
-import reactor.core.publisher.Mono
 import java.time.Duration
 
 /**
@@ -42,18 +41,45 @@ class BloomFilterIdempotencyChecker(
         private val log = KotlinLogging.logger {}
     }
 
-    /**
-     * Cached Mono that creates and caches a Bloom filter for the specified TTL duration.
-     * When the TTL expires, a new Bloom filter is created automatically.
-     */
-    private val bloomFilterCache =
-        Mono
-            .fromCallable {
-                log.info {
-                    "Create new BloomFilter."
-                }
-                bloomFilterSupplier()
-            }.cache(ttl)
+    private val ttlNanos = ttl.coerceAtLeast(Duration.ZERO).toNanos()
+    private val refreshLock = Any()
+
+    @Volatile
+    private var bloomFilter: BloomFilter<String>? = null
+
+    @Volatile
+    private var expiresAt: Long = 0
+
+    private fun currentBloomFilter(): BloomFilter<String> {
+        val now = System.nanoTime()
+        val current = bloomFilter
+        if (current != null && isNotExpired(now)) {
+            return current
+        }
+        return synchronized(refreshLock) {
+            val lockedNow = System.nanoTime()
+            val lockedCurrent = bloomFilter
+            if (lockedCurrent != null && isNotExpired(lockedNow)) {
+                lockedCurrent
+            } else {
+                newBloomFilter(lockedNow)
+            }
+        }
+    }
+
+    private fun isNotExpired(now: Long): Boolean {
+        return now - expiresAt < 0
+    }
+
+    private fun newBloomFilter(now: Long): BloomFilter<String> {
+        log.info {
+            "Create new BloomFilter."
+        }
+        return bloomFilterSupplier().also {
+            bloomFilter = it
+            expiresAt = now + ttlNanos
+        }
+    }
 
     /**
      * Checks if the element is a potential duplicate using the Bloom filter.
@@ -61,14 +87,14 @@ class BloomFilterIdempotencyChecker(
      * If the element is definitely not contained (unique), adds it to the filter and returns true.
      *
      * @param element the element to check for duplicates
-     * @return a Mono emitting true if the element appears to be unique, false if it's a potential duplicate
+     * @return true if the element appears to be unique, false if it's a potential duplicate
      */
-    override fun check(element: String): Mono<Boolean> =
-        bloomFilterCache.map {
-            val contain = it.mightContain(element)
-            if (!contain) {
-                it.put(element)
-            }
-            !contain
+    override fun check(element: String): Boolean {
+        val currentBloomFilter = currentBloomFilter()
+        val contain = currentBloomFilter.mightContain(element)
+        if (!contain) {
+            currentBloomFilter.put(element)
         }
+        return !contain
+    }
 }

@@ -24,7 +24,7 @@ import reactor.core.publisher.Mono
  * Provides methods to append events and load event streams by aggregate ID and version/time ranges.
  * @author ahoo wang
  */
-interface EventStore {
+interface EventStore : RequestIdExistenceChecker {
     /**
      * Appends a domain event stream to the event store.
      * Ensures transaction consistency and handles version conflicts.
@@ -41,6 +41,21 @@ interface EventStore {
         DuplicateRequestIdException::class,
     )
     fun append(eventStream: DomainEventStream): Mono<Void>
+
+    /**
+     * Checks whether the request ID already exists for the specified aggregate.
+     *
+     * Implementations may override this method with an indexed lookup. The default implementation
+     * keeps source compatibility for custom event stores by scanning the aggregate event stream.
+     *
+     * @param aggregateId the aggregate ID to check
+     * @param requestId the request identifier to check
+     * @return a Mono emitting true if the request ID already exists for this aggregate
+     */
+    override fun existsRequestId(
+        aggregateId: AggregateId,
+        requestId: String
+    ): Mono<Boolean> = load(aggregateId).any { it.requestId == requestId }
 
     /**
      * Loads domain event streams for the specified aggregate within the given version range.

@@ -37,24 +37,24 @@ open class IdempotencyComponentBenchmark {
         BenchmarkIds.installDeterministicGlobalIdGenerator()
         idempotencyChecker = BenchmarkIdempotency.bloomFilterChecker()
         bloomFilterChecker = BenchmarkIdempotency.bloomFilterChecker()
-        idempotencyChecker.check(KNOWN_REQUEST_ID).block()
+        idempotencyChecker.check(KNOWN_REQUEST_ID)
     }
 
     @Benchmark
     fun checkNewRequestId(blackhole: Blackhole) {
-        val result = idempotencyChecker.check(generateGlobalId()).block()
+        val result = idempotencyChecker.check(generateGlobalId())
         blackhole.consume(result)
     }
 
     @Benchmark
     fun checkKnownRequestId(blackhole: Blackhole) {
-        val result = idempotencyChecker.check(KNOWN_REQUEST_ID).block()
+        val result = idempotencyChecker.check(KNOWN_REQUEST_ID)
         blackhole.consume(result)
     }
 
     @Benchmark
     fun checkBloomFilterRequestId(blackhole: Blackhole) {
-        val result = bloomFilterChecker.check(BenchmarkIds.nextGlobalId()).block()
+        val result = bloomFilterChecker.check(BenchmarkIds.nextGlobalId())
         blackhole.consume(result)
     }
 }

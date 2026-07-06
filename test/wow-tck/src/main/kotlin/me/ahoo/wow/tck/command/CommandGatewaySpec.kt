@@ -25,6 +25,7 @@ import me.ahoo.wow.command.CommandBus
 import me.ahoo.wow.command.CommandGateway
 import me.ahoo.wow.command.CommandResultException
 import me.ahoo.wow.command.DefaultCommandGateway
+import me.ahoo.wow.command.DefaultRequestIdChecker
 import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.command.toCommandMessage
 import me.ahoo.wow.command.wait.CommandStage
@@ -81,7 +82,9 @@ abstract class CommandGatewaySpec : MessageBusSpec<CommandMessage<*>, ServerComm
             commandWaitEndpoint = SimpleCommandWaitEndpoint(""),
             commandBus = createCommandBus(),
             validator = TestValidator,
-            idempotencyCheckerProvider = DefaultAggregateIdempotencyCheckerProvider { idempotencyChecker },
+            requestIdChecker = DefaultRequestIdChecker(
+                DefaultAggregateIdempotencyCheckerProvider { idempotencyChecker },
+            ),
             waitCoordinator = waitCoordinator,
             commandWaitNotifier = LocalCommandWaitNotifier(waitCoordinator)
         )

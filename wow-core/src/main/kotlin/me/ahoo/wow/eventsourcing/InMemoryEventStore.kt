@@ -118,6 +118,12 @@ class InMemoryEventStore : AbstractEventStore() {
         }
     }
 
+    override fun existsRequestId(aggregateId: AggregateId, requestId: String): Mono<Boolean> {
+        return Mono.fromSupplier {
+            events[aggregateId]?.any { it.requestId == requestId } ?: false
+        }
+    }
+
     override fun last(aggregateId: AggregateId): Mono<DomainEventStream> {
         return Mono.fromSupplier {
             val eventsOfAgg = events[aggregateId] ?: return@fromSupplier null
