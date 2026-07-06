@@ -229,7 +229,6 @@ stateDiagram-v2
 | `load` | `load(aggregateId, headEventTime, tailEventTime): Flux<DomainEventStream>` | 按时间范围加载事件 |
 | `last` | `last(aggregateId): Mono<DomainEventStream>` | 加载最近的事件流 |
 
-参见 [EventStore.kt:27-98](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt#L27-L98)。Wow 提供了 MongoDB（`wow-mongo`）、Redis（`wow-redis`）、R2DBC（`wow-r2dbc`）的实现，以及用于测试的内存存储。
 
 ## 投影
 

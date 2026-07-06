@@ -84,7 +84,6 @@ wow-spring-boot-starter/    Auto-configuration plus optional feature capabilitie
 wow-query/                  Query model support
 wow-kafka/                  Kafka command/event bus integration
 wow-mongo/                  MongoDB event store and snapshot store
-wow-r2dbc/                  R2DBC event store
 wow-redis/                  Redis event store and snapshot store
 wow-elasticsearch/          Elasticsearch projection support
 wow-webflux/                Spring WebFlux command endpoint integration
@@ -109,11 +108,12 @@ Core dependency flow:
 
 ```text
 wow-api -> wow-core -> wow-spring -> wow-spring-boot-starter
-                    -> infrastructure modules: kafka, mongo, r2dbc, redis, elasticsearch
+                    -> infrastructure modules: kafka, mongo, redis, elasticsearch
                     -> integration modules: webflux, opentelemetry, cosec, cocache, apiclient
 ```
 
-`wow-spring-boot-starter` declares Gradle feature variants for `mongo-support`, `r2dbc-support`, `redis-support`, `mock-support`, `kafka-support`, `webflux-support`, `elasticsearch-support`, `opentelemetry-support`, `openapi-support`, and `cosec-support`.
+`wow-spring-boot-starter` declares Gradle feature variants for `mongo-support`, `redis-support`, `mock-support`, `kafka-support`, `webflux-support`, `elasticsearch-support`, `opentelemetry-support`, `openapi-support`, and `cosec-support`.
+
 
 ## Code Style
 

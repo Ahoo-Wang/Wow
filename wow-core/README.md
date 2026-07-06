@@ -428,11 +428,11 @@ wow:
 wow:
   eventsourcing:
     store:
-      storage: mongo  # mongo, redis, r2dbc, in_memory, delay
+      storage: mongo  # mongo, redis, in_memory, delay
     snapshot:
+      storage: mongo  # mongo, redis, elasticsearch, in_memory, delay
       enabled: true  # Enable snapshot optimization
       strategy: all  # all, version_offset
-      storage: mongo  # mongo, redis, r2dbc, elasticsearch, in_memory, delay
       version-offset: 5  # Version offset for snapshots
     state:
       bus:

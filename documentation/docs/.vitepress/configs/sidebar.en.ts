@@ -95,7 +95,6 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                 {text: 'Kafka', link: 'kafka'},
                 {text: 'Mongo', link: 'mongo'},
                 {text: 'Redis', link: 'redis'},
-                {text: 'R2DBC', link: 'r2dbc'},
                 {text: 'Elasticsearch', link: 'elasticsearch'},
                 {text: 'OpenTelemetry', link: 'opentelemetry'},
                 {text: 'WebFlux', link: 'webflux'},

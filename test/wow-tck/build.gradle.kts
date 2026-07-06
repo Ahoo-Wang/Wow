@@ -18,6 +18,4 @@ dependencies {
     api("org.testcontainers:testcontainers-kafka")
     api("org.testcontainers:testcontainers-mongodb")
     api("org.testcontainers:testcontainers-elasticsearch")
-    api("org.testcontainers:testcontainers-mariadb")
-    runtimeOnly("org.mariadb.jdbc:mariadb-java-client")
 }

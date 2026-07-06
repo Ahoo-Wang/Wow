@@ -81,7 +81,6 @@ val localContractTestProjects = setOf(
 val integrationTestProjects = setOf(
     project(":wow-mongo"),
     project(":wow-redis"),
-    project(":wow-r2dbc"),
     project(":wow-kafka"),
     project(":wow-elasticsearch"),
     project(":wow-it"),

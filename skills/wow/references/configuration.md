@@ -47,7 +47,7 @@ wow:
         local-first:
           enabled: true
     store:
-      storage: mongo               # mongo, r2dbc, redis, elasticsearch, in_memory, delay
+      storage: mongo               # mongo, redis, elasticsearch, in_memory, delay
     snapshot:
       enabled: true
       strategy: all                # all, version_offset
@@ -76,10 +76,6 @@ wow:
   redis:
     enabled: true
 
-  r2dbc:
-    enabled: true
-    datasource:
-      type: simple                 # simple or sharding
 
   elasticsearch:
     enabled: true
@@ -170,12 +166,6 @@ wow:
 |----------|------|---------|-------------|
 | `wow.redis.enabled` | Boolean | `true` | Enable Redis support |
 
-### R2DBC
-
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `wow.r2dbc.enabled` | Boolean | `true` | Enable R2DBC support |
-| `wow.r2dbc.datasource.type` | Type | `simple` | `simple` or `sharding` |
 
 ### Elasticsearch
 
@@ -213,7 +203,6 @@ wow:
 | Type | Description |
 |------|-------------|
 | `mongo` | MongoDB (recommended for event store) |
-| `r2dbc` | R2DBC-compatible databases |
 | `redis` | Redis for high-performance scenarios |
 | `elasticsearch` | Elasticsearch for full-text search |
 | `in_memory` | In-memory (for testing) |

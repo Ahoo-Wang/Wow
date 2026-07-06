@@ -44,9 +44,6 @@
           "value": "redis"
         },
         {
-          "value": "r2dbc"
-        },
-        {
           "value": "elasticsearch"
         },
         {
@@ -65,9 +62,6 @@
         },
         {
           "value": "redis"
-        },
-        {
-          "value": "r2dbc"
         },
         {
           "value": "elasticsearch"

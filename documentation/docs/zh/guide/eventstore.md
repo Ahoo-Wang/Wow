@@ -147,13 +147,11 @@ classDiagram
     class InMemoryEventStore
     class MongoEventStore
     class RedisEventStore
-    class R2dbcEventStore
 
     EventStore <|.. AbstractEventStore : 实现
     AbstractEventStore <|-- InMemoryEventStore : 扩展
     AbstractEventStore <|-- MongoEventStore : 扩展
     AbstractEventStore <|-- RedisEventStore : 扩展
-    AbstractEventStore <|-- R2dbcEventStore : 扩展
 ```
 
 `AbstractEventStore` 应用**模板方法模式**来集中处理横切关注点：
@@ -187,15 +185,14 @@ stateDiagram-v2
 
 ## 实现对比
 
-| 特性 | MongoDB | Redis | R2DBC | 内存 |
-|---|---|---|---|---|
-| **持久性** | 持久（磁盘） | 可配置 | 持久（SQL） | 易失（内存） |
-| **版本范围查询** | 是 | 是 (ZRANGEBYSCORE) | 是 (SQL BETWEEN) | 是 (内存) |
-| **时间范围查询** | 是 | 否 | 是 (SQL BETWEEN) | 是 (内存) |
-| **并发控制** | 唯一复合索引 | Lua 脚本（原子） | 唯一 SQL 索引 | 同步映射 |
-| **分片支持** | 分片集合 | Redis 集群 | `ShardingEventStreamSchema` | 不适用 |
-| **生产就绪** | 高 | 中 | 高 | 仅开发/测试 |
-| **关键类** | [MongoEventStore.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/MongoEventStore.kt#L32) | [RedisEventStore.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-redis/src/main/kotlin/me/ahoo/wow/redis/eventsourcing/RedisEventStore.kt#L35) | [R2dbcEventStore.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-r2dbc/src/main/kotlin/me/ahoo/wow/r2dbc/R2dbcEventStore.kt#L34) | [InMemoryEventStore.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/InMemoryEventStore.kt#L30) |
+| 特性 | MongoDB | Redis | 内存 |
+|---|---|---|---|
+| **持久性** | 持久（磁盘） | 可配置 | 易失（内存） |
+| **版本范围查询** | 是 | 是 (ZRANGEBYSCORE) | 是 (内存) |
+| **时间范围查询** | 是 | 否 | 是 (内存) |
+| **并发控制** | 唯一复合索引 | Lua 脚本（原子） | 同步映射 |
+| **分片支持** | 分片集合 | Redis 集群 | 不适用 |
+| **生产就绪** | 高 | 中 | 仅开发/测试 |
 
 ### 每种实现的存储模式
 
@@ -203,7 +200,6 @@ stateDiagram-v2
 
 **Redis** 将事件流存储在按聚合 ID 键的**有序集合**中。每个成员是 JSON 序列化的 `DomainEventStream`，按版本号评分。追加操作使用 Lua 脚本实现原子性 -- 在单个事务中检查版本冲突和重复请求 ID ([RedisEventStore.kt:44-65](https://github.com/Ahoo-Wang/Wow/blob/main/wow-redis/src/main/kotlin/me/ahoo/wow/redis/eventsourcing/RedisEventStore.kt#L44-L65))。不支持时间范围加载。
 
-**R2DBC** 为每种聚合类型使用关系表（`<aggregateName>_event_stream`）。`(aggregate_id, version)` 和 `request_id` 上的唯一索引强制执行相同的不变量。`ShardingEventStreamSchema` 变体支持表分片以实现水平扩展部署 ([EventStreamSchema.kt:47-53](https://github.com/Ahoo-Wang/Wow/blob/main/wow-r2dbc/src/main/kotlin/me/ahoo/wow/r2dbc/EventStreamSchema.kt#L47-L53))。
 
 ## 配置
 
@@ -211,7 +207,7 @@ stateDiagram-v2
 wow:
   eventsourcing:
     store:
-      storage: mongo  # 事件存储类型 (mongo, r2dbc, redis, in_memory)
+      storage: mongo
     snapshot:
       enabled: true
       strategy: version_offset  # all, version_offset
@@ -229,17 +225,15 @@ wow:
 
 ## 最佳实践
 
-1. **选择合适的后端**：MongoDB 和 R2DBC 推荐用于生产环境。MongoDB 适合模式灵活和水平扩展。R2DBC 适合组织已有关系数据库的场景。Redis 适合高吞吐量、数据量较低的场景。
+1. **为长期聚合启用快照**：将 `strategy` 设置为 `version_offset`，偏移量设为 5-20，以避免拥有大量事件的聚合出现线性性能下降。
 
-2. **为长期聚合启用快照**：将 `strategy` 设置为 `version_offset`，偏移量设为 5-20，以避免拥有大量事件的聚合出现线性性能下降。
+2. **监控版本冲突**：偶尔出现 `EventVersionConflictException` 是正常的。高频出现则表明存在竞争 -- 考虑重新设计聚合边界。
 
-3. **监控版本冲突**：偶尔出现 `EventVersionConflictException` 是正常的。高频出现则表明存在竞争 -- 考虑重新设计聚合边界。
+3. **利用请求幂等性**：`requestId` 字段保证重试命令不会产生重复事件 -- 对于至少一次投递至关重要。
 
-4. **利用请求幂等性**：`requestId` 字段保证重试命令不会产生重复事件 -- 对于至少一次投递至关重要。
+4. **保持事件不可变且声明式**：事件应代表简单事实，而非条件逻辑。聚合的溯源函数只是将事件叠加到状态上。
 
-5. **保持事件不可变且声明式**：事件应代表简单事实，而非条件逻辑。聚合的溯源函数只是将事件叠加到状态上。
-
-6. **仅在测试中使用内存存储**：`InMemoryEventStore` 是线程安全的但具有易失性。请勿部署到生产环境。
+5. **仅在测试中使用内存存储**：`InMemoryEventStore` 是线程安全的但具有易失性。请勿部署到生产环境。
 
 ## 相关主题
 

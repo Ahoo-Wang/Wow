@@ -162,7 +162,6 @@ wow:
 enum class EventStoreStorage {
     MONGO,
     REDIS,
-    R2DBC,
     IN_MEMORY,
     DELAY
     ;
@@ -207,7 +206,6 @@ enum class Strategy {
 enum class SnapshotStorage {
     MONGO,
     REDIS,
-    R2DBC,
     ELASTICSEARCH,
     IN_MEMORY,
     DELAY

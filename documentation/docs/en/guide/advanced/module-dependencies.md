@@ -18,7 +18,6 @@ The Wow framework is composed of over 20 Gradle modules, each with a single, wel
 | `wow-kafka` | Infra | Distributed `CommandBus` and `DomainEventBus` via Apache Kafka. |
 | `wow-mongo` | Infra | `EventStore`, `SnapshotStore`, projection storage via MongoDB. |
 | `wow-redis` | Infra | `EventStore` and `SnapshotStore` via Redis / Lettuce. |
-| `wow-r2dbc` | Infra | `EventStore` via R2DBC (MariaDB, PostgreSQL). |
 | `wow-elasticsearch` | Infra | Projection indexing via Elasticsearch. |
 | `wow-webflux` | Infra | Spring WebFlux command endpoint integration. |
 | `wow-opentelemetry` | Infra | Distributed tracing and metrics via OpenTelemetry. |
@@ -67,7 +66,6 @@ graph LR
         wow_kafka["wow-kafka"]
         wow_mongo["wow-mongo"]
         wow_redis["wow-redis"]
-        wow_r2dbc["wow-r2dbc"]
         wow_es["wow-elasticsearch"]
         wow_webflux["wow-webflux"]
         wow_otel["wow-opentelemetry"]
@@ -111,7 +109,6 @@ graph LR
     wow_mongo --> wow_core
     wow_mongo --> wow_query
     wow_redis --> wow_core
-    wow_r2dbc --> wow_core
     wow_es --> wow_core
     wow_es --> wow_query
     wow_webflux --> wow_core
@@ -137,7 +134,6 @@ graph LR
     wow_boot -.->|"feature variant"| wow_kafka
     wow_boot -.->|"feature variant"| wow_mongo
     wow_boot -.->|"feature variant"| wow_redis
-    wow_boot -.->|"feature variant"| wow_r2dbc
     wow_boot -.->|"feature variant"| wow_es
     wow_boot -.->|"feature variant"| wow_webflux
     wow_boot -.->|"feature variant"| wow_otel
@@ -158,7 +154,6 @@ graph LR
   wow-kafka/build.gradle.kts
   wow-mongo/build.gradle.kts
   wow-redis/build.gradle.kts
-  wow-r2dbc/build.gradle.kts
   wow-elasticsearch/build.gradle.kts
   wow-webflux/build.gradle.kts
   wow-opentelemetry/build.gradle.kts
@@ -289,7 +284,6 @@ graph TB
         K["wow-kafka<br>KafkaCommandBus<br>KafkaDomainEventBus"]
         M["wow-mongo<br>MongoEventStore<br>MongoSnapshotStore"]
         R["wow-redis<br>RedisEventStore<br>RedisSnapshotStore"]
-        R2["wow-r2dbc<br>R2dbcEventStore"]
     end
 
     K --> CB
@@ -308,7 +302,6 @@ graph TB
   wow-kafka/build.gradle.kts
   wow-mongo/build.gradle.kts
   wow-redis/build.gradle.kts
-  wow-r2dbc/build.gradle.kts
 -->
 
 | Module | Implements | External Dependency |
@@ -316,7 +309,6 @@ graph TB
 | `wow-kafka` | `DistributedCommandBus`, `DistributedDomainEventBus` | `reactor-kafka` |
 | `wow-mongo` | `EventStore`, `SnapshotStore` | `mongodb-driver-reactivestreams` |
 | `wow-redis` | `EventStore`, `SnapshotStore` | `spring-data-redis`, `lettuce-core` |
-| `wow-r2dbc` | `EventStore` | `r2dbc-spi`, `r2dbc-pool`, `r2dbc-proxy` |
 | `wow-elasticsearch` | Projection storage | `spring-data-elasticsearch` |
 | `wow-webflux` | Command endpoints | `spring-webflux` |
 | `wow-opentelemetry` | Tracing &amp; metrics | `opentelemetry-instrumentation-api` |
@@ -427,7 +419,6 @@ The `wow-spring-boot-starter` module declares the following optional feature cap
 |-------------------|-----------------|---------------------|
 | `mongo-support` | `wow-mongo` | `spring-boot-starter-data-mongodb-reactive` |
 | `redis-support` | `wow-redis` | `spring-boot-starter-data-redis-reactive` |
-| `r2dbc-support` | `wow-r2dbc` | `spring-boot-starter-r2dbc` |
 | `kafka-support` | `wow-kafka` | (via reactor-kafka) |
 | `webflux-support` | `wow-webflux` | (via spring-webflux) |
 | `elasticsearch-support` | `wow-elasticsearch` | `spring-boot-starter-elasticsearch` |

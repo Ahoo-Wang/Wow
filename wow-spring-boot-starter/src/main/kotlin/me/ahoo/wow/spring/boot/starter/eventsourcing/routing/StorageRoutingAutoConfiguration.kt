@@ -35,7 +35,6 @@ import me.ahoo.wow.spring.boot.starter.mock.MockEventStoreAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.mock.MockSnapshotAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.mongo.MongoEventSourcingAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.query.QueryAutoConfiguration
-import me.ahoo.wow.spring.boot.starter.r2dbc.R2dbcAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.redis.RedisEventSourcingAutoConfiguration
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
@@ -56,7 +55,6 @@ import org.springframework.core.type.AnnotatedTypeMetadata
         SnapshotAutoConfiguration::class,
         MongoEventSourcingAutoConfiguration::class,
         RedisEventSourcingAutoConfiguration::class,
-        R2dbcAutoConfiguration::class,
         ElasticsearchEventSourcingAutoConfiguration::class,
         MockEventStoreAutoConfiguration::class,
         MockSnapshotAutoConfiguration::class,

@@ -29,7 +29,6 @@ on:
       - 'wow-spring/**'
       - 'wow-mongo/**'
       - 'wow-redis/**'
-      - 'wow-r2dbc/**'
       - 'wow-kafka/**'
       - 'wow-elasticsearch/**'
       - 'test/wow-tck/**'

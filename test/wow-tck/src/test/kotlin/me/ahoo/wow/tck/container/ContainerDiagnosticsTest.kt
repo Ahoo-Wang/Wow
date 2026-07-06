@@ -25,7 +25,7 @@ class ContainerDiagnosticsTest {
         val description = ContainerDiagnostics.describe("redis", DescribedContainer())
 
         description.assert().contains("name=redis")
-        description.assert().contains("image=${ContainerImages.REDIS}")
+        description.assert().contains("image=unavailable")
         description.assert().contains("running=false")
         description.assert().contains("host=localhost")
         description.assert().contains("ports=[6379->16379]")

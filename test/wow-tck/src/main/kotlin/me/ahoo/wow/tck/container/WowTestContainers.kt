@@ -17,7 +17,6 @@ import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.KafkaContainer
 import org.testcontainers.containers.MongoDBContainer
 import org.testcontainers.elasticsearch.ElasticsearchContainer
-import org.testcontainers.mariadb.MariaDBContainer
 import org.testcontainers.utility.DockerImageName
 import java.time.Duration
 
@@ -57,16 +56,6 @@ object WowTestContainers {
         GenericContainer(DockerImageName.parse(ContainerImages.REDIS))
             .withExposedPorts(6379)
             .withNetworkAliases("redis")
-            .also { it.start() }
-    }
-
-    val mariaDb: MariaDBContainer by lazy {
-        MariaDBContainer(DockerImageName.parse(ContainerImages.MARIADB))
-            .withNetworkAliases("mariadb")
-            .withUsername("root")
-            .withPassword("root")
-            .withDatabaseName("wow_db")
-            .withInitScript("init-schema-mysql.sql")
             .also { it.start() }
     }
 

@@ -165,7 +165,6 @@ suspend fun onCommand(command: CommandMessage<CreateOrder>, ...): OrderCreated {
 ```
 
 ::: tip Which style to use?
-- **Reactor**: When you need `.checkpoint()` for debugging, or when integrating with Spring WebFlux / R2DBC / reactive Kafka clients that already use Reactor.
 - **Coroutines**: When you prefer sequential-looking code, have complex branching logic, or use `Flow` for stream processing.
 
 Both are fully supported. The choice is stylistic.
@@ -185,7 +184,6 @@ The starter uses Gradle feature variants to declare optional capabilities. Depen
 | Capability | Gradle Dependency | Provides |
 |---|---|---|
 | `mongo-support` | `wow-mongo` | Event store + snapshot store via MongoDB |
-| `r2dbc-support` | `wow-r2dbc` | Event store via R2DBC (MariaDB, PostgreSQL) |
 | `redis-support` | `wow-redis` | Event store + snapshot store via Redis |
 | `kafka-support` | `wow-kafka` | Command/event bus via Kafka |
 | `webflux-support` | `wow-webflux` | REST API endpoints for commands |
@@ -396,7 +394,6 @@ graph TB
         STARTER[wow-spring-boot-starter<br>Auto-configuration]
         KAFKA[wow-kafka<br>Command/Event bus via Kafka]
         MONGO[wow-mongo<br>MongoDB event store]
-        R2DBC[wow-r2dbc<br>R2DBC event store]
         REDIS[wow-redis<br>Redis event store]
         ES[wow-elasticsearch<br>Elasticsearch projections]
         WEBFLUX[wow-webflux<br>WebFlux command endpoints]
@@ -430,7 +427,6 @@ graph TB
     SPRING --> STARTER
     CORE --> KAFKA
     CORE --> MONGO
-    CORE --> R2DBC
     CORE --> REDIS
     CORE --> ES
     CORE --> WEBFLUX
@@ -701,7 +697,6 @@ Wow/                                (root project)
 ├── wow-spring-boot-starter/        Auto-configuration with feature capabilities
 ├── wow-kafka/                      Kafka command/event bus
 ├── wow-mongo/                      MongoDB event store
-├── wow-r2dbc/                      R2DBC event store (MariaDB/PostgreSQL)
 ├── wow-redis/                      Redis event store
 ├── wow-elasticsearch/              Elasticsearch projections
 ├── wow-webflux/                    Spring WebFlux command endpoint integration
@@ -787,7 +782,7 @@ Integration tests use Testcontainers, which require Docker running:
 ./gradlew wow-it:test        # Integration tests
 ```
 
-Integration tests spin up actual MongoDB, Kafka, Redis, and MariaDB containers. They are slower than unit tests but essential for verifying infrastructure integrations.
+Integration tests spin up actual MongoDB, Kafka, Redis, and Elasticsearch containers. They are slower than unit tests but essential for verifying infrastructure integrations.
 
 ---
 
@@ -1056,7 +1051,6 @@ allEvents!!.forEach { println("Event: ${it.body}") }
 | **CQRS** | Command Query Responsibility Segregation. Commands (writes) are separated from queries (reads). Different models, different stores. | [CLAUDE.md:7](https://github.com/Ahoo-Wang/Wow/blob/main/CLAUDE.md#L7) |
 | **Domain Event** | An immutable fact about something that happened. Represented by `DomainEvent<T>`. Events are declarative: "This happened." | [DomainEvent.kt:52](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/event/DomainEvent.kt#L52) |
 | **Event Sourcing** | Storing state as a sequence of events. Current state = replay all events. Enables audit trail, temporal queries, and event-driven architectures. | [DomainEvent.kt:22-51](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/event/DomainEvent.kt#L22-L51) |
-| **Event Store** | Persistent storage for domain events. Multiple implementations: MongoDB (`wow-mongo`), Redis (`wow-redis`), R2DBC (`wow-r2dbc`). | [build.gradle.kts:55-58](https://github.com/Ahoo-Wang/Wow/blob/main/build.gradle.kts#L55-L58) |
 | **KSP** | Kotlin Symbol Processing. Compile-time code generator. `wow-compiler` generates routing metadata, event handler registrations, and OpenAPI specs. | [CLAUDE.md:66](https://github.com/Ahoo-Wang/Wow/blob/main/CLAUDE.md#L66) |
 | **Projection** | A read model built from domain events. Updated asynchronously by projection processors. Stored in Elasticsearch or MongoDB for querying. | [wow-elasticsearch, wow-mongo in settings.gradle.kts](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L30-L31) |
 | **Saga** | A long-running business process that coordinates multiple aggregates. Listens to events and sends commands. Can be stateless (`@StatelessSaga`) or stateful. | [StatelessSaga.kt:69](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/StatelessSaga.kt#L69) |

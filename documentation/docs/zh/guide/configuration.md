@@ -39,7 +39,7 @@ wow:
         local-first:
           enabled: true
     store:
-      storage: mongo               # 事件存储类型: mongo, r2dbc, redis, elasticsearch, in_memory, delay
+      storage: mongo               # 事件存储类型: mongo, redis, elasticsearch, in_memory, delay
     snapshot:
       enabled: true
       strategy: all                # all, version_offset
@@ -61,11 +61,6 @@ wow:
 
   redis:
     enabled: true
-
-  r2dbc:
-    enabled: true
-    datasource:
-      type: simple                 # simple 或 sharding
 
   elasticsearch:
     enabled: true
@@ -173,7 +168,7 @@ wow:
 wow:
   eventsourcing:
     store:
-      storage: mongo    # mongo, r2dbc, redis, elasticsearch, in_memory, delay
+      storage: mongo    # mongo, redis, elasticsearch, in_memory, delay
 ```
 
 ### 快照配置
@@ -233,10 +228,8 @@ wow:
 - `order` 会使用当前 `wow.context-name` 解析为 `order-service.order`。
 - 也可以直接使用 `order-service.order` 这样的完整聚合键；YAML 中必要时给 key 加引号。
 - `event` 路由只影响该聚合的 `EventStore`；`snapshot` 路由只影响该聚合的 `SnapshotStore`。
-- `event.storage` 与 `snapshot.storage` 使用 `StorageType` 枚举：`mongo`、`redis`、`r2dbc`、`elasticsearch`、`in_memory`、`delay`。
 - `event.binding` 与 `snapshot.binding` 指向由应用代码或基础设施自动配置注册的命名自定义 binding。
 - 同一个 `event` 或 `snapshot` 通道内，`storage` 与 `binding` 互斥。
-- 存储路由只选择已有后端类型或 binding。后端连接配置仍属于 `wow.mongo`、`wow.redis`、`wow.r2dbc`、`wow.elasticsearch` 等后端配置。
 - 把路由切换到另一个后端不会迁移已有事件流或快照数据。
 - 快照抽象已重命名为 `SnapshotStore`。旧的 `SnapshotRepository` Kotlin 兼容别名仅作为过渡保留，新代码不应再使用。
 
@@ -293,20 +286,6 @@ wow:
     enabled: true
 ```
 
-### R2DBC 配置
-
-| 属性 | 类型 | 默认值 | 描述 |
-|------|------|--------|------|
-| `wow.r2dbc.enabled` | Boolean | `true` | 启用 R2DBC 支持 |
-| `wow.r2dbc.datasource.type` | Type | `simple` | simple 或 sharding |
-
-```yaml
-wow:
-  r2dbc:
-    enabled: true
-    datasource:
-      type: simple
-```
 
 ### Elasticsearch 配置
 
@@ -388,7 +367,6 @@ wow:
 | 类型 | 描述 |
 |------|------|
 | `mongo` | MongoDB（推荐用于事件存储） |
-| `r2dbc` | R2DBC 兼容数据库 |
 | `redis` | 用于高性能场景 |
 | `elasticsearch` | 用于全文搜索 |
 
@@ -406,8 +384,6 @@ spring:
       host: localhost
       port: 6379
 
-  r2dbc:
-    url: r2dbc:pool:mysql://localhost:3306/wow_db
 
   elasticsearch:
     uris:
@@ -448,10 +424,6 @@ wow:
   mongo:
     enabled: true
     auto-init-schema: true
-  r2dbc:
-    enabled: true
-    datasource:
-      type: simple
   elasticsearch:
     enabled: true
   compensation:
@@ -538,7 +510,6 @@ wow:
 - [MongoDB 扩展](./extensions/mongo)
 - [Redis 扩展](./extensions/redis)
 - [Elasticsearch 扩展](./extensions/elasticsearch)
-- [R2DBC 扩展](./extensions/r2bdc)
 - [事件补偿](./event-compensation)
 - [命令配置](./reference/config/command)
 - [事件配置](./reference/config/event)

@@ -7,10 +7,6 @@ java {
         usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
         capability(group.toString(), "mongo-support", version.toString())
     }
-    registerFeature("r2dbcSupport") {
-        usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
-        capability(group.toString(), "r2dbc-support", version.toString())
-    }
     registerFeature("redisSupport") {
         usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
         capability(group.toString(), "redis-support", version.toString())
@@ -55,8 +51,6 @@ dependencies {
     "mongoSupportImplementation"("org.springframework.boot:spring-boot-starter-data-mongodb-reactive")
     "redisSupportImplementation"(project(":wow-redis"))
     "redisSupportImplementation"("org.springframework.boot:spring-boot-starter-data-redis-reactive")
-    "r2dbcSupportImplementation"("org.springframework.boot:spring-boot-starter-r2dbc")
-    "r2dbcSupportImplementation"(project(":wow-r2dbc"))
     "mockSupportImplementation"(project(":wow-mock"))
     "kafkaSupportImplementation"(project(":wow-kafka"))
     "webfluxSupportImplementation"(project(":wow-webflux"))
@@ -78,8 +72,6 @@ dependencies {
     testImplementation(project(":example-domain"))
     testImplementation(project(":example-transfer-domain"))
     testImplementation(project(":wow-compensation-domain"))
-    testImplementation("org.mariadb:r2dbc-mariadb")
-    testImplementation(project(":wow-r2dbc"))
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.boot:spring-boot-starter-webflux")
     testImplementation("org.springdoc:springdoc-openapi-starter-webflux-ui")
@@ -88,7 +80,6 @@ dependencies {
 configurations.named("testImplementation") {
     extendsFrom(
         configurations.getByName("mongoSupportImplementation"),
-        configurations.getByName("r2dbcSupportImplementation"),
         configurations.getByName("redisSupportImplementation"),
         configurations.getByName("mockSupportImplementation"),
         configurations.getByName("kafkaSupportImplementation"),

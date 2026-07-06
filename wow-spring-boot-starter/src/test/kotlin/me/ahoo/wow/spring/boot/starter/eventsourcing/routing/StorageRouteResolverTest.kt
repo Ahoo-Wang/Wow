@@ -239,7 +239,7 @@ class StorageRouteResolverTest {
                 StorageRoutingProperties(
                     aggregates = mapOf(
                         "order" to AggregateStorageRouteProperties(
-                            event = StorageChannelRouteProperties(storage = StorageType.R2DBC),
+                            event = StorageChannelRouteProperties(storage = StorageType.ELASTICSEARCH),
                         ),
                     ),
                 ),
@@ -248,7 +248,7 @@ class StorageRouteResolverTest {
 
         exception.message.assert().contains("order")
         exception.message.assert().contains("event")
-        exception.message.assert().contains(StorageType.R2DBC.name)
+        exception.message.assert().contains(StorageType.ELASTICSEARCH.name)
     }
 
     @Test

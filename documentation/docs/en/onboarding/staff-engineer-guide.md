@@ -23,9 +23,7 @@ Wow is a **compiler-driven, fully reactive** CQRS + Event Sourcing framework. It
 | Compile-time command routing | KSP generates `CommandAggregate` metadata, no reflection at runtime | [wow-compiler](https://github.com/Ahoo-Wang/Wow/blob/main/wow-compiler) |
 | Write throughput (SENT mode) | ~60k TPS (AddCartItem), ~48k TPS (CreateOrder) | [README.md:70-74](https://github.com/Ahoo-Wang/Wow/blob/main/README.md#L70-L74) |
 | Write throughput (PROCESSED mode) | ~18k TPS for both AddCartItem and CreateOrder | [README.md:76-98](https://github.com/Ahoo-Wang/Wow/blob/main/README.md#L76-L98) |
-| Event store backends | MongoDB, Redis, R2DBC (MariaDB/PostgreSQL), In-Memory | [settings.gradle.kts:27-30](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L27-L30) |
 | Message bus backends | Kafka (distributed), Redis (distributed), In-Memory (local) | [settings.gradle.kts:27-30](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L27-L30) |
-| Projection stores | Elasticsearch, MongoDB, R2DBC, CoCache (caching layer) | [settings.gradle.kts:24-31](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L24-L31) |
 | Saga support | Stateless sagas with compile-time event-to-command mapping | [wow-core saga](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless) |
 | Compensation | First-class dashboard + retry engine for failed events | [compensation/](https://github.com/Ahoo-Wang/Wow/blob/main/compensation) |
 | Test coverage enforcement | 80% minimum (jacoco), Given-When-Expect DSL | [CLAUDE.md:93](https://github.com/Ahoo-Wang/Wow/blob/main/CLAUDE.md#L93) |
@@ -166,7 +164,6 @@ class WowEngine:
 
         # 9. PROJECT read models (async, via event bus subscription)
         # projection_handler subscribes to DomainEventBus, updates read models
-        # Supported backends: Elasticsearch, MongoDB, R2DBC, CoCache
 
         # 10. SAGA ORCHESTRATION (async, via event bus subscription)
         # saga_handler subscribes to DomainEventBus, emits compensating commands
@@ -232,7 +229,6 @@ graph TB
         KA[KafkaAutoConfiguration]
         MA[MongoAutoConfiguration]
         RA[RedisAutoConfiguration]
-        R2A[R2dbcAutoConfiguration]
         ELA[ElasticsearchAutoConfiguration]
         OA[OpenAPIAutoConfiguration]
         COSA[CoSecAutoConfiguration]
@@ -259,7 +255,6 @@ graph TB
     subgraph "Storage Backends"
         MONGO[MongoDB<br>Event + Snapshot Store]
         REDIS[Redis<br>Event + Snapshot Store]
-        R2DBC[R2DBC<br>MariaDB/PostgreSQL<br>Event + Snapshot Store]
         KAFKA[Apache Kafka<br>Distributed Message Bus]
         ESDB[Elasticsearch<br>Projection Store]
         COCACHE[CoCache<br>Projection Cache]
@@ -306,14 +301,12 @@ graph TB
 
     ES --> MONGO
     ES --> REDIS
-    ES --> R2DBC
     CB --> KAFKA
     CB --> REDIS
     DEB --> KAFKA
     DEB --> REDIS
     PD --> ESDB
     PD --> MONGO
-    PD --> R2DBC
     PD --> COCACHE
 
     METRICS -.-> CB
@@ -348,7 +341,6 @@ graph TB
 | `wow-kafka` | Distributed command/event bus via Kafka | Messaging | [settings.gradle.kts:27](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L27) |
 | `wow-mongo` | MongoDB event store + snapshot store | Storage | [settings.gradle.kts:28](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L28) |
 | `wow-redis` | Redis event store + snapshot store | Storage | [settings.gradle.kts:30](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L30) |
-| `wow-r2dbc` | R2DBC event store (MariaDB/PostgreSQL) | Storage | [settings.gradle.kts:29](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L29) |
 | `wow-elasticsearch` | Elasticsearch projection store | Storage | [settings.gradle.kts:31](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L31) |
 | `wow-test` | Unit testing DSL: `AggregateSpec`, `SagaSpec` (Given-When-Expect) | Dev-time | [settings.gradle.kts:44-45](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L44-L45) |
 | `wow-cosec` | ABAC authorization framework | Cross-cutting | [settings.gradle.kts:40](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L40) |
@@ -379,7 +371,6 @@ sequenceDiagram
     participant CD as CommandDispatcher
     participant ESR as EventSourcing<br>StateAggregateRepository
     participant SN as SnapshotStore
-    participant ES as EventStore<br>(Mongo/Redis/R2DBC)
     participant DEB as DomainEventBus<br>(LocalFirst)
     participant PD as ProjectionDispatcher
     participant SD as StatelessSagaDispatcher
@@ -458,7 +449,6 @@ sequenceDiagram
 
     par Projection Processing
         DEB->>PD: EventStreamExchange
-        PD->>PD: update read model<br>(Elasticsearch/Mongo/R2DBC)
         PD->>CWN: notifyAndForget(PROJECTED signal)
         CWN->>WC: signal(PROJECTED signal)
         WC->>WH: next(PROJECTED signal)
@@ -491,9 +481,9 @@ sequenceDiagram
 
 ## 5. Event Store Scalability Model
 
-The event store scales along two axes: **storage backend choice** and **aggregate sharding**.
+The event store scales along three axes: **storage backend choice**, **snapshot replay reduction**, and **event bus fan-out**.
 
-<!-- Sources: EventStore.kt:27-98, AbstractEventStore.kt:26-140, AggregateIdSharding.kt:23-191, settings.gradle.kts:27-30 -->
+<!-- Sources: EventStore.kt:27-98, AbstractEventStore.kt:26-140, settings.gradle.kts:27-30 -->
 
 ```mermaid
 flowchart TB
@@ -508,12 +498,11 @@ flowchart TB
         IM[InMemoryEventStore<br>ConcurrentHashMap]
         MONGO_ES[MongoEventStore<br>append=insertOne, load=find with sort]
         REDIS_ES[RedisEventStore<br>append=ZADD, load=ZRANGEBYSCORE]
-        R2DBC_ES[R2dbcEventStore<br>append=INSERT, load=SELECT with BETWEEN]
     end
 
     subgraph "Scalability Strategies"
-        SHARD[AggregateIdSharding<br>CosIdShardingDecorator<br>+ CosId snowflake ID]
         SNAP[SnapshotStore<br>VersionOffsetSnapshotStrategy<br>snapshot every N versions]
+        FANOUT[LocalFirstMessageBus<br>local delivery before distributed fan-out]
     end
 
     subgraph "Key Behaviors"
@@ -528,30 +517,24 @@ flowchart TB
     ESI --> IM
     ESI --> MONGO_ES
     ESI --> REDIS_ES
-    ESI --> R2DBC_ES
-    MONGO_ES --> SHARD
-    REDIS_ES --> SHARD
-    R2DBC_ES --> SHARD
     MONGO_ES --> SNAP
     REDIS_ES --> SNAP
-    R2DBC_ES --> SNAP
+    ESI --> FANOUT
     MONGO_ES --> OPT
     MONGO_ES --> IDEM
     MONGO_ES --> ORD
 
 ```
 
-<!-- Sources: EventStore.kt:27-98, AbstractEventStore.kt:26-140, AggregateIdSharding.kt:23-191, settings.gradle.kts:27-30, InMemoryEventStore.kt -->
+<!-- Sources: EventStore.kt:27-98, AbstractEventStore.kt:26-140, settings.gradle.kts:27-30, InMemoryEventStore.kt -->
 
 ### Scalability Model Summary
 
 | Dimension | Mechanism | Limitation | Source |
 |---|---|---|---|
 | **Per-aggregate write throughput** | Single aggregate is serialized by optimistic concurrency; no parallel writes to same aggregate | Hot aggregates will bottleneck | [EventStore.kt:38-43](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt#L38-L43) |
-| **Multi-aggregate write scaling** | `AggregateIdSharding` routes different aggregates to different storage shards (e.g., CosId snowflake -> hash -> shard) | Shard distribution quality depends on ID generation scheme | [AggregateIdSharding.kt:82-104](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/sharding/AggregateIdSharding.kt#L82-L104) |
 | **Read scaling (long aggregates)** | `SnapshotStore` stores periodic state snapshots; replay only events since last snapshot | Snapshot strategy must be tuned per aggregate type | [VersionOffsetSnapshotStrategy.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/VersionOffsetSnapshotStrategy.kt) |
 | **Event bus fan-out** | `LocalFirst` routes to local consumers first (zero network hop), then distributes via Kafka/Redis | Kafka partition ordering must align with aggregate ID to preserve per-aggregate order | [LocalFirstMessageBus.kt:129-170](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/messaging/LocalFirstMessageBus.kt#L129-L170) |
-| **Storage backend choice** | MongoDB (document model fits events naturally), Redis (highest throughput, in-memory), R2DBC (SQL, operational familiarity) | Each has different latency/throughput/ops profiles | [settings.gradle.kts:27-30](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts#L27-L30) |
 
 ---
 
@@ -614,7 +597,6 @@ flowchart TB
 | **Kotlin/JVM lock-in** | KSP compiler, Flow/Mono usage, Kotlin data classes for events | Java can use Wow via the `example-transfer` Java example, but the ergonomics are reduced |
 | **No blocking programming model** | All command/event paths are reactive; mixing blocking code in handlers causes thread pool starvation | `@Blocking` annotation support for CPU-bound handlers |
 | **Optimistic concurrency retries are the caller's responsibility** | If `EventVersionConflictException` occurs, the caller (not the framework) must retry | Idempotency via `requestId` deduplication ensures safe retry |
-| **Sharding is manual** | `AggregateIdSharding` must be configured per aggregate type; no automatic rebalancing | CosId snowflake IDs provide good distribution; static shard maps are common in practice |
 
 ### Dependency coupling analysis
 
@@ -677,7 +659,6 @@ All benchmarks run with MongoDB + Redis + Kafka on Kubernetes ([README.md:56-98]
 | **Duplicate command processing** | Low (with Bloom filter or DB check) | Idempotent processing or business logic duplication | `DuplicateRequestIdException` | `AggregateIdempotencyChecker` with Bloom filter or DB-backed check | [DefaultCommandGateway.kt:77-88](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/DefaultCommandGateway.kt#L77-L88) |
 | **Snapshot corruption** | Low | Aggregate loaded from stale/broken state on restart | Unexpected state after replay | Snapshot is optional; event replay always authoritative; repair by deleting snapshot and replaying | [EventSourcingStateAggregateRepository.kt:82-86](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventSourcingStateAggregateRepository.kt#L82-L86) |
 | **Kafka partition leader failure** | Medium (in production) | Delayed event delivery; potential message loss if `acks=0` | Kafka consumer lag metrics | Configure `acks=all`, `min.insync.replicas=2` | [KafkaAutoConfiguration.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/kafka/KafkaAutoConfiguration.kt) |
-| **Event store backend outage** | Medium | All writes blocked; reads from cached projections may continue to serve | Health check on MongoDB/Redis/R2DBC connection | Multi-region replica sets; circuit breaker in reactive pipeline | [EventStoreAutoConfiguration.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/eventsourcing/store/EventStoreAutoConfiguration.kt) |
 | **Projection drift** | Medium | Read models diverge from event store truth | Automated reconciliation; compensation dashboard tracks failed events | `StateEventCompensator` / `DomainEventCompensator` replay failed events; Dashboard for manual retry | [compensation/ core](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/compensation) |
 | **Saga failure (no compensation)** | Medium | Distributed transaction left in inconsistent state | Compensation dashboard shows saga failures | Stateless sagas emit compensating commands on failure; dashboard allows manual retry with spec | [StatelessSagaHandler.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/saga/stateless/StatelessSagaHandler.kt) |
 | **Wait handle lifecycle leak** | Medium | Runtime handle remains registered if waiters never disconnect or a terminal signal is never observed | wait timeout; JMX metrics on active waiters | `WaitCoordinator` unregisters internal last/stream handles on completion, error, or cancellation; missing termination keeps a handle active | [WaitCoordinator.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitCoordinator.kt) |
@@ -716,9 +697,7 @@ When adopting Wow, use this format to document architectural decisions. Each dec
 ### Example Decisions When Adopting Wow
 
 **ADR-001: Event Store Backend**
-- **Context**: Choose between MongoDB, Redis, and R2DBC as the primary event store.
 - **Decision**: MongoDB for production (document model fits event streams, operational maturity). Redis for high-throughput services that can tolerate data loss on restart (if not configured for persistence).
-- **Alternatives**: R2DBC (SQL familiarity but less natural for event append patterns). Redis (highest throughput but higher operational complexity for durability).
 - **Consequences**: MongoDB requires replica set for production durability. Single-document insert latency is the throughput ceiling (~20k TPS per node).
 
 **ADR-002: Wait Plan Mode**
@@ -739,19 +718,12 @@ When adopting Wow, use this format to document architectural decisions. Each dec
 - **Alternatives**: Single store for all projections (simpler ops but suboptimal for different query patterns).
 - **Consequences**: Multiple projection stores increase operational surface area. Projection handlers must be aware of which store they write to.
 
-**ADR-005: Sharding Strategy**
-- **Context**: Configure aggregate sharding for multi-node deployments.
-- **Decision**: Use `CosIdShardingDecorator` with Modulo sharding over N nodes, keyed on CosId snowflake ID. Aggregate IDs use CosId `SnowflakeIdGenerator` which provides naturally distributed IDs.
-- **Alternatives**: Manual node-per-aggregate-type sharding (`SingleAggregateIdSharding`). Consistent hashing (more complex rebalancing).
-- **Consequences**: Adding nodes changes the modulo, requiring data migration. Pre-allocate enough shards (e.g., 64 shards mapped to 3 nodes initially) to allow rebalancing without data movement.
-
 ---
 
 ## 11. Production Readiness Checklist
 
 | Capability | Status | Notes |
 |---|---|---|
-| **Event store backup/restore** | Depends on backend | MongoDB: use mongodump. Redis: use RDB/AOF. R2DBC: use DB-native tools. |
 | **Event store migration / versioning** | `EventUpgrader` | Events have a `@Revision` annotation; `EventUpgrader` can transform old event shapes to new ones. See [EventUpgrader.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/upgrader/EventUpgrader.kt). |
 | **Horizontal scaling** | Via Kafka consumer groups | Each Wow instance subscribes to Kafka topics for distributed commands/events. `LocalFirst` ensures co-located aggregates are processed in-process. |
 | **Graceful shutdown** | Configurable | `wow.shutdown-timeout` (default: 60s) — [WowProperties.kt:29](https://github.com/Ahoo-Wang/Wow/blob/main/wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/WowProperties.kt#L29). Drains in-flight commands before stopping. |

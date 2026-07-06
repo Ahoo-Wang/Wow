@@ -216,7 +216,6 @@ The `EventStore` interface defines the contract for persisting and loading event
 | `load` | `load(aggregateId, headEventTime, tailEventTime): Flux<DomainEventStream>` | Load events by time range |
 | `last` | `last(aggregateId): Mono<DomainEventStream>` | Load most recent event stream |
 
-See [EventStore.kt:27-98](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt#L27-L98). Wow provides implementations for MongoDB (`wow-mongo`), Redis (`wow-redis`), R2DBC (`wow-r2dbc`), and an in-memory store for testing.
 
 ## Projections
 

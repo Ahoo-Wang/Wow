@@ -16,7 +16,6 @@ package me.ahoo.wow.spring.boot.starter.eventsourcing
 enum class StorageType {
     MONGO,
     REDIS,
-    R2DBC,
     ELASTICSEARCH,
     IN_MEMORY,
     DELAY
@@ -25,7 +24,6 @@ enum class StorageType {
     companion object {
         const val MONGO_NAME = "mongo"
         const val REDIS_NAME = "redis"
-        const val R2DBC_NAME = "r2dbc"
         const val ELASTICSEARCH_NAME = "elasticsearch"
         const val IN_MEMORY_NAME = "in_memory"
         const val DELAY_NAME = "delay"

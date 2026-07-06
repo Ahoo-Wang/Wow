@@ -48,7 +48,6 @@ The function-style DSL is planned as a later migration stage, so runtime test la
 ./gradlew allIntegrationTest
 ./gradlew :wow-mongo:integrationTest
 ./gradlew :wow-redis:integrationTest
-./gradlew :wow-r2dbc:integrationTest
 ./gradlew :wow-kafka:integrationTest
 ./gradlew :wow-elasticsearch:integrationTest
 ./gradlew :wow-it:integrationTest
