@@ -10,15 +10,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package me.ahoo.wow.spring.boot.starter.eventsourcing.routing
+
+package me.ahoo.wow.query.event
 
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.materialize
-import me.ahoo.wow.query.event.EventStreamQueryService
-import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
-import me.ahoo.wow.query.snapshot.SnapshotQueryService
-import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 
 class RoutingEventStreamQueryServiceFactory(
     private val defaultEventStreamQueryServiceFactory: EventStreamQueryServiceFactory,
@@ -31,21 +28,6 @@ class RoutingEventStreamQueryServiceFactory(
 
     override fun create(namedAggregate: NamedAggregate): EventStreamQueryService {
         val queryServiceFactory = routes[namedAggregate.materialize()] ?: defaultEventStreamQueryServiceFactory
-        return queryServiceFactory.create(namedAggregate)
-    }
-}
-
-class RoutingSnapshotQueryServiceFactory(
-    private val defaultSnapshotQueryServiceFactory: SnapshotQueryServiceFactory,
-    routes: Map<NamedAggregate, SnapshotQueryServiceFactory>
-) : SnapshotQueryServiceFactory {
-    private val routes: Map<MaterializedNamedAggregate, SnapshotQueryServiceFactory> =
-        routes.mapKeys { (namedAggregate, _) ->
-            namedAggregate.materialize()
-        }
-
-    override fun <S : Any> create(namedAggregate: NamedAggregate): SnapshotQueryService<S> {
-        val queryServiceFactory = routes[namedAggregate.materialize()] ?: defaultSnapshotQueryServiceFactory
         return queryServiceFactory.create(namedAggregate)
     }
 }
