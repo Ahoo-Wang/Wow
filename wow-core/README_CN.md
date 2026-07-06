@@ -428,7 +428,7 @@ wow:
 wow:
   eventsourcing:
     store:
-      storage: mongo  # mongo, redis, in_memory, delay
+      storage: mongo  # mongo, redis, elasticsearch, in_memory, delay
     snapshot:
       storage: mongo  # mongo, redis, elasticsearch, in_memory, delay
       enabled: true  # 启用快照优化
