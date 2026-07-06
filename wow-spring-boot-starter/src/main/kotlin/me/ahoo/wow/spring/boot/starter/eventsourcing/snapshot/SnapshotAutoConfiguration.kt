@@ -59,8 +59,11 @@ class SnapshotAutoConfiguration(
 
     @Bean
     @ConditionalOnSnapshotStoreStorage(StorageType.IN_MEMORY)
-    fun inMemorySnapshotStoreBinding(inMemorySnapshotStore: InMemorySnapshotStore): SnapshotStoreBinding {
-        return SnapshotStoreBinding.storage(StorageType.IN_MEMORY, inMemorySnapshotStore)
+    fun inMemorySnapshotStoreBinding(
+        @Qualifier("inMemorySnapshotStore")
+        snapshotStore: SnapshotStore
+    ): SnapshotStoreBinding {
+        return SnapshotStoreBinding.storage(StorageType.IN_MEMORY, snapshotStore)
     }
 
     @Bean

@@ -20,20 +20,20 @@ import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchEventStore
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStore
 import me.ahoo.wow.elasticsearch.query.event.ElasticsearchEventStreamQueryServiceFactory
 import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryServiceFactory
-import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
-import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
+import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.ConditionalOnEventStoreStorage
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.ConditionalOnSnapshotStoreStorage
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStoreBinding
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStreamQueryServiceFactoryBinding
+import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotQueryServiceFactoryBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.SnapshotStoreBinding
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.ConditionalOnSnapshotEnabled
-import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotProperties
-import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreProperties
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchRestClientAutoConfiguration
 import org.springframework.context.annotation.Bean
@@ -61,8 +61,11 @@ class ElasticsearchEventSourcingAutoConfiguration(private val elasticsearchPrope
 
     @Bean
     @ConditionalOnEventStoreStorage(StorageType.ELASTICSEARCH)
-    fun elasticsearchEventStoreBinding(elasticsearchEventStore: ElasticsearchEventStore): EventStoreBinding {
-        return EventStoreBinding.storage(StorageType.ELASTICSEARCH, elasticsearchEventStore)
+    fun elasticsearchEventStoreBinding(
+        @Qualifier("elasticsearchEventStore")
+        eventStore: EventStore
+    ): EventStoreBinding {
+        return EventStoreBinding.storage(StorageType.ELASTICSEARCH, eventStore)
     }
 
     @Bean
@@ -76,17 +79,25 @@ class ElasticsearchEventSourcingAutoConfiguration(private val elasticsearchPrope
     }
 
     @Bean
-    @ConditionalOnProperty(
-        EventStoreProperties.STORAGE,
-        havingValue = StorageType.ELASTICSEARCH_NAME,
-    )
+    @ConditionalOnEventStoreStorage(StorageType.ELASTICSEARCH)
     fun elasticsearchEventStreamQueryServiceFactory(
         elasticsearchClient: ReactiveElasticsearchClient
-    ): EventStreamQueryServiceFactory {
+    ): ElasticsearchEventStreamQueryServiceFactory {
         return ElasticsearchEventStreamQueryServiceFactory(elasticsearchClient)
     }
 
-    @Bean(name = ["elasticsearchSnapshotStore", "snapshotRepository"])
+    @Bean
+    @ConditionalOnEventStoreStorage(StorageType.ELASTICSEARCH)
+    fun elasticsearchEventStreamQueryServiceFactoryBinding(
+        elasticsearchEventStreamQueryServiceFactory: ElasticsearchEventStreamQueryServiceFactory
+    ): EventStreamQueryServiceFactoryBinding {
+        return EventStreamQueryServiceFactoryBinding.storage(
+            StorageType.ELASTICSEARCH,
+            elasticsearchEventStreamQueryServiceFactory,
+        )
+    }
+
+    @Bean(name = ["elasticsearchSnapshotStore", "elasticsearchSnapshotRepository"])
     @ConditionalOnSnapshotEnabled
     @ConditionalOnSnapshotStoreStorage(StorageType.ELASTICSEARCH)
     fun elasticsearchSnapshotStore(
@@ -99,20 +110,30 @@ class ElasticsearchEventSourcingAutoConfiguration(private val elasticsearchPrope
     @ConditionalOnSnapshotEnabled
     @ConditionalOnSnapshotStoreStorage(StorageType.ELASTICSEARCH)
     fun elasticsearchSnapshotStoreBinding(
-        elasticsearchSnapshotStore: ElasticsearchSnapshotStore
+        @Qualifier("elasticsearchSnapshotStore")
+        snapshotStore: SnapshotStore
     ): SnapshotStoreBinding {
-        return SnapshotStoreBinding.storage(StorageType.ELASTICSEARCH, elasticsearchSnapshotStore)
+        return SnapshotStoreBinding.storage(StorageType.ELASTICSEARCH, snapshotStore)
     }
 
     @Bean
     @ConditionalOnSnapshotEnabled
-    @ConditionalOnProperty(
-        SnapshotProperties.STORAGE,
-        havingValue = StorageType.ELASTICSEARCH_NAME,
-    )
+    @ConditionalOnSnapshotStoreStorage(StorageType.ELASTICSEARCH)
     fun elasticsearchSnapshotQueryServiceFactory(
         elasticsearchClient: ReactiveElasticsearchClient,
-    ): SnapshotQueryServiceFactory {
+    ): ElasticsearchSnapshotQueryServiceFactory {
         return ElasticsearchSnapshotQueryServiceFactory(elasticsearchClient)
+    }
+
+    @Bean
+    @ConditionalOnSnapshotEnabled
+    @ConditionalOnSnapshotStoreStorage(StorageType.ELASTICSEARCH)
+    fun elasticsearchSnapshotQueryServiceFactoryBinding(
+        elasticsearchSnapshotQueryServiceFactory: ElasticsearchSnapshotQueryServiceFactory
+    ): SnapshotQueryServiceFactoryBinding {
+        return SnapshotQueryServiceFactoryBinding.storage(
+            StorageType.ELASTICSEARCH,
+            elasticsearchSnapshotQueryServiceFactory,
+        )
     }
 }

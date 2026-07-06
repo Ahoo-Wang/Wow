@@ -17,6 +17,10 @@ import me.ahoo.wow.configuration.MetadataSearcher
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
+import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
+import me.ahoo.wow.query.event.NoOpEventStreamQueryServiceFactory
+import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryServiceFactory
+import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 
 class StorageRouteResolver(
@@ -24,6 +28,8 @@ class StorageRouteResolver(
     private val snapshotEnabled: Boolean,
     eventStoreBindings: List<EventStoreBinding>,
     snapshotStoreBindings: List<SnapshotStoreBinding>,
+    eventStreamQueryServiceFactoryBindings: List<EventStreamQueryServiceFactoryBinding> = emptyList(),
+    snapshotQueryServiceFactoryBindings: List<SnapshotQueryServiceFactoryBinding> = emptyList(),
     private val defaultEventStorage: StorageType = StorageType.MONGO,
     private val defaultSnapshotStorage: StorageType = StorageType.MONGO
 ) {
@@ -39,6 +45,23 @@ class StorageRouteResolver(
         snapshotStoreBindings.associateBy { it.name }
     private val snapshotStoreBindingsByStorage: Map<StorageType, SnapshotStoreBinding> =
         snapshotStoreBindings.mapNotNull { binding ->
+            binding.storage?.let { storage ->
+                storage to binding
+            }
+        }.toMap()
+    private val eventStreamQueryServiceFactoryBindingsByName: Map<String, EventStreamQueryServiceFactoryBinding> =
+        eventStreamQueryServiceFactoryBindings.associateBy { it.name }
+    private val eventStreamQueryServiceFactoryBindingsByStorage:
+        Map<StorageType, EventStreamQueryServiceFactoryBinding> =
+        eventStreamQueryServiceFactoryBindings.mapNotNull { binding ->
+            binding.storage?.let { storage ->
+                storage to binding
+            }
+        }.toMap()
+    private val snapshotQueryServiceFactoryBindingsByName: Map<String, SnapshotQueryServiceFactoryBinding> =
+        snapshotQueryServiceFactoryBindings.associateBy { it.name }
+    private val snapshotQueryServiceFactoryBindingsByStorage: Map<StorageType, SnapshotQueryServiceFactoryBinding> =
+        snapshotQueryServiceFactoryBindings.mapNotNull { binding ->
             binding.storage?.let { storage ->
                 storage to binding
             }
@@ -75,6 +98,36 @@ class StorageRouteResolver(
         return ResolvedSnapshotRoutes(
             defaultSnapshotStore = requiredSnapshotStore(defaultSnapshotStorage, "<default>", SNAPSHOT_CHANNEL),
             snapshotRoutes = routes,
+        )
+    }
+
+    fun resolveEventStreamQueryServiceFactoryRoutes(
+        properties: StorageRoutingProperties
+    ): ResolvedEventStreamQueryServiceFactoryRoutes {
+        val routes: Map<NamedAggregate, EventStreamQueryServiceFactory> =
+            properties.aggregates.mapNotNull { (routeKey, aggregateRoute) ->
+                val channel = aggregateRoute.event ?: return@mapNotNull null
+                val namedAggregate = resolveNamedAggregate(routeKey)
+                namedAggregate to resolveEventStreamQueryServiceFactory(routeKey, channel)
+            }.toMap()
+        return ResolvedEventStreamQueryServiceFactoryRoutes(
+            defaultEventStreamQueryServiceFactory = eventStreamQueryServiceFactory(defaultEventStorage),
+            eventStreamQueryServiceFactoryRoutes = routes,
+        )
+    }
+
+    fun resolveSnapshotQueryServiceFactoryRoutes(
+        properties: StorageRoutingProperties
+    ): ResolvedSnapshotQueryServiceFactoryRoutes {
+        val routes: Map<NamedAggregate, SnapshotQueryServiceFactory> =
+            properties.aggregates.mapNotNull { (routeKey, aggregateRoute) ->
+                val channel = aggregateRoute.snapshot ?: return@mapNotNull null
+                val namedAggregate = resolveNamedAggregate(routeKey)
+                namedAggregate to resolveSnapshotQueryServiceFactory(routeKey, channel)
+            }.toMap()
+        return ResolvedSnapshotQueryServiceFactoryRoutes(
+            defaultSnapshotQueryServiceFactory = snapshotQueryServiceFactory(defaultSnapshotStorage),
+            snapshotQueryServiceFactoryRoutes = routes,
         )
     }
 
@@ -125,6 +178,32 @@ class StorageRouteResolver(
         }
     }
 
+    private fun resolveEventStreamQueryServiceFactory(
+        routeKey: String,
+        channel: StorageChannelRouteProperties
+    ): EventStreamQueryServiceFactory {
+        validateChannel(routeKey, EVENT_CHANNEL, channel)
+        channel.storage?.let { storage ->
+            return eventStreamQueryServiceFactory(storage)
+        }
+        val binding = channel.binding!!.trim()
+        return eventStreamQueryServiceFactoryBindingsByName[binding]?.eventStreamQueryServiceFactory
+            ?: NoOpEventStreamQueryServiceFactory
+    }
+
+    private fun resolveSnapshotQueryServiceFactory(
+        routeKey: String,
+        channel: StorageChannelRouteProperties
+    ): SnapshotQueryServiceFactory {
+        validateChannel(routeKey, SNAPSHOT_CHANNEL, channel)
+        channel.storage?.let { storage ->
+            return snapshotQueryServiceFactory(storage)
+        }
+        val binding = channel.binding!!.trim()
+        return snapshotQueryServiceFactoryBindingsByName[binding]?.snapshotQueryServiceFactory
+            ?: NoOpSnapshotQueryServiceFactory
+    }
+
     private fun validateChannel(
         routeKey: String,
         channelName: String,
@@ -158,6 +237,14 @@ class StorageRouteResolver(
             "Storage route[$routeKey] channel[$channelName] storage[${storage.name}] was not found."
         }
 
+    private fun eventStreamQueryServiceFactory(storage: StorageType): EventStreamQueryServiceFactory =
+        eventStreamQueryServiceFactoryBindingsByStorage[storage]?.eventStreamQueryServiceFactory
+            ?: NoOpEventStreamQueryServiceFactory
+
+    private fun snapshotQueryServiceFactory(storage: StorageType): SnapshotQueryServiceFactory =
+        snapshotQueryServiceFactoryBindingsByStorage[storage]?.snapshotQueryServiceFactory
+            ?: NoOpSnapshotQueryServiceFactory
+
     companion object {
         private const val EVENT_CHANNEL = "event"
         private const val SNAPSHOT_CHANNEL = "snapshot"
@@ -172,4 +259,14 @@ data class ResolvedEventRoutes(
 data class ResolvedSnapshotRoutes(
     val defaultSnapshotStore: SnapshotStore,
     val snapshotRoutes: Map<NamedAggregate, SnapshotStore>
+)
+
+data class ResolvedEventStreamQueryServiceFactoryRoutes(
+    val defaultEventStreamQueryServiceFactory: EventStreamQueryServiceFactory,
+    val eventStreamQueryServiceFactoryRoutes: Map<NamedAggregate, EventStreamQueryServiceFactory>
+)
+
+data class ResolvedSnapshotQueryServiceFactoryRoutes(
+    val defaultSnapshotQueryServiceFactory: SnapshotQueryServiceFactory,
+    val snapshotQueryServiceFactoryRoutes: Map<NamedAggregate, SnapshotQueryServiceFactory>
 )

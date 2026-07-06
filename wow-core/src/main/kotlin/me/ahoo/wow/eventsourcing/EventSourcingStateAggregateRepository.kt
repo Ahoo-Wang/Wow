@@ -67,7 +67,7 @@ class EventSourcingStateAggregateRepository(
      * ```
      * val aggregateId = AggregateId("user", "123")
      * val metadata = StateAggregateMetadata<UserState>(...)
-     * val aggregate = store.load(aggregateId, metadata, Int.MAX_VALUE).block()
+     * val aggregate = repository.load(aggregateId, metadata, Int.MAX_VALUE).block()
      * ```
      */
 
@@ -124,7 +124,7 @@ class EventSourcingStateAggregateRepository(
      * val aggregateId = AggregateId("user", "123")
      * val metadata = StateAggregateMetadata<UserState>(...)
      * val eventTime = System.currentTimeMillis() - 86400000L // 1 day ago
-     * val aggregate = store.load(aggregateId, metadata, eventTime).block()
+     * val aggregate = repository.load(aggregateId, metadata, eventTime).block()
      * ```
      */
     override fun <S : Any> load(

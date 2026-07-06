@@ -14,8 +14,12 @@
 package me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshotStrategy
+import me.ahoo.wow.eventsourcing.snapshot.Snapshot
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.VersionOffsetSnapshotStrategy
 import me.ahoo.wow.eventsourcing.snapshot.dispatcher.SnapshotDispatcher
 import me.ahoo.wow.eventsourcing.snapshot.dispatcher.SnapshotFunctionFilter
@@ -34,8 +38,13 @@ import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreAutoConfigu
 import me.ahoo.wow.spring.boot.starter.eventsourcing.store.EventStoreProperties
 import me.ahoo.wow.spring.command.SnapshotDispatcherLauncher
 import org.junit.jupiter.api.Test
+import org.springframework.beans.factory.config.BeanPostProcessor
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Configuration
+import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 
 internal class SnapshotAutoConfigurationTest {
 
@@ -77,6 +86,31 @@ internal class SnapshotAutoConfigurationTest {
     }
 
     @Test
+    fun `should create binding from decorated snapshot store`() {
+        contextRunner
+            .enableWow()
+            .withBean(StateAggregateFactory::class.java, { ConstructorStateAggregateFactory })
+            .withBean(StateEventBus::class.java, { InMemoryStateEventBus() })
+            .withPropertyValues(
+                "${EventStoreProperties.STORAGE}=${StorageType.IN_MEMORY_NAME}",
+                "${SnapshotProperties.STORAGE}=${StorageType.IN_MEMORY_NAME}",
+                "${EventProperties.BUS_TYPE}=${BusType.IN_MEMORY_NAME}",
+            )
+            .withUserConfiguration(
+                EventAutoConfiguration::class.java,
+                EventStoreAutoConfiguration::class.java,
+                SnapshotAutoConfiguration::class.java,
+                SnapshotStoreDecoratorConfiguration::class.java,
+            )
+            .run { context: AssertableApplicationContext ->
+                context.startupFailure.assert().isNull()
+                val binding = context.getBean(SnapshotStoreBinding::class.java)
+                binding.storage.assert().isEqualTo(StorageType.IN_MEMORY)
+                binding.snapshotStore.assert().isInstanceOf(DecoratingSnapshotStore::class.java)
+            }
+    }
+
+    @Test
     fun `should load context when version offset snapshot strategy`() {
         contextRunner
             .enableWow()
@@ -110,5 +144,42 @@ internal class SnapshotAutoConfigurationTest {
                 binding.storage.assert().isEqualTo(StorageType.IN_MEMORY)
                 binding.snapshotStore.assert().isSameAs(snapshotStore)
             }
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    internal class SnapshotStoreDecoratorConfiguration {
+        @Bean
+        fun snapshotStoreDecoratorPostProcessor(): BeanPostProcessor =
+            object : BeanPostProcessor {
+                override fun postProcessAfterInitialization(bean: Any, beanName: String): Any {
+                    if (beanName == "inMemorySnapshotStore" && bean is SnapshotStore) {
+                        return DecoratingSnapshotStore(bean)
+                    }
+                    return bean
+                }
+            }
+    }
+
+    internal class DecoratingSnapshotStore(
+        private val delegate: SnapshotStore
+    ) : SnapshotStore {
+        override val name: String
+            get() = delegate.name
+
+        override fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>> =
+            delegate.load(aggregateId)
+
+        override fun getVersion(aggregateId: AggregateId): Mono<Int> =
+            delegate.getVersion(aggregateId)
+
+        override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> =
+            delegate.save(snapshot)
+
+        override fun scanAggregateId(
+            namedAggregate: NamedAggregate,
+            afterId: String,
+            limit: Int
+        ): Flux<AggregateId> =
+            delegate.scanAggregateId(namedAggregate, afterId, limit)
     }
 }

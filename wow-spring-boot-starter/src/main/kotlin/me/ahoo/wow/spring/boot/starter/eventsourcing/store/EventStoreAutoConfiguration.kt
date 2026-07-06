@@ -13,11 +13,13 @@
 
 package me.ahoo.wow.spring.boot.starter.eventsourcing.store
 
+import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.ConditionalOnEventStoreStorage
 import me.ahoo.wow.spring.boot.starter.eventsourcing.routing.EventStoreBinding
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
@@ -35,7 +37,10 @@ class EventStoreAutoConfiguration {
 
     @Bean
     @ConditionalOnEventStoreStorage(StorageType.IN_MEMORY)
-    fun inMemoryEventStoreBinding(inMemoryEventStore: InMemoryEventStore): EventStoreBinding {
-        return EventStoreBinding.storage(StorageType.IN_MEMORY, inMemoryEventStore)
+    fun inMemoryEventStoreBinding(
+        @Qualifier("inMemoryEventStore")
+        eventStore: EventStore
+    ): EventStoreBinding {
+        return EventStoreBinding.storage(StorageType.IN_MEMORY, eventStore)
     }
 }

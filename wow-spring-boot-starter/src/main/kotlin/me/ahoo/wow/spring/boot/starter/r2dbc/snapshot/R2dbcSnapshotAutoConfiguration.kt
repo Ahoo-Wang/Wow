@@ -15,6 +15,7 @@ package me.ahoo.wow.spring.boot.starter.r2dbc.snapshot
 
 import io.r2dbc.spi.ConnectionFactory
 import me.ahoo.wow.api.naming.NamedBoundedContext
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.r2dbc.ConnectionFactoryRegistrar
 import me.ahoo.wow.r2dbc.R2dbcSnapshotStore
 import me.ahoo.wow.r2dbc.ShardingDatabase
@@ -59,8 +60,11 @@ class R2dbcSnapshotAutoConfiguration {
     }
 
     @Bean
-    fun r2dbcSnapshotStoreBinding(r2dbcSnapshotStore: R2dbcSnapshotStore): SnapshotStoreBinding {
-        return SnapshotStoreBinding.storage(StorageType.R2DBC, r2dbcSnapshotStore)
+    fun r2dbcSnapshotStoreBinding(
+        @Qualifier("r2dbcSnapshotStore")
+        snapshotStore: SnapshotStore
+    ): SnapshotStoreBinding {
+        return SnapshotStoreBinding.storage(StorageType.R2DBC, snapshotStore)
     }
 
     @Configuration

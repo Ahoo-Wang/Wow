@@ -66,6 +66,6 @@ class RedisSnapshotStore(
                 DefaultSnapshotKeyConverter.toAggregateId(namedAggregate, it)
             }.filter {
                 it.id > afterId
-            }
+            }.take(limit.toLong())
     }
 }

@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.spring.boot.starter.redis
 
+import me.ahoo.wow.eventsourcing.EventStore
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.infra.prepare.PrepareKeyFactory
 import me.ahoo.wow.redis.eventsourcing.RedisEventStore
 import me.ahoo.wow.redis.eventsourcing.RedisSnapshotStore
@@ -27,6 +29,7 @@ import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.ConditionalOnSnaps
 import me.ahoo.wow.spring.boot.starter.prepare.ConditionalOnPrepareEnabled
 import me.ahoo.wow.spring.boot.starter.prepare.PrepareProperties
 import me.ahoo.wow.spring.boot.starter.prepare.PrepareStorage
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
@@ -51,8 +54,11 @@ class RedisEventSourcingAutoConfiguration {
 
     @Bean
     @ConditionalOnEventStoreStorage(StorageType.REDIS)
-    fun redisEventStoreBinding(redisEventStore: RedisEventStore): EventStoreBinding {
-        return EventStoreBinding.storage(StorageType.REDIS, redisEventStore)
+    fun redisEventStoreBinding(
+        @Qualifier("redisEventStore")
+        eventStore: EventStore
+    ): EventStoreBinding {
+        return EventStoreBinding.storage(StorageType.REDIS, eventStore)
     }
 
     @Bean(name = ["redisSnapshotStore", "redisSnapshotRepository"])
@@ -65,8 +71,11 @@ class RedisEventSourcingAutoConfiguration {
     @Bean
     @ConditionalOnSnapshotEnabled
     @ConditionalOnSnapshotStoreStorage(StorageType.REDIS)
-    fun redisSnapshotStoreBinding(redisSnapshotStore: RedisSnapshotStore): SnapshotStoreBinding {
-        return SnapshotStoreBinding.storage(StorageType.REDIS, redisSnapshotStore)
+    fun redisSnapshotStoreBinding(
+        @Qualifier("redisSnapshotStore")
+        snapshotStore: SnapshotStore
+    ): SnapshotStoreBinding {
+        return SnapshotStoreBinding.storage(StorageType.REDIS, snapshotStore)
     }
 
     @Bean

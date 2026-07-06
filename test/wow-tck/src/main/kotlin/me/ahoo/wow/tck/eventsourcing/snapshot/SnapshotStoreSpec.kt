@@ -215,4 +215,28 @@ abstract class SnapshotStoreSpec {
             }
             .verifyComplete()
     }
+
+    @Test
+    open fun scanAggregateIdShouldLimitResult() {
+        val snapshotStore = createSnapshotStore().metrizable()
+        val snapshots = (1..20).map {
+            val aggregateId = aggregateMetadata.aggregateId(generateGlobalId())
+            val stateAggregate = stateAggregateFactory.create(aggregateMetadata.state, aggregateId)
+            SimpleSnapshot(stateAggregate, Clock.systemUTC().millis())
+        }
+
+        snapshots.forEach { snapshot ->
+            snapshotStore.save(snapshot)
+                .test()
+                .verifyComplete()
+        }
+
+        snapshotStore.scanAggregateId(aggregateMetadata, afterId = "", limit = 3)
+            .collectList()
+            .test()
+            .consumeNextWith {
+                it.assert().hasSize(3)
+            }
+            .verifyComplete()
+    }
 }

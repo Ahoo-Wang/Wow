@@ -10,16 +10,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package me.ahoo.wow.mongo
 
-import com.mongodb.client.model.ReplaceOptions
-import com.mongodb.reactivestreams.client.MongoDatabase
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
+import me.ahoo.test.asserts.assert
+import org.junit.jupiter.api.Test
 
-@Deprecated("Use MongoSnapshotStore.", ReplaceWith("MongoSnapshotStore(database)"))
-class MongoSnapshotRepository(database: MongoDatabase) : SnapshotStore by MongoSnapshotStore(database) {
-    companion object {
-        const val NAME = "mongo"
-        val DEFAULT_REPLACE_OPTIONS: ReplaceOptions = MongoSnapshotStore.DEFAULT_REPLACE_OPTIONS
+class MongoSnapshotRepositoryCompatibilityTest {
+
+    @Test
+    fun `should keep mongo snapshot repository as jvm visible type`() {
+        MongoSnapshotRepository::class.java.name.assert()
+            .isEqualTo("me.ahoo.wow.mongo.MongoSnapshotRepository")
+        MongoSnapshotRepository.NAME.assert().isEqualTo(MongoSnapshotStore.NAME)
+        MongoSnapshotRepository.DEFAULT_REPLACE_OPTIONS.assert()
+            .isSameAs(MongoSnapshotStore.DEFAULT_REPLACE_OPTIONS)
     }
 }

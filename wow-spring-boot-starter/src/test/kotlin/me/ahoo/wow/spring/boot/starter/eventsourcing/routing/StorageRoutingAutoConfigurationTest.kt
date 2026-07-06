@@ -23,6 +23,10 @@ import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
+import me.ahoo.wow.query.event.NoOpEventStreamQueryService
+import me.ahoo.wow.query.snapshot.NoOpSnapshotQueryService
+import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.ConditionalOnSnapshotEnabled
@@ -179,6 +183,22 @@ class StorageRoutingAutoConfigurationTest {
     }
 
     @Test
+    fun `event route should create primary routing event stream query service factory`() {
+        routingContextRunner
+            .withPropertyValues("${StorageRoutingProperties.AGGREGATES}.order.event.storage=${StorageType.REDIS_NAME}")
+            .run { context: AssertableApplicationContext ->
+                val stores = context.getBean(RecordingStores::class.java)
+                val queryServiceFactory = context.getBean(EventStreamQueryServiceFactory::class.java)
+
+                queryServiceFactory.create(ORDER)
+                stores.redisEventStreamQueryServiceFactory.lastNamedAggregate.assert().isEqualTo(ORDER)
+
+                queryServiceFactory.create(CART)
+                stores.mongoEventStreamQueryServiceFactory.lastNamedAggregate.assert().isEqualTo(CART)
+            }
+    }
+
+    @Test
     fun `snapshot route should create primary routing snapshot store`() {
         routingContextRunner
             .withPropertyValues(
@@ -203,6 +223,24 @@ class StorageRoutingAutoConfigurationTest {
                     .expectNext(7)
                     .verifyComplete()
                 stores.mongoSnapshotStore.lastAggregateId.assert().isEqualTo(orderAggregateId())
+            }
+    }
+
+    @Test
+    fun `snapshot route should create primary routing snapshot query service factory`() {
+        routingContextRunner
+            .withPropertyValues(
+                "${StorageRoutingProperties.AGGREGATES}.cart.snapshot.storage=${StorageType.REDIS_NAME}"
+            )
+            .run { context: AssertableApplicationContext ->
+                val stores = context.getBean(RecordingStores::class.java)
+                val queryServiceFactory = context.getBean(SnapshotQueryServiceFactory::class.java)
+
+                queryServiceFactory.create<Any>(CART)
+                stores.redisSnapshotQueryServiceFactory.lastNamedAggregate.assert().isEqualTo(CART)
+
+                queryServiceFactory.create<Any>(ORDER)
+                stores.mongoSnapshotQueryServiceFactory.lastNamedAggregate.assert().isEqualTo(ORDER)
             }
     }
 
@@ -325,6 +363,50 @@ class StorageRoutingAutoConfigurationTest {
                 storage = null,
                 snapshotStore = stores.archiveSnapshotStore,
             )
+
+        @Bean
+        fun mongoEventStreamQueryServiceFactory(stores: RecordingStores): EventStreamQueryServiceFactory =
+            stores.mongoEventStreamQueryServiceFactory
+
+        @Bean
+        fun redisEventStreamQueryServiceFactory(stores: RecordingStores): EventStreamQueryServiceFactory =
+            stores.redisEventStreamQueryServiceFactory
+
+        @Bean
+        fun mongoEventStreamQueryServiceFactoryBinding(stores: RecordingStores): EventStreamQueryServiceFactoryBinding =
+            EventStreamQueryServiceFactoryBinding.storage(
+                StorageType.MONGO,
+                stores.mongoEventStreamQueryServiceFactory
+            )
+
+        @Bean
+        fun redisEventStreamQueryServiceFactoryBinding(stores: RecordingStores): EventStreamQueryServiceFactoryBinding =
+            EventStreamQueryServiceFactoryBinding.storage(
+                StorageType.REDIS,
+                stores.redisEventStreamQueryServiceFactory
+            )
+
+        @Bean
+        fun mongoSnapshotQueryServiceFactory(stores: RecordingStores): SnapshotQueryServiceFactory =
+            stores.mongoSnapshotQueryServiceFactory
+
+        @Bean
+        fun redisSnapshotQueryServiceFactory(stores: RecordingStores): SnapshotQueryServiceFactory =
+            stores.redisSnapshotQueryServiceFactory
+
+        @Bean
+        fun mongoSnapshotQueryServiceFactoryBinding(stores: RecordingStores): SnapshotQueryServiceFactoryBinding =
+            SnapshotQueryServiceFactoryBinding.storage(
+                StorageType.MONGO,
+                stores.mongoSnapshotQueryServiceFactory
+            )
+
+        @Bean
+        fun redisSnapshotQueryServiceFactoryBinding(stores: RecordingStores): SnapshotQueryServiceFactoryBinding =
+            SnapshotQueryServiceFactoryBinding.storage(
+                StorageType.REDIS,
+                stores.redisSnapshotQueryServiceFactory
+            )
     }
 
     internal class RecordingStores {
@@ -334,6 +416,10 @@ class StorageRoutingAutoConfigurationTest {
         val mongoSnapshotStore = RecordingSnapshotStore("mongo-snapshot")
         val redisSnapshotStore = RecordingSnapshotStore("redis-snapshot")
         val archiveSnapshotStore = RecordingSnapshotStore("archive-snapshot")
+        val mongoEventStreamQueryServiceFactory = RecordingEventStreamQueryServiceFactory()
+        val redisEventStreamQueryServiceFactory = RecordingEventStreamQueryServiceFactory()
+        val mongoSnapshotQueryServiceFactory = RecordingSnapshotQueryServiceFactory()
+        val redisSnapshotQueryServiceFactory = RecordingSnapshotQueryServiceFactory()
     }
 
     internal class RecordingEventStore(
@@ -395,6 +481,24 @@ class StorageRoutingAutoConfigurationTest {
             afterId: String,
             limit: Int
         ): Flux<AggregateId> = Flux.empty()
+    }
+
+    internal class RecordingEventStreamQueryServiceFactory : EventStreamQueryServiceFactory {
+        var lastNamedAggregate: NamedAggregate? = null
+
+        override fun create(namedAggregate: NamedAggregate): NoOpEventStreamQueryService {
+            lastNamedAggregate = namedAggregate
+            return NoOpEventStreamQueryService(namedAggregate)
+        }
+    }
+
+    internal class RecordingSnapshotQueryServiceFactory : SnapshotQueryServiceFactory {
+        var lastNamedAggregate: NamedAggregate? = null
+
+        override fun <S : Any> create(namedAggregate: NamedAggregate): NoOpSnapshotQueryService<S> {
+            lastNamedAggregate = namedAggregate
+            return NoOpSnapshotQueryService(namedAggregate)
+        }
     }
 
     companion object {

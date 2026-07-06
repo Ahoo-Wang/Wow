@@ -15,6 +15,7 @@ package me.ahoo.wow.spring.boot.starter.r2dbc.eventstore
 
 import io.r2dbc.spi.ConnectionFactory
 import me.ahoo.wow.api.naming.NamedBoundedContext
+import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.r2dbc.ConnectionFactoryRegistrar
 import me.ahoo.wow.r2dbc.EventStreamDatabase
 import me.ahoo.wow.r2dbc.EventStreamSchema
@@ -54,7 +55,10 @@ class R2dbcEventStoreAutoConfiguration {
     }
 
     @Bean
-    fun r2dbcEventStoreBinding(eventStore: R2dbcEventStore): EventStoreBinding {
+    fun r2dbcEventStoreBinding(
+        @Qualifier("eventStore")
+        eventStore: EventStore
+    ): EventStoreBinding {
         return EventStoreBinding.storage(StorageType.R2DBC, eventStore)
     }
 
