@@ -302,9 +302,11 @@ class StorageRouteResolverTest {
         )
 }
 
-class OrderAggregate
-class CartAggregate
-class AuditAggregate
+class OrderAggregate(val id: String)
+
+class CartAggregate(val id: String)
+
+class AuditAggregate(val id: String)
 
 private class NoOpEventStore : EventStore {
     override fun append(eventStream: DomainEventStream): Mono<Void> = Mono.empty()
