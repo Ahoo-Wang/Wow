@@ -14,8 +14,8 @@
 package me.ahoo.wow.mongo.query.snapshot
 
 import com.mongodb.reactivestreams.client.MongoDatabase
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
-import me.ahoo.wow.mongo.MongoSnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
+import me.ahoo.wow.mongo.MongoSnapshotStore
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.tck.container.MongoTestFixture
 import me.ahoo.wow.tck.query.SnapshotQueryServiceSpec
@@ -39,7 +39,7 @@ class MongoSnapshotQueryServiceTest : SnapshotQueryServiceSpec() {
         return MongoSnapshotQueryServiceFactory(database)
     }
 
-    override fun createSnapshotRepository(): SnapshotRepository {
-        return MongoSnapshotRepository(database)
+    override fun createSnapshotStore(): SnapshotStore {
+        return MongoSnapshotStore(database)
     }
 }

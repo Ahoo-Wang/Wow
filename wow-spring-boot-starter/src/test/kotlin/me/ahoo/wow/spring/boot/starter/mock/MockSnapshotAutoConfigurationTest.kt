@@ -1,7 +1,7 @@
 package me.ahoo.wow.spring.boot.starter.mock
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.eventsourcing.mock.DelaySnapshotRepository
+import me.ahoo.wow.eventsourcing.mock.DelaySnapshotStore
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.SnapshotProperties
@@ -13,7 +13,7 @@ class MockSnapshotAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
 
     @Test
-    fun `should load context with delay snapshot repository`() {
+    fun `should load context with delay snapshot store`() {
         contextRunner
             .enableWow()
             .withPropertyValues(
@@ -24,7 +24,9 @@ class MockSnapshotAutoConfigurationTest {
             )
             .run { context: AssertableApplicationContext ->
                 context.assert()
-                    .hasSingleBean(DelaySnapshotRepository::class.java)
+                    .hasBean("delaySnapshotStore")
+                    .hasBean("delaySnapshotRepository")
+                    .hasSingleBean(DelaySnapshotStore::class.java)
             }
     }
 }

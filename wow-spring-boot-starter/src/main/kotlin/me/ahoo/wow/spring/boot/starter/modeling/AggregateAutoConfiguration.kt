@@ -19,7 +19,7 @@ import me.ahoo.wow.command.ServerCommandExchange
 import me.ahoo.wow.event.DomainEventBus
 import me.ahoo.wow.eventsourcing.EventSourcingStateAggregateRepository
 import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.filter.ErrorHandler
 import me.ahoo.wow.filter.FilterChain
 import me.ahoo.wow.filter.FilterChainBuilder
@@ -60,10 +60,10 @@ class AggregateAutoConfiguration(private val wowProperties: WowProperties) {
     @ConditionalOnMissingBean
     fun stateAggregateRepository(
         stateAggregateFactory: StateAggregateFactory,
-        snapshotRepository: SnapshotRepository,
+        snapshotStore: SnapshotStore,
         eventStore: EventStore
     ): StateAggregateRepository {
-        return EventSourcingStateAggregateRepository(stateAggregateFactory, snapshotRepository, eventStore)
+        return EventSourcingStateAggregateRepository(stateAggregateFactory, snapshotStore, eventStore)
     }
 
     @Bean

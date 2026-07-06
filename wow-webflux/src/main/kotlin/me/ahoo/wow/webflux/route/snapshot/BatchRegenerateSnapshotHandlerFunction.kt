@@ -14,7 +14,7 @@
 package me.ahoo.wow.webflux.route.snapshot
 
 import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.openapi.BatchComponent
@@ -36,7 +36,7 @@ class BatchRegenerateSnapshotHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val stateAggregateFactory: StateAggregateFactory,
     private val eventStore: EventStore,
-    private val snapshotRepository: SnapshotRepository,
+    private val snapshotStore: SnapshotStore,
     private val exceptionHandler: RequestExceptionHandler,
     private val batchExecutionPolicy: BatchExecutionPolicy
 ) : HandlerFunction<ServerResponse> {
@@ -44,13 +44,13 @@ class BatchRegenerateSnapshotHandlerFunction(
         aggregateMetadata = aggregateMetadata,
         stateAggregateFactory = stateAggregateFactory,
         eventStore = eventStore,
-        snapshotRepository = snapshotRepository,
+        snapshotStore = snapshotStore,
     )
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         val afterId = request.pathVariable(BatchComponent.PathVariable.BATCH_AFTER_ID)
         val limit = request.pathVariable(BatchComponent.PathVariable.BATCH_LIMIT).toInt()
-        return snapshotRepository.scanAggregateId(
+        return snapshotStore.scanAggregateId(
             namedAggregate = aggregateMetadata.namedAggregate,
             afterId = afterId,
             limit = limit,
@@ -65,7 +65,7 @@ class BatchRegenerateSnapshotHandlerFunction(
 class BatchRegenerateSnapshotHandlerFunctionFactory(
     private val stateAggregateFactory: StateAggregateFactory,
     private val eventStore: EventStore,
-    private val snapshotRepository: SnapshotRepository,
+    private val snapshotStore: SnapshotStore,
     private val exceptionHandler: RequestExceptionHandler,
     private val batchExecutionPolicy: BatchExecutionPolicy
 ) : AggregateRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.Snapshot.BATCH_REGENERATE) {
@@ -81,7 +81,7 @@ class BatchRegenerateSnapshotHandlerFunctionFactory(
             aggregateMetadata = aggregateMetadata,
             stateAggregateFactory = stateAggregateFactory,
             eventStore = eventStore,
-            snapshotRepository = snapshotRepository,
+            snapshotStore = snapshotStore,
             exceptionHandler = exceptionHandler,
             batchExecutionPolicy = batchExecutionPolicy,
         )

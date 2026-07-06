@@ -16,11 +16,11 @@ package me.ahoo.wow.spring.boot.starter.mongo
 import com.mongodb.reactivestreams.client.MongoClient
 import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.infra.prepare.PrepareKeyFactory
 import me.ahoo.wow.mongo.EventStreamSchemaInitializer
 import me.ahoo.wow.mongo.MongoEventStore
-import me.ahoo.wow.mongo.MongoSnapshotRepository
+import me.ahoo.wow.mongo.MongoSnapshotStore
 import me.ahoo.wow.mongo.SnapshotSchemaInitializer
 import me.ahoo.wow.mongo.prepare.MongoPrepareKeyFactory
 import me.ahoo.wow.mongo.query.event.MongoEventStreamQueryServiceFactory
@@ -94,22 +94,22 @@ class MongoEventSourcingAutoConfiguration(private val mongoProperties: MongoProp
         return eventStoreDatabase
     }
 
-    @Bean
+    @Bean(name = ["mongoSnapshotStore", "mongoSnapshotRepository"])
     @ConditionalOnSnapshotEnabled
     @ConditionalOnProperty(
         SnapshotProperties.STORAGE,
         matchIfMissing = true,
         havingValue = StorageType.MONGO_NAME,
     )
-    fun mongoSnapshotRepository(
+    fun mongoSnapshotStore(
         mongoClient: MongoClient,
         dataMongoProperties: org.springframework.boot.mongodb.autoconfigure.MongoProperties?
-    ): SnapshotRepository {
+    ): SnapshotStore {
         val snapshotDatabase = getMongoSnapshotDatabase(dataMongoProperties, mongoClient)
         if (mongoProperties.autoInitSchema) {
             SnapshotSchemaInitializer(snapshotDatabase).initAll()
         }
-        return MongoSnapshotRepository(snapshotDatabase)
+        return MongoSnapshotStore(snapshotDatabase)
     }
 
     @Bean

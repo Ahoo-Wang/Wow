@@ -11,19 +11,12 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.redis.eventsourcing
+package me.ahoo.wow.eventsourcing.snapshot
 
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
-import me.ahoo.wow.tck.container.RedisTestFixture
-import me.ahoo.wow.tck.eventsourcing.snapshot.SnapshotRepositorySpec
-import org.junit.jupiter.api.extension.RegisterExtension
+import me.ahoo.wow.tck.eventsourcing.snapshot.SnapshotStoreSpec
 
-class RedisSnapshotRepositoryTest : SnapshotRepositorySpec() {
-    @JvmField
-    @RegisterExtension
-    val redis = RedisTestFixture()
-
-    override fun createSnapshotRepository(): SnapshotRepository {
-        return RedisSnapshotRepository(redis.redisTemplate)
+internal class InMemorySnapshotStoreTest : SnapshotStoreSpec() {
+    override fun createSnapshotStore(): SnapshotStore {
+        return InMemorySnapshotStore()
     }
 }

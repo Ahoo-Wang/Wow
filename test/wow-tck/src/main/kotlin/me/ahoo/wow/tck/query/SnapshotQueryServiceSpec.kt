@@ -16,7 +16,7 @@ package me.ahoo.wow.tck.query
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
@@ -37,14 +37,14 @@ import reactor.kotlin.test.test
 import java.time.Clock
 
 abstract class SnapshotQueryServiceSpec {
-    lateinit var snapshotRepository: SnapshotRepository
+    lateinit var snapshotStore: SnapshotStore
     lateinit var snapshotQueryServiceFactory: SnapshotQueryServiceFactory
     lateinit var snapshotQueryService: SnapshotQueryService<MockStateAggregate>
     lateinit var snapshot: Snapshot<MockStateAggregate>
 
     @BeforeEach
     open fun setup() {
-        snapshotRepository = createSnapshotRepository()
+        snapshotStore = createSnapshotStore()
         snapshotQueryServiceFactory = createSnapshotQueryServiceFactory()
         snapshotQueryService = snapshotQueryServiceFactory.create<MockStateAggregate>(MOCK_AGGREGATE_METADATA)
         val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(generateGlobalId())
@@ -52,12 +52,17 @@ abstract class SnapshotQueryServiceSpec {
             ConstructorStateAggregateFactory.create(MOCK_AGGREGATE_METADATA.state, aggregateId)
         snapshot =
             SimpleSnapshot(stateAggregate, Clock.systemUTC().millis())
-        snapshotRepository.save(snapshot)
+        snapshotStore.save(snapshot)
             .test()
             .verifyComplete()
     }
 
-    protected abstract fun createSnapshotRepository(): SnapshotRepository
+    protected open fun createSnapshotStore(): SnapshotStore = createSnapshotRepository()
+
+    @Deprecated("Use createSnapshotStore().", ReplaceWith("createSnapshotStore()"))
+    protected open fun createSnapshotRepository(): SnapshotStore {
+        throw UnsupportedOperationException("Override createSnapshotStore().")
+    }
     protected abstract fun createSnapshotQueryServiceFactory(): SnapshotQueryServiceFactory
 
     @Test

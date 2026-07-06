@@ -17,7 +17,7 @@ import me.ahoo.wow.command.factory.CommandMessageFactory
 import me.ahoo.wow.command.wait.WaitCoordinator
 import me.ahoo.wow.event.compensation.StateEventCompensator
 import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
 import me.ahoo.wow.modeling.state.StateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateRepository
@@ -235,14 +235,14 @@ class WebFluxAutoConfiguration {
     fun snapshotRouteModule(
         stateAggregateFactory: StateAggregateFactory,
         eventStore: EventStore,
-        snapshotRepository: SnapshotRepository,
+        snapshotStore: SnapshotStore,
         exceptionHandler: RequestExceptionHandler,
         batchExecutionPolicy: BatchExecutionPolicy
     ): SnapshotRouteModule {
         return SnapshotRouteModule(
             stateAggregateFactory = stateAggregateFactory,
             eventStore = eventStore,
-            snapshotRepository = snapshotRepository,
+            snapshotStore = snapshotStore,
             exceptionHandler = exceptionHandler,
             batchExecutionPolicy = batchExecutionPolicy
         )
@@ -252,14 +252,14 @@ class WebFluxAutoConfiguration {
     @Order(Ordered.HIGHEST_PRECEDENCE)
     @ConditionalOnMissingBean
     fun eventRouteModule(
-        snapshotRepository: SnapshotRepository,
+        snapshotStore: SnapshotStore,
         stateEventCompensator: StateEventCompensator,
         eventCompensateSupporter: EventCompensateSupporter,
         exceptionHandler: RequestExceptionHandler,
         batchExecutionPolicy: BatchExecutionPolicy
     ): EventRouteModule {
         return EventRouteModule(
-            snapshotRepository = snapshotRepository,
+            snapshotStore = snapshotStore,
             stateEventCompensator = stateEventCompensator,
             eventCompensateSupporter = eventCompensateSupporter,
             exceptionHandler = exceptionHandler,

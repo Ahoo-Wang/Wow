@@ -14,9 +14,9 @@
 package me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot
 
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshotStrategy
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStrategy
 import me.ahoo.wow.eventsourcing.snapshot.VersionOffsetSnapshotStrategy
 import me.ahoo.wow.eventsourcing.snapshot.dispatcher.DefaultSnapshotHandler
@@ -49,13 +49,13 @@ class SnapshotAutoConfiguration(
     private val snapshotProperties: SnapshotProperties
 ) {
 
-    @Bean
+    @Bean(name = ["inMemorySnapshotStore", "inMemorySnapshotRepository"])
     @ConditionalOnProperty(
         value = [SnapshotProperties.STORAGE],
         havingValue = StorageType.IN_MEMORY_NAME,
     )
-    fun inMemorySnapshotRepository(): SnapshotRepository {
-        return InMemorySnapshotRepository()
+    fun inMemorySnapshotStore(): SnapshotStore {
+        return InMemorySnapshotStore()
     }
 
     @Bean
@@ -65,10 +65,10 @@ class SnapshotAutoConfiguration(
         havingValue = Strategy.ALL_NAME,
     )
     fun simpleSnapshotStrategy(
-        snapshotRepository: SnapshotRepository
+        snapshotStore: SnapshotStore
     ): SnapshotStrategy {
         return SimpleSnapshotStrategy(
-            snapshotRepository = snapshotRepository,
+            snapshotStore = snapshotStore,
         )
     }
 
@@ -78,11 +78,11 @@ class SnapshotAutoConfiguration(
         havingValue = Strategy.VERSION_OFFSET_NAME,
     )
     fun versionOffsetSnapshotStrategy(
-        snapshotRepository: SnapshotRepository
+        snapshotStore: SnapshotStore
     ): SnapshotStrategy {
         return VersionOffsetSnapshotStrategy(
             versionOffset = snapshotProperties.versionOffset,
-            snapshotRepository = snapshotRepository
+            snapshotStore = snapshotStore
         )
     }
 

@@ -15,7 +15,7 @@ package me.ahoo.wow.metrics
 
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.dispatcher.SnapshotHandler
 import me.ahoo.wow.metrics.Metrics.getMetricsSubscriber
 import me.ahoo.wow.metrics.Metrics.metrizable
@@ -57,13 +57,13 @@ internal class MetricsTest {
         assertNotWrappedRepeatedly(mockk<CommandHandler>())
         assertNotWrappedRepeatedly(mockk<SnapshotHandler>())
         assertNotWrappedRepeatedly(mockk<me.ahoo.wow.eventsourcing.snapshot.SnapshotStrategy>())
-        assertNotWrappedRepeatedly(NoOpSnapshotRepository)
+        assertNotWrappedRepeatedly(NoOpSnapshotStore)
     }
 
     @Test
-    fun `snapshot repository decorator should assign production metric name`() {
+    fun `snapshot store decorator should assign production metric name`() {
         val aggregateId = MaterializedNamedAggregate("sales", "Order").aggregateId("order-1")
-        val repository = NoOpSnapshotRepository.metrizable()
+        val repository = NoOpSnapshotStore.metrizable()
 
         val publisher = repository.getVersion(aggregateId)
 

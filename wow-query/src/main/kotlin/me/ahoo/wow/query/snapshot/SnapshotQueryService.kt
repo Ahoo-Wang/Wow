@@ -22,7 +22,7 @@ import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.MaterializedSnapshot
 import me.ahoo.wow.api.query.PagedList
-import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotStore
 import me.ahoo.wow.query.QueryService
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -30,7 +30,7 @@ import reactor.core.publisher.Mono
 interface SnapshotQueryService<S : Any> : Named, QueryService<MaterializedSnapshot<S>>
 class NoOpSnapshotQueryService<S : Any>(override val namedAggregate: NamedAggregate) : SnapshotQueryService<S> {
     override val name: String
-        get() = NoOpSnapshotRepository.NAME
+        get() = NoOpSnapshotStore.NAME
 
     override fun single(singleQuery: ISingleQuery): Mono<MaterializedSnapshot<S>> {
         return Mono.empty()

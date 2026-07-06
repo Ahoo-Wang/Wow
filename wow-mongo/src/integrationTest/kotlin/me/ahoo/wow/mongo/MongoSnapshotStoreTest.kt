@@ -13,19 +13,19 @@
 
 package me.ahoo.wow.mongo
 
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.tck.container.MongoTestFixture
-import me.ahoo.wow.tck.eventsourcing.snapshot.SnapshotRepositorySpec
+import me.ahoo.wow.tck.eventsourcing.snapshot.SnapshotStoreSpec
 import org.junit.jupiter.api.extension.RegisterExtension
 
-class MongoSnapshotRepositoryTest : SnapshotRepositorySpec() {
+class MongoSnapshotStoreTest : SnapshotStoreSpec() {
     @JvmField
     @RegisterExtension
     val mongo = MongoTestFixture()
 
-    override fun createSnapshotRepository(): SnapshotRepository {
+    override fun createSnapshotStore(): SnapshotStore {
         val database = mongo.database()
         SnapshotSchemaInitializer(database).initSchema(aggregateMetadata)
-        return MongoSnapshotRepository(database)
+        return MongoSnapshotStore(database)
     }
 }

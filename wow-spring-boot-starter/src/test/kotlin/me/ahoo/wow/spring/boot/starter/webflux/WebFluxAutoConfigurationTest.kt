@@ -25,8 +25,8 @@ import me.ahoo.wow.event.InMemoryDomainEventBus
 import me.ahoo.wow.event.compensation.StateEventCompensator
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
-import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotRepository
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotStore
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.messaging.compensation.EventCompensateSupporter
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
@@ -89,7 +89,7 @@ internal class WebFluxAutoConfigurationTest {
             .withBean(CommandWaitNotifier::class.java, { mockk() })
             .withBean(CommandGateway::class.java, { SagaVerifier.defaultCommandGateway() })
             .withBean(StateAggregateFactory::class.java, { ConstructorStateAggregateFactory })
-            .withBean(SnapshotRepository::class.java, { NoOpSnapshotRepository })
+            .withBean(SnapshotStore::class.java, { NoOpSnapshotStore })
             .withBean(EventStore::class.java, { InMemoryEventStore() })
             .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
             .withBean(StateEventCompensator::class.java, { mockk() })
@@ -151,7 +151,7 @@ internal class WebFluxAutoConfigurationTest {
             .withBean(CommandWaitNotifier::class.java, { mockk() })
             .withBean(CommandGateway::class.java, { SagaVerifier.defaultCommandGateway() })
             .withBean(StateAggregateFactory::class.java, { ConstructorStateAggregateFactory })
-            .withBean(SnapshotRepository::class.java, { NoOpSnapshotRepository })
+            .withBean(SnapshotStore::class.java, { NoOpSnapshotStore })
             .withBean(EventStore::class.java, { InMemoryEventStore() })
             .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
             .withBean(StateEventCompensator::class.java, { mockk() })
@@ -237,7 +237,7 @@ internal class WebFluxAutoConfigurationTest {
             .withBean(CommandWaitNotifier::class.java, { mockk() })
             .withBean(CommandGateway::class.java, { SagaVerifier.defaultCommandGateway() })
             .withBean(StateAggregateFactory::class.java, { ConstructorStateAggregateFactory })
-            .withBean(SnapshotRepository::class.java, { NoOpSnapshotRepository })
+            .withBean(SnapshotStore::class.java, { NoOpSnapshotStore })
             .withBean(EventStore::class.java, { InMemoryEventStore() })
             .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
             .withBean(StateEventCompensator::class.java, { mockk() })
@@ -287,7 +287,7 @@ internal class WebFluxAutoConfigurationTest {
             .withBean(CommandWaitNotifier::class.java, { mockk() })
             .withBean(CommandGateway::class.java, { SagaVerifier.defaultCommandGateway() })
             .withBean(StateAggregateFactory::class.java, { ConstructorStateAggregateFactory })
-            .withBean(SnapshotRepository::class.java, { NoOpSnapshotRepository })
+            .withBean(SnapshotStore::class.java, { NoOpSnapshotStore })
             .withBean(EventStore::class.java, { InMemoryEventStore() })
             .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
             .withBean(StateEventCompensator::class.java, { mockk() })
@@ -320,7 +320,7 @@ internal class WebFluxAutoConfigurationTest {
             .withBean(CommandWaitNotifier::class.java, { mockk() })
             .withBean(CommandGateway::class.java, { SagaVerifier.defaultCommandGateway() })
             .withBean(StateAggregateFactory::class.java, { ConstructorStateAggregateFactory })
-            .withBean(SnapshotRepository::class.java, { NoOpSnapshotRepository })
+            .withBean(SnapshotStore::class.java, { NoOpSnapshotStore })
             .withBean(EventStore::class.java, { InMemoryEventStore() })
             .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
             .withBean(StateEventCompensator::class.java, { mockk() })
@@ -364,7 +364,7 @@ internal class WebFluxAutoConfigurationTest {
             .withBean(CommandWaitNotifier::class.java, { mockk() })
             .withBean(CommandGateway::class.java, { SagaVerifier.defaultCommandGateway() })
             .withBean(StateAggregateFactory::class.java, { ConstructorStateAggregateFactory })
-            .withBean(SnapshotRepository::class.java, { NoOpSnapshotRepository })
+            .withBean(SnapshotStore::class.java, { NoOpSnapshotStore })
             .withBean(EventStore::class.java, { InMemoryEventStore() })
             .withBean(DomainEventBus::class.java, { InMemoryDomainEventBus() })
             .withBean(StateEventCompensator::class.java, { mockk() })

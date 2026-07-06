@@ -16,7 +16,7 @@ package me.ahoo.wow.webflux.route.state
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.eventsourcing.EventSourcingStateAggregateRepository
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
-import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotStore
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
@@ -55,7 +55,7 @@ class LoadTimeBasedAggregateHandlerFunctionTest {
         val handlerFunction = LoadTimeBasedAggregateHandlerFunctionFactory(
             stateAggregateRepository = EventSourcingStateAggregateRepository(
                 stateAggregateFactory = ConstructorStateAggregateFactory,
-                snapshotRepository = NoOpSnapshotRepository,
+                snapshotStore = NoOpSnapshotStore,
                 eventStore = eventStore
             ),
             exceptionHandler = WebFluxRequestExceptionHandler(),

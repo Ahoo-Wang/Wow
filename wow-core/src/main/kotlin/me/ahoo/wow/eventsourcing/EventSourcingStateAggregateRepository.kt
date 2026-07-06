@@ -14,7 +14,7 @@ package me.ahoo.wow.eventsourcing
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.modeling.metadata.StateAggregateMetadata
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory.toStateAggregate
 import me.ahoo.wow.modeling.state.StateAggregate
@@ -24,7 +24,7 @@ import reactor.core.publisher.Mono
 
 /**
  * Repository for loading state aggregates using event sourcing.
- * This repository reconstructs the current state of an aggregate by combining snapshots
+ * This store reconstructs the current state of an aggregate by combining snapshots
  * (if available) with event streams from the event store. It supports loading aggregates
  * up to a specific version or event time, enabling point-in-time state reconstruction.
  *
@@ -34,13 +34,13 @@ import reactor.core.publisher.Mono
  * 3. Apply events from the event store starting from the aggregate's expected next version.
  *
  * @param stateAggregateFactory Factory for creating new state aggregate instances.
- * @param snapshotRepository Repository for loading and storing aggregate snapshots.
+ * @param snapshotStore Store for loading and storing aggregate snapshots.
  * @param eventStore Store for retrieving event streams associated with aggregates.
  * @author ahoo wang
  */
 class EventSourcingStateAggregateRepository(
     private val stateAggregateFactory: StateAggregateFactory,
-    private val snapshotRepository: SnapshotRepository,
+    private val snapshotStore: SnapshotStore,
     private val eventStore: EventStore
 ) : StateAggregateRepository {
     companion object {
@@ -67,7 +67,7 @@ class EventSourcingStateAggregateRepository(
      * ```
      * val aggregateId = AggregateId("user", "123")
      * val metadata = StateAggregateMetadata<UserState>(...)
-     * val aggregate = repository.load(aggregateId, metadata, Int.MAX_VALUE).block()
+     * val aggregate = store.load(aggregateId, metadata, Int.MAX_VALUE).block()
      * ```
      */
 
@@ -80,7 +80,7 @@ class EventSourcingStateAggregateRepository(
             "Load $aggregateId version:$tailVersion."
         }
         val loadStateAggregate = if (tailVersion == Int.MAX_VALUE) {
-            snapshotRepository.load<S>(aggregateId)
+            snapshotStore.load<S>(aggregateId)
                 .map {
                     it.toStateAggregate()
                 }
@@ -124,7 +124,7 @@ class EventSourcingStateAggregateRepository(
      * val aggregateId = AggregateId("user", "123")
      * val metadata = StateAggregateMetadata<UserState>(...)
      * val eventTime = System.currentTimeMillis() - 86400000L // 1 day ago
-     * val aggregate = repository.load(aggregateId, metadata, eventTime).block()
+     * val aggregate = store.load(aggregateId, metadata, eventTime).block()
      * ```
      */
     override fun <S : Any> load(

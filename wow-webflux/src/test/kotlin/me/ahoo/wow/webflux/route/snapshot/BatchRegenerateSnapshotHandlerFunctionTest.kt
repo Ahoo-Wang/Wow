@@ -18,9 +18,9 @@ import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.eventsourcing.AggregateIdScanner.Companion.FIRST_ID
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
-import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
@@ -51,7 +51,7 @@ class BatchRegenerateSnapshotHandlerFunctionTest {
         val factory = BatchRegenerateSnapshotHandlerFunctionFactory(
             stateAggregateFactory = ConstructorStateAggregateFactory,
             eventStore = InMemoryEventStore(),
-            snapshotRepository = NoOpSnapshotRepository,
+            snapshotStore = NoOpSnapshotStore,
             exceptionHandler = WebFluxRequestExceptionHandler(),
             batchExecutionPolicy = BatchExecutionPolicy(),
         )
@@ -71,7 +71,7 @@ class BatchRegenerateSnapshotHandlerFunctionTest {
             aggregateMetadata = MOCK_AGGREGATE_METADATA,
             stateAggregateFactory = ConstructorStateAggregateFactory,
             eventStore = InMemoryEventStore(),
-            snapshotRepository = NoOpSnapshotRepository,
+            snapshotStore = NoOpSnapshotStore,
             exceptionHandler = WebFluxRequestExceptionHandler(),
             batchExecutionPolicy = BatchExecutionPolicy(),
         )
@@ -96,14 +96,14 @@ class BatchRegenerateSnapshotHandlerFunctionTest {
             .expectNoError()
             .expectEventType(MockAggregateCreated::class.java)
             .verify()
-        val snapshotRepository = CapturingSnapshotRepository(
+        val snapshotStore = CapturingSnapshotStore(
             aggregateIds = listOf(MOCK_AGGREGATE_METADATA.aggregateId(aggregateId))
         )
         val handlerFunction = BatchRegenerateSnapshotHandlerFunction(
             aggregateMetadata = MOCK_AGGREGATE_METADATA,
             stateAggregateFactory = ConstructorStateAggregateFactory,
             eventStore = eventStore,
-            snapshotRepository = snapshotRepository,
+            snapshotStore = snapshotStore,
             exceptionHandler = WebFluxRequestExceptionHandler(),
             batchExecutionPolicy = BatchExecutionPolicy(),
         )
@@ -120,15 +120,15 @@ class BatchRegenerateSnapshotHandlerFunctionTest {
             }
             .verifyComplete()
 
-        snapshotRepository.savedSnapshots.assert().hasSize(1)
-        val savedSnapshot = snapshotRepository.savedSnapshots.single()
+        snapshotStore.savedSnapshots.assert().hasSize(1)
+        val savedSnapshot = snapshotStore.savedSnapshots.single()
         savedSnapshot.aggregateId.id.assert().isEqualTo(aggregateId)
         savedSnapshot.version.assert().isOne()
     }
 
-    private class CapturingSnapshotRepository(
+    private class CapturingSnapshotStore(
         private val aggregateIds: List<AggregateId>
-    ) : SnapshotRepository {
+    ) : SnapshotStore {
         override val name: String
             get() = "capturing"
 

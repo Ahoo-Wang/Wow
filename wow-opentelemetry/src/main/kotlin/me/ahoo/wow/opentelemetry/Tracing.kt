@@ -19,7 +19,7 @@ import me.ahoo.wow.command.LocalCommandBus
 import me.ahoo.wow.event.DistributedDomainEventBus
 import me.ahoo.wow.event.LocalDomainEventBus
 import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.eventsourcing.state.DistributedStateEventBus
 import me.ahoo.wow.eventsourcing.state.LocalStateEventBus
 import me.ahoo.wow.opentelemetry.eventsourcing.TracingEventStore
@@ -29,7 +29,7 @@ import me.ahoo.wow.opentelemetry.messaging.TracingDistributedStateEventBus
 import me.ahoo.wow.opentelemetry.messaging.TracingLocalCommandBus
 import me.ahoo.wow.opentelemetry.messaging.TracingLocalEventBus
 import me.ahoo.wow.opentelemetry.messaging.TracingLocalStateEventBus
-import me.ahoo.wow.opentelemetry.snapshot.TracingSnapshotRepository
+import me.ahoo.wow.opentelemetry.snapshot.TracingSnapshotStore
 import me.ahoo.wow.opentelemetry.wait.TracingCommandGateway
 
 object Tracing {
@@ -64,9 +64,9 @@ object Tracing {
         }
     }
 
-    fun SnapshotRepository.tracing(): SnapshotRepository {
+    fun SnapshotStore.tracing(): SnapshotStore {
         return tracing {
-            TracingSnapshotRepository(this)
+            TracingSnapshotStore(this)
         }
     }
 
@@ -95,7 +95,7 @@ object Tracing {
             is LocalDomainEventBus -> tracing()
             is DistributedDomainEventBus -> tracing()
             is EventStore -> tracing()
-            is SnapshotRepository -> tracing()
+            is SnapshotStore -> tracing()
             is LocalStateEventBus -> tracing()
             is DistributedStateEventBus -> tracing()
             is CommandGateway -> tracing()

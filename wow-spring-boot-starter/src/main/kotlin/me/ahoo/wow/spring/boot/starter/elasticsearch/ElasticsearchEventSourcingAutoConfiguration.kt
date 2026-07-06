@@ -17,11 +17,11 @@ import co.elastic.clients.json.jackson.Jackson3JsonpMapper
 import me.ahoo.wow.elasticsearch.IndexTemplateInitializer
 import me.ahoo.wow.elasticsearch.WowJsonpMapper
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchEventStore
-import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotRepository
+import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStore
 import me.ahoo.wow.elasticsearch.query.event.ElasticsearchEventStreamQueryServiceFactory
 import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryServiceFactory
 import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.query.event.EventStreamQueryServiceFactory
 import me.ahoo.wow.query.snapshot.SnapshotQueryServiceFactory
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
@@ -84,16 +84,16 @@ class ElasticsearchEventSourcingAutoConfiguration(private val elasticsearchPrope
         return ElasticsearchEventStreamQueryServiceFactory(elasticsearchClient)
     }
 
-    @Bean
+    @Bean(name = ["elasticsearchSnapshotStore", "snapshotRepository"])
     @ConditionalOnSnapshotEnabled
     @ConditionalOnProperty(
         SnapshotProperties.STORAGE,
         havingValue = StorageType.ELASTICSEARCH_NAME,
     )
-    fun snapshotRepository(
+    fun elasticsearchSnapshotStore(
         elasticsearchClient: ReactiveElasticsearchClient
-    ): SnapshotRepository {
-        return ElasticsearchSnapshotRepository(elasticsearchClient)
+    ): SnapshotStore {
+        return ElasticsearchSnapshotStore(elasticsearchClient)
     }
 
     @Bean

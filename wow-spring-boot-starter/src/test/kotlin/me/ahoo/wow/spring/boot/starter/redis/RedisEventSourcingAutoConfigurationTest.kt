@@ -16,7 +16,7 @@ package me.ahoo.wow.spring.boot.starter.redis
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.redis.eventsourcing.RedisEventStore
-import me.ahoo.wow.redis.eventsourcing.RedisSnapshotRepository
+import me.ahoo.wow.redis.eventsourcing.RedisSnapshotStore
 import me.ahoo.wow.redis.prepare.RedisPrepareKeyFactory
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
@@ -50,7 +50,9 @@ class RedisEventSourcingAutoConfigurationTest {
             .run { context: AssertableApplicationContext ->
                 context.assert()
                     .hasSingleBean(RedisEventStore::class.java)
-                    .hasSingleBean(RedisSnapshotRepository::class.java)
+                    .hasBean("redisSnapshotStore")
+                    .hasBean("redisSnapshotRepository")
+                    .hasSingleBean(RedisSnapshotStore::class.java)
                     .hasSingleBean(RedisPrepareKeyFactory::class.java)
             }
     }

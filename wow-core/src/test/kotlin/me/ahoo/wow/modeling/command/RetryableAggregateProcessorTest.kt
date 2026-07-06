@@ -22,7 +22,7 @@ import me.ahoo.wow.eventsourcing.DuplicateAggregateIdException
 import me.ahoo.wow.eventsourcing.EventSourcingStateAggregateRepository
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
-import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotStore
 import me.ahoo.wow.ioc.SimpleServiceProvider
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
@@ -102,7 +102,7 @@ class RetryableAggregateProcessorTest {
             aggregateFactory = ConstructorStateAggregateFactory,
             stateAggregateRepository = EventSourcingStateAggregateRepository(
                 ConstructorStateAggregateFactory,
-                InMemorySnapshotRepository(),
+                InMemorySnapshotStore(),
                 eventStore,
             ),
             commandAggregateFactory = SimpleCommandAggregateFactory(eventStore),

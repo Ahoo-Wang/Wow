@@ -15,7 +15,7 @@ import reactor.kotlin.test.test
 class VersionOffsetSnapshotStrategyTest : SnapshotStrategySpec() {
     override fun createSnapshotStrategy(): SnapshotStrategy {
         return VersionOffsetSnapshotStrategy(
-            snapshotRepository = InMemorySnapshotRepository(),
+            snapshotStore = InMemorySnapshotStore(),
         )
     }
 

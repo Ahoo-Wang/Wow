@@ -16,7 +16,7 @@ package me.ahoo.wow.webflux.route.state
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.eventsourcing.EventSourcingStateAggregateRepository
 import me.ahoo.wow.eventsourcing.InMemoryEventStore
-import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotStore
 import me.ahoo.wow.example.api.cart.AddCartItem
 import me.ahoo.wow.example.api.cart.CartItemAdded
 import me.ahoo.wow.example.domain.cart.Cart
@@ -64,7 +64,7 @@ class CartStateHandlerFunctionTest {
         val handlerFunction = LoadAggregateHandlerFunctionFactory(
             stateAggregateRepository = EventSourcingStateAggregateRepository(
                 stateAggregateFactory = ConstructorStateAggregateFactory,
-                snapshotRepository = NoOpSnapshotRepository,
+                snapshotStore = NoOpSnapshotStore,
                 eventStore = eventStore,
             ),
             exceptionHandler = WebFluxRequestExceptionHandler(),
@@ -93,7 +93,7 @@ class CartStateHandlerFunctionTest {
         val handlerFunction = LoadAggregateHandlerFunctionFactory(
             stateAggregateRepository = EventSourcingStateAggregateRepository(
                 stateAggregateFactory = ConstructorStateAggregateFactory,
-                snapshotRepository = NoOpSnapshotRepository,
+                snapshotStore = NoOpSnapshotStore,
                 eventStore = InMemoryEventStore(),
             ),
             exceptionHandler = WebFluxRequestExceptionHandler(),

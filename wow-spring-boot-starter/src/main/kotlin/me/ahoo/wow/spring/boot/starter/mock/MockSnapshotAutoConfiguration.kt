@@ -13,8 +13,8 @@
 
 package me.ahoo.wow.spring.boot.starter.mock
 
-import me.ahoo.wow.eventsourcing.mock.DelaySnapshotRepository
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.eventsourcing.mock.DelaySnapshotStore
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.ConditionalOnSnapshotEnabled
@@ -27,15 +27,15 @@ import org.springframework.context.annotation.Bean
 @AutoConfiguration
 @ConditionalOnWowEnabled
 @ConditionalOnSnapshotEnabled
-@ConditionalOnClass(DelaySnapshotRepository::class)
+@ConditionalOnClass(DelaySnapshotStore::class)
 class MockSnapshotAutoConfiguration {
 
-    @Bean
+    @Bean(name = ["delaySnapshotStore", "delaySnapshotRepository"])
     @ConditionalOnProperty(
         value = [SnapshotProperties.STORAGE],
         havingValue = StorageType.DELAY_NAME,
     )
-    fun delaySnapshotRepository(): SnapshotRepository {
-        return DelaySnapshotRepository()
+    fun delaySnapshotStore(): SnapshotStore {
+        return DelaySnapshotStore()
     }
 }

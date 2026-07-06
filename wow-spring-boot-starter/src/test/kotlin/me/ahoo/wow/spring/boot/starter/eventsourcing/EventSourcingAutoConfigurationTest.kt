@@ -14,7 +14,7 @@
 package me.ahoo.wow.spring.boot.starter.eventsourcing
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotStore
 import me.ahoo.wow.spring.boot.starter.enableWow
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.ConditionalOnSnapshotEnabled
 import org.junit.jupiter.api.Test
@@ -37,7 +37,9 @@ internal class EventSourcingAutoConfigurationTest {
             )
             .run { context: AssertableApplicationContext ->
                 context.assert()
-                    .hasSingleBean(NoOpSnapshotRepository::class.java)
+                    .hasBean("noOpSnapshotStore")
+                    .hasBean("noOpSnapshotRepository")
+                    .hasSingleBean(NoOpSnapshotStore::class.java)
             }
     }
 }

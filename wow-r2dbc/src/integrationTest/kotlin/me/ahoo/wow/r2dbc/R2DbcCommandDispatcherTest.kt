@@ -15,7 +15,7 @@ package me.ahoo.wow.r2dbc
 import io.r2dbc.spi.ConnectionFactory
 import me.ahoo.cosid.sharding.ModCycle
 import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.sharding.CompositeAggregateIdSharding
 import me.ahoo.wow.sharding.CosIdShardingDecorator
@@ -32,9 +32,9 @@ class R2DbcCommandDispatcherTest : CommandDispatcherSpec() {
         return ConnectionFactoryProviders.create(mariaDb.r2dbcUrl())
     }
 
-    override fun createSnapshotRepository(): SnapshotRepository {
+    override fun createSnapshotStore(): SnapshotStore {
         val simpleSnapshotSchema = SimpleSnapshotSchema()
-        return R2dbcSnapshotRepository(
+        return R2dbcSnapshotStore(
             SimpleDatabase(connectionFactory()),
             simpleSnapshotSchema,
         )

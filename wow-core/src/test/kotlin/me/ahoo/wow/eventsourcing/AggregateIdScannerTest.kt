@@ -14,7 +14,7 @@
 package me.ahoo.wow.eventsourcing
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.materialize
@@ -37,7 +37,7 @@ class AggregateIdScannerTest {
 
     @Test
     fun `in memory scanner honors aggregate name after id and limit boundaries`() {
-        val repository = InMemorySnapshotRepository()
+        val repository = InMemorySnapshotStore()
         val namedAggregate = MOCK_AGGREGATE_METADATA.materialize()
         val matchingIds = listOf("a", "b", "c").map { namedAggregate.aggregateId(it) }
         val otherAggregateId = "other.fixture".toNamedAggregate().aggregateId("b")

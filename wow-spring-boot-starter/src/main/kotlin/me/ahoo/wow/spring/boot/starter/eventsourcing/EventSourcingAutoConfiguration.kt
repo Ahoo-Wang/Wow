@@ -13,8 +13,8 @@
 
 package me.ahoo.wow.spring.boot.starter.eventsourcing
 
-import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotRepository
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.NoOpSnapshotStore
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot.ConditionalOnSnapshotEnabled
 import org.springframework.boot.autoconfigure.AutoConfiguration
@@ -25,12 +25,12 @@ import org.springframework.context.annotation.Bean
 @ConditionalOnWowEnabled
 class EventSourcingAutoConfiguration {
 
-    @Bean
+    @Bean(name = ["noOpSnapshotStore", "noOpSnapshotRepository"])
     @ConditionalOnProperty(
         value = [ConditionalOnSnapshotEnabled.ENABLED_KEY],
         havingValue = "false",
     )
-    fun noOpSnapshotRepository(): SnapshotRepository {
-        return NoOpSnapshotRepository
+    fun noOpSnapshotStore(): SnapshotStore {
+        return NoOpSnapshotStore
     }
 }

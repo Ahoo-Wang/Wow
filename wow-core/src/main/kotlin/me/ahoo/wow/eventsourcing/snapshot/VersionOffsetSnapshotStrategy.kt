@@ -29,11 +29,11 @@ const val DEFAULT_VERSION_OFFSET = 5
  * This helps balance between snapshot frequency and storage efficiency.
  *
  * @param versionOffset The minimum version difference required to trigger a snapshot (default: DEFAULT_VERSION_OFFSET).
- * @param snapshotRepository The repository to save snapshots to.
+ * @param snapshotStore The store to save snapshots to.
  */
 class VersionOffsetSnapshotStrategy(
     private val versionOffset: Int = DEFAULT_VERSION_OFFSET,
-    private val snapshotRepository: SnapshotRepository
+    private val snapshotStore: SnapshotStore
 ) : SnapshotStrategy {
     companion object {
         private val log = KotlinLogging.logger {}
@@ -48,7 +48,7 @@ class VersionOffsetSnapshotStrategy(
      */
     override fun onEvent(stateEventExchange: StateEventExchange<*>): Mono<Void> {
         val stateEvent = stateEventExchange.message
-        return snapshotRepository.getVersion(stateEvent.aggregateId)
+        return snapshotStore.getVersion(stateEvent.aggregateId)
             .flatMap { currentVersion ->
                 val currentVersionOffset = (stateEvent.version - currentVersion)
                 val matched = currentVersionOffset >= versionOffset
@@ -59,7 +59,7 @@ class VersionOffsetSnapshotStrategy(
                     return@flatMap Mono.empty<Void>()
                 }
                 val snapshot = SimpleSnapshot(stateEvent)
-                snapshotRepository.save(snapshot)
+                snapshotStore.save(snapshot)
             }
     }
 }

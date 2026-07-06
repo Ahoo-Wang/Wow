@@ -19,7 +19,7 @@ import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.elasticsearch.IndexTemplateInitializer
 import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchEventStore
-import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotRepository
+import me.ahoo.wow.elasticsearch.eventsourcing.ElasticsearchSnapshotStore
 import me.ahoo.wow.elasticsearch.query.event.ElasticsearchEventStreamQueryServiceFactory
 import me.ahoo.wow.elasticsearch.query.snapshot.ElasticsearchSnapshotQueryServiceFactory
 import me.ahoo.wow.spring.boot.starter.enableWow
@@ -65,7 +65,9 @@ internal class ElasticsearchEventSourcingAutoConfigurationTest {
                     .hasSingleBean(ElasticsearchEventStore::class.java)
                     .hasSingleBean(ElasticsearchEventStreamQueryServiceFactory::class.java)
                     .hasSingleBean(IndexTemplateInitializer::class.java)
-                    .hasSingleBean(ElasticsearchSnapshotRepository::class.java)
+                    .hasBean("elasticsearchSnapshotStore")
+                    .hasBean("snapshotRepository")
+                    .hasSingleBean(ElasticsearchSnapshotStore::class.java)
                     .hasSingleBean(ElasticsearchSnapshotQueryServiceFactory::class.java)
             }
     }

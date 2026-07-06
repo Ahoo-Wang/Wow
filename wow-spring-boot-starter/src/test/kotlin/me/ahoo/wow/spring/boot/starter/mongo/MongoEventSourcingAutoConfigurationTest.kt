@@ -17,7 +17,7 @@ import com.mongodb.reactivestreams.client.MongoClient
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.mongo.MongoEventStore
-import me.ahoo.wow.mongo.MongoSnapshotRepository
+import me.ahoo.wow.mongo.MongoSnapshotStore
 import me.ahoo.wow.mongo.prepare.MongoPrepareKeyFactory
 import me.ahoo.wow.spring.boot.starter.enableWow
 import org.junit.jupiter.api.Test
@@ -47,7 +47,9 @@ class MongoEventSourcingAutoConfigurationTest {
             .run { context: AssertableApplicationContext ->
                 context.assert()
                     .hasSingleBean(MongoEventStore::class.java)
-                    .hasSingleBean(MongoSnapshotRepository::class.java)
+                    .hasBean("mongoSnapshotStore")
+                    .hasBean("mongoSnapshotRepository")
+                    .hasSingleBean(MongoSnapshotStore::class.java)
                     .hasSingleBean(MongoPrepareKeyFactory::class.java)
             }
     }

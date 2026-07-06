@@ -12,19 +12,19 @@
  */
 package me.ahoo.wow.r2dbc
 
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.tck.container.MariaDbTestFixture
-import me.ahoo.wow.tck.eventsourcing.snapshot.SnapshotRepositorySpec
+import me.ahoo.wow.tck.eventsourcing.snapshot.SnapshotStoreSpec
 import org.junit.jupiter.api.extension.RegisterExtension
 
-internal class R2dbcSnapshotRepositoryTest : SnapshotRepositorySpec() {
+internal class R2dbcSnapshotStoreTest : SnapshotStoreSpec() {
     @JvmField
     @RegisterExtension
     val mariaDb = MariaDbTestFixture()
 
-    override fun createSnapshotRepository(): SnapshotRepository {
+    override fun createSnapshotStore(): SnapshotStore {
         val simpleSnapshotSchema = SimpleSnapshotSchema()
-        return R2dbcSnapshotRepository(
+        return R2dbcSnapshotStore(
             SimpleDatabase(ConnectionFactoryProviders.create(mariaDb.r2dbcUrl(poolSize = 2))),
             simpleSnapshotSchema,
         )

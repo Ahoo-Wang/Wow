@@ -15,9 +15,9 @@ package me.ahoo.wow.spring.boot.starter.r2dbc.snapshot
 
 import io.r2dbc.spi.ConnectionFactory
 import me.ahoo.wow.api.naming.NamedBoundedContext
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.r2dbc.ConnectionFactoryRegistrar
-import me.ahoo.wow.r2dbc.R2dbcSnapshotRepository
+import me.ahoo.wow.r2dbc.R2dbcSnapshotStore
 import me.ahoo.wow.r2dbc.ShardingDatabase
 import me.ahoo.wow.r2dbc.ShardingSnapshotSchema
 import me.ahoo.wow.r2dbc.SimpleDatabase
@@ -46,19 +46,19 @@ import org.springframework.context.annotation.Configuration
 @ConditionalOnWowEnabled
 @ConditionalOnR2dbcEnabled
 @ConditionalOnSnapshotEnabled
-@ConditionalOnClass(R2dbcSnapshotRepository::class)
+@ConditionalOnClass(R2dbcSnapshotStore::class)
 @ConditionalOnProperty(
     SnapshotProperties.STORAGE,
     havingValue = StorageType.R2DBC_NAME,
 )
 class R2dbcSnapshotAutoConfiguration {
 
-    @Bean
-    fun r2dbcSnapshotRepository(
+    @Bean(name = ["r2dbcSnapshotStore", "r2dbcSnapshotRepository"])
+    fun r2dbcSnapshotStore(
         snapshotDatabase: SnapshotDatabase,
         snapshotSchema: SnapshotSchema
-    ): SnapshotRepository {
-        return R2dbcSnapshotRepository(snapshotDatabase, snapshotSchema)
+    ): SnapshotStore {
+        return R2dbcSnapshotStore(snapshotDatabase, snapshotSchema)
     }
 
     @Configuration

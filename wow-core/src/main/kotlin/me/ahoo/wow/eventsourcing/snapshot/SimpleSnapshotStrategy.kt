@@ -20,10 +20,10 @@ import reactor.core.publisher.Mono
  * Simple implementation of SnapshotStrategy that creates a snapshot for every state event.
  * This strategy saves a snapshot immediately after each state event is processed.
  *
- * @param snapshotRepository the repository to save snapshots to
+ * @param snapshotStore the store to save snapshots to
  */
 class SimpleSnapshotStrategy(
-    private val snapshotRepository: SnapshotRepository
+    private val snapshotStore: SnapshotStore
 ) : SnapshotStrategy {
     /**
      * Handles a state event by creating and saving a snapshot.
@@ -34,6 +34,6 @@ class SimpleSnapshotStrategy(
     override fun onEvent(stateEventExchange: StateEventExchange<*>): Mono<Void> {
         val stateEvent = stateEventExchange.message
         val snapshot = SimpleSnapshot(stateEvent)
-        return snapshotRepository.save(snapshot)
+        return snapshotStore.save(snapshot)
     }
 }

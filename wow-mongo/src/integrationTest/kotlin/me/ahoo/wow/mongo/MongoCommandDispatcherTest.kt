@@ -14,7 +14,7 @@
 package me.ahoo.wow.mongo
 
 import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.metrics.MetricEventStore
 import me.ahoo.wow.metrics.Metrics.metrizable
 import me.ahoo.wow.tck.container.MongoTestFixture
@@ -26,10 +26,10 @@ class MongoCommandDispatcherTest : CommandDispatcherSpec() {
     @RegisterExtension
     val mongo = MongoTestFixture()
 
-    override fun createSnapshotRepository(): SnapshotRepository {
+    override fun createSnapshotStore(): SnapshotStore {
         val database = mongo.database()
         SnapshotSchemaInitializer(database).initSchema(aggregateMetadata)
-        return MongoSnapshotRepository(database)
+        return MongoSnapshotStore(database)
     }
 
     override fun createEventStore(): EventStore {

@@ -14,7 +14,7 @@
 package me.ahoo.wow.spring.boot.starter.eventsourcing.snapshot
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshotStrategy
 import me.ahoo.wow.eventsourcing.snapshot.VersionOffsetSnapshotStrategy
 import me.ahoo.wow.eventsourcing.snapshot.dispatcher.SnapshotDispatcher
@@ -58,7 +58,9 @@ internal class SnapshotAutoConfigurationTest {
             )
             .run { context: AssertableApplicationContext ->
                 context.assert()
-                    .hasSingleBean(InMemorySnapshotRepository::class.java)
+                    .hasBean("inMemorySnapshotStore")
+                    .hasBean("inMemorySnapshotRepository")
+                    .hasSingleBean(InMemorySnapshotStore::class.java)
                     .hasSingleBean(SimpleSnapshotStrategy::class.java)
                     .hasSingleBean(SnapshotFunctionFilter::class.java)
                     .hasBean("snapshotFilterChain")
@@ -87,7 +89,9 @@ internal class SnapshotAutoConfigurationTest {
             )
             .run { context: AssertableApplicationContext ->
                 context.assert()
-                    .hasSingleBean(InMemorySnapshotRepository::class.java)
+                    .hasBean("inMemorySnapshotStore")
+                    .hasBean("inMemorySnapshotRepository")
+                    .hasSingleBean(InMemorySnapshotStore::class.java)
                     .hasSingleBean(VersionOffsetSnapshotStrategy::class.java)
                     .hasSingleBean(SnapshotFunctionFilter::class.java)
                     .hasBean("snapshotFilterChain")

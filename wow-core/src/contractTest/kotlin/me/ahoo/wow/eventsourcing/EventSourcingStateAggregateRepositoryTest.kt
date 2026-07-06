@@ -15,10 +15,10 @@ package me.ahoo.wow.eventsourcing
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.InMemorySnapshotStore
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.metadata.StateAggregateMetadata
@@ -40,7 +40,7 @@ internal class EventSourcingStateAggregateRepositoryTest : StateAggregateReposit
     ): StateAggregateRepository {
         return EventSourcingStateAggregateRepository(
             aggregateFactory,
-            InMemorySnapshotRepository(),
+            InMemorySnapshotStore(),
             eventStore,
         )
     }
@@ -50,7 +50,7 @@ internal class EventSourcingStateAggregateRepositoryTest : StateAggregateReposit
         val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId(generateGlobalId())
         val stateAggregate = ConstructorStateAggregateFactory.create(MOCK_AGGREGATE_METADATA.state, aggregateId)
         val snapshot = SimpleSnapshot(stateAggregate)
-        val snapshotRepository = object : SnapshotRepository {
+        val snapshotStore = object : SnapshotStore {
             override val name: String = "snapshot"
 
             @Suppress("UNCHECKED_CAST")
@@ -77,7 +77,7 @@ internal class EventSourcingStateAggregateRepositoryTest : StateAggregateReposit
         }
         val repository = EventSourcingStateAggregateRepository(
             stateAggregateFactory,
-            snapshotRepository,
+            snapshotStore,
             InMemoryEventStore(),
         )
 

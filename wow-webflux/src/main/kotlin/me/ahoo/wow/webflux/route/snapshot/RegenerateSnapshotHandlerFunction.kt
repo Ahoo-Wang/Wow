@@ -14,7 +14,7 @@
 package me.ahoo.wow.webflux.route.snapshot
 
 import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.exception.throwNotFoundIfEmpty
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
@@ -36,14 +36,14 @@ class RegenerateSnapshotHandlerFunction(
     private val aggregateMetadata: AggregateMetadata<*, *>,
     private val stateAggregateFactory: StateAggregateFactory,
     private val eventStore: EventStore,
-    private val snapshotRepository: SnapshotRepository,
+    private val snapshotStore: SnapshotStore,
     private val exceptionHandler: RequestExceptionHandler
 ) : HandlerFunction<ServerResponse> {
     private val handler = RegenerateSnapshotHandler(
         aggregateMetadata = aggregateMetadata,
         stateAggregateFactory = stateAggregateFactory,
         eventStore = eventStore,
-        snapshotRepository = snapshotRepository,
+        snapshotStore = snapshotStore,
     )
 
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
@@ -60,7 +60,7 @@ class RegenerateSnapshotHandlerFunction(
 class RegenerateSnapshotHandlerFunctionFactory(
     private val stateAggregateFactory: StateAggregateFactory,
     private val eventStore: EventStore,
-    private val snapshotRepository: SnapshotRepository,
+    private val snapshotStore: SnapshotStore,
     private val exceptionHandler: RequestExceptionHandler
 ) : AggregateRouteHandlerFunctionFactorySupport(BuiltInHttpRouteHandlerKeys.Snapshot.REGENERATE) {
     override fun create(
@@ -75,7 +75,7 @@ class RegenerateSnapshotHandlerFunctionFactory(
             aggregateMetadata = aggregateMetadata,
             stateAggregateFactory = stateAggregateFactory,
             eventStore = eventStore,
-            snapshotRepository = snapshotRepository,
+            snapshotStore = snapshotStore,
             exceptionHandler = exceptionHandler,
         )
     }

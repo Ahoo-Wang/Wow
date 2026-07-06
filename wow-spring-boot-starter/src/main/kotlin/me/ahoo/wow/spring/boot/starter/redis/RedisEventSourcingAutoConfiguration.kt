@@ -14,10 +14,10 @@
 package me.ahoo.wow.spring.boot.starter.redis
 
 import me.ahoo.wow.eventsourcing.EventStore
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotRepository
+import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.infra.prepare.PrepareKeyFactory
 import me.ahoo.wow.redis.eventsourcing.RedisEventStore
-import me.ahoo.wow.redis.eventsourcing.RedisSnapshotRepository
+import me.ahoo.wow.redis.eventsourcing.RedisSnapshotStore
 import me.ahoo.wow.redis.prepare.RedisPrepareKeyFactory
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.eventsourcing.StorageType
@@ -52,14 +52,14 @@ class RedisEventSourcingAutoConfiguration {
         return RedisEventStore(redisTemplate)
     }
 
-    @Bean
+    @Bean(name = ["redisSnapshotStore", "redisSnapshotRepository"])
     @ConditionalOnSnapshotEnabled
     @ConditionalOnProperty(
         SnapshotProperties.STORAGE,
         havingValue = StorageType.REDIS_NAME,
     )
-    fun redisSnapshotRepository(redisTemplate: ReactiveStringRedisTemplate): SnapshotRepository {
-        return RedisSnapshotRepository(redisTemplate)
+    fun redisSnapshotStore(redisTemplate: ReactiveStringRedisTemplate): SnapshotStore {
+        return RedisSnapshotStore(redisTemplate)
     }
 
     @Bean
