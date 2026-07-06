@@ -10,17 +10,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package me.ahoo.wow.redis.eventsourcing
 
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
+import io.mockk.mockk
+import me.ahoo.test.asserts.assert
+import org.junit.jupiter.api.Test
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate
 
-@Deprecated("Use RedisSnapshotStore.", ReplaceWith("RedisSnapshotStore(redisTemplate, keyConverter)"))
-class RedisSnapshotRepository(
-    redisTemplate: ReactiveStringRedisTemplate,
-    keyConverter: AggregateKeyConverter = DefaultSnapshotKeyConverter
-) : SnapshotStore by RedisSnapshotStore(redisTemplate, keyConverter) {
-    companion object {
-        const val NAME = RedisSnapshotStore.NAME
+class RedisSnapshotRepositoryCompatibilityTest {
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `should keep redis snapshot repository as jvm visible type`() {
+        RedisSnapshotRepository::class.java.name.assert()
+            .isEqualTo("me.ahoo.wow.redis.eventsourcing.RedisSnapshotRepository")
+        RedisSnapshotRepository.NAME.assert().isEqualTo(RedisSnapshotStore.NAME)
+        RedisSnapshotRepository(mockk<ReactiveStringRedisTemplate>()).name.assert()
+            .isEqualTo(RedisSnapshotStore.NAME)
     }
 }

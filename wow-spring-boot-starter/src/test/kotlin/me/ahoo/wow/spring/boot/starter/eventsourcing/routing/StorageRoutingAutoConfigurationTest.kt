@@ -39,8 +39,10 @@ import org.springframework.beans.factory.BeanCreationException
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.ConditionContext
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.type.AnnotatedTypeMetadata
+import org.springframework.mock.env.MockEnvironment
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
@@ -160,6 +162,27 @@ class StorageRoutingAutoConfigurationTest {
 
         outcome.isMatch.assert().isFalse()
         outcome.message.assert().contains("No storage routing condition annotation")
+    }
+
+    @Test
+    fun `event storage condition no match message should say does not match`() {
+        val context = mockk<ConditionContext> {
+            every {
+                environment
+            } returns MockEnvironment()
+                .withProperty(EventStoreProperties.STORAGE, StorageType.MONGO_NAME)
+        }
+        val metadata = mockk<AnnotatedTypeMetadata> {
+            every {
+                getAnnotationAttributes(ConditionalOnEventStoreStorage::class.java.name)
+            } returns mapOf(VALUE_ATTRIBUTE to StorageType.REDIS)
+        }
+
+        val outcome = OnStorageRoutingStorageCondition()
+            .getMatchOutcome(context, metadata)
+
+        outcome.isMatch.assert().isFalse()
+        outcome.message.assert().contains("does not match")
     }
 
     @Test
@@ -529,6 +552,7 @@ class StorageRoutingAutoConfigurationTest {
         private const val MONGO_SNAPSHOT_STORE_BEAN = "mongoSnapshotStoreBackend"
         private const val IN_MEMORY_SNAPSHOT_STORE_BEAN = "inMemorySnapshotStoreBackend"
         private const val REDIS_SNAPSHOT_STORE_BEAN = "redisSnapshotStoreBackend"
+        private const val VALUE_ATTRIBUTE = "value"
 
         private fun orderAggregateId(): AggregateId = ORDER.aggregateId("order-1")
 

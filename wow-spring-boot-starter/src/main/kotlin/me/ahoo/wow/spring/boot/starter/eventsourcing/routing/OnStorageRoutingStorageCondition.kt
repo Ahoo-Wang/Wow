@@ -63,11 +63,10 @@ class OnStorageRoutingStorageCondition : SpringBootCondition() {
     }
 
     private fun outcome(matched: Boolean, channel: String, storage: StorageType): ConditionOutcome {
-        val message = "Storage routing $channel storage matches $storage."
         return if (matched) {
-            ConditionOutcome.match(message)
+            ConditionOutcome.match("Storage routing $channel storage matches $storage.")
         } else {
-            ConditionOutcome.noMatch(message)
+            ConditionOutcome.noMatch("Storage routing $channel storage does not match $storage.")
         }
     }
 
