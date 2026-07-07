@@ -40,6 +40,8 @@ class RedisEventStore(
     private val redisTemplate: ReactiveStringRedisTemplate
 ) : AbstractEventStore() {
     companion object {
+        internal const val AGGREGATE_ID_INDEX_SCAN_CONCURRENCY = 16
+
         val SCRIPT_EVENT_STEAM_APPEND: RedisScript<String> =
             RedisScripts.load("event_steam_append.lua", String::class.java)
     }
@@ -119,9 +121,12 @@ class RedisEventStore(
         val range = Range.open(toAggregateIdIndexMemberLowerBound(afterId), AggregateIdScanner.LAST_ID)
         val rangeLimit = Limit.limit().count(limit)
         return Flux.range(0, AGGREGATE_ID_INDEX_BUCKETS)
-            .flatMap { bucket ->
-                scanAggregateIdBucket(namedAggregate, bucket, range, rangeLimit)
-            }
+            .flatMap(
+                { bucket ->
+                    scanAggregateIdBucket(namedAggregate, bucket, range, rangeLimit)
+                },
+                AGGREGATE_ID_INDEX_SCAN_CONCURRENCY,
+            )
             .sort(compareBy { it.id })
             .take(limit.toLong())
     }

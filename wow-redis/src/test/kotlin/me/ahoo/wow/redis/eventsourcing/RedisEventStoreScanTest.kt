@@ -33,6 +33,9 @@ import org.springframework.data.redis.core.ReactiveStringRedisTemplate
 import org.springframework.data.redis.core.ReactiveZSetOperations
 import reactor.core.publisher.Flux
 import reactor.kotlin.test.test
+import reactor.test.StepVerifier
+
+private const val EXPECTED_BUCKET_QUERY_CONCURRENCY = 16
 
 class RedisEventStoreScanTest {
     private fun aggregateIdIndexKey(id: String): String {
@@ -199,6 +202,33 @@ class RedisEventStoreScanTest {
         verify(exactly = 0) {
             redisTemplate.opsForZSet()
         }
+    }
+
+    @Test
+    fun `scan aggregate id should bound bucket query concurrency`() {
+        val namedAggregate = MaterializedNamedAggregate("order-service", "order")
+        val redisTemplate = mockk<ReactiveStringRedisTemplate>()
+        val zSetOperations = mockk<ReactiveZSetOperations<String, String>>()
+        val subscribedKeys = mutableListOf<String>()
+        every { redisTemplate.opsForZSet() } returns zSetOperations
+        every {
+            zSetOperations.rangeByLex(
+                any<String>(),
+                any(),
+                any(),
+            )
+        } answers {
+            subscribedKeys += firstArg<String>()
+            Flux.never()
+        }
+        val eventStore = RedisEventStore(redisTemplate)
+
+        StepVerifier.create(eventStore.scanAggregateId(namedAggregate, afterId = "001", limit = 2))
+            .then {
+                subscribedKeys.assert().hasSize(EXPECTED_BUCKET_QUERY_CONCURRENCY)
+            }
+            .thenCancel()
+            .verify()
     }
 
     @Test

@@ -118,6 +118,9 @@ class StateEventCompensator(
                     if (eventStream.ignoreSourcing()) {
                         return@concatMap Mono.empty<StateEvent<Any>>()
                     }
+                    if (!stateAggregate.initialized && !eventStream.isInitialVersion) {
+                        return@concatMap Mono.empty<StateEvent<Any>>()
+                    }
                     stateAggregate.onSourcing(eventStream)
                     if (!stateAggregate.initialized) {
                         return@concatMap Mono.empty<StateEvent<Any>>()

@@ -104,6 +104,46 @@ class StateEventCompensatorTest {
         stateEventBus.sent.assert().isEmpty()
     }
 
+    @Test
+    fun `resend skips later streams when initial stream did not source state`() {
+        val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId("state-compensate-unsourced-later")
+        val eventStore = InMemoryEventStore()
+        val stateEventBus = RecordingStateEventBus()
+        val ignoredInitialErrorStream = generateEventStream(
+            aggregateId = aggregateId,
+            aggregateVersion = 0,
+            eventCount = 1,
+            createdEventSupplier = { IgnoredErrorEvent("failed", "failed create") },
+        )
+        val laterStream = generateEventStream(
+            aggregateId = aggregateId,
+            aggregateVersion = 1,
+            eventCount = 1,
+            createdEventSupplier = { MockAggregateCreated("state-v2") },
+        )
+        val target = compensationTarget(FunctionKind.STATE_EVENT)
+        val compensator = StateEventCompensator(
+            stateAggregateFactory = ConstructorStateAggregateFactory,
+            eventStore = eventStore,
+            stateEventBus = stateEventBus,
+        )
+
+        StepVerifier.create(eventStore.append(ignoredInitialErrorStream)).verifyComplete()
+        StepVerifier.create(eventStore.append(laterStream)).verifyComplete()
+        StepVerifier.create(
+            compensator.resend(
+                aggregateId = aggregateId,
+                headVersion = 1,
+                tailVersion = Int.MAX_VALUE,
+                target = target,
+            )
+        )
+            .expectNext(0)
+            .verifyComplete()
+
+        stateEventBus.sent.assert().isEmpty()
+    }
+
     private class RecordingStateEventBus : StateEventBus {
         val sent = mutableListOf<StateEvent<*>>()
 
