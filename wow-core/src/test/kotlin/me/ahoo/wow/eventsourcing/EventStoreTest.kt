@@ -79,6 +79,10 @@ class EventStoreTest {
     fun `default scan aggregate id fails when not implemented`() {
         val eventStore: EventStore = ScanningEventStore(emptyList())
 
+        StepVerifier.create(eventStore.scanAggregateId(MOCK_AGGREGATE_METADATA.materialize()))
+            .expectError(UnsupportedOperationException::class.java)
+            .verify()
+
         StepVerifier.create(
             eventStore.scanAggregateId(
                 MOCK_AGGREGATE_METADATA.materialize(),

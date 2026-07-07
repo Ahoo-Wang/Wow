@@ -159,11 +159,7 @@ Member: {requestId}
 
 Aggregate ID ZSET key: {{contextAlias}.{aggregateName}:es:{bucket}}:ids
 Score: 0
-Member: {aggregateId}
-
-Aggregate tenant HASH key: {{contextAlias}.{aggregateName}:es:{bucket}}:tenants
-Field: {aggregateId}
-Value: {tenantId}
+Member: {aggregateId}\u0000{tenantId}
 ```
 
 ### Request Idempotency
@@ -172,7 +168,7 @@ Request IDs are stored in the bucket-aligned SET key shown above.
 
 ### Aggregate ID Scanning
 
-`EventStore.scanAggregateId` scans bucketed aggregate ID indexes and merges the results in lexicographical order. Aggregate IDs are globally unique, so the scanner stores one aggregate ID member and resolves its tenant from the bucket-aligned tenant HASH.
+`EventStore.scanAggregateId` scans bucketed aggregate ID indexes and merges the results in lexicographical order. Aggregate IDs are globally unique, so the scanner stores one member per aggregate and decodes `tenantId` from the ZSET member.
 
 ## Snapshot Storage
 

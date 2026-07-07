@@ -159,11 +159,7 @@ Member: {requestId}
 
 聚合 ID ZSET Key: {{contextAlias}.{aggregateName}:es:{bucket}}:ids
 Score: 0
-Member: {aggregateId}
-
-聚合租户 HASH Key: {{contextAlias}.{aggregateName}:es:{bucket}}:tenants
-Field: {aggregateId}
-Value: {tenantId}
+Member: {aggregateId}\u0000{tenantId}
 ```
 
 ### 请求幂等性
@@ -172,7 +168,7 @@ Value: {tenantId}
 
 ### 聚合 ID 扫描
 
-`EventStore.scanAggregateId` 会扫描分桶的聚合 ID 索引，并按字典序合并结果。由于 `aggregateId` 全局唯一，scanner 只存储一个聚合 ID 成员，并从同分桶的租户 HASH 中解析对应的租户。
+`EventStore.scanAggregateId` 会扫描分桶的聚合 ID 索引，并按字典序合并结果。由于 `aggregateId` 全局唯一，scanner 为每个聚合存储一个 member，并直接从 ZSET member 中解码 `tenantId`。
 
 ## 快照存储
 
