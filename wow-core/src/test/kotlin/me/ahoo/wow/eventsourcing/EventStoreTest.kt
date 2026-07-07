@@ -94,7 +94,7 @@ class EventStoreTest {
                 it.assert().isInstanceOf(UnsupportedOperationException::class.java)
                 it.message.assert()
                     .isEqualTo(
-                        "EventStore scanAggregateId is not supported. EventStore: ${eventStore::class.java.name}",
+                        "AggregateIdScanner scanAggregateId is not supported. Scanner: ${eventStore::class.java.name}",
                     )
             }
             .verify()

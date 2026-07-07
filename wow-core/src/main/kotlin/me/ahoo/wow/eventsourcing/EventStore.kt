@@ -14,7 +14,6 @@
 package me.ahoo.wow.eventsourcing
 
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.command.DuplicateRequestIdException
 import me.ahoo.wow.event.DomainEventStream
 import reactor.core.publisher.Flux
@@ -99,25 +98,6 @@ interface EventStore :
      *  Loads the last domain event stream for the specified aggregate.
      */
     fun last(aggregateId: AggregateId): Mono<DomainEventStream>
-
-    /**
-     * Default unsupported scanner implementation for custom event stores.
-     *
-     * Kotlin callers still use the default `afterId` and `limit` values inherited from [AggregateIdScanner].
-     */
-    fun scanAggregateId(namedAggregate: NamedAggregate): Flux<AggregateId> =
-        scanAggregateId(namedAggregate, AggregateIdScanner.FIRST_ID, 10)
-
-    override fun scanAggregateId(
-        namedAggregate: NamedAggregate,
-        afterId: String,
-        limit: Int
-    ): Flux<AggregateId> =
-        Flux.error(
-            UnsupportedOperationException(
-                "EventStore scanAggregateId is not supported. EventStore: ${this::class.java.name}"
-            )
-        )
 
     companion object {
         /**
