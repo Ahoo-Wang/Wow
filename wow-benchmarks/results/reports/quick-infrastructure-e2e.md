@@ -11,11 +11,25 @@ Quick Infrastructure E2E results are directional local feedback for real Redis a
 - **Version**: 8.6.0
 - **JVM**: OpenJDK 64-Bit Server VM 17.0.7+7-LTS
 - **OS**: Mac OS X 26.5.1 aarch64
-- **DateTime**: 2026-07-07T09:40:19+08:00
+- **DateTime**: 2026-07-07T10:14:04+08:00
 - **CPU Cores**: 14
 - **Physical Memory**: 24.0 GiB
 - **Benchmark JVM Args**: `-Xmx4g -Xms4g -XX:+UseG1GC -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints -XX:+AlwaysPreTouch`
 - **JMH Config**: warmup=1x3s, measurement=2x5s, fork=1, threads=1,4, modes=thrpt,avgt, profilers=gc,async
+
+## Infrastructure Runtime
+- **Benchmark Client**: host JVM
+- **Docker Server**: Server=29.6.1 CPUs=4 Memory=5.8 GiB Kernel=6.12.76-linuxkit
+- **Docker Desktop VM**: networkType=gvisor CPUs=4 Memory=6.0 GiB
+- **Redis Container**: `wow-benchmark-redis`
+  - Image: `redis:7.4.9-alpine`
+  - Image ID: `sha256:80dd823f4d2bf93dd5e418a0ae2817319a1ba279953e234082e54a5a18306223`
+  - Repo Digests: `["redis@sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99"]`
+- **Mongo Container**: `wow-benchmark-mongo`
+  - Image: `mongo:8.3.4`
+  - Image ID: `sha256:6818b4556f741c6d220e7edf3d51730719d965f51d5c4e80ac9e0eeafcaac94d`
+  - Repo Digests: `["mongo@sha256:48a009d2d8007e92d6d7e8baa31713cd11c48c06e827e856240e5a1d319b49d9"]`
+- **Network Note**: Host JVM infrastructure benchmarks use Docker-published localhost ports; Docker Desktop host-to-VM networking can materially affect Redis and Mongo results.
 
 ## Results
 
