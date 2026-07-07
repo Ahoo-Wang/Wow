@@ -23,26 +23,20 @@ import me.ahoo.wow.eventsourcing.DuplicateAggregateIdException
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.redis.eventsourcing.EventStreamKeyConverter.toAggregateIdIndexMember
 import me.ahoo.wow.tck.event.MockDomainEventStreams.generateEventStream
 import org.junit.jupiter.api.Test
 import org.springframework.data.domain.Range
 import org.springframework.data.redis.connection.Limit
-import org.springframework.data.redis.core.ReactiveHashOperations
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate
 import org.springframework.data.redis.core.ReactiveZSetOperations
 import reactor.core.publisher.Flux
-import reactor.core.publisher.Mono
 import reactor.kotlin.test.test
 
 class RedisEventStoreScanTest {
     private fun aggregateIdIndexKey(id: String): String {
         val bucket = id.hashCode().mod(128)
         return "{order-service.order:es:$bucket}:ids"
-    }
-
-    private fun aggregateTenantIndexKey(id: String): String {
-        val bucket = id.hashCode().mod(128)
-        return "{order-service.order:es:$bucket}:tenants"
     }
 
     @Test
@@ -70,14 +64,14 @@ class RedisEventStoreScanTest {
         keysSlot.captured.assert().containsExactly(
             "{order-service.order:es:$bucket}:order-1@tenant-1",
             "{order-service.order:es:$bucket}:ids",
-            "{order-service.order:es:$bucket}:tenants",
         )
         val hashTags = keysSlot.captured.map { key ->
             key.substringAfter("{").substringBefore("}")
         }
         hashTags.distinct().assert().containsExactly("order-service.order:es:$bucket")
-        argumentsSlot.captured.assert().hasSize(5)
-        argumentsSlot.captured.takeLast(2).assert().containsExactly("order-1", "tenant-1")
+        argumentsSlot.captured.assert().hasSize(4)
+        argumentsSlot.captured.last().assert()
+            .isEqualTo("order-1" + "\u0000" + "tenant-1")
     }
 
     @Test
@@ -131,11 +125,9 @@ class RedisEventStoreScanTest {
         val namedAggregate = MaterializedNamedAggregate("order-service", "order")
         val redisTemplate = mockk<ReactiveStringRedisTemplate>()
         val zSetOperations = mockk<ReactiveZSetOperations<String, String>>()
-        val hashOperations = mockk<ReactiveHashOperations<String, String, String>>()
         val rangeSlots = mutableListOf<Range<String>>()
         val limitSlots = mutableListOf<Limit>()
         every { redisTemplate.opsForZSet() } returns zSetOperations
-        every { redisTemplate.opsForHash<String, String>() } returns hashOperations
         every {
             zSetOperations.rangeByLex(
                 any<String>(),
@@ -145,16 +137,10 @@ class RedisEventStoreScanTest {
         } returns Flux.empty()
         every {
             zSetOperations.rangeByLex(aggregateIdIndexKey("003"), any(), any())
-        } returns Flux.just("003")
+        } returns Flux.just(toAggregateIdIndexMember(namedAggregate.aggregateId("003", tenantId = "tenant-2")))
         every {
             zSetOperations.rangeByLex(aggregateIdIndexKey("002"), any(), any())
-        } returns Flux.just("002")
-        every {
-            hashOperations.multiGet(aggregateTenantIndexKey("003"), listOf("003"))
-        } returns Mono.just(listOf("tenant-2"))
-        every {
-            hashOperations.multiGet(aggregateTenantIndexKey("002"), listOf("002"))
-        } returns Mono.just(listOf(TenantId.DEFAULT_TENANT_ID))
+        } returns Flux.just(toAggregateIdIndexMember(namedAggregate.aggregateId("002")))
         val eventStore = RedisEventStore(redisTemplate)
 
         eventStore.scanAggregateId(namedAggregate, afterId = "001", limit = 2)
@@ -170,7 +156,8 @@ class RedisEventStoreScanTest {
         rangeSlots.assert().isNotEmpty()
         rangeSlots.forEach {
             it.contains("001").assert().isFalse()
-            it.contains("002").assert().isTrue()
+            it.contains("001" + "\u0000" + TenantId.DEFAULT_TENANT_ID).assert().isFalse()
+            it.contains("002" + "\u0000" + TenantId.DEFAULT_TENANT_ID).assert().isTrue()
             it.contains(AggregateIdScanner.LAST_ID).assert().isFalse()
         }
         limitSlots.forEach {
@@ -199,14 +186,11 @@ class RedisEventStoreScanTest {
     }
 
     @Test
-    fun `scan aggregate id should reject tenant index size mismatch`() {
+    fun `scan aggregate id should reject invalid index member`() {
         val namedAggregate = MaterializedNamedAggregate("order-service", "order")
         val redisTemplate = mockk<ReactiveStringRedisTemplate>()
         val zSetOperations = mockk<ReactiveZSetOperations<String, String>>()
-        val hashOperations = mockk<ReactiveHashOperations<String, String, String>>()
-        val aggregateIds = listOf("002", "003")
         every { redisTemplate.opsForZSet() } returns zSetOperations
-        every { redisTemplate.opsForHash<String, String>() } returns hashOperations
         every {
             zSetOperations.rangeByLex(
                 any<String>(),
@@ -216,51 +200,14 @@ class RedisEventStoreScanTest {
         } returns Flux.empty()
         every {
             zSetOperations.rangeByLex(aggregateIdIndexKey("002"), any(), any())
-        } returns Flux.fromIterable(aggregateIds)
-        every {
-            hashOperations.multiGet(aggregateTenantIndexKey("002"), aggregateIds)
-        } returns Mono.just(listOf("tenant-2"))
+        } returns Flux.just("002")
         val eventStore = RedisEventStore(redisTemplate)
 
         eventStore.scanAggregateId(namedAggregate, afterId = "001", limit = 2)
             .test()
             .expectErrorSatisfies {
                 it.assert().isInstanceOf(IllegalArgumentException::class.java)
-                it.message.assert().contains("Invalid aggregate tenant index [${aggregateTenantIndexKey("002")}].")
-            }
-            .verify()
-    }
-
-    @Test
-    @Suppress("UNCHECKED_CAST")
-    fun `scan aggregate id should reject missing tenant id`() {
-        val namedAggregate = MaterializedNamedAggregate("order-service", "order")
-        val redisTemplate = mockk<ReactiveStringRedisTemplate>()
-        val zSetOperations = mockk<ReactiveZSetOperations<String, String>>()
-        val hashOperations = mockk<ReactiveHashOperations<String, String, String>>()
-        val aggregateIds = listOf("002")
-        every { redisTemplate.opsForZSet() } returns zSetOperations
-        every { redisTemplate.opsForHash<String, String>() } returns hashOperations
-        every {
-            zSetOperations.rangeByLex(
-                any<String>(),
-                any(),
-                any(),
-            )
-        } returns Flux.empty()
-        every {
-            zSetOperations.rangeByLex(aggregateIdIndexKey("002"), any(), any())
-        } returns Flux.fromIterable(aggregateIds)
-        every {
-            hashOperations.multiGet(aggregateTenantIndexKey("002"), aggregateIds)
-        } returns Mono.just(listOf(null) as List<String>)
-        val eventStore = RedisEventStore(redisTemplate)
-
-        eventStore.scanAggregateId(namedAggregate, afterId = "001", limit = 1)
-            .test()
-            .expectErrorSatisfies {
-                it.assert().isInstanceOf(IllegalStateException::class.java)
-                it.message.assert().contains("Missing tenantId for aggregateId [002]")
+                it.message.assert().contains("Invalid aggregate id index member:002")
             }
             .verify()
     }

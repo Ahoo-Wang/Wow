@@ -3,13 +3,11 @@ redis.replicate_commands();
 
 local eventStreamKey = KEYS[1];
 local aggregateIdIndexKey = KEYS[2];
-local aggregateTenantIndexKey = KEYS[3];
 
 local requestId = ARGV[1];
 local version = tonumber(ARGV[2]);
 local value = ARGV[3];
-local aggregateId = ARGV[4];
-local tenantId = ARGV[5];
+local aggregateIdIndexMember = ARGV[4];
 
 local count = redis.call("ZCARD", eventStreamKey)
 if count ~= (version - 1) then
@@ -23,6 +21,7 @@ if added == 0 then
 end
 
 local result = redis.call("ZADD", eventStreamKey, version, value);
-redis.call("HSET", aggregateTenantIndexKey, aggregateId, tenantId);
-redis.call("ZADD", aggregateIdIndexKey, 0, aggregateId);
+if version == 1 then
+    redis.call("ZADD", aggregateIdIndexKey, 0, aggregateIdIndexMember);
+end
 return tostring(result)

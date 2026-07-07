@@ -16,7 +16,6 @@ package me.ahoo.wow.redis.eventsourcing
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.redis.eventsourcing.EventStreamKeyConverter.toAggregateIdIndexKey
-import me.ahoo.wow.redis.eventsourcing.EventStreamKeyConverter.toAggregateTenantIndexKey
 import me.ahoo.wow.redis.eventsourcing.EventStreamKeyConverter.toKey
 import me.ahoo.wow.redis.eventsourcing.EventStreamKeyConverter.toKeyPrefix
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
@@ -53,9 +52,35 @@ class EventStreamKeyConverterTest {
     }
 
     @Test
-    fun `should convert aggregate tenant index key`() {
-        val actual = aggregateId.toAggregateTenantIndexKey()
-        actual.assert().isEqualTo("{$hashTag}:tenants")
+    fun `should convert aggregate id index member`() {
+        val actual = EventStreamKeyConverter.toAggregateIdIndexMember(aggregateId)
+        actual.assert().isEqualTo("id" + "\u0000" + "tenantId")
+    }
+
+    @Test
+    fun `should convert aggregate id index member lower bound`() {
+        val actual = EventStreamKeyConverter.toAggregateIdIndexMemberLowerBound("id")
+        actual.assert().isEqualTo("id" + "\u0001")
+    }
+
+    @Test
+    fun `should convert aggregate id index member to aggregate id`() {
+        val actual = EventStreamKeyConverter.toAggregateIdIndexMember(
+            aggregateId.namedAggregate,
+            "id" + "\u0000" + "tenantId",
+        )
+
+        actual.assert().isEqualTo(aggregateId)
+    }
+
+    @Test
+    fun `should convert aggregate id index member with empty tenant id`() {
+        val actual = EventStreamKeyConverter.toAggregateIdIndexMember(
+            aggregateId.namedAggregate,
+            "id" + "\u0000",
+        )
+
+        actual.assert().isEqualTo(aggregateId.namedAggregate.aggregateId("id", ""))
     }
 
     @Test

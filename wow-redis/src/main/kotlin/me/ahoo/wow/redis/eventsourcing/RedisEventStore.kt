@@ -21,11 +21,11 @@ import me.ahoo.wow.eventsourcing.AbstractEventStore
 import me.ahoo.wow.eventsourcing.AggregateIdScanner
 import me.ahoo.wow.eventsourcing.EventVersionConflictException
 import me.ahoo.wow.exception.ErrorCodes
-import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.redis.RedisScripts
 import me.ahoo.wow.redis.eventsourcing.EventStreamKeyConverter.AGGREGATE_ID_INDEX_BUCKETS
 import me.ahoo.wow.redis.eventsourcing.EventStreamKeyConverter.toAggregateIdIndexKey
-import me.ahoo.wow.redis.eventsourcing.EventStreamKeyConverter.toAggregateTenantIndexKey
+import me.ahoo.wow.redis.eventsourcing.EventStreamKeyConverter.toAggregateIdIndexMember
+import me.ahoo.wow.redis.eventsourcing.EventStreamKeyConverter.toAggregateIdIndexMemberLowerBound
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
 import org.springframework.data.domain.Range
@@ -47,16 +47,14 @@ class RedisEventStore(
         val aggregateId = eventStream.aggregateId
         val eventStreamKey = EventStreamKeyConverter.convert(aggregateId)
         val aggregateIdIndexKey = aggregateId.toAggregateIdIndexKey()
-        val aggregateTenantIndexKey = aggregateId.toAggregateTenantIndexKey()
         return redisTemplate.execute(
             SCRIPT_EVENT_STEAM_APPEND,
-            listOf(eventStreamKey, aggregateIdIndexKey, aggregateTenantIndexKey),
+            listOf(eventStreamKey, aggregateIdIndexKey),
             listOf(
                 eventStream.requestId,
                 eventStream.version.toString(),
                 eventStream.toJsonString(),
-                aggregateId.id,
-                aggregateId.tenantId,
+                toAggregateIdIndexMember(aggregateId),
             ),
         ).next().flatMap {
             handleAppendResult(eventStream, it)
@@ -114,7 +112,7 @@ class RedisEventStore(
         afterId: String,
         limit: Int
     ): Flux<AggregateId> {
-        val range = Range.open(afterId, AggregateIdScanner.LAST_ID)
+        val range = Range.open(toAggregateIdIndexMemberLowerBound(afterId), AggregateIdScanner.LAST_ID)
         val rangeLimit = Limit.limit().count(limit)
         return Flux.range(0, AGGREGATE_ID_INDEX_BUCKETS)
             .flatMap { bucket ->
@@ -131,30 +129,10 @@ class RedisEventStore(
         rangeLimit: Limit
     ): Flux<AggregateId> {
         val aggregateIdIndexKey = namedAggregate.toAggregateIdIndexKey(bucket)
-        val aggregateTenantIndexKey = namedAggregate.toAggregateTenantIndexKey(bucket)
         return redisTemplate.opsForZSet()
             .rangeByLex(aggregateIdIndexKey, range, rangeLimit)
-            .collectList()
-            .flatMapMany { aggregateIds ->
-                if (aggregateIds.isEmpty()) {
-                    Flux.empty()
-                } else {
-                    redisTemplate.opsForHash<String, String>()
-                        .multiGet(aggregateTenantIndexKey, aggregateIds)
-                        .flatMapMany { tenantIds ->
-                            require(tenantIds.size == aggregateIds.size) {
-                                "Invalid aggregate tenant index [$aggregateTenantIndexKey]."
-                            }
-                            Flux.fromIterable(
-                                aggregateIds.mapIndexed { index, id ->
-                                    val tenantId = checkNotNull(tenantIds[index]) {
-                                        "Missing tenantId for aggregateId [$id] in [$aggregateTenantIndexKey]."
-                                    }
-                                    namedAggregate.aggregateId(id, tenantId)
-                                }
-                            )
-                        }
-                }
+            .map {
+                toAggregateIdIndexMember(namedAggregate, it)
             }
     }
 }

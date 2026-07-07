@@ -24,6 +24,8 @@ import me.ahoo.wow.redis.eventsourcing.RedisWrappedKey.wrap
 object EventStreamKeyConverter : AggregateKeyConverter {
     const val AGGREGATE_ID_INDEX_BUCKETS = 128
     const val ID_DELIMITER = "@"
+    private const val INDEX_MEMBER_DELIMITER = "\u0000"
+    private const val INDEX_MEMBER_AFTER_ID_DELIMITER = "\u0001"
 
     fun NamedAggregate.toHashTag(bucket: Int): String {
         return "${toStringWithAlias()}${DELIMITER}es$DELIMITER$bucket".wrap()
@@ -41,12 +43,22 @@ object EventStreamKeyConverter : AggregateKeyConverter {
         return namedAggregate.toAggregateIdIndexKey(mod(AGGREGATE_ID_INDEX_BUCKETS))
     }
 
-    fun NamedAggregate.toAggregateTenantIndexKey(bucket: Int): String {
-        return "${toHashTag(bucket)}${DELIMITER}tenants"
+    fun toAggregateIdIndexMember(aggregateId: AggregateId): String {
+        return "${aggregateId.id}$INDEX_MEMBER_DELIMITER${aggregateId.tenantId}"
     }
 
-    fun AggregateId.toAggregateTenantIndexKey(): String {
-        return namedAggregate.toAggregateTenantIndexKey(mod(AGGREGATE_ID_INDEX_BUCKETS))
+    fun toAggregateIdIndexMemberLowerBound(afterId: String): String {
+        return "$afterId$INDEX_MEMBER_AFTER_ID_DELIMITER"
+    }
+
+    fun toAggregateIdIndexMember(namedAggregate: NamedAggregate, member: String): AggregateId {
+        val delimiterIndex = member.indexOf(INDEX_MEMBER_DELIMITER)
+        require(delimiterIndex > 0) {
+            "Invalid aggregate id index member:$member"
+        }
+        val id = member.substring(0, delimiterIndex)
+        val tenantId = member.substring(delimiterIndex + INDEX_MEMBER_DELIMITER.length)
+        return namedAggregate.aggregateId(id, tenantId)
     }
 
     fun AggregateId.toKey(): String {
