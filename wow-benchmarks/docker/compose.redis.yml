@@ -7,6 +7,11 @@ services:
     restart: unless-stopped
     ports:
       - "${WOW_BENCHMARK_REDIS_HOST_PORT:-6379}:6379"
+    logging:
+      driver: local
+      options:
+        max-size: ${WOW_BENCHMARK_DOCKER_LOG_MAX_SIZE:-10m}
+        max-file: "${WOW_BENCHMARK_DOCKER_LOG_MAX_FILE:-2}"
     volumes:
       - ./redis.conf:/usr/local/etc/redis/redis.conf:ro
     tmpfs:
@@ -21,7 +26,8 @@ services:
         - CMD
         - redis-cli
         - ping
-      interval: 5s
-      timeout: 3s
-      retries: 20
-      start_period: 5s
+      interval: ${WOW_BENCHMARK_REDIS_HEALTHCHECK_INTERVAL:-30s}
+      timeout: ${WOW_BENCHMARK_REDIS_HEALTHCHECK_TIMEOUT:-3s}
+      retries: ${WOW_BENCHMARK_REDIS_HEALTHCHECK_RETRIES:-20}
+      start_period: ${WOW_BENCHMARK_REDIS_HEALTHCHECK_START_PERIOD:-10s}
+      start_interval: ${WOW_BENCHMARK_REDIS_HEALTHCHECK_START_INTERVAL:-2s}

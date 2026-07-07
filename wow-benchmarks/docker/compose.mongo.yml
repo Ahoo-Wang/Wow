@@ -7,6 +7,11 @@ services:
     restart: unless-stopped
     ports:
       - "${WOW_BENCHMARK_MONGO_HOST_PORT:-27017}:27017"
+    logging:
+      driver: local
+      options:
+        max-size: ${WOW_BENCHMARK_DOCKER_LOG_MAX_SIZE:-10m}
+        max-file: "${WOW_BENCHMARK_DOCKER_LOG_MAX_FILE:-2}"
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${WOW_BENCHMARK_MONGO_ROOT_USERNAME:-root}
       MONGO_INITDB_ROOT_PASSWORD: ${WOW_BENCHMARK_MONGO_ROOT_PASSWORD:-root}
@@ -34,7 +39,8 @@ services:
           mongosh --quiet -u "$$MONGO_INITDB_ROOT_USERNAME" -p "$$MONGO_INITDB_ROOT_PASSWORD"
           --authenticationDatabase admin
           --eval 'db.adminCommand({ ping: 1 }).ok' | grep -q 1
-      interval: 5s
-      timeout: 5s
-      retries: 30
-      start_period: 10s
+      interval: ${WOW_BENCHMARK_MONGO_HEALTHCHECK_INTERVAL:-60s}
+      timeout: ${WOW_BENCHMARK_MONGO_HEALTHCHECK_TIMEOUT:-5s}
+      retries: ${WOW_BENCHMARK_MONGO_HEALTHCHECK_RETRIES:-30}
+      start_period: ${WOW_BENCHMARK_MONGO_HEALTHCHECK_START_PERIOD:-15s}
+      start_interval: ${WOW_BENCHMARK_MONGO_HEALTHCHECK_START_INTERVAL:-2s}
