@@ -145,24 +145,34 @@ Redis 命令总线使用 Redis Streams 实现消息传递：
 
 ## 事件存储
 
-Redis 事件存储使用 Hash 结构存储事件流：
+Redis 事件存储使用分桶的 Redis Cluster hash tag，使事件流追加、请求幂等性和聚合 ID 扫描索引可以在同一个 Lua 脚本中原子更新。
 
 ### 数据结构
 
 ```
-Key: {prefix}{contextName}.{aggregateName}:{aggregateId}:es
-Field: {version}
-Value: {eventStreamJson}
+事件流 ZSET Key: {{contextAlias}.{aggregateName}:es:{bucket}}:{aggregateId}@{tenantId}
+Score: {version}
+Member: {eventStreamJson}
+
+请求 ID SET Key: {{contextAlias}.{aggregateName}:es:{bucket}}:{aggregateId}@{tenantId}:req_idx
+Member: {requestId}
+
+聚合 ID ZSET Key: {{contextAlias}.{aggregateName}:es:{bucket}}:ids
+Score: 0
+Member: {aggregateId}
+
+聚合租户 HASH Key: {{contextAlias}.{aggregateName}:es:{bucket}}:tenants
+Field: {aggregateId}
+Value: {tenantId}
 ```
 
 ### 请求幂等性
 
-使用单独的 Key 存储请求 ID 实现幂等性：
+请求 ID 存储在上面的同分桶 SET Key 中。
 
-```
-Key: {prefix}{contextName}.{aggregateName}:{aggregateId}:req:{requestId}
-TTL: 配置的过期时间
-```
+### 聚合 ID 扫描
+
+`EventStore.scanAggregateId` 会扫描分桶的聚合 ID 索引，并按字典序合并结果。由于 `aggregateId` 全局唯一，scanner 只存储一个聚合 ID 成员，并从同分桶的租户 HASH 中解析对应的租户。
 
 ## 快照存储
 

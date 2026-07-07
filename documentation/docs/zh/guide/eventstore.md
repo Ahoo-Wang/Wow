@@ -26,7 +26,9 @@ description: 事件存储是事件溯源架构的核心持久化引擎 -- 不可
 `EventStore` 接口定义了事件存储的核心操作，并承担按命名聚合分页扫描聚合 ID 的职责：
 
 ```kotlin
-interface EventStore : AggregateIdScanner {
+interface EventStore :
+    RequestIdExistenceChecker,
+    AggregateIdScanner {
     fun append(eventStream: DomainEventStream): Mono<Void>
     fun load(
         aggregateId: AggregateId,

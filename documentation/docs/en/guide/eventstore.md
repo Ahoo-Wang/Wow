@@ -26,7 +26,9 @@ In traditional architectures, databases only store the current state, and histor
 The `EventStore` interface defines the core operations for event storage and owns paginated aggregate ID scanning by named aggregate:
 
 ```kotlin
-interface EventStore : AggregateIdScanner {
+interface EventStore :
+    RequestIdExistenceChecker,
+    AggregateIdScanner {
     fun append(eventStream: DomainEventStream): Mono<Void>
     fun load(
         aggregateId: AggregateId,

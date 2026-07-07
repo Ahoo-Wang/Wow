@@ -25,11 +25,13 @@ import org.junit.jupiter.api.assertThrows
 
 class EventStreamKeyConverterTest {
     private val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId("id", "tenantId")
+    private val bucket = "id".hashCode().mod(128)
+    private val hashTag = "tck.mock_aggregate:es:$bucket"
 
     @Test
     fun `should convert to key prefix`() {
         val actual = aggregateId.toKeyPrefix()
-        actual.assert().isEqualTo("tck.mock_aggregate:es:")
+        actual.assert().isEqualTo("{$hashTag}:")
     }
 
     @Test
@@ -41,26 +43,26 @@ class EventStreamKeyConverterTest {
     @Test
     fun `should convert event stream key`() {
         val actual = EventStreamKeyConverter.convert(aggregateId)
-        actual.assert().isEqualTo("tck.mock_aggregate:es:{id@tenantId}")
+        actual.assert().isEqualTo("{$hashTag}:id@tenantId")
     }
 
     @Test
     fun `should convert aggregate id index key`() {
         val actual = aggregateId.toAggregateIdIndexKey()
-        actual.assert().isEqualTo("tck.mock_aggregate:es:ids")
+        actual.assert().isEqualTo("{$hashTag}:ids")
     }
 
     @Test
     fun `should convert aggregate tenant index key`() {
         val actual = aggregateId.toAggregateTenantIndexKey()
-        actual.assert().isEqualTo("tck.mock_aggregate:es:tenants")
+        actual.assert().isEqualTo("{$hashTag}:tenants")
     }
 
     @Test
     fun `should convert key to aggregate id`() {
         val actual = EventStreamKeyConverter.toAggregateId(
             aggregateId,
-            "tck.mock_aggregate:es:{id@tenantId}",
+            "{$hashTag}:id@tenantId",
         )
 
         actual.assert().isEqualTo(aggregateId)
@@ -71,10 +73,10 @@ class EventStreamKeyConverterTest {
         val error = assertThrows<IllegalArgumentException> {
             EventStreamKeyConverter.toAggregateId(
                 aggregateId,
-                "tck.mock_aggregate:es:{id}",
+                "{$hashTag}:id",
             )
         }
 
-        error.message.assert().isEqualTo("Invalid key:tck.mock_aggregate:es:{id}")
+        error.message.assert().isEqualTo("Invalid key:{$hashTag}:id")
     }
 }

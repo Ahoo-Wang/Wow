@@ -15,23 +15,38 @@ package me.ahoo.wow.redis.eventsourcing
 
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.api.modeling.NamedAggregate
+import me.ahoo.wow.api.modeling.mod
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.toStringWithAlias
 import me.ahoo.wow.redis.eventsourcing.RedisWrappedKey.unwrap
 import me.ahoo.wow.redis.eventsourcing.RedisWrappedKey.wrap
 
 object EventStreamKeyConverter : AggregateKeyConverter {
+    const val AGGREGATE_ID_INDEX_BUCKETS = 128
     const val ID_DELIMITER = "@"
-    fun NamedAggregate.toKeyPrefix(): String {
-        return "${toStringWithAlias()}${DELIMITER}es$DELIMITER"
+
+    fun NamedAggregate.toHashTag(bucket: Int): String {
+        return "${toStringWithAlias()}${DELIMITER}es$DELIMITER$bucket".wrap()
     }
 
-    fun NamedAggregate.toAggregateIdIndexKey(): String {
-        return "${toStringWithAlias()}${DELIMITER}es${DELIMITER}ids"
+    fun AggregateId.toKeyPrefix(): String {
+        return "${toHashTag(mod(AGGREGATE_ID_INDEX_BUCKETS))}$DELIMITER"
     }
 
-    fun NamedAggregate.toAggregateTenantIndexKey(): String {
-        return "${toStringWithAlias()}${DELIMITER}es${DELIMITER}tenants"
+    fun NamedAggregate.toAggregateIdIndexKey(bucket: Int): String {
+        return "${toHashTag(bucket)}${DELIMITER}ids"
+    }
+
+    fun AggregateId.toAggregateIdIndexKey(): String {
+        return namedAggregate.toAggregateIdIndexKey(mod(AGGREGATE_ID_INDEX_BUCKETS))
+    }
+
+    fun NamedAggregate.toAggregateTenantIndexKey(bucket: Int): String {
+        return "${toHashTag(bucket)}${DELIMITER}tenants"
+    }
+
+    fun AggregateId.toAggregateTenantIndexKey(): String {
+        return namedAggregate.toAggregateTenantIndexKey(mod(AGGREGATE_ID_INDEX_BUCKETS))
     }
 
     fun AggregateId.toKey(): String {
@@ -39,12 +54,13 @@ object EventStreamKeyConverter : AggregateKeyConverter {
     }
 
     override fun convert(aggregateId: AggregateId): String {
-        return "${aggregateId.toKeyPrefix()}${aggregateId.toKey()}"
+        return "${aggregateId.toKeyPrefix()}${aggregateId.id}$ID_DELIMITER${aggregateId.tenantId}"
     }
 
     fun toAggregateId(namedAggregate: NamedAggregate, key: String): AggregateId {
-        val prefix = namedAggregate.toKeyPrefix()
-        val idWithTenantId = key.removePrefix(prefix).unwrap()
+        val hashTagPrefix = "${RedisWrappedKey.KEY_PREFIX}${namedAggregate.toStringWithAlias()}${DELIMITER}es$DELIMITER"
+        require(key.startsWith(hashTagPrefix)) { "Invalid key:$key" }
+        val idWithTenantId = key.substringAfter("${RedisWrappedKey.KEY_SUFFIX}$DELIMITER").unwrap()
         idWithTenantId.split(ID_DELIMITER).let {
             require(it.size == 2) { "Invalid key:$key" }
             return namedAggregate.aggregateId(it[0], it[1])
