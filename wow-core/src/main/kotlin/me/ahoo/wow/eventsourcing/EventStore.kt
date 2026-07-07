@@ -100,6 +100,11 @@ interface EventStore :
      */
     fun last(aggregateId: AggregateId): Mono<DomainEventStream>
 
+    /**
+     * Default unsupported scanner implementation for custom event stores.
+     *
+     * Kotlin callers still use the default `afterId` and `limit` values inherited from [AggregateIdScanner].
+     */
     override fun scanAggregateId(
         namedAggregate: NamedAggregate,
         afterId: String,
