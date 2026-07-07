@@ -90,7 +90,14 @@ class StateEventCompensatorTest {
         )
 
         StepVerifier.create(eventStore.append(ignoredInitialErrorStream)).verifyComplete()
-        StepVerifier.create(compensator.resend(aggregateId, headVersion = 1, tailVersion = Int.MAX_VALUE, target = target))
+        StepVerifier.create(
+            compensator.resend(
+                aggregateId = aggregateId,
+                headVersion = 1,
+                tailVersion = Int.MAX_VALUE,
+                target = target,
+            )
+        )
             .expectNext(0)
             .verifyComplete()
 

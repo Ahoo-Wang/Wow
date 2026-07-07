@@ -15,11 +15,11 @@ package me.ahoo.wow.event.compensation
 
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.configuration.requiredAggregateType
+import me.ahoo.wow.event.ignoreSourcing
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.toStateEvent
 import me.ahoo.wow.eventsourcing.state.StateEventBus
-import me.ahoo.wow.event.ignoreSourcing
 import me.ahoo.wow.messaging.compensation.CompensationMatcher.withCompensation
 import me.ahoo.wow.messaging.compensation.CompensationTarget
 import me.ahoo.wow.messaging.compensation.EventCompensator
