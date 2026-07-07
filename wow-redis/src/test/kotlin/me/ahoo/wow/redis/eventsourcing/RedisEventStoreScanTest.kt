@@ -15,6 +15,7 @@ package me.ahoo.wow.redis.eventsourcing
 
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.TenantId
 import me.ahoo.wow.command.DuplicateRequestIdException
@@ -183,6 +184,21 @@ class RedisEventStoreScanTest {
         eventStore.scanAggregateId(namedAggregate, afterId = "001", limit = 2)
             .test()
             .verifyComplete()
+    }
+
+    @Test
+    fun `scan aggregate id should complete without redis range query when cursor is last id`() {
+        val namedAggregate = MaterializedNamedAggregate("order-service", "order")
+        val redisTemplate = mockk<ReactiveStringRedisTemplate>(relaxed = true)
+        val eventStore = RedisEventStore(redisTemplate)
+
+        eventStore.scanAggregateId(namedAggregate, afterId = AggregateIdScanner.LAST_ID, limit = 2)
+            .test()
+            .verifyComplete()
+
+        verify(exactly = 0) {
+            redisTemplate.opsForZSet()
+        }
     }
 
     @Test

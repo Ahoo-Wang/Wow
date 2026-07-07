@@ -105,6 +105,9 @@ interface EventStore :
      *
      * Kotlin callers still use the default `afterId` and `limit` values inherited from [AggregateIdScanner].
      */
+    fun scanAggregateId(namedAggregate: NamedAggregate): Flux<AggregateId> =
+        scanAggregateId(namedAggregate, AggregateIdScanner.FIRST_ID, 10)
+
     override fun scanAggregateId(
         namedAggregate: NamedAggregate,
         afterId: String,

@@ -112,6 +112,9 @@ class RedisEventStore(
         afterId: String,
         limit: Int
     ): Flux<AggregateId> {
+        if (afterId == AggregateIdScanner.LAST_ID) {
+            return Flux.empty()
+        }
         val range = Range.open(toAggregateIdIndexMemberLowerBound(afterId), AggregateIdScanner.LAST_ID)
         val rangeLimit = Limit.limit().count(limit)
         return Flux.range(0, AGGREGATE_ID_INDEX_BUCKETS)
