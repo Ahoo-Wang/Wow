@@ -14,6 +14,7 @@
 package me.ahoo.wow.webflux.route.snapshot
 
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.event.ignoreSourcing
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.snapshot.SimpleSnapshot
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
@@ -35,9 +36,16 @@ class RegenerateSnapshotHandler(
                 .load(
                     aggregateId = aggregateId,
                     headVersion = stateAggregate.expectedNextVersion,
-                )
-                .map {
-                    stateAggregate.onSourcing(it)
+                ).concatMap { eventStream ->
+                    if (eventStream.ignoreSourcing()) {
+                        return@concatMap Mono.empty<Void>()
+                    }
+                    if (!stateAggregate.initialized && !eventStream.isInitialVersion) {
+                        return@concatMap Mono.empty<Void>()
+                    }
+                    Mono.fromRunnable {
+                        stateAggregate.onSourcing(eventStream)
+                    }
                 }
                 .then(Mono.just(stateAggregate))
         }.filter {
