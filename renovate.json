@@ -3,21 +3,124 @@
   "extends": ["config:recommended"],
   "timezone": "Asia/Shanghai",
   "labels": ["dependencies"],
+  "dependencyDashboard": true,
   "commitMessagePrefix": "fix(deps)",
   "commitMessageTopic": "{{depName}}",
   "rangeStrategy": "bump",
-  "lockFileMaintenance": { "enabled": false },
+  "minimumReleaseAge": "3 days",
+  "prHourlyLimit": 2,
   "prConcurrentLimit": 5,
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 3pm on monday"],
+    "commitMessageTopic": "lock files"
+  },
   "packageRules": [
     {
-      "description": "Group Spring ecosystem updates into a single PR",
-      "matchPackagePatterns": ["^org\\.springframework"],
-      "groupName": "spring"
+      "description": "Require manual approval for major version updates.",
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true
     },
     {
-      "description": "Group Kotlin-related updates into a single PR",
-      "matchPackagePatterns": ["^org\\.jetbrains\\.kotlin"],
-      "groupName": "kotlin"
+      "description": "Group GitHub Actions updates.",
+      "matchManagers": ["github-actions"],
+      "groupName": "github-actions",
+      "commitMessageTopic": "GitHub Actions"
+    },
+    {
+      "description": "Group Spring Boot, Spring Framework, and Springdoc updates.",
+      "matchDatasources": ["maven"],
+      "matchPackageNames": [
+        "/^org\\.springframework[.:]/",
+        "/^org\\.springdoc:/"
+      ],
+      "groupName": "spring",
+      "commitMessageTopic": "Spring ecosystem"
+    },
+    {
+      "description": "Group Kotlin compiler, Kotlin plugins, KSP, and Kotlin compile-testing updates.",
+      "matchPackageNames": [
+        "/^org\\.jetbrains\\.kotlin([.:]|$)/",
+        "/^com\\.google\\.devtools\\.ksp([.:]|$)/",
+        "dev.zacsweers.kctfork:ksp"
+      ],
+      "groupName": "kotlin",
+      "commitMessageTopic": "Kotlin toolchain"
+    },
+    {
+      "description": "Group OpenTelemetry core and instrumentation BOMs so API/SDK and instrumentation stay aligned.",
+      "matchDatasources": ["maven"],
+      "matchPackageNames": [
+        "io.opentelemetry:opentelemetry-bom",
+        "io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom"
+      ],
+      "groupName": "opentelemetry",
+      "commitMessageTopic": "OpenTelemetry BOMs"
+    },
+    {
+      "description": "Keep OpenTelemetry semantic conventions visible because this artifact is alpha-versioned independently.",
+      "matchDatasources": ["maven"],
+      "matchPackageNames": ["io.opentelemetry:opentelemetry-semconv"],
+      "commitMessageTopic": "OpenTelemetry semantic conventions"
+    },
+    {
+      "description": "Group Ahoo platform BOM updates used by wow-dependencies.",
+      "matchDatasources": ["maven"],
+      "matchPackageNames": [
+        "me.ahoo.cosid:cosid-bom",
+        "me.ahoo.simba:simba-bom",
+        "me.ahoo.coapi:coapi-bom",
+        "me.ahoo.cocache:cocache-bom"
+      ],
+      "groupName": "ahoo-platform-boms",
+      "commitMessageTopic": "Ahoo platform BOMs"
+    },
+    {
+      "description": "Group Ahoo Fetcher packages because the dashboard uses the generated client stack as one version family.",
+      "matchDatasources": ["npm"],
+      "matchPackageNames": ["/^@ahoo-wang\\/fetcher/"],
+      "groupName": "fetcher",
+      "commitMessageTopic": "Fetcher packages"
+    },
+    {
+      "description": "Group React runtime packages used by the compensation dashboard.",
+      "matchDatasources": ["npm"],
+      "matchPackageNames": [
+        "react",
+        "react-dom",
+        "@types/react",
+        "@types/react-dom",
+        "react-router"
+      ],
+      "groupName": "react",
+      "commitMessageTopic": "React ecosystem"
+    },
+    {
+      "description": "Group Vite and Vitest tooling used by the compensation dashboard.",
+      "matchDatasources": ["npm"],
+      "matchPackageNames": [
+        "vite",
+        "@vitejs/plugin-react",
+        "vitest",
+        "@vitest/coverage-v8",
+        "@vitest/ui",
+        "vitest-browser-react",
+        "vite-bundle-analyzer"
+      ],
+      "groupName": "vite-vitest",
+      "commitMessageTopic": "Vite and Vitest"
+    },
+    {
+      "description": "Group VitePress documentation tooling.",
+      "matchDatasources": ["npm"],
+      "matchPackageNames": [
+        "vitepress",
+        "vitepress-plugin-llms",
+        "vitepress-plugin-mermaid",
+        "mermaid"
+      ],
+      "groupName": "vitepress",
+      "commitMessageTopic": "VitePress documentation"
     }
   ]
 }

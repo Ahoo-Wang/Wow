@@ -1,7 +1,8 @@
 name: Renovate
 on:
   schedule:
-    - cron: '0 2 * * *'
+    - cron: '17 10 * * *'
+      timezone: "Asia/Shanghai"
   workflow_dispatch:
 
 concurrency:
