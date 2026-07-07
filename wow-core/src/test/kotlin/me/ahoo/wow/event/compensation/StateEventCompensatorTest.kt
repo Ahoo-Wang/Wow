@@ -23,6 +23,7 @@ import me.ahoo.wow.eventsourcing.state.StateEventExchange
 import me.ahoo.wow.messaging.compensation.COMPENSATION_ID
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
+import me.ahoo.wow.modeling.state.IgnoredErrorEvent
 import me.ahoo.wow.tck.event.MockDomainEventStreams.generateEventStream
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockAggregateCreated
@@ -68,6 +69,32 @@ class StateEventCompensatorTest {
         sent.version.assert().isEqualTo(2)
         sent.header[COMPENSATION_ID].assert().isEqualTo(target.id)
         (sent.state as MockStateAggregate).data.assert().isEqualTo("state-v2")
+    }
+
+    @Test
+    fun `resend skips ignored initial error streams`() {
+        val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId("state-compensate-ignored")
+        val eventStore = InMemoryEventStore()
+        val stateEventBus = RecordingStateEventBus()
+        val ignoredInitialErrorStream = generateEventStream(
+            aggregateId = aggregateId,
+            aggregateVersion = 0,
+            eventCount = 1,
+            createdEventSupplier = { IgnoredErrorEvent("failed", "failed create") },
+        )
+        val target = compensationTarget(FunctionKind.STATE_EVENT)
+        val compensator = StateEventCompensator(
+            stateAggregateFactory = ConstructorStateAggregateFactory,
+            eventStore = eventStore,
+            stateEventBus = stateEventBus,
+        )
+
+        StepVerifier.create(eventStore.append(ignoredInitialErrorStream)).verifyComplete()
+        StepVerifier.create(compensator.resend(aggregateId, headVersion = 1, tailVersion = Int.MAX_VALUE, target = target))
+            .expectNext(0)
+            .verifyComplete()
+
+        stateEventBus.sent.assert().isEmpty()
     }
 
     private class RecordingStateEventBus : StateEventBus {

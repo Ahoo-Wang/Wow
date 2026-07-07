@@ -19,6 +19,7 @@ import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.toStateEvent
 import me.ahoo.wow.eventsourcing.state.StateEventBus
+import me.ahoo.wow.event.ignoreSourcing
 import me.ahoo.wow.messaging.compensation.CompensationMatcher.withCompensation
 import me.ahoo.wow.messaging.compensation.CompensationTarget
 import me.ahoo.wow.messaging.compensation.EventCompensator
@@ -113,9 +114,15 @@ class StateEventCompensator(
                 .load(
                     aggregateId = aggregateId,
                     tailVersion = tailVersion,
-                ).map {
-                    stateAggregate.onSourcing(it)
-                    it.toStateEvent(stateAggregate)
+                ).concatMap { eventStream ->
+                    if (eventStream.ignoreSourcing()) {
+                        return@concatMap Mono.empty<StateEvent<Any>>()
+                    }
+                    stateAggregate.onSourcing(eventStream)
+                    if (!stateAggregate.initialized) {
+                        return@concatMap Mono.empty<StateEvent<Any>>()
+                    }
+                    Mono.just(eventStream.toStateEvent(stateAggregate))
                 }.filter {
                     it.version in headVersion..tailVersion
                 }.concatMap {

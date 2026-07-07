@@ -64,8 +64,8 @@ class EventStreamKeyConverterTest {
     }
 
     @Test
-    fun `should convert aggregate id index member to aggregate id`() {
-        val actual = EventStreamKeyConverter.toAggregateIdIndexMember(
+    fun `should convert aggregate id from aggregate id index member`() {
+        val actual = EventStreamKeyConverter.toAggregateIdFromIndexMember(
             aggregateId.namedAggregate,
             "id" + "\u0000" + "tenantId",
         )
@@ -74,8 +74,8 @@ class EventStreamKeyConverterTest {
     }
 
     @Test
-    fun `should convert aggregate id index member with empty tenant id`() {
-        val actual = EventStreamKeyConverter.toAggregateIdIndexMember(
+    fun `should convert aggregate id from aggregate id index member with empty tenant id`() {
+        val actual = EventStreamKeyConverter.toAggregateIdFromIndexMember(
             aggregateId.namedAggregate,
             "id" + "\u0000",
         )

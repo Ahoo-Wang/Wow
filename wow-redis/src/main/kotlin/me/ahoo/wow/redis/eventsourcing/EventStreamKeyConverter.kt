@@ -51,7 +51,7 @@ object EventStreamKeyConverter : AggregateKeyConverter {
         return "$afterId$INDEX_MEMBER_AFTER_ID_DELIMITER"
     }
 
-    fun toAggregateIdIndexMember(namedAggregate: NamedAggregate, member: String): AggregateId {
+    fun toAggregateIdFromIndexMember(namedAggregate: NamedAggregate, member: String): AggregateId {
         val delimiterIndex = member.indexOf(INDEX_MEMBER_DELIMITER)
         require(delimiterIndex > 0) {
             "Invalid aggregate id index member:$member"

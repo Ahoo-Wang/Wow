@@ -23,6 +23,7 @@ import me.ahoo.wow.eventsourcing.EventVersionConflictException
 import me.ahoo.wow.exception.ErrorCodes
 import me.ahoo.wow.redis.RedisScripts
 import me.ahoo.wow.redis.eventsourcing.EventStreamKeyConverter.AGGREGATE_ID_INDEX_BUCKETS
+import me.ahoo.wow.redis.eventsourcing.EventStreamKeyConverter.toAggregateIdFromIndexMember
 import me.ahoo.wow.redis.eventsourcing.EventStreamKeyConverter.toAggregateIdIndexKey
 import me.ahoo.wow.redis.eventsourcing.EventStreamKeyConverter.toAggregateIdIndexMember
 import me.ahoo.wow.redis.eventsourcing.EventStreamKeyConverter.toAggregateIdIndexMemberLowerBound
@@ -135,7 +136,7 @@ class RedisEventStore(
         return redisTemplate.opsForZSet()
             .rangeByLex(aggregateIdIndexKey, range, rangeLimit)
             .map {
-                toAggregateIdIndexMember(namedAggregate, it)
+                toAggregateIdFromIndexMember(namedAggregate, it)
             }
     }
 }
