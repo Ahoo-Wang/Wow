@@ -22,7 +22,7 @@ onMounted(() => {
 
 **受众**：VP/总监级工程领导者，评估 Wow 框架是否适合组织采用。
 
-**更新日期**：2026年6月 | **版本**：8.6.0 | **许可证**：Apache 2.0
+**更新日期**：2026年6月 | **版本**：8.8.0 | **许可证**：Apache 2.0
 
 ---
 
@@ -490,7 +490,7 @@ flowchart TB
 
 | 指标 | 值 | 来源 |
 |---|---|---|
-| **版本** | 8.6.0 | [gradle.properties:23](https://github.com/Ahoo-Wang/Wow/blob/main/gradle.properties#L23) |
+| **版本** | 8.8.0 | [gradle.properties:23](https://github.com/Ahoo-Wang/Wow/blob/main/gradle.properties#L23) |
 | **许可证** | Apache 2.0 | [gradle.properties:28-29](https://github.com/Ahoo-Wang/Wow/blob/main/gradle.properties#L28-L29) |
 | **语言** | Kotlin 2.3 / JVM 17+ | [CLAUDE.md:100](https://github.com/Ahoo-Wang/Wow/blob/main/CLAUDE.md#L100) |
 | **框架** | Spring Boot 4.x | [CLAUDE.md:3](https://github.com/Ahoo-Wang/Wow/blob/main/CLAUDE.md#L3) |

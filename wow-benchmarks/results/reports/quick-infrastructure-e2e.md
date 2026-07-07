@@ -8,10 +8,10 @@
 Quick Infrastructure E2E results are directional local feedback for real Redis and Mongo persistence paths. They include local service and machine effects; use Full Infrastructure E2E for formal infrastructure conclusions.
 
 ## Environment
-- **Version**: 8.6.0
+- **Version**: 8.8.0
 - **JVM**: OpenJDK 64-Bit Server VM 17.0.7+7-LTS
 - **OS**: Mac OS X 26.5.1 aarch64
-- **DateTime**: 2026-07-07T10:51:48+08:00
+- **DateTime**: 2026-07-07T11:03:01+08:00
 - **CPU Cores**: 14
 - **Physical Memory**: 24.0 GiB
 - **Benchmark JVM Args**: `-Xmx4g -Xms4g -XX:+UseG1GC -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints -XX:+AlwaysPreTouch`
