@@ -16,9 +16,11 @@ import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.util.Locale
+import java.util.concurrent.TimeUnit
 
 data class BenchmarkRequiredService(
     val service: String,
+    val host: String,
     val port: Int,
 )
 
@@ -51,6 +53,70 @@ data class BenchmarkReportSpec(
     val suite: BenchmarkSuite,
     val profile: BenchmarkRunProfile,
 )
+
+data class CommandOutput(
+    val exitCode: Int,
+    val output: String,
+)
+
+data class DockerContainerRuntime(
+    val label: String,
+    val containerName: String,
+    val image: String?,
+    val imageId: String?,
+    val repoDigests: String?,
+)
+
+fun parseBenchmarkDockerEnvFile(envFile: File): Map<String, String> {
+    if (!envFile.exists()) {
+        return emptyMap()
+    }
+    return envFile.readLines()
+        .mapIndexedNotNull { lineIndex, rawLine ->
+            val line = rawLine.trim()
+            if (line.isEmpty() || line.startsWith("#")) {
+                return@mapIndexedNotNull null
+            }
+            val parts = line.split("=", limit = 2)
+            if (parts.size != 2 || parts[0].isBlank()) {
+                throw GradleException(
+                    "Invalid benchmark Docker env entry at ${envFile.absolutePath}:${lineIndex + 1}: $rawLine"
+                )
+            }
+            parts[0].trim() to parts[1].trim().removeSurrounding("\"").removeSurrounding("'")
+        }
+        .toMap()
+}
+
+val benchmarkDockerEnvFile = providers.gradleProperty("benchmarkDockerEnvFile")
+    .map { envFilePath -> file(envFilePath) }
+    .getOrElse(file("docker/benchmark.env"))
+
+val benchmarkDockerFileEnvironment = parseBenchmarkDockerEnvFile(benchmarkDockerEnvFile)
+
+fun benchmarkDockerConfig(name: String, defaultValue: String): String {
+    return providers.environmentVariable(name).orNull?.takeIf { it.isNotBlank() }
+        ?: benchmarkDockerFileEnvironment[name]?.takeIf { it.isNotBlank() }
+        ?: defaultValue
+}
+
+fun benchmarkDockerPort(name: String, defaultValue: Int): Int {
+    val configuredPort = benchmarkDockerConfig(name, defaultValue.toString())
+    val port = configuredPort.toIntOrNull()
+    if (port == null || port <= 0) {
+        throw GradleException("$name must be a positive integer.")
+    }
+    return port
+}
+
+fun benchmarkDockerRuntimeEnvironment(): Map<String, String> {
+    if (benchmarkDockerFileEnvironment.isEmpty()) {
+        return emptyMap()
+    }
+    return benchmarkDockerFileEnvironment.mapValues { (name, value) ->
+        providers.environmentVariable(name).orNull?.takeIf { it.isNotBlank() } ?: value
+    }
+}
 
 fun benchmarkThreadsProperty(propertyName: String, defaultThreads: List<Int>): List<Int> {
     return providers.gradleProperty(propertyName)
@@ -172,8 +238,16 @@ val infrastructureE2ESuite = BenchmarkSuite(
     requiredForGroupedReport = false,
     performanceConclusionSource = false,
     requiredServices = listOf(
-        BenchmarkRequiredService("Redis", 6379),
-        BenchmarkRequiredService("MongoDB", 27017),
+        BenchmarkRequiredService(
+            service = "Redis",
+            host = benchmarkDockerConfig("WOW_BENCHMARK_REDIS_HOST", "localhost"),
+            port = benchmarkDockerPort("WOW_BENCHMARK_REDIS_HOST_PORT", 6379),
+        ),
+        BenchmarkRequiredService(
+            service = "MongoDB",
+            host = benchmarkDockerConfig("WOW_BENCHMARK_MONGO_HOST", "localhost"),
+            port = benchmarkDockerPort("WOW_BENCHMARK_MONGO_HOST_PORT", 27017),
+        ),
     ),
 )
 
@@ -273,14 +347,14 @@ fun benchmarkProfilerArgs(includeGcProfiler: Boolean, includeAsyncProfiler: Bool
     }
 }
 
-fun requireBenchmarkService(service: String, port: Int) {
+fun requireBenchmarkService(service: String, host: String, port: Int) {
     val available = runCatching {
         Socket().use { socket ->
-            socket.connect(InetSocketAddress("localhost", port), 2000)
+            socket.connect(InetSocketAddress(host, port), 2000)
         }
     }.isSuccess
     require(available) {
-        "$service is required for Infrastructure I/O benchmarks at localhost:$port. " +
+        "$service is required for Infrastructure I/O benchmarks at $host:$port. " +
             "Start $service and rerun the selected infrastructure benchmark task."
     }
 }
@@ -349,6 +423,168 @@ fun formatMemoryBytes(bytes: Long?): String {
     return "${String.format(Locale.US, "%.1f", gib)} GiB"
 }
 
+fun runCommand(command: List<String>, timeoutSeconds: Long = 3): CommandOutput {
+    if (command.isEmpty()) {
+        return CommandOutput(exitCode = -1, output = "empty command")
+    }
+    return try {
+        val process = ProcessBuilder(command)
+            .redirectErrorStream(true)
+            .start()
+        val finished = process.waitFor(timeoutSeconds, TimeUnit.SECONDS)
+        if (!finished) {
+            process.destroyForcibly()
+            process.waitFor(1, TimeUnit.SECONDS)
+            return CommandOutput(exitCode = -1, output = "timed out after ${timeoutSeconds}s")
+        }
+        CommandOutput(
+            exitCode = process.exitValue(),
+            output = process.inputStream.bufferedReader().readText().trim(),
+        )
+    } catch (error: Exception) {
+        CommandOutput(
+            exitCode = -1,
+            output = error.message ?: error::class.java.simpleName,
+        )
+    }
+}
+
+fun unavailableCommandValue(commandName: String, commandOutput: CommandOutput): String {
+    val reason = commandOutput.output.lineSequence()
+        .firstOrNull()
+        ?.take(160)
+        ?: "exit ${commandOutput.exitCode}"
+    return "unavailable ($commandName: $reason)"
+}
+
+fun formatMemoryMiB(mib: String?): String {
+    val bytes = mib?.toLongOrNull()?.let { it * 1024L * 1024L }
+    return formatMemoryBytes(bytes)
+}
+
+fun commandLineOption(commandLine: String, option: String): String? {
+    val optionPattern = Regex("${Regex.escape(option)}(?:=|\\s+)(\\S+)")
+    return optionPattern.find(commandLine)?.groupValues?.get(1)
+}
+
+fun benchmarkClientLocation(): String {
+    val containerMarkerExists = File("/.dockerenv").exists() || File("/run/.containerenv").exists()
+    return if (containerMarkerExists) {
+        "container JVM"
+    } else {
+        "host JVM"
+    }
+}
+
+fun dockerServerSummary(): String {
+    val commandOutput = runCommand(
+        listOf(
+            "docker",
+            "info",
+            "--format",
+            "Server={{.ServerVersion}} CPUs={{.NCPU}} MemoryBytes={{.MemTotal}} Kernel={{.KernelVersion}}",
+        )
+    )
+    if (commandOutput.exitCode != 0 || commandOutput.output.isBlank()) {
+        return unavailableCommandValue("docker info", commandOutput)
+    }
+    return commandOutput.output.replace(Regex("MemoryBytes=(\\d+)")) { match ->
+        val memoryBytes = match.groupValues[1].toLongOrNull()
+        "Memory=${formatMemoryBytes(memoryBytes)}"
+    }
+}
+
+fun dockerDesktopVmSummary(): String {
+    val pidOutput = runCommand(listOf("pgrep", "-f", "com.docker.virtualization"))
+    if (pidOutput.exitCode != 0 || pidOutput.output.isBlank()) {
+        return unavailableCommandValue("pgrep", pidOutput)
+    }
+    val virtualizationPid = pidOutput.output.lineSequence()
+        .map { it.trim() }
+        .firstOrNull { it.isNotBlank() }
+        ?: return "unavailable (Docker Desktop virtualization process not found)"
+    val commandOutput = runCommand(listOf("ps", "-ww", "-o", "command=", "-p", virtualizationPid))
+    if (commandOutput.exitCode != 0 || commandOutput.output.isBlank()) {
+        return unavailableCommandValue("ps", commandOutput)
+    }
+    val virtualizationCommand = commandOutput.output.lineSequence().first()
+    val networkType = commandLineOption(virtualizationCommand, "--networkType") ?: "unavailable"
+    val cpus = commandLineOption(virtualizationCommand, "--cpus") ?: "unavailable"
+    val memoryMiB = formatMemoryMiB(commandLineOption(virtualizationCommand, "--memoryMiB"))
+    return "networkType=$networkType CPUs=$cpus Memory=$memoryMiB"
+}
+
+fun dockerContainerRuntime(label: String, containerName: String): DockerContainerRuntime {
+    val inspectOutput = runCommand(
+        listOf(
+            "docker",
+            "inspect",
+            containerName,
+            "--format",
+            "{{.Config.Image}}|{{.Image}}",
+        )
+    )
+    if (inspectOutput.exitCode != 0 || inspectOutput.output.isBlank()) {
+        return DockerContainerRuntime(
+            label = label,
+            containerName = containerName,
+            image = null,
+            imageId = null,
+            repoDigests = null,
+        )
+    }
+    val parts = inspectOutput.output.lineSequence()
+        .first()
+        .split("|", limit = 2)
+    val image = parts.getOrNull(0)?.takeIf { it.isNotBlank() && it != "<no value>" }
+    val imageId = parts.getOrNull(1)?.takeIf { it.isNotBlank() && it != "<no value>" }
+    val repoDigests = image?.let { imageName ->
+        val imageOutput = runCommand(
+            listOf(
+                "docker",
+                "image",
+                "inspect",
+                imageName,
+                "--format",
+                "{{json .RepoDigests}}",
+            )
+        )
+        imageOutput.output
+            .takeIf { imageOutput.exitCode == 0 }
+            ?.takeIf { it.isNotBlank() && it != "[]" && it != "null" }
+    }
+    return DockerContainerRuntime(
+        label = label,
+        containerName = containerName,
+        image = image,
+        imageId = imageId,
+        repoDigests = repoDigests,
+    )
+}
+
+fun dockerContainerRuntimes(): List<DockerContainerRuntime> {
+    return listOf(
+        dockerContainerRuntime(
+            label = "Redis",
+            containerName = benchmarkDockerConfig(
+                name = "WOW_BENCHMARK_REDIS_CONTAINER_NAME",
+                defaultValue = "wow-benchmark-redis",
+            ),
+        ),
+        dockerContainerRuntime(
+            label = "Mongo",
+            containerName = benchmarkDockerConfig(
+                name = "WOW_BENCHMARK_MONGO_CONTAINER_NAME",
+                defaultValue = "wow-benchmark-mongo",
+            ),
+        ),
+    )
+}
+
+fun markdownCodeOrUnavailable(value: String?): String {
+    return value?.takeIf { it.isNotBlank() }?.let { "`$it`" } ?: "unavailable"
+}
+
 fun benchmarkReportPath(file: File): String {
     val projectRoot = layout.projectDirectory.asFile.toPath().toAbsolutePath().normalize()
     val filePath = file.toPath().toAbsolutePath().normalize()
@@ -376,6 +612,25 @@ fun StringBuilder.appendBenchmarkEnvironment(
     if (profile != null) {
         appendLine("- **JMH Config**: ${profile.configSummary()}")
     }
+    appendLine()
+}
+
+fun StringBuilder.appendInfrastructureRuntime() {
+    appendLine("## Infrastructure Runtime")
+    appendLine("- **Benchmark Client**: ${benchmarkClientLocation()}")
+    appendLine("- **Docker Compose Env File**: `${benchmarkReportPath(benchmarkDockerEnvFile)}`")
+    appendLine("- **Docker Server**: ${dockerServerSummary()}")
+    appendLine("- **Docker Desktop VM**: ${dockerDesktopVmSummary()}")
+    dockerContainerRuntimes().forEach { containerRuntime ->
+        appendLine("- **${containerRuntime.label} Container**: `${containerRuntime.containerName}`")
+        appendLine("  - Image: ${markdownCodeOrUnavailable(containerRuntime.image)}")
+        appendLine("  - Image ID: ${markdownCodeOrUnavailable(containerRuntime.imageId)}")
+        appendLine("  - Repo Digests: ${markdownCodeOrUnavailable(containerRuntime.repoDigests)}")
+    }
+    appendLine(
+        "- **Network Note**: Host JVM infrastructure benchmarks use Docker-published localhost ports; " +
+            "Docker Desktop host-to-VM networking can materially affect Redis and Mongo results."
+    )
     appendLine()
 }
 
@@ -458,8 +713,9 @@ fun registerBenchmarkThreadTask(
         doFirst {
             resultFile.get().asFile.parentFile.mkdirs()
             humanFile.get().asFile.parentFile.mkdirs()
+            environment(benchmarkDockerRuntimeEnvironment())
             suite.requiredServices.forEach { requiredService ->
-                requireBenchmarkService(requiredService.service, requiredService.port)
+                requireBenchmarkService(requiredService.service, requiredService.host, requiredService.port)
             }
         }
     }
@@ -888,6 +1144,9 @@ fun renderGroupedBenchmarkReport(
         version = version,
         profile = reportProfile.takeIf { reportProfileConfigs.size == 1 },
     )
+    if (infrastructureRows.isNotEmpty()) {
+        sb.appendInfrastructureRuntime()
+    }
     if (reportProfileConfigs.size > 1) {
         sb.appendLine("## Run Profiles")
         sb.appendLine()
@@ -991,6 +1250,7 @@ fun renderSingleBenchmarkReport(
     title: String,
     command: String,
     description: String,
+    includeInfrastructureRuntime: Boolean = false,
 ): String {
     val groupReport = parseBenchmarkGroup(JsonSlurper(), group)
     if (groupReport.rows.isEmpty()) {
@@ -1010,6 +1270,9 @@ fun renderSingleBenchmarkReport(
     sb.appendLine(description)
     sb.appendLine()
     sb.appendBenchmarkEnvironment(project.version.toString(), group.profile)
+    if (includeInfrastructureRuntime) {
+        sb.appendInfrastructureRuntime()
+    }
     sb.appendLine("## Results")
     sb.appendLine()
     sb.appendBenchmarkTable(groupReport.rows)
@@ -1106,6 +1369,7 @@ tasks.register("generateInfrastructureBenchmarkReport") {
             description = "Quick Infrastructure E2E results are directional local feedback for real Redis " +
                 "and Mongo persistence paths. They include local service and machine effects; " +
                 "use Full Infrastructure E2E for formal infrastructure conclusions.",
+            includeInfrastructureRuntime = true,
         )
 
         val outputFile = infrastructureBenchmarkReportFile.asFile

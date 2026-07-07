@@ -14,22 +14,16 @@
 package me.ahoo.wow.mongo
 
 import com.mongodb.client.model.Filters
-import com.mongodb.client.model.Projections
 import com.mongodb.client.model.ReplaceOptions
-import com.mongodb.client.model.Sorts
 import com.mongodb.reactivestreams.client.MongoDatabase
 import me.ahoo.wow.api.Version.Companion.UNINITIALIZED_VERSION
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
-import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.mongo.AggregateSchemaInitializer.toSnapshotCollectionName
 import me.ahoo.wow.serialization.MessageRecords
 import org.bson.Document
-import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
-import reactor.kotlin.core.publisher.toFlux
 import reactor.kotlin.core.publisher.toMono
 
 class MongoSnapshotStore(private val database: MongoDatabase) : SnapshotStore {
@@ -90,24 +84,5 @@ class MongoSnapshotStore(private val database: MongoDatabase) : SnapshotStore {
             .doOnNext {
                 check(it.wasAcknowledged())
             }.then()
-    }
-
-    override fun scanAggregateId(
-        namedAggregate: NamedAggregate,
-        afterId: String,
-        limit: Int
-    ): Flux<AggregateId> {
-        val snapshotCollectionName = namedAggregate.toSnapshotCollectionName()
-        return database.getCollection(snapshotCollectionName)
-            .find(Filters.gt(Documents.ID_FIELD, afterId))
-            .sort(Sorts.ascending(Documents.ID_FIELD))
-            .projection(Projections.include(MessageRecords.TENANT_ID))
-            .limit(limit)
-            .toFlux()
-            .map {
-                val aggregateId = it.getString(Documents.ID_FIELD)
-                val tenantId = it.getString(MessageRecords.TENANT_ID)
-                namedAggregate.aggregateId(aggregateId, tenantId)
-            }
     }
 }

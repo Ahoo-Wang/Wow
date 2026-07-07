@@ -101,10 +101,10 @@ stateDiagram-v2
 
 ## 快照存储
 
-快照存储负责存储和检索快照。
+快照存储负责存储和检索快照。批量扫描聚合 ID 属于 `EventStore.scanAggregateId(...)`，而不是快照存储职责。
 
 ```kotlin
-interface SnapshotStore : Named, AggregateIdScanner {
+interface SnapshotStore : Named {
     fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>>
     fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void>
     fun getVersion(aggregateId: AggregateId): Mono<Int>

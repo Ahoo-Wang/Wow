@@ -14,12 +14,9 @@
 package me.ahoo.wow.eventsourcing.snapshot
 
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.serialization.toJsonNode
 import me.ahoo.wow.serialization.toObject
-import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
-import reactor.kotlin.core.publisher.toFlux
 import tools.jackson.databind.node.ObjectNode
 import java.util.concurrent.ConcurrentHashMap
 
@@ -67,32 +64,4 @@ class InMemorySnapshotStore : SnapshotStore {
         Mono.fromRunnable {
             aggregateIdMapSnapshot[snapshot.aggregateId] = snapshot.toJsonNode()
         }
-
-    /**
-     * Scans aggregate IDs from the in-memory map, filtered by named aggregate and afterId,
-     * then sorted and limited.
-     *
-     * @param namedAggregate the named aggregate to scan
-     * @param afterId the ID to start scanning after
-     * @param limit the maximum number of IDs to return
-     * @return a Flux of aggregate IDs
-     */
-    override fun scanAggregateId(
-        namedAggregate: NamedAggregate,
-        afterId: String,
-        limit: Int
-    ): Flux<AggregateId> =
-        aggregateIdMapSnapshot.keys
-            .asSequence()
-            .filter {
-                it.isSameAggregateName(namedAggregate)
-            }
-            .filter {
-                it.id > afterId
-            }
-            .sortedBy {
-                it.id
-            }
-            .take(limit)
-            .toFlux()
 }

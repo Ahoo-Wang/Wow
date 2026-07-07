@@ -14,19 +14,14 @@ package me.ahoo.wow.eventsourcing.snapshot
 
 import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.naming.Named
-import me.ahoo.wow.eventsourcing.AggregateIdScanner
-import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 /**
  * Store for saving and loading snapshots of state aggregates.
  * Snapshots optimize aggregate loading by providing a recent state checkpoint.
  */
-interface SnapshotStore :
-    Named,
-    AggregateIdScanner {
+interface SnapshotStore : Named {
     /**
      * Loads the latest snapshot for the specified aggregate.
      *
@@ -82,13 +77,4 @@ object NoOpSnapshotStore : SnapshotStore {
      * Does nothing, as this is a no-op store.
      */
     override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> = Mono.empty()
-
-    /**
-     * Always returns empty, as this is a no-op store.
-     */
-    override fun scanAggregateId(
-        namedAggregate: NamedAggregate,
-        afterId: String,
-        limit: Int
-    ): Flux<AggregateId> = Flux.empty()
 }

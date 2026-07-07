@@ -1,17 +1,13 @@
 -- Note: starting with Redis 5, the replication method described in this section (scripts effects replication) is the default and does not need to be explicitly enabled.
 redis.replicate_commands();
 
-local aggregateIdKey = KEYS[1];
+local eventStreamKey = KEYS[1];
+local aggregateIdIndexKey = KEYS[2];
 
-local contextAlias = ARGV[1];
-local aggregateName = ARGV[2];
-local requestId = ARGV[3];
-local version = tonumber(ARGV[4]);
-local value = ARGV[5];
-
-local eventStreamPrefixKey = contextAlias .. "." .. aggregateName .. ":es";
-
-local eventStreamKey = eventStreamPrefixKey .. ":" .. aggregateIdKey
+local requestId = ARGV[1];
+local version = tonumber(ARGV[2]);
+local value = ARGV[3];
+local aggregateIdIndexMember = ARGV[4];
 
 local count = redis.call("ZCARD", eventStreamKey)
 if count ~= (version - 1) then
@@ -25,4 +21,7 @@ if added == 0 then
 end
 
 local result = redis.call("ZADD", eventStreamKey, version, value);
+if version == 1 then
+    redis.call("ZADD", aggregateIdIndexKey, 0, aggregateIdIndexMember);
+end
 return tostring(result)

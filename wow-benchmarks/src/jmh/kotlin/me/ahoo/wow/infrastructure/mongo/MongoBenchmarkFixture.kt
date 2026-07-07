@@ -16,6 +16,7 @@ package me.ahoo.wow.infrastructure.mongo
 import com.mongodb.reactivestreams.client.MongoClient
 import com.mongodb.reactivestreams.client.MongoClients
 import com.mongodb.reactivestreams.client.MongoDatabase
+import me.ahoo.wow.benchmark.infrastructure.BenchmarkInfrastructureConfig
 import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
 import me.ahoo.wow.infrastructure.InfrastructureAvailability
 import me.ahoo.wow.mongo.EventStreamSchemaInitializer
@@ -44,8 +45,9 @@ class MongoBenchmarkFixture : AutoCloseable {
     val database: MongoDatabase
 
     init {
-        InfrastructureAvailability.requireMongo()
-        client = MongoClients.create("mongodb://root:root@localhost")
+        val benchmarkConfig = BenchmarkInfrastructureConfig.load().mongo
+        InfrastructureAvailability.requireMongo(benchmarkConfig)
+        client = MongoClients.create(benchmarkConfig.connectionString())
         database = client.getDatabase(benchmarkDatabaseName())
         EventStreamSchemaInitializer(database, true).initSchema(BenchmarkAggregates.cartMetadata)
     }

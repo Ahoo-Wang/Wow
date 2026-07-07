@@ -15,13 +15,11 @@ package me.ahoo.wow.opentelemetry.snapshot
 
 import io.opentelemetry.context.Context
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.eventsourcing.snapshot.Snapshot
 import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.infra.Decorator
 import me.ahoo.wow.opentelemetry.TraceMono
 import me.ahoo.wow.opentelemetry.Traced
-import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 class TracingSnapshotStore(override val delegate: SnapshotStore) :
@@ -49,13 +47,5 @@ class TracingSnapshotStore(override val delegate: SnapshotStore) :
             val source = delegate.save(snapshot)
             TraceMono(parentContext, SnapshotStoreInstrumenter.SAVE_INSTRUMENTER, snapshot.aggregateId, source)
         }
-    }
-
-    override fun scanAggregateId(
-        namedAggregate: NamedAggregate,
-        afterId: String,
-        limit: Int
-    ): Flux<AggregateId> {
-        return delegate.scanAggregateId(namedAggregate, afterId, limit)
     }
 }

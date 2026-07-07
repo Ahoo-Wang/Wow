@@ -50,7 +50,7 @@ class BatchRegenerateSnapshotHandlerFunction(
     override fun handle(request: ServerRequest): Mono<ServerResponse> {
         val afterId = request.pathVariable(BatchComponent.PathVariable.BATCH_AFTER_ID)
         val limit = request.pathVariable(BatchComponent.PathVariable.BATCH_LIMIT).toInt()
-        return snapshotStore.scanAggregateId(
+        return eventStore.scanAggregateId(
             namedAggregate = aggregateMetadata.namedAggregate,
             afterId = afterId,
             limit = limit,

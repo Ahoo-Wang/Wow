@@ -516,12 +516,6 @@ class StorageRoutingAutoConfigurationTest {
             lastAggregateId = snapshot.aggregateId
             return Mono.empty()
         }
-
-        override fun scanAggregateId(
-            namedAggregate: NamedAggregate,
-            afterId: String,
-            limit: Int
-        ): Flux<AggregateId> = Flux.empty()
     }
 
     internal class RecordingEventStreamQueryServiceFactory : EventStreamQueryServiceFactory {

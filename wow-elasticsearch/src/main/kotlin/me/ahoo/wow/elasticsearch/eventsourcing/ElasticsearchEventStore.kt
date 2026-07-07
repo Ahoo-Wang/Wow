@@ -16,7 +16,9 @@ package me.ahoo.wow.elasticsearch.eventsourcing
 import co.elastic.clients.elasticsearch._types.ElasticsearchException
 import co.elastic.clients.elasticsearch._types.OpType
 import co.elastic.clients.elasticsearch._types.Refresh
+import me.ahoo.wow.api.Version
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.api.query.Condition
 import me.ahoo.wow.elasticsearch.IndexNameConverter.toEventStreamIndexName
 import me.ahoo.wow.elasticsearch.query.ElasticsearchSortConverter.toSortOptions
@@ -24,6 +26,7 @@ import me.ahoo.wow.elasticsearch.query.event.EventStreamConditionConverter
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.AbstractEventStore
 import me.ahoo.wow.eventsourcing.EventVersionConflictException
+import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.query.dsl.condition
 import me.ahoo.wow.query.dsl.sort
 import me.ahoo.wow.serialization.MessageRecords
@@ -170,6 +173,39 @@ class ElasticsearchEventStore(
                     .hits()
                     .firstOrNull()
                     ?.source()
+            }
+    }
+
+    override fun scanAggregateId(
+        namedAggregate: NamedAggregate,
+        afterId: String,
+        limit: Int
+    ): Flux<AggregateId> {
+        val condition = condition {
+            MessageRecords.AGGREGATE_ID gt afterId
+            MessageRecords.VERSION eq Version.INITIAL_VERSION
+        }
+        val sort = sort { MessageRecords.AGGREGATE_ID.asc() }.toSortOptions()
+        return elasticsearchClient
+            .search({
+                it
+                    .index(namedAggregate.toEventStreamIndexName())
+                    .query(EventStreamConditionConverter.convert(condition))
+                    .source { sourceBuilder ->
+                        sourceBuilder.filter { sourceFilterBuilder ->
+                            sourceFilterBuilder.includes(MessageRecords.AGGREGATE_ID, MessageRecords.TENANT_ID)
+                        }
+                    }
+                    .size(limit)
+                    .sort(sort)
+            }, Map::class.java)
+            .flatMapIterable<AggregateId> {
+                it.hits().hits().map { hit ->
+                    val source = requireNotNull(hit.source())
+                    val aggregateId = checkNotNull(source[MessageRecords.AGGREGATE_ID] as String)
+                    val tenantId = checkNotNull(source[MessageRecords.TENANT_ID] as String)
+                    namedAggregate.aggregateId(aggregateId, tenantId)
+                }
             }
     }
 }

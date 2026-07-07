@@ -15,18 +15,22 @@ package me.ahoo.wow.redis.eventsourcing
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.modeling.aggregateId
+import me.ahoo.wow.redis.eventsourcing.EventStreamKeyConverter.toAggregateIdIndexKey
 import me.ahoo.wow.redis.eventsourcing.EventStreamKeyConverter.toKey
 import me.ahoo.wow.redis.eventsourcing.EventStreamKeyConverter.toKeyPrefix
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 class EventStreamKeyConverterTest {
     private val aggregateId = MOCK_AGGREGATE_METADATA.aggregateId("id", "tenantId")
+    private val bucket = "id".hashCode().mod(128)
+    private val hashTag = "tck.mock_aggregate:es:$bucket"
 
     @Test
     fun `should convert to key prefix`() {
         val actual = aggregateId.toKeyPrefix()
-        actual.assert().isEqualTo("tck.mock_aggregate:es:")
+        actual.assert().isEqualTo("{$hashTag}:")
     }
 
     @Test
@@ -38,6 +42,66 @@ class EventStreamKeyConverterTest {
     @Test
     fun `should convert event stream key`() {
         val actual = EventStreamKeyConverter.convert(aggregateId)
-        actual.assert().isEqualTo("tck.mock_aggregate:es:{id@tenantId}")
+        actual.assert().isEqualTo("{$hashTag}:id@tenantId")
+    }
+
+    @Test
+    fun `should convert aggregate id index key`() {
+        val actual = aggregateId.toAggregateIdIndexKey()
+        actual.assert().isEqualTo("{$hashTag}:ids")
+    }
+
+    @Test
+    fun `should convert aggregate id index member`() {
+        val actual = EventStreamKeyConverter.toAggregateIdIndexMember(aggregateId)
+        actual.assert().isEqualTo("id" + "\u0000" + "tenantId")
+    }
+
+    @Test
+    fun `should convert aggregate id index member lower bound`() {
+        val actual = EventStreamKeyConverter.toAggregateIdIndexMemberLowerBound("id")
+        actual.assert().isEqualTo("id" + "\u0001")
+    }
+
+    @Test
+    fun `should convert aggregate id from aggregate id index member`() {
+        val actual = EventStreamKeyConverter.toAggregateIdFromIndexMember(
+            aggregateId.namedAggregate,
+            "id" + "\u0000" + "tenantId",
+        )
+
+        actual.assert().isEqualTo(aggregateId)
+    }
+
+    @Test
+    fun `should convert aggregate id from aggregate id index member with empty tenant id`() {
+        val actual = EventStreamKeyConverter.toAggregateIdFromIndexMember(
+            aggregateId.namedAggregate,
+            "id" + "\u0000",
+        )
+
+        actual.assert().isEqualTo(aggregateId.namedAggregate.aggregateId("id", ""))
+    }
+
+    @Test
+    fun `should convert key to aggregate id`() {
+        val actual = EventStreamKeyConverter.toAggregateId(
+            aggregateId,
+            "{$hashTag}:id@tenantId",
+        )
+
+        actual.assert().isEqualTo(aggregateId)
+    }
+
+    @Test
+    fun `should reject invalid aggregate id key`() {
+        val error = assertThrows<IllegalArgumentException> {
+            EventStreamKeyConverter.toAggregateId(
+                aggregateId,
+                "{$hashTag}:id",
+            )
+        }
+
+        error.message.assert().isEqualTo("Invalid key:{$hashTag}:id")
     }
 }

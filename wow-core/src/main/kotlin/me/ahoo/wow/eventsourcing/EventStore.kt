@@ -24,7 +24,9 @@ import reactor.core.publisher.Mono
  * Provides methods to append events and load event streams by aggregate ID and version/time ranges.
  * @author ahoo wang
  */
-interface EventStore : RequestIdExistenceChecker {
+interface EventStore :
+    RequestIdExistenceChecker,
+    AggregateIdScanner {
     /**
      * Appends a domain event stream to the event store.
      * Ensures transaction consistency and handles version conflicts.

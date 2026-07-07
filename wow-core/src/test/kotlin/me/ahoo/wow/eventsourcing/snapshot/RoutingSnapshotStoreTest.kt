@@ -21,7 +21,6 @@ import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockStateAggregate
 import org.junit.jupiter.api.Test
-import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
 
@@ -86,20 +85,6 @@ class RoutingSnapshotStoreTest {
     }
 
     @Test
-    fun `scan aggregate id chooses configured store from named aggregate argument`() {
-        val defaultStore = RecordingSnapshotStore()
-        val orderStore = RecordingSnapshotStore()
-        val routingStore = routingSnapshotStore(defaultStore, orderStore)
-
-        StepVerifier.create(routingStore.scanAggregateId(order, afterId = "", limit = 10))
-            .verifyComplete()
-
-        orderStore.lastOperation.assert().isEqualTo("scanAggregateId")
-        orderStore.lastNamedAggregate.assert().isEqualTo(order)
-        defaultStore.lastOperation.assert().isNull()
-    }
-
-    @Test
     fun `missing route uses default snapshot store`() {
         val defaultStore = RecordingSnapshotStore()
         val orderStore = RecordingSnapshotStore()
@@ -148,7 +133,6 @@ class RoutingSnapshotStoreTest {
         override val name: String = "recording"
         var lastOperation: String? = null
         var lastAggregateId: AggregateId? = null
-        var lastNamedAggregate: NamedAggregate? = null
 
         override fun <S : Any> load(aggregateId: AggregateId): Mono<Snapshot<S>> {
             record("load", aggregateId)
@@ -163,16 +147,6 @@ class RoutingSnapshotStoreTest {
         override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> {
             record("save", snapshot.aggregateId)
             return failure?.let { Mono.error(it) } ?: Mono.empty()
-        }
-
-        override fun scanAggregateId(
-            namedAggregate: NamedAggregate,
-            afterId: String,
-            limit: Int
-        ): Flux<AggregateId> {
-            lastOperation = "scanAggregateId"
-            lastNamedAggregate = namedAggregate
-            return failure?.let { Flux.error(it) } ?: Flux.empty()
         }
 
         private fun record(operation: String, aggregateId: AggregateId) {

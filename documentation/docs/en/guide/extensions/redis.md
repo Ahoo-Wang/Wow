@@ -145,24 +145,30 @@ Each processor corresponds to a consumer group:
 
 ## Event Store
 
-Redis event store uses Hash structure for event stream storage:
+Redis event store uses bucketed Redis Cluster hash tags so event stream append, request idempotency, and aggregate ID scanning indexes can be updated atomically in one Lua script.
 
 ### Data Structure
 
 ```
-Key: {prefix}{contextName}.{aggregateName}:{aggregateId}:es
-Field: {version}
-Value: {eventStreamJson}
+Event stream ZSET key: {{contextAlias}.{aggregateName}:es:{bucket}}:{aggregateId}@{tenantId}
+Score: {version}
+Member: {eventStreamJson}
+
+Request id SET key: {{contextAlias}.{aggregateName}:es:{bucket}}:{aggregateId}@{tenantId}:req_idx
+Member: {requestId}
+
+Aggregate ID ZSET key: {{contextAlias}.{aggregateName}:es:{bucket}}:ids
+Score: 0
+Member: {aggregateId}\u0000{tenantId}
 ```
 
 ### Request Idempotency
 
-A separate Key is used to store request IDs for idempotency:
+Request IDs are stored in the bucket-aligned SET key shown above.
 
-```
-Key: {prefix}{contextName}.{aggregateName}:{aggregateId}:req:{requestId}
-TTL: Configured expiration time
-```
+### Aggregate ID Scanning
+
+`EventStore.scanAggregateId` scans bucketed aggregate ID indexes and merges the results in lexicographical order. Aggregate IDs are globally unique, so the scanner stores one member per aggregate and decodes `tenantId` from the ZSET member.
 
 ## Snapshot Storage
 

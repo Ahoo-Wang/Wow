@@ -23,7 +23,6 @@ import me.ahoo.wow.metrics.Metrics.metrizable
 import me.ahoo.wow.modeling.aggregateId
 import me.ahoo.wow.modeling.state.ConstructorStateAggregateFactory
 import me.ahoo.wow.modeling.state.StateAggregateFactory
-import me.ahoo.wow.modeling.toNamedAggregate
 import me.ahoo.wow.tck.mock.MOCK_AGGREGATE_METADATA
 import me.ahoo.wow.tck.mock.MockAggregateChanged
 import me.ahoo.wow.tck.mock.MockAggregateCreated
@@ -163,104 +162,6 @@ abstract class SnapshotStoreSpec {
                 it.aggregateId.assert().isEqualTo(stateAggregate.aggregateId)
                 it.version.assert().isEqualTo(stateAggregate.version)
                 it.state.data.assert().isEqualTo(stateAggregate.state.data)
-            }
-            .verifyComplete()
-    }
-
-    @Test
-    open fun scanAggregateId() {
-        val snapshotStore = createSnapshotStore().metrizable()
-        val cursorId = generateGlobalId()
-        val aggregateId = aggregateMetadata.aggregateId(generateGlobalId())
-        val stateAggregate = stateAggregateFactory.create(aggregateMetadata.state, aggregateId)
-        val snapshot: Snapshot<MockStateAggregate> =
-            SimpleSnapshot(stateAggregate, Clock.systemUTC().millis())
-        snapshotStore.save(snapshot)
-            .test()
-            .verifyComplete()
-
-        snapshotStore.scanAggregateId(snapshot.aggregateId, afterId = cursorId, limit = 1)
-            .test()
-            .expectNextCount(1)
-            .verifyComplete()
-        snapshotStore.scanAggregateId(snapshot.aggregateId, afterId = snapshot.aggregateId.id, limit = 1)
-            .test()
-            .expectNextCount(0)
-            .verifyComplete()
-    }
-
-    @Test
-    open fun scanAggregateIdShouldFilterNamedAggregate() {
-        val snapshotStore = createSnapshotStore().metrizable()
-        val cursorId = generateGlobalId()
-        val targetAggregateId = aggregateMetadata.aggregateId(generateGlobalId())
-        val otherAggregateId = "other_aggregate"
-            .toNamedAggregate(aggregateMetadata.contextName)
-            .aggregateId(generateGlobalId())
-        val targetStateAggregate = stateAggregateFactory.create(aggregateMetadata.state, targetAggregateId)
-        val otherStateAggregate = stateAggregateFactory.create(aggregateMetadata.state, otherAggregateId)
-
-        snapshotStore.save(SimpleSnapshot(targetStateAggregate, Clock.systemUTC().millis()))
-            .test()
-            .verifyComplete()
-        snapshotStore.save(SimpleSnapshot(otherStateAggregate, Clock.systemUTC().millis()))
-            .test()
-            .verifyComplete()
-
-        snapshotStore.scanAggregateId(aggregateMetadata, afterId = cursorId, limit = 10)
-            .collectList()
-            .test()
-            .consumeNextWith {
-                it.assert().containsExactly(targetAggregateId)
-            }
-            .verifyComplete()
-    }
-
-    @Test
-    open fun scanAggregateIdShouldLimitResult() {
-        val snapshotStore = createSnapshotStore().metrizable()
-        val snapshots = (1..20).map {
-            val aggregateId = aggregateMetadata.aggregateId(generateGlobalId())
-            val stateAggregate = stateAggregateFactory.create(aggregateMetadata.state, aggregateId)
-            SimpleSnapshot(stateAggregate, Clock.systemUTC().millis())
-        }
-
-        snapshots.forEach { snapshot ->
-            snapshotStore.save(snapshot)
-                .test()
-                .verifyComplete()
-        }
-
-        snapshotStore.scanAggregateId(aggregateMetadata, afterId = "", limit = 3)
-            .collectList()
-            .test()
-            .consumeNextWith {
-                it.assert().hasSize(3)
-            }
-            .verifyComplete()
-    }
-
-    @Test
-    open fun scanAggregateIdShouldReturnLexicographicalOrder() {
-        val snapshotStore = createSnapshotStore().metrizable()
-        val aggregateIds = listOf("003", "001", "004", "002").map {
-            aggregateMetadata.aggregateId(it)
-        }
-        aggregateIds.forEach { aggregateId ->
-            val stateAggregate = stateAggregateFactory.create(aggregateMetadata.state, aggregateId)
-            snapshotStore.save(SimpleSnapshot(stateAggregate, Clock.systemUTC().millis()))
-                .test()
-                .verifyComplete()
-        }
-
-        snapshotStore.scanAggregateId(aggregateMetadata, afterId = "001", limit = 2)
-            .collectList()
-            .test()
-            .consumeNextWith {
-                it.assert().containsExactly(
-                    aggregateMetadata.aggregateId("002"),
-                    aggregateMetadata.aggregateId("003"),
-                )
             }
             .verifyComplete()
     }

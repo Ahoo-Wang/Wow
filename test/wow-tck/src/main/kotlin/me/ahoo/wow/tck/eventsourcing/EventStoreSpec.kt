@@ -25,7 +25,7 @@ import me.ahoo.wow.eventsourcing.EventVersionConflictException
 import me.ahoo.wow.id.generateGlobalId
 import me.ahoo.wow.metrics.Metrics.metrizable
 import me.ahoo.wow.modeling.aggregateId
-import me.ahoo.wow.tck.event.MockDomainEventStreams.generateEventStream
+import me.ahoo.wow.modeling.toNamedAggregate
 import me.ahoo.wow.tck.metrics.LoggingMeterRegistryInitializer
 import me.ahoo.wow.tck.mock.MockAggregateCreated
 import me.ahoo.wow.test.aggregate.GivenInitializationCommand
@@ -36,6 +36,7 @@ import org.junit.jupiter.api.extension.ExtendWith
 import reactor.core.publisher.Flux
 import reactor.core.scheduler.Schedulers
 import reactor.kotlin.test.test
+import me.ahoo.wow.tck.event.MockDomainEventStreams.generateEventStream as generateMockEventStream
 
 /**
  * Provides tests for verifying `EventStore` specification rules.
@@ -55,7 +56,7 @@ abstract class EventStoreSpec {
     protected abstract fun createEventStore(): EventStore
 
     protected fun generateEventStream(aggregateId: AggregateId): DomainEventStream {
-        return generateEventStream(aggregateId, eventCount = 10)
+        return generateMockEventStream(aggregateId, eventCount = 10)
     }
 
     protected fun generateEventStream(): DomainEventStream {
@@ -369,6 +370,163 @@ abstract class EventStoreSpec {
                 4,
             )
         }
+    }
+
+    @Test
+    open fun scanAggregateId() {
+        val eventStore = createEventStore().metrizable()
+        val cursorId = generateGlobalId()
+        val aggregateId = namedAggregate.aggregateId(generateGlobalId())
+        eventStore.append(generateEventStream(aggregateId))
+            .test()
+            .verifyComplete()
+
+        eventStore.scanAggregateId(namedAggregate, afterId = cursorId, limit = 1)
+            .test()
+            .expectNext(aggregateId)
+            .verifyComplete()
+        eventStore.scanAggregateId(namedAggregate, afterId = aggregateId.id, limit = 1)
+            .test()
+            .expectNextCount(0)
+            .verifyComplete()
+    }
+
+    @Test
+    open fun scanAggregateIdShouldFilterNamedAggregate() {
+        val eventStore = createEventStore().metrizable()
+        val cursorId = generateGlobalId()
+        val targetAggregateId = namedAggregate.aggregateId(generateGlobalId())
+        val otherAggregateId = "other_aggregate"
+            .toNamedAggregate(namedAggregate.contextName)
+            .aggregateId(generateGlobalId())
+        eventStore.append(generateEventStream(targetAggregateId))
+            .test()
+            .verifyComplete()
+        eventStore.append(generateEventStream(otherAggregateId))
+            .test()
+            .verifyComplete()
+
+        eventStore.scanAggregateId(namedAggregate, afterId = cursorId, limit = 10)
+            .collectList()
+            .test()
+            .consumeNextWith {
+                it.assert().containsExactly(targetAggregateId)
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    open fun scanAggregateIdShouldFilterBoundedContext() {
+        val eventStore = createEventStore().metrizable()
+        val cursorId = generateGlobalId()
+        val targetAggregateId = namedAggregate.aggregateId(generateGlobalId())
+        val otherAggregateId = namedAggregate.aggregateName
+            .toNamedAggregate(contextName = "other_context")
+            .aggregateId(generateGlobalId())
+        eventStore.append(generateEventStream(targetAggregateId))
+            .test()
+            .verifyComplete()
+        eventStore.append(generateEventStream(otherAggregateId))
+            .test()
+            .verifyComplete()
+
+        eventStore.scanAggregateId(namedAggregate, afterId = cursorId, limit = 10)
+            .collectList()
+            .test()
+            .consumeNextWith {
+                it.assert().containsExactly(targetAggregateId)
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    open fun scanAggregateIdShouldPreserveTenantId() {
+        val eventStore = createEventStore().metrizable()
+        val cursorId = generateGlobalId()
+        val aggregateId = namedAggregate.aggregateId(generateGlobalId(), tenantId = "tenant-1")
+        eventStore.append(generateEventStream(aggregateId))
+            .test()
+            .verifyComplete()
+
+        eventStore.scanAggregateId(namedAggregate, afterId = cursorId, limit = 10)
+            .collectList()
+            .test()
+            .consumeNextWith {
+                it.assert().containsExactly(aggregateId)
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    open fun scanAggregateIdShouldLimitResult() {
+        val eventStore = createEventStore().metrizable()
+        val cursorId = generateGlobalId()
+        val aggregateIds = (1..20).map {
+            namedAggregate.aggregateId(generateGlobalId())
+        }
+        aggregateIds.forEach { aggregateId ->
+            eventStore.append(generateEventStream(aggregateId))
+                .test()
+                .verifyComplete()
+        }
+
+        eventStore.scanAggregateId(namedAggregate, afterId = cursorId, limit = 3)
+            .collectList()
+            .test()
+            .consumeNextWith {
+                it.assert().hasSize(3)
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    open fun scanAggregateIdShouldReturnLexicographicalOrder() {
+        val eventStore = createEventStore().metrizable()
+        val idPrefix = generateGlobalId()
+        val aggregateIds = listOf("003", "001", "004", "002").map {
+            namedAggregate.aggregateId("$idPrefix-$it")
+        }
+        aggregateIds.forEach { aggregateId ->
+            eventStore.append(generateEventStream(aggregateId))
+                .test()
+                .verifyComplete()
+        }
+
+        eventStore.scanAggregateId(namedAggregate, afterId = "$idPrefix-001", limit = 2)
+            .collectList()
+            .test()
+            .consumeNextWith {
+                it.assert().containsExactly(
+                    namedAggregate.aggregateId("$idPrefix-002"),
+                    namedAggregate.aggregateId("$idPrefix-003"),
+                )
+            }
+            .verifyComplete()
+    }
+
+    @Test
+    open fun scanAggregateIdShouldReturnEachAggregateOnce() {
+        val eventStore = createEventStore().metrizable()
+        val cursorId = generateGlobalId()
+        val aggregateId = namedAggregate.aggregateId(generateGlobalId())
+        eventStore.append(generateEventStream(aggregateId))
+            .test()
+            .verifyComplete()
+        eventStore.append(
+            generateMockEventStream(
+                aggregateId = aggregateId,
+                aggregateVersion = Version.INITIAL_VERSION,
+            )
+        ).test()
+            .verifyComplete()
+
+        eventStore.scanAggregateId(namedAggregate, afterId = cursorId, limit = 10)
+            .collectList()
+            .test()
+            .consumeNextWith {
+                it.assert().containsExactly(aggregateId)
+            }
+            .verifyComplete()
     }
 
     companion object {

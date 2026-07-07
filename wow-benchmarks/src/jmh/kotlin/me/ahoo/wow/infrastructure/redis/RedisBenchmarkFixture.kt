@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.infrastructure.redis
 
+import me.ahoo.wow.benchmark.infrastructure.BenchmarkInfrastructureConfig
 import me.ahoo.wow.infrastructure.InfrastructureAvailability
 import org.springframework.data.redis.connection.ReactiveRedisConnection
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration
@@ -44,11 +45,15 @@ class RedisBenchmarkFixture : AutoCloseable {
     val redisTemplate: ReactiveStringRedisTemplate
 
     init {
-        InfrastructureAvailability.requireRedis()
+        val benchmarkConfig = BenchmarkInfrastructureConfig.load().redis
+        InfrastructureAvailability.requireRedis(benchmarkConfig)
         val lettuceClientConfiguration = LettuceClientConfiguration
             .builder()
             .build()
-        val redisConfig = RedisStandaloneConfiguration().apply {
+        val redisConfig = RedisStandaloneConfiguration(
+            benchmarkConfig.endpoint.host,
+            benchmarkConfig.endpoint.port,
+        ).apply {
             database = benchmarkDatabase()
         }
         connectionFactory = LettuceConnectionFactory(redisConfig, lettuceClientConfiguration)

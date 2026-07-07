@@ -13,8 +13,6 @@
 package me.ahoo.wow.eventsourcing.snapshot
 
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.api.modeling.NamedAggregate
-import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
 class RoutingSnapshotStore(
@@ -31,13 +29,6 @@ class RoutingSnapshotStore(
 
     override fun <S : Any> save(snapshot: Snapshot<S>): Mono<Void> =
         registry.get(snapshot.aggregateId.namedAggregate).save(snapshot)
-
-    override fun scanAggregateId(
-        namedAggregate: NamedAggregate,
-        afterId: String,
-        limit: Int
-    ): Flux<AggregateId> =
-        registry.get(namedAggregate).scanAggregateId(namedAggregate, afterId, limit)
 
     companion object {
         const val NAME = "routing"

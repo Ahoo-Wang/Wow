@@ -15,6 +15,7 @@ package me.ahoo.wow.opentelemetry.eventsourcing
 
 import io.opentelemetry.context.Context
 import me.ahoo.wow.api.modeling.AggregateId
+import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.event.DomainEventStream
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.infra.Decorator
@@ -55,5 +56,13 @@ class TracingEventStore(override val delegate: EventStore) : Traced, EventStore,
             val source = delegate.last(aggregateId)
             TraceMono(parentContext, EventStoreInstrumenter.LOAD_INSTRUMENTER, aggregateId, source)
         }
+    }
+
+    override fun scanAggregateId(
+        namedAggregate: NamedAggregate,
+        afterId: String,
+        limit: Int
+    ): Flux<AggregateId> {
+        return delegate.scanAggregateId(namedAggregate, afterId, limit)
     }
 }

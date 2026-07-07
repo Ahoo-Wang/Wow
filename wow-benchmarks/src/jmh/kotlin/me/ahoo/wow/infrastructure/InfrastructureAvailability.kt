@@ -13,26 +13,29 @@
 
 package me.ahoo.wow.infrastructure
 
+import me.ahoo.wow.benchmark.infrastructure.BenchmarkMongoConfig
+import me.ahoo.wow.benchmark.infrastructure.BenchmarkRedisConfig
+import me.ahoo.wow.benchmark.infrastructure.BenchmarkServiceEndpoint
 import java.net.InetSocketAddress
 import java.net.Socket
 
 object InfrastructureAvailability {
-    fun requireRedis() {
-        requireService("Redis", "localhost", 6379)
+    fun requireRedis(config: BenchmarkRedisConfig) {
+        requireService("Redis", config.endpoint)
     }
 
-    fun requireMongo() {
-        requireService("MongoDB", "localhost", 27017)
+    fun requireMongo(config: BenchmarkMongoConfig) {
+        requireService("MongoDB", config.endpoint)
     }
 
-    private fun requireService(service: String, host: String, port: Int) {
+    private fun requireService(service: String, endpoint: BenchmarkServiceEndpoint) {
         val available = runCatching {
             Socket().use { socket ->
-                socket.connect(InetSocketAddress(host, port), 2000)
+                socket.connect(InetSocketAddress(endpoint.host, endpoint.port), 2000)
             }
         }.isSuccess
         require(available) {
-            "$service is required for Infrastructure I/O benchmarks at $host:$port. " +
+            "$service is required for Infrastructure I/O benchmarks at ${endpoint.host}:${endpoint.port}. " +
                 "Start $service and rerun the selected infrastructure benchmark task."
         }
     }

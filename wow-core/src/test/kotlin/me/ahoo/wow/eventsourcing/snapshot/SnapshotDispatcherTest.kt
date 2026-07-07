@@ -15,7 +15,6 @@ package me.ahoo.wow.eventsourcing.snapshot
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.AggregateId
-import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.event.toDomainEventStream
 import me.ahoo.wow.eventsourcing.snapshot.dispatcher.DefaultSnapshotHandler
 import me.ahoo.wow.eventsourcing.snapshot.dispatcher.SnapshotDispatcher
@@ -30,7 +29,6 @@ import me.ahoo.wow.tck.mock.MockAggregateCreated
 import me.ahoo.wow.tck.mock.MockStateAggregate
 import me.ahoo.wow.test.aggregate.GivenInitializationCommand
 import org.junit.jupiter.api.Test
-import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.publisher.Sinks
 import reactor.test.StepVerifier
@@ -90,11 +88,5 @@ class SnapshotDispatcherTest {
                 .doOnSuccess {
                     saved.tryEmitValue(snapshot).orThrow()
                 }
-
-        override fun scanAggregateId(
-            namedAggregate: NamedAggregate,
-            afterId: String,
-            limit: Int,
-        ): Flux<AggregateId> = delegate.scanAggregateId(namedAggregate, afterId, limit)
     }
 }

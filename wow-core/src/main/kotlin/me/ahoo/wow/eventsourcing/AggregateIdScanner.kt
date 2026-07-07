@@ -47,5 +47,10 @@ interface AggregateIdScanner {
         namedAggregate: NamedAggregate,
         afterId: String = FIRST_ID,
         limit: Int = 10
-    ): Flux<AggregateId>
+    ): Flux<AggregateId> =
+        Flux.error(
+            UnsupportedOperationException(
+                "AggregateIdScanner scanAggregateId is not supported. Scanner: ${this::class.java.name}"
+            )
+        )
 }

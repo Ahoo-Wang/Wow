@@ -415,20 +415,19 @@ classDiagram
         +appendStream(DomainEventStream) Mono~Void~
         +loadStream(...) Flux~DomainEventStream~
         +last(AggregateId) Mono~DomainEventStream~
+        +scanAggregateId(...) Flux~AggregateId~
     }
 
     class SnapshotStore {
         <<interface>>
         +load(AggregateId) Mono~Snapshot~
         +save(Snapshot) Mono~Void~
-        +scanAggregateId(NamedAggregate, String, Int) Flux~AggregateId~
     }
 
     class MongoSnapshotStore {
         -database: MongoDatabase
         +load(AggregateId) Mono~Snapshot~
         +save(Snapshot) Mono~Void~
-        +scanAggregateId(...) Flux~AggregateId~
     }
 
     class PrepareKey~V~ {

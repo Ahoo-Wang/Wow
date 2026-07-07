@@ -15,6 +15,7 @@ package me.ahoo.wow.event.compensation
 
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.configuration.requiredAggregateType
+import me.ahoo.wow.event.ignoreSourcing
 import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.state.StateEvent
 import me.ahoo.wow.eventsourcing.state.StateEvent.Companion.toStateEvent
@@ -113,9 +114,18 @@ class StateEventCompensator(
                 .load(
                     aggregateId = aggregateId,
                     tailVersion = tailVersion,
-                ).map {
-                    stateAggregate.onSourcing(it)
-                    it.toStateEvent(stateAggregate)
+                ).concatMap { eventStream ->
+                    if (eventStream.ignoreSourcing()) {
+                        return@concatMap Mono.empty<StateEvent<Any>>()
+                    }
+                    if (!stateAggregate.initialized && !eventStream.isInitialVersion) {
+                        return@concatMap Mono.empty<StateEvent<Any>>()
+                    }
+                    stateAggregate.onSourcing(eventStream)
+                    if (!stateAggregate.initialized) {
+                        return@concatMap Mono.empty<StateEvent<Any>>()
+                    }
+                    Mono.just(eventStream.toStateEvent(stateAggregate))
                 }.filter {
                     it.version in headVersion..tailVersion
                 }.concatMap {

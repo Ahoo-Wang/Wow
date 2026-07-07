@@ -23,10 +23,12 @@ In traditional architectures, databases only store the current state, and histor
 
 ## Core Interface
 
-The `EventStore` interface defines the core operations for event storage:
+The `EventStore` interface defines the core operations for event storage and owns paginated aggregate ID scanning by named aggregate:
 
 ```kotlin
-interface EventStore {
+interface EventStore :
+    RequestIdExistenceChecker,
+    AggregateIdScanner {
     fun append(eventStream: DomainEventStream): Mono<Void>
     fun load(
         aggregateId: AggregateId,
@@ -38,6 +40,12 @@ interface EventStore {
         headEventTime: Long,
         tailEventTime: Long
     ): Flux<DomainEventStream>
+    fun last(aggregateId: AggregateId): Mono<DomainEventStream>
+    fun scanAggregateId(
+        namedAggregate: NamedAggregate,
+        afterId: String = AggregateIdScanner.FIRST_ID,
+        limit: Int = 10
+    ): Flux<AggregateId>
 }
 ```
 
@@ -63,7 +71,7 @@ Key characteristics:
 |---|---|---|
 | `DomainEvent` | Immutable fact about a past business action within an aggregate | [DomainEvent.kt:52-95](https://github.com/Ahoo-Wang/Wow/blob/main/wow-api/src/main/kotlin/me/ahoo/wow/api/event/DomainEvent.kt#L52-L95) |
 | `DomainEventStream` | Ordered batch of domain events produced by a single command | [DomainEventStream.kt:51-125](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/event/DomainEventStream.kt#L51-L125) |
-| `EventStore` | Core interface for appending and loading event streams | [EventStore.kt:27-98](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt#L27-L98) |
+| `EventStore` | Core interface for appending, loading event streams, and scanning aggregate IDs | [EventStore.kt](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/EventStore.kt) |
 | `SnapshotStore` | Optimizes aggregate loading with versioned state checkpoints | [SnapshotStore.kt:27-58](https://github.com/Ahoo-Wang/Wow/blob/main/wow-core/src/main/kotlin/me/ahoo/wow/eventsourcing/snapshot/SnapshotStore.kt#L27-L58) |
 
 ## Aggregate State Reconstruction
@@ -136,6 +144,7 @@ classDiagram
         +append(DomainEventStream) Mono~Void~
         +load(AggregateId, headVersion, tailVersion) Flux~DomainEventStream~
         +load(AggregateId, headEventTime, tailEventTime) Flux~DomainEventStream~
+        +scanAggregateId(NamedAggregate, String, Int) Flux~AggregateId~
     }
     class AbstractEventStore {
         <<abstract>>

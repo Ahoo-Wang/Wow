@@ -17,8 +17,8 @@ import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.messaging.function.FunctionInfoData
 import me.ahoo.wow.api.messaging.function.FunctionKind
 import me.ahoo.wow.event.compensation.StateEventCompensator
+import me.ahoo.wow.eventsourcing.EventStore
 import me.ahoo.wow.eventsourcing.EventStore.Companion.DEFAULT_HEAD_VERSION
-import me.ahoo.wow.eventsourcing.snapshot.SnapshotStore
 import me.ahoo.wow.messaging.compensation.CompensationTarget
 import me.ahoo.wow.modeling.metadata.AggregateMetadata
 import me.ahoo.wow.openapi.BatchResult
@@ -29,7 +29,7 @@ import reactor.core.publisher.Mono
 
 class ResendStateEventHandler(
     private val aggregateMetadata: AggregateMetadata<*, *>,
-    private val snapshotStore: SnapshotStore,
+    private val eventStore: EventStore,
     private val stateEventCompensator: StateEventCompensator,
     private val batchExecutionPolicy: BatchExecutionPolicy
 ) {
@@ -45,7 +45,7 @@ class ResendStateEventHandler(
 
     fun handle(afterId: String, limit: Int): Mono<BatchResult> {
         val target = CompensationTarget(function = RESEND_FUNCTION)
-        return snapshotStore.scanAggregateId(aggregateMetadata.namedAggregate, afterId, limit)
+        return eventStore.scanAggregateId(aggregateMetadata.namedAggregate, afterId, limit)
             .let { scanFlux ->
                 batchExecutionPolicy.apply(scanFlux) { aggregateId ->
                     stateEventCompensator.resend(
