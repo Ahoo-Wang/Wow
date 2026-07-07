@@ -1,24 +1,24 @@
-name: wow-benchmarks-mongo
+name: ${WOW_BENCHMARK_MONGO_PROJECT_NAME:-wow-benchmarks-mongo}
 
 services:
   mongo:
-    image: mongo:8.3.4
-    container_name: wow-benchmark-mongo
+    image: ${WOW_BENCHMARK_MONGO_IMAGE:-mongo:8.3.4}
+    container_name: ${WOW_BENCHMARK_MONGO_CONTAINER_NAME:-wow-benchmark-mongo}
     restart: unless-stopped
     ports:
-      - "27017:27017"
+      - "${WOW_BENCHMARK_MONGO_HOST_PORT:-27017}:27017"
     environment:
-      MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: root
+      MONGO_INITDB_ROOT_USERNAME: ${WOW_BENCHMARK_MONGO_ROOT_USERNAME:-root}
+      MONGO_INITDB_ROOT_PASSWORD: ${WOW_BENCHMARK_MONGO_ROOT_PASSWORD:-root}
     tmpfs:
-      - /data/db:rw,noexec,nosuid,size=4096m
-      - /data/configdb:rw,noexec,nosuid,size=512m
+      - /data/db:rw,noexec,nosuid,size=${WOW_BENCHMARK_MONGO_DATA_TMPFS_SIZE:-4096m}
+      - /data/configdb:rw,noexec,nosuid,size=${WOW_BENCHMARK_MONGO_CONFIGDB_TMPFS_SIZE:-512m}
     command:
       - mongod
       - --auth
       - --bind_ip_all
       - --wiredTigerCacheSizeGB
-      - "2"
+      - "${WOW_BENCHMARK_MONGO_WIREDTIGER_CACHE_GB:-2}"
       - --wiredTigerCollectionBlockCompressor
       - none
       - --wiredTigerJournalCompressor
@@ -31,7 +31,8 @@ services:
       test:
         - CMD-SHELL
         - >
-          mongosh --quiet -u root -p root --authenticationDatabase admin
+          mongosh --quiet -u "$$MONGO_INITDB_ROOT_USERNAME" -p "$$MONGO_INITDB_ROOT_PASSWORD"
+          --authenticationDatabase admin
           --eval 'db.adminCommand({ ping: 1 }).ok' | grep -q 1
       interval: 5s
       timeout: 5s

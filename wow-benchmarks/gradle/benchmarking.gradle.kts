@@ -20,6 +20,7 @@ import java.util.concurrent.TimeUnit
 
 data class BenchmarkRequiredService(
     val service: String,
+    val host: String,
     val port: Int,
 )
 
@@ -65,6 +66,57 @@ data class DockerContainerRuntime(
     val imageId: String?,
     val repoDigests: String?,
 )
+
+fun parseBenchmarkDockerEnvFile(envFile: File): Map<String, String> {
+    if (!envFile.exists()) {
+        return emptyMap()
+    }
+    return envFile.readLines()
+        .mapIndexedNotNull { lineIndex, rawLine ->
+            val line = rawLine.trim()
+            if (line.isEmpty() || line.startsWith("#")) {
+                return@mapIndexedNotNull null
+            }
+            val parts = line.split("=", limit = 2)
+            if (parts.size != 2 || parts[0].isBlank()) {
+                throw GradleException(
+                    "Invalid benchmark Docker env entry at ${envFile.absolutePath}:${lineIndex + 1}: $rawLine"
+                )
+            }
+            parts[0].trim() to parts[1].trim().removeSurrounding("\"").removeSurrounding("'")
+        }
+        .toMap()
+}
+
+val benchmarkDockerEnvFile = providers.gradleProperty("benchmarkDockerEnvFile")
+    .map { envFilePath -> file(envFilePath) }
+    .getOrElse(file("docker/benchmark.env"))
+
+val benchmarkDockerFileEnvironment = parseBenchmarkDockerEnvFile(benchmarkDockerEnvFile)
+
+fun benchmarkDockerConfig(name: String, defaultValue: String): String {
+    return providers.environmentVariable(name).orNull?.takeIf { it.isNotBlank() }
+        ?: benchmarkDockerFileEnvironment[name]?.takeIf { it.isNotBlank() }
+        ?: defaultValue
+}
+
+fun benchmarkDockerPort(name: String, defaultValue: Int): Int {
+    val configuredPort = benchmarkDockerConfig(name, defaultValue.toString())
+    val port = configuredPort.toIntOrNull()
+    if (port == null || port <= 0) {
+        throw GradleException("$name must be a positive integer.")
+    }
+    return port
+}
+
+fun benchmarkDockerRuntimeEnvironment(): Map<String, String> {
+    if (benchmarkDockerFileEnvironment.isEmpty()) {
+        return emptyMap()
+    }
+    return benchmarkDockerFileEnvironment.mapValues { (name, value) ->
+        providers.environmentVariable(name).orNull?.takeIf { it.isNotBlank() } ?: value
+    }
+}
 
 fun benchmarkThreadsProperty(propertyName: String, defaultThreads: List<Int>): List<Int> {
     return providers.gradleProperty(propertyName)
@@ -186,8 +238,16 @@ val infrastructureE2ESuite = BenchmarkSuite(
     requiredForGroupedReport = false,
     performanceConclusionSource = false,
     requiredServices = listOf(
-        BenchmarkRequiredService("Redis", 6379),
-        BenchmarkRequiredService("MongoDB", 27017),
+        BenchmarkRequiredService(
+            service = "Redis",
+            host = benchmarkDockerConfig("WOW_BENCHMARK_REDIS_HOST", "localhost"),
+            port = benchmarkDockerPort("WOW_BENCHMARK_REDIS_HOST_PORT", 6379),
+        ),
+        BenchmarkRequiredService(
+            service = "MongoDB",
+            host = benchmarkDockerConfig("WOW_BENCHMARK_MONGO_HOST", "localhost"),
+            port = benchmarkDockerPort("WOW_BENCHMARK_MONGO_HOST_PORT", 27017),
+        ),
     ),
 )
 
@@ -287,14 +347,14 @@ fun benchmarkProfilerArgs(includeGcProfiler: Boolean, includeAsyncProfiler: Bool
     }
 }
 
-fun requireBenchmarkService(service: String, port: Int) {
+fun requireBenchmarkService(service: String, host: String, port: Int) {
     val available = runCatching {
         Socket().use { socket ->
-            socket.connect(InetSocketAddress("localhost", port), 2000)
+            socket.connect(InetSocketAddress(host, port), 2000)
         }
     }.isSuccess
     require(available) {
-        "$service is required for Infrastructure I/O benchmarks at localhost:$port. " +
+        "$service is required for Infrastructure I/O benchmarks at $host:$port. " +
             "Start $service and rerun the selected infrastructure benchmark task."
     }
 }
@@ -504,8 +564,20 @@ fun dockerContainerRuntime(label: String, containerName: String): DockerContaine
 
 fun dockerContainerRuntimes(): List<DockerContainerRuntime> {
     return listOf(
-        dockerContainerRuntime(label = "Redis", containerName = "wow-benchmark-redis"),
-        dockerContainerRuntime(label = "Mongo", containerName = "wow-benchmark-mongo"),
+        dockerContainerRuntime(
+            label = "Redis",
+            containerName = benchmarkDockerConfig(
+                name = "WOW_BENCHMARK_REDIS_CONTAINER_NAME",
+                defaultValue = "wow-benchmark-redis",
+            ),
+        ),
+        dockerContainerRuntime(
+            label = "Mongo",
+            containerName = benchmarkDockerConfig(
+                name = "WOW_BENCHMARK_MONGO_CONTAINER_NAME",
+                defaultValue = "wow-benchmark-mongo",
+            ),
+        ),
     )
 }
 
@@ -546,6 +618,7 @@ fun StringBuilder.appendBenchmarkEnvironment(
 fun StringBuilder.appendInfrastructureRuntime() {
     appendLine("## Infrastructure Runtime")
     appendLine("- **Benchmark Client**: ${benchmarkClientLocation()}")
+    appendLine("- **Docker Compose Env File**: `${benchmarkReportPath(benchmarkDockerEnvFile)}`")
     appendLine("- **Docker Server**: ${dockerServerSummary()}")
     appendLine("- **Docker Desktop VM**: ${dockerDesktopVmSummary()}")
     dockerContainerRuntimes().forEach { containerRuntime ->
@@ -640,8 +713,9 @@ fun registerBenchmarkThreadTask(
         doFirst {
             resultFile.get().asFile.parentFile.mkdirs()
             humanFile.get().asFile.parentFile.mkdirs()
+            environment(benchmarkDockerRuntimeEnvironment())
             suite.requiredServices.forEach { requiredService ->
-                requireBenchmarkService(requiredService.service, requiredService.port)
+                requireBenchmarkService(requiredService.service, requiredService.host, requiredService.port)
             }
         }
     }

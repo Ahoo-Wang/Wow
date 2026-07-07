@@ -1,16 +1,16 @@
-name: wow-benchmarks-redis
+name: ${WOW_BENCHMARK_REDIS_PROJECT_NAME:-wow-benchmarks-redis}
 
 services:
   redis:
-    image: redis:7.4.9-alpine
-    container_name: wow-benchmark-redis
+    image: ${WOW_BENCHMARK_REDIS_IMAGE:-redis:7.4.9-alpine}
+    container_name: ${WOW_BENCHMARK_REDIS_CONTAINER_NAME:-wow-benchmark-redis}
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "${WOW_BENCHMARK_REDIS_HOST_PORT:-6379}:6379"
     volumes:
       - ./redis.conf:/usr/local/etc/redis/redis.conf:ro
     tmpfs:
-      - /data:rw,noexec,nosuid,size=1024m
+      - /data:rw,noexec,nosuid,size=${WOW_BENCHMARK_REDIS_DATA_TMPFS_SIZE:-1024m}
     sysctls:
       net.core.somaxconn: "1024"
     command:

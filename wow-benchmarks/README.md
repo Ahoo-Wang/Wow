@@ -136,23 +136,34 @@ Infrastructure E2E benchmarks require local services:
 For Redis, use the benchmark Docker profile:
 
 ```bash
-docker compose -f wow-benchmarks/docker/compose.redis.yml up -d
+docker compose \
+  --env-file wow-benchmarks/docker/benchmark.env \
+  -f wow-benchmarks/docker/compose.redis.yml up -d
 ```
 
-The Redis profile pins `redis:7.4.9-alpine`, uses tmpfs-backed data, disables
+The Redis profile defaults to `redis:7.4.9-alpine`, uses tmpfs-backed data, disables
 RDB/AOF persistence, and sets `io-threads=2` with threaded reads. This keeps
 local Docker CPU contention lower during the `threads=1,4` infrastructure runs.
 
 For MongoDB, use the benchmark Docker profile:
 
 ```bash
-docker compose -f wow-benchmarks/docker/compose.mongo.yml up -d
+docker compose \
+  --env-file wow-benchmarks/docker/benchmark.env \
+  -f wow-benchmarks/docker/compose.mongo.yml up -d
 ```
 
-The MongoDB profile pins `mongo:8.3.4`, uses tmpfs-backed data, keeps the
+The MongoDB profile defaults to `mongo:8.3.4`, uses tmpfs-backed data, keeps the
 WiredTiger cache at 2 GiB, disables diagnostic and TTL background work, and
 disables WiredTiger collection and journal compression to reduce local CPU
 overhead in write-heavy infrastructure benchmarks.
+
+Docker image tags, container names, host ports, tmpfs sizes, Mongo credentials,
+and the Mongo WiredTiger cache size are configured in
+`wow-benchmarks/docker/benchmark.env`. The benchmark Gradle tasks read the same
+file and pass those values to the JMH process. Use
+`-PbenchmarkDockerEnvFile=/path/to/env-file` when running benchmarks with a
+custom Compose env file.
 
 If these services are not running, use Framework E2E and Component benchmarks instead.
 

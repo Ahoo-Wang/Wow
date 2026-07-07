@@ -11,7 +11,7 @@ Quick Infrastructure E2E results are directional local feedback for real Redis a
 - **Version**: 8.6.0
 - **JVM**: OpenJDK 64-Bit Server VM 17.0.7+7-LTS
 - **OS**: Mac OS X 26.5.1 aarch64
-- **DateTime**: 2026-07-07T10:14:04+08:00
+- **DateTime**: 2026-07-07T10:32:08+08:00
 - **CPU Cores**: 14
 - **Physical Memory**: 24.0 GiB
 - **Benchmark JVM Args**: `-Xmx4g -Xms4g -XX:+UseG1GC -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints -XX:+AlwaysPreTouch`
@@ -19,6 +19,7 @@ Quick Infrastructure E2E results are directional local feedback for real Redis a
 
 ## Infrastructure Runtime
 - **Benchmark Client**: host JVM
+- **Docker Compose Env File**: `wow-benchmarks/docker/benchmark.env`
 - **Docker Server**: Server=29.6.1 CPUs=4 Memory=5.8 GiB Kernel=6.12.76-linuxkit
 - **Docker Desktop VM**: networkType=gvisor CPUs=4 Memory=6.0 GiB
 - **Redis Container**: `wow-benchmark-redis`
