@@ -3607,10 +3607,10 @@
   },
   "info" : {
     "title" : "example-service",
-    "version" : "8.8.0",
+    "version" : "8.8.1",
     "x-wow-context-alias" : "example",
     "x-wow-context-name" : "example-service",
-    "x-wow-version" : "8.8.0"
+    "x-wow-version" : "8.8.1"
   },
   "openapi" : "3.0.1",
   "paths" : {

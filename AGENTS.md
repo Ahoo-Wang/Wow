@@ -143,7 +143,7 @@ Dashboard code uses React 19, TypeScript 6, Vite 8, Ant Design 6, React Router 7
 
 ## Version Management
 
-The project version is the `version` property in `gradle.properties` and is currently `8.8.0`. Keep dependent documentation, examples, package metadata, and release notes in sync when bumping it. Third-party versions are centralized in `gradle/libs.versions.toml` and the `wow-dependencies` module.
+The project version is the `version` property in `gradle.properties` and is currently `8.8.1`. Keep dependent documentation, examples, package metadata, and release notes in sync when bumping it. Third-party versions are centralized in `gradle/libs.versions.toml` and the `wow-dependencies` module.
 
 ## CI And Release Workflows
 

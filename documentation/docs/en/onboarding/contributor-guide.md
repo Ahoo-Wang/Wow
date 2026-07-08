@@ -636,7 +636,7 @@ Key settings in `gradle.properties`:
 | `org.gradle.jvmargs` | `-Xmx2g` | Max heap for Gradle daemon |
 | `ksp.useKSP2` | `true` | Use KSP2 for faster compilation |
 | `ksp.incremental` | `true` | Incremental KSP processing |
-| `version` | `8.8.0` | Current release version |
+| `version` | `8.8.1` | Current release version |
 
 Source: [gradle.properties:13-21](https://github.com/Ahoo-Wang/Wow/blob/main/gradle.properties#L13-L21)
 
@@ -674,7 +674,7 @@ plugins {
     id("com.google.devtools.ksp")
 }
 dependencies {
-    ksp(project(":wow-compiler"))  // or ksp("me.ahoo.wow:wow-compiler:8.8.0")
+    ksp(project(":wow-compiler"))  // or ksp("me.ahoo.wow:wow-compiler:8.8.1")
 }
 ```
 
@@ -1119,7 +1119,7 @@ Use this table to navigate the codebase quickly.
 | [`README.md`](https://github.com/Ahoo-Wang/Wow/blob/main/README.md) | Project overview, features, performance benchmarks, test examples |
 | [`settings.gradle.kts`](https://github.com/Ahoo-Wang/Wow/blob/main/settings.gradle.kts) | Module registration — all subprojects listed here |
 | [`build.gradle.kts`](https://github.com/Ahoo-Wang/Wow/blob/main/build.gradle.kts) | Root build: detekt, publishing, testing, toolchains, dependency management |
-| [`gradle.properties`](https://github.com/Ahoo-Wang/Wow/blob/main/gradle.properties) | Version (`8.8.0`), Gradle/KSP settings, group/description |
+| [`gradle.properties`](https://github.com/Ahoo-Wang/Wow/blob/main/gradle.properties) | Version (`8.8.1`), Gradle/KSP settings, group/description |
 | [`config/detekt/detekt.yml`](https://github.com/Ahoo-Wang/Wow/blob/main/config/detekt/detekt.yml) | Static analysis rule configuration |
 | [`wow-api/src/main/kotlin/me/ahoo/wow/api/`](https://github.com/Ahoo-Wang/Wow/tree/main/wow-api/src/main/kotlin/me/ahoo/wow/api) | All API contracts: `CommandMessage`, `DomainEvent`, `AggregateId`, `Named`, annotations |
 | [`wow-api/.../annotation/`](https://github.com/Ahoo-Wang/Wow/tree/main/wow-api/src/main/kotlin/me/ahoo/wow/api/annotation) | Annotations: `@AggregateRoot`, `@OnCommand`, `@OnSourcing`, `@StatelessSaga`, `@Retry`, etc. |
