@@ -7,9 +7,9 @@
   "commitMessagePrefix": "fix(deps)",
   "commitMessageTopic": "{{depName}}",
   "rangeStrategy": "bump",
-  "minimumReleaseAge": "3 days",
-  "prHourlyLimit": 2,
-  "prConcurrentLimit": 5,
+  "minimumReleaseAge": "12 hours",
+  "prHourlyLimit": 10,
+  "prConcurrentLimit": 20,
   "lockFileMaintenance": {
     "enabled": true,
     "schedule": ["before 3pm on monday"],
