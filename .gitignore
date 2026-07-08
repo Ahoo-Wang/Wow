@@ -34,6 +34,7 @@ __pycache__/
 # Local agent configuration
 /.claude/
 /.worktrees/
+/.zcode/
 
 # Superpowers
 docs/superpowers/
