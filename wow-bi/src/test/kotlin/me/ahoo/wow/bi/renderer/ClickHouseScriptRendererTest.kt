@@ -40,6 +40,13 @@ class ClickHouseScriptRendererTest {
                             placement = ColumnPlacement.WITH,
                         ),
                         column(
+                            name = "rawNested",
+                            targetName = "raw_nested",
+                            sqlType = "String",
+                            extraction = ColumnExtraction.JsonRaw("state", "raw'nested"),
+                            placement = ColumnPlacement.WITH,
+                        ),
+                        column(
                             name = "items",
                             targetName = "items",
                             sqlType = "String",
@@ -83,6 +90,9 @@ class ClickHouseScriptRendererTest {
         )
         script.assert().contains(
             "JSONExtractString(\"state\", 'nested''property') AS \"nested\\\"alias\""
+        )
+        script.assert().contains(
+            "JSONExtractRaw(\"state\", 'raw''nested') AS \"raw_nested\""
         )
         script.assert().contains(
             "arrayJoin(JSONExtractArrayRaw(\"state\", 'items')) AS \"items\""

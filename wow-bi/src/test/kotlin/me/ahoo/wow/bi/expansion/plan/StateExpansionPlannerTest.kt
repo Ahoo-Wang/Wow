@@ -52,7 +52,7 @@ class StateExpansionPlannerTest {
             .isEqualTo(rootView.columns.map { it.targetName }.sorted())
         rootView.columns.first { it.targetName == "item" }.run {
             placement.assert().isEqualTo(ColumnPlacement.WITH)
-            extraction.assert().isEqualTo(ColumnExtraction.JsonString("state", "item"))
+            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw("state", "item"))
         }
         rootView.columns.first { it.targetName == "item__id" }.run {
             placement.assert().isEqualTo(ColumnPlacement.SELECT)
@@ -97,7 +97,7 @@ class StateExpansionPlannerTest {
         rootView.columns.first { it.targetName == "nested__child" }.run {
             sqlType.assert().isEqualTo("String")
             placement.assert().isEqualTo(ColumnPlacement.SELECT)
-            extraction.assert().isEqualTo(ColumnExtraction.JsonString("nested", "child"))
+            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw("nested", "child"))
         }
         rootView.columns.first { it.targetName == "nested__id" }.run {
             sqlType.assert().isEqualTo("String")
@@ -134,7 +134,7 @@ class StateExpansionPlannerTest {
         plan.views.single().columns.first { it.targetName == "nested__value" }.run {
             sqlType.assert().isEqualTo("String")
             placement.assert().isEqualTo(ColumnPlacement.SELECT)
-            extraction.assert().isEqualTo(ColumnExtraction.JsonString("nested", "value"))
+            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw("nested", "value"))
         }
         plan.diagnostics.single().run {
             path.assert().isEqualTo("nested.value")
@@ -153,7 +153,7 @@ class StateExpansionPlannerTest {
         plan.views.single().columns.first { it.targetName == "nested__values" }.run {
             sqlType.assert().isEqualTo("String")
             placement.assert().isEqualTo(ColumnPlacement.SELECT)
-            extraction.assert().isEqualTo(ColumnExtraction.JsonString("nested", "values"))
+            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw("nested", "values"))
         }
         plan.diagnostics.single().run {
             path.assert().isEqualTo("nested.values")
@@ -193,7 +193,7 @@ class StateExpansionPlannerTest {
 
         rootView.columns.first { it.targetName == "unsupported" }.run {
             sqlType.assert().isEqualTo("String")
-            extraction.assert().isEqualTo(ColumnExtraction.JsonString("state", "unsupported"))
+            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw("state", "unsupported"))
         }
         plan.diagnostics.single { it.path == "unsupported" }.run {
             code.assert().isEqualTo(BiScriptDiagnosticCode.UNSUPPORTED_TYPE_FALLBACK)
@@ -219,7 +219,7 @@ class StateExpansionPlannerTest {
 
         plan.views.single().columns.single { it.targetName == "values" }.run {
             sqlType.assert().isEqualTo("String")
-            extraction.assert().isEqualTo(ColumnExtraction.JsonString("state", "values"))
+            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw("state", "values"))
         }
         plan.diagnostics.single().run {
             code.assert().isEqualTo(BiScriptDiagnosticCode.UNSUPPORTED_TYPE_FALLBACK)
@@ -246,7 +246,7 @@ class StateExpansionPlannerTest {
 
         plan.views.single().columns.single { it.targetName == "values" }.run {
             sqlType.assert().isEqualTo("String")
-            extraction.assert().isEqualTo(ColumnExtraction.JsonString("state", "values"))
+            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw("state", "values"))
         }
         plan.diagnostics.single().run {
             code.assert().isEqualTo(BiScriptDiagnosticCode.UNSUPPORTED_TYPE_FALLBACK)

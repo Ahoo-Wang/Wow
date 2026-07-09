@@ -229,7 +229,7 @@ class StateExpansionPlanner(private val options: BiScriptOptions = BiScriptOptio
                 path = path,
                 targetName = targetName,
                 sqlType = "String",
-                extraction = ColumnExtraction.JsonString(sourceName, name),
+                extraction = ColumnExtraction.JsonRaw(sourceName, name),
                 placement = ColumnPlacement.SELECT,
             )
         )
@@ -265,7 +265,7 @@ class StateExpansionPlanner(private val options: BiScriptOptions = BiScriptOptio
                 path = path,
                 targetName = targetName,
                 sqlType = "String",
-                extraction = ColumnExtraction.JsonString(parent.targetName, name),
+                extraction = ColumnExtraction.JsonRaw(parent.targetName, name),
                 placement = ColumnPlacement.WITH,
             )
         )
@@ -389,7 +389,7 @@ class StateExpansionPlanner(private val options: BiScriptOptions = BiScriptOptio
                 path = path,
                 targetName = targetName,
                 sqlType = "String",
-                extraction = ColumnExtraction.JsonString(sourceName, name),
+                extraction = ColumnExtraction.JsonRaw(sourceName, name),
                 placement = ColumnPlacement.SELECT,
             )
         )
@@ -417,7 +417,7 @@ class StateExpansionPlanner(private val options: BiScriptOptions = BiScriptOptio
                 path = path,
                 targetName = targetName,
                 sqlType = "String",
-                extraction = ColumnExtraction.JsonString(sourceName, name),
+                extraction = ColumnExtraction.JsonRaw(sourceName, name),
                 placement = ColumnPlacement.SELECT,
             )
         }

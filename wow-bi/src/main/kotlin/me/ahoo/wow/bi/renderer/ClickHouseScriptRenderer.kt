@@ -317,6 +317,7 @@ class ClickHouseScriptRenderer(private val options: BiScriptOptions = BiScriptOp
         is ColumnExtraction.Source -> identifier(extraction.name)
         is ColumnExtraction.JsonValue -> jsonValue(extraction.source, extraction.property, column.sqlType)
         is ColumnExtraction.JsonString -> jsonString(extraction.source, extraction.property)
+        is ColumnExtraction.JsonRaw -> jsonRaw(extraction.source, extraction.property)
         is ColumnExtraction.JsonArray -> jsonArray(extraction.source, extraction.property)
         is ColumnExtraction.ArrayJoin -> "arrayJoin(${jsonArray(extraction.source, extraction.property)})"
     }
@@ -343,6 +344,9 @@ class ClickHouseScriptRenderer(private val options: BiScriptOptions = BiScriptOp
 
     private fun jsonString(source: String, property: String): String =
         "JSONExtractString(${identifier(source)}, ${literal(property)})"
+
+    private fun jsonRaw(source: String, property: String): String =
+        "JSONExtractRaw(${identifier(source)}, ${literal(property)})"
 
     private fun jsonArray(source: String, property: String): String =
         "JSONExtractArrayRaw(${identifier(source)}, ${literal(property)})"

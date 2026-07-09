@@ -30,6 +30,8 @@ sealed interface ColumnExtraction {
 
     data class JsonString(val source: String, val property: String) : ColumnExtraction
 
+    data class JsonRaw(val source: String, val property: String) : ColumnExtraction
+
     data class JsonArray(val source: String, val property: String) : ColumnExtraction
 
     data class ArrayJoin(val source: String, val property: String) : ColumnExtraction

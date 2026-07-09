@@ -221,9 +221,9 @@ FROM "bi_db"."bi_aggregate_state"
 -- bi.aggregate.expansion --
 CREATE VIEW IF NOT EXISTS "bi_db"."bi_aggregate_state_last_root" ON CLUSTER '{cluster}' AS
 WITH
-JSONExtractString("state", 'item') AS "item",
-JSONExtractString("state", 'nested') AS "nested",
-JSONExtractString("nested", 'child') AS "nested__child"
+JSONExtractRaw("state", 'item') AS "item",
+JSONExtractRaw("state", 'nested') AS "nested",
+JSONExtractRaw("nested", 'child') AS "nested__child"
 SELECT
 JSONExtract("state", 'boolean', 'Bool') AS "boolean",
 JSONExtract("state", 'byte', 'Int8') AS "byte",
@@ -286,9 +286,9 @@ JSONExtract("state", 'zonedDateTime', 'String') AS "zoned_date_time",
 FROM "bi_db"."bi_aggregate_state_last";
 CREATE VIEW IF NOT EXISTS "bi_db"."bi_aggregate_state_last_root_items" ON CLUSTER '{cluster}' AS
 WITH
-JSONExtractString("state", 'item') AS "item",
-JSONExtractString("state", 'nested') AS "nested",
-JSONExtractString("nested", 'child') AS "nested__child",
+JSONExtractRaw("state", 'item') AS "item",
+JSONExtractRaw("state", 'nested') AS "nested",
+JSONExtractRaw("nested", 'child') AS "nested__child",
 arrayJoin(JSONExtractArrayRaw("state", 'items')) AS "items"
 SELECT
 JSONExtract("state", 'boolean', 'Bool') AS "boolean",
@@ -350,9 +350,9 @@ JSONExtract("items", 'name', 'String') AS "items__name",
 FROM "bi_db"."bi_aggregate_state_last";
 CREATE VIEW IF NOT EXISTS "bi_db"."bi_aggregate_state_last_root_like_list_item" ON CLUSTER '{cluster}' AS
 WITH
-JSONExtractString("state", 'item') AS "item",
-JSONExtractString("state", 'nested') AS "nested",
-JSONExtractString("nested", 'child') AS "nested__child",
+JSONExtractRaw("state", 'item') AS "item",
+JSONExtractRaw("state", 'nested') AS "nested",
+JSONExtractRaw("nested", 'child') AS "nested__child",
 arrayJoin(JSONExtractArrayRaw("state", 'likeListItem')) AS "like_list_item"
 SELECT
 JSONExtract("state", 'boolean', 'Bool') AS "boolean",
@@ -414,9 +414,9 @@ JSONExtract("like_list_item", 'name', 'String') AS "like_list_item__name",
 FROM "bi_db"."bi_aggregate_state_last";
 CREATE VIEW IF NOT EXISTS "bi_db"."bi_aggregate_state_last_root_nested_list" ON CLUSTER '{cluster}' AS
 WITH
-JSONExtractString("state", 'item') AS "item",
-JSONExtractString("state", 'nested') AS "nested",
-JSONExtractString("nested", 'child') AS "nested__child",
+JSONExtractRaw("state", 'item') AS "item",
+JSONExtractRaw("state", 'nested') AS "nested",
+JSONExtractRaw("nested", 'child') AS "nested__child",
 arrayJoin(JSONExtractArrayRaw("state", 'nestedList')) AS "nested_list"
 SELECT
 JSONExtract("state", 'boolean', 'Bool') AS "boolean",
@@ -479,12 +479,12 @@ JSONExtract("nested_list", 'name', 'String') AS "nested_list__name",
 FROM "bi_db"."bi_aggregate_state_last";
 CREATE VIEW IF NOT EXISTS "bi_db"."bi_aggregate_state_last_root_nested_list_list" ON CLUSTER '{cluster}' AS
 WITH
-JSONExtractString("state", 'item') AS "item",
-JSONExtractString("state", 'nested') AS "nested",
-JSONExtractString("nested", 'child') AS "nested__child",
+JSONExtractRaw("state", 'item') AS "item",
+JSONExtractRaw("state", 'nested') AS "nested",
+JSONExtractRaw("nested", 'child') AS "nested__child",
 arrayJoin(JSONExtractArrayRaw("state", 'nestedList')) AS "nested_list",
 arrayJoin(JSONExtractArrayRaw("nested_list", 'list')) AS "nested_list__list",
-JSONExtractString("nested_list__list", 'child') AS "nested_list__list__child"
+JSONExtractRaw("nested_list__list", 'child') AS "nested_list__list__child"
 SELECT
 JSONExtract("state", 'boolean', 'Bool') AS "boolean",
 JSONExtract("state", 'byte', 'Int8') AS "byte",
@@ -549,9 +549,9 @@ JSONExtract("nested_list__list", 'name', 'String') AS "nested_list__list__name",
 FROM "bi_db"."bi_aggregate_state_last";
 CREATE VIEW IF NOT EXISTS "bi_db"."bi_aggregate_state_last_root_set" ON CLUSTER '{cluster}' AS
 WITH
-JSONExtractString("state", 'item') AS "item",
-JSONExtractString("state", 'nested') AS "nested",
-JSONExtractString("nested", 'child') AS "nested__child",
+JSONExtractRaw("state", 'item') AS "item",
+JSONExtractRaw("state", 'nested') AS "nested",
+JSONExtractRaw("nested", 'child') AS "nested__child",
 arrayJoin(JSONExtractArrayRaw("state", 'set')) AS "set"
 SELECT
 JSONExtract("state", 'boolean', 'Bool') AS "boolean",
