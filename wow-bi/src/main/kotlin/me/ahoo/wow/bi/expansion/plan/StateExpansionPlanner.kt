@@ -29,6 +29,7 @@ import me.ahoo.wow.serialization.JsonSerializer
 import me.ahoo.wow.serialization.toBeanDescription
 import tools.jackson.databind.JavaType
 import tools.jackson.databind.introspect.BeanPropertyDefinition
+import java.util.Collections
 
 class StateExpansionPlanner(private val options: BiScriptOptions = BiScriptOptions()) {
     private val naming = BiTableNaming(options)
@@ -58,8 +59,8 @@ class StateExpansionPlanner(private val options: BiScriptOptions = BiScriptOptio
             context = context,
         )
         return StateExpansionPlan(
-            views = context.views.toList(),
-            diagnostics = context.diagnostics.toList(),
+            views = unmodifiableCopy(context.views),
+            diagnostics = unmodifiableCopy(context.diagnostics),
         )
     }
 
@@ -90,7 +91,7 @@ class StateExpansionPlanner(private val options: BiScriptOptions = BiScriptOptio
 
         collectObjectProperties(node, draft, context)
 
-        val frozenColumns = draft.columns.toList()
+        val frozenColumns = unmodifiableCopy(draft.columns)
         context.views.add(
             ExpansionViewPlan(
                 targetTableName = targetTableName,
@@ -227,7 +228,7 @@ class StateExpansionPlanner(private val options: BiScriptOptions = BiScriptOptio
         context: PlanningContext,
     ) {
         val elementType = type.contentType
-        if (elementType.rawClass.isSimple) {
+        if (elementType?.rawClass?.isSimple == true) {
             val elementSqlType = elementType.rawClass.toSqlType()
             draft.columns.add(
                 ColumnPlan(
@@ -241,19 +242,24 @@ class StateExpansionPlanner(private val options: BiScriptOptions = BiScriptOptio
             )
             return
         }
+        if (elementType == null || isUnsupportedPlatformObject(elementType)) {
+            addUnsupportedTypeDiagnostic(
+                context = context,
+                path = path,
+                typeName = type.toCanonical(),
+                subject = "Unsupported collection element type",
+                fallback = "Array(String)",
+            )
+            draft.columns.add(
+                rawObjectArrayColumn(name, path, targetName, parent.targetName)
+            )
+            return
+        }
 
         val propertyDepth = parent.depth + 1
         val truncated = propertyDepth > context.options.maxExpansionDepth
         draft.columns.add(
-            ColumnPlan(
-                name = name,
-                path = path,
-                targetName = targetName,
-                sqlType = "Array(String)",
-                extraction = ColumnExtraction.JsonArray(parent.targetName, name),
-                placement = ColumnPlacement.SELECT,
-                inherited = false,
-            )
+            rawObjectArrayColumn(name, path, targetName, parent.targetName)
         )
         if (truncated) {
             context.diagnostics.add(depthDiagnostic(context.aggregate, path, type))
@@ -274,6 +280,23 @@ class StateExpansionPlanner(private val options: BiScriptOptions = BiScriptOptio
                     depth = propertyDepth,
                 ),
             )
+        )
+    }
+
+    private fun rawObjectArrayColumn(
+        name: String,
+        path: String,
+        targetName: String,
+        sourceName: String,
+    ): ColumnPlan {
+        return ColumnPlan(
+            name = name,
+            path = path,
+            targetName = targetName,
+            sqlType = "Array(String)",
+            extraction = ColumnExtraction.JsonArray(sourceName, name),
+            placement = ColumnPlacement.SELECT,
+            inherited = false,
         )
     }
 
@@ -319,11 +342,29 @@ class StateExpansionPlanner(private val options: BiScriptOptions = BiScriptOptio
         type: JavaType,
         context: PlanningContext,
     ): ColumnPlan {
+        val mapTypeName = type.toCanonical()
+        if (type.keyType?.rawClass != String::class.java) {
+            addUnsupportedTypeDiagnostic(
+                context = context,
+                path = path,
+                typeName = mapTypeName,
+                subject = "Unsupported map key type",
+                fallback = "raw String",
+            )
+            return ColumnPlan(
+                name = name,
+                path = path,
+                targetName = targetName,
+                sqlType = "String",
+                extraction = ColumnExtraction.JsonString(sourceName, name),
+                placement = ColumnPlacement.SELECT,
+            )
+        }
         val valueType = type.contentType
         val sqlType = if (valueType.rawClass.isSimple) {
             "Map(String, ${valueType.rawClass.toSqlType()})"
         } else {
-            val valueTypeName = valueType.rawClass.name
+            val valueTypeName = valueType.toCanonical()
             require(context.options.objectMapStrategy != ObjectMapStrategy.FAIL) {
                 "Unsupported object map property [$path] for aggregate [${context.aggregate}] " +
                     "with value type [$valueTypeName]."
@@ -347,6 +388,27 @@ class StateExpansionPlanner(private val options: BiScriptOptions = BiScriptOptio
             sqlType = sqlType,
             extraction = ColumnExtraction.JsonValue(sourceName, name),
             placement = ColumnPlacement.SELECT,
+        )
+    }
+
+    private fun addUnsupportedTypeDiagnostic(
+        context: PlanningContext,
+        path: String,
+        typeName: String,
+        subject: String,
+        fallback: String,
+    ) {
+        require(context.options.unsupportedTypeStrategy != UnsupportedTypeStrategy.FAIL) {
+            "$subject property [$path] for aggregate [${context.aggregate}] with type [$typeName]."
+        }
+        context.diagnostics.add(
+            BiScriptDiagnostic(
+                code = BiScriptDiagnosticCode.UNSUPPORTED_TYPE_FALLBACK,
+                severity = BiScriptDiagnostic.Severity.WARNING,
+                aggregate = context.aggregate,
+                path = path,
+                message = "$subject property [$path] with type [$typeName] is rendered as $fallback.",
+            )
         )
     }
 
@@ -398,6 +460,10 @@ class StateExpansionPlanner(private val options: BiScriptOptions = BiScriptOptio
         return packageName.startsWith("java.") ||
             packageName.startsWith("javax.") ||
             packageName.startsWith("kotlin.")
+    }
+
+    private fun <T> unmodifiableCopy(values: Collection<T>): List<T> {
+        return Collections.unmodifiableList(ArrayList(values))
     }
 
     private companion object {
