@@ -11,18 +11,14 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.bi.expansion
+package me.ahoo.wow.bi.expansion.plan
 
-import me.ahoo.wow.api.Wow
-import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.bi.BiScriptOptions
+import tools.jackson.databind.introspect.BeanPropertyDefinition
 
-object TableNaming {
-    fun NamedAggregate.toTopicName(prefix: String = Wow.WOW_PREFIX, suffix: String): String {
-        return BiTableNaming(BiScriptOptions(topicPrefix = prefix)).toTopicName(this, suffix)
+object PropertyFilter {
+    fun shouldInclude(property: BeanPropertyDefinition): Boolean {
+        return !property.name.endsWith(KOTLIN_DURATION_SUFFIX)
     }
 
-    fun NamedAggregate.toDistributedTableName(suffix: String): String {
-        return BiTableNaming().toDistributedTableName(this, suffix)
-    }
+    private const val KOTLIN_DURATION_SUFFIX = "-LRDsOJo"
 }

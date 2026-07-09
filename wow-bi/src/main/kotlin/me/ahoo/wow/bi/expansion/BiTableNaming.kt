@@ -13,16 +13,23 @@
 
 package me.ahoo.wow.bi.expansion
 
-import me.ahoo.wow.api.Wow
 import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.bi.BiScriptOptions
+import me.ahoo.wow.naming.getContextAlias
 
-object TableNaming {
-    fun NamedAggregate.toTopicName(prefix: String = Wow.WOW_PREFIX, suffix: String): String {
-        return BiTableNaming(BiScriptOptions(topicPrefix = prefix)).toTopicName(this, suffix)
+class BiTableNaming(private val options: BiScriptOptions = BiScriptOptions()) {
+    fun toTopicName(namedAggregate: NamedAggregate, suffix: String): String {
+        return "${options.topicPrefix}${namedAggregate.getContextAlias()}.${namedAggregate.aggregateName}.$suffix"
     }
 
-    fun NamedAggregate.toDistributedTableName(suffix: String): String {
-        return BiTableNaming().toDistributedTableName(this, suffix)
+    fun toDistributedTableName(namedAggregate: NamedAggregate, suffix: String): String {
+        val context = namedAggregate.getContextAlias()
+            .substringBeforeLast(SERVICE_NAME_SUFFIX)
+            .replace("-", "_")
+        return "${context}_${namedAggregate.aggregateName}_$suffix"
+    }
+
+    private companion object {
+        const val SERVICE_NAME_SUFFIX: String = "-service"
     }
 }

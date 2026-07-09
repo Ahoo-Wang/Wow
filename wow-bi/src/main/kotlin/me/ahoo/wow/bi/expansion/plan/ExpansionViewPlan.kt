@@ -11,18 +11,17 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.bi.expansion
+package me.ahoo.wow.bi.expansion.plan
 
-import me.ahoo.wow.api.Wow
-import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.bi.BiScriptOptions
+import me.ahoo.wow.bi.BiScriptDiagnostic
 
-object TableNaming {
-    fun NamedAggregate.toTopicName(prefix: String = Wow.WOW_PREFIX, suffix: String): String {
-        return BiTableNaming(BiScriptOptions(topicPrefix = prefix)).toTopicName(this, suffix)
-    }
+data class ExpansionViewPlan(
+    val targetTableName: String,
+    val sourceTableName: String,
+    val columns: List<ColumnPlan>,
+)
 
-    fun NamedAggregate.toDistributedTableName(suffix: String): String {
-        return BiTableNaming().toDistributedTableName(this, suffix)
-    }
-}
+data class StateExpansionPlan(
+    val views: List<ExpansionViewPlan>,
+    val diagnostics: List<BiScriptDiagnostic>,
+)
