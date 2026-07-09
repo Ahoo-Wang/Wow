@@ -77,6 +77,7 @@ import org.springframework.mock.http.server.reactive.MockServerHttpRequest
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
 import org.springframework.mock.web.server.MockServerWebExchange
 import org.springframework.web.reactive.function.server.HandlerFunction
+import org.springframework.web.reactive.function.server.HandlerStrategies
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import org.springframework.web.server.ServerWebExchange
@@ -273,24 +274,16 @@ internal class WebFluxAutoConfigurationTest {
     }
 
     @Test
-    fun `should use BI defaults when Kafka properties are unavailable`() {
+    fun `should delegate unconfigured BI options to WebFlux domain defaults`() {
         webFluxContextRunner()
             .run { context: AssertableApplicationContext ->
                 context.getBean(BiScriptProperties::class.java).assert().isEqualTo(BiScriptProperties())
-                context.biScriptRouteOptions().assert().isEqualTo(
-                    BiScriptRouteOptions(
-                        database = "bi_db",
-                        consumerDatabase = "bi_db_consumer",
-                        cluster = "{cluster}",
-                        installation = "{installation}",
-                        shard = "{shard}",
-                        replica = "{replica}",
-                        timezone = "Asia/Shanghai",
-                        maxExpansionDepth = 5,
-                        unsupportedTypeStrategy = BiScriptRouteUnsupportedTypeStrategy.FAIL,
-                        objectMapStrategy = BiScriptRouteObjectMapStrategy.STRING_VALUE_WITH_DIAGNOSTIC,
-                    )
-                )
+                val factory = context.biScriptRouteFactory()
+                factory.privateBiScriptRouteOptions().assert().isEqualTo(BiScriptRouteOptions())
+
+                val script = factory.generateBiScript()
+                script.assert().contains("-- global --")
+                script.assert().isEqualTo(GenerateBIScriptHandlerFunctionFactory().generateBiScript())
             }
     }
 
@@ -298,11 +291,41 @@ internal class WebFluxAutoConfigurationTest {
     fun `should fail startup for an explicit blank BI override`() {
         webFluxContextRunner()
             .withPropertyValues("${BiScriptProperties.PREFIX}.kafka-bootstrap-servers= ")
+            .withBean(KafkaProperties::class.java, {
+                KafkaProperties(bootstrapServers = listOf("fallback-kafka:9092"))
+            })
             .run { context: AssertableApplicationContext ->
                 val failure = context.startupFailure
                 failure.assert().isNotNull()
                 failure!!.causeChainMessages().assert().contains("kafkaBootstrapServers must not be blank")
             }
+    }
+
+    @Test
+    fun `should validate every non-null BI string override`() {
+        val propertyFactories = listOf<Pair<String, (String) -> BiScriptProperties>>(
+            "database" to { BiScriptProperties(database = it) },
+            "consumerDatabase" to { BiScriptProperties(consumerDatabase = it) },
+            "cluster" to { BiScriptProperties(cluster = it) },
+            "installation" to { BiScriptProperties(installation = it) },
+            "shard" to { BiScriptProperties(shard = it) },
+            "replica" to { BiScriptProperties(replica = it) },
+            "timezone" to { BiScriptProperties(timezone = it) },
+            "kafkaBootstrapServers" to { BiScriptProperties(kafkaBootstrapServers = it) },
+            "topicPrefix" to { BiScriptProperties(topicPrefix = it) },
+        )
+
+        propertyFactories.forEach { (name, properties) ->
+            val blankError = org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
+                properties(" ")
+            }
+            blankError.message.assert().isEqualTo("$name must not be blank")
+
+            val controlCharacterError = org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
+                properties("invalid\u0000value")
+            }
+            controlCharacterError.message.assert().isEqualTo("$name must not contain control characters")
+        }
     }
 
     @Test
@@ -581,16 +604,37 @@ internal class WebFluxAutoConfigurationTest {
     }
 
     private fun AssertableApplicationContext.biScriptRouteOptions(): BiScriptRouteOptions {
+        return biScriptRouteFactory().privateBiScriptRouteOptions()!!
+    }
+
+    private fun AssertableApplicationContext.biScriptRouteFactory(): HttpRouteHandlerFunctionFactory {
         val factory = getBean(RouteHandlerFunctionRegistrar::class.java)
             .getHttpFactory(BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT)!!
         factory.assert().isInstanceOf(GenerateBIScriptHandlerFunctionFactory::class.java)
-        return factory.privateBiScriptRouteOptions()!!
+        return factory
     }
 
     private fun HttpRouteHandlerFunctionFactory.privateBiScriptRouteOptions(): BiScriptRouteOptions? {
         val field = GenerateBIScriptHandlerFunctionFactory::class.java.getDeclaredField("options")
         field.isAccessible = true
         return field.get(this) as BiScriptRouteOptions?
+    }
+
+    private fun HttpRouteHandlerFunctionFactory.generateBiScript(): String {
+        val contract = HttpRouteContract(
+            routeId = "bi-script",
+            method = "GET",
+            path = "/bi-script",
+            handlerKey = BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT,
+        )
+        val response = create(contract)
+            .handle(MockServerRequest.builder().build())
+            .block()!!
+        val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/bi-script").build())
+        response.writeTo(exchange, SERVER_RESPONSE_CONTEXT)
+            .test()
+            .verifyComplete()
+        return exchange.response.bodyAsString.block()!!
     }
 
     private fun Throwable.causeChainMessages(): String =
@@ -616,6 +660,14 @@ internal class WebFluxAutoConfigurationTest {
     ) : ObjectProvider<T> {
         override fun stream(): Stream<T> {
             return values.stream()
+        }
+    }
+
+    private companion object {
+        private val SERVER_RESPONSE_CONTEXT = object : ServerResponse.Context {
+            private val strategies = HandlerStrategies.withDefaults()
+            override fun messageWriters() = strategies.messageWriters()
+            override fun viewResolvers() = strategies.viewResolvers()
         }
     }
 }

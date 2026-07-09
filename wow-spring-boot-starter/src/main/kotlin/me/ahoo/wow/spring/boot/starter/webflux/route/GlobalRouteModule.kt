@@ -70,15 +70,17 @@ class GlobalRouteModule : WebFluxRouteModule {
         )
     }
 
-    private fun BiScriptUnsupportedTypeStrategy.toRouteStrategy(): BiScriptRouteUnsupportedTypeStrategy =
+    private fun BiScriptUnsupportedTypeStrategy?.toRouteStrategy(): BiScriptRouteUnsupportedTypeStrategy? =
         when (this) {
+            null -> null
             BiScriptUnsupportedTypeStrategy.FAIL -> BiScriptRouteUnsupportedTypeStrategy.FAIL
             BiScriptUnsupportedTypeStrategy.STRING_WITH_DIAGNOSTIC ->
                 BiScriptRouteUnsupportedTypeStrategy.STRING_WITH_DIAGNOSTIC
         }
 
-    private fun BiScriptObjectMapStrategy.toRouteStrategy(): BiScriptRouteObjectMapStrategy =
+    private fun BiScriptObjectMapStrategy?.toRouteStrategy(): BiScriptRouteObjectMapStrategy? =
         when (this) {
+            null -> null
             BiScriptObjectMapStrategy.STRING_VALUE_WITH_DIAGNOSTIC ->
                 BiScriptRouteObjectMapStrategy.STRING_VALUE_WITH_DIAGNOSTIC
             BiScriptObjectMapStrategy.FAIL -> BiScriptRouteObjectMapStrategy.FAIL
