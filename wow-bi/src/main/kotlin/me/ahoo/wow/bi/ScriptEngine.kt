@@ -14,68 +14,30 @@
 package me.ahoo.wow.bi
 
 import me.ahoo.wow.api.modeling.NamedAggregate
-import me.ahoo.wow.bi.expansion.StateExpansionScriptGenerator.Companion.toScriptGenerator
-import me.ahoo.wow.modeling.toStringWithAlias
 
 object ScriptEngine {
-
     fun generate(
         namedAggregates: Set<NamedAggregate>,
         kafkaBootstrapServers: String = ScriptTemplateEngine.DEFAULT_KAFKA_BOOTSTRAP_SERVERS,
-        topicPrefix: String = ScriptTemplateEngine.DEFAULT_TOPIC_PREFIX
-    ): String {
-        val scriptGenerators = buildMap {
-            namedAggregates.forEach { namedAggregate ->
-                val scriptGenerator = namedAggregate.toScriptGenerator()
-                put(namedAggregate, scriptGenerator)
-            }
-        }
-        return buildString {
-            appendLine("-- global --")
-            appendLine(ScriptTemplateEngine.renderGlobal())
-            appendLine("-- global --")
-            appendLine("-- clear --")
-            namedAggregates.forEach { namedAggregate ->
-                appendLine("-- ${namedAggregate.toStringWithAlias()}.clear --")
-                appendLine(
-                    ScriptTemplateEngine.renderClear(
-                        namedAggregate = namedAggregate,
-                        expansionTables = requireNotNull(scriptGenerators[namedAggregate]).targetTables
-                    )
-                )
-                appendLine("-- ${namedAggregate.toStringWithAlias()}.clear --")
-            }
-            appendLine("-- clear --")
-            namedAggregates.forEach { namedAggregate ->
-                appendLine("-- ${namedAggregate.toStringWithAlias()}.command --")
-                appendLine(
-                    ScriptTemplateEngine.renderCommand(
-                        namedAggregate = namedAggregate,
-                        kafkaBootstrapServers = kafkaBootstrapServers,
-                        topicPrefix = topicPrefix,
-                    )
-                )
-                appendLine("-- ${namedAggregate.toStringWithAlias()}.command --")
-                appendLine("-- ${namedAggregate.toStringWithAlias()}.stateEvent --")
-                appendLine(
-                    ScriptTemplateEngine.renderStateEvent(
-                        namedAggregate = namedAggregate,
-                        kafkaBootstrapServers = kafkaBootstrapServers,
-                        topicPrefix = topicPrefix,
-                    )
-                )
-                appendLine("-- ${namedAggregate.toStringWithAlias()}.stateEvent --")
-                appendLine("-- ${namedAggregate.toStringWithAlias()}.stateLast --")
-                appendLine(
-                    ScriptTemplateEngine.renderStateLast(
-                        namedAggregate = namedAggregate,
-                    )
-                )
-                appendLine("-- ${namedAggregate.toStringWithAlias()}.stateLast --")
-                appendLine("-- ${namedAggregate.toStringWithAlias()}.expansion --")
-                appendLine(requireNotNull(scriptGenerators[namedAggregate]).toString())
-                appendLine("-- ${namedAggregate.toStringWithAlias()}.expansion --")
-            }
-        }
-    }
+        topicPrefix: String = ScriptTemplateEngine.DEFAULT_TOPIC_PREFIX,
+    ): String = generateResult(namedAggregates, kafkaBootstrapServers, topicPrefix).script
+
+    fun generate(namedAggregates: Set<NamedAggregate>, options: BiScriptOptions): String =
+        generateResult(namedAggregates, options).script
+
+    fun generateResult(
+        namedAggregates: Set<NamedAggregate>,
+        options: BiScriptOptions = BiScriptOptions(),
+    ): BiScriptResult = BiScriptGenerator(options).generate(namedAggregates)
+
+    fun generateResult(
+        namedAggregates: Set<NamedAggregate>,
+        kafkaBootstrapServers: String,
+        topicPrefix: String,
+    ): BiScriptResult = BiScriptGenerator.legacy(
+        BiScriptOptions(
+            kafkaBootstrapServers = kafkaBootstrapServers,
+            topicPrefix = topicPrefix,
+        )
+    ).generate(namedAggregates)
 }
