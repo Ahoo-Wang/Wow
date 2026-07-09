@@ -36,6 +36,9 @@ import me.ahoo.wow.openapi.contract.HttpRouteHandlerMetadata
 import me.ahoo.wow.query.event.filter.EventStreamQueryHandler
 import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.spring.boot.starter.ENABLED_SUFFIX_KEY
+import me.ahoo.wow.spring.boot.starter.bi.BiScriptObjectMapStrategy
+import me.ahoo.wow.spring.boot.starter.bi.BiScriptProperties
+import me.ahoo.wow.spring.boot.starter.bi.BiScriptUnsupportedTypeStrategy
 import me.ahoo.wow.spring.boot.starter.command.CommandAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.command.CommandGatewayAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.enableWow
@@ -58,6 +61,10 @@ import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.RouteHandlerFunctionRegistrar
 import me.ahoo.wow.webflux.route.command.appender.CommandRequestRemoteIpHeaderAppender
 import me.ahoo.wow.webflux.route.command.appender.CommandRequestUserAgentHeaderAppender
+import me.ahoo.wow.webflux.route.global.BiScriptRouteObjectMapStrategy
+import me.ahoo.wow.webflux.route.global.BiScriptRouteOptions
+import me.ahoo.wow.webflux.route.global.BiScriptRouteUnsupportedTypeStrategy
+import me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.policy.BatchExecutionPolicy
 import me.ahoo.wow.webflux.route.policy.CommandWaitPolicy
 import me.ahoo.wow.webflux.route.policy.TracingPolicy
@@ -122,6 +129,7 @@ internal class WebFluxAutoConfigurationTest {
                     .hasSingleBean(TracingPolicy::class.java)
                     .hasSingleBean(BatchExecutionPolicy::class.java)
                     .hasSingleBean(WebFluxProperties::class.java)
+                    .hasSingleBean(BiScriptProperties::class.java)
                 val batchExecutionPolicy = context.getBean(BatchExecutionPolicy::class.java)
                 batchExecutionPolicy.concurrency.assert().isOne()
                 batchExecutionPolicy.prefetch.assert().isOne()
@@ -134,6 +142,7 @@ internal class WebFluxAutoConfigurationTest {
                     BuiltInHttpRouteHandlerKeys.Snapshot.REGENERATE,
                     BuiltInHttpRouteHandlerKeys.Event.RESEND_STATE,
                     BuiltInHttpRouteHandlerKeys.Global.GLOBAL_ID,
+                    BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT,
                 ).forEach { handlerKey ->
                     context.assertRouteFactoryRegistered(handlerKey)
                 }
@@ -178,6 +187,190 @@ internal class WebFluxAutoConfigurationTest {
                 batchExecutionPolicy.concurrency.assert().isEqualTo(4)
                 batchExecutionPolicy.prefetch.assert().isEqualTo(8)
             }
+    }
+
+    @Test
+    fun `should bind BI properties and let explicit Kafka overrides take precedence`() {
+        webFluxContextRunner()
+            .withPropertyValues(
+                "${BiScriptProperties.PREFIX}.database=analytics",
+                "${BiScriptProperties.PREFIX}.consumer-database=analytics_consumer",
+                "${BiScriptProperties.PREFIX}.cluster=production",
+                "${BiScriptProperties.PREFIX}.installation=primary",
+                "${BiScriptProperties.PREFIX}.shard=02",
+                "${BiScriptProperties.PREFIX}.replica=replica-2",
+                "${BiScriptProperties.PREFIX}.timezone=UTC",
+                "${BiScriptProperties.PREFIX}.kafka-bootstrap-servers=bi-kafka:19092",
+                "${BiScriptProperties.PREFIX}.topic-prefix=bi.",
+                "${BiScriptProperties.PREFIX}.max-expansion-depth=7",
+                "${BiScriptProperties.PREFIX}.unsupported-type-strategy=STRING_WITH_DIAGNOSTIC",
+                "${BiScriptProperties.PREFIX}.object-map-strategy=FAIL",
+            )
+            .withBean(KafkaProperties::class.java, {
+                KafkaProperties(
+                    bootstrapServers = listOf("kafka:9092"),
+                    topicPrefix = "kafka.",
+                )
+            })
+            .run { context: AssertableApplicationContext ->
+                context.biScriptRouteOptions().assert().isEqualTo(
+                    BiScriptRouteOptions(
+                        database = "analytics",
+                        consumerDatabase = "analytics_consumer",
+                        cluster = "production",
+                        installation = "primary",
+                        shard = "02",
+                        replica = "replica-2",
+                        timezone = "UTC",
+                        kafkaBootstrapServers = "bi-kafka:19092",
+                        topicPrefix = "bi.",
+                        maxExpansionDepth = 7,
+                        unsupportedTypeStrategy = BiScriptRouteUnsupportedTypeStrategy.STRING_WITH_DIAGNOSTIC,
+                        objectMapStrategy = BiScriptRouteObjectMapStrategy.FAIL,
+                    )
+                )
+            }
+    }
+
+    @Test
+    fun `should inherit Kafka properties when BI Kafka overrides are absent`() {
+        webFluxContextRunner()
+            .withBean(KafkaProperties::class.java, {
+                KafkaProperties(
+                    bootstrapServers = listOf("kafka-a:9092", "kafka-b:9092"),
+                    topicPrefix = "kafka.",
+                )
+            })
+            .run { context: AssertableApplicationContext ->
+                val options = context.biScriptRouteOptions()
+                options.kafkaBootstrapServers.assert().isEqualTo("kafka-a:9092,kafka-b:9092")
+                options.topicPrefix.assert().isEqualTo("kafka.")
+            }
+    }
+
+    @Test
+    fun `should keep explicit BI defaults ahead of conflicting Kafka properties`() {
+        webFluxContextRunner()
+            .withPropertyValues(
+                "${BiScriptProperties.PREFIX}.kafka-bootstrap-servers=localhost:9093",
+                "${BiScriptProperties.PREFIX}.topic-prefix=wow.",
+            )
+            .withBean(KafkaProperties::class.java, {
+                KafkaProperties(
+                    bootstrapServers = listOf("kafka:9092"),
+                    topicPrefix = "kafka.",
+                )
+            })
+            .run { context: AssertableApplicationContext ->
+                val properties = context.getBean(BiScriptProperties::class.java)
+                properties.kafkaBootstrapServers.assert().isEqualTo("localhost:9093")
+                properties.topicPrefix.assert().isEqualTo("wow.")
+
+                val options = context.biScriptRouteOptions()
+                options.kafkaBootstrapServers.assert().isEqualTo("localhost:9093")
+                options.topicPrefix.assert().isEqualTo("wow.")
+            }
+    }
+
+    @Test
+    fun `should use BI defaults when Kafka properties are unavailable`() {
+        webFluxContextRunner()
+            .run { context: AssertableApplicationContext ->
+                context.getBean(BiScriptProperties::class.java).assert().isEqualTo(BiScriptProperties())
+                context.biScriptRouteOptions().assert().isEqualTo(
+                    BiScriptRouteOptions(
+                        database = "bi_db",
+                        consumerDatabase = "bi_db_consumer",
+                        cluster = "{cluster}",
+                        installation = "{installation}",
+                        shard = "{shard}",
+                        replica = "{replica}",
+                        timezone = "Asia/Shanghai",
+                        maxExpansionDepth = 5,
+                        unsupportedTypeStrategy = BiScriptRouteUnsupportedTypeStrategy.FAIL,
+                        objectMapStrategy = BiScriptRouteObjectMapStrategy.STRING_VALUE_WITH_DIAGNOSTIC,
+                    )
+                )
+            }
+    }
+
+    @Test
+    fun `should fail startup for an explicit blank BI override`() {
+        webFluxContextRunner()
+            .withPropertyValues("${BiScriptProperties.PREFIX}.kafka-bootstrap-servers= ")
+            .run { context: AssertableApplicationContext ->
+                val failure = context.startupFailure
+                failure.assert().isNotNull()
+                failure!!.causeChainMessages().assert().contains("kafkaBootstrapServers must not be blank")
+            }
+    }
+
+    @Test
+    fun `should fail startup for an invalid BI expansion depth`() {
+        webFluxContextRunner()
+            .withPropertyValues("${BiScriptProperties.PREFIX}.max-expansion-depth=0")
+            .run { context: AssertableApplicationContext ->
+                val failure = context.startupFailure
+                failure.assert().isNotNull()
+                failure!!.causeChainMessages().assert().contains("maxExpansionDepth must be greater than or equal to 1")
+            }
+    }
+
+    @Test
+    fun `should bind every BI strategy enum value`() {
+        BiScriptUnsupportedTypeStrategy.entries.forEach { strategy ->
+            webFluxContextRunner()
+                .withPropertyValues("${BiScriptProperties.PREFIX}.unsupported-type-strategy=${strategy.name}")
+                .run { context: AssertableApplicationContext ->
+                    context.getBean(BiScriptProperties::class.java)
+                        .unsupportedTypeStrategy.assert().isEqualTo(strategy)
+                    context.biScriptRouteOptions().unsupportedTypeStrategy.assert().isEqualTo(
+                        when (strategy) {
+                            BiScriptUnsupportedTypeStrategy.FAIL -> BiScriptRouteUnsupportedTypeStrategy.FAIL
+                            BiScriptUnsupportedTypeStrategy.STRING_WITH_DIAGNOSTIC ->
+                                BiScriptRouteUnsupportedTypeStrategy.STRING_WITH_DIAGNOSTIC
+                        }
+                    )
+                }
+        }
+
+        BiScriptObjectMapStrategy.entries.forEach { strategy ->
+            webFluxContextRunner()
+                .withPropertyValues("${BiScriptProperties.PREFIX}.object-map-strategy=${strategy.name}")
+                .run { context: AssertableApplicationContext ->
+                    context.getBean(BiScriptProperties::class.java)
+                        .objectMapStrategy.assert().isEqualTo(strategy)
+                    context.biScriptRouteOptions().objectMapStrategy.assert().isEqualTo(
+                        when (strategy) {
+                            BiScriptObjectMapStrategy.STRING_VALUE_WITH_DIAGNOSTIC ->
+                                BiScriptRouteObjectMapStrategy.STRING_VALUE_WITH_DIAGNOSTIC
+                            BiScriptObjectMapStrategy.FAIL -> BiScriptRouteObjectMapStrategy.FAIL
+                        }
+                    )
+                }
+        }
+    }
+
+    @Test
+    fun `should preserve legacy GlobalRouteModule constructor and BI route factory`() {
+        val publicConstructors = GlobalRouteModule::class.java.constructors
+            .map { it.parameterTypes.toList() }
+        publicConstructors.assert().contains(
+            listOf(KafkaProperties::class.java),
+            listOf(KafkaProperties::class.java, BiScriptProperties::class.java),
+        )
+
+        val routeModule = GlobalRouteModule(
+            KafkaProperties(
+                bootstrapServers = listOf("legacy-kafka:9092"),
+                topicPrefix = "legacy.",
+            )
+        )
+        val factory = routeModule.httpFactories.single {
+            it.handlerKey == BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT
+        }
+        factory.assert().isInstanceOf(GenerateBIScriptHandlerFunctionFactory::class.java)
+        factory.privateBiScriptRouteOptions().assert().isNull()
     }
 
     @Test
@@ -386,6 +579,24 @@ internal class WebFluxAutoConfigurationTest {
         val registrar = getBean(RouteHandlerFunctionRegistrar::class.java)
         registrar.getHttpFactory(handlerKey).assert().isNotNull()
     }
+
+    private fun AssertableApplicationContext.biScriptRouteOptions(): BiScriptRouteOptions {
+        val factory = getBean(RouteHandlerFunctionRegistrar::class.java)
+            .getHttpFactory(BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT)!!
+        factory.assert().isInstanceOf(GenerateBIScriptHandlerFunctionFactory::class.java)
+        return factory.privateBiScriptRouteOptions()!!
+    }
+
+    private fun HttpRouteHandlerFunctionFactory.privateBiScriptRouteOptions(): BiScriptRouteOptions? {
+        val field = GenerateBIScriptHandlerFunctionFactory::class.java.getDeclaredField("options")
+        field.isAccessible = true
+        return field.get(this) as BiScriptRouteOptions?
+    }
+
+    private fun Throwable.causeChainMessages(): String =
+        generateSequence(this) { it.cause }
+            .mapNotNull { it.message }
+            .joinToString("\n")
 
     private class TestHttpRouteHandlerFunctionFactory(
         override val handlerKey: String
