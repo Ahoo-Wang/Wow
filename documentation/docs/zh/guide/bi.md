@@ -252,7 +252,7 @@ FROM bi_db.example_order_state
 -- example.order.expansion --
 CREATE VIEW IF NOT EXISTS bi_db.example_order_state_last_root ON CLUSTER '{cluster}' AS
 WITH
-    JSONExtractString(state, 'address') AS address
+    JSONExtractRaw(state, 'address') AS address
 SELECT JSONExtract(state, 'id', 'String')                  AS id,
        JSONExtract(state, 'customerId', 'String')          AS customer_id,
        JSONExtractArrayRaw(state, 'items')                 AS items,
@@ -279,7 +279,7 @@ FROM bi_db.example_order_state_last;
 
 CREATE VIEW IF NOT EXISTS bi_db.example_order_state_last_root_items ON CLUSTER '{cluster}' AS
 WITH
-    JSONExtractString(state, 'address') AS address, arrayJoin(JSONExtractArrayRaw(state, 'items')) AS items
+    JSONExtractRaw(state, 'address') AS address, arrayJoin(JSONExtractArrayRaw(state, 'items')) AS items
 SELECT JSONExtract(state, 'id', 'String')                  AS id,
        JSONExtract(state, 'customerId', 'String')          AS customer_id,
        JSONExtract(state, 'totalAmount', 'Decimal(38,18)') AS total_amount,
@@ -573,9 +573,12 @@ ClickHouse 有符号类型：
 | `Short` / `java.lang.Short` | `Int16` |
 | `Char` / `java.lang.Character` | `String` |
 
+复杂对象中间别名、深度截断对象和原始值降级列现在统一使用 `JSONExtractRaw`，从而保留对象 JSON，
+供后续嵌套提取和下游检查使用。
+
 `CREATE VIEW IF NOT EXISTS` 不会修改已有 ClickHouse 视图。升级后，在依赖 `__space_id` 或修正后的标量类型前，
-需要删除并重新创建所有生成的快照展开视图。请先检查下游视图、查询和 BI 数据集；除非确实要删除数据库表，
-否则不要对包含数据的数据库直接执行生成脚本中的完整 `clear` 段。
+以及依赖复杂对象的原始提取行为前，需要删除并重新创建所有生成的快照展开视图。请先检查下游视图、查询和
+BI 数据集；除非确实要删除数据库表，否则不要对包含数据的数据库直接执行生成脚本中的完整 `clear` 段。
 
 ### 名词解释
 
@@ -613,64 +616,72 @@ _Wow-ETL_  脚本工具会逐层展开所有的聚合根快照(支持层层嵌�
 ```
 
 ```sql [root 视图]
-CREATE VIEW IF NOT EXISTS bi_db.example_order_state_last_root ON CLUSTER '{cluster}' AS
+CREATE VIEW IF NOT EXISTS "bi_db"."example_order_state_last_root" ON CLUSTER '{cluster}' AS
 WITH
-    JSONExtractString(state, 'address') AS address
-SELECT JSONExtract(state, 'id', 'String')                  AS id,
-       JSONExtract(state, 'customerId', 'String')          AS customer_id,
-       JSONExtractArrayRaw(state, 'items')                 AS items,
-       JSONExtract(state, 'totalAmount', 'Decimal(38,18)') AS total_amount,
-       JSONExtract(state, 'paidAmount', 'Decimal(38,18)')  AS paid_amount,
-       JSONExtract(state, 'status', 'String')              AS status,
-       JSONExtract(state, 'payable', 'Decimal(38,18)')     AS payable,
-       JSONExtract(address, 'country', 'String')           AS address__country,
-       JSONExtract(address, 'province', 'String')          AS address__province,
-       JSONExtract(address, 'city', 'String')              AS address__city,
-       JSONExtract(address, 'district', 'String')          AS address__district,
-       JSONExtract(address, 'detail', 'String')            AS address__detail,
-       id                                                  AS __id,
-       aggregate_id                                        AS __aggregate_id,
-       tenant_id                                           AS __tenant_id,
-       command_id                                          AS __command_id,
-       request_id                                          AS __request_id,
-       version                                             AS __version,
-       first_operator                                      AS __first_operator,
-       first_event_time                                    AS __first_event_time,
-       create_time                                         AS __create_time,
-       deleted                                             AS __deleted
-FROM bi_db.example_order_state_last;
+JSONExtractRaw("state", 'address') AS "address"
+SELECT
+JSONExtract("state", 'id', 'String') AS "id",
+JSONExtract("state", 'customerId', 'String') AS "customer_id",
+JSONExtractArrayRaw("state", 'items') AS "items",
+JSONExtract("state", 'totalAmount', 'Decimal(38,18)') AS "total_amount",
+JSONExtract("state", 'paidAmount', 'Decimal(38,18)') AS "paid_amount",
+JSONExtract("state", 'status', 'String') AS "status",
+JSONExtract("state", 'payable', 'Decimal(38,18)') AS "payable",
+JSONExtract("address", 'country', 'String') AS "address__country",
+JSONExtract("address", 'province', 'String') AS "address__province",
+JSONExtract("address", 'city', 'String') AS "address__city",
+JSONExtract("address", 'district', 'String') AS "address__district",
+JSONExtract("address", 'detail', 'String') AS "address__detail",
+"id" AS "__id",
+"aggregate_id" AS "__aggregate_id",
+"tenant_id" AS "__tenant_id",
+"owner_id" AS "__owner_id",
+"space_id" AS "__space_id",
+"command_id" AS "__command_id",
+"request_id" AS "__request_id",
+"version" AS "__version",
+"first_operator" AS "__first_operator",
+"first_event_time" AS "__first_event_time",
+"create_time" AS "__create_time",
+"tags" AS "__tags",
+"deleted" AS "__deleted"
+FROM "bi_db"."example_order_state_last";
 ```
 ```sql [列表视图]
-CREATE VIEW IF NOT EXISTS bi_db.example_order_state_last_root_items ON CLUSTER '{cluster}' AS
+CREATE VIEW IF NOT EXISTS "bi_db"."example_order_state_last_root_items" ON CLUSTER '{cluster}' AS
 WITH
-    JSONExtractString(state, 'address') AS address, 
-    arrayJoin(JSONExtractArrayRaw(state, 'items')) AS items
-SELECT JSONExtract(state, 'id', 'String')                  AS id,
-       JSONExtract(state, 'customerId', 'String')          AS customer_id,
-       JSONExtract(state, 'totalAmount', 'Decimal(38,18)') AS total_amount,
-       JSONExtract(state, 'paidAmount', 'Decimal(38,18)')  AS paid_amount,
-       JSONExtract(state, 'status', 'String')              AS status,
-       JSONExtract(state, 'payable', 'Decimal(38,18)')     AS payable,
-       JSONExtract(address, 'country', 'String')           AS address__country,
-       JSONExtract(address, 'province', 'String')          AS address__province,
-       JSONExtract(address, 'city', 'String')              AS address__city,
-       JSONExtract(address, 'district', 'String')          AS address__district,
-       JSONExtract(address, 'detail', 'String')            AS address__detail,
-       JSONExtract(items, 'id', 'String')                  AS items__id,
-       JSONExtract(items, 'productId', 'String')           AS items__product_id,
-       JSONExtract(items, 'price', 'Decimal(38,18)')       AS items__price,
-       JSONExtract(items, 'quantity', 'Int32')             AS items__quantity,
-       JSONExtract(items, 'totalPrice', 'Decimal(38,18)')  AS items__total_price,
-       id                                                  AS __id,
-       aggregate_id                                        AS __aggregate_id,
-       tenant_id                                           AS __tenant_id,
-       command_id                                          AS __command_id,
-       request_id                                          AS __request_id,
-       version                                             AS __version,
-       first_operator                                      AS __first_operator,
-       first_event_time                                    AS __first_event_time,
-       create_time                                         AS __create_time,
-       deleted                                             AS __deleted
-FROM bi_db.example_order_state_last;
+JSONExtractRaw("state", 'address') AS "address",
+arrayJoin(JSONExtractArrayRaw("state", 'items')) AS "items"
+SELECT
+JSONExtract("state", 'id', 'String') AS "id",
+JSONExtract("state", 'customerId', 'String') AS "customer_id",
+JSONExtract("state", 'totalAmount', 'Decimal(38,18)') AS "total_amount",
+JSONExtract("state", 'paidAmount', 'Decimal(38,18)') AS "paid_amount",
+JSONExtract("state", 'status', 'String') AS "status",
+JSONExtract("state", 'payable', 'Decimal(38,18)') AS "payable",
+JSONExtract("address", 'country', 'String') AS "address__country",
+JSONExtract("address", 'province', 'String') AS "address__province",
+JSONExtract("address", 'city', 'String') AS "address__city",
+JSONExtract("address", 'district', 'String') AS "address__district",
+JSONExtract("address", 'detail', 'String') AS "address__detail",
+JSONExtract("items", 'id', 'String') AS "items__id",
+JSONExtract("items", 'productId', 'String') AS "items__product_id",
+JSONExtract("items", 'price', 'Decimal(38,18)') AS "items__price",
+JSONExtract("items", 'quantity', 'Int32') AS "items__quantity",
+JSONExtract("items", 'totalPrice', 'Decimal(38,18)') AS "items__total_price",
+"id" AS "__id",
+"aggregate_id" AS "__aggregate_id",
+"tenant_id" AS "__tenant_id",
+"owner_id" AS "__owner_id",
+"space_id" AS "__space_id",
+"command_id" AS "__command_id",
+"request_id" AS "__request_id",
+"version" AS "__version",
+"first_operator" AS "__first_operator",
+"first_event_time" AS "__first_event_time",
+"create_time" AS "__create_time",
+"tags" AS "__tags",
+"deleted" AS "__deleted"
+FROM "bi_db"."example_order_state_last";
 ```
 :::
