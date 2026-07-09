@@ -32,6 +32,36 @@ _Wow_ 提供的实时同步机制将数据实时同步至数据仓库（_ClickHo
 
 ## 生成 ETL 脚本
 
+`GET /wow/bi/script` 会根据 [`wow.bi.script.*` 配置](./configuration#bi-脚本配置)生成 ClickHouse 部署 SQL。
+HTTP 契约仍为 `200 application/sql`；生成诊断会写入应用日志，不会混入 SQL 响应体。
+
+### 结构化结果 API
+
+需要检查诊断信息的 Kotlin 调用方可以直接使用结果 API：
+
+```kotlin
+val result = ScriptEngine.generateResult(
+    namedAggregates = aggregates,
+    options = BiScriptOptions(
+        maxExpansionDepth = 5,
+        unsupportedTypeStrategy = UnsupportedTypeStrategy.STRING_WITH_DIAGNOSTIC,
+    ),
+)
+
+val sql: String = result.script
+val diagnostics: List<BiScriptDiagnostic> = result.diagnostics
+```
+
+`BiScriptResult.diagnostics` 包含稳定的聚合名称、属性路径、级别、消息和下列诊断码：
+
+| 诊断码 | 含义 |
+|--------|------|
+| `OBJECT_MAP_FALLBACK` | `Map<String, Object>` 一类属性在 `object-map-strategy` 允许降级时按 `Map(String, String)` 渲染。 |
+| `UNSUPPORTED_TYPE_FALLBACK` | 配置 `unsupported-type-strategy=STRING_WITH_DIAGNOSTIC` 时，不支持的属性会保留为 `String` 或 `Array(String)`。 |
+| `MAX_DEPTH_REACHED` | 超出 `max-expansion-depth` 的复杂值会保留为原始 JSON，不再继续展开。 |
+
+不支持类型的默认策略是立即失败；`object-map-strategy=FAIL` 同样会中止生成，而不是返回降级诊断。
+
 ::: code-group
 ```shell [OpenAPI]
 curl -X 'GET' \
@@ -531,6 +561,21 @@ FROM bi_db.example_order_state
 
 Wow 框架提供的 ETL 脚本工具能够将聚合根快照逐层展开，形成关系清晰的视图，该展开视图甚至可以作为*数据仓库的大宽表*，为业务决策提供更清晰、更全面的数据支持。
 :::
+
+### 升级说明
+
+生成的展开结构现在会把状态事件的空间标识传递为 `space_id AS __space_id`。JVM 标量类型也统一映射为
+ClickHouse 有符号类型：
+
+| JVM 类型 | ClickHouse 类型 |
+|----------|-----------------|
+| `Byte` / `java.lang.Byte` | `Int8` |
+| `Short` / `java.lang.Short` | `Int16` |
+| `Char` / `java.lang.Character` | `String` |
+
+`CREATE VIEW IF NOT EXISTS` 不会修改已有 ClickHouse 视图。升级后，在依赖 `__space_id` 或修正后的标量类型前，
+需要删除并重新创建所有生成的快照展开视图。请先检查下游视图、查询和 BI 数据集；除非确实要删除数据库表，
+否则不要对包含数据的数据库直接执行生成脚本中的完整 `clear` 段。
 
 ### 名词解释
 

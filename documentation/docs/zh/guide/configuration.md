@@ -349,6 +349,50 @@ wow:
       enabled: true
 ```
 
+### BI 脚本配置
+
+以下属性用于配置 `GET /wow/bi/script` 返回的 ClickHouse SQL：
+
+| 属性 | 类型 | 默认值 | 描述 |
+|------|------|--------|------|
+| `wow.bi.script.database` | String | `bi_db` | 分布式/本地状态表、命令表及展开视图所在数据库 |
+| `wow.bi.script.consumer-database` | String | `bi_db_consumer` | Kafka 队列表和消费物化视图所在数据库 |
+| `wow.bi.script.cluster` | String | `{cluster}` | `ON CLUSTER` 和 `Distributed` 使用的 ClickHouse 集群名 |
+| `wow.bi.script.installation` | String | `{installation}` | 复制表路径中的 installation 段 |
+| `wow.bi.script.shard` | String | `{shard}` | 复制表路径中的 shard 段 |
+| `wow.bi.script.replica` | String | `{replica}` | 传给复制表引擎的副本名 |
+| `wow.bi.script.timezone` | String | `Asia/Shanghai` | 生成的日期时间列和转换表达式使用的 ClickHouse 时区 |
+| `wow.bi.script.kafka-bootstrap-servers` | String | 继承 `wow.kafka.bootstrap-servers`，否则为 `localhost:9093` | BI Kafka broker 覆盖值；继承多个 broker 时以逗号连接 |
+| `wow.bi.script.topic-prefix` | String | 继承 `wow.kafka.topic-prefix`，否则为 `wow.` | BI topic 前缀覆盖值 |
+| `wow.bi.script.max-expansion-depth` | Int | `5` | 复杂属性的最大展开深度，必须大于等于 `1` |
+| `wow.bi.script.unsupported-type-strategy` | Enum | `FAIL` | `FAIL` 或 `STRING_WITH_DIAGNOSTIC` |
+| `wow.bi.script.object-map-strategy` | Enum | `STRING_VALUE_WITH_DIAGNOSTIC` | 对象值 Map 使用 `STRING_VALUE_WITH_DIAGNOSTIC` 或 `FAIL` |
+
+```yaml
+wow:
+  bi:
+    script:
+      database: bi_db
+      consumer-database: bi_db_consumer
+      cluster: '{cluster}'
+      installation: '{installation}'
+      shard: '{shard}'
+      replica: '{replica}'
+      timezone: Asia/Shanghai
+      kafka-bootstrap-servers: kafka-0:9092,kafka-1:9092
+      topic-prefix: 'wow.'
+      max-expansion-depth: 5
+      unsupported-type-strategy: FAIL
+      object-map-strategy: STRING_VALUE_WITH_DIAGNOSTIC
+```
+
+Kafka 配置优先级为：显式绑定的 `wow.bi.script.kafka-bootstrap-servers` 或 `wow.bi.script.topic-prefix`
+优先，即使该值恰好等于 BI 默认值；未配置时继承对应的 `wow.kafka.*`；两者都不存在时使用 BI 领域默认值。
+其他属性使用显式 BI 配置值，否则使用上表默认值。必填字符串显式配置为空、包含控制字符或展开深度小于 `1`
+时，应用启动会失败。
+
+结构化结果诊断及展开视图迁移说明参见[商业智能](./bi)。
+
 ## 总线类型
 
 框架支持多种总线实现：

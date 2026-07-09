@@ -350,6 +350,51 @@ wow:
       enabled: true
 ```
 
+### BI Script Configuration
+
+These properties configure the ClickHouse SQL returned by `GET /wow/bi/script`:
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `wow.bi.script.database` | String | `bi_db` | Database for distributed/local state and command tables and expansion views |
+| `wow.bi.script.consumer-database` | String | `bi_db_consumer` | Database for Kafka queue tables and consumer materialized views |
+| `wow.bi.script.cluster` | String | `{cluster}` | ClickHouse cluster name used by `ON CLUSTER` and `Distributed` |
+| `wow.bi.script.installation` | String | `{installation}` | Installation segment in the replicated table path |
+| `wow.bi.script.shard` | String | `{shard}` | Shard segment in the replicated table path |
+| `wow.bi.script.replica` | String | `{replica}` | Replica name passed to replicated table engines |
+| `wow.bi.script.timezone` | String | `Asia/Shanghai` | ClickHouse timezone for generated date-time columns and conversions |
+| `wow.bi.script.kafka-bootstrap-servers` | String | Inherit `wow.kafka.bootstrap-servers`; otherwise `localhost:9093` | BI Kafka broker override; multiple inherited brokers are joined with commas |
+| `wow.bi.script.topic-prefix` | String | Inherit `wow.kafka.topic-prefix`; otherwise `wow.` | BI topic prefix override |
+| `wow.bi.script.max-expansion-depth` | Int | `5` | Maximum complex-property expansion depth; must be at least `1` |
+| `wow.bi.script.unsupported-type-strategy` | Enum | `FAIL` | `FAIL` or `STRING_WITH_DIAGNOSTIC` |
+| `wow.bi.script.object-map-strategy` | Enum | `STRING_VALUE_WITH_DIAGNOSTIC` | `STRING_VALUE_WITH_DIAGNOSTIC` or `FAIL` for object-valued maps |
+
+```yaml
+wow:
+  bi:
+    script:
+      database: bi_db
+      consumer-database: bi_db_consumer
+      cluster: '{cluster}'
+      installation: '{installation}'
+      shard: '{shard}'
+      replica: '{replica}'
+      timezone: Asia/Shanghai
+      kafka-bootstrap-servers: kafka-0:9092,kafka-1:9092
+      topic-prefix: 'wow.'
+      max-expansion-depth: 5
+      unsupported-type-strategy: FAIL
+      object-map-strategy: STRING_VALUE_WITH_DIAGNOSTIC
+```
+
+Kafka settings use this precedence: an explicitly bound `wow.bi.script.kafka-bootstrap-servers` or
+`wow.bi.script.topic-prefix` value wins, even when it equals the BI default; otherwise the corresponding
+`wow.kafka.*` value is inherited; when neither is available, the BI domain default is used. Every other property uses
+its explicit BI value or the default shown above. Explicit blank required strings, control characters, and an expansion
+depth below `1` fail application startup.
+
+See [Business Intelligence](./bi) for the structured result diagnostics and expansion-view migration notes.
+
 ## Bus Type
 
 The framework supports multiple bus implementations:

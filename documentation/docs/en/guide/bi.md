@@ -32,6 +32,39 @@ The real-time synchronization mechanism provided by _Wow_ synchronizes data to t
 
 ## Generating ETL Scripts
 
+`GET /wow/bi/script` generates the ClickHouse deployment SQL using the
+[`wow.bi.script.*` settings](./configuration#bi-script-configuration). The HTTP contract remains
+`200 application/sql`; generation diagnostics are written to the application log and are not added to the SQL body.
+
+### Structured Result API
+
+Kotlin callers that need to inspect diagnostics can use the result API directly:
+
+```kotlin
+val result = ScriptEngine.generateResult(
+    namedAggregates = aggregates,
+    options = BiScriptOptions(
+        maxExpansionDepth = 5,
+        unsupportedTypeStrategy = UnsupportedTypeStrategy.STRING_WITH_DIAGNOSTIC,
+    ),
+)
+
+val sql: String = result.script
+val diagnostics: List<BiScriptDiagnostic> = result.diagnostics
+```
+
+`BiScriptResult.diagnostics` contains the stable aggregate name, property path, severity, message, and one of these
+codes:
+
+| Code | Meaning |
+|------|---------|
+| `OBJECT_MAP_FALLBACK` | A `Map<String, Object>`-like property was rendered as `Map(String, String)` because `object-map-strategy` permits fallback. |
+| `UNSUPPORTED_TYPE_FALLBACK` | An unsupported property was retained as `String` or `Array(String)` because `unsupported-type-strategy=STRING_WITH_DIAGNOSTIC`. |
+| `MAX_DEPTH_REACHED` | A complex value beyond `max-expansion-depth` was retained as raw JSON instead of being expanded further. |
+
+The default unsupported-type strategy is fail-fast. `object-map-strategy=FAIL` also stops generation instead of
+returning a fallback diagnostic.
+
 ::: code-group
 ```shell [OpenAPI]
 curl -X 'GET' \
@@ -531,6 +564,22 @@ However, during data analysis, we need to expand the aggregate root snapshots to
 
 The ETL script tool provided by the Wow framework can expand aggregate root snapshots layer by layer to form views with clear relationships, and this expanded view can even serve as a *wide table in the data warehouse*, providing clearer and more comprehensive data support for business decisions.
 :::
+
+### Upgrade Notes
+
+The generated expansion schema now carries the state-event space identifier as `space_id AS __space_id`. JVM scalar
+mapping also uses signed ClickHouse types consistently:
+
+| JVM type | ClickHouse type |
+|----------|-----------------|
+| `Byte` / `java.lang.Byte` | `Int8` |
+| `Short` / `java.lang.Short` | `Int16` |
+| `Char` / `java.lang.Character` | `String` |
+
+Existing ClickHouse views are not changed by `CREATE VIEW IF NOT EXISTS`. After upgrading, drop and recreate every
+generated snapshot expansion view before relying on `__space_id` or the corrected scalar types. Review dependent views,
+queries, and BI datasets first; do not run the generated full `clear` section against a database containing data unless
+you intentionally want to remove its tables.
 
 ### Glossary
 
