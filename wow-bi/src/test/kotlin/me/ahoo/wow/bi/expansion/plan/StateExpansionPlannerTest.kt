@@ -285,6 +285,28 @@ class StateExpansionPlannerTest {
     }
 
     @Test
+    fun `should prioritize depth truncation over unsupported nested collection elements`() {
+        val plan = StateExpansionPlanner(BiScriptOptions(maxExpansionDepth = 1))
+            .plan(truncatedUnsupportedCollectionAggregateMetadata)
+
+        plan.views.assert().hasSize(1)
+        val rootColumns = plan.views.single().columns
+        rootColumns.first { it.targetName == "nested__platform_values" }.run {
+            sqlType.assert().isEqualTo("Array(String)")
+            extraction.assert().isEqualTo(ColumnExtraction.JsonArray("nested", "platformValues"))
+        }
+        rootColumns.first { it.targetName == "nested__raw_values" }.run {
+            sqlType.assert().isEqualTo("Array(String)")
+            extraction.assert().isEqualTo(ColumnExtraction.JsonArray("nested", "rawValues"))
+        }
+        plan.diagnostics.map { it.path to it.code }.assert().containsExactly(
+            "nested.platformValues" to BiScriptDiagnosticCode.MAX_DEPTH_REACHED,
+            "nested.rawValues" to BiScriptDiagnosticCode.MAX_DEPTH_REACHED,
+        )
+        plan.diagnostics.none { it.code == BiScriptDiagnosticCode.UNSUPPORTED_TYPE_FALLBACK }.assert().isTrue()
+    }
+
+    @Test
     fun `should expose java unmodifiable plan collections`() {
         val plan = StateExpansionPlanner().plan(biAggregateMetadata)
         val rootColumns = plan.views.first().columns
@@ -376,6 +398,19 @@ private class RawCollectionState(override val id: String) : Identifier {
     val values: List<*> = emptyList<Any>()
 }
 
+@Suppress("UnusedPrivateProperty")
+@AggregateRoot
+private class TruncatedUnsupportedCollectionAggregate(private val state: TruncatedUnsupportedCollectionState)
+
+private class TruncatedUnsupportedCollectionState(override val id: String) : Identifier {
+    val nested: NestedUnsupportedCollections = NestedUnsupportedCollections()
+}
+
+private data class NestedUnsupportedCollections(
+    val platformValues: List<Thread> = emptyList(),
+    val rawValues: List<*> = emptyList<Any>(),
+)
+
 private val siblingAggregateMetadata = aggregateMetadata<SiblingAggregate, SiblingState>()
 private val unsupportedAggregateMetadata = aggregateMetadata<UnsupportedAggregate, UnsupportedState>()
 private val nonStringMapAggregateMetadata = aggregateMetadata<NonStringMapAggregate, NonStringMapState>()
@@ -384,3 +419,5 @@ private val genericObjectMapAggregateMetadata = aggregateMetadata<GenericObjectM
 private val platformCollectionAggregateMetadata =
     aggregateMetadata<PlatformCollectionAggregate, PlatformCollectionState>()
 private val rawCollectionAggregateMetadata = aggregateMetadata<RawCollectionAggregate, RawCollectionState>()
+private val truncatedUnsupportedCollectionAggregateMetadata =
+    aggregateMetadata<TruncatedUnsupportedCollectionAggregate, TruncatedUnsupportedCollectionState>()

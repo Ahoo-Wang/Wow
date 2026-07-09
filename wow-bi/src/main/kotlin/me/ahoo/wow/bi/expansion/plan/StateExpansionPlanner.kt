@@ -242,19 +242,6 @@ class StateExpansionPlanner(private val options: BiScriptOptions = BiScriptOptio
             )
             return
         }
-        if (elementType == null || isUnsupportedPlatformObject(elementType)) {
-            addUnsupportedTypeDiagnostic(
-                context = context,
-                path = path,
-                typeName = type.toCanonical(),
-                subject = "Unsupported collection element type",
-                fallback = "Array(String)",
-            )
-            draft.columns.add(
-                rawObjectArrayColumn(name, path, targetName, parent.targetName)
-            )
-            return
-        }
 
         val propertyDepth = parent.depth + 1
         val truncated = propertyDepth > context.options.maxExpansionDepth
@@ -263,6 +250,16 @@ class StateExpansionPlanner(private val options: BiScriptOptions = BiScriptOptio
         )
         if (truncated) {
             context.diagnostics.add(depthDiagnostic(context.aggregate, path, type))
+            return
+        }
+        if (elementType == null || isUnsupportedPlatformObject(elementType)) {
+            addUnsupportedTypeDiagnostic(
+                context = context,
+                path = path,
+                typeName = type.toCanonical(),
+                subject = "Unsupported collection element type",
+                fallback = "Array(String)",
+            )
             return
         }
 
