@@ -17,6 +17,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.Identifier
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.bi.expansion.StateExpansionScriptGenerator.Companion.toScriptGenerator
+import me.ahoo.wow.bi.expansion.column.Column
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import me.ahoo.wow.serialization.toJsonString
 import me.ahoo.wow.serialization.toObject
@@ -41,6 +42,15 @@ class StateExpansionMetadataVisitorTest {
             "bi_aggregate_state_last_root_nested_list_list",
             "bi_aggregate_state_last_root_set"
         )
+    }
+
+    @Test
+    fun `should keep the legacy expansion constructor`() {
+        val constructor = StateExpansionScriptGenerator::class.java.getConstructor(
+            Column::class.java,
+            SqlBuilder::class.java,
+        )
+        constructor.assert().isNotNull()
     }
 
     @Test

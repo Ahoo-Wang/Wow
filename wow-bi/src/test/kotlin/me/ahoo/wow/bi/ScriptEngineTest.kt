@@ -9,7 +9,15 @@ class ScriptEngineTest {
     @Test
     fun `should generate script`() {
         val syncScript = ScriptEngine.generate(MetadataSearcher.localAggregates)
-        syncScript.assert().isNotNull()
+        syncScript.assert().contains("-- global --")
+        syncScript.assert().contains("-- clear --")
+        syncScript.assert().contains("-- bi.aggregate.clear --")
+        syncScript.assert().contains("-- bi.aggregate.command --")
+        syncScript.assert().contains("-- bi.aggregate.stateEvent --")
+        syncScript.assert().contains("-- bi.aggregate.stateLast --")
+        syncScript.assert().contains("-- bi.aggregate.expansion --")
+        syncScript.assert().contains("ENGINE = Kafka('localhost:9093'")
+        syncScript.assert().contains("'wow.bi.aggregate.command'")
     }
 
     @Test
@@ -19,6 +27,8 @@ class ScriptEngineTest {
             "kafkaBootstrapServers",
             "topicPrefix"
         )
-        syncScript.assert().isNotNull()
+        syncScript.assert().contains("-- global --")
+        syncScript.assert().contains("ENGINE = Kafka('kafkaBootstrapServers'")
+        syncScript.assert().contains("'topicPrefix")
     }
 }
