@@ -99,11 +99,16 @@ class StateExpansionPlannerTest {
             placement.assert().isEqualTo(ColumnPlacement.SELECT)
             extraction.assert().isEqualTo(ColumnExtraction.JsonString("nested", "child"))
         }
+        rootView.columns.first { it.targetName == "nested__id" }.run {
+            sqlType.assert().isEqualTo("String")
+            extraction.assert().isEqualTo(ColumnExtraction.JsonValue("nested", "id"))
+        }
         rootView.columns.none { it.targetName == "nested__child__id" }.assert().isTrue()
         plan.diagnostics.single { it.path == "nested.child" }.run {
             code.assert().isEqualTo(BiScriptDiagnosticCode.MAX_DEPTH_REACHED)
             aggregate.assert().isEqualTo("bi-service.aggregate")
         }
+        plan.diagnostics.none { it.path == "nested.id" }.assert().isTrue()
     }
 
     @Test
@@ -119,6 +124,44 @@ class StateExpansionPlannerTest {
         plan.views.none { it.targetTableName.endsWith("_alpha__children") }.assert().isTrue()
         plan.diagnostics.single { it.path == "alpha.children" }.code.assert()
             .isEqualTo(BiScriptDiagnosticCode.MAX_DEPTH_REACHED)
+    }
+
+    @Test
+    fun `should prioritize depth truncation over strict unsupported nested object`() {
+        val plan = StateExpansionPlanner(BiScriptOptions(maxExpansionDepth = 1))
+            .plan(truncatedPlatformObjectAggregateMetadata)
+
+        plan.views.single().columns.first { it.targetName == "nested__value" }.run {
+            sqlType.assert().isEqualTo("String")
+            placement.assert().isEqualTo(ColumnPlacement.SELECT)
+            extraction.assert().isEqualTo(ColumnExtraction.JsonString("nested", "value"))
+        }
+        plan.diagnostics.single().run {
+            path.assert().isEqualTo("nested.value")
+            code.assert().isEqualTo(BiScriptDiagnosticCode.MAX_DEPTH_REACHED)
+        }
+        plan.diagnostics.none {
+            it.code == BiScriptDiagnosticCode.UNSUPPORTED_TYPE_FALLBACK
+        }.assert().isTrue()
+    }
+
+    @Test
+    fun `should prioritize depth truncation over nested object map fallback`() {
+        val plan = StateExpansionPlanner(BiScriptOptions(maxExpansionDepth = 1))
+            .plan(truncatedObjectMapAggregateMetadata)
+
+        plan.views.single().columns.first { it.targetName == "nested__values" }.run {
+            sqlType.assert().isEqualTo("String")
+            placement.assert().isEqualTo(ColumnPlacement.SELECT)
+            extraction.assert().isEqualTo(ColumnExtraction.JsonString("nested", "values"))
+        }
+        plan.diagnostics.single().run {
+            path.assert().isEqualTo("nested.values")
+            code.assert().isEqualTo(BiScriptDiagnosticCode.MAX_DEPTH_REACHED)
+        }
+        plan.diagnostics.none {
+            it.code == BiScriptDiagnosticCode.OBJECT_MAP_FALLBACK
+        }.assert().isTrue()
     }
 
     @Test
@@ -411,6 +454,26 @@ private data class NestedUnsupportedCollections(
     val rawValues: List<*> = emptyList<Any>(),
 )
 
+@Suppress("UnusedPrivateProperty")
+@AggregateRoot
+private class TruncatedPlatformObjectAggregate(private val state: TruncatedPlatformObjectState)
+
+private class TruncatedPlatformObjectState(override val id: String) : Identifier {
+    val nested: NestedPlatformObject = NestedPlatformObject()
+}
+
+private data class NestedPlatformObject(val value: Thread = Thread.currentThread())
+
+@Suppress("UnusedPrivateProperty")
+@AggregateRoot
+private class TruncatedObjectMapAggregate(private val state: TruncatedObjectMapState)
+
+private class TruncatedObjectMapState(override val id: String) : Identifier {
+    val nested: NestedObjectMap = NestedObjectMap()
+}
+
+private data class NestedObjectMap(val values: Map<String, Item> = emptyMap())
+
 private val siblingAggregateMetadata = aggregateMetadata<SiblingAggregate, SiblingState>()
 private val unsupportedAggregateMetadata = aggregateMetadata<UnsupportedAggregate, UnsupportedState>()
 private val nonStringMapAggregateMetadata = aggregateMetadata<NonStringMapAggregate, NonStringMapState>()
@@ -421,3 +484,7 @@ private val platformCollectionAggregateMetadata =
 private val rawCollectionAggregateMetadata = aggregateMetadata<RawCollectionAggregate, RawCollectionState>()
 private val truncatedUnsupportedCollectionAggregateMetadata =
     aggregateMetadata<TruncatedUnsupportedCollectionAggregate, TruncatedUnsupportedCollectionState>()
+private val truncatedPlatformObjectAggregateMetadata =
+    aggregateMetadata<TruncatedPlatformObjectAggregate, TruncatedPlatformObjectState>()
+private val truncatedObjectMapAggregateMetadata =
+    aggregateMetadata<TruncatedObjectMapAggregate, TruncatedObjectMapState>()

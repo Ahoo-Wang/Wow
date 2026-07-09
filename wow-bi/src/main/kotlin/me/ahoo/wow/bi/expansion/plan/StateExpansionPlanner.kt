@@ -139,6 +139,19 @@ class StateExpansionPlanner(private val options: BiScriptOptions = BiScriptOptio
         val path = childPath(parent.path, name)
         val targetName = childTargetName(parent, name)
 
+        if (shouldTruncateBeforeClassification(parent, type, context)) {
+            collectTruncatedProperty(
+                name = name,
+                path = path,
+                targetName = targetName,
+                sourceName = parent.targetName,
+                type = type,
+                draft = draft,
+                context = context,
+            )
+            return
+        }
+
         when {
             type.rawClass.isSimple -> draft.columns.add(
                 simpleColumn(name, path, targetName, parent.targetName, type)
@@ -180,6 +193,49 @@ class StateExpansionPlanner(private val options: BiScriptOptions = BiScriptOptio
         }
     }
 
+    private fun shouldTruncateBeforeClassification(
+        parent: PlanningNode,
+        type: JavaType,
+        context: PlanningContext,
+    ): Boolean {
+        if (parent.depth + 1 <= context.options.maxExpansionDepth) {
+            return false
+        }
+        if (type.rawClass.isSimple) {
+            return false
+        }
+        if (type.isCollectionLikeType || type.isArrayType) {
+            return false
+        }
+        if (type.isMapLikeType) {
+            return type.keyType?.rawClass != String::class.java ||
+                type.contentType?.rawClass?.isSimple != true
+        }
+        return isUnsupportedPlatformObject(type)
+    }
+
+    private fun collectTruncatedProperty(
+        name: String,
+        path: String,
+        targetName: String,
+        sourceName: String,
+        type: JavaType,
+        draft: ViewDraft,
+        context: PlanningContext,
+    ) {
+        draft.columns.add(
+            ColumnPlan(
+                name = name,
+                path = path,
+                targetName = targetName,
+                sqlType = "String",
+                extraction = ColumnExtraction.JsonString(sourceName, name),
+                placement = ColumnPlacement.SELECT,
+            )
+        )
+        context.diagnostics.add(depthDiagnostic(context.aggregate, path, type))
+    }
+
     private fun collectNestedObject(
         parent: PlanningNode,
         name: String,
@@ -191,6 +247,18 @@ class StateExpansionPlanner(private val options: BiScriptOptions = BiScriptOptio
     ) {
         val propertyDepth = parent.depth + 1
         val truncated = propertyDepth > context.options.maxExpansionDepth
+        if (truncated) {
+            collectTruncatedProperty(
+                name = name,
+                path = path,
+                targetName = targetName,
+                sourceName = parent.targetName,
+                type = type,
+                draft = draft,
+                context = context,
+            )
+            return
+        }
         draft.columns.add(
             ColumnPlan(
                 name = name,
@@ -198,13 +266,9 @@ class StateExpansionPlanner(private val options: BiScriptOptions = BiScriptOptio
                 targetName = targetName,
                 sqlType = "String",
                 extraction = ColumnExtraction.JsonString(parent.targetName, name),
-                placement = if (truncated) ColumnPlacement.SELECT else ColumnPlacement.WITH,
+                placement = ColumnPlacement.WITH,
             )
         )
-        if (truncated) {
-            context.diagnostics.add(depthDiagnostic(context.aggregate, path, type))
-            return
-        }
 
         collectObjectProperties(
             parent = PlanningNode(

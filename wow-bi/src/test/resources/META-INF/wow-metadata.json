@@ -75,6 +75,22 @@
           "id" : null,
           "commands" : [ ],
           "events" : [ ]
+        },
+        "truncated-platform-object" : {
+          "scopes" : [ "me.ahoo.wow.bi.expansion.plan" ],
+          "type" : "me.ahoo.wow.bi.expansion.plan.TruncatedPlatformObjectAggregate",
+          "tenantId" : "(0)",
+          "id" : null,
+          "commands" : [ ],
+          "events" : [ ]
+        },
+        "truncated-object-map" : {
+          "scopes" : [ "me.ahoo.wow.bi.expansion.plan" ],
+          "type" : "me.ahoo.wow.bi.expansion.plan.TruncatedObjectMapAggregate",
+          "tenantId" : "(0)",
+          "id" : null,
+          "commands" : [ ],
+          "events" : [ ]
         }
       }
     }
