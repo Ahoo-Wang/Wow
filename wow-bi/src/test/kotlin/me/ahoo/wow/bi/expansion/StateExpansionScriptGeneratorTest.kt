@@ -54,6 +54,16 @@ class StateExpansionMetadataVisitorTest {
     }
 
     @Test
+    fun `should include space metadata in every expansion view`() {
+        val sql = aggregateMetadata<BIAggregate, BIAggregateState>().toScriptGenerator().toString()
+
+        sql.windowed("space_id AS __space_id".length)
+            .count { it == "space_id AS __space_id" }
+            .assert()
+            .isEqualTo(6)
+    }
+
+    @Test
     fun `should convert expansion to JSON`() {
         val state = BIAggregateState(UUID.randomUUID().toString())
         val json = state.toJsonString()
