@@ -20,6 +20,7 @@ import com.fasterxml.jackson.annotation.JsonValue
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.modeling.AggregateId
 import me.ahoo.wow.bi.expansion.BIAggregateState
+import me.ahoo.wow.bi.type.JsonTokenShape
 import me.ahoo.wow.serialization.JsonSerializer
 import org.junit.jupiter.api.Test
 import tools.jackson.core.JsonGenerator
@@ -120,6 +121,21 @@ class JacksonWireShapeInspectorTest {
         assertOpaque<AggregateId>(JsonWireShapeReason.CUSTOM_SERIALIZATION)
     }
 
+    @Test
+    fun `should verify floating number or special string wire contract`() {
+        matches<Float>(JsonTokenShape.NUMBER_OR_SPECIAL_STRING).assert().isTrue()
+        matches<Double>(JsonTokenShape.NUMBER_OR_SPECIAL_STRING).assert().isTrue()
+        JsonSerializer.writeValueAsString(Double.NaN).assert().isEqualTo("\"NaN\"")
+        JsonSerializer.writeValueAsString(Double.POSITIVE_INFINITY).assert().isEqualTo("\"Infinity\"")
+        JsonSerializer.writeValueAsString(Double.NEGATIVE_INFINITY).assert().isEqualTo("\"-Infinity\"")
+        JsonSerializer.writeValueAsString(-0.0).assert().isEqualTo("-0.0")
+    }
+
+    @Test
+    fun `should verify UUID string format`() {
+        matches<java.util.UUID>(JsonTokenShape.UUID_STRING).assert().isTrue()
+    }
+
     private inline fun <reified T> inspect(): JsonWireShape {
         return JacksonWireShapeInspector.inspect(
             ResolvedType(
@@ -127,6 +143,17 @@ class JacksonWireShapeInspectorTest {
                 nullability = Nullability.NON_NULL,
                 arguments = emptyList(),
             )
+        )
+    }
+
+    private inline fun <reified T> matches(expected: JsonTokenShape): Boolean {
+        return JacksonWireShapeInspector.matches(
+            ResolvedType(
+                javaType = JsonSerializer.constructType(T::class.java),
+                nullability = Nullability.NON_NULL,
+                arguments = emptyList(),
+            ),
+            expected,
         )
     }
 

@@ -30,6 +30,10 @@ import me.ahoo.wow.bi.type.ClickHouseType
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertAll
+import tools.jackson.core.JsonGenerator
+import tools.jackson.databind.SerializationContext
+import tools.jackson.databind.annotation.JsonSerialize
+import tools.jackson.databind.ser.std.StdSerializer
 
 class StateExpansionPlannerTest {
     private val biAggregateMetadata = aggregateMetadata<BIAggregate, BIAggregateState>()
@@ -405,6 +409,22 @@ class StateExpansionPlannerTest {
     }
 
     @Test
+    fun `should preserve custom serialized containers as raw JSON`() {
+        val plan = StateExpansionPlanner().plan(platformCollectionAggregateMetadata)
+        val root = plan.views.single()
+
+        root.column("z_custom_list").run {
+            type.assert().isEqualTo(ClickHouseType.String)
+            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw(input("state"), "zCustomList"))
+        }
+        root.column("z_custom_map").run {
+            type.assert().isEqualTo(ClickHouseType.String)
+            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw(input("state"), "zCustomMap"))
+        }
+        plan.diagnostics.map { it.path }.assert().contains("zCustomList", "zCustomMap")
+    }
+
+    @Test
     fun `should prioritize depth cutoff and retain whole unsupported collections`() {
         val plan = StateExpansionPlanner(BiScriptOptions(maxExpansionDepth = 1))
             .plan(truncatedUnsupportedCollectionAggregateMetadata)
@@ -612,6 +632,36 @@ private class PlatformCollectionState(override val id: String) : Identifier {
     val platformMap: JavaNullabilityFixture.StringMap = JavaNullabilityFixture.StringMap()
     val platformValues: List<Thread> = emptyList()
     val rawValues: List<*> = emptyList<Any>()
+    val zCustomList: CustomSerializedStringList = CustomSerializedStringList()
+    val zCustomMap: CustomSerializedStringMap = CustomSerializedStringMap()
+}
+
+@JsonSerialize(using = CustomSerializedStringListSerializer::class)
+private class CustomSerializedStringList : ArrayList<String>()
+
+private class CustomSerializedStringListSerializer :
+    StdSerializer<CustomSerializedStringList>(CustomSerializedStringList::class.java) {
+    override fun serialize(
+        value: CustomSerializedStringList,
+        generator: JsonGenerator,
+        provider: SerializationContext,
+    ) {
+        generator.writeString(value.joinToString())
+    }
+}
+
+@JsonSerialize(using = CustomSerializedStringMapSerializer::class)
+private class CustomSerializedStringMap : HashMap<String, String>()
+
+private class CustomSerializedStringMapSerializer :
+    StdSerializer<CustomSerializedStringMap>(CustomSerializedStringMap::class.java) {
+    override fun serialize(
+        value: CustomSerializedStringMap,
+        generator: JsonGenerator,
+        provider: SerializationContext,
+    ) {
+        generator.writeString(value.entries.joinToString())
+    }
 }
 
 @Suppress("UnusedPrivateProperty")

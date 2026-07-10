@@ -32,7 +32,12 @@ internal enum class JsonTokenShape {
     STRING,
     INTEGER,
     NUMBER,
+    NUMBER_OR_SPECIAL_STRING,
     BOOLEAN,
+    UUID_STRING,
+    ARRAY,
+    MAP,
+    OBJECT,
 }
 
 internal data class ScalarMapping(
@@ -47,10 +52,10 @@ internal object ClickHouseTypeMapping {
         Int::class.javaObjectType to integer(ClickHouseType.Int32),
         Long::class.java to integer(ClickHouseType.Int64),
         Long::class.javaObjectType to integer(ClickHouseType.Int64),
-        Float::class.java to number(ClickHouseType.Float32),
-        Float::class.javaObjectType to number(ClickHouseType.Float32),
-        Double::class.java to number(ClickHouseType.Float64),
-        Double::class.javaObjectType to number(ClickHouseType.Float64),
+        Float::class.java to numberOrSpecialString(ClickHouseType.Float32),
+        Float::class.javaObjectType to numberOrSpecialString(ClickHouseType.Float32),
+        Double::class.java to numberOrSpecialString(ClickHouseType.Float64),
+        Double::class.javaObjectType to numberOrSpecialString(ClickHouseType.Float64),
         Boolean::class.java to boolean(ClickHouseType.Bool),
         Boolean::class.javaObjectType to boolean(ClickHouseType.Bool),
         Short::class.java to integer(ClickHouseType.Int16),
@@ -59,7 +64,7 @@ internal object ClickHouseTypeMapping {
         Char::class.javaObjectType to string(ClickHouseType.String),
         Byte::class.java to integer(ClickHouseType.Int8),
         Byte::class.javaObjectType to integer(ClickHouseType.Int8),
-        UUID::class.java to string(ClickHouseType.UUID),
+        UUID::class.java to uuidString(ClickHouseType.UUID),
         Duration::class.java to string(ClickHouseType.String),
         Date::class.java to string(ClickHouseType.String),
         java.sql.Date::class.java to string(ClickHouseType.String),
@@ -87,9 +92,12 @@ internal object ClickHouseTypeMapping {
     private fun integer(type: ClickHouseType.Scalar): ScalarMapping =
         ScalarMapping(JsonTokenShape.INTEGER, type)
 
-    private fun number(type: ClickHouseType.Scalar): ScalarMapping =
-        ScalarMapping(JsonTokenShape.NUMBER, type)
+    private fun numberOrSpecialString(type: ClickHouseType.Scalar): ScalarMapping =
+        ScalarMapping(JsonTokenShape.NUMBER_OR_SPECIAL_STRING, type)
 
     private fun boolean(type: ClickHouseType.Scalar): ScalarMapping =
         ScalarMapping(JsonTokenShape.BOOLEAN, type)
+
+    private fun uuidString(type: ClickHouseType.Scalar): ScalarMapping =
+        ScalarMapping(JsonTokenShape.UUID_STRING, type)
 }

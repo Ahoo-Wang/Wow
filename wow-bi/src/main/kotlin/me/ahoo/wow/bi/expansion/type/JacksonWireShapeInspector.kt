@@ -23,13 +23,16 @@ import tools.jackson.databind.annotation.JsonSerialize
 import tools.jackson.databind.introspect.Annotated
 import tools.jackson.databind.introspect.AnnotatedMember
 import tools.jackson.databind.introspect.BeanPropertyDefinition
+import tools.jackson.databind.jsonFormatVisitors.JsonArrayFormatVisitor
 import tools.jackson.databind.jsonFormatVisitors.JsonBooleanFormatVisitor
 import tools.jackson.databind.jsonFormatVisitors.JsonFormatVisitable
 import tools.jackson.databind.jsonFormatVisitors.JsonFormatVisitorWrapper
 import tools.jackson.databind.jsonFormatVisitors.JsonIntegerFormatVisitor
+import tools.jackson.databind.jsonFormatVisitors.JsonMapFormatVisitor
 import tools.jackson.databind.jsonFormatVisitors.JsonNumberFormatVisitor
 import tools.jackson.databind.jsonFormatVisitors.JsonObjectFormatVisitor
 import tools.jackson.databind.jsonFormatVisitors.JsonStringFormatVisitor
+import tools.jackson.databind.jsonFormatVisitors.JsonValueFormat
 import tools.jackson.databind.ser.bean.BeanSerializerBase
 import tools.jackson.databind.ser.impl.UnknownSerializer
 import java.lang.reflect.Modifier
@@ -41,7 +44,12 @@ internal object JacksonWireShapeInspector {
         }
         val visitor = TokenShapeVisitor()
         JsonSerializer.acceptJsonFormatVisitor(type.javaType, visitor)
-        return visitor.shape == expected
+        return when (expected) {
+            JsonTokenShape.NUMBER_OR_SPECIAL_STRING -> visitor.shape == JsonTokenShape.NUMBER
+            JsonTokenShape.UUID_STRING ->
+                visitor.shape == JsonTokenShape.STRING && visitor.valueFormat == JsonValueFormat.UUID
+            else -> visitor.shape == expected
+        }
     }
 
     fun inspect(type: ResolvedType): JsonWireShape {
@@ -169,10 +177,16 @@ internal object JacksonWireShapeInspector {
     private class TokenShapeVisitor : JsonFormatVisitorWrapper.Base() {
         var shape: JsonTokenShape? = null
             private set
+        var valueFormat: JsonValueFormat? = null
+            private set
 
         override fun expectStringFormat(type: JavaType): JsonStringFormatVisitor {
             shape = JsonTokenShape.STRING
-            return JsonStringFormatVisitor.Base()
+            return object : JsonStringFormatVisitor.Base() {
+                override fun format(format: JsonValueFormat) {
+                    valueFormat = format
+                }
+            }
         }
 
         override fun expectIntegerFormat(type: JavaType): JsonIntegerFormatVisitor {
@@ -188,6 +202,21 @@ internal object JacksonWireShapeInspector {
         override fun expectBooleanFormat(type: JavaType): JsonBooleanFormatVisitor {
             shape = JsonTokenShape.BOOLEAN
             return JsonBooleanFormatVisitor.Base()
+        }
+
+        override fun expectArrayFormat(type: JavaType): JsonArrayFormatVisitor {
+            shape = JsonTokenShape.ARRAY
+            return JsonArrayFormatVisitor.Base(context)
+        }
+
+        override fun expectMapFormat(type: JavaType): JsonMapFormatVisitor {
+            shape = JsonTokenShape.MAP
+            return JsonMapFormatVisitor.Base(context)
+        }
+
+        override fun expectObjectFormat(type: JavaType): JsonObjectFormatVisitor {
+            shape = JsonTokenShape.OBJECT
+            return JsonObjectFormatVisitor.Base(context)
         }
     }
 
