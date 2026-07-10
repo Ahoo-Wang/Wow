@@ -193,6 +193,10 @@ internal data class ResolvedType(
 )
 ```
 
+planner 递归进入 generic object 时必须把当前 `ResolvedType` 传回 resolver；resolver 以其中的 argument
+nullability 初始化该 raw class 的 type-parameter bindings。只传 `JavaType` 会让 `Box<T>.value` 在第二层
+重新退化为 `UNKNOWN`，因此只允许 `resolve(ResolvedType)` 作为递归入口。
+
 ### 6.2 Kotlin 规则
 
 - 使用 property/getter 的 `KType.isMarkedNullable`。

@@ -180,12 +180,14 @@ git commit -m "feat(bi): resolve nullable JSON property types"
 - Modify: `wow-bi/src/main/kotlin/me/ahoo/wow/bi/expansion/plan/ColumnPlan.kt`
 - Modify: `wow-bi/src/main/kotlin/me/ahoo/wow/bi/expansion/plan/ExpansionViewPlan.kt`
 - Modify: `wow-bi/src/main/kotlin/me/ahoo/wow/bi/expansion/plan/StateExpansionPlanner.kt`
+- Modify: `wow-bi/src/main/kotlin/me/ahoo/wow/bi/expansion/type/JsonPropertyTypeResolver.kt`
 - Modify: `wow-bi/src/main/kotlin/me/ahoo/wow/bi/renderer/ClickHouseScriptRenderer.kt`
 - Delete: `wow-bi/src/main/kotlin/me/ahoo/wow/bi/expansion/SqlTypeMapping.kt`
 - Modify: `wow-bi/src/test/kotlin/me/ahoo/wow/bi/BiScriptOptionsTest.kt`
 - Delete: `wow-bi/src/test/kotlin/me/ahoo/wow/bi/expansion/SqlTypeMappingTest.kt`
 - Modify: `wow-bi/src/test/kotlin/me/ahoo/wow/bi/expansion/plan/StateExpansionPlannerTest.kt`
 - Create: `wow-bi/src/test/kotlin/me/ahoo/wow/bi/expansion/plan/StateExpansionPlannerNullableTest.kt`
+- Modify: `wow-bi/src/test/kotlin/me/ahoo/wow/bi/expansion/type/JsonPropertyTypeResolverTest.kt`
 - Modify: `wow-bi/src/test/kotlin/me/ahoo/wow/bi/renderer/ClickHouseScriptRendererTest.kt`
 
 **Produces:** A planner whose plans cannot carry arbitrary SQL types and whose fallback is always lossless.
@@ -239,6 +241,9 @@ Expected: compile failures for structural `ColumnPlan.type`, new enum/diagnostic
 - [ ] **Step 5: Migrate planner and renderer**
 
 - `PlanningNode` carries `ResolvedType`, not only `JavaType`.
+- Recursive property discovery calls `JsonPropertyTypeResolver.resolve(parentResolvedType)`, seeding the raw class type
+  parameters from `ResolvedType.arguments`; add a nested generic object test proving `Box<T>.value` keeps the concrete
+  argument nullability after planner recursion.
 - `ColumnPlan.sqlType: String` becomes `ColumnPlan.type: ClickHouseType`.
 - Effective leaf nullable = own nullable/unknown OR nullable object/element ancestor.
 - Every declared nullable/unknown property emits a SELECT raw companion named `__raw__<targetName>`.
