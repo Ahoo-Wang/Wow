@@ -49,6 +49,7 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
         val sourceTableName = naming.toDistributedTableName(namedAggregate, STATE_LAST_SUFFIX)
         val rootNode = PlanningNode(
             path = "",
+            source = ColumnReference.Input(STATE_COLUMN),
             targetName = STATE_COLUMN,
             type = ResolvedType(
                 javaType = stateType,
@@ -97,7 +98,7 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
                     path = request.path,
                     targetName = request.targetName,
                     type = ClickHouseType.String,
-                    extraction = ColumnExtraction.ArrayJoin(request.sourceName, request.name),
+                    extraction = ColumnExtraction.ArrayJoin(request.source, request.name),
                     placement = ColumnPlacement.WITH,
                 )
             )
@@ -108,7 +109,7 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
                         path = request.path,
                         targetName = rawTargetName(request.targetName),
                         type = ClickHouseType.String,
-                        extraction = ColumnExtraction.Source(request.targetName),
+                        extraction = ColumnExtraction.Reference(ColumnReference.Alias(request.targetName)),
                         placement = ColumnPlacement.SELECT,
                     )
                 )
@@ -163,7 +164,7 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
         draft.propertyTargetNames.add(targetName)
 
         if (parent.depth + 1 > context.options.maxExpansionDepth && !type.canRenderDirectly()) {
-            collectDepthFallback(name, path, targetName, parent.targetName, type, draft, context)
+            collectDepthFallback(name, path, targetName, parent.source, type, draft, context)
             return
         }
 
@@ -201,7 +202,7 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
                 name = name,
                 path = path,
                 targetName = targetName,
-                sourceName = parent.targetName,
+                source = parent.source,
                 type = type,
                 draft = draft,
                 context = context,
@@ -233,12 +234,12 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
                 path = path,
                 targetName = targetName,
                 type = type.toScalarType(parent.nullableAncestor),
-                extraction = ColumnExtraction.JsonValue(parent.targetName, name),
+                extraction = ColumnExtraction.JsonValue(parent.source, name),
                 placement = ColumnPlacement.SELECT,
             )
         )
         if (type.requiresRawCompanion()) {
-            draft.columns.add(rawCompanionColumn(name, path, targetName, parent.targetName))
+            draft.columns.add(rawCompanionColumn(name, path, targetName, parent.source))
         }
     }
 
@@ -257,17 +258,18 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
                 path = path,
                 targetName = targetName,
                 type = ClickHouseType.String,
-                extraction = ColumnExtraction.JsonRaw(parent.targetName, name),
+                extraction = ColumnExtraction.JsonRaw(parent.source, name),
                 placement = ColumnPlacement.WITH,
             )
         )
         if (type.requiresRawCompanion()) {
-            draft.columns.add(rawCompanionColumn(name, path, targetName, parent.targetName))
+            draft.columns.add(rawCompanionColumn(name, path, targetName, parent.source))
         }
 
         collectObjectProperties(
             parent = PlanningNode(
                 path = path,
+                source = ColumnReference.Alias(targetName),
                 targetName = targetName,
                 type = type,
                 depth = parent.depth + 1,
@@ -288,7 +290,7 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
         context: PlanningContext,
     ) {
         if (!type.hasSupportedMapShape()) {
-            collectRawFallback(name, path, targetName, parent.targetName, type, draft, context)
+            collectRawFallback(name, path, targetName, parent.source, type, draft, context)
             return
         }
         val valueType = type.arguments[1]
@@ -302,12 +304,12 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
                     keyType = ClickHouseType.String,
                     valueType = valueType.toScalarType(nullableAncestor = false),
                 ),
-                extraction = ColumnExtraction.JsonValue(parent.targetName, name),
+                extraction = ColumnExtraction.JsonValue(parent.source, name),
                 placement = ColumnPlacement.SELECT,
             )
         )
         if (type.requiresRawCompanion()) {
-            draft.columns.add(rawCompanionColumn(name, path, targetName, parent.targetName))
+            draft.columns.add(rawCompanionColumn(name, path, targetName, parent.source))
         }
     }
 
@@ -322,7 +324,7 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
     ) {
         val elementType = type.arguments.firstOrNull()
         if (elementType == null) {
-            collectRawFallback(name, path, targetName, parent.targetName, type, draft, context)
+            collectRawFallback(name, path, targetName, parent.source, type, draft, context)
             return
         }
         if (elementType.rawClass.isClickHouseScalar()) {
@@ -332,28 +334,28 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
                     path = path,
                     targetName = targetName,
                     type = ClickHouseType.Array(elementType.toScalarType(nullableAncestor = false)),
-                    extraction = ColumnExtraction.JsonValue(parent.targetName, name),
+                    extraction = ColumnExtraction.JsonValue(parent.source, name),
                     placement = ColumnPlacement.SELECT,
                 )
             )
             if (type.requiresRawCompanion()) {
-                draft.columns.add(rawCompanionColumn(name, path, targetName, parent.targetName))
+                draft.columns.add(rawCompanionColumn(name, path, targetName, parent.source))
             }
             return
         }
         if (isUnsupportedPlatformObject(elementType)) {
-            collectRawFallback(name, path, targetName, parent.targetName, type, draft, context)
+            collectRawFallback(name, path, targetName, parent.source, type, draft, context)
             return
         }
 
-        draft.columns.add(rawObjectArrayColumn(name, path, targetName, parent.targetName))
+        draft.columns.add(rawObjectArrayColumn(name, path, targetName, parent.source))
         if (type.requiresRawCompanion()) {
             draft.columns.add(
                 rawCompanionColumn(
                     name = name,
                     path = path,
                     targetName = targetName,
-                    sourceName = parent.targetName,
+                    source = parent.source,
                     inherited = false,
                 )
             )
@@ -362,11 +364,12 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
             CollectionRequest(
                 name = name,
                 path = path,
-                sourceName = parent.targetName,
+                source = parent.source,
                 targetName = targetName,
                 tableSuffix = relativeTargetName(draft.anchorTargetName, targetName),
                 elementNode = PlanningNode(
                     path = path,
+                    source = ColumnReference.Alias(targetName),
                     targetName = targetName,
                     type = elementType,
                     depth = parent.depth + 1,
@@ -383,12 +386,12 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
         name: String,
         path: String,
         targetName: String,
-        sourceName: String,
+        source: ColumnReference,
         type: ResolvedType,
         draft: ViewDraft,
         context: PlanningContext,
     ) {
-        draft.columns.add(rawValueColumn(name, path, targetName, sourceName))
+        draft.columns.add(rawValueColumn(name, path, targetName, source))
         val sourceType = type.javaType.toCanonical()
         context.diagnostics.add(
             BiScriptDiagnostic(
@@ -407,7 +410,7 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
         name: String,
         path: String,
         targetName: String,
-        sourceName: String,
+        source: ColumnReference,
         type: ResolvedType,
         draft: ViewDraft,
         context: PlanningContext,
@@ -416,7 +419,7 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
         require(context.options.unsupportedTypeStrategy == UnsupportedTypeStrategy.RAW_JSON) {
             "Unsupported property [$path] for aggregate [${context.aggregate}] with type [$sourceType]."
         }
-        draft.columns.add(rawValueColumn(name, path, targetName, sourceName))
+        draft.columns.add(rawValueColumn(name, path, targetName, source))
         context.diagnostics.add(
             BiScriptDiagnostic(
                 code = BiScriptDiagnosticCode.RAW_JSON_FALLBACK,
@@ -433,14 +436,14 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
         name: String,
         path: String,
         targetName: String,
-        sourceName: String,
+        source: ColumnReference,
     ): ColumnPlan {
         return ColumnPlan(
             name = name,
             path = path,
             targetName = targetName,
             type = ClickHouseType.String,
-            extraction = ColumnExtraction.JsonRaw(sourceName, name),
+            extraction = ColumnExtraction.JsonRaw(source, name),
             placement = ColumnPlacement.SELECT,
         )
     }
@@ -449,14 +452,14 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
         name: String,
         path: String,
         targetName: String,
-        sourceName: String,
+        source: ColumnReference,
     ): ColumnPlan {
         return ColumnPlan(
             name = name,
             path = path,
             targetName = targetName,
             type = ClickHouseType.Array(ClickHouseType.String),
-            extraction = ColumnExtraction.JsonArray(sourceName, name),
+            extraction = ColumnExtraction.JsonArray(source, name),
             placement = ColumnPlacement.SELECT,
             inherited = false,
         )
@@ -466,7 +469,7 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
         name: String,
         path: String,
         targetName: String,
-        sourceName: String,
+        source: ColumnReference,
         inherited: Boolean = true,
     ): ColumnPlan {
         return ColumnPlan(
@@ -474,7 +477,7 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
             path = path,
             targetName = rawTargetName(targetName),
             type = ClickHouseType.String,
-            extraction = ColumnExtraction.JsonRaw(sourceName, name),
+            extraction = ColumnExtraction.JsonRaw(source, name),
             placement = ColumnPlacement.SELECT,
             inherited = inherited,
         )
@@ -570,6 +573,7 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
 
 private data class PlanningNode(
     val path: String,
+    val source: ColumnReference,
     val targetName: String,
     val type: ResolvedType,
     val depth: Int,
@@ -579,7 +583,7 @@ private data class PlanningNode(
 private data class CollectionRequest(
     val name: String,
     val path: String,
-    val sourceName: String,
+    val source: ColumnReference,
     val targetName: String,
     val tableSuffix: String,
     val elementNode: PlanningNode,

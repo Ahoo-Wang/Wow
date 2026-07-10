@@ -136,18 +136,18 @@ AS SELECT * FROM "bi_db"."example_order_state";
 
 ### Root Expansion View
 
-The root view expands one-to-one objects into columns and inherits state-event metadata through `__*` columns:
+The root view expands one-to-one objects into columns and inherits state-event metadata through `__*` columns. Physical input columns are qualified through the fixed `__source` table alias so domain output aliases cannot shadow metadata columns:
 
 ```sql
 CREATE VIEW IF NOT EXISTS "bi_db"."example_order_state_last_root" ON CLUSTER '{cluster}' AS
-WITH JSONExtractRaw("state", 'address') AS "address"
+WITH JSONExtractRaw("__source"."state", 'address') AS "address"
 SELECT JSONExtract("address", 'city', 'String') AS "address__city",
-       JSONExtract("state", 'id', 'String') AS "id",
-       JSONExtractArrayRaw("state", 'items') AS "items",
-       "owner_id" AS "__owner_id",
-       "space_id" AS "__space_id",
-       "tags" AS "__tags"
-FROM "bi_db"."example_order_state_last";
+       JSONExtract("__source"."state", 'id', 'String') AS "id",
+       JSONExtractArrayRaw("__source"."state", 'items') AS "items",
+       "__source"."owner_id" AS "__owner_id",
+       "__source"."space_id" AS "__space_id",
+       "__source"."tags" AS "__tags"
+FROM "bi_db"."example_order_state_last" AS "__source";
 ```
 
 ### Child Expansion View
@@ -156,12 +156,12 @@ An object collection produces a child view. `arrayJoin` expands each object elem
 
 ```sql
 CREATE VIEW IF NOT EXISTS "bi_db"."example_order_state_last_root_items" ON CLUSTER '{cluster}' AS
-WITH arrayJoin(JSONExtractArrayRaw("state", 'items')) AS "items"
+WITH arrayJoin(JSONExtractArrayRaw("__source"."state", 'items')) AS "items"
 SELECT JSONExtract("items", 'id', 'String') AS "items__id",
        JSONExtract("items", 'quantity', 'Int32') AS "items__quantity",
-       "aggregate_id" AS "__aggregate_id",
-       "version" AS "__version"
-FROM "bi_db"."example_order_state_last";
+       "__source"."aggregate_id" AS "__aggregate_id",
+       "__source"."version" AS "__version"
+FROM "bi_db"."example_order_state_last" AS "__source";
 ```
 
 ### Nullable Types and Raw Values
@@ -169,10 +169,10 @@ FROM "bi_db"."example_order_state_last";
 Types are generated from structural property nullability. `Nullable` may appear at scalar, array-element, and Map-value levels:
 
 ```sql
-JSONExtract("state", 'name', 'Nullable(String)') AS "name",
-JSONExtractRaw("state", 'name') AS "__raw__name",
-JSONExtract("state", 'scores', 'Array(Nullable(Int32))') AS "scores",
-JSONExtract("state", 'ratings', 'Map(String, Nullable(Int32))') AS "ratings"
+JSONExtract("__source"."state", 'name', 'Nullable(String)') AS "name",
+JSONExtractRaw("__source"."state", 'name') AS "__raw__name",
+JSONExtract("__source"."state", 'scores', 'Array(Nullable(Int32))') AS "scores",
+JSONExtract("__source"."state", 'ratings', 'Map(String, Nullable(Int32))') AS "ratings"
 ```
 
 ## Structural Types and Lossless Semantics

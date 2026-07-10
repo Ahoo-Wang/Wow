@@ -19,6 +19,7 @@ import me.ahoo.wow.bi.expansion.BiTableNaming
 import me.ahoo.wow.bi.expansion.plan.ColumnExtraction
 import me.ahoo.wow.bi.expansion.plan.ColumnPlacement
 import me.ahoo.wow.bi.expansion.plan.ColumnPlan
+import me.ahoo.wow.bi.expansion.plan.ColumnReference
 import me.ahoo.wow.bi.expansion.plan.ExpansionViewPlan
 import me.ahoo.wow.bi.expansion.plan.StateExpansionPlan
 import me.ahoo.wow.bi.renderer.ClickHouseSqlSyntax.quoteIdentifier
@@ -310,7 +311,9 @@ internal class ClickHouseScriptRenderer(private val options: BiScriptOptions = B
             }
             appendLine("SELECT")
             appendLine(selectSql)
-            appendLine("FROM ${qualified(options.database, view.sourceTableName)};")
+            appendLine(
+                "FROM ${qualified(options.database, view.sourceTableName)} AS ${identifier(SOURCE_ALIAS)};"
+            )
         }.trimEnd()
     }
 
@@ -318,7 +321,7 @@ internal class ClickHouseScriptRenderer(private val options: BiScriptOptions = B
         "${renderExtraction(column)} AS ${identifier(column.targetName)}"
 
     private fun renderExtraction(column: ColumnPlan): String = when (val extraction = column.extraction) {
-        is ColumnExtraction.Source -> identifier(extraction.name)
+        is ColumnExtraction.Reference -> renderReference(extraction.source)
         is ColumnExtraction.JsonValue -> jsonValue(extraction.source, extraction.property, column.type.toSql())
         is ColumnExtraction.JsonString -> jsonString(extraction.source, extraction.property)
         is ColumnExtraction.JsonRaw -> jsonRaw(extraction.source, extraction.property)
@@ -346,14 +349,31 @@ internal class ClickHouseScriptRenderer(private val options: BiScriptOptions = B
     private fun jsonValue(source: String, property: String, sqlType: String): String =
         "JSONExtract(${identifier(source)}, ${literal(property)}, ${literal(sqlType)})"
 
+    private fun jsonValue(source: ColumnReference, property: String, sqlType: String): String =
+        "JSONExtract(${renderReference(source)}, ${literal(property)}, ${literal(sqlType)})"
+
     private fun jsonString(source: String, property: String): String =
         "JSONExtractString(${identifier(source)}, ${literal(property)})"
+
+    private fun jsonString(source: ColumnReference, property: String): String =
+        "JSONExtractString(${renderReference(source)}, ${literal(property)})"
 
     private fun jsonRaw(source: String, property: String): String =
         "JSONExtractRaw(${identifier(source)}, ${literal(property)})"
 
+    private fun jsonRaw(source: ColumnReference, property: String): String =
+        "JSONExtractRaw(${renderReference(source)}, ${literal(property)})"
+
     private fun jsonArray(source: String, property: String): String =
         "JSONExtractArrayRaw(${identifier(source)}, ${literal(property)})"
+
+    private fun jsonArray(source: ColumnReference, property: String): String =
+        "JSONExtractArrayRaw(${renderReference(source)}, ${literal(property)})"
+
+    private fun renderReference(reference: ColumnReference): String = when (reference) {
+        is ColumnReference.Input -> "${identifier(SOURCE_ALIAS)}.${identifier(reference.name)}"
+        is ColumnReference.Alias -> identifier(reference.name)
+    }
 
     private fun jsonUInt(source: String, property: String): String =
         "JSONExtractUInt(${identifier(source)}, ${literal(property)})"
@@ -399,7 +419,7 @@ internal class ClickHouseScriptRenderer(private val options: BiScriptOptions = B
         path = name,
         targetName = "__$name",
         type = type,
-        extraction = ColumnExtraction.Source(name),
+        extraction = ColumnExtraction.Reference(ColumnReference.Input(name)),
         placement = ColumnPlacement.SELECT,
     )
 
@@ -407,5 +427,6 @@ internal class ClickHouseScriptRenderer(private val options: BiScriptOptions = B
         const val COMMAND_SUFFIX = "command"
         const val STATE_SUFFIX = "state"
         const val STATE_LAST_SUFFIX = "state_last"
+        const val SOURCE_ALIAS = "__source"
     }
 }

@@ -29,10 +29,10 @@ class StateExpansionPlannerNullableTest {
 
         root.column("name").run {
             type.assert().isEqualTo(ClickHouseType.Nullable(ClickHouseType.String))
-            extraction.assert().isEqualTo(ColumnExtraction.JsonValue("state", "name"))
+            extraction.assert().isEqualTo(ColumnExtraction.JsonValue(input("state"), "name"))
         }
         root.rawColumn("name").extraction.assert()
-            .isEqualTo(ColumnExtraction.JsonRaw("state", "name"))
+            .isEqualTo(ColumnExtraction.JsonRaw(input("state"), "name"))
 
         root.column("nullable_elements").run {
             type.assert().isEqualTo(
@@ -45,7 +45,7 @@ class StateExpansionPlannerNullableTest {
             type.assert().isEqualTo(ClickHouseType.Array(ClickHouseType.String))
         }
         root.rawColumn("nullable_values").extraction.assert()
-            .isEqualTo(ColumnExtraction.JsonRaw("state", "nullableValues"))
+            .isEqualTo(ColumnExtraction.JsonRaw(input("state"), "nullableValues"))
 
         root.column("nullable_map_values").run {
             type.assert().isEqualTo(
@@ -63,13 +63,13 @@ class StateExpansionPlannerNullableTest {
             )
         }
         root.rawColumn("nullable_map").extraction.assert()
-            .isEqualTo(ColumnExtraction.JsonRaw("state", "nullableMap"))
+            .isEqualTo(ColumnExtraction.JsonRaw(input("state"), "nullableMap"))
 
         root.column("boxed__value").run {
             type.assert().isEqualTo(ClickHouseType.Nullable(ClickHouseType.String))
         }
         root.rawColumn("boxed__value").extraction.assert()
-            .isEqualTo(ColumnExtraction.JsonRaw("boxed", "value"))
+            .isEqualTo(ColumnExtraction.JsonRaw(alias("boxed"), "value"))
     }
 
     @Test
@@ -77,7 +77,7 @@ class StateExpansionPlannerNullableTest {
         val root = StateExpansionPlanner().plan(nullableAggregateMetadata).views.first()
 
         root.rawColumn("child").extraction.assert()
-            .isEqualTo(ColumnExtraction.JsonRaw("state", "child"))
+            .isEqualTo(ColumnExtraction.JsonRaw(input("state"), "child"))
         root.column("child__name").type.assert()
             .isEqualTo(ClickHouseType.Nullable(ClickHouseType.String))
         root.columns.none { it.targetName == "__raw__child__name" }.assert().isTrue()
@@ -91,11 +91,11 @@ class StateExpansionPlannerNullableTest {
 
         root.column("items").run {
             type.assert().isEqualTo(ClickHouseType.Array(ClickHouseType.String))
-            extraction.assert().isEqualTo(ColumnExtraction.JsonArray("state", "items"))
+            extraction.assert().isEqualTo(ColumnExtraction.JsonArray(input("state"), "items"))
         }
         itemView.rawColumn("items").run {
             placement.assert().isEqualTo(ColumnPlacement.SELECT)
-            extraction.assert().isEqualTo(ColumnExtraction.Source("items"))
+            extraction.assert().isEqualTo(ColumnExtraction.Reference(alias("items")))
         }
         itemView.column("items__name").type.assert()
             .isEqualTo(ClickHouseType.Nullable(ClickHouseType.String))
@@ -114,7 +114,7 @@ class StateExpansionPlannerNullableTest {
         root.column("name").type.assert()
             .isEqualTo(ClickHouseType.Nullable(ClickHouseType.String))
         root.rawColumn("name").extraction.assert()
-            .isEqualTo(ColumnExtraction.JsonRaw("state", "name"))
+            .isEqualTo(ColumnExtraction.JsonRaw(input("state"), "name"))
     }
 
     private fun ExpansionViewPlan.column(targetName: String): ColumnPlan =
@@ -122,6 +122,10 @@ class StateExpansionPlannerNullableTest {
 
     private fun ExpansionViewPlan.rawColumn(targetName: String): ColumnPlan =
         column("__raw__$targetName")
+
+    private fun input(name: String): ColumnReference = ColumnReference.Input(name)
+
+    private fun alias(name: String): ColumnReference = ColumnReference.Alias(name)
 }
 
 @Suppress("UnusedPrivateProperty")

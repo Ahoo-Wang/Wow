@@ -25,18 +25,26 @@ internal data class ColumnPlan(
     val inherited: Boolean = true,
 )
 
+internal sealed interface ColumnReference {
+    val name: String
+
+    data class Input(override val name: String) : ColumnReference
+
+    data class Alias(override val name: String) : ColumnReference
+}
+
 internal sealed interface ColumnExtraction {
-    data class Source(val name: String) : ColumnExtraction
+    data class Reference(val source: ColumnReference) : ColumnExtraction
 
-    data class JsonValue(val source: String, val property: String) : ColumnExtraction
+    data class JsonValue(val source: ColumnReference, val property: String) : ColumnExtraction
 
-    data class JsonString(val source: String, val property: String) : ColumnExtraction
+    data class JsonString(val source: ColumnReference, val property: String) : ColumnExtraction
 
-    data class JsonRaw(val source: String, val property: String) : ColumnExtraction
+    data class JsonRaw(val source: ColumnReference, val property: String) : ColumnExtraction
 
-    data class JsonArray(val source: String, val property: String) : ColumnExtraction
+    data class JsonArray(val source: ColumnReference, val property: String) : ColumnExtraction
 
-    data class ArrayJoin(val source: String, val property: String) : ColumnExtraction
+    data class ArrayJoin(val source: ColumnReference, val property: String) : ColumnExtraction
 }
 
 internal enum class ColumnPlacement {

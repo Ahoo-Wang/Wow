@@ -136,18 +136,18 @@ AS SELECT * FROM "bi_db"."example_order_state";
 
 ### 根展开视图
 
-根视图将一对一对象展开为列，并以 `__*` 列继承状态事件元数据：
+根视图将一对一对象展开为列，并以 `__*` 列继承状态事件元数据。物理输入列统一通过固定表别名 `__source` 限定，避免领域输出别名遮蔽元数据列：
 
 ```sql
 CREATE VIEW IF NOT EXISTS "bi_db"."example_order_state_last_root" ON CLUSTER '{cluster}' AS
-WITH JSONExtractRaw("state", 'address') AS "address"
+WITH JSONExtractRaw("__source"."state", 'address') AS "address"
 SELECT JSONExtract("address", 'city', 'String') AS "address__city",
-       JSONExtract("state", 'id', 'String') AS "id",
-       JSONExtractArrayRaw("state", 'items') AS "items",
-       "owner_id" AS "__owner_id",
-       "space_id" AS "__space_id",
-       "tags" AS "__tags"
-FROM "bi_db"."example_order_state_last";
+       JSONExtract("__source"."state", 'id', 'String') AS "id",
+       JSONExtractArrayRaw("__source"."state", 'items') AS "items",
+       "__source"."owner_id" AS "__owner_id",
+       "__source"."space_id" AS "__space_id",
+       "__source"."tags" AS "__tags"
+FROM "bi_db"."example_order_state_last" AS "__source";
 ```
 
 ### 子展开视图
@@ -156,12 +156,12 @@ FROM "bi_db"."example_order_state_last";
 
 ```sql
 CREATE VIEW IF NOT EXISTS "bi_db"."example_order_state_last_root_items" ON CLUSTER '{cluster}' AS
-WITH arrayJoin(JSONExtractArrayRaw("state", 'items')) AS "items"
+WITH arrayJoin(JSONExtractArrayRaw("__source"."state", 'items')) AS "items"
 SELECT JSONExtract("items", 'id', 'String') AS "items__id",
        JSONExtract("items", 'quantity', 'Int32') AS "items__quantity",
-       "aggregate_id" AS "__aggregate_id",
-       "version" AS "__version"
-FROM "bi_db"."example_order_state_last";
+       "__source"."aggregate_id" AS "__aggregate_id",
+       "__source"."version" AS "__version"
+FROM "bi_db"."example_order_state_last" AS "__source";
 ```
 
 ### 可空类型与原始值
@@ -169,10 +169,10 @@ FROM "bi_db"."example_order_state_last";
 类型由属性的结构化空值信息生成，`Nullable` 可以出现在标量、数组元素和 Map 值层级：
 
 ```sql
-JSONExtract("state", 'name', 'Nullable(String)') AS "name",
-JSONExtractRaw("state", 'name') AS "__raw__name",
-JSONExtract("state", 'scores', 'Array(Nullable(Int32))') AS "scores",
-JSONExtract("state", 'ratings', 'Map(String, Nullable(Int32))') AS "ratings"
+JSONExtract("__source"."state", 'name', 'Nullable(String)') AS "name",
+JSONExtractRaw("__source"."state", 'name') AS "__raw__name",
+JSONExtract("__source"."state", 'scores', 'Array(Nullable(Int32))') AS "scores",
+JSONExtract("__source"."state", 'ratings', 'Map(String, Nullable(Int32))') AS "ratings"
 ```
 
 ## 结构化类型与无损语义

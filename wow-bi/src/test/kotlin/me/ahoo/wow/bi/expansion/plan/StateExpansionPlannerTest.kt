@@ -56,17 +56,17 @@ class StateExpansionPlannerTest {
         rootView.column("item").run {
             type.assert().isEqualTo(ClickHouseType.String)
             placement.assert().isEqualTo(ColumnPlacement.WITH)
-            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw("state", "item"))
+            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw(input("state"), "item"))
         }
         rootView.column("item__id").run {
             type.assert().isEqualTo(ClickHouseType.String)
             placement.assert().isEqualTo(ColumnPlacement.SELECT)
-            extraction.assert().isEqualTo(ColumnExtraction.JsonValue("item", "id"))
+            extraction.assert().isEqualTo(ColumnExtraction.JsonValue(alias("item"), "id"))
         }
         rootView.column("items").run {
             type.assert().isEqualTo(ClickHouseType.Array(ClickHouseType.String))
             placement.assert().isEqualTo(ColumnPlacement.SELECT)
-            extraction.assert().isEqualTo(ColumnExtraction.JsonArray("state", "items"))
+            extraction.assert().isEqualTo(ColumnExtraction.JsonArray(input("state"), "items"))
             inherited.assert().isFalse()
         }
         rootView.column("like_link_string").type.assert()
@@ -81,7 +81,7 @@ class StateExpansionPlannerTest {
         }
         rootView.column("map_item").run {
             type.assert().isEqualTo(ClickHouseType.String)
-            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw("state", "mapItem"))
+            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw(input("state"), "mapItem"))
         }
         plan.diagnostics.single { it.path == "mapItem" }.run {
             code.assert().isEqualTo(BiScriptDiagnosticCode.RAW_JSON_FALLBACK)
@@ -117,11 +117,11 @@ class StateExpansionPlannerTest {
         rootView.column("nested__child").run {
             type.assert().isEqualTo(ClickHouseType.String)
             placement.assert().isEqualTo(ColumnPlacement.SELECT)
-            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw("nested", "child"))
+            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw(alias("nested"), "child"))
         }
         rootView.column("nested__id").run {
             type.assert().isEqualTo(ClickHouseType.String)
-            extraction.assert().isEqualTo(ColumnExtraction.JsonValue("nested", "id"))
+            extraction.assert().isEqualTo(ColumnExtraction.JsonValue(alias("nested"), "id"))
         }
         rootView.columns.none { it.targetName == "nested__child__id" }.assert().isTrue()
         plan.diagnostics.single { it.path == "nested.child" }.run {
@@ -139,7 +139,7 @@ class StateExpansionPlannerTest {
         rootView.column("alpha__children").run {
             type.assert().isEqualTo(ClickHouseType.String)
             placement.assert().isEqualTo(ColumnPlacement.SELECT)
-            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw("alpha", "children"))
+            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw(alias("alpha"), "children"))
         }
         plan.views.none { it.targetTableName.endsWith("_alpha__children") }.assert().isTrue()
         plan.diagnostics.single { it.path == "alpha.children" }.run {
@@ -177,7 +177,7 @@ class StateExpansionPlannerTest {
 
         rootView.column("a_unsupported").run {
             type.assert().isEqualTo(ClickHouseType.String)
-            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw("state", "aUnsupported"))
+            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw(input("state"), "aUnsupported"))
         }
         plan.diagnostics.single { it.path == "aUnsupported" }.run {
             code.assert().isEqualTo(BiScriptDiagnosticCode.RAW_JSON_FALLBACK)
@@ -218,7 +218,7 @@ class StateExpansionPlannerTest {
 
         root.column("platform_map").run {
             type.assert().isEqualTo(ClickHouseType.String)
-            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw("state", "platformMap"))
+            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw(input("state"), "platformMap"))
         }
         root.columns.filter { it.path == "platformMap" }.assert().hasSize(1)
         root.columns.none { it.targetName == "__raw__platform_map" }.assert().isTrue()
@@ -271,7 +271,7 @@ class StateExpansionPlannerTest {
         val kotlinRoot = kotlinPlan.views.single()
         kotlinRoot.column("nullable_key_values").run {
             type.assert().isEqualTo(ClickHouseType.String)
-            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw("state", "nullableKeyValues"))
+            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw(input("state"), "nullableKeyValues"))
         }
         kotlinRoot.columns.filter { it.path == "nullableKeyValues" }.assert().hasSize(1)
         kotlinRoot.columns.none { it.targetName == "__raw__nullable_key_values" }.assert().isTrue()
@@ -285,7 +285,7 @@ class StateExpansionPlannerTest {
         val javaRoot = javaPlan.views.single()
         javaRoot.column("unknown_key_values").run {
             type.assert().isEqualTo(ClickHouseType.String)
-            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw("state", "unknownKeyValues"))
+            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw(input("state"), "unknownKeyValues"))
         }
         javaRoot.columns.filter { it.path == "unknownKeyValues" }.assert().hasSize(1)
         javaRoot.columns.none { it.targetName == "__raw__unknown_key_values" }.assert().isTrue()
@@ -313,7 +313,7 @@ class StateExpansionPlannerTest {
 
         plan.views.single().column("non_string_values").run {
             type.assert().isEqualTo(ClickHouseType.String)
-            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw("state", "nonStringValues"))
+            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw(input("state"), "nonStringValues"))
         }
         plan.diagnostics.single { it.path == "nonStringValues" }.run {
             code.assert().isEqualTo(BiScriptDiagnosticCode.RAW_JSON_FALLBACK)
@@ -328,7 +328,7 @@ class StateExpansionPlannerTest {
 
         plan.views.single().column("raw_values").run {
             type.assert().isEqualTo(ClickHouseType.String)
-            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw("state", "rawValues"))
+            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw(input("state"), "rawValues"))
         }
         plan.diagnostics.single { it.path == "rawValues" }.sourceType.assert()
             .isEqualTo("java.util.Map<java.lang.Object,java.lang.Object>")
@@ -342,7 +342,7 @@ class StateExpansionPlannerTest {
         rootView.columns.filter { it.path == "values" }.assert().hasSize(1)
         rootView.column("values").run {
             type.assert().isEqualTo(ClickHouseType.String)
-            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw("state", "values"))
+            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw(input("state"), "values"))
         }
         rootView.columns.none {
             it.type == ClickHouseType.Map(ClickHouseType.String, ClickHouseType.String)
@@ -356,7 +356,7 @@ class StateExpansionPlannerTest {
         plan.views.assert().hasSize(1)
         plan.views.single().column("platform_values").run {
             type.assert().isEqualTo(ClickHouseType.String)
-            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw("state", "platformValues"))
+            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw(input("state"), "platformValues"))
         }
         plan.diagnostics.single { it.path == "platformValues" }.sourceType.assert()
             .isEqualTo("java.util.List<java.lang.Thread>")
@@ -369,7 +369,7 @@ class StateExpansionPlannerTest {
         plan.views.assert().hasSize(1)
         plan.views.single().column("raw_values").run {
             type.assert().isEqualTo(ClickHouseType.String)
-            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw("state", "rawValues"))
+            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw(input("state"), "rawValues"))
         }
         plan.diagnostics.single { it.path == "rawValues" }.sourceType.assert()
             .isEqualTo("java.util.List<java.lang.Object>")
@@ -384,11 +384,11 @@ class StateExpansionPlannerTest {
         val rootColumns = plan.views.single().columns
         rootColumns.single { it.targetName == "nested__platform_values" }.run {
             type.assert().isEqualTo(ClickHouseType.String)
-            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw("nested", "platformValues"))
+            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw(alias("nested"), "platformValues"))
         }
         rootColumns.single { it.targetName == "nested__raw_values" }.run {
             type.assert().isEqualTo(ClickHouseType.String)
-            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw("nested", "rawValues"))
+            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw(alias("nested"), "rawValues"))
         }
         plan.diagnostics.map { it.path to it.code }.assert().containsExactly(
             "nested.platformValues" to BiScriptDiagnosticCode.MAX_DEPTH_REACHED,
@@ -437,6 +437,10 @@ class StateExpansionPlannerTest {
 
     private fun ExpansionViewPlan.column(targetName: String): ColumnPlan =
         columns.single { it.targetName == targetName }
+
+    private fun input(name: String): ColumnReference = ColumnReference.Input(name)
+
+    private fun alias(name: String): ColumnReference = ColumnReference.Alias(name)
 
     @Suppress("UNCHECKED_CAST")
     private fun <T> assertJavaUnmodifiable(values: List<T>, element: T) {
