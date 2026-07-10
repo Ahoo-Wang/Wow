@@ -27,6 +27,9 @@ import java.lang.reflect.Field
 import java.lang.reflect.Member
 import java.lang.reflect.Method
 import java.lang.reflect.Parameter
+import java.lang.reflect.ParameterizedType
+import java.lang.reflect.RecordComponent
+import java.lang.reflect.TypeVariable
 import kotlin.Metadata
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty1
@@ -38,32 +41,42 @@ import kotlin.reflect.jvm.javaGetter
 
 internal object JsonPropertyTypeResolver {
     fun resolve(type: Class<*>): List<ResolvedJsonProperty> {
-        return resolve(JsonSerializer.constructType(type))
+        return resolve(JsonSerializer.constructType(type), emptyMap(), emptyMap())
     }
 
     fun resolve(type: JavaType): List<ResolvedJsonProperty> {
-        return resolve(type, emptyMap())
+        return resolve(type, emptyMap(), emptyMap())
     }
 
     fun resolve(type: ResolvedType): List<ResolvedJsonProperty> {
-        val rootBindings = type.rawClass.kotlin.typeParameters.mapIndexedNotNull { index, parameter ->
+        val kotlinRootBindings = type.rawClass.kotlin.typeParameters.mapIndexedNotNull { index, parameter ->
             type.arguments.getOrNull(index)?.let { argument ->
                 parameter to argument.toShape()
             }
         }.toMap()
-        return resolve(type.javaType, rootBindings)
+        val javaRootBindings = buildMap<TypeVariable<*>, JavaAnnotationEvidence> {
+            type.rawClass.typeParameters.forEachIndexed { index, parameter ->
+                type.arguments.getOrNull(index)?.let { argument ->
+                    put(parameter, argument.toEvidence())
+                }
+            }
+        }
+        return resolve(type.javaType, kotlinRootBindings, javaRootBindings)
     }
 
     private fun resolve(
         type: JavaType,
-        rootBindings: Map<KTypeParameter, KotlinTypeShape>,
+        kotlinRootBindings: Map<KTypeParameter, KotlinTypeShape>,
+        javaRootBindings: Map<TypeVariable<*>, JavaAnnotationEvidence>,
     ): List<ResolvedJsonProperty> {
         return type.toBeanDescription()
             .findProperties()
             .asSequence()
             .filter(PropertyFilter::shouldInclude)
             .filter(BeanPropertyDefinition::couldSerialize)
-            .map { property -> resolveProperty(type.rawClass, property, rootBindings) }
+            .map { property ->
+                resolveProperty(type.rawClass, property, kotlinRootBindings, javaRootBindings)
+            }
             .sortedBy(ResolvedJsonProperty::serializedName)
             .toList()
     }
@@ -71,7 +84,8 @@ internal object JsonPropertyTypeResolver {
     private fun resolveProperty(
         rootClass: Class<*>,
         property: BeanPropertyDefinition,
-        rootBindings: Map<KTypeParameter, KotlinTypeShape>,
+        kotlinRootBindings: Map<KTypeParameter, KotlinTypeShape>,
+        javaRootBindings: Map<TypeVariable<*>, JavaAnnotationEvidence>,
     ): ResolvedJsonProperty {
         val declaringMember = requireNotNull(property.accessor?.member) {
             "Unable to resolve serialization accessor for ${rootClass.name}.${property.name}"
@@ -81,7 +95,7 @@ internal object JsonPropertyTypeResolver {
             val typeParameterBindings = findTypeParameterBindings(
                 rootClass = rootClass.kotlin,
                 targetClass = declaringMember.declaringClass.kotlin,
-                rootBindings = rootBindings,
+                rootBindings = kotlinRootBindings,
             )
             val shape = kotlinProperty.returnType.toShape(
                 substitutions = typeParameterBindings,
@@ -95,14 +109,21 @@ internal object JsonPropertyTypeResolver {
             )
         }
 
+        val javaTypeParameterBindingPaths = findJavaTypeParameterBindings(
+            rootClass = rootClass,
+            targetClass = declaringMember.declaringClass,
+            rootBindings = javaRootBindings,
+        )
         return ResolvedJsonProperty(
             serializedName = property.name,
             type = resolveJavaType(
                 rootClass = rootClass,
                 property = property,
                 javaType = property.primaryType,
-                evidence = property.javaAnnotationEvidence() +
-                    declaringMember.inheritedKotlinEvidence(rootClass, rootBindings),
+                evidence = javaTypeParameterBindingPaths.flatMap { bindings ->
+                    property.javaAnnotationEvidence(bindings)
+                } +
+                    declaringMember.inheritedKotlinEvidence(rootClass, kotlinRootBindings),
                 path = property.name,
             ),
             origin = ResolvedTypeOrigin.JAVA,
@@ -175,6 +196,70 @@ internal object JsonPropertyTypeResolver {
 
         visit(this)
         return discovered.toList()
+    }
+
+    private fun findJavaTypeParameterBindings(
+        rootClass: Class<*>,
+        targetClass: Class<*>,
+        rootBindings: Map<TypeVariable<*>, JavaAnnotationEvidence>,
+    ): List<Map<TypeVariable<*>, JavaAnnotationEvidence>> {
+        return findJavaTypeParameterBindings(
+            currentClass = rootClass,
+            currentBindings = rootBindings,
+            targetClass = targetClass,
+            visited = emptySet(),
+        ).ifEmpty { listOf(emptyMap()) }
+    }
+
+    private fun findJavaTypeParameterBindings(
+        currentClass: Class<*>,
+        currentBindings: Map<TypeVariable<*>, JavaAnnotationEvidence>,
+        targetClass: Class<*>,
+        visited: Set<Class<*>>,
+    ): List<Map<TypeVariable<*>, JavaAnnotationEvidence>> {
+        if (currentClass == targetClass) {
+            return listOf(currentBindings)
+        }
+        if (currentClass in visited) {
+            return emptyList()
+        }
+        val currentPath = visited + currentClass
+
+        val supertypes = buildList {
+            addAll(currentClass.annotatedInterfaces)
+            currentClass.annotatedSuperclass?.let { superclass -> add(superclass) }
+        }
+            .mapNotNull { annotatedType ->
+                annotatedType.rawClass()?.let { rawClass -> rawClass to annotatedType }
+            }
+            .filter { (rawClass) -> targetClass.isAssignableFrom(rawClass) }
+            .sortedBy { (rawClass) -> rawClass.name }
+        return supertypes.flatMap { (superClass, annotatedType) ->
+            val annotatedArguments = (annotatedType as? AnnotatedParameterizedType)
+                ?.annotatedActualTypeArguments
+                .orEmpty()
+            val superBindings = buildMap<TypeVariable<*>, JavaAnnotationEvidence> {
+                superClass.typeParameters.forEachIndexed { index, parameter ->
+                    annotatedArguments.getOrNull(index)?.let { argument ->
+                        put(parameter, argument.toEvidence(substitutions = currentBindings))
+                    }
+                }
+            }
+            findJavaTypeParameterBindings(
+                currentClass = superClass,
+                currentBindings = superBindings,
+                targetClass = targetClass,
+                visited = currentPath,
+            )
+        }
+    }
+
+    private fun AnnotatedType.rawClass(): Class<*>? {
+        return when (val reflectedType = type) {
+            is Class<*> -> reflectedType
+            is ParameterizedType -> reflectedType.rawType as? Class<*>
+            else -> null
+        }
     }
 
     private fun KClass<*>.declarationOrigin(): ResolvedTypeOrigin {
@@ -324,6 +409,13 @@ internal object JsonPropertyTypeResolver {
         )
     }
 
+    private fun ResolvedType.toEvidence(): JavaAnnotationEvidence {
+        return JavaAnnotationEvidence(
+            signals = setOf(nullability),
+            arguments = arguments.map { argument -> argument.toEvidence() },
+        )
+    }
+
     private fun JavaType.resolveKotlinType(shape: KotlinTypeShape?): ResolvedType {
         val argumentTypes = argumentTypes()
         return ResolvedType(
@@ -369,19 +461,23 @@ internal object JsonPropertyTypeResolver {
         )
     }
 
-    private fun BeanPropertyDefinition.javaAnnotationEvidence(): List<JavaAnnotationEvidence> {
+    private fun BeanPropertyDefinition.javaAnnotationEvidence(
+        substitutions: Map<TypeVariable<*>, JavaAnnotationEvidence>,
+    ): List<JavaAnnotationEvidence> {
         return buildList {
             getter?.annotated?.let { method ->
                 add(
                     method.annotatedReturnType.toEvidence(
-                        declarationAnnotations = method.annotations.asIterable()
+                        declarationAnnotations = method.annotations.asIterable(),
+                        substitutions = substitutions,
                     )
                 )
             }
             field?.annotated?.let { field ->
                 add(
                     field.annotatedType.toEvidence(
-                        declarationAnnotations = field.annotations.asIterable()
+                        declarationAnnotations = field.annotations.asIterable(),
+                        substitutions = substitutions,
                     )
                 )
             }
@@ -389,10 +485,34 @@ internal object JsonPropertyTypeResolver {
                 parameter.reflectionParameter()?.let { reflectionParameter ->
                     add(
                         reflectionParameter.annotatedType.toEvidence(
-                            declarationAnnotations = reflectionParameter.annotations.asIterable()
+                            declarationAnnotations = reflectionParameter.annotations.asIterable(),
+                            substitutions = substitutions,
                         )
                     )
                 }
+            }
+            recordComponent()?.let { component ->
+                add(
+                    component.annotatedType.toEvidence(
+                        declarationAnnotations = component.annotations.asIterable(),
+                        substitutions = substitutions,
+                    )
+                )
+            }
+        }
+    }
+
+    private fun BeanPropertyDefinition.recordComponent(): RecordComponent? {
+        val member = accessor?.member ?: return null
+        val declaringClass = member.declaringClass
+        if (!declaringClass.isRecord) {
+            return null
+        }
+        return declaringClass.recordComponents.firstOrNull { component ->
+            when (member) {
+                is Method -> component.accessor == member
+                is Field -> component.name == member.name
+                else -> false
             }
         }
     }
@@ -403,13 +523,25 @@ internal object JsonPropertyTypeResolver {
 
     private fun AnnotatedType.toEvidence(
         declarationAnnotations: Iterable<Annotation> = emptyList(),
+        substitutions: Map<TypeVariable<*>, JavaAnnotationEvidence> = emptyMap(),
     ): JavaAnnotationEvidence {
         val signals = (declarationAnnotations + annotations.asIterable())
             .mapNotNull { it.toNullability() }
             .toSet()
+        val substituted = (type as? TypeVariable<*>)?.let(substitutions::get)
+        if (substituted != null) {
+            return JavaAnnotationEvidence(
+                signals = signals.ifEmpty { substituted.signals },
+                arguments = substituted.arguments,
+            )
+        }
         val arguments = when (this) {
-            is AnnotatedParameterizedType -> annotatedActualTypeArguments.map { it.toEvidence() }
-            is AnnotatedArrayType -> listOf(annotatedGenericComponentType.toEvidence())
+            is AnnotatedParameterizedType -> annotatedActualTypeArguments.map {
+                it.toEvidence(substitutions = substitutions)
+            }
+            is AnnotatedArrayType -> listOf(
+                annotatedGenericComponentType.toEvidence(substitutions = substitutions)
+            )
             else -> emptyList()
         }
         return JavaAnnotationEvidence(signals = signals, arguments = arguments)

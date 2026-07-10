@@ -251,6 +251,21 @@ class StateExpansionPlannerTest {
     }
 
     @Test
+    fun `should preserve nested Java generic values structurally`() {
+        val plan = StateExpansionPlanner().plan(javaGenericBoxAggregateMetadata)
+        val root = plan.views.single()
+
+        root.column("scalar_box__value").type.assert().isEqualTo(ClickHouseType.String)
+        root.column("list_box__value").type.assert().isEqualTo(
+            ClickHouseType.Array(ClickHouseType.Nullable(ClickHouseType.String))
+        )
+        root.column("map_box__value").type.assert().isEqualTo(
+            ClickHouseType.Map(ClickHouseType.String, ClickHouseType.Int32)
+        )
+        plan.diagnostics.assert().isEmpty()
+    }
+
+    @Test
     fun `should preserve nullable and unknown map keys as one whole raw value`() {
         val kotlinPlan = StateExpansionPlanner().plan(nonStringMapAggregateMetadata)
         val kotlinRoot = kotlinPlan.views.single()
@@ -457,6 +472,12 @@ private class UnsupportedAggregate(
 
 @Suppress("UnusedPrivateProperty")
 @AggregateRoot
+private class JavaGenericBoxAggregate(
+    private val state: JavaNullabilityFixture.GenericBoxState,
+)
+
+@Suppress("UnusedPrivateProperty")
+@AggregateRoot
 private class NonStringMapAggregate(private val state: NonStringMapState)
 
 private class NonStringMapState(override val id: String) : Identifier {
@@ -542,6 +563,8 @@ private class TruncatedObjectMapState(override val id: String) : Identifier {
 private val siblingAggregateMetadata = aggregateMetadata<SiblingAggregate, SiblingState>()
 private val javaContractAggregateMetadata =
     aggregateMetadata<UnsupportedAggregate, JavaNullabilityFixture.KotlinGenericContractState>()
+private val javaGenericBoxAggregateMetadata =
+    aggregateMetadata<JavaGenericBoxAggregate, JavaNullabilityFixture.GenericBoxState>()
 private val nonStringMapAggregateMetadata = aggregateMetadata<NonStringMapAggregate, NonStringMapState>()
 private val genericObjectMapAggregateMetadata =
     aggregateMetadata<GenericObjectMapAggregate, GenericObjectMapState>()

@@ -262,6 +262,86 @@ class JsonPropertyTypeResolverTest {
     }
 
     @Test
+    fun `should seed nested Java generic member resolution from parent resolved arguments`() {
+        val boxes = JsonPropertyTypeResolver.resolve(JavaNullabilityFixture.GenericBoxState::class.java)
+            .associateBy { it.serializedName }
+
+        fun resolveValue(name: String): ResolvedType {
+            return JsonPropertyTypeResolver.resolve(boxes.getValue(name).type)
+                .single { it.serializedName == "value" }
+                .type
+        }
+
+        resolveValue("scalarBox").run {
+            rawClass.assert().isEqualTo(String::class.java)
+            nullability.assert().isEqualTo(Nullability.NON_NULL)
+        }
+        resolveValue("listBox").run {
+            rawClass.assert().isEqualTo(List::class.java)
+            nullability.assert().isEqualTo(Nullability.NON_NULL)
+            arguments.single().run {
+                rawClass.assert().isEqualTo(String::class.java)
+                nullability.assert().isEqualTo(Nullability.NULLABLE)
+            }
+        }
+        resolveValue("mapBox").run {
+            rawClass.assert().isEqualTo(Map::class.java)
+            nullability.assert().isEqualTo(Nullability.NON_NULL)
+            arguments[0].run {
+                rawClass.assert().isEqualTo(String::class.java)
+                nullability.assert().isEqualTo(Nullability.NON_NULL)
+            }
+            arguments[1].run {
+                rawClass.assert().isEqualTo(Int::class.javaObjectType)
+                nullability.assert().isEqualTo(Nullability.NON_NULL)
+            }
+        }
+    }
+
+    @Test
+    fun `should resolve record component declaration nullability`() {
+        val property = JsonPropertyTypeResolver.resolve(
+            JavaRecordNullabilityFixture.ComponentOnly::class.java
+        ).single()
+
+        property.serializedName.assert().isEqualTo("value")
+        property.type.rawClass.assert().isEqualTo(String::class.java)
+        property.type.nullability.assert().isEqualTo(Nullability.NULLABLE)
+        property.origin.assert().isEqualTo(ResolvedTypeOrigin.JAVA)
+        property.declaringMember.assert()
+            .isEqualTo(JavaRecordNullabilityFixture.ComponentOnly::class.java.getMethod("value"))
+    }
+
+    @Test
+    fun `should resolve annotated Java generic superclass arguments`() {
+        val value = JsonPropertyTypeResolver.resolve(JavaNullabilityFixture.AnnotatedMapBox::class.java)
+            .single { it.serializedName == "value" }
+            .type
+
+        value.rawClass.assert().isEqualTo(Map::class.java)
+        value.nullability.assert().isEqualTo(Nullability.NON_NULL)
+        value.arguments[0].run {
+            rawClass.assert().isEqualTo(String::class.java)
+            nullability.assert().isEqualTo(Nullability.NON_NULL)
+        }
+        value.arguments[1].run {
+            rawClass.assert().isEqualTo(Int::class.javaObjectType)
+            nullability.assert().isEqualTo(Nullability.NON_NULL)
+        }
+    }
+
+    @Test
+    fun `should reject conflicting Java generic diamond contracts`() {
+        assertThrownBy<IllegalArgumentException> {
+            JsonPropertyTypeResolver.resolve(
+                JavaNullabilityFixture.ConflictingGenericDiamond::class.java
+            )
+        }.hasMessageContaining(JavaNullabilityFixture.ConflictingGenericDiamond::class.java.name)
+            .hasMessageContaining("value")
+            .hasMessageContaining("Conflicting")
+    }
+
+    @Test
     fun `should accept non-null Kotlin contract refinement implemented in Java`() {
         val property = JsonPropertyTypeResolver.resolve(
             JavaNullabilityFixture.RefinedContractImplementation::class.java

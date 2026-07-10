@@ -145,4 +145,61 @@ public class JavaNullabilityFixture {
             return "value";
         }
     }
+
+    public static class GenericBox<T> {
+        private final T value;
+
+        public GenericBox(T value) {
+            this.value = value;
+        }
+
+        public T getValue() {
+            return value;
+        }
+    }
+
+    public static final class AnnotatedMapBox
+        extends GenericBox<@NotNull Map<@NotNull String, @NotNull Integer>> {
+        public AnnotatedMapBox() {
+            super(Map.of());
+        }
+    }
+
+    public interface GenericRoot<T> {
+        default T getValue() {
+            return null;
+        }
+    }
+
+    public interface ANonNullRoot extends GenericRoot<@NotNull String> {
+    }
+
+    public interface ZNullableRoot extends GenericRoot<@Nullable String> {
+    }
+
+    public static final class ConflictingGenericDiamond implements ANonNullRoot, ZNullableRoot {
+    }
+
+    public static final class GenericBoxState implements Identifier {
+        @Override
+        @NotNull
+        public String getId() {
+            return "id";
+        }
+
+        @NotNull
+        public GenericBox<@NotNull String> getScalarBox() {
+            return new GenericBox<>("");
+        }
+
+        @NotNull
+        public GenericBox<@NotNull List<@Nullable String>> getListBox() {
+            return new GenericBox<>(List.of());
+        }
+
+        @NotNull
+        public GenericBox<@NotNull Map<@NotNull String, @NotNull Integer>> getMapBox() {
+            return new GenericBox<>(Map.of());
+        }
+    }
 }
