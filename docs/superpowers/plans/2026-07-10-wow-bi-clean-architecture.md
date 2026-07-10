@@ -175,6 +175,7 @@ git commit -m "feat(bi): resolve nullable JSON property types"
 **Files:**
 
 - Modify: `wow-bi/build.gradle.kts`
+- Modify: `wow-bi/src/main/kotlin/me/ahoo/wow/bi/BiScriptGenerator.kt`
 - Modify: `wow-bi/src/main/kotlin/me/ahoo/wow/bi/BiScriptOptions.kt`
 - Modify: `wow-bi/src/main/kotlin/me/ahoo/wow/bi/BiScriptResult.kt`
 - Modify: `wow-bi/src/main/kotlin/me/ahoo/wow/bi/expansion/plan/ColumnPlan.kt`
@@ -182,9 +183,9 @@ git commit -m "feat(bi): resolve nullable JSON property types"
 - Modify: `wow-bi/src/main/kotlin/me/ahoo/wow/bi/expansion/plan/StateExpansionPlanner.kt`
 - Modify: `wow-bi/src/main/kotlin/me/ahoo/wow/bi/expansion/type/JsonPropertyTypeResolver.kt`
 - Modify: `wow-bi/src/main/kotlin/me/ahoo/wow/bi/renderer/ClickHouseScriptRenderer.kt`
-- Delete: `wow-bi/src/main/kotlin/me/ahoo/wow/bi/expansion/SqlTypeMapping.kt`
 - Modify: `wow-bi/src/test/kotlin/me/ahoo/wow/bi/BiScriptOptionsTest.kt`
-- Delete: `wow-bi/src/test/kotlin/me/ahoo/wow/bi/expansion/SqlTypeMappingTest.kt`
+- Modify: `wow-bi/src/test/kotlin/me/ahoo/wow/bi/BiScriptGeneratorTest.kt`
+- Delete: `wow-bi/src/test/kotlin/me/ahoo/wow/bi/ScriptEngineTest.kt`
 - Modify: `wow-bi/src/test/kotlin/me/ahoo/wow/bi/expansion/plan/StateExpansionPlannerTest.kt`
 - Create: `wow-bi/src/test/kotlin/me/ahoo/wow/bi/expansion/plan/StateExpansionPlannerNullableTest.kt`
 - Modify: `wow-bi/src/test/kotlin/me/ahoo/wow/bi/expansion/type/JsonPropertyTypeResolverTest.kt`
@@ -251,6 +252,10 @@ Expected: compile failures for structural `ColumnPlan.type`, new enum/diagnostic
 - Raw companion/fallback use `JSONExtractRaw`; nullable object element companion projects the arrayJoin source raw value.
 - Run collision validation after all same-view siblings and metadata aliases are known, before freezing the view.
 - Renderer calls `ClickHouseType.toSql()` and owns every SQL spelling.
+- Update `BiScriptGenerator` for init-validated options and `RAW_JSON`; retain its existing internal legacy construction
+  hook only until Task 4 deletes `ScriptEngine`. Do not add a new compatibility path.
+- Keep the old `SqlTypeMapping` only because the legacy expansion graph still compiles against it; the new planner must
+  have zero references. Task 4 deletes that complete graph and the mapping atomically.
 
 - [ ] **Step 6: Run GREEN and fresh BI tests**
 
@@ -290,9 +295,10 @@ git commit -m "feat(bi): preserve nullable state projections"
 - Delete: `wow-bi/src/main/kotlin/me/ahoo/wow/bi/ScriptTemplateEngine.kt`
 - Delete: `wow-bi/src/main/kotlin/me/ahoo/wow/bi/expansion/StateExpansionScriptGenerator.kt`
 - Delete: `wow-bi/src/main/kotlin/me/ahoo/wow/bi/expansion/SqlBuilder.kt`
+- Delete: `wow-bi/src/main/kotlin/me/ahoo/wow/bi/expansion/SqlTypeMapping.kt`
 - Delete: `wow-bi/src/main/kotlin/me/ahoo/wow/bi/expansion/TableNaming.kt`
 - Delete: `wow-bi/src/main/kotlin/me/ahoo/wow/bi/expansion/column/`
-- Delete: `wow-bi/src/test/kotlin/me/ahoo/wow/bi/ScriptEngineTest.kt`
+- Delete: `wow-bi/src/test/kotlin/me/ahoo/wow/bi/expansion/SqlTypeMappingTest.kt`
 - Delete: `wow-bi/src/test/kotlin/me/ahoo/wow/bi/expansion/StateExpansionScriptGeneratorTest.kt`
 - Delete: `wow-bi/src/test/resources/expected_bi_aggregate_script.sql`
 - Modify: `wow-bi/src/test/kotlin/me/ahoo/wow/bi/BiScriptGeneratorTest.kt`
