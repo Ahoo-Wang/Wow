@@ -498,6 +498,7 @@ git commit -m "refactor(starter): centralize BI script configuration"
 **Files:**
 
 - Modify: `build.gradle.kts`
+- Modify: `gradle/libs.versions.toml`
 - Modify: `.github/workflows/integration-test.yml`
 - Modify: `wow-bi/build.gradle.kts`
 - Modify: `wow-bi/src/main/kotlin/me/ahoo/wow/bi/renderer/ClickHouseScriptRenderer.kt`
@@ -512,6 +513,8 @@ git commit -m "refactor(starter): centralize BI script configuration"
 
 - Add `project(":wow-bi")` to root `integrationTestProjects`.
 - Add `integrationTestImplementation("org.testcontainers:testcontainers-clickhouse")`.
+- Add ClickHouse JDBC `0.9.8` to the version catalog and use its `all` classifier only on the BI integration-test
+  classpath; do not hard-code an independent module-local version or expose the driver to production variants.
 - Pin `clickhouse/clickhouse-server:24.8.14.39-alpine` (minimum supported LTS), never `latest`.
 - Add `wow-bi/**` to integration-test workflow paths.
 - Add a test resource `clickhouse-test-cluster.xml` defining one shard/one replica `test_cluster` at localhost, copy it
