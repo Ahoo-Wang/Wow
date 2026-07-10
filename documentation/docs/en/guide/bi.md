@@ -200,7 +200,7 @@ Raw columns distinguish states that typed extraction cannot always distinguish:
 | Explicit `null` | String `"null"` | Nullable scalar becomes SQL `NULL`; array/Map may become empty. |
 | Empty array / object | String `"[]"` / `"{}"` | Empty array / Map. |
 
-The `__raw__*` columns for nullable arrays, maps, and objects are therefore the lossless channel for distinguishing missing, explicit null, and empty composite values.
+The `__raw__*` columns for nullable scalars, arrays, maps, and objects are therefore the lossless channel for distinguishing missing, explicit null, and empty values.
 
 ### Unsupported Types
 
@@ -216,8 +216,15 @@ This table is the only compatibility reference for old names. No compatibility a
 |---------|-------------|
 | `ScriptEngine` / `ScriptTemplateEngine` | `BiScriptGenerator` + `BiScriptOptions` |
 | `StateExpansionScriptGenerator` | Internal structural planning through `BiScriptGenerator` |
+| `SqlBuilder` / `SqlTypeMapping` / `TableNaming` / `expansion.column.*` | No direct replacement; SQL construction, type mapping, and column models are handled by the generator's internal structural planner/renderer |
+| `BiTableNaming` and planner, plan, resolver, renderer, syntax, and ClickHouse type implementation types | No supported public replacement; these are now implementation details and callers should depend only on the `BiScriptGenerator` result protocol |
+| `BiScriptOptions.validate()` | Validation runs when constructing `BiScriptOptions`; no explicit `validate()` call is required |
+| `BiScriptDiagnostic.severity` / `Severity` | Removed; returned diagnostics are warnings, while strict failures throw directly |
+| `OBJECT_MAP_FALLBACK` / `UNSUPPORTED_TYPE_FALLBACK` | `RAW_JSON_FALLBACK`, with `sourceType` and `decision` describing the mapping decision |
 | `BiScriptRouteOptions` and route enums | `BiScriptOptions` / `UnsupportedTypeStrategy` |
 | WebFlux String/default constructors | Constructors accepting `BiScriptOptions` |
+| Starter `BiScriptUnsupportedTypeStrategy` / `BiScriptObjectMapStrategy` | Bind `UnsupportedTypeStrategy` directly; object maps no longer have a separate strategy |
+| `GlobalRouteModule(KafkaProperties?)` and its old dual construction path | Use Starter auto-configuration and `wow.bi.script.*`; `GlobalRouteModule` is now internal |
 | `STRING_WITH_DIAGNOSTIC` | `RAW_JSON` |
 | `ObjectMapStrategy` / `object-map-strategy` / `STRING_VALUE_WITH_DIAGNOSTIC` | Unified `unsupported-type-strategy` with `RAW_JSON` / `FAIL` |
 
@@ -231,10 +238,10 @@ This change modifies generated snapshot-expansion column types, nullability, and
 
 1. Back up current expansion-view definitions and affected downstream query and dataset definitions.
 2. Generate SQL with the new code and configuration; review types, `__raw__*` columns, databases, topics, and diagnostics.
-3. Drop only generated expansion views, children before parents; do not run the complete destructive `clear` section.
-4. Recreate views in generated order, then validate column types, missing/null/empty distinctions, and downstream queries.
+3. Drop only generated expansion views, children before parents, using the same `ON CLUSTER` scope as the generated SQL; do not run the complete destructive `clear` section.
+4. Recreate views in generated order with the same `ON CLUSTER` scope, then validate column types on every node, missing/null/empty distinctions, and downstream queries.
 5. Deploy consumers that depend on the new columns only after validation passes.
 
 ### Rollback
 
-Drop the new expansion views from children to parents, restore the backed-up view definitions, and restore the previous application and configuration. If downstream consumers already switched to the new columns, roll back their queries or dataset definitions as well.
+Using the same `ON CLUSTER` scope as rollout, drop the new expansion views from children to parents, restore the backed-up view definitions, and restore the previous application and configuration. If downstream consumers already switched to the new columns, roll back their queries or dataset definitions as well.
