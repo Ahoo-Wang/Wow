@@ -99,6 +99,22 @@
           "id" : null,
           "commands" : [ ],
           "events" : [ ]
+        },
+        "opaque-property" : {
+          "scopes" : [ "me.ahoo.wow.bi.expansion.plan" ],
+          "type" : "me.ahoo.wow.bi.expansion.plan.OpaquePropertyAggregate",
+          "tenantId" : "(0)",
+          "id" : null,
+          "commands" : [ ],
+          "events" : [ ]
+        },
+        "opaque-root" : {
+          "scopes" : [ "me.ahoo.wow.bi.expansion.plan" ],
+          "type" : "me.ahoo.wow.bi.expansion.plan.OpaqueRootAggregate",
+          "tenantId" : "(0)",
+          "id" : null,
+          "commands" : [ ],
+          "events" : [ ]
         }
       }
     }

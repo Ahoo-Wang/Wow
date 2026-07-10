@@ -435,6 +435,62 @@ class StateExpansionPlannerTest {
         )
     }
 
+    @Test
+    fun `should preserve an opaque nested value as one raw column`() {
+        val plan = StateExpansionPlanner().plan(opaquePropertyAggregateMetadata)
+        val root = plan.views.single()
+
+        root.column("payment").run {
+            type.assert().isEqualTo(ClickHouseType.String)
+            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw(input("state"), "payment"))
+        }
+        root.columns.filter { it.path == "payment" }.assert().hasSize(1)
+        root.column("name").type.assert().isEqualTo(ClickHouseType.String)
+        plan.diagnostics.single { it.path == "payment" }.decision.assert()
+            .isEqualTo(BiScriptMappingDecision.RAW_JSON)
+    }
+
+    @Test
+    fun `should fail for an opaque nested value in strict mode`() {
+        assertThrownBy<IllegalArgumentException> {
+            StateExpansionPlanner(
+                BiScriptOptions(unsupportedTypeStrategy = UnsupportedTypeStrategy.FAIL)
+            ).plan(opaquePropertyAggregateMetadata)
+        }.hasMessageContaining("payment")
+            .hasMessageContaining(OpaquePayment::class.java.name)
+    }
+
+    @Test
+    fun `should preserve a collection with opaque elements as one raw column`() {
+        val plan = StateExpansionPlanner().plan(opaquePropertyAggregateMetadata)
+        val root = plan.views.single()
+
+        root.column("payments").run {
+            type.assert().isEqualTo(ClickHouseType.String)
+            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw(input("state"), "payments"))
+        }
+        plan.views.none { it.targetTableName.endsWith("_payments") }.assert().isTrue()
+        plan.diagnostics.single { it.path == "payments" }.decision.assert()
+            .isEqualTo(BiScriptMappingDecision.RAW_JSON)
+    }
+
+    @Test
+    fun `should preserve an opaque root state as one raw column`() {
+        val plan = StateExpansionPlanner().plan(opaqueRootAggregateMetadata)
+        val root = plan.views.single()
+
+        root.columns.assert().hasSize(1)
+        root.column("state").run {
+            path.assert().isEqualTo("$")
+            type.assert().isEqualTo(ClickHouseType.String)
+            extraction.assert().isEqualTo(ColumnExtraction.Reference(input("state")))
+        }
+        plan.diagnostics.single().run {
+            path.assert().isEqualTo("$")
+            decision.assert().isEqualTo(BiScriptMappingDecision.RAW_JSON)
+        }
+    }
+
     private fun ExpansionViewPlan.column(targetName: String): ColumnPlan =
         columns.single { it.targetName == targetName }
 
@@ -564,6 +620,26 @@ private class TruncatedObjectMapState(override val id: String) : Identifier {
     val metadataId: String = ""
 }
 
+@Suppress("UnusedPrivateProperty")
+@AggregateRoot
+private class OpaquePropertyAggregate(private val state: OpaquePropertyState)
+
+private class OpaquePropertyState(override val id: String) : Identifier {
+    val name: String = ""
+    val payment: OpaquePayment = OpaqueCardPayment("")
+    val payments: List<OpaquePayment> = emptyList()
+}
+
+private sealed interface OpaquePayment
+
+private data class OpaqueCardPayment(val lastFour: String) : OpaquePayment
+
+@Suppress("UnusedPrivateProperty")
+@AggregateRoot
+private class OpaqueRootAggregate(private val state: OpaqueRootState)
+
+private abstract class OpaqueRootState : Identifier
+
 private val siblingAggregateMetadata = aggregateMetadata<SiblingAggregate, SiblingState>()
 private val javaContractAggregateMetadata =
     aggregateMetadata<UnsupportedAggregate, JavaNullabilityFixture.KotlinGenericContractState>()
@@ -582,3 +658,7 @@ private val rawCompanionCollisionAggregateMetadata =
     aggregateMetadata<RawCollectionAggregate, RawCollectionState>()
 private val metadataAliasCollisionAggregateMetadata =
     aggregateMetadata<TruncatedObjectMapAggregate, TruncatedObjectMapState>()
+private val opaquePropertyAggregateMetadata =
+    aggregateMetadata<OpaquePropertyAggregate, OpaquePropertyState>()
+private val opaqueRootAggregateMetadata =
+    aggregateMetadata<OpaqueRootAggregate, OpaqueRootState>()

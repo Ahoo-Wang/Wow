@@ -202,4 +202,16 @@ public class JavaNullabilityFixture {
             return new GenericBox<>(Map.of());
         }
     }
+
+    public interface NonNullMapContract {
+        @NotNull
+        Map<@NotNull String, @NotNull Integer> getInheritedJavaMap();
+    }
+
+    public static final class NonNullMapContractImplementation implements NonNullMapContract {
+        @Override
+        public Map<String, Integer> getInheritedJavaMap() {
+            return Map.of();
+        }
+    }
 }

@@ -20,7 +20,8 @@ import me.ahoo.wow.bi.BiScriptMappingDecision
 import me.ahoo.wow.bi.BiScriptOptions
 import me.ahoo.wow.bi.UnsupportedTypeStrategy
 import me.ahoo.wow.bi.expansion.BiTableNaming
-import me.ahoo.wow.bi.expansion.type.JsonPropertyTypeResolver
+import me.ahoo.wow.bi.expansion.type.JacksonWireShapeInspector
+import me.ahoo.wow.bi.expansion.type.JsonWireShape
 import me.ahoo.wow.bi.expansion.type.Nullability
 import me.ahoo.wow.bi.expansion.type.ResolvedJsonProperty
 import me.ahoo.wow.bi.expansion.type.ResolvedType
@@ -146,7 +147,19 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
         draft: ViewDraft,
         context: PlanningContext,
     ) {
-        JsonPropertyTypeResolver.resolve(parent.type).forEach { property ->
+        when (val shape = JacksonWireShapeInspector.inspect(parent.type)) {
+            is JsonWireShape.ExpandableObject -> collectResolvedProperties(parent, shape.properties, draft, context)
+            is JsonWireShape.Opaque -> collectOpaqueNode(parent, draft, context)
+        }
+    }
+
+    private fun collectResolvedProperties(
+        parent: PlanningNode,
+        properties: List<ResolvedJsonProperty>,
+        draft: ViewDraft,
+        context: PlanningContext,
+    ) {
+        properties.forEach { property ->
             collectProperty(parent, property, draft, context)
         }
     }
@@ -208,11 +221,36 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
                 context = context,
             )
 
-            else -> collectNestedObject(
+            else -> collectObjectProperty(parent, name, path, targetName, type, draft, context)
+        }
+    }
+
+    private fun collectObjectProperty(
+        parent: PlanningNode,
+        name: String,
+        path: String,
+        targetName: String,
+        type: ResolvedType,
+        draft: ViewDraft,
+        context: PlanningContext,
+    ) {
+        when (val shape = JacksonWireShapeInspector.inspect(type)) {
+            is JsonWireShape.ExpandableObject -> collectNestedObject(
                 parent = parent,
                 name = name,
                 path = path,
                 targetName = targetName,
+                type = type,
+                properties = shape.properties,
+                draft = draft,
+                context = context,
+            )
+
+            is JsonWireShape.Opaque -> collectRawFallback(
+                name = name,
+                path = path,
+                targetName = targetName,
+                source = parent.source,
                 type = type,
                 draft = draft,
                 context = context,
@@ -249,6 +287,7 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
         path: String,
         targetName: String,
         type: ResolvedType,
+        properties: List<ResolvedJsonProperty>,
         draft: ViewDraft,
         context: PlanningContext,
     ) {
@@ -266,7 +305,7 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
             draft.columns.add(rawCompanionColumn(name, path, targetName, parent.source))
         }
 
-        collectObjectProperties(
+        collectResolvedProperties(
             parent = PlanningNode(
                 path = path,
                 source = ColumnReference.Alias(targetName),
@@ -275,6 +314,7 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
                 depth = parent.depth + 1,
                 nullableAncestor = parent.nullableAncestor || type.requiresRawCompanion(),
             ),
+            properties = properties,
             draft = draft,
             context = context,
         )
@@ -343,7 +383,7 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
             }
             return
         }
-        if (isUnsupportedPlatformObject(elementType)) {
+        if (elementType.isOpaqueCollectionElement()) {
             collectRawFallback(name, path, targetName, parent.source, type, draft, context)
             return
         }
@@ -402,6 +442,38 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
                 decision = BiScriptMappingDecision.MAX_DEPTH_RAW_JSON,
                 message = "Max expansion depth reached at [$path] with type [$sourceType]; " +
                     "the whole value is preserved as raw JSON.",
+            )
+        )
+    }
+
+    private fun collectOpaqueNode(
+        node: PlanningNode,
+        draft: ViewDraft,
+        context: PlanningContext,
+    ) {
+        val path = node.path.ifBlank { ROOT_PATH }
+        val sourceType = node.type.javaType.toCanonical()
+        require(context.options.unsupportedTypeStrategy == UnsupportedTypeStrategy.RAW_JSON) {
+            "Unsupported property [$path] for aggregate [${context.aggregate}] with type [$sourceType]."
+        }
+        draft.columns.add(
+            ColumnPlan(
+                name = node.targetName,
+                path = path,
+                targetName = node.targetName,
+                type = ClickHouseType.String,
+                extraction = ColumnExtraction.Reference(node.source),
+                placement = ColumnPlacement.SELECT,
+            )
+        )
+        context.diagnostics.add(
+            BiScriptDiagnostic(
+                code = BiScriptDiagnosticCode.RAW_JSON_FALLBACK,
+                aggregate = context.aggregate,
+                path = path,
+                sourceType = sourceType,
+                decision = BiScriptMappingDecision.RAW_JSON,
+                message = "Unsupported property [$path] with type [$sourceType] is preserved as raw JSON.",
             )
         )
     }
@@ -560,6 +632,10 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
             packageName.startsWith("kotlin.")
     }
 
+    private fun ResolvedType.isOpaqueCollectionElement(): Boolean {
+        return isUnsupportedPlatformObject(this) || JacksonWireShapeInspector.inspect(this) is JsonWireShape.Opaque
+    }
+
     private fun <T> unmodifiableCopy(values: Collection<T>): List<T> {
         return Collections.unmodifiableList(ArrayList(values))
     }
@@ -568,6 +644,7 @@ internal class StateExpansionPlanner(private val options: BiScriptOptions = BiSc
         const val STATE_COLUMN = "state"
         const val STATE_LAST_SUFFIX = "state_last"
         const val RAW_TARGET_PREFIX = "__raw__"
+        const val ROOT_PATH = "$"
     }
 }
 

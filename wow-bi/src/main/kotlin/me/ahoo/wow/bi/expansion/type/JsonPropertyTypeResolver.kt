@@ -123,7 +123,8 @@ internal object JsonPropertyTypeResolver {
                 evidence = javaTypeParameterBindingPaths.flatMap { bindings ->
                     property.javaAnnotationEvidence(bindings)
                 } +
-                    declaringMember.inheritedKotlinEvidence(rootClass, kotlinRootBindings),
+                    declaringMember.inheritedKotlinEvidence(rootClass, kotlinRootBindings) +
+                    declaringMember.inheritedJavaEvidence(rootClass, javaRootBindings),
                 path = property.name,
             ),
             origin = ResolvedTypeOrigin.JAVA,
@@ -176,6 +177,42 @@ internal object JsonPropertyTypeResolver {
                     candidate.declaringClass.isAssignableFrom(other.declaringClass)
             }
         }.map(InheritedKotlinContract::evidence)
+    }
+
+    private fun Member.inheritedJavaEvidence(
+        rootClass: Class<*>,
+        rootBindings: Map<TypeVariable<*>, JavaAnnotationEvidence>,
+    ): List<JavaAnnotationEvidence> {
+        val method = this as? Method ?: return emptyList()
+        val contracts = rootClass.allSupertypes()
+            .filter { it.getDeclaredAnnotation(Metadata::class.java) == null }
+            .flatMap { supertype ->
+                val overriddenMethod = supertype.declaredMethods.firstOrNull { candidate ->
+                    candidate.name == method.name &&
+                        candidate.parameterTypes.contentEquals(method.parameterTypes) &&
+                        !candidate.isBridge
+                } ?: return@flatMap emptyList()
+                findJavaTypeParameterBindings(
+                    rootClass = rootClass,
+                    targetClass = supertype,
+                    rootBindings = rootBindings,
+                ).map { bindings ->
+                    InheritedJavaContract(
+                        declaringClass = supertype,
+                        evidence = overriddenMethod.annotatedReturnType.toEvidence(
+                            declarationAnnotations = overriddenMethod.annotations.asIterable(),
+                            substitutions = bindings,
+                        ),
+                    )
+                }
+            }
+        return contracts.filter { candidate ->
+            contracts.none { other ->
+                other !== candidate &&
+                    candidate.declaringClass != other.declaringClass &&
+                    candidate.declaringClass.isAssignableFrom(other.declaringClass)
+            }
+        }.map(InheritedJavaContract::evidence)
     }
 
     private fun Class<*>.allSupertypes(): List<Class<*>> {
@@ -590,6 +627,11 @@ internal object JsonPropertyTypeResolver {
     )
 
     private data class InheritedKotlinContract(
+        val declaringClass: Class<*>,
+        val evidence: JavaAnnotationEvidence,
+    )
+
+    private data class InheritedJavaContract(
         val declaringClass: Class<*>,
         val evidence: JavaAnnotationEvidence,
     )

@@ -368,6 +368,20 @@ class JsonPropertyTypeResolverTest {
         }.hasMessageContaining(JavaNullabilityFixture.ConflictingAnnotations::class.java.name)
             .hasMessageContaining("conflicting")
     }
+
+    @Test
+    fun `should inherit recursive nullability from overridden Java contract`() {
+        val property = JsonPropertyTypeResolver.resolve(
+            JavaNullabilityFixture.NonNullMapContractImplementation::class.java
+        ).single()
+
+        property.serializedName.assert().isEqualTo("inheritedJavaMap")
+        property.type.run {
+            nullability.assert().isEqualTo(Nullability.NON_NULL)
+            arguments[0].nullability.assert().isEqualTo(Nullability.NON_NULL)
+            arguments[1].nullability.assert().isEqualTo(Nullability.NON_NULL)
+        }
+    }
 }
 
 private data class Child(val name: String)
