@@ -40,7 +40,7 @@ class GenerateBIScriptHandlerFunction(private val options: BiScriptOptions) : Ha
             .bodyValue(result.script)
     }
 
-    internal fun logDiagnostics(diagnostics: List<BiScriptDiagnostic>) {
+    private fun logDiagnostics(diagnostics: List<BiScriptDiagnostic>) {
         diagnostics.forEach { diagnostic ->
             log.warn {
                 "BI script diagnostic - code:[${diagnostic.code}], aggregate:[${diagnostic.aggregate}], " +

@@ -17,11 +17,18 @@ import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.Logger
 import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.core.read.ListAppender
+import io.mockk.every
+import io.mockk.mockkObject
+import io.mockk.unmockkObject
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.bi.BiScriptDiagnostic
-import me.ahoo.wow.bi.BiScriptDiagnosticCode
-import me.ahoo.wow.bi.BiScriptMappingDecision
+import me.ahoo.wow.bi.BiScriptGenerator
 import me.ahoo.wow.bi.BiScriptOptions
+import me.ahoo.wow.configuration.MetadataSearcher
+import me.ahoo.wow.configuration.NamedAggregateTypeSearcher
+import me.ahoo.wow.configuration.TypeNamedAggregateSearcher
+import me.ahoo.wow.modeling.MaterializedNamedAggregate
 import me.ahoo.wow.openapi.contract.BuiltInHttpRouteHandlerKeys
 import me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunction
 import me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunctionFactory
@@ -36,6 +43,7 @@ import org.springframework.mock.web.server.MockServerWebExchange
 import org.springframework.web.reactive.function.server.HandlerStrategies
 import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.kotlin.test.test
+import java.lang.reflect.Modifier
 
 class GenerateBIScriptHandlerFunctionTest {
     @Test
@@ -65,32 +73,48 @@ class GenerateBIScriptHandlerFunctionTest {
     }
 
     @Test
-    fun `should log every diagnostic as a warning`() {
-        val diagnostics = listOf(
-            BiScriptDiagnostic(
-                code = BiScriptDiagnosticCode.RAW_JSON_FALLBACK,
-                aggregate = "example-service.order",
-                path = "unsupported",
-                sourceType = "java.lang.Thread",
-                decision = BiScriptMappingDecision.RAW_JSON,
-                message = "Unsupported property [unsupported] with type [java.lang.Thread] is preserved as raw JSON.",
-            ),
-            BiScriptDiagnostic(
-                code = BiScriptDiagnosticCode.MAX_DEPTH_REACHED,
-                aggregate = "example-service.order",
-                path = "nested.child",
-                sourceType = "me.ahoo.wow.example.NestedChild",
-                decision = BiScriptMappingDecision.MAX_DEPTH_RAW_JSON,
-                message = "Max expansion depth reached at [nested.child].",
-            ),
+    fun `should return generated SQL and log every generated diagnostic as a warning`() {
+        val aggregate = MaterializedNamedAggregate("webflux-bi-test", "diagnostic")
+        val aggregateTypes = NamedAggregateTypeSearcher(
+            mapOf(aggregate to DiagnosticAggregate::class.java)
         )
-        val warnings = captureHandlerWarnings {
-            GenerateBIScriptHandlerFunction(BiScriptOptions()).logDiagnostics(diagnostics)
-        }
+        val namedAggregates = TypeNamedAggregateSearcher(
+            mapOf(DiagnosticAggregate::class.java to aggregate)
+        )
+        mockkObject(MetadataSearcher)
+        try {
+            every { MetadataSearcher.localAggregates } returns setOf(aggregate)
+            every { MetadataSearcher.namedAggregateType } returns aggregateTypes
+            every { MetadataSearcher.typeNamedAggregate } returns namedAggregates
+            val options = BiScriptOptions()
+            val generated = BiScriptGenerator(options).generate(setOf(aggregate))
+            generated.diagnostics.assert().hasSize(2)
 
-        warnings.map(ILoggingEvent::getFormattedMessage).assert().isEqualTo(
-            diagnostics.map(::diagnosticLogMessage)
-        )
+            lateinit var response: ServerResponse
+            val warnings = captureHandlerWarnings {
+                response = GenerateBIScriptHandlerFunction(options)
+                    .handle(MockServerRequest.builder().build())
+                    .block()!!
+            }
+
+            response.statusCode().assert().isEqualTo(HttpStatus.OK)
+            response.headers().contentType.assert().isEqualTo(APPLICATION_SQL)
+            response.writeBody().assert().isEqualTo(generated.script)
+            warnings.map(ILoggingEvent::getFormattedMessage).assert().isEqualTo(
+                generated.diagnostics.map(::diagnosticLogMessage)
+            )
+        } finally {
+            unmockkObject(MetadataSearcher)
+        }
+    }
+
+    @Test
+    fun `should not expose diagnostic logging as public JVM API`() {
+        GenerateBIScriptHandlerFunction::class.java.declaredMethods
+            .filter { Modifier.isPublic(it.modifiers) }
+            .map { it.name }
+            .assert()
+            .containsExactly("handle")
     }
 
     private fun diagnosticLogMessage(diagnostic: BiScriptDiagnostic): String =
@@ -127,4 +151,13 @@ class GenerateBIScriptHandlerFunctionTest {
             override fun viewResolvers() = strategies.viewResolvers()
         }
     }
+}
+
+@AggregateRoot
+@Suppress("UnusedPrivateProperty")
+private class DiagnosticAggregate(private val state: DiagnosticState)
+
+private class DiagnosticState(val id: String) {
+    val otherValues: Map<String, Any> = emptyMap()
+    val values: Map<String, Any> = emptyMap()
 }
