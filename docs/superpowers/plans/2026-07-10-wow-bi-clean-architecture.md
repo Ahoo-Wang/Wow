@@ -500,6 +500,8 @@ git commit -m "refactor(starter): centralize BI script configuration"
 - Modify: `build.gradle.kts`
 - Modify: `.github/workflows/integration-test.yml`
 - Modify: `wow-bi/build.gradle.kts`
+- Modify: `wow-bi/src/main/kotlin/me/ahoo/wow/bi/renderer/ClickHouseScriptRenderer.kt`
+- Modify: `wow-bi/src/test/kotlin/me/ahoo/wow/bi/renderer/ClickHouseScriptRendererTest.kt`
 - Create: `wow-bi/src/integrationTest/kotlin/me/ahoo/wow/bi/ClickHouseExpansionIntegrationTest.kt`
 - Create: `wow-bi/src/integrationTest/resources/clickhouse-test-cluster.xml`
 - Create supporting integration fixtures only under `wow-bi/src/integrationTest/` if needed.
