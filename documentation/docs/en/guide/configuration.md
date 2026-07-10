@@ -366,8 +366,7 @@ These properties configure the ClickHouse SQL returned by `GET /wow/bi/script`:
 | `wow.bi.script.kafka-bootstrap-servers` | String | Inherit `wow.kafka.bootstrap-servers`; otherwise `localhost:9093` | BI Kafka broker override; multiple inherited brokers are joined with commas |
 | `wow.bi.script.topic-prefix` | String | Inherit `wow.kafka.topic-prefix`; otherwise `wow.` | BI topic prefix override |
 | `wow.bi.script.max-expansion-depth` | Int | `5` | Maximum complex-property expansion depth; must be at least `1` |
-| `wow.bi.script.unsupported-type-strategy` | Enum | `FAIL` | `FAIL` or `STRING_WITH_DIAGNOSTIC` |
-| `wow.bi.script.object-map-strategy` | Enum | `STRING_VALUE_WITH_DIAGNOSTIC` | `STRING_VALUE_WITH_DIAGNOSTIC` or `FAIL` for object-valued maps |
+| `wow.bi.script.unsupported-type-strategy` | Enum | `RAW_JSON` | `RAW_JSON` preserves the whole raw value and emits a diagnostic; `FAIL` stops generation |
 
 ```yaml
 wow:
@@ -383,15 +382,16 @@ wow:
       kafka-bootstrap-servers: kafka-0:9092,kafka-1:9092
       topic-prefix: 'wow.'
       max-expansion-depth: 5
-      unsupported-type-strategy: FAIL
-      object-map-strategy: STRING_VALUE_WITH_DIAGNOSTIC
+      unsupported-type-strategy: RAW_JSON
 ```
 
-Kafka settings use this precedence: an explicitly bound `wow.bi.script.kafka-bootstrap-servers` or
-`wow.bi.script.topic-prefix` value wins, even when it equals the BI default; otherwise the corresponding
-`wow.kafka.*` value is inherited; when neither is available, the BI domain default is used. Every other property uses
-its explicit BI value or the default shown above. Explicit blank required strings, control characters, and an expansion
-depth below `1` fail application startup.
+Kafka and topic settings use this precedence:
+
+1. Explicit `wow.bi.script.kafka-bootstrap-servers` / `wow.bi.script.topic-prefix`, even when the value equals the default;
+2. The corresponding `wow.kafka.bootstrap-servers` / `wow.kafka.topic-prefix`, with multiple brokers joined by commas;
+3. The `BiScriptOptions` domain defaults `localhost:9093` / `wow.`.
+
+Every other nullable binding falls back directly to its `BiScriptOptions` default when absent. The Starter performs validation when constructing the domain options: blank required strings, control characters, and `max-expansion-depth < 1` all fail application startup.
 
 See [Business Intelligence](./bi) for the structured result diagnostics and expansion-view migration notes.
 

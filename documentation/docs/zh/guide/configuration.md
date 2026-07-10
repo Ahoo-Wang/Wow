@@ -365,8 +365,7 @@ wow:
 | `wow.bi.script.kafka-bootstrap-servers` | String | 继承 `wow.kafka.bootstrap-servers`，否则为 `localhost:9093` | BI Kafka broker 覆盖值；继承多个 broker 时以逗号连接 |
 | `wow.bi.script.topic-prefix` | String | 继承 `wow.kafka.topic-prefix`，否则为 `wow.` | BI topic 前缀覆盖值 |
 | `wow.bi.script.max-expansion-depth` | Int | `5` | 复杂属性的最大展开深度，必须大于等于 `1` |
-| `wow.bi.script.unsupported-type-strategy` | Enum | `FAIL` | `FAIL` 或 `STRING_WITH_DIAGNOSTIC` |
-| `wow.bi.script.object-map-strategy` | Enum | `STRING_VALUE_WITH_DIAGNOSTIC` | 对象值 Map 使用 `STRING_VALUE_WITH_DIAGNOSTIC` 或 `FAIL` |
+| `wow.bi.script.unsupported-type-strategy` | Enum | `RAW_JSON` | `RAW_JSON` 保留整个原始值并产生诊断；`FAIL` 中止生成 |
 
 ```yaml
 wow:
@@ -382,14 +381,16 @@ wow:
       kafka-bootstrap-servers: kafka-0:9092,kafka-1:9092
       topic-prefix: 'wow.'
       max-expansion-depth: 5
-      unsupported-type-strategy: FAIL
-      object-map-strategy: STRING_VALUE_WITH_DIAGNOSTIC
+      unsupported-type-strategy: RAW_JSON
 ```
 
-Kafka 配置优先级为：显式绑定的 `wow.bi.script.kafka-bootstrap-servers` 或 `wow.bi.script.topic-prefix`
-优先，即使该值恰好等于 BI 默认值；未配置时继承对应的 `wow.kafka.*`；两者都不存在时使用 BI 领域默认值。
-其他属性使用显式 BI 配置值，否则使用上表默认值。必填字符串显式配置为空、包含控制字符或展开深度小于 `1`
-时，应用启动会失败。
+Kafka 与 topic 配置按以下优先级解析：
+
+1. 显式 `wow.bi.script.kafka-bootstrap-servers` / `wow.bi.script.topic-prefix`，即使其值等于默认值；
+2. 对应的 `wow.kafka.bootstrap-servers` / `wow.kafka.topic-prefix`，多个 broker 以逗号连接；
+3. `BiScriptOptions` 领域默认值 `localhost:9093` / `wow.`。
+
+其他可空绑定属性未配置时直接回退到 `BiScriptOptions` 默认值。Starter 在构造领域选项时统一执行校验：必填字符串为空白或包含控制字符，以及 `max-expansion-depth < 1` 都会使应用启动失败。
 
 结构化结果诊断及展开视图迁移说明参见[商业智能](./bi)。
 
