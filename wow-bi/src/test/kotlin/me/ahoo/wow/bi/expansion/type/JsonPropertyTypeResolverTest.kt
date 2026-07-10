@@ -1,0 +1,179 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.bi.expansion.type
+
+import com.fasterxml.jackson.annotation.JsonProperty
+import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
+import org.junit.jupiter.api.Test
+import kotlin.reflect.full.memberProperties
+import kotlin.reflect.jvm.javaGetter
+
+class JsonPropertyTypeResolverTest {
+    @Test
+    fun `should preserve recursive Kotlin nullability`() {
+        val properties = JsonPropertyTypeResolver.resolve(KotlinFixture::class.java)
+            .associateBy { it.serializedName }
+
+        properties.getValue("nullableString").run {
+            type.rawClass.assert().isEqualTo(String::class.java)
+            type.nullability.assert().isEqualTo(Nullability.NULLABLE)
+            origin.assert().isEqualTo(ResolvedTypeOrigin.KOTLIN)
+            declaringMember.assert().isEqualTo(KotlinFixture::nullableString.javaGetter)
+        }
+        properties.getValue("nullableList").type.run {
+            rawClass.assert().isEqualTo(List::class.java)
+            nullability.assert().isEqualTo(Nullability.NULLABLE)
+            arguments.single().run {
+                rawClass.assert().isEqualTo(String::class.java)
+                nullability.assert().isEqualTo(Nullability.NULLABLE)
+            }
+        }
+        properties.getValue("nullableMap").type.run {
+            rawClass.assert().isEqualTo(Map::class.java)
+            nullability.assert().isEqualTo(Nullability.NULLABLE)
+            arguments[0].run {
+                rawClass.assert().isEqualTo(String::class.java)
+                nullability.assert().isEqualTo(Nullability.NON_NULL)
+            }
+            arguments[1].run {
+                rawClass.assert().isEqualTo(Int::class.javaObjectType)
+                nullability.assert().isEqualTo(Nullability.NULLABLE)
+            }
+        }
+        properties.getValue("nullableChild").type.run {
+            rawClass.assert().isEqualTo(Child::class.java)
+            nullability.assert().isEqualTo(Nullability.NULLABLE)
+        }
+        properties.getValue("nullableChildren").type.run {
+            rawClass.assert().isEqualTo(List::class.java)
+            nullability.assert().isEqualTo(Nullability.NON_NULL)
+            arguments.single().run {
+                rawClass.assert().isEqualTo(Child::class.java)
+                nullability.assert().isEqualTo(Nullability.NULLABLE)
+            }
+        }
+        properties.getValue("boxed").type.run {
+            rawClass.assert().isEqualTo(Box::class.java)
+            nullability.assert().isEqualTo(Nullability.NON_NULL)
+            arguments.single().run {
+                rawClass.assert().isEqualTo(List::class.java)
+                nullability.assert().isEqualTo(Nullability.NULLABLE)
+                arguments.single().run {
+                    rawClass.assert().isEqualTo(String::class.java)
+                    nullability.assert().isEqualTo(Nullability.NULLABLE)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `should preserve nested Kotlin member nullability`() {
+        val property = JsonPropertyTypeResolver.resolve(Child::class.java).single()
+
+        property.serializedName.assert().isEqualTo("name")
+        property.type.rawClass.assert().isEqualTo(String::class.java)
+        property.type.nullability.assert().isEqualTo(Nullability.NON_NULL)
+        property.origin.assert().isEqualTo(ResolvedTypeOrigin.KOTLIN)
+        property.declaringMember.assert().isEqualTo(Child::name.javaGetter)
+    }
+
+    @Test
+    fun `should substitute inherited Kotlin generic and keep Jackson rename`() {
+        val property = JsonPropertyTypeResolver.resolve(StringDerived::class.java).single()
+        val inheritedGetter = GenericBase::class.memberProperties
+            .single { it.name == "inherited" }
+            .javaGetter
+
+        property.serializedName.assert().isEqualTo("renamed")
+        property.type.rawClass.assert().isEqualTo(String::class.java)
+        property.type.nullability.assert().isEqualTo(Nullability.NULLABLE)
+        property.origin.assert().isEqualTo(ResolvedTypeOrigin.KOTLIN)
+        property.declaringMember.assert().isEqualTo(inheritedGetter)
+    }
+
+    @Test
+    fun `should resolve Java declaration and type-use nullability`() {
+        val properties = JsonPropertyTypeResolver.resolve(JavaNullabilityFixture::class.java)
+            .associateBy { it.serializedName }
+
+        properties.getValue("primitive").type.run {
+            rawClass.assert().isEqualTo(Int::class.javaPrimitiveType)
+            nullability.assert().isEqualTo(Nullability.NON_NULL)
+        }
+        properties.getValue("nullableBoxed").type.run {
+            rawClass.assert().isEqualTo(Int::class.javaObjectType)
+            nullability.assert().isEqualTo(Nullability.NULLABLE)
+        }
+        properties.getValue("nullableReference").type.nullability.assert()
+            .isEqualTo(Nullability.NULLABLE)
+        properties.getValue("nonNullFromGetter").type.nullability.assert()
+            .isEqualTo(Nullability.NON_NULL)
+        properties.getValue("unknownReference").type.nullability.assert()
+            .isEqualTo(Nullability.UNKNOWN)
+        properties.getValue("nullableElementList").type.run {
+            rawClass.assert().isEqualTo(List::class.java)
+            nullability.assert().isEqualTo(Nullability.UNKNOWN)
+            arguments.single().run {
+                rawClass.assert().isEqualTo(String::class.java)
+                nullability.assert().isEqualTo(Nullability.NULLABLE)
+            }
+        }
+        properties.values.forEach {
+            it.origin.assert().isEqualTo(ResolvedTypeOrigin.JAVA)
+        }
+        properties.getValue("nonNullFromGetter").declaringMember.assert()
+            .isEqualTo(JavaNullabilityFixture::class.java.getMethod("getNonNullFromGetter"))
+    }
+
+    @Test
+    fun `should keep Java JsonProperty name and accessor identity`() {
+        val property = JsonPropertyTypeResolver.resolve(JavaNullabilityFixture::class.java)
+            .single { it.serializedName == "renamedJava" }
+
+        property.type.rawClass.assert().isEqualTo(String::class.java)
+        property.type.nullability.assert().isEqualTo(Nullability.UNKNOWN)
+        property.origin.assert().isEqualTo(ResolvedTypeOrigin.JAVA)
+        property.declaringMember.assert()
+            .isEqualTo(JavaNullabilityFixture::class.java.getMethod("getOriginalName"))
+    }
+
+    @Test
+    fun `should reject contradictory Java nullability annotations`() {
+        assertThrownBy<IllegalArgumentException> {
+            JsonPropertyTypeResolver.resolve(JavaNullabilityFixture.ConflictingAnnotations::class.java)
+        }.hasMessageContaining(JavaNullabilityFixture.ConflictingAnnotations::class.java.name)
+            .hasMessageContaining("conflicting")
+    }
+}
+
+private data class Child(val name: String)
+
+private data class Box<T>(val value: T)
+
+private data class KotlinFixture(
+    val nullableString: String?,
+    val nullableList: List<String?>?,
+    val nullableMap: Map<String, Int?>?,
+    val nullableChild: Child?,
+    val nullableChildren: List<Child?>,
+    val boxed: Box<List<String?>?>,
+)
+
+private open class GenericBase<T>(
+    @get:JsonProperty("renamed")
+    val inherited: T,
+)
+
+private class StringDerived : GenericBase<String?>(null)
