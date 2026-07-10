@@ -145,6 +145,23 @@ class JsonPropertyTypeResolverTest {
     }
 
     @Test
+    fun `should keep Java concrete container platform arguments unknown`() {
+        val properties = JsonPropertyTypeResolver.resolve(JavaPlatformContainerFixture::class.java)
+            .associateBy { it.serializedName }
+
+        properties.getValue("platformList").type.arguments.single().run {
+            rawClass.assert().isEqualTo(String::class.java)
+            nullability.assert().isEqualTo(Nullability.UNKNOWN)
+        }
+        properties.getValue("platformMap").type.arguments.run {
+            get(0).rawClass.assert().isEqualTo(String::class.java)
+            get(0).nullability.assert().isEqualTo(Nullability.UNKNOWN)
+            get(1).rawClass.assert().isEqualTo(Int::class.javaObjectType)
+            get(1).nullability.assert().isEqualTo(Nullability.UNKNOWN)
+        }
+    }
+
+    @Test
     fun `should substitute inherited Kotlin generic and keep Jackson rename`() {
         val property = JsonPropertyTypeResolver.resolve(StringDerived::class.java).single()
         val inheritedGetter = GenericBase::class.memberProperties
@@ -234,6 +251,17 @@ class JsonPropertyTypeResolverTest {
     }
 
     @Test
+    fun `should keep Java instantiation of Kotlin generic contract unknown`() {
+        val property = JsonPropertyTypeResolver.resolve(
+            JavaNullabilityFixture.KotlinGenericContractState::class.java
+        ).single { it.serializedName == "genericValues" }
+
+        property.origin.assert().isEqualTo(ResolvedTypeOrigin.JAVA)
+        property.type.nullability.assert().isEqualTo(Nullability.NON_NULL)
+        property.type.arguments.single().nullability.assert().isEqualTo(Nullability.UNKNOWN)
+    }
+
+    @Test
     fun `should accept non-null Kotlin contract refinement implemented in Java`() {
         val property = JsonPropertyTypeResolver.resolve(
             JavaNullabilityFixture.RefinedContractImplementation::class.java
@@ -282,9 +310,18 @@ private open class GenericBase<T>(
 
 private class StringDerived : GenericBase<String?>(null)
 
+private data class JavaPlatformContainerFixture(
+    val platformList: JavaNullabilityFixture.StringList,
+    val platformMap: JavaNullabilityFixture.StringMap,
+)
+
 interface KotlinGenericListContract {
     val nonNullValues: List<String>
     val nullableElementValues: List<String?>
+}
+
+interface KotlinGenericValueContract<T> {
+    val genericValues: List<T>
 }
 
 interface NullableValueContract {

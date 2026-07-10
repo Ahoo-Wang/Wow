@@ -83,7 +83,10 @@ internal object JsonPropertyTypeResolver {
                 targetClass = declaringMember.declaringClass.kotlin,
                 rootBindings = rootBindings,
             )
-            val shape = kotlinProperty.returnType.toShape(typeParameterBindings)
+            val shape = kotlinProperty.returnType.toShape(
+                substitutions = typeParameterBindings,
+                declarationOrigin = ResolvedTypeOrigin.KOTLIN,
+            )
             return ResolvedJsonProperty(
                 serializedName = property.name,
                 type = property.primaryType.resolveKotlinType(shape),
@@ -140,7 +143,10 @@ internal object JsonPropertyTypeResolver {
                 )
                 InheritedKotlinContract(
                     declaringClass = supertype,
-                    evidence = property.returnType.toShape(bindings).toEvidence(),
+                    evidence = property.returnType.toShape(
+                        substitutions = bindings,
+                        declarationOrigin = ResolvedTypeOrigin.KOTLIN,
+                    ).toEvidence(),
                 )
             }
         return contracts.filter { candidate ->
@@ -169,6 +175,14 @@ internal object JsonPropertyTypeResolver {
 
         visit(this)
         return discovered.toList()
+    }
+
+    private fun KClass<*>.declarationOrigin(): ResolvedTypeOrigin {
+        return if (java.getDeclaredAnnotation(Metadata::class.java) == null) {
+            ResolvedTypeOrigin.JAVA
+        } else {
+            ResolvedTypeOrigin.KOTLIN
+        }
     }
 
     private fun findTypeParameterBindings(
@@ -201,7 +215,10 @@ internal object JsonPropertyTypeResolver {
             val superClass = supertype.classifier as? KClass<*> ?: return@forEach
             val superBindings = superClass.typeParameters.mapIndexedNotNull { index, parameter ->
                 val argument = supertype.arguments.getOrNull(index)?.type ?: return@mapIndexedNotNull null
-                parameter to argument.toShape(currentBindings)
+                parameter to argument.toShape(
+                    substitutions = currentBindings,
+                    declarationOrigin = currentClass.declarationOrigin(),
+                )
             }.toMap()
             findTypeParameterBindings(
                 currentClass = superClass,
@@ -215,30 +232,60 @@ internal object JsonPropertyTypeResolver {
 
     private fun KType.toShape(
         substitutions: Map<KTypeParameter, KotlinTypeShape>,
+        declarationOrigin: ResolvedTypeOrigin,
     ): KotlinTypeShape {
         val typeParameter = classifier as? KTypeParameter
         if (typeParameter != null) {
+            val useSiteNullability = explicitNullability()
             val substituted = substitutions[typeParameter]
             if (substituted != null) {
                 return substituted.copy(
                     nullability = combineNullability(
                         substituted.nullability,
-                        if (isMarkedNullable) Nullability.NULLABLE else Nullability.UNKNOWN,
+                        useSiteNullability,
                     )
                 )
             }
             return KotlinTypeShape(
-                nullability = if (isMarkedNullable) Nullability.NULLABLE else Nullability.UNKNOWN,
+                nullability = useSiteNullability,
                 arguments = emptyList(),
             )
         }
         val declaredArguments = arguments.map { projection ->
-            projection.type?.toShape(substitutions)
+            projection.type?.toShape(substitutions, declarationOrigin)
         }
         return KotlinTypeShape(
-            nullability = if (isMarkedNullable) Nullability.NULLABLE else Nullability.NON_NULL,
+            nullability = concreteNullability(declarationOrigin),
             arguments = semanticContainerArguments(declaredArguments) ?: declaredArguments,
         )
+    }
+
+    private fun KType.concreteNullability(declarationOrigin: ResolvedTypeOrigin): Nullability {
+        val explicitNullability = explicitNullability()
+        if (explicitNullability != Nullability.UNKNOWN) {
+            return explicitNullability
+        }
+        val rawClass = classifier as? KClass<*>
+        return if (rawClass?.java?.isPrimitive == true || declarationOrigin == ResolvedTypeOrigin.KOTLIN) {
+            Nullability.NON_NULL
+        } else {
+            Nullability.UNKNOWN
+        }
+    }
+
+    private fun KType.explicitNullability(): Nullability {
+        val signals = annotations.mapNotNull { it.toNullability() }.toMutableSet()
+        if (isMarkedNullable) {
+            signals.add(Nullability.NULLABLE)
+        }
+        require(!(signals.contains(Nullability.NULLABLE) && signals.contains(Nullability.NON_NULL))) {
+            "Conflicting nullability annotations on generic type [$this]."
+        }
+        return when {
+            signals.contains(Nullability.NULLABLE) -> Nullability.NULLABLE
+            signals.contains(Nullability.NON_NULL) -> Nullability.NON_NULL
+            else -> Nullability.UNKNOWN
+        }
     }
 
     private fun KType.semanticContainerArguments(

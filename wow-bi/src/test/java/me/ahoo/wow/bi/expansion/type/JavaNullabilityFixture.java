@@ -19,6 +19,8 @@ import jakarta.validation.constraints.NotNull;
 import me.ahoo.wow.api.Identifier;
 import org.jspecify.annotations.Nullable;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -93,7 +95,8 @@ public class JavaNullabilityFixture {
         }
     }
 
-    public static class KotlinGenericContractState implements KotlinGenericListContract, Identifier {
+    public static class KotlinGenericContractState
+        implements KotlinGenericListContract, KotlinGenericValueContract<String>, Identifier {
         @Override
         public String getId() {
             return "id";
@@ -109,10 +112,23 @@ public class JavaNullabilityFixture {
             return List.of();
         }
 
+        @Override
+        public List<String> getGenericValues() {
+            return List.of();
+        }
+
         @NotNull
         public Map<String, Integer> getUnknownKeyValues() {
             return Map.of();
         }
+    }
+
+    @SuppressWarnings("serial")
+    public static class StringList extends ArrayList<String> {
+    }
+
+    @SuppressWarnings("serial")
+    public static class StringMap extends HashMap<String, Integer> {
     }
 
     public static class RefinedContractImplementation implements RefinedValueContract {

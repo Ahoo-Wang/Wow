@@ -202,6 +202,55 @@ class StateExpansionPlannerTest {
     }
 
     @Test
+    fun `should preserve Java platform list element as nullable`() {
+        val root = StateExpansionPlanner().plan(platformCollectionAggregateMetadata).views.single()
+
+        root.column("platform_list").type.assert().isEqualTo(
+            ClickHouseType.Array(ClickHouseType.Nullable(ClickHouseType.String))
+        )
+        root.columns.none { it.targetName == "__raw__platform_list" }.assert().isTrue()
+    }
+
+    @Test
+    fun `should preserve Java platform map as one whole raw value`() {
+        val plan = StateExpansionPlanner().plan(platformCollectionAggregateMetadata)
+        val root = plan.views.single()
+
+        root.column("platform_map").run {
+            type.assert().isEqualTo(ClickHouseType.String)
+            extraction.assert().isEqualTo(ColumnExtraction.JsonRaw("state", "platformMap"))
+        }
+        root.columns.filter { it.path == "platformMap" }.assert().hasSize(1)
+        root.columns.none { it.targetName == "__raw__platform_map" }.assert().isTrue()
+        plan.diagnostics.single { it.path == "platformMap" }.run {
+            code.assert().isEqualTo(BiScriptDiagnosticCode.RAW_JSON_FALLBACK)
+            sourceType.assert().contains("StringMap")
+            decision.assert().isEqualTo(BiScriptMappingDecision.RAW_JSON)
+        }
+    }
+
+    @Test
+    fun `should reject Java platform map key under strict strategy`() {
+        assertThrownBy<IllegalArgumentException> {
+            StateExpansionPlanner(
+                BiScriptOptions(unsupportedTypeStrategy = UnsupportedTypeStrategy.FAIL)
+            ).plan(platformCollectionAggregateMetadata)
+        }.hasMessageContaining("bi-service.platform-collection")
+            .hasMessageContaining("platformMap")
+            .hasMessageContaining("StringMap")
+    }
+
+    @Test
+    fun `should keep Java generic Kotlin contract element nullable`() {
+        val root = StateExpansionPlanner().plan(javaContractAggregateMetadata).views.single()
+
+        root.column("generic_values").type.assert().isEqualTo(
+            ClickHouseType.Array(ClickHouseType.Nullable(ClickHouseType.String))
+        )
+        root.columns.none { it.targetName == "__raw__generic_values" }.assert().isTrue()
+    }
+
+    @Test
     fun `should preserve nullable and unknown map keys as one whole raw value`() {
         val kotlinPlan = StateExpansionPlanner().plan(nonStringMapAggregateMetadata)
         val kotlinRoot = kotlinPlan.views.single()
@@ -449,6 +498,8 @@ private class GenericObjectMapState(override val id: String) : Identifier {
 private class PlatformCollectionAggregate(private val state: PlatformCollectionState)
 
 private class PlatformCollectionState(override val id: String) : Identifier {
+    val platformList: JavaNullabilityFixture.StringList = JavaNullabilityFixture.StringList()
+    val platformMap: JavaNullabilityFixture.StringMap = JavaNullabilityFixture.StringMap()
     val platformValues: List<Thread> = emptyList()
     val rawValues: List<*> = emptyList<Any>()
 }
