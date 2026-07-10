@@ -251,7 +251,9 @@ Expected: compile failures for structural `ColumnPlan.type`, new enum/diagnostic
 - Add a validated `ClickHouseType.DateTime(timezone)` scalar so source metadata columns retain their real structural type;
   do not assign dummy types merely because `Source` extraction does not render a JSON type argument.
 - Effective leaf nullable = own nullable/unknown OR nullable object/element ancestor.
-- Every declared nullable/unknown property emits a SELECT raw companion named `__raw__<targetName>`.
+- Every declared nullable/unknown property with a typed projection emits a SELECT raw companion named
+  `__raw__<targetName>`. A whole-value raw fallback already is the authoritative raw projection and must not duplicate
+  the same expression under a companion name.
 - A descendant made nullable only by its ancestor does not duplicate a leaf raw; the ancestor companion is authoritative.
 - Raw companion/fallback use `JSONExtractRaw`; nullable object element companion projects the arrayJoin source raw value.
 - Run collision validation after all same-view siblings and metadata aliases are known, before freezing the view.

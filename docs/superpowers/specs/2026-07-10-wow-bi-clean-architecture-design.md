@@ -20,7 +20,7 @@
 - 删除 legacy engine/template/builder/column API、重复 enums 和所有兼容分支。
 - Kotlin 与 Java 属性的 nullability、泛型参数和 nullable ancestor 不再丢失。
 - ClickHouse 类型由结构化模型表达，构造期无法产生 `Nullable(Array(...))` 等非法组合。
-- nullable scalar 使用 `Nullable(T)`；每个 declared nullable/unknown property 使用类型化投影加完整 raw companion。
+- nullable scalar 使用 `Nullable(T)`；每个 declared nullable/unknown typed property 使用类型化投影加完整 raw companion。
 - depth cutoff、object map、raw generic 和 unsupported type 只允许 fail 或完整 raw JSON；不允许有损强转。
 - planner 发现重复列名、reserved raw 名冲突或 Java nullability 冲突时 fail fast。
 - 本地单测、四个相关模块检查、detekt、文档构建通过。
@@ -267,7 +267,8 @@ raw companion 命名为 `__raw__<targetName>`，内容直接来自 `JSONExtractR
 而变为 effective nullable、但自身声明为 non-null 的 leaf，由 ancestor raw companion 提供区分，不重复生成 leaf raw。
 raw companion 是 view 投影，不新增源表存储。
 
-所有 raw fallback 都保留整个 value；禁止使用 `Map(String,String)` 或把 unsupported collection 仅转成
+所有 raw fallback 都保留整个 value；fallback 的主 target 列本身就是权威 raw 投影，不再复制内容完全相同的
+`__raw__` companion。禁止使用 `Map(String,String)` 或把 unsupported collection 仅转成
 `JSONExtractArrayRaw` 后宣称无损。`UnsupportedTypeStrategy.FAIL` 抛异常；`RAW_JSON` 输出 raw column并产生
 `RAW_JSON_FALLBACK` diagnostic。depth cutoff 始终输出 raw 并产生 `MAX_DEPTH_REACHED` diagnostic。
 
