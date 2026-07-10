@@ -269,7 +269,7 @@ class WebFluxAutoConfiguration {
         )
     }
 
-    @Bean
+    @Bean(name = ["globalRouteModule"])
     @Order(Ordered.HIGHEST_PRECEDENCE)
     @ConditionalOnMissingBean
     internal fun globalRouteModule(

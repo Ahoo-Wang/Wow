@@ -296,6 +296,9 @@ internal class WebFluxAutoConfigurationTest {
             .run { context: AssertableApplicationContext ->
                 context.getBean(BiScriptProperties::class.java).assert().isEqualTo(BiScriptProperties())
                 context.assert().hasSingleBean(GlobalRouteModule::class.java)
+                context.getBeanNamesForType(GlobalRouteModule::class.java)
+                    .assert()
+                    .containsExactly("globalRouteModule")
                 val moduleFactory = context.getBean(GlobalRouteModule::class.java).httpFactories.single {
                     it.handlerKey == BuiltInHttpRouteHandlerKeys.Global.BI_SCRIPT
                 }
