@@ -298,6 +298,10 @@ git commit -m "feat(bi): preserve nullable state projections"
 
 - Modify: `wow-bi/build.gradle.kts`
 - Modify: `wow-bi/src/main/kotlin/me/ahoo/wow/bi/BiScriptGenerator.kt`
+- Modify: `wow-bi/src/main/kotlin/me/ahoo/wow/bi/BiScriptOptions.kt`
+- Modify: `wow-bi/src/main/kotlin/me/ahoo/wow/bi/expansion/BiTableNaming.kt`
+- Modify: `wow-bi/src/main/kotlin/me/ahoo/wow/bi/expansion/plan/PropertyFilter.kt`
+- Modify: `wow-bi/src/main/kotlin/me/ahoo/wow/bi/renderer/ClickHouseSqlSyntax.kt`
 - Delete: `wow-bi/src/main/kotlin/me/ahoo/wow/bi/ScriptEngine.kt`
 - Delete: `wow-bi/src/main/kotlin/me/ahoo/wow/bi/ScriptTemplateEngine.kt`
 - Delete: `wow-bi/src/main/kotlin/me/ahoo/wow/bi/expansion/StateExpansionScriptGenerator.kt`
