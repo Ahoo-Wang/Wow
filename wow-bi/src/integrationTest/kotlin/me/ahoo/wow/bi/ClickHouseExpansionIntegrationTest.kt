@@ -155,18 +155,18 @@ class ClickHouseExpansionIntegrationTest {
             SELECT
                 ${identifier("__id")} AS row_id,
                 toTypeName(${identifier("nullable_scalar")}) AS scalar_type,
-                toJSONString(${identifier("nullable_scalar")}) AS scalar_json,
+                ifNull(toJSONString(${identifier("nullable_scalar")}), 'null') AS scalar_json,
                 ${identifier("__raw__nullable_scalar")} AS scalar_raw,
                 toTypeName(${identifier("nullable_array")}) AS array_type,
                 toJSONString(${identifier("nullable_array")}) AS array_json,
                 ${identifier("__raw__nullable_array")} AS array_raw,
                 toTypeName(${identifier("nullable_map")}) AS map_type,
                 length(${identifier("nullable_map")}) AS map_size,
-                toJSONString(${identifier("nullable_map")}['a']) AS map_a_json,
-                toJSONString(${identifier("nullable_map")}['b']) AS map_b_json,
+                ifNull(toJSONString(${identifier("nullable_map")}['a']), 'null') AS map_a_json,
+                ifNull(toJSONString(${identifier("nullable_map")}['b']), 'null') AS map_b_json,
                 ${identifier("__raw__nullable_map")} AS map_raw,
                 toTypeName(${identifier("nullable_object__value")}) AS object_value_type,
-                toJSONString(${identifier("nullable_object__value")}) AS object_value_json,
+                ifNull(toJSONString(${identifier("nullable_object__value")}), 'null') AS object_value_json,
                 ${identifier("__raw__nullable_object")} AS object_raw,
                 ${identifier("__raw__nullable_objects")} AS object_array_raw,
                 ${identifier("mixed")} AS mixed_raw
@@ -179,7 +179,7 @@ class ClickHouseExpansionIntegrationTest {
             SELECT
                 ${identifier("__id")} AS row_id,
                 toTypeName(${identifier("nullable_objects__value")}) AS value_type,
-                toJSONString(${identifier("nullable_objects__value")}) AS value_json,
+                ifNull(toJSONString(${identifier("nullable_objects__value")}), 'null') AS value_json,
                 ${identifier("__raw__nullable_objects")} AS element_raw
             FROM ${qualified(DATABASE, table)}
             ORDER BY isNull(${identifier("nullable_objects__value")}), element_raw
