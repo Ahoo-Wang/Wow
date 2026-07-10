@@ -43,9 +43,9 @@ data class BiScriptOptions(
         }
     }
 
-    companion object {
-        const val DEFAULT_KAFKA_BOOTSTRAP_SERVERS: String = "localhost:9093"
-        const val DEFAULT_TOPIC_PREFIX: String = Wow.WOW_PREFIX
+    private companion object {
+        private const val DEFAULT_KAFKA_BOOTSTRAP_SERVERS: String = "localhost:9093"
+        private const val DEFAULT_TOPIC_PREFIX: String = Wow.WOW_PREFIX
     }
 }
 
