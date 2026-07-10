@@ -183,6 +183,7 @@ git commit -m "feat(bi): resolve nullable JSON property types"
 - Modify: `wow-bi/src/main/kotlin/me/ahoo/wow/bi/expansion/plan/StateExpansionPlanner.kt`
 - Modify: `wow-bi/src/main/kotlin/me/ahoo/wow/bi/expansion/type/JsonPropertyTypeResolver.kt`
 - Modify: `wow-bi/src/main/kotlin/me/ahoo/wow/bi/renderer/ClickHouseScriptRenderer.kt`
+- Modify: `wow-bi/src/main/kotlin/me/ahoo/wow/bi/type/ClickHouseType.kt`
 - Modify: `wow-bi/src/test/kotlin/me/ahoo/wow/bi/BiScriptOptionsTest.kt`
 - Modify: `wow-bi/src/test/kotlin/me/ahoo/wow/bi/BiScriptGeneratorTest.kt`
 - Delete: `wow-bi/src/test/kotlin/me/ahoo/wow/bi/ScriptEngineTest.kt`
@@ -190,6 +191,7 @@ git commit -m "feat(bi): resolve nullable JSON property types"
 - Create: `wow-bi/src/test/kotlin/me/ahoo/wow/bi/expansion/plan/StateExpansionPlannerNullableTest.kt`
 - Modify: `wow-bi/src/test/kotlin/me/ahoo/wow/bi/expansion/type/JsonPropertyTypeResolverTest.kt`
 - Modify: `wow-bi/src/test/kotlin/me/ahoo/wow/bi/renderer/ClickHouseScriptRendererTest.kt`
+- Modify: `wow-bi/src/test/kotlin/me/ahoo/wow/bi/type/ClickHouseTypeTest.kt`
 
 **Produces:** A planner whose plans cannot carry arbitrary SQL types and whose fallback is always lossless.
 
@@ -246,6 +248,8 @@ Expected: compile failures for structural `ColumnPlan.type`, new enum/diagnostic
   parameters from `ResolvedType.arguments`; add a nested generic object test proving `Box<T>.value` keeps the concrete
   argument nullability after planner recursion.
 - `ColumnPlan.sqlType: String` becomes `ColumnPlan.type: ClickHouseType`.
+- Add a validated `ClickHouseType.DateTime(timezone)` scalar so source metadata columns retain their real structural type;
+  do not assign dummy types merely because `Source` extraction does not render a JSON type argument.
 - Effective leaf nullable = own nullable/unknown OR nullable object/element ancestor.
 - Every declared nullable/unknown property emits a SELECT raw companion named `__raw__<targetName>`.
 - A descendant made nullable only by its ancestor does not duplicate a leaf raw; the ancestor companion is authoritative.
