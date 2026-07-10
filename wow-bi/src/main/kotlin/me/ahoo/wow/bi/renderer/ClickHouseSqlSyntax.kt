@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.bi.renderer
 
-object ClickHouseSqlSyntax {
+internal object ClickHouseSqlSyntax {
     private fun requireSafe(value: String): String {
         require(value.none { it == '\u0000' || it.isISOControl() }) {
             "SQL token must not contain control characters."

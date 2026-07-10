@@ -15,7 +15,7 @@ package me.ahoo.wow.bi.expansion.plan
 
 import tools.jackson.databind.introspect.BeanPropertyDefinition
 
-object PropertyFilter {
+internal object PropertyFilter {
     fun shouldInclude(property: BeanPropertyDefinition): Boolean {
         return !property.name.endsWith(KOTLIN_DURATION_SUFFIX)
     }

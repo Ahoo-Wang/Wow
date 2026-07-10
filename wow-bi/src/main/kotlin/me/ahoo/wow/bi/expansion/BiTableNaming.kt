@@ -17,7 +17,7 @@ import me.ahoo.wow.api.modeling.NamedAggregate
 import me.ahoo.wow.bi.BiScriptOptions
 import me.ahoo.wow.naming.getContextAlias
 
-class BiTableNaming(private val options: BiScriptOptions = BiScriptOptions()) {
+internal class BiTableNaming(private val options: BiScriptOptions = BiScriptOptions()) {
     fun toTopicName(namedAggregate: NamedAggregate, suffix: String): String {
         return "${options.topicPrefix}${namedAggregate.getContextAlias()}.${namedAggregate.aggregateName}.$suffix"
     }

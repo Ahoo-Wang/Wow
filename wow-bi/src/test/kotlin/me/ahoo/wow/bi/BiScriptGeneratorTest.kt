@@ -26,7 +26,11 @@ class BiScriptGeneratorTest {
     @Test
     fun `should generate complete default sections with lossless fallbacks`() {
         val result = BiScriptGenerator().generate(setOf(aggregate))
+        val expectedScript = requireNotNull(
+            javaClass.classLoader.getResource("expected_bi_script.sql")
+        ).readText().trim()
 
+        result.script.trim().assert().isEqualTo(expectedScript)
         result.script.assert().contains("-- bi.aggregate.command --")
         result.script.assert().contains("-- bi.aggregate.stateEvent --")
         result.script.assert().contains("-- bi.aggregate.stateLast --")

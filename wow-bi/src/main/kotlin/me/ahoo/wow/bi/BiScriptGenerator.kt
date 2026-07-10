@@ -81,9 +81,4 @@ class BiScriptGenerator(private val options: BiScriptOptions = BiScriptOptions()
         val namedAggregate: NamedAggregate,
         val plan: StateExpansionPlan,
     )
-
-    companion object {
-        internal fun legacy(options: BiScriptOptions): BiScriptGenerator =
-            BiScriptGenerator(options)
-    }
 }

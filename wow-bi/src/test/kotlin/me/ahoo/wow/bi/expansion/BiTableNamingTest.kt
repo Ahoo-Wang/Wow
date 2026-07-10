@@ -15,8 +15,6 @@ package me.ahoo.wow.bi.expansion
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.bi.BiScriptOptions
-import me.ahoo.wow.bi.expansion.TableNaming.toDistributedTableName
-import me.ahoo.wow.bi.expansion.TableNaming.toTopicName
 import me.ahoo.wow.modeling.annotation.aggregateMetadata
 import org.junit.jupiter.api.Test
 
@@ -35,14 +33,6 @@ class BiTableNamingTest {
         val naming = BiTableNaming()
 
         naming.toDistributedTableName(biAggregateMetadata, "state_last").assert()
-            .isEqualTo("bi_aggregate_state_last")
-    }
-
-    @Test
-    fun `should preserve legacy table naming extensions`() {
-        biAggregateMetadata.toTopicName(prefix = "legacy.", suffix = "state").assert()
-            .isEqualTo("legacy.bi.aggregate.state")
-        biAggregateMetadata.toDistributedTableName("state_last").assert()
             .isEqualTo("bi_aggregate_state_last")
     }
 }

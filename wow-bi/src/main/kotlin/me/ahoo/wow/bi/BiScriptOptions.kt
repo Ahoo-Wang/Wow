@@ -23,8 +23,8 @@ data class BiScriptOptions(
     val shard: String = "{shard}",
     val replica: String = "{replica}",
     val timezone: String = "Asia/Shanghai",
-    val kafkaBootstrapServers: String = ScriptTemplateEngine.DEFAULT_KAFKA_BOOTSTRAP_SERVERS,
-    val topicPrefix: String = Wow.WOW_PREFIX,
+    val kafkaBootstrapServers: String = DEFAULT_KAFKA_BOOTSTRAP_SERVERS,
+    val topicPrefix: String = DEFAULT_TOPIC_PREFIX,
     val maxExpansionDepth: Int = 5,
     val unsupportedTypeStrategy: UnsupportedTypeStrategy = UnsupportedTypeStrategy.RAW_JSON,
 ) {
@@ -41,6 +41,11 @@ data class BiScriptOptions(
         require(maxExpansionDepth >= 1) {
             "maxExpansionDepth must be greater than or equal to 1"
         }
+    }
+
+    companion object {
+        const val DEFAULT_KAFKA_BOOTSTRAP_SERVERS: String = "localhost:9093"
+        const val DEFAULT_TOPIC_PREFIX: String = Wow.WOW_PREFIX
     }
 }
 
