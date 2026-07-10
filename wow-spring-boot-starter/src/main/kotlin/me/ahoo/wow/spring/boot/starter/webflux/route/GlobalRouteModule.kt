@@ -13,76 +13,16 @@
 
 package me.ahoo.wow.spring.boot.starter.webflux.route
 
-import me.ahoo.wow.spring.boot.starter.bi.BiScriptObjectMapStrategy
-import me.ahoo.wow.spring.boot.starter.bi.BiScriptProperties
-import me.ahoo.wow.spring.boot.starter.bi.BiScriptUnsupportedTypeStrategy
-import me.ahoo.wow.spring.boot.starter.kafka.KafkaProperties
+import me.ahoo.wow.bi.BiScriptOptions
 import me.ahoo.wow.webflux.route.HttpRouteHandlerFunctionFactory
-import me.ahoo.wow.webflux.route.global.BiScriptRouteObjectMapStrategy
-import me.ahoo.wow.webflux.route.global.BiScriptRouteOptions
-import me.ahoo.wow.webflux.route.global.BiScriptRouteUnsupportedTypeStrategy
 import me.ahoo.wow.webflux.route.global.GenerateBIScriptHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.global.GetWowMetadataHandlerFunctionFactory
 import me.ahoo.wow.webflux.route.global.GlobalIdHandlerFunctionFactory
 
-class GlobalRouteModule : WebFluxRouteModule {
-    override val httpFactories: List<HttpRouteHandlerFunctionFactory>
-
-    constructor(kafkaProperties: KafkaProperties?) {
-        val biScriptRouteFactory = if (kafkaProperties == null) {
-            GenerateBIScriptHandlerFunctionFactory()
-        } else {
-            GenerateBIScriptHandlerFunctionFactory(
-                kafkaBootstrapServers = kafkaProperties.bootstrapServersToString(),
-                topicPrefix = kafkaProperties.topicPrefix
-            )
-        }
-        httpFactories = routeFactories(biScriptRouteFactory)
-    }
-
-    constructor(kafkaProperties: KafkaProperties?, biScriptProperties: BiScriptProperties) {
-        val biScriptRouteOptions = biScriptProperties.toRouteOptions(kafkaProperties)
-        httpFactories = routeFactories(GenerateBIScriptHandlerFunctionFactory(biScriptRouteOptions))
-    }
-
-    private fun routeFactories(
-        biScriptRouteFactory: GenerateBIScriptHandlerFunctionFactory
-    ): List<HttpRouteHandlerFunctionFactory> = listOf(
+internal class GlobalRouteModule(options: BiScriptOptions) : WebFluxRouteModule {
+    override val httpFactories: List<HttpRouteHandlerFunctionFactory> = listOf(
         GlobalIdHandlerFunctionFactory(),
-        biScriptRouteFactory,
+        GenerateBIScriptHandlerFunctionFactory(options),
         GetWowMetadataHandlerFunctionFactory(),
     )
-
-    private fun BiScriptProperties.toRouteOptions(kafkaProperties: KafkaProperties?): BiScriptRouteOptions {
-        return BiScriptRouteOptions(
-            database = database,
-            consumerDatabase = consumerDatabase,
-            cluster = cluster,
-            installation = installation,
-            shard = shard,
-            replica = replica,
-            timezone = timezone,
-            kafkaBootstrapServers = kafkaBootstrapServers ?: kafkaProperties?.bootstrapServersToString(),
-            topicPrefix = topicPrefix ?: kafkaProperties?.topicPrefix,
-            maxExpansionDepth = maxExpansionDepth,
-            unsupportedTypeStrategy = unsupportedTypeStrategy.toRouteStrategy(),
-            objectMapStrategy = objectMapStrategy.toRouteStrategy(),
-        )
-    }
-
-    private fun BiScriptUnsupportedTypeStrategy?.toRouteStrategy(): BiScriptRouteUnsupportedTypeStrategy? =
-        when (this) {
-            null -> null
-            BiScriptUnsupportedTypeStrategy.FAIL -> BiScriptRouteUnsupportedTypeStrategy.FAIL
-            BiScriptUnsupportedTypeStrategy.STRING_WITH_DIAGNOSTIC ->
-                BiScriptRouteUnsupportedTypeStrategy.STRING_WITH_DIAGNOSTIC
-        }
-
-    private fun BiScriptObjectMapStrategy?.toRouteStrategy(): BiScriptRouteObjectMapStrategy? =
-        when (this) {
-            null -> null
-            BiScriptObjectMapStrategy.STRING_VALUE_WITH_DIAGNOSTIC ->
-                BiScriptRouteObjectMapStrategy.STRING_VALUE_WITH_DIAGNOSTIC
-            BiScriptObjectMapStrategy.FAIL -> BiScriptRouteObjectMapStrategy.FAIL
-        }
 }

@@ -53,6 +53,7 @@ dependencies {
     "redisSupportImplementation"("org.springframework.boot:spring-boot-starter-data-redis-reactive")
     "mockSupportImplementation"(project(":wow-mock"))
     "kafkaSupportImplementation"(project(":wow-kafka"))
+    "webfluxSupportApi"(project(":wow-bi"))
     "webfluxSupportImplementation"(project(":wow-webflux"))
     "cosecSupportImplementation"(project(":wow-cosec"))
     "elasticsearchSupportImplementation"(project(":wow-elasticsearch"))

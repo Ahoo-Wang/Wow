@@ -27,6 +27,7 @@ import me.ahoo.wow.query.snapshot.filter.SnapshotQueryHandler
 import me.ahoo.wow.spring.boot.starter.ConditionalOnWowEnabled
 import me.ahoo.wow.spring.boot.starter.ENABLED_SUFFIX_KEY
 import me.ahoo.wow.spring.boot.starter.bi.BiScriptProperties
+import me.ahoo.wow.spring.boot.starter.bi.toBiScriptOptions
 import me.ahoo.wow.spring.boot.starter.command.CommandAutoConfiguration
 import me.ahoo.wow.spring.boot.starter.kafka.KafkaProperties
 import me.ahoo.wow.spring.boot.starter.openapi.OpenAPIAutoConfiguration
@@ -271,11 +272,11 @@ class WebFluxAutoConfiguration {
     @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE)
     @ConditionalOnMissingBean
-    fun globalRouteModule(
+    internal fun globalRouteModule(
         kafkaProperties: ObjectProvider<KafkaProperties>,
         biScriptProperties: BiScriptProperties,
     ): GlobalRouteModule {
-        return GlobalRouteModule(kafkaProperties.getIfAvailable(), biScriptProperties)
+        return GlobalRouteModule(biScriptProperties.toBiScriptOptions(kafkaProperties.getIfAvailable()))
     }
 
     @Bean

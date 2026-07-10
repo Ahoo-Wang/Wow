@@ -14,6 +14,9 @@
 package me.ahoo.wow.spring.boot.starter.bi
 
 import me.ahoo.wow.api.Wow
+import me.ahoo.wow.bi.BiScriptOptions
+import me.ahoo.wow.bi.UnsupportedTypeStrategy
+import me.ahoo.wow.spring.boot.starter.kafka.KafkaProperties
 import org.springframework.boot.context.properties.ConfigurationProperties
 
 @ConfigurationProperties(prefix = BiScriptProperties.PREFIX)
@@ -28,44 +31,31 @@ data class BiScriptProperties(
     val kafkaBootstrapServers: String? = null,
     val topicPrefix: String? = null,
     val maxExpansionDepth: Int? = null,
-    val unsupportedTypeStrategy: BiScriptUnsupportedTypeStrategy? = null,
-    val objectMapStrategy: BiScriptObjectMapStrategy? = null,
+    val unsupportedTypeStrategy: UnsupportedTypeStrategy? = null,
 ) {
-    init {
-        database?.requireValidRequiredValue("database")
-        consumerDatabase?.requireValidRequiredValue("consumerDatabase")
-        cluster?.requireValidRequiredValue("cluster")
-        installation?.requireValidRequiredValue("installation")
-        shard?.requireValidRequiredValue("shard")
-        replica?.requireValidRequiredValue("replica")
-        timezone?.requireValidRequiredValue("timezone")
-        kafkaBootstrapServers?.requireValidRequiredValue("kafkaBootstrapServers")
-        topicPrefix?.requireValidRequiredValue("topicPrefix")
-        maxExpansionDepth?.let {
-            require(it >= 1) {
-                "maxExpansionDepth must be greater than or equal to 1"
-            }
-        }
-    }
-
     companion object {
         const val PREFIX = "${Wow.WOW_PREFIX}bi.script"
     }
 }
 
-private fun String.requireValidRequiredValue(name: String) {
-    require(isNotBlank()) { "$name must not be blank" }
-    require(none { it == '\u0000' || it.isISOControl() }) {
-        "$name must not contain control characters"
-    }
+internal fun BiScriptProperties.toBiScriptOptions(kafkaProperties: KafkaProperties?): BiScriptOptions {
+    return BiScriptOptions(
+        database = database ?: defaultBiScriptOptions.database,
+        consumerDatabase = consumerDatabase ?: defaultBiScriptOptions.consumerDatabase,
+        cluster = cluster ?: defaultBiScriptOptions.cluster,
+        installation = installation ?: defaultBiScriptOptions.installation,
+        shard = shard ?: defaultBiScriptOptions.shard,
+        replica = replica ?: defaultBiScriptOptions.replica,
+        timezone = timezone ?: defaultBiScriptOptions.timezone,
+        kafkaBootstrapServers = kafkaBootstrapServers
+            ?: kafkaProperties?.bootstrapServersToString()
+            ?: defaultBiScriptOptions.kafkaBootstrapServers,
+        topicPrefix = topicPrefix
+            ?: kafkaProperties?.topicPrefix
+            ?: defaultBiScriptOptions.topicPrefix,
+        maxExpansionDepth = maxExpansionDepth ?: defaultBiScriptOptions.maxExpansionDepth,
+        unsupportedTypeStrategy = unsupportedTypeStrategy ?: defaultBiScriptOptions.unsupportedTypeStrategy,
+    )
 }
 
-enum class BiScriptUnsupportedTypeStrategy {
-    FAIL,
-    STRING_WITH_DIAGNOSTIC,
-}
-
-enum class BiScriptObjectMapStrategy {
-    STRING_VALUE_WITH_DIAGNOSTIC,
-    FAIL,
-}
+private val defaultBiScriptOptions = BiScriptOptions()
